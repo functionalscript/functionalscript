@@ -730,10 +730,23 @@ exact about which is which.**
 The **value-word** collision — the silent one, where JavaScript accepts a
 binding and DataJS reads the word as a literal — is closed permanently, and by
 *this* grammar rather than by JavaScript's. The words DataJS reads as values
-are the nine its `value` and `word` productions name, all ASCII letters, and
-that list is fixed here. It does not grow when ECMA-262 grows, so no future
-JavaScript global or literal can become one, whatever it is called. Nothing a
-future edition does can reopen this.
+are **six** — `true`, `false`, `null`, `undefined`, `NaN` and `Infinity` — all
+ASCII letters, and that list is fixed here. It does not grow when ECMA-262
+grows, so no future JavaScript global or literal can become one, whatever it is
+called. Nothing a future edition does can reopen this.
+
+The `word` production names three more letter-starting words, `const`, `export`
+and `default`, and they are counted with the nine a tokenizer must recognize
+rather than with these six: they are statement keywords, not values, and all
+three are ECMA-262 reserved words, so a name colliding with one falls under the
+loud collision below and not this silent one.
+
+Of the six, only `undefined`, `NaN` and `Infinity` are silent today: `true`,
+`false` and `null` are reserved words, so `const true = 1` is a JavaScript
+syntax error like `const const = 1` is. The guarantee is still stated over all
+six, because what it fixes is DataJS's side of the pairing — if ECMA-262 ever
+stopped reserving one of those three, it would move into the silent set without
+this list changing, and the leading `$` would keep it out of reach either way.
 
 The **reserved-word** collision — the loud one, where JavaScript rejects the
 binding and the document is not JavaScript at all — is not closed by this

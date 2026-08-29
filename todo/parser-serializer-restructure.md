@@ -248,8 +248,12 @@ key       ::= string | '[' '"__proto__"' ']'
   would have to cover are both closed by the leading `$` — though not with the
   same guarantee, which the spec's rationale now separates: the *value-word*
   collision is closed permanently by DataJS's own grammar, since the words it
-  reads as values are the nine its productions name and that list does not grow
-  when ECMA-262 does; the *reserved-word* collision is ECMA-262's to decide, and
+  reads as values are **six** — `true`, `false`, `null`, `undefined`, `NaN`,
+  `Infinity` — and that list does not grow when ECMA-262 does. The `word`
+  production names `const`, `export` and `default` too, which is why a
+  *tokenizer* decides among nine, but those three are ECMA-262 reserved words
+  and so belong to the other collision. That one, the *reserved-word*
+  collision, is ECMA-262's to decide, and
   would need **two** things at once — a new keyword spelled with a `$` **and**
   made reserved rather than contextual. Measured: none of the sixty reserved,
   strict-mode-future, contextual and value words contains a `$`; fourteen of
