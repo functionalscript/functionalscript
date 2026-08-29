@@ -49,8 +49,8 @@ const job = (rust, nodeExtra) => o => a => {
  * declares its own environment beside the steps that enter it; this is the list
  * the generator writes out, and the only place the whole set is visible.
  *
- * Three canonical jobs are absent from it. `bun` and `wasm` are blocked on
- * Nixpkgs, for unrelated reasons — `./todo/bun-nix-blocked-on-nixpkgs.md` and
+ * Three canonical jobs are absent from it. `bun` and `wasm` wait on Nixpkgs, for
+ * unrelated reasons — `./todo/bun-nix-blocked-on-nixpkgs.md` and
  * `./todo/wasm-nix-blocked-on-rust-targets.md` — and `package-check` runs with no
  * checkout, so there is no file tree for a flake to be in. `./todo/65z-ci-nix.md`
  * keeps the three reasons together, and `./proof.f.mjs`'s `nixCoverage` keeps the

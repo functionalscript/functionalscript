@@ -380,7 +380,7 @@ export const proof = {
         }
         assertStructurallySame(
             canonical.filter(id => !installsNix(gha.jobs[id])),
-            // `bun` and `wasm` are blocked on Nixpkgs, for unrelated reasons;
+            // `bun` and `wasm` wait on Nixpkgs, for unrelated reasons;
             // `package-check` runs with no checkout, so there is no file tree
             // for a flake or its `run` script to be in.
             ['bun', packageCheckJobId, 'wasm'])

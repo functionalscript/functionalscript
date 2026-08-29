@@ -92,7 +92,8 @@ that job's four WASI targets — a gap no version bump closes.
 `package-check` runs with no checkout, which is the whole point of it, and a flake
 and its `run` script are files in a checkout. `fjs/ci/todo/65z-ci-nix.md` keeps the
 three together, and `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` and
-`fjs/ci/todo/wasm-nix-blocked-on-rust-targets.md` own the two that are blocked.
+`fjs/ci/todo/wasm-nix-blocked-on-rust-targets.md` own the two Nixpkgs cannot serve
+yet.
 
 The check's shape follows the runtime rather than a convention: `node --version`
 prints a leading `v` the configured version does not carry, while

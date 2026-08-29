@@ -61,8 +61,10 @@ three operating systems and two architectures, so a flake would replace the thin
 they measure; four of the six are not `aarch64-linux` at all.
 
 What remains here is the Nixpkgs update command and removing stale generated job
-directories, which waits on a recursive `rm` effect. The two blocked jobs are tracked
-in their own issues rather than as open items of this one.
+directories, which waits on a recursive `rm` effect. `bun` and `wasm` stay unmigrated
+under this issue's Nixpkgs-only design, and are tracked in their own issues rather
+than as open items of this one — both `open` there, since each still has a decision
+this repository can make.
 
 ### Problem
 
@@ -128,9 +130,9 @@ node26: aarch64-linux, nodejs_26
 deno:   aarch64-linux, deno
 ```
 
-`bun` would be `aarch64-linux, bun`, and is not declared while its migration is
-blocked; `wasm` has no declaration to write at all, because the packages it needs do
-not exist in the snapshot.
+`bun` would be `aarch64-linux, bun`, and is not declared while the snapshot's Bun
+fails this suite; `wasm` has no declaration to write at all, because the packages it
+needs do not exist in the snapshot.
 
 The Node attributes name a major version; Deno's names nothing. Where the attribute is
 unversioned the configured version is a claim the flake cannot restate, so only the job's
@@ -306,7 +308,7 @@ and the job that runs on it is where that claim is worth checking.
 
 Add other jobs only when useful:
 
-- Deno is done; Bun is blocked on Nixpkgs, tracked separately in
+- Deno is done; Bun waits on Nixpkgs, tracked separately in
   [bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md);
 - Rust has had the experiment this list asked for, and its concrete toolchain and
   target findings are
