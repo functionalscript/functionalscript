@@ -62,14 +62,22 @@ JavaScript token stream that produced them.
 ### One error shape is wrong; the rest are merely noisy
 
 Rewriting error shapes is cheap to wave through as churn, so the one that is a
-defect should be named as such. Three inputs share it, and each emits a
-**value token for text that was never in the input**:
+defect should be named as such. It emits a **value token for text that was never
+in the input**, and it is a *class* rather than a handful of cases: **every
+invalid escape and every raw control character inside a string** produces one.
 
 ```text
-"\x"        → error 'unescaped character', string "x"
-"\uEeFg"    → error 'invalid hex value',   string "g"
+"\x"        → error 'unescaped character',  string "x"
+"\v"        → error 'unescaped character',  string "v"
+"\0"        → error 'unescaped character',  string "0"
+"\u{41}"    → error 'invalid hex value',    string "{41}"
+"\uEeFg"    → error 'invalid hex value',    string "g"
 "a<TAB>b"   → error 'unescaped control character in string', string "ab"
 ```
+
+Raw NUL and US inside a string do the same. Counting instances understates it —
+a reader sizing the change needs the class, since rule 1 below covers all of
+them at once.
 
 A caller that filters errors out — or a parser that resynchronizes on the next
 value — sees a string `"x"` that no document contained. That is
@@ -341,10 +349,18 @@ What DataJS needs is known precisely enough to shape the seam:
 
 - **Strings are JSON's, unchanged** — same grammar, same escapes, same
   rejection of raw control characters. `scanString` is reused as-is.
-- **Numbers are JSON's core, extended.** DataJS adds a bigint production
-  (JSON's integer part followed by `n`, with no fraction or exponent — JS
-  rejects `1.5n` and `1e2n`) and folds `-` into a following `Infinity`. The
-  int/frac/exp scanning underneath is identical.
+- **Numbers are JSON's, unchanged.** The spec is explicit
+  ([`spec/datajs/README.md`](../../../../spec/datajs/README.md)): a DataJS
+  number *is* a JSON number, same production. What DataJS adds sits beside it,
+  not inside it — a **bigint is its own production**, `'-'? int 'n'`, reusing
+  JSON's integer part, and deliberately not "a number followed by `n`", since
+  that would accept `1.5n` and `1e2n`, which JavaScript rejects. And `NaN`,
+  `Infinity` and `-Infinity` are **words**, not number syntax at all; the `-`
+  folds into a following `Infinity` *word*.
+
+  So the reuse is of JSON's number *scanner*, not an extension of its number
+  *rule*. What stage 4 needs is to reach into the middle of that scanner —
+  hence the phase clause below.
 
 So the two are exported, and this stage owes their **entry contract** in
 writing, not just their signatures — that was the gap in an earlier draft, where
@@ -470,7 +486,9 @@ implementation PR — the premise only actually changes when the code does.
 - [ ] Add string-recovery proofs for the escape cases, which today's suite does
       not cover: `"\x\""` is one `invalid string`, and `"ok\x\"tail" 1` is one
       `invalid string` followed by the number `1` — the second pins the
-      resumption point, not just the count.
+      resumption point, not just the count. Pin at least one *other* invalid
+      escape (`"\v"`) and one raw control character, so the proof holds the
+      class rather than three instances of it.
 - [ ] Add word-boundary proofs, which today's suite does not cover: `true0`,
       `true_`, `true$`, `nullx`, `tru3` and `_x` are each one `invalid token`;
       `null-1` is `null` then `-1`; `trueÿ` is `true` then
@@ -488,9 +506,9 @@ implementation PR — the premise only actually changes when the code does.
 - [ ] Confirm afterwards that no runtime importer of `fjs/js/tokenizer` calls
       `tokenize`, and that `fjs/djs/tokenizer`'s `isKeywordToken`/`mergeTrivia`
       import is all that is left. The machine is retired in stage 7, not here.
-- [ ] Carry out the two edits owed above: drop 666's JSON task and JSON
-      motivation, and repoint `streaming-recognizer`'s scanner citations at
-      JSON's own string and number scanners.
+- [ ] Repoint `streaming-recognizer`'s scanner citations at JSON's own string
+      and number scanners. (666's edit is **already done** — it was rewritten in
+      the PR that filed this design, so nothing is owed there.)
 - [ ] Add `changelog/unreleased/<PR>.md` and the matching `Changelog:` section
       in the PR description. The implementation changes observable behavior of
       the public `tokenize` — the error tokens it emits — so the entry is
@@ -521,7 +539,10 @@ implementation PR — the premise only actually changes when the code does.
   the string and number scanners this stage exports, and may refine their
   contract while it is still unreleased.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — DataJS's
-  grammar, whose string rule is JSON's and whose number rule extends it.
+  grammar. Its string rule is JSON's, and its number rule is JSON's
+  *unchanged* — the bigint is a separate production reusing JSON's integer
+  part, and `NaN`/`Infinity` are words rather than number syntax. Stage 4
+  reuses JSON's scanners; it does not widen JSON's grammar.
 - [bnf-grammar-single-owner](./bnf-grammar-single-owner.md) — the BNF copy of
   this grammar; spec text and proof-covered example, never a runtime
   dependency of this scanner.
