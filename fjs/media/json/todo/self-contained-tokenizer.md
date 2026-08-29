@@ -699,9 +699,12 @@ defect.
 
 So the two land together, and attribution comes from proofs rather than from
 bisection. Every accepted-input proof must pass **byte-identically**, so any
-failure among them is the port; and every error-shape difference is checked
-against the **generated sweep tables**, so any difference they do not contain is
-also the port.
+failure among them is the port — that half is a closed set, because the proofs
+are enumerated. Error-shape differences are judged against the **two invariants
+and the stated rules**: a difference is the error-rule change if it follows from
+them, and the port if it does not. The generated sweep tables are how such
+differences are *surfaced*; they do not decide which ones may exist, and the
+next section says why they cannot.
 
 **No finite sweep is exhaustive**, and this design has now claimed otherwise
 three times — first over two number prefixes, then over the number scanner
@@ -713,7 +716,8 @@ reaches that.
 
 So the sweep is **coverage, not a proof**, and attribution rests on the two
 invariants plus the stated rules: a difference is expected if it follows from
-the rules, and a bug if it does not. The tables make violations likely to be
+the rules, and a bug if it does not — including a difference no table contains,
+which is why the paragraph above cannot make absence from the tables a verdict. The tables make violations likely to be
 *found*; they do not make the set of differences finite. Their prefixes should
 be derived from the union of both machines — including the old one's operator
 runs — because that is where the differences the new machine cannot predict
@@ -862,11 +866,14 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       what the re-dispatched character's *own* scanner then consumes. Generate
       the table from two-character suffixes as well.
 - [ ] Pin the individual cases, since they are what a reader reads: **no input
-      in the `00` + `c` + `1` family changes its token stream** — that is the
-      point of reproducing today's recovery set rather than improving it, and
-      `00-2`, `00-`, `00"a"`, `00;1`, `00 1`, `00]`, `00,` and `00<LF>1` are all
-      unchanged; `00"/1`, `00-"/1`, `00/1` and `12/1` keep their token counts
-      while `/`'s message becomes `unexpected character`.
+      in the `00` + `c` + `1` family changes its token kinds or counts** — that
+      is the point of reproducing today's recovery set rather than improving it.
+      Messages are a separate matter and do change, so the two groups are pinned
+      apart: `00-2`, `00-`, `00"a"`, `00;1`, `00 1`, `00]`, `00,` and `00<LF>1`
+      are unchanged token for token, while `00"/1`, `00-"/1`, `00/1` and `12/1`
+      keep their kinds and counts with `/`'s message becoming `unexpected
+      character`. `message` is part of `JsonToken`, so a committed table that
+      claimed the whole family unchanged could not be satisfied.
 - [ ] Prove string recovery ends at an unescaped quote, a raw LF and a raw CR
       but not a space — `"a<LF>1` emits the number `1`, `"a 1` is one error.
 - [ ] `npm run update`, then `npx tsc`, `fjs test`, `cargo clippy` and
