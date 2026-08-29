@@ -66,9 +66,9 @@ implementations behind two names would have been more honest, because nothing
 about the shared name signals the difference.
 
 **`fjs t` was sequential when that attempt forked from it, and that was a
-decision to copy, not a gap to fill.** (Today's `fjs t` fans out through
-`all`; the sequential plan below returns it to this paragraph's state, which
-is the state everything here argues for.) The first attempt gave the browser a batch
+decision to copy, not a gap to fill.** (It then fanned out through `all` for
+a while; step 7a returned it to this paragraph's state, which is the state
+everything here argues for.) The first attempt gave the browser a batch
 size — proofs launched in groups with a
 yield between groups. Nobody had asked for it, no measurement motivated the
 constant, and it was premature optimization in the strict sense: it made the
@@ -84,8 +84,8 @@ running a due timer. Six rounds of review, every one of them downstream of a
 constant that was finally deleted.
 
 **And "no batch size" is not "no yielding" — this file said so badly enough to
-mislead a later reader, which was me.** Copying today's concurrent `fjs t`
-exactly *does* freeze a page: without a yield the whole suite runs as one
+mislead a later reader, which was me.** Copying the *concurrent* `fjs t` that
+step 7a replaced would freeze a page: without a yield the whole suite runs as one
 task, measured at 54.7 s on this repo's own browser suite, and the line above
 about the batching having no paint boundary is about a bug in that attempt
 rather than a finding that the yield did nothing. What the browser needs is a
@@ -443,6 +443,15 @@ and is reviewable without the next one.
 - [ ] **7. One sequential skeleton.** Two PRs, in this order.
 
       **7a. Make the shared traversal sequential**, in `module.f.mjs` alone.
+      **Landed in functionalscript#1773.** `walkEntries` and `runModuleMap`
+      fold with `foldStep` instead of `allOk`; `sequential.proof.mjs` states
+      the order on a runner that can interleave, and both fan-outs were
+      restored one at a time to watch the matching proof fail. The measured
+      part, for whoever revisits the cost: the suite's wall clock moved 61.6 s
+      → 65.2 s, while the `Time:` line it prints moved 754 s → 63.4 s, because
+      a concurrent leaf's duration counted its siblings' work — one 1.4 ms
+      proof had been reporting 17.6 s. Speed was not a goal, and the number
+      that was wrong is the one that got fixed.
       Replace the `all` fan-outs with a sequential fold: one leaf's whole
       chain — test, report, children — awaited before the next leaf starts,
       for siblings and for modules alike. Console-observable and

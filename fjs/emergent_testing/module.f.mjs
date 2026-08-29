@@ -1,9 +1,13 @@
 /**
  * Test-framework helpers for running and reporting FunctionalScript tests.
  *
- * Two parallel execution paths:
+ * Two execution paths, side by side:
  * - `runModule` / `Reporter<O>` — self-hosted Effects runner used by `fjs t`;
- *   sandboxes each leaf call individually and accumulates `RunTotals`.
+ *   sandboxes each leaf call individually and accumulates `RunTotals`. It runs
+ *   **sequentially**: one leaf's whole chain — the call, its report, the tree
+ *   its return value produced — finishes before the next leaf starts. See
+ *   `walkEntries` for why that is the traversal's contract rather than an
+ *   incidental property of the runner underneath it.
  * - `registerModule` / `TestContext` — registers tests with an external
  *   framework (Node `--test`, Bun, Deno) at import time; the framework owns
  *   scheduling and pass/fail counting.
@@ -21,7 +25,7 @@
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, catch_, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import {
-    catchStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step,
+    catchStep, foldStep, history, historyStep, mapStep, pureError, pureOk, resultStep, step,
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
 import { invert } from '../types/result/module.f.mjs'
@@ -185,10 +189,10 @@ const mergeTotals = (a, b) =>
 /**
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(k: string, v: unknown) => (ts: RunTotals) => Effect<O | All | Catch, RunTotals, IoChannel>}
+ * @returns {(k: string, v: unknown) => (ts: RunTotals) => Effect<O | Catch, RunTotals, IoChannel>}
  */
 const runModule = ({ result, test }) => (k, v) => ts => {
-    /** @type {(entry: _TestAndPath) => Effect<O | All | Catch, RunTotals, IoChannel>} */
+    /** @type {(entry: _TestAndPath) => Effect<O | Catch, RunTotals, IoChannel>} */
     const one = ([testPath, set]) => {
         // The leaf's shared record is built here, next to the sandbox result it
         // is read from, so the leaf-landed event carries the value already
@@ -243,9 +247,36 @@ const runModule = ({ result, test }) => (k, v) => ts => {
                     sub => mergeTotals(total, sub))
             })
     }
-    /** @type {(entries: readonly _TestAndPath[]) => Effect<O | All | Catch, RunTotals, IoChannel>} */
+    /**
+     * Siblings in order, one whole chain at a time.
+     *
+     * **The sequence is the contract, not a scheduling detail.** `one` is the
+     * leaf's call, its report and the walk of whatever it returned; folding
+     * over the siblings puts the next leaf's call *after* the previous leaf's
+     * report rather than merely after its call. Everything a reader of a
+     * running suite expects follows from that one property: a line lands as
+     * its test finishes, in structural order, and a leaf's reported duration
+     * is its own time rather than a share of a group's.
+     *
+     * This replaced `allOk(...entries.map(one))`, and the reasons are in
+     * `todo/share-browser-console-runner.md`: fanning out made the whole suite
+     * one uninterruptible task in a browser, queued every report behind the
+     * last leaf, and put each fan-out under the engine's argument limit
+     * (`../effects/todo/all-argument-limit.md`). None of those were paid for
+     * by anything: a proof runner has no deadline, and the wall clock a
+     * fan-out saves is not a goal here.
+     *
+     * `foldStep` and not a hand-rolled recursion because it is this layer's
+     * `for` loop, and the accumulator is `RunTotals` — merged per leaf, so the
+     * join stays a constant-size record rather than a growing list.
+     *
+     * @type {(entries: readonly _TestAndPath[]) => Effect<O | Catch, RunTotals, IoChannel>}
+     */
     const walkEntries = entries =>
-        mapStep(allOk(...entries.map(one)), states => states.reduce(mergeTotals, zeroTotals))
+        foldStep(
+            pureOk(entries),
+            zeroTotals,
+            entry => acc => mapStep(one(entry), delta => mergeTotals(acc, delta)))
     // The *module's* own export is read unguarded, and that asymmetry is
     // deliberate rather than an oversight: there is no leaf to attribute it to,
     // so an unreadable `proof` export is whatever loaded the module's problem.
@@ -266,14 +297,19 @@ const proofEntries = moduleMap =>
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(moduleMap: ModuleMap) => Effect<O | All | Catch, number, IoChannel>}
+ * @returns {(moduleMap: ModuleMap) => Effect<O | Catch, number, IoChannel>}
  */
 export const runModuleMap = reporter => moduleMap => {
     const { summary } = reporter
     const modules = proofEntries(moduleMap)
-    const total = mapStep(
-        allOk(...modules.map(([k, v]) => runModule(reporter)(k, v)(zeroTotals))),
-        m => m.reduce(mergeTotals, zeroTotals))
+    // Modules are folded for the same reason siblings are — one module's leaves
+    // are all reported before the next module's first one — and the totals are
+    // threaded rather than merged afterwards, because `runModule` already
+    // accepts the running totals and answers the extended ones.
+    const total = foldStep(
+        pureOk(modules),
+        zeroTotals,
+        ([k, v]) => ts => runModule(reporter)(k, v)(ts))
     // The totals are still needed after the summary has been printed, so they
     // are carried forward in a history rather than closed over by a nested
     // continuation.
@@ -319,7 +355,7 @@ const exitCodeStep = e =>
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {Program<O | All | Catch | LoadModuleOperations | Write>}
+ * @returns {Program<O | Catch | LoadModuleOperations | Write>}
  */
 export const testAll = reporter => options =>
     exitCodeStep(step(loadModuleMap(options.env), runModuleMap(reporter)))
