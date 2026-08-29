@@ -443,7 +443,7 @@ and is reviewable without the next one.
 - [ ] **7. One sequential skeleton.** Two PRs, in this order.
 
       **7a. Make the shared traversal sequential**, in `module.f.mjs` alone.
-      **Landed in functionalscript#1773.** `walkEntries` and `runModuleMap`
+      **Landed in functionalscript#1774.** `walkEntries` and `runModuleMap`
       fold with `foldStep` instead of `allOk`; `sequential.proof.mjs` states
       the order on a runner that can interleave, and both fan-outs were
       restored one at a time to watch the matching proof fail. The measured

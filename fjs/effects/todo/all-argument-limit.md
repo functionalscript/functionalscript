@@ -19,7 +19,7 @@ however few leaves each holds, and one module of a hundred thousand leaves break
 one however few modules there are. A fix has to be the operation's, not a site's.
 
 The *proof-running* traversal used to hold two more rows — `walkEntries` and
-`runModuleMap` — and functionalscript#1773 retired them by folding sequentially
+`runModuleMap` — and functionalscript#1774 retired them by folding sequentially
 instead of fanning out. That removed two instances of this ceiling as a side
 effect of a change made for other reasons entirely; the registration path keeps
 its fan-out deliberately, because an external framework owns that scheduling.
@@ -53,7 +53,7 @@ that was a misattribution, corrected in the pitfall catalog in
 [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md).)
 The reverted functionalscript#1759 routed the page through the shared traversal and so
 briefly gave both runners the same ceiling; the sequential plan that replaced it removed
-the traversal's fan-outs entirely (functionalscript#1773). What remains is the registration
+the traversal's fan-outs entirely (functionalscript#1774). What remains is the registration
 path and `dev` — still the operation's problem, at fewer sites.
 
 ### Proposal
@@ -68,7 +68,7 @@ Then `allOk(entries.map(one))` builds an array and hands it over, and no call in
 grows with the suite. Every `all` handler changes shape — `effects/node`'s real and
 virtual runners, the mock, and any fixture that supplies one — which is what makes this
 its own step rather than a fix inside another change. Not a browser interpreter: the
-proof traversal performs no `all` since functionalscript#1773, so no browser implements it.
+proof traversal performs no `all` since functionalscript#1774, so no browser implements it.
 
 The variadic spelling is nicer at the two-or-three-effect call sites that motivated it
 (`both`, hand-written fan-outs in proofs), so a wrapper that keeps that shape over the
