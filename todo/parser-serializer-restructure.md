@@ -251,7 +251,11 @@ throughout.
    one detail left to reconcile in that todo. The
    conformance vectors are the remaining half, tracked in
    [`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md);
-   stages 3, 4 and 6 consume them.
+   stages 3, 4 and 6 consume them. One rule is still open:
+   [`spec/datajs/todo/whitespace-after-keywords.md`](../spec/datajs/todo/whitespace-after-keywords.md)
+   asks whether requiring whitespace after `const`, `export` and `default`
+   lets stage 4's tokenizer drop maximal munch, and whether stage 5's
+   FunctionalScript front end can take the same rule.
 2. **Dead code — done.** `fjs/fsc/bnf.f.mjs` and `fjs/fsc/json.f.mjs` are
    deleted rather than salvaged: both were dead (no importer) and unproven,
    the JSON half duplicated `deterministic` in `fjs/bnf/testlib.f.mjs` rule

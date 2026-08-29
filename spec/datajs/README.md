@@ -104,6 +104,11 @@ JavaScript syntax error, because `default1` lexes as a single identifier.
 merges into `default$0` exactly as `export default1;` merges, and needs the
 space just the same.
 
+Whether this rule should instead be positional — whitespace required after
+`const`, `export` and `default` and nowhere else, so that no tokenizer has to
+reason about merging — is open, and tracked in
+[`todo/whitespace-after-keywords.md`](./todo/whitespace-after-keywords.md).
+
 Everywhere else whitespace is optional, so every document has a one-line
 spelling: `export default-1;`, `export default[1];` and `export default"a";`
 all need no space.
