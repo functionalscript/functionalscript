@@ -70,7 +70,38 @@ cannot: the corpus reader had already decoded it.
 The six parts:
 
 - **accept** — document text plus the graph it denotes, including the sharing.
-  Cases: a **lone surrogate**, `export default "\ud800";` denoting the
+
+  **Derived from the grammar: every production, and every branch of every
+  production, owes an accept vector.** Review found the accept side short five
+  times in three rounds — the four permitted whitespace characters, the lone
+  surrogate, the byte form, the simple escapes, and the fraction and exponent
+  — always because the set had been assembled from interesting cases rather
+  than read off the productions. What that derivation requires, where the
+  grammar branches:
+
+  - **`number ::= '-'? int frac? exp?`** — the sign present and absent, both
+    `int` alternatives (`0` and `[1-9][0-9]*`), `frac` present and absent,
+    `exp` present and absent, and within `exp` both letter cases and all three
+    sign states: `0`, `-0`, `12`, `1.5`, `-1.5`, `1e2`, `1E2`, `1e+2`, `1e-2`,
+    `1.5e-2`. A reader accepting integers and the named words while rejecting
+    every fraction and exponent passed the earlier set entirely.
+  - **`string`** — all nine escapes, not just the one an interesting case
+    happened to use: `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`, `\t` and
+    `\uXXXX`, plus a raw non-ASCII character. The lone surrogate exercises
+    `\u` alone, so a reader supporting raw text and `\u` while rejecting the
+    eight simple escapes passed too.
+  - **`bigint ::= '-'? int 'n'`** — both signs against both `int`
+    alternatives: `0n`, `-0n`, `12n`, `-12n`.
+  - **`infinity`, `array`, `object`, `key`, `document`** — both signs; empty
+    and non-empty; both `key` alternatives; zero `const`s and several.
+
+  The reject half of this corpus is derived from the spec's narrowing rules,
+  and this is its twin: the same discipline pointed at the productions instead
+  of the prose. Ad-hoc accept sets fail in one direction only, which is why
+  every one of those five was invisible until someone asked which way a vector
+  pointed.
+
+  Cases beyond that derivation, each earning its place: a **lone surrogate**, `export default "\ud800";` denoting the
   one-unit value `[0xd800]` — it appears under `normalize` too, but roles are
   judged independently, so a reader-only implementation whose string model
   cannot hold one passes every reader vector without this; **each of the four
@@ -195,14 +226,17 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Ten consecutive review rounds
+  vector is the only instrument that sees it. Eleven consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
   control characters, then the vertical tab and the required separators, then
   the fifteen `Space_Separator` characters the spec's own list omits, then the
   array elisions and the leading BOM, then the accept side of the whitespace
-  rule, then the accept sides of the byte form and the lone surrogate. Every time the list had been written from memory rather
+  rule, then the accept sides of the byte form and the lone surrogate, then
+  the simple escapes and the fraction and exponent — the last two of which
+  finally produced a derivation for the accept set rather than another pair of
+  vectors. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
