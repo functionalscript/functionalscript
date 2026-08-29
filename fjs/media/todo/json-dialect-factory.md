@@ -392,6 +392,32 @@ that contract while still having one owner.
 The `isValid…` adapters disappear into the factory; alternatively (or
 additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
 
+**`match` and `validate` must be the same acceptance rule.** This is where
+the adapters going into the factory earns its keep, and it is not optional.
+`dialectEntry` builds `match` as `matchWith(rttiParse(type))(extraValidate)`
+(`../module.f.mjs:136`, `:72-75`) — the rtti shape check plus whatever
+boolean the registrant passed, and nothing else. If the factory's exact-number
+walk lives only in its `validate`, the two predicates diverge: for a
+factory-built dialect that supplies no refinement, `detect` would classify a
+blob carrying `-0` as `application/vnd.fjs.x+json` (`:165`) while that
+dialect's own `decodeText` rejects it — detection labelling a blob its
+decoder will not read, which is the plausible-wrong-answer failure
+`DESIGN.md §10` refuses.
+
+So the kit builds its `entry` from its **own** `validate`, not from the
+schema a second time:
+
+```js
+const entry = { dialect, match: u => isOk(validate(/** @type {JsonUnknown} */ (u))) }
+```
+
+The cast is the one `dialectEntry` already performs for the same reason
+(`../module.f.mjs:135`): `DialectEntry.match` takes rtti's encoding-neutral
+`Unknown` so an entry stays usable by a future non-JSON detector
+(`../types.ts:14-16`), while `validate` takes the JSON-only one. One rule,
+two spellings of the same question — which is this issue's whole point, one
+level up from the seven-line kit.
+
 ### Tasks
 
 - [ ] Add `jsonDialect` and the shared `dialectMediaType` to
@@ -437,6 +463,13 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
 - [ ] Add `Object.is(r.generation, -0)` to `revision`'s own check for the
       better message, and prove `decodeText('{"generation":-0,…}')` is an
       error. Independent of the factory — worth landing on its own.
+- [ ] Build the kit's `entry` from the kit's own `validate`, so `match` and
+      `validate` are one acceptance rule rather than two. Prove the case
+      that would otherwise diverge: for a factory-built dialect with no
+      refinement, a blob whose only fault is a `-0` is rejected by
+      `decodeText` **and** not classified by `detect` — today's `match`
+      (`../module.f.mjs:136`) would accept it, since it runs the shape check
+      and the refinement only.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
       copies and the two `isValid…` adapters. Keep every published name —
       `revisionDialect`/`lockDialect`/`noteDialect` aliasing the kit's

@@ -87,12 +87,20 @@ the call site, exactly as it does for `cmp`; the cast only gets the body past
 the checker.
 
 **Keep the published surface exactly as it is.** Only `bigint` exports
-`addition` today (`../../../bigint/module.f.mjs:34`); `number` and `string`
-merely *use* the operator module's version, in `sum`
-(`../../../number/module.f.mjs:18`) and inside `concat`
-(`../../../string/module.f.mjs:49`). So `bigint`'s export becomes a narrowly
-typed alias of the polymorphic definition, and `number`/`string` publish
-nothing new — they keep importing it. Adding `number.addition` and
+`addition` today (`../../../bigint/module.f.mjs:34`). `number` already
+*consumes* the operator module's version — `sum` is
+`fold({ identity: 0, operation: addition })` over the import at
+`../../../number/module.f.mjs:13`. `string` does **not**: it imports `join`
+from this module but nothing else (`../../../string/module.f.mjs:26`), and
+`concat` still inlines the operation —
+`fold({ identity: '', operation: a => b => a + b })` (`:49`). That inlined
+lambda is the third copy this issue exists to remove, so `string` starts
+importing `addition` and passes it to `fold`; leaving it in place would let
+every task below be checked off with the duplication intact.
+
+So `bigint`'s export becomes a narrowly typed alias of the polymorphic
+definition, and `number`/`string` publish nothing new — they consume it.
+Adding `number.addition` and
 `string.addition` for symmetry with `cmp` would be a separate decision:
 `cmp` is re-exported per domain because callers ask for it there, and no
 caller asks for these. Each new name would also owe a proof entry of its
@@ -111,8 +119,14 @@ different domain, and consolidating it is its own decision.
 
 - [ ] Add `Add1`/`Add2` to `../types.ts` and the polymorphic `addition`
       here. `bigint` keeps its existing `addition` export, now a narrowly
-      typed alias; `number` and `string` keep importing it and publish
-      nothing new.
+      typed alias; `number` keeps consuming it; neither publishes anything
+      new.
+- [ ] Make `string` import `addition` and pass it to `fold` —
+      `concat = fold({ identity: '', operation: addition })`
+      (`../../../string/module.f.mjs:49`). This is the third copy, and the
+      only site that has to *start* importing rather than keep doing so;
+      without this line the operation is still defined twice when every
+      other task is done.
 - [ ] Give `bigint`'s `addition` a proof entry. It is exported today and
       `../../../bigint/proof.f.mjs` never calls it — a pre-existing gap
       against `fjs/AGENTS.md:25-34`, and this change is what makes it a
