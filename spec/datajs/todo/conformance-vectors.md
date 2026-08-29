@@ -369,12 +369,21 @@ The six parts:
     `number` names a binary64 value and not the literal: `1000000000000000128`,
     whose value's canonical spelling is `1000000000000000100`; `5e-324`, the
     smallest positive subnormal, which is a *nonzero* value; `1e-999`, which
-    denotes `0`; and `1e999`, which denotes `Infinity`, with a signed twin
-    since `-1e999` is `-Infinity`. Each names a different broken reader — one
-    keeping the literal exactly in a decimal or bigint type, one flushing a
-    subnormal to zero, one erroring on underflow, one erroring on overflow —
-    and every other number vector here is small enough that all four pass it.
-    Review found the first; the other three are the sweep for its shape. These
+    denotes `0`; and `1e999`, which denotes `Infinity`. Each names a different
+    broken reader — one keeping the literal exactly in a decimal or bigint
+    type, one flushing a subnormal to zero, one erroring on underflow, one
+    erroring on overflow — and every other number vector here is small enough
+    that all four pass it. **And a signed twin of each**, which the rule two
+    bullets down requires and the commit that added the four did not apply,
+    the fifth time that has happened: `-1000000000000000128`, `-5e-324`,
+    `-1e-999` and `-1e999`. Measured, the signs are not decoration —
+    `-1e-999` denotes **`-0`** where `1e-999` denotes `0`, an `Object.is`
+    difference this corpus is required to see, so a reader preserving the sign
+    on the literal zero spellings `-0`, `-0.0` and `-0e0` while dropping it
+    when a nonzero magnitude underflows passes every other vector here;
+    `-1e999` is `-Infinity` and `-1000000000000000100` is the rounded
+    negative. Review found `-1e-999`; the other three are the sweep for its
+    shape, which is the same sweep that had produced the four. These
     are the reader's half of cases the `normalize` role already carries, and
     per-role conformance means a reader-only implementation never runs that
     role: **a normalize vector owes a reader vector wherever a plausible
@@ -969,7 +978,12 @@ The six parts:
   the file that records the §Whitespace trap. Then the ceiling above the
   ceiling: the bigint added one round earlier sat past `2^53` and inside
   `i64`, so a fixed-width implementation passed it, and the vector that had
-  just been written to catch a fixed-width path was itself fixed-width-sized. The sweep for the lead-partition shape had
+  just been written to catch a fixed-width path was itself fixed-width-sized.
+  Then the signed twins of those four, the rule stated two bullets from where
+  the four were written and unapplied to them — the fifth instance of that
+  exactly, and the sharpest, since `-1e-999` denotes `-0` and not `0`, so the
+  missing twin was not symmetry but a value the corpus is required to
+  distinguish. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
