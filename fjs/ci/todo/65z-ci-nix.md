@@ -195,9 +195,8 @@ A CI step runs one command (root [`AGENTS.md`](../../../AGENTS.md) §7), so the 
 is not bundled into a `bash -c` script: the step is what CI reports on, and a bundle
 names the wrapper rather than the command that failed.
 
-A step enters the shell only when it needs a tool the flake pins. `git` and `grep` are
-the runner's, as they are for a `setup-node` job today, so the Node 26 drift check and
-the typedef gate stay plain steps:
+A step enters the shell only when it needs a tool the flake pins. `git` is the runner's,
+as it is for a `setup-node` job today, so the Node 26 drift check stays a plain step:
 
 ```sh
 nix develop ./nix/node26 --command npm run ci-update
