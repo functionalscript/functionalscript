@@ -389,13 +389,13 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(nix develop --no-write-lock-file ./nix/deno --command deno eval 'console.log(Deno.version.deno)')\" = 2.8.3"
+          "run": "test \"$(./nix/deno/run deno eval 'console.log(Deno.version.deno)')\" = 2.8.3"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/deno --command deno install --frozen"
+          "run": "./nix/deno/run deno install --frozen"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/deno --command deno task cov"
+          "run": "./nix/deno/run deno task cov"
         }
       ]
     },
@@ -429,13 +429,13 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(nix develop --no-write-lock-file ./nix/node22 --command node --version)\" = v22.23.2"
+          "run": "test \"$(./nix/node22/run node --version)\" = v22.23.2"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/node22 --command npm ci"
+          "run": "./nix/node22/run npm ci"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/node22 --command node --test"
+          "run": "./nix/node22/run node --test"
         }
       ]
     },
@@ -449,13 +449,13 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(nix develop --no-write-lock-file ./nix/node24 --command node --version)\" = v24.19.0"
+          "run": "test \"$(./nix/node24/run node --version)\" = v24.19.0"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/node24 --command npm ci"
+          "run": "./nix/node24/run npm ci"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/node24 --command node --test"
+          "run": "./nix/node24/run node --test"
         }
       ]
     },
@@ -469,22 +469,22 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(nix develop --no-write-lock-file ./nix/node26 --command node --version)\" = v26.7.0"
+          "run": "test \"$(./nix/node26/run node --version)\" = v26.7.0"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/node26 --command npm ci"
+          "run": "./nix/node26/run npm ci"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/node26 --command npx tsc"
+          "run": "./nix/node26/run npx tsc"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/node26 --command npm run cov"
+          "run": "./nix/node26/run npm run cov"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/node26 --command npm pack"
+          "run": "./nix/node26/run npm pack"
         },
         {
-          "run": "nix develop --no-write-lock-file ./nix/node26 --command npm run ci-update"
+          "run": "./nix/node26/run npm run ci-update"
         },
         {
           "run": "git add -A && git diff --cached --exit-code"

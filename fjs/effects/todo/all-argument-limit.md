@@ -11,14 +11,18 @@ ceiling. Every site in the repository today:
 
 | site | what it fans out |
 |-|-|
-| `emergent_testing/module.f.mjs` `walkEntries` | one module's sibling leaves |
-| `emergent_testing/module.f.mjs` `runModuleMap` | the modules of a run |
-| `emergent_testing/module.f.mjs` `registerModule` ×2, `registerModuleMap` | the same two, for the framework-registration path |
+| `emergent_testing/module.f.mjs` `registerModule` ×2, `registerModuleMap` | one module's sibling leaves, and the modules of a run, for the framework-registration path |
 | `dev/module.f.mjs` ×2 | files to load, and their imports |
 
 They fail independently: a suite of a hundred thousand *modules* breaks the outer spread
 however few leaves each holds, and one module of a hundred thousand leaves breaks the inner
 one however few modules there are. A fix has to be the operation's, not a site's.
+
+The *proof-running* traversal used to hold two more rows — `walkEntries` and
+`runModuleMap` — and functionalscript#1774 retired them by folding sequentially
+instead of fanning out. That removed two instances of this ceiling as a side
+effect of a change made for other reasons entirely; the registration path keeps
+its fan-out deliberately, because an external framework owns that scheduling.
 
 A spread is a call, and a call has an argument limit. Measured on node 22:
 
@@ -28,15 +32,15 @@ A spread is a call, and a call has an argument limit. Measured on node 22:
 | 100,000 | `RangeError: Maximum call stack size exceeded` |
 
 The throw is in **building** the effect, before any interpreter sees it, so no runner can
-recover from it and no `catch` operation is in the path. Today only `fjs t` is on this
-path, and it panics. (The reverted functionalscript#1759 briefly put the browser page on
+recover from it and no `catch` operation is in the path. Today the paths that reach it are
+`fjs t`'s module *loading* and the registration entry point, and both panic. (The reverted functionalscript#1759 briefly put the browser page on
 it too, where the page's run-failure guard reported one `infrastructure-error` — the guard
 working as intended, but not an answer; the current page takes the `Promise.all` path
 below and never builds the effect.)
 
-The ceiling applies **per fan-out**, and a run has two: one module with too many sibling
-leaves breaks the inner spread, and a run with too many *modules* breaks the outer one in
-`runModuleMap` — the independence the table above states. Nothing in this repository is
+The ceiling applies **per fan-out**, and the registration path has two: one module with too
+many sibling leaves breaks the inner spread, and a run with too many *modules* breaks the
+outer one — the independence the table above states. Nothing in this repository is
 close to either — the browser suite is 3,461 leaves across 138 modules, three orders of
 magnitude under both — so this is a real ceiling rather than a live problem, and it is
 recorded rather than fixed for that reason.
@@ -48,10 +52,9 @@ earlier version of this paragraph credited `batchSize = 25` with staying under t
 that was a misattribution, corrected in the pitfall catalog in
 [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md).)
 The reverted functionalscript#1759 routed the page through the shared traversal and so
-briefly gave both runners the same ceiling; the sequential plan that replaced it removes
-the traversal's fan-outs entirely, which retires the `walkEntries` and `runModuleMap` rows
-above. What remains then is the registration path and `dev` — still the operation's
-problem, at fewer sites.
+briefly gave both runners the same ceiling; the sequential plan that replaced it removed
+the traversal's fan-outs entirely (functionalscript#1774). What remains is the registration
+path and `dev` — still the operation's problem, at fewer sites.
 
 ### Proposal
 
@@ -64,8 +67,8 @@ export type All = readonly['all', <T, E>(effects: readonly Effect<never, T, E>[]
 Then `allOk(entries.map(one))` builds an array and hands it over, and no call in the path
 grows with the suite. Every `all` handler changes shape — `effects/node`'s real and
 virtual runners, the mock, and any fixture that supplies one — which is what makes this
-its own step rather than a fix inside another change. Not a browser interpreter: under
-the sequential plan the traversal performs no `all`, so no browser implements it.
+its own step rather than a fix inside another change. Not a browser interpreter: the
+proof traversal performs no `all` since functionalscript#1774, so no browser implements it.
 
 The variadic spelling is nicer at the two-or-three-effect call sites that motivated it
 (`both`, hand-written fan-outs in proofs), so a wrapper that keeps that shape over the
@@ -74,12 +77,14 @@ unambiguous names, whichever branch is taken**: if the wrapper is kept it keeps
 the published `all`/`allOk` names (that is what narrows the break, per the task
 below) and the list-shaped operation is exported beside it under its own names
 (say `allList`/`allOkList`); if the wrapper is dropped, the list shape takes
-the old names. Every arbitrary-length fan-out — the traversal sites in the
+the old names. Every arbitrary-length fan-out — the sites in the
 table, and combinators born after this issue
 ([allvoid-combinator](./allvoid-combinator.md),
 [allreduce-combinator](./allreduce-combinator.md)) — calls the *list-shaped*
 callable by whichever name this decision lands on, so those designs are
-buildable under every permitted outcome.
+buildable under every permitted outcome. (The table's sites are the fixed set
+that has to migrate; the combinators are the ones that must not be written
+variadic in the first place.)
 
 ### Alternatives considered
 
