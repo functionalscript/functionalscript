@@ -55,37 +55,29 @@ left rather than what this section was filed against:
 
 So the remaining duplication is one walker per family, and the extraction point
 already exists and is exported: `treeSerialize`. The question is no longer "where
-should a shared walker live" but "can `treeSerialize`'s `leafSerialize` seam
-absorb DJS's deltas". `fjs/djs/serializer` already imports the *leaves*
-(`objectWrap`, `arrayWrap`, `colon`, `stringSerialize`, …) from
-`fjs/media/json/serializer` — only the walker is still its own.
+should a shared walker live" but "is one walker with the seams DJS needs better
+than two" — which **the delta is three seams** below sets out, and does not
+presume.
 
-Each defines the identical closure cluster: `propertySerialize`
-(`flat([stringSerialize(k), colon, f(v)])`), `mapPropertySerialize`,
-`objectSerialize = fn(entries).map(sort).map(mapPropertySerialize).map(objectWrap).result`,
-the recursive `f` switching on `typeof`, and
-`arraySerialize = compose(map(f))(arrayWrap)`. The serializer already imports
-its primitives (`stringSerialize`, `objectWrap`, `arrayWrap`, …) from
-`fjs/media/json/serializer/module.f.mjs`, so the leaves are shared; only the walker was
-copied.
+Both still define the same closure cluster — `propertySerialize`,
+`mapPropertySerialize`, `objectSerialize`, the recursive `f`, and
+`arraySerialize = compose(map(f))(arrayWrap)` — and both already import their
+*leaves* (`objectWrap`, `arrayWrap`, `colon`, `stringSerialize`, …) from
+`fjs/media/json/serializer/module.f.mjs`. Only the walker was copied.
 
-The deltas:
+**Sub-task 2b (done):** the two DJS functions collapsed into one
+`buildSerialize(keySerialize)(refLookup)(sort)` factory in
+`fjs/djs/serializer/module.f.mjs` — `serializeWithoutConst` supplies
+`jsonKeySerialize` and no ref lookup, `serializeWithConst` supplies
+`jsKeySerialize` and a closure substituting `c<N>` references. What remains of
+this section is sharing one walker between that factory and JSON's
+`treeSerialize`.
 
-- JSON's `f` handles `boolean | number | string | null | Array | Object`;
-  DJS adds `bigint` and `undefined`.
-- `serializeWithConst` is `serializeWithoutConst` plus a ref-counter
-  short-circuit prepended to `f`.
-
-**Sub-task 2b (clearest, smallest, done):** the two DJS functions now collapse
-into one `buildSerialize(refLookup)(sort)` factory in
-`fjs/djs/serializer/module.f.mjs` taking an optional ref-lookup callback —
-`serializeWithoutConst = buildSerialize(noRef)`, and `serializeWithConst`
-supplies a ref-lookup closure that substitutes `c<N>` references. What
-remains of this section is extracting a shared walker between JSON's
-`serialize` (`fjs/media/json/module.f.mjs:52`) and DJS's `buildSerialize`.
-
-A `serializeValue` factory (in `json/serializer`) parameterized by the extra
-`typeof` cases and an optional pre-`f` hook covers all three call sites.
+What that costs is set out under **the delta is three seams** below. Note the
+shape of `buildSerialize` above: it already takes the key seam and the
+pre-recursion seam as parameters, which is the same shape a shared walker would
+need — this section is about whether the two can be one function, not about
+discovering what varies.
 
 This serializer sub-task is independent of the exact-number parser dependency
 above and may land separately.
