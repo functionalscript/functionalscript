@@ -518,6 +518,39 @@ export const failuresSurviveARunThatDies = () => {
 }
 
 /**
+ * The leaf whose *own report* fails is not lost either.
+ *
+ * A sibling case to the one above, and it needed its own fix: the leaf has
+ * already run by the time `result` is called, so a reporter that cannot write
+ * its line must not also erase the test underneath it. `bad` is folded into the
+ * state before the failure is recorded, so the summary still describes what it
+ * failed with — through a `summary` that is *not* broken, which is the
+ * configuration that makes the loss observable rather than moot.
+ *
+ * There is no `bad(): error` line because writing that line is exactly what
+ * failed. The name is still on the log, from the announcement.
+ */
+export const aLeafSurvivesItsOwnReportFailing = () => {
+    const opts = options('.')
+    const reporter = defaultReporter(opts)
+    /** @type {typeof reporter} */
+    const mute = {
+        ...reporter,
+        result: () => pureError(/** @type {const} */ (['ioError', { message: 'cannot report' }])),
+    }
+    const root = { 'a.proof.f.ts': () => ({ proof: { bad: fail0 } }) }
+    const [finalState, code] = virtual({ ...emptyState, root })(testAll(mute)(opts))
+    assertEq(exitCode(code), 1)
+    assertEq(
+        finalState.stdout,
+        'import("./a.proof.f.ts").proof.bad(): running\n'
+        + 'import("./a.proof.f.ts").proof.bad()\n'
+        + 'oops\n',
+    )
+    assertEq(finalState.stderr, 'cannot report\n')
+}
+
+/**
  * Nothing runs after a run has been abandoned — not the leaves that remain,
  * and not the modules.
  *
@@ -976,6 +1009,7 @@ export const proof = {
     defaultReporterOutputDuringATest,
     startSurvivesARunThatDies,
     failuresSurviveARunThatDies,
+    aLeafSurvivesItsOwnReportFailing,
     nothingRunsAfterARunIsAbandoned,
     githubReporterOutput,
     reporterWriteFailure,

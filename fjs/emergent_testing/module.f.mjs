@@ -26,11 +26,11 @@ import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
 import { allOk, awaitIfPromise, catch_, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
 import {
     catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
-    resultStep, step,
+    resultMapStep, resultStep, step,
     walkStep,
 } from '../effects/module.f.mjs'
 import { loadModuleMap } from '../dev/module.f.mjs'
-import { invert } from '../types/result/module.f.mjs'
+import { invert, ok } from '../types/result/module.f.mjs'
 import { definedEntries } from '../types/object/module.f.mjs'
 import { concat } from '../types/list/module.f.mjs'
 
@@ -283,9 +283,17 @@ const runModule = ({ result, start, test }) => (k, v) => state => {
         })
         // Both are still needed after they have been reported, so the reporting
         // call is captured rather than nested inside its own step.
+        //
+        // **Its `Result` is carried as a value** — that is what `resultMapStep`
+        // with `ok` does — because the leaf has already run by the time it is
+        // reported, and a report that fails must not erase the test that
+        // succeeded or failed underneath it. Handling the failure by nesting a
+        // continuation inside this one would see `t` and `sr`, and is what
+        // §3.4 rules out; carrying it in the history keeps the chain flat and
+        // hands the next line both the outcome and the leaf it belongs to.
         const reported = historyStep(
             history(evaluated),
-            ([t, sr]) => result(t, sr, set.throws))
+            ([t, sr]) => resultMapStep(result(t, sr, set.throws), ok))
         // The leaf's children are *answered*, not walked here: `walkEntries`
         // puts them in front of the siblings that remain, which is the same
         // order — the tree a leaf returned, then the next leaf — without a
@@ -293,15 +301,29 @@ const runModule = ({ result, start, test }) => (k, v) => state => {
         // ancestor, so a leaf returning a deep enough chain of children died
         // with `RangeError` where the fan-out this replaced had not; see
         // `../effects/module.f.mjs`'s `walkStep`.
-        // A reporting or dispatch failure ends the run, but as a *value*: the
-        // walk carries it to the summary, which describes what the run had
-        // already collected before the channel gave out. Propagating it here
-        // instead discarded exactly the diagnostics a dying run is worth
-        // having.
+        // A failure ends the run, but as a *value*: the walk carries it to the
+        // summary, which describes what the run had already collected before
+        // the channel gave out. Propagating it instead discarded exactly the
+        // diagnostics a dying run is worth having.
+        //
+        // Where it happened decides what the run keeps. A leaf whose *report*
+        // failed still ran, and is folded in before the failure is recorded —
+        // its count and, if it failed, the value it failed with are part of
+        // what the summary describes. A failure in `start` or `test` is the
+        // other case: there is no outcome to keep, and `acc` is the state
+        // unchanged.
         return resultStep(
             mapStep(
                 reported,
-                ([, [t, sr, children]]) => /** @type {const} */ ([addLeaf(acc, t, sr), children])),
+                ([reportOutcome, [t, sr, children]]) => {
+                    const landed = addLeaf(acc, t, sr)
+                    return reportOutcome[0] === 'ok'
+                        ? /** @type {const} */ ([landed, children])
+                        : /** @type {const} */ ([
+                            { ...landed, aborted: reportOutcome[1] },
+                            emptyEntries,
+                        ])
+                }),
             r => r[0] === 'ok'
                 ? pure(r)
                 : pureOk(/** @type {const} */ ([{ ...acc, aborted: r[1] }, emptyEntries])))
