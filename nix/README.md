@@ -11,29 +11,29 @@ Each flake pins the exact Nixpkgs commit from
 development shell for the job's runner:
 
 ```sh
-nix develop ./nix/node24 --command node --version
+nix develop --no-write-lock-file ./nix/node24 --command node --version
 ```
 
 The pinned commit determines the package versions: `pkgs.nodejs_24` at that
-revision is one exact Node release, recorded in `fjs/ci/config` and installed by
-the jobs that still use `setup-node`, so every runtime in CI runs the identical
-Node. The flakes do not restate that version — a job checks it from inside the
-shell instead (below), which also catches a shell that builds but provides the
-wrong binary.
+revision is one exact Node release, and the same number is recorded in
+`fjs/ci/config`. The flakes do not restate it — the job checks it from inside
+the shell instead (below), which also catches a shell that builds but provides
+the wrong binary.
 
 The files stay static and readable on purpose — no job selection, no
 `flake-utils`, no shared Nix modules. A job that later needs a second system
 gets a second explicit `devShells.<system>.default` attribute rather than a
 loop.
 
-`flake.lock` files that Nix writes next to a generated flake are ignored (see
-the root `.gitignore`); the pinned commit in `flake.nix` is the lock.
+The pinned commit in `flake.nix` is the lock, so nothing needs a `flake.lock`
+beside it. CI passes `--no-write-lock-file` to every `nix develop`, which is why
+its runs leave the checkout untouched; the root `.gitignore` still ignores those
+files, for a hand-run `nix develop` that omits the flag.
 
-The Node 24 and Node 26 jobs run through their flakes: each installs Nix, checks
-the Node its shell provides, and then runs its commands one `nix develop` step
-each, because a CI step runs one command. The check is the same one Node 22
-still makes of the runtime `setup-node` gives it, and no separate job makes it;
-a flake is checked by the job that uses it.
+Every canonical Node job runs through its flake: each installs Nix, checks the
+Node its shell provides, and then runs its commands one `nix develop` step each,
+because a CI step runs one command. No separate job makes that check — a flake
+is checked by the job that uses it, and every generated flake has one.
 
 Node 26's drift check is a plain step, not a `nix develop` one: `git` is the
 runner's tool, and a step names the flake only when it needs something the flake
