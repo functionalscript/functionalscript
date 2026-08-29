@@ -402,8 +402,9 @@ follows the input instead:
 | `1n1` | **number `11`, no error** — the `n` is deleted | `invalid number`, `invalid token` |
 | `0n1` | **number `01`, no error** — not valid JSON | `invalid number`, `invalid token` |
 | `1n1n1` | **number `111`, no error** — both `n`s deleted | errors |
-| `00-2` | one error — `-2` is **swallowed** | `invalid number`, number `-2` |
-| `00-` | one error | two `invalid number` |
+| `00-2` | one error — `-2` is **swallowed** | unchanged — `-` is not a recovery boundary |
+| `00-` | one error | unchanged |
+| `00-"/1` | error, error, number `1` | same count — `/`'s message becomes `unexpected character` |
 | `00"a"` | one error — the string is swallowed | unchanged — `"` is not a recovery boundary |
 | `00"/1` | error, error, number `1` | same count — `/`'s message becomes `unexpected character` |
 | `00<LF>1` | error, number `1` | unchanged — LF was already a boundary |
@@ -417,17 +418,17 @@ depending on how it ended — `" are missing` at end of input, `unterminated
 string literal` at a raw newline. Both become `invalid string`.
 
 The `00-2` and `00-` rows are a recovery class of their own, and the current
-behavior
-there is worse than noisy — it is lossy. Today a malformed number swallows a
-following `-` and everything after it: `00-2` reports one error and the
-well-formed number `-2` never reaches the caller at all. And it does this
+behavior there is worse than noisy — it is lossy. Today a malformed number
+swallows a following `-` and everything after it: `00-2` reports one error and
+the well-formed number `-2` never reaches the caller at all. And it does this
 inconsistently, which is the tell that it is an accident rather than a policy —
-`0.-2` and `12.-2`, malformed in a different way, *do* emit the `-2`. Making
-`-` a terminator makes the three uniform and stops discarding a real token.
+`0.-2` and `12.-2`, malformed in a different way, *do* emit the `-2`.
 
 This is the same defect class as the fabricated string, running the other
 direction: one invents a token the input never contained, the other discards one
-it did.
+it did. **It is recorded here and not fixed here** — a draft made `-` a
+recovery boundary and lost a different token in `00-"/1`; see "Where a number
+lexeme ends" for the counterexample and why the fix belongs in its own change.
 
 #### What is preserved, and what is only recorded
 
@@ -496,11 +497,15 @@ side is a **judgement, not a law** — reproducing the set costs nothing, and
 gratuitously turning well-formed numbers into errors is churn a port should not
 introduce.
 
-Worth recording, since an earlier draft claimed otherwise: **no row in the table
-loses a token.** `-.123` was the one case said to, and it does not — under the
-three-case rule the `-` is an incomplete stop, so the `.` is re-dispatched and
-`number 123` survives, with only the two error messages changing. The design
-changes error *shapes*; it does not destroy well-formed tokens anywhere.
+Worth recording, since two earlier drafts got this wrong in opposite
+directions: **no row in the table loses a token today's tokenizer emits.**
+`-.123` was once said to, and it does not — under the three-case rule the `-` is
+an incomplete stop, so the `.` is re-dispatched and `number 123` survives, with
+only the two error messages changing. Then a draft that made `-` a recovery
+boundary lost `number 1` in `00-"/1`, which is why that change was reverted. The
+design changes error *shapes* and destroys nothing today's tokenizer emits. It
+does not go the other way either: `00-2`'s `-2` is lost today and stays lost,
+because recovering it costs more than it returns.
 
 Narrowing the set to JSON's own delimiters is defensible, and is a separate,
 deliberate change with its own proofs — not something to slip into a port.
@@ -521,18 +526,42 @@ Three failure states, which earlier drafts conflated into two:
   that enters recovery, consuming until a boundary and emitting one `invalid
   number`. `00abc`, `01"a"` and `012"a"` are each one error.
 
-Recovery's boundary set is today's, plus `-`:
+Recovery's boundary set is today's, **reproduced exactly** — `-` is not in it:
 
 ```text
-space TAB LF CR  ! % & ( ) * , / : < = > ? [ ] ^ { | } ~  -  end of input
+space TAB LF CR  ! % & ( ) * , / : < = > ? [ ] ^ { | } ~  and end of input
 ```
 
-`-` is added because it is the one boundary whose absence *loses* a token today:
-`00-2` reports one error and the well-formed `-2` never reaches the caller,
-while `0.-2` and `12.-2` do emit it. It is safe to add because a re-dispatched
-`-` begins a number, whose own recovery stops at the same boundaries — the
-condition that `"` fails, since a string scan runs to the next quote instead and
-would swallow `/1` in `00"/1`.
+A draft of this design added `-`, because it is the one boundary whose absence
+*loses* a token today: `00-2` reports one error and the well-formed `-2` never
+reaches the caller, while `0.-2` and `12.-2` do emit it. That is a real defect,
+and adding `-` is **not** the way to fix it. Review found the counterexample:
+
+```text
+00-"/1    today   invalid number, invalid token, number 1
+          with -  invalid number, invalid number, invalid string   ← number 1 lost
+```
+
+Stopping recovery at `-` re-dispatches it into a fresh number scan, which meets
+`"` as an *incomplete stop* and re-dispatches that in turn — handing the quote
+to a string scan that runs to end of input and eats `/1`. The safety argument
+was that a re-dispatched `-` begins a number whose own recovery stops at the
+same boundaries; what it missed is that the number need never reach recovery,
+because an incomplete stop re-dispatches instead. So the `-` boundary buys back
+`-2` in `00-2` and pays for it with `1` in `00-"/1`: a wash at best, and one
+that trades a defect this design can describe for one it did not notice.
+
+The recovery set is therefore today's, and the whole recovery rule becomes
+"identical to today" rather than "today's plus a judgement call". Note the
+**accepting** terminator set above still contains `-`, and must: `10-0` is two
+number tokens today, pinned by a proof. The two sets differ by exactly that
+character, and the difference is today's, not this design's.
+
+Fixing the `00-2` loss is worth doing and belongs in its own change, alongside
+narrowing the terminator set to JSON's own delimiters — both are deliberate
+recovery-policy changes with proofs of their own, and neither is something to
+slip into a port. Whoever takes it should start from `00-"/1`, which is the case
+that makes the obvious fix wrong.
 
 ### The string and number scanners are the seam DataJS reuses
 
@@ -621,9 +650,9 @@ So the interception rule is stated on the **state**, not on the character:
   only the first is about DataJS. The wrapper cannot intercept from this
   variant at all; recovery then consumes to a **boundary**, exactly as the rule
   above says, not to the end of the input. So `00n` is one `invalid number`
-  because `n` is not a boundary, and `00-2` is one `invalid number` followed by
-  `number -2` because `-` is — the token DataJS must not lose any more than
-  JSON must.
+  because `n` is not a boundary, while `00/1` is one `invalid number`, an
+  `unexpected character` and `number 1` because `/` is — the token DataJS must
+  not lose any more than JSON must.
 - **`-Infinity` is intercepted from the sign variant**, and only from it, by
   the same discipline: a non-accepting state a wrapper is allowed to claim
   before JSON rejects it, named rather than inferred.
@@ -832,11 +861,12 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       `00"/1` is invisible to `00` + `c` + `1`, because the damage comes from
       what the re-dispatched character's *own* scanner then consumes. Generate
       the table from two-character suffixes as well.
-- [ ] Pin the individual cases, since they are what a reader reads: `00-2` is
-      the only changed token stream **within the `00` + `c` + `1` family**
-      (`00-` changes too, and is listed in the table); `00"a"`, `00;1`, `00 1`, `00]`, `00,` and
-      `00<LF>1` are wholly unchanged; and `00"/1`, `00/1` and `12/1` keep their
-      token counts while `/`'s message becomes `unexpected character`.
+- [ ] Pin the individual cases, since they are what a reader reads: **no input
+      in the `00` + `c` + `1` family changes its token stream** — that is the
+      point of reproducing today's recovery set rather than improving it, and
+      `00-2`, `00-`, `00"a"`, `00;1`, `00 1`, `00]`, `00,` and `00<LF>1` are all
+      unchanged; `00"/1`, `00-"/1`, `00/1` and `12/1` keep their token counts
+      while `/`'s message becomes `unexpected character`.
 - [ ] Prove string recovery ends at an unescaped quote, a raw LF and a raw CR
       but not a space — `"a<LF>1` emits the number `1`, `"a 1` is one error.
 - [ ] `npm run update`, then `npx tsc`, `fjs test`, `cargo clippy` and

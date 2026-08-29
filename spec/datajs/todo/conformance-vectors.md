@@ -19,9 +19,11 @@ must prove the DataJS ⊂ FunctionalScript ⊂ JavaScript subset laws.
 Stage 3 is **not** a consumer, though an earlier draft of this file said it was.
 Stage 3 is JSON's tokenizer, and what it must prove — that JSON's accepted
 language is unchanged — is a property of JSON, established by JSON's own
-proofs and by
-[self-contained-tokenizer](../../../fjs/media/json/todo/self-contained-tokenizer.md)'s
-exhaustive character sweeps. A DataJS corpus has nothing to say about it.
+accepted-input proofs and by the two invariants
+[self-contained-tokenizer](../../../fjs/media/json/todo/self-contained-tokenizer.md)
+states, with its character sweeps as coverage rather than proof: that design is
+explicit that no finite sweep is exhaustive. A DataJS corpus has nothing to say
+about any of it.
 
 **This corpus must therefore land before or together with stage 4**, which is
 compatible with running stage 3 first: the sequence is 3, then 1b, then 4.
