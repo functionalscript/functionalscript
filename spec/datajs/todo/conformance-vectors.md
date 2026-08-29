@@ -81,8 +81,11 @@ A machine-readable corpus with six parts:
   stands for every other character and is what makes the rule a whitelist
   rather than a longer blacklist; and a **line continuation**, a backslash
   before a raw newline, which JavaScript reads as `"ab"` in
-  `export default "a\<LF>b";`. Then U+2028/U+2029/NBSP/FF/BOM outside a
-  string.
+  `export default "a\<LF>b";`. Then the **raw control characters** a string
+  may not contain — U+0000, U+0009 and U+001F, pinning both ends of the
+  below-U+0020 range and one ordinary member — each valid inside a JavaScript
+  string literal and none inside a DataJS one. Then U+2028/U+2029/NBSP/FF/BOM
+  outside a string.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
   than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
   and at least one that is not — **`Map` or a boxed number**, not `RegExp`;
@@ -90,9 +93,13 @@ A machine-readable corpus with six parts:
   own property,
   an array carrying an own property beyond its elements and `length` (`a=[1];
   a.meta=2`), and a cycle. Each is a case where the obvious implementation
-  emits a valid document denoting something else. The accessor case asserts
-  **two** things: that the input was refused, and that the getter was never
-  invoked.
+  emits a valid document denoting something else.
+
+  The **accessor** case is two vectors rather than one — a getter and a
+  setter-only property — because a serializer guarding on `descriptor.get`
+  alone refuses the first and silently accepts the second. The getter vector
+  asserts **two** things: that the input was refused, and that the getter was
+  never invoked.
 
   **Every rejection vector must be refusable for exactly one reason.** Review
   found three vectors that a *cheaper* rule could refuse before the rule under
@@ -106,25 +113,32 @@ A machine-readable corpus with six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Four consecutive review rounds
+  vector is the only instrument that sees it. Five consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
-  continuations and template literals, then the remaining escapes. Every time
-  the list had been written from memory rather than read off the spec, and the
-  last two rounds are the telling ones: by then the class had been named *and*
-  this derivation written, and the list was still short. Naming a class does
-  not check a list, and neither does a derivation pointed at the wrong
-  sentence. The spec narrows in three sections, and each owes vectors:
+  continuations and template literals, then the remaining escapes, then the raw
+  control characters. Every time the list had been written from memory rather
+  than read off the spec, and the last three rounds are the telling ones: by
+  then the class had been named *and* this derivation written, and the list was
+  still short each time. Naming a class does not check a list; neither does a
+  derivation pointed at the wrong sentence; and neither does one pointed at the
+  right sentence that stops reading halfway through it. The spec narrows in three sections, and each owes vectors:
 
-  - **Strings** — and this is the one that bit. §Strings *closes* by naming
-    five forms — single quotes, template literals, `\x`, `\u{…}`, line
-    continuations — but the escape narrowing is the **whitelist** two
-    sentences earlier: `\"` `\\` `\/` `\b` `\f` `\n` `\r` `\t` `\uXXXX`, and
-    nothing else. A whitelist's complement is not a list to copy, so those
-    vectors come by class from JavaScript's escape grammar instead. An earlier
-    draft of this very derivation read only the closing sentence and declared
-    the string half complete at five, which is how `\v`, `\0`, `\'`, `` \` ``
-    and `\z` stayed missing one round longer.
+  - **Strings** — and this is the section that kept biting, because it holds
+    **three** rules in two sentences and each was found separately. §Strings
+    *closes* by naming five forms — single quotes, template literals, `\x`,
+    `\u{…}`, line continuations — but that closing sentence is an
+    illustration, not the rule. The sentence before it carries the other two:
+    the escape **whitelist** — `\"` `\\` `\/` `\b` `\f` `\n` `\r` `\t`
+    `\uXXXX`, and nothing else — and the **raw-character** exclusion, "any
+    other character except an unescaped `"`, an unescaped `\`, or a code point
+    below U+0020". A whitelist's complement is not a list to copy, so both of
+    those give vectors by class from JavaScript's grammar rather than by
+    transcription. Successive drafts of this very derivation read the closing
+    sentence and declared the string half complete at five, then read the
+    whitelist and missed the raw-character clause **in the same sentence** —
+    which is how `\v`, `\0`, `\'`, `` \` ``, `\z` and then the raw controls
+    each stayed missing a round longer.
   - **Numbers** — the closing sentence of its §Numbers: no hex, no leading
     `+`, no leading or trailing point, no separators, no leading zeros.
   - **Identifiers** — §Identifiers' ASCII-only rule, which excludes both a
@@ -135,8 +149,10 @@ A machine-readable corpus with six parts:
 
   **Two things are not on this list, and saying so keeps a later round from
   adding vectors that cannot fail.** JavaScript rejects `1.5n`, `1e2n` and
-  `01n`, and a strict module rejects the legacy octal escapes `\101` and `\8`
-  — all measured, not assumed. Each tests the corpus's own grammar rather than
+  `01n`; a strict module rejects the legacy octal escapes `\101` and `\8`; and
+  a raw LF or CR inside a string literal is a JavaScript SyntaxError too, so
+  the raw-control vectors above stop at U+001F and skip those two — all
+  measured, not assumed. Each tests the corpus's own grammar rather than
   a narrowing, because no reader can over-accept them by delegating to a host
   that refuses them too.
 
@@ -274,9 +290,9 @@ document can carry. So the corpus does not store values. It stores a
   | `{"host": "builtin", "kind": <kind>[, "ms": <integer>]}` | a non-plain built-in object: `date` (with `ms`), `map`, `regexp` or `boxedNumber` |
   | `{"host": "hole"}` | an array hole — legal **only** as an `arr` element |
 
-  …and six **modifier** recipes, each taking the node it applies to, so the
+  …and seven **modifier** recipes, each taking the node it applies to, so the
   property cases say which object they are about — the gap review found in
-  `getter`, which named no container. The first four can build inputs a
+  `getter`, which named no container. The first five can build inputs a
   serializer must **refuse**; the last two build inputs it must **accept**, the
   half review found missing — without them a serializer that rejects every
   unusual prototype or descriptor passes the corpus while being nonconforming.
@@ -290,6 +306,7 @@ document can carry. So the corpus does not store values. It stores a
   | `{"host": "ownProp", "on": <node>, "key": <string>, "value": <node>}` | an enumerable own data property, which is how `a=[1]; a.meta=2` is said |
   | `{"host": "nonEnumerable", "on": <node>, "key": <string>, "value": <node>}` | the same, non-enumerable |
   | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an **enumerable** accessor property that **records its own invocation** and then returns `value` |
+  | `{"host": "setter", "on": <node>, "key": <string>}` | an **enumerable** accessor property with a **setter and no getter**, which reads as `undefined` |
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | an **enumerable** own data property under a fresh unique symbol |
   | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"[, "inherited": [<key>, <node>]]}` | the same data under a `null` prototype, or as an `Array` subclass instance — `inherited` puts one **enumerable** member, key and value, on the subclass's prototype |
   | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` is **required with `nonWritable` and forbidden otherwise**, and must name an **existing own data property** of the target |
@@ -333,6 +350,22 @@ document can carry. So the corpus does not store values. It stores a
   Three of these carry an obligation the recipe alone does not express, and
   each came from review:
 
+  - **Both accessor shapes, because the spec's rule is wider than its
+    reason.** The spec rejects "an accessor property" and explains it with
+    *reading a getter is an effect* — a reason that covers only half the rule.
+    A **setter-only** accessor has nothing to read, and that is precisely what
+    makes it dangerous: measured, an enumerable setter-only property has
+    `descriptor.get === undefined` and reads as `undefined`, so a serializer
+    that guards with `if (descriptor.get)` passes it straight through and emits
+    `{x: undefined}` — a **valid DataJS document**, since `undefined` is one of
+    this format's values, denoting something the input never was. That is
+    [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) exactly:
+    an unsupported input answered with a plausible wrong value rather than
+    refused. `JSON.stringify` shows the same shape of loss from the other end,
+    dropping the property and emitting `{}`. `setter` therefore takes no
+    `value`: there is no value to name, which is the whole point. Like every
+    other accessor recipe it is **enumerable**, or the non-enumerability rule
+    refuses it first.
   - **`getter` must be observable, not merely present.** The spec forbids
     reading a getter *because reading it is an effect*
     ([`README.md`](../README.md)), so a serializer that invokes the accessor
@@ -430,13 +463,14 @@ needs nothing beyond an engine.
       section above: node table, `ref` indices, the leaf tags, the `arr` form
       with holes occupying positions, the object pair form **with unique keys
       in observable order**, strings as UTF-16 code-unit arrays everywhere a
-      string appears, and the ten `host` recipes — four leaves, six
+      string appears, and the eleven `host` recipes — four leaves, seven
       modifiers, each modifier naming the node it applies to — with their
       application order, the rule that a modifier is a table entry and never
       inline, what a modifier node denotes, `builtin`'s and `proto`'s and
       `attrs`'s closed value lists (`proto`'s optional `inherited` key/value
       pair, whose key may not collide with an own key of the target), and
-      `getter`'s **enumerable** accessor with its invocation record. It is the
+      and **both** accessor shapes — `getter`'s enumerable accessor with its
+      invocation record, and `setter`'s enumerable setter-only property. It is the
       part two
       consumers can silently disagree about, so it lands first and gets its own
       round-trip proof — encode a graph, decode it, and assert the sharing
