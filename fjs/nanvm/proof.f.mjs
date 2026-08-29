@@ -7,6 +7,11 @@
  * `nanvm-lib` to it. This module contains no test cases of its own beyond the
  * `jsOnly` section at the end — adding a case means editing the data.
  *
+ * The operand-count assertions are not here but in
+ * [`types.ts`](./types.ts): a `@typedef` inside a function body is never
+ * checked, so the claim has to be a module-scope alias in a `.ts` file to be
+ * one at all.
+ *
  * The evaluator below is an inline one for the constant subset the corpus
  * uses. When the EDAG interpreter
  * ([interpret-edag](../djs/todo/interpret-edag.md)) lands it replaces this
@@ -14,9 +19,7 @@
  * the memoization contract these cases rely on is the one it already owes.
  *
  * @import { Exp, Op2 } from '../edag/types.ts'
- * @import { Case, EqCase, Group, Group1, Group2, OpId, SharedNode, Value } from './types.ts'
- * @import { Assert } from '../asserts/types.ts'
- * @import { Equal } from '../types/ts/types.ts'
+ * @import { Case, EqCase, Group, OpId, SharedNode, Value } from './types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
@@ -133,7 +136,8 @@ const escapedValue = v => isFunctionValue(v) ? () => 5 : evaluate([])(valueExp(v
 
 /**
  * The value one argument order produces: the case's expression evaluated, or
- * — for a case no EDAG node spells — the operation applied to built values.
+ * — for a case the corpus does not lower — the operation applied to built
+ * values.
  *
  * The escape path is unary. The escapes are `unaryPlus`, whose group is
  * unary, and a `functionValue` operand, which only the unary coercion groups
@@ -223,19 +227,6 @@ const edagShape = () => {
 }
 
 /**
- * An operand count is a type error rather than a case that runs: a group's
- * count is which EDAG vocabulary its id is in, and `Case<N>` carries it.
- */
-const arity = () => {
-    /** @typedef {Assert<Equal<Case<1>['args'], readonly[Value]>>} _Unary */
-    /** @typedef {Assert<Equal<Case<2>['args'], readonly[Value, Value]>>} _Binary */
-    /** @typedef {Assert<Equal<Case<2> extends Case<1> ? true : false, false>>} _NotWidened */
-    /** @typedef {Assert<Equal<Case<1> extends Case<2> ? true : false, false>>} _NotNarrowed */
-    /** @typedef {Assert<Equal<Group1['cases'], readonly Case<1>[]>>} _Op1Groups */
-    /** @typedef {Assert<Equal<Group2['cases'], readonly Case<2>[]>>} _Op2Groups */
-}
-
-/**
  * Behaviour that is real JavaScript but has no `nanvm-lib` counterpart to
  * share data with, so it stays here instead of in `module.f.mjs`.
  */
@@ -285,6 +276,5 @@ export const proof = {
     eq: eqProof,
     ...fromEntries(data.groups.map(g => [opId(g), group(g)])),
     edagShape,
-    arity,
     jsOnly,
 }

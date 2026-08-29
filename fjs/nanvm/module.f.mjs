@@ -76,13 +76,13 @@ export const isThrows = (/** @type {Value} */ v) =>
     typeof v === 'function' && v()[0] === 'throw'
 
 /**
- * `true` when an operand is `functionValue`, the one operand shape no EDAG
- * node spells.
+ * `true` when an operand is `functionValue`, the one operand the corpus
+ * declines to lower.
  *
- * A constant function *is* writable as `['=>', ['[]', []], body]`, but
- * establishing it would drag closure construction into both consumers for
- * cases that never inspect the function. So such a case escapes to the
- * direct-value path instead — see {@link caseExp}.
+ * A constant function *is* spellable — `['=>', ['[]', []], body]`, since `=>`
+ * is an `Op2Id` — but establishing it would drag closure construction into
+ * both consumers for cases that never inspect the function. So such a case
+ * escapes to the direct-value path instead — see {@link caseExp}.
  */
 export const isFunctionValue = (/** @type {Value} */ v) =>
     typeof v === 'function' && v()[0] === 'function'

@@ -218,7 +218,7 @@ const assertion = expected => name => result => isThrows(expected)
 
 /**
  * The statement result for one argument order: the case's expression printed,
- * or — for a case no EDAG node spells — the operation applied to printed
+ * or — for a case the corpus does not lower — the operation applied to printed
  * values.
  *
  * The escape path is unary, for the same reason it is in the proof: the

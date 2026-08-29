@@ -14,8 +14,10 @@
  * @module
  */
 
+import type { Assert } from '../asserts/types.ts'
 import type { Exp, Op1Id, Op2, Op2Id } from '../edag/types.ts'
 import type { Tuple } from '../types/array/types.ts'
+import type { Equal } from '../types/ts/types.ts'
 
 /**
  * A value under test, written as itself.
@@ -138,13 +140,31 @@ export type NonEdagGroup = {
 
 export type Group = Group1 | Group2 | NonEdagGroup
 
+// An operand count is a type error rather than a case that runs: a group's
+// count is which EDAG vocabulary its id is in, and `Case<N>` carries it.
+//
+// These are here and not in `proof.f.mjs` because a `@typedef` inside a
+// function body is never checked — TypeScript does not evaluate the
+// constraint of a declaration nothing references, so the same six assertions
+// written there passed with any claim at all. A module-scope alias in a
+// `.ts` file is checked; `../types/array/types.ts` is the precedent.
+
+type _Unary = Assert<Equal<Case<1>['args'], readonly [Value]>>
+type _Binary = Assert<Equal<Case<2>['args'], readonly [Value, Value]>>
+type _NotWidened = Assert<Equal<Case<2> extends Case<1> ? true : false, false>>
+type _NotNarrowed = Assert<Equal<Case<1> extends Case<2> ? true : false, false>>
+type _Op1Groups = Assert<Equal<Group1['cases'], readonly Case<1>[]>>
+type _Op2Groups = Assert<Equal<Group2['cases'], readonly Case<2>[]>>
+
 /**
  * What a case denotes, as the consumers receive it.
  *
  * `exp` is the EDAG expression the case is: the group's operation applied to
- * its lowered operands. `escape` marks the cases no EDAG node spells — a
- * `functionValue` operand, or a {@link NonEdagGroup} — so a consumer takes
- * the direct-value path knowingly rather than by falling through.
+ * its lowered operands. `escape` marks the cases the corpus does not lower — a
+ * `functionValue` operand, which `['=>', ['[]', []], body]` would spell at the
+ * cost of establishing a closure in both consumers, or a
+ * {@link NonEdagGroup}, which has no id to apply — so a consumer takes the
+ * direct-value path knowingly rather than by falling through.
  */
 export type Lowered =
     | readonly ['exp', Exp]
