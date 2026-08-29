@@ -18,7 +18,7 @@ A document is a JavaScript module: `const` statements naming values, then one
 `export default` naming the value the document denotes.
 
 ```js
-const $0=[1,2];export default {"a":$0,"b":$0}
+const $0=[1,2];export default {"a":$0,"b":$0};
 ```
 
 Read as JSON that would be two equal arrays. Read as DataJS it is **one**
@@ -110,7 +110,8 @@ separation. This document specifies **DataJS**, the narrow interchange format.
    for an implementer and fewer disagreements between implementations.
 3. **No semantics on invisible characters.** Two files that render identically
    in every editor must not mean different things. This is why a visible `;`
-   separates statements, rather than a line terminator.
+   terminates every statement, rather than a line terminator or the end of the
+   file.
 4. **Restate, do not cite.** Where DataJS depends on a JavaScript algorithm,
    this document writes the algorithm out. An implementer should not need
    ECMA-262 open beside it.
@@ -136,15 +137,15 @@ Two of the three were never a choice. A `const` name begins with `$`, and
 `export` is always followed by `default`, so `const$0` and `exportdefault` lex
 as one identifier in every document that could hold them — the space was
 forced by the grammar before any rule asked for it. The third is the choice
-this format makes: `export default1` and `export default$0` are JavaScript
+this format makes: `export default1;` and `export default$0;` are JavaScript
 syntax errors, `default1` and `default$0` each being a single identifier, while
-`export default[1]` would lex perfectly well, since `[` cannot merge with
+`export default[1];` would lex perfectly well, since `[` cannot merge with
 anything. DataJS requires the space anyway, so that neither a reader nor a
 writer ever consults the next character to find out. The
 [rationale](#rationale) gives what that buys.
 
-So the one-line spelling of a document is `const $0=[];export default [$0,$0]`,
-and `export default [1]`, `export default -1` and `export default "a"` all
+So the one-line spelling of a document is `const $0=[];export default [$0,$0];`,
+and `export default [1];`, `export default -1;` and `export default "a";` all
 carry the space.
 
 A document is UTF-8. It has no BOM.
@@ -235,7 +236,7 @@ else — DataJS has no identifier keys.
 ```text
 document ::= const* export
 const    ::= 'const' id '=' value ';'
-export   ::= 'export' 'default' value
+export   ::= 'export' 'default' value ';'
 
 value    ::= 'null' | 'true' | 'false' | 'undefined' | 'NaN'
            | infinity | number | bigint | string
@@ -247,22 +248,31 @@ member   ::= key ':' value
 key      ::= string | '[' '"__proto__"' ']'
 ```
 
-**`;` separates statements and never trails one.** Every `const` is followed by
-it; the `export default` is last, has nothing after it, and so takes no `;`.
-This is JSON's comma rule applied to statements — a separator between items,
-never after the final one.
+**Every statement ends with `;`**, `export default` included. The `;`
+**terminates** a statement rather than separating one from the next, which is
+what it does in JavaScript, and it is written in every case with no positional
+exception: a writer emits it after each statement without asking which one is
+last, and a reader requires it at the end of each without asking either.
 
-The value is the last *token* of a document, not necessarily its last
-character: whitespace stays insignificant here as everywhere, so
-`export default 1`, `export default 1\n` and `export default 1  \n` are the
-same document, and a file that ends the way a text editor ends files is valid.
+The `;` is the last *token* of a document, not necessarily its last character:
+whitespace stays insignificant here as everywhere, so `export default 1;`,
+`export default 1;\n` and `export default 1;  \n` are the same document, and a
+file that ends the way a text editor ends files is valid.
 [Normalized form](#normalized-form) picks one of them by emitting no trailing
 newline, which is a rule about those bytes and not about what a reader accepts.
 
-`export default 1;` is therefore **rejected**, as are `;;`, a leading `;`, and
-a stray `;` anywhere else. There is no empty statement.
+`export default 1` **without** the `;` is therefore rejected, as are `;;`, a
+leading `;`, and a stray `;` anywhere else. There is no empty statement.
 
-There are **no trailing commas**, for the same reason and by the same rule.
+There are **no trailing commas** — but that is a different rule for a different
+reason, and the two should not be read as one. A comma *separates* items and
+has a second reading in JavaScript: `[1,,2]` is three elements with a hole in
+the middle, so a trailing comma has to be given an explicit exception saying it
+does not make one. JSON removed elision and with it the need for that
+exception. A `;` has no second reading to avoid — the only construct near it is
+the empty statement, which this format rejects on its own — so there is nothing
+for a "no trailing `;`" rule to buy.
+
 There are **no comments** and **no `import`**: a DataJS document is closed,
 denoting its value with no reference to any other file.
 
@@ -310,7 +320,7 @@ another language must reorder identically.
 computed form:
 
 ```js
-export default {["__proto__"]:1}
+export default {["__proto__"]:1};
 ```
 
 The rule is on the key's **decoded value**, not its spelling: a plain string
@@ -333,7 +343,7 @@ A `const` names a value; a reference to that name denotes **the same node**,
 not an equal copy. In
 
 ```js
-const $0=[];export default [$0,$0]
+const $0=[];export default [$0,$0];
 ```
 
 the two elements are one array, and a conforming reader must produce a
@@ -384,7 +394,7 @@ anything after it.
 
 A serializer conforms when its output is a valid document **that denotes the
 input graph** — the same values, with the same sharing. Validity alone is not
-the bar: `export default null` is a perfectly valid document and almost never
+the bar: `export default null;` is a perfectly valid document and almost never
 the right answer.
 
 Given that, the remaining choices are free: whitespace and layout, the names
@@ -547,21 +557,21 @@ exports nothing.
 The conversion is textual:
 
 ```text
-"export default " + json
+"export default " + json + ";"
 ```
 
 with one exception: a key **decoding to** `__proto__` must be rewritten to
 `["__proto__"]`, since DataJS rejects every plain-string spelling of it. That
 covers escaped spellings such as `"\u005f_proto__"`, which JSON and DataJS
-both read as the same key. For JSON containing no such key, the prefix alone is
-exactly a valid DataJS document — there is nothing to append.
+both read as the same key. For JSON containing no such key, that prefix and
+that suffix around the document are exactly a valid DataJS document.
 
 The space in that literal is the one the [whitespace](#whitespace) rule
-requires. It is the space anyone would have written anyway, and under the
-earlier merging-based rule it would have been necessary for `1` and `true` and
-superfluous for `[1,2]` and `{"a":1}` — one more reason to make it
-unconditional: the obvious conversion is now the correct one for every JSON
-document rather than for most of them.
+requires, and the `;` is the one every statement takes. The space is what
+anyone would have written anyway, and under the earlier merging-based rule it
+would have been necessary for `1` and `true` and superfluous for `[1,2]` and
+`{"a":1}` — one more reason to make it unconditional: the obvious conversion is
+now the correct one for every JSON document rather than for most of them.
 
 The reverse direction is partial, and both of its conditions are about the
 graph the document *denotes* — the values reachable from `export default`,
@@ -569,11 +579,11 @@ since an unused `const` contributes nothing to it. A document converts to JSON
 when no reachable value is a leaf JSON lacks (`undefined`, `NaN`, the
 infinities, bigint), and no reachable **object or array** is reachable more
 than once — JSON cannot express that sharing, and writing the node twice
-denotes a different graph. `const $dead=undefined;export default 1` therefore
+denotes a different graph. `const $dead=undefined;export default 1;` therefore
 converts to `1`: the unreachable `undefined` is not part of what the document
 means.
 
-A shared *primitive* is not an obstacle. `const $x=1;export default [$x,$x]`
+A shared *primitive* is not an obstacle. `const $x=1;export default [$x,$x];`
 converts to `[1,1]`: primitives have no reference identity, so the two
 occurrences were never distinguishable from two copies, exactly as
 [normalized form](#normalized-form) says when it declines to hoist them.
@@ -646,26 +656,52 @@ spelling, and lets a document minify to a single line — which is what makes a
 DataJS document embeddable in a JSON string, streamable one-per-line, and
 writable as a one-line test fixture.
 
-**Why no `;` after `export default`?** Because it would be a trailing
-separator, and this format already rejects the other one. JSON's comma
-separates members and never follows the last; `;` separates statements and does
-the same. Keeping it for semicolons and not for commas would be two rules where
-the document has one shape. The smallest document, `export default 1`, now
-contains no `;` at all.
+**Why does `export default` end with `;` like every other statement?** An
+earlier draft dropped it, reasoning that a trailing `;` is a trailing separator
+and this format already rejects the other one — JSON's comma separates members
+and never follows the last, so `;` should separate statements and do the same.
+That reasoning was wrong, and the way it was wrong is worth keeping.
 
-The objection to answer is ASI. Requiring `;` was partly about not depending on
-automatic semicolon insertion, and a document ending `export default [1,2]`
-does depend on it — but on the one ASI rule that carries no hazard. That rule
-inserts a semicolon at the end of the input stream when the parser would
-otherwise fail: a fact about where the file ends, not about which invisible
-character sits at some line break. The taxonomy this format refused to import
-— a lone CR terminating a statement, U+2028 doing the same, restricted
-productions with "no LineTerminator here" — belongs to the *other* ASI rule,
-and nothing here reaches it. Two files that render identically still mean the
-same thing, which is all principle 3 asks.
+**The comma rule is not about trailing punctuation; it is about ambiguity.** A
+comma between elements has a second reading in JavaScript: `[1,,2]` is three
+elements with a hole at index 1, and `[1,2,]` is two elements only because the
+grammar carves out an exception saying the last comma makes no hole. JSON
+removed elision, and with it the need to choose. A `;` has no second reading to
+disambiguate. The nearest construct is the empty statement, which this format
+rejects on its own account. So refusing a trailing `;` buys none of what
+refusing a trailing comma buys — it copies the shape of a rule without its
+reason.
 
-It also finishes the JSON conversion. `"export default " + json` is now the
-whole of it — a prefix, with nothing appended.
+**In JavaScript the `;` terminates, it does not separate.** The production is
+`export default AssignmentExpression ;`, with the `;` inside it. A format that
+calls itself a JavaScript subset and then reinterprets a terminator as a
+separator has to be read against its host grammar rather than with it, which is
+the opposite of what principle 4 asks.
+
+**Writing it is unconditional; omitting it is not.** This is the same argument
+that decides the [whitespace](#whitespace) positions. A serializer that ends
+every statement with `;` never asks which statement is last; one that omits the
+final `;` must know where it is. Both readers are equally easy, both grammars
+are equally easy — the `;` simply lives in whichever production owns it — so
+nothing about the implementer's job favours the shorter form, and the writer's
+job favours the uniform one.
+
+**And it removes a dependence on ASI.** Without the `;`, a document is
+JavaScript only because automatic semicolon insertion supplies one at the end
+of the input stream. That is the benign ASI rule, carrying none of the taxonomy
+this format refused to import — a lone CR terminating a statement, U+2028 doing
+the same, restricted productions with "no LineTerminator here" all belong to
+the *other* rule. But it makes the terminator the absence of further text,
+which is a strange thing for a format whose third principle is that nothing
+invisible carries meaning. It is also not robust under composition: appending a
+line beginning with `[` to `export default [1]` — a document without the `;` —
+silently changes the exported
+value from `[1]` to `1`, where the `;` keeps it `[1]` — measured. A closed
+document is not supposed to be appended to, so this is a hazard under misuse
+rather than a defect in correct use; it is listed last for that reason.
+
+The cost is one byte in every document, and the smallest document is
+`export default 1;` rather than `export default 1`.
 
 **Why no comments?** They are trivia with no denotation, and every one of them
 is a decision for a normalizer. A format whose purpose is to be normalized and
@@ -703,13 +739,13 @@ shell, a quoted `<<'EOF'` heredoc, or a function rather than a pattern string
 for `replace`. Embedding a document as data — in a JSON string, a file, a
 request body — is unaffected, since none of those interpret `$`.
 
-**Why require a space after `default` when `export default[1]` would lex?**
+**Why require a space after `default` when `export default[1];` would lex?**
 Not because the conditional rule cannot be implemented. It can, and without
 maximal munch: require whitespace before an identifier, a word, or an
 **unsigned** number or bigint whenever the preceding character is an identifier
 character — one character of look-behind, decided as the token starts. Those
 are exactly the tokens that can begin with an identifier character, which is
-why a signed value needs no space and `export default-1` would stay legal. It
+why a signed value needs no space and `export default-1;` would stay legal. It
 leaves the grammar LL(1) too, though the credit there belongs to folding `-`
 into its token rather than to anything about whitespace. So this is a choice
 between two workable rules, and it goes to whichever is harder to get wrong.

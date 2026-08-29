@@ -162,38 +162,49 @@ other implementations may.
 ```text
 module    ::= const* export
 const     ::= 'const' id '=' value ';'
-export    ::= 'export' 'default' value
+export    ::= 'export' 'default' value ';'
 value     ::= primitive | id | array | object
 key       ::= string | '[' '"__proto__"' ']'
 ```
 
-- **`;` separates statements and never trails one**; no empty statements.
+- **`;` terminates every statement**, `export default` included; no empty
+  statements.
   Rationale for `;` over a newline, each sufficient alone: no line-terminator
   taxonomy in the spec (a lone CR *is* a JS `LineTerminator` — trivia no
   implementer should need); one canonical spelling per document; the separator
   is a visible character, so byte-different files that render identically
   cannot differ in meaning; and a document minifies to one line —
-  `const $0=[];export default [$0,$0]` — enabling DataJS inside JSON strings,
+  `const $0=[];export default [$0,$0];` — enabling DataJS inside JSON strings,
   line-delimited streaming, and one-line test fixtures. Whitespace is required
   at three positions and optional everywhere else, per the next bullet.
-- **No `;` after `export default`** — it would be the trailing separator JSON
-  forbids for commas, and one shape should not need two rules. `export
-  default 1;` is rejected; the smallest document, `export default 1`, holds no
-  `;` at all, and the JSON conversion becomes the prefix `"export default " +
-  json` with nothing appended. This does lean on ASI, which requiring `;` was
-  partly meant to avoid — but only on the end-of-input rule, which is a fact
-  about where the file ends, not about which invisible character sits at a line
-  break. The line-terminator taxonomy lives in the *other* ASI rule and is
-  still excluded. Verified against Node: `export default {"a":1}` and
-  `const $0=[1,2];export default {"a":$0,"b":$0}` both import, with no trailing
-  newline.
+- **Every statement ends with `;`, `export default` included** — the `;`
+  terminates a statement, as it does in JavaScript, rather than separating one
+  from the next. An intermediate draft dropped the final one on the reasoning
+  that it would be the trailing separator JSON forbids for commas; that was
+  reverted, and the reversal is the more useful record. **The comma rule is
+  about ambiguity, not about trailing punctuation**: a comma between elements
+  has a second reading — `[1,,2]` is three elements with a hole, so `[1,2,]`
+  needs an explicit exception saying the last one makes none — and a `;` has no
+  second reading for a rule to disambiguate, the empty statement being rejected
+  on its own account. Three things follow. The production is
+  `export default AssignmentExpression ';'`, so writing the `;` keeps the
+  subset law resting on the grammar rather than on ASI supplying a terminator
+  at end of input. A writer that ends every statement with `;` never asks which
+  statement is last, which is the same argument the positional whitespace rule
+  makes one bullet down. And parser complexity is identical either way — the
+  `;` lives in whichever production owns it — so the implementer's job, which
+  this format optimizes, does not favour the shorter form. The cost is one
+  byte per document and a JSON conversion of `"export default " + json + ";"`
+  rather than a bare prefix. Measured against Node: `export default [1]`
+  without the `;`, followed by an appended line beginning with `[`, silently
+  exports `1` instead of `[1]`; with the `;` it stays `[1]`.
 - **Whitespace is JSON's** — space, tab, LF, CR — insignificant everywhere.
   Other JS whitespace (U+2028/U+2029, NBSP, FF, BOM) is rejected.
 - **Whitespace is required after `const`, `export` and `default`**, with no
   condition, and optional everywhere else. Two of the three were forced
   already — a name begins with `$` and `export` is always followed by
   `default`, so `const$0` and `exportdefault` are each one identifier — and the
-  third is the choice: `export default[1]` would lex, but requiring the space
+  third is the choice: `export default[1];` would lex, but requiring the space
   regardless is what makes the rule positional. Note what did *not* decide it:
   the conditional rule is implementable without maximal munch (require
   whitespace before an identifier, word, or unsigned number/bigint whenever the
@@ -240,8 +251,8 @@ key       ::= string | '[' '"__proto__"' ']'
   starting with a letter is one of the nine the grammar names or an error.
 - **Every JSON value is a DataJS value; no JSON document is a DataJS
   document** (a DataJS document is a JS module, so it cannot be a JSON
-  document). The textual conversion `"export default " + json` — a prefix,
-  with nothing appended — yields a valid document with one exception: a bare `"__proto__"` object key —
+  document). The textual conversion `"export default " + json + ";"` — a prefix
+  and a terminator — yields a valid document with one exception: a bare `"__proto__"` object key —
   rejected by DataJS because JS reads it as prototype replacement — must be
   rewritten to the computed spelling `["__proto__"]` during conversion.
   Plain concatenation is exactly valid for JSON containing no `__proto__`
@@ -286,8 +297,8 @@ is not a blocker for the format spec. The serializer cannot delegate numbers
 to `JSON.stringify` (it loses `-0` and non-finite values); DataJS owns its
 number writer. The canonical layout is **one line** — fully minified, with a single space
 after each of `const`, `export` and `default` and nowhere else, so a root that
-cannot merge still carries its space (`export default [1]`, never
-`export default[1]`) — so normalization has zero
+cannot merge still carries its space (`export default [1];`, never
+`export default[1];`) — so normalization has zero
 layout freedom, which is what byte-determinism (and any future content
 addressing) needs. Tooling *defaults* to a human-readable layout (one
 statement per line, indented containers), which is simply one of the many
@@ -301,20 +312,24 @@ combined marker would encode a redundant fact.
 
 ### FunctionalScript consequences
 
-- **`;` separates statements in early-stage FunctionalScript**, matching
-  DataJS — and the part stage 5 must not miss is that a module's **final
-  statement takes no `;`**, exactly as `export default value` does not. The
-  obligation is one-way: FunctionalScript has to *accept* a module whose last
-  statement is unterminated, or it rejects every valid DataJS document at its
-  final export and the DataJS ⊂ FunctionalScript proof stage 6 owes cannot
-  hold. Whether it *also* accepts a trailing `;` is FunctionalScript's own
-  call, being strictly more permissive. So stage 5's rule is `;` between
-  statements with EOF after the last, never `;` after each.
-- This still removes ASI's hazardous half — the "no LineTerminator here"
-  restricted productions, and a lone CR or U+2028 ending a statement — before
-  the expression grammar grows the traps (`(`, `[` at line start). What it
-  keeps is ASI's end-of-input rule, a fact about where the file ends that
-  carries no line-terminator taxonomy. Relaxing later to also accept newline
+- **`;` terminates every statement in early-stage FunctionalScript**,
+  matching DataJS — and the part stage 5 must not miss is that a module's
+  **final statement carries one too**, exactly as `export default value;` does.
+  The obligation is one-way and it points the opposite way from an earlier
+  draft of this bullet, which had the final statement unterminated:
+  FunctionalScript has to *accept* a module whose last statement ends with `;`,
+  or it rejects every valid DataJS document at its final export and the
+  DataJS ⊂ FunctionalScript proof stage 6 owes cannot hold. Whether it *also*
+  accepts an unterminated final statement is FunctionalScript's own call, being
+  strictly more permissive. So stage 5's rule is `;` after each statement,
+  never `;` between statements with EOF after the last — and this is the
+  cheaper obligation of the two, since a parser requiring a terminator
+  everywhere needs no end-of-input special case.
+- This removes ASI entirely rather than most of it — both the hazardous half
+  (the "no LineTerminator here" restricted productions, and a lone CR or
+  U+2028 ending a statement, before the expression grammar grows the `(` and
+  `[` line-start traps) and the end-of-input rule that an unterminated final
+  statement would have leaned on. Relaxing later to also accept newline
   termination is backward-compatible; the reverse would be breaking, so
   strict-first is the safe ratchet. Repository `.f.mjs` source is unaffected
   (it is parsed by Node/TypeScript); the cost lands at `.f.mjs` → `.f.js`
