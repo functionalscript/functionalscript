@@ -13,8 +13,8 @@ shapes it does not handle — one of them fixed as far as a glob can go, the res
 declined. This file is where the answers live now.
 
 All three are the same question — how far does `fjs ci` go for a project that is
-not us? [`node26-typedef-gate-reaches-consumers.md`](./node26-typedef-gate-reaches-consumers.md)
-asks it about a different job, and settling that one settles these.
+not us? [`ci-generator-audience.md`](./ci-generator-audience.md) asks it of the
+generator as a whole, and settling that one settles these.
 
 **1. Declarations reachable only through `typesVersions`.** The job checks every
 declaration the tarball ships, which is a superset of what any entry point
@@ -86,5 +86,5 @@ What each would cost, so the next person does not re-derive it:
 
 - [`../package/module.f.mjs`](../package/module.f.mjs) — the job.
 - [`../README.md`](../README.md) — the `package.json` contract the job reads.
-- [`node26-typedef-gate-reaches-consumers.md`](./node26-typedef-gate-reaches-consumers.md)
-  — the same "what is `fjs ci` for" question, about `node26`.
+- [`ci-generator-audience.md`](./ci-generator-audience.md) — the same "what is
+  `fjs ci` for" question, asked of the generator as a whole.
