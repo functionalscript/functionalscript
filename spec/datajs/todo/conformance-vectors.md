@@ -334,14 +334,47 @@ The six parts:
   see below), a sparse-array hole, a symbol-keyed, accessor or non-enumerable
   own property,
   an array carrying an own property beyond its elements and `length` (`a=[1];
-  a.meta=2`), and a cycle. Each is a case where the obvious implementation
-  emits a valid document denoting something else.
+  a.meta=2`), and a cycle — four of them, below. Each is a case where the
+  obvious implementation emits a valid document denoting something else.
 
   The **accessor** case is two vectors rather than one — a getter and a
   setter-only property — because a serializer guarding on `descriptor.get`
   alone refuses the first and silently accepts the second. The getter vector
   asserts **two** things: that the input was refused, and that the getter was
   never invoked.
+
+  The **cycle** case is four vectors, the product of two axes. Cycle
+  **length**: a self-loop (`o.self=o`) against a cycle through a second
+  container (`a.next=b; b.next=a`) — a serializer whose only guard compares a
+  child against its immediate parent refuses every self-loop and recurses
+  forever on every pair. Cycle **container kind**: object against array
+  (`a[0]=a`, and `a=[b]; b=[a]`) — a visited set lives in a walker, and a
+  serializer keeping one in its object walker and not its array walker is a
+  different implementation from its mirror image.
+
+  **A diagonal does not do**, and the two indirect cells are the ones that show
+  it. Take the diagonal *self-loop in an object* plus *pair of arrays*: an
+  implementation with the immediate-parent check in both walkers **and** a
+  visited set in the array walker only refuses both — and hangs on a pair of
+  objects, which that diagonal does not contain. The mirror diagonal misses the mirror
+  implementation the same way. So both indirect cells are required, and the two
+  self-loops complete the product as the base case; unlike the indirect pair,
+  neither of them is the only cell that catches some implementation.
+
+  All four cycles sit **one level below the root** — `root=[x]` with `x` on the
+  cycle — for the reason the whole set shares, below.
+
+  **Every serializer-reject vector puts its offending value below the root**,
+  never as the root itself, and the placement is part of the vector exactly as
+  it is for the malformed byte sequences above. A serializer that validates its
+  argument and then recurses without validating again refuses every offender
+  handed to it directly and emits a document for the same offender one level
+  down — so a set that roots its offenders passes such an implementation
+  whole. The placements **cover both container kinds across the set** — some
+  offenders under an array element, some under an object property value — since
+  a walker can recurse into one and not the other. That is a property of the
+  set, not of each vector: one offender in each kind of container pins both
+  recursion paths, so this axis multiplies the set by nothing.
 
   **Every rejection vector must be refusable for exactly one reason.** Review
   found three vectors that a *cheaper* rule could refuse before the rule under
@@ -355,7 +388,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Twenty-five consecutive review
+  vector is the only instrument that sees it. Twenty-six consecutive review
   rounds each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -393,7 +426,12 @@ The six parts:
   keep four sibling vectors — then the escaped surrogate pair, which this
   document argued for and never made a vector, and the `_0`/`_1` ordering,
   which no single-const case can test, and both edges of the four constrained
-  second-byte ranges. Every time the list had been written from memory rather
+  second-byte ranges — then the whole serializer-reject side, where the cycle
+  class was one vector for a class with two axes, the entire set left the
+  offender's **placement** unstated where the byte set had pinned it three
+  rounds earlier, the normalize numbers were six positive finite thresholds
+  and nothing else, and post-order naming rested on two shared siblings, which
+  pre-order names the same way. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -636,13 +674,37 @@ The six parts:
   on negative zero. Pin the
   number thresholds explicitly — `1e20`, `1e21`, `1e-6`, `1e-7`,
   `5e-324`, `1.7976931348623157e308` — since that is where a host's own
-  formatter diverges, and pin `root=[p,p]` with `p=[c]` so the hoisting count
+  formatter diverges. Those six are positive and finite, which leaves the three
+  number leaves no threshold reaches: pin **`-0`**, **`Infinity`** and
+  **`-Infinity`** as well. `-0` is the one value `ToString(Number)` cannot
+  spell — measured, `String(-0)` is `"0"` — so a normalizer must special-case
+  it, and `-0.0` and `-0e0` are valid documents denoting the same value; the
+  infinities are likewise not their own only spelling, since `1e999` and
+  `-1e999` evaluate to them. `NaN` needs no vector of this kind — the grammar
+  gives it exactly one spelling — but it has one anyway as the
+  identifier-starting root below. Pin `root=[p,p]` with `p=[c]` so the hoisting count
   is occurrences rather than paths — and pin **`root=[a,b,a,b]`**, two
   independent shared containers, so the `_0`, `_1` naming is tested at all.
   With a single hoisted const there is no order to get wrong: a normalizer
   traversing siblings in reverse names them backwards and passes every
   one-const case. Pin the object analogue too, since there first encounter
-  follows observable key order rather than array position. Include a normalized root that is a bare
+  follows observable key order rather than array position. Two shared
+  **siblings** still leave *post*-order untested, because pre-order and
+  post-order agree on siblings: pin **`root=[p,p,c]`** with `p=[c]`, a shared
+  parent whose shared child is also reached from the root. Post-order names the
+  child first — `const _0=[];const _1=[_0];export default[_1,_1,_0];` — where a
+  normalizer naming on the way *down* emits
+  `const _1=[];const _0=[_1];export default[_0,_0,_1];`, which is a valid
+  document denoting the same graph and passes every sibling case. What
+  separates them is the **names**, not their order: a const referencing a later
+  one throws on evaluation (measured: `const _0=[_1];const _1=[];` is a
+  `ReferenceError`), so dependency-before-dependent is forced by the language
+  in any document that runs at all, and no vector has to pin it. Pin the object
+  analogue of this one too — `root={a:p,b:p,c:q}` with `p={x:q}`, giving
+  `const _0={};const _1={x:_0};export default{a:_1,b:_1,c:_0};` — for the
+  reason the cycle set is a product rather than a diagonal: naming can live in
+  a per-container emitter rather than in one shared traversal, and then only
+  the container kind that carries the nesting sees the order it assigns. Include a normalized root that is a bare
   number and a bare bigint, so `export default 1;` cannot regress to
   `export default1;` — which JavaScript rejects, `default1` being one
   identifier. Include an **identifier-starting** root as well (`NaN`, or any of
@@ -946,7 +1008,10 @@ needs nothing beyond an engine.
       **graph equivalence** and normalize sets covering the cases listed.
       Check each rejection vector for a **second ground of refusal** before
       committing it — three of the ones designed here had one, and a vector
-      refused by the cheaper rule never exercises the rule it was written for. The
+      refused by the cheaper rule never exercises the rule it was written for.
+      Check its **placement** too: a malformed byte sequence goes inside a
+      quoted string and a serializer-reject offender goes below the root, and
+      in both directions the placement is what makes the vector able to fail. The
       serializer-accept set is the one an implementation passes by being too
       strict, so it is the one most easily left for later and least safe to.
 - [ ] Add the **JavaScript** whole-set subset-law check. The FunctionalScript
