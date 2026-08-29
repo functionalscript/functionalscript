@@ -49,7 +49,9 @@ reader's public byte-accepting path — which stage 4 owes:
   invalid lead byte (`C0`, `C1`, `F5`–`FF`), a **stray continuation byte**
   (`80` with no lead), a truncated sequence (`C2` at end of input — see the
   exemption below), a valid
-  lead followed by a **non-continuation** byte (`C2 41`), an overlong encoding,
+  lead followed by a **non-continuation** byte, at each position a sequence has
+  one — `C2 41`, `E2 82 41`, `F0 9F 98 41` — since a decoder can validate the
+  first continuation and neglect the later ones, an overlong encoding,
   a surrogate half encoded as three bytes, and a value **above U+10FFFF**
   (`F4 90 80 80`). Those middle two are distinct failures rather than one: a
   decoder can handle a sequence that runs out of input and still mishandle one
@@ -66,25 +68,34 @@ reader's public byte-accepting path — which stage 4 owes:
   own reasons: the vector passes while the UTF-8 rule goes unenforced. This is
   the one-reason rule reaching the byte form.
 
-  **Truncation at end of input is the one exemption, and it is a real
-  limitation rather than an oversight.** To be truncated the lead byte must be
-  the document's last, so there is no closing quote and no `;` — and adding
-  them makes it `C2 22`, which is the non-continuation class instead. Every
-  placement that completes the document destroys the case. So this vector's
-  document is malformed twice over, its refusal is not attributable to the
-  bytes, and the corpus keeps it anyway: `C2 41` already covers the decoder's
-  other failure path, so what is lost here is the attribution, not the class.
-  Say that in the vector's own note rather than leaving a reader to discover
-  that the placement rule and this class contradict each other — which is how
-  review found it, one commit after both were written.
+  **Truncation at end of input has no vector, and the reason is worth more
+  than one would be.** To be truncated the lead byte must be the document's
+  last, so there is no closing quote and no `;`; adding them makes it `C2 22`,
+  the non-continuation class instead. An earlier draft exempted it from the
+  placement rule and kept it anyway, claiming the class survived and only the
+  attribution was lost. That was wrong, and review said so: a byte reader that
+  replacement-decodes the trailing lead and then rejects the unterminated
+  document passes **without checking UTF-8 at all**, so the vector cannot fail
+  and tests nothing. It is not a weakened vector, it is one of the
+  cannot-fail vectors this corpus already refuses to ship.
+
+  So the class is recorded as **untestable through a document-level byte
+  input**, and the seam that would test it — asserting what the decoder does
+  with the bytes, rather than what the reader does with the document — is
+  raised as a task rather than invented here. Whether a conforming
+  implementation must expose a decoder is an API question for the spec, not
+  one this corpus should settle by requiring it of every consumer.
 
 Byte-form vectors must **accept** as well as reject, and one per sequence
-width: ASCII, two bytes (`c3 a9`), three (`e2 82 ac`), four
-(`f0 9f 98 80`) — and **`f4 8f bf bf`, U+10FFFF itself**, because the reject
-side refuses `F4 90 80 80` and the accept side otherwise stops at an `F0`
-sequence, so a decoder refusing every `F4` lead passes both while refusing the
-largest valid scalar. A boundary needs a vector on each side; this document
-says exactly that about array-index keys and had not applied it here. One
+width, **at both ends of each width's range**: ASCII; `c2 80` (U+0080) and
+`c3 a9`; `e0 a0 80` (U+0800) and `e2 82 ac`; `f0 90 80 80` (U+10000),
+`f0 9f 98 80`, and `f4 8f bf bf` (U+10FFFF). The minima matter for the same
+reason the maximum does — a decoder rejecting every `C2` lead, every `E0`
+lead, or every `F0 90` sequence refuses valid U+0080, U+0800 or U+10000 while
+passing a set built from interior values, exactly as one rejecting every `F4`
+lead refused U+10FFFF. A boundary needs a vector on each side; this document
+says that about array-index keys, and review has now had to apply it here
+twice, once per end. One
 multibyte vector is not enough either — with only a two-byte
 one, a decoder accepting ASCII and two-byte sequences while rejecting every
 three- and four-byte sequence still passes, and the BMP and astral cases under
@@ -264,7 +275,7 @@ The six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Seventeen consecutive review
+  vector is the only instrument that sees it. Eighteen consecutive review
   rounds each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
@@ -286,7 +297,9 @@ The six parts:
   failure this document had already named and attributed to the array-index
   keys — then two rules of this document's own contradicting each other, and
   two table entries that lost a binding between the measurement and the
-  writing-down. Every time the list had been written from memory rather
+  writing-down, then a truncation vector that could not fail, the lower
+  boundary of every UTF-8 width, and non-continuation bytes at the later
+  positions of a sequence. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
@@ -788,6 +801,16 @@ needs nothing beyond an engine.
       characters DataJS rejects. The corpus derives from the rule and so is
       correct either way; the spec should either mark the list as examples or
       complete it.
+- [ ] **Raise the decoder seam with the spec**, which this corpus cannot
+      settle: UTF-8 truncation at end of input is unreachable through a
+      document-level byte input, because any completion of the document turns
+      it into the non-continuation class and any refusal is attributable to
+      the incomplete document instead. Testing it needs an assertion on what
+      the **decoder** does with the bytes, which means requiring conforming
+      implementations to expose one — an API demand the spec should make or
+      decline, not something the corpus should impose by listing a vector that
+      only a decoder-exposing implementation can satisfy. Until then the class
+      is recorded as untestable and has no vector.
 - [ ] Choose the corpus's location. The encoding is settled above: JSON,
       permanently, per the bootstrapping constraint.
 - [ ] Write the accept, reject, **serializer accept**, serializer reject,
