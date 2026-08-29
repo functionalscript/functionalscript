@@ -30,6 +30,24 @@ const alias = /** @type {const} */ ('packed')
  * "checked nothing and passed" is the failure this job most needs to be
  * legible about.
  *
+ * An earlier revision walked the tree with `find`, guarded the result with
+ * `test -s`, and passed it through `xargs -0`. Do not go back: review found
+ * three defects in that mechanism, one of them silent. `find` omitted
+ * `.d.cts`; the paths needed escaping to survive the shell; and `xargs` fills
+ * a finite command buffer, so a package large enough to overflow it — about
+ * twenty times this one — would have been split across several `tsc`
+ * invocations, each a separate program, losing cross-file diagnostics and
+ * reporting another batch's globals as missing. One `include` has none of
+ * them, and root `AGENTS.md` §6 asks for the tool that parses what it checks
+ * rather than a pattern approximating one.
+ *
+ * `**` rather than a list of declaration extensions, for the same reason:
+ * a list is a thing that can be wrong, and that one already was. It does mean
+ * a package shipping `.ts` sources and no declarations has a nonempty root
+ * set, so `TS18003` would not fire — unreachable here, because root
+ * `package.json` `files` is an allowlist with no pattern matching a source
+ * file. Recorded in `../todo/package-check-unsupported-package-shapes.md`.
+ *
  * `exclude` is emptied because the default excludes `node_modules`, which is
  * the only place the artifact exists. `skipLibCheck` is stated rather than
  * left at its default: it is the one option whose flip would stop `tsc`
@@ -56,12 +74,21 @@ const tsconfig = /** @type {const} */ ({
  * registry — or a constant that drifted from `package.json` — decide the
  * verdict.
  *
+ * `npm`, `npx` and `tsc` are the only external tools left, and root
+ * `AGENTS.md` §6 is why there are no others: `tsc` is the established tool
+ * that parses what it checks, and `npm` is the subject — a job proving the
+ * package installs for a consumer cannot avoid the consumer's package manager.
+ *
  * @type {(pin: string) => readonly string[]}
  */
 const commands = pin => [
     'npm init -y > /dev/null',
     // `echo` is the shell's own builtin expanding its own glob; `ls` would be
     // a second process to learn what the shell already knew.
+    //
+    // No guard against a second `.tgz`: the glob would expand to two names
+    // inside one `file:` spec and npm fails ENOENT naming both, which is
+    // louder than anything a count check would print.
     `npm install "${alias}@file:$(echo *.tgz)"`,
     `npm install "typescript@${pin}"`,
     `echo '${JSON.stringify(tsconfig)}' > tsconfig.json`,

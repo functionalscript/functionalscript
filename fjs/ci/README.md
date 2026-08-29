@@ -22,6 +22,15 @@ canonical Node job under `nix/generated/`.
 - `node/module.f.mjs` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, package checks, and the Node flake declarations.
   `proof.f.mjs` — its property-based proofs.
+- `package/module.f.mjs` — the `package-check` job: downloads the tarball the
+  Node job uploads, installs it under a fixed alias outside any checkout, and
+  type-checks every declaration it ships. It is the one job built without
+  `toSteps`, because that helper adds `actions/checkout` and the missing
+  checkout is the point — with the repository on the runner there would be a
+  `tsconfig.json` up the tree, a `node_modules` to resolve into, and sources
+  standing in for declarations the tarball omits, so the check would pass on
+  the repository rather than on the package.
+  `proof.f.mjs` — its property-based proofs.
 - `rust/module.f.mjs` — Rust toolchain setup and `cargo` build/test steps.
 - `deno/module.f.mjs` — Deno runtime steps.
 - `bun/module.f.mjs` — Bun runtime steps.
