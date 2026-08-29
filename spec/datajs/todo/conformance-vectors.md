@@ -372,6 +372,19 @@ The six parts:
   - **`infinity`, `array`, `object`, `key`, `document`** — both signs; empty
     and non-empty; both `key` alternatives; zero `const`s and several.
 
+  **Every string vector has a key twin**, in every role. `key ::= string | '['
+  '"__proto__"' ']'` puts the *same* `string` production in a second syntactic
+  position, and a shared production is not shared code — the rule that had to
+  be conceded for `int` between numbers and bigints, and which review then
+  applied here: an implementation with a correct value writer and a separate
+  key writer emits invalid output or noncanonical escapes for object keys while
+  passing every vector above. So the nine escapes, the raw non-ASCII character,
+  the lone surrogates, the escaping classes on the serializer side and the
+  exact-byte escapes under `normalize` each appear twice — once as a value,
+  once as a key. It doubles the string vectors, which is the honest price of
+  the concession; the alternative is the excuse this file has now retracted
+  three times.
+
   The reject half of this corpus is derived from the spec's narrowing rules,
   and this is its twin: the same discipline pointed at the productions instead
   of the prose. Ad-hoc accept sets fail in one direction only, which is why
@@ -658,7 +671,12 @@ The six parts:
   the serializer-accept strings, free to be ASCII because that set derives by
   leaf type and the escaping classes are pinned only under `normalize`; and
   the normalized encoder's own width boundaries, given as interior values in
-  the same paragraph that said an encoder branches on magnitude. The sweep for the lead-partition shape had
+  the same paragraph that said an encoder branches on magnitude — then the
+  serializer's ordinary non-ASCII and paired-surrogate paths, absent because
+  the escape classes had just been added and looked like coverage; **every
+  string vector's key twin**, since `key` is the same production in a second
+  position; and post-order naming on the two mixed parent-child kinds, where
+  the demonstration actually lives. The sweep for the lead-partition shape had
   already found the same hole in the **code-unit** accepts: every
   `id` vector was lowercase, `int` was `12`, `frac` was `1.5` and `\uXXXX`'s
   hex was lowercase, so four more classes were sampled in the middle where the
@@ -857,6 +875,17 @@ The six parts:
     runs none of those vectors. Each asserts the emitted document denotes the
     input's exact code-unit sequence, which is what separates a correct escape
     from a serializer that drops the character;
+  - a string holding what a writer leaves **unescaped**, which the escape
+    classes above do not reach: an ordinary non-ASCII BMP character and a
+    **surrogate pair**. A serializer with an ASCII path and a lone-surrogate
+    escape path passes everything above while refusing every U+0080–U+FFFF
+    character, or while mishandling a pair — and the pair is the one case whose
+    two code units must *not* be escaped individually, which is the opposite of
+    what the four lone-surrogate vectors ask for. **Paths, not endpoints**: the
+    width boundaries belong to `normalize` because emitting U+07FF in three
+    bytes still yields a valid document denoting the same string, so no
+    serializer-accept vector can see it, while a missing branch changes the
+    denotation and every one of them can;
   - an object mixing **array-index and string keys**, since observable order is
     a property of the emitted document and nothing else in this set constrains
     it. Review reported the first two; this one came from sweeping the reader's
@@ -1000,13 +1029,27 @@ The six parts:
   separates them is the **names**, not their order: a const referencing a later
   one throws on evaluation (measured: `const _0=[_1];const _1=[];` is a
   `ReferenceError`), so dependency-before-dependent is forced by the language
-  in any document that runs at all, and no vector has to pin it. Pin the object
-  analogue of this one too — `root={"a":p,"b":p,"c":q}` with `p={"x":q}`, giving
-  `const _0={};const _1={"x":_0};export default{"a":_1,"b":_1,"c":_0};` — for
-  the reason the cycle set covers every ordered pair of container kinds rather
-  than a diagonal: naming can live in a per-container emitter rather than in
-  one shared traversal, and then only the container kind that carries the
-  nesting sees the order it assigns. **Every key in that output is quoted**,
+  in any document that runs at all, and no vector has to pin it. Pin **all four
+  ordered pairs** of parent and child kind, not the two homogeneous ones, for
+  the reason the cycle set covers every ordered pair rather than a diagonal —
+  and here the mixed cells are the ones with a demonstration, which the
+  homogeneous pair does not have on its own:
+
+  | parent, child | graph | normalized bytes |
+  | - | - | - |
+  | array, array | `root=[p,p,c]`, `p=[c]` | `const _0=[];const _1=[_0];export default[_1,_1,_0];` |
+  | object, object | `root={"a":p,"b":p,"c":q}`, `p={"x":q}` | `const _0={};const _1={"x":_0};export default{"a":_1,"b":_1,"c":_0};` |
+  | object, array | `root={"a":p,"b":p,"c":q}`, `p={"x":q}`, `q` an array | `const _0=[];const _1={"x":_0};export default{"a":_1,"b":_1,"c":_0};` |
+  | array, object | `root=[p,p,q]`, `p=[q]`, `q` an object | `const _0={};const _1=[_0];export default[_1,_1,_0];` |
+
+  Naming can live in a per-container emitter rather than in one shared
+  traversal, and a normalizer can go further: name post-order *within* each
+  walker while **reserving the parent's name before dispatching** to the other
+  one. That passes both homogeneous cells and assigns the parent `_0` and the
+  child `_1` on either mixed graph, with declaration order still
+  dependency-first, so the bytes stay valid and graph-equivalent while the
+  names are wrong. Review found it, and it is the fifth class in this file to
+  need the object and array walkers separated. **Every key in that output is quoted**,
   since `key ::= string | '[' '"__proto__"' ']'` admits no identifier form —
   review caught this vector spelling its keys bare, which would have required
   a document DataJS rejects and failed the very implementation it exists to
