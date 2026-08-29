@@ -866,8 +866,10 @@ export const proof = {
     // than the first bad member, and they report it identically. That
     // precedence is what lets a container be bounded before recursing, which
     // an `or` of two arities needs — see the comment on the gate in
-    // `./module.f.mjs`. Acceptance is untouched: the same check is re-asked
-    // after the reads, so the gate only ever rejects earlier.
+    // `./module.f.mjs`. Acceptance is untouched: a shape the gate rejects is
+    // one no walk could have accepted, which the differential against the
+    // unbounded readers confirms. What the gate is *for* is counted by
+    // {@link arityUnionVisitsEachOperandOnce}, not by these paths.
     structuralMismatchIsAnsweredFirst: () => {
         const t = /** @type {const} */ ([42])
         // too long *and* wrong at index 0 — the length is what answers
@@ -892,6 +894,35 @@ export const proof = {
         for (const read of [v, p]) { assertErrorPath(['a'])(read(one)({ b: 1 })) }
         // and a value that fits is read as before
         for (const read of [v, p, d]) { assertOk(read(t)([42])) }
+    },
+    // Every row above is about error **attribution**, and a regression that
+    // walked a shared operand once per arm while reporting the same paths
+    // would pass them all. So this one counts instead: an `or` of two
+    // arities whose arms share an operand, with the operand's thunk tallying
+    // how often it is visited.
+    //
+    // Linear here, exponential without the bound — measured against the
+    // unbounded readers at the same depths: 31 visits at depth 4, 511 at 8,
+    // 131 071 at 16, against 7, 11 and 19 here. The bound is generous enough
+    // to survive a benign refactor and far below 2^depth either way.
+    arityUnionVisitsEachOperandOnce: () => {
+        /**
+         * @typedef {() => readonly ['or', typeof number, typeof string, _Dot]} _Exp
+         * @typedef {() => readonly ['or', readonly ['.', _Exp, typeof string], readonly ['.', _Exp, typeof string, readonly ['|()', _Exp]]]} _Dot
+         */
+        let visits = 0
+        /** @type {_Exp} */
+        const exp = () => { visits += 1; return ['or', number, string, dot] }
+        /** @type {_Dot} */
+        const dot = () => ['or', ['.', exp, string], ['.', exp, string, ['|()', exp]]]
+        /** @type {(n: number) => Unknown} */
+        const chain = n => n === 0 ? ['nope'] : ['.', chain(n - 1), 'b']
+        const depth = 16
+        for (const read of [v, p]) {
+            visits = 0
+            assertError(read(exp)(chain(depth)))
+            assert(visits <= 3 * depth, 'the shared operand is walked once per level, not once per arm')
+        }
     },
     // The walk is bounded by what the value and its prototypes carry rather
     // than by `length`: a sparse array as long as the index space allows

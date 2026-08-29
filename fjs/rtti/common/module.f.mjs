@@ -347,18 +347,34 @@ export const undeclaredMembers = (declared, value) => {
  * still has to be materialized — JavaScript exposes no lazy own-key walk —
  * but the values are not read and the scan stops at the first hit.
  *
+ * `declared` is a **membership test**, not a list, and the caller builds it
+ * once per schema: asked per key, a linear scan of the declared names makes
+ * the gate quadratic in a large container — a 10 000-member tuple spent
+ * 0.5s here against a same-shaped value, for a question that is O(1) a key.
+ *
  * `undeclaredMembers` stays for the `rest` readers, which need the pairs.
  *
- * @type {(declared: readonly string[], value: ReadonlyArray<Unknown> | StringMap<Unknown>) => boolean}
+ * @type {(declared: (k: string) => boolean, value: ReadonlyArray<Unknown> | StringMap<Unknown>) => boolean}
  */
 export const hasUndeclaredMember = (declared, value) => {
     /** @type {(k: string) => boolean} */
-    const undeclared = k => !declared.some(d => d === k)
+    const undeclared = k => !declared(k)
     if (!commonIsArray(value)) {
         return Object.keys(value).some(undeclared)
     }
     return readIndices(value).some(i => undeclared(String(i)))
         || Object.keys(value).some(k => arrayIndex(k) === undefined && undeclared(k))
+}
+
+/**
+ * {@link hasUndeclaredMember}'s membership test over a schema's declared
+ * names — built once per schema, so each key costs one lookup.
+ *
+ * @type {(declared: readonly string[]) => (k: string) => boolean}
+ */
+export const declaredTest = declared => {
+    const names = new Set(declared)
+    return k => names.has(k)
 }
 
 /**

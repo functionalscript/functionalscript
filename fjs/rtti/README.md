@@ -94,6 +94,15 @@ is an action*, and the readers do not defend against it. Concretely:
   before the members are read and can decide what they are: a proxy over
   `['bad']` whose `length` getter sets index 0 to `1` is **accepted** against
   `[number]` by `parse` and `validate`, while the data form rejects it.
+- **The same is true of the members a container has at all.** The shape is
+  settled before the members are read, so a read that *adds* a member is not
+  seen: an object whose `a` getter installs an undeclared `b` is **accepted**
+  against `{ a: number }` by `parse` and `validate`, while the data form
+  rejects it. An earlier revision re-asked the shape after the reads and
+  caught that one; the check was dropped rather than kept, because it closed
+  one arrangement out of an open set — the `length` example above defeats any
+  amount of re-asking, since it decides the members *before* anyone reads
+  them.
 - **So the three readers can disagree on such a value.** The agreement the
   tables in `validate/proof.f.mjs` pin — and that `host.proof.mjs` holds them
   to — is a promise about values whose reads are side-effect-free, which is

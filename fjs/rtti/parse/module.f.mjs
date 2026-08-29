@@ -59,7 +59,9 @@ import { ok } from '../../types/result/module.f.mjs'
 import {
     absentMember,
     constPrimitiveValidate,
+    declaredTest,
     eachEntry,
+    hasUndeclaredMember,
     isArray,
     isObject,
     orVisit,
@@ -67,7 +69,6 @@ import {
     primitive0Validate,
     structSchemaEntries,
     tupleSchemaEntries,
-    hasUndeclaredMember,
     undeclaredMembers,
     verror,
     visit,
@@ -337,6 +338,8 @@ const constContainerParse =
         // Depend on `rtti` alone, so they are computed once per schema.
         const rttiEntries = schemaEntries(rtti)
         const declared = rttiEntries.map(([k]) => k)
+        // One lookup per key at the gate, rather than a scan of `declared`.
+        const isDeclared = declaredTest(declared)
         return value => {
             if (!isContainer(value)) {
                 return verror('unexpected value')
@@ -362,7 +365,7 @@ const constContainerParse =
                 acc => acc,
             )
             if (a[0] === 'error') { return a }
-            if (hasUndeclaredMember(declared, value)) {
+            if (hasUndeclaredMember(isDeclared, value)) {
                 return verror('unexpected value')
             }
             const r = eachEntry(
