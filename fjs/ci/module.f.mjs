@@ -49,8 +49,12 @@ const job = (rust, nodeExtra) => o => a => {
  * declares its own environment beside the steps that enter it; this is the list
  * the generator writes out, and the only place the whole set is visible.
  *
- * `bun` is the one canonical job absent from it — `./todo/bun-nix-blocked-on-nixpkgs.md`
- * says why, and adding its declaration here is what finishes that migration.
+ * Three canonical jobs are absent from it. `bun` and `wasm` wait on Nixpkgs, for
+ * unrelated reasons — `./todo/bun-nix-blocked-on-nixpkgs.md` and
+ * `./todo/wasm-nix-blocked-on-rust-targets.md` — and `package-check` runs with no
+ * checkout, so there is no file tree for a flake to be in. `./todo/65z-ci-nix.md`
+ * keeps the three reasons together, and `./proof.f.mjs`'s `nixCoverage` keeps the
+ * list from growing by accident.
  *
  * @type {readonly NixJob[]}
  */

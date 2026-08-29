@@ -4,6 +4,12 @@
  * canonical WASM job installs Wasmtime and Wasmer before exercising every WASM
  * target.
  *
+ * All three toolchains come from setup actions rather than from a generated Nix
+ * flake, and cannot come from one today: Nixpkgs builds a single `rustc` with no
+ * `std` for `wasm32-wasip1`, `wasm32-wasip2` or `wasm32-wasip1-threads`, so three
+ * of the WASM job's four targets have nothing to compile against. See
+ * `../todo/wasm-nix-blocked-on-rust-targets.md`.
+ *
  * @module
  *
  * @import { Architecture, MetaStep, Os } from '../common/types.ts'
