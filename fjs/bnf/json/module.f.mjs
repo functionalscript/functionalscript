@@ -40,11 +40,15 @@ export const optionFloatSuffix = [
     option([set('Ee'), option(set('+-')), digits])
 ]
 
-export const int = [option('-'), uint]
+export const optionNeg = option('-')
+
+export const int = [optionNeg, uint]
 
 const number = [int, optionFloatSuffix]
 
-const ws = repeat0Plus(set(' \n\r\t'))
+export const wsSymbol = set(' \n\r\t')
+
+export const ws = repeat0Plus(wsSymbol)
 
 export const cj = commaJoin0Plus(ws)
 
