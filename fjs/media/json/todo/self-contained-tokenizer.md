@@ -361,7 +361,10 @@ implementation PR — the premise only actually changes when the code does.
       `unescaped character`, `invalid token` for `0n`) sees different tokens,
       and a consumer relying on a *value* token after a malformed literal stops
       receiving one. Valid JSON is unaffected, and the entry should say so.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `npm run update`, then `npx tsc` and `fjs test`. The update step is not
+      optional bookkeeping here: it regenerates CI workflows and lockfiles, and
+      this stage adds no dependency but does change a module's exports, so the
+      generated declaration output moves with it.
 
 ### Related
 
