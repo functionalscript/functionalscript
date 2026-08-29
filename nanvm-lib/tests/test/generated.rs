@@ -70,7 +70,7 @@ fn unary_plus<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn unary_minus<A: IVm>() {
+fn neg<A: IVm>() {
     check::<A>("null", -(Nullish::Null.to_any()), (-0f64).to_any());
     check::<A>("undefined", -(Nullish::Undefined.to_any()), (f64::NAN).to_any());
     check::<A>("booleanFalse", -(false.to_any()), (-0f64).to_any());
@@ -204,7 +204,7 @@ fn string_coercion<A: IVm>() {
 pub fn all<A: IVm>() {
     eq::<A>();
     unary_plus::<A>();
-    unary_minus::<A>();
+    neg::<A>();
     mul::<A>();
     string_coercion::<A>();
 }

@@ -9,14 +9,13 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { data, functionValue, ref, throws } from '../module.f.mjs'
-import { call, directory, generate, path, valueExpr } from './module.f.mjs'
-import { snakeCase } from '../../media/rust/module.f.mjs'
+import { casesOf, data, functionValue, opId, ref, throws } from '../module.f.mjs'
+import { directory, generate, nodeExpr, path, rustName, valueExpr } from './module.f.mjs'
 
 /**
  * One case of every shape the printer can emit: a shared value and a
- * reference to it, a skipped case, a throwing case, and a commutative binary
- * operator.
+ * reference to it, a skipped case, a throwing case, a group with no canonical
+ * EDAG id, and a commutative binary operator.
  *
  * @type {Data}
  */
@@ -29,9 +28,9 @@ const sample = {
         ],
     },
     groups: [
-        { op: 'unaryPlus', cases: [{ name: 'bigint', args: [0n], expected: throws }] },
+        { nanvmOp: 'unaryPlus', cases: [{ name: 'bigint', args: [0n], expected: throws }] },
         {
-            op: 'mul',
+            op: '*',
             commutative: true,
             cases: [{ name: 'oneByTwo', args: [1, 2], expected: 2 }],
         },
@@ -89,13 +88,26 @@ export const proof = {
             valueExpr({ k: null }),
             '[(string_key("k"), Nullish::Null.to_any())].to_object().to_any()')
         assertEq(valueExpr(functionValue), 'function_any()')
-        assertEq(valueExpr(ref('stringArray')), 'string_array.clone()')
     },
-    call: () => {
-        assertEq(call('unaryPlus')(['x']), 'Any::unary_plus(x)')
-        assertEq(call('unaryMinus')(['x']), '-(x)')
-        assertEq(call('mul')(['x', 'y']), 'x * y')
-        assertEq(call('stringCoercion')(['x']), 'x.to_string().map(|v| v.to_any())')
+    /**
+     * The operation nodes, printed straight from the EDAG rather than through
+     * a case: this is the whole of what the printer knows about operations,
+     * and the ids are the canonical ones.
+     */
+    nodeExpr: () => {
+        assertEq(nodeExpr(['neg', 1]), '-((1f64).to_any())')
+        assertEq(
+            nodeExpr(['String', 'a']),
+            'string_any("a").to_string().map(|v| v.to_any())')
+        assertEq(nodeExpr(['*', 1, 2]), '(1f64).to_any() * (2f64).to_any()')
+        assertEq(nodeExpr(['undefined']), 'Nullish::Undefined.to_any()')
+    },
+    /** A Rust name is this printer's, and never derived from a punctuation id. */
+    rustName: () => {
+        assertEq(rustName['*'], 'mul')
+        assertEq(rustName.neg, 'neg')
+        assertEq(rustName.String, 'string_coercion')
+        assertEq(rustName.unaryPlus, 'unary_plus')
     },
     generate: () => {
         assertEq(generate(sample), expected)
@@ -107,11 +119,23 @@ export const proof = {
         assert(result.endsWith('}\n'), result)
         assert(result.includes('pub fn all<A: IVm>() {'), result)
         for (const g of data.groups) {
-            assert(result.includes(`fn ${snakeCase(g.op)}<A: IVm>() {`), g.op)
-            assert(result.includes(`${snakeCase(g.op)}::<A>();`), g.op)
+            const n = rustName[opId(g)]
+            assert(result.includes(`fn ${n}<A: IVm>() {`), n)
+            assert(result.includes(`${n}::<A>();`), n)
+            // Every case reaches the output, commented out or not.
+            for (const c of casesOf(g)) { assert(result.includes(`"${c.name}"`), c.name) }
         }
     },
     throw: {
-        throwsIsNotAValue: () => valueExpr(throws),
+        /** `throws` is an outcome, so it has no expression to print. */
+        throwsIsNotAnExp: () => valueExpr(throws),
+        /**
+         * An operation the printer has no `nanvm-lib` spelling for. The
+         * generated file would otherwise carry a statement that does not
+         * compile, or worse, one that does and means something else.
+         */
+        unknownOperation: () => nodeExpr(['+', 1, 2]),
+        /** An object key the corpus cannot produce and Rust cannot spell. */
+        computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
     },
 }
