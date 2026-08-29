@@ -84,8 +84,12 @@ A machine-readable corpus with six parts:
   `export default "a\<LF>b";`. Then the **raw control characters** a string
   may not contain — U+0000, U+0009 and U+001F, pinning both ends of the
   below-U+0020 range and one ordinary member — each valid inside a JavaScript
-  string literal and none inside a DataJS one. Then U+2028/U+2029/NBSP/FF/BOM
-  outside a string.
+  string literal and none inside a DataJS one. Then all **six** characters
+  JavaScript treats as whitespace or a line terminator and DataJS rejects
+  outside a string — U+2028, U+2029, no-break space, form feed, **vertical
+  tab** and a byte order mark. Then the three places whitespace is
+  *required*, one vector each: `constx=1;export default x;`,
+  `exportdefault 1;` and `export default1;`.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
   than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
   and at least one that is not — **`Map` or a boxed number**, not `RegExp`;
@@ -113,16 +117,18 @@ A machine-readable corpus with six parts:
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
   blind — it asks only whether an *accept* vector is valid JavaScript, never
   whether something DataJS rejects would be accepted by the host — so a reject
-  vector is the only instrument that sees it. Five consecutive review rounds
+  vector is the only instrument that sees it. Six consecutive review rounds
   each found one missing: the plain number spellings and the non-ASCII
   identifier together, then the *escaped* identifier spelling, then line
   continuations and template literals, then the remaining escapes, then the raw
-  control characters. Every time the list had been written from memory rather
+  control characters, then the vertical tab and the required separators. Every time the list had been written from memory rather
   than read off the spec, and the last three rounds are the telling ones: by
   then the class had been named *and* this derivation written, and the list was
   still short each time. Naming a class does not check a list; neither does a
   derivation pointed at the wrong sentence; and neither does one pointed at the
-  right sentence that stops reading halfway through it. The spec narrows in three sections, and each owes vectors:
+  right sentence that stops reading halfway through it, nor one that never
+  enumerated the section at all. The spec narrows in four sections, and each
+  owes vectors:
 
   - **Strings** — and this is the section that kept biting, because it holds
     **three** rules in two sentences and each was found separately. §Strings
@@ -143,16 +149,34 @@ A machine-readable corpus with six parts:
     `+`, no leading or trailing point, no separators, no leading zeros.
   - **Identifiers** — §Identifiers' ASCII-only rule, which excludes both a
     non-ASCII letter and the `\uXXXX` spelling of an ASCII one.
+  - **Whitespace** — §Whitespace, which narrows twice and was the section
+    this derivation had *not* enumerated, which is exactly why one of its six
+    went missing. It closes JSON's four-character set against every other
+    character JavaScript treats as space or a line terminator — U+2028,
+    U+2029, no-break space, form feed, vertical tab, BOM — and it *requires*
+    whitespace in three places, after `const`, after `export`, and before an
+    identifier-starting value after `default`. Six plus three, and the list
+    above now has six plus three. Leaving it in the prose tail below rather
+    than in this enumeration is what let a six-item closed set be transcribed
+    as five.
 
   Plus what DataJS simply lacks where JavaScript has it: comments, `import`,
-  identifier keys, trailing commas, and the space characters above.
+  identifier keys and trailing commas.
 
   **Two things are not on this list, and saying so keeps a later round from
   adding vectors that cannot fail.** JavaScript rejects `1.5n`, `1e2n` and
   `01n`; a strict module rejects the legacy octal escapes `\101` and `\8`; and
   a raw LF or CR inside a string literal is a JavaScript SyntaxError too, so
-  the raw-control vectors above stop at U+001F and skip those two — all
-  measured, not assumed. Each tests the corpus's own grammar rather than
+  the raw-control vectors above stop at U+001F and skip those two. Two of the
+  three **required-separator** vectors are the same: `export default1;` and
+  `exportdefault 1;` are SyntaxErrors, since `default1` and `exportdefault`
+  each lex as one identifier — the spec says as much about the first. They stay
+  in the reject set as tests of the corpus's own grammar, against a reader that
+  matches keyword prefixes itself, but they cannot catch a delegating one.
+  `constx=1;export default x;` is the odd one and the only true narrowing of
+  the three: it **parses** as JavaScript and fails at run time with a
+  `ReferenceError`, so a reader delegating its parse accepts it. All measured,
+  not assumed. Each tests the corpus's own grammar rather than
   a narrowing, because no reader can over-accept them by delegating to a host
   that refuses them too.
 
