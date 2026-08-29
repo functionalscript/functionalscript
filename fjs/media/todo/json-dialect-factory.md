@@ -184,8 +184,8 @@ walking them establishes the property for every value the signature admits.
 Following the rest instead would reject all three dialects for an `unknown`
 that never reaches the encoder's parameter type.
 
-**The walk settles kinds, not values — say so, and put the value rule where
-it already lives.** A schema whose members are all JSON kinds still admits
+**The walk settles kinds; the values need their own rule.** A schema whose
+members are all JSON kinds still admits
 values the encoder cannot round-trip: rtti `number` has no finiteness
 refinement, `numberSerialize` is `[jsonStringify(input)]`
 (`../json/serializer/module.f.mjs:83-84`), and `JSON.stringify` renders
@@ -199,46 +199,65 @@ rejects it, exactly the `bigint` failure one layer down. Claiming the
 construction assert establishes "JSON-representable" without qualification
 would therefore be false.
 
-Two things keep it honest, and neither is new machinery:
+The answer is one rule in one place, not a documented caveat. The walk that
+proves kinds already enumerates the schema's positions; have it keep the
+`number` ones, and have the factory's `validate` reject at exactly those
+positions any value `encodeText` cannot reproduce:
 
-- **State the round trip over `validate`'s outputs — with one exception,
-  `-0`.** `validate` takes a `JsonUnknown`, a value that came from JSON
-  text, and JSON has no `NaN` or `Infinity` literal, so nothing `validate`
-  or `decodeText` returns is non-finite. It does have a `-0` literal:
-  `../json/module.f.mjs`'s parser returns negative zero for it (pinned at
-  `../json/extended/proof.f.mjs:61`, `Object.is(parseValue('-0'), -0)`),
-  rtti `number` hands the value back unchanged, and `JSON.stringify(-0)` is
-  `"0"`. So `decodeText(encodeText(v))` differs from `v` under `Object.is`
-  for that one value — and `Object.is` is what this repo compares numbers
-  with, deliberately: `../../types/object/structurally_same/module.f.mjs:25`
-  says `0` and `-0` differ, and `../../rtti/data/module.f.mjs:122-128`
-  orders them apart. `revision` does **not** currently exclude it —
-  `Number.isSafeInteger(-0)` is `true` and `-0 < 0` is `false`, so `:232`
-  accepts it. The round trip is therefore exact for every position except an
-  unrefined `number`, and the factory says so rather than promising more.
-- **For a hand-built value, the refinement is the owner.** `revision`
-  already rejects a non-finite `generation` in its own `validate`
-  (`Number.isSafeInteger`, `../revision/module.f.mjs:232`), which is why no
-  dialect is broken on that half. Make that the stated rule for the `number`
-  position rather than an invention: a dialect whose schema admits `number`
-  refines it, and the factory's JSDoc for `encodeText` says the host
-  `JSON.stringify` rule applies to a value that skipped the refinement.
-- **Extend that same refinement to `-0`, in `revision`.** One clause beside
-  the existing one — `Object.is(r.generation, -0)` is an error — closes the
-  exception above, and it is right on the merits rather than a patch for the
-  proof: `../revision/module.f.mjs:204-208` already argues that a generation
-  must be an exact count derived as `1 + max(parents')`, which never yields
-  negative zero. A dialect that would rather permit the normalization may,
-  but then it states that `encodeText` maps `-0` to `0`; what it may not do
-  is claim an exact round trip while accepting `-0`.
+```js
+/** A number `JSON.stringify` renders without changing its value. */
+const jsonExact = x => Number.isFinite(x) && !Object.is(x, -0)
+```
 
-Do **not** answer this by having the shared `encodeText` walk every value
-checking `Number.isFinite`: that puts a whole-value traversal on every
-encode for a case no dialect can reach through `validate`, and pushing the
-check down into `../json`'s serializer would change every JSON consumer in
-the repo, far outside this issue. Narrowing the schema is not available
-either — rtti cannot express a finite `number`, which is the same
-expressiveness limit that sends the `bigint` half to a runtime assert.
+Both bad cases are one failure. `NaN` and `±Infinity` serialize as `null`
+(`../json/extended/module.f.mjs:50-52`), and `-0` serializes as `0` —
+`JSON.stringify(-0)` is `"0"` — while this repo deliberately keeps the two
+apart: `../../types/object/structurally_same/module.f.mjs:25` says `0` and
+`-0` differ, and `../../rtti/data/module.f.mjs:122-128` orders them apart.
+Neither survives a round trip; one is rejected on the way back, the other
+silently changes value.
+
+**Why `validate` owns this and not "the value came from JSON text".**
+Provenance is not something the type carries. `validate` is a *public*
+entry point taking `JsonUnknown`, and TypeScript's `number` includes `NaN`,
+so `validate({ dialect: 'x', value: NaN })` is a well-typed call on a
+hand-built object — scoping the guarantee to JSON-sourced values would be
+an assumption about callers, not a property of the API. And `-0` needs no
+such caller at all: `../json/module.f.mjs`'s parser returns negative zero
+for the `-0` literal, pinned at `../json/extended/proof.f.mjs:61`
+(`Object.is(parseValue('-0'), -0)`), so it arrives from JSON text.
+
+**The check is a lookup, not a walk — when every `number` sits at a
+declared member path.** That is the case for all three dialects today:
+`revisionSchema`'s `generation` (`../revision/module.f.mjs:128`) is the only
+`number` in any of them, so the factory installs one check at one path. A
+`number` beneath an `array` or `record` is a position *pattern* rather than
+a path, and honoring it would mean walking the value; there the factory
+refuses at construction unless the dialect supplies a refinement — the same
+loud refusal the `bigint` half uses. No dialect reaches that branch now, and
+the one that adds it learns so at module load rather than from a blob.
+
+With that rule the contract is exact: `decodeText(encodeText(v)) = v` for
+every `v` that `validate` accepts, with no caveat about provenance and no
+exception for `-0`, and it holds for a dialect whose author never considered
+non-finite numbers. The error is a `ValidationError` with the member's path,
+which `validate`'s declared result type already admits — so no dialect's
+published signature changes.
+
+`revision` should still add `Object.is(r.generation, -0)` beside its
+existing check (`:232`), but now as a better message rather than as the
+guarantee: `../revision/module.f.mjs:204-208` already argues a generation is
+an exact count derived as `1 + max(parents')`, which never yields negative
+zero, so the dialect has its own reason to name the value. It stops being
+load-bearing once the factory enforces the rule.
+
+Do **not** answer this in `encodeText` instead, by walking every value
+checking `jsonExact`: that is a whole-value traversal on every encode where
+`validate` needs a fixed lookup, and pushing the check down into `../json`'s
+serializer would change every JSON consumer in the repo, far outside this
+issue. Narrowing the schema is not available either — rtti cannot express a
+finite `number`, the same expressiveness limit that sends the `bigint` half
+to a runtime assert.
 
 A type constraint — requiring `ValueOf<S>` assignable to `JsonUnknown` — is
 strictly better where it can be expressed, since it moves the failure to
@@ -373,18 +392,21 @@ additionally) `fjs/types/result` grows the `isOk` they both hand-roll.
       `lock` is recursive — constructs without hanging. Attempt the
       `ValueOf<S>`-assignable-to-`JsonUnknown` constraint too, and keep it
       if it expresses cleanly — but the assert stays either way.
-- [ ] Scope the guarantee in the factory's JSDoc to what it establishes:
-      schema **kinds**, not values. State the round trip over `validate`'s
-      outputs, note that a `number` position is finite only because the
-      dialect refines it (`../revision/module.f.mjs:232`), and prove it
-      both ways — `decodeText(encodeText(v)) = v` for a validated revision,
-      compared with `Object.is`, and `validate` rejecting a non-finite
-      `generation`.
-- [ ] Add the `-0` clause to `revision`'s `generation` check and prove it:
-      `decodeText('{"generation":-0,…}')` is an error. Without it the
-      round-trip proof above passes only because no case exercises `-0`,
-      which is the shape of hole this issue is meant to close. Independent
-      of the factory — worth landing on its own.
+- [ ] Have the construction walk keep the schema's `number` positions, and
+      have the factory's `validate` check `jsonExact` at each — refusing at
+      construction instead when a `number` sits under an `array`/`record`,
+      where the position is a pattern rather than a path. Prove all three:
+      `validate` rejects `NaN` and `-0` at `generation` with a
+      `ValidationError` naming the path, and `decodeText(encodeText(v))` is
+      `v` for a validated revision. Compare with `assertStructurallySame`,
+      not `Object.is` — `decodeText` builds a fresh object, so `Object.is`
+      on the whole value is false for any input; the structural comparison
+      is the one that reaches primitives with `Object.is` and so still
+      separates `0` from `-0`
+      (`../../types/object/structurally_same/module.f.mjs:25`).
+- [ ] Add `Object.is(r.generation, -0)` to `revision`'s own check for the
+      better message, and prove `decodeText('{"generation":-0,…}')` is an
+      error. Independent of the factory — worth landing on its own.
 - [ ] Rewrite `revision`, `lock`, and `note` over it; delete the per-module
       copies and the two `isValid…` adapters. Keep every published name —
       `revisionDialect`/`lockDialect`/`noteDialect` aliasing the kit's
