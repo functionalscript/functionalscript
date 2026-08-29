@@ -448,10 +448,16 @@ and is reviewable without the next one.
       the order on a runner that can interleave, and both fan-outs were
       restored one at a time to watch the matching proof fail. The measured
       part, for whoever revisits the cost: the suite's wall clock moved 61.6 s
-      → 65.2 s, while the `Time:` line it prints moved 754 s → 63.4 s, because
+      → 62.6 s, while the `Time:` line it prints moved 754 s → 60.9 s, because
       a concurrent leaf's duration counted its siblings' work — one 1.4 ms
       proof had been reporting 17.6 s. Speed was not a goal, and the number
-      that was wrong is the one that got fixed.
+      that was wrong is the one that got fixed. The review of that PR also
+      found what the fold cost before it was flattened: `foldStep` nested one
+      continuation per item, which put a ceiling of ~10,000 sibling leaves on
+      a sequential walk — *lower* than the `all` spread it replaced. Fixed in
+      `effects` in the same PR, so a module of 200,000 leaves now walks in
+      about a second; catalog item 9's "joins must be linear" applies to
+      continuations too, and nobody had looked.
       Replace the `all` fan-outs with a sequential fold: one leaf's whole
       chain — test, report, children — awaited before the next leaf starts,
       for siblings and for modules alike. Console-observable and

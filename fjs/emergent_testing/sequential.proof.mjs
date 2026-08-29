@@ -15,16 +15,14 @@
  *
  * What the difference looks like: `all` is `Promise.all`, which starts every
  * child before awaiting any, so two leaves that suspend record
- * `start:a, start:b, …` and report only once the whole group has landed. The
- * fold records `start:a, end:a, report:a, start:b, …` — the order these
- * proofs assert, and the order a reader of a running suite sees.
- *
- * @module
+ * `start start end end report report`. The fold records
+ * `start end report` per leaf — the order these proofs assert, and the order a
+ * reader of a running suite sees.
  *
  * @import { Effect, Func, OpResult } from '../effects/types.ts'
  * @import { All, Catch, Sandbox } from '../effects/node/types.ts'
- * @import { Result } from '../types/result/types.ts'
  * @import { Reporter } from './types.ts'
+ * @import { Result } from '../types/result/types.ts'
  */
 
 import { assertEq } from '../asserts/module.f.mjs'
@@ -37,32 +35,29 @@ import { defaultTest, runModuleMap } from './module.f.mjs'
  * A leaf that suspends in the middle of its own body.
  *
  * The `await` is the whole point: it is a place another leaf could run if one
- * had been started, so `start` and `end` bracket a window that a concurrent
- * traversal fills and a sequential one leaves empty.
+ * had been started, so the runner's `sandbox` call brackets a window that a
+ * concurrent traversal fills and a sequential one leaves empty. The leaf
+ * records nothing itself — every event this proof reads is the *runner's*, for
+ * the reason `eventsOf` gives.
  *
- * @type {(events: string[], name: string) => () => Promise<void>}
+ * @type {() => Promise<void>}
  */
-const leaf = (events, name) => async () => {
-    events.push(`start:${name}`)
-    await Promise.resolve()
-    events.push(`end:${name}`)
-}
+const leaf = async () => { await Promise.resolve() }
 
 /**
  * Runs `moduleMap` through the shared traversal on an asynchronous runner, and
  * answers the events in the order they happened.
  *
- * The log is an array the handlers append to rather than runner state, because
- * `asyncRun` threads none — it is the real interpreter, not a fixture, and
- * that is exactly why this proof uses it.
- *
- * The map is built *from* the log rather than passed alongside it, because the
- * fixture's leaves are what record `start` and `end`: a leaf has to be able to
- * write into the same log its report is written into, or the two halves of the
- * order could not be compared.
+ * **The log is a captured `let`, and it has to be.** Observing interleaving
+ * means observing two chains that are in flight at once, and anything the
+ * effect chain *threads* — a mock runner's state, an accumulator — is by
+ * construction single-threaded through the fold, which is exactly the property
+ * under test. `../effects/mock` cannot answer this question for that reason,
+ * and a side channel is what remains. It is rebound rather than mutated, both
+ * writers are the runner's own handlers, and no fixture touches it.
  *
  * @type {(
- *     moduleMap: (events: string[]) => Record<string, { readonly proof: unknown }>
+ *     moduleMap: Record<string, { readonly proof: unknown }>
  * ) => Promise<string>}
  */
 const eventsOf = async moduleMap => {
@@ -82,8 +77,8 @@ const eventsOf = async moduleMap => {
         summary: () => record('summary'),
         test: defaultTest,
     }
-    /** @type {string[]} */
-    const events = []
+    /** @type {readonly string[]} */
+    let events = []
     /** @type {<T, E>(e: Effect<All | Catch | Sandbox | _Record, T, E>) => Promise<Result<T, E>>} */
     let run
     run = asyncRun({
@@ -95,18 +90,22 @@ const eventsOf = async moduleMap => {
         // `../effects/node` does), a restored fan-out fails these proofs by
         // interleaving, which is the property they are about.
         all: async (...effects) => ok(await Promise.all(effects.map(run))),
+        // `start` and `end` bracket the leaf's own body, so a second leaf
+        // starting inside that window is what a fan-out looks like from here.
         sandbox: async (/** @type {() => unknown} */ f) => {
+            events = [...events, 'start']
             const result = ok(await f())
+            events = [...events, 'end']
             return ok({ result, duration: 0 })
         },
         catch: async (/** @type {() => unknown} */ f) => ok(ok(f())),
         record: async (/** @type {string} */ name) => {
-            events.push(name)
+            events = [...events, name]
             return ok(undefined)
         },
     })
     await run(/** @type {Effect<All | Catch | Sandbox | _Record, number, never>} */ (
-        runModuleMap(reporter)(moduleMap(events))))
+        runModuleMap(reporter)(moduleMap)))
     return events.join(' ')
 }
 
@@ -115,17 +114,16 @@ const eventsOf = async moduleMap => {
  * starts.
  *
  * Delete the fold in `walkEntries` and fan out with `allOk` again, and this is
- * the assertion that fails — `start:a, start:b, end:a, end:b, report:a,
- * report:b` — which is what makes it a proof of the scheduling rather than of
- * the reporting.
+ * the assertion that fails — `start start end end report:.a report:.b` — which
+ * is what makes it a proof of the scheduling rather than of the reporting.
  */
 const siblingsDoNotOverlap = async () => {
-    const events = await eventsOf(e => ({
-        './m.proof.f.mjs': { proof: { a: leaf(e, 'a'), b: leaf(e, 'b') } },
-    }))
+    const events = await eventsOf({
+        './m.proof.f.mjs': { proof: { a: leaf, b: leaf } },
+    })
     assertEq(
         events,
-        'start:a end:a report:.a start:b end:b report:.b summary',
+        'start end report:.a start end report:.b summary',
         events)
 }
 
@@ -138,13 +136,13 @@ const siblingsDoNotOverlap = async () => {
  * green.
  */
 const modulesDoNotOverlap = async () => {
-    const events = await eventsOf(e => ({
-        './m.proof.f.mjs': { proof: { a: leaf(e, 'a') } },
-        './n.proof.f.mjs': { proof: { b: leaf(e, 'b') } },
-    }))
+    const events = await eventsOf({
+        './m.proof.f.mjs': { proof: { a: leaf } },
+        './n.proof.f.mjs': { proof: { b: leaf } },
+    })
     assertEq(
         events,
-        'start:a end:a report:.a start:b end:b report:.b summary',
+        'start end report:.a start end report:.b summary',
         events)
 }
 
@@ -157,21 +155,13 @@ const modulesDoNotOverlap = async () => {
  * the parent after its children have landed.
  */
 const childrenRunBeforeTheNextSibling = async () => {
-    const events = await eventsOf(e => ({
-        './m.proof.f.mjs': {
-            proof: {
-                outer: () => {
-                    e.push('start:outer')
-                    return { inner: leaf(e, 'inner') }
-                },
-                after: leaf(e, 'after'),
-            },
-        },
-    }))
+    const events = await eventsOf({
+        './m.proof.f.mjs': { proof: { outer: () => ({ inner: leaf }), after: leaf } },
+    })
     assertEq(
         events,
-        'start:outer report:.outer start:inner end:inner report:.outer().inner'
-        + ' start:after end:after report:.after summary',
+        'start end report:.outer start end report:.outer().inner'
+        + ' start end report:.after summary',
         events)
 }
 

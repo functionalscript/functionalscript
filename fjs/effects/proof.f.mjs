@@ -565,6 +565,22 @@ export const proof = {
                 x => s => x === 2 ? pureError('two') : pureOk(s + x))
             assertError(pureResult(e), 'two')
         },
+        // A fold far longer than any this repository performs still completes.
+        //
+        // This one used to be the ceiling nobody had looked for. Written as a
+        // `fold` over `step`, the chain nested to the left, so every
+        // resumption walked one continuation per item: 5,000 items cost 1.6 s
+        // in that walk and 10,000 died with `RangeError: Maximum call stack
+        // size exceeded`. Both numbers are engine-specific, which is why this
+        // asserts that a long fold *finishes* rather than asserting where the
+        // old one stopped — the property being guarded is that depth does not
+        // grow with the item count.
+        aLongFoldCompletes: () => {
+            const items = Array.from({ length: 20000 }, (_, i) => i)
+            assertOk(
+                pureResult(foldStep(pureOk(items), 0, x => s => pureOk(s + x))),
+                199990000)
+        },
     },
     forEachStep: {
         empty: () => {

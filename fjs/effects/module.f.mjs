@@ -79,14 +79,13 @@
  * @module
  *
  * @import { List } from '../types/list/types.ts'
- * @import { Fold } from '../types/function/operator/types.ts'
  * @import { Option } from '../types/option/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { Commands, Effect, ErrOf, Func, IoChannel, IoError, IoErrorInfo, MatchResult, NotImplemented, OkOf, Operation, OperationMap, PartialOperationMap } from './types.ts'
  */
 
 import { assert } from '../asserts/module.f.mjs'
-import { fold } from '../types/list/module.f.mjs'
+import { next } from '../types/list/module.f.mjs'
 import { error, mapOk, ok } from '../types/result/module.f.mjs'
 import { at } from '../types/object/module.f.mjs'
 
@@ -630,11 +629,55 @@ export const historyStep = (e, f) => {
  * @param {(item: T) => (state: S) => Effect<Q, S, E>} f
  * @returns {Effect<O | Q, S, E>}
  */
-export const foldStep = (items, init, f) => {
-    /** @type {Fold<T, Effect<Q, S, E>>} */
-    const op = item => acc => step(acc, f(item))
-    return step(items, fold(op)(pureOk(init)))
-}
+export const foldStep = (items, init, f) =>
+    step(items, list => {
+        /**
+         * **Neither nesting shape is flat on its own, so this is both.**
+         *
+         * Written as a `fold` over {@link step} — `step(step(step(init, f0),
+         * f1), f2)` — the chain nests to the *left*, so an interpreter holds
+         * one command wrapped in as many {@link resultStep} continuations as
+         * there are items, and every resumption walks all of them: depth is
+         * the item count and the work is its square. Measured on node 22
+         * through `emergent_testing`'s traversal, 5,000 items spent 1.6 s in
+         * that walk and 10,000 died with `RangeError: Maximum call stack size
+         * exceeded`.
+         *
+         * Building the rest of the loop inside each item's continuation nests
+         * to the *right* and fixes that — but only for items that perform a
+         * command, because those hand control back to the interpreter's own
+         * loop. An item whose effect is already a value resumes immediately,
+         * inside this function, and a fold of those would recurse here exactly
+         * as deeply as the left-nested one did in the interpreter.
+         *
+         * So: loop while items answer values, and return as soon as one
+         * performs a command, with the remainder as its continuation. Depth is
+         * constant in the item count either way, the items still run in order,
+         * and a failure still stops the fold — through {@link step}'s
+         * propagation when a command failed, and through the early return here
+         * when a value did.
+         *
+         * @type {(l: List<T>, acc: S) => Effect<Q, S, E>}
+         */
+        const go = (l, acc) => {
+            let rest = l
+            let state = acc
+            while (true) {
+                const r = next(rest)
+                if (r === null) { return pureOk(state) }
+                const e = f(r.first)(state)
+                if (typeof e !== 'function') {
+                    const tail = r.tail
+                    return step(e, s => go(tail, s))
+                }
+                const answer = e()
+                if (answer[0] === 'error') { return pure(answer) }
+                state = answer[1]
+                rest = r.tail
+            }
+        }
+        return go(list, init)
+    })
 
 /**
  * Runs `f(item)` for each item in order, stopping at the first failure and
