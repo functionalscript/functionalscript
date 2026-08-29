@@ -307,7 +307,8 @@ Five rules replace the inherited behavior:
 
    - **Accepting stop.** The lexeme is complete, and the character that ended it
      is re-dispatched. It becomes a `number` token if that character is an
-     accepting terminator, and one `invalid number` if it is not — `"` in
+     accepting terminator — JSON's set below, and the caller's in general, per
+     the seam section — and one `invalid number` if it is not — `"` in
      `12"a"`, `;` in `12;1` — with the character re-dispatched either way, so
      the string or the next token still scans. An absorbed character never
      reaches this case, per the rule above.
@@ -663,6 +664,12 @@ a seam and a signature. Work through what DataJS actually has to do:
 - **`-Infinity`.** The wrapper must intervene immediately **after the leading
   minus**, where JSON would otherwise see `I` as a non-terminator and consume
   the whole run as a malformed number.
+- **`export default 1;`.** DataJS's statement separator is `;`, which is not in
+  JSON's accepting-terminator set — `12;1` is an `invalid number` today. A
+  normalized DataJS document whose root is a bare number ends exactly that way,
+  so the seam is useless to stage 4 unless `;` can terminate an accepting
+  number. Review found this one, and it is the finding that shapes the clause
+  below: two enumerated interceptions were never going to be enough.
 
 A contract of "named state, initial value, terminator rule" can be satisfied by
 an implementation whose state is opaque — and then neither interception is
@@ -712,6 +719,30 @@ So the interception rule is stated on the **state**, not on the character:
 - **`-Infinity` is intercepted from the sign variant**, and only from it, by
   the same discipline: a non-accepting state a wrapper is allowed to claim
   before JSON rejects it, named rather than inferred.
+
+And one clause that is not about interception at all, because `;` showed the
+enumeration was the wrong shape:
+
+- **The accepting-terminator set is the caller's, not the scanner's.**
+  `scanNumber` scans the lexeme — absorption included, since that decides what
+  the lexeme *is* — and reports where it stopped and in which state. Whether
+  the stopping character *terminates* is policy applied afterwards, by whoever
+  called it. JSON's tokenizer applies the measured set above and nothing
+  changes for it; DataJS applies that set plus `;`, and `export default 1;`
+  yields `number 1`. Every other character DataJS can put after a number —
+  `,` `]` `}` and whitespace — is already in JSON's set, so `;` is the whole
+  difference.
+
+  The **recovery boundary set travels with it**, for the same reason and by the
+  same argument — it is delimiters, not grammar — so DataJS recovers a
+  malformed number at its own `;` rather than swallowing the statement end.
+  JSON's stays today's, exactly.
+
+  This is not parameterizing the grammar, the thing this stage refuses to do.
+  Neither set was ever lexical: both are JavaScript operator tables reproduced
+  for compatibility, sitting where a language's own delimiters belong. Moving
+  them to the caller puts each language's delimiters in that language's module,
+  and is the reason `;` needs no special case.
 
 That is what makes `-Infinity` and `1n` expressible without stage 3 knowing
 anything about them — and `00n` inexpressible, which matters just as much.
@@ -842,6 +873,11 @@ already rewritten, in this PR; only `streaming-recognizer` is still owed.**
       directly from their exported initial states — not only through
       `tokenize`. A seam proved only via its own module's entry point is not
       proved as a seam, and stage 4 is about to be its second caller.
+- [ ] Prove the terminator policy is the caller's: `scanNumber` reports the
+      stop, `fjs/media/json/tokenizer` applies JSON's set, and a proof feeds
+      the scanner `1;` with a set containing `;` and gets `number 1` — the
+      case stage 4 needs for `export default 1;`. JSON's own tokens must not
+      move: `12;1` stays `invalid number`, `unexpected character`, `number 1`.
 - [ ] Prove the state is observable the way stage 4 needs: from the exported
       state alone, a caller can distinguish "stopped after a well-formed `int`"
       (the bigint interception point) from "stopped after the sign" (the
