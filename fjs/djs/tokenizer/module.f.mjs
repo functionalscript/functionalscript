@@ -14,6 +14,7 @@
  *   JsToken,
  *   JsTokenWithMetadata,
  *   TokenMetadata,
+ *   TokenPosition,
  * } from '../../js/tokenizer/types.ts'
  * @import { CodePoint } from '../../text/utf16/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
@@ -567,6 +568,14 @@ const tokenStartOfTag = (tokenTag, errorTag, flatTokens) => {
     return found[1]
 }
 
+/**
+ * The position half of a `TokenMetadata` — the path is stated once, on the
+ * start, because a token does not straddle files.
+ *
+ * @type {(metadata: TokenMetadata) => TokenPosition}
+ */
+const position = ({ line, column }) => ({ line, column })
+
 /** @type {(input: List<number>) => (path: string) => List<JsTokenWithMetadata>} */
 export const tokenizeJs = input => path => {
     const cp = toArray(input)
@@ -586,7 +595,12 @@ export const tokenizeJs = input => path => {
         // match (`len < cp.length`) — `repeat0Plus` never fails after
         // successfully consuming the whole input, so there is no way to reach
         // this branch with `len === cp.length`.
-        return [{ token: { kind: 'error', message: 'invalid token' }, metadata: cpm[len][1] }]
+        // the span runs from where matching stopped to where the input ran out:
+        // nothing after that position could be made into a token either
+        return [{
+            token: { kind: 'error', message: 'invalid token', end: position(finalMetadata) },
+            metadata: cpm[len][1],
+        }]
     }
 
     const flatTokens = toArray(getTokensFromAstRule(ast))
@@ -596,12 +610,19 @@ export const tokenizeJs = input => path => {
     // this character doing here", so it is reported at the character — `123abc`
     // points at the `a`, not at the `1`.
     if (flatTokens.includes('unterminated')) {
+        // from the `/*` that was never closed to where the input ran out
         return [{
-            token: { kind: 'error', message: '*/ expected' },
+            token: { kind: 'error', message: '*/ expected', end: position(finalMetadata) },
             metadata: tokenStartOfTag('comment', 'unterminated', flatTokens),
         }]
     }
     if (flatTokens.includes('numError')) {
+        // No `end`. This error's anchor is the character that spoiled the
+        // number, not the number's start, so the span a reader would want —
+        // `123a` for `123abc` — runs *backwards* from the anchor and cannot be
+        // expressed as an end. Giving it one means moving the anchor to the
+        // number's start, which changes a reported position for no consumer,
+        // so the anchor convention wins and this error stays a point.
         return [{
             token: { kind: 'error', message: 'invalid number' },
             metadata: metadataAfterTag('numError', flatTokens, finalMetadata),
