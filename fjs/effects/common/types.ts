@@ -41,6 +41,24 @@ export type SandboxResult<T> = {
  * `Awaited<T>` because a handler that can await one does: a thunk answering
  * `Promise<V>` is measured to where it settled and puts `V` in the result. `T`
  * would promise a caller a promise that is not there.
+ *
+ * **The scope is ordinary code, and that is a decision rather than an
+ * oversight.** A handler awaits an `instanceof Promise` and nothing else, so a
+ * bare thenable — `{ then(r) { r(42) } }` — is stored as the object it is while
+ * `Awaited<T>` types it as the value it would have resolved to, and a promise
+ * from another realm is stored for the same reason. Both discrepancies are
+ * known and neither is worth a conditional type here.
+ *
+ * The narrow rule is deliberate where it matters: a proof's returned value with
+ * a `then` key is *a sub-tree with a test called `then` in it*, and awaiting it
+ * would adopt the tree instead of walking it. What a runner should do about
+ * cross-realm promises is the subject of
+ * `emergent_testing/todo/imports-promises-realms.md`, which is where such a
+ * decision belongs — not in a type describing the common case.
+ *
+ * This operation measures and traps *ordinary* JavaScript. It is not a boundary
+ * against adversarial JavaScript, and pursuing every shape a `then` can take is
+ * a rabbit hole with no end and no reader.
  */
 export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxResult<Awaited<T>>>]
 
