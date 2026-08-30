@@ -156,11 +156,12 @@ Two invariants the engine owes the author, both checkable:
   inside it did get their own `end`, and their values are dropped with the
   frame. An invocation whose child refused gets no further `update` and no
   `end` either: the refusal takes the place of its state (§6).
-- **Every name resolves.** The map's keys and the start rule are checked
-  against the `RuleSet` when the parser is built (§5, §8), so a typo or a
-  renamed rule fails at construction, before any input — never as a transformer
-  that silently never fires, and never as a parse that throws on its first
-  input.
+- **Every name resolves, and no tag is silently dropped.** The map's keys and
+  the start rule are checked against the `RuleSet` when the parser is built
+  (§5, §8), so a typo or a renamed rule fails at construction rather than as a
+  transformer that never fires or a parse that throws on its first input. The
+  same pass refuses a map that transforms the branch of an *unmapped* variant,
+  which is the one shape where partial adoption would lose a tag (§3).
 
 #### 2. What the events are, per rule kind
 
@@ -253,10 +254,26 @@ trying branches; `ll1` gains one) and its one tagged `update` — an addition to
 the AST model, not a reimplementation of it, paid for only where it is used.
 
 A transformed value sitting inside an untransformed parent is an opaque child
-of that parent's node, so `AstSequence<L>` widens to admit it. Such a child
-carries no tag, because a tag lives on a node and there is no node. If the tag
-matters there, transform the parent too; partial adoption is a convenience, not
-a contract.
+of that parent's node, so `AstSequence<L>` widens to admit it. For a sequence or
+a repetition that costs nothing — an item's own tag is `undefined` anyway (§2),
+so there is nothing to lose.
+
+**A variant is the one place where it would lose something, and that map is
+refused.** An unmapped variant owns no node: the engine hands its branch's node
+the tag and that node *is* the variant's. If the branch is mapped, there is no
+node to tag, so the tag has nowhere to go at all — the unmapped variant would
+silently stop building the AST §3 promises, and a transformed ancestor could not
+tell which branch matched. So `transformRuleSet` refuses at construction when a
+mapped rule is the branch of an *unmapped* variant, naming both rules: transform
+the variant too, or drop the branch's transformer.
+
+Refusing rather than repairing is the point. The engine could wrap the value in
+`{ tag, sequence: [value] }`, but that node is not the one this grammar builds
+today — the branch's own node is — so the repair would quietly change the AST
+in the name of preserving it, which is worse than saying no
+([DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle)). Both
+endpoints stay legal: an empty map has no mapped rules to refuse, and an
+all-`unit` map has no unmapped variants.
 
 #### 4. Streaming
 
@@ -638,6 +655,7 @@ assume:
 
 ```ts
 // the grammar's rules, as named thunks:
+//   value   = () => ({ object, array, string, number, … })
 //   string  = () => ['"', characters, '"']
 //   member  = () => [string, ws, ':', ws, value]
 //   object  = () => ['{', ws, members, '}']
@@ -648,13 +666,16 @@ assume:
     member:     map(([key, , , , value]) => [key, value]),
     members:    list(),
     object:     map(([, , members]) => Object.fromEntries(members)),
+    value:      map(([v]) => v),               // the branch's value, whichever it was
     ws:         unit,
 }
 ```
 
-`object` never sees a quote, an escape, or a space *in its members* — each child
-rule's effective value is what flows up, so the key is decoded and the value is
-built.
+`value` is in the map because `string` and `object` are its branches: a mapped
+branch under an unmapped variant is refused at construction (§3), and here it
+would also be the rule that gives a JSON value its type. `object` never sees a
+quote, an escape, or a space *in its members* — each child rule's effective
+value is what flows up, so the key is decoded and the value is built.
 
 **What this saves is the tree, not every node.** A partial map like this one
 leaves punctuation terminals and the grammar's anonymous rules untransformed, so
@@ -909,6 +930,10 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
       `start` rule against the `RuleSet` at construction, throwing rather than
       parsing — `K extends string` cannot reject a mistyped start name, since an
       untransformed start rule is legal.
+- [ ] Refuse, in the same pass, a map that transforms the branch of an unmapped
+      variant (§3): the branch has no node for the engine to tag, so the tag
+      would vanish. Name both rules in the error, and prove that an empty map
+      and an all-`unit` map both stay legal.
 - [ ] Re-express `parserRuleSet` as that machine with an empty map, and keep its
       current result type; the one place the machine's erasure is undone is
       where a value comes back out of it.
