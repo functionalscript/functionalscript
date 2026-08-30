@@ -150,7 +150,8 @@ const operator = {
     '(': '(',
     ')': ')',
     ',': ',',
-    ':': ':'
+    ':': ':',
+    ';': ';'
 }
 
 /** @type {() => Rule} */
@@ -626,6 +627,7 @@ const mapDjsToken = input => {
         case ']':
         case '.':
         case '=':
+        case ';':
         case 'true':
         case 'false':
         case 'null':

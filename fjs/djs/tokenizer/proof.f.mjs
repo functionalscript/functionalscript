@@ -919,6 +919,12 @@ export const proof = {
     // JS-level token shapes already covered above/elsewhere in this file.
     djsTokenize: [
         () => {
+            // `;` is a token of its own — the statement terminator DataJS
+            // requires and the module grammar accepts — not an error
+            const result = toArray(tokenize(stringToList(';'))(''))
+            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":";"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
+        () => {
             // keywords other than true/false/null/undefined become plain ids
             const result = toArray(tokenize(stringToList('break'))(''))
             assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":"id","value":"break"}},{"metadata":{"column":6,"line":1,"path":""},"token":{"kind":"eof"}}]')

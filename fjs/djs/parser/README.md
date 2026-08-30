@@ -10,14 +10,22 @@ the tokenizer turns code points into tokens, and this turns tokens into an
 ## The grammar is written down
 
 ```
-module ::= t import* const* export t eof
+module ::= t import* const* export lt (';' | ) t eof
 import ::= 'import' t id t 'from' t string   sep
 const  ::= 'const'  t id t '=' t value       sep
 export ::= 'export' t 'default' t value
 value  ::= primitive | id | array | object
 key    ::= id | string | '[' t string t ']'
-sep    ::= (ws | comment)* nl
+sep    ::= lt (';' | nl) t
+lt     ::= (ws | comment)*
 ```
+
+A statement ends at a `;` or at the end of the line — both are terminators,
+which is what lets every DataJS document (where the `;` is required) parse
+here. One terminator per statement: `;;` is not an empty statement but a
+stray token, and a `;` after the newline terminates nothing, because the
+newline already did. The export statement may end with a `;` too, but needs
+no terminator — the end of input closes it.
 
 This replaced a hand-written state machine whose grammar existed nowhere: a
 nine-state value alphabet plus module framing, where the only way to learn what

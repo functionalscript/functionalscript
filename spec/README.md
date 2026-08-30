@@ -26,7 +26,8 @@ implemented now.
 **DataJS**, a much narrower interchange format: JSON with two extensions —
 values may be shared, so a document denotes a DAG rather than a tree, and the
 leaf set gains `undefined`, `bigint`, `NaN` and the infinities — and with a
-`;` **terminating** every statement, `export default` included, no `import`,
+`;` **required** after every statement, `export default` included (the DJS
+described here accepts the `;` but does not require it), no `import`,
 no comments, no identifier keys and no trailing commas. The data subset
 described in *this* document is wider and is what the compiler accepts today.
 The two converge as
@@ -502,9 +503,25 @@ See
 
 ## Module Structure
 
-A module is a sequence of statements. Each statement is terminated by the end
-of the line; **semicolons are not part of the language**, and `export default
-5;` is an error.
+A module is a sequence of statements. Each statement is terminated by a
+semicolon or by the end of the line — `export default 5` and `export default
+5;` denote the same module, and the `;` lets several statements share a line.
+One terminator per statement: `;;` is an error, not an empty statement, and a
+`;` on the line after a statement terminates nothing, because the newline
+already did.
+
+The `;` is not a stylistic allowance. [DataJS](./datajs/README.md) *requires*
+one after every statement, and every DataJS document must be a valid
+FunctionalScript module — `const $0=[1];export default [$0,$0];` is normalized
+DataJS, one line, and it parses here. JavaScript accepts both spellings with
+the same meaning, so the subset law permits both; what FunctionalScript still
+refuses from JavaScript is the empty statement and automatic semicolon
+insertion's harder cases — a statement here ends at a `;` or a newline,
+never at a spot an engine infers. Whether the newline terminator survives
+into the compiler-formatted `.f.js` output language is a stage-5 question of
+[`todo/parser-serializer-restructure.md`](../todo/parser-serializer-restructure.md),
+which argues for requiring the `;` there; this document describes what the
+parser accepts, and it accepts both.
 
 |Statement|Form|
 |---------|----|

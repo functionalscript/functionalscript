@@ -91,7 +91,7 @@ const splitEof = tokenList => {
  */
 export const _tokenKindNames = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined',
-    '{', '}', ':', ',', '[', ']', '.', '=',
+    '{', '}', ':', ',', '[', ']', '.', '=', ';',
     'string', 'number', 'error', 'id', 'bigint',
     'ws', 'nl', '//', '/*',
 ])
@@ -183,14 +183,27 @@ const trivia = repeat0Plus({
 })
 
 /**
- * Trivia that stops at a newline, for the one place a newline is not trivia:
- * the statement separator. `import`/`const` statements must be newline-separated
- * — the `'nl'` state in the hand-written parser — so a rule that swallowed
- * newlines as trivia everywhere could not express it.
+ * Trivia that stops at a newline, for the places a newline is not trivia: a
+ * statement ends at one, so a rule that swallowed newlines as trivia everywhere
+ * could not express the terminator.
+ */
+const lineTrivia = repeat0Plus({
+    ws: sym('ws'),
+    lineComment: sym('//'),
+    blockComment: sym('/*'),
+})
+
+/**
+ * What ends a statement: a `;` or the end of the line. DataJS requires the
+ * `;` and FunctionalScript must accept every DataJS document, so both are
+ * terminators here — the newline is the one the hand-written parser's `'nl'`
+ * state enforced, the semicolon the one `spec/README.md`'s module-structure
+ * rule adds for the inclusion. One terminator each: a second `;` is not an
+ * empty statement, it is a stray token the next rule rejects.
  */
 const statementEnd = () => [
-    repeat0Plus({ ws: sym('ws'), lineComment: sym('//'), blockComment: sym('/*') }),
-    sym('nl'),
+    lineTrivia,
+    { semicolon: sym(';'), newline: sym('nl') },
     trivia,
 ]
 
@@ -308,6 +321,11 @@ const djsModule = () => [
     repeat0Plus([importStatement, statementEnd]),
     repeat0Plus([constStatement, statementEnd]),
     exportStatement,
+    // the export statement may end with a `;` too, but needs no terminator:
+    // the end of input closes it. The `;` must precede any newline — once the
+    // line has ended, the statement has too, and a later `;` is a stray token.
+    lineTrivia,
+    { semicolon: sym(';'), none: [] },
     trivia,
     eof,
 ]
