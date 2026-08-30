@@ -64,9 +64,15 @@ vectors as byte arrays "fed to the reader's public byte-accepting path — which
 stage 4 owes". By the time input is a JavaScript string both distinctions are
 gone, so `tryParse` alone can neither implement nor prove them. `tryParseBytes`
 decodes with [`fjs/text/utf8`](../../../text/utf8/module.f.mjs)'s
-`toCodePointList`, refuses invalid UTF-8, and strips a leading `EF BB BF` before
-the parser runs — that last is why the BOM vector must be bytes: a decoder
-satisfies the parser on it, so a code-unit array can never carry the case.
+`toCodePointList`, refuses invalid UTF-8, and **rejects** a leading `EF BB BF`.
+
+That last word matters, and an earlier draft of this file had it backwards.
+"A document is UTF-8. It has no BOM" is a *rejection* rule: a BOM makes the byte
+sequence invalid, it is not something to remove on the way in. Stripping is
+exactly the defect the vector exists to catch — the corpus says the case needs
+bytes because "a decoder satisfies the parser on [it] by stripping `EF BB BF`
+before the parser ever runs", so an implementation that strips passes every
+code-unit vector while accepting a document the spec refuses.
 
 **There is no `sort` seam, and that is a difference from JSON rather than an
 omission.** `fjs/media/json` takes a `_MapEntries` so a caller can canonicalize;
@@ -169,13 +175,14 @@ references errors: a reference resolves by lookup, and a failed lookup is a
 parse error rather than a `null` leaf.
 
 **Layer 1 — the value machine**, which is `fjs/media/json/parser` generalized.
-Measured against the code as it stands, three seams are too narrow:
+Measured against the code as it stands, four things are too narrow:
 
 | Today | Why it does not fit |
 |---|---|
 | `NumberPolicy<P> = (token: NumberToken) => Result<P, string>` | number tokens only; DataJS adds `undefined`, `NaN`, `Infinity`, bigint, and `id` |
 | `_ValueToken = Extract<JsonToken, {kind: 'null'\|'false'\|'true'\|'string'\|'number'}>` | a closed set, and `JsonToken` has no `id`, `bigint`, `=` or `;` |
 | `parseObjectStartOp`, `parseObjectCommaOp` accept `token.kind === 'string'` | DataJS keys are a string **or** the computed `["__proto__"]` |
+| members accumulate in an `OrderedMap`, materialized by `fromMap` | that is a btree keyed by string `cmp`, so members come back **sorted**; DataJS needs first-occurrence order |
 
 so the generalization is:
 
@@ -187,6 +194,31 @@ export type LeafPolicy<T, P> = (token: T) => Result<Tree<P>, string> | null
 `null` means "not a leaf token", and the machine reports its existing
 `unexpectedToken`. JSON's instantiation accepts exactly today's five kinds;
 DataJS's accepts those plus its own leaves plus `id`.
+
+**Member order is a fourth seam, and it is a representation change rather than
+a hook.** JSON's machine accumulates members with `setReplace` into an
+`OrderedMap` and materializes them with `fromMap`. That map is a btree keyed by
+string `cmp`, so it returns members **sorted by key** — deterministic, which is
+all JSON needs, and not what DataJS requires. Measured against today's parser:
+
+| document | today | the spec |
+|---|---|---|
+| `{"b":1,"a":2}` | `a,b` | `b,a` |
+| `{"a":1,"b":2,"a":3}` | `a,b` | `a,b`, `a` first with value `3` |
+| `{"z":0,"2":0,"1":0,"y":0}` | `1,2,y,z` | `1,2,z,y` |
+
+Index keys land correctly by luck — numeric strings sort into place ahead of
+letters for these cases — and every non-index key is wrong whenever the document
+does not already list them in sorted order. DataJS's rule is **array-index keys
+by numeric value first, then the rest in first-occurrence order**, with a
+duplicate taking the last value at the first position, and no key-comparison
+function produces that: first-occurrence order is a fact about the input
+sequence, not about the keys.
+
+So the members of an object have to accumulate in an order-preserving structure
+and be materialized in that order. JSON's own accepted behavior must be pinned
+unchanged across the change — its observable key order today is the host's, and
+a proof has to say so before this moves.
 
 **The environment does not enter the machine.** An `id` resolves through the
 leaf policy, and the statement layer partially applies the current environment
@@ -333,8 +365,9 @@ the spec judges them independently and this module provides all three.
 ### Tasks
 
 - [ ] Widen `fjs/media/json/parser`'s seams: leaf policy, multi-token key
-      policy, token vocabulary. One PR, with proofs pinning JSON's accepted
-      language and behavior unchanged.
+      policy, token vocabulary, and order-preserving member accumulation in
+      place of the sorting `OrderedMap`. One PR, with proofs pinning JSON's
+      accepted language and observable key order unchanged.
 - [ ] `fjs/media/datajs/types.ts` and `README.md`.
 - [ ] Tokenizer, over stage 3b's exported scanners.
 - [ ] Statement layer: environment, bound-once, declare-before-use.
