@@ -383,12 +383,44 @@ export const proof = {
         assertEq(report.totals.tests, 1)
         assertEq(report.results[0]?.path, '.then')
     },
-    batches: async () => {
-        // More leaves than one batch holds, so the batch loop recurses.
+    manyLeaves: async () => {
+        // The walk is a loop over one leaf at a time now rather than a batch
+        // recursion, and it still runs all of them.
         const report = await run(Object.fromEntries(
             Array.from({ length: 30 }, (_, index) => [`t${index}`, () => undefined])))
         assertEq(report.totals.tests, 30)
         assertEq(report.totals.passed, 30)
+    },
+    /**
+     * **The run yields the task between leaves**, which is the port's only
+     * scheduling and the page's only defence against the single-task freeze: a
+     * suite that never returns to the event loop paints nothing until it ends,
+     * however many rows it has appended.
+     *
+     * The assertion is an *ordering sentinel* rather than anything read off the
+     * DOM, and that is the point. A row is appended synchronously inside the
+     * report handler, so the document looks identical with the await deleted —
+     * the trap `todo/share-browser-console-runner.md` catalogs as item 11, a
+     * proof that observes a coincidence. What only a real yield can produce is
+     * a *macrotask enqueued by one leaf running before the next leaf does*.
+     *
+     * Mutation-checked: delete the `await` in the report handler and the
+     * sentinel lands after both leaves — `a b sentinel` — because nothing
+     * returned to the event loop in between.
+     */
+    yieldsBetweenLeaves: async () => {
+        /** @type {readonly string[]} */
+        let events = []
+        /** @type {(name: string) => void} */
+        const record = name => { events = [...events, name] }
+        await runBrowserProofs([['m', {
+            a: () => {
+                record('a')
+                setTimeout(() => record('sentinel'), 0)
+            },
+            b: () => { record('b') },
+        }]])
+        assertStructurallySame(events, ['a', 'sentinel', 'b'])
     },
     render: async () => {
         const p = page()

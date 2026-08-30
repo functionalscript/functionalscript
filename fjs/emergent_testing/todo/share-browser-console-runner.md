@@ -528,9 +528,39 @@ and is reviewable without the next one.
       yields, enumeration, joining — not concurrency. Module loading is not
       part of it: the page's timer starts after its imports have settled, and
       stays there (step 6's note carries the same correction).
-      What the reverted #1759 validated and this PR re-lands: the traversal
-      threads a `RunOutcome<R>` — folded totals plus each host's leaf records
-      in the walk's order (`fjs t` answers `void` and collects nothing).
+      **Landed, and without the `RunOutcome<R>` below.** That is the one
+      substantial deviation from this design, so it is recorded rather than
+      quietly taken. The plan had the traversal thread each host's leaf
+      records out through its return value, which meant a breaking change to
+      `runModuleMap`'s answer, an `exitCodeOf` helper, and every importer
+      migrated. None of it was needed: the page must have a `report`
+      operation anyway, for the live rendering this step is about, and that
+      operation already carries every record in the walk's order. Threading
+      them through the return as well would collect the same records twice.
+      `runModuleMap` still answers `0 | 1`, nothing broke, and the page folds
+      its report from what it collected.
+
+      Two smaller deviations, same reason. The page's modules stay a list by
+      calling the traversal **once per module** — a map of one cannot lose a
+      duplicate label, so catalog item 6 is avoided by construction rather
+      than by a new seam. And that per-call boundary is also where the
+      exported tree's guard lives: the traversal reads a module's own `proof`
+      unguarded on purpose (`hostile-proof-values.md`'s open task), so an
+      unreadable one arrives as a rejection of that module's call and becomes
+      one failed module, exactly as before, with one enumeration rather than
+      the two a pre-read would cost (item 5).
+
+      **The page needed no browser-specific effect.** Its interpreter is
+      `asyncRun` over `commonOperationMap` plus its own `report` — nothing
+      else. So `effects/browser` still has no content to hold, which is now
+      recorded in `../../effects/todo/node-module-layering.md` where that
+      module is proposed. What a second host turned out to need was the
+      operations moving *out* of `effects/node`, not a directory of its own.
+
+      What the reverted #1759 validated, for whoever revisits this: the
+      traversal threading a `RunOutcome<R>` — folded totals plus each host's
+      leaf records in the walk's order (`fjs t` answers `void` and collects
+      nothing).
       **That is a breaking change to `runModuleMap`'s exported answer** —
       today it is an exit code, `0 | 1` — and re-landing it carries the same
       obligations it carried the first time: an `exitCodeOf` helper for
