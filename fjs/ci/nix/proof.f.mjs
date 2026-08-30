@@ -68,6 +68,27 @@ const withRust = {
     },
 }
 
+/**
+ * A job whose runtime the snapshot carries at a version its suite fails on. The
+ * flake keeps the snapshot's packaging and replaces only the archive, so the
+ * override is a `let` binding named for the package and the shell takes that
+ * binding rather than `pkgs.<package>` — which is what keeps the snapshot's
+ * copy off `PATH` beside it.
+ *
+ * @type {NixJob}
+ */
+const withPin = {
+    ...plain,
+    id: 'bun',
+    packages: [],
+    pin: {
+        package: 'bun',
+        version: '1.4.0',
+        url: 'https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip',
+        hash: 'sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=',
+    },
+}
+
 const plainFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
     outputs = { nixpkgs, ... }: {
@@ -123,6 +144,28 @@ const rustFlake = `{
 }
 `
 
+const pinFlake = `{
+    inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
+    outputs = { nixpkgs, ... }: {
+        devShells.aarch64-linux.default = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+            };
+            bun = pkgs.bun.overrideAttrs {
+                version = "1.4.0";
+                src = pkgs.fetchurl {
+                    url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip";
+                    hash = "sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=";
+                };
+            };
+        in
+        pkgs.mkShell {
+            packages = [ bun ];
+        };
+    };
+}
+`
+
 /** @type {(jobs: readonly NixJob[], id: string, file: string) => string} */
 const generatedFile = (jobs, id, file) => {
     const written = ioStep(
@@ -145,6 +188,10 @@ export const proof = {
         // overlay reaches `pkgs` through `import nixpkgs`, and the overlay's
         // own Nixpkgs follows ours so the flake resolves one snapshot.
         rust: () => assertEq(flakeText(withRust), rustFlake),
+        // The override, pinned rather than described: no second input — this
+        // needs none — and the archive's hash is in the flake, so the fetch is
+        // checked before anything unpacks it.
+        pin: () => assertEq(flakeText(withPin), pinFlake),
     },
     nixFlakes: {
         write: () => assertEq(generated([plain], plain.id), plainFlake),

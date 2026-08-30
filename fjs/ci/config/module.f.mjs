@@ -27,13 +27,29 @@ export const images = /** @type {const} */({
 // https://www.npmjs.com/package/functionalscript
 export const functionalscript = /** @type {const} */ '0.47.0'
 
-// Bun is installed by `setup-bun`, so this is a released Bun rather than a
-// packaged one. It is the last canonical *runtime* job not on a flake: Nixpkgs
-// ships 1.3.13, on which two of this repository's proofs fail — one a real
-// difference in when `Symbol.species` is read, not a slow machine. See
-// `../todo/bun-nix-blocked-on-nixpkgs.md`.
+// The one runtime a generated flake takes from outside the pinned snapshot.
+// Nixpkgs ships 1.3.13 — on the pin and on `master` — and two of this
+// repository's proofs fail on it, one of them a real difference in when
+// `Symbol.species` is read rather than a slow machine. So the `bun` job's flake
+// keeps the snapshot's packaging and replaces only the archive, with the
+// version and the hash below.
+//
+// This is the exception, not a pattern: it works because Nixpkgs fetches Bun as
+// a prebuilt archive, so overriding it moves bytes rather than adopting a
+// package definition. Delete both constants the day the snapshot carries a Bun
+// this suite passes on.
 // https://bun.sh/
 export const bun = '1.4.0'
+
+// SHA-256 of the archive that release publishes for `aarch64-linux`, the one
+// system the generated flakes target, as an SRI string.
+//
+// Verified rather than copied: the artifact was downloaded and hashed, and the
+// result compared against the value an independent packaging of the same
+// release records. Recompute it the same way when the version above moves —
+// `nix-prefetch-url` where Nix is available, otherwise a download and a
+// `sha256sum` re-encoded as base64.
+export const bunHash = 'sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4='
 
 // The Deno version the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/by-name/de/deno/package.nix` at that commit. The job asserts the
@@ -112,8 +128,6 @@ export const actions = /** @type {const} */({
     'actions/checkout': 'v7.0.1',
     // https://github.com/marketplace/actions/setup-node-js-environment
     'actions/setup-node': 'v7.0.0',
-    // https://github.com/marketplace/actions/setup-bun
-    'oven-sh/setup-bun': 'v2.2.0',
     // https://github.com/marketplace/actions/cache
     'actions/cache': 'v6.1.0',
     // https://github.com/marketplace/actions/upload-a-build-artifact

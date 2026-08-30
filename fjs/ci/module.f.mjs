@@ -29,7 +29,7 @@ import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.mjs
 import { nixFlakes } from './nix/module.f.mjs'
 import { parse as jsonParse } from '../media/json/module.f.mjs'
 import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
-import { bunSteps } from './bun/module.f.mjs'
+import { bunNixJob, bunSteps } from './bun/module.f.mjs'
 import { denoNixJob, denoSteps } from './deno/module.f.mjs'
 
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
@@ -55,15 +55,13 @@ const job = (rust, nodeExtra) => o => a => {
  * `nix/wasm` directory it never enters — the same trade `./todo/ci-generator-audience.md`
  * describes for every other job this generator writes unconditionally.
  *
- * Two canonical jobs are absent. `bun` waits on Nixpkgs
- * (`./todo/bun-nix-blocked-on-nixpkgs.md`), and `package-check` runs with no
- * checkout, so there is no file tree for a flake to be in.
- * `./todo/65z-ci-nix.md` keeps both reasons together, and `./proof.f.mjs`'s
- * `nixCoverage` keeps the list from growing by accident.
+ * One canonical job is absent: `package-check` runs with no checkout, so there
+ * is no file tree for a flake to be in. `./todo/65z-ci-nix.md` says why, and
+ * `./proof.f.mjs`'s `nixCoverage` keeps the list from growing by accident.
  *
  * @type {readonly NixJob[]}
  */
-export const nixJobs = [...nodeNixJobs, denoNixJob, wasmNixJob]
+export const nixJobs = [...nodeNixJobs, denoNixJob, wasmNixJob, bunNixJob]
 
 /** @type {(rust: boolean, pin: string | undefined) => Jobs} */
 const canonicalJobs = (rust, pin) => ({
