@@ -35,18 +35,22 @@ start event is adding a third event kind, not building the stream first.
 Add a `start` (or `begin`) event to the reporter, called with the file and path
 before the leaf is sandboxed, and let each host decide what to do with it:
 
-- **`fjs t`** prints a complete, newline-terminated start record, then a
-  separate result line that names the test again. Not an open line completed
-  in place: no *other leaf* runs between a start and its own result under the
-  sequential runner, but the leaf itself does, and anything it writes to the
-  terminal — a proof that logs at runtime (purity is a convention the sandbox
-  does not enforce; see [hostile-proof-values](hostile-proof-values.md)), a
-  Node warning on stderr — would splice into an open line and attach the
-  later `ok`/`error` to unrelated output, corrupting the log for readers and
-  line-oriented consumers alike. Two self-contained lines per leaf survive
-  that; in the common case the result still directly follows its own start,
-  and the repeated name is what keeps the pair legible when something
-  intervenes.
+- **`fjs t`** opens the leaf's line before it runs — `name: ` with no
+  newline — and closes it when the leaf lands: `ok, 1.2345 ms`. One line per
+  leaf, the same line a reader of a finished log has always seen, with the
+  name arriving early enough to say what is running now.
+
+  The alternative considered and rejected was two complete records, the start
+  naming the test and the result naming it again. It is the more defensive
+  shape: no *other* leaf runs between a start and its own result under the
+  sequential runner, but the leaf itself does, and anything it writes — a
+  proof that logs at runtime (purity is a convention the sandbox does not
+  enforce; see [hostile-proof-values](hostile-proof-values.md)), a Node
+  warning — splices into an open line. That defence costs every reader a
+  doubled log on every run to keep a rare case tidy, which is the wrong trade:
+  the splice is *visible* when it happens, the name is on the stream either
+  way, and a leaf that logs has already told the reader something worth
+  seeing next to its own name.
 - **The browser page** renders a row in a pending state and settles it in
   place — the same list it renders now with one more state per row — **and
   its start handler awaits one macrotask after rendering the pending row**,
@@ -81,8 +85,8 @@ still the argument for settling it in the shared core rather than twice.
   benefits from: one leaf's events no longer interleave with another's, so a
   start is followed by its own result, in both hosts. What sequential does
   *not* buy is an empty gap between them — the leaf itself runs there, and
-  its output can land on the same stream — which is why the terminal format
-  above emits two complete records rather than completing an open line.
+  its output can land on the same stream — which the terminal format above
+  accepts rather than doubling every line to guard against.
 - Whatever is emitted has to be as useful to an automated consumer as to a
   reader — a start with no matching result is precisely the signal a crashed
   run leaves behind, and a controller should be able to read it.
@@ -98,10 +102,13 @@ workflow). `Reporter` grew a `start` event carrying a `TestId` —
 the identity half of `TestResult`, split out so the two events that name a leaf
 name it the same way — called inside the leaf's own chain ahead of `test`, so a
 reporter that cannot announce a leaf ends the run rather than running one it
-failed to announce. `fjs t` writes `name: running`, then the existing result
-line; two complete records, per the terminal format above. Both go to `stdout`,
-with everything else a run says — see [reporter modes](211-reporter-modes.md) —
-which is what makes them readable as a pair.
+failed to announce. Its first form wrote two complete records — `name: running`
+and then the result line naming the test again — and that doubling is what a
+reader met first: every run twice as long, to guard a case that announces
+itself when it happens. The format above replaced it: `start` opens the line
+with `name: `, `result` closes it, and a run that is abandoned leaves its last
+line open with the name on it, which was the point of the event. Everything
+still goes to `stdout` — see [reporter modes](211-reporter-modes.md).
 
 The browser half is **not** done and was deliberately left out of that change:
 the page still renders a row only once a leaf has settled, and the pending row

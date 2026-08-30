@@ -17,9 +17,9 @@ exactly what a reader of a test log is asking. `stderr` is for a runner
 run to correlate anything with.
 
 `fjs t` was split across both until functionalscript#1790 — failures and
-GitHub annotations on `stderr`, progress on `stdout` — which also meant its two
-records for one leaf (`running`, then the verdict) landed on different streams
-when the leaf failed. A mode that wants a separate error stream has to answer
+GitHub annotations on `stderr`, progress on `stdout` — which also meant a
+leaf's announcement and its verdict landed on different streams when the leaf
+failed, and they are now two halves of one line. A mode that wants a separate error stream has to answer
 the ordering question first.
 
 ### GitHub Actions reporter
