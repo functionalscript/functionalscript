@@ -329,6 +329,17 @@ Nothing in the publish workflow varies with the project: no job of it depends on
 of the configuration, which is why `module.f.mjs` writes it rather than building
 it.
 
+Which is also the one thing to know before running `fjs ci` in a project that
+does not want to publish: it is written unconditionally, like every other job
+this generator emits, and deleting the file does not opt out — the next run
+writes it back, and `ci-update`'s drift check then fails on its absence. There
+is no way to decline it: `Setup` has no field for it, and
+`fjs run <custom-ci-module>` is not the escape hatch it looks like — a custom module calls `ci(setup)`, which is the function that writes both
+files. Assembling a workflow from this directory's parts instead is all that is
+left. That is the standing question of
+[`todo/ci-generator-audience.md`](./todo/ci-generator-audience.md), which this
+workflow is the sharpest instance of.
+
 ## Customisation
 
 `ci` accepts a `Setup` record to inject extra steps per runtime:
