@@ -60,7 +60,9 @@ asks for, and it names two things the sharing plan does not:
   should hold
   the DOM adapter, the published promise and completion event, the loading
   importer, and the interpreter for the browser's operations. That is a plausible
-  50–80 lines, against 405 today.
+  50–80 lines, against 320 today — the 405 this said when it was written came
+  down as the orchestration left for `browser/module.f.mjs`, and what remains is
+  mostly the DOM adapter this bullet describes.
 
 ### Tasks
 

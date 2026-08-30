@@ -35,14 +35,16 @@ are correct in their own layer. Nothing says so in one place.
 **`instanceof Promise` is realm-local.** A promise built in an iframe, a worker
 or a `node:vm` context is not `instanceof Promise` here, so under `fjs t` it is
 walked as a proof tree and a *rejected* one is reported as a pass. The browser
-runner defends against this with `Symbol.species` shadowing and an intrinsic
-`then` — about 150 lines (`../browser/module.mjs`, `../browser/species.proof.mjs`) that
-read as a magic mess and are, today, the only place the exposure is covered. So
-the two runners answer this question differently, and
-[sharing them](share-browser-console-runner.md) forces a single answer: keep the
-machinery, replace it with something statable, or accept `fjs t`'s exposure
-knowingly. Deciding that by default, inside a port, is how the coverage gets
-lost without anyone choosing to lose it.
+runner used to defend against this with `Symbol.species` shadowing and an
+intrinsic `then` — about 150 lines that read as a magic mess and were, at the
+time, the only place the exposure was covered — and
+[sharing the runners](share-browser-console-runner.md) forced the single answer
+this section was written to demand. **It was answered knowingly**, in
+functionalscript#1742: the machinery and its `species.proof.mjs` are gone, both
+runners ask `instanceof Promise` in `effects/common`'s `sandbox`, and the
+exposure below is now one exposure rather than a difference between two hosts.
+The rest of this file is the study that decision was made from, and it stays
+because the exposure did.
 
 The three are usually discussed one at a time, which is why the interaction
 keeps being rediscovered: the thing that makes a namespace dangerous (`then` is
@@ -150,9 +152,11 @@ value's own `then`:
 
 One detail is not incidental: the `Reflect.apply` has to sit **outside** a `new
 Promise` executor. A throw inside an executor rejects the promise instead of
-propagating, so the brand check becomes uncatchable — which is exactly why
-`subscribe` in `../browser/module.mjs` captures its `settle` first and applies
-afterwards. Written the obvious way instead, the check throws out of the runner.
+propagating, so the brand check becomes uncatchable — which is exactly why the
+prototype's `subscribe` captured its `settle` first and applied it afterwards.
+Written the obvious way instead, the check throws out of the runner. That
+prototype is gone with the machinery, so this is a note for whoever writes the
+next one rather than a description of code in the tree.
 
 #### The species handling is load-bearing too
 

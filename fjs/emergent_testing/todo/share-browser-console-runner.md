@@ -704,9 +704,10 @@ So the remaining steps are that boundary, applied to the browser:
   where host values must never be.
 
 When they are done, `instanceof Promise` lives in exactly one interpreter, as
-glue, and no shared code asks the question. The three lines in `browser.mjs`
-today (now `browser/module.mjs`) are in the right *place* only because the
-boundary has not been drawn
+glue, and no shared code asks the question. That is where it is now: the browser
+file holds none, and the surviving asks are in `effects/common`'s `sandbox` and
+`effects/node`'s `await` — interpreters both. They are in the right *place*
+only because the boundary has not been drawn
 there yet — they are temporary in a way the rest of the shared core is not.
 See [`todo/plan/capl.md`](../../../todo/plan/capl.md), which argues the general
 form: logic pure, serializable and content-addressed; host values behind

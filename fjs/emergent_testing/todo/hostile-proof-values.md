@@ -5,8 +5,8 @@
 
 ### Problem
 
-The browser runner (`../browser/module.mjs`) defends against two things `fjs t` does
-not, and neither is reachable from ordinary FunctionalScript. That asymmetry is
+The browser runner (`../browser/module.mjs`) defends against something `fjs t`
+does not, and it is not reachable from ordinary FunctionalScript. That asymmetry is
 the point of this file: when the two runners are unified
 ([share the browser and console proof runners](share-browser-console-runner.md)),
 the shared core has to have *one* answer for each of them, decided rather than
@@ -35,10 +35,13 @@ cannot act on.
 **A promise from another realm is not awaited.** `fjs t`'s `sandbox` asks `p
 instanceof Promise`, which is false for a promise built in an iframe, a worker,
 or a `node:vm` context. Such a value is walked as an ordinary proof tree
-instead, so a *rejected* cross-realm promise is reported as a pass. The browser
-runner carries `Symbol.species` machinery against this, which is a second answer
-to the same question and is studied in
-[imports, promises and realms](imports-promises-realms.md). The obvious repair —
+instead, so a *rejected* cross-realm promise is reported as a pass. **This half
+is no longer an asymmetry**: the browser carried `Symbol.species` machinery
+against it and no longer does — since functionalscript#1742 both runners ask the
+same question in `effects/common`'s `sandbox`, so the exposure is shared and
+tracked in [imports, promises and realms](imports-promises-realms.md) rather
+than covered on one side. It is kept here because closing it is still owed, and
+because the shared answer is the one to close. The obvious repair —
 brand-checking with `Object.prototype.toString` — is not one: the tag is
 settable through `Symbol.toStringTag`, and an object carrying a `then` proof
 would then be assimilated, breaking the rule that only actual promises are
