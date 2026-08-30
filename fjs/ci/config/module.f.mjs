@@ -86,7 +86,8 @@ export const deno = '2.8.3'
 // The Node versions the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. They feed the
 // canonical jobs' flakes, which assert the version they actually get, as well
-// as the `setup-node` steps left in the platform matrix and `package-check`.
+// as every `setup-node` step: the platform matrix, `package-check`, and the
+// publishing workflow.
 // Nixpkgs usually trails nodejs.org, so bump the snapshot first and copy the
 // versions it offers rather than the latest release.
 // https://nodejs.org/en/download

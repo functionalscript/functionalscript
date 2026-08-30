@@ -29,6 +29,16 @@ import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
 import { bunNixJob, bunSteps } from './bun/module.f.mjs'
 import { devNixJob, devSteps } from './dev/module.f.mjs'
 import { denoNixJob, denoSteps } from './deno/module.f.mjs'
+import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
+
+/**
+ * A workflow as the file the generator writes. JSON, which every YAML reader
+ * accepts, so nothing here has to decide how a string is quoted or how deep a
+ * block is indented.
+ *
+ * @type {(gha: GitHubAction) => string}
+ */
+const workflowText = gha => JSON.stringify(gha, null, '  ')
 
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
 const job = (rust, nodeExtra) => o => a => {
@@ -118,8 +128,14 @@ export const ci = ({ nodeExtra }) => resultStep(
         }
         const workflowWritten = writeUtf8File(
             '.github/workflows/ci.yml',
-            JSON.stringify(gha, null, '  '))
-        const flakesWritten = ioStep(workflowWritten, () => nixFlakes(nixJobs))
+            workflowText(gha))
+        // The publish workflow is a function of the configuration alone — no
+        // job of it varies with the project's Rust, its compiler pin, or the
+        // caller's `Setup` — so it is written rather than built here.
+        const publishWritten = ioStep(
+            workflowWritten,
+            () => writeUtf8File(npmPublishPath, workflowText(npmPublishWorkflow)))
+        const flakesWritten = ioStep(publishWritten, () => nixFlakes(nixJobs))
         return exitStep(flakesWritten)
     })
 
