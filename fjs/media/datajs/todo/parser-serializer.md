@@ -239,6 +239,18 @@ insignificant between them, so `[ "__proto__" ]` is the same key. A
    Rejected: it puts the literal `"__proto__"` — a DataJS rule — inside JSON's
    parser.
 
+**The seam has to reject as well as accept, and the string branch is where it
+does.** Adding the computed form is only half of `__proto__`: DataJS's key
+policy must also **refuse a plain string key that decodes to `__proto__`**,
+which JSON's one-token path would otherwise finish happily, letting the parser
+accept a document the grammar rejects and hand back a plausible wrong value.
+
+The rule is on the **decoded value, not the spelling** — `{"\u005f_proto__":1}`
+is rejected exactly as `{"__proto__":1}` is — and the seam is the right place
+for it because a `StringToken` already carries `value: string`, the decoded
+string, so the policy sees what the key *is* rather than how it was written. No
+escape enumeration, and nothing about this reaches JSON's parser.
+
 **JSON's accepted language and behavior must be pinned unchanged across the API
 change**, by proofs, in the same PR. That is the whole risk of this seam work.
 
@@ -269,6 +281,22 @@ anything has had the chance to refuse it. So each node is validated from its own
 property descriptors as it is reached, and only the surviving data descriptors'
 values are followed. Validation and traversal are one walk because the traversal
 is what makes validation necessary.
+
+**Container kind is checked before descriptors, not by them.** Descriptor
+validation cannot see the difference between `{}` and a `Date`: measured, `new
+Date()`, `new Map()`, `new Set()` and `new Number(1)` each have **zero** own
+property descriptors and zero own symbols, exactly like `{}`, and each
+classifies as an object container. So descriptor-only validation finds nothing
+to refuse and pass 2 would serialize any of them as `{}` — a document denoting
+something else, silently, which is the case the spec rejects as "a leaf outside
+the leaf set — a function, a symbol, a `Date`, or any other non-plain object".
+
+The check is therefore positive and closed rather than a list of built-ins to
+exclude: a value that is `typeof 'object'` and not `null` and not an array must
+be a **plain object**, meaning its prototype is `Object.prototype` or `null` —
+the spec permits a null-prototype object explicitly and says it serializes as
+its data. Reading a prototype to classify is not replacing one, so this stays
+inside the rule in [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1.
 
 Then count **incoming reference occurrences** per object/array node, by
 reference identity.
@@ -371,11 +399,15 @@ the spec judges them independently and this module provides all three.
 - [ ] `fjs/media/datajs/types.ts` and `README.md`.
 - [ ] Tokenizer, over stage 3b's exported scanners.
 - [ ] Statement layer: environment, bound-once, declare-before-use.
+- [ ] Key policy: accept the computed `["__proto__"]`, and reject a plain
+      string key decoding to `__proto__` in every spelling.
 - [ ] Reader proofs from the corpus, including both sharing directions and the
       byte-path vectors (BOM, invalid UTF-8) the corpus assigns to stage 4.
-- [ ] Pass 1: descriptor-first validation as each node is reached, occurrence
-      counting by identity, cycle rejection, post-order naming — one traversal,
-      since it is the first thing to touch the caller's graph.
+- [ ] Pass 1: container-kind check then descriptor-first validation as each
+      node is reached, occurrence counting by identity, cycle rejection,
+      post-order naming — one traversal, since it is the first thing to touch
+      the caller's graph. Prove the empty non-plain built-ins (`Date`, `Map`,
+      `Set`, boxed number), which no descriptor check can catch.
 - [ ] Serializer over the shared walker of 157 §2.
 - [ ] Out-of-model rejection as a `try*`, descriptor-first so no accessor is
       invoked by the check that refuses it, with the attribute/enumerability
