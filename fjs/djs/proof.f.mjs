@@ -107,12 +107,37 @@ export const proof = {
             assertEq(state.root['output.f.js'], undefined)
         },
     },
-    parseError: () => {
-        const root = { 'bad.f.js': [utf8('export default @')] }
-        const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.f.js']))
-        assertEq(exitCode(code), 1)
-        assert(state.stderr !== '', 'expected error output')
-        assertEq(state.root['output.f.js'], undefined)
+    // A parse error prints where it is — and, when the error knows how far the
+    // offending source runs, how far: `path:line:column-column` on one line,
+    // `path:line:column-line:column` across several, the plain point otherwise.
+    // These pin the rendering, so they are the proof that a lexical span
+    // survives the whole trip: tokenizer → parser → `errorLocation`.
+    parseError: {
+        spanOneLine: () => {
+            const root = { 'bad.f.js': [utf8('export default @')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.f.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'bad.f.js:1:16-17 - error: unexpected token')
+            assertEq(state.root['output.f.js'], undefined)
+        },
+        spanAcrossLines: () => {
+            // an unterminated string swallowing a newline: the far end names its
+            // own line, because repeating the start's would place it wrongly
+            const root = { 'bad.f.js': [utf8('export default "a\nb"')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.f.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'bad.f.js:1:16-2:3 - error: unexpected token')
+            assertEq(state.root['output.f.js'], undefined)
+        },
+        point: () => {
+            // a *grammar* failure points at one token and has no span — see
+            // `ParseError` in fjs/djs/parser/types.ts for why
+            const root = { 'bad.f.js': [utf8('export default ]')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.f.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'bad.f.js:1:16 - error: unexpected token')
+            assertEq(state.root['output.f.js'], undefined)
+        },
     },
     // serialize → evaluate → structurally the same, one test per corpus value.
     // The emitter is only correct if its output is an input denoting the value
