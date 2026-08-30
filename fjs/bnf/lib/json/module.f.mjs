@@ -56,12 +56,6 @@ export const ws = repeat0Plus(wsSymbol)
 
 export const cj = commaJoin0Plus(ws)
 
-export const false_ = 'false'
-
-export const true_ = 'true'
-
-export const null_ = 'null'
-
 /** @type {(v: Rule) => Rule} */
 export const array = v => cj('[]', v)
 
