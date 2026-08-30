@@ -179,17 +179,22 @@ evaluated for real, by the job that uses it.
 
 ### Expected package scripts
 
-The platform matrix splits three ways now. `ubuntu-arm`, `macos-intel` and
-`macos-arm` run `cargo` and the suite in the shared shell, which is the only
-place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells get built
-at all. `ubuntu-intel` and the two Windows jobs keep the runner's toolchain:
-Windows has no native Nix, and `ubuntu-intel` checks
-`i686-unknown-linux-gnu`, whose `libc` is `pkgsi686Linux.*` — an attribute path
-a `NixJob` cannot name.
+Only the two Windows jobs are off Nix now, because Nix has no native Windows.
+`ubuntu-arm`, `macos-intel` and `macos-arm` run `cargo` and the suite in the
+shared shell — the only place its `x86_64-linux`, `aarch64-darwin` and
+`x86_64-darwin` outputs get built at all — and `ubuntu-intel` runs in one of
+its own.
 
-Those three are also where the *published* CLI is still exercised, by
-`npm install -g functionalscript@<version>` and `fjs test`. The jobs that moved
-run this commit's suite instead: `npm install -g` writes to the read-only store
+`ubuntu-intel` needs its own because it checks `i686-unknown-linux-gnu`, and
+`gcc_multi` — the multilib gcc and `glibc_multi` a 32-bit link needs — exists
+on `x86_64-linux` alone, while the shared shell builds four systems from one
+`packages` list. It replaces `apt-get install libc6-dev-i386` rather than
+joining it: a Nix toolchain does not look in `/usr`, so a libc installed by the
+runner's package manager would sit there unread.
+
+Windows is also where the *published* CLI is still exercised, by
+`npm install -g functionalscript@<version>` and `fjs test`. Every job that moved
+runs this commit's suite instead: `npm install -g` writes to the read-only store
 from inside a shell, and the check was the one `deno` and `bun` already dropped
 because it tests a shipped release rather than the commit under review.
 

@@ -12,53 +12,40 @@
       "runs-on": "ubuntu-26.04",
       "steps": [
         {
-          "run": "sudo apt-get update && sudo apt-get install -y libc6-dev-i386"
-        },
-        {
-          "uses": "dtolnay/rust-toolchain@1.98.0",
-          "with": {
-            "components": "rustfmt,clippy",
-            "targets": "i686-unknown-linux-gnu"
-          }
-        },
-        {
-          "uses": "actions/setup-node@v7.0.0",
-          "with": {
-            "node-version": "26.7.0"
-          }
-        },
-        {
-          "run": "npm install -g functionalscript@0.47.0"
+          "uses": "cachix/install-nix-action@v31.11.1"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "cargo test"
+          "run": "test \"$(./nix/ubuntu-intel/run node --version)\" = \"v26.7.0\""
         },
         {
-          "run": "cargo test --release"
+          "run": "./nix/ubuntu-intel/run cargo test"
         },
         {
-          "run": "cargo clippy -- -D warnings"
+          "run": "./nix/ubuntu-intel/run cargo test --release"
         },
         {
-          "run": "cargo clippy --release -- -D warnings"
+          "run": "./nix/ubuntu-intel/run cargo clippy -- -D warnings"
         },
         {
-          "run": "cargo test --target i686-unknown-linux-gnu"
+          "run": "./nix/ubuntu-intel/run cargo clippy --release -- -D warnings"
         },
         {
-          "run": "cargo test --target i686-unknown-linux-gnu --release"
+          "run": "./nix/ubuntu-intel/run cargo test --target i686-unknown-linux-gnu"
         },
         {
-          "run": "cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
+          "run": "./nix/ubuntu-intel/run cargo test --target i686-unknown-linux-gnu --release"
         },
         {
-          "run": "cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings"
+          "run": "./nix/ubuntu-intel/run cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
         },
         {
-          "run": "fjs test"
+          "run": "./nix/ubuntu-intel/run cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings"
+        },
+        {
+          "run": "./nix/ubuntu-intel/run node --test"
         }
       ]
     },

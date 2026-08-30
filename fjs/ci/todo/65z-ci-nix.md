@@ -186,19 +186,28 @@ which side of the line it falls on.
   putting the repository back. Its Node comes from `setup-node`, and the version it
   names is the one `node26`'s flake already checks.
 
-Three of the six platform jobs are here too, and the reason each is here is a
-fact about the job rather than a preference:
+Two of the six platform jobs are here too, and for one reason: **Nix does not
+run natively on Windows**. `windows-intel` and `windows-arm` keep the runner's
+toolchain, and are the last jobs in the workflow that install one.
 
-- **`windows-intel`, `windows-arm`** — Nix does not run natively on Windows.
-- **`ubuntu-intel`** — it checks `i686-unknown-linux-gnu`, and a 32-bit `libc`
-  is `pkgsi686Linux.*`, an attribute path a `NixJob`'s `packages` cannot name.
-  Serving it would mean teaching the generator non-`pkgs` attribute paths and a
-  linker override, for one target on one runner.
+Three of the other four — `ubuntu-arm`, `macos-intel`, `macos-arm` — moved into
+the shared shell, and they are what makes `devSystems` mean anything: they are
+the only place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells
+are built rather than pinned as text.
 
-The other three — `ubuntu-arm`, `macos-intel`, `macos-arm` — moved into the
-shared shell, and they are what makes `devSystems` mean anything: they are the
-only place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells are
-built rather than pinned as text.
+`ubuntu-intel` moved into a flake of its own, because it checks
+`i686-unknown-linux-gnu`. A 32-bit link needs `gcc_multi` — `wrapCCMulti gcc`,
+over a `glibc_multi` carrying both word sizes — which exists on `x86_64-linux`
+alone, and the shared shell builds four systems from one `packages` list. That
+replaced `apt-get install libc6-dev-i386` rather than joining it: the Nix
+cc-wrapper keeps `/usr/include` and `/usr/lib` off its search paths, so a libc
+from the runner's package manager is invisible to the compiler `cargo` invokes.
+
+Its `shellHook` names the linker outright — `CARGO_TARGET_..._LINKER` — rather
+than trusting `PATH`, because `stdenv`'s own `cc` is added to `PATH` before
+`packages` and `addToSearchPath` appends. Naming a store path is what made
+`indented-string` take parts: a `_Reference` part interpolates, a `string` part
+is escaped.
 
 What that cost is worth naming. Those jobs used to measure a stock runner image,
 and now measure a pinned toolchain running *on* one. The distinction is smaller

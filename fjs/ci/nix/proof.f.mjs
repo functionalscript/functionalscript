@@ -10,6 +10,7 @@ import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { nixpkgs, node, rustOverlay, typescript } from '../config/module.f.mjs'
 import { devJobId, devSystems } from '../dev/module.f.mjs'
+import { i686JobId } from '../rust/module.f.mjs'
 import { nixJobs } from '../module.f.mjs'
 import { major, nodeNixJobs } from '../node/module.f.mjs'
 import {
@@ -37,9 +38,14 @@ const plain = {
 }
 
 /**
- * No declared job needs a `shellHook` any more — Node 22's went with the global
- * install it existed for. The generator still emits one, and this fixture is
- * what holds that capability to its shape.
+ * A hook in both its halves: text, and a package it has to name.
+ *
+ * The interpolation is the half that cannot be written as a string. A store
+ * path is not knowable when this file is generated, so `${pkgs.gcc_multi}`
+ * has to reach the flake unescaped and be resolved by Nix — which is exactly
+ * what `ubuntu-intel` needs to point `cargo` at a multilib linker. The text
+ * around it is escaped, so the `$HOME` below arrives as those five characters
+ * rather than as anything Nix reads.
  *
  * @type {NixJob}
  */
@@ -47,7 +53,11 @@ const withShellHook = {
     ...plain,
     id: 'node22',
     packages: ['nodejs_22'],
-    shellHook: `export NPM_CONFIG_PREFIX="$HOME/.npm-global"`,
+    shellHook: [
+        'export NPM_CONFIG_PREFIX="$HOME/.npm-global"\nexport CC=',
+        ['ref', 'pkgs', 'gcc_multi'],
+        '/bin/cc',
+    ],
 }
 
 /**
@@ -122,6 +132,7 @@ const shellHookFlake = `{
             packages = [ pkgs.nodejs_22 ];
             shellHook = ''
                 export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+                export CC=\${pkgs.gcc_multi}/bin/cc
             '';
         };
     };
@@ -432,14 +443,20 @@ exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix/node24 --com
         // rather than a loop, so a job that quietly declared another would
         // otherwise generate a shell no runner can enter.
         // Every job but the developer environment runs on one runner, and
-        // declares the one system that runner is. `dev` is the exception the
-        // list form exists for, so it is named rather than exempted by a
-        // pattern: a job quietly declaring a second system would otherwise
-        // generate a shell no runner enters.
+        // declares the one system that runner is. Both exceptions are named
+        // rather than exempted by a pattern: a job quietly declaring a second
+        // system would otherwise generate a shell no runner enters.
+        //
+        // `dev` is the reason the list form exists — four systems, one per
+        // machine a developer might have. `ubuntu-intel` is the other, and its
+        // one system is not the one every other job declares: it runs on the
+        // Intel Linux runner, which is where `gcc_multi` exists.
         systems: () => {
             for (const { id, systems } of nixJobs) {
                 if (id === devJobId) {
                     assertStructurallySame([...systems], [...devSystems])
+                } else if (id === i686JobId) {
+                    assertStructurallySame([...systems], ['x86_64-linux'])
                 } else {
                     assertStructurallySame([...systems], [nixSystem])
                 }

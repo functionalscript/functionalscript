@@ -10,6 +10,7 @@ import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtim
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
 import { flakePath, flakeText, nixDevelop, nixShell, runPath } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
+import { i686JobId } from './rust/module.f.mjs'
 import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
@@ -270,9 +271,9 @@ export const proof = {
         assertEq(exitCode(result), 0)
         // Every generated flake: `nixJobs` is what the generator was given, so
         // a family that declares an environment and never has it written fails
-        // here. Three — the shared shell, and one apiece for the two Node
-        // versions it cannot serve.
-        assertEq(nixJobs.length, 3)
+        // here. Four — the shared shell, one apiece for the two Node versions
+        // it cannot serve, and one for the 32-bit Linux job.
+        assertEq(nixJobs.length, 4)
         for (const job of nixJobs) {
             // The pipeline wrote that job's flake, whole, at the path a
             // `nix develop` step names. Equality rather than a substring
@@ -386,6 +387,15 @@ export const proof = {
             // took effect rather than that a snapshot is what it claims: the
             // shell's Bun is not the snapshot's.
             ['bun', nixShell, [['bun --version', bun]]],
+            // The 32-bit Linux job, in a shell of its own: `gcc_multi` exists
+            // on `x86_64-linux` alone, so the shared shell — one `packages`
+            // list across four systems — cannot carry it.
+            [i686JobId, i686JobId, [['node --version', `v${node.default}`]]],
+            // The three platform jobs the shared shell does serve. These are
+            // the only place its other three systems are built at all.
+            ['ubuntu-arm', nixShell, [['node --version', `v${node.default}`]]],
+            ['macos-intel', nixShell, [['node --version', `v${node.default}`]]],
+            ['macos-arm', nixShell, [['node --version', `v${node.default}`]]],
         ]
         // Between them these cover every declared flake. That is what replaced
         // the `dev` job: the shared shell used to be checked in one place
@@ -492,13 +502,10 @@ export const proof = {
         const offNix = canonical.filter(id => !installsNix(gha.jobs[id]))
         /** @type {readonly string[]} */
         const expectedOffNix = [
-            // Nix does not run natively on Windows.
+            // Nix does not run natively on Windows. That is the whole of what
+            // is left: every other job in this workflow enters a flake.
             'windows-intel',
             'windows-arm',
-            // 32-bit Linux: a `libc` for `i686-unknown-linux-gnu` is
-            // `pkgsi686Linux.*`, an attribute path a `NixJob` cannot name, so
-            // this one keeps the runner's toolchain and its `apt-get`.
-            'ubuntu-intel',
             // `package-check` runs with no checkout, so there is no file tree
             // for a flake or its `run` script to be in.
             packageCheckJobId,
@@ -514,12 +521,15 @@ export const proof = {
         for (const id of offNix) {
             assert(expectedOffNix.includes(id), `unexplained job off Nix: ${id}`)
         }
-        // And the three that did move are exactly the systems the shell
+        // The three that joined the shared shell are exactly the systems it
         // declares beyond the runner every other job uses. Before this they
         // were generated as text and built nowhere.
         for (const id of /** @type {const} */ (['ubuntu-arm', 'macos-intel', 'macos-arm'])) {
             assertStructurallySame(flakesEntered(gha.jobs[id]), [nixShell])
         }
+        // And the fourth platform job entered one of its own, because a 32-bit
+        // link needs `gcc_multi` and that exists on one system.
+        assertStructurallySame(flakesEntered(gha.jobs[i686JobId]), [i686JobId])
     },
     // Bun, step for step. It lost its setup action, and every command it runs
     // enters its own flake — whose Bun is the one thing in any generated shell

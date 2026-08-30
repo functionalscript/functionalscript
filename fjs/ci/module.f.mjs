@@ -22,7 +22,15 @@ import {
     toSteps,
     ubuntuArm
 } from './common/module.f.mjs'
-import { i686Target, rustPlatformCommands, rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
+import {
+    i686Commands,
+    i686JobId,
+    i686NixJob,
+    i686Target,
+    rustPlatformCommands,
+    rustPlatformSteps,
+    rustWasmSteps,
+} from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.mjs'
 import { nixFlakes, nixInstall, nixShell, nixSteps, nixVersionStep } from './nix/module.f.mjs'
 import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
@@ -41,27 +49,29 @@ import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 const workflowText = gha => JSON.stringify(gha, null, '  ')
 
 /**
- * Whether a platform job runs its commands in the shared shell.
+ * Which generated shell a platform job enters, or `undefined` for the runner's
+ * own toolchain.
  *
- * Two things keep a job off it, and both are facts about the job rather than
- * preferences. **Windows**, because Nix does not run there natively. And a
- * **32-bit target**, because a `libc` for one is `pkgsi686Linux.*` — an
- * attribute path a `NixJob` cannot name — so `ubuntu-intel` keeps the runner's
- * toolchain and the `apt-get` that feeds it. That second one is conditional on
- * the project having Rust at all: without a `Cargo.toml` there are no 32-bit
- * checks, and the job shares like the rest.
+ * One thing keeps a job off Nix entirely: **Windows**, where Nix does not run
+ * natively. Everything else enters a shell, and the only question is which.
  *
- * The three that do share are the three systems the shell already declares and
- * nothing else built: `x86_64-linux`, `aarch64-darwin`, `x86_64-darwin`. Before
- * this they were generated as text and evaluated nowhere.
+ * A **32-bit target** takes one to its own. `gcc_multi` — the multilib gcc and
+ * `glibc_multi` a 32-bit link needs — exists on `x86_64-linux` alone, and the
+ * shared shell builds four systems from one `packages` list, so it cannot carry
+ * a package that means nothing on three of them. `../rust/module.f.mjs`'s
+ * `i686NixJob` is that shell. The split is conditional on the project having
+ * Rust: with no `Cargo.toml` there are no 32-bit checks, and the job shares
+ * like the rest.
  *
- * @type {(rust: boolean, o: Os, a: Architecture) => boolean}
+ * @type {(rust: boolean, o: Os, a: Architecture) => string | undefined}
  */
-const sharesTheShell = (rust, o, a) =>
-    o !== 'windows' && !(rust && i686Target(o, a) !== undefined)
+const platformShell = (rust, o, a) => {
+    if (o === 'windows') { return undefined }
+    return rust && i686Target(o, a) !== undefined ? i686JobId : nixShell
+}
 
 /**
- * A platform job on the shared shell: every command through `nix develop`, and
+ * A platform job on a generated shell: every command through `nix develop`, and
  * the runtime asserted first.
  *
  * It runs this commit's suite rather than installing a published
@@ -70,8 +80,7 @@ const sharesTheShell = (rust, o, a) =>
  * `NPM_CONFIG_PREFIX` in a flake developers also enter — and the check was the
  * one `deno` and `bun` already dropped, for the reason
  * `./todo/built-package-checks.md` records: it tests a shipped release rather
- * than the commit under review. `ubuntu-intel` and the two Windows jobs still
- * run it, so it survives on three images rather than six.
+ * than the commit under review. The two Windows jobs still run it.
  *
  * No `npm ci` either, for the reason the platform jobs already had none: the
  * tree declares no runtime dependency and one `devDependency` that is types, so
@@ -79,17 +88,17 @@ const sharesTheShell = (rust, o, a) =>
  * `npm ci` stays in the three Node jobs, which type-check and pack.
  *
  * The version check is worth more here than in any other job. These are the
- * only places the shell is built for a system other than `aarch64-linux`, so
- * this is what turns three shells that were pinned as text into three that are
- * known to work.
+ * only places a shell is built for a system other than `aarch64-linux`, so this
+ * is what turns four shells that were pinned as text into four that are known
+ * to work.
  *
- * @type {(rust: boolean) => readonly MetaStep[]}
+ * @type {(rust: boolean, shell: string, o: Os, a: Architecture) => readonly MetaStep[]}
  */
-const shellPlatformSteps = rust => [
+const shellPlatformSteps = (rust, shell, o, a) => [
     nixInstall,
-    nixVersionStep(nixShell, 'node --version', `v${node.default}`),
-    ...nixSteps(nixShell)([
-        ...(rust ? rustPlatformCommands : []),
+    nixVersionStep(shell, 'node --version', `v${node.default}`),
+    ...nixSteps(shell)([
+        ...(rust ? [...rustPlatformCommands, ...i686Commands(o, a)] : []),
         'node --test',
     ]),
 ]
@@ -98,13 +107,14 @@ const shellPlatformSteps = rust => [
 const job = (rust, nodeExtra) => o => a => {
     const id = `${o}-${a}`
     const image = images[o][a]
+    const shell = platformShell(rust, o, a)
     const result = [
-        ...(sharesTheShell(rust, o, a)
-            ? shellPlatformSteps(rust)
-            : [
+        ...(shell === undefined
+            ? [
                 ...(rust ? rustPlatformSteps(o, a) : []),
                 ...nodeMainSteps(functionalscript),
-            ]),
+            ]
+            : shellPlatformSteps(rust, shell, o, a)),
         ...nodeExtra,
     ]
     return [id, { 'runs-on': image, steps: toSteps(result) }]
@@ -132,6 +142,7 @@ const job = (rust, nodeExtra) => o => a => {
  */
 export const nixJobs = [
     ...nodeNixJobs,
+    i686NixJob,
     devNixJob,
 ]
 

@@ -19,11 +19,12 @@
  * @module
  *
  * @import { Architecture, MetaStep, Os } from '../common/types.ts'
- * @import { NixRust } from '../nix/types.ts'
+ * @import { NixJob, NixRust } from '../nix/types.ts'
  */
 
-import { rust, wasmer, wasmtime } from '../config/module.f.mjs'
+import { node, rust, wasmer, wasmtime } from '../config/module.f.mjs'
 import { test } from '../common/module.f.mjs'
+import { major } from '../node/module.f.mjs'
 import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 
 /** @type {(tool: 'clippy' | 'test', target?: string, config?: string) => string} */
@@ -64,6 +65,8 @@ const rustTarget = target => [
     ...testSteps(targetCheckCommands(target)),
 ]
 
+const i686Linux = /** @type {const} */ ('i686-unknown-linux-gnu')
+
 /**
  * The 32-bit target a platform also checks, if it checks one.
  *
@@ -80,24 +83,74 @@ export const i686Target = (v, a) => {
     if (a === 'intel') {
         switch (v) {
             case 'windows': return 'i686-pc-windows-msvc'
-            case 'ubuntu': return 'i686-unknown-linux-gnu'
+            case 'ubuntu': return i686Linux
         }
     }
     return undefined
 }
 
+/** CI job id of the 32-bit Linux platform job, and its flake's directory. */
+export const i686JobId = /** @type {const} */ ('ubuntu-intel')
+
 /** @type {(v: Os, a: Architecture) => readonly MetaStep[]} */
 const i686 = (v, a) => {
     const target = i686Target(v, a)
-    if (target === undefined) { return [] }
-    return [
-        // 32-bit Linux needs the multilib headers; the runner image has the
-        // 64-bit ones only. Windows needs nothing extra.
-        ...(v === 'ubuntu'
-            ? /** @type {readonly MetaStep[]} */ ([{ type: 'apt-get', package: 'libc6-dev-i386' }])
-            : []),
-        ...rustTarget(target),
-    ]
+    return target === undefined ? [] : rustTarget(target)
+}
+
+/**
+ * The checks a 32-bit target adds, as commands rather than steps — what a job
+ * running them inside a shell needs.
+ *
+ * @type {(v: Os, a: Architecture) => readonly string[]}
+ */
+export const i686Commands = (v, a) => {
+    const target = i686Target(v, a)
+    return target === undefined ? [] : targetCheckCommands(target)
+}
+
+/**
+ * The one platform job the shared shell cannot serve, and the environment it
+ * gets instead.
+ *
+ * `gcc_multi` is the whole reason this is separate. It is `wrapCCMulti gcc` —
+ * gcc rebuilt with `enableMultilib`, over a `glibc_multi` carrying both word
+ * sizes, with binutils rewired to match — and it exists only on `x86_64-linux`.
+ * The shared shell declares four systems from one `packages` list, so it cannot
+ * carry a package that means nothing on three of them.
+ *
+ * It replaces `apt-get install libc6-dev-i386` rather than joining it. A Nix
+ * toolchain does not look in `/usr`: the cc-wrapper is built to keep
+ * `/usr/include` and `/usr/lib` off its search paths, so a 32-bit libc
+ * installed by the runner's package manager would sit there unread. The
+ * `rust-std` for the target comes from `rust-overlay`, as the `targets` list
+ * below asks; that is the standard library, and `gcc_multi` is the linker and
+ * libc it links against.
+ *
+ * The `shellHook` names that linker outright rather than trusting `PATH`.
+ * `mkShell` brings its own `cc` from `stdenv`, so which one `cargo` finds is a
+ * question about ordering; `CARGO_TARGET_<TARGET>_LINKER` is not. The
+ * `${...}` in it is Nix's interpolation, not this file's — the generator emits
+ * an indented string, where Nix resolves `pkgs.gcc_multi` to its store path.
+ *
+ * @type {NixJob}
+ */
+export const i686NixJob = {
+    id: i686JobId,
+    // The one system `gcc_multi` exists for, and the runner this job has.
+    systems: ['x86_64-linux'],
+    packages: ['gcc_multi', `nodejs_${major(node.default)}`],
+    rust: {
+        version: rust,
+        // No `rustfmt`: `wasm` runs the one `cargo fmt` this repository has.
+        extensions: ['clippy'],
+        targets: [i686Linux],
+    },
+    shellHook: [
+        'export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=',
+        /** @type {const} */ (['ref', 'pkgs', 'gcc_multi']),
+        '/bin/cc',
+    ],
 }
 
 /**

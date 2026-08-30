@@ -125,6 +125,32 @@ export const proof = {
             "''\n    ''\\ ''\\ a\n    ''\\t''\\ b\n    ''\\ ''\\ \n''\n"
         )
     },
+    // The two halves of an indented string, side by side. A `string` part is
+    // content — its `${` is escaped and reaches the file as those characters —
+    // and a `_Reference` part is an interpolation Nix resolves. That is the
+    // only way a generated hook can name a package, since a store path is not
+    // knowable when the file is written.
+    indentedStringInterpolation: () => {
+        assertEq(
+            nixToString(['indented-string', 'a=', ['ref', 'pkgs', 'gcc_multi'], '/bin/cc']),
+            "''\n    a=${pkgs.gcc_multi}/bin/cc\n''\n")
+        // Escaped beside unescaped, in one string: the literal `${b}` survives
+        // as text while the reference beside it does not.
+        assertEq(
+            nixToString(['indented-string', '${b}', ['ref', 'a']]),
+            "''\n    ''${b}${a}\n''\n")
+        // An attribute that is not an identifier is quoted, as in any other
+        // selection; a *root* that is not one has no spelling at all, so the
+        // whole expression is rejected rather than written wrong.
+        assertEq(
+            nixToString(['indented-string', ['ref', 'pkgs', 'not an identifier']]),
+            "''\n    ${pkgs.\"not an identifier\"}\n''\n")
+        assertEq(nixToString(['indented-string', ['ref', 'not an identifier']]), undefined)
+    },
+    // No parts at all is the empty string, not a failure.
+    indentedStringEmpty: () => {
+        assertEq(nixToString(['indented-string']), "''\n    \n''\n")
+    },
     emptyPattern: () => {
         assertEq(nixToString(['lambda', ['open-set-pattern'], ['set']]), '{ ... }: {}\n')
     },

@@ -83,12 +83,9 @@ export const test = step => ({ type: 'test', step })
 export const toSteps = m => {
     /** @type {(st: StepType) => Step[]} */
     const filter = st => m.flatMap(mt => mt.type === st ? [mt.step] : [])
-    const aptGet = m.flatMap(v => v.type === 'apt-get' ? [v.package] : []).join(' ')
-
     const needRust = m.find(v => v.type === 'rust') !== undefined
     const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(',')
     return [
-        ...(aptGet !== '' ? [{ run: `sudo apt-get update && sudo apt-get install -y ${aptGet}` }] : []),
         ...(needRust ? [uses('dtolnay/rust-toolchain', {
             components: 'rustfmt,clippy',
             ...(targets === '' ? {} : { targets }),

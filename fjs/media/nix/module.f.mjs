@@ -124,6 +124,26 @@ const serializeReferenceChunks = reference => {
     return serialized === undefined ? undefined : [serialized]
 }
 
+/**
+ * One part of an indented string: content, or an interpolation.
+ *
+ * Escaping is what separates them. A `string` is content, so `${` in it becomes
+ * `''${` and reaches the file as those two characters; a `_Reference` is
+ * written as `${a.b}` unescaped, which is the form Nix resolves. That is the
+ * whole of the distinction, and it is why a hook that needs a store path takes
+ * a reference rather than a string spelling one.
+ *
+ * `undefined` for a reference whose root is not an identifier, as everywhere
+ * else — the caller propagates it.
+ *
+ * @type {(part: string | _Reference) => string | undefined}
+ */
+const indentedPart = part => {
+    if (typeof part === 'string') { return escapeIndented(part) }
+    const reference = serializeReference(part)
+    return reference === undefined ? undefined : `\${${reference}}`
+}
+
 /** @type {(pattern: _OpenSetPattern) => string | undefined} */
 const serializePattern = ([, ...names]) =>
     names.every((name, index) => isIdentifier(name) && names.indexOf(name) === index)
@@ -235,9 +255,12 @@ const serialize = (expression, level) => {
         case 'lambda': return serializeLambda(expression, level)
         case 'let': return serializeLet(expression, level)
         case 'indented-string': {
-            const [, value] = expression
+            const [, ...parts] = expression
+            const serialized = parts.map(indentedPart)
+            const defined = serialized.flatMap(part => part === undefined ? [] : [part])
+            if (defined.length !== serialized.length) { return undefined }
             const contentIndent = indent(level + 1)
-            const content = escapeIndented(value)
+            const content = defined.join('')
                 .split('\n')
                 .map(protectLeadingWhitespace)
                 .map(line => `${contentIndent}${line}`)
