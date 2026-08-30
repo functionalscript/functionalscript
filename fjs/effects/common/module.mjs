@@ -9,7 +9,6 @@
  *
  * @module
  *
- * @import { Result } from '../../types/result/types.ts'
  * @import { Catch, Sandbox, SandboxResult } from './types.ts'
  * @import { ToAsyncOperationMap } from '../types.ts'
  */
@@ -27,29 +26,28 @@ import { tryCatch } from '../../types/result/module.mjs'
  *
  * A returned promise is awaited and the clock read again, so an async test is
  * measured to where it settled rather than to where it returned a promise.
+ * `Awaited<T>` in the answer is that sentence in the type: a thunk answering
+ * `Promise<V>` puts `V` in `result`, and saying `T` instead would hand a caller
+ * a promise that is not there — `.then` on it is `undefined` at runtime.
  *
  * @template T
  * @param {() => T} f
- * @returns {Promise<SandboxResult<T>>}
+ * @returns {Promise<SandboxResult<Awaited<T>>>}
  */
 export const sandbox = async f => {
-    /** @type {Result<T, unknown>} */
-    let result
-    let after
     const before = performance.now()
     try {
-        let p = f()
-        after = performance.now()
-        if (p instanceof Promise) {
-            p = await p
-            after = performance.now()
-        }
-        result = ok(p)
+        const p = f()
+        const returned = performance.now()
+        // The clock is read again after awaiting, so an async thunk is measured
+        // to where it settled; a synchronous one keeps the reading taken the
+        // instant it returned.
+        return p instanceof Promise
+            ? { result: ok(await p), duration: performance.now() - before }
+            : { result: ok(/** @type {Awaited<T>} */ (p)), duration: returned - before }
     } catch (e) {
-        after = performance.now()
-        result = error(e)
+        return { result: error(e), duration: performance.now() - before }
     }
-    return { result, duration: after - before }
 }
 
 /**

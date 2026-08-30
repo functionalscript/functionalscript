@@ -35,7 +35,14 @@ export type SandboxResult<T> = {
     readonly duration: number
 }
 
-export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxResult<T>>]
+/**
+ * Runs a plain function in an isolated, measured environment.
+ *
+ * `Awaited<T>` because a handler that can await one does: a thunk answering
+ * `Promise<V>` is measured to where it settled and puts `V` in the result. `T`
+ * would promise a caller a promise that is not there.
+ */
+export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxResult<Awaited<T>>>]
 
 /**
  * Runs a pure thunk and answers what it did: its value, or the value it threw.
