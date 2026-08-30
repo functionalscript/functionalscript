@@ -85,7 +85,7 @@ dependency on migrating assertion helpers first.
 - [ ] Add an authored sibling `types.ts` used from JavaScript with JSDoc
       `@import` and from TypeScript with `import type`, both through the same
       `./types.ts` source path.
-- [ ] Verify the fixture type-checks under `npx tsc` with the Stage-1
+- [ ] Verify the fixture type-checks under `tsc` with the Stage-1
       `allowJs` / `checkJs` configuration.
 - [ ] Verify the same fixture type-checks and runs under Deno, so the convention
       does not depend on TypeScript's declaration-file resolution behavior.
@@ -99,7 +99,7 @@ dependency on migrating assertion helpers first.
 ### Acceptance criteria
 
 - A `proof.f.ts` importing `module.f.mjs` is executed by the normal test command
-  and type-checks under `npx tsc`.
+  and type-checks under `tsc`.
 - The `.f.mjs` fixture appears as a covered file in `npm run cov` and in
   `deno task cov`.
 - `proof.f.mjs` is explicitly allowed during Stage 1 when its authored runtime

@@ -67,7 +67,7 @@ DJS value the same behavior regardless of where it appears in the tree.
       syntax).
 - [ ] Document the distinction between native DJS and bigint-aware JSON
       interchange in `fjs/djs/README.md`.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 

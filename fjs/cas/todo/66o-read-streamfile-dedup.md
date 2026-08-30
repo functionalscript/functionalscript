@@ -73,7 +73,7 @@ ordering).
       `List<ReadBytes,…>` → `List<FileCasOperation,…>` conversion.
 - [ ] Confirm definition ordering compiles; keep the `read` JSDoc about
       "missing shard / read error is an explicit error item, never EOF".
-- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/cas/proof.f.mjs` still passes,
+- [ ] Run `tsc` and `fjs t`; confirm `fjs/cas/proof.f.mjs` still passes,
       including the short-final-chunk and read-error paths.
 
 ### Related

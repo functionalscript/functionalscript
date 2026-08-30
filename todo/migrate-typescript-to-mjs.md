@@ -575,7 +575,7 @@ source at all. All are fixed there — every one of the 127 emitted
 #### Curried generic exports need an explicit `@returns`
 
 A curried, generic exported function whose `@template`/`@param` chain has no
-`@returns` still type-checks correctly in the repository — `npx tsc` reads the
+`@returns` still type-checks correctly in the repository — `tsc` reads the
 `.mjs` source and infers the return type from the body, so `fjs t` and every
 in-repo consumer stay correct. What breaks is declaration emit: TypeScript
 infers a deep, often self-referential structural type for the return value
@@ -645,7 +645,7 @@ The failure this avoids is **declaration emit**, not type checking, and the
 three candidate spellings fail in different places. Measured on
 `fjs/media/json/rtti/module.f.mjs` ([#1498](https://github.com/functionalscript/functionalscript/pull/1498)):
 
-| form | `npx tsc` | emitted `.d.mts` |
+| form | `tsc` | emitted `.d.mts` |
 | ---- | --------- | ---------------- |
 | no annotation | **TS2345** — literal widens to `(string \| …)[]`, not a `Type` | — |
 | `/** @type {const} */(…)` inline cast | clean | 4 `any` + 2 `/*elided*/` |
@@ -835,7 +835,7 @@ blocking, plus the prose sweep. The remaining items are listed under
       return types, and check the emitted `.d.mts` for new `any`/`elided`
       after migrating any module with generics or recursive data — inferred
       return types on curried generic exports can silently collapse to `any`
-      in declaration emit even though `npx tsc` and `fjs t` stay green. Use
+      in declaration emit even though `tsc` and `fjs t` stay green. Use
       the per-arrow `@template`/`@param`/`@returns` style (`fjs/types/array`'s
       `isTuple`, reused by `sorted_list`/`range_map`/`fsc`) instead of a
       single `@type {<T, S>(...) => ...}` when a generic function composes

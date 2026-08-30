@@ -371,7 +371,7 @@ site left to migrate.
       consumers that required them, and `allOk` with `fjs/emergent_testing`;
       `items` stays a **raw** effect in both folds, since no consumer produces
       its list fallibly.
-- [x] Validate `npx tsc` and `fjs t` after each migration PR.
+- [x] Validate `tsc` and `fjs t` after each migration PR.
 
 What the migrated modules showed:
 

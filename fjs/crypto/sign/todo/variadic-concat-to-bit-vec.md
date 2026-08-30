@@ -49,7 +49,7 @@ readonly Vec[]): Vec => listToVec(x)` kept **private** in `crypto/sign`
       proof coverage (0, 1, n arguments; both bit orders).
 - [ ] Replace `concat` uses in `fjs/crypto/sign/module.f.mjs` and
       `proof.f.mjs`; delete the local export.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

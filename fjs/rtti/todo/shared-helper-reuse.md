@@ -71,4 +71,4 @@ uncurried `(a, b)` comparators to `toSorted`/`cmpList`.
 
 - [ ] `fjs/types/array`: add `dedup`, `assoc` with proofs.
 - [ ] `rtti/data`, `rtti/ts`: replace the four local copies with imports.
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.

@@ -138,7 +138,7 @@ different domain, and consolidating it is its own decision.
       `Reduce<T>`.
 - [ ] Remove the two addition TODOs (`../module.f.mjs:43-47`,
       `../../../bigint/module.f.mjs:29`); leave `xor`'s alone.
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.
 
 ### Related
 

@@ -147,7 +147,7 @@ follow-up in `fjs/cas` (see *Related*), not part of this issue.
 - [ ] Migrate the six call sites; the four strict ones go through `fromList`.
 - [ ] Create `fjs/effects/list/proof.f.mjs` with full coverage.
 - [ ] Re-scope or close [fold-stream-combinator](./fold-stream-combinator.md).
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

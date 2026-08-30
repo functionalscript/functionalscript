@@ -12,7 +12,7 @@
 of a declaration nothing references is not resolved, so an `Assert<…>` written
 this way is green whatever it claims.
 
-Two falsifications, each with `npx tsc` exiting 0 and printing nothing:
+Two falsifications, each with `tsc` exiting 0 and printing nothing:
 
 ```js
 // fjs/edag/proof.f.mjs:177 — claims op1Id's schema matches Op1Id
@@ -76,7 +76,7 @@ Per file the target differs, and the choice is the work:
   call site, say — has no `types.ts` home. It needs one written, or the
   claim needs restating as something a module-scope alias can hold.
 
-Do it per directory, so each lands with the `npx tsc` run that proves the
+Do it per directory, so each lands with the `tsc` run that proves the
 moved form bites: falsify each assertion once, see it fail, restore it. An
 assertion moved without that check is the same inert leaf in a new place.
 
@@ -91,7 +91,7 @@ the `true as _Predicate` prohibition it matches.
 - [ ] Move the 24 `fjs/edag/proof.f.mjs` assertions into `fjs/edag/types.ts`,
       falsifying each once to prove the moved form fails.
 - [ ] The same for the remaining 14 files, a directory at a time.
-- [ ] `npx tsc` and `fjs test` clean after each.
+- [ ] `tsc` and `fjs test` clean after each.
 
 ### Related
 

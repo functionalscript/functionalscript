@@ -85,7 +85,7 @@ does not straddle files.
 - [x] Make the unterminated-comment and unterminated-string cases agree — both
       anchor at the construct's opening
 - [x] Update the `errorPosition` and `metadata` proof groups
-- [ ] `npx tsc`, `fjs t`
+- [ ] `tsc`, `fjs t`
 
 ### Related
 

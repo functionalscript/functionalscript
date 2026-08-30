@@ -51,7 +51,7 @@ this one *is* reachable, because `files` would publish such a file.
 
 **4. A package that ships `.ts` sources and no declarations.** `include` is
 `**/*`, so TypeScript sources are a nonempty root set and the `TS18003`
-empty-check never fires: `npx tsc` succeeds having checked no declaration.
+empty-check never fires: `tsc` succeeds having checked no declaration.
 Unreachable here — root `package.json` `files` is an allowlist
 (`**/*.js`, `**/*.d.ts`, `**/*.mjs`, `**/*.d.mts`) with no pattern matching a
 source file — and the fix has a real cost, so it is recorded rather than built.

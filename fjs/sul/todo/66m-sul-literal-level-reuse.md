@@ -68,7 +68,7 @@ than two parallel constructions that happen to agree. Behaviour is unchanged —
 - [ ] Change `literalToVec`'s second parameter from `e: bigint` to a `Level` (or
       `{ decode }`), drop the internal `level(e)` call, and pass `l1`/`l2`/`l3`
       at the three call sites.
-- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/sul/level/literal/proof.f.mjs` still
+- [ ] Run `tsc` and `fjs t`; confirm `fjs/sul/level/literal/proof.f.mjs` still
       passes with full line/branch coverage.
 
 ### Related
