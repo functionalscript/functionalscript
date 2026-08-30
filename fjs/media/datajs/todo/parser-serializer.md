@@ -1,6 +1,8 @@
 ## DataJS parser and serializer
 
-**Priority:** P2
+**Priority:** P1 — stage 4 is P1 in the coordinating issue and in the
+conformance-vector issue, which says outright that it blocks stage 4 "which is
+P1". This file is the canonical co-located issue, so it carries the same level.
 **Status:** open
 **Blocked by:** [JSON self-contained tokenizer](../../json/todo/self-contained-tokenizer.md)
 
@@ -35,12 +37,30 @@ Mirrors `fjs/media/json/`:
 fjs/media/datajs/
     README.md
     types.ts          Primitive, Unknown
-    module.f.mjs      parse, serialize, stringify, normalize
+    module.f.mjs      the public API below
     proof.f.mjs
     tokenizer/        module.f.mjs, proof.f.mjs, types.ts
     parser/           module.f.mjs, proof.f.mjs, types.ts
     serializer/       module.f.mjs, proof.f.mjs
 ```
+
+**Every entry point is fallible, and the names say so.** A caller may
+legitimately hand a reader invalid text or a serializer a value outside the
+data model, so all four are `try*` returning `Result` — see §4:
+
+```ts
+export const tryParse:     (text: string)  => Result<Unknown, string>
+export const trySerialize: (sort: _MapEntries) => (value: unknown) => Result<List<string>, string>
+export const tryStringify: (sort: _MapEntries) => (value: unknown) => Result<string, string>
+export const tryNormalize: (value: unknown)    => Result<string, string>
+```
+
+`trySerialize` yields chunks and `tryStringify` is its `concat`, mirroring
+`fjs/media/json`'s pair. `tryNormalize` takes no `sort`: normalized form fixes
+key order itself, and it is a separate entry point because it is an optional
+role a caller asks for. The input is `unknown` rather than `Unknown` precisely
+because rejecting what is outside the model is the serializer's job — a
+signature taking `Unknown` would be asserting what §4 has to check.
 
 #### 1. Value domain, and the one type-level trap
 
@@ -64,7 +84,14 @@ export default {};                // an object with none
 so only the *runtime* enumerator can tell them apart. Consequences, both of
 which are proof obligations rather than notes:
 
-- the serializer reads entries with `entries`, never `definedEntries`;
+- the serializer must not read an object through `definedEntries`, which drops
+  a member whose value is `undefined` before any other seam runs. It must not
+  read it through `entries` either — see §4: `Object.entries` invokes a getter
+  while collecting its value, which is the effect §4 rejects. **Own property
+  descriptors settle both at once**: a descriptor exists if and only if the
+  property does, so present-and-`undefined` is distinguishable from absent
+  without reading any value, and an accessor is visible as an accessor before
+  anything invokes it.
 - the parser must build a member whose value is `undefined` as a present
   property, which `setReplace` already does and which no type will check.
 
@@ -206,6 +233,19 @@ container dispatch, or a shared array short-circuits to nothing and the
 reference is lost), a key seam, and the entry-enumeration seam of §1 above.
 Stage 4 is the consumer 157 §2 was waiting for.
 
+**A fifth thing has to change, and it is not one of the four: container
+classification.** `treeSerialize` dispatches with `value instanceof Array`, and
+`isObject` excludes arrays with `fjs/types/array`'s `isArray`, which is also
+`instanceof Array`. A **null-prototype array** is therefore neither: measured,
+`Object.setPrototypeOf([1,2], null)` gives `instanceof Array === false` and
+`isObject === true`, so it goes down the *object* path and serializes as
+`{"0":1,"1":2}` — a different value, silently. The spec permits it explicitly:
+a null-prototype array "serializes as its data, and reads back ordinary". So
+the shared skeleton must classify containers with `Array.isArray`, which is
+prototype-independent, and the corpus's null-prototype-array case has to be a
+serializer vector. Note the two helpers cannot simply be inherited here: both
+are `instanceof`-based today, and changing them is wider than this issue.
+
 **Rejection is a `try*`, not a panic.** A serializer's input is caller-supplied
 and may legitimately be outside the data model, which is
 [`REVIEW.md`](../../../../REVIEW.md)'s first case — refused as a `try*`, never
@@ -217,7 +257,17 @@ owed better than `null`. Rejected: a leaf outside the leaf set, a sparse hole, a
 key, an accessor property, a non-enumerable property, an array with an own
 property besides its elements and `length`, and a cycle.
 
-Two lines here are easy to cross and the spec draws both explicitly:
+**Order matters: validate from descriptors, then read.** Rejecting an accessor
+because reading it is an effect is worthless if the check itself reads it, and
+the obvious enumerator does exactly that — measured, `Object.entries` on an
+object with an enumerable getter invokes the getter once and hands back its
+value. So the walk takes own property descriptors and own symbol keys first,
+refuses symbol keys, accessors and non-enumerable properties from the
+descriptors alone, and only then reads `value` off the data descriptors that
+survive. Nothing outside the model is ever read. This is also what §1's
+present-vs-absent problem needs, so one mechanism serves both.
+
+Two further lines are easy to cross and the spec draws both explicitly:
 
 - **Property attributes are not grounds for rejection.** `writable`,
   `configurable`, and whether the object is frozen or sealed are outside the
@@ -263,9 +313,12 @@ the spec judges them independently and this module provides all three.
 - [ ] Reader proofs from the corpus, including both sharing directions.
 - [ ] Hoisting pass: occurrence counting by identity, cycle rejection,
       post-order naming.
-- [ ] Serializer over the shared walker of 157 §2.
-- [ ] Out-of-model rejection as a `try*`, with the attribute/enumerability line
-      and the hole-vs-`undefined` distinction proved.
+- [ ] Serializer over the shared walker of 157 §2, including the fifth change
+      that is not one of its four seams: classify containers with
+      `Array.isArray`, and prove the null-prototype-array case.
+- [ ] Out-of-model rejection as a `try*`, descriptor-first so no accessor is
+      invoked by the check that refuses it, with the attribute/enumerability
+      line and the hole-vs-`undefined` distinction proved.
 - [ ] Normalized form, and its byte-exact proofs.
 - [ ] Delete this file in the PR that finishes it.
 
@@ -275,5 +328,5 @@ the spec judges them independently and this module provides all three.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. This issue implements it.
 - [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, the proof source. Land it first.
 - [self-contained tokenizer](../../json/todo/self-contained-tokenizer.md) — stage 3; 3b exports the scanners this reuses.
-- [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. Stage 4 is its second consumer.
+- [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. Stage 4 is its second consumer, and needs a fifth change it does not list: prototype-independent container classification (§4).
 - [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type; interacts with the optional index signature in §1.
