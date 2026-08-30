@@ -372,14 +372,14 @@ const transformRuleSet:
     <K extends string>(start: K) => TransformMatch<_Output<M, K>>
 
 type _Output<M, K> = K extends keyof M
-    ? NonNullable<M[K]> extends Transformer<infer T> ? T : never
+    ? M[K] extends Transformer<infer T> ? T : never
     : unknown
 ```
 
-`NonNullable`, not `M[K]`, because §8's `Transformers` declares its properties
-optional: `M[K]` is then `Transformer<T> | undefined`, which is not a naked type
-parameter, so the conditional does not distribute and every output would resolve
-to `never`.
+This reads `M` as the map literal's *own* type, which is why §8 says to check
+the map with `satisfies` and never to annotate it: an annotation makes every
+declared key optional and present in `keyof M` at once, and then `_Output`
+cannot tell a rule the map supplies from one it omits.
 
 **A parse that did not finish has no value, and says so.** The root's `end`
 never runs when the grammar rejects the input — a failure propagates straight
@@ -514,12 +514,26 @@ type Values = {
     // …
 }
 type Transformers = { readonly[K in keyof Values]?: Transformer<Values[K]> }
+
+const map = { /* … */ } satisfies Transformers   // checked, never annotated
 ```
 
-The properties are optional — a grammar has rules no one transforms — which is
-why `_Output` (§5) strips `undefined` before it infers: an optional property's
-indexed access carries `| undefined`, and a conditional over that union does not
-distribute, so every output would come back `never`.
+**`satisfies`, not an annotation**, and the difference is not stylistic. The
+properties are optional, because a grammar has rules no one transforms — so
+`const map: Transformers = …` puts *every* declared key into `keyof M` whether
+or not the map supplies it. `_Output` (§5) then reads an omitted start rule as
+`Values[K]` while the parse takes the unmapped path and hands back an AST node,
+which is a wrong type reported confidently. `satisfies` checks each `end`
+against `Values[K]` while keeping the literal's own keys, so a rule the map
+supplies infers its `T` and one it omits falls through to `unknown` — exactly
+the reason [`fjs/AGENTS.md` §3.2](../../AGENTS.md#prefer-satisfies-over-type-when-checking-not-overriding)
+prefers `@satisfies` wherever the goal is to check a shape rather than to
+declare one.
+
+`_Output` deliberately does **not** paper over a mis-annotated map with
+`NonNullable`: without it such a map resolves to `never` and fails to compile,
+which is the loud failure; with it, the same map would quietly type an AST node
+as a domain value.
 
 Every `end` is checked against the rule's declared output, and `_Output` (§5)
 reads the start rule's entry back out of the same map to type the parse's
