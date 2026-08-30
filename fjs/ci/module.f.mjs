@@ -30,6 +30,7 @@ import { nixFlakes } from './nix/module.f.mjs'
 import { parse as jsonParse } from '../media/json/module.f.mjs'
 import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
 import { bunNixJob, bunSteps } from './bun/module.f.mjs'
+import { devNixJob, devSteps } from './dev/module.f.mjs'
 import { denoNixJob, denoSteps } from './deno/module.f.mjs'
 
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
@@ -59,15 +60,26 @@ const job = (rust, nodeExtra) => o => a => {
  * is no file tree for a flake to be in. `./todo/65z-ci-nix.md` says why, and
  * `./proof.f.mjs`'s `nixCoverage` keeps the list from growing by accident.
  *
+ * `dev` is the one entry that is not a runtime under test. It is the developer
+ * environment, and it is here rather than hand-written so that it cannot drift
+ * from the jobs it is the union of — and so that the drift check covers it.
+ *
  * @type {readonly NixJob[]}
  */
-export const nixJobs = [...nodeNixJobs, denoNixJob, wasmNixJob, bunNixJob]
+export const nixJobs = [
+    ...nodeNixJobs,
+    denoNixJob,
+    wasmNixJob,
+    bunNixJob,
+    devNixJob,
+]
 
 /** @type {(rust: boolean, pin: string | undefined) => Jobs} */
 const canonicalJobs = (rust, pin) => ({
     ...(rust ? { wasm: ubuntuArm(rustWasmSteps) } : {}),
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
+    dev: ubuntuArm(devSteps),
     ...nodeVersionJobs(),
     ...(pin === undefined ? {} : { [packageCheckJobId]: packageCheckJob(pin) }),
 })

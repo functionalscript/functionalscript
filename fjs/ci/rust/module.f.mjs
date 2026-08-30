@@ -24,7 +24,7 @@
 
 import { rust, wasmer, wasmtime } from '../config/module.f.mjs'
 import { test } from '../common/module.f.mjs'
-import { nixInstall, nixSteps, nixSystem, nixVersionStep } from '../nix/module.f.mjs'
+import { nixInstall, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
 
 /** @type {(tool: 'clippy' | 'test', target?: string, config?: string) => string} */
 const cargoCommand = (tool, target, config) => {
@@ -103,12 +103,13 @@ const wasmerOnlyTarget = /** @type {const} */ ('wasm32-wasip1-threads')
 /**
  * Every WASM target the job exercises, in the order it exercises them.
  *
- * One list, read twice: the flake declares these as the targets whose
- * `rust-std` its toolchain must carry, and the steps below build the commands
- * from the same array. A target added here therefore arrives in the shell and
- * in the job together, rather than as a command with no standard library.
+ * One list, read three times: the flake declares these as the targets whose
+ * `rust-std` its toolchain must carry, the steps below build the commands from
+ * the same array, and `../dev/module.f.mjs` gives a developer's shell the same
+ * ones. A target added here therefore arrives in the shell and in the job
+ * together, rather than as a command with no standard library.
  */
-const wasmTargets = /** @type {const} */ ([
+export const wasmTargets = /** @type {const} */ ([
     'wasm32-wasip1',
     'wasm32-wasip2',
     'wasm32-unknown-unknown',
@@ -145,7 +146,7 @@ const wasmTargetCommands = target =>
  */
 export const wasmNixJob = {
     id: wasmJobId,
-    system: nixSystem,
+    systems: nixSystems,
     packages: ['wasmtime', 'wasmer'],
     rust: {
         version: rust,

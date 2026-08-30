@@ -31,25 +31,50 @@ export const functionalscript = /** @type {const} */ '0.47.0'
 // Nixpkgs ships 1.3.13 — on the pin and on `master` — and two of this
 // repository's proofs fail on it, one of them a real difference in when
 // `Symbol.species` is read rather than a slow machine. So the `bun` job's flake
-// keeps the snapshot's packaging and replaces only the archive, with the
-// version and the hash below.
+// keeps the snapshot's packaging and replaces only the archive, named by the
+// version here and the table below.
 //
 // This is the exception, not a pattern: it works because Nixpkgs fetches Bun as
 // a prebuilt archive, so overriding it moves bytes rather than adopting a
-// package definition. Delete both constants the day the snapshot carries a Bun
-// this suite passes on.
+// package definition. Delete this and the table below the day the snapshot
+// carries a Bun this suite passes on.
 // https://bun.sh/
 export const bun = '1.4.0'
 
-// SHA-256 of the archive that release publishes for `aarch64-linux`, the one
-// system the generated flakes target, as an SRI string.
+// The archive that release publishes for each system a generated flake targets,
+// with the SHA-256 its content must have, as an SRI string.
 //
-// Verified rather than copied: the artifact was downloaded and hashed, and the
-// result compared against the value an independent packaging of the same
-// release records. Recompute it the same way when the version above moves —
+// The names are not a free choice. The snapshot's packaging strips a directory
+// whose name it derives from the system — `bun-darwin-x64-baseline` for
+// `x86_64-darwin` — so each archive here is the one that recipe already
+// expects, which is why Intel macOS takes a baseline build rather than the
+// newer one beside it.
+//
+// Verified rather than copied: every archive was downloaded and hashed here,
+// and three of the four matched an independent packaging of the same release.
+// The fourth, Intel macOS, is one nothing else packages, so our own download is
+// its only source. Recompute them the same way when the version above moves —
 // `nix-prefetch-url` where Nix is available, otherwise a download and a
 // `sha256sum` re-encoded as base64.
-export const bunHash = 'sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4='
+/** @type {{ readonly [system: string]: { readonly archive: string, readonly hash: string } }} */
+export const bunSources = {
+    'aarch64-linux': {
+        archive: 'bun-linux-aarch64',
+        hash: 'sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=',
+    },
+    'x86_64-linux': {
+        archive: 'bun-linux-x64',
+        hash: 'sha256-LQP7X7g6yLVnrKCigbLOGhoZ1Ij1bClo2Iw/Jekv5FI=',
+    },
+    'aarch64-darwin': {
+        archive: 'bun-darwin-aarch64',
+        hash: 'sha256-xmnpf2Fk4cluBwF0jbmN+ndJKQjL2DlMdVcTSnNd44E=',
+    },
+    'x86_64-darwin': {
+        archive: 'bun-darwin-x64-baseline',
+        hash: 'sha256-2pufG0unZsbymXEfON+qmGI+HtnECJaqU9uAPFLsH6A=',
+    },
+}
 
 // The Deno version the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/by-name/de/deno/package.nix` at that commit. The job asserts the

@@ -14,7 +14,7 @@
  */
 
 import { deno } from '../config/module.f.mjs'
-import { nixInstall, nixSteps, nixSystem, nixVersionStep } from '../nix/module.f.mjs'
+import { nixInstall, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
 
 /** CI job id, and the directory name of its generated flake. */
 export const denoJobId = /** @type {const} */ ('deno')
@@ -30,7 +30,7 @@ export const denoJobId = /** @type {const} */ ('deno')
  */
 export const denoNixJob = {
     id: denoJobId,
-    system: nixSystem,
+    systems: nixSystems,
     packages: ['deno'],
 }
 
