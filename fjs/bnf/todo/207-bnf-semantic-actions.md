@@ -548,9 +548,13 @@ uses `list` or a hand-written fold. That is the split the previous design's
 
 #### 10. Worked examples
 
-**JSON value.** Over `fjs/bnf`'s own JSON example grammar — the `deterministic`
-one in [`../testlib.f.mjs`](../testlib.f.mjs) — which is what an example grammar
-needs to be checkable against a spec test vector, and is *not* a codec (§11.6):
+**JSON value.** Over a JSON grammar in `fjs/bnf` — an example grammar that can
+produce a value is what makes it checkable against a spec test vector, and is
+not a codec (§11.6). A map names rules, so the grammar has to have names: this
+is written against one whose rules are named thunks, which `deterministic()` in
+[`../testlib.f.mjs`](../testlib.f.mjs) is **not** (§11.3), and giving it those
+names is the first task of stage 2 rather than something this example can
+assume:
 
 ```ts
 {
@@ -625,13 +629,30 @@ give you streaming, because it must materialize every child list first. Both
 current backends produce children one at a time, so the array is a construction
 `reduce` would force them to build and this protocol does not.
 
-**11.3 `mapRule` is dropped.** Wrapping rules in the functional form to carry
-actions required every consumer (`toData`, `dispatchMap`, both backends) to
-learn to skip a wrapper, in exchange for TypeScript inference that §8's
-predecessor proved does not survive a cyclic grammar. Keying by data-rule name
-keeps the grammar untouched. Its cost — only rules `toData` names can carry a
-transformer, and it disambiguates collisions with `newName` — is real, and is
-what the construction-time name check makes visible instead of silent.
+**11.3 `mapRule` is dropped, and name-keying costs the grammar its spelling.**
+Wrapping rules in the functional form to carry actions required every consumer
+(`toData`, `dispatchMap`, both backends) to learn to skip a wrapper, in exchange
+for TypeScript inference that §8's predecessor proved does not survive a cyclic
+grammar. Keying by data-rule name keeps the grammar untouched instead — but only
+rules `toData` can *name* may carry a transformer, and that bites harder than "a
+caveat".
+
+`toData` takes a name from a thunk's `fr.name`, so a rule written as a named
+`() =>` thunk keeps its name, while anything else — a `const` bound to an array
+or an object literal, an inline combinator call — is anonymous and gets a
+generated one (with `newName` disambiguating collisions). Measured on the
+shipped example: `toData(deterministic())`
+([`../testlib.f.mjs`](../testlib.f.mjs)) produces **92 rules**, named `1`…`87`,
+`r`, `r0`…`r3`, `value`, and `""` for the entry. One name in ninety-two is
+meaningful, because `value` is the only rule that grammar spells as a thunk.
+
+So a grammar meant to carry transformers has to be *written* for it, with every
+rule an author wants to transform bound as a named thunk. That is an authoring
+rule rather than a limit of the protocol, but it is work on every existing
+grammar — which is why stage 2 starts by giving the example grammar stable names
+instead of by writing transformers for it. The construction-time name check (§1)
+is what turns getting this wrong into a failure at construction rather than a
+transformer that silently never fires.
 
 **11.4 List flattening is already done.** The structural right-recursion
 detection the previous design spent a section on shipped as the `Repeat` rule,
@@ -786,8 +807,12 @@ so what transformers buy JSON here is an *example grammar that can produce a
 value* to check against a spec vector.
 
 - [ ] Add the §9 helpers with the O(1)-`update` accumulation inside them.
-- [ ] Give the JSON example grammar a transformer set, and prove it against the
-      spec's test vectors — the proof coverage
+- [ ] Rewrite the JSON example grammar's rules as **named thunks**, so `toData`
+      keeps their names: `deterministic()` yields 92 rules of which exactly one,
+      `value`, is named (§11.3), and no transformer map can address the rest.
+      Prove the AST is unchanged — naming a rule must not reshape the grammar.
+- [ ] Then give that grammar a transformer set, and prove it against the spec's
+      test vectors — the proof coverage
       [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
       requires of every example grammar, now checkable on values rather than on
       an AST shape.
