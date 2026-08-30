@@ -16,19 +16,25 @@ Measured by whether a definition touches a host object at all:
 
 | | lines |
 | --- | --- |
-| genuine DOM/window glue (`setState`, `render*`, `publish`, `viewOf`) | ~50 |
-| logic wearing one thin host touch (`runOne`, `runBrowserProofs`, `reportOf`, `startBrowserTestSources`) | ~200 |
-| pure already (`text`, `errorDetails`, `moduleFailure`) | ~30 |
+| genuine DOM/window glue (`setState`, `render*`, `publish`, `viewOf`, `startBrowserTests`) | ~85 |
+| logic wearing one thin host touch (`runBrowserProofs`, `reportOf`, `startBrowserTestSources`) | ~155 |
+| pure already (`text`, `errorDetails`, `moduleFailure`) | ~30, **moved** |
 
-The middle row is the debt. `runOne` walks a proof tree, builds results and
-recurses — business logic — and is "impure" only because it reads
-`performance.now()` and awaits. `reportOf` computes totals and reads
-`navigator.userAgent`. `startBrowserTestSources` sequences loading and calls
-`import()`. In each case a few host touches keep two hundred lines of logic out
-of FunctionalScript.
+The middle row is the debt, and it is still the majority of the file. `runOne`
+was the largest entry and is gone — the shared traversal replaced it in
+functionalscript#1796 — but `runBrowserProofs` still owns the interpreter and the
+run's wall clock, `reportOf` computes totals and reads `navigator.userAgent`, and
+`startBrowserTestSources` sequences loading and calls `import()`. In each case a
+few host touches keep a hundred and fifty lines out of FunctionalScript.
+
+The third row **left** in functionalscript#1802, once the `catch` operation
+existed to carry it: `text`, `errorDetails` and `moduleFailure` are in
+`../browser/module.f.mjs` now, along with the orchestration the sharing plan
+moved. That is what took the file from 405 lines to 320.
 
 **The proof file is the visible cost.** [`browser/proof.mjs`](../browser/proof.mjs)
-is 493 lines — three times the next impure proof file in the repository — and it
+is 524 lines — about seven times the next impure proof file in the repository,
+`effects/node/memory/proof.mjs` at 78 — and it
 exists to test that logic from Node through a DOM stand-in. Logic in `.f.mjs`
 would be proven by an ordinary co-located `proof.f.mjs`; only the DOM adapter
 would still need an impure proof. Thin glue needs few `.mjs` proofs, and the
@@ -44,25 +50,29 @@ purity side:
 - **step 5** gives the browser an interpreter — where its host touches belong;
 - **step 6** shares reporting;
 - **step 7** deletes `runOne` outright, because the shared traversal in
-  `../module.f.mjs` already does what it does.
+  `../module.f.mjs` already does what it does. **Done**, along with steps 4–6.
 
 So this file is not a competing plan. It is the migration-debt record the rule
 asks for, and it names two things the sharing plan does not:
 
-- **`errorDetails` and `text` cannot move as they stand.** Both are pure in
-  substance and both need `try`/`catch`, which FunctionalScript does not have —
-  reading `message`, `stack` or calling `String` on a hostile value can throw.
-  Moving them needs the `catch` operation designed in
-  [hostile proof values](hostile-proof-values.md). Until then they are pure logic
-  that legitimately cannot be `.f.mjs`, which is worth stating so it is not read
-  as laziness.
+- **`errorDetails` and `text` could not move as they stood, and now have.** Both
+  are pure in substance and both need `try`/`catch`, which FunctionalScript does
+  not have — reading `message`, `stack` or calling `String` on a hostile value
+  can throw. That is what the `catch` operation designed in
+  [hostile proof values](hostile-proof-values.md) is for, and with it they are
+  `../browser/module.f.mjs`'s `text` and `errorDetails`, written as effects over
+  `catch` rather than as thunks in a `try`. The general shape is worth keeping in
+  mind for whatever moves next: pure logic that reads a *user* value is not
+  impure, it is effectful.
 - **What should remain.** When the extraction is done, `browser/module.mjs`
   should hold
   the DOM adapter, the published promise and completion event, the loading
   importer, and the interpreter for the browser's operations. That is a plausible
   50–80 lines, against 320 today — the 405 this said when it was written came
-  down as the orchestration left for `browser/module.f.mjs`, and what remains is
-  mostly the DOM adapter this bullet describes.
+  down as the orchestration left for `browser/module.f.mjs`. The remaining gap is
+  the middle row above, not a rounding error: the DOM adapter is about 85 of
+  those 320 lines, and `runBrowserProofs`, `reportOf` and `startBrowserTestSources`
+  are the rest.
 
 ### Tasks
 

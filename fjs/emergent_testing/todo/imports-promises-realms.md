@@ -233,16 +233,25 @@ builds its answer through `constructor[Symbol.species]`, either of which a
 promise can replace, so a proof's subtree can be lost or the run handed a
 non-promise. `await` on a same-realm promise adopts internal state and consults
 neither, which is why three lines recover everything the machinery gave for the
-values this runner can actually meet. `awaitIgnoresAnOwnThenOverride` and
-`awaitIgnoresACustomSpecies` pin both, and both fail against `.then`.
-`hostileBrandCheckIsReported` pins the third thing `fjs t` does that the page
-must too: run the `instanceof` inside a guard, because the check consults
-`getPrototypeOf` and a proxy can trap it — unguarded, the run rejects and the
-page never leaves `running`.
+values this runner can actually meet.
 
-`subscribe`, `speciesFails`, `runPromise` and `species.proof.mjs` are deleted. `crossRealmPromise` became
-`crossRealmPromiseIsWalkedAsATree`, which pins the two runners agreeing rather
-than the browser defending alone — the gap is real, shared, and recorded here.
+**The proofs that pinned the `then` and species cases are gone**, deleted in
+functionalscript#1796 rather than kept: the rule they were chasing is that a
+value which is not a well-known `Promise` is not run as one, full stop, and that
+rule is stated on `Sandbox` in `../../effects/common/types.ts` where a reader
+meets it. Four proofs enumerating ways to violate a stated rule bought no
+guarantee the rule did not already give, and invited the next variant.
+`hostileBrandCheckIsReported` went with them as redundant with
+`returnedTreeThrows`, which pins the same guarantee — user code throwing while
+the runner reads a value fails that test rather than rejecting the run — without
+a proxy.
+
+`subscribe`, `speciesFails`, `runPromise` and `species.proof.mjs` are deleted.
+What survives in `../browser/proof.mjs` states the rule positively rather than
+chasing it: `crossRealmPromiseSilentlyPasses` pins the two runners *agreeing*
+rather than the browser defending alone, and `spoofedPromiseTag` and
+`frozenPromiseTag` pin that a spoof is walked as an ordinary tree. The gap is
+real, shared, and recorded here.
 
 Strictly, the browser needs no promise handling whatever — it runs only
 `.f.mjs`. `instanceof` is kept anyway: one expression, and it keeps the two
