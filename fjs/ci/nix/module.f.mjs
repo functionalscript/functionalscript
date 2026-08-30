@@ -60,17 +60,20 @@ const toolchain = ({ version, extensions, targets }) => ['apply',
 ]
 
 /**
- * A pinned package's archive for one system.
+ * A pinned package's archive for one system, or empty strings for a job that
+ * pins nothing — where the two are never read.
  *
- * A job that pins a package has to give every system it declares an archive,
- * and nothing here can invent a missing one: the URL and the hash are both
- * facts about a published file. So this is a totality assertion like
+ * A job that *does* pin has to give every system it declares an archive, and
+ * nothing here can invent a missing one: the URL and the hash are both facts
+ * about a published file. So the lookup is a totality assertion like
  * {@link flakeText}'s, and `../proof.f.mjs` holds every declared job to it.
  *
- * @type {(pin: NixPin, system: string) => NixArchive}
+ * @type {(pin: NixPin | undefined, system: string) => NixArchive}
  */
-const archive = ({ sources }, system) =>
-    unwrapNullable(fromUndefined(sources[system]))
+const archive = (pin, system) =>
+    pin === undefined
+        ? { url: '', hash: '' }
+        : unwrapNullable(fromUndefined(pin.sources[system]))
 
 /** The `let` name a pinned package is bound to, whatever package it overrides. */
 const pinName = /** @type {const} */ ('pinned')
@@ -95,9 +98,9 @@ const pinName = /** @type {const} */ ('pinned')
  * package builds its own download URLs from `version`, so a mismatch there is
  * the kind that surfaces as a hash error in an unrelated place.
  *
- * @type {(pin: NixPin, source: NixArchive) => Expression}
+ * @type {(pin: NixPin, source: Expression, hash: Expression) => Expression}
  */
-const pinned = ({ package: name, version }, { url: source, hash }) => ['apply',
+const pinned = ({ package: name, version }, source, hash) => ['apply',
     ['ref', 'pkgs', name, 'overrideAttrs'],
     ['set',
         ['=', ['version'], version],
@@ -111,18 +114,37 @@ const pinned = ({ package: name, version }, { url: source, hash }) => ['apply',
     ]
 ]
 
+/** The `let` name the shared shell function is bound to. */
+const shellName = /** @type {const} */ ('shell')
+
 /**
- * One system's development shell: the `let` that builds it and the `mkShell`
- * that is it.
+ * The parts of a shell that differ between one system and the next.
  *
- * Every system gets its own, written out rather than looped over — a flake with
- * four shells is four of these, and reads as four. What varies with the system
- * is not only the name: a pinned package names a different archive, with a hash
- * of its own, for each one.
+ * Two ways to fill them, and that is the whole of the choice this module makes
+ * about repetition. A flake with one shell passes the values themselves, and
+ * reads with nothing to look up. A flake with several passes references to a
+ * function's arguments, and the shell is written once.
  *
- * @type {(job: NixJob, system: string) => Expression}
+ * The archive halves are read only under a `pin`, so for a job that pins
+ * nothing whatever fills them never reaches the file.
+ *
+ * @typedef {{
+ *   readonly system: Expression
+ *   readonly url: Expression
+ *   readonly hash: Expression
+ * }} PerSystem
  */
-const shell = ({ packages, shellHook, rust, pin }, system) => ['let',
+
+/**
+ * One development shell: the `let` that builds it and the `mkShell` that is it.
+ *
+ * What varies with the system is not only its name — a pinned package names a
+ * different archive, with a hash of its own — so all three arrive together
+ * rather than being derived from each other here.
+ *
+ * @type {(job: NixJob, perSystem: PerSystem) => Expression}
+ */
+const shell = ({ packages, shellHook, rust, pin }, { system, url: source, hash }) => ['let',
     [
         ['=', ['pkgs'], ['apply',
             ['ref', 'import'],
@@ -138,7 +160,7 @@ const shell = ({ packages, shellHook, rust, pin }, system) => ['let',
             ['=', ['rust'], toolchain(rust)],
         ])),
         ...(pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
-            ['=', [pinName], pinned(pin, archive(pin, system))],
+            ['=', [pinName], pinned(pin, source, hash)],
         ])),
     ],
     ['apply',
@@ -155,6 +177,70 @@ const shell = ({ packages, shellHook, rust, pin }, system) => ['let',
         ]
     ]
 ]
+
+/**
+ * The values one system passes to the shared function: its name, and the
+ * archive a pinned package takes on it.
+ *
+ * @type {(job: NixJob, system: string) => readonly _Binding[]}
+ */
+const perSystemArguments = ({ pin }, system) => {
+    const { url: source, hash } = archive(pin, system)
+    return [
+        ['=', ['system'], system],
+        ...(pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+            ['=', ['url'], source],
+            ['=', ['hash'], hash],
+        ])),
+    ]
+}
+
+/**
+ * The `devShells` set, and — for a job with more than one system — the function
+ * its entries share.
+ *
+ * The abstraction appears exactly where it pays. One shell written through a
+ * function would be indirection for nothing, so a single-system flake stays the
+ * flat text it has always been, byte for byte. Four shells written out is the
+ * same twenty lines four times, so those share.
+ *
+ * It is a function rather than a loop on purpose: `devShells.<system>.default`
+ * is still written once per system, so the systems a flake serves are a list
+ * you can read, not a fold over one this file does not contain. That was
+ * `../todo/65z-ci-nix.md`'s reason for refusing `flake-utils`, and it survives.
+ *
+ * @type {(job: NixJob) => Expression}
+ */
+const devShells = job => {
+    const [system, ...rest] = job.systems
+    if (rest.length === 0) {
+        return ['set',
+            ['=', ['devShells', system, 'default'], shell(job, {
+                system,
+                ...archive(job.pin, system),
+            })],
+        ]
+    }
+    return ['let',
+        [
+            ['=', [shellName], ['lambda',
+                ['open-set-pattern', 'system', ...(job.pin === undefined ? [] : ['url', 'hash'])],
+                shell(job, {
+                    system: ['ref', 'system'],
+                    url: ['ref', 'url'],
+                    hash: ['ref', 'hash'],
+                }),
+            ]],
+        ],
+        ['set',
+            ...job.systems.map(s => /** @type {_Binding} */ ([
+                '=',
+                ['devShells', s, 'default'],
+                ['apply', ['ref', shellName], ['set', ...perSystemArguments(job, s)]],
+            ])),
+        ],
+    ]
+}
 
 /**
  * A job declaring neither `rust` nor `pin` generates exactly what it generated
@@ -175,11 +261,7 @@ const flake = job => ['set',
     ])),
     ['=', ['outputs'], ['lambda',
         ['open-set-pattern', 'nixpkgs', ...(job.rust === undefined ? [] : ['rust-overlay'])],
-        ['set',
-            ...job.systems.map(system => /** @type {_Binding} */ ([
-                '=', ['devShells', system, 'default'], shell(job, system),
-            ])),
-        ]
+        devShells(job),
     ]]
 ]
 

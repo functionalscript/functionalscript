@@ -111,10 +111,14 @@ and a shell with five would let a job pass on whichever `node` came first on
 `PATH`.
 
 It exposes four shells — `aarch64-linux`, `x86_64-linux`, `aarch64-darwin`,
-`x86_64-darwin` — one explicit `devShells.<system>.default` each, and
-`nix develop` picks the one matching the machine. Nix does not run natively on
-Windows, so a Windows developer reaches it through WSL2 or works the way this
-repository has always supported natively.
+`x86_64-darwin` — one named `devShells.<system>.default` each, and
+`nix develop` picks the one matching the machine. The shell itself is written
+once, as a function those four entries call with the three things that differ:
+the system, and the archive and hash Bun publishes for it. The single-system
+flakes keep their shell inline, since a function called once would be
+indirection for nothing. Nix does not run natively on Windows, so a Windows
+developer reaches it through WSL2 or works the way this repository has always
+supported natively.
 
 A `dev` CI job enters the shell and asserts all five runtime versions. Nothing
 else would ever evaluate this flake — every other one is entered by the job that

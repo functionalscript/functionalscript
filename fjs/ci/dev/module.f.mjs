@@ -33,10 +33,13 @@ export const devJobId = /** @type {const} */ ('dev')
 
 /**
  * Every system this shell is generated for: two architectures on Linux, two on
- * macOS, each an explicit `devShells.<system>.default`.
+ * macOS, each a named `devShells.<system>.default`.
  *
- * Written out rather than looped over, which is the whole reason a generated
- * flake can afford four of them and stay readable — see `../todo/65z-ci-nix.md`.
+ * The flake writes the shell itself once and lets those four entries call it,
+ * passing the three things that differ — the system, and the archive and hash a
+ * pinned package takes on it. What it does not do is fold over a list of
+ * systems: which systems exist is still something you read off the file. See
+ * `../todo/65z-ci-nix.md`.
  *
  * @type {readonly [string, ...string[]]}
  */

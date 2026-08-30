@@ -124,11 +124,17 @@ shell with five would let a job pass on whichever `node` reached `PATH` first.
 
 **It is why a declaration names systems rather than a system.** A CI job runs on
 one runner image; a developer environment has to work on Linux and macOS, on
-both architectures. Each system gets its own explicit
-`devShells.<system>.default`, so four systems is four blocks of text and no loop
-— which a generator can afford and a hand-written flake cannot, and is the
-reason `flake-utils` still has no place here. A pinned package varies with the
-system twice over: a different archive, and a hash of its own.
+both architectures.
+
+Each system is its own named `devShells.<system>.default`, and past the first
+they share the shell between them: the body is written once as a function, and
+each entry calls it with the three things that differ — the system, and the
+archive and hash a pinned package takes on it. That keeps `flake-utils` out
+without keeping four copies of twenty lines in. The distinction worth holding
+is *named entries versus a fold*: which systems a flake serves is still
+something the file says, rather than something a loop over a list computes. A
+single-system flake stays flat, byte for byte what it was, because a function
+called once is indirection for nothing.
 
 Nix does not run natively on Windows, so those four are all there are. A Windows
 developer reaches the shell through WSL2 or works the way this repository has
@@ -263,7 +269,8 @@ Each generated file should:
 - pin the exact Nixpkgs commit;
 - expose one `devShells.<system>.default` per system the job declares — every CI
   job declares the one ARM Linux runner it has, and the developer environment
-  declares four;
+  declares four. Past one, the shell body is written once as a function those
+  entries call; the systems stay named bindings rather than a fold;
 - use `pkgs.mkShell` with that job's declared packages;
 - be readable without inspecting the generator;
 - contain no job-selection logic;

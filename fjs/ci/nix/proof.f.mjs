@@ -204,36 +204,72 @@ const withSystems = {
 
 const systemsFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
-    outputs = { nixpkgs, ... }: {
-        devShells.aarch64-linux.default = let
+    outputs = { nixpkgs, ... }: let
+        shell = { system, url, hash, ... }: let
             pkgs = import nixpkgs {
-                system = "aarch64-linux";
+                system = system;
             };
             pinned = pkgs.bun.overrideAttrs {
                 version = "1.4.0";
                 src = pkgs.fetchurl {
-                    url = "https://example.test/bun-linux-aarch64.zip";
-                    hash = "sha256-AAAA";
+                    url = url;
+                    hash = hash;
                 };
             };
         in
         pkgs.mkShell {
             packages = [ pinned pkgs.git ];
         };
-        devShells.x86_64-darwin.default = let
+    in
+    {
+        devShells.aarch64-linux.default = shell {
+            system = "aarch64-linux";
+            url = "https://example.test/bun-linux-aarch64.zip";
+            hash = "sha256-AAAA";
+        };
+        devShells.x86_64-darwin.default = shell {
+            system = "x86_64-darwin";
+            url = "https://example.test/bun-darwin-x64-baseline.zip";
+            hash = "sha256-BBBB";
+        };
+    };
+}
+`
+
+/**
+ * The same two systems with nothing pinned: the only thing that varies between
+ * the two shells is then the system itself.
+ *
+ * That is the shape a project whose runtimes the snapshot carries at the right
+ * versions would generate, and it is the one that keeps the shared function
+ * honest — its argument list is what the shell reads, not a fixed three names
+ * with two of them empty.
+ *
+ * @type {NixJob}
+ */
+const withSystemsUnpinned = {
+    ...plain,
+    systems: ['aarch64-linux', 'x86_64-darwin'],
+}
+
+const unpinnedSystemsFlake = `{
+    inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
+    outputs = { nixpkgs, ... }: let
+        shell = { system, ... }: let
             pkgs = import nixpkgs {
-                system = "x86_64-darwin";
-            };
-            pinned = pkgs.bun.overrideAttrs {
-                version = "1.4.0";
-                src = pkgs.fetchurl {
-                    url = "https://example.test/bun-darwin-x64-baseline.zip";
-                    hash = "sha256-BBBB";
-                };
+                system = system;
             };
         in
         pkgs.mkShell {
-            packages = [ pinned pkgs.git ];
+            packages = [ pkgs.nodejs_24 ];
+        };
+    in
+    {
+        devShells.aarch64-linux.default = shell {
+            system = "aarch64-linux";
+        };
+        devShells.x86_64-darwin.default = shell {
+            system = "x86_64-darwin";
         };
     };
 }
@@ -276,11 +312,18 @@ export const proof = {
         // needs none — and the archive's hash is in the flake, so the fetch is
         // checked before anything unpacks it.
         pin: () => assertEq(flakeText(withPin), pinFlake),
-        // Two shells from one declaration, each naming its own system and its
-        // own archive. No loop and no `flake-utils`: a second system is a
-        // second `devShells.<system>.default`, which is what keeps a flake
-        // readable without reading the generator.
+        // Two shells from one declaration, sharing the body that does not vary
+        // and naming, per system, the three things that do. Still no loop and
+        // no `flake-utils`: every system it serves is a `devShells.<system>`
+        // binding you can read off the file, rather than a fold over a list the
+        // file does not contain.
         systems: () => assertEq(flakeText(withSystems), systemsFlake),
+        // The same, with nothing pinned: the shared function takes the system
+        // and only the system. A flake that pins nothing has no `url` and no
+        // `hash` anywhere in it, rather than two arguments the shell never
+        // reads.
+        unpinnedSystems: () =>
+            assertEq(flakeText(withSystemsUnpinned), unpinnedSystemsFlake),
         // A package name reaches one quotable position and one binding the
         // generator owns, so an unusual one is escaped rather than rejected.
         // The `let` name is the generator's precisely so that it cannot be:

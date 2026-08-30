@@ -69,8 +69,14 @@ export type NixJob = {
     /** Generated directory name under `nix`, matching the CI job id. */
     readonly id: string
     /**
-     * Nix systems the flake exposes a shell for, one explicit
-     * `devShells.<system>.default` each — never a loop over a system list.
+     * Nix systems the flake exposes a shell for, one named
+     * `devShells.<system>.default` each — never a fold over a system list the
+     * file does not contain.
+     *
+     * More than one, and the part that does not vary is written once as a
+     * function those entries call; the systems themselves stay a list you can
+     * read off the flake. One, and the shell is inline, because a function
+     * called once is indirection for nothing.
      *
      * A CI job declares exactly one: it runs on one runner image, and a second
      * shell there would be one nothing enters. The developer environment is
