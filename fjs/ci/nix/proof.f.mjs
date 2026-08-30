@@ -12,7 +12,7 @@ import { nixpkgs, node, rustOverlay, typescript } from '../config/module.f.mjs'
 import { devJobId, devSystems } from '../dev/module.f.mjs'
 import { i686JobId } from '../rust/module.f.mjs'
 import { nixJobs } from '../module.f.mjs'
-import { major, nodeNixJobs } from '../node/module.f.mjs'
+import { nodeNixJobs } from '../node/module.f.mjs'
 import {
     flakePath,
     flakeText,
