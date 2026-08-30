@@ -556,6 +556,29 @@ and is reviewable without the next one.
       wrongly whichever way the `catch` is written. Ambiguity introduced by
       the port, resolved by the design the plan already had.
 
+      **What is still not provable, and why that is the next step.** Both
+      runner-failure routes now end in `infrastructure-error` (item 8), and
+      nothing states it: the routing lives in `runBrowserProofs`, an impure
+      `async` function, and the failure it routes can only come from the
+      interpreter it builds internally. Two ways to reach it were tried and
+      both are wrong. Replacing `globalThis.setTimeout` broke twenty-four
+      unrelated proofs under `fjs test`, whose registration path runs proofs
+      *concurrently*, and was timing-dependent enough to stay green locally —
+      a proof that reaches outside its own values is not isolated. Passing the
+      yield in as a parameter is the same reach with a nicer name: a seam that
+      exists for the test.
+
+      The answer is the virtual interpreter, and it needs the orchestration to
+      be an *effect*. Enumerating a module, walking its entries, routing a
+      failure and folding a report are all pure logic over operations; only
+      rendering and the wall clock are the host's. Moved into `.f.mjs` behind
+      `report`, the whole of it is drivable by `effects/node/virtual` — a
+      runner that simply refuses `report` produces the failure this proof
+      needs, with nothing injected and nothing global touched. That is the same
+      reason `fjs t`'s traversal is provable and this is not, and it is the
+      next step here rather than a cleanup: the JavaScript that remains in
+      `browser.mjs` is exactly the JavaScript that cannot be proven.
+
       **The page needed no browser-specific effect.** Its interpreter is
       `asyncRun` over `commonOperationMap` plus its own `report` — nothing
       else. So `effects/browser` still has no content to hold, which is now

@@ -37,6 +37,16 @@ import { ok } from '../types/result/module.f.mjs'
  * @type {Func<_BrowserReport>} */
 const report = do_('report')
 
+/**
+ * Return to the event loop, so the browser can paint what has been appended.
+ *
+ * A macrotask rather than a microtask: draining the microtask queue is part of
+ * the same task, and a task is what a paint waits for.
+ *
+ * @type {() => Promise<void>}
+ */
+const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
+
 /** @type {(value: unknown) => string} */
 const text = value => {
     try {
@@ -193,7 +203,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
         // test finishes.
         report: async (/** @type {_BrowserTestResult} */ value) => {
             announce(value)
-            await new Promise(resolve => { setTimeout(resolve, 0) })
+            await macrotask()
             return ok(undefined)
         },
     })
