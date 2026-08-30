@@ -22,6 +22,21 @@ jobs:
           node-version: 26
           registry-url: https://registry.npmjs.org/
       - run: npm ci
+      # `npm publish` runs `prepack`, which runs `tsc` — and TypeScript is not a
+      # dependency of this package, so `npm ci` above installs no compiler. This
+      # step is the one that provisions it, and without it the publish either
+      # fails on a missing `tsc` or emits the package's declarations with
+      # whatever compiler happened to be on the image.
+      #
+      # The version is read out of `fjs/ci/config/module.f.mjs` rather than
+      # written here. That file is the single place this repository names a
+      # TypeScript version — the generated flakes and the packed-package check
+      # all take it from there — and a second copy in a hand-written workflow
+      # that nothing regenerates is exactly the drift it exists to prevent.
+      # `fjs/ci/todo/668-ci-npm-publish-workflow.md` would replace the
+      # substitution with a generated literal.
+      - run: |
+          npm install -g "typescript@$(node -e "import('./fjs/ci/config/module.f.mjs').then(m => console.log(m.typescript.version))")"
       - run: npm publish --provenance
         continue-on-error: true
         # env:

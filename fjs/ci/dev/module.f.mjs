@@ -14,7 +14,10 @@
  * Nix does not run natively on Windows, so the four systems below are all there
  * are; a Windows developer reaches this shell through WSL2 as a Linux one, or
  * works the way this repository has always supported natively — `npm ci`,
- * `npx tsc`, `fjs test`, none of which need Nix.
+ * `tsc`, `fjs test`, none of which need Nix. That developer installs the
+ * compiler globally at the version `../config/module.f.mjs` pins, which
+ * `CONTRIBUTING.md` spells out; `npx tsc` is no longer the same thing, since
+ * there is nothing left in `node_modules` for it to resolve.
  *
  * @module
  *

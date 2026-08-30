@@ -11,6 +11,18 @@ maintained separately. This creates another workflow file that can drift from
 the generated CI conventions for Node versions, checkout/setup actions,
 permissions, install commands, and publish behavior.
 
+It already has. `actions/checkout` and `actions/setup-node` are pinned at `v2`
+there against `v7` in the generated workflow, and `node-version: 26` is a major
+where `config/module.f.mjs` names a patch the generated jobs assert.
+
+One version it does *not* restate, and the reason is worth keeping. `npm
+publish` runs `prepack`, which runs `tsc`, and TypeScript stopped being a
+dependency of this package — so the publish job installs a compiler, and reads
+which one out of `config/module.f.mjs` with a command substitution rather than
+writing the number a second time. That works, and it is the shape a generator
+would replace with a plain literal: a generated file can name the constant
+because regenerating it is what keeps the two together.
+
 ### Proposal
 
 Extend `fjs/ci` so it can generate the npm publishing workflow as well. The
@@ -20,6 +32,8 @@ generated workflow should preserve the current publish intent:
 - publish to npm with provenance;
 - request `id-token: write` and `contents: read` permissions;
 - use the repository's current Node/npm install conventions;
+- install the configured TypeScript, because `prepack` needs it, and name the
+  version as a literal read from `config/module.f.mjs` at generation time;
 - write the workflow to `.github/workflows/npm-publish.yml` unless a rename to
   `.github/workflows/npm-publishing.yml` is chosen deliberately and documented.
 
@@ -32,5 +46,7 @@ generation is part of the existing `fjs ci` command or a separate subcommand.
       command.
 - [ ] Add an `fjs/ci` generator for `.github/workflows/npm-publish.yml`.
 - [ ] Preserve npm provenance and workflow permissions.
+- [ ] Replace the hand-written compiler install — and its command substitution —
+      with a generated step naming the configured version.
 - [ ] Add proofs for the generated publish workflow.
 - [ ] Document the generated publish workflow in `fjs/ci/README.md`.
