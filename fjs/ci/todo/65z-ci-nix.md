@@ -108,6 +108,44 @@ this suite passes on. The job's version check is what holds it: unlike every oth
 check, which confirms a snapshot provides what the configuration claims, this one
 confirms the override took effect at all.
 
+#### The developer environment
+
+Every flake above serves one job testing one runtime. `dev` is the other kind:
+one shell carrying all of them — Node 26, Deno, the pinned Bun, the toolchain
+with its WASM targets, Wasmtime, Wasmer and `git` — for a developer to work in.
+
+It is generated rather than hand-written for two reasons. It cannot drift from
+the jobs, since it is built from their own declarations; and the drift check
+covers it, which a hand-written `nix/flake.nix` would have escaped — verifying
+one would mean pattern-matching Nix source, which root `AGENTS.md` §6 rules out.
+
+The jobs deliberately do not share it. Each exists to test one runtime, and a
+shell with five would let a job pass on whichever `node` reached `PATH` first.
+
+**It is why a declaration names systems rather than a system.** A CI job runs on
+one runner image; a developer environment has to work on Linux and macOS, on
+both architectures.
+
+Each system is its own named `devShells.<system>.default`, and past the first
+they share the shell between them: the body is written once as a function, and
+each entry calls it with the three things that differ — the system, and the
+archive and hash a pinned package takes on it. That keeps `flake-utils` out
+without keeping four copies of twenty lines in. The distinction worth holding
+is *named entries versus a fold*: which systems a flake serves is still
+something the file says, rather than something a loop over a list computes. A
+single-system flake stays flat, byte for byte what it was, because a function
+called once is indirection for nothing.
+
+Nix does not run natively on Windows, so those four are all there are. A Windows
+developer reaches the shell through WSL2 or works the way this repository has
+always supported natively — nothing here requires Nix.
+
+A `dev` CI job enters the shell and asserts the five versions it hands a
+developer. Without it nothing would evaluate this flake at all: every other one
+is entered by the job that owns it, and this one has no such job unless it is
+written. That job runs on one runner, so one of the four shells is evaluated for
+real; the other three are pinned as text and no further.
+
 #### Jobs with no flake
 
 One canonical job has none. That the set is exactly this one is asserted by
@@ -194,6 +232,8 @@ node24: aarch64-linux, nodejs_24
 node26: aarch64-linux, nodejs_26
 deno:   aarch64-linux, deno
 wasm:   aarch64-linux, wasmtime, wasmer, and a rust-overlay toolchain
+bun:    aarch64-linux, bun overridden to an exact upstream release
+dev:    four systems, everything above at once, plus git
 ```
 
 `bun` is `aarch64-linux, bun`, with the package overridden to an exact upstream
@@ -221,12 +261,16 @@ nix/node26/flake.nix
 nix/deno/flake.nix
 nix/wasm/flake.nix
 nix/bun/flake.nix
+nix/dev/flake.nix
 ```
 
 Each generated file should:
 
 - pin the exact Nixpkgs commit;
-- expose `devShells.aarch64-linux.default` for the current ARM Linux job;
+- expose one `devShells.<system>.default` per system the job declares — every CI
+  job declares the one ARM Linux runner it has, and the developer environment
+  declares four. Past one, the shell body is written once as a function those
+  entries call; the systems stay named bindings rather than a fold;
 - use `pkgs.mkShell` with that job's declared packages;
 - be readable without inspecting the generator;
 - contain no job-selection logic;
@@ -417,6 +461,8 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Migrate jobs one at a time — Node 24, then Node 26, then Node 22, then `deno`.
 - [x] Migrate `bun`, by overriding the snapshot's package with an exact upstream
       release rather than waiting for Nixpkgs to ship one.
+- [x] Generate a developer environment carrying every runtime at once, on all
+      four systems Nix runs on, checked by a job of its own.
 - [x] Migrate `wasm`, which needed this issue's "official Nixpkgs only" scope
       widened by one input: Nixpkgs builds no `std` for three of its four targets,
       at any version.

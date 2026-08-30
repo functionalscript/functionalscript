@@ -139,7 +139,7 @@ const runDefault = packageJson => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 14, 'expected 14 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
@@ -245,7 +245,7 @@ export const proof = {
         // Every generated flake, not just the Node ones: `nixJobs` is what the
         // generator was given, so a family that declares an environment and
         // never has it written fails here.
-        assertEq(nixJobs.length, 6)
+        assertEq(nixJobs.length, 7)
         for (const job of nixJobs) {
             // The pipeline wrote that job's flake, whole, at the path a
             // `nix develop` step names. Equality rather than a substring
@@ -332,6 +332,18 @@ export const proof = {
             // took effect rather than that a snapshot is what it claims: the
             // shell's Bun is not the snapshot's.
             ['bun', [['bun --version', bun]]],
+            // The developer environment, which is checked more thoroughly than
+            // any job's: it is the only flake no other job enters, so these
+            // five are the whole of what keeps it from rotting. Its Rust goes
+            // unchecked for the reason `wasm`'s does — the flake names the
+            // release in full.
+            ['dev', [
+                ['node --version', `v${node.default}`],
+                [`deno eval 'console.log(Deno.version.deno)'`, deno],
+                ['bun --version', bun],
+                ['wasmtime --version', `wasmtime ${wasmtime}`],
+                ['wasmer --version', `wasmer ${wasmer}`],
+            ]],
         ]
         assertEq(checks.length, nixJobs.length)
         for (const [id, jobChecks] of checks) {
