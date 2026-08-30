@@ -8,10 +8,10 @@
 A generated `.d.mts` beside a `.mjs` shadows it: TypeScript reads the
 declaration and does not check the source. Generated declarations are
 gitignored, so CI clones without them and checks the sources; a working tree
-that has run `prepack` even once keeps them, and from then on `npx tsc` reports
+that has run `prepack` even once keeps them, and from then on `tsc` reports
 success for source it never opened.
 
-The failure mode is silent and confidence-shaped. `npx tsc` is what
+The failure mode is silent and confidence-shaped. `tsc` is what
 `CONTRIBUTING.md` and every gate in this repository ask a contributor to run
 before pushing, and it exits 0.
 
@@ -19,7 +19,7 @@ Measured on [#1771](https://github.com/functionalscript/functionalscript/pull/17
 which pushed a real type error past a clean local run. The same tree, same
 compiler, one file deleted between the two runs:
 
-| Tree | `npx tsc` |
+| Tree | `tsc` |
 | --- | --- |
 | with generated `.d.mts` present | exit 0, no diagnostics |
 | declarations deleted first | `fjs/ci/node/module.f.mjs(75,7): error TS2322` |
@@ -55,7 +55,7 @@ since that number decides whether the first option is tolerable.
 
 - [ ] Measure a cold `prepack` emit.
 - [ ] Choose among the three and apply it.
-- [ ] Until then, say in `CONTRIBUTING.md` that a local `npx tsc` does not check
+- [ ] Until then, say in `CONTRIBUTING.md` that a local `tsc` does not check
       a `.mjs` whose generated declaration exists, and how to get a real answer.
 
 ### Related
@@ -64,4 +64,4 @@ since that number decides whether the first option is tolerable.
   with declarations present.
 - [`../.gitignore`](../.gitignore) — why CI never sees a stale declaration.
 - [`../fjs/ci/node/module.f.mjs`](../fjs/ci/node/module.f.mjs) — `node26` runs
-  `npx tsc` on a fresh clone, which is why it disagreed.
+  `tsc` on a fresh clone, which is why it disagreed.

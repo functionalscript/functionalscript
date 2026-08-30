@@ -35,7 +35,7 @@ export const definedValues =
 ### Tasks
 
 - [ ] Derive `definedValues` from `definedEntries`.
-- [ ] `npx tsc`, `fjs t`; object proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; object proofs pass unchanged.
 
 ### Related
 

@@ -72,7 +72,7 @@ scheme. Each call site keeps its own recursion/accumulator structure.
       repetition case has one discriminator rather than a predicate beside it.
 - [ ] Add proof coverage for every final `Rule` case so a newly added case cannot
       be silently skipped by a backend.
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.
 
 ### Related
 

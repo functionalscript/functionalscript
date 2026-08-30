@@ -62,7 +62,7 @@ with every importer updated in the same PR; a re-export left in
       `fromVec` and `utf8ToString` through it.
 - [ ] Decide whether `utf8ToString` moves next to `fromVec`; update importers
       if so.
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.
 
 ### Related
 

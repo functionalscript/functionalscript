@@ -50,7 +50,7 @@ alongside that work rather than as a standalone micro-PR.
 - [ ] Pick combinator vs `Command`-field validation (coordinate with
       `fjs/todo/66g-fjs-run-commands.md`).
 - [ ] Migrate `cas add` / `cas get`; keep their error strings.
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.
 
 ### Related
 

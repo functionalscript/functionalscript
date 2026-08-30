@@ -59,7 +59,7 @@ applications once.
       `stringify(sort)` seven times today).
 - [ ] Migrate the two source-module sites (`fjs/protocol/mcp/stdio/module.f.mjs`,
       `fjs/djs/module.f.mjs`), then the proof files.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

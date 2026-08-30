@@ -31,7 +31,7 @@ A future consumer: the DJS serializer currently quotes every object key; with `i
 - [ ] Add co-located `proof.f.mjs` with 100% coverage (reuse cases from `fjs/emergent_testing/proof.f.mjs:406-421`).
 - [ ] Register in `deno.json` `exports` map.
 - [ ] Remove the four definitions from `fjs/emergent_testing/module.f.mjs`; repoint `emergent_testing/proof.f.mjs` at the new module.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

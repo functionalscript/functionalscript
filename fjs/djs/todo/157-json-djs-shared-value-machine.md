@@ -173,7 +173,7 @@ line numbers changed. Any extraction here must first re-measure the current code
 - [ ] Re-measure the current tokenizer minus-folding duplication before extracting
       it; do not implement the stale line-number design blindly.
 - [ ] Preserve current behavior/proof coverage for both JSON and DJS.
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.
 
 ### Notes
 

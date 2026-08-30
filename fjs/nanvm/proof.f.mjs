@@ -252,7 +252,7 @@ const nestedSharing = () => {
  *
  * This is the runtime half of the coupling to [`fjs/edag`](../edag/README.md).
  * The static half is free — the data spells the ids as literals, so removing
- * or respelling one in `fjs/edag/types.ts` fails `npx tsc` here — and this is
+ * or respelling one in `fjs/edag/types.ts` fails `tsc` here — and this is
  * what an operand shape or a validation rule changing under the corpus fails
  * instead of going unnoticed.
  */

@@ -7,7 +7,7 @@
             };
         in
         pkgs.mkShell {
-            packages = [ pkgs.nodejs_26 ];
+            packages = [ pkgs.nodejs_26 pkgs.typescript-go ];
         };
     };
 }

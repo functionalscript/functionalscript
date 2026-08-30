@@ -70,7 +70,7 @@ is preferred: the `mem${…}`-vs-`k${…}` divergence disappears.
       `fjs/protocol/mcp/proof.f.mjs`.
 - [ ] `fjs/effects/node/virtual`: delegate the `mem*` handlers to the shared
       map (state-lens wrapper) or document why the inline copy stays.
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.
 
 ### Related
 

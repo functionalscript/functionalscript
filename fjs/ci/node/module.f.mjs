@@ -8,7 +8,7 @@
  * @import { NixJob } from '../nix/types.ts'
  */
 
-import { node } from '../config/module.f.mjs'
+import { node, typescript } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 import { nixInstall, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
 
@@ -65,6 +65,22 @@ const fjsGlobalInstall = version =>
 const nodeVersionStep = version =>
     nixVersionStep(jobId(version), 'node --version', `v${version}`)
 
+/**
+ * Asserts the compiler this job's flake provides.
+ *
+ * `tsc` here is `typescript-go`'s, and the attribute names no version, so this
+ * is the only tie between `../config/module.f.mjs` and what the shell hands
+ * `npm ci`'s successors. It matters more than most: `tsc` is not run as `tsc`
+ * alone but through `npm pack`, whose `prepack` script emits the declarations
+ * the package ships — a compiler nobody confirmed would put its own idea of a
+ * `.d.ts` in the tarball.
+ *
+ * `tsc --version` prints `Version <v>` and nothing else, which is why the
+ * expectation carries that word.
+ */
+const tscVersionStep = nixVersionStep(
+    jobId(node.default), 'tsc --version', `Version ${typescript.version}`)
+
 /** @type {(version: string) => readonly MetaStep[]} */
 export const platformNodeSteps = version => [
     ...nodeInstall(node.default),
@@ -110,8 +126,9 @@ const suiteNixSteps = version => [
 const node26NixSteps = [
     nixInstall,
     nodeVersionStep(node.default),
+    tscVersionStep,
     ...nixSteps(jobId(node.default))(
-        ['npm ci', 'npx tsc', 'npm run cov', 'npm pack', 'npm run ci-update']),
+        ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run ci-update']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
     // Hands the tarball to a job that has no checkout, which is the only place
     // the package can be checked as a consumer sees it. `if-no-files-found`
@@ -135,21 +152,30 @@ export const nodeVersionJobs = () => ({
     [jobId(node.default)]: nodeJob(node26NixSteps),
 })
 
-/** @type {(version: string) => NixJob} */
-const nixJob = version => ({
+/** @type {(version: string, extra: readonly string[]) => NixJob} */
+const nixJob = (version, extra) => ({
     id: jobId(version),
     systems: nixSystems,
-    packages: [`nodejs_${major(version)}`],
+    packages: [`nodejs_${major(version)}`, ...extra],
 })
 
-/** Generated development environments for the canonical Node jobs.
+/**
+ * Generated development environments for the canonical Node jobs.
+ *
+ * Only the last carries a compiler, and the asymmetry is the point. Node 22 and
+ * Node 24 run `npm ci` and `node --test`: they exist to prove this code runs on
+ * a runtime, and a `tsc` on their `PATH` would be a download neither ever
+ * opens. Node 26 type-checks the repository and runs `npm pack`, whose
+ * `prepack` script emits declarations with it, so its shell is the one that
+ * needs the compiler — see `../todo/65z-ci-nix.md` on a shell carrying only
+ * what its job runs.
  *
  * @type {readonly NixJob[]}
  */
 export const nodeNixJobs = [
-    nixJob(node.node22),
-    nixJob(node.node24),
-    nixJob(node.default),
+    nixJob(node.node22, []),
+    nixJob(node.node24, []),
+    nixJob(node.default, [typescript.attribute]),
 ]
 
 export const nodeMainSteps = platformNodeSteps

@@ -111,7 +111,7 @@ consumers first; the writers follow only if the shape stays clean.
 - [ ] Convert `writeLoop` (`fjs/effects/node`) if the effectful step fits
       without contortion; otherwise document why in this issue and keep it.
 - [ ] Evaluate `fileCas.write`'s loop; convert or document why not.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

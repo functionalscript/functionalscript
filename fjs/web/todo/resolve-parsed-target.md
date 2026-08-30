@@ -103,7 +103,7 @@ two parses of the same string.
       the per-request callback.
 - [ ] Keep a proof row for the malformed-target-with-served-`Host` request,
       which is the path that reaches the resolver with `null`.
-- [ ] `npx tsc`, `fjs t`; the request/refusal proof rows pass unchanged —
+- [ ] `tsc`, `fjs t`; the request/refusal proof rows pass unchanged —
       `resolve`'s signature does not change, so its proofs need no edit.
 
 ### Related

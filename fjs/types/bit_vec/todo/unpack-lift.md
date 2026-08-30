@@ -84,7 +84,7 @@ way, the closures built per `len` and per codec stay exactly as they are.
 - [ ] Add the unary and binary lifts at module scope, each taking its `bo`
       locals as leading curried parameters; bind those once inside `bo` and
       the `len` application once per projection.
-- [ ] `npx tsc`, `fjs t`; both bit orders' proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; both bit orders' proofs pass unchanged.
 
 ### Related
 

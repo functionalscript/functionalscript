@@ -225,7 +225,7 @@ semantically identical to the JSON-text parser for fractional-to-bigint checks.
       JSON into RTTI `bigint`, safe/unsafe conversions, rounded fractional tokens,
       oversized bare integers, unbounded exponent text, numeric consts, `0`/`-0`,
       unions, and nested containers.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 
