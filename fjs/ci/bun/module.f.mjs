@@ -13,24 +13,43 @@
  * @module
  *
  * @import { MetaStep } from '../common/types.ts'
- * @import { NixJob } from '../nix/types.ts'
+ * @import { NixJob, NixPin } from '../nix/types.ts'
  */
 
-import { bun, bunHash } from '../config/module.f.mjs'
-import { nixInstall, nixSteps, nixSystem, nixVersionStep } from '../nix/module.f.mjs'
+import { bun, bunSources } from '../config/module.f.mjs'
+import { nixInstall, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
+import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 
 /** CI job id, and the directory name of its generated flake. */
 export const bunJobId = /** @type {const} */ ('bun')
 
 /**
- * The archive Bun publishes for the system the generated flakes target.
+ * The override any flake wanting this Bun declares, over the systems it targets.
  *
- * The name carries that system — `aarch64-linux` is Bun's `linux-aarch64` —
- * so it is written beside `nixSystem` rather than derived from it: a job on
- * another runner needs another archive *and* another hash, and deriving the
- * first would leave the second silently wrong.
+ * Exported because the developer environment wants the same one: a shell handing
+ * a developer the 1.3.13 CI does not run on would be worse than no shell at all.
+ *
+ * The archive name and the hash travel together out of `../config/module.f.mjs`.
+ * Deriving the name from the system while looking the hash up separately is
+ * exactly how the two would come apart — and the names are not derivable
+ * anyway, since Intel macOS takes a baseline build the others do not.
+ *
+ * @type {(systems: readonly string[]) => NixPin}
  */
-const bunArchive = `https://github.com/oven-sh/bun/releases/download/bun-v${bun}/bun-linux-aarch64.zip`
+export const bunPin = systems => ({
+    package: 'bun',
+    version: bun,
+    sources: Object.fromEntries(systems.map(system => {
+        const { archive, hash } = unwrapNullable(fromUndefined(bunSources[system]))
+        return [
+            system,
+            {
+                url: `https://github.com/oven-sh/bun/releases/download/bun-v${bun}/${archive}.zip`,
+                hash,
+            },
+        ]
+    })),
+})
 
 /**
  * The job's development environment: the snapshot's `bun`, with its source
@@ -44,14 +63,9 @@ const bunArchive = `https://github.com/oven-sh/bun/releases/download/bun-v${bun}
  */
 export const bunNixJob = {
     id: bunJobId,
-    system: nixSystem,
+    systems: nixSystems,
     packages: [],
-    pin: {
-        package: 'bun',
-        version: bun,
-        url: bunArchive,
-        hash: bunHash,
-    },
+    pin: bunPin(nixSystems),
 }
 
 /**

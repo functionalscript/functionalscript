@@ -56,6 +56,11 @@ for, and whether that answer should change, is
   version cannot differ between them.
 - `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
   `proof.f.mjs` — its property-based proofs.
+- `dev/module.f.mjs` — the developer environment: one shell carrying every
+  runtime the canonical jobs use, on all four systems Nix runs on, generated
+  from those jobs' own declarations so it cannot drift from them. The `dev` CI
+  job enters it and asserts every version, which is the only thing that
+  evaluates that flake at all.
 - `bun/module.f.mjs` — the `bun` job's steps and its flake declaration. The one
   job whose shell is not the pinned snapshot's: Nixpkgs ships a Bun two of this
   repository's proofs fail on, so the flake keeps that package's recipe and
@@ -82,7 +87,12 @@ Each canonical job with a flake declares a system and its Nixpkgs package attrib
 beside the steps that enter them — `nodeNixJobs` in `node/module.f.mjs`, `denoNixJob`
 in its own module — and `module.f.mjs` composes them into `nixJobs`, the one place the
 whole set is visible. `package-check` declares none — it runs with no checkout, so
- there is no file tree for a flake to be in. `nix/module.f.mjs` writes each out as one
+ there is no file tree for a flake to be in.
+
+A declaration names the systems it wants a shell for, and the generator writes
+one explicit `devShells.<system>.default` per system rather than looping. Every
+CI job names exactly one, since it runs on one runner image; the developer
+environment names four, which is the reason that field is a list. `nix/module.f.mjs` writes each out as one
 static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
 job-local `shellHook`, run on every entry to the shell; none does today. See
 [nix/README.md](../../nix/README.md) for how the generated files are meant to be
@@ -176,6 +186,9 @@ through a flake:
 - `deno` runs `deno install --frozen` and `deno task cov` through its flake.
 - `bun` runs `bun install --frozen-lockfile` and `bun test --coverage` through its
   flake, whose Bun is an overridden archive rather than the snapshot's.
+- `dev` enters the developer shell, asserts the five runtime versions it hands
+  a developer, and runs one plain command in it. It tests no runtime of its own:
+  it exists so the shell developers use cannot rot unnoticed.
 - `wasm` runs `cargo fmt -- --check` and then tests and Clippy for four WASM
   targets through its flake, which provides the toolchain and both runtimes.
   `cargo` invokes `wasmtime` and `wasmer` itself, through the `runner` keys in

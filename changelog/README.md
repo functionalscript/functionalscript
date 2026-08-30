@@ -19,7 +19,15 @@ changelog/
 
 A pull request adds `changelog/unreleased/<PR>.md` named by its own number, so
 two pull requests can never conflict on the same lines. A pull request with
-several entries puts them all in its one file. Releasing renames
+several entries puts them all in its one file.
+
+**Its own number, which means the one it was given** — not the next one free
+when the work started. A guessed number is the one way this scheme fails
+silently: writing `<PR>.md` for a number another pull request already took
+replaces that file wholesale, deleting an entry that was going to ship, and no
+merge conflict reports it because there was nothing to conflict with. If the
+file has to exist before the number does, rename it once the number is known
+and check that nothing was there. Releasing renames
 `changelog/unreleased/` to `changelog/<version>/`, keeping the entry files
 exactly as they are. Git does not track empty directories, so `unreleased/`
 simply does not exist between a release and the next pull request that adds an

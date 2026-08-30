@@ -79,7 +79,7 @@ of a file that already exists. A job generated for the first time needs
 is about removing that step.
 
 Every canonical job with a flake runs through it — the three Node jobs, `deno`,
-`wasm` and `bun`. Each installs Nix, checks the runtime its shell provides, and then runs
+`wasm`, `bun`, and the `dev` job that keeps the developer environment honest. Each installs Nix, checks the runtime its shell provides, and then runs
 its commands one `nix develop` step each, because a CI step runs one command. No
 separate job makes that check — a flake is checked by the job that uses it, and
 every generated flake has one.
@@ -87,6 +87,45 @@ every generated flake has one.
 One canonical job has no flake: `package-check` runs with no checkout, which is
 the whole point of it, and a flake and its `run` script are files in a checkout.
 `fjs/ci/todo/65z-ci-nix.md` says so.
+
+### The developer environment
+
+`dev` is the one flake here that is not a job's runtime under test. It carries
+everything the canonical jobs use at once — Node 26, Deno, the pinned Bun, a
+Rust toolchain with every WASM target, Wasmtime, Wasmer and `git` — so that one
+shell is enough to work in:
+
+```sh
+nix develop ./nix/dev          # an interactive shell
+./nix/dev/run npm run cov      # or one command in it
+```
+
+It is generated from the same declarations the jobs use, so it cannot drift from
+them: the Node version is the one `node26` runs, the Bun override is the `bun`
+job's, the toolchain and its targets are the `wasm` job's. `git` is declared
+because `nix develop` builds an environment from what the shell asks for rather
+than from what the machine has.
+
+The CI jobs deliberately do **not** share it. Each exists to test one runtime,
+and a shell with five would let a job pass on whichever `node` came first on
+`PATH`.
+
+It exposes four shells — `aarch64-linux`, `x86_64-linux`, `aarch64-darwin`,
+`x86_64-darwin` — one named `devShells.<system>.default` each, and
+`nix develop` picks the one matching the machine. The shell itself is written
+once, as a function those four entries call with the three things that differ:
+the system, and the archive and hash Bun publishes for it. The single-system
+flakes keep their shell inline, since a function called once would be
+indirection for nothing. Nix does not run natively on Windows, so a Windows
+developer reaches it through WSL2 or works the way this repository has always
+supported natively.
+
+A `dev` CI job enters the shell and asserts all five runtime versions. Nothing
+else would ever evaluate this flake — every other one is entered by the job that
+owns it — so without that job it would rot until a developer's shell failed to
+build. That job runs on one runner, so one of the four shells is evaluated for
+real; the other three are generated from the same declaration and pinned as
+text.
 
 ### The `bun` flake's overridden package
 
