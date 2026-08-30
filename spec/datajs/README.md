@@ -18,7 +18,7 @@ A document is a JavaScript module: `const` statements naming values, then one
 `export default` naming the value the document denotes.
 
 ```js
-const $0=[1,2];export default {"a":$0,"b":$0}
+const $0=[1,2];export default {"a":$0,"b":$0};
 ```
 
 Read as JSON that would be two equal arrays. Read as DataJS it is **one**
@@ -42,8 +42,8 @@ reserved-word list, `;` rather than a line terminator so none learns which
 invisible characters end a statement, whitespace pinned at three positions so
 none reasons about token merging, one spelling of `__proto__`, and a restated
 algorithm wherever hosts disagree. The conveniences that are missing —
-comments, trailing commas, a trailing `;`, identifier keys — are missing for
-that reason, each being one more thing to implement and to agree on.
+comments, trailing commas, identifier keys — are missing for that reason, each
+being one more thing to implement and to agree on.
 
 Some of them cost a person something real, and it is worth saying so rather
 than calling the omission neutral. A trailing comma gives every element line
@@ -110,7 +110,8 @@ separation. This document specifies **DataJS**, the narrow interchange format.
    for an implementer and fewer disagreements between implementations.
 3. **No semantics on invisible characters.** Two files that render identically
    in every editor must not mean different things. This is why a visible `;`
-   separates statements, rather than a line terminator.
+   terminates every statement, rather than a line terminator or the end of the
+   file.
 4. **Restate, do not cite.** Where DataJS depends on a JavaScript algorithm,
    this document writes the algorithm out. An implementer should not need
    ECMA-262 open beside it.
@@ -136,15 +137,15 @@ Two of the three were never a choice. A `const` name begins with `$`, and
 `export` is always followed by `default`, so `const$0` and `exportdefault` lex
 as one identifier in every document that could hold them — the space was
 forced by the grammar before any rule asked for it. The third is the choice
-this format makes: `export default1` and `export default$0` are JavaScript
+this format makes: `export default1;` and `export default$0;` are JavaScript
 syntax errors, `default1` and `default$0` each being a single identifier, while
-`export default[1]` would lex perfectly well, since `[` cannot merge with
+`export default[1];` would lex perfectly well, since `[` cannot merge with
 anything. DataJS requires the space anyway, so that neither a reader nor a
 writer ever consults the next character to find out. The
 [rationale](#rationale) gives what that buys.
 
-So the one-line spelling of a document is `const $0=[];export default [$0,$0]`,
-and `export default [1]`, `export default -1` and `export default "a"` all
+So the one-line spelling of a document is `const $0=[];export default [$0,$0];`,
+and `export default [1];`, `export default -1;` and `export default "a";` all
 carry the space.
 
 A document is UTF-8. It has no BOM.
@@ -235,7 +236,7 @@ else — DataJS has no identifier keys.
 ```text
 document ::= const* export
 const    ::= 'const' id '=' value ';'
-export   ::= 'export' 'default' value
+export   ::= 'export' 'default' value ';'
 
 value    ::= 'null' | 'true' | 'false' | 'undefined' | 'NaN'
            | infinity | number | bigint | string
@@ -247,22 +248,31 @@ member   ::= key ':' value
 key      ::= string | '[' '"__proto__"' ']'
 ```
 
-**`;` separates statements and never trails one.** Every `const` is followed by
-it; the `export default` is last, has nothing after it, and so takes no `;`.
-This is JSON's comma rule applied to statements — a separator between items,
-never after the final one.
+**Every statement ends with `;`**, `export default` included. The `;`
+**terminates** a statement rather than separating one from the next, which is
+what it does in JavaScript, and it is written in every case with no positional
+exception: a writer emits it after each statement without asking which one is
+last, and a reader requires it at the end of each without asking either.
 
-The value is the last *token* of a document, not necessarily its last
-character: whitespace stays insignificant here as everywhere, so
-`export default 1`, `export default 1\n` and `export default 1  \n` are the
-same document, and a file that ends the way a text editor ends files is valid.
+The `;` is the last *token* of a document, not necessarily its last character:
+whitespace stays insignificant here as everywhere, so `export default 1;`,
+`export default 1;\n` and `export default 1;  \n` are the same document, and a
+file that ends the way a text editor ends files is valid.
 [Normalized form](#normalized-form) picks one of them by emitting no trailing
 newline, which is a rule about those bytes and not about what a reader accepts.
 
-`export default 1;` is therefore **rejected**, as are `;;`, a leading `;`, and
-a stray `;` anywhere else. There is no empty statement.
+`export default 1` **without** the `;` is therefore rejected, as are `;;`, a
+leading `;`, and a stray `;` anywhere else. There is no empty statement.
 
-There are **no trailing commas**, for the same reason and by the same rule.
+There are **no trailing commas** — but that is a different rule for a different
+reason, and the two should not be read as one. A comma *separates* items and
+has a second reading in JavaScript: `[1,,2]` is three elements with a hole in
+the middle, so a trailing comma has to be given an explicit exception saying it
+does not make one. JSON removed elision and with it the need for that
+exception. A `;` has no second reading to avoid — the only construct near it is
+the empty statement, which this format rejects on its own — so there is nothing
+for a "no trailing `;`" rule to buy.
+
 There are **no comments** and **no `import`**: a DataJS document is closed,
 denoting its value with no reference to any other file.
 
@@ -310,7 +320,7 @@ another language must reorder identically.
 computed form:
 
 ```js
-export default {["__proto__"]:1}
+export default {["__proto__"]:1};
 ```
 
 The rule is on the key's **decoded value**, not its spelling: a plain string
@@ -333,7 +343,7 @@ A `const` names a value; a reference to that name denotes **the same node**,
 not an equal copy. In
 
 ```js
-const $0=[];export default [$0,$0]
+const $0=[];export default [$0,$0];
 ```
 
 the two elements are one array, and a conforming reader must produce a
@@ -356,8 +366,8 @@ rejects it rather than inventing a spelling — see
 
 A `const` name is an `id`, and each name is bound at most once. There is no
 list of excluded names: every `id` begins with `$`, and no JavaScript reserved
-word and none of this format's value words do, so a name can never collide
-with either.
+word and none of this format's value words does, so no name can collide with
+either.
 
 The two collisions that would otherwise need excluding are both real, and both
 gone:
@@ -377,6 +387,16 @@ Neither list has to be written down, checked, or tracked as JavaScript grows
 new keywords, because `$class`, `$eval` and `$undefined` are ordinary names
 and `class`, `eval` and `undefined` are not names at all.
 
+The two halves of that do not rest on the same thing, and the
+[rationale](#rationale) separates them. The **value-word** half is closed by
+this grammar: the words DataJS reads as values are fixed here, and they do not
+grow when ECMA-262 grows. The **reserved-word** half is ECMA-262's to decide.
+It holds because no word JavaScript prohibits in binding position is spelled
+with a `$` — true of every such word today, and an argument about how the
+language grows rather than a guarantee about how it will. Were that ever to
+change, the exclusion list still does not come back: the rationale gives the
+mitigations and the one-line narrowing of `id` that would settle it.
+
 `$` alone is a name, and so is `$$`: the grammar requires the `$`, not
 anything after it.
 
@@ -384,7 +404,7 @@ anything after it.
 
 A serializer conforms when its output is a valid document **that denotes the
 input graph** — the same values, with the same sharing. Validity alone is not
-the bar: `export default null` is a perfectly valid document and almost never
+the bar: `export default null;` is a perfectly valid document and almost never
 the right answer.
 
 Given that, the remaining choices are free: whitespace and layout, the names
@@ -547,21 +567,21 @@ exports nothing.
 The conversion is textual:
 
 ```text
-"export default " + json
+"export default " + json + ";"
 ```
 
 with one exception: a key **decoding to** `__proto__` must be rewritten to
 `["__proto__"]`, since DataJS rejects every plain-string spelling of it. That
 covers escaped spellings such as `"\u005f_proto__"`, which JSON and DataJS
-both read as the same key. For JSON containing no such key, the prefix alone is
-exactly a valid DataJS document — there is nothing to append.
+both read as the same key. For JSON containing no such key, that prefix and
+that suffix around the document are exactly a valid DataJS document.
 
 The space in that literal is the one the [whitespace](#whitespace) rule
-requires. It is the space anyone would have written anyway, and under the
-earlier merging-based rule it would have been necessary for `1` and `true` and
-superfluous for `[1,2]` and `{"a":1}` — one more reason to make it
-unconditional: the obvious conversion is now the correct one for every JSON
-document rather than for most of them.
+requires, and the `;` is the one every statement takes. The space is what
+anyone would have written anyway, and under the earlier merging-based rule it
+would have been necessary for `1` and `true` and superfluous for `[1,2]` and
+`{"a":1}` — one more reason to make it unconditional: the obvious conversion is
+now the correct one for every JSON document rather than for most of them.
 
 The reverse direction is partial, and both of its conditions are about the
 graph the document *denotes* — the values reachable from `export default`,
@@ -569,11 +589,11 @@ since an unused `const` contributes nothing to it. A document converts to JSON
 when no reachable value is a leaf JSON lacks (`undefined`, `NaN`, the
 infinities, bigint), and no reachable **object or array** is reachable more
 than once — JSON cannot express that sharing, and writing the node twice
-denotes a different graph. `const $dead=undefined;export default 1` therefore
+denotes a different graph. `const $dead=undefined;export default 1;` therefore
 converts to `1`: the unreachable `undefined` is not part of what the document
 means.
 
-A shared *primitive* is not an obstacle. `const $x=1;export default [$x,$x]`
+A shared *primitive* is not an obstacle. `const $x=1;export default [$x,$x];`
 converts to `[1,1]`: primitives have no reference identity, so the two
 occurrences were never distinguishable from two copies, exactly as
 [normalized form](#normalized-form) says when it declines to hoist them.
@@ -646,26 +666,52 @@ spelling, and lets a document minify to a single line — which is what makes a
 DataJS document embeddable in a JSON string, streamable one-per-line, and
 writable as a one-line test fixture.
 
-**Why no `;` after `export default`?** Because it would be a trailing
-separator, and this format already rejects the other one. JSON's comma
-separates members and never follows the last; `;` separates statements and does
-the same. Keeping it for semicolons and not for commas would be two rules where
-the document has one shape. The smallest document, `export default 1`, now
-contains no `;` at all.
+**Why does `export default` end with `;` like every other statement?** An
+earlier draft dropped it, reasoning that a trailing `;` is a trailing separator
+and this format already rejects the other one — JSON's comma separates members
+and never follows the last, so `;` should separate statements and do the same.
+That reasoning was wrong, and the way it was wrong is worth keeping.
 
-The objection to answer is ASI. Requiring `;` was partly about not depending on
-automatic semicolon insertion, and a document ending `export default [1,2]`
-does depend on it — but on the one ASI rule that carries no hazard. That rule
-inserts a semicolon at the end of the input stream when the parser would
-otherwise fail: a fact about where the file ends, not about which invisible
-character sits at some line break. The taxonomy this format refused to import
-— a lone CR terminating a statement, U+2028 doing the same, restricted
-productions with "no LineTerminator here" — belongs to the *other* ASI rule,
-and nothing here reaches it. Two files that render identically still mean the
-same thing, which is all principle 3 asks.
+**The comma rule is not about trailing punctuation; it is about ambiguity.** A
+comma between elements has a second reading in JavaScript: `[1,,2]` is three
+elements with a hole at index 1, and `[1,2,]` is two elements only because the
+grammar carves out an exception saying the last comma makes no hole. JSON
+removed elision, and with it the need to choose. A `;` has no second reading to
+disambiguate. The nearest construct is the empty statement, which this format
+rejects on its own account. So refusing a trailing `;` buys none of what
+refusing a trailing comma buys — it copies the shape of a rule without its
+reason.
 
-It also finishes the JSON conversion. `"export default " + json` is now the
-whole of it — a prefix, with nothing appended.
+**In JavaScript the `;` terminates, it does not separate.** The production is
+`export default AssignmentExpression ;`, with the `;` inside it. A format that
+calls itself a JavaScript subset and then reinterprets a terminator as a
+separator has to be read against its host grammar rather than with it, which is
+the opposite of what principle 4 asks.
+
+**Writing it is unconditional; omitting it is not.** This is the same argument
+that decides the [whitespace](#whitespace) positions. A serializer that ends
+every statement with `;` never asks which statement is last; one that omits the
+final `;` must know where it is. Both readers are equally easy, both grammars
+are equally easy — the `;` simply lives in whichever production owns it — so
+nothing about the implementer's job favours the shorter form, and the writer's
+job favours the uniform one.
+
+**And it removes a dependence on ASI.** Without the `;`, a document is
+JavaScript only because automatic semicolon insertion supplies one at the end
+of the input stream. That is the benign ASI rule, carrying none of the taxonomy
+this format refused to import — a lone CR terminating a statement, U+2028 doing
+the same, restricted productions with "no LineTerminator here" all belong to
+the *other* rule. But it makes the terminator the absence of further text,
+which is a strange thing for a format whose third principle is that nothing
+invisible carries meaning. It is also not robust under composition: appending a
+line beginning with `[` to `export default [1]` — a document without the `;` —
+silently changes the exported
+value from `[1]` to `1`, where the `;` keeps it `[1]` — measured. A closed
+document is not supposed to be appended to, so this is a hazard under misuse
+rather than a defect in correct use; it is listed last for that reason.
+
+The cost is one byte in every document, and the smallest document is
+`export default 1;` rather than `export default 1`.
 
 **Why no comments?** They are trivia with no denotation, and every one of them
 is a decision for a normalizer. A format whose purpose is to be normalized and
@@ -686,30 +732,163 @@ JavaScript accepts and DataJS reads differently, which is the worse of the two
 failures. An earlier draft excluded both sets by enumerating them — about fifty
 words each implementation would carry, and a list JavaScript can add to. The
 `$` moves the question into the token grammar, where the first character
-settles it: no reserved word contains a `$`, so no name can be one, now or
-after the next edition of ECMA-262.
+settles it.
 
-The cost is one character per name, spent where the format had no other use for
-it: DataJS has no identifier keys, so an `id` appears only in a `const`
-statement and the references to it, and normalized `$0` is exactly as long as
-the `_0` it replaces. JavaScript gives `$` no meaning of its own — `${` belongs
-to template literals, which this format has no syntax for. The one context that
-is not free is a context that already reads `$`. A `String.prototype.replace`
-replacement pattern spends `$1` on a capture group, and a shell expands `$0`
-and `$1` inside a double-quoted string or an unquoted heredoc — so a normalized
-document, which is exactly where those names appear, is rewritten before its
-reader ever sees it. Both have a spelling that avoids it: single quotes in the
-shell, a quoted `<<'EOF'` heredoc, or a function rather than a pattern string
-for `replace`. Embedding a document as data — in a JSON string, a file, a
-request body — is unaffected, since none of those interpret `$`.
+**The two collisions do not have the same guarantee, and it is worth being
+exact about which is which.**
 
-**Why require a space after `default` when `export default[1]` would lex?**
+The **value-word** collision — the silent one, where JavaScript accepts a
+binding and DataJS reads the word as a literal — is closed permanently, and by
+*this* grammar rather than by JavaScript's. The words DataJS reads as values
+are **six** — `true`, `false`, `null`, `undefined`, `NaN` and `Infinity` — all
+ASCII letters, and that list is fixed here. It does not grow when ECMA-262
+grows, so no future JavaScript global or literal can become one, whatever it is
+called. Nothing a future edition does can reopen this.
+
+The `word` production names three more letter-starting words, `const`, `export`
+and `default`, and they are counted with the nine a tokenizer must recognize
+rather than with these six: they are statement keywords, not values, and all
+three are ECMA-262 reserved words, so a name colliding with one falls under the
+loud collision below and not this silent one.
+
+Of the six, only `undefined`, `NaN` and `Infinity` are silent today: `true`,
+`false` and `null` are reserved words, so `const true = 1` is a JavaScript
+syntax error like `const const = 1` is. The guarantee is still stated over all
+six, because what it fixes is DataJS's side of the pairing — if ECMA-262 ever
+stopped reserving one of those three, it would move into the silent set without
+this list changing, and the leading `$` would keep it out of reach either way.
+
+The **reserved-word** collision — the loud one, where JavaScript rejects the
+binding and the document is not JavaScript at all — is not closed by this
+grammar, because ECMA-262 decides it. It is worth being exact about what would
+have to happen, since "a future keyword" is broader than the actual risk. **Two
+things would both have to be true.** ECMA-262 would have to choose a spelling
+containing `$` for a new keyword, *and* make that keyword **unusable as a
+binding identifier in module code**. Either alone is harmless: a keyword that
+stays usable as a binding takes no name away from a DataJS document, and a
+keyword spelled in letters cannot collide with a name that starts with `$`.
+
+The second condition is **binding position, not reserved-word status**, and the
+difference is not academic. Being contextual does not by itself keep a word
+usable as a name: `let` and `static` are contextual — ordinary identifiers in
+sloppy code — and yet `const let = 1` and `const static = 1` are both syntax
+errors in module code, which is strict. So is every other word on the
+strict-mode future reserved list, and so are `await` and `yield` in a module.
+A future contextual keyword prohibited in binding position would break a DataJS
+document exactly as a reserved word would, which is why the condition is
+stated this way and not as "reserved rather than contextual".
+
+Both conditions are contrary to how the language has actually grown.
+
+- **Contextual is the normal shape of an addition, and contextual additions
+  have stayed legal names.** Measured over sixteen contextual keywords
+  including the recent and proposed ones — `using`, `accessor`, `satisfies`,
+  `match`, `defer`, `source` — fourteen are legal `const` names in module code
+  today. The two that are not are `let` and `static`, and they are the reason
+  the condition above is worded as it is. Those two appear on the strict-mode
+  future reserved list of the next bullet as well — the overlap is real and not
+  a miscount, and it is precisely a word being contextual *and* prohibited as a
+  binding. They were restricted by ES5 rather than by any addition since: no
+  edition has taken a binding name away from strict-mode programs that already
+  used it. Additions of this kind have not broken a document yet, and the trend
+  is what the argument rests on — not a guarantee that they cannot.
+- **The reserved list is essentially closed.** Its thirty-eight words, and the
+  eight strict-mode future reserved words beside them, have been fixed since
+  ES1–ES6; the language grows by adding contextual keywords and punctuation,
+  not by taking identifiers away from programs that already use them.
+- **`$` is carved out for user names by the grammar itself.**
+  `IdentifierStartChar` lists `$` and `_` explicitly, alongside `UnicodeIDStart`
+  — the specification says in its own grammar that these two are for
+  identifiers. Reserving a `$` word would invalidate existing valid programs,
+  since `$`-leading identifiers are legal and widespread.
+- **New markers come from outside the identifier grammar.** When TC39 needed a
+  sigil for private names it took `#`, which was not a valid identifier
+  character — measured, `const #x=1` is rejected while `const $x=1` and
+  `const _x=1` are accepted. That choice is the pattern, and it points away
+  from `$`.
+
+No rule forbids it, so the format also reduces what a collision would cost.
+
+- **Normalized form spells its names `$` followed by digits** — `$0`, `$1`, …
+  Machine-produced documents, which is what exists in bulk, therefore use a
+  shape no keyword plausibly takes. The exposure is to hand-chosen names only.
+- **The failure would be loud.** A document using the affected name stops
+  parsing as JavaScript: a syntax error at load, never a value silently read as
+  something else. The silent class is the one closed permanently above.
+- **Recovery is mechanical, and the format already ships it.** Re-normalizing a
+  document renames every `const` to `$0`, `$1`, …, so the fix for a colliding
+  name is running the normalizer rather than editing documents by hand.
+- **The conformance corpus pins `$class` and `$undefined` as ordinary names**,
+  so an implementation that quietly reintroduces an exclusion list fails
+  conformance. The mitigation cannot decay into the thing it replaced.
+
+If ECMA-262 ever did move toward `$`, one further step is available and is a
+one-line change: narrow `id` to `$` followed by digits, which removes
+word-shaped names from the format entirely and makes the question moot. It is
+not taken now, because a hand-written document is easier to read with names
+like `$config` than with `$7`.
+
+**Which character carries the prefix is a separate question from whether there
+is one**, and only the second is forced. `_` has the same property that the
+argument above rests on — no reserved word contains an underscore either, so
+`_class`, `_eval` and `_undefined` are equally ordinary names — so the grammar
+does not decide between them. `$` is the decision, made once and not derived;
+what follows is what it costs, so that the cost is on the record rather than
+discovered later.
+
+**The cost is that `$` reads as a named placeholder nearly everywhere.** That
+is a general association, not two incidents: `${name}` in a template literal,
+`$1` for a capture group in a `String.prototype.replace` pattern, `$0` and `$1`
+as positional parameters in a shell, `$VAR` and `${VAR}` in the substitution
+languages of `make`, `envsubst`, CI configuration and most templating engines.
+Normalized form names its consts `$0`, `$1`, … — exactly a shell's positional
+parameters — so where the association bites it bites the machine-produced
+documents rather than the hand-written ones. `_0` would carry none of it.
+
+**A document has to *be* shell source for that to happen, and passing through a
+shell is not the same thing.** An earlier draft of this section said the
+documents most likely to be piped through a shell for hashing or comparison
+were the most exposed, which is not so: a shell expands the words of a command
+before running it and does not rescan the bytes flowing through the pipeline.
+Measured — a document piped into a filter or redirected from a file comes
+through byte for byte, `sha256sum` giving the same digest through the pipe as
+from the file. A quoted `$(…)` capture does not expand `$0` either, but it is
+not byte-preserving, for a reason that has nothing to do with `$`: a command
+substitution has its trailing newlines stripped, so a document ending in one
+comes back a byte shorter and hashes differently. The value survives — trailing
+whitespace is insignificant, so it is the same document — but a capture is the
+wrong tool for comparing bytes whatever the text contains. Only writing the
+document *into* a script reaches it: in an unquoted `<<EOF` heredoc,
+`const $0=[1,2];` arrives as `const /bin/bash=[1,2];`. So the bulk
+operations — hashing, diffing, moving documents between commands — are not
+exposed at all, and what is left is the narrower case of pasting a document
+into a script.
+
+What the association does *not* cost is also worth stating. It is a hazard of
+the surrounding text, not of the format: embedding a document as data — in a
+JSON string, a file, a request body, a database column — is unaffected, since
+none of those interpret `$`. Within JavaScript, `$` has no meaning of its own;
+`${` belongs to template literals, and **no name can produce that sequence**,
+since a name is `$` followed by identifier characters. A *string's contents*
+can hold `${` like any other text — `export default "${name}";` is a valid
+document — so embedding one in a template literal interpolates, but that is
+true of JSON in a template literal too and is not something the prefix
+introduced. Where a context does interpret `$`, each has a spelling that turns
+it off: single quotes or a quoted `<<'EOF'` heredoc in a shell, `$$` in `make`,
+a replacement function rather than a pattern string for `replace`.
+
+The rest of the cost is one character per name, spent where the format had no
+other use for it: DataJS has no identifier keys, so an `id` appears only in a
+`const` statement and the references to it, and normalized `$0` is exactly as
+long as the `_0` an earlier draft used.
+
+**Why require a space after `default` when `export default[1];` would lex?**
 Not because the conditional rule cannot be implemented. It can, and without
 maximal munch: require whitespace before an identifier, a word, or an
 **unsigned** number or bigint whenever the preceding character is an identifier
 character — one character of look-behind, decided as the token starts. Those
 are exactly the tokens that can begin with an identifier character, which is
-why a signed value needs no space and `export default-1` would stay legal. It
+why a signed value needs no space and `export default-1;` would stay legal. It
 leaves the grammar LL(1) too, though the credit there belongs to folding `-`
 into its token rather than to anything about whitespace. So this is a choice
 between two workable rules, and it goes to whichever is harder to get wrong.
