@@ -30,14 +30,21 @@ tree afterwards, and each one writes the walk again:
   direct children — they sit inside the option/repeat scaffolding), and
   `foldValue`, which needs its own explicit stack so deep nesting does not
   overflow the JS one.
-- `fjs/media/json` does not use BNF for values at all; it keeps a hand-written
-  tokenizer and a container-stack parser
-  ([parser-container-stack-bookkeeping](../../media/json/todo/parser-container-stack-bookkeeping.md)).
-- Nothing can answer *"is this stream valid JSON?"* without building the whole
-  value first
-  ([streaming-recognizer](../../media/json/todo/streaming-recognizer.md),
-  [detect-json](../../media/type/todo/detect-json.md)), because the AST is built
-  whether or not anyone wants it.
+- `fjs/bnf`'s own example grammars can be *matched* but not *evaluated*: a
+  grammar that describes JSON produces an AST, and turning that into a value to
+  check against a test vector is another hand-written walk.
+- A BNF backend cannot answer *"does this input match?"* without building the
+  whole AST first ([recognizer-backend](./recognizer-backend.md)), because the
+  AST is built whether or not anyone wants it.
+
+**Not in this list: `fjs/media/json`.** Its codec keeps a hand-written tokenizer
+and container-stack parser *by decision* —
+[parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
+settles that "the media codecs take no runtime dependency on `fjs/bnf`", and
+names it one of three things not to reopen. So the JSON grammar's role stays
+what that plan gives it: spec text, plus proof-covered examples under
+`fjs/bnf/**`. This issue makes those examples able to produce values; it does
+not make them a codec (§11.6).
 
 Three costs, one cause. The AST is **mandatory** (a document of *n* symbols
 costs O(*n*) nodes even for a yes/no question), it is **anonymous** (a node
@@ -249,9 +256,10 @@ be shaped to admit them.
 **4.1 Fold-level (this issue).** A rule's children are folded as they are
 matched, so nothing accumulates that a transformer did not ask to keep. Memory
 is O(depth) frames plus the sum of the live states along the spine. A 1M-element
-array is one frame whose state the author chose; a recognizer's states are all
-unit, so the whole parse is O(depth) whatever the input size — which is what
-[detect-json](../../media/type/todo/detect-json.md) needs and cannot get today.
+array is one frame whose state the author chose; a map that answers `unit` for
+every rule keeps nothing at all, so the whole parse is O(depth) whatever the
+input size — which is what [recognizer-backend](./recognizer-backend.md) wants
+from a payload-free backend and cannot get while the AST is mandatory.
 
 This is also where the AST's O(*n*) cost goes away rather than being paid and
 discarded: an untransformed rule allocates its node, a transformed one does not.
@@ -341,7 +349,8 @@ results are typed to the AST — `DescentMatchResult.ast` and `ll1`'s
 parse needs its own entry point and its own result:
 
 ```ts
-type TransformMatchResult<T> = readonly[Result<T, string>, boolean, Remainder]
+// `fjs/bnf/ll1`'s own shape: its input, its remainder, its tuple.
+type TransformMatchResult<T> = readonly[Result<T, string> | null, boolean, Remainder]
 type TransformMatch<T> = (s: readonly CodePoint[]) => TransformMatchResult<T>
 
 const transformRuleSet:
@@ -350,9 +359,33 @@ const transformRuleSet:
     <K extends string>(start: K) => TransformMatch<_Output<M, K>>
 
 type _Output<M, K> = K extends keyof M
-    ? M[K] extends Transformer<infer T> ? T : never
+    ? NonNullable<M[K]> extends Transformer<infer T> ? T : never
     : unknown
 ```
+
+`NonNullable`, not `M[K]`, because §8's `Transformers` declares its properties
+optional: `M[K]` is then `Transformer<T> | undefined`, which is not a naked type
+parameter, so the conditional does not distribute and every output would resolve
+to `never`.
+
+**A failed match has no value, and says so.** The root's `end` never runs when
+the grammar rejects the input — a failure propagates straight out, past every
+frame — so there is no `T` to report and none is invented. The value slot is
+`null` exactly when `success` is `false`. That keeps the three states apart
+without a reserved error string: `null` is "the grammar did not match", `error`
+is "it matched and a transformer refused", `ok` is a value. (A three-way tagged
+union would say the same thing without the redundant boolean; the tuple is kept
+here only to mirror `MatchResult`, and whoever implements it may prefer the
+union.)
+
+**The shape above is `ll1`'s, not a shared one.** Only the *value slot*
+generalizes. `fjs/bnf/descent` consumes `CodePointMeta<M>[]`, not `CodePoint[]`,
+and returns `{ ast, success, idx, failure? }` rather than a remainder tuple —
+its furthest-failure record is the reason that backend's result is an object.
+Its transforming entry keeps all of that and replaces `ast` with the same value
+slot. Two backends, two result types, one protocol: the same split
+[`../matcher/README.md`](../matcher/README.md) already draws between what is
+shared and what is each machine's own.
 
 The start rule moves into the builder, and that is what connects the map to the
 parse's type: a map written as an object literal keeps its literal keys, so
@@ -382,8 +415,12 @@ not negotiable:
   `update`s. Because `S` is immutable, discarding it is dropping a frame — no
   undo protocol, which is the property that makes this design work under a
   backtracking parser at all, and the reason effects cannot be allowed.
-- A transformer that is expensive multiplies backtracking cost. Keep `update`
-  cheap; do the work in `end`, which runs only on a branch that survived.
+- A transformer that is expensive multiplies backtracking cost, and moving the
+  work into `end` does not avoid it: `end` runs for every invocation that
+  *succeeded*, including one inside an alternative a later sibling then fails —
+  which is the same invariant §1 states about abandoned frames, read from the
+  other side. So under `descent` both `update` and `end` want to be cheap, and
+  only `ll1` guarantees no transformer runs on work that is thrown away.
 
 Refusal is `end`-only, on purpose. Anything a child could reject can be recorded
 in the state and reported when the rule finishes, so `update` stays a plain
@@ -458,6 +495,11 @@ type Values = {
 type Transformers = { readonly[K in keyof Values]?: Transformer<Values[K]> }
 ```
 
+The properties are optional — a grammar has rules no one transforms — which is
+why `_Output` (§5) strips `undefined` before it infers: an optional property's
+indexed access carries `| undefined`, and a conditional over that union does not
+distribute, so every output would come back `never`.
+
 Every `end` is checked against the rule's declared output, and `_Output` (§5)
 reads the start rule's entry back out of the same map to type the parse's
 result. Each transformer's own `S` is checked where it is written, against the
@@ -506,8 +548,9 @@ uses `list` or a hand-written fold. That is the split the previous design's
 
 #### 10. Worked examples
 
-**JSON value.** With the grammar from
-[bnf-grammar-single-owner](../../media/json/todo/bnf-grammar-single-owner.md):
+**JSON value.** Over `fjs/bnf`'s own JSON example grammar — the `deterministic`
+one in [`../testlib.f.mjs`](../testlib.f.mjs) — which is what an example grammar
+needs to be checkable against a spec test vector, and is *not* a codec (§11.6):
 
 ```ts
 {
@@ -524,11 +567,19 @@ uses `list` or a hand-written fold. That is the split the previous design's
 `object` never sees a quote, an escape, or whitespace, because each child rule's
 value is what flows up. No AST node is allocated anywhere on this path.
 
-**JSON recognizer.** The same grammar, with a map that answers `unit` for
-every rule. The parse is O(depth) memory, no value is built, no token
-payload is buffered, and the verdict is the parse's own success —
-[streaming-recognizer](../../media/json/todo/streaming-recognizer.md) without a
-second implementation of JSON's shape.
+**Recognizing without building.** The same grammar, with a map that answers
+`unit` for every rule. The parse is O(depth) memory, no value is built, and the
+verdict is the parse's own success — the payload-free mode
+[recognizer-backend](./recognizer-backend.md) asks a backend for, without a
+second traversal to discard what the first one built.
+
+That is *folding* payload-free, and it is not the whole of a streaming
+recognizer. [streaming-recognizer](../../media/json/todo/streaming-recognizer.md)
+specifies a per-`U16` `recognizerStep` with a depth cap chosen at init, which
+needs incremental **input** (§4.2, [43](./043-stateful-parser.md)) as well — and
+belongs to `fjs/media/json` as its own hand-written module either way, by the
+boundary in §11.6. This issue supplies one half of the mechanism and none of
+that module.
 
 **DJS module.** `foldValue`, `descendantsTagged`, `slot`, `keyOf` and
 `_FoldFrame` all delete: elements arrive at their container's `update` instead
@@ -538,11 +589,22 @@ one, so the hand-rolled stack that exists to survive deep nesting is not needed.
 One thing does not fall out, and it is the design's honest limit: DJS resolves
 `const` references against names bound by *earlier* statements, which is an
 inherited attribute, and a fold only synthesizes. Two ways out, to be chosen
-when that work starts — the value transformer returns a closure
-`(refs) => AstConst` that the module transformer applies (pure, but the
-"const not found" error moves out of the parse and needs the metadata captured
-in the closure), or the engine gains an explicit downward channel. The first
-costs nothing to try and is where to start.
+when that work starts:
+
+- **A downward channel** in the engine, so a rule's `init` can see what its
+  ancestors bound. New mechanism, but the state stays plain data.
+- **The value transformer returns a closure** `(refs) => AstConst` that the
+  module transformer applies. Pure and needs no new mechanism, but it costs two
+  things: "const not found" moves out of the parse and needs the offending
+  metadata captured in the closure, and — the one that matters — a closure
+  nested in a half-built array or object *is* transformer state while later
+  siblings are parsed, so a parse suspended there holds functions. That
+  contradicts §1 and §4.2, where a suspended parse is plain data.
+
+So the closure is not the cheap default it looks like: taking it means saying
+out loud that a DJS parse is exempt from the checkpointing contract. Prefer the
+downward channel unless that exemption is acceptable, and decide it with the
+port rather than now.
 
 #### 11. What this replaces
 
@@ -575,6 +637,24 @@ what the construction-time name check makes visible instead of silent.
 detection the previous design spent a section on shipped as the `Repeat` rule,
 and a `Repeat`'s events (`create`, one `update` per round, `end`) are the case
 this protocol fits best.
+
+**11.6 It does not reopen the media/BNF boundary.** An earlier draft of this
+issue had `fjs/media/json` running its grammar through the transformer matcher.
+It cannot:
+[parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
+settles that "the media codecs take no runtime dependency on `fjs/bnf` or on
+`fjs/js/tokenizer`, which is the whole point of the restructure", and lists it
+among three decisions not to reopen without a reason. `fjs/bnf/**` may hold the
+JSON and DataJS grammars only as **proof-covered examples** cross-checked
+against the spec's test vectors — an unproved example is how the dead `fjs/fsc`
+copy silently drifted.
+
+Transformers make those examples *evaluable*, which is exactly what
+cross-checking a grammar against a value vector needs, and that is the whole of
+this issue's claim on JSON. The codec, its container-stack parser, and its
+streaming recognizer stay `fjs/media/json`'s own hand-written modules. The
+runtime consumer of this protocol is the front end that already runs on BNF —
+`fjs/djs` today, `fjs/fsc` after the restructure moves it.
 
 **11.5 The split is off.** What made the previous issue too big was the RTTI
 contract, the metadata monoid, and the flattening analysis. The first is
@@ -656,13 +736,14 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
   speculative-refusal rule (§6) being right: under `ll1` a refusal is final the
   moment it happens, so the rule can be *implemented* there and only *exercised*
   in stage 3.
-- It is the backend that can promise **bounded-memory input streaming** (§4.2).
-  Fold-level streaming alone is worth having, but the end state this issue is
-  for — a JSON recognizer that is O(depth) over a stream — is LL(1)'s.
-- Its **consumers are the ones waiting**: JSON's recognizer and value codec are
-  LL(1)-shaped work, so stage 1 unblocks them without touching `fjs/djs`, whose
-  port is the larger, riskier change and needs the inherited-attribute question
-  (§10) answered first.
+- It is the backend that can promise **bounded-memory input streaming** (§4.2),
+  which is what a payload-free recognizer over a stream needs and what the
+  fold-level guarantee alone does not give.
+- It is the **smaller change**, and stage 1 is where the protocol's shape is
+  still cheap to move: `ll1` has no rewind state and no furthest-failure record,
+  so its machine is the one to be wrong on first. `fjs/djs`'s port is the
+  larger, riskier change and needs the inherited-attribute question (§10)
+  answered before it starts.
 - `descentEquivalence` in `../ll1/proof.f.mjs` **already pins the AST both
   backends build**, so the conformance test for "the default transformer
   reproduces today's AST" exists before the change that has to keep it passing.
@@ -699,12 +780,22 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
       the construction-time name check; and a deep-nesting case, since the fold
       now runs on the machine's explicit stack.
 
-**Stage 2 — helpers and the first consumer.**
+**Stage 2 — helpers and the first consumer.** The consumer is inside `fjs/bnf`,
+not `fjs/media/json`: the boundary in §11.6 keeps the codecs off BNF at runtime,
+so what transformers buy JSON here is an *example grammar that can produce a
+value* to check against a spec vector.
 
 - [ ] Add the §9 helpers with the O(1)-`update` accumulation inside them.
-- [ ] Give `fjs/media/json` a transformer set over its own grammar, and the
-      all-`unit` map to
-      [streaming-recognizer](../../media/json/todo/streaming-recognizer.md).
+- [ ] Give the JSON example grammar a transformer set, and prove it against the
+      spec's test vectors — the proof coverage
+      [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
+      requires of every example grammar, now checkable on values rather than on
+      an AST shape.
+- [ ] Take the all-`unit` map to [recognizer-backend](./recognizer-backend.md)
+      as its payload-free mode. Do **not** claim it as
+      [streaming-recognizer](../../media/json/todo/streaming-recognizer.md)'s
+      `recognizerStep`: that one is per-`U16`, depth-capped, and
+      `fjs/media/json`'s own (§10, §11.6).
 - [ ] Revisit `partial` (§4.3) once a real consumer wants results before the
       document ends; it needs [43](./043-stateful-parser.md) to be useful.
 
@@ -767,10 +858,15 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
 - [`../data/README.md`](../data/README.md#the-repeat-rule) — the `Repeat` rule,
   whose events are §11.4.
 - [JSON BNF grammar owner](../../media/json/todo/bnf-grammar-single-owner.md) —
-  the grammar the JSON transformer set attaches to.
-- [streaming-recognizer](../../media/json/todo/streaming-recognizer.md) and
-  [detect-json](../../media/type/todo/detect-json.md) — the all-`unit` map is
-  the recognizer they specify.
+  where the JSON grammar lands; §11.6 is the constraint it also records.
+- [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
+  — the media/BNF boundary of §11.6, and the proof-coverage requirement stage 2
+  satisfies.
+- [recognizer-backend](./recognizer-backend.md) — the payload-free mode the
+  all-`unit` map supplies.
+- [streaming-recognizer](../../media/json/todo/streaming-recognizer.md) — what
+  this issue does **not** supply: a per-`U16`, depth-capped recognizer in
+  `fjs/media/json`.
 - [157. JSON/DJS shared value machine](../../djs/todo/157-json-djs-shared-value-machine.md)
   — what the DJS port leaves behind on the parser side.
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — no longer
