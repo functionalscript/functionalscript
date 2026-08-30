@@ -50,14 +50,20 @@ export type TokenPosition = {
  *
  * The *start* is the token's own `TokenMetadata`; `end` is where the offending
  * source stops, so the two together are a span a caret-and-underline renderer
- * can draw. What the span covers is per message — an unterminated comment runs
- * from its `/*` to where the input ran out, a malformed number from the start
- * of the number to the character that spoiled it.
+ * can draw. `'invalid token'` and `'*\/ expected'` carry one, and it runs to
+ * where the input ran out: tokenizing stops at a lexical failure, so nothing
+ * after the anchor was read either.
  *
- * It is **optional** because not every error token knows one. The DJS layer
- * remaps a `JsToken` it cannot accept into an error while holding no positions
- * at all, so absent means "the tokenizer knows where, not how far" rather than
- * "the span is empty".
+ * It is **optional**, and two cases leave it absent:
+ *
+ * - `'invalid number'`, whose anchor is the character that *spoiled* the
+ *   number rather than the number's start. The source it is about therefore
+ *   ends where the anchor begins, and a forward span cannot describe it.
+ * - a `JsToken` the DJS layer cannot accept, which it remaps to an error while
+ *   holding no positions at all.
+ *
+ * So absent means "the tokenizer knows where, not how far" rather than "the
+ * span is empty".
  */
 export type ErrorToken = {
     readonly kind: 'error'
