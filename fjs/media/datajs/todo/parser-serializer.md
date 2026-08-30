@@ -46,21 +46,46 @@ fjs/media/datajs/
 
 **Every entry point is fallible, and the names say so.** A caller may
 legitimately hand a reader invalid text or a serializer a value outside the
-data model, so all four are `try*` returning `Result` — see §4:
+data model, so all of them are `try*` returning `Result` — see §4:
 
 ```ts
-export const tryParse:     (text: string)  => Result<Unknown, string>
-export const trySerialize: (sort: _MapEntries) => (value: unknown) => Result<List<string>, string>
-export const tryStringify: (sort: _MapEntries) => (value: unknown) => Result<string, string>
-export const tryNormalize: (value: unknown)    => Result<string, string>
+export const tryParseBytes: (bytes: List<U8>) => Result<Unknown, string>
+export const tryParse:      (text: string)    => Result<Unknown, string>
+export const trySerialize:  (value: unknown)  => Result<List<string>, string>
+export const tryStringify:  (value: unknown)  => Result<string, string>
+export const tryNormalize:  (value: unknown)  => Result<string, string>
 ```
 
+**The byte path is not a convenience, it is a conformance obligation.** Two
+document rules cannot be reached from a code-unit array at all — a document has
+**no BOM**, and a document **is UTF-8** — and
+[the corpus](../../../../spec/datajs/todo/conformance-vectors.md) carries their
+vectors as byte arrays "fed to the reader's public byte-accepting path — which
+stage 4 owes". By the time input is a JavaScript string both distinctions are
+gone, so `tryParse` alone can neither implement nor prove them. `tryParseBytes`
+decodes with [`fjs/text/utf8`](../../../text/utf8/module.f.mjs)'s
+`toCodePointList`, refuses invalid UTF-8, and strips a leading `EF BB BF` before
+the parser runs — that last is why the BOM vector must be bytes: a decoder
+satisfies the parser on it, so a code-unit array can never carry the case.
+
+**There is no `sort` seam, and that is a difference from JSON rather than an
+omission.** `fjs/media/json` takes a `_MapEntries` so a caller can canonicalize;
+DataJS cannot offer that, because **observable key order is part of the value**.
+The spec fixes it — array-index keys numerically first, then the rest in
+first-occurrence order — and lists what a serializer *is* free to choose:
+whitespace and layout, the names of the consts, and whether a singly-reachable
+value is hoisted. Key order is not on that list. A caller-supplied mapping that
+reordered non-index keys would emit a valid document denoting a **different
+object**, and return `ok` while doing it — the silently-wrong document the spec
+exists to prevent. The serializer enumerates in the mandated order and takes no
+say in it.
+
 `trySerialize` yields chunks and `tryStringify` is its `concat`, mirroring
-`fjs/media/json`'s pair. `tryNormalize` takes no `sort`: normalized form fixes
-key order itself, and it is a separate entry point because it is an optional
-role a caller asks for. The input is `unknown` rather than `Unknown` precisely
-because rejecting what is outside the model is the serializer's job — a
-signature taking `Unknown` would be asserting what §4 has to check.
+`fjs/media/json`'s pair minus that parameter. `tryNormalize` stays separate
+because normalized form is an optional conformance role a caller asks for. The
+input is `unknown` rather than `Unknown` precisely because rejecting what is
+outside the model is the serializer's job — a signature taking `Unknown` would
+be asserting what §4 has to check.
 
 #### 1. Value domain, and the one type-level trap
 
@@ -203,8 +228,18 @@ serializer has nothing to do.
 
 Two passes, and the first is where the errors are.
 
-**Pass 1 — hoisting.** Traverse from the exported value and count **incoming
-reference occurrences** per object/array node, by reference identity.
+**Pass 1 — validate and count, in that order, in one traversal.** This pass is
+the *first* thing that touches the caller's graph, so it is where the
+descriptor-first rule of §4 has to hold — not in pass 2. Counting occurrences
+means following outgoing edges, and following an edge on an ordinary enumerator
+reads the property, which invokes an enumerable getter below the root before
+anything has had the chance to refuse it. So each node is validated from its own
+property descriptors as it is reached, and only the surviving data descriptors'
+values are followed. Validation and traversal are one walk because the traversal
+is what makes validation necessary.
+
+Then count **incoming reference occurrences** per object/array node, by
+reference identity.
 Primitives are never counted: the spec declines to hoist them, and counting
 them by value would raise the `0`/`-0` and `NaN` questions the `Object.is`
 guarantee forbids answering. A node with more than one occurrence is hoisted.
@@ -244,15 +279,21 @@ owed better than `null`. Rejected: a leaf outside the leaf set, a sparse hole, a
 key, an accessor property, a non-enumerable property, an array with an own
 property besides its elements and `length`, and a cycle.
 
-**Order matters: validate from descriptors, then read.** Rejecting an accessor
-because reading it is an effect is worthless if the check itself reads it, and
-the obvious enumerator does exactly that — measured, `Object.entries` on an
-object with an enumerable getter invokes the getter once and hands back its
-value. So the walk takes own property descriptors and own symbol keys first,
-refuses symbol keys, accessors and non-enumerable properties from the
-descriptors alone, and only then reads `value` off the data descriptors that
-survive. Nothing outside the model is ever read. This is also what §1's
-present-vs-absent problem needs, so one mechanism serves both.
+**Order matters: validate from descriptors, then read — and the *first*
+traversal is the one that has to do it.** Rejecting an accessor because reading
+it is an effect is worthless if the check itself reads it, and the obvious
+enumerator does exactly that — measured, `Object.entries` on an object with an
+enumerable getter invokes the getter once and hands back its value. So each node
+is read as own property descriptors plus own symbol keys; symbol keys,
+accessors and non-enumerable properties are refused from the descriptors alone;
+and only the surviving data descriptors' `value`s are read. Nothing outside the
+model is ever read.
+
+That belongs to **pass 1**, because pass 1 is what first follows an edge — a
+rule stated only for the walk would leave an enumerable getter below the root
+invoked during counting. Pass 2 then re-reads a graph pass 1 has already
+cleared. The same mechanism answers §1's present-vs-absent problem, since a
+descriptor exists exactly when the property does, so one walk serves all three.
 
 Two further lines are easy to cross and the spec draws both explicitly:
 
@@ -297,9 +338,11 @@ the spec judges them independently and this module provides all three.
 - [ ] `fjs/media/datajs/types.ts` and `README.md`.
 - [ ] Tokenizer, over stage 3b's exported scanners.
 - [ ] Statement layer: environment, bound-once, declare-before-use.
-- [ ] Reader proofs from the corpus, including both sharing directions.
-- [ ] Hoisting pass: occurrence counting by identity, cycle rejection,
-      post-order naming.
+- [ ] Reader proofs from the corpus, including both sharing directions and the
+      byte-path vectors (BOM, invalid UTF-8) the corpus assigns to stage 4.
+- [ ] Pass 1: descriptor-first validation as each node is reached, occurrence
+      counting by identity, cycle rejection, post-order naming — one traversal,
+      since it is the first thing to touch the caller's graph.
 - [ ] Serializer over the shared walker of 157 §2.
 - [ ] Out-of-model rejection as a `try*`, descriptor-first so no accessor is
       invoked by the check that refuses it, with the attribute/enumerability
