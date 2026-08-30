@@ -42,23 +42,26 @@ export type SandboxResult<T> = {
  * `Promise<V>` is measured to where it settled and puts `V` in the result. `T`
  * would promise a caller a promise that is not there.
  *
- * **The scope is ordinary code, and that is a decision rather than an
- * oversight.** A handler awaits an `instanceof Promise` and nothing else, so a
- * bare thenable — `{ then(r) { r(42) } }` — is stored as the object it is while
- * `Awaited<T>` types it as the value it would have resolved to, and a promise
- * from another realm is stored for the same reason. Both discrepancies are
- * known and neither is worth a conditional type here.
+ * **The rule is one line: what is not a well-known `Promise` is not run as
+ * one.** `instanceof Promise`, full stop.
  *
- * The narrow rule is deliberate where it matters: a proof's returned value with
- * a `then` key is *a sub-tree with a test called `then` in it*, and awaiting it
- * would adopt the tree instead of walking it. What a runner should do about
- * cross-realm promises is the subject of
- * `emergent_testing/todo/imports-promises-realms.md`, which is where such a
- * decision belongs — not in a type describing the common case.
+ * Stated that way it is also the safe direction, which is why it needs no
+ * refinement. A foreign `then` is never invoked to adopt anything: an object
+ * this test rejects is ordinary data, walked like any other returned value and
+ * called — if it is called at all — as a test inside this sandbox. The shapes a
+ * `then` can take stop being a threat model and become a naming question.
  *
- * This operation measures and traps *ordinary* JavaScript. It is not a boundary
- * against adversarial JavaScript, and pursuing every shape a `then` can take is
- * a rabbit hole with no end and no reader.
+ * It is also the *correct* rule here rather than a cheap approximation of a
+ * wider one: a proof's returned value carrying a `then` key is a sub-tree with
+ * a test called `then` in it, and adopting it instead of walking it would lose
+ * the tests inside.
+ *
+ * `Awaited<T>` describes the case the rule is about. A bare thenable is typed
+ * as the value it would resolve to and stored as the object; so is a promise
+ * from another realm, which no structural type can tell apart anyway. Neither
+ * is worth a conditional type: this operation measures and traps *ordinary*
+ * JavaScript, and enumerating `then` shapes is a rabbit hole with no end and no
+ * reader.
  */
 export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxResult<Awaited<T>>>]
 

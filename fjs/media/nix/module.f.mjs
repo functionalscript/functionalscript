@@ -174,9 +174,13 @@ const serializeSet = ([, ...bindings], level) => {
     return body === undefined ? undefined : ['{\n', ...body, '\n', indent(level), '}']
 }
 
+/** @type {(item: _Reference | string) => string | undefined} */
+const serializeListItem = item =>
+    typeof item === 'string' ? quoted(item) : serializeReference(item)
+
 /** @type {(list: _NixList) => _Chunks | undefined} */
 const serializeList = ([, ...references]) => {
-    const items = references.map(serializeReference)
+    const items = references.map(serializeListItem)
     const definedItems = items.flatMap(item => item === undefined ? [] : [item])
     return items.includes(undefined)
         ? undefined

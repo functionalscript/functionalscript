@@ -55,6 +55,15 @@ export const node = /** @type {const} */({
     node24: '24.19.0',
 })
 
+// The Rust the `wasm` job's flake provides, resolved by `rust-overlay` from
+// the official release manifest — so unlike the Nixpkgs pins below, this is an
+// exact release rather than whatever a snapshot happens to carry, and the flake
+// text names it in full. It is also the version the platform matrix's
+// `dtolnay/rust-toolchain` installs; the two are the same constant so they
+// cannot drift.
+// https://rust-lang.org/
+export const rust = '1.98.0'
+
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
 // every generated `flake.nix` pins. The Node versions above come from this
@@ -70,11 +79,29 @@ export const nixpkgs = /** @type {const} */({
 // Nixpkgs builds no `std` for three of its four WASI targets, so the toolchain it
 // needs cannot come from the snapshot at all. See
 // `../todo/wasm-nix-blocked-on-rust-targets.md`.
+// `rust-overlay`, the second input of the `wasm` job's flake. Nixpkgs builds
+// one `rustc` and hard-codes the targets it builds `std` for — the host,
+// `wasm32-unknown-unknown` and two bare-metal targets — so three of that job's
+// four targets have no `std` at any Nixpkgs version. This overlay takes the
+// same tarballs `rustup` would, pinned by hashes checked into its own
+// repository. `ref` is the branch the commit is accepted from.
+// https://github.com/oxalica/rust-overlay
+export const rustOverlay = /** @type {const} */({
+    ref: 'master',
+    commit: '996e9b0b019a4a9eb9e9a5641aefa06d801b5895',
+})
+
+// The Wasmtime and Wasmer versions the pinned Nixpkgs snapshot provides — read
+// from `pkgs/by-name/wa/{wasmtime,wasmer}/package.nix` at that commit. The
+// `wasm` job asserts both from inside its shell, which is the only tie there
+// is: neither attribute carries a version, so nothing else connects these
+// numbers to what the shell provides. Bump the snapshot first and copy what it
+// offers, as the Node and Deno pins do.
 // https://github.com/bytecodealliance/wasmtime/releases
-export const wasmtime = '48.0.1'
+export const wasmtime = '45.0.2'
 
 // https://github.com/wasmerio/wasmer/releases
-export const wasmer = '7.3.0'
+export const wasmer = '7.1.0'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
@@ -93,13 +120,9 @@ export const actions = /** @type {const} */({
     'actions/upload-artifact': 'v7.0.1',
     // https://github.com/marketplace/actions/download-a-build-artifact
     'actions/download-artifact': 'v8.0.1',
-    // https://github.com/bytecodealliance/actions
-    'bytecodealliance/actions/wasmtime/setup': 'v1.1.3',
-    // https://github.com/wasmerio/setup-wasmer
-    'wasmerio/setup-wasmer': 'v3.1',
     // https://github.com/marketplace/actions/install-nix
     // Enables the `nix-command` and `flakes` experimental features by default.
     'cachix/install-nix-action': 'v31.11.1',
     // https://rust-lang.org/ - value is Rust version, not action version
-    'dtolnay/rust-toolchain': '1.98.0',
+    'dtolnay/rust-toolchain': rust,
 })
