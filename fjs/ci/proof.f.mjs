@@ -14,7 +14,7 @@ import { i686JobId } from './rust/module.f.mjs'
 import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
-import { architecture, os, test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
+import { architecture, install, os, test, ubuntu, uses, parseGitHubAction } from './common/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { unwrap } from '../types/result/module.f.mjs'
@@ -230,6 +230,53 @@ export const proof = {
             for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
                 for (const a of /** @type {const} */ (['intel', 'arm'])) {
                     assert(hasRunInJob(`${o}-${a}`, cmd)(gha), `missing extra step in ${o}-${a}`)
+                }
+            }
+        },
+        // An injected step runs where the job's own commands run. That is not
+        // decoration: these jobs stopped installing Node with `setup-node`, so
+        // an injected `node tool.mjs` left on the runner would find whatever
+        // the image ships rather than the release every other step asserts.
+        //
+        // Windows is the exception, and it has to be — there is no shell there
+        // to put anything in.
+        inTheSameShell: () => {
+            const cmd = 'echo hello'
+            const gha = run(false, () => [test({ run: cmd })])
+            for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
+                for (const a of /** @type {const} */ (['intel', 'arm'])) {
+                    assert(
+                        hasExactRunInJob(`${o}-${a}`, nixDevelop(nixShell, cmd))(gha),
+                        `expected the extra step in the shell in ${o}-${a}`)
+                }
+            }
+            for (const a of /** @type {const} */ (['intel', 'arm'])) {
+                assert(
+                    hasExactRunInJob(`windows-${a}`, cmd)(gha),
+                    `expected the extra step on the runner in windows-${a}`)
+            }
+        },
+        // The two kinds that cannot move, and stay where they are rather than
+        // being wrapped into something that would fail. An `install` step runs
+        // before `actions/checkout` — that is what the type means to `toSteps`
+        // — so there is no `nix/` for it to enter yet; and a step naming an
+        // action has no command to wrap at all.
+        stayOnTheRunner: () => {
+            const cmd = 'echo before-checkout'
+            const gha = run(false, () => [
+                install({ run: cmd }),
+                test(uses('actions/cache')),
+            ])
+            for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
+                for (const a of /** @type {const} */ (['intel', 'arm'])) {
+                    const id = `${o}-${a}`
+                    assert(
+                        hasExactRunInJob(id, cmd)(gha),
+                        `expected the install step unwrapped in ${id}`)
+                    assert(
+                        gha.jobs[id]?.steps.some(
+                            step => step.uses?.startsWith('actions/cache@') === true) === true,
+                        `expected the action step kept in ${id}`)
                 }
             }
         },

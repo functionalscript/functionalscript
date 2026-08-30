@@ -147,6 +147,27 @@ export const proof = {
             "''\n    ${pkgs.\"not an identifier\"}\n''\n")
         assertEq(nixToString(['indented-string', ['ref', 'not an identifier']]), undefined)
     },
+    // Escaping sees the text a reader sees, not each half of it. Both of these
+    // were wrong when parts were escaped one at a time, and both silently.
+    indentedStringEscapesAcrossParts: () => {
+        // Neither half contains `${`, so neither would be escaped alone — and
+        // the two concatenate into an interpolation Nix resolves.
+        assertEq(
+            nixToString(['indented-string', '$', '{x}']),
+            "''\n    ''${x}\n''\n")
+        // Worse: neither half contains `''` either, and the pair closes the
+        // string. Unescaped, the file that came out would not be Nix at all.
+        assertEq(
+            nixToString(['indented-string', "a'", "'b"]),
+            "''\n    a'''b\n''\n")
+        // A reference is a real boundary, and needs no joining across: the `$`
+        // before one stays a literal `$` — Nix reads `$${a}` as a dollar
+        // followed by an interpolation, since `$$` is not `${` — and the `{x}`
+        // after one has no `$` in front of it to make anything of.
+        assertEq(
+            nixToString(['indented-string', '$', ['ref', 'a'], '{x}']),
+            "''\n    $${a}{x}\n''\n")
+    },
     // No parts at all is the empty string, not a failure.
     indentedStringEmpty: () => {
         assertEq(nixToString(['indented-string']), "''\n    \n''\n")

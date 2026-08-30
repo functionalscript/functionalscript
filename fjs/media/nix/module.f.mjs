@@ -125,6 +125,31 @@ const serializeReferenceChunks = reference => {
 }
 
 /**
+ * Adjacent string parts joined into one, so escaping sees the text a reader
+ * sees rather than each half of it.
+ *
+ * Escaping part by part is wrong in both directions, and silently. `'$'`
+ * followed by `'{x}'` has no `${` in either half, so neither is escaped and the
+ * two concatenate into an interpolation Nix resolves. Worse, `"a'"` followed by
+ * `"'b"` has no `''` in either half either, and the pair closes the string: the
+ * file that comes out is not Nix at all.
+ *
+ * A reference between two strings is a real boundary — nothing can be
+ * synthesised across an interpolation — so only runs of strings are joined.
+ *
+ * @type {(parts: readonly (string | _Reference)[]) => readonly (string | _Reference)[]}
+ */
+const coalesceStrings = parts => parts.reduce(
+    /** @type {(acc: readonly (string | _Reference)[], part: string | _Reference) => readonly (string | _Reference)[]} */
+    (acc, part) => {
+        const last = acc[acc.length - 1]
+        return typeof part === 'string' && typeof last === 'string'
+            ? [...acc.slice(0, -1), `${last}${part}`]
+            : [...acc, part]
+    },
+    [])
+
+/**
  * One part of an indented string: content, or an interpolation.
  *
  * Escaping is what separates them. A `string` is content, so `${` in it becomes
@@ -256,7 +281,7 @@ const serialize = (expression, level) => {
         case 'let': return serializeLet(expression, level)
         case 'indented-string': {
             const [, ...parts] = expression
-            const serialized = parts.map(indentedPart)
+            const serialized = coalesceStrings(parts).map(indentedPart)
             const defined = serialized.flatMap(part => part === undefined ? [] : [part])
             if (defined.length !== serialized.length) { return undefined }
             const contentIndent = indent(level + 1)

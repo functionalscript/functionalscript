@@ -19,6 +19,7 @@ import { functionalscript, images, node } from './config/module.f.mjs'
 import {
     architecture,
     os,
+    test,
     toSteps,
     ubuntu,
     ubuntuArm
@@ -32,7 +33,14 @@ import {
     rustWasmSteps,
 } from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.mjs'
-import { nixFlakes, nixInstall, nixShell, nixSteps, nixVersionStep } from './nix/module.f.mjs'
+import {
+    nixDevelop,
+    nixFlakes,
+    nixInstall,
+    nixShell,
+    nixSteps,
+    nixVersionStep,
+} from './nix/module.f.mjs'
 import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
 import { bunSteps } from './bun/module.f.mjs'
 import { devNixJob } from './dev/module.f.mjs'
@@ -87,20 +95,40 @@ const shellPlatformSteps = rust => [
     ]),
 ]
 
+/**
+ * An injected step, moved into the shared shell where the job's own commands
+ * run.
+ *
+ * Without this a `nodeExtra` step would keep running on the runner, and the
+ * runner no longer has what it used to: these jobs stopped installing Node with
+ * `setup-node`, so an injected `node tool.mjs` would find whatever the image
+ * ships rather than the release every other step in the job asserts.
+ *
+ * Only a `test` step moves. An `install` step runs *before* `actions/checkout`
+ * — that is what the two types mean to `toSteps` — so there is no `nix/` for it
+ * to enter yet, and a step naming an action rather than a command has nothing
+ * to wrap. Both stay on the runner, which is the only place they can be.
+ *
+ * @type {(step: MetaStep) => MetaStep}
+ */
+const inShell = step =>
+    step.type === 'test' && step.step.run !== undefined
+        ? test({ ...step.step, run: nixDevelop(nixShell, step.step.run) })
+        : step
+
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
 const job = (rust, nodeExtra) => o => a => {
     const id = `${o}-${a}`
     const image = images[o][a]
-    const result = [
-        // Windows is the one platform with no shell to enter.
-        ...(o === 'windows'
-            ? [
-                ...(rust ? rustPlatformSteps(o, a) : []),
-                ...nodeMainSteps(functionalscript),
-            ]
-            : shellPlatformSteps(rust)),
-        ...nodeExtra,
-    ]
+    // Windows is the one platform with no shell to enter, so it keeps the
+    // runner's toolchain — and its injected steps keep the runner too.
+    const result = o === 'windows'
+        ? [
+            ...(rust ? rustPlatformSteps(o, a) : []),
+            ...nodeMainSteps(functionalscript),
+            ...nodeExtra,
+        ]
+        : [...shellPlatformSteps(rust), ...nodeExtra.map(inShell)]
     return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
 

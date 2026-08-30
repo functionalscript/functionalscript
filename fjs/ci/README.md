@@ -407,6 +407,14 @@ export type Setup = {
 ```
 
 `nodeExtra` receives the target OS so callers can conditionally add OS-specific steps.
+
+On every platform but Windows, an injected `test` step runs **inside the shared
+shell**, alongside the job's own commands — these jobs no longer install Node
+with `setup-node`, so a step left on the runner would find whatever the image
+ships rather than the release the job asserts. An `install` step stays on the
+runner because it runs before `actions/checkout`, and there is no `nix/` to
+enter yet; a step naming an action rather than a command stays for want of
+anything to wrap. Windows keeps all of them, having no shell at all.
 Rust steps are included automatically when `Cargo.toml` is present; no flag is needed.
 
 ## Related
