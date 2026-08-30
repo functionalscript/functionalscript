@@ -10,7 +10,7 @@
 
 import { node } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
-import { nixInstall, nixSteps, nixSystem, nixVersionStep } from '../nix/module.f.mjs'
+import { nixInstall, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
 
 /**
  * Name of the CI artifact carrying the `npm pack` tarball. The producing step
@@ -138,7 +138,7 @@ export const nodeVersionJobs = () => ({
 /** @type {(version: string) => NixJob} */
 const nixJob = version => ({
     id: jobId(version),
-    system: nixSystem,
+    systems: nixSystems,
     packages: [`nodejs_${major(version)}`],
 })
 

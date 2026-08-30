@@ -43,18 +43,40 @@ export type NixPin = {
     readonly package: string
     /** The release the override installs. */
     readonly version: string
-    /** Archive that release publishes, for the job's system. */
+    /**
+     * The archive to unpack, by Nix system.
+     *
+     * One entry per system the job declares, because both halves vary with it:
+     * a release publishes a different file per platform, and each has its own
+     * hash. The snapshot's packaging reads the *name* too — for `x86_64-darwin`
+     * it strips a `bun-darwin-x64-baseline` directory — so an archive is chosen
+     * to match what that recipe already expects rather than for being the
+     * newest build on offer.
+     */
+    readonly sources: { readonly [system: string]: NixArchive }
+}
+
+/** One downloadable archive, and the hash its content must have. */
+export type NixArchive = {
+    /** Where the release publishes it. */
     readonly url: string
     /** SRI hash of that archive, verified before anything unpacks it. */
     readonly hash: string
 }
 
-/** A CI job's development environment, one generated flake each. */
+/** A development environment, one generated flake each. */
 export type NixJob = {
     /** Generated directory name under `nix`, matching the CI job id. */
     readonly id: string
-    /** Nix system of the job's runner, e.g. `aarch64-linux`. */
-    readonly system: string
+    /**
+     * Nix systems the flake exposes a shell for, one explicit
+     * `devShells.<system>.default` each — never a loop over a system list.
+     *
+     * A CI job declares exactly one: it runs on one runner image, and a second
+     * shell there would be one nothing enters. The developer environment is
+     * the reason this is a list at all.
+     */
+    readonly systems: readonly [string, ...string[]]
     /** Nixpkgs attribute names made available in the job's shell. */
     readonly packages: readonly string[]
     /** Job-local shell initialization, when the job needs one. */

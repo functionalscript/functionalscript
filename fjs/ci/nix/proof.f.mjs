@@ -9,6 +9,7 @@ import { step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { nixpkgs, rustOverlay } from '../config/module.f.mjs'
+import { devJobId, devSystems } from '../dev/module.f.mjs'
 import { nixJobs } from '../module.f.mjs'
 import { nodeNixJobs } from '../node/module.f.mjs'
 import {
@@ -30,7 +31,7 @@ const { commit } = nixpkgs
 /** @type {NixJob} */
 const plain = {
     id: 'node24',
-    system: 'aarch64-linux',
+    systems: ['aarch64-linux'],
     packages: ['nodejs_24'],
 }
 
@@ -84,8 +85,12 @@ const withPin = {
     pin: {
         package: 'bun',
         version: '1.4.0',
-        url: 'https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip',
-        hash: 'sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=',
+        sources: {
+            'aarch64-linux': {
+                url: 'https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip',
+                hash: 'sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=',
+            },
+        },
     },
 }
 
@@ -167,6 +172,74 @@ const pinFlake = `{
 `
 
 /**
+ * A job exposing a shell for more than one system — the developer environment's
+ * shape, at two systems rather than four.
+ *
+ * Both halves of a pinned archive vary with the system, so each shell carries
+ * its own `url` and `hash`; everything else about the two is identical, written
+ * out twice rather than abstracted over.
+ *
+ * @type {NixJob}
+ */
+const withSystems = {
+    ...plain,
+    id: 'dev',
+    systems: ['aarch64-linux', 'x86_64-darwin'],
+    packages: ['git'],
+    pin: {
+        package: 'bun',
+        version: '1.4.0',
+        sources: {
+            'aarch64-linux': {
+                url: 'https://example.test/bun-linux-aarch64.zip',
+                hash: 'sha256-AAAA',
+            },
+            'x86_64-darwin': {
+                url: 'https://example.test/bun-darwin-x64-baseline.zip',
+                hash: 'sha256-BBBB',
+            },
+        },
+    },
+}
+
+const systemsFlake = `{
+    inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
+    outputs = { nixpkgs, ... }: {
+        devShells.aarch64-linux.default = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+            };
+            pinned = pkgs.bun.overrideAttrs {
+                version = "1.4.0";
+                src = pkgs.fetchurl {
+                    url = "https://example.test/bun-linux-aarch64.zip";
+                    hash = "sha256-AAAA";
+                };
+            };
+        in
+        pkgs.mkShell {
+            packages = [ pinned pkgs.git ];
+        };
+        devShells.x86_64-darwin.default = let
+            pkgs = import nixpkgs {
+                system = "x86_64-darwin";
+            };
+            pinned = pkgs.bun.overrideAttrs {
+                version = "1.4.0";
+                src = pkgs.fetchurl {
+                    url = "https://example.test/bun-darwin-x64-baseline.zip";
+                    hash = "sha256-BBBB";
+                };
+            };
+        in
+        pkgs.mkShell {
+            packages = [ pinned pkgs.git ];
+        };
+    };
+}
+`
+
+/**
  * `withPin`'s pin, without the optionality the type carries for jobs that
  * declare none.
  *
@@ -203,6 +276,11 @@ export const proof = {
         // needs none — and the archive's hash is in the flake, so the fetch is
         // checked before anything unpacks it.
         pin: () => assertEq(flakeText(withPin), pinFlake),
+        // Two shells from one declaration, each naming its own system and its
+        // own archive. No loop and no `flake-utils`: a second system is a
+        // second `devShells.<system>.default`, which is what keeps a flake
+        // readable without reading the generator.
+        systems: () => assertEq(flakeText(withSystems), systemsFlake),
         // A package name reaches one quotable position and one binding the
         // generator owns, so an unusual one is escaped rather than rejected.
         // The `let` name is the generator's precisely so that it cannot be:
@@ -263,9 +341,18 @@ exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
         // for. A second system would need its own `devShells.<system>.default`
         // rather than a loop, so a job that quietly declared another would
         // otherwise generate a shell no runner can enter.
-        oneSystem: () => {
-            for (const { system } of nixJobs) {
-                assertEq(system, nixSystem)
+        // Every job but the developer environment runs on one runner, and
+        // declares the one system that runner is. `dev` is the exception the
+        // list form exists for, so it is named rather than exempted by a
+        // pattern: a job quietly declaring a second system would otherwise
+        // generate a shell no runner enters.
+        systems: () => {
+            for (const { id, systems } of nixJobs) {
+                if (id === devJobId) {
+                    assertStructurallySame([...systems], [...devSystems])
+                } else {
+                    assertStructurallySame([...systems], [nixSystem])
+                }
             }
         },
         // Job data only ever reaches quotable positions, so an unusual package

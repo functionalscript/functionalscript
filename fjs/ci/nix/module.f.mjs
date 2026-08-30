@@ -15,7 +15,7 @@
  * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Expression, _Binding, _Reference } from '../../media/nix/types.ts'
- * @import { NixJob, NixPin, NixRust } from './types.ts'
+ * @import { NixArchive, NixJob, NixPin, NixRust } from './types.ts'
  */
 
 import { pureOk } from '../../effects/module.f.mjs'
@@ -59,6 +59,19 @@ const toolchain = ({ version, extensions, targets }) => ['apply',
     ]
 ]
 
+/**
+ * A pinned package's archive for one system.
+ *
+ * A job that pins a package has to give every system it declares an archive,
+ * and nothing here can invent a missing one: the URL and the hash are both
+ * facts about a published file. So this is a totality assertion like
+ * {@link flakeText}'s, and `../proof.f.mjs` holds every declared job to it.
+ *
+ * @type {(pin: NixPin, system: string) => NixArchive}
+ */
+const archive = ({ sources }, system) =>
+    unwrapNullable(fromUndefined(sources[system]))
+
 /** The `let` name a pinned package is bound to, whatever package it overrides. */
 const pinName = /** @type {const} */ ('pinned')
 
@@ -82,16 +95,16 @@ const pinName = /** @type {const} */ ('pinned')
  * package builds its own download URLs from `version`, so a mismatch there is
  * the kind that surfaces as a hash error in an unrelated place.
  *
- * @type {(pin: NixPin) => Expression}
+ * @type {(pin: NixPin, source: NixArchive) => Expression}
  */
-const pinned = ({ package: name, version, url: archive, hash }) => ['apply',
+const pinned = ({ package: name, version }, { url: source, hash }) => ['apply',
     ['ref', 'pkgs', name, 'overrideAttrs'],
     ['set',
         ['=', ['version'], version],
         ['=', ['src'], ['apply',
             ['ref', 'pkgs', 'fetchurl'],
             ['set',
-                ['=', ['url'], archive],
+                ['=', ['url'], source],
                 ['=', ['hash'], hash],
             ]
         ]],
@@ -99,57 +112,73 @@ const pinned = ({ package: name, version, url: archive, hash }) => ['apply',
 ]
 
 /**
+ * One system's development shell: the `let` that builds it and the `mkShell`
+ * that is it.
+ *
+ * Every system gets its own, written out rather than looped over — a flake with
+ * four shells is four of these, and reads as four. What varies with the system
+ * is not only the name: a pinned package names a different archive, with a hash
+ * of its own, for each one.
+ *
+ * @type {(job: NixJob, system: string) => Expression}
+ */
+const shell = ({ packages, shellHook, rust, pin }, system) => ['let',
+    [
+        ['=', ['pkgs'], ['apply',
+            ['ref', 'import'],
+            ['ref', 'nixpkgs'],
+            ['set',
+                ['=', ['system'], system],
+                ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+                    ['=', ['overlays'], ['list', ['ref', 'rust-overlay', 'overlays', 'default']]],
+                ])),
+            ]
+        ]],
+        ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+            ['=', ['rust'], toolchain(rust)],
+        ])),
+        ...(pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+            ['=', [pinName], pinned(pin, archive(pin, system))],
+        ])),
+    ],
+    ['apply',
+        ['ref', 'pkgs', 'mkShell'],
+        ['set',
+            ['=', ['packages'], ['list',
+                ...(rust === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', 'rust']])),
+                ...(pin === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', pinName]])),
+                ...packages.map(p => /** @type {const} */ (['ref', 'pkgs', p])),
+            ]],
+            ...(shellHook === undefined
+                ? []
+                : [/** @type {const} */ (['=', ['shellHook'], ['indented-string', shellHook]])])
+        ]
+    ]
+]
+
+/**
  * A job declaring neither `rust` nor `pin` generates exactly what it generated
  * before those declarations existed: one input, one lambda argument, no
  * overlay, one `let` binding. Everything either one brings is conditional on
- * the job asking for it.
+ * the job asking for it, and a job declaring one system generates the one
+ * `devShells` attribute it always did.
  *
  * @type {(job: NixJob) => Expression}
  */
-const flake = ({ system, packages, shellHook, rust, pin }) => ['set',
+const flake = job => ['set',
     ['=', ['inputs', 'nixpkgs', 'url'], url],
-    ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+    ...(job.rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
         ['=', ['inputs', 'rust-overlay', 'url'], rustOverlayUrl],
         // The overlay's own Nixpkgs is only for its checks, and following ours
         // keeps one snapshot in the flake rather than two resolved revisions.
         ['=', ['inputs', 'rust-overlay', 'inputs', 'nixpkgs', 'follows'], 'nixpkgs'],
     ])),
     ['=', ['outputs'], ['lambda',
-        ['open-set-pattern', 'nixpkgs', ...(rust === undefined ? [] : ['rust-overlay'])],
+        ['open-set-pattern', 'nixpkgs', ...(job.rust === undefined ? [] : ['rust-overlay'])],
         ['set',
-            ['=', ['devShells', system, 'default'], ['let',
-                [
-                    ['=', ['pkgs'], ['apply',
-                        ['ref', 'import'],
-                        ['ref', 'nixpkgs'],
-                        ['set',
-                            ['=', ['system'], system],
-                            ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
-                                ['=', ['overlays'], ['list', ['ref', 'rust-overlay', 'overlays', 'default']]],
-                            ])),
-                        ]
-                    ]],
-                    ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
-                        ['=', ['rust'], toolchain(rust)],
-                    ])),
-                    ...(pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
-                        ['=', [pinName], pinned(pin)],
-                    ])),
-                ],
-                ['apply',
-                    ['ref', 'pkgs', 'mkShell'],
-                    ['set',
-                        ['=', ['packages'], ['list',
-                            ...(rust === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', 'rust']])),
-                            ...(pin === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', pinName]])),
-                            ...packages.map(p => /** @type {const} */ (['ref', 'pkgs', p])),
-                        ]],
-                        ...(shellHook === undefined
-                            ? []
-                            : [/** @type {const} */ (['=', ['shellHook'], ['indented-string', shellHook]])])
-                    ]
-                ]
-            ]]
+            ...job.systems.map(system => /** @type {_Binding} */ ([
+                '=', ['devShells', system, 'default'], shell(job, system),
+            ])),
         ]
     ]]
 ]
@@ -282,6 +311,17 @@ export const nixDevelop = (id, command) => `${runPath(id)} ${command}`
  * explicit `devShells.<system>.default` — not a loop over systems.
  */
 export const nixSystem = /** @type {const} */ ('aarch64-linux')
+
+/**
+ * What a CI job declares: the one runner it has, as a list of one.
+ *
+ * A job on another runner declares another system, and gets another explicit
+ * `devShells.<system>.default` — not a loop. The developer environment is the
+ * only declaration with more than one entry.
+ *
+ * @type {readonly [string, ...string[]]}
+ */
+export const nixSystems = [nixSystem]
 
 /**
  * One step per command, each entering the job's shell (root `AGENTS.md` §7).
