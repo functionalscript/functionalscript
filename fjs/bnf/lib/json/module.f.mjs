@@ -73,9 +73,9 @@ export const createValue = (/** @type {Rule}*/v) => ({
     object: object(string, v),
     string,
     number,
-    true: true_,
-    false: false_,
-    null: null_,
+    true: 'true',
+    false: 'false',
+    null: 'null',
 })
 
 const value = () => createValue(value)
