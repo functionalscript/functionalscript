@@ -78,6 +78,7 @@ export type IdToken = {
 /** @internal */
 export type _OperatorToken =|
     { readonly kind: '{' | '}' | ':' | ',' | '[' | ']' } |
+    { readonly kind: ';' } |
     { readonly kind: '.' | '=' } |
     { readonly kind: '(' | ')' } |
     { readonly kind: '==' | '!=' | '===' | '!==' | '>' | '>=' | '<' | '<=' } |

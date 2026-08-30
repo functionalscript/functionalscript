@@ -91,7 +91,7 @@ const splitEof = tokenList => {
  */
 export const _tokenKindNames = /** @type {const} */ ([
     'true', 'false', 'null', 'undefined',
-    '{', '}', ':', ',', '[', ']', '.', '=',
+    '{', '}', ':', ',', '[', ']', '.', '=', ';',
     'string', 'number', 'error', 'id', 'bigint',
     'ws', 'nl', '//', '/*',
 ])
@@ -183,16 +183,35 @@ const trivia = repeat0Plus({
 })
 
 /**
- * Trivia that stops at a newline, for the one place a newline is not trivia:
- * the statement separator. `import`/`const` statements must be newline-separated
- * — the `'nl'` state in the hand-written parser — so a rule that swallowed
- * newlines as trivia everywhere could not express it.
+ * Trivia that stops at a newline, for the places a newline is not trivia: a
+ * statement ends at one, so a rule that swallowed newlines as trivia everywhere
+ * could not express the terminator.
  */
-const statementEnd = () => [
-    repeat0Plus({ ws: sym('ws'), lineComment: sym('//'), blockComment: sym('/*') }),
-    sym('nl'),
-    trivia,
-]
+const lineTrivia = repeat0Plus({
+    ws: sym('ws'),
+    lineComment: sym('//'),
+    blockComment: sym('/*'),
+})
+
+/**
+ * What ends a statement: a `;`, or, absent one, the first newline. DataJS
+ * requires the `;` and FunctionalScript must accept every DataJS document, so
+ * both are terminators here — the newline is the one the hand-written
+ * parser's `'nl'` state enforced, the semicolon the one `spec/README.md`'s
+ * module-structure rule adds for the inclusion.
+ *
+ * The `;` branch reaches through *full* trivia, newlines included: DataJS
+ * whitespace is insignificant between any two tokens, so `export default 1`
+ * and its `;` may sit on different lines. A newline is a terminator only when
+ * no `;` follows with just trivia between — which the branch order expresses,
+ * the semicolon branch rewinding to the newline one when it finds no `;`.
+ * One terminator each: a second `;` is not an empty statement, it is a stray
+ * token the next rule rejects.
+ */
+const statementEnd = {
+    semicolon: () => [trivia, sym(';'), trivia],
+    newline: () => [lineTrivia, sym('nl'), trivia],
+}
 
 /**
  * Every word that may stand where an identifier is expected: a plain `id` and
@@ -308,6 +327,10 @@ const djsModule = () => [
     repeat0Plus([importStatement, statementEnd]),
     repeat0Plus([constStatement, statementEnd]),
     exportStatement,
+    // the export statement may end with a `;` too — reached through full
+    // trivia, like every terminator — but needs none: the end of input
+    // closes it.
+    { semicolon: () => [trivia, sym(';')], none: [] },
     trivia,
     eof,
 ]
