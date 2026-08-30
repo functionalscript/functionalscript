@@ -52,21 +52,23 @@ A rule that could say what to build would remove all three.
 
 #### 1. The protocol
 
-A transformer is a fold over one rule invocation's children:
+A transformer is a fold over one rule invocation's children, in the shape this
+repository already packages a fold as data (§12):
 
 ```ts
 type RuleTransformer<S, T> = {
-    readonly create: (tag: AstTag) => S
-    readonly update: (s: S) => (tag: AstTag) => (child: unknown) => S
-    readonly end: (s: S) => Result<T, string>
+    readonly init: S
+    readonly update: (state: S, tag: AstTag, child: unknown) => S
+    readonly end: (state: S) => Result<T, string>
 }
 ```
 
-- **`create`** starts a rule invocation, before its first symbol is consumed.
-  It receives the tag this invocation was *entered under* — exactly the
-  `AstTag` the AST would have stamped on its node, and `undefined` where the
-  parent is not a variant. It takes no child, so a rule that matches empty is
-  not a special case: it gets `create` then `end`, with no `update` in between.
+- **`init`** is the state a rule invocation starts from, before its first symbol
+  is consumed. A plain value, and that is the whole point: `() => S` adds a
+  thunk that buys nothing, and a `create(first)` that starts from the first
+  child is strictly *weaker* — it is `v => update(init, undefined, v)`, while
+  nothing recovers `init` from it, so a rule that matches empty could not be
+  expressed at all. With `init` a value, an empty match is just `end(init)`.
 - **`update`** folds in one child: a sequence item, a repetition round, a
   variant's chosen branch, or — for a terminal rule — the matched leaf. `tag`
   is the child's tag, which names the branch when this rule is a variant and is
@@ -79,36 +81,39 @@ type RuleTransformer<S, T> = {
   *value*, not a control-flow event — it never changes what the grammar accepts
   (§6).
 
-Transformers are supplied as a map keyed by **data**-`RuleSet` rule name. That
-map holds transformers whose states are unrelated types, and `S` must not escape
-into it — `RuleTransformer<number[], X>` is not assignable to
-`RuleTransformer<unknown, X>` under `strictFunctionTypes`, and neither `any` nor
-a cast is an acceptable answer here.
+**Data parameters are uncurried.** `state`, `tag` and `child` are all data, and
+currying data invites a partial application that captures an accumulator — the
+reason `StateScan` was uncurried in
+[#763](https://github.com/functionalscript/functionalscript/pull/763), and what
+[uncurry-accumulator-types](../../types/function/todo/uncurry-accumulator-types.md)
+is generalizing. `Accumulator` and flow's `Transducer` are both spelled this
+way (§12).
 
-It does not have to escape. `fold` binds `S` inside one generic function and
-returns a state that **carries its own fold**:
+Transformers are supplied as a map keyed by **data**-`RuleSet` rule name, which
+means one map holds transformers whose states are unrelated types. `S` is
+therefore **existential** in the map, and its upper bound is written by putting
+`unknown` in every output position and `never` in every input one:
 
 ```ts
-type TransformerState<T> = {
-    readonly update: (tag: AstTag) => (child: unknown) => TransformerState<T>
-    readonly end: () => Result<T, string>
+type Transformer<T> = {
+    readonly init: unknown
+    readonly update: (state: never, tag: AstTag, child: unknown) => unknown
+    readonly end: (state: never) => Result<T, string>
 }
-type Transformer<T> = (tag: AstTag) => TransformerState<T>
 type TransformerMap = StringMap<Transformer<unknown>>
-
-const fold: <S, T>(t: RuleTransformer<S, T>) => Transformer<T>
 ```
 
-`S` is captured by those closures instead of being named by the map, so a state
-can only ever reach the transformer that produced it — it *is* that transformer,
-partially applied. `Transformer<T>` is covariant in `T`, so a
-`Transformer<string>` sits in a `TransformerMap` unchanged. No existential
-encoding, no `any`, no cast.
+Every `RuleTransformer<S, T>` is assignable to `Transformer<T>` whatever `S` is,
+and `Transformer<T>` stays covariant in `T` — `T` appears only in an output —
+so a `Transformer<string>` sits in a `TransformerMap` unchanged. No `any`, and
+no cast to *build* a map. The bound cannot be *called*, which is correct: the
+engine eliminates the existential in one documented place (§5), where a state is
+handed back to the transformer that produced it.
 
-`RuleTransformer<S, T>` stays the shape an author writes; `Transformer<T>` is
-the shape a backend holds. The engine's own default (§3) is written directly in
-the erased shape, because it has a state of its own to keep and nothing to
-hide.
+The state stays **plain data**, which is what
+[`todo/flow.md`](../../../todo/flow.md) requires of an operator and what §4.2
+needs: a parser state that is a closure cannot be serialized, checkpointed, or
+shipped to another process, and a resumable streaming parse is the point.
 
 A rule with no entry is not transformed — it builds its AST node exactly as
 today. That is what makes adoption incremental: a grammar with an empty map
@@ -117,8 +122,8 @@ behaves bit for bit as it does now.
 Two invariants the engine owes the author, both checkable:
 
 - **`update` is called once per child, in input order, and `end` once per
-  successful invocation.** An invocation the parser abandons gets `create` and
-  any `update`s it reached, and never `end`; children that already succeeded
+  successful invocation.** An invocation the parser abandons gets any `update`s
+  it reached and never `end`; children that already succeeded
   inside it did get their own `end`, and their values are dropped with the
   frame. An invocation whose child refused gets no further `update` and no
   `end` either: the refusal takes the place of its state (§6).
@@ -128,14 +133,14 @@ Two invariants the engine owes the author, both checkable:
 
 #### 2. What the events are, per rule kind
 
-| Data rule kind  | Events                                                       |
+| Data rule kind  | Events, starting from `init`                                  |
 |-----------------|--------------------------------------------------------------|
-| `TerminalRange` | `create(tag)`, `update(s)(undefined)(leaf)`, `end`            |
-| `TerminalRange` matching EOF | `create(tag)`, `end` — no child                 |
-| `Sequence`      | `create(tag)`, one `update(s)(undefined)(child)` per item, `end` |
-| `Repeat`        | `create(tag)`, one `update(s)(undefined)(item)` per round — none if it matched zero — `end` |
-| `Variant`       | `create(tag)`, exactly one `update(s)(branchTag)(value)`, `end` |
-| empty `Sequence`| `create(tag)`, `end`                                         |
+| `TerminalRange` | one `update(s, undefined, leaf)`, then `end`                  |
+| `TerminalRange` matching EOF | `end` — no child                                 |
+| `Sequence`      | one `update(s, undefined, child)` per item, then `end`        |
+| `Repeat`        | one `update(s, undefined, item)` per round — none if it matched zero — then `end` |
+| `Variant`       | exactly one `update(s, branchTag, value)`, then `end`         |
+| empty `Sequence`| `end` alone                                                   |
 
 The leaf is the backend's own: `CodePoint` under `fjs/bnf/ll1`,
 `CodePointMeta<T>` under `fjs/bnf/descent`, which is where per-symbol metadata
@@ -157,48 +162,63 @@ by rule name, so a transformer always knows which rule it is folding — the
 "key observation" the previous design had to work around by walking the grammar
 and the AST in lockstep.
 
-**Both tags are needed, and neither is redundant.** `create`'s tag is the
-role *this* invocation plays in its parent; `update`'s tag is which branch a
-variant took. A variant whose branches are distinct rules rarely needs the
-latter — in the data form each branch is a distinct rule name, so distinct
-branches already have distinct transformers — but branches that *share* a rule
-(`option(x)`'s `none` is the shared empty sequence) are distinguishable only
-by the tag. Neither costs an allocation: the engine holds both at the moment
-it delivers them.
+**The tag rides on the edge, not on the invocation.** A tag says which branch of
+a *variant* was taken, so it is something the variant produced, not something
+its branch is. `update`'s `tag` parameter is that edge, and it is the only place
+a tag is delivered — an `init` that is a plain value has nowhere to receive one,
+which is the right answer rather than a limitation.
 
-#### 3. The AST is the default transformer
+A rule therefore does not learn the tag it was *entered under*, and almost never
+wants to: in the data form each branch of a variant is a distinct rule name with
+its own transformer, so branches are already told apart by which transformer
+runs. What needs the tag is a variant whose branches *share* a rule —
+`option(x)`'s `none` is the shared empty sequence — and there the variant's own
+transformer reads it off its one `update`. The AST's habit of stamping the tag
+on the branch's node is an encoding of the same fact, discussed in §3.
 
-The default is not a parallel code path; it is an instance of the protocol:
+#### 3. What an unmapped rule builds
+
+Its AST node, exactly as today — and the node builder is an ordinary
+transformer, so the AST is one instance of this protocol rather than a rival to
+it:
 
 ```ts
-const astTransformer: Transformer<Ast<unknown>> = tag => {
-    const state = (children: List<unknown>): TransformerState<Ast<unknown>> => ({
-        update: () => child => state(concat(children)([child])),
-        end: () => ok({ tag, sequence: toArray(children) }),
-    })
-    return state(null)
+const astTransformer: RuleTransformer<List<unknown>, Ast<unknown>> = {
+    init: null,
+    update: (children, _, child) => concat(children)([child]),
+    end: children => ok({ tag: undefined, sequence: toArray(children) }),
 }
 ```
 
-It is written in the erased shape (§1) rather than through `fold`, because it
-has a state of its own to keep and nothing to hide. Its node is
-`Ast<unknown>`: a child of an *untransformed* rule may itself be transformed, so
-what a node holds is no longer only nodes and leaves. Children accumulate as a
-`List`, which is also a small improvement on today's sequence frame — that one
-spreads an array per item.
+Its node is `Ast<unknown>`, because a child of an unmapped rule may itself be
+transformed, so what a node holds is no longer only nodes and leaves. Children
+accumulate as a `List`, which is also a small improvement on today's sequence
+frame — that one spreads an array per item.
 
-So "the AST is one contract" ([`../README.md`](../README.md#the-ast-is-one-contract))
-survives by construction, and the `descentEquivalence` proof group in
-`../ll1/proof.f.mjs` becomes the conformance test for the default map.
+**The tag is the one thing this transformer cannot supply, and the engine keeps
+supplying it.** A node's tag names the branch of the *enclosing variant* that
+reached it (§2), and a variant contributes no node of its own: both backends
+pass the branch tag *down* at rule entry and let the branch's node be the
+variant's, so `ll1` does not even allocate a frame for a variant — it retargets
+the current task. Since `init` is a value, a transformer has nowhere to receive
+that tag, and the alternatives both cost something real: give the variant its
+own default fold that re-tags its one child (a frame and a second node
+allocation per variant invocation, on the path that is supposed to be
+unchanged), or hand the tag to `init` and lose everything §1 gains from it.
 
-One rule kind stays special-cased, deliberately. A **variant** contributes no
-node of its own today: both backends pass the branch tag *down* and let the
-branch's node be the variant's, so no node is allocated for the variant itself
-and `ll1` does not even need a frame — it retargets the current task at the
-branch. That stays exactly as it is when the variant has no transformer. A
-variant *with* a transformer gets a frame of its own (`descent` already has one
-for trying branches; `ll1` gains one) — an addition to the AST model, not a
-reimplementation of it — and pays for it only where it is used.
+So the tag stays the **engine's** business for unmapped rules. `astTransformer`
+above is the *specification* of what an unmapped rule builds — its children, in
+order, in one node — and the engine implements it natively so that an
+untransformed parse still allocates exactly what it allocates today, a variant
+still owning neither node nor frame. "The AST is one contract"
+([`../README.md`](../README.md#the-ast-is-one-contract)) is then checkable two
+ways: the `descentEquivalence` proof group in `../ll1/proof.f.mjs` pins the
+empty-map parse unchanged, and a proof that the transformer above produces the
+same children pins the specification to the implementation.
+
+A variant *with* a transformer does get a frame (`descent` already has one for
+trying branches; `ll1` gains one) and its one tagged `update` — an addition to
+the AST model, not a reimplementation of it, paid for only where it is used.
 
 A transformed value sitting inside an untransformed parent is an opaque child
 of that parent's node, so `AstSequence<L>` widens to admit it. Such a child
@@ -229,11 +249,14 @@ its rule quadratic in the number of children — the exact trap `descent`'s
 authors never touch it.
 
 **4.2 Input-level.** [43](./043-stateful-parser.md) proposes
-`init`/`append`/`end` over input chunks. It composes with this protocol
-directly, because the parser state is a value: the frame stack, each frame's
-transformer state, and the cursor. Nothing here is mutable, so the state can be
-snapshotted, resumed, or forked — which is also what an incremental re-parse
-would need later.
+`init`/`append`/`end` over input chunks — the same trio this protocol uses, one
+level up, and the shape `fjs/crypto/sha2` already ships (§12). It composes with
+this protocol directly, because the parser state is a value: the frame stack,
+each frame's `(rule name, state)`, and the cursor. Nothing here is mutable and
+nothing is a closure, so the state can be snapshotted, resumed, forked — or
+serialized and resumed elsewhere, which is the property
+[`todo/flow.md`](../../../todo/flow.md) keeps operator state as plain data for,
+and what an incremental re-parse would need later.
 
 Bounded-memory input streaming is a **backend property, not a protocol
 property**, and only `fjs/bnf/ll1` has it: it never backtracks, so a consumed
@@ -278,13 +301,20 @@ from [`../matcher/`](../matcher/). The change is to replace that
 `AstSequence` with the invocation's transformer state and those constructor
 calls with `create`/`update`/`end`. So:
 
-- `RuleTransformer`, `Transformer`, `TransformerState` and `TransformerMap` go
-  in `fjs/bnf/matcher/types.ts`, `fold` and `astTransformer` in its
-  `module.f.mjs`;
+- `RuleTransformer`, `Transformer` and `TransformerMap` go in
+  `fjs/bnf/matcher/types.ts`, `astTransformer` in its `module.f.mjs`;
 - each backend gains one entry point that takes a map (`transformRuleSet`
-  below), and its frames carry a transformer state where they carried an
+  below), and its frames carry `(rule name, state)` where they carried an
   `AstSequence`;
 - no third walk exists to desync from the other two.
+
+**Where the existential is eliminated.** A frame holds a state whose type the
+map has erased, so calling `update` on it is the one place a cast is needed — it
+is what "this state belongs to this transformer" means, and the frame carrying
+the rule name is what makes the claim checkable by eye. Keeping the *name* in
+the frame rather than a closure is also what keeps a suspended parse plain data:
+`(rule name, state)` pairs and a cursor serialize, so §4.2's checkpoint is a
+real one.
 
 That is the answer to what the previous design called "parser-neutral
 evaluation" (its `Semantics<R>` algebra). The algebra is right; it belongs in
@@ -343,7 +373,7 @@ not negotiable:
 
 Refusal is `end`-only, on purpose. Anything a child could reject can be recorded
 in the state and reported when the rule finishes, so `update` stays a plain
-`S => tag => child => S` and there is one place to look for a rejection. The
+`(state, tag, child) => S` and there is one place to look for a rejection. The
 cost is that a refusal's *position* is the enclosing rule's, not the offending
 child's, unless the transformer kept the child's metadata (§7) — which the
 transformers that care already do.
@@ -416,8 +446,9 @@ type Transformers = { readonly[K in keyof Values]?: Transformer<Values[K]> }
 
 Every `end` is checked against the rule's declared output, and `_Output` (§5)
 reads the start rule's entry back out of the same map to type the parse's
-result. The state type is checked too — inside `fold`, where it is bound — and
-never appears in the map.
+result. Each transformer's own `S` is checked where it is written, against the
+`RuleTransformer<S, T>` it is written as; the map only ever sees the erased
+`Transformer<T>`.
 
 `update`'s `child` stays `unknown`. The child *names* are known only at runtime
 (the `RuleSet` is built by `toData`, so TS never sees the literal), and an
@@ -443,7 +474,8 @@ which is also where the O(1)-`update` discipline is enforced once:
 
 - `map(f)` — a transformer from a plain function of the whole child list, for
   small fixed sequences: `map(([, inner]) => inner)`. This is the
-  `reduce`-over-children shape of the previous design, recovered as sugar.
+  `reduce`-over-children shape of the previous design, recovered as sugar, and
+  it is where `tryFold`'s relationship to this protocol is most visible (§12).
 - `tuple(f)` — like `map`, positionally typed for a `Sequence`.
 - `list()` — the identity fold for a `Repeat`: children in, array out, O(1) per
   item.
@@ -535,6 +567,57 @@ contract, the metadata monoid, and the flattening analysis. The first is
 optional (§8), the second is a helper (§7, §9), the third has shipped. What is
 left is one protocol and its two backends.
 
+#### 12. This is the repository's fold-as-data shape
+
+`init`/`update`/`end` is not a new invention here. It is already shipped four
+times and designed a fifth, and §1 is deliberately the same shape rather than a
+sibling of it:
+
+| Where | Shape |
+|---|---|
+| [`fjs/crypto/sha2/types.ts`](../../crypto/sha2/types.ts) | `Sha2 = { init: State, append: Fold<Vec, State>, end: (state) => Vec }` |
+| [`fjs/types/list/types.ts`](../../types/list/types.ts) | `Accumulator<I, T, R> = { init: T, update: (i, state) => Nullable<T>, end: (state) => R }`, driven by `tryFold` |
+| [`fjs/types/patricia_trie/types.ts`](../../types/patricia_trie/types.ts) | `{ push, end }` |
+| [`fjs/sul/types.ts`](../../sul/types.ts) | `Encode<S> = { push, end }` |
+| [`todo/flow.md`](../../../todo/flow.md) | `Transducer<I, S, O, A> = { init: Step, update: (state, item) => Step, end: (state) => Terminal }` — the universal operator |
+
+Around them sits the closure-form family in
+[`fjs/types/function/operator`](../../types/function/operator/types.ts) —
+`Fold<I, O>`, `Scan<I, O>`, `StateScan<I, S, O>` — with drivers `fold`,
+`tryFold`, `scan`, `stateScan`, `foldScan` in `fjs/types/list`.
+[recognizer-backend](./recognizer-backend.md) already tells this issue's
+neighbours to use that family as the streaming contract rather than inventing a
+type, and this protocol is that instruction taken literally: a rule transformer
+is an `Accumulator` whose item is a tagged child.
+
+Three deliberate differences, each with a reason:
+
+- **A refusal carries a reason.** `Accumulator`'s `update` short-circuits with
+  `Nullable<T>` and flow's `Step` with `done`; neither says *why*, and
+  [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) wants a
+  refusal, not a silence. Hence `end: (state) => Result<T, string>` (§6).
+- **`update` takes a tag as well as an item.** The edge from a variant to its
+  branch carries information no other fold has to carry (§2).
+- **The state is existential in a map.** `Accumulator` and `Transducer` are each
+  used one at a time; a `TransformerMap` holds many with unrelated states, which
+  is what §1's erased `Transformer<T>` bound and §5's single elimination are
+  for.
+
+Two things this alignment hands to whoever implements it. `todo/flow.md`'s
+"explicit state `S`, not self-returning closures — the closure form is
+derivable, not canonical" is the decision §1 now follows, and its reasons
+(content-addressing, checkpointing, shipping to a remote engine) are exactly
+§4.2's. And **composition is flow.md's, not this issue's**: transducers are
+closed under composition, so chaining stages — `map(a)(b)`, fusing a tokenizer
+into a parser — belongs to that operator family, where
+[layered-parser](./layered-parser.md) already puts the `bytes → code-points →
+tokens → AST` cascade. A transformer map is one layer's semantics; the layers
+compose there.
+
+One inconsistency worth settling while the family is in view, and not by this
+issue alone: `Accumulator.update` is `(item, state)` and flow's `Transducer` is
+`(state, item)`. §1 follows flow's order, `state` first.
+
 ### Tasks
 
 Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machine
@@ -558,16 +641,19 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
 
 **Stage 1 — the protocol and `fjs/bnf/ll1`.**
 
-- [ ] Add `RuleTransformer`, `Transformer`, `TransformerState` and
-      `TransformerMap` to `fjs/bnf/matcher/types.ts`, and `fold` plus
-      `astTransformer` to `fjs/bnf/matcher/module.f.mjs`.
+- [ ] Add `RuleTransformer`, `Transformer` and `TransformerMap` to
+      `fjs/bnf/matcher/types.ts`, and `astTransformer` to its `module.f.mjs`.
 - [ ] Replace the `AstSequence` in `fjs/bnf/ll1`'s frames with the invocation's
-      transformer state, and its `mrSuccess` calls with `create`/`update`/`end`.
-      A frame stops carrying a `tag`: the tag is consumed by `create` when the
-      frame is pushed, not when the node is built.
+      `(rule name, state)`, and its `mrSuccess` calls with `update`/`end`. The
+      frame keeps its `tag`, which stays the engine's own for unmapped rules
+      (§3), and the one cast that eliminates the state's existential lives at
+      the `update` call.
 - [ ] Add a variant frame — `ll1` has none today, because a variant only
       retargets the current task — and push it **only** for a variant the map
       names, so the untransformed path keeps costing neither a frame nor a node.
+- [ ] Prove `astTransformer` (§3) folds the same children the engine's native
+      path builds a node from, so the specification and the implementation of
+      the default cannot drift.
 - [ ] Add `transformRuleSet` (§5) and check every map key against the `RuleSet`
       at construction, throwing rather than parsing.
 - [ ] Re-express `parserRuleSet` as that machine with an empty map, and keep its
@@ -612,6 +698,9 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
   error — the rule name the engine already knows, plus a position — would make
   a transformer's refusal as diagnosable as a syntactic failure. Decide with
   stage 1, since the engine is what would attach the rule name.
+- **`(state, item)` or `(item, state)` (§12).** The two shipped folds disagree.
+  §1 follows `todo/flow.md`; whoever unifies them may move it, and this issue
+  should not settle a repository-wide argument on its own.
 - **`partial` (§4.3).** Is exposing the start rule's state the right API, or
   should draining be a transformer-level concept? It is the only frame whose
   liveness is guaranteed, which argues for keeping it as narrow as written.
@@ -631,6 +720,17 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
 - [43. Stateful parser](./043-stateful-parser.md) — `init`/`append`/`end` on the
   input side; the same three-event shape at the other end of the pipeline, and
   what §4.2 needs.
+- [`todo/flow.md`](../../../todo/flow.md) — the universal `Transducer` operator
+  this protocol is shaped after (§12), where operator composition and stage
+  fusion belong.
+- [`fjs/types/list/types.ts`](../../types/list/types.ts) — `Accumulator` and
+  `tryFold`, the shipped fold-as-data and its driver.
+- [`fjs/crypto/sha2`](../../crypto/sha2/module.f.mjs) — `init`/`append`/`end`
+  over a stream, the same trio one level up.
+- [uncurry-accumulator-types](../../types/function/todo/uncurry-accumulator-types.md)
+  — why §1's data parameters are uncurried.
+- [recognizer-backend](./recognizer-backend.md) — "use the existing `Scan`
+  family as the streaming contract (no new type)", which §12 follows.
 - [i165](./layered-parser.md) — layered parser. §7 is the mechanism it wanted
   for carrying a lexeme between layers; each layer is one grammar plus one
   transformer map.
