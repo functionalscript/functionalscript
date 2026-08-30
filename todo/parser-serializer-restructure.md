@@ -378,8 +378,11 @@ combined marker would encode a redundant fact.
   FunctionalScript accepts identifiers that do not start with `$`, so it needs
   the restriction for itself; DataJS no longer relies on inheriting it, its
   `$`-leading names making the collision unreachable.
-- The moved parser's separator rule changes from newline to `';'` (the moved
-  tokenizer's operator vocabulary gains `;`).
+- The moved parser's separator rule narrows to `';'` only. The shipped
+  `fjs/djs` already accepts `;` alongside the newline (its tokenizer's
+  operator vocabulary carries `;`), so stage 5's change is dropping the
+  newline terminator, not introducing the semicolon — the breaking half of
+  the two, which is why it waits for the migration this stage owns.
 - **Whether FunctionalScript takes DataJS's positional whitespace rule is a
   stage-5 decision, and DataJS does not depend on the answer.** DataJS requires
   *more* whitespace than a merging-based rule would, so every DataJS document
