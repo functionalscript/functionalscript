@@ -82,7 +82,20 @@ Every new `.f.mjs` module ships a co-located `proof.f.mjs` with **100% proof
 coverage** — every export called, every line executed, every branch taken.
 Values are immutable (no in-place mutation, no `.push`/`Map#set`/index
 assignment), there is no `try`/`catch` and no regular expressions, and types are
-written in JSDoc with a sibling `types.ts` for a type-level API. No authored
+written in JSDoc with a sibling `types.ts` for a type-level API.
+
+**One realm, one prototype chain.** FunctionalScript code never handles objects
+from another realm — a `node:vm` context, an iframe, a worker — and never
+replaces an object's prototype: `Object.setPrototypeOf`,
+`Reflect.setPrototypeOf` and the `__proto__` setter are out, and `__proto__` as
+a data member is written `{ ['__proto__']: v }`. The two halves buy the same
+thing, which is why they are one rule: every value an `.f.mjs` function sees was
+built by this realm's constructors, so `instanceof` and the prototype chain are
+reliable. **Detect an array with `a instanceof Array`** — that is the spelling
+FunctionalScript uses, and `Array.isArray` is not a more careful version of it
+here, only a longer one guarding against values this rule already excludes. A
+boundary that does take foreign values is a host boundary — it belongs in a thin
+`.mjs` that converts them before any `.f.mjs` sees them. No authored
 `.mjs` anywhere in the repository — `fjs/` or not — may contain a **file-scope**
 JSDoc `@typedef`; function-local typedefs are allowed. Named types live in
 `types.ts` (the public declaration closure) or an optional `private.ts`.

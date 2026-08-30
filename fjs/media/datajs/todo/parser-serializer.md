@@ -233,43 +233,6 @@ container dispatch, or a shared array short-circuits to nothing and the
 reference is lost), a key seam, and the entry-enumeration seam of §1 above.
 Stage 4 is the consumer 157 §2 was waiting for.
 
-**A fifth thing has to change, and it is not one of the four: container
-classification.** `treeSerialize` dispatches with `value instanceof Array`, and
-`isObject` excludes arrays with `fjs/types/array`'s `isArray`, which is also
-`instanceof Array`. `instanceof` asks about the prototype chain, so an array
-whose chain does not reach *this realm's* `Array.prototype` is neither an array
-nor an object to that dispatch — it lands on the object path and serializes as
-`{"0":1,"1":2}`, a different value, silently.
-
-Measured, with **no prototype manipulation anywhere** — a cross-realm array,
-which is what makes this reachable rather than hypothetical:
-
-```js
-const a = vm.runInNewContext('[1,2]')
-a instanceof Array   // false
-Array.isArray(a)     // true
-isObject(a)          // true   → the object path
-Object.entries(a)    // [["0",1],["1",2]]
-```
-
-So the shared skeleton must classify containers with `Array.isArray`, which is
-prototype-independent. The two helpers cannot simply be inherited: both are
-`instanceof`-based today, and changing them is wider than this issue.
-
-The spec names three cases here — "a `null`-prototype object, a `null`-prototype
-array, or an `Array` subclass all serialize as their data, and read back
-ordinary" — and only some of them break `instanceof`. An `Array` **subclass**
-does not: its chain still reaches `Array.prototype`, so `instanceof` is `true`
-and that case is already correct. The **null-prototype** array does break it,
-but FunctionalScript forbids `Object.setPrototypeOf` and every other way of
-replacing an object's prototype, so no proof in this repository can construct
-one. The vector that carries this is therefore the **cross-realm** array, built
-with `node:vm` in a host-specific `.mjs` proof — which is what §3 of
-[`AGENTS.md`](../../../../AGENTS.md) reserves plain `.mjs` for. A caller outside
-FunctionalScript may still hand the serializer a null-prototype array, and
-`Array.isArray` covers it for free; it is the construction, not the case, that
-this repository cannot write.
-
 **Rejection is a `try*`, not a panic.** A serializer's input is caller-supplied
 and may legitimately be outside the data model, which is
 [`REVIEW.md`](../../../../REVIEW.md)'s first case — refused as a `try*`, never
@@ -337,10 +300,7 @@ the spec judges them independently and this module provides all three.
 - [ ] Reader proofs from the corpus, including both sharing directions.
 - [ ] Hoisting pass: occurrence counting by identity, cycle rejection,
       post-order naming.
-- [ ] Serializer over the shared walker of 157 §2, including the fifth change
-      that is not one of its four seams: classify containers with
-      `Array.isArray`, proved by a cross-realm array in a host-specific `.mjs`
-      proof — FunctionalScript cannot construct the null-prototype case.
+- [ ] Serializer over the shared walker of 157 §2.
 - [ ] Out-of-model rejection as a `try*`, descriptor-first so no accessor is
       invoked by the check that refuses it, with the attribute/enumerability
       line and the hole-vs-`undefined` distinction proved.
@@ -353,5 +313,5 @@ the spec judges them independently and this module provides all three.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. This issue implements it.
 - [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, the proof source. Land it first.
 - [self-contained tokenizer](../../json/todo/self-contained-tokenizer.md) — stage 3; 3b exports the scanners this reuses.
-- [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. Stage 4 is its second consumer, and needs a fifth change it does not list: prototype-independent container classification (§4).
+- [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. Stage 4 is its second consumer.
 - [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type; interacts with the optional index signature in §1.
