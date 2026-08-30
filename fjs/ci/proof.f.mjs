@@ -187,21 +187,28 @@ export const proof = {
         assert(hasRunInJob('node26', 'npm run ci-update')(gha), 'expected Node 26 workflow regeneration')
         assert(hasRunInJob('node26', 'git add -A && git diff --cached --exit-code')(gha), 'expected Node 26 generated-file drift check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
+        // `npm ci` belongs to the jobs that need what it installs, and to no
+        // others. The three Node jobs type-check, pack and run the suite under
+        // Node; `deno` and `bun` install through their own package managers.
+        for (const id of /** @type {const} */ (['node22', 'node24', 'node26'])) {
+            assert(hasRunInJob(id, 'npm ci')(gha), `expected npm ci in ${id}`)
+        }
         for (const id of /** @type {const} */ ([
+            'deno',
+            'bun',
+            // The six platform jobs run a *published* CLI against this tree,
+            // and the tree has nothing to install: no runtime dependency, and
+            // one `devDependency` that is types. `fjs/ci/node/proof.f.mjs`
+            // holds the builder to that; this holds the workflow to it.
             'ubuntu-intel',
             'ubuntu-arm',
             'macos-intel',
             'macos-arm',
             'windows-intel',
             'windows-arm',
-            'node22',
-            'node24',
-            'node26',
         ])) {
-            assert(hasRunInJob(id, 'npm ci')(gha), `expected npm ci in ${id}`)
+            assert(!hasRunInJob(id, 'npm ci')(gha), `unexpected npm ci in ${id}`)
         }
-        assert(!hasRunInJob('deno', 'npm ci')(gha), 'unexpected npm ci in deno job')
-        assert(!hasRunInJob('bun', 'npm ci')(gha), 'unexpected npm ci in bun job')
     },
     rust: () => {
         assert(hasRun('cargo')(run(true)), 'expected Rust steps')

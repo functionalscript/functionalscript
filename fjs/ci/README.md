@@ -179,8 +179,12 @@ evaluated for real, by the job that uses it.
 
 ### Expected package scripts
 
-The generated platform jobs run `npm ci`, install the pinned FunctionalScript
-package globally, and run `fjs test`. Those six are now the only place the
+The generated platform jobs install the pinned FunctionalScript package globally
+and run `fjs test`. They do **not** run `npm ci`: they exercise the *published*
+CLI against this working tree, and the tree has nothing to install — no runtime
+dependency at all, and one `devDependency` that is types. The compiler used to
+arrive that way and now comes from a flake, which left the step installing a
+directory nothing opens. Those six are now the only place the
 published CLI is exercised: no canonical Node job does, and `deno` and `bun` both
 stopped. Every canonical job runs on Ubuntu ARM, and all but `package-check`
 through a flake:

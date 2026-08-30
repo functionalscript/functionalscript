@@ -34,18 +34,6 @@ export const packageJobId = jobId(node.default)
 const installNode = v =>
     uses('actions/setup-node', { 'node-version': v })
 
-/** @type {(v: string) => readonly MetaStep[]} */
-const nodeInstall = v => [
-    install(installNode(v)),
-    test({ run: 'npm ci' }),
-]
-
-/** @type {(version: string) => (extra: readonly MetaStep[]) => readonly MetaStep[]} */
-export const basicNode = version => extra => [
-    ...nodeInstall(version),
-    ...extra,
-]
-
 /** @type {(version: string) => MetaStep} */
 const fjsGlobalInstall = version =>
     install({ run: `npm install -g functionalscript@${version}` })
@@ -84,9 +72,26 @@ const nodeVersionStep = (shell, version) =>
 const tscVersionStep = nixVersionStep(
     nixShell, 'tsc --version', `Version ${typescript.version}`)
 
-/** @type {(version: string) => readonly MetaStep[]} */
+/**
+ * The platform matrix's Node half: install the pinned Node, install a published
+ * FunctionalScript globally, run the suite with it.
+ *
+ * No `npm ci`. These six jobs exercise the *published* CLI against this working
+ * tree, and the tree has no runtime dependency to install — `package.json`
+ * declares none, and its one `devDependency` is `@types/node`, which is types
+ * and so is never loaded by anything running here. The step used to bring the
+ * compiler too; that moved to the flakes, and what was left installed a
+ * directory nothing opens.
+ *
+ * The Node jobs still run `npm ci`, inside their shells, because they are the
+ * ones that type-check, pack and publish — and because `npm ci` is itself worth
+ * exercising once against the lockfile. Six more copies of it on six runner
+ * images were not adding a seventh thing to that.
+ *
+ * @type {(version: string) => readonly MetaStep[]}
+ */
 export const platformNodeSteps = version => [
-    ...nodeInstall(node.default),
+    install(installNode(node.default)),
     fjsGlobalInstall(version),
     test({ run: 'fjs test' }),
 ]
