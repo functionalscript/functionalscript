@@ -619,7 +619,15 @@ assume:
 
 `object` never sees a quote, an escape, or a space *in its members* — each child
 rule's effective value is what flows up, so the key is decoded and the value is
-built. No AST node is allocated anywhere on this path.
+built.
+
+**What this saves is the tree, not every node.** A partial map like this one
+leaves punctuation terminals and the grammar's anonymous rules untransformed, so
+each of those still builds its own node (§3) — the very next paragraph is about
+one of them. What no longer happens is the O(*n*) part: a mapped rule builds no
+node, and the nodes its unmapped children built are dropped as soon as it folds
+them, so nothing accumulates into a root AST. Only a map that names every
+reachable rule — the recognizer below — allocates no node at all.
 
 **But `object` does see its own braces, and that is the design's sharpest
 ergonomic cost.** Every direct child reaches the parent: a punctuation rule with
