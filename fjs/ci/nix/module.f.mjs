@@ -312,26 +312,45 @@ export const flakeText = job =>
  * `exec` replaces the shell, so the command's exit status is the script's and
  * no wrapper process sits between CI and the failure.
  *
- * The two flags live here rather than in every step. `--no-write-lock-file`
- * keeps the invocation read-only against the checkout: Nix otherwise writes a
+ * The flags live here rather than in every step. `--no-write-lock-file` keeps
+ * the invocation read-only against the checkout: Nix otherwise writes a
  * `flake.lock` beside the flake it enters, and the pin in `flake.nix` already
  * determines every input, so that lock resolves nothing the flake did not
- * already say. `--quiet` drops Nix's own logging one level, from `info` to
- * `notice`, which removes the substitution chatter — `copying N paths`, started
- * at `lvlInfo`.
+ * already say.
  *
- * It leaves warnings, and that is arithmetic rather than a choice: the levels
- * run `lvlError = 0, lvlWarn = 1, lvlNotice = 2, lvlInfo = 3`, a message prints
- * when its level is at most the current verbosity, and `--quiet` decrements by
- * one from `lvlInfo`. So the "not writing modified lock file" warning at
- * `lvlWarn` survives one `--quiet`, and survives two; only a third, reaching
- * `lvlError`, would hide it — along with every real warning Nix has.
+ * **`--quiet` three times, and the count is arithmetic rather than emphasis.**
+ * Nix has one global verbosity integer. The levels run `lvlError = 0,
+ * lvlWarn = 1, lvlNotice = 2, lvlInfo = 3`; a message prints when its own level
+ * is at most the current verbosity; the default is `lvlInfo`; and each
+ * `--quiet` decrements by one, floored at `lvlError`. So one reaches `notice`
+ * and two reach `warn`, both of which still print a `lvlWarn` message. Only the
+ * third, reaching `lvlError`, does not.
+ *
+ * The first is what removes the substitution chatter — `copying N paths`,
+ * started at `lvlInfo`. The other two are spent on one warning, and it is worth
+ * being explicit about the cost: **no Nix warning of any kind reaches the log
+ * from here.** A failing substituter, a dirty tree, a deprecation notice — all
+ * gone, and only errors are left.
+ *
+ * What they buy is the removal of "not writing modified lock file", which these
+ * flakes emit on *every* step of every Nix job. It is not a defect to fix in
+ * passing: it is the exact consequence of `--no-write-lock-file` meeting a
+ * flake with no committed `flake.lock`, and the honest fix is to generate one.
+ * `../todo/generated-flake-lock.md` owns that, and taking it means taking these
+ * two flags back off in the same change — they pay for nothing else.
+ *
+ * Generating it rather than running `nix flake lock` is not a preference:
+ * `fjs ci` has to run on Windows, where Nix does not, so the input hashes have
+ * to be data in `../config/module.f.mjs` the way `bunSources` already is.
  *
  * `--quiet` is spelled long because Nix has no short form for it: `--verbose`
  * declares `.shortName = 'v'` and `--quiet` declares none, so `-q` is not an
- * option the `nix` CLI accepts. The one short flag nearby, `-Q`
- * (`--no-build-output`), belongs to `LegacyArgs` — `nix-build` and `nix-shell`,
- * not `nix develop`.
+ * option the `nix` CLI accepts, and neither is `-qqq`. There is no direct
+ * setter either — `--verbose`, `--quiet` and `--debug` are the whole of the
+ * logging category, verbosity is not a `nix.conf` setting, so `--option` cannot
+ * reach it. Repeating the long flag is the only spelling there is. The one
+ * short flag nearby, `-Q` (`--no-build-output`), belongs to `LegacyArgs` —
+ * `nix-build` and `nix-shell`, not `nix develop`.
  *
  * Neither flag reaches the command being run: `--command` execs it with stdio
  * inherited, so a job's own output is exactly what it was.
@@ -339,7 +358,7 @@ export const flakeText = job =>
  * @type {(id: string) => string}
  */
 export const runText = id => `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet ${flakePath(id)} --command "$@"
+exec nix develop --no-write-lock-file --quiet --quiet --quiet ${flakePath(id)} --command "$@"
 `
 
 /**

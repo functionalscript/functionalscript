@@ -394,11 +394,25 @@ export const proof = {
         // appearing in a comment.
         runText: () => {
             assertEq(runText(nixShell), `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet ./nix --command "$@"
+exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix --command "$@"
 `)
             assertEq(runText(plain.id), `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet ./nix/node24 --command "$@"
+exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix/node24 --command "$@"
 `)
+        },
+        // Three, and not two. Nix has one verbosity integer: the default is
+        // `lvlInfo` (3), each `--quiet` decrements it by one, and a message
+        // prints when its own level is at most the current value. The warning
+        // these silence is `lvlWarn` (1), so two would leave the dial at 1 and
+        // print it anyway. Dropping one of these is therefore not a tidy-up —
+        // it restores the noise while keeping the cost.
+        threeQuiets: () => {
+            for (const job of nixJobs) {
+                assertEq(
+                    runText(job.id).split(' --quiet').length - 1,
+                    3,
+                    `expected three --quiet in ${job.id}'s run script`)
+            }
         },
         // Two lines, and the second names a path. Omitting it would leave
         // `nix develop` defaulting to `.` — the *process* working directory,

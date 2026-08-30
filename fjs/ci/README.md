@@ -133,12 +133,13 @@ constant, so the two cannot drift.
 A generated `run` script sits beside every flake, and a workflow step reads as
 the command it runs — `./nix/run npm run cov` — rather than as a `nix develop`
 invocation repeated fifteen times. The script carries
-`--no-write-lock-file` (leave the checkout untouched) and `--quiet` (drop Nix's
-logging from `info` to `notice`, which removes the `copying N paths`
-substitution chatter without touching warnings, errors, or the command's own
-output). `-q` is not a spelling Nix accepts; see
-[nix/README.md](../../nix/README.md), which also covers why the executable bit
-is committed rather than generated.
+`--no-write-lock-file` (leave the checkout untouched) and `--quiet` three times.
+Nix's verbosity is one integer and each `--quiet` decrements it, so the first
+drops the `copying N paths` substitution chatter and the other two are what it
+takes to get below warnings — which silences every Nix warning, not just the
+`not writing modified lock file` one they were added for. `-q` is not a spelling
+Nix accepts; see [nix/README.md](../../nix/README.md), which has the arithmetic,
+the cost, and the `flake.lock` that would let two of them come back off.
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical job asserts, as its first command, that its own shell reports the version

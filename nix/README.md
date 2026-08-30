@@ -46,7 +46,7 @@ Two lines, and the only thing that differs between copies is the path:
 
 ```sh
 #!/bin/sh
-exec nix develop --no-write-lock-file --quiet ./nix --command "$@"
+exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix --command "$@"
 ```
 
 The path is written in because the generator knows it. Leaving it out would not
@@ -73,15 +73,32 @@ input, so that lock resolves nothing the flake did not already say. The root
 `.gitignore` still ignores those files, for a hand-run `nix develop` that omits
 the flag.
 
-`--quiet` drops Nix's own logging from `info` to `notice`. That removes the
-substitution chatter — the `copying N paths` lines that are most of what these
-steps print and none of what they check — while leaving warnings and errors,
-which sit below `notice`. Nix has no short spelling for it: `--verbose` declares
-a `v` short name and `--quiet` declares none, so `-q` is not an option the `nix`
-CLI accepts, and the `-Q` that exists is `--no-build-output` on
-`nix-build`/`nix-shell` rather than on this command. Neither flag reaches the
-command being run — `--command` execs it with stdio inherited — so a job's own
-output is unchanged.
+`--quiet` appears **three times**, and the count is arithmetic. Nix has one
+global verbosity integer: the levels run `lvlError = 0, lvlWarn = 1,
+lvlNotice = 2, lvlInfo = 3`, a message prints when its own level is at most the
+current value, the default is `lvlInfo`, and each `--quiet` decrements by one.
+So one reaches `notice` and two reach `warn` — both of which still print a
+warning — and only the third, reaching `error`, does not.
+
+The first removes the substitution chatter: the `copying N paths` lines, started
+at `lvlInfo`, which are most of what these steps print and none of what they
+check. The other two are spent silencing one warning, and the price is worth
+stating plainly: **no Nix warning of any kind reaches the log from here.** A
+failing substituter, a dirty tree, a deprecation notice — all gone, errors only.
+
+What they buy is "not writing modified lock file", which these flakes emit on
+every step of every Nix job. That warning is the exact consequence of
+`--no-write-lock-file` meeting a flake with no committed `flake.lock`, so the
+honest fix is to generate one and take these two flags back off —
+[`fjs/ci/todo/generated-flake-lock.md`](../fjs/ci/todo/generated-flake-lock.md)
+owns that.
+
+Nix has no shorter spelling. `--verbose` declares a `v` short name and `--quiet`
+declares none, so neither `-q` nor `-qqq` is an option the `nix` CLI accepts;
+the `-Q` that exists is `--no-build-output` on `nix-build`/`nix-shell` rather
+than on this command; and verbosity is not a `nix.conf` setting, so `--option`
+cannot reach it either. No flag reaches the command being run — `--command`
+execs it with stdio inherited — so a job's own output is unchanged.
 
 The generator writes the script's **content**; its executable bit is committed
 once and preserved by every regeneration, because `fs.writeFile` keeps the mode
