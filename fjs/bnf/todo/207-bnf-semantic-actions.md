@@ -473,10 +473,21 @@ So a refusal is a **value**. The refusing invocation's value is the error; the
 enclosing fold takes it in place of its state and stops calling `update`; it
 travels up the spine unchanged, so the first refusal is the one reported.
 Matching continues exactly as it would have, and a branch the parser abandons is
-dropped with its refusal like any other value it produced. Under `ll1` this is
-indistinguishable from aborting — nothing can be abandoned, so the first refusal
-is already final — but the rule belongs to the protocol, not to a backend, so
-both implement the same one.
+dropped with its refusal like any other value it produced.
+
+**`ll1` needs this rule too, for a reason of its own.** It is not merely
+inheriting a constraint from the backtracking backend: a refusal is not final
+when it happens even where nothing can be abandoned, because a *later sibling
+can still fail syntactically*. Match `[specialNumber, 'x']` on input where
+`specialNumber` matches, its transformer refuses, and the next symbol is not
+`x`: the sequence does not match, so the honest answer is a syntax failure with
+no value (§5), not a semantic error about a parse that never happened. Aborting
+at the refusing rule would report the refusal instead — and would leave
+`success` and the remainder with nothing to say. Carrying the refusal as a value
+gets both right: it is discarded with everything else the failed match produced.
+
+So the rule is the protocol's on both backends, and stage 1 exercises it rather
+than merely implementing it.
 
 #### 7. Metadata
 
@@ -829,11 +840,11 @@ issue alone: `Accumulator.update` is `(item, state)` and flow's `Transducer` is
 Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machine
 (it is, marginally) but because it is the one that settles the design:
 
-- It **never backtracks**, so no transformer ever runs on a branch it goes on to
-  abandon. Stage 1 therefore ships the whole protocol without depending on the
-  speculative-refusal rule (§6) being right: under `ll1` a refusal is final the
-  moment it happens, so the rule can be *implemented* there and only *exercised*
-  in stage 3.
+- It **never backtracks**, so no transformer runs on a branch the parse goes on
+  to abandon — which removes the *speculative* half of §6 from stage 1 without
+  removing the refusal rule itself: `ll1` still discards a refusal when a later
+  sibling fails syntactically (§6), so stage 1 exercises the rule on the case it
+  has, and stage 3 adds only the abandoned-branch case.
 - It is the backend that can promise **bounded-memory input streaming** (§4.2),
   which is what a payload-free recognizer over a stream needs and what the
   fold-level guarantee alone does not give.
@@ -867,7 +878,10 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
       current result type; the one place the machine's erasure is undone is
       where a value comes back out of it.
 - [ ] Carry a refusal as a value (§6): it replaces the fold's state, suppresses
-      the rest of its `update`s and its `end`, and propagates unchanged.
+      the rest of its `update`s and its `end`, and propagates unchanged — and
+      prove the case `ll1` has on its own, where a later sibling fails
+      syntactically after a refusal and the result is a syntax failure with no
+      value rather than a semantic error.
 - [ ] Skip `end` when the input runs out mid-rule, for every frame on the spine,
       so no transformer is ever handed a fold that is missing children (§5, §6).
       The value slot is `null` there, as it is for a rejected match; the engine's
