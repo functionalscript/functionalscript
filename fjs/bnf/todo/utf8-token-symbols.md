@@ -206,7 +206,7 @@ part of reviving this — not a requirement on it in the meantime.
       negative/too-wide alternative mapping results, BNF-domain overflow,
       determinism, EOF non-collision, and rejection of colliding alternative
       mappings.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 

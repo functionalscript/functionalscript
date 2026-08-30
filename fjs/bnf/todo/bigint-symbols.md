@@ -115,7 +115,7 @@ needed.
 - [ ] Use bigint-aware JSON parse/serialize for serialized BNF data.
 - [ ] Add proofs for EOF, ordinary minimum/maximum values, ranges, complements,
       range-map lookup/merge, and one-time logical EOF behavior.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 

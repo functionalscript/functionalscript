@@ -162,7 +162,7 @@ Playwright bridge.
       [Throw tests](../README.md#throw-tests).
 - [ ] Migrate the `proof.ts` siblings from A back into `proof.f.mjs` using the new marker, and
       delete the now-empty `proof.ts` files.
-- [ ] Confirm `fjs t` proofs pass with full branch coverage and `npx tsc` is clean.
+- [ ] Confirm `fjs t` proofs pass with full branch coverage and `tsc` is clean.
 
 ### Related
 

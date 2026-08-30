@@ -51,7 +51,7 @@ Route `:703` (`ParseStringState`) and `:720` (`ParseEscapeCharState`) through
 ### Tasks
 
 - [ ] Add the two helpers; replace the four inline copies.
-- [ ] `npx tsc`, `fjs t`; tokenizer proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; tokenizer proofs pass unchanged.
 
 ### Related
 

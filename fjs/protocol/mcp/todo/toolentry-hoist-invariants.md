@@ -46,7 +46,7 @@ the *entry/registry*, not on the *request*, and the code should say so.
 ### Proposal
 
 Bind both values at construction scope. Verified to typecheck cleanly with
-`npx tsc`:
+`tsc`:
 
 ```ts
 export const toolEntry = <T extends Type, O extends Operation>(
@@ -98,7 +98,7 @@ TS2589), but they move to construction scope where they run once.
       `fromRegistry`'s construction scope.
 - [ ] Add a comment on the remaining casts citing TS2589, mirroring
       `fjs/rtti/parse/module.f.mjs:164`.
-- [ ] `npx tsc` clean; `fjs t` passes (`fjs/protocol/mcp/proof.f.mjs`, `fjs/mcp/proof.f.mjs`).
+- [ ] `tsc` clean; `fjs t` passes (`fjs/protocol/mcp/proof.f.mjs`, `fjs/mcp/proof.f.mjs`).
 
 ### Related
 

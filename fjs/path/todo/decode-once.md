@@ -70,4 +70,4 @@ visibly odd one out. No behavior change.
       table above, and the entry points through `parts`.
 - [ ] Check the result: `r !== ''` on a decoded root appears nowhere outside
       `isRooted`.
-- [ ] `npx tsc`, `fjs t`; the path proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; the path proofs pass unchanged.

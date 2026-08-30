@@ -39,7 +39,7 @@ utf16 work, land that first and fold this in.
 - [ ] Name the flag constants once; rewrite `codePointToUtf8`'s error branch
       and `utf8StateToError` in terms of them.
 - [ ] Cross-link the constants and the README table.
-- [ ] `npx tsc`, `fjs t`; proofs must pass unchanged.
+- [ ] `tsc`, `fjs t`; proofs must pass unchanged.
 
 ### Related
 

@@ -168,7 +168,7 @@ new module boundary and final rule discriminants before implementation starts.
       Unicode proofs cover string/code-point conversion and boundaries.
 - [ ] Document the boundary: `bnf` is generic; `bnf/unicode` and `bnf/byte` adapt
       concrete alphabets to generic BNF symbols.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 

@@ -273,7 +273,7 @@ where it lands.
       observable.
 - [ ] Prefix the implementing PR's CHANGELOG entry with `**BREAKING CHANGES:**`
       (`AGENTS.md` §8.4) — see "This is a breaking change" above.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

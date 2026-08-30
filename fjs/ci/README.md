@@ -184,14 +184,17 @@ through a flake:
 - Node 22 runs `npm ci` and `node --test` through its generated flake.
 - Node 24 runs the same pair through its own flake — one builder emits both
   jobs, which differ only in the version they name.
-- Node 26 runs `npm ci`, `npx tsc`, `npm run cov`, `npm pack` and `npm run ci-update`
+- Node 26 runs `npm ci`, `tsc`, `npm run cov`, `npm pack` and `npm run ci-update`
   through its flake the same way, then `git add -A && git diff --cached --exit-code`
   as a plain step — `git` is the runner's tool, and a step names the flake only when
-  it needs something the flake pins.
+  it needs something the flake pins. Its shell is the only Node one carrying a
+  compiler: it is the job that type-checks, and `npm pack`'s `prepack` emits the
+  declarations the package ships with the same `tsc`. It asserts that compiler's
+  version alongside Node's, since `pkgs.typescript-go` names none.
 - `deno` runs `deno install --frozen` and `deno task cov` through its flake.
 - `bun` runs `bun install --frozen-lockfile` and `bun test --coverage` through its
   flake, whose Bun is an overridden archive rather than the snapshot's.
-- `dev` enters the developer shell, asserts the five runtime versions it hands
+- `dev` enters the developer shell, asserts the six tool versions it hands
   a developer, and runs one plain command in it. It tests no runtime of its own:
   it exists so the shell developers use cannot rot unnoticed.
 - `wasm` runs `cargo fmt -- --check` and then tests and Clippy for four WASM
@@ -240,9 +243,16 @@ cover newly created and deleted generated files, not just modified ones — a pl
 instead uses its checked-in sources (`node ./fjs/module.mjs ci`), so the check always
 reflects the generator being reviewed, not the pinned published release.
 
-Keep `npx tsc` passing independently because the generated CI runs it as its own
+Keep `tsc` passing independently because the generated CI runs it as its own
 step before coverage and package creation. Keep `test` as the fast local
 correctness loop even though generated CI no longer calls `npm test` directly.
+
+Both scripts name `tsc` rather than `npx tsc`, and TypeScript is deliberately not
+a `devDependency`. The compiler comes from the environment — the `node26` and
+`dev` flakes for anyone with Nix, a global npm install otherwise — so a job that
+only runs the suite does not install one. `npx tsc` would defeat that: with
+nothing to resolve in `node_modules` it downloads the registry's latest, which
+is the one version nothing here pins.
 
 For `node --test` and `npm run cov` to execute FunctionalScript proofs, the
 repository must include a Node test entry file, conventionally `all.test.ts`:
@@ -261,15 +271,21 @@ package has been installed. Custom projects that need different runtime setup st
 should use `fjs run <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
-The built-in command reads `package.json` for one thing: `devDependencies.typescript`.
-An exact version there — `=7.0.2`, not `^7.0.0` — generates the `package-check`
-job and is the compiler that job installs, because a job with no checkout has no
-lockfile to resolve a range against. Anything else, including no entry at all,
-generates no `package-check` job.
+The built-in command does not read `package.json` at all. It used to, for one
+thing — `devDependencies.typescript`, which decided whether the `package-check`
+job was generated and which compiler it installed. That version is now
+`config/module.f.mjs`'s, like every other version this generator names, so
+`package-check` is generated for every project.
 
-Nothing else in `package.json` reaches the generated steps. The FunctionalScript
-package version used by the platform matrix's smoke test is pinned in
-`config/module.f.mjs`, not read from `package.json`.
+Two consequences worth knowing before you adopt this generator. The compiler the
+packed-package check runs is the one **this** configuration pins, not the one
+your project depends on; and a package that ships no declarations now fails that
+check with `TS18003` rather than not being checked. See
+[`todo/ci-generator-audience.md`](./todo/ci-generator-audience.md).
+
+The FunctionalScript package version used by the platform matrix's smoke test is
+pinned in `config/module.f.mjs` too — nothing about the project reaches the
+generated steps except whether it has a `Cargo.toml`.
 
 ## The publishing workflow
 
@@ -299,11 +315,21 @@ The generated workflow is:
   one addition and it is spent by the step below.
 - **one job**, `publish-npm`, on the same Ubuntu ARM image the canonical jobs
   use, running `setup-node` (which writes the registry into the job's `.npmrc`),
-  `actions/checkout`, `npm ci`, and `npm publish --provenance`.
+  a global install of the configured TypeScript, `actions/checkout`, `npm ci`,
+  and `npm publish --provenance`.
 
-`npm ci` is not optional here the way it would be for a package that publishes
+Neither install is optional the way both would be for a package that publishes
 its sources unchanged: `prepack` emits the declarations the package ships and
-runs TypeScript from `devDependencies`.
+type-checks them. The compiler is not a dependency of the package, so this job
+installs it — and this is the one job in either workflow that needs a compiler
+without a flake to take it from, because a publish wants the `.npmrc`
+`setup-node` writes and a flake has nothing to say about a registry. `npm ci`
+still runs, for the `@types/node` that compiler resolves against.
+
+Being generated is what lets the step name `config/module.f.mjs`'s version as a
+literal. A hand-written workflow would have to either restate the number, where
+nothing would catch it drifting from the flakes, or read it back out at run
+time.
 
 There is no `NODE_AUTH_TOKEN` and no secret of any kind. `id-token: write` lets
 npm's trusted publishing exchange the runner's OIDC token for the credential,

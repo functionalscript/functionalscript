@@ -77,7 +77,7 @@ as-is.
 
 - [ ] Spike the combinator across all three; fall back to
       extract/insert-only sharing if `operation` doesn't fit cleanly.
-- [ ] `npx tsc`, `fjs t`; rename/rm/mkdir proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; rename/rm/mkdir proofs pass unchanged.
 
 ### Related
 

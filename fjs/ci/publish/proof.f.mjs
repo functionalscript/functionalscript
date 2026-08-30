@@ -5,7 +5,7 @@ import {
     npmPublishWorkflow,
     publishBranch,
 } from './module.f.mjs'
-import { images, node } from '../config/module.f.mjs'
+import { images, node, typescript } from '../config/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { definedValues } from '../../types/object/module.f.mjs'
 
@@ -58,8 +58,27 @@ export const proof = {
         assertEq(setup?.with?.['registry-url'], 'https://registry.npmjs.org/')
         assertEq(setup?.with?.['node-version'], node.default)
     },
-    // Order, which is the job. The tool comes first, then the tree, then the
-    // install `prepack` reads TypeScript from, and only then the publish.
+    // The compiler, which this job has to install because the package does not
+    // depend on one. `npm publish` runs `prepack`, which runs `tsc`; without
+    // this step the publish fails on a missing compiler, or emits the
+    // package's declarations with whatever the runner image carried — and
+    // `continue-on-error` on the publish would report neither.
+    //
+    // The version is the configuration's, exact and named in full, which is
+    // what a generated file buys over a hand-written one: nothing here has to
+    // read it back out at run time to stay in step with the flakes.
+    installsTheConfiguredCompiler: () => {
+        assert(
+            has(`npm install -g typescript@${typescript.version}`),
+            'expected the configured compiler installed')
+        const compiler = runIndex(`npm install -g typescript@${typescript.version}`)
+        const publish = runIndex('npm publish --provenance')
+        assert(compiler !== -1, 'expected a compiler install')
+        assert(compiler < publish, 'expected the compiler before the publish')
+    },
+    // Order, which is the job. The tools come first, then the tree, then the
+    // install that resolves what `prepack` type-checks against, and only then
+    // the publish.
     stepOrder: () => {
         assertEq(npmPublishJobId, 'publish-npm')
         assertEq(npmPublishJob['runs-on'], images.ubuntu.arm)
