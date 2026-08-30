@@ -10,14 +10,24 @@ the tokenizer turns code points into tokens, and this turns tokens into an
 ## The grammar is written down
 
 ```
-module ::= t import* const* export t eof
+module ::= t import* const* export (t ';' | ) t eof
 import ::= 'import' t id t 'from' t string   sep
 const  ::= 'const'  t id t '=' t value       sep
 export ::= 'export' t 'default' t value
 value  ::= primitive | id | array | object
 key    ::= id | string | '[' t string t ']'
-sep    ::= (ws | comment)* nl
+sep    ::= t ';' t | lt nl t
+lt     ::= (ws | comment)*
 ```
+
+A statement ends at a `;`, or, absent one, at the first line break — which is
+what lets every DataJS document (where the `;` is required) parse here. The
+`;` is reached through full trivia, newlines included, because DataJS
+whitespace is insignificant between any two tokens — `export default 1` and
+its `;` may sit on different lines; a newline is a terminator only when no
+`;` follows with just trivia between. One terminator per statement: `;;` is
+not an empty statement but a stray token. The export statement may end with a
+`;` too, but needs no terminator — the end of input closes it.
 
 This replaced a hand-written state machine whose grammar existed nowhere: a
 nine-state value alphabet plus module framing, where the only way to learn what
@@ -95,6 +105,25 @@ is only flat in the AST when `toData` recognizes the right-recursive shape and
 emits a `Repeat`, and nested inside this grammar's option scaffolding it does
 not — so a thousand siblings are a thousand levels of tree, and recursing over
 them fails exactly as deep nesting would.
+
+## An error is a point, or a span when one is known
+
+`ParseError` carries `metadata` — the position a reader is pointed at — and an
+optional `end` that extends it into a span. Only a *lexical* error has one: the
+tokenizer knows how far an unterminated string or comment runs, and
+`splitEof` passes that span through. A *grammar* failure points at a single
+token and stays a point, because a token's extent is not recorded — every
+token's `metadata` is its start alone.
+
+Recording it for every token is the widening this design leaves undone, and the
+argument for it is the parser's own: the grammar matches rules over whole
+tokens, so every rule it reduces has a first and a last token and therefore a
+natural span. `export default <value>` is a span, not a point. The moment a
+formatter wants to underline a rule rather than a character, every token needs
+an end, and the change belongs in `JsTokenWithMetadata.metadata` rather than in
+more special cases beside `ErrorToken.end`. Nothing wants that yet:
+`errorLocation` in [`fjs/djs/module.f.mjs`](../module.f.mjs) renders the span
+an error already carries and the point when there is none.
 
 ## What changed from the parser this replaced
 
