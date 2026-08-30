@@ -408,13 +408,27 @@ export type Setup = {
 
 `nodeExtra` receives the target OS so callers can conditionally add OS-specific steps.
 
-On every platform but Windows, an injected `test` step runs **inside the shared
-shell**, alongside the job's own commands — these jobs no longer install Node
-with `setup-node`, so a step left on the runner would find whatever the image
-ships rather than the release the job asserts. An `install` step stays on the
-runner because it runs before `actions/checkout`, and there is no `nix/` to
-enter yet; a step naming an action rather than a command stays for want of
-anything to wrap. Windows keeps all of them, having no shell at all.
+On every platform but Windows, an injected step that names a **command** runs
+inside the shared shell, alongside the job's own — these jobs no longer install
+Node with `setup-node`, so a step left on the runner would find whatever the
+image ships rather than the release the job asserts:
+
+```sh
+./nix/run sh -c 'NODE_OPTIONS=--max-old-space-size=4096 node tool.mjs'
+```
+
+Through `sh -c`, because a GitHub `run:` is a shell script while the `run`
+script ends in `--command "$@"`, an argv. That distinction is invisible for this
+generator's own commands — one program and its arguments, by §7 — and decisive
+for anything a consumer writes: a bare prefix would turn an assignment into a
+program name, and would split `a && b` so that only `a` entered the shell.
+
+A command declared as an `install` step moves too, losing the pre-checkout
+position that type normally buys. It has to: the flake lives in the checkout, so
+a step before it cannot enter the shell, and cannot count on a pinned Node
+either. A step naming an **action** keeps both its position and its shape —
+there is nothing to wrap, and `actions/cache` and its like want to run early.
+Windows keeps everything as declared, having no shell at all.
 Rust steps are included automatically when `Cargo.toml` is present; no flag is needed.
 
 ## Related

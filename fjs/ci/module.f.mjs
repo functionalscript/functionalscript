@@ -96,6 +96,18 @@ const shellPlatformSteps = rust => [
 ]
 
 /**
+ * A command as one argument to something else, in POSIX single quotes.
+ *
+ * `'` is the only character that cannot appear inside them, and the escape is
+ * to leave, emit a backslashed quote, and re-enter — so a command containing
+ * one comes out as `'echo '\''hi'\'''`. Nothing else needs touching, which is
+ * what makes single quotes the right ones here.
+ *
+ * @type {(command: string) => string}
+ */
+const singleQuoted = command => `'${command.replaceAll("'", "'\\''")}'`
+
+/**
  * An injected step, moved into the shared shell where the job's own commands
  * run.
  *
@@ -104,16 +116,34 @@ const shellPlatformSteps = rust => [
  * `setup-node`, so an injected `node tool.mjs` would find whatever the image
  * ships rather than the release every other step in the job asserts.
  *
- * Only a `test` step moves. An `install` step runs *before* `actions/checkout`
- * — that is what the two types mean to `toSteps` — so there is no `nix/` for it
- * to enter yet, and a step naming an action rather than a command has nothing
- * to wrap. Both stay on the runner, which is the only place they can be.
+ * **Through `sh -c`, and that is not decoration.** The `run` script ends in
+ * `--command "$@"`, which is an argv rather than a script — right for this
+ * generator's own commands, which are one program and its arguments by
+ * construction (root `AGENTS.md` §7), and wrong for anything a consumer writes.
+ * A bare prefix would make `NODE_OPTIONS=x node tool.mjs` try to execute a
+ * program named `NODE_OPTIONS=x`, and would split `cd dir && node tool.mjs` at
+ * the `&&`, running the first half in the shell and the second on the runner
+ * with nothing said about it. A GitHub `run:` is a shell script, so it is
+ * handed to a shell.
+ *
+ * **Position moves with it.** `toSteps` puts an `install` step before
+ * `actions/checkout`, and the flake lives in that checkout, so a step there
+ * cannot enter the shell at all — and, since these jobs dropped `setup-node`,
+ * cannot count on a pinned Node either. An injected command is therefore a
+ * command in the shell whichever type it was declared as; the alternative was
+ * to leave it in the one position where its runtime is guaranteed wrong.
+ *
+ * A step naming an action keeps both its position and its shape. There is no
+ * command to wrap, and `actions/cache` and its like want to run early.
  *
  * @type {(step: MetaStep) => MetaStep}
  */
 const inShell = step =>
-    step.type === 'test' && step.step.run !== undefined
-        ? test({ ...step.step, run: nixDevelop(nixShell, step.step.run) })
+    step.type !== 'rust' && step.step.run !== undefined
+        ? test({
+            ...step.step,
+            run: nixDevelop(nixShell, `sh -c ${singleQuoted(step.step.run)}`),
+        })
         : step
 
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */

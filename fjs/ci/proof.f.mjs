@@ -238,15 +238,16 @@ export const proof = {
         // an injected `node tool.mjs` left on the runner would find whatever
         // the image ships rather than the release every other step asserts.
         //
-        // Windows is the exception, and it has to be — there is no shell there
-        // to put anything in.
+        // Through `sh -c`, because a GitHub `run:` is a shell script while the
+        // `run` script's `--command "$@"` is an argv. Windows is the exception,
+        // and has to be — there is no shell there to put anything in.
         inTheSameShell: () => {
             const cmd = 'echo hello'
             const gha = run(false, () => [test({ run: cmd })])
             for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
                 for (const a of /** @type {const} */ (['intel', 'arm'])) {
                     assert(
-                        hasExactRunInJob(`${o}-${a}`, nixDevelop(nixShell, cmd))(gha),
+                        hasExactRunInJob(`${o}-${a}`, `${runPath(nixShell)} sh -c '${cmd}'`)(gha),
                         `expected the extra step in the shell in ${o}-${a}`)
                 }
             }
@@ -256,13 +257,41 @@ export const proof = {
                     `expected the extra step on the runner in windows-${a}`)
             }
         },
-        // The two kinds that cannot move, and stay where they are rather than
-        // being wrapped into something that would fail. An `install` step runs
-        // before `actions/checkout` — that is what the type means to `toSteps`
-        // — so there is no `nix/` for it to enter yet; and a step naming an
-        // action has no command to wrap at all.
-        stayOnTheRunner: () => {
-            const cmd = 'echo before-checkout'
+        // The two shapes a bare prefix would have broken, and broken
+        // differently: an assignment would become a program name, and an `&&`
+        // would split, running the first half in the shell and the second on
+        // the runner with nothing said about it. Both survive whole.
+        shellSyntaxSurvives: () => {
+            for (const cmd of /** @type {const} */ ([
+                'NODE_OPTIONS=--max-old-space-size=4096 node tool.mjs',
+                'cd nanvm-lib && cargo doc',
+                'a | b > c',
+            ])) {
+                const gha = run(false, () => [test({ run: cmd })])
+                assert(
+                    hasExactRunInJob('ubuntu-arm', `${runPath(nixShell)} sh -c '${cmd}'`)(gha),
+                    `expected ${cmd} handed to a shell whole`)
+            }
+        },
+        // The one character single quotes cannot contain. Leave, emit a
+        // backslashed quote, re-enter — so the command a shell reconstructs is
+        // the command that went in.
+        quotesSurvive: () => {
+            const gha = run(false, () => [test({ run: "echo 'hi'" })])
+            assert(
+                hasExactRunInJob(
+                    'ubuntu-arm',
+                    `${runPath(nixShell)} sh -c 'echo '\\''hi'\\'''`)(gha),
+                'expected an embedded quote escaped rather than closing the argument')
+        },
+        // A step naming an action keeps its position and its shape: there is no
+        // command to wrap, and `actions/cache` and its like want to run early.
+        // A command does not keep its position — `toSteps` puts an `install`
+        // step before the checkout the flake lives in, which is the one place
+        // its runtime is guaranteed wrong now that these jobs have no
+        // `setup-node`.
+        actionsStayPut: () => {
+            const cmd = 'npm install -g something'
             const gha = run(false, () => [
                 install({ run: cmd }),
                 test(uses('actions/cache')),
@@ -271,22 +300,18 @@ export const proof = {
                 for (const a of /** @type {const} */ (['intel', 'arm'])) {
                     const id = `${o}-${a}`
                     assert(
-                        hasExactRunInJob(id, cmd)(gha),
-                        `expected the install step unwrapped in ${id}`)
+                        hasExactRunInJob(id, `${runPath(nixShell)} sh -c '${cmd}'`)(gha),
+                        `expected the install command moved into the shell in ${id}`)
                     assert(
                         gha.jobs[id]?.steps.some(
                             step => step.uses?.startsWith('actions/cache@') === true) === true,
                         `expected the action step kept in ${id}`)
                 }
             }
-        },
-        osSpecific: () => {
-            const gha = run(false, o => o === 'ubuntu' ? [test({ run: 'echo ubuntu-only' })] : [])
-            for (const a of /** @type {const} */ (['intel', 'arm'])) {
-                assert(hasRunInJob(`ubuntu-${a}`, 'echo ubuntu-only')(gha), `missing step in ubuntu-${a}`)
-                assert(!hasRunInJob(`macos-${a}`, 'echo ubuntu-only')(gha), `unexpected step in macos-${a}`)
-                assert(!hasRunInJob(`windows-${a}`, 'echo ubuntu-only')(gha), `unexpected step in windows-${a}`)
-            }
+            // Windows has no shell, so both keep their old shape there.
+            assert(
+                hasExactRunInJob('windows-arm', cmd)(gha),
+                'expected the install step unwrapped on Windows')
         },
     },
     defaultSetup: {
