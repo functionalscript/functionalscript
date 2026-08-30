@@ -10,12 +10,10 @@
  * @import { NixJob } from './nix/types.ts'
  * @import { Setup } from './types.ts'
  * @import { Effect } from '../effects/types.ts'
- * @import { Result } from '../types/result/types.ts'
- * @import { IoChannel } from '../effects/node/types.ts'
  */
 
 import { resultStep } from '../effects/module.f.mjs'
-import { access, exitStep, readUtf8File, writeUtf8File } from '../effects/node/module.f.mjs'
+import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
 import { functionalscript, images } from './config/module.f.mjs'
 import {
@@ -27,11 +25,20 @@ import {
 import { rustPlatformSteps, rustWasmSteps, wasmNixJob } from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.mjs'
 import { nixFlakes } from './nix/module.f.mjs'
-import { parse as jsonParse } from '../media/json/module.f.mjs'
 import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
 import { bunNixJob, bunSteps } from './bun/module.f.mjs'
 import { devNixJob, devSteps } from './dev/module.f.mjs'
 import { denoNixJob, denoSteps } from './deno/module.f.mjs'
+import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
+
+/**
+ * A workflow as the file the generator writes. JSON, which every YAML reader
+ * accepts, so nothing here has to decide how a string is quoted or how deep a
+ * block is indented.
+ *
+ * @type {(gha: GitHubAction) => string}
+ */
+const workflowText = gha => JSON.stringify(gha, null, '  ')
 
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
 const job = (rust, nodeExtra) => o => a => {
@@ -74,76 +81,38 @@ export const nixJobs = [
     devNixJob,
 ]
 
-/** @type {(rust: boolean, pin: string | undefined) => Jobs} */
-const canonicalJobs = (rust, pin) => ({
+/**
+ * Every job that is not the platform matrix.
+ *
+ * All of them are generated for every project, `wasm` excepted — which is a
+ * change `package-check` brings. It used to appear only when the project's
+ * `package.json` pinned an exact TypeScript, so a project with no compiler of
+ * its own got no packed-package check; the compiler is the CI configuration's
+ * now, so there is nothing left to be absent. What the job checks is the
+ * declarations the tarball ships, and a package shipping none fails it with
+ * `TS18003` — see `./todo/ci-generator-audience.md`, which owns the general
+ * shape of this trade.
+ *
+ * @type {(rust: boolean) => Jobs}
+ */
+const canonicalJobs = rust => ({
     ...(rust ? { wasm: ubuntuArm(rustWasmSteps) } : {}),
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
     dev: ubuntuArm(devSteps),
     ...nodeVersionJobs(),
-    ...(pin === undefined ? {} : { [packageCheckJobId]: packageCheckJob(pin) }),
+    [packageCheckJobId]: packageCheckJob,
 })
-
-/** @type {(s: string) => boolean} */
-const digits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
-
-/**
- * `=MAJOR.MINOR.PATCH` and nothing else.
- *
- * Anything npm reads as a *range* — `^7.0.0`, `=7.x`, `=7.0`, `=7.0.2 || 8.x` —
- * lets a later registry release change this check's verdict with no change
- * here, which is the one thing running it without a checkout is meant to
- * prevent. A leading `=` is not enough on its own: it can prefix a range. So
- * the whole value is validated rather than its first character.
- *
- * A prerelease pin is rejected too. That is stricter than npm needs, and the
- * cost of being wrong is the job disappearing from `ci.yml` — a visible diff in
- * review — rather than a check that silently stops meaning anything.
- *
- * @type {(pin: string) => boolean}
- */
-const exact = pin => {
-    if (!pin.startsWith('=')) { return false }
-    const parts = pin.slice(1).split('.')
-    return parts.length === 3 && parts.every(digits)
-}
-
-/**
- * The compiler the packed-package check installs, read out of the project's own
- * `package.json` rather than restated anywhere. A second copy could disagree
- * with this one silently, and a check running a compiler the package does not
- * pin is a green result about the wrong thing.
- *
- * `undefined` when there is no package.json or no pin: the check cannot be run
- * deterministically then, so it is not generated at all rather than run against
- * a compiler nobody chose.
- *
- * @type {(text: Result<string, IoChannel>) => string | undefined}
- */
-const compilerPin = text => {
-    if (text[0] !== 'ok') { return undefined }
-    const json = jsonParse(text[1])
-    if (json[0] !== 'ok') { return undefined }
-    const root = json[1]
-    if (typeof root !== 'object' || root === null || root instanceof Array) { return undefined }
-    const dev = root.devDependencies
-    if (typeof dev !== 'object' || dev === null || dev instanceof Array) { return undefined }
-    const pin = dev.typescript
-    return typeof pin === 'string' && exact(pin) ? pin : undefined
-}
 
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
 export const ci = ({ nodeExtra }) => resultStep(
-    readUtf8File('package.json'),
-    packageJson => resultStep(
     access('Cargo.toml'),
     result => {
         const rust = result[0] === 'ok'
-        const pin = compilerPin(packageJson)
         /** @type {Jobs} */
         const jobs = {
             ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
-            ...canonicalJobs(rust, pin),
+            ...canonicalJobs(rust),
         }
         /** @type {GitHubAction} */
         const gha = {
@@ -159,9 +128,15 @@ export const ci = ({ nodeExtra }) => resultStep(
         }
         const workflowWritten = writeUtf8File(
             '.github/workflows/ci.yml',
-            JSON.stringify(gha, null, '  '))
-        const flakesWritten = ioStep(workflowWritten, () => nixFlakes(nixJobs))
+            workflowText(gha))
+        // The publish workflow is a function of the configuration alone — no
+        // job of it varies with the project's Rust, its compiler pin, or the
+        // caller's `Setup` — so it is written rather than built here.
+        const publishWritten = ioStep(
+            workflowWritten,
+            () => writeUtf8File(npmPublishPath, workflowText(npmPublishWorkflow)))
+        const flakesWritten = ioStep(publishWritten, () => nixFlakes(nixJobs))
         return exitStep(flakesWritten)
-    }))
+    })
 
 export const main = () => ci({ nodeExtra: () => [] })

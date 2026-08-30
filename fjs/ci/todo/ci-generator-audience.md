@@ -34,13 +34,34 @@ had never read. The gate is gone — not for that reason, but because a text
 pattern cannot answer a question about scope
 ([`../../../todo/jsdoc-verification.md`](../../../todo/jsdoc-verification.md)).
 
-So today no convention of ours reaches a consumer, and this issue has no live
-instance. What survives is the ambiguity that let one appear: nothing in the
-design says whether `fjs ci` is a shared tool or this repository's own, so the
-next convention gate has nowhere to be told it does not belong. A pair of
-`@module` gates was very nearly added to `node26` for exactly that reason.
+**A second instance has since appeared, and it is not a convention gate.**
+`fjs ci` now writes `.github/workflows/npm-publish.yml` as well
+([`../publish/module.f.mjs`](../publish/module.f.mjs)), so a project that
+regenerates gets a workflow that attempts to publish it to npm on every push to
+`main`. Deleting the file does not opt out: the next `fjs ci` writes it again,
+and `ci-update`'s drift check then fails on its absence. `Setup` has no field
+that turns it off, for the same reason it has none for `node26` — and
+`fjs run <custom-ci-module>`, which [`fjs/README.md`](../../README.md) offers as
+the escape hatch for exactly this, is not one here: a custom module calls
+`ci(setup)`, and `ci(setup)` is what writes the file.
 
-P5: no project outside this repository is known to run `fjs ci` at all.
+That is worse than the `@typedef` gate was. A gate made a consumer's build red
+for a rule they had never read; this one runs a release step against a registry
+under their own package name. Nothing bad follows automatically — with no
+trusted-publishing grant configured the step fails, and it carries
+`continue-on-error`, so it is silent rather than harmful — but "the generator
+writes an active release workflow into your repository and you cannot decline
+it" is the sharpest form this question has taken, and the one that decides it.
+
+What survives underneath is the ambiguity that let both appear: nothing in the
+design says whether `fjs ci` is a shared tool or this repository's own, so the
+next thing it writes unconditionally has nowhere to be told it does not belong.
+A pair of `@module` gates was very nearly added to `node26` for exactly that
+reason.
+
+P5 while no project outside this repository is known to run `fjs ci` at all;
+the publishing workflow is the reason that would stop being the right priority
+the moment one does.
 
 ### Proposal
 
@@ -49,7 +70,10 @@ No design agreed; the choice is what `fjs ci` is *for*.
 - **Split the job.** `nodeVersionJobs` yields the portable per-version jobs;
   this repository's convention gates — should any be built — move to a
   `nodeExtra`-style hook it passes itself. A consumer keeps the documented
-  `cov`/`ci-update` contract and gets none of our conventions.
+  `cov`/`ci-update` contract and gets none of our conventions. Under this
+  option the publishing workflow becomes something a consumer asks for rather
+  than something they receive — a `Setup` field, or a separate export
+  `ci(setup)` does not call.
 - **Or narrow the claim.** Keep the job as it is and say in
   [`fjs/README.md`](../../README.md) and [`../README.md`](../README.md) that
   `fjs ci` generates *this* repository's workflow, and that other projects
@@ -74,6 +98,8 @@ is speculative generality.
   question.
 - [`../module.f.mjs`](../module.f.mjs) — `ci(setup)` and `canonicalJobs`, where
   the jobs are assembled and `nodeExtra` stops short.
+- [`../publish/module.f.mjs`](../publish/module.f.mjs) — the publishing
+  workflow, written unconditionally and with no way to decline it.
 - [`../../../todo/jsdoc-verification.md`](../../../todo/jsdoc-verification.md)
   — whether a convention gate can be built at all; this issue is where one would
   belong if it can.

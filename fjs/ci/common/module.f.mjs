@@ -24,10 +24,17 @@ export const architecture = /** @type {const} */ (['intel', 'arm'])
 // third party added. Reading a hand-written workflow — which carries `name`,
 // `if`, `env` and much else — would need `open`.
 
+// `continue-on-error` is admitted as the literal `true` rather than as a
+// boolean: `false` is the field's own default, so emitting it would say
+// nothing, and a schema that accepts both invites a step that spells its
+// default out. A step carrying it is a step whose failure is an expected
+// outcome — the npm publish, whose "already published" answer is the usual one
+// — and there is exactly one.
 export const stepSchema = /** @type {const} */ ({
     run: or(option, string),
     uses: or(option, string),
-    with: or(option, record(string))
+    with: or(option, record(string)),
+    'continue-on-error': or(option, true)
 })
 
 // `needs` is how one job waits for another: a job that consumes an artifact
@@ -45,9 +52,14 @@ export const jobsSchema = record(jobSchema)
 
 export const gitHubActionSchema = /** @type {const} */ ({
     name: string,
+    // Every trigger any generated workflow uses, all optional, because no
+    // workflow uses them all: `ci.yml` is a pull-request gate and the publish
+    // workflow fires on a push to a branch. `push` carries the branch list;
+    // without it a push to any branch would publish.
     on: {
         pull_request: or(option, {}),
-        merge_group: or(option, {})
+        merge_group: or(option, {}),
+        push: or(option, { branches: array(string) })
     },
     permissions: record(string),
     jobs: jobsSchema

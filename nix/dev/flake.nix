@@ -21,7 +21,7 @@
             };
         in
         pkgs.mkShell {
-            packages = [ rust pinned pkgs.nodejs_26 pkgs.deno pkgs.wasmtime pkgs.wasmer pkgs.git ];
+            packages = [ rust pinned pkgs.nodejs_26 pkgs.deno pkgs.typescript-go pkgs.wasmtime pkgs.wasmer pkgs.git ];
         };
     in
     {

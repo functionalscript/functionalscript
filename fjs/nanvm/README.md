@@ -54,7 +54,7 @@ NaNVM-specific vocabulary did not:
   within a case and the printer emits one `let` binding cloned at each
   reference, so `arrayByItself` means "the same object" on both sides.
 - **The two cannot drift.** The ids are spelled as literals, so respelling one
-  in `fjs/edag/types.ts` fails `npx tsc` here; and the proof's `edagShape`
+  in `fjs/edag/types.ts` fails `tsc` here; and the proof's `edagShape`
   validates every derived expression against the schema, so an operand shape or
   validation rule changing under the corpus fails there.
 

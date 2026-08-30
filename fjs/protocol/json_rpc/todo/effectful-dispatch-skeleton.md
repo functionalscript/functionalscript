@@ -74,7 +74,7 @@ fold into the 66D envelope work if it touches the same lines anyway.
       (different layer: 66D is per-method arms, this is the top preamble).
 - [ ] If adopted: add `routeRequest` with proof coverage, rebuild `dispatch`
       on it, migrate `mcpStep`.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

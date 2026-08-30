@@ -1,10 +1,11 @@
 # Continuous integration workflow generator
 
 This directory contains the FunctionalScript source that defines the GitHub Actions
-workflow for this repository. Running the generator writes `.github/workflows/ci.yml`
-with the latest matrix of jobs and steps, plus one Nix development environment under
-`nix/` per canonical job that has one — every one but `package-check`. Which jobs
-have one and why the rest do not is
+workflows for this repository. Running the generator writes
+`.github/workflows/ci.yml` with the latest matrix of jobs and steps and
+`.github/workflows/npm-publish.yml` with the release job, plus one Nix
+development environment under `nix/` per canonical job that has one — every one
+but `package-check`. Which jobs have one and why the rest do not is
 [`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
 
 ## `fjs ci` is not stable
@@ -25,7 +26,7 @@ for, and whether that answer should change, is
 
 - `module.f.mjs` — the top-level pipeline definition. Exports `ci(setup: Setup)`
   (`Setup` in `types.ts`) which returns an `Effect<NodeOp, number>` that writes
-  the workflow file. Rust support is detected automatically by checking for
+  both workflow files. Rust support is detected automatically by checking for
   `Cargo.toml` at the repository root via the `access` effect.
 - `proof.f.mjs` — property-based proofs for the CI generator (Rust/no-Rust job presence,
   per-OS extra steps).
@@ -37,6 +38,9 @@ for, and whether that answer should change, is
   per declared job (`NixJob` in `types.ts`), using the Nix eDSL in `fjs/media/nix`.
 - `node/module.f.mjs` — Node.js job steps: platform smoke tests, canonical
   per-version jobs, coverage, package checks, and the Node flake declarations.
+  `proof.f.mjs` — its property-based proofs.
+- `publish/module.f.mjs` — the npm publishing workflow, the one generated file
+  that is not part of `ci.yml`. See "The publishing workflow" below.
   `proof.f.mjs` — its property-based proofs.
 - `package/module.f.mjs` — the `package-check` job: downloads the tarball the
   Node job uploads, installs it under a fixed alias outside any checkout, and
@@ -70,12 +74,13 @@ for, and whether that answer should change, is
 ## Usage
 
 1. Ensure dependencies are installed with `npm ci`.
-2. Regenerate the workflow definition and the Nix environments:
+2. Regenerate the workflow definitions and the Nix environments:
    ```
    fjs ci
    ```
-3. Commit the updated `.github/workflows/ci.yml` and `nix/*/flake.nix`
-   files if they have changed.
+3. Commit the updated `.github/workflows/ci.yml`,
+   `.github/workflows/npm-publish.yml` and `nix/*/flake.nix` files if they have
+   changed.
 
 The generator is idempotent — rerunning it without modifying the source produces the
 same files. It never runs Nix itself, so it stays Windows-compatible: the flakes are
@@ -101,8 +106,8 @@ consumed.
 `config/module.f.mjs` records the Node, Deno, Wasmtime and Wasmer versions the pinned
 Nixpkgs snapshot provides — not each vendor's latest release, which the snapshot
 usually trails. They feed the flakes' package attributes where the attribute is
-versioned, as well as the `setup-node` steps left in the platform matrix and
-`package-check`. Bumping any of them therefore means moving the Nixpkgs commit first
+versioned, as well as every `setup-node` step: the platform matrix,
+`package-check`, and the publishing workflow. Bumping any of them therefore means moving the Nixpkgs commit first
 and copying the versions it offers.
 
 `bun` is not one of these, and it is the one package in any generated shell that the
@@ -179,14 +184,17 @@ through a flake:
 - Node 22 runs `npm ci` and `node --test` through its generated flake.
 - Node 24 runs the same pair through its own flake — one builder emits both
   jobs, which differ only in the version they name.
-- Node 26 runs `npm ci`, `npx tsc`, `npm run cov`, `npm pack` and `npm run ci-update`
+- Node 26 runs `npm ci`, `tsc`, `npm run cov`, `npm pack` and `npm run ci-update`
   through its flake the same way, then `git add -A && git diff --cached --exit-code`
   as a plain step — `git` is the runner's tool, and a step names the flake only when
-  it needs something the flake pins.
+  it needs something the flake pins. Its shell is the only Node one carrying a
+  compiler: it is the job that type-checks, and `npm pack`'s `prepack` emits the
+  declarations the package ships with the same `tsc`. It asserts that compiler's
+  version alongside Node's, since `pkgs.typescript-go` names none.
 - `deno` runs `deno install --frozen` and `deno task cov` through its flake.
 - `bun` runs `bun install --frozen-lockfile` and `bun test --coverage` through its
   flake, whose Bun is an overridden archive rather than the snapshot's.
-- `dev` enters the developer shell, asserts the five runtime versions it hands
+- `dev` enters the developer shell, asserts the six tool versions it hands
   a developer, and runs one plain command in it. It tests no runtime of its own:
   it exists so the shell developers use cannot rot unnoticed.
 - `wasm` runs `cargo fmt -- --check` and then tests and Clippy for four WASM
@@ -217,8 +225,8 @@ and `ci-update`. A typical FunctionalScript project can define them like this:
 ```
 
 `ci-update` must regenerate every generated file the project keeps in Git, not
-only the workflow. `fjs ci` covers `.github/workflows/ci.yml` and the generated
-Nix flakes; a project with other generators chains them into the same script, as
+only the workflows. `fjs ci` covers `.github/workflows/ci.yml`,
+`.github/workflows/npm-publish.yml` and the generated Nix flakes; a project with other generators chains them into the same script, as
 this repository does for `nanvm-lib/tests/test/generated.rs` (see
 [`fjs/nanvm/README.md`](../nanvm/README.md)). Everything chained there is
 covered by the drift check below for free.
@@ -235,9 +243,16 @@ cover newly created and deleted generated files, not just modified ones — a pl
 instead uses its checked-in sources (`node ./fjs/module.mjs ci`), so the check always
 reflects the generator being reviewed, not the pinned published release.
 
-Keep `npx tsc` passing independently because the generated CI runs it as its own
+Keep `tsc` passing independently because the generated CI runs it as its own
 step before coverage and package creation. Keep `test` as the fast local
 correctness loop even though generated CI no longer calls `npm test` directly.
+
+Both scripts name `tsc` rather than `npx tsc`, and TypeScript is deliberately not
+a `devDependency`. The compiler comes from the environment — the `node26` and
+`dev` flakes for anyone with Nix, a global npm install otherwise — so a job that
+only runs the suite does not install one. `npx tsc` would defeat that: with
+nothing to resolve in `node_modules` it downloads the registry's latest, which
+is the one version nothing here pins.
 
 For `node --test` and `npm run cov` to execute FunctionalScript proofs, the
 repository must include a Node test entry file, conventionally `all.test.ts`:
@@ -256,15 +271,100 @@ package has been installed. Custom projects that need different runtime setup st
 should use `fjs run <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
-The built-in command reads `package.json` for one thing: `devDependencies.typescript`.
-An exact version there — `=7.0.2`, not `^7.0.0` — generates the `package-check`
-job and is the compiler that job installs, because a job with no checkout has no
-lockfile to resolve a range against. Anything else, including no entry at all,
-generates no `package-check` job.
+The built-in command does not read `package.json` at all. It used to, for one
+thing — `devDependencies.typescript`, which decided whether the `package-check`
+job was generated and which compiler it installed. That version is now
+`config/module.f.mjs`'s, like every other version this generator names, so
+`package-check` is generated for every project.
 
-Nothing else in `package.json` reaches the generated steps. The FunctionalScript
-package version used by the platform matrix's smoke test is pinned in
-`config/module.f.mjs`, not read from `package.json`.
+Two consequences worth knowing before you adopt this generator. The compiler the
+packed-package check runs is the one **this** configuration pins, not the one
+your project depends on; and a package that ships no declarations now fails that
+check with `TS18003` rather than not being checked. See
+[`todo/ci-generator-audience.md`](./todo/ci-generator-audience.md).
+
+The FunctionalScript package version used by the platform matrix's smoke test is
+pinned in `config/module.f.mjs` too — nothing about the project reaches the
+generated steps except whether it has a `Cargo.toml`.
+
+## The publishing workflow
+
+`fjs ci` writes a second file, `.github/workflows/npm-publish.yml`. It is
+generated by the same command rather than by one of its own: the two workflows
+share every pin they name — the runner image, the Node version, the pinned
+action refs, all of `config/module.f.mjs` — and the Node 26 drift check
+(`npm run ci-update`, then `git add -A && git diff --cached --exit-code`) covers
+whatever `fjs ci` writes for free. A separate command would have to be chained
+into `ci-update` to reach the same place, and a consumer who forgot would keep a
+publish workflow that silently stopped matching its CI.
+
+It keeps the file name it had while it was hand-written. A rename to
+`npm-publishing.yml` would leave the old file behind — this generator does not
+delete what an earlier version wrote (see "`fjs ci` is not stable" above) — and
+two publish workflows on the same trigger is worse than an unremarkable name.
+
+The generated workflow is:
+
+- **triggered by a push to `main`, and by nothing else.** `pull_request` would
+  hand a fork's branch the registry's trust, and `merge_group` would publish a
+  merge that has not landed. The version in `package.json` is the single source
+  of truth for what gets released, and it becomes real when it reaches the
+  default branch.
+- **granted `contents: read` and `id-token: write`, at the workflow level.**
+  A publish reads the tree and writes nowhere in it. The `id-token` grant is the
+  one addition and it is spent by the step below.
+- **one job**, `publish-npm`, on the same Ubuntu ARM image the canonical jobs
+  use, running `setup-node` (which writes the registry into the job's `.npmrc`),
+  a global install of the configured TypeScript, `actions/checkout`, `npm ci`,
+  and `npm publish --provenance`.
+
+Neither install is optional the way both would be for a package that publishes
+its sources unchanged: `prepack` emits the declarations the package ships and
+type-checks them. The compiler is not a dependency of the package, so this job
+installs it — and this is the one job in either workflow that needs a compiler
+without a flake to take it from, because a publish wants the `.npmrc`
+`setup-node` writes and a flake has nothing to say about a registry. `npm ci`
+still runs, for the `@types/node` that compiler resolves against.
+
+Being generated is what lets the step name `config/module.f.mjs`'s version as a
+literal. A hand-written workflow would have to either restate the number, where
+nothing would catch it drifting from the flakes, or read it back out at run
+time.
+
+There is no `NODE_AUTH_TOKEN` and no secret of any kind. `id-token: write` lets
+npm's trusted publishing exchange the runner's OIDC token for the credential,
+and `--provenance` is what makes that exchange worth having — npm records the
+workflow, the commit and the repository that produced the tarball, and a
+consumer can check the published package against them. This job takes its Node
+from `setup-node` rather than from a flake, as `package-check` does and for a
+related reason: it needs the `.npmrc` that action writes, and a flake has
+nothing to say about a registry.
+
+The publish step carries `continue-on-error: true`, the only step in either
+generated workflow that does. Most pushes to `main` do not move the version, and
+npm answers a republish of an existing version with a 403 — the expected outcome
+rather than a failure. The flag cannot tell that 403 from a real one, so an
+expired grant or a rejected attestation is swallowed just as quietly;
+[`todo/publish-only-a-new-version.md`](./todo/publish-only-a-new-version.md)
+owns making the two distinguishable. Until then `stepSchema` admits the field as
+the literal `true` rather than as a boolean, because there is exactly one step
+it is for.
+
+Nothing in the publish workflow varies with the project: no job of it depends on
+`Cargo.toml`, on the compiler pin, or on the caller's `Setup`. It is a constant
+of the configuration, which is why `module.f.mjs` writes it rather than building
+it.
+
+Which is also the one thing to know before running `fjs ci` in a project that
+does not want to publish: it is written unconditionally, like every other job
+this generator emits, and deleting the file does not opt out — the next run
+writes it back, and `ci-update`'s drift check then fails on its absence. There
+is no way to decline it: `Setup` has no field for it, and
+`fjs run <custom-ci-module>` is not the escape hatch it looks like — a custom module calls `ci(setup)`, which is the function that writes both
+files. Assembling a workflow from this directory's parts instead is all that is
+left. That is the standing question of
+[`todo/ci-generator-audience.md`](./todo/ci-generator-audience.md), which this
+workflow is the sharpest instance of.
 
 ## Customisation
 

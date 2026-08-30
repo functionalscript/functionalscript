@@ -60,7 +60,7 @@ Two things to settle before the rewrite:
   quadratic behaviour `Concat` avoids.
 
 `fjs/types/list` is imported by ~40 modules, so this is a wide but
-mechanical change; the type-level part is caught by `npx tsc`.
+mechanical change; the type-level part is caught by `tsc`.
 
 ### Tasks
 
@@ -68,7 +68,7 @@ mechanical change; the type-level part is caught by `npx tsc`.
 - [ ] Reimplement `concat` as a thunk; delete `Concat` and `NotLazy`.
 - [ ] Collapse the `'head' in …` branches in `next` and `lengthList`.
 - [ ] Benchmark left-nested `concat` before and after.
-- [ ] Update consumers; `npx tsc`, `fjs t`.
+- [ ] Update consumers; `tsc`, `fjs t`.
 
 ### Related
 

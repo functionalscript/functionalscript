@@ -261,7 +261,7 @@ Open for review before code:
       spawns yet, so widening the grant now would loosen CI for code that does
       not exist.
 - [ ] `../virtual/module.f.mjs`: extend the not-implemented list in its docs.
-- [ ] `npx tsc`, `npm test`, `npm run cov`.
+- [ ] `tsc`, `npm test`, `npm run cov`.
 
 ### Related
 

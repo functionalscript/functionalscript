@@ -68,7 +68,7 @@ generic `has`.
 - [ ] Rewrite `byte_set` and `nibble_set` as instantiations, preserving
       their public APIs and JSDoc (including nibble_set's
       "prefer byte_set / JSON-serializable" guidance).
-- [ ] `npx tsc`, `fjs t`; both proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; both proofs pass unchanged.
 
 ### Related
 

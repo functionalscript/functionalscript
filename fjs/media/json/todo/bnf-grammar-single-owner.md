@@ -120,7 +120,7 @@ Before implementing this TODO after the blocking split:
 - [ ] Handle `deno.json` registration according to the repository's exports-map
       state when this module is implemented; do not create a one-entry restrictive
       exports map solely for this file.
-- [ ] `npx tsc`; run relevant BNF, JSON, and DJS tokenizer proofs/tests.
+- [ ] `tsc`; run relevant BNF, JSON, and DJS tokenizer proofs/tests.
 
 ### Related
 

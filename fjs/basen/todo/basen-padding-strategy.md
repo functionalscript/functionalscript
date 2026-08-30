@@ -90,7 +90,7 @@ and doesn't obscure the per-codec pad semantics.
       terminator).
 - [ ] Remove the now-unused `msb`/`vec`/`length`/`empty` imports from `base64`
       and `cbase32`.
-- [ ] Run `npx tsc` and `fjs t`; confirm round-trip proofs still pass.
+- [ ] Run `tsc` and `fjs t`; confirm round-trip proofs still pass.
 
 ### Related
 

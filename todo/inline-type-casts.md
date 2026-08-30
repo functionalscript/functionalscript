@@ -21,7 +21,7 @@ This issue was the audit of every site, and then the cleanup.
 ### Method
 
 Every `/** @type {T} */ (…)` in `fjs/` was enumerated mechanically, then each
-site was probed against a clean `npx tsc` baseline (TypeScript 7.0.2, the
+site was probed against a clean `tsc` baseline (TypeScript 7.0.2, the
 repository `tsconfig.json`) in two variants: with the cast deleted, and with
 `@type` rewritten to `@satisfies`. Sites failing both were inspected by hand —
 the compiler error says what the cast is hiding, which decides between `assert*`
@@ -46,7 +46,7 @@ safe:
 ### What landed
 
 357 casts at the start, excluding 221 `/** @type {const} */` (out of scope) and
-one existing `@satisfies`. **84 of them remain.** Every step kept `npx tsc` and
+one existing `@satisfies`. **84 of them remain.** Every step kept `tsc` and
 `fjs t` green.
 
 | Step | Casts | What changed |
@@ -66,7 +66,7 @@ module's `main` is callable before invoking it.
 
 ### Corrections found in review
 
-Ten removals were wrong, and `npx tsc` was green for every one of them.
+Ten removals were wrong, and `tsc` was green for every one of them.
 
 **Four changed the published API.** Diffing the emitted `.d.mts` against `main`
 found:

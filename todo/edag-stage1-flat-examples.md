@@ -93,7 +93,7 @@ Sections are named rather than line numbers cited, per
 - [ ] Re-read the document for flat forms this inventory missed — it was built
       by grepping `["[]"` and `["{}"`, which does not catch a constructor
       written across a line break.
-- [ ] `npx tsc`, `fjs test` — documentation only, but the repo's gate.
+- [ ] `tsc`, `fjs test` — documentation only, but the repo's gate.
 
 ### Related
 

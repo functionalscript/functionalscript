@@ -39,7 +39,7 @@ module already has the type you need, import it" instead of duplicating.
 - [ ] Import `TerminalRange` from `bnf` in `bnf/data`; remove the local
       redeclaration (re-export if external consumers of `bnf/data.TerminalRange`
       exist).
-- [ ] Run `npx tsc` and `fjs t`; confirm `bnf` and `bnf/data` proofs still pass.
+- [ ] Run `tsc` and `fjs t`; confirm `bnf` and `bnf/data` proofs still pass.
 
 ### Related
 

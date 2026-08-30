@@ -51,7 +51,7 @@ once, with `toPath`/`unshard` as its two views.
       inverse helper co-located with `toPath` (and `shard`, if
       `shard-dir-helper.md` lands first).
 - [ ] Keep the ENOENT-is-empty-store behavior of `list` unchanged.
-- [ ] Run `npx tsc` and `fjs t`; CAS proofs pass unchanged.
+- [ ] Run `tsc` and `fjs t`; CAS proofs pass unchanged.
 
 ### Related
 

@@ -66,7 +66,7 @@ in `rtti/ts`:
       out would complete every task with the trick still standing. Resolve
       the node before calling the imported `isNever`: data's returns `false`
       for a string reference, which is why `ts`'s version resolves first.
-- [ ] `npx tsc`, `fjs t` — rtti proofs pass unchanged.
+- [ ] `tsc`, `fjs t` — rtti proofs pass unchanged.
 
 ### Related
 
