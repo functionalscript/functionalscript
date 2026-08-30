@@ -3,10 +3,12 @@
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflows for this repository. Running the generator writes
 `.github/workflows/ci.yml` with the latest matrix of jobs and steps and
-`.github/workflows/npm-publish.yml` with the release job, plus one Nix
-development environment under `nix/` per canonical job that has one — every one
-but `package-check`. Which jobs have one and why the rest do not is
-[`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
+`.github/workflows/npm-publish.yml` with the release job, plus three Nix
+development environments under `nix/`. One of those, `dev`, is the shell a
+developer enters and the shell all but two canonical jobs run inside; the other
+two exist for the two jobs that cannot share it. Which jobs have a flake and why
+the rest do not is [`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with
+no flake".
 
 ## `fjs ci` is not stable
 
@@ -95,9 +97,10 @@ whole set is visible. `package-check` declares none — it runs with no checkout
  there is no file tree for a flake to be in.
 
 A declaration names the systems it wants a shell for, and the generator writes
-one explicit `devShells.<system>.default` per system rather than looping. Every
-CI job names exactly one, since it runs on one runner image; the developer
-environment names four, which is the reason that field is a list. `nix/module.f.mjs` writes each out as one
+one explicit `devShells.<system>.default` per system rather than looping. The
+two Node flakes name one each, since their jobs run on one runner image; the
+shared shell names four, because a developer's machine is not a runner — which
+is the reason that field is a list. `nix/module.f.mjs` writes each out as one
 static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
 job-local `shellHook`, run on every entry to the shell; none does today. See
 [nix/README.md](../../nix/README.md) for how the generated files are meant to be
@@ -181,24 +184,24 @@ published CLI is exercised: no canonical Node job does, and `deno` and `bun` bot
 stopped. Every canonical job runs on Ubuntu ARM, and all but `package-check`
 through a flake:
 
-- Node 22 runs `npm ci` and `node --test` through its generated flake.
-- Node 24 runs the same pair through its own flake — one builder emits both
-  jobs, which differ only in the version they name.
+- Node 22 runs `npm ci` and `node --test` through a flake of its own.
+- Node 24 runs the same pair through its own — one builder emits both jobs,
+  which differ only in the version they name. These two are the only jobs left
+  with a flake to themselves: `npm ci` and `node --test` take whichever `node`
+  reaches `PATH` first, and one shell holds one, so each needs a shell carrying
+  the single release it exists to test.
 - Node 26 runs `npm ci`, `tsc`, `npm run cov`, `npm pack` and `npm run ci-update`
-  through its flake the same way, then `git add -A && git diff --cached --exit-code`
+  through the shared shell, then `git add -A && git diff --cached --exit-code`
   as a plain step — `git` is the runner's tool, and a step names the flake only when
-  it needs something the flake pins. Its shell is the only Node one carrying a
-  compiler: it is the job that type-checks, and `npm pack`'s `prepack` emits the
-  declarations the package ships with the same `tsc`. It asserts that compiler's
-  version alongside Node's, since `pkgs.typescript-go` names none.
-- `deno` runs `deno install --frozen` and `deno task cov` through its flake.
-- `bun` runs `bun install --frozen-lockfile` and `bun test --coverage` through its
-  flake, whose Bun is an overridden archive rather than the snapshot's.
-- `dev` enters the developer shell, asserts the six tool versions it hands
-  a developer, and runs one plain command in it. It tests no runtime of its own:
-  it exists so the shell developers use cannot rot unnoticed.
+  it needs something the flake pins. The release it wants is the shared shell's,
+  so it needs no flake of its own. It asserts `tsc` alongside `node`, since
+  `pkgs.typescript-go` names no version and this is the job whose `npm pack`
+  emits the declarations the package ships.
+- `deno` runs `deno install --frozen` and `deno task cov` in the shared shell.
+- `bun` runs `bun install --frozen-lockfile` and `bun test --coverage` there
+  too, on a Bun that is an overridden archive rather than the snapshot's.
 - `wasm` runs `cargo fmt -- --check` and then tests and Clippy for four WASM
-  targets through its flake, which provides the toolchain and both runtimes.
+  targets in the shared shell, which provides the toolchain and both runtimes.
   `cargo` invokes `wasmtime` and `wasmer` itself, through the `runner` keys in
   `.cargo/config.toml`, so they have to share a `PATH` with the `cargo` that
   spawns them — which is why the whole toolchain moved rather than half of it.
@@ -248,9 +251,9 @@ step before coverage and package creation. Keep `test` as the fast local
 correctness loop even though generated CI no longer calls `npm test` directly.
 
 Both scripts name `tsc` rather than `npx tsc`, and TypeScript is deliberately not
-a `devDependency`. The compiler comes from the environment — the `node26` and
-`dev` flakes for anyone with Nix, a global npm install otherwise — so a job that
-only runs the suite does not install one. `npx tsc` would defeat that: with
+a `devDependency`. The compiler comes from the environment — the shared `dev`
+shell for anyone with Nix, a global npm install otherwise — so the two jobs that
+only run the suite do not install one. `npx tsc` would defeat that: with
 nothing to resolve in `node_modules` it downloads the registry's latest, which
 is the one version nothing here pins.
 

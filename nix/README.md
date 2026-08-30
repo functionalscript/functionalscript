@@ -1,14 +1,18 @@
 # Nix environments
 
-`<job>/flake.nix` is **generated** by [`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs)
-— one self-contained flake per CI job, in a directory named after the job. Do
-not edit these files by hand: run `npm run ci-update` and commit the result. The
-Node 26 CI job fails when the committed files no longer match the generator's
-output. This README is the one file here that is written by hand.
+`<name>/flake.nix` is **generated** by [`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs)
+— three self-contained flakes, in directories named after them. Do not edit
+these files by hand: run `npm run ci-update` and commit the result. The Node 26
+CI job fails when the committed files no longer match the generator's output.
+This README is the one file here that is written by hand.
+
+`dev` is the shell: the one a developer enters, and the one all but two CI jobs
+run inside. `node22` and `node24` are the two exceptions, and the section below
+says why they have to be.
 
 Each flake pins the exact Nixpkgs commit from
-[`fjs/ci/config`](../fjs/ci/config/module.f.mjs) and exposes a single
-development shell for the job's runner:
+[`fjs/ci/config`](../fjs/ci/config/module.f.mjs) and exposes one development
+shell per system:
 
 ```sh
 ./nix/node24/run node --version
@@ -80,10 +84,10 @@ of a file that already exists. A job generated for the first time needs
 is about removing that step.
 
 Every canonical job with a flake runs through it — the three Node jobs, `deno`,
-`wasm`, `bun`, and the `dev` job that keeps the developer environment honest. Each installs Nix, checks the runtime its shell provides, and then runs
-its commands one `nix develop` step each, because a CI step runs one command. No
-separate job makes that check — a flake is checked by the job that uses it, and
-every generated flake has one.
+`wasm` and `bun`. Each installs Nix, asserts the versions of the tools it is
+about to use, and then runs its commands one `nix develop` step each, because a
+CI step runs one command. No separate job makes those checks: a flake is checked
+by the jobs that use it, and every generated flake has at least one.
 
 One canonical job has no flake: `package-check` runs with no checkout, which is
 the whole point of it, and a flake and its `run` script are files in a checkout.
@@ -91,21 +95,21 @@ the whole point of it, and a flake and its `run` script are files in a checkout.
 
 ### The developer environment
 
-`dev` is the one flake here that is not a job's runtime under test. It carries
-everything the canonical jobs use at once — Node 26, Deno, the pinned Bun,
-TypeScript, a Rust toolchain with every WASM target, Wasmtime, Wasmer and `git`
-— so that one shell is enough to work in:
+`dev` carries everything the canonical jobs use at once — Node 26, Deno, the
+pinned Bun, TypeScript, a Rust toolchain with every WASM target, Wasmtime,
+Wasmer and `git` — so that one shell is enough to work in:
 
 ```sh
 nix develop ./nix/dev          # an interactive shell
 ./nix/dev/run npm run cov      # or one command in it
 ```
 
-It is generated from the same declarations the jobs use, so it cannot drift from
-them: the Node version is the one `node26` runs, its TypeScript is that job's
-too, the Bun override is the `bun` job's, the toolchain and its targets are the
-`wasm` job's. `git` is declared because `nix develop` builds an environment from
-what the shell asks for rather than from what the machine has.
+It cannot drift from what the jobs run, because it *is* what they run. Each tool
+is declared beside the commands using it — the Bun override in `fjs/ci/bun`, the
+toolchain and its targets in `fjs/ci/rust` — and this shell takes those
+declarations rather than restating them. `git` is here for the developer alone:
+`nix develop` builds an environment from what the shell asks for rather than
+from what the machine has, so a shell without it is one you leave immediately.
 
 TypeScript is here for a reason the others are not: it is no longer an npm
 dependency of this repository, so `npm ci` does not put a `tsc` in
@@ -113,11 +117,18 @@ dependency of this repository, so `npm ci` does not put a `tsc` in
 installed globally. `fjs/ci/config/module.f.mjs` says which version, and why the
 attribute is `typescript-go` rather than `typescript`.
 
-The CI jobs deliberately do **not** share it. Each exists to test one runtime,
-and a shell with five would let a job pass on whichever `node` came first on
-`PATH`. `node22` and `node24` carry no compiler for the same reason: they run
-`npm ci` and `node --test`, and a `tsc` on their `PATH` would be a build neither
-ever opens.
+**Why sharing is safe, and where it is not.** The jobs used to have a flake
+each, on the reasoning that a shell with five runtimes would let a job pass on
+whichever `node` came first on `PATH`. That risk is real and it is narrower than
+the rule it produced: it applies only where a command resolves its runtime from
+`PATH`. `deno task cov`, `bun test`, `cargo test` and `tsc` all name theirs, so
+what else is installed cannot decide what runs them — those jobs share this
+shell, and CI therefore proves the environment people actually work in.
+
+`npm ci` and `node --test` name nothing. They run whichever `node` they find,
+and one shell has one `node` — so `node22` and `node24` keep a flake apiece
+holding the single release each exists to test. `node26` needs no such thing:
+the release it wants is this shell's.
 
 It exposes four shells — `aarch64-linux`, `x86_64-linux`, `aarch64-darwin`,
 `x86_64-darwin` — one named `devShells.<system>.default` each, and
@@ -129,12 +140,15 @@ indirection for nothing. Nix does not run natively on Windows, so a Windows
 developer reaches it through WSL2 or works the way this repository has always
 supported natively.
 
-A `dev` CI job enters the shell and asserts all five runtime versions. Nothing
-else would ever evaluate this flake — every other one is entered by the job that
-owns it — so without that job it would rot until a developer's shell failed to
-build. That job runs on one runner, so one of the four shells is evaluated for
-real; the other three are generated from the same declaration and pinned as
-text.
+There is no `dev` CI job. There was one, for exactly one reason — nothing else
+evaluated this flake, so it would have rotted until a developer's shell failed
+to build — and four jobs entering it on every pull request is a stronger answer
+than one job asserting six versions. Between them they still assert all six:
+`node` and `tsc` from `node26`, `deno` from `deno`, `bun` from `bun`, both WASM
+runtimes from `wasm`.
+
+Those jobs run on one runner, so one of the four shells is built for real; the
+other three are generated from the same declaration and pinned as text.
 
 ### The `bun` flake's overridden package
 

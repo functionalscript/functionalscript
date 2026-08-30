@@ -13,21 +13,23 @@
  * @module
  *
  * @import { MetaStep } from '../common/types.ts'
- * @import { NixJob, NixPin } from '../nix/types.ts'
+ * @import { NixPin } from '../nix/types.ts'
  */
 
 import { bun, bunSources } from '../config/module.f.mjs'
-import { nixInstall, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
+import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 
 /** CI job id, and the directory name of its generated flake. */
 export const bunJobId = /** @type {const} */ ('bun')
 
 /**
- * The override any flake wanting this Bun declares, over the systems it targets.
+ * The override the shared flake declares, over the systems it targets.
  *
- * Exported because the developer environment wants the same one: a shell handing
- * a developer the 1.3.13 CI does not run on would be worse than no shell at all.
+ * It lives here rather than beside that flake because it is knowledge about
+ * Bun: which archive each system takes, and why Intel macOS takes a baseline
+ * build. `../dev/module.f.mjs` asks for it by name and stays free of all of
+ * that.
  *
  * The archive name and the hash travel together out of `../config/module.f.mjs`.
  * Deriving the name from the system while looking the hash up separately is
@@ -52,25 +54,11 @@ export const bunPin = systems => ({
 })
 
 /**
- * The job's development environment: the snapshot's `bun`, with its source
- * replaced by an exact upstream release.
+ * The migrated job: install Nix, check the Bun the shared flake provides, then
+ * this repository's dependencies and its suite, one step each.
  *
- * `packages` is empty because the pinned package is the whole shell — the
- * generator puts it there, and adding `bun` here as well would put the
- * snapshot's 1.3.13 on `PATH` beside the one this job exists to run.
- *
- * @type {NixJob}
- */
-export const bunNixJob = {
-    id: bunJobId,
-    systems: nixSystems,
-    packages: [],
-    pin: bunPin(nixSystems),
-}
-
-/**
- * The migrated job: install Nix, check the Bun its flake provides, then this
- * repository's dependencies and its suite, one step each.
+ * Both commands name `bun`, so sharing a shell with the other jobs changes
+ * nothing about which runtime runs them.
  *
  * The version check earns more here than anywhere else. Every other job's check
  * confirms that a snapshot provides what the configuration claims; this one
@@ -92,8 +80,8 @@ export const bunNixJob = {
  */
 export const bunSteps = [
     nixInstall,
-    nixVersionStep(bunJobId, 'bun --version', bun),
-    ...nixSteps(bunJobId)([
+    nixVersionStep(nixShell, 'bun --version', bun),
+    ...nixSteps(nixShell)([
         'bun install --frozen-lockfile',
         'bun test --coverage',
     ]),

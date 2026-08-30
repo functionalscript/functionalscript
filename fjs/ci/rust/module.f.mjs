@@ -19,12 +19,12 @@
  * @module
  *
  * @import { Architecture, MetaStep, Os } from '../common/types.ts'
- * @import { NixJob } from '../nix/types.ts'
+ * @import { NixRust } from '../nix/types.ts'
  */
 
 import { rust, wasmer, wasmtime } from '../config/module.f.mjs'
 import { test } from '../common/module.f.mjs'
-import { nixInstall, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
+import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 
 /** @type {(tool: 'clippy' | 'test', target?: string, config?: string) => string} */
 const cargoCommand = (tool, target, config) => {
@@ -130,30 +130,36 @@ const wasmTargetCommands = target =>
         ]
 
 /**
- * The job's development environment: a `rust-overlay` toolchain plus the two
- * runtimes `.cargo/config.toml` and `.cargo/config.wasmer.toml` name.
+ * The Rust the shared flake carries: a `rust-overlay` toolchain with every
+ * target this job builds.
  *
  * `minimal` rather than `default`, with the two components the job actually
  * runs named explicitly: the default profile would add `rust-docs`, which is a
- * download this job never opens.
+ * download nothing here opens.
  *
- * Neither runtime attribute carries a version, so — as with `pkgs.deno` — the
- * job's own checks are the whole tie between `../config/module.f.mjs` and what
- * the shell provides. The toolchain is the opposite case: the flake names
- * `1.98.0` in full, so a check would restate the flake rather than test it.
+ * It is declared beside the commands that use it rather than beside the flake,
+ * so the targets below and `wasmTargets` above cannot come apart —
+ * `../dev/module.f.mjs` takes this whole record.
  *
- * @type {NixJob}
+ * The flake names `1.98.0` in full, so no job checks the toolchain's version:
+ * a check could only restate the flake. The two runtimes are the opposite
+ * case, and the checks below are the whole of that tie.
+ *
+ * @type {NixRust}
  */
-export const wasmNixJob = {
-    id: wasmJobId,
-    systems: nixSystems,
-    packages: ['wasmtime', 'wasmer'],
-    rust: {
-        version: rust,
-        extensions: ['clippy', 'rustfmt'],
-        targets: wasmTargets,
-    },
+export const wasmRust = {
+    version: rust,
+    extensions: ['clippy', 'rustfmt'],
+    targets: wasmTargets,
 }
+
+/**
+ * The two runtimes `.cargo/config.toml` and `.cargo/config.wasmer.toml` name,
+ * as the shared flake's attributes. Neither carries a version.
+ *
+ * @type {readonly string[]}
+ */
+export const wasmPackages = ['wasmtime', 'wasmer']
 
 /**
  * The migrated job: install Nix, check the two runtimes its flake provides,
@@ -171,9 +177,9 @@ export const wasmNixJob = {
  */
 export const rustWasmSteps = [
     nixInstall,
-    nixVersionStep(wasmJobId, 'wasmtime --version', `wasmtime ${wasmtime}`),
-    nixVersionStep(wasmJobId, 'wasmer --version', `wasmer ${wasmer}`),
-    ...nixSteps(wasmJobId)([
+    nixVersionStep(nixShell, 'wasmtime --version', `wasmtime ${wasmtime}`),
+    nixVersionStep(nixShell, 'wasmer --version', `wasmer ${wasmer}`),
+    ...nixSteps(nixShell)([
         'cargo fmt -- --check',
         ...wasmTargets.flatMap(wasmTargetCommands),
     ]),

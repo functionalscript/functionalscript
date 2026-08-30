@@ -386,6 +386,24 @@ export const nixInstall = install(uses('cachix/install-nix-action'))
 export const nixDevelop = (id, command) => `${runPath(id)} ${command}`
 
 /**
+ * The one generated environment jobs share, and the directory its flake is
+ * written to.
+ *
+ * Most jobs name their runtime on the command line — `deno task cov`, `bun
+ * test`, `cargo test`, `tsc` — so what else is on `PATH` cannot decide which
+ * one runs, and a shell carrying all of them tests exactly what a narrower one
+ * would. Those jobs share this, and it is the same shell a developer enters, so
+ * the environment CI proves is the environment people work in.
+ *
+ * A job whose runtime is resolved from `PATH` rather than named cannot share
+ * it, and the Node jobs are that case: `npm ci` and `node --test` run whichever
+ * `node` comes first, so Node 22 and Node 24 keep a flake each carrying the one
+ * release they exist to test. `../dev/module.f.mjs` has the rest of the
+ * reasoning.
+ */
+export const nixShell = /** @type {const} */ ('dev')
+
+/**
  * The Nix system of the runner every job with a flake uses. `ubuntuArm` picks
  * the image; this is the same machine named the way a flake names it.
  *

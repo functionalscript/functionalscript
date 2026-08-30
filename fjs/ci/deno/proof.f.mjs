@@ -1,7 +1,7 @@
-import { denoJobId, denoNixJob, denoSteps } from './module.f.mjs'
+import { denoJobId, denoSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { deno } from '../config/module.f.mjs'
-import { nixDevelop, nixSystems } from '../nix/module.f.mjs'
+import { nixDevelop, nixShell } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 const runs = toSteps(denoSteps).flatMap(s => s.run !== undefined ? [s.run] : [])
@@ -13,9 +13,9 @@ export const proof = {
     // family, which can look at the tarball this commit builds instead of a
     // release that shipped weeks ago.
     steps: () => assertStructurallySame(runs, [
-        `test "$(${nixDevelop(denoJobId, `deno eval 'console.log(Deno.version.deno)'`)})" = "${deno}"`,
-        nixDevelop(denoJobId, 'deno install --frozen'),
-        nixDevelop(denoJobId, 'deno task cov'),
+        `test "$(${nixDevelop(nixShell, `deno eval 'console.log(Deno.version.deno)'`)})" = "${deno}"`,
+        nixDevelop(nixShell, 'deno install --frozen'),
+        nixDevelop(nixShell, 'deno task cov'),
     ]),
     // A regression guard: the job must delegate coverage to `deno.json`'s `cov`
     // task. Inlining the command here instead would give the coverage filter a
@@ -24,7 +24,7 @@ export const proof = {
         const found = runs.filter(run => run.includes('cov'))
         assertEq(found.length, 1)
         const [run] = found
-        assertEq(run, nixDevelop(denoJobId, 'deno task cov'))
+        assertEq(run, nixDevelop(nixShell, 'deno task cov'))
     },
     noPublishedPackage: () => {
         assert(
@@ -43,13 +43,15 @@ export const proof = {
         assert(!used.some(u => u.startsWith('denoland/setup-deno@')), 'unexpected setup-deno')
         assert(used.some(u => u.startsWith('cachix/install-nix-action@')), 'expected the Nix installer')
     },
-    nixJob: () => {
-        assertEq(denoNixJob.id, denoJobId)
-        assertStructurallySame(denoNixJob.systems, nixSystems)
-        // One unversioned attribute, so the job's version check is the only
-        // thing tying `fjs/ci/config`'s `deno` to what the shell provides.
-        assertEq(denoNixJob.packages.length, 1)
-        assertEq(denoNixJob.packages[0], 'deno')
-        assertEq(denoNixJob.shellHook, undefined)
+    // The job has no flake of its own: `deno` is named on every command line
+    // here, so what else the shared shell carries cannot decide what runs.
+    // `../dev/proof.f.mjs` is where that shell is held to providing a `deno`.
+    sharesTheShell: () => {
+        assert(
+            runs.every(run => run.includes(`/${nixShell}/run `)),
+            `expected every command in the ${nixShell} shell`)
+        assert(
+            !runs.some(run => run.includes(`/${denoJobId}/run `)),
+            'unexpected flake of its own')
     },
 }

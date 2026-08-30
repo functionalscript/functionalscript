@@ -10,7 +10,7 @@
 
 import { node, typescript } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
-import { nixInstall, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
+import { nixInstall, nixShell, nixSteps, nixSystems, nixVersionStep } from '../nix/module.f.mjs'
 
 /**
  * Name of the CI artifact carrying the `npm pack` tarball. The producing step
@@ -60,10 +60,13 @@ const fjsGlobalInstall = version =>
  * PowerShell where this POSIX command would not survive, and `package-check`,
  * which has no checkout to enter a flake from.
  *
- * @type {(version: string) => MetaStep}
+ * It takes the shell to enter, because the three canonical jobs no longer enter
+ * the same one — see {@link nodeNixJobs}.
+ *
+ * @type {(shell: string, version: string) => MetaStep}
  */
-const nodeVersionStep = version =>
-    nixVersionStep(jobId(version), 'node --version', `v${version}`)
+const nodeVersionStep = (shell, version) =>
+    nixVersionStep(shell, 'node --version', `v${version}`)
 
 /**
  * Asserts the compiler this job's flake provides.
@@ -79,7 +82,7 @@ const nodeVersionStep = version =>
  * expectation carries that word.
  */
 const tscVersionStep = nixVersionStep(
-    jobId(node.default), 'tsc --version', `Version ${typescript.version}`)
+    nixShell, 'tsc --version', `Version ${typescript.version}`)
 
 /** @type {(version: string) => readonly MetaStep[]} */
 export const platformNodeSteps = version => [
@@ -102,7 +105,7 @@ export const platformNodeSteps = version => [
  */
 const suiteNixSteps = version => [
     nixInstall,
-    nodeVersionStep(version),
+    nodeVersionStep(jobId(version), version),
     ...nixSteps(jobId(version))(['npm ci', 'node --test']),
 ]
 
@@ -125,9 +128,9 @@ const suiteNixSteps = version => [
  */
 const node26NixSteps = [
     nixInstall,
-    nodeVersionStep(node.default),
+    nodeVersionStep(nixShell, node.default),
     tscVersionStep,
-    ...nixSteps(jobId(node.default))(
+    ...nixSteps(nixShell)(
         ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run ci-update']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
     // Hands the tarball to a job that has no checkout, which is the only place
@@ -152,30 +155,31 @@ export const nodeVersionJobs = () => ({
     [jobId(node.default)]: nodeJob(node26NixSteps),
 })
 
-/** @type {(version: string, extra: readonly string[]) => NixJob} */
-const nixJob = (version, extra) => ({
+/** @type {(version: string) => NixJob} */
+const nixJob = version => ({
     id: jobId(version),
     systems: nixSystems,
-    packages: [`nodejs_${major(version)}`, ...extra],
+    packages: [`nodejs_${major(version)}`],
 })
 
 /**
- * Generated development environments for the canonical Node jobs.
+ * The Node versions that need a flake of their own, and the whole of why any
+ * job still does.
  *
- * Only the last carries a compiler, and the asymmetry is the point. Node 22 and
- * Node 24 run `npm ci` and `node --test`: they exist to prove this code runs on
- * a runtime, and a `tsc` on their `PATH` would be a download neither ever
- * opens. Node 26 type-checks the repository and runs `npm pack`, whose
- * `prepack` script emits declarations with it, so its shell is the one that
- * needs the compiler — see `../todo/65z-ci-nix.md` on a shell carrying only
- * what its job runs.
+ * `npm ci` and `node --test` name no runtime: they run whichever `node` reaches
+ * `PATH` first. That is the one thing a shared shell cannot serve, because one
+ * shell has one `node` — so these two get a flake each, carrying the single
+ * release each exists to prove this code runs on.
+ *
+ * Node 26 is absent, and not because it needs less. Its `node` *is* the shared
+ * shell's, and the compiler it also needs is there too, so it enters that shell
+ * like every other job whose runtime is named rather than resolved.
  *
  * @type {readonly NixJob[]}
  */
 export const nodeNixJobs = [
-    nixJob(node.node22, []),
-    nixJob(node.node24, []),
-    nixJob(node.default, [typescript.attribute]),
+    nixJob(node.node22),
+    nixJob(node.node24),
 ]
 
 export const nodeMainSteps = platformNodeSteps

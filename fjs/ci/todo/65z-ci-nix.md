@@ -108,19 +108,32 @@ this suite passes on. The job's version check is what holds it: unlike every oth
 check, which confirms a snapshot provides what the configuration claims, this one
 confirms the override took effect at all.
 
-#### The developer environment
+#### The shell
 
-Every flake above serves one job testing one runtime. `dev` is the other kind:
-one shell carrying all of them — Node 26, Deno, the pinned Bun, the toolchain
-with its WASM targets, Wasmtime, Wasmer and `git` — for a developer to work in.
+`dev` carries every tool the jobs use — Node 26, Deno, the pinned Bun,
+TypeScript, the toolchain with its WASM targets, Wasmtime, Wasmer and `git`. It
+is what a developer enters, and what all but two CI jobs run inside.
 
 It is generated rather than hand-written for two reasons. It cannot drift from
 the jobs, since it is built from their own declarations; and the drift check
 covers it, which a hand-written `nix/flake.nix` would have escaped — verifying
 one would mean pattern-matching Nix source, which root `AGENTS.md` §6 rules out.
 
-The jobs deliberately do not share it. Each exists to test one runtime, and a
-shell with five would let a job pass on whichever `node` reached `PATH` first.
+**Sharing, and its one limit.** Each job started with a flake of its own, on the
+reasoning that a shell with five runtimes would let a job pass on whichever
+`node` reached `PATH` first. That risk is real and narrower than the rule it
+produced: it applies only where a command resolves its runtime from `PATH`.
+`deno task cov`, `bun test`, `cargo test` and `tsc` all name theirs, so what
+else is installed cannot decide what runs them.
+
+`npm ci` and `node --test` name nothing, and one shell holds one `node`. So
+Node 22 and Node 24 keep a flake apiece, and everything else shares — which is
+worth more than the uniformity: the environment CI proves is now the one people
+work in, rather than a fifth arrangement nobody uses.
+
+The cost is per-job download. A `deno` job that used to realise one package now
+realises the whole closure, toolchain included, and there is no binary cache of
+our own yet — `096-ci-caching.md` is where that goes.
 
 **It is why a declaration names systems rather than a system.** A CI job runs on
 one runner image; a developer environment has to work on Linux and macOS, on
@@ -140,11 +153,20 @@ Nix does not run natively on Windows, so those four are all there are. A Windows
 developer reaches the shell through WSL2 or works the way this repository has
 always supported natively — nothing here requires Nix.
 
-A `dev` CI job enters the shell and asserts the five versions it hands a
-developer. Without it nothing would evaluate this flake at all: every other one
-is entered by the job that owns it, and this one has no such job unless it is
-written. That job runs on one runner, so one of the four shells is evaluated for
-real; the other three are pinned as text and no further.
+There is no `dev` CI job. There was one, and its only reason was that nothing
+else evaluated this flake; four jobs entering it on every pull request answers
+that better than one job asserting six versions. Between them they still assert
+all six — `node` and `tsc` from `node26`, `deno` from `deno`, `bun` from `bun`,
+both WASM runtimes from `wasm`.
+
+Those jobs run on one runner, so one of the four shells is built for real; the
+other three are pinned as text and no further.
+
+One consequence for a project that is not this one: `nixJobs` is a list rather
+than a function of the project, so a project without a `Cargo.toml` gets no
+`wasm` job and therefore nothing checking the two WASM runtimes in its shell.
+That is the same trade `ci-generator-audience.md` describes for every job this
+generator writes unconditionally.
 
 #### Jobs with no flake
 
@@ -165,8 +187,9 @@ related reason. Those six jobs exist to run on stock GitHub runner images across
 three operating systems and two architectures, so a flake would replace the thing
 they measure; four of the six are not `aarch64-linux` at all.
 
-What remains here is the Nixpkgs update command and removing stale generated job
-directories, which waits on a recursive `rm` effect. Every canonical job but
+What remains here is the Nixpkgs update command and removing stale generated
+directories, which waits on a recursive `rm` effect — the four directories this
+change orphaned had to be deleted by hand. Every canonical job but
 `package-check` now runs through a flake.
 
 ### Problem

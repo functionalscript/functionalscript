@@ -351,25 +351,22 @@ export const proof = {
         // so there is no name to derive — their jobs' version checks carry
         // that tie instead.
         //
-        // The runtime is the *first* package in every one of these, which is
-        // what lets the mapping be checked at all: `node26` carries a compiler
-        // after it, and `../dev/proof.f.mjs` is where that one is held to the
-        // job it came from.
+        // The runtime and nothing else. These two flakes exist only because
+        // `npm ci` and `node --test` resolve `node` from `PATH`, so each holds
+        // the one release its job proves this code runs on — anything more is
+        // a build neither job ever opens, and a second `nodejs_*` would put two
+        // on `PATH` with one winning silently.
         packages: () => {
             for (const { id, packages } of nodeNixJobs) {
-                assertEq(packages[0], `nodejs_${id.slice('node'.length)}`)
+                assertStructurallySame(
+                    [...packages],
+                    [`nodejs_${id.slice('node'.length)}`])
             }
-        },
-        // Two of the three Node shells carry the runtime and nothing else, and
-        // that is a property rather than an accident: a `tsc` on a shell whose
-        // job runs `npm ci` and `node --test` is a build nothing in that job
-        // ever opens.
-        onlyOneNodeShellHasACompiler: () => {
-            const withCompiler = nodeNixJobs.filter(
-                job => job.packages.includes(typescript.attribute))
-            assertStructurallySame(
-                withCompiler.map(job => job.id),
-                [`node${major(node.default)}`])
+            // The compiler is in the shared shell, which is where the job that
+            // type-checks runs — see `../dev/proof.f.mjs`.
+            assert(
+                !nodeNixJobs.some(job => job.packages.includes(typescript.attribute)),
+                'a job that only runs the suite needs no compiler')
         },
         // The `run` script is written beside every flake, byte for byte the
         // same for each job: it resolves its own flake from `$0`, so nothing
