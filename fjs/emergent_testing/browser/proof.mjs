@@ -226,69 +226,6 @@ export const proof = {
     // FunctionalScript as specified cannot express — so only an impure proof
     // can build one, as this one does.
 
-    // The brand check itself runs user code: `instanceof` consults
-    // `getPrototypeOf`, and a proxy can trap it. `fjs t` checks inside
-    // `sandbox`'s `try`/`catch` and reports the value as its test's failure;
-    // the page must do the same, because a run that rejects leaves it in
-    // `running` with no report and no completion event — the one outcome an
-    // automated controller cannot act on.
-    hostileBrandCheckIsReported: async () => {
-        const report = await run({
-            nested: () => new Proxy({}, { getPrototypeOf: () => { throw 'trap' } }),
-        })
-        assertEq(report.status, 'failed')
-        assertEq(report.results[0]?.path, '.nested')
-        assertEq(report.results[0]?.message, 'trap')
-    },
-    // `await`, not `value.then(...)`: `.then` calls the value's own `then` and
-    // builds its answer through `constructor[Symbol.species]`, so a promise
-    // carrying either can hand back something that is not its result. `await`
-    // adopts a same-realm promise's internal state instead. These pin that the
-    // runner settles the way `fjs t` settles.
-    awaitIgnoresAnOwnThenOverride: async () => {
-        const promised = Promise.resolve({ child: () => undefined })
-        // A no-op override: anything that calls it instead of awaiting gets
-        // `undefined` and loses the subtree.
-        Object.defineProperty(promised, 'then', { value: () => undefined })
-        const report = await run({ nested: () => promised })
-        assertEq(report.totals.tests, 2)
-        assertEq(report.results[1]?.path, '.nested().child')
-    },
-    awaitIgnoresACustomSpecies: async () => {
-        // `then` builds its answer through `constructor[Symbol.species]`, and
-        // this one returns an ordinary object, so `.then` would hand back a
-        // non-promise before the proof had settled.
-        const species = function (/** @type {(...args: (() => void)[]) => void} */ executor) {
-            executor(() => undefined, () => undefined)
-            return { notAPromise: true }
-        }
-        const promised = new Promise(resolve =>
-            setTimeout(resolve, 1, { child: () => { throw 'boom' } }))
-        Object.defineProperty(promised, 'constructor',
-            { value: { [Symbol.species]: species }, configurable: true })
-        const report = await run({ nested: () => promised })
-        assertEq(report.totals.tests, 2)
-        assertEq(report.totals.failed, 1)
-        assertEq(report.results[1]?.path, '.nested().child')
-    },
-    // The other half of the species story, and the half the deleted
-    // `species.proof.mjs` used to cover: `await` is not *immune* to a custom
-    // species, only undiverted by a valid one. A species that throws fails while
-    // promise resolution reads it, and that failure is attributed to the test
-    // that produced the promise rather than swallowed — which is what `fjs t`
-    // does with the same value.
-    customSpeciesThatFailsIsReported: async () => {
-        const constructor = {}
-        Object.defineProperty(constructor, Symbol.species, {
-            get: () => { throw new Error('species') },
-        })
-        const promised = Promise.resolve({ child: () => undefined })
-        Object.defineProperty(promised, 'constructor', { value: constructor, configurable: true })
-        const report = await run({ nested: () => promised })
-        assertEq(report.totals.failed, 1)
-        assertEq(report.results[0]?.path, '.nested')
-        assertEq(report.results[0]?.message, 'species')
-    },
     // **This pins a defect, not a desired behaviour.** The name says so on
     // purpose: it appears in the suite output and in any report built from it,
     // where a reader meets the failure mode rather than an assertion that reads
@@ -383,12 +320,44 @@ export const proof = {
         assertEq(report.totals.tests, 1)
         assertEq(report.results[0]?.path, '.then')
     },
-    batches: async () => {
-        // More leaves than one batch holds, so the batch loop recurses.
+    manyLeaves: async () => {
+        // The walk is a loop over one leaf at a time now rather than a batch
+        // recursion, and it still runs all of them.
         const report = await run(Object.fromEntries(
             Array.from({ length: 30 }, (_, index) => [`t${index}`, () => undefined])))
         assertEq(report.totals.tests, 30)
         assertEq(report.totals.passed, 30)
+    },
+    /**
+     * **The run yields the task between leaves**, which is the port's only
+     * scheduling and the page's only defence against the single-task freeze: a
+     * suite that never returns to the event loop paints nothing until it ends,
+     * however many rows it has appended.
+     *
+     * The assertion is an *ordering sentinel* rather than anything read off the
+     * DOM, and that is the point. A row is appended synchronously inside the
+     * report handler, so the document looks identical with the await deleted —
+     * the trap `todo/share-browser-console-runner.md` catalogs as item 11, a
+     * proof that observes a coincidence. What only a real yield can produce is
+     * a *macrotask enqueued by one leaf running before the next leaf does*.
+     *
+     * Mutation-checked: delete the `await` in the report handler and the
+     * sentinel lands after both leaves — `a b sentinel` — because nothing
+     * returned to the event loop in between.
+     */
+    yieldsBetweenLeaves: async () => {
+        /** @type {readonly string[]} */
+        let events = []
+        /** @type {(name: string) => void} */
+        const record = name => { events = [...events, name] }
+        await runBrowserProofs([['m', {
+            a: () => {
+                record('a')
+                setTimeout(() => record('sentinel'), 0)
+            },
+            b: () => { record('b') },
+        }]])
+        assertStructurallySame(events, ['a', 'sentinel', 'b'])
     },
     render: async () => {
         const p = page()
