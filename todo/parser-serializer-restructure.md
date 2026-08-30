@@ -37,8 +37,9 @@ Read in this order; each line says what to do and why it comes when it does.
    which is JSON's own tokenizer and settles its own accepted set with JSON's
    own proofs — unchanged but for one enumerated defect, an `n` today's
    tokenizer deletes from inside a number.
-3. **Then: stage 4, `fjs/media/datajs`.** No todo file yet — file one under
-   `fjs/media/datajs/todo/` before starting, per the workflow. The normative
+3. **Then: stage 4, `fjs/media/datajs`.** Design is filed:
+   [`fjs/media/datajs/todo/parser-serializer.md`](../fjs/media/datajs/todo/parser-serializer.md).
+   The normative
    behavior is already settled in
    [`spec/datajs/README.md`](../spec/datajs/README.md); stage 4 implements that
    spec, it does not redesign it. Known prerequisite work is named in the stage
