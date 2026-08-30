@@ -180,6 +180,18 @@ export const proof = {
             if (result !== '[{"kind":"["},{"kind":"number","value":"0"},{"kind":"]"},{"kind":"eof"}]') { throw result }
         },
         () => {
+            // `;` is an operator token here for the same reason it is one in
+            // fjs/djs/tokenizer: the two must agree byte for byte, and the DJS
+            // module grammar accepts it as a statement terminator.
+            const result = stringify(tokenizeString(';'))
+            if (result !== '[{"kind":";"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
+            // ...and it ends the token before it, a number included
+            const result = stringify(tokenizeString('1;'))
+            if (result !== '[{"kind":"number","value":"1"},{"kind":";"},{"kind":"eof"}]') { throw result }
+        },
+        () => {
             const result = stringify(tokenizeString('00'))
             if (result !== '[{"kind":"error","message":"invalid number"},{"kind":"eof"}]') { throw result }
         },
