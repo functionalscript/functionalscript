@@ -599,7 +599,7 @@ const fmtResultLine = ({ name, duration }, color, label) =>
  * @type {(options: NodeProgramOptions) => Reporter<Write | Sandbox>}
  */
 export const defaultReporter = options => {
-    const write = csiWrite(options)
+    const write = csiWrite(options.std)
     // A reporter that cannot emit its own output has no fallback to choose —
     // there is nowhere left to report the failure — but it does not have to
     // decide that here: the failure travels to the program's tail, which ends

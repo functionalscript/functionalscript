@@ -1,12 +1,18 @@
 /**
  * @import { RunInstance } from '../mock/types.ts'
- * @import { Catch, Sandbox } from './types.ts'
+ * @import { Catch, Read, Sandbox, Write } from './types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { run as mockRun } from '../mock/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
-import { catch_, sandbox } from './module.f.mjs'
+import { utf8, utf8ToString } from '../../text/module.f.mjs'
+import { msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { toCodePointList } from '../../text/utf8/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
+import { catch_, error, errorExit, log, read, readLine, sandbox, write } from './module.f.mjs'
 
 /**
  * A runner claiming both operations by the names they are declared under.
@@ -32,6 +38,37 @@ const runner = mockRun(/** @type {Parameters<typeof mockRun<Catch | Sandbox, nul
     catch: (/** @type {() => unknown} */ f) => (/** @type {null} */ s) => [s, ok(ok(f()))],
 }))
 
+/**
+ * A runner that writes into a string, tagging each chunk with the stream it
+ * went to — the two facts `log` and `error` decide between them.
+ *
+ * @type {RunInstance<Write, string>} */
+const writer = mockRun(/** @type {Parameters<typeof mockRun<Write, string>>[0]} */ ({
+    write: (/** @type {'stdout' | 'stderr'} */ stream, /** @type {Vec} */ data) =>
+        (/** @type {string} */ w) => [`${w}${stream}:${utf8ToString(data)}`, ok(undefined)],
+}))
+
+/**
+ * A runner that hands out one byte per `read` and then EOF, which is the whole
+ * of what `readLine` composes over.
+ *
+ * @type {RunInstance<Read, readonly number[]>} */
+const reader = mockRun(/** @type {Parameters<typeof mockRun<Read, readonly number[]>>[0]} */ ({
+    read: () => (/** @type {readonly number[]} */ input) =>
+        input.length === 0
+            ? [input, ok(null)]
+            : [input.slice(1), ok(input[0])],
+}))
+
+/** @type {(s: string) => readonly number[]} */
+const bytes = s => toArray(u8List(msb)(utf8(s)))
+
+// Decoded the way `readLine` decodes, rather than through a second
+// round-trip: the assertion is about which bytes are left, and a helper that
+// re-encoded them would be testing the helper.
+/** @type {(b: readonly number[]) => string} */
+const text = b => codePointListToString(toCodePointList(b))
+
 export const proof = {
     sandbox: () => {
         const [, r] = runner(null)(sandbox(() => ({ result: ok(42), duration: 7 })))
@@ -46,5 +83,74 @@ export const proof = {
         const [, r] = runner(null)(catch_(() => 'value'))
         assert(r[0] === 'ok', r)
         assertEq(r[1][1], 'value')
+    },
+    write: {
+        // `log` and `error` differ in the stream and in nothing else, and each
+        // terminates its own line — a caller that had to add `\n` would
+        // eventually forget on the path that matters.
+        logGoesToStdout: () => {
+            const [w] = writer('')(log('hello'))
+            assertEq(w, 'stdout:hello\n')
+        },
+        errorGoesToStderr: () => {
+            const [w] = writer('')(error('nope'))
+            assertEq(w, 'stderr:nope\n')
+        },
+        // The raw operation writes exactly its bytes: no newline, no encoding
+        // opinion. That is what lets `text/sgr` build a TTY-aware writer on it.
+        rawWritesWhatItIsGiven: () => {
+            const [w] = writer('')(write('stdout', utf8('a')))
+            assertEq(w, 'stdout:a')
+        },
+    },
+    errorExit: {
+        // Reports on `stderr` and fails with `1`. The failure is the point: a
+        // caller cannot chain past it, because there is no success value to
+        // chain with.
+        reportsAndFails: () => {
+            const [w, r] = writer('')(errorExit('doomed'))
+            assertEq(w, 'stderr:doomed\n')
+            assert(r[0] === 'error', r)
+            assertEq(r[1], 1)
+        },
+    },
+    readLine: {
+        // The terminator is consumed and not returned.
+        upToTheLineFeed: () => {
+            const [rest, r] = reader(bytes('ab\ncd'))(readLine('stdin'))
+            assert(r[0] === 'ok', r)
+            assertEq(r[1], 'ab')
+            assertEq(text(rest), 'cd')
+        },
+        // A last line with no terminator is still a line, not a discarded
+        // remainder — the difference between reading a file and losing its end.
+        eofEndsTheLastLine: () => {
+            const [, r] = reader(bytes('tail'))(readLine('stdin'))
+            assert(r[0] === 'ok', r)
+            assertEq(r[1], 'tail')
+        },
+        // EOF with nothing buffered is `null`, which is how a caller tells "no
+        // more input" from "an empty line".
+        eofWithNothingIsNull: () => {
+            const [, r] = reader([])(readLine('stdin'))
+            assert(r[0] === 'ok', r)
+            assertEq(r[1], null)
+        },
+        // Multi-byte characters survive: bytes accumulate and are decoded once
+        // at the terminator, so a code point split across reads is not two
+        // replacement characters.
+        decodesUtf8: () => {
+            const [, r] = reader(bytes('héllo\n'))(readLine('stdin'))
+            assert(r[0] === 'ok', r)
+            assertEq(r[1], 'héllo')
+        },
+    },
+    read: {
+        // The operation under `readLine`: one byte, or `null` at EOF.
+        oneByte: () => {
+            const [, r] = reader(bytes('x'))(read('stdin'))
+            assert(r[0] === 'ok', r)
+            assertEq(r[1], 0x78)
+        },
     },
 }

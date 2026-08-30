@@ -2,13 +2,14 @@
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
  * `writeFile`, `rm`, `access`, plus the `readUtf8File`/`writeUtf8File` text
  * helpers), networking (`fetch`, `createServer`, `listen`),
- * subprocess `exec`, `log`/`error` (wrappers over `write`), `import_`, `now`,
- * `forever`, and `all`/`both` parallelism; defines the `NodeOp`/`NodeProgram`
- * types used by the Node runner.
+ * subprocess `exec`, `import_`, `now`, `forever`, and `all`/`both` parallelism;
+ * defines the `NodeOp`/`NodeProgram` types used by the Node runner.
  *
- * `sandbox` and `catch_` are re-exported from [`../common`](../common/module.f.mjs)
- * rather than declared here: a browser interpreter implements both, and an
- * operation belongs to the layer of whoever implements it.
+ * The console family — `write`, `log`, `error`, `errorExit`, `read`,
+ * `readLine` — and `sandbox`/`catch_` are re-exported from
+ * [`../common`](../common/module.f.mjs) rather than declared here: an operation
+ * belongs to the layer of whoever implements it, and a browser sandboxes,
+ * catches and writes.
  *
  * See `./types.ts` for the type-level API.
  *
@@ -28,7 +29,9 @@ import { reverse } from '../../types/list/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { error as resultError, ok as resultOk, unwrap } from '../../types/result/module.f.mjs'
 import { do_, ioError, pure, toIoError } from '../module.f.mjs'
-import { catch_, sandbox } from '../common/module.f.mjs'
+import {
+    catch_, error, errorExit, log, read, readLine, sandbox, write,
+} from '../common/module.f.mjs'
 import {
     mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
@@ -49,11 +52,12 @@ import {
  */
 export { ioError, toIoError }
 
-// `sandbox` and `catch_` are `../common`'s: a browser interpreter implements
-// both, and an operation belongs to the layer of whoever implements it. Kept
-// visible here because `NodeOp` unions them and dozens of call sites name them
-// through this module — a live coupling, not a shim.
-export { catch_, sandbox }
+// `../common`'s, kept visible here because `NodeOp` unions them and dozens of
+// call sites name them through this module — a live coupling, not a shim. An
+// operation belongs to the layer of whoever implements it, and every one of
+// these has, or will have, a second implementer: a browser sandboxes, catches,
+// and writes.
+export { catch_, error, errorExit, log, read, readLine, sandbox, write }
 
 /**
  * The host a {@link Listen} refuses.
@@ -362,75 +366,6 @@ export const forever = do_('forever')
 /** @type {Func<Import>} */
 export const import_ = do_('import')
 
-// write
-
-/** Emits a `Write` effect to the given named stream. */
-/** @type {Func<Write>} */
-export const write = do_('write')
-
-/**
- * Encodes `s + '\n'` as UTF-8 and emits a `Write` effect to `stream`.
- * Shared implementation for `log` and `error`.
- *
- * @type {(stream: WriteConsoles) => Console}
- */
-const writeString = stream => s =>
-    write(stream, utf8(s + '\n'))
-
-/** Writes a line to `stdout`. Replaces the retired `Log` effect. */
-/** @type {Console} */
-export const log = writeString('stdout')
-
-/** Writes a line to `stderr`. Replaces the retired `Error` effect. */
-/** @type {Console} */
-export const error = writeString('stderr')
-
-// read
-
-/** Emits a `Read` effect, yielding the next input byte or `null` at EOF. */
-/** @type {Func<Read>} */
-export const read = do_('read')
-
-/** @type {(bytes: _UtfList) => string} */
-const utf8ListToString = bytes =>
-    codePointListToString(toCodePointList(bytes))
-
-/** The line-feed byte (`\n`) that terminates a line. */
-const lf = 0x0a
-
-/**
- * Reads one line from `stream` as a pure combinator over the byte-level
- * {@link read}: accumulates bytes until a `\n` terminator or EOF, then
- * UTF-8-decodes them. The terminator is consumed but excluded from the result.
- *
- * Reading a single byte per step means a line never over-reads past its
- * terminator, so no leftover-byte buffer has to survive between calls — each
- * `readLine` is self-contained. Yields `null` only at EOF with nothing
- * buffered; a final line lacking a trailing newline is returned in full.
- *
- * Bytes accumulate into a cons-list by prepending (O(1) per byte) and are
- * reversed and decoded once at the terminator, so a large line costs O(n)
- * rather than the O(n²) of copying a growing array on every byte.
- *
- * A failed `read` — a runner without the operation — propagates: the line is
- * not silently truncated into a `null` that a caller would read as EOF.
- *
- * @type {(stream: ReadConsoles) => Effect<Read, string | null, NotImplemented>}
- */
-export const readLine = stream => {
-    /** @type {(acc: _UtfList) => Effect<Read, string | null, NotImplemented>} */
-    const loop = acc =>
-        ioStep(
-            read(stream),
-            b => b === null
-                ? pureOk(acc === null ? null : utf8ListToString(reverse(acc)))
-                : b === lf
-                    ? pureOk(utf8ListToString(reverse(acc)))
-                    : loop({ first: b, tail: acc })
-        )
-    return loop(null)
-}
-
 // now
 
 /** @type {Func<Now>} */
@@ -454,28 +389,6 @@ export const test = do_('test')
 
 // Node
 
-/**
- * Writes an error line to `stderr` and fails with exit code `1`. The canonical
- * "fail with a message" program for a `NodeProgram`. For non-`1` exit codes,
- * compose `resultMapStep(error(s), () => resultError(n))` directly.
- *
- * **It never succeeds, and the type says so.** `E` is `number` and `T` is
- * `never`, so `step`'s continuation takes a `never` and can never run. That is
- * a continuation nobody reaches, not a compile error: writing one still type-
- * checks, because a function accepting `never` accepts anything. What the type
- * buys is that no *value* can be invented for the success branch, so nothing
- * downstream can proceed as if this had succeeded.
- *
- * **The write's own outcome is deliberately discarded**, which is why this is
- * `resultMapStep` rather than `mapStep`. The program is already failing and
- * the exit code is `1` whether or not `stderr` accepted the bytes; propagating
- * here would hand every caller a "failed to report a failure" branch with no
- * better answer available to it than the one taken here.
- *
- * @type {(s: string) => Effect<Write, never, number>}
- */
-export const errorExit = s =>
-    resultMapStep(error(s), () => resultError(1))
 
 /**
  * The exit code a {@link Program} answered, from whichever branch it came.
