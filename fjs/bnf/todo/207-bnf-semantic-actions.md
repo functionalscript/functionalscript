@@ -286,23 +286,36 @@ chunk can be released. `fjs/bnf/descent` backtracks arbitrarily far and must
 retain input back to the oldest live rewind point; it gets streaming *output*
 from 4.1 regardless.
 
-**4.3 Output-level.** A fold produces its value at the root's `end`, which for a
-1 GB document is still a 1 GB value unless the transformers discard. The way to
-get results *out* early, without letting a transformer perform effects (§6),
-is to let the caller read the root:
+**4.3 Output-level — not designed, and this is what it would take.** A fold
+produces its value at the root's `end`, so a 1 GB document is a 1 GB value
+unless the transformers discard. Getting results out *early*, without letting a
+transformer perform effects (§6), needs a channel this protocol does not have.
 
-```ts
-const partial: (s: ParserState) => unknown   // the start rule's current transformer state
-```
+An earlier draft proposed a read-only `partial(s)` returning the start rule's
+state, with the caller draining records between chunks. It does not work, and
+the reason is worth keeping: states are immutable, so a caller that *reads* the
+accumulated records has no way to hand back a state without them. Nothing is
+freed, memory stays O(n), and the reading half alone buys nothing. The write
+half is the whole problem, and it needs two things this design does not supply:
 
-A `document = repeat(record)` grammar accumulates records in the root's state;
-the caller drains them between `append` calls and hands back a state with the
-drained ones removed. Pull, not push, so purity is untouched.
+- **A typed drain** — `(rootState) => [emitted, rootState']`, folded back into
+  the parser state. The root state's type is the start transformer's `S`, which
+  `Transformer<T>` erases (§1), so it is `unknown` in and `unknown` out unless
+  that erasure changes.
+- **A rule for speculation.** Under `descent` a rewind can discard updates a
+  caller has already drained, so draining is sound only where the parse cannot
+  rewind past the drain point — always true under `ll1`, never guaranteed under
+  `descent`.
 
-`partial` is monotone only under `ll1`. Under `descent` a rewind can discard
-updates the caller has already seen, so the two backends differ here — the one
-place in this design where they do, and it is inherent to backtracking rather
-than a wart to fix.
+The other way is flow's: give `update`/`end` an **output chunk**, which makes a
+transformer a `Transducer` in full (§12) and is the same channel chaining needs.
+Its cost is that every rule pays for a channel almost none of them use.
+
+Neither is designed here, and neither should be until a consumer asks for it: a
+recognizer wants no output at all (§4.1), and the value case is served by the
+root's `end`. **What 4.1 and 4.2 promise does not depend on it** — bounded
+memory over a stream is a property of what the transformers *keep*, not of an
+emission channel.
 
 **4.4 What each backend can promise.**
 
@@ -310,7 +323,7 @@ than a wart to fix.
 |---|---|---|
 | Fold-level streaming (4.1) | yes | yes |
 | Bounded-memory input (4.2) | yes | retains back to the oldest live rewind |
-| Monotone `partial` (4.3) | yes | no |
+| A drained value can be un-drained by a rewind (4.3) | no | yes |
 | Transformer may run on an abandoned branch | never | yes |
 
 #### 5. Where it lives, and how the value gets out
@@ -378,12 +391,13 @@ sequence is not one of them). So the value slot is `null` unless the parse both
 matched and finished: `success: false` says the grammar rejected the input, a
 `null` remainder says the input ended first, and either way there is no value to
 misread. The AST path is unaffected — an unmapped rule's node is the engine's
-own (§3), so `parserRuleSet` still reports the partial node it always has. That keeps the three states apart
-without a reserved error string: `null` is "the grammar did not match", `error`
-is "it matched and a transformer refused", `ok` is a value. (A three-way tagged
-union would say the same thing without the redundant boolean; the tuple is kept
-here only to mirror `MatchResult`, and whoever implements it may prefer the
-union.)
+own (§3), so `parserRuleSet` still reports the partial node it always has.
+
+No reserved error string is needed to tell the outcomes apart: `null` is "no
+value, see `success` and the remainder for which", `error` is "matched, finished,
+and a transformer refused", `ok` is a value. (A tagged union would say the same
+without the redundant boolean; the tuple is kept only to mirror `MatchResult`,
+and whoever implements it may prefer the union.)
 
 **The shape above is `ll1`'s, not a shared one.** Only the *value slot*
 generalizes. `fjs/bnf/descent` consumes `CodePointMeta<M>[]`, not `CodePoint[]`,
@@ -857,8 +871,10 @@ value* to check against a spec vector.
       [streaming-recognizer](../../media/json/todo/streaming-recognizer.md)'s
       `recognizerStep`: that one is per-`U16`, depth-capped, and
       `fjs/media/json`'s own (§10, §11.6).
-- [ ] Revisit `partial` (§4.3) once a real consumer wants results before the
-      document ends; it needs [43](./043-stateful-parser.md) to be useful.
+- [ ] Leave output-level streaming (§4.3) alone until a consumer asks for it,
+      then decide between a typed drain and flow's output chunk — with
+      [43](./043-stateful-parser.md) in place, since neither is useful without
+      incremental input.
 
 **Stage 3 — `fjs/bnf/descent`.**
 
@@ -881,13 +897,15 @@ value* to check against a spec vector.
 - **`(state, item)` or `(item, state)` (§12).** The two shipped folds disagree.
   §1 follows `todo/flow.md`; whoever unifies them may move it, and this issue
   should not settle a repository-wide argument on its own.
-- **`partial` (§4.3).** Is exposing the start rule's state the right API, or
-  should draining be a transformer-level concept? It is the only frame whose
-  liveness is guaranteed, which argues for keeping it as narrow as written.
+- **Output-level streaming (§4.3).** A typed drain needs the start
+  transformer's `S`, which the map erases; flow's output chunk taxes every rule
+  with a channel it does not use. Deferred until a consumer names which cost it
+  would rather pay.
 - **The inherited attribute (§10).** Closure-returning transformers, or a
   downward channel in the engine? Decide with the DJS port, not before.
-- **Input streaming (§4.2) is [43](./043-stateful-parser.md)'s.** Whether that
-  issue absorbs `partial` or this one does depends on which lands first.
+- **Input streaming (§4.2) is [43](./043-stateful-parser.md)'s.** This issue
+  only has to leave the parser state plain data so that one can suspend and
+  resume it; which of the two lands first decides where the entry points live.
 - **Helper set (§9).** `map`, `tuple`, `list`, `text`, `unit`, `span` is a
   guess at the working set; let the JSON and DJS ports pick the final list.
 - **Silent rules — no longer optional (§10).** `unit` still delivers an `update`
