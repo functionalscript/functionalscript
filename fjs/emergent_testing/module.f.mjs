@@ -18,7 +18,7 @@
  * @import { Result } from '../types/result/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
- * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunState, RunTotals, TestFailure, TestId, TestResult, _TestAndPath } from './types.ts'
+ * @import { TestFn, TestEntry, TestSet, Path, LeafReporter, Reporter, RunState, RunTotals, TestFailure, TestId, TestResult, _TestAndPath } from './types.ts'
  * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
  */
@@ -232,15 +232,21 @@ export const registerModule = (ctx, k, v, star) => {
  * It also keeps a host's modules a *list*: two modules may share a label, and
  * they are two runs. Nothing here is a map.
  *
+ * **It has no error channel**, and that is a property of the walk rather than
+ * of the operations it uses: every failure a leaf's chain can produce is
+ * recorded in `RunState.aborted` and answered as a value, because a run that
+ * ended early still has failures worth describing. A host therefore gets the
+ * state back whatever happened, and reads `aborted` to find out what happened.
+ *
  * @template {Operation} O
- * @param {Reporter<O>} reporter
- * @returns {(k: string, entries: readonly _TestAndPath[]) => (state: RunState) => Effect<O | Catch, RunState, IoChannel>}
+ * @param {LeafReporter<O>} reporter
+ * @returns {(k: string, entries: readonly _TestAndPath[]) => (state: RunState) => Effect<O | Catch, RunState, never>}
  */
 export const runEntries = ({ result, start, test }) => (k, entries) => state => {
     /**
      * @type {(entry: _TestAndPath) =>
      *     (acc: RunState) =>
-     *         Effect<O | Catch, readonly[RunState, readonly _TestAndPath[]], IoChannel>}
+     *         Effect<O | Catch, readonly[RunState, readonly _TestAndPath[]], never>}
      */
     const one = ([testPath, set]) => acc => {
         // Nothing runs after the run has been abandoned. The walk cannot simply
@@ -376,7 +382,7 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
      * merged out: `one` extends what it is given, so a module continues the run
      * it is part of and there is nothing to join afterwards.
      *
-     * @type {(entries: readonly _TestAndPath[]) => Effect<O | Catch, RunState, IoChannel>}
+     * @type {(entries: readonly _TestAndPath[]) => Effect<O | Catch, RunState, never>}
      */
     const walkEntries = entries => walkStep(pureOk(entries), state, one)
     return walkEntries(entries)

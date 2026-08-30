@@ -29,7 +29,7 @@ fjs <command> [args]
 | `compile`| Compile a FunctionalScript module to JavaScript or JSON | [djs](djs/README.md), [fsc](fsc/README.md) |
 | `cas`    | Content-addressable storage operations (`add`, `get`, `list`) | [cas](cas/README.md) |
 | `mcp`    | Run an MCP server over stdio exposing the CAS and Evo as tools | [mcp](mcp/README.md) |
-| `ci`     | Generate the GitHub Actions CI workflow | [ci](ci/README.md) |
+| `ci`     | Generate the GitHub Actions CI and npm publishing workflows | [ci](ci/README.md) |
 | `web`    | Serve a directory over HTTP | [web](web/README.md) |
 | `run`    | Run a FunctionalScript module as a program | [below](#fjs-run--running-a-module-as-a-program) |
 | `help`   | Print available commands | |
@@ -48,16 +48,17 @@ expanded), anything else emits a JavaScript module that preserves sharing by
 naming reused values as `const`s. Imports are resolved and inlined in both
 cases. See [djs/README.md](djs/README.md) for the accepted subset.
 
-## `fjs ci` — generating the standard CI workflow
+## `fjs ci` — generating the standard workflows
 
 ```sh
 fjs ci
 ```
 
 `fjs ci` runs the built-in CI generator from `fjs/ci/module.f.mjs`, writing
-`.github/workflows/ci.yml`. It is the standard entry point for projects that want
-FunctionalScript's default workflow. Projects with custom CI setup code should keep
-using `fjs run <custom-ci-module>`, so their module can call `ci(setup)` with its own
+`.github/workflows/ci.yml` and `.github/workflows/npm-publish.yml`. It is the
+standard entry point for projects that want FunctionalScript's default
+workflows. Projects with custom CI setup code should keep using
+`fjs run <custom-ci-module>`, so their module can call `ci(setup)` with its own
 extra runtime steps.
 
 ## `fjs web` — serving a directory
