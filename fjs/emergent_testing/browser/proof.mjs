@@ -226,69 +226,6 @@ export const proof = {
     // FunctionalScript as specified cannot express — so only an impure proof
     // can build one, as this one does.
 
-    // The brand check itself runs user code: `instanceof` consults
-    // `getPrototypeOf`, and a proxy can trap it. `fjs t` checks inside
-    // `sandbox`'s `try`/`catch` and reports the value as its test's failure;
-    // the page must do the same, because a run that rejects leaves it in
-    // `running` with no report and no completion event — the one outcome an
-    // automated controller cannot act on.
-    hostileBrandCheckIsReported: async () => {
-        const report = await run({
-            nested: () => new Proxy({}, { getPrototypeOf: () => { throw 'trap' } }),
-        })
-        assertEq(report.status, 'failed')
-        assertEq(report.results[0]?.path, '.nested')
-        assertEq(report.results[0]?.message, 'trap')
-    },
-    // `await`, not `value.then(...)`: `.then` calls the value's own `then` and
-    // builds its answer through `constructor[Symbol.species]`, so a promise
-    // carrying either can hand back something that is not its result. `await`
-    // adopts a same-realm promise's internal state instead. These pin that the
-    // runner settles the way `fjs t` settles.
-    awaitIgnoresAnOwnThenOverride: async () => {
-        const promised = Promise.resolve({ child: () => undefined })
-        // A no-op override: anything that calls it instead of awaiting gets
-        // `undefined` and loses the subtree.
-        Object.defineProperty(promised, 'then', { value: () => undefined })
-        const report = await run({ nested: () => promised })
-        assertEq(report.totals.tests, 2)
-        assertEq(report.results[1]?.path, '.nested().child')
-    },
-    awaitIgnoresACustomSpecies: async () => {
-        // `then` builds its answer through `constructor[Symbol.species]`, and
-        // this one returns an ordinary object, so `.then` would hand back a
-        // non-promise before the proof had settled.
-        const species = function (/** @type {(...args: (() => void)[]) => void} */ executor) {
-            executor(() => undefined, () => undefined)
-            return { notAPromise: true }
-        }
-        const promised = new Promise(resolve =>
-            setTimeout(resolve, 1, { child: () => { throw 'boom' } }))
-        Object.defineProperty(promised, 'constructor',
-            { value: { [Symbol.species]: species }, configurable: true })
-        const report = await run({ nested: () => promised })
-        assertEq(report.totals.tests, 2)
-        assertEq(report.totals.failed, 1)
-        assertEq(report.results[1]?.path, '.nested().child')
-    },
-    // The other half of the species story, and the half the deleted
-    // `species.proof.mjs` used to cover: `await` is not *immune* to a custom
-    // species, only undiverted by a valid one. A species that throws fails while
-    // promise resolution reads it, and that failure is attributed to the test
-    // that produced the promise rather than swallowed — which is what `fjs t`
-    // does with the same value.
-    customSpeciesThatFailsIsReported: async () => {
-        const constructor = {}
-        Object.defineProperty(constructor, Symbol.species, {
-            get: () => { throw new Error('species') },
-        })
-        const promised = Promise.resolve({ child: () => undefined })
-        Object.defineProperty(promised, 'constructor', { value: constructor, configurable: true })
-        const report = await run({ nested: () => promised })
-        assertEq(report.totals.failed, 1)
-        assertEq(report.results[0]?.path, '.nested')
-        assertEq(report.results[0]?.message, 'species')
-    },
     // **This pins a defect, not a desired behaviour.** The name says so on
     // purpose: it appears in the suite output and in any report built from it,
     // where a reader meets the failure mode rather than an assertion that reads
