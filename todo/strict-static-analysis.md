@@ -11,7 +11,7 @@ The Rust half is held hard: `cargo clippy -- -D warnings` and
 `cargo clippy --release -- -D warnings` across nine targets, `cargo fmt --check`,
 and `cargo test` in both profiles on every one of them.
 
-The JavaScript half runs `npx tsc` and the test suites (`fjs test`,
+The JavaScript half runs `tsc` and the test suites (`fjs test`,
 `node --test`, `deno task cov`, `bun test --coverage`) — and nothing else. No
 lint, no formatting check, no unused-code check, no package-correctness check.
 `tsconfig.json` leaves four checking flags off. There is no equivalent of
@@ -66,7 +66,7 @@ inspects the output.
 6. Work through the remaining `tsc` flags, `noUncheckedIndexedAccess` last since
    [inline-type-casts.md](./inline-type-casts.md) shrinks it first.
 
-Each step lands as its own commit, verifiable with `npx tsc` and `fjs t`.
+Each step lands as its own commit, verifiable with `tsc` and `fjs t`.
 
 ### Open question
 

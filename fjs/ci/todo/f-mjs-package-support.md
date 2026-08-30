@@ -267,7 +267,7 @@ emission, `npm pack`, and a clean consumer.
       information.
 - [ ] Import a type from that fixture through the real `./types.ts` path from both
       TypeScript (`import type`) and JavaScript (JSDoc `@import`).
-- [ ] Verify the source fixture under `npx tsc`, Deno, and Bun; Deno must resolve
+- [ ] Verify the source fixture under `tsc`, Deno, and Bun; Deno must resolve
       the real `types.ts` without `@ts-types`, `@ts-self-types`, or a dummy
       `types.js` source file.
 - [x] Verify declaration emit from both `.ts` and `.mjs` rewrites/preserves the

@@ -39,7 +39,7 @@ consumer at all, delete it with its proof (speculative code per AGENTS.md).
 ### Tasks
 
 - [ ] Decide: relocate, un-export, or delete.
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.
 
 ### Related
 

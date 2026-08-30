@@ -59,7 +59,7 @@ Then:
 - [ ] Retype `code_point`, `utf8` (replace `I32`), `utf16`; delete `ByteOrEof`.
 - [ ] Repoint the importers in `djs/tokenizer`, `bnf/descent`, `bnf/ll1`,
       `media/json/serializer`.
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.
 
 ### Related
 

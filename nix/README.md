@@ -18,8 +18,9 @@ The pinned commit determines the package versions: `pkgs.nodejs_24` at that
 revision is one exact Node release, and the same number is recorded in
 `fjs/ci/config`. The flakes do not restate it — the job checks it from inside
 the shell instead (below), which also catches a shell that builds but provides
-the wrong binary. `pkgs.deno` names no version at all, so for that job the check
-is the only thing tying the recorded version to what the shell provides.
+the wrong binary. `pkgs.deno` and `pkgs.typescript-go` name no version at all,
+so for those the check is the only thing tying the recorded version to what the
+shell provides.
 
 The files stay static and readable on purpose — no job selection, no
 `flake-utils`, no shared Nix modules. A job that later needs a second system
@@ -91,9 +92,9 @@ the whole point of it, and a flake and its `run` script are files in a checkout.
 ### The developer environment
 
 `dev` is the one flake here that is not a job's runtime under test. It carries
-everything the canonical jobs use at once — Node 26, Deno, the pinned Bun, a
-Rust toolchain with every WASM target, Wasmtime, Wasmer and `git` — so that one
-shell is enough to work in:
+everything the canonical jobs use at once — Node 26, Deno, the pinned Bun,
+TypeScript, a Rust toolchain with every WASM target, Wasmtime, Wasmer and `git`
+— so that one shell is enough to work in:
 
 ```sh
 nix develop ./nix/dev          # an interactive shell
@@ -101,14 +102,22 @@ nix develop ./nix/dev          # an interactive shell
 ```
 
 It is generated from the same declarations the jobs use, so it cannot drift from
-them: the Node version is the one `node26` runs, the Bun override is the `bun`
-job's, the toolchain and its targets are the `wasm` job's. `git` is declared
-because `nix develop` builds an environment from what the shell asks for rather
-than from what the machine has.
+them: the Node version is the one `node26` runs, its TypeScript is that job's
+too, the Bun override is the `bun` job's, the toolchain and its targets are the
+`wasm` job's. `git` is declared because `nix develop` builds an environment from
+what the shell asks for rather than from what the machine has.
+
+TypeScript is here for a reason the others are not: it is no longer an npm
+dependency of this repository, so `npm ci` does not put a `tsc` in
+`node_modules` and `npm test` or `npm pack` outside this shell needs one
+installed globally. `fjs/ci/config/module.f.mjs` says which version, and why the
+attribute is `typescript-go` rather than `typescript`.
 
 The CI jobs deliberately do **not** share it. Each exists to test one runtime,
 and a shell with five would let a job pass on whichever `node` came first on
-`PATH`.
+`PATH`. `node22` and `node24` carry no compiler for the same reason: they run
+`npm ci` and `node --test`, and a `tsc` on their `PATH` would be a build neither
+ever opens.
 
 It exposes four shells — `aarch64-linux`, `x86_64-linux`, `aarch64-darwin`,
 `x86_64-darwin` — one named `devShells.<system>.default` each, and

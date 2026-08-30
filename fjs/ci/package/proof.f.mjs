@@ -1,16 +1,15 @@
 import { packageCheckJob, packageCheckJobId } from './module.f.mjs'
 import { packageArtifact, packageJobId } from '../node/module.f.mjs'
+import { typescript } from '../config/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
 
-// A pin no configuration anywhere holds, so an assertion that finds it can only
-// have found the value passed in. Importing the generator's own constant would
-// compare it with itself and hold for any value.
-const pin = /** @type {const} */ ('=1.2.3')
-
-const job = packageCheckJob(pin)
+const job = packageCheckJob
 
 /** @type {(fragment: string) => boolean} */
 const scriptHas = fragment => job.steps.some(step => step.run?.includes(fragment) === true)
+
+/** @type {(s: string) => boolean} */
+const digits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
 
 export const proof = {
     // The defining property. With a checkout there is a tsconfig.json up the
@@ -40,11 +39,25 @@ export const proof = {
     canFail: () => {
         assert(scriptHas('"skipLibCheck":false'), 'expected skipLibCheck left false')
     },
-    // The compiler is whatever the package pins, carried through untouched. A
-    // check that runs a compiler the package did not choose is a green result
-    // about the wrong thing.
-    installsTheGivenPin: () => {
-        assert(scriptHas(`"typescript@${pin}"`), 'expected the supplied pin installed')
+    // The compiler is the CI configuration's, and it has to be an exact
+    // version rather than anything npm reads as a range.
+    //
+    // Asserting the string is in the command would compare the generator's
+    // constant with itself, so what is checked here is the property that makes
+    // the constant usable: `MAJOR.MINOR.PATCH`, three numeric segments and
+    // nothing else. This job runs with no checkout and so with no lockfile —
+    // `^7.0.0`, `7.x` or `7.0` would each let a later registry release change
+    // the verdict with nothing in this repository changing. The whole value is
+    // validated rather than its first character, because a range can begin
+    // with a digit.
+    installsAnExactVersion: () => {
+        const parts = typescript.version.split('.')
+        assert(
+            parts.length === 3 && parts.every(digits),
+            `not an exact version: ${typescript.version}`)
+        assert(
+            scriptHas(`"typescript@${typescript.version}"`),
+            'expected the configured compiler installed')
     },
     // `fjs ci` generates workflows for other projects, so the artifact's own
     // package name is whatever that project publishes. Installing under a fixed

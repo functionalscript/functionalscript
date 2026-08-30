@@ -105,7 +105,7 @@ removing the four mutated `let`s.
 - [ ] Rewrite `sequence` and `variant` as instantiations of it.
 - [ ] Confirm `fjs/bnf/data/proof.f.mjs` coverage still exercises both result
       shapes (array and keyed) and the multi-child map-threading path.
-- [ ] `npm test` + `npx tsc` green.
+- [ ] `npm test` + `tsc` green.
 
 ### Caveats
 

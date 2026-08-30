@@ -60,7 +60,7 @@ attach it to the list literal.
 
 - [ ] Extract `writeFirst`; replace the nested cascade in `handleLine`.
 - [ ] Move the fallback-rationale comment onto the candidate list.
-- [ ] Run `npx tsc` and `fjs t`; confirm the stdio proof still covers the
+- [ ] Run `tsc` and `fjs t`; confirm the stdio proof still covers the
       oversized-response and oversized-id paths.
 
 ### Related

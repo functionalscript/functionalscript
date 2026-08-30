@@ -62,7 +62,7 @@ task must not add compatibility code for the deleted Playwright job.
 - [ ] Migrate the surviving external construction in `fjs/ci/module.f.mjs`.
 - [ ] Confirm `proof.f.mjs` still covers `job`, `ubuntu`, and `ubuntuArm`.
 - [ ] Verify generated workflow output is unchanged.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

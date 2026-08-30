@@ -5,7 +5,7 @@
 
 ### Problem
 
-The repository has no linter. Everything is enforced either by `npx tsc` or by
+The repository has no linter. Everything is enforced either by `tsc` or by
 review against [AGENTS.md](../fjs/AGENTS.md). That leaves a class of rules with
 no mechanical enforcement at all, and the cast audit made the cost visible.
 
@@ -44,8 +44,9 @@ would have found most of the audit's 181-cast "remove" bucket on its own —
 plus `no-unnecessary-condition`, `no-explicit-any`,
 `consistent-type-assertions`, and a plugin surface for the three rules above.
 
-The cost is real and should be stated plainly: the repository has exactly two
-devDependencies (`typescript`, `@types/node`) and no other JavaScript tooling.
+The cost is real and should be stated plainly: the repository has exactly one
+devDependency (`@types/node`) and no other JavaScript tooling — even the
+compiler comes from the environment rather than from `npm ci`.
 ESLint with a TypeScript parser is a large dependency tree, needs its own
 config and CI step, and its typed rules re-run the type checker.
 
@@ -101,7 +102,7 @@ on the compiler. They are worth writing now.
 3. Add the three custom rules — inline `@type` cast, unknown JSDoc tag, type
    predicate — since they are what AGENTS.md already forbids and nothing checks.
 4. Add it to the generated workflow via `fjs/ci/` (not to `ci.yml` directly),
-   next to `npx tsc` and `fjs test`.
+   next to `tsc` and `fjs test`.
 5. Gate the cast rule behind an allowlist or a warning level until
    [inline-type-casts.md](./inline-type-casts.md) is worked through, so the
    cleanup and the enforcement can land independently.

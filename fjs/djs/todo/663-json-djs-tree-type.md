@@ -123,7 +123,7 @@ all four aliases off the generic tree and nothing else.
 - [ ] Preserve existing runtime behavior; this task should remain type-only.
 - [ ] Add the standard module header and handle `deno.json` exports according to
       the repository's current exports-map policy.
-- [ ] `npx tsc`, relevant Deno checks, and `fjs test`.
+- [ ] `tsc`, relevant Deno checks, and `fjs test`.
 
 ### Related
 

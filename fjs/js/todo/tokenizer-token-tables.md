@@ -91,7 +91,7 @@ array element.
       `KeywordToken`/`OperatorToken` from them.
 - [ ] Rebuild `keywordEntries`/`operatorEntries` via a shared `kindEntry`
       constructor.
-- [ ] `npx tsc` clean; `fjs t` passes with existing `fjs/js/tokenizer` proofs.
+- [ ] `tsc` clean; `fjs t` passes with existing `fjs/js/tokenizer` proofs.
 
 ### Related
 

@@ -57,7 +57,7 @@ shard path decomposes, and no second `dirname` consumer exists yet.
 
 - [ ] Extract `shard` in `fjs/cas/module.f.mjs`; express `toPath` and
       `publish`'s `dstDir` through it.
-- [ ] `npx tsc`, `fjs t`; existing CAS proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; existing CAS proofs pass unchanged.
 
 ### Related
 

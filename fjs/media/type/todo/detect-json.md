@@ -261,7 +261,7 @@ exactly the path `cas_get` uses.
 - [ ] Update `fjs/media/type/module.f.mjs` module doc (recognised-types table) and the
       `cas_get` output section in `fjs/mcp/cas/module.f.mjs` to list
       `application/json`.
-- [ ] `npx tsc` clean; `fjs t` green with both branches of the JSON verdict
+- [ ] `tsc` clean; `fjs t` green with both branches of the JSON verdict
       covered.
 
 ### Related
