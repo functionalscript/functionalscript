@@ -110,6 +110,12 @@ with `name: `, `result` closes it, and a run that is abandoned leaves its last
 line open with the name on it, which was the point of the event. Everything
 still goes to `stdout` — see [reporter modes](211-reporter-modes.md).
 
+What that format does *not* serve is a consumer that reads lines: `name: ` is
+not a record until the leaf lands, so a pipe or a log collector learns nothing
+early and a killed run's last name can be dropped. That is a second format for
+a second audience rather than a defect in this one — see
+[TTY and line-oriented consumers](tty-and-line-consumers.md).
+
 The browser half is **not** done and was deliberately left out of that change:
 the page still renders a row only once a leaf has settled, and the pending row
 plus its macrotask yield — the part with the real proof problem, since a fake

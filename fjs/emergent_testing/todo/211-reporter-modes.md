@@ -48,6 +48,13 @@ Selected via a CLI flag or env. See
 [test-framework-silent-mode](./test-framework-silent-mode.md), the retired `i21`
 under its current slug.
 
+### TTY and non-TTY are different formats
+
+The mode question this file lists is joined by one the open-line format raised:
+a terminal and a line-oriented consumer want different records for the same
+run. See [TTY and line-oriented consumers](tty-and-line-consumers.md), which
+also notes that CI-ness is a second axis rather than the same one.
+
 ### Dynamic progress reporter
 
 When stdout is a TTY, a reporter that shows a running counter and the currently-executing
