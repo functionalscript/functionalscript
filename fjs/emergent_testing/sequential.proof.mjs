@@ -20,7 +20,8 @@
  * reader of a running suite sees.
  *
  * @import { Effect, Func, OpResult } from '../effects/types.ts'
- * @import { All, Catch, Sandbox } from '../effects/node/types.ts'
+ * @import { All } from '../effects/node/types.ts'
+ * @import { Catch, Sandbox } from '../effects/common/types.ts'
  * @import { Reporter } from './types.ts'
  * @import { Result } from '../types/result/types.ts'
  */
