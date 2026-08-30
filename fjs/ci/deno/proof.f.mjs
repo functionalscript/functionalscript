@@ -1,7 +1,7 @@
 import { denoJobId, denoNixJob, denoSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { deno } from '../config/module.f.mjs'
-import { nixDevelop, nixSystem } from '../nix/module.f.mjs'
+import { nixDevelop, nixSystems } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 const runs = toSteps(denoSteps).flatMap(s => s.run !== undefined ? [s.run] : [])
@@ -45,7 +45,7 @@ export const proof = {
     },
     nixJob: () => {
         assertEq(denoNixJob.id, denoJobId)
-        assertEq(denoNixJob.system, nixSystem)
+        assertStructurallySame(denoNixJob.systems, nixSystems)
         // One unversioned attribute, so the job's version check is the only
         // thing tying `fjs/ci/config`'s `deno` to what the shell provides.
         assertEq(denoNixJob.packages.length, 1)

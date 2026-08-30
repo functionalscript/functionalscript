@@ -45,6 +45,24 @@ work is tracked from then on.
 You may also use the [Dockerfile](./docker/Dockerfile), which sets all of this up
 and is the easiest way to get a known-good environment.
 
+### Or one Nix shell
+
+If you have Nix, `nix/dev` is a generated development environment carrying every
+tool in that table at the exact versions CI uses — Node, Deno, Bun, a Rust
+toolchain with the WASM targets, Wasmtime, Wasmer and `git`:
+
+```bash
+nix develop ./nix/dev          # an interactive shell
+./nix/dev/run npm run cov      # or one command in it
+```
+
+It covers `aarch64-linux`, `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin`;
+`nix develop` picks the one for your machine. Nix does not run natively on
+Windows, so a Windows contributor either works through WSL2 or installs the
+table above — nothing in this repository requires Nix.
+
+`nix/README.md` explains what the shell contains and why.
+
 ### Node test-runner compatibility
 
 External test registration automatically uses an inline compatibility strategy
