@@ -3,7 +3,7 @@
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflow for this repository. Running the generator writes `.github/workflows/ci.yml`
 with the latest matrix of jobs and steps, plus one Nix development environment under
-`nix/` per canonical job that has one — the three Node jobs, `deno` and `wasm`. Which jobs
+`nix/` per canonical job that has one — every one but `package-check`. Which jobs
 have one and why the rest do not is
 [`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
 
@@ -56,10 +56,11 @@ for, and whether that answer should change, is
   version cannot differ between them.
 - `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
   `proof.f.mjs` — its property-based proofs.
-- `bun/module.f.mjs` — the `bun` job's steps. The one canonical runtime job
-  still on a setup action, because Nixpkgs packages no Bun this repository's
-  proofs pass on; [`todo/bun-nix-blocked-on-nixpkgs.md`](./todo/bun-nix-blocked-on-nixpkgs.md)
-  owns that. `proof.f.mjs` — its property-based proofs.
+- `bun/module.f.mjs` — the `bun` job's steps and its flake declaration. The one
+  job whose shell is not the pinned snapshot's: Nixpkgs ships a Bun two of this
+  repository's proofs fail on, so the flake keeps that package's recipe and
+  overrides the archive it unpacks with an exact upstream release.
+  `proof.f.mjs` — its property-based proofs.
 
 ## Usage
 
@@ -80,8 +81,8 @@ plain text built from the pinned commit in `config/module.f.mjs`.
 Each canonical job with a flake declares a system and its Nixpkgs package attributes
 beside the steps that enter them — `nodeNixJobs` in `node/module.f.mjs`, `denoNixJob`
 in its own module — and `module.f.mjs` composes them into `nixJobs`, the one place the
-whole set is visible. `bun` and `package-check` declare none, for two different
-reasons the issue above collects. `nix/module.f.mjs` writes each out as one
+whole set is visible. `package-check` declares none — it runs with no checkout, so
+ there is no file tree for a flake to be in. `nix/module.f.mjs` writes each out as one
 static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
 job-local `shellHook`, run on every entry to the shell; none does today. See
 [nix/README.md](../../nix/README.md) for how the generated files are meant to be
@@ -92,8 +93,16 @@ Nixpkgs snapshot provides — not each vendor's latest release, which the snapsh
 usually trails. They feed the flakes' package attributes where the attribute is
 versioned, as well as the `setup-node` steps left in the platform matrix and
 `package-check`. Bumping any of them therefore means moving the Nixpkgs commit first
-and copying the versions it offers. `bun` is not one of these: `setup-bun` installs
-it, so that pin is a released Bun.
+and copying the versions it offers.
+
+`bun` is not one of these, and it is the one package in any generated shell that the
+snapshot does not decide. Nixpkgs ships 1.3.13, which two of this repository's proofs
+fail on, so that job's flake keeps the snapshot's packaging — the unzip, the
+`autoPatchelfHook`, the wrapper — and replaces only `src`, with the version and SRI
+hash `config/module.f.mjs` records side by side. That works because Nixpkgs fetches
+Bun as a prebuilt archive rather than building it, so the override moves bytes rather
+than adopting a package definition. It is an exception with an expiry: both constants
+go the day the snapshot carries a Bun this suite passes on.
 
 `rust` is not one of them either, and for the opposite reason. The `wasm` job's flake
 carries a second input, `rust-overlay`, pinned in `config/module.f.mjs` beside the
@@ -154,7 +163,8 @@ evaluated for real, by the job that uses it.
 The generated platform jobs run `npm ci`, install the pinned FunctionalScript
 package globally, and run `fjs test`. Those six are now the only place the
 published CLI is exercised: no canonical Node job does, and `deno` and `bun` both
-stopped. Every canonical job runs on Ubuntu ARM; five of them through a flake:
+stopped. Every canonical job runs on Ubuntu ARM, and all but `package-check`
+through a flake:
 
 - Node 22 runs `npm ci` and `node --test` through its generated flake.
 - Node 24 runs the same pair through its own flake — one builder emits both
@@ -164,8 +174,8 @@ stopped. Every canonical job runs on Ubuntu ARM; five of them through a flake:
   as a plain step — `git` is the runner's tool, and a step names the flake only when
   it needs something the flake pins.
 - `deno` runs `deno install --frozen` and `deno task cov` through its flake.
-- `bun` runs `bun install --frozen-lockfile` and `bun test --coverage`, on a
-  `setup-bun` runtime.
+- `bun` runs `bun install --frozen-lockfile` and `bun test --coverage` through its
+  flake, whose Bun is an overridden archive rather than the snapshot's.
 - `wasm` runs `cargo fmt -- --check` and then tests and Clippy for four WASM
   targets through its flake, which provides the toolchain and both runtimes.
   `cargo` invokes `wasmtime` and `wasmer` itself, through the `runner` keys in
