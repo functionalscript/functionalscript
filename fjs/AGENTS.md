@@ -262,6 +262,24 @@ Where each kind of documentation belongs:
   `new Map([...prev, [k, v]])`, and `Object.fromEntries(entries.map(...))`.
 - Use `let` variables only within the function body where they are declared.
 
+#### One realm, one prototype chain
+
+FunctionalScript never handles objects from another realm — a `node:vm`
+context, an iframe, a worker — and never replaces an object's prototype:
+`Object.setPrototypeOf`, `Reflect.setPrototypeOf` and the `__proto__` setter
+are out, and `__proto__` as a data member is written `{ ['__proto__']: v }`.
+
+The two halves buy the same thing, which is why they are one rule: every value
+an `.f.mjs` function sees was built by this realm's constructors, so
+`instanceof` and the prototype chain are reliable.
+
+**Detect an array with `a instanceof Array`.** That is the spelling
+FunctionalScript uses. `Array.isArray` is not a more careful version of it
+here, only a longer one guarding against values this rule already excludes.
+
+A boundary that does take foreign values is a host boundary: it belongs in a
+thin `.mjs` that converts them before any `.f.mjs` sees them.
+
 #### No regular expressions
 
 Do not use regular expressions. Express lexical checks and transformations with
