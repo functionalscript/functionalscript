@@ -62,7 +62,7 @@ export const array = v => cj('[]', v)
 /** @type {(v: Rule, property: Rule) => Rule} */
 export const object = (p, v) => cj('{}', [p, ws, ':', ws, v])
 
-export const createValue = (/** @type {Rule}*/v) => ({
+export const createValue = (/**@type {Rule}*/p, /**@type {Rule}*/v) => ({
     array: array(v),
     object: object(string, v),
     string,
@@ -72,6 +72,6 @@ export const createValue = (/** @type {Rule}*/v) => ({
     null: 'null',
 })
 
-const value = () => createValue(value)
+const value = () => createValue(string, value)
 
 export const json = [ws, value, ws]

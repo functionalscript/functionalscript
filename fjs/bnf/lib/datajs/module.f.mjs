@@ -1,7 +1,7 @@
 /** @import { Rule } from '../../types.ts' */
 
 import { string } from '../../../rtti/module.f.mjs'
-import { array, createValue, digit, false_, null_, object, optionFloatSuffix, optionNeg, true_, uint, ws, wsSymbol } from '../json/module.f.mjs'
+import { array, createValue, digit, optionFloatSuffix, optionNeg, uint, ws, wsSymbol } from '../json/module.f.mjs'
 import { option, range, repeat0Plus, repeat1Plus } from '../../module.f.mjs'
 
 const uNumber = {
@@ -26,7 +26,7 @@ const property = {
 }
 
 const value = () => ({
-    ...createValue(value),
+    ...createValue(property, value),
     number, // replace the JSON number
     nan: 'NaN',
     undefined: 'undefined',
