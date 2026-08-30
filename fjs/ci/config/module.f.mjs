@@ -27,13 +27,29 @@ export const images = /** @type {const} */({
 // https://www.npmjs.com/package/functionalscript
 export const functionalscript = /** @type {const} */ '0.47.0'
 
-// Bun is installed by `setup-bun`, so this is a released Bun rather than a
-// packaged one. It is the last canonical job not on a flake: Nixpkgs ships
-// 1.3.13, on which two of this repository's proofs fail — one a real difference
-// in when `Symbol.species` is read, not a slow machine. See
-// `../todo/bun-nix-blocked-on-nixpkgs.md`.
+// The one runtime a generated flake takes from outside the pinned snapshot.
+// Nixpkgs ships 1.3.13 — on the pin and on `master` — and two of this
+// repository's proofs fail on it, one of them a real difference in when
+// `Symbol.species` is read rather than a slow machine. So the `bun` job's flake
+// keeps the snapshot's packaging and replaces only the archive, with the
+// version and the hash below.
+//
+// This is the exception, not a pattern: it works because Nixpkgs fetches Bun as
+// a prebuilt archive, so overriding it moves bytes rather than adopting a
+// package definition. Delete both constants the day the snapshot carries a Bun
+// this suite passes on.
 // https://bun.sh/
 export const bun = '1.4.0'
+
+// SHA-256 of the archive that release publishes for `aarch64-linux`, the one
+// system the generated flakes target, as an SRI string.
+//
+// Verified rather than copied: the artifact was downloaded and hashed, and the
+// result compared against the value an independent packaging of the same
+// release records. Recompute it the same way when the version above moves —
+// `nix-prefetch-url` where Nix is available, otherwise a download and a
+// `sha256sum` re-encoded as base64.
+export const bunHash = 'sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4='
 
 // The Deno version the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/by-name/de/deno/package.nix` at that commit. The job asserts the
@@ -55,6 +71,15 @@ export const node = /** @type {const} */({
     node24: '24.19.0',
 })
 
+// The Rust the `wasm` job's flake provides, resolved by `rust-overlay` from
+// the official release manifest — so unlike the Nixpkgs pins below, this is an
+// exact release rather than whatever a snapshot happens to carry, and the flake
+// text names it in full. It is also the version the platform matrix's
+// `dtolnay/rust-toolchain` installs; the two are the same constant so they
+// cannot drift.
+// https://rust-lang.org/
+export const rust = '1.98.0'
+
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
 // every generated `flake.nix` pins. The Node versions above come from this
@@ -65,11 +90,34 @@ export const nixpkgs = /** @type {const} */({
     commit: '062346a6d85bc4b49dfaa61c986e9c5be21217d1',
 })
 
+// Wasmtime and Wasmer are installed by their own setup actions, so these are
+// released versions rather than packaged ones. The `wasm` job is not on a flake:
+// Nixpkgs builds no `std` for three of its four WASI targets, so the toolchain it
+// needs cannot come from the snapshot at all. See
+// `../todo/wasm-nix-blocked-on-rust-targets.md`.
+// `rust-overlay`, the second input of the `wasm` job's flake. Nixpkgs builds
+// one `rustc` and hard-codes the targets it builds `std` for — the host,
+// `wasm32-unknown-unknown` and two bare-metal targets — so three of that job's
+// four targets have no `std` at any Nixpkgs version. This overlay takes the
+// same tarballs `rustup` would, pinned by hashes checked into its own
+// repository. `ref` is the branch the commit is accepted from.
+// https://github.com/oxalica/rust-overlay
+export const rustOverlay = /** @type {const} */({
+    ref: 'master',
+    commit: '996e9b0b019a4a9eb9e9a5641aefa06d801b5895',
+})
+
+// The Wasmtime and Wasmer versions the pinned Nixpkgs snapshot provides — read
+// from `pkgs/by-name/wa/{wasmtime,wasmer}/package.nix` at that commit. The
+// `wasm` job asserts both from inside its shell, which is the only tie there
+// is: neither attribute carries a version, so nothing else connects these
+// numbers to what the shell provides. Bump the snapshot first and copy what it
+// offers, as the Node and Deno pins do.
 // https://github.com/bytecodealliance/wasmtime/releases
-export const wasmtime = '48.0.1'
+export const wasmtime = '45.0.2'
 
 // https://github.com/wasmerio/wasmer/releases
-export const wasmer = '7.3.0'
+export const wasmer = '7.1.0'
 
 // GitHub Action versions used by CI step builders. The key is the action
 // `owner/name`; call sites compose the full ref as
@@ -80,21 +128,15 @@ export const actions = /** @type {const} */({
     'actions/checkout': 'v7.0.1',
     // https://github.com/marketplace/actions/setup-node-js-environment
     'actions/setup-node': 'v7.0.0',
-    // https://github.com/marketplace/actions/setup-bun
-    'oven-sh/setup-bun': 'v2.2.0',
     // https://github.com/marketplace/actions/cache
     'actions/cache': 'v6.1.0',
     // https://github.com/marketplace/actions/upload-a-build-artifact
     'actions/upload-artifact': 'v7.0.1',
     // https://github.com/marketplace/actions/download-a-build-artifact
     'actions/download-artifact': 'v8.0.1',
-    // https://github.com/bytecodealliance/actions
-    'bytecodealliance/actions/wasmtime/setup': 'v1.1.3',
-    // https://github.com/wasmerio/setup-wasmer
-    'wasmerio/setup-wasmer': 'v3.1',
     // https://github.com/marketplace/actions/install-nix
     // Enables the `nix-command` and `flakes` experimental features by default.
     'cachix/install-nix-action': 'v31.11.1',
     // https://rust-lang.org/ - value is Rust version, not action version
-    'dtolnay/rust-toolchain': '1.98.0',
+    'dtolnay/rust-toolchain': rust,
 })

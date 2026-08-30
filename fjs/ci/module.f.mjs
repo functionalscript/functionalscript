@@ -24,12 +24,12 @@ import {
     toSteps,
     ubuntuArm
 } from './common/module.f.mjs'
-import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
+import { rustPlatformSteps, rustWasmSteps, wasmNixJob } from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.mjs'
 import { nixFlakes } from './nix/module.f.mjs'
 import { parse as jsonParse } from '../media/json/module.f.mjs'
 import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
-import { bunSteps } from './bun/module.f.mjs'
+import { bunNixJob, bunSteps } from './bun/module.f.mjs'
 import { denoNixJob, denoSteps } from './deno/module.f.mjs'
 
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
@@ -49,12 +49,19 @@ const job = (rust, nodeExtra) => o => a => {
  * declares its own environment beside the steps that enter it; this is the list
  * the generator writes out, and the only place the whole set is visible.
  *
- * `bun` is the one canonical job absent from it — `./todo/bun-nix-blocked-on-nixpkgs.md`
- * says why, and adding its declaration here is what finishes that migration.
+ * `wasm` is here only conditionally in spirit: its flake is generated whether or
+ * not the project has a `Cargo.toml`, because the generator writes flakes from
+ * this list rather than from the jobs it emitted. A project without Rust gets a
+ * `nix/wasm` directory it never enters — the same trade `./todo/ci-generator-audience.md`
+ * describes for every other job this generator writes unconditionally.
+ *
+ * One canonical job is absent: `package-check` runs with no checkout, so there
+ * is no file tree for a flake to be in. `./todo/65z-ci-nix.md` says why, and
+ * `./proof.f.mjs`'s `nixCoverage` keeps the list from growing by accident.
  *
  * @type {readonly NixJob[]}
  */
-export const nixJobs = [...nodeNixJobs, denoNixJob]
+export const nixJobs = [...nodeNixJobs, denoNixJob, wasmNixJob, bunNixJob]
 
 /** @type {(rust: boolean, pin: string | undefined) => Jobs} */
 const canonicalJobs = (rust, pin) => ({

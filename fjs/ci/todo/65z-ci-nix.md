@@ -5,8 +5,8 @@
 
 ### Progress
 
-Flake generation is implemented and **every canonical job but `bun` is migrated** — the
-three Node jobs, then `deno`. Each installs Nix through the pinned action and runs its
+Flake generation is implemented and **every canonical job that can be is migrated** —
+the three Node jobs, then `deno`, then `wasm`, then `bun`. Each installs Nix through the pinned action and runs its
 command sequence one `nix develop` step per command. Nix runs in CI only where a job uses
 a flake — the temporary `nix-flakes` job that instantiated them to check them is gone,
 and every generated flake is now evaluated by the job that uses it. What needs no Nix is
@@ -29,16 +29,107 @@ proof that ties `nodejs_24` to the configured Node has no counterpart for it. It
 version check is the whole tie, which is why that check is worth more there than it is
 for Node.
 
-**Bun was attempted and reverted.** Nixpkgs ships Bun 1.3.13 — on the pinned commit and
-on `master` — and two of this repository's proofs fail on it while passing on the 1.4.0
-`setup-bun` installs. One is a real difference in when `Symbol.species` is read, not a
-slow machine, so no timeout or configuration change reaches it, and weakening a proof to
-move a job to Nix is not a trade worth making.
-[bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md) owns that job and records
-what has to change first.
+#### `wasm`, and the second input
 
-What remains here is the Nixpkgs update command; the other open items are `bun` and
-removing stale generated job directories, which waits on a recursive `rm` effect.
+The WASM job needed something the other four did not, and getting it changed this
+issue's scope rather than its implementation.
+
+Nixpkgs builds **one** `rustc` and hard-codes the targets it builds `std` for —
+`pkgs/development/compilers/rust/rustc.nix`, `--target=`: the host,
+`wasm32-unknown-unknown`, `wasm32v1-none` and two BPF targets. Three of this job's
+four — `wasm32-wasip1`, `wasm32-wasip2`, `wasm32-wasip1-threads` — are not among
+them, on the pinned commit or on `master`, so 16 of its 23 commands would fail at
+`E0463` before running anything. That list is not a package argument, so no version
+reaches it: the constraint is which standard libraries the derivation was configured
+to build, not which Rust it builds them with. `pkgsCross` models `wasm32-wasip1`
+only, one target per package set, and a shell holds one `cargo`.
+
+So the job's flake takes its toolchain from a **second input**,
+`github:oxalica/rust-overlay`, and this issue's "one official Nixpkgs snapshot" scope
+is widened by exactly that much. What the overlay does is not a different build; it is
+a different acquisition. Rust publishes a manifest per release —
+`channel-rust-1.98.0.toml`, every component and target with a URL and a hash — and the
+overlay checks a generated Nix file per version into its own repository, so
+`rust-bin.stable."1.98.0".minimal.override { extensions targets }` selects among the
+same tarballs `rustup` would install, pinned by hashes that live in a flake input this
+repository pins. Nixpkgs ignores that manifest and builds the compiler from source,
+which is the whole of the difference.
+
+The cost is a second upstream, recorded in `fjs/ci/config/module.f.mjs` beside the
+Nixpkgs commit and updated on its own schedule.
+`inputs.rust-overlay.inputs.nixpkgs.follows` keeps the flake resolving one snapshot
+rather than two. The `minimal` profile plus the two components the job runs is
+deliberate: `default` would add `rust-docs`, a download nothing here opens.
+
+The two runtimes stay official: `pkgs.wasmtime` and `pkgs.wasmer`, whose attributes
+carry no version, so the job checks both from inside the shell exactly as `deno` does.
+Its Rust it does not check — `stable."1.98.0"` names the release in full, so a check
+would restate the flake rather than test it. The snapshot's Wasmtime is 45.0.2, which
+predates the wasi-threads removal in 47 that
+[wasmtime-threads](../../../todo/blocked/wasmtime-threads.md) records, so the
+Wasmer-only threads target now tests less than it could rather than something it
+cannot; revisit when the snapshot moves past 47.
+
+#### `bun`, and the one package the snapshot does not decide
+
+Bun was attempted, reverted, and then migrated a third way. Nixpkgs ships 1.3.13 — on
+the pin and on `master` — and two of this repository's proofs fail on it while passing
+on 1.4.0. One is a real difference in when `Symbol.species` is read rather than a slow
+machine, so no timeout or configuration change reaches it, and weakening a proof to
+move a job to Nix was never a trade worth making.
+
+What changed is the reading of the problem. Nixpkgs fetches Bun as a **prebuilt
+archive** — `stdenvNoCC.mkDerivation`, `dontBuild = true`, unzip, `install -Dm 755`,
+`autoPatchelfHook` — so the gap was a version on a download, not a component nobody
+builds. The job's flake therefore keeps that recipe and replaces only `src`:
+
+```nix
+pinned = pkgs.bun.overrideAttrs {
+    version = "1.4.0";
+    src = pkgs.fetchurl { url = "…/bun-v1.4.0/bun-linux-aarch64.zip"; hash = "sha256-…"; };
+};
+```
+
+The binding is the generator's name, not the package's — as `rust` is in the
+`wasm` flake. A reference has to start with a Nix identifier while a selection
+can be quoted, so naming it after the package would refuse to serialize names
+that `pkgs."…"` handles without trouble.
+
+No second input, and no third party: the archive is the vendor's own release and the
+hash is this repository's, computed by downloading and hashing it. That is the whole
+difference from `wasm`, where the missing piece was a `rust-std` Nixpkgs never builds
+and an overlay was the only way in.
+
+**Treat it as an exception with an expiry, not a pattern.** It works because the
+package is a repackaged binary; a package built from source would make this repository
+the maintainer of a package definition. `fjs/ci/config/module.f.mjs` carries the
+version and the hash together, and both are deleted the day the snapshot carries a Bun
+this suite passes on. The job's version check is what holds it: unlike every other
+check, which confirms a snapshot provides what the configuration claims, this one
+confirms the override took effect at all.
+
+#### Jobs with no flake
+
+One canonical job has none. That the set is exactly this one is asserted by
+`fjs/ci/proof.f.mjs`'s `nixCoverage`, so a job added later has to come here and say
+which side of the line it falls on.
+
+- **`package-check`** — not blocked: out of scope by construction. The job runs with
+  no checkout, which is its whole point — with the repository on the runner there
+  would be a `tsconfig.json` up the tree and a `node_modules` to resolve into, and
+  the check would pass on the repository rather than on the package. A generated
+  flake and its `run` script are files *in* the checkout, so entering one means
+  putting the repository back. Its Node comes from `setup-node`, and the version it
+  names is the one `node26`'s flake already checks.
+
+The platform matrix — `{ubuntu,macos,windows}-{intel,arm}` — is out of scope for a
+related reason. Those six jobs exist to run on stock GitHub runner images across
+three operating systems and two architectures, so a flake would replace the thing
+they measure; four of the six are not `aarch64-linux` at all.
+
+What remains here is the Nixpkgs update command and removing stale generated job
+directories, which waits on a recursive `rm` effect. Every canonical job but
+`package-check` now runs through a flake.
 
 ### Problem
 
@@ -102,9 +193,15 @@ node22: aarch64-linux, nodejs_22
 node24: aarch64-linux, nodejs_24
 node26: aarch64-linux, nodejs_26
 deno:   aarch64-linux, deno
+wasm:   aarch64-linux, wasmtime, wasmer, and a rust-overlay toolchain
 ```
 
-`bun` would be `aarch64-linux, bun`, and is not declared while its migration is blocked.
+`bun` is `aarch64-linux, bun`, with the package overridden to an exact upstream
+release rather than taken from the snapshot.
+
+`wasm` is the one job whose declaration is not only package names: it also names a
+Rust release, the components it runs and the targets whose `rust-std` its shell must
+carry. Those go to the second input rather than to Nixpkgs, for the reason above.
 
 The Node attributes name a major version; Deno's names nothing. Where the attribute is
 unversioned the configured version is a claim the flake cannot restate, so only the job's
@@ -122,6 +219,8 @@ nix/node22/flake.nix
 nix/node24/flake.nix
 nix/node26/flake.nix
 nix/deno/flake.nix
+nix/wasm/flake.nix
+nix/bun/flake.nix
 ```
 
 Each generated file should:
@@ -280,9 +379,7 @@ and the job that runs on it is where that claim is worth checking.
 
 Add other jobs only when useful:
 
-- Deno is done; Bun is blocked on Nixpkgs, tracked separately in
-  [bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md);
-- Rust should have its own experiment and TODO for concrete toolchain/target packages;
+- Deno, Rust and Bun are done;
 - real browser execution is tracked by
   [browser-testing](../../emergent_testing/todo/browser-testing.md); the Node-only
   Playwright integration has already been removed;
@@ -318,15 +415,19 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Validate each Node job independently with its existing commands and order.
 - [x] Keep tracked checkout state unchanged.
 - [x] Migrate jobs one at a time — Node 24, then Node 26, then Node 22, then `deno`.
-- [ ] Migrate `bun`, once Nixpkgs provides a Bun this repository's proofs pass on.
+- [x] Migrate `bun`, by overriding the snapshot's package with an exact upstream
+      release rather than waiting for Nixpkgs to ship one.
+- [x] Migrate `wasm`, which needed this issue's "official Nixpkgs only" scope
+      widened by one input: Nixpkgs builds no `std` for three of its four targets,
+      at any version.
 - [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
 
 ### Related
 
 - [`fjs/media/nix`](../../media/nix/module.f.mjs) — generic Nix eDSL used by the
   generated-flake code generator.
-- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — first Node
-  implementation.
+- [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — the first Node
+  implementation, whose shape every migrated job follows.
 - [browser-testing](../../emergent_testing/todo/browser-testing.md) — replacement design
   for real browser execution and the optional external Playwright runner.
 - [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI design work after

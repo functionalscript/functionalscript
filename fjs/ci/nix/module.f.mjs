@@ -14,8 +14,8 @@
  * @import { MetaStep } from '../common/types.ts'
  * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
- * @import { Expression } from '../../media/nix/types.ts'
- * @import { NixJob } from './types.ts'
+ * @import { Expression, _Binding, _Reference } from '../../media/nix/types.ts'
+ * @import { NixJob, NixPin, NixRust } from './types.ts'
  */
 
 import { pureOk } from '../../effects/module.f.mjs'
@@ -25,7 +25,7 @@ import { nixToString } from '../../media/nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { install, test, uses } from '../common/module.f.mjs'
-import { nixpkgs } from '../config/module.f.mjs'
+import { nixpkgs, rustOverlay } from '../config/module.f.mjs'
 
 /**
  * Directory holding the generated environments, one subdirectory per job, each
@@ -38,22 +38,112 @@ const { commit } = nixpkgs
 
 const url = `github:NixOS/nixpkgs/${commit}`
 
-/** @type {(job: NixJob) => Expression} */
-const flake = ({ system, packages, shellHook }) => ['set',
+const rustOverlayUrl = `github:oxalica/rust-overlay/${rustOverlay.commit}`
+
+/**
+ * The toolchain expression a job with a `rust` declaration binds to `rust`.
+ *
+ * `minimal.override` rather than `default`: the default profile carries
+ * `rust-docs`, and a job that names the components it runs downloads only
+ * those. `stable."<version>"` names the release in full, which is why no
+ * generated job checks its Rust version from inside the shell the way it checks
+ * an unversioned attribute — there is nothing left for the check to establish.
+ *
+ * @type {(rust: NixRust) => Expression}
+ */
+const toolchain = ({ version, extensions, targets }) => ['apply',
+    ['ref', 'pkgs', 'rust-bin', 'stable', version, 'minimal', 'override'],
+    ['set',
+        ['=', ['extensions'], ['list', ...extensions]],
+        ['=', ['targets'], ['list', ...targets]],
+    ]
+]
+
+/** The `let` name a pinned package is bound to, whatever package it overrides. */
+const pinName = /** @type {const} */ ('pinned')
+
+/**
+ * The package expression a job with a `pin` binds to {@link pinName}.
+ *
+ * That name is the generator's, not the job's, and deliberately: a reference's
+ * root has to be a Nix identifier — `serializeReference` rejects anything else
+ * — while an attribute *selection* is quoted when it needs to be. Binding to a
+ * name the job supplied would make `flakeText` throw for a package like
+ * `not an identifier`, where `pkgs."not an identifier".overrideAttrs` is
+ * perfectly serializable. `rust` is named by the generator for the same reason.
+ *
+ * `overrideAttrs` rather than a package definition of our own: the snapshot's
+ * recipe already unpacks this archive, patches its interpreter and wraps the
+ * binary, and all of that stays. Only `src` moves, to a release the snapshot
+ * does not carry, with the hash checked before anything is unpacked.
+ *
+ * `version` moves with it because the two are one fact. Leaving it behind
+ * would name the derivation after a release it no longer contains — and the
+ * package builds its own download URLs from `version`, so a mismatch there is
+ * the kind that surfaces as a hash error in an unrelated place.
+ *
+ * @type {(pin: NixPin) => Expression}
+ */
+const pinned = ({ package: name, version, url: archive, hash }) => ['apply',
+    ['ref', 'pkgs', name, 'overrideAttrs'],
+    ['set',
+        ['=', ['version'], version],
+        ['=', ['src'], ['apply',
+            ['ref', 'pkgs', 'fetchurl'],
+            ['set',
+                ['=', ['url'], archive],
+                ['=', ['hash'], hash],
+            ]
+        ]],
+    ]
+]
+
+/**
+ * A job declaring neither `rust` nor `pin` generates exactly what it generated
+ * before those declarations existed: one input, one lambda argument, no
+ * overlay, one `let` binding. Everything either one brings is conditional on
+ * the job asking for it.
+ *
+ * @type {(job: NixJob) => Expression}
+ */
+const flake = ({ system, packages, shellHook, rust, pin }) => ['set',
     ['=', ['inputs', 'nixpkgs', 'url'], url],
+    ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+        ['=', ['inputs', 'rust-overlay', 'url'], rustOverlayUrl],
+        // The overlay's own Nixpkgs is only for its checks, and following ours
+        // keeps one snapshot in the flake rather than two resolved revisions.
+        ['=', ['inputs', 'rust-overlay', 'inputs', 'nixpkgs', 'follows'], 'nixpkgs'],
+    ])),
     ['=', ['outputs'], ['lambda',
-        ['open-set-pattern', 'nixpkgs'],
+        ['open-set-pattern', 'nixpkgs', ...(rust === undefined ? [] : ['rust-overlay'])],
         ['set',
             ['=', ['devShells', system, 'default'], ['let',
-                [['=', ['pkgs'], ['apply',
-                    ['ref', 'import'],
-                    ['ref', 'nixpkgs'],
-                    ['set', ['=', ['system'], system]]
-                ]]],
+                [
+                    ['=', ['pkgs'], ['apply',
+                        ['ref', 'import'],
+                        ['ref', 'nixpkgs'],
+                        ['set',
+                            ['=', ['system'], system],
+                            ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+                                ['=', ['overlays'], ['list', ['ref', 'rust-overlay', 'overlays', 'default']]],
+                            ])),
+                        ]
+                    ]],
+                    ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+                        ['=', ['rust'], toolchain(rust)],
+                    ])),
+                    ...(pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+                        ['=', [pinName], pinned(pin)],
+                    ])),
+                ],
                 ['apply',
                     ['ref', 'pkgs', 'mkShell'],
                     ['set',
-                        ['=', ['packages'], ['list', ...packages.map(p => /** @type {const} */ (['ref', 'pkgs', p]))]],
+                        ['=', ['packages'], ['list',
+                            ...(rust === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', 'rust']])),
+                            ...(pin === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', pinName]])),
+                            ...packages.map(p => /** @type {const} */ (['ref', 'pkgs', p])),
+                        ]],
                         ...(shellHook === undefined
                             ? []
                             : [/** @type {const} */ (['=', ['shellHook'], ['indented-string', shellHook]])])
@@ -229,4 +319,4 @@ export const nixSteps = id => commands =>
  * @type {(id: string, command: string, expected: string) => MetaStep}
  */
 export const nixVersionStep = (id, command, expected) =>
-    test({ run: `test "$(${nixDevelop(id, command)})" = ${expected}` })
+    test({ run: `test "$(${nixDevelop(id, command)})" = "${expected}"` })

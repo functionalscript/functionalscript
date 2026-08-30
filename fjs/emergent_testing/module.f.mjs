@@ -19,11 +19,13 @@
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
  * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunState, RunTotals, TestFailure, TestId, TestResult, _TestAndPath } from './types.ts'
- * @import { All, Await, Catch, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Sandbox, SandboxResult, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
+ * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
+ * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
  */
 
 import { reset, fgGreen, fgRed, bold, csiWrite } from '../text/sgr/module.f.mjs'
-import { allOk, awaitIfPromise, catch_, errorExit, errorMessage, errorSummary, exitStep, sandbox, test } from '../effects/node/module.f.mjs'
+import { allOk, awaitIfPromise, errorExit, errorMessage, errorSummary, exitStep, test } from '../effects/node/module.f.mjs'
+import { catch_, sandbox } from '../effects/common/module.f.mjs'
 import {
     catchStep, foldStep, forEachStep, history, historyStep, mapStep, pure, pureError, pureOk,
     resultMapStep, resultStep, step,
