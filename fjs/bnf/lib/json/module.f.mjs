@@ -2,7 +2,7 @@ import { commaJoin0Plus, option, range, remove, repeat, repeat0Plus, set, unicod
 
 const onenine = range('19')
 
-export const digit = range('09')
+const digit = range('09')
 
 const string = [
     '"',
@@ -30,42 +30,28 @@ const digits0 = repeat0Plus(digit)
 
 const digits = [digit, digits0]
 
-export const uint = {
-    0: '0',
-    19: [onenine, digits0],
-}
-
-export const optionFloatSuffix = [
+const number = [
+    option('-'),
+    {
+        0: '0',
+        onenine: [onenine, digits0],
+    },
     option(['.', digits]),
     option([set('Ee'), option(set('+-')), digits])
 ]
 
-export const optionNeg = option('-')
+const ws = repeat0Plus(set(' \n\r\t'))
 
-export const int = [optionNeg, uint]
-
-const number = [int, optionFloatSuffix]
-
-export const wsSymbol = set(' \n\r\t')
-
-export const ws = repeat0Plus(wsSymbol)
-
-export const cj = commaJoin0Plus(ws)
-
-export const true_ = 'true'
-
-export const false_ = 'false'
-
-export const null_ = 'null'
+const cj = commaJoin0Plus(ws)
 
 const value = () => ({
-    number,
-    string,
-    true_,
-    false_,
-    null_,
     array: cj('[]', value),
     object: cj('{}', [string, ws, ':', ws, value]),
+    string,
+    number,
+    true: 'true',
+    false: 'false',
+    null: 'null'
 })
 
 export const json = [ws, value, ws]

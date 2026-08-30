@@ -254,7 +254,7 @@ export const proof = {
             expect('{a}', true)
         },
         () => {
-            const m = descentParser(deterministic)
+            const m = descentParser(deterministic())
 
             // A match is pinned by the AST it built, not just by the fact that it
             // matched: the shape is what a repetition changes, and asserting it
@@ -333,7 +333,7 @@ export const proof = {
             // deep non-repetition nesting: 5000 bracket levels in the JSON-like test
             // grammar — a shape that repetition-specific fixes (a `repeat` primitive)
             // would not cover
-            const m = descentParser(deterministic)
+            const m = descentParser(deterministic())
             const n = 5000
             const cp = toArray(stringToCodePointList('['.repeat(n) + ']'.repeat(n)))
             const { success: ok, idx } = descentParserCpOnly(m, '', cp)

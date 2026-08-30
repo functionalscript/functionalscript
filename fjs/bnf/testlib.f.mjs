@@ -5,6 +5,7 @@
  */
 
 import { codePointToString } from '../text/utf16/module.f.mjs'
+import { json } from './lib/json/module.f.mjs'
 import {
     commaJoin0Plus,
     none,
@@ -16,7 +17,6 @@ import {
     set,
     unicodeMax,
 } from './module.f.mjs'
-import { json as libJson } from './lib/json/module.f.mjs'
 
 /** @type {() => Rule} */
 export const classic = () => {
@@ -134,7 +134,8 @@ export const classic = () => {
     return json
 }
 
-export const deterministic = libJson
+/** @type {() => Rule} */
+export const deterministic = () => json
 
 //
 
