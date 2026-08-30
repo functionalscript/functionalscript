@@ -13,14 +13,22 @@ import { sort } from '../../types/object/module.f.mjs'
 // serialize — reuse the same djs stringifyAsTree serializer tokenizeString uses internally.
 const stringify = stringifyAsTree(sort)
 
-// 'line:column' of the error token `s` tokenizes to, or 'no error'. Collapsing the
-// position to one string keeps an expectation readable as the caret a reader would
-// draw, instead of two separate assertions per case.
+// 'line:column' of the error token `s` tokenizes to — 'line:column..line:column'
+// when the token carries an `end` — or 'no error'. Collapsing the whole report to
+// one string keeps an expectation readable as the underline a reader would draw,
+// instead of separate assertions per case, and makes an expectation *without*
+// `..` assert the absence of an end rather than ignore one.
 /** @type {(s: string) => string} */
 const errorAt = s => {
     const found = toArray(tokenizeJs(stringToList(s))('a.js'))
         .find(t => t.token.kind === 'error')
-    return found === undefined ? 'no error' : `${found.metadata.line}:${found.metadata.column}`
+    if (found === undefined) { return 'no error' }
+    const start = `${found.metadata.line}:${found.metadata.column}`
+    const { token } = found
+    // the kind re-check narrows what `find`'s predicate could not
+    return token.kind !== 'error' || token.end === undefined
+        ? start
+        : `${start}..${token.end.line}:${token.end.column}`
 }
 
 export const proof = {
@@ -850,7 +858,7 @@ export const proof = {
         },
         () => {
             const result = toArray(tokenizeJs(stringToList('"unterminated'))('a.js'))
-            assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid token"},"metadata":{"path":"a.js","line":1,"column":1}}]')
+            assertEq(JSON.stringify(result), '[{"token":{"kind":"error","message":"invalid token","end":{"line":1,"column":14}},"metadata":{"path":"a.js","line":1,"column":1}}]')
         },
         () => {
             // position points at the poisoning trailing char ('0'), not the start of input
@@ -870,20 +878,27 @@ export const proof = {
             assertEq(errorAt('{ "a": 1 }'), 'no error')
         },
         () => {
-            // a character no rule accepts: reported where it stands
-            assertEq(errorAt('ᄑ'), '1:1')
+            // a character no rule accepts: reported where it stands, spanning
+            // to the end of input — nothing past a lexical failure is tokenized,
+            // so everything from the failure on is part of what it rejects
+            assertEq(errorAt('ᄑ'), '1:1..1:2')
         },
         () => {
             // after a good prefix, the position advances past it
-            assertEq(errorAt('x @'), '1:3')
+            assertEq(errorAt('x @'), '1:3..1:4')
         },
         () => {
-            // line as well as column, once newlines have been consumed
-            assertEq(errorAt('a\nb\n@'), '3:1')
-            assertEq(errorAt('x\n\n  @y'), '3:3')
+            // line as well as column, once newlines have been consumed; the
+            // second case's span covers the `y` too, which the failure at `@`
+            // kept from ever being tokenized
+            assertEq(errorAt('a\nb\n@'), '3:1..3:2')
+            assertEq(errorAt('x\n\n  @y'), '3:3..3:5')
         },
         () => {
-            // a number poisoned by a trailing character points at that character
+            // a number poisoned by a trailing character points at that
+            // character, with no end: the source it is about — `00` up to and
+            // including the second `0` — ends where the anchor *starts*, so a
+            // forward span from the anchor cannot describe it
             assertEq(errorAt('00'), '1:2')
         },
         () => {
@@ -894,30 +909,39 @@ export const proof = {
             // Unterminated tokens anchor at the token's *start*, not where the
             // input ran out: the grammar matches them and tags them
             // 'unterminated', so this is the structural-error path, not a failed
-            // match. See ./todo/error-position-range.md.
-            assertEq(errorAt('"value'), '1:1')
-            assertEq(errorAt('"a\nb"'), '1:1')
+            // match. They span to where the input ran out — the far end is
+            // where the missing close quote belongs, one past the token's last
+            // character, crossing lines when the token does.
+            assertEq(errorAt('"value'), '1:1..1:7')
+            assertEq(errorAt('"a\nb"'), '1:1..2:3')
         },
         () => {
             // an unterminated block comment is anchored at its `/*`, like an
             // unterminated string is at its quote — it used to report the end of
             // input, which made the two constructs disagree
-            assertEq(errorAt('/* c'), '1:1')
+            assertEq(errorAt('/* c'), '1:1..1:5')
         },
         () => {
-            // the *second* comment is the unclosed one, so it is the one blamed
-            assertEq(errorAt('/* ok */ /* bad'), '1:10')
+            // the *second* comment is the unclosed one, so it is the one
+            // blamed, and the span starts at its `/*`, not the first one's
+            assertEq(errorAt('/* ok */ /* bad'), '1:10..1:16')
         },
         () => {
             // a malformed number keeps its own convention: the offending
             // character, not the token start, because that is what the reader
-            // has to change
+            // has to change — and therefore no end, for the same reason as `00`
             assertEq(errorAt('123abc'), '1:4')
         },
     ],
     // DJS-level: keyword remapping and '-'-folding on top of tokenizeJs. Doesn't re-test
     // JS-level token shapes already covered above/elsewhere in this file.
     djsTokenize: [
+        () => {
+            // `;` is a token of its own — the statement terminator DataJS
+            // requires and the module grammar accepts — not an error
+            const result = toArray(tokenize(stringToList(';'))(''))
+            assertEq(stringify(result), '[{"metadata":{"column":1,"line":1,"path":""},"token":{"kind":";"}},{"metadata":{"column":2,"line":1,"path":""},"token":{"kind":"eof"}}]')
+        },
         () => {
             // keywords other than true/false/null/undefined become plain ids
             const result = toArray(tokenize(stringToList('break'))(''))

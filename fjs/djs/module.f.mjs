@@ -22,11 +22,25 @@ import { errorExit, exitStep, writeUtf8File } from '../effects/node/module.f.mjs
  * whose errors carry no position, and a missing file or a circular dependency
  * has no token to point at either.
  *
+ * An error that knows how far the offending source runs renders as a span,
+ * `path:line:column-column` within one line and `path:line:column-line:column`
+ * across several. Only lexical errors carry one today; a grammar failure points
+ * at a single token and prints the point form.
+ *
  * @type {(inputFileName: string) => (parseError: ParseError) => string}
  */
-const errorLocation = inputFileName => ({ metadata }) => metadata === null
-    ? inputFileName
-    : `${metadata.path}:${metadata.line}:${metadata.column}`
+const errorLocation = inputFileName => ({ metadata, end }) => {
+    if (metadata === null) { return inputFileName }
+    const start = `${metadata.path}:${metadata.line}:${metadata.column}`
+    if (end === undefined) { return start }
+    // the path is printed once — a token does not straddle files — and the
+    // line is dropped from the far end when the span stays on one line, so the
+    // common case reads `a.js:1:1-7` rather than repeating `1:`
+    const far = end.line === metadata.line
+        ? `${end.column}`
+        : `${end.line}:${end.column}`
+    return `${start}-${far}`
+}
 
 /**
  * Compiles the DJS module `args[0]` into `args[1]`, serializing as a JSON tree

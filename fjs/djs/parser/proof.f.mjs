@@ -113,6 +113,22 @@ export const proof = {
                 ["\n\n export default 1 \n\n", "[[],[1]]"],
                 ["const export = 1\nexport default export", "[[],[1,[\"cref\",0]]]"],
                 ["export default { from: 2, default: 3 }", "[[],[{\"default\":3,\"from\":2}]]"],
+                // `;` is a statement terminator alongside the newline — the
+                // acceptance DataJS's inclusion requires (spec/README.md,
+                // module structure). The last case is a normalized DataJS
+                // document verbatim: one line, `$`-names, every statement
+                // `;`-terminated.
+                ["const a = 1;\nexport default a", "[[],[1,[\"cref\",0]]]"],
+                ["export default 1;", "[[],[1]]"],
+                ["const a = 1;export default a", "[[],[1,[\"cref\",0]]]"],
+                ["import x from \"m\";const a = [x];export default [x,a]", "[[\"m\"],[[\"array\",[[\"aref\",0]]],[\"array\",[[\"aref\",0],[\"cref\",0]]]]]"],
+                ["const a = 1 ; // c\nexport default a ;", "[[],[1,[\"cref\",0]]]"],
+                // whitespace may precede the `;`, newlines included — DataJS
+                // whitespace is insignificant between any two tokens, so the
+                // value and its terminator may sit on different lines
+                ["export default 1\n;", "[[],[1]]"],
+                ["const a = 1\n;\nexport default a", "[[],[1,[\"cref\",0]]]"],
+                ["const $0=[1];export default [$0,$0];", "[[],[[\"array\",[1]],[\"array\",[[\"cref\",0],[\"cref\",0]]]]]"],
             ]) {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
                 assert(tag === 'ok', [source, tag])
@@ -138,7 +154,14 @@ export const proof = {
                 ["export x from \"m\"\nexport default 1", "unexpected token", [1, 8]],
                 ["const = 1\nexport default 1", "unexpected token", [1, 7]],
                 ["export default {[1]:2}", "unexpected token", [1, 18]],
-                ["const a = 1;\nexport default a", "unexpected token", [1, 12]],
+                // one terminator per statement: a second `;` is not an empty
+                // statement, it is a stray token the next rule rejects,
+                // however much trivia separates it from the first
+                ["export default 1;;", "unexpected token", [1, 18]],
+                ["const a = 1;;\nexport default a", "unexpected token", [1, 13]],
+                ["const a = 1;\n;export default a", "unexpected token", [2, 1]],
+                [";export default 1", "unexpected token", [1, 1]],
+                ["export default ;", "unexpected token", [1, 16]],
                 ["export default 1\nconst b = 2", "unexpected token", [2, 1]],
                 ["import x from \"m\"", "unexpected end", [1, 18]],
                 ["const a = 1", "unexpected end", [1, 12]],
