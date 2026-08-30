@@ -12,7 +12,7 @@
  * @import { MemOperationMap, RunInstance } from '../../effects/mock/types.ts'
  * @import { SandboxResult } from '../../effects/common/types.ts'
  * @import { Commands } from '../../effects/types.ts'
- * @import { _BrowserOp, _Rows } from './types.ts'
+ * @import { _BrowserOp, _Rows } from './private.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'

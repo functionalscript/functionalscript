@@ -26,7 +26,7 @@
 
 import { catch_ } from '../../effects/common/module.f.mjs'
 import { collectTests, defaultTest, runEntries, zeroState } from '../module.f.mjs'
-import { do_, foldStep, mapStep, pure, pureOk, resultStep, step } from '../../effects/module.f.mjs'
+import { do_, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 
 /** The page's leaf-landed operation; see `_BrowserReport`.
