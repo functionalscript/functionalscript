@@ -1,5 +1,7 @@
+/** @import { Rule } from '../../types.ts' */
+
 import { string } from '../../../rtti/module.f.mjs'
-import { digit, false_, null_, optionFloatSuffix, optionNeg, true_, uint, ws, wsSymbol } from '../json/module.f.mjs'
+import { array, createValue, digit, false_, null_, object, optionFloatSuffix, optionNeg, true_, uint, ws, wsSymbol } from '../json/module.f.mjs'
 import { option, range, repeat0Plus, repeat1Plus } from '../../module.f.mjs'
 
 const uNumber = {
@@ -18,25 +20,26 @@ const letter = {
 
 const id = ['$', option({ letter, digit })]
 
-const value  = {
-    number,
-    nan: 'NaN',
+const property = {
     string,
-    false: false_,
-    true: true_,
-    null: null_,
+    proto: '["__proto__"]',
+}
+
+const value = () => ({
+    ...createValue(value),
+    number, // replace the JSON number
+    nan: 'NaN',
     undefined: 'undefined',
     id,
-}
+})
 
 const ws1 = repeat1Plus(wsSymbol)
 
+/** @type {(...v: readonly Rule[]) => Rule} */
+const statement = (...v) => [...v, value, ws, ';', ws]
+
 export const datajs = [
     ws,
-    repeat0Plus(['const', ws1, id, ws, '=', ws, value, ws, ';', ws]),
-    'export',
-    ws1,
-    'default',
-    ws1,
-    value
+    repeat0Plus(statement('const', ws1, id, ws, '=', ws)),
+    statement('export', ws1, 'default', ws1)
 ]

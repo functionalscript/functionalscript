@@ -1,3 +1,5 @@
+/** @import { Rule } from '../../types.ts' */
+
 import { commaJoin0Plus, option, range, remove, repeat, repeat0Plus, set, unicodeMax } from "../../module.f.mjs"
 
 const onenine = range('19')
@@ -52,7 +54,7 @@ export const wsSymbol = set(' \n\r\t')
 
 export const ws = repeat0Plus(wsSymbol)
 
-const cj = commaJoin0Plus(ws)
+export const cj = commaJoin0Plus(ws)
 
 export const false_ = 'false'
 
@@ -60,14 +62,22 @@ export const true_ = 'true'
 
 export const null_ = 'null'
 
-const value = () => ({
-    array: cj('[]', value),
-    object: cj('{}', [string, ws, ':', ws, value]),
+/** @type {(v: Rule) => Rule} */
+export const array = v => cj('[]', v)
+
+/** @type {(v: Rule, property: Rule) => Rule} */
+export const object = (p, v) => cj('{}', [p, ws, ':', ws, v])
+
+export const createValue = (/** @type {Rule}*/v) => ({
+    array: array(v),
+    object: object(string, v),
     string,
     number,
     true: true_,
     false: false_,
     null: null_,
 })
+
+const value = () => createValue(value)
 
 export const json = [ws, value, ws]
