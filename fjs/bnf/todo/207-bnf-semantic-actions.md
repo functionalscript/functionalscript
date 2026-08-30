@@ -156,9 +156,11 @@ Two invariants the engine owes the author, both checkable:
   inside it did get their own `end`, and their values are dropped with the
   frame. An invocation whose child refused gets no further `update` and no
   `end` either: the refusal takes the place of its state (§6).
-- **Every key resolves.** Names are checked against the `RuleSet` when the
-  parser is built (§8), so a typo or a renamed rule fails at construction,
-  before any input — never as a transformer that silently never fires.
+- **Every name resolves.** The map's keys and the start rule are checked
+  against the `RuleSet` when the parser is built (§5, §8), so a typo or a
+  renamed rule fails at construction, before any input — never as a transformer
+  that silently never fires, and never as a parse that throws on its first
+  input.
 
 #### 2. What the events are, per rule kind
 
@@ -374,7 +376,7 @@ parse needs its own entry point and its own result:
 // `fjs/bnf/ll1`'s own shape: its input, its remainder, its result.
 type TransformMatchResult<T> =
     | readonly['ok', T, readonly CodePoint[]]   // matched, finished, nothing refused
-    | readonly['refused', string, Remainder]    // matched and finished; a transformer said no
+    | readonly['refused', string, readonly CodePoint[]] // matched and finished; a transformer said no
     | readonly['no-match', Remainder]           // rejected, or the input ran out (`null`)
 
 type TransformMatch<T> = (s: readonly CodePoint[]) => TransformMatchResult<T>
@@ -389,10 +391,24 @@ type _Output<M, K> = K extends keyof M
     : unknown
 ```
 
-This reads `M` as the map literal's *own* type, which is why §8 says to check
-the map with `satisfies` and never to annotate it: an annotation makes every
-declared key optional and present in `keyof M` at once, and then `_Output`
+`refused` carries a physical remainder for the same reason `ok` does: it can
+only happen after the matched rule finished and ran `end`, and a parse that ran
+out of input mid-rule never reaches `end` at all — that one is `no-match` with
+a `null` remainder. `Remainder` there would re-admit `['refused', reason, null]`,
+which is precisely the contradiction this union exists to rule out.
+
+The type reads `M` as the map literal's *own* type, which is why §8 says to
+check the map with `satisfies` and never to annotate it: an annotation makes
+every declared key optional and present in `keyof M` at once, and then `_Output`
 cannot tell a rule the map supplies from one it omits.
+
+**`start` is checked too, not only the map's keys.** `K extends string` accepts
+any name — it has to, since a start rule the map does not transform is legal
+(`_Output` gives it `unknown`) — so nothing in the type stops a typo. The
+builder resolves `start` against the `RuleSet` alongside every map key, and
+throws there. Otherwise a mistyped start rule reaches the machine and fails on
+the first parse instead of at the boundary that was built to catch exactly this
+(§1).
 
 **A parse that did not finish has no value, and the type says so.** The root's
 `end` never runs when the grammar rejects the input — a failure propagates
@@ -889,8 +905,10 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
 - [ ] Prove `astTransformer` (§3) folds the same children the engine's native
       path builds a node from, so the specification and the implementation of
       the default cannot drift.
-- [ ] Add `transformRuleSet` (§5) and check every map key against the `RuleSet`
-      at construction, throwing rather than parsing.
+- [ ] Add `transformRuleSet` (§5) and check **both** the map's keys and the
+      `start` rule against the `RuleSet` at construction, throwing rather than
+      parsing — `K extends string` cannot reject a mistyped start name, since an
+      untransformed start rule is legal.
 - [ ] Re-express `parserRuleSet` as that machine with an empty map, and keep its
       current result type; the one place the machine's erasure is undone is
       where a value comes back out of it.
