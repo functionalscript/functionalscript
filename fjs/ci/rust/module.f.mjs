@@ -113,25 +113,37 @@ export const i686Commands = (v, a) => {
  * The one platform job the shared shell cannot serve, and the environment it
  * gets instead.
  *
- * `gcc_multi` is the whole reason this is separate. It is `wrapCCMulti gcc` —
- * gcc rebuilt with `enableMultilib`, over a `glibc_multi` carrying both word
- * sizes, with binutils rewired to match — and it exists only on `x86_64-linux`.
- * The shared shell declares four systems from one `packages` list, so it cannot
- * carry a package that means nothing on three of them.
+ * The linker is the whole reason this is separate, and it is an **i686**
+ * toolchain rather than a multilib one. `pkgsi686Linux` is Nixpkgs built for
+ * `i686-linux`, so its cc-wrapper injects the 32-bit emulation and the 32-bit
+ * libc as a matter of what it is, with nothing to override.
+ *
+ * `gcc_multi` was tried first and does not work, which is worth recording
+ * because it looks like the obvious answer. It finds every 32-bit file
+ * correctly — `glibc_multi`'s `lib/32/Scrt1.o`, gcc's `32/crtbeginS.o` — and
+ * the link still fails with every object *"incompatible with elf64-x86-64"*.
+ * The wrapper is a 64-bit wrapper: its bintools inject `-m elf_x86_64`, which
+ * outlives gcc's own `-m32`, so `lld` is told to emit a 64-bit binary out of
+ * 32-bit input. A wrapper that is i686 has no such flag to inject.
  *
  * It replaces `apt-get install libc6-dev-i386` rather than joining it. A Nix
  * toolchain does not look in `/usr`: the cc-wrapper is built to keep
- * `/usr/include` and `/usr/lib` off its search paths, so a 32-bit libc
- * installed by the runner's package manager would sit there unread. The
- * `rust-std` for the target comes from `rust-overlay`, as the `targets` list
- * below asks; that is the standard library, and `gcc_multi` is the linker and
- * libc it links against.
+ * `/usr/include` and `/usr/lib` off its search paths, so a libc installed by
+ * the runner's package manager would sit there unread. The `rust-std` for the
+ * target comes from `rust-overlay`, as the `targets` list below asks; that is
+ * the standard library, and this is what it links against.
+ *
+ * Nothing names it in `packages`, and it does not need to: interpolating a
+ * derivation into the hook puts it in the shell's closure, which is all that is
+ * wanted here — a 32-bit `cc` on `PATH` would only shadow the host one that
+ * the untargeted `cargo test` needs.
  *
  * The `shellHook` names that linker outright rather than trusting `PATH`.
- * `mkShell` brings its own `cc` from `stdenv`, so which one `cargo` finds is a
- * question about ordering; `CARGO_TARGET_<TARGET>_LINKER` is not. The
- * `${...}` in it is Nix's interpolation, not this file's — the generator emits
- * an indented string, where Nix resolves `pkgs.gcc_multi` to its store path.
+ * `mkShell` brings its own `cc` from `stdenv`, and `addToSearchPath` appends,
+ * so which one `cargo` finds is a question about ordering;
+ * `CARGO_TARGET_<TARGET>_LINKER` is not. The `${...}` in it is Nix's
+ * interpolation, not this file's — the generator emits an indented string,
+ * where Nix resolves the reference to its store path.
  *
  * @type {NixJob}
  */
@@ -139,7 +151,7 @@ export const i686NixJob = {
     id: i686JobId,
     // The one system `gcc_multi` exists for, and the runner this job has.
     systems: ['x86_64-linux'],
-    packages: ['gcc_multi', `nodejs_${major(node.default)}`],
+    packages: [`nodejs_${major(node.default)}`],
     rust: {
         version: rust,
         // No `rustfmt`: `wasm` runs the one `cargo fmt` this repository has.
@@ -148,7 +160,7 @@ export const i686NixJob = {
     },
     shellHook: [
         'export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=',
-        /** @type {const} */ (['ref', 'pkgs', 'gcc_multi']),
+        /** @type {const} */ (['ref', 'pkgs', 'pkgsi686Linux', 'stdenv', 'cc']),
         '/bin/cc',
     ],
 }

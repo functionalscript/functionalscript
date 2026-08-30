@@ -185,10 +185,12 @@ shared shell — the only place its `x86_64-linux`, `aarch64-darwin` and
 `x86_64-darwin` outputs get built at all — and `ubuntu-intel` runs in one of
 its own.
 
-`ubuntu-intel` needs its own because it checks `i686-unknown-linux-gnu`, and
-`gcc_multi` — the multilib gcc and `glibc_multi` a 32-bit link needs — exists
-on `x86_64-linux` alone, while the shared shell builds four systems from one
-`packages` list. It replaces `apt-get install libc6-dev-i386` rather than
+`ubuntu-intel` needs its own because it checks `i686-unknown-linux-gnu`, whose
+linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for* `i686-linux`, and so
+available on `x86_64-linux` alone, while the shared shell builds four systems
+from one `packages` list. Not `gcc_multi`: a multilib wrapper finds the right
+32-bit files and still emits `-m elf_x86_64`, which is `65z-ci-nix.md`'s
+story. It replaces `apt-get install libc6-dev-i386` rather than
 joining it: a Nix toolchain does not look in `/usr`, so a libc installed by the
 runner's package manager would sit there unread.
 

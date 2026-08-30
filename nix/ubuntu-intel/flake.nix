@@ -14,9 +14,9 @@
             };
         in
         pkgs.mkShell {
-            packages = [ rust pkgs.gcc_multi pkgs.nodejs_26 ];
+            packages = [ rust pkgs.nodejs_26 ];
             shellHook = ''
-                export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=${pkgs.gcc_multi}/bin/cc
+                export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=${pkgs.pkgsi686Linux.stdenv.cc}/bin/cc
             '';
         };
     };

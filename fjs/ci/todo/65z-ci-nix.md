@@ -196,18 +196,27 @@ the only place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells
 are built rather than pinned as text.
 
 `ubuntu-intel` moved into a flake of its own, because it checks
-`i686-unknown-linux-gnu`. A 32-bit link needs `gcc_multi` — `wrapCCMulti gcc`,
-over a `glibc_multi` carrying both word sizes — which exists on `x86_64-linux`
-alone, and the shared shell builds four systems from one `packages` list. That
-replaced `apt-get install libc6-dev-i386` rather than joining it: the Nix
+`i686-unknown-linux-gnu` and that needs a 32-bit linker only `x86_64-linux` can
+supply, while the shared shell builds four systems from one `packages` list.
+That replaced `apt-get install libc6-dev-i386` rather than joining it: the Nix
 cc-wrapper keeps `/usr/include` and `/usr/lib` off its search paths, so a libc
 from the runner's package manager is invisible to the compiler `cargo` invokes.
 
-Its `shellHook` names the linker outright — `CARGO_TARGET_..._LINKER` — rather
+The linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for* `i686-linux`.
+**`gcc_multi` was tried first and does not work**, which is worth keeping
+because it is the obvious answer. It finds every 32-bit file correctly —
+`glibc_multi`'s `lib/32/Scrt1.o`, gcc's `32/crtbeginS.o` — and the link still
+fails with every object *"incompatible with elf64-x86-64"*, because the wrapper
+is a 64-bit wrapper whose bintools inject `-m elf_x86_64`, outliving gcc's own
+`-m32`. A wrapper that *is* i686 has no such flag to inject.
+
+Its `shellHook` names that linker outright — `CARGO_TARGET_..._LINKER` — rather
 than trusting `PATH`, because `stdenv`'s own `cc` is added to `PATH` before
 `packages` and `addToSearchPath` appends. Naming a store path is what made
 `indented-string` take parts: a `_Reference` part interpolates, a `string` part
-is escaped.
+is escaped. Interpolating the derivation is also what puts it in the closure, so
+it needs no `packages` entry — and should not have one, since a 32-bit `cc` on
+`PATH` would shadow the host one the untargeted `cargo test` needs.
 
 What that cost is worth naming. Those jobs used to measure a stock runner image,
 and now measure a pinned toolchain running *on* one. The distinction is smaller
