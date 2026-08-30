@@ -8,7 +8,7 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main, nixJobs } from './module.f.mjs'
 import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
-import { flakeText, nixDevelop, runPath } from './nix/module.f.mjs'
+import { flakePath, flakeText, nixDevelop, nixShell, runPath } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
 import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
@@ -58,6 +58,19 @@ const installsNix = job =>
 const entersFlake = (job, id) =>
     job?.steps.some(step => step.run?.split(' ')[0] === runPath(id)) === true
 
+/**
+ * Which declared flakes a job enters. Usually one; never, for a job with no
+ * checkout.
+ *
+ * A job no longer enters the flake named after it — all but two share one — so
+ * the question `entersFlake` answers for a known id has to be asked of every
+ * declared id instead.
+ *
+ * @type {(job: Job | undefined) => readonly string[]}
+ */
+const flakesEntered = job =>
+    nixJobs.map(({ id }) => id).filter(id => entersFlake(job, id))
+
 /** @type {(jobId: string, cmd: string) => (gha: GitHubAction) => boolean} */
 const hasRunInJob = (jobId, cmd) => gha =>
     gha.jobs[jobId]?.steps.some(step => step.run?.includes(cmd)) ?? false
@@ -106,7 +119,7 @@ const workflow = state => workflowFile(state, 'ci.yml')
 
 /** @type {(state: State, id: string) => string} */
 const flake = (state, id) =>
-    text(path(state.root, ['nix', id]), 'flake.nix')
+    text(path(state.root, flakePath(id).slice('./'.length).split('/')), 'flake.nix')
 
 // A compiler pin no configuration anywhere holds, written into the fixture
 // project's `package.json` so that the generator can be shown to ignore it.
@@ -145,7 +158,7 @@ const runDefault = packageJson => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 14, 'expected 14 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
         assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
@@ -174,21 +187,28 @@ export const proof = {
         assert(hasRunInJob('node26', 'npm run ci-update')(gha), 'expected Node 26 workflow regeneration')
         assert(hasRunInJob('node26', 'git add -A && git diff --cached --exit-code')(gha), 'expected Node 26 generated-file drift check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
+        // `npm ci` belongs to the jobs that need what it installs, and to no
+        // others. The three Node jobs type-check, pack and run the suite under
+        // Node; `deno` and `bun` install through their own package managers.
+        for (const id of /** @type {const} */ (['node22', 'node24', 'node26'])) {
+            assert(hasRunInJob(id, 'npm ci')(gha), `expected npm ci in ${id}`)
+        }
         for (const id of /** @type {const} */ ([
+            'deno',
+            'bun',
+            // The six platform jobs run a *published* CLI against this tree,
+            // and the tree has nothing to install: no runtime dependency, and
+            // one `devDependency` that is types. `fjs/ci/node/proof.f.mjs`
+            // holds the builder to that; this holds the workflow to it.
             'ubuntu-intel',
             'ubuntu-arm',
             'macos-intel',
             'macos-arm',
             'windows-intel',
             'windows-arm',
-            'node22',
-            'node24',
-            'node26',
         ])) {
-            assert(hasRunInJob(id, 'npm ci')(gha), `expected npm ci in ${id}`)
+            assert(!hasRunInJob(id, 'npm ci')(gha), `unexpected npm ci in ${id}`)
         }
-        assert(!hasRunInJob('deno', 'npm ci')(gha), 'unexpected npm ci in deno job')
-        assert(!hasRunInJob('bun', 'npm ci')(gha), 'unexpected npm ci in bun job')
     },
     rust: () => {
         assert(hasRun('cargo')(run(true)), 'expected Rust steps')
@@ -248,10 +268,11 @@ export const proof = {
     nixFlakes: () => {
         const [state, result] = virtual(makeState(false, undefined))(main())
         assertEq(exitCode(result), 0)
-        // Every generated flake, not just the Node ones: `nixJobs` is what the
-        // generator was given, so a family that declares an environment and
-        // never has it written fails here.
-        assertEq(nixJobs.length, 7)
+        // Every generated flake: `nixJobs` is what the generator was given, so
+        // a family that declares an environment and never has it written fails
+        // here. Three — the shared shell, and one apiece for the two Node
+        // versions it cannot serve.
+        assertEq(nixJobs.length, 3)
         for (const job of nixJobs) {
             // The pipeline wrote that job's flake, whole, at the path a
             // `nix develop` step names. Equality rather than a substring
@@ -284,6 +305,11 @@ export const proof = {
             [node.default, ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run ci-update']],
         ])) {
             const id = `node${major(version)}`
+            // The two older versions run in a flake of their own, because
+            // `npm ci` and `node --test` take whichever `node` reaches `PATH`
+            // first and one shell holds one. Node 26's `node` is the shared
+            // shell's, so it runs there.
+            const shell = version === node.default ? nixShell : id
             const job = gha.jobs[id]
             assert(job !== undefined, `expected the ${id} job`)
             assert(
@@ -300,14 +326,14 @@ export const proof = {
             assertStructurallySame(
                 job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
                 [
-                    `test "$(./nix/${id}/run node --version)" = "v${version}"`,
+                    `test "$(${runPath(shell)} node --version)" = "v${version}"`,
                     // Node 26 is the one that type-checks and packs, so it is
-                    // the one whose shell carries a compiler — and the only one
-                    // with a second version to assert before running anything.
-                    ...(id === `node${major(node.default)}`
-                        ? [`test "$(./nix/${id}/run tsc --version)" = "Version ${typescript.version}"`]
+                    // the one that also asserts a compiler before running
+                    // anything.
+                    ...(version === node.default
+                        ? [`test "$(${runPath(shell)} tsc --version)" = "Version ${typescript.version}"`]
                         : []),
-                    ...commands.map(command => `./nix/${id}/run ${command}`),
+                    ...commands.map(command => nixDevelop(shell, command)),
                     ...(id === `node${major(node.default)}`
                         ? ['git add -A && git diff --cached --exit-code']
                         : []),
@@ -324,25 +350,34 @@ export const proof = {
         // a `Cargo.toml` does not get — while its flake is generated either
         // way, since `nixJobs` is a list rather than a function of the project.
         const gha = run(true)
-        /** @type {readonly (readonly [string, readonly (readonly [string, string])[]])[]} */
+        /**
+         * Job, the shell it enters, and what it asserts before running
+         * anything.
+         *
+         * @type {readonly (readonly [string, string, readonly (readonly [string, string])[]])[]}
+         */
         const checks = [
-            [`node${major(node.node22)}`, [['node --version', `v${node.node22}`]]],
-            [`node${major(node.node24)}`, [['node --version', `v${node.node24}`]]],
+            // The two jobs with a flake of their own, each holding the single
+            // release its `node --test` resolves from `PATH`.
+            [`node${major(node.node22)}`, `node${major(node.node22)}`,
+                [['node --version', `v${node.node22}`]]],
+            [`node${major(node.node24)}`, `node${major(node.node24)}`,
+                [['node --version', `v${node.node24}`]]],
             // Two, because this is the job that type-checks the repository and
             // runs `npm pack`, whose `prepack` emits the declarations the
             // package ships with the same compiler. `typescript-go` names no
             // version, so this check is the whole tie.
-            [`node${major(node.default)}`, [
+            [`node${major(node.default)}`, nixShell, [
                 ['node --version', `v${node.default}`],
                 ['tsc --version', `Version ${typescript.version}`],
             ]],
             // Deno prints three lines for `--version`, so it is asked for the
             // one field this repository configures.
-            ['deno', [[`deno eval 'console.log(Deno.version.deno)'`, deno]]],
+            ['deno', nixShell, [[`deno eval 'console.log(Deno.version.deno)'`, deno]]],
             // Two, because the shell provides two unversioned attributes. Its
-            // Rust is the one thing it does not check: the flake names that
+            // Rust is the one thing nothing checks: the flake names that
             // release in full, so a check would restate the flake.
-            ['wasm', [
+            ['wasm', nixShell, [
                 ['wasmtime --version', `wasmtime ${wasmtime}`],
                 ['wasmer --version', `wasmer ${wasmer}`],
             ]],
@@ -350,23 +385,17 @@ export const proof = {
             // name. Its check is also the only one confirming that an override
             // took effect rather than that a snapshot is what it claims: the
             // shell's Bun is not the snapshot's.
-            ['bun', [['bun --version', bun]]],
-            // The developer environment, which is checked more thoroughly than
-            // any job's: it is the only flake no other job enters, so these
-            // six are the whole of what keeps it from rotting. Its Rust goes
-            // unchecked for the reason `wasm`'s does — the flake names the
-            // release in full.
-            ['dev', [
-                ['node --version', `v${node.default}`],
-                [`deno eval 'console.log(Deno.version.deno)'`, deno],
-                ['bun --version', bun],
-                ['tsc --version', `Version ${typescript.version}`],
-                ['wasmtime --version', `wasmtime ${wasmtime}`],
-                ['wasmer --version', `wasmer ${wasmer}`],
-            ]],
+            ['bun', nixShell, [['bun --version', bun]]],
         ]
-        assertEq(checks.length, nixJobs.length)
-        for (const [id, jobChecks] of checks) {
+        // Between them these cover every declared flake. That is what replaced
+        // the `dev` job: the shared shell used to be checked in one place
+        // because nothing else entered it, and is now checked by each job that
+        // does, for the tools that job depends on.
+        assertStructurallySame(
+            nixJobs.map(job => job.id).filter(id =>
+                !checks.some(([, shell]) => shell === id)),
+            [])
+        for (const [id, shell, jobChecks] of checks) {
             const runs = (gha.jobs[id]?.steps ?? [])
                 .flatMap(step => step.run === undefined ? [] : [step.run])
             // The job's first commands, with nothing exempted. `npm ci` in
@@ -377,7 +406,7 @@ export const proof = {
             assertStructurallySame(
                 runs.slice(0, jobChecks.length),
                 jobChecks.map(([command, expected]) =>
-                    `test "$(${nixDevelop(id, command)})" = "${expected}"`))
+                    `test "$(${nixDevelop(shell, command)})" = "${expected}"`))
         }
     },
     // Deno, step for step. It lost its setup action, and every command it runs
@@ -397,7 +426,7 @@ export const proof = {
                 .flatMap(step => step.run === undefined ? [] : [step.run])
                 .slice(1),
             ['deno install --frozen', 'deno task cov']
-                .map(command => nixDevelop('deno', command)))
+                .map(command => nixDevelop(nixShell, command)))
     },
     // Every job's Nix status, in one place. The platform matrix is excluded by
     // construction rather than by exception: those six jobs exist to run on
@@ -418,33 +447,43 @@ export const proof = {
         // lets the split below mean what it says.
         for (const id of canonical) {
             const job = gha.jobs[id]
-            assertEq(entersFlake(job, id), installsNix(job), id)
+            assertEq(flakesEntered(job).length !== 0, installsNix(job), id)
         }
-        const onNix = canonical.filter(id => installsNix(gha.jobs[id]))
         const declared = nixJobs.map(job => job.id)
-        // The declared flakes and the jobs that enter one are the same set:
-        // a flake nothing enters is never evaluated, and a job entering one
-        // that is not declared has no `flake.nix` to find.
-        //
-        // Both directions, because counting and one is not the same as
-        // equality once a duplicate is possible: declaring `deno` twice while
-        // a newly migrated job went undeclared would keep the counts level and
-        // satisfy every declaration, and the generator would write no flake
-        // for the job whose steps enter one. `onNix` comes from `Object.keys`
-        // and cannot repeat, so the reverse containment is what closes that.
-        assertEq(declared.length, onNix.length)
+        // Exactly one shell per job. Two would mean a job whose commands ran in
+        // different environments from one step to the next, which is the shape
+        // sharing makes newly possible and which nothing else here would catch.
+        for (const id of canonical.filter(id => installsNix(gha.jobs[id]))) {
+            assertEq(flakesEntered(gha.jobs[id]).length, 1, id)
+        }
+        // Every declared flake is entered by some job. A flake nothing enters
+        // is never evaluated, so it would rot unnoticed — which is exactly what
+        // the deleted `dev` job used to prevent for the shell, and what every
+        // job entering that shell now does instead.
+        const entered = canonical.flatMap(id => flakesEntered(gha.jobs[id]))
         for (const id of declared) {
-            assert(onNix.includes(id), `expected ${id} to enter its own flake`)
+            assert(entered.includes(id), `expected some job to enter ${id}`)
         }
-        for (const id of onNix) {
-            assert(declared.includes(id), `expected a flake declared for ${id}`)
-        }
-        // And named directly, because a repeated declaration is a defect in
-        // its own right — `nixFlakes` would write the same file twice — rather
-        // than only the way the check above could be fooled.
+        // The reverse holds by construction — `flakesEntered` filters the
+        // declared list — so what is left to state is that the list itself has
+        // no repeats. A repeated declaration is a defect in its own right:
+        // `nixFlakes` would write the same file twice.
         assert(
             declared.every((id, i) => declared.indexOf(id) === i),
             'duplicate flake declaration')
+        // The split the whole arrangement rests on. Node 22 and Node 24 run
+        // `npm ci` and `node --test`, which take whichever `node` reaches
+        // `PATH` first, so each needs a shell holding exactly one release.
+        // Every other job names its runtime and shares.
+        assertStructurallySame(
+            declared.filter(id => entered.filter(e => e === id).length > 1),
+            [nixShell])
+        for (const id of declared.filter(id => id !== nixShell)) {
+            assertStructurallySame(
+                canonical.filter(job => flakesEntered(gha.jobs[job]).includes(id)),
+                [id],
+                `expected only ${id} to enter its own flake`)
+        }
         assertStructurallySame(
             canonical.filter(id => !installsNix(gha.jobs[id])),
             // `package-check` runs with no checkout, so there is no file tree
@@ -469,7 +508,7 @@ export const proof = {
                 .flatMap(step => step.run === undefined ? [] : [step.run])
                 .slice(1),
             ['bun install --frozen-lockfile', 'bun test --coverage']
-                .map(command => nixDevelop('bun', command)))
+                .map(command => nixDevelop(nixShell, command)))
     },
     ubuntu: () => {
         const job = ubuntu([test({ run: 'echo hi' })])
@@ -481,7 +520,7 @@ export const proof = {
         const job = gha.jobs[`node${major(node.default)}`]
         assert(job !== undefined, 'expected the canonical Node job')
         const packIndex = job.steps.findIndex(
-            step => step.run === `./nix/node${major(node.default)}/run npm pack`)
+            step => step.run === nixDevelop(nixShell, 'npm pack'))
         const uploadIndex = job.steps.findIndex(
             step => step.uses === `actions/upload-artifact@${actions['actions/upload-artifact']}`)
         assert(packIndex !== -1, 'expected npm pack')
