@@ -100,7 +100,7 @@ conversion as one 14-module diff.
 - [ ] `fjs/protocol/mcp` + `fjs/protocol/mcp/stdio`.
 - [ ] `fjs/cas` + `fjs/cas/evo` + `fjs/mcp/evo` + `fjs/mcp`.
 - [ ] `fjs/emergent_testing`, `fjs/dev`.
-- [ ] `npx tsc` clean; `fjs t` passes after each PR.
+- [ ] `tsc` clean; `fjs t` passes after each PR.
 
 ### Related
 

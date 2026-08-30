@@ -106,7 +106,7 @@ This keeps parser/serializer policy separate from generic runtime conversion.
       `JSON.*` byte-for-byte behavior.
 - [ ] Do not spend implementation time on native compatibility in this task; it is
       P5 follow-up work.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 

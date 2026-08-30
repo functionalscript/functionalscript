@@ -115,7 +115,7 @@ cases takes the corpus's escape path rather than deriving an expression — movi
       Rust call and its pinned expected snippets.
 - [ ] `npm run ci-update` to regenerate `nanvm-lib/tests/test/generated.rs`.
 - [ ] `nanvm-lib/tests/test/main.rs`: remove or repoint `unary_plus_bigint_message`.
-- [ ] `npx tsc`, `fjs test`, `npm run ci-update` (no diff), `cargo test`,
+- [ ] `tsc`, `fjs test`, `npm run ci-update` (no diff), `cargo test`,
       `cargo clippy -- -D warnings`, and `cargo fmt -- --check`.
 - [ ] Changelog: `nanvm-lib` drops the public `unary_plus` method (BREAKING CHANGES).
 

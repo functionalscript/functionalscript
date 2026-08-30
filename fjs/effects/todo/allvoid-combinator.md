@@ -123,7 +123,7 @@ recorded as superseded there.)
       to `fjs/effects/node/module.f.mjs`, per the note at the top of this issue.
 - [ ] Convert the three `mapStep(allOk(...), () => undefined)` call sites in
       `fjs/emergent_testing/module.f.mjs`.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

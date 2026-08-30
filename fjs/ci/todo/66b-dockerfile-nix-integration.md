@@ -23,7 +23,7 @@ version they name, so one builder emits both.
 
 Node 26 orders itself differently, for a reason that is about the job rather
 than about Nix: `npm run ci-update` and the drift check it feeds run last, after
-`npm ci`, `npx tsc`, `npm run cov` and `npm pack`. The check compares the tree
+`npm ci`, `tsc`, `npm run cov` and `npm pack`. The check compares the tree
 against what the generator produces, so running it at the end makes it the last
 word — every earlier step has finished writing. Nothing those steps leave is
 tracked: `npm pack`'s tarball and the declarations its `prepack` emits are
@@ -215,7 +215,7 @@ persists across steps regardless — while each step names the flake, so none ca
 to the runner's preinstalled Node.
 
 A step names the flake only when it needs a tool the flake pins. Node 26's sequence is
-the case that shows the difference: `npm run ci-update`, `npx tsc`, `npm run cov` and
+the case that shows the difference: `npm run ci-update`, `tsc`, `npm run cov` and
 `npm pack` run on the pinned Node, while `git add -A && git diff --cached --exit-code`
 uses the runner's `git` and stays a plain step. It reads the workspace the Nix steps
 wrote, which is the same workspace either way.
@@ -240,7 +240,7 @@ node24 (flake) — the same, one builder emits both:
 node26 (flake):
   test "$(./nix/node26/run node --version)" = v<configured>
   ./nix/node26/run npm ci
-  ./nix/node26/run npx tsc
+  ./nix/node26/run tsc
   ./nix/node26/run npm run cov
   ./nix/node26/run npm pack
   ./nix/node26/run npm run ci-update

@@ -84,7 +84,7 @@ preferred because both consumers exist today.
 - [ ] Add the generic `restart` to `fjs/text/code_point/module.f.mjs` (with
       proof coverage) and rewrite utf8's local `restart` through it.
 - [ ] utf16: extract `fresh`; rewrite both arms of `utf16ByteToCodePointOp`.
-- [ ] `npx tsc`, `fjs t`; utf8/utf16/code_point proofs must pass unchanged
+- [ ] `tsc`, `fjs t`; utf8/utf16/code_point proofs must pass unchanged
       (pure refactor — byte-identical behavior).
 
 ### Related

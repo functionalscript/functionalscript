@@ -173,4 +173,4 @@ API (no `exports` map), so every move is a breaking change. The first wave is
 - [ ] Later: move `fjs/djs/` → `fjs/media/djs/`.
 - [x] Update all relative imports referencing the moved modules.
 - [ ] Update `deno.json` `exports` map and run `npm run update` (no `exports` map exists in `deno.json` currently; nothing to update). **When a map is first introduced it must enumerate every `module.f.mjs` then present** — a partial map silently restricts a package that is unrestricted today. Modules proposed meanwhile are counting on this: `fjs/media/json/grammar` ([bnf-grammar-single-owner](../media/json/todo/bnf-grammar-single-owner.md)) and `fjs/effects/{all,sandbox,console,test}` ([node-module-layering](../effects/todo/node-module-layering.md)) each record that their registration lands here rather than in their own change.
-- [x] Verify `npx tsc` and `fjs t` pass.
+- [x] Verify `tsc` and `fjs t` pass.

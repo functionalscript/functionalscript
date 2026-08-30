@@ -51,7 +51,7 @@ lease-deadline path rule then exists once, next to its inverse.
 
 - [ ] Add the `freshStagePath` helper to `fjs/cas/module.f.mjs` and rewrite both
       sites through it.
-- [ ] `npx tsc`, `fjs t`; existing CAS proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; existing CAS proofs pass unchanged.
 
 ### Related
 

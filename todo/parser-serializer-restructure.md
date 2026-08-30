@@ -549,7 +549,7 @@ throughout.
 - [ ] Stage 6: normalizer + subset-law proofs; file its todo.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
 - [ ] Update affected issues as their subject matter moves (see below).
-- [ ] `npx tsc`, `fjs test` at every stage.
+- [ ] `tsc`, `fjs test` at every stage.
 
 ### Edits owed to existing issues
 

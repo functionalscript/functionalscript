@@ -13,12 +13,18 @@ work before starting.
 Run the full check set before submitting:
 
 ```bash
-npx tsc                  # type-check with the repo's TypeScript
+tsc                      # type-check; the compiler is the environment's
 fjs test                 # or any equivalent runner
 cargo test               # only if you touched Rust
 cargo clippy
 cargo fmt -- --check
 ```
+
+`tsc` is not a dependency of this package. It comes from the Nix developer
+shell (`nix develop ./nix/dev`), or from a global npm install of the version
+`fjs/ci/config/module.f.mjs` pins — [CONTRIBUTING.md](./CONTRIBUTING.md) has
+both. `npx tsc` no longer runs the repository's compiler: with nothing to
+resolve in `node_modules` it fetches whatever the registry calls latest.
 
 Three principles outrank everything else. **Always prefer simplicity and quality
 over optimization** — never optimize prematurely, and never at the cost of

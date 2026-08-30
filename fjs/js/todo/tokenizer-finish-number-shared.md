@@ -65,7 +65,7 @@ issue owns the *envelope*, this one the *which-token* decision inside it.
 ### Tasks
 
 - [ ] Add `finishNumberToken`; rewrite both sites through it.
-- [ ] `npx tsc`, `fjs t`; tokenizer proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; tokenizer proofs pass unchanged.
 
 ### Related
 

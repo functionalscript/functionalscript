@@ -242,7 +242,7 @@ out from under `throw`) as part of landing this change.
 - [ ] Update `AGENTS.md` to encourage pairing a `todo` test with a
       `todo/{slug}.md` issue (and removing the `todo` marker when the issue file
       is deleted on fix).
-- [ ] Confirm `fjs t` proofs pass with full branch coverage and `npx tsc` is
+- [ ] Confirm `fjs t` proofs pass with full branch coverage and `tsc` is
       clean.
 
 ### Related

@@ -134,7 +134,7 @@ hardening TODO after the baseline interpreter exists.
 - [ ] Add a CLI/API compatibility proof that the existing value-producing `transpile`
       result and `fjs compile` output remain unchanged after switching their internals
       to final-EDAG interpretation.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 

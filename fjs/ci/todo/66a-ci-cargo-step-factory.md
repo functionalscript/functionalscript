@@ -97,7 +97,7 @@ factory.
       from it in `fjs/ci/rust/module.f.mjs`.
 - [ ] Confirm the generated CI YAML is unchanged (diff the `ci` output before
       and after — `npm run ci-update` / inspect `.github/workflows`).
-- [ ] Run `npx tsc` and `fjs t`; ensure `fjs/ci` proofs still pass with full
+- [ ] Run `tsc` and `fjs t`; ensure `fjs/ci` proofs still pass with full
       coverage.
 
 ### Related

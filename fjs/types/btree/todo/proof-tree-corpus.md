@@ -217,7 +217,7 @@ are.
       exemption does not apply: this adds `testlib.f.mjs` and rewrites four
       `proof.f.mjs` files, which are code changes even though nothing in
       production moves.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

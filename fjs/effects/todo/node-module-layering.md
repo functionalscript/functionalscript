@@ -341,7 +341,7 @@ Judgement calls worth deciding explicitly rather than by accident:
       complete map
       ([group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md))
       must enumerate these modules along with every other `module.f.mjs`.
-- [ ] `npx tsc` and `fjs t` after each move; one PR per concern.
+- [ ] `tsc` and `fjs t` after each move; one PR per concern.
 
 ### Related
 

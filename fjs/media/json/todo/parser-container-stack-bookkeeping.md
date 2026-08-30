@@ -118,7 +118,7 @@ two, there is nothing left to share.
       helpers this would have tidied no longer exist.
 - [ ] In `fjs/media/json/parser/module.f.mjs`, add `pushStack` / `startContainer`
       (or equivalently named); derive `startArray` / `startObject` from them.
-- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/media/json/parser/proof.f.mjs`
+- [ ] Run `tsc` and `fjs t`; confirm `fjs/media/json/parser/proof.f.mjs`
       still passes with full line/branch coverage (behaviour is unchanged — this
       is a pure refactor).
 

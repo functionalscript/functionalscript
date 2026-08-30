@@ -4,7 +4,7 @@ import { denoNixJob } from '../deno/module.f.mjs'
 import { wasmNixJob } from '../rust/module.f.mjs'
 import { major, nodeNixJobs } from '../node/module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
-import { bun, deno, node, wasmer, wasmtime } from '../config/module.f.mjs'
+import { bun, deno, node, typescript, wasmer, wasmtime } from '../config/module.f.mjs'
 import { nixDevelop, nixSystem } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
@@ -38,7 +38,14 @@ export const proof = {
         assert(
             devNixJob.packages.includes(`nodejs_${major(node.default)}`),
             devNixJob.packages.join(' '))
-        assertStructurallySame([...newest.packages], [`nodejs_${major(node.default)}`])
+        assertStructurallySame(
+            [...newest.packages],
+            [`nodejs_${major(node.default)}`, typescript.attribute])
+        // TypeScript: the attribute the one Node job that type-checks declares.
+        // A developer whose `tsc` is not the one CI runs gets errors CI does
+        // not, or misses errors CI has — and since `npx tsc` no longer reaches
+        // a `node_modules` copy, this shell is where a developer's compiler
+        // comes from.
         // Deno and the two WASM runtimes, by attribute rather than version:
         // those are the names their own jobs declare.
         for (const name of [...denoNixJob.packages, ...wasmNixJob.packages]) {
@@ -76,6 +83,7 @@ export const proof = {
         check(devJobId, 'node --version', `v${node.default}`),
         check(devJobId, `deno eval 'console.log(Deno.version.deno)'`, deno),
         check(devJobId, 'bun --version', bun),
+        check(devJobId, 'tsc --version', `Version ${typescript.version}`),
         check(devJobId, 'wasmtime --version', `wasmtime ${wasmtime}`),
         check(devJobId, 'wasmer --version', `wasmer ${wasmer}`),
         nixDevelop(devJobId, 'git --version'),

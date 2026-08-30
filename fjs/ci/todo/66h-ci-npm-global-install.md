@@ -83,7 +83,7 @@ This remains distinct from:
       longer exists — see Problem update)
 - [ ] Confirm proof coverage for the surviving consumer and the generated step shape.
 - [ ] Verify generated workflow output is unchanged.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 
