@@ -393,19 +393,19 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "oven-sh/setup-bun@v2.2.0",
-          "with": {
-            "bun-version": "1.4.0"
-          }
+          "uses": "cachix/install-nix-action@v31.11.1"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "bun install --frozen-lockfile"
+          "run": "test \"$(./nix/bun/run bun --version)\" = \"1.4.0\""
         },
         {
-          "run": "bun test --coverage"
+          "run": "./nix/bun/run bun install --frozen-lockfile"
+        },
+        {
+          "run": "./nix/bun/run bun test --coverage"
         }
       ]
     },
