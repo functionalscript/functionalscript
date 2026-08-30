@@ -72,26 +72,43 @@ type RuleTransformer<S, T> = {
   is the child's tag, which names the branch when this rule is a variant and is
   `undefined` otherwise. `child` is the child's *transformed* value: its own
   `end` result if it has a transformer, otherwise its AST node (§3).
-- **`end`** finishes the invocation. It may fail: a transformer is where
+- **`end`** finishes the invocation. It may **refuse**: a transformer is where
   `1e999`, a duplicate `__proto__` key, or an unresolved `const` is caught, and
   [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) says
-  those are refused rather than answered with a plausible value. The engine
-  short-circuits the parse on an error and reports it with the rule name and
-  the input position, so a transformer does not carry a position itself.
+  those are refused rather than answered with a plausible value. A refusal is a
+  *value*, not a control-flow event — it never changes what the grammar accepts
+  (§6).
 
-Transformers are supplied as a map keyed by **data**-`RuleSet` rule name:
+Transformers are supplied as a map keyed by **data**-`RuleSet` rule name. That
+map holds transformers whose states are unrelated types, and `S` must not escape
+into it — `RuleTransformer<number[], X>` is not assignable to
+`RuleTransformer<unknown, X>` under `strictFunctionTypes`, and neither `any` nor
+a cast is an acceptable answer here.
+
+It does not have to escape. `fold` binds `S` inside one generic function and
+returns a state that **carries its own fold**:
 
 ```ts
-type TransformerMap = StringMap<RuleTransformer<unknown, unknown>>
+type TransformerState<T> = {
+    readonly update: (tag: AstTag) => (child: unknown) => TransformerState<T>
+    readonly end: () => Result<T, string>
+}
+type Transformer<T> = (tag: AstTag) => TransformerState<T>
+type TransformerMap = StringMap<Transformer<unknown>>
+
+const fold: <S, T>(t: RuleTransformer<S, T>) => Transformer<T>
 ```
 
-`S` is **existential** there: the engine never inspects a state and never hands
-one to a transformer that did not produce it, but TypeScript has no way to say
-so — `update: (s: number) => …` is not assignable to `update: (s: unknown) => …`
-under `strictFunctionTypes`. Two spellings, and the choice is an open question
-below: hide `S` behind a continuation the engine applies (a real existential, no
-cast), or keep the map as written and confine one documented cast to the engine,
-where the invariant that justifies it is enforced. `any` is not a candidate.
+`S` is captured by those closures instead of being named by the map, so a state
+can only ever reach the transformer that produced it — it *is* that transformer,
+partially applied. `Transformer<T>` is covariant in `T`, so a
+`Transformer<string>` sits in a `TransformerMap` unchanged. No existential
+encoding, no `any`, no cast.
+
+`RuleTransformer<S, T>` stays the shape an author writes; `Transformer<T>` is
+the shape a backend holds. The engine's own default (§3) is written directly in
+the erased shape, because it has a state of its own to keep and nothing to
+hide.
 
 A rule with no entry is not transformed — it builds its AST node exactly as
 today. That is what makes adoption incremental: a grammar with an empty map
@@ -103,7 +120,8 @@ Two invariants the engine owes the author, both checkable:
   successful invocation.** An invocation the parser abandons gets `create` and
   any `update`s it reached, and never `end`; children that already succeeded
   inside it did get their own `end`, and their values are dropped with the
-  frame.
+  frame. An invocation whose child refused gets no further `update` and no
+  `end` either: the refusal takes the place of its state (§6).
 - **Every key resolves.** Names are checked against the `RuleSet` when the
   parser is built (§8), so a typo or a renamed rule fails at construction,
   before any input — never as a transformer that silently never fires.
@@ -113,6 +131,7 @@ Two invariants the engine owes the author, both checkable:
 | Data rule kind  | Events                                                       |
 |-----------------|--------------------------------------------------------------|
 | `TerminalRange` | `create(tag)`, `update(s)(undefined)(leaf)`, `end`            |
+| `TerminalRange` matching EOF | `create(tag)`, `end` — no child                 |
 | `Sequence`      | `create(tag)`, one `update(s)(undefined)(child)` per item, `end` |
 | `Repeat`        | `create(tag)`, one `update(s)(undefined)(item)` per round — none if it matched zero — `end` |
 | `Variant`       | `create(tag)`, exactly one `update(s)(branchTag)(value)`, `end` |
@@ -121,6 +140,17 @@ Two invariants the engine owes the author, both checkable:
 The leaf is the backend's own: `CodePoint` under `fjs/bnf/ll1`,
 `CodePointMeta<T>` under `fjs/bnf/descent`, which is where per-symbol metadata
 enters a transformer (§7).
+
+**A terminal that consumed the synthesized end-of-input symbol folds in
+nothing.** EOF has no source element, so it contributes no leaf — that is
+[the EOF contract](../README.md#logical-eof-in-parser-input), and `leafAt` in
+`fjs/bnf/matcher` is where it already lives: it yields the leaf inside the
+physical input and an empty sequence at the end. An `eof` terminal's default
+node is therefore `{ tag, sequence: [] }`, exactly as it is today, and its
+transformer sees `create` then `end` with no `update` between them. The
+alternative — synthesizing a `-1` child — would put a leaf in the AST that the
+contract says is not there. Every helper (§9) has to be total over zero
+children for the same reason a nullable rule makes it necessary.
 
 Rule identity is what the AST lacks and the event stream has: the map is keyed
 by rule name, so a transformer always knows which rule it is folding — the
@@ -141,12 +171,21 @@ it delivers them.
 The default is not a parallel code path; it is an instance of the protocol:
 
 ```ts
-const astTransformer = {
-    create: tag => ({ tag, items: null }),               // items: List, not Array
-    update: s => () => child => ({ ...s, items: concat(s.items)([child]) }),
-    end: s => ok({ tag: s.tag, sequence: toArray(s.items) }),
+const astTransformer: Transformer<Ast<unknown>> = tag => {
+    const state = (children: List<unknown>): TransformerState<Ast<unknown>> => ({
+        update: () => child => state(concat(children)([child])),
+        end: () => ok({ tag, sequence: toArray(children) }),
+    })
+    return state(null)
 }
 ```
+
+It is written in the erased shape (§1) rather than through `fold`, because it
+has a state of its own to keep and nothing to hide. Its node is
+`Ast<unknown>`: a child of an *untransformed* rule may itself be transformed, so
+what a node holds is no longer only nodes and leaves. Children accumulate as a
+`List`, which is also a small improvement on today's sequence frame — that one
+spreads an array per item.
 
 So "the AST is one contract" ([`../README.md`](../README.md#the-ast-is-one-contract))
 survives by construction, and the `descentEquivalence` proof group in
@@ -229,7 +268,7 @@ than a wart to fix.
 | Monotone `partial` (4.3) | yes | no |
 | Transformer may run on an abandoned branch | never | yes |
 
-#### 5. Where it lives
+#### 5. Where it lives, and how the value gets out
 
 In the shared matcher layer, not in a new pass over the AST and not twice.
 
@@ -239,16 +278,55 @@ from [`../matcher/`](../matcher/). The change is to replace that
 `AstSequence` with the invocation's transformer state and those constructor
 calls with `create`/`update`/`end`. So:
 
-- `RuleTransformer`, `TransformerMap` and the default transformer go in
-  `fjs/bnf/matcher` (types in `types.ts`, the default in `module.f.mjs`);
-- `descentParserRuleSet` and `parserRuleSet` take an optional map and thread
-  states through their frames;
+- `RuleTransformer`, `Transformer`, `TransformerState` and `TransformerMap` go
+  in `fjs/bnf/matcher/types.ts`, `fold` and `astTransformer` in its
+  `module.f.mjs`;
+- each backend gains one entry point that takes a map (`transformRuleSet`
+  below), and its frames carry a transformer state where they carried an
+  `AstSequence`;
 - no third walk exists to desync from the other two.
 
 That is the answer to what the previous design called "parser-neutral
 evaluation" (its `Semantics<R>` algebra). The algebra is right; it belongs in
 the layer the backends already share, and it should be a fold over children
 rather than a `reduce` over a materialized child array — see §11.2.
+
+**Threading states through frames is not enough to return one.** Both public
+results are typed to the AST — `DescentMatchResult.ast` and `ll1`'s
+`MatchResult[0]` — so a transformed root has nowhere to go. A transforming
+parse needs its own entry point and its own result:
+
+```ts
+type TransformMatchResult<T> = readonly[Result<T, string>, boolean, Remainder]
+type TransformMatch<T> = (s: readonly CodePoint[]) => TransformMatchResult<T>
+
+const transformRuleSet:
+    (ruleSet: RuleSet) =>
+    <M extends TransformerMap>(map: M) =>
+    <K extends string>(start: K) => TransformMatch<_Output<M, K>>
+
+type _Output<M, K> = K extends keyof M
+    ? M[K] extends Transformer<infer T> ? T : never
+    : unknown
+```
+
+The start rule moves into the builder, and that is what connects the map to the
+parse's type: a map written as an object literal keeps its literal keys, so
+`M[K]` is the start rule's *own* transformer and `_Output` reads the output type
+out of it — no cast, and no unconstrained type parameter for a caller to fill in
+by annotation. A start rule the map does not name gives `unknown`, which is
+honest: it builds an AST node whose children may themselves be transformed
+values, so it is not an `Ast<CodePoint>` and must not claim to be.
+
+The other two slots keep their present meaning, and all three are independent: a
+grammar that did not match reports `success: false`, a match that ran out of
+input reports a `null` remainder and a value folded from a truncated match, and
+a transformer that refused reports `error` with `success: true`. Read the value
+when the grammar matched and the remainder is empty.
+
+`parserRuleSet` then **is** this machine with an empty map, keeping its current
+type: with no entries every value is a node `astTransformer` built, over leaves
+that are this backend's own.
 
 #### 6. Backtracking, purity, errors
 
@@ -263,16 +341,31 @@ not negotiable:
 - A transformer that is expensive multiplies backtracking cost. Keep `update`
   cheap; do the work in `end`, which runs only on a branch that survived.
 
-Failure is `end`-only, on purpose. Anything a child could reject can be recorded
+Refusal is `end`-only, on purpose. Anything a child could reject can be recorded
 in the state and reported when the rule finishes, so `update` stays a plain
 `S => tag => child => S` and there is one place to look for a rejection. The
-cost is that an error's *position* is the enclosing rule's, not the offending
+cost is that a refusal's *position* is the enclosing rule's, not the offending
 child's, unless the transformer kept the child's metadata (§7) — which the
 transformers that care already do.
 
-A transformer error aborts the parse; it does not make the branch fail and let
-the parser try another. A semantic rejection is not a syntactic one, and making
-it one would make `ll1` and `descent` disagree about which inputs parse.
+**A refusal never changes what the grammar accepts.** Aborting the parse at the
+refusing rule would be wrong, and `descent` is where it shows: a child can
+succeed and run `end` inside a branch that a *later* item then fails, so the
+parser moves on to another alternative. Try `[specialNumber, 'x']` before
+`[plainText, 'y']` on an input ending in `y`: if `specialNumber`'s transformer
+refuses, aborting rejects an input the grammar accepts, and which inputs parse
+becomes branch-order dependent. Restricting transformers to non-speculative
+rules is the other way out, and it is worse — it would make the protocol mean
+something different on each backend.
+
+So a refusal is a **value**. The refusing invocation's value is the error; the
+enclosing fold takes it in place of its state and stops calling `update`; it
+travels up the spine unchanged, so the first refusal is the one reported.
+Matching continues exactly as it would have, and a branch the parser abandons is
+dropped with its refusal like any other value it produced. Under `ll1` this is
+indistinguishable from aborting — nothing can be abandoned, so the first refusal
+is already final — but the rule belongs to the protocol, not to a backend, so
+both implement the same one.
 
 #### 7. Metadata
 
@@ -285,8 +378,10 @@ else in a fold.
 
 This replaces the previous design's mandatory `(leaf, merge, empty)` monoid
 merged into every node. That monoid existed to guarantee error positions and to
-carry lexemes across parser layers; the first is now the engine's job (§1,
-§6) and the second is one transformer returning a pair. An automatic span
+carry lexemes across parser layers; the first is the engine's to attach — it
+knows the rule and the cursor a refusal happened at, which is what the open
+question about a refusal's payload is about — and the second is one transformer
+returning a pair. An automatic span
 monoid remains available as a *helper* (§9) for grammars that want one
 everywhere, which is the right altitude for it — sugar, not a channel every
 rule pays for.
@@ -316,12 +411,13 @@ type Values = {
     readonly object: Json
     // …
 }
-type Transformers = { readonly[K in keyof Values]?: RuleTransformer<unknown, Values[K]> }
+type Transformers = { readonly[K in keyof Values]?: Transformer<Values[K]> }
 ```
 
-`end`'s result type is checked per rule; the state parameter carries the §1
-existential wrinkle here too, and whichever spelling §1 settles on applies to
-this mapped type unchanged.
+Every `end` is checked against the rule's declared output, and `_Output` (§5)
+reads the start rule's entry back out of the same map to type the parse's
+result. The state type is checked too — inside `fold`, where it is bound — and
+never appears in the map.
 
 `update`'s `child` stays `unknown`. The child *names* are known only at runtime
 (the `RuleSet` is built by `toData`, so TS never sees the literal), and an
@@ -441,34 +537,81 @@ left is one protocol and its two backends.
 
 ### Tasks
 
-- [ ] Add `RuleTransformer` / `TransformerMap` to `fjs/bnf/matcher/types.ts`,
-      and the default AST transformer to `fjs/bnf/matcher/module.f.mjs`.
-- [ ] Thread transformer states through `fjs/bnf/descent` frames in place of
-      `AstSequence`, keeping the untransformed path byte-identical.
-- [ ] Same for `fjs/bnf/ll1`, adding a variant frame only when a variant has a
-      transformer.
-- [ ] Resolve every map key against the `RuleSet` when the parser is built;
-      fail at construction.
-- [ ] Short-circuit the parse on an `end` error, reporting rule name and
-      position.
+Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machine
+(it is, marginally) but because it is the one that settles the design:
+
+- It **never backtracks**, so no transformer ever runs on a branch it goes on to
+  abandon. Stage 1 therefore ships the whole protocol without depending on the
+  speculative-refusal rule (§6) being right: under `ll1` a refusal is final the
+  moment it happens, so the rule can be *implemented* there and only *exercised*
+  in stage 3.
+- It is the backend that can promise **bounded-memory input streaming** (§4.2).
+  Fold-level streaming alone is worth having, but the end state this issue is
+  for — a JSON recognizer that is O(depth) over a stream — is LL(1)'s.
+- Its **consumers are the ones waiting**: JSON's recognizer and value codec are
+  LL(1)-shaped work, so stage 1 unblocks them without touching `fjs/djs`, whose
+  port is the larger, riskier change and needs the inherited-attribute question
+  (§10) answered first.
+- `descentEquivalence` in `../ll1/proof.f.mjs` **already pins the AST both
+  backends build**, so the conformance test for "the default transformer
+  reproduces today's AST" exists before the change that has to keep it passing.
+
+**Stage 1 — the protocol and `fjs/bnf/ll1`.**
+
+- [ ] Add `RuleTransformer`, `Transformer`, `TransformerState` and
+      `TransformerMap` to `fjs/bnf/matcher/types.ts`, and `fold` plus
+      `astTransformer` to `fjs/bnf/matcher/module.f.mjs`.
+- [ ] Replace the `AstSequence` in `fjs/bnf/ll1`'s frames with the invocation's
+      transformer state, and its `mrSuccess` calls with `create`/`update`/`end`.
+      A frame stops carrying a `tag`: the tag is consumed by `create` when the
+      frame is pushed, not when the node is built.
+- [ ] Add a variant frame — `ll1` has none today, because a variant only
+      retargets the current task — and push it **only** for a variant the map
+      names, so the untransformed path keeps costing neither a frame nor a node.
+- [ ] Add `transformRuleSet` (§5) and check every map key against the `RuleSet`
+      at construction, throwing rather than parsing.
+- [ ] Re-express `parserRuleSet` as that machine with an empty map, and keep its
+      current result type; the one place the machine's erasure is undone is
+      where a value comes back out of it.
+- [ ] Carry a refusal as a value (§6): it replaces the fold's state, suppresses
+      the rest of its `update`s and its `end`, and propagates unchanged.
+- [ ] Settle the truncated-match contract: running out of input mid-sequence
+      finishes the enclosing folds early (`pos === null`), so their `end` sees a
+      partial fold. Document it on `TransformMatchResult` — the value is
+      meaningful only when the remainder is empty.
+- [ ] Proofs: `descentEquivalence` and the existing AST expectations unchanged
+      under the empty map; the per-rule-kind event order of §2 including the
+      EOF terminal and an empty match; a refusal reported with `success: true`;
+      the construction-time name check; and a deep-nesting case, since the fold
+      now runs on the machine's explicit stack.
+
+**Stage 2 — helpers and the first consumer.**
+
 - [ ] Add the §9 helpers with the O(1)-`update` accumulation inside them.
-- [ ] Prove the default map reproduces today's AST — reuse
-      `descentEquivalence` in `../ll1/proof.f.mjs` — plus per-rule-kind event
-      order, the abandoned-branch case (`create` without `end`), an empty match,
-      and a deep-nesting case that would overflow a recursive fold.
-- [ ] Port `fjs/djs/parser` onto transformers and delete `foldValue`,
-      `descendantsTagged`, `slot`, `keyOf`, `_FoldFrame`; settle the inherited
-      `refs` attribute (§10) there.
 - [ ] Give `fjs/media/json` a transformer set over its own grammar, and the
       all-`unit` map to
       [streaming-recognizer](../../media/json/todo/streaming-recognizer.md).
+- [ ] Revisit `partial` (§4.3) once a real consumer wants results before the
+      document ends; it needs [43](./043-stateful-parser.md) to be useful.
+
+**Stage 3 — `fjs/bnf/descent`.**
+
+- [ ] Thread transformer states through `fjs/bnf/descent`'s frames, keeping the
+      untransformed path byte-identical.
+- [ ] Prove the speculative cases stage 1 cannot reach: a transformer that runs
+      on an abandoned branch, and a refusal inside one that the parse recovers
+      from by taking another branch (§6).
+- [ ] Port `fjs/djs/parser` onto transformers and delete `foldValue`,
+      `descendantsTagged`, `slot`, `keyOf`, `_FoldFrame`; settle the inherited
+      `refs` attribute (§10) there.
 - [ ] Register any new module in `deno.json` per AGENTS.md; `npx tsc`, `fjs t`.
 
 ### Open questions
 
-- **How `TransformerMap` hides `S` (§1).** A continuation-encoded existential
-  (no cast, heavier to write) or one documented cast inside the engine. This is
-  the only place the design needs an answer before code is written.
+- **What a refusal carries.** `string` is the placeholder in §1. A structured
+  error — the rule name the engine already knows, plus a position — would make
+  a transformer's refusal as diagnosable as a syntactic failure. Decide with
+  stage 1, since the engine is what would attach the rule name.
 - **`partial` (§4.3).** Is exposing the start rule's state the right API, or
   should draining be a transformer-level concept? It is the only frame whose
   liveness is guaranteed, which argues for keeping it as narrow as written.
