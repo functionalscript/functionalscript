@@ -219,11 +219,24 @@ export const registerModule = (ctx, k, v, star) => {
 }
 
 /**
+ * Runs leaves that have **already been collected**, for one module.
+ *
+ * This is the seam a host enters when it must enumerate an export itself.
+ * `runModule` below is this with the enumeration in front of it, and that
+ * enumeration is the whole difference: reading a module's `proof` runs user
+ * code, once per read, and a value that resists being read has no leaf to be
+ * attributed to (`todo/hostile-proof-values.md`). A host that wants to report
+ * such a module rather than panic on it therefore has to do the read, and must
+ * not do it twice — so it hands the entries over rather than the value.
+ *
+ * It also keeps a host's modules a *list*: two modules may share a label, and
+ * they are two runs. Nothing here is a map.
+ *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
- * @returns {(k: string, v: unknown) => (state: RunState) => Effect<O | Catch, RunState, IoChannel>}
+ * @returns {(k: string, entries: readonly _TestAndPath[]) => (state: RunState) => Effect<O | Catch, RunState, IoChannel>}
  */
-const runModule = ({ result, start, test }) => (k, v) => state => {
+export const runEntries = ({ result, start, test }) => (k, entries) => state => {
     /**
      * @type {(entry: _TestAndPath) =>
      *     (acc: RunState) =>
@@ -366,13 +379,24 @@ const runModule = ({ result, start, test }) => (k, v) => state => {
      * @type {(entries: readonly _TestAndPath[]) => Effect<O | Catch, RunState, IoChannel>}
      */
     const walkEntries = entries => walkStep(pureOk(entries), state, one)
-    // The *module's* own export is read unguarded, and that asymmetry is
-    // deliberate rather than an oversight: there is no leaf to attribute it to,
-    // so an unreadable `proof` export is whatever loaded the module's problem.
-    // `fjs t` panics on one; the browser page catches it and reports one failed
-    // module. See `todo/hostile-proof-values.md`.
-    return walkEntries(collectTests([], false, v))
+    return walkEntries(entries)
 }
+
+/**
+ * One module: its `proof` export enumerated, then its leaves walked.
+ *
+ * The export is read **unguarded**, and that asymmetry is deliberate rather
+ * than an oversight: there is no leaf to attribute a failure to, so an
+ * unreadable `proof` export is whatever loaded the module's problem. `fjs t`
+ * panics on one; the browser page reads it itself, through {@link runEntries},
+ * so it can report one failed module. See `todo/hostile-proof-values.md`.
+ *
+ * @template {Operation} O
+ * @param {Reporter<O>} reporter
+ * @returns {(k: string, v: unknown) => (state: RunState) => Effect<O | Catch, RunState, IoChannel>}
+ */
+const runModule = reporter => (k, v) =>
+    runEntries(reporter)(k, collectTests([], false, v))
 
 /** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
 const proofEntries = moduleMap =>

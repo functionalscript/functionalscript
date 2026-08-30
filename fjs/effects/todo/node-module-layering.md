@@ -304,14 +304,16 @@ Judgement calls worth deciding explicitly rather than by accident:
       operation in a shared layer while each host writes its own copy of the
       obvious implementation would leave the JavaScript where it was; a browser
       interpreter spreads the same object.
-- [ ] `fjs/effects/browser`: an interpreter over `commonOperationMap` plus the
-      page's own operations. **Deliberately not created empty.** Today it would
-      be one line wiring handlers nobody calls: the page does not run through
-      effects until
+- [ ] `fjs/effects/browser`: **still nothing to put in it, and now that is a
+      measurement rather than a guess.** Step 7b of
       [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
-      step 7b, which is also where its `report` operation is designed. It lands
-      with its first consumer, which is the same second-implementer discipline
-      that decided the rows above.
+      has landed — the page runs the shared traversal — and its interpreter is
+      `asyncRun` over `commonOperationMap` plus the page's own `report`
+      operation, which belongs to `emergent_testing` because rendering a result
+      into a document is that host's, not an effect layer's. So what the second
+      host needed was these operations moving *out* of `effects/node`, which is
+      what the rows above did. This row stays open for the first operation a
+      browser implements that a page does not own; there is none today.
 - [ ] Move `Await` / `awaitIfPromise` to `fjs/effects/common`.
 - [x] Move the console family to `fjs/effects/common`, add the
       named `Std` type there as `RequiredMap<WriteConsoles, …>`, point
