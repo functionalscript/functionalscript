@@ -20,13 +20,13 @@ import {
     architecture,
     os,
     toSteps,
+    ubuntu,
     ubuntuArm
 } from './common/module.f.mjs'
 import {
-    i686Commands,
     i686JobId,
     i686NixJob,
-    i686Target,
+    i686Steps,
     rustPlatformCommands,
     rustPlatformSteps,
     rustWasmSteps,
@@ -49,30 +49,14 @@ import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 const workflowText = gha => JSON.stringify(gha, null, '  ')
 
 /**
- * Which generated shell a platform job enters, or `undefined` for the runner's
- * own toolchain.
- *
- * One thing keeps a job off Nix entirely: **Windows**, where Nix does not run
- * natively. Everything else enters a shell, and the only question is which.
- *
- * A **32-bit target** takes one to its own. `gcc_multi` — the multilib gcc and
- * `glibc_multi` a 32-bit link needs — exists on `x86_64-linux` alone, and the
- * shared shell builds four systems from one `packages` list, so it cannot carry
- * a package that means nothing on three of them. `../rust/module.f.mjs`'s
- * `i686NixJob` is that shell. The split is conditional on the project having
- * Rust: with no `Cargo.toml` there are no 32-bit checks, and the job shares
- * like the rest.
- *
- * @type {(rust: boolean, o: Os, a: Architecture) => string | undefined}
- */
-const platformShell = (rust, o, a) => {
-    if (o === 'windows') { return undefined }
-    return rust && i686Target(o, a) !== undefined ? i686JobId : nixShell
-}
-
-/**
- * A platform job on a generated shell: every command through `nix develop`, and
+ * A platform job on the shared shell: every command through `nix develop`, and
  * the runtime asserted first.
+ *
+ * All four non-Windows platform jobs enter the same shell, so the matrix
+ * differs by platform and by nothing else. Windows is the only exception left,
+ * because Nix does not run there natively; 32-bit Linux used to be a second
+ * one, and is now `../rust/module.f.mjs`'s `ubuntu-intel32` — a job whose
+ * linker is broken on every system this shell serves but one.
  *
  * It runs this commit's suite rather than installing a published
  * FunctionalScript and running that. `npm install -g` writes to the read-only
@@ -88,17 +72,17 @@ const platformShell = (rust, o, a) => {
  * `npm ci` stays in the three Node jobs, which type-check and pack.
  *
  * The version check is worth more here than in any other job. These are the
- * only places a shell is built for a system other than `aarch64-linux`, so this
- * is what turns four shells that were pinned as text into four that are known
- * to work.
+ * only places the shell is built for a system other than `aarch64-linux`, so
+ * this is what turns four shells that were pinned as text into four that are
+ * known to work.
  *
- * @type {(rust: boolean, shell: string, o: Os, a: Architecture) => readonly MetaStep[]}
+ * @type {(rust: boolean) => readonly MetaStep[]}
  */
-const shellPlatformSteps = (rust, shell, o, a) => [
+const shellPlatformSteps = rust => [
     nixInstall,
-    nixVersionStep(shell, 'node --version', `v${node.default}`),
-    ...nixSteps(shell)([
-        ...(rust ? [...rustPlatformCommands, ...i686Commands(o, a)] : []),
+    nixVersionStep(nixShell, 'node --version', `v${node.default}`),
+    ...nixSteps(nixShell)([
+        ...(rust ? rustPlatformCommands : []),
         'node --test',
     ]),
 ]
@@ -107,14 +91,14 @@ const shellPlatformSteps = (rust, shell, o, a) => [
 const job = (rust, nodeExtra) => o => a => {
     const id = `${o}-${a}`
     const image = images[o][a]
-    const shell = platformShell(rust, o, a)
     const result = [
-        ...(shell === undefined
+        // Windows is the one platform with no shell to enter.
+        ...(o === 'windows'
             ? [
                 ...(rust ? rustPlatformSteps(o, a) : []),
                 ...nodeMainSteps(functionalscript),
             ]
-            : shellPlatformSteps(rust, shell, o, a)),
+            : shellPlatformSteps(rust)),
         ...nodeExtra,
     ]
     return [id, { 'runs-on': image, steps: toSteps(result) }]
@@ -168,7 +152,13 @@ export const nixJobs = [
  * @type {(rust: boolean) => Jobs}
  */
 const canonicalJobs = rust => ({
-    ...(rust ? { wasm: ubuntuArm(rustWasmSteps) } : {}),
+    ...(rust
+        ? {
+            wasm: ubuntuArm(rustWasmSteps),
+            // Intel, because that is where a 32-bit x86 target can be built.
+            [i686JobId]: ubuntu(i686Steps),
+        }
+        : {}),
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
     ...nodeVersionJobs(),

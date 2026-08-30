@@ -22,9 +22,8 @@
  * @import { NixJob, NixRust } from '../nix/types.ts'
  */
 
-import { node, rust, wasmer, wasmtime } from '../config/module.f.mjs'
+import { rust, wasmer, wasmtime } from '../config/module.f.mjs'
 import { test } from '../common/module.f.mjs'
-import { major } from '../node/module.f.mjs'
 import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
 
 /** @type {(tool: 'clippy' | 'test', target?: string, config?: string) => string} */
@@ -68,29 +67,22 @@ const rustTarget = target => [
 const i686Linux = /** @type {const} */ ('i686-unknown-linux-gnu')
 
 /**
- * The 32-bit target a platform also checks, if it checks one.
+ * The 32-bit target a platform job also checks, which is now Windows Intel and
+ * nothing else.
  *
- * Exported because it decides more than the four steps below: a job with a
- * 32-bit target is a job the shared Nix shell cannot serve. The shell carries
- * one `stdenv`, and a 32-bit `libc` is `pkgsi686Linux.*` rather than
- * `pkgs.*` — an attribute path a `NixJob`'s `packages` cannot name. So
- * `../module.f.mjs` asks this before deciding where a platform job runs its
- * commands, rather than restating the pair of names.
+ * 32-bit Linux used to be here too, and became {@link i686JobId} — a job of its
+ * own, because its linker is `pkgsi686Linux.*`, which is broken on every system
+ * the shared shell serves but one. Windows stays because that job has no shell
+ * at all: Nix does not run there, so `dtolnay/rust-toolchain` provides the
+ * target the way it always did.
  *
  * @type {(v: Os, a: Architecture) => string | undefined}
  */
-export const i686Target = (v, a) => {
-    if (a === 'intel') {
-        switch (v) {
-            case 'windows': return 'i686-pc-windows-msvc'
-            case 'ubuntu': return i686Linux
-        }
-    }
-    return undefined
-}
+export const i686Target = (v, a) =>
+    a === 'intel' && v === 'windows' ? 'i686-pc-windows-msvc' : undefined
 
-/** CI job id of the 32-bit Linux platform job, and its flake's directory. */
-export const i686JobId = /** @type {const} */ ('ubuntu-intel')
+/** CI job id of the 32-bit Linux job, and the directory of its flake. */
+export const i686JobId = /** @type {const} */ ('ubuntu-intel32')
 
 /** @type {(v: Os, a: Architecture) => readonly MetaStep[]} */
 const i686 = (v, a) => {
@@ -98,16 +90,7 @@ const i686 = (v, a) => {
     return target === undefined ? [] : rustTarget(target)
 }
 
-/**
- * The checks a 32-bit target adds, as commands rather than steps — what a job
- * running them inside a shell needs.
- *
- * @type {(v: Os, a: Architecture) => readonly string[]}
- */
-export const i686Commands = (v, a) => {
-    const target = i686Target(v, a)
-    return target === undefined ? [] : targetCheckCommands(target)
-}
+
 
 /**
  * The one platform job the shared shell cannot serve, and the environment it
@@ -149,9 +132,12 @@ export const i686Commands = (v, a) => {
  */
 export const i686NixJob = {
     id: i686JobId,
-    // The one system `gcc_multi` exists for, and the runner this job has.
+    // The one system a 32-bit x86 toolchain exists for, and the runner this
+    // job has.
     systems: ['x86_64-linux'],
-    packages: [`nodejs_${major(node.default)}`],
+    // Nothing. This job builds one target and runs nothing else — the suite
+    // and every other check belong to jobs that share the developer shell.
+    packages: [],
     rust: {
         version: rust,
         // No `rustfmt`: `wasm` runs the one `cargo fmt` this repository has.
@@ -164,6 +150,27 @@ export const i686NixJob = {
         '/bin/cc',
     ],
 }
+
+/**
+ * The 32-bit Linux job: one target, checked four ways, in a shell of its own.
+ *
+ * It is a job rather than four more steps on `ubuntu-intel` because its shell
+ * cannot be that job's. Keeping them apart buys three things beyond that. Every
+ * platform job now enters the *same* shell, so the matrix differs by platform
+ * and by nothing else. The two run in parallel rather than one after the other.
+ * And a red result here says "32-bit Linux", where a red `ubuntu-intel` used to
+ * mean one of nine things.
+ *
+ * No version check, unlike every other job with a flake: this shell provides
+ * one thing, its flake names `1.98.0` in full, and a check could only restate
+ * the file.
+ *
+ * @type {readonly MetaStep[]}
+ */
+export const i686Steps = [
+    nixInstall,
+    ...nixSteps(i686JobId)(targetCheckCommands(i686Linux)),
+]
 
 /**
  * The native checks every platform job runs, as commands rather than steps.

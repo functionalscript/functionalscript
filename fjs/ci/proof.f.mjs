@@ -159,13 +159,19 @@ const runDefault = packageJson => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 14, 'expected 14 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
-        assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected Ubuntu Intel i686 check')
-        assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu --release')(gha), 'expected Ubuntu Intel i686 release check')
-        assert(hasRunInJob('ubuntu-intel', 'cargo clippy --target i686-unknown-linux-gnu -- -D warnings')(gha), 'expected Ubuntu Intel i686 lint')
-        assert(hasRunInJob('ubuntu-intel', 'cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings')(gha), 'expected Ubuntu Intel i686 release lint')
+        // 32-bit Linux is a job of its own, because its linker is a package
+        // broken on every system the shared shell serves but one. The four
+        // checks are what it exists for.
+        assert(hasRunInJob(i686JobId, 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected 32-bit Linux check')
+        assert(hasRunInJob(i686JobId, 'cargo test --target i686-unknown-linux-gnu --release')(gha), 'expected 32-bit Linux release check')
+        assert(hasRunInJob(i686JobId, 'cargo clippy --target i686-unknown-linux-gnu -- -D warnings')(gha), 'expected 32-bit Linux lint')
+        assert(hasRunInJob(i686JobId, 'cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings')(gha), 'expected 32-bit Linux release lint')
+        // And nowhere else: `ubuntu-intel` is now the same job as its three
+        // siblings, differing by platform and by nothing else.
+        assert(!hasRunInJob('ubuntu-intel', '--target i686')(gha), 'unexpected 32-bit check in ubuntu-intel')
         assert(hasRunInJob('ubuntu-arm', 'cargo test --release')(gha), 'expected native platform Rust release check')
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy -- -D warnings')(gha), 'expected native platform Rust lint')
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy --release -- -D warnings')(gha), 'expected native platform Rust release lint')
@@ -387,17 +393,20 @@ export const proof = {
             // took effect rather than that a snapshot is what it claims: the
             // shell's Bun is not the snapshot's.
             ['bun', nixShell, [['bun --version', bun]]],
-            // The 32-bit Linux job, in a shell of its own: `gcc_multi` exists
-            // on `x86_64-linux` alone, so the shared shell — one `packages`
-            // list across four systems — cannot carry it.
-            [i686JobId, i686JobId, [['node --version', `v${node.default}`]]],
-            // The three platform jobs the shared shell does serve. These are
-            // the only place its other three systems are built at all.
+            // All four platform jobs, in the one shell. These are the only
+            // place its three systems other than the canonical runner's are
+            // built at all.
+            ['ubuntu-intel', nixShell, [['node --version', `v${node.default}`]]],
             ['ubuntu-arm', nixShell, [['node --version', `v${node.default}`]]],
             ['macos-intel', nixShell, [['node --version', `v${node.default}`]]],
             ['macos-arm', nixShell, [['node --version', `v${node.default}`]]],
+            // `ubuntu-intel32` asserts nothing, and is the one job with a flake
+            // that does not. Its shell provides a single toolchain whose flake
+            // names `1.98.0` in full, so a check could only restate the file —
+            // the same reason `wasm` does not check its Rust either.
+            [i686JobId, i686JobId, []],
         ]
-        // Between them these cover every declared flake. That is what replaced
+        // Between them these name every declared flake, which is what replaced
         // the `dev` job: the shared shell used to be checked in one place
         // because nothing else entered it, and is now checked by each job that
         // does, for the tools that job depends on.

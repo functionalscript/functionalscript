@@ -190,14 +190,20 @@ Two of the six platform jobs are here too, and for one reason: **Nix does not
 run natively on Windows**. `windows-intel` and `windows-arm` keep the runner's
 toolchain, and are the last jobs in the workflow that install one.
 
-Three of the other four — `ubuntu-arm`, `macos-intel`, `macos-arm` — moved into
-the shared shell, and they are what makes `devSystems` mean anything: they are
+The other four — `ubuntu-intel`, `ubuntu-arm`, `macos-intel`, `macos-arm` —
+moved into the shared shell, all of them, so the matrix differs by platform and
+by nothing else. They are also what makes `devSystems` mean anything: they are
 the only place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells
 are built rather than pinned as text.
 
-`ubuntu-intel` moved into a flake of its own, because it checks
-`i686-unknown-linux-gnu` and that needs a 32-bit linker only `x86_64-linux` can
-supply, while the shared shell builds four systems from one `packages` list.
+32-bit Linux became a **job of its own**, `ubuntu-intel32`, with a flake of its
+own. Its linker is `pkgsi686Linux.stdenv.cc`, and on every system the shared
+shell serves except `x86_64-linux` that package set is marked broken — so
+folding it in would break `nix develop ./nix` on both macOS systems and on ARM
+Linux. Splitting the *job* rather than giving `ubuntu-intel` two shells keeps
+the one-shell-per-job property `../proof.f.mjs`'s `nixCoverage` asserts, lets
+the two run in parallel, and makes a red result name 32-bit Linux rather than
+one of nine things.
 That replaced `apt-get install libc6-dev-i386` rather than joining it: the Nix
 cc-wrapper keeps `/usr/include` and `/usr/lib` off its search paths, so a libc
 from the runner's package manager is invisible to the compiler `cargo` invokes.

@@ -14,7 +14,7 @@
             };
         in
         pkgs.mkShell {
-            packages = [ rust pkgs.nodejs_26 ];
+            packages = [ rust ];
             shellHook = ''
                 export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=${pkgs.pkgsi686Linux.stdenv.cc}/bin/cc
             '';

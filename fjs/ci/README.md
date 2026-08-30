@@ -179,18 +179,20 @@ evaluated for real, by the job that uses it.
 
 ### Expected package scripts
 
-Only the two Windows jobs are off Nix now, because Nix has no native Windows.
-`ubuntu-arm`, `macos-intel` and `macos-arm` run `cargo` and the suite in the
-shared shell — the only place its `x86_64-linux`, `aarch64-darwin` and
-`x86_64-darwin` outputs get built at all — and `ubuntu-intel` runs in one of
-its own.
+All four non-Windows platform jobs run `cargo` and the suite in the **same**
+shell, so the matrix differs by platform and by nothing else. They are also the
+only place that shell's `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin`
+outputs get built at all. Only the two Windows jobs are off Nix, because Nix has
+no native Windows.
 
-`ubuntu-intel` needs its own because it checks `i686-unknown-linux-gnu`, whose
-linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for* `i686-linux`, and so
-available on `x86_64-linux` alone, while the shared shell builds four systems
-from one `packages` list. Not `gcc_multi`: a multilib wrapper finds the right
-32-bit files and still emits `-m elf_x86_64`, which is `65z-ci-nix.md`'s
-story. It replaces `apt-get install libc6-dev-i386` rather than
+32-bit Linux is a job of its own, `ubuntu-intel32`, rather than four more steps
+on `ubuntu-intel`. Its linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for*
+`i686-linux` — and on every other system the shared shell serves, that package
+set is marked broken, so it cannot live there. Not `gcc_multi` either: a
+multilib wrapper finds the right 32-bit files and still emits `-m elf_x86_64`,
+which is `todo/65z-ci-nix.md`'s story. Separating it also lets the two run in
+parallel, and makes a red result say "32-bit Linux" rather than "something in
+the Intel Linux job". It replaces `apt-get install libc6-dev-i386` rather than
 joining it: a Nix toolchain does not look in `/usr`, so a libc installed by the
 runner's package manager would sit there unread.
 
