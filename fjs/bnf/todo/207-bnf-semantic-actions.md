@@ -668,10 +668,19 @@ silent (its value never reaches the parent), a designated `unit` value the
 engine drops, or combinator-aware helpers that know the shapes they build.
 
 **Recognizing without building.** The same grammar, with a map that answers
-`unit` for every rule. The parse is O(depth) memory, no value is built, and the
-verdict is the parse's own success — the payload-free mode
-[recognizer-backend](./recognizer-backend.md) asks a backend for, without a
-second traversal to discard what the first one built.
+`unit` for every rule. The parse is O(depth) memory and no value is built — the
+payload-free mode [recognizer-backend](./recognizer-backend.md) asks a backend
+for, without a second traversal to discard what the first one built.
+
+**The verdict is `ok` with an empty remainder, not the outcome tag alone.** A
+match succeeds as soon as the *start rule* does, so on a grammar that does not
+end in `eof` the tag alone would accept a valid prefix followed by garbage —
+which is not the complete-stream contract a recognizer owes. The remainder is
+what closes that gap, and this backend's own proofs already say so:
+`isMatchSuccess` in [`../ll1/proof.f.mjs`](../ll1/proof.f.mjs) is
+`success && remainder?.length === 0`. A grammar that *does* end in `eof`
+consumes the synthesized end-of-input symbol and leaves the remainder empty, so
+one rule covers both spellings.
 
 That is *folding* payload-free, and it is not the whole of a streaming
 recognizer. [streaming-recognizer](../../media/json/todo/streaming-recognizer.md)
