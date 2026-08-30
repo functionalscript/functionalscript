@@ -540,15 +540,21 @@ and is reviewable without the next one.
       `runModuleMap` still answers `0 | 1`, nothing broke, and the page folds
       its report from what it collected.
 
-      Two smaller deviations, same reason. The page's modules stay a list by
-      calling the traversal **once per module** — a map of one cannot lose a
-      duplicate label, so catalog item 6 is avoided by construction rather
-      than by a new seam. And that per-call boundary is also where the
-      exported tree's guard lives: the traversal reads a module's own `proof`
-      unguarded on purpose (`hostile-proof-values.md`'s open task), so an
-      unreadable one arrives as a rejection of that module's call and becomes
-      one failed module, exactly as before, with one enumeration rather than
-      the two a pre-read would cost (item 5).
+      The page's modules stay a list, and the seam this design asked for is
+      why. `runEntries` takes a module's **already-collected** leaves, so the
+      page enumerates the export itself, once, under its own guard — items 5
+      and 6 together. An unreadable export is that page's failed module, as
+      before, and the traversal keeps reading a module's own `proof` unguarded
+      (`hostile-proof-values.md`'s open task) for `fjs t`.
+
+      **Skipping that seam is what a first attempt did, and review caught what
+      it cost.** Calling `runModuleMap` once per module also preserves a
+      duplicate label, so it looked equivalent; it is not, because it leaves
+      the enumeration inside the effect. An unreadable export and an
+      interpreter that cannot dispatch then arrive by the same route — a
+      rejection — and become indistinguishable, so one of them is reported
+      wrongly whichever way the `catch` is written. Ambiguity introduced by
+      the port, resolved by the design the plan already had.
 
       **The page needed no browser-specific effect.** Its interpreter is
       `asyncRun` over `commonOperationMap` plus its own `report` — nothing

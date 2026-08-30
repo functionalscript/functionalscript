@@ -383,6 +383,37 @@ export const proof = {
         assertEq(report.totals.tests, 1)
         assertEq(report.results[0]?.path, '.then')
     },
+    /**
+     * A failure of the *runner* ends in an `infrastructure-error` report, not
+     * in a failed test.
+     *
+     * The two are different facts and a controller acts on them differently:
+     * "the suite failed" is the suite's answer, "the suite could not be run" is
+     * the runner's. Reporting the second as the first produces a report holding
+     * a passed leaf *and* a failed module, which describes a run that never
+     * happened.
+     *
+     * The lever is the page's own `report` handler, whose macrotask yield is
+     * the one place the runner touches the host: a suite that replaces
+     * `setTimeout` breaks the handler rather than any test. Ugly to arrange and
+     * exactly the point — the failure has to come from the interpreter, since
+     * that is the route being proved. A user callback that throws is *not* this
+     * case and is caught deliberately; `reportingThrows` covers it.
+     */
+    interpreterFailureIsInfrastructure: async () => {
+        const original = globalThis.setTimeout
+        try {
+            // @ts-expect-error — deliberately breaking the host the handler uses.
+            globalThis.setTimeout = () => { throw new Error('no timers') }
+            const report = await runBrowserProofs([['m', { t: () => undefined }]])
+            assertEq(report.status, 'infrastructure-error')
+            assert(
+                report.results.some(r => r.message?.includes('no timers') === true),
+                report.results)
+        } finally {
+            globalThis.setTimeout = original
+        }
+    },
     manyLeaves: async () => {
         // The walk is a loop over one leaf at a time now rather than a batch
         // recursion, and it still runs all of them.

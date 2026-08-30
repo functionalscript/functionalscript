@@ -15,23 +15,27 @@
  *
  * @module
  *
- * @import { BrowserTestReport, Reporter, TestResult, _BrowserImporter, _BrowserReport, _BrowserTestResult } from './types.ts'
+ * @import {
+ *     BrowserTestReport, Reporter, RunState, TestResult, _BrowserImporter, _BrowserReport,
+ *     _BrowserTestResult, _TestAndPath,
+ * } from './types.ts'
  * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
+ * @import { IoChannel } from '../effects/node/types.ts'
  * @import { Effect, Func } from '../effects/types.ts'
  * @import { Result } from '../types/result/types.ts'
  * @import { List } from '../types/list/types.ts'
  */
 
-/** The page's leaf-landed operation; see `_BrowserReport`.
- * @type {Func<_BrowserReport>} */
-const report = do_('report')
-
-import { addResult, defaultTest, runModuleMap, testResult, zeroTotals } from './module.f.mjs'
+import { addResult, collectTests, defaultTest, runEntries, zeroState, zeroTotals } from './module.f.mjs'
 import { asyncRun } from '../effects/module.mjs'
 import { do_, pureOk } from '../effects/module.f.mjs'
 import { commonOperationMap } from '../effects/common/module.mjs'
 import { concat, toArray } from '../types/list/module.f.mjs'
-import { error as errorResult, invert, ok } from '../types/result/module.f.mjs'
+import { ok } from '../types/result/module.f.mjs'
+
+/** The page's leaf-landed operation; see `_BrowserReport`.
+ * @type {Func<_BrowserReport>} */
+const report = do_('report')
 
 /** @type {(value: unknown) => string} */
 const text = value => {
@@ -194,38 +198,68 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
         },
     })
     /**
-     * One module at a time, and the two reasons are unrelated.
+     * A module's own export, enumerated here rather than by the traversal.
      *
-     * **Duplicate labels.** The page's modules are a *list*: two entries can
-     * share a label and are two runs. A record-shaped `ModuleMap` keeps only
-     * the last of them, so a map of one module per call is what preserves the
-     * list — the mistake `todo/share-browser-console-runner.md` catalogs as
-     * item 6, avoided by construction rather than by care.
+     * Reading it runs user code, and a value that resists being read has no
+     * leaf to be attributed to — so the traversal leaves the read to whoever
+     * loaded the module (`todo/hostile-proof-values.md`) and takes already
+     * collected leaves at `runEntries`. That is also what keeps the page's
+     * modules a *list*: two entries may share a label and are two runs, where a
+     * record-shaped map would keep only the last (catalog item 6).
      *
-     * **The exported tree is read unguarded by the traversal**, deliberately:
-     * there is no leaf to attribute a failure to, so an unreadable `proof`
-     * export belongs to whatever loaded the module
-     * (`todo/hostile-proof-values.md`). That read happens inside the effect, so
-     * it reaches here as a rejection, and one module failing to enumerate is
-     * one failed module rather than a run with no report. Pre-reading to check
-     * would enumerate twice, and enumerating is user code (catalog item 5).
+     * Enumerated exactly once, which is why the entries are carried rather than
+     * the value re-read: a getter runs on every read (item 5).
      *
-     * @type {(module: readonly [string, unknown]) => Promise<void>}
+     * @type {(module: string, proof: unknown) => readonly _TestAndPath[] | null}
      */
-    const one = async ([module, proof]) => {
+    const entriesOf = (module, proof) => {
         try {
-            await run(runModuleMap(reporter)({ [module]: { proof } }))
+            return collectTests([], false, proof)
         } catch (error) {
             const [message, stack] = errorDetails(error)
             announce(moduleFailure(module, 0, message, stack))
+            return null
         }
     }
-    /** @type {(rest: readonly (readonly [string, unknown])[]) => Promise<void>} */
+    /**
+     * A failure of the *runner*, which is not a failed test and must not be
+     * reported as one.
+     *
+     * It arrives two ways and both end here (catalog item 8): the error channel
+     * carries what an operation reported, a rejection carries what the
+     * interpreter could not dispatch at all, and an unhandled one of either is a
+     * page stuck in `running` for ever. The run stops — a runner that cannot
+     * dispatch will not dispatch the next leaf either — and the report says
+     * `infrastructure-error`, which is the status a controller reads to tell
+     * "the suite failed" from "the suite could not be run".
+     *
+     * @type {(module: string, cause: unknown) => 'infrastructure-error'}
+     */
+    const infrastructure = (module, cause) => {
+        const [message, stack] = errorDetails(cause)
+        announce(moduleFailure(module, 0, message, stack))
+        return 'infrastructure-error'
+    }
+    /** @type {(module: string, entries: readonly _TestAndPath[]) => Promise<string | null>} */
+    const runModule = async (module, entries) => {
+        /** @type {Result<RunState, IoChannel>} */
+        let answered
+        try {
+            answered = await run(runEntries(reporter)(module, entries)(zeroState))
+        } catch (error) {
+            return infrastructure(module, error)
+        }
+        if (answered[0] === 'error') { return infrastructure(module, answered[1]) }
+        const { aborted } = answered[1]
+        return aborted === null ? null : infrastructure(module, aborted)
+    }
+    /** @type {(rest: readonly (readonly [string, unknown])[]) => Promise<string | null>} */
     const walk = async rest => {
-        if (rest.length === 0) { return }
-        const [first, ...tail] = rest
-        await one(first)
-        return walk(tail)
+        if (rest.length === 0) { return null }
+        const [[module, proof], ...tail] = rest
+        const entries = entriesOf(module, proof)
+        const status = entries === null ? null : await runModule(module, entries)
+        return status === null ? walk(tail) : status
     }
     // Nothing that runs user code may start before the caller holds the
     // promise: a leaf executes synchronously inside its handler, so without
@@ -234,7 +268,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
     // previous run's promise. Catalog item 7.
     return Promise.resolve()
         .then(() => walk(modules))
-        .then(() => reportOf(performance.now() - start, toArray(landed)))
+        .then(status => reportOf(performance.now() - start, toArray(landed), status ?? undefined))
 }
 
 /** @type {(root: Element) => (Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }) | null} */
