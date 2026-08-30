@@ -1,38 +1,79 @@
-## Use `result`'s `unwrap` in the parse proof
+## Shared result asserts for the proofs
 
-**Priority:** P5
+**Priority:** P4
 **Status:** open
 
 ### Problem
 
-`fjs/rtti/parse/proof.f.mjs:28` hand-rolls an `unwrap` that duplicates
-`unwrap` from `fjs/types/result/module.f.mjs:53` — assert `'ok'`, return the
-payload.
+The assertion helpers for the `['ok' | 'error', payload]` result convention
+are copy-pasted across proof files:
 
-### History
+- `../validate/proof.f.mjs:17-29` — `assertOk`, `assertError`,
+  `assertErrorPath`.
+- `../parse/proof.f.mjs:19-41` — the same three, character for character,
+  plus a hand-rolled `unwrap` (`:30-33`) that duplicates `unwrap` from
+  `fjs/types/result/module.f.mjs` — which the sibling
+  `../validate/proof.f.mjs:14` already imports.
+- `../host.proof.mjs:43-46` — `assertOk`, `assertError` a third time.
+- `../../edag/proof.f.mjs:75-92` — `assertOk` a fourth time, and
+  `assertNoMatch`, which is `assertErrorPath([])` plus one message check.
+- `../../effects/proof.f.mjs:136-139` and
+  `../../effects/node/proof.f.mjs:47-50` — a differently-shaped
+  `assertOk(r, expected)` pair, byte-identical to each other.
 
-This issue used to be about sharing `assertOk` / `assertError` /
-`assertErrorPath` and roughly 80% of the proof tree between
-`fjs/rtti/validate/proof.f.mjs` and `fjs/rtti/parse/proof.f.mjs`,
-which were copy-pasted modulo the checker name. That duplication is gone:
-`validate` was deleted and `parse` is the only schema-form reader, so there is
-one proof file and nothing to share it with.
+An earlier version of this issue said the `assertOk`/`assertError` half was
+moot — "`validate` was deleted and `parse` is the only schema-form reader, so
+there is one proof file and nothing to share it with" — and instructed *not*
+to hoist. That recorded a deletion that never landed: `fjs/rtti/validate/`
+exists and is actively developed, so by the repo's own rule — hoist when a
+second consumer exists — the hoist is due, with four consumers of the exact
+shape and two more of a variant.
 
-`assertDeepEqual` was already resolved in favour of `structurallySame` /
-`assertStructurallySame`.
+### Proposal
 
-What is left is the one duplication that was never about the two-proof split.
+`fjs/asserts/module.f.mjs` already owns `assert`, `assertEq`, and
+`assertStructurallySame`; add `assertOk` and `assertError` there and delete
+the local copies. `assertErrorPath` needs only a structural
+`{ readonly path: readonly string[] }` on the error payload, so it can live
+in `fjs/asserts` too without importing rtti types; if that reads as too
+rtti-specific, `../common/module.f.mjs` is the fallback owner, with
+`edag`'s `assertNoMatch` rewritten over it either way.
 
-Do **not** hoist `assertOk` / `assertError` to `fjs/asserts/module.f.mjs` on
-the strength of the old proposal — with one consumer there is nothing to
-share, and the repo's rule is to hoist when a second consumer exists.
+**The `effects` helpers assert the payload, and must keep doing so.**
+`fjs/effects/proof.f.mjs:136-145` defines *both* `assertOk(r, expected)` and
+`assertError(r, expected)`, and each checks the tag **and** compares the
+payload with `assertEq`. The hoisted helpers here are tag-only, so
+substituting them one-for-one would delete every expected-value and
+expected-error check in that file while the suite still passed — a silent
+weakening, which is worse than the duplication being removed. Each site
+becomes the hoisted tag check *plus* the `assertEq` it already had, or the
+two-argument locals stay as they are. Either is fine; a bare swap is not.
+
+Independently of the hoist, `../parse/proof.f.mjs`'s local `unwrap` is
+replaced by `unwrap` from `fjs/types/result/module.f.mjs`.
 
 ### Tasks
 
-- [ ] Replace the local `unwrap` in `parse/proof.f.mjs` with `unwrap` from
-      `fjs/types/result/module.f.mjs`.
+- [ ] Add `assertOk` / `assertError` (and `assertErrorPath`, owner per
+      above) to `fjs/asserts/module.f.mjs`, **with co-located entries in
+      `fjs/asserts/proof.f.mjs`** — one passing and one failing case each,
+      matching the `assertPassesOnTrue` / `assertEqPassesOnEqual` shape
+      already there. The consumer proofs exercise these helpers incidentally;
+      the repo's rule is that a new export carries its own proof, and a
+      hoisted assertion is exactly the kind whose failure path nothing else
+      checks.
+- [ ] Rewrite the six proof files through them; express `edag`'s
+      `assertNoMatch` via `assertErrorPath([])`. In `effects`, keep the
+      payload comparison at every site — the count of `assertEq` calls in
+      `fjs/effects/proof.f.mjs` and `fjs/effects/node/proof.f.mjs` must not
+      fall.
+- [ ] Replace the local `unwrap` in `../parse/proof.f.mjs` with `unwrap`
+      from `fjs/types/result/module.f.mjs`.
 - [ ] `npx tsc`, `fjs t`.
 
 ### Related
 
 - `fjs/types/result/module.f.mjs` — the `unwrap` to reuse.
+- [container-read-skeleton.md](./container-read-skeleton.md) — the module
+  side of the same copy: the readers themselves are duplicated, not just
+  their proofs' helpers.

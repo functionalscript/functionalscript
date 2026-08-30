@@ -17,9 +17,10 @@ export const proof = {
     noPublishedPackage: () => assert(
         !runs.some(run => run.includes('functionalscript@')),
         'unexpected published-package step'),
-    // The one canonical job still on a setup action, and the one with no
-    // generated flake. Both halves are asserted so that migrating it has to
-    // come here and say so, rather than leaving a job half-moved.
+    // The one canonical runtime job still on a setup action, and one of three
+    // with no generated flake — `fjs/ci/proof.f.mjs`'s `nixCoverage` holds that
+    // whole list. Both halves are asserted here so that migrating this job has
+    // to come and say so, rather than leaving it half-moved.
     notOnNix: () => {
         const used = toSteps(bunSteps).flatMap(s => s.uses !== undefined ? [s.uses] : [])
         assert(
