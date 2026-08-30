@@ -620,8 +620,8 @@ export const tokenizeJs = input => path => {
         // number, not the number's start, so the span a reader would want —
         // `123a` for `123abc` — runs *backwards* from the anchor and cannot be
         // expressed as an end. Giving it one means moving the anchor to the
-        // number's start, which changes a reported position; see the
-        // `invalid number` note in `./todo/error-position-range.md`.
+        // number's start, which changes a reported position for no consumer,
+        // so the anchor convention wins and this error stays a point.
         return [{
             token: { kind: 'error', message: 'invalid number' },
             metadata: metadataAfterTag('numError', flatTokens, finalMetadata),

@@ -20,8 +20,8 @@ import type { DjsToken } from '../tokenizer/types.ts'
  * came with one. A lexical error passes through the `end` its token carried, so
  * an unterminated string spans its opening quote to where the input ran out. A
  * *grammar* failure has no span: it points at one token, and a token's extent is
- * not recorded — see `ErrorToken` in `fjs/js/tokenizer/types.ts`, and the
- * `error-position-range` todo for the widening that would give every token one.
+ * not recorded — see `ErrorToken` in `fjs/js/tokenizer/types.ts`, and
+ * `../parser/README.md` for the widening that would give every token one.
  */
 export type ParseError = {
     readonly message: string,

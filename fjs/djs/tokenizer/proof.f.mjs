@@ -909,10 +909,9 @@ export const proof = {
             // Unterminated tokens anchor at the token's *start*, not where the
             // input ran out: the grammar matches them and tags them
             // 'unterminated', so this is the structural-error path, not a failed
-            // match. See ./todo/error-position-range.md.
-            // ...and span to where the input ran out — the far end is where
-            // the missing close quote belongs, one past the token's last
-            // character, crossing lines when the token does
+            // match. They span to where the input ran out — the far end is
+            // where the missing close quote belongs, one past the token's last
+            // character, crossing lines when the token does.
             assertEq(errorAt('"value'), '1:1..1:7')
             assertEq(errorAt('"a\nb"'), '1:1..2:3')
         },

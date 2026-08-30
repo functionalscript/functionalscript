@@ -96,6 +96,25 @@ emits a `Repeat`, and nested inside this grammar's option scaffolding it does
 not — so a thousand siblings are a thousand levels of tree, and recursing over
 them fails exactly as deep nesting would.
 
+## An error is a point, or a span when one is known
+
+`ParseError` carries `metadata` — the position a reader is pointed at — and an
+optional `end` that extends it into a span. Only a *lexical* error has one: the
+tokenizer knows how far an unterminated string or comment runs, and
+`splitEof` passes that span through. A *grammar* failure points at a single
+token and stays a point, because a token's extent is not recorded — every
+token's `metadata` is its start alone.
+
+Recording it for every token is the widening this design leaves undone, and the
+argument for it is the parser's own: the grammar matches rules over whole
+tokens, so every rule it reduces has a first and a last token and therefore a
+natural span. `export default <value>` is a span, not a point. The moment a
+formatter wants to underline a rule rather than a character, every token needs
+an end, and the change belongs in `JsTokenWithMetadata.metadata` rather than in
+more special cases beside `ErrorToken.end`. Nothing wants that yet:
+`errorLocation` in [`fjs/djs/module.f.mjs`](../module.f.mjs) renders the span
+an error already carries and the point when there is none.
+
 ## What changed from the parser this replaced
 
 Four differences, each deliberate and pinned by proof.
