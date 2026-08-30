@@ -1,725 +1,512 @@
-## 207. BNF semantic actions: attaching transform functions to grammar rules
+## 207. BNF rule transformers: a streaming fold per rule
 
 **Priority:** P3
-**Status:** blocked
-**Blocked by:** [Separate alphabet-specific BNF helpers](./unicode-rules.md)
+**Status:** open
 
-> **Status — blocked; to be split.** This issue has grown to cover several independently
-> implementable pieces (transparent `mapRule` + the grammar-directed fold §3.1–§3.2;
-> the parser-neutral reduction algebra §3.3; the metadata monoid §3.4; list
-> flattening via right-recursion detection §2.1; the RTTI value/output contract
-> §5.2; and the instantiation-time `subset` check §5.3, whose RTTI predicate
-> has since shipped). Before implementation it must first be rebased on the
-> alphabet-specific BNF split so
-> `string` is no longer a generic `Rule` kind, then split into multiple smaller
-> tasks (one tracking issue plus per-piece sub-issues) with an explicit dependency
-> order. **Do not split it yet** — this remains a single design document until the
-> split is agreed.
+> **This is a rewrite.** The previous design attached *semantic actions* to
+> functional `Rule` values (`mapRule`), evaluated them as a fold **over a
+> materialized AST**, and typed the grammar↔action boundary with RTTI schemas
+> checked by `subset` at grammar instantiation. It was blocked on the alphabet
+> split, carried an open question it could not answer (§5.3: what to do with a
+> boundary `subset` cannot prove), and had grown large enough that it was marked
+> "to be split".
+>
+> This version keeps the goal and replaces the mechanism: a transformer is a
+> **fold over a rule's children as they are matched**, keyed by rule name over
+> the *data* `RuleSet`, applied by the matcher backends themselves. It never
+> materializes the AST, it unblocks (§11.1), and it does not need RTTI to be
+> useful. It is one design again, so the split is off.
 
-### Goal
+### Problem
 
-Let a grammar author attach a **transform function** (a *semantic action*) to a
-BNF rule so that parsing a `Rule` yields a domain value instead of a generic
-AST. The classic example is a JSON `string` rule that returns the decoded
-JavaScript string (escapes resolved, surrounding `"` dropped), and an `object`
-rule that receives its members' keys **already decoded as strings** by the
-`string` rule's action.
+Parsing a `RuleSet` yields a generic AST (`Ast<L>` in
+[`../matcher/types.ts`](../matcher/types.ts)) — a tree of `{ tag, sequence }`
+nodes over leaves. Every consumer that wants a domain value has to walk that
+tree afterwards, and each one writes the walk again:
 
-Two properties are required:
+- `fjs/djs/parser/module.f.mjs` parses DJS with `descentParserRuleSet` and then
+  spends ~200 lines recovering values from the AST: `slot`, `keyOf`,
+  `descendantsTagged` (a search, because an array's elements are *not* its
+  direct children — they sit inside the option/repeat scaffolding), and
+  `foldValue`, which needs its own explicit stack so deep nesting does not
+  overflow the JS one.
+- `fjs/media/json` does not use BNF for values at all; it keeps a hand-written
+  tokenizer and a container-stack parser
+  ([parser-container-stack-bookkeeping](../../media/json/todo/parser-container-stack-bookkeeping.md)).
+- Nothing can answer *"is this stream valid JSON?"* without building the whole
+  value first
+  ([streaming-recognizer](../../media/json/todo/streaming-recognizer.md),
+  [detect-json](../../media/type/todo/detect-json.md)), because the AST is built
+  whether or not anyone wants it.
 
-1. **Compositional input.** A rule's action receives the *outputs of the
-   actions of its child rules*, not raw code points. `object`'s action sees
-   parsed key strings and parsed values, never the `"`…`"` framing or the
-   escape machinery.
-2. **Type safety.** The action's input must match what the children actually
-   produce, and its output must match what the parent expects. Doing this in
-   plain TypeScript turns out to be impractical for real (cyclic) grammars
-   (§4); the fallback is to declare each action's input/output with an RTTI
-   schema (`fjs/rtti`) and check the boundary at runtime (§5).
+Three costs, one cause. The AST is **mandatory** (a document of *n* symbols
+costs O(*n*) nodes even for a yes/no question), it is **anonymous** (a node
+records the variant tag that matched but not the rule that produced it, so a
+post-hoc walk cannot dispatch on rule identity and has to re-derive it by
+position or by searching), and it is **complete before anything else starts**
+(so nothing downstream can be incremental).
 
-This document is a design only. No implementation is proposed here beyond the
-hypotheses actually tested in §4.
+A rule that could say what to build would remove all three.
 
-### 1. Background: rule kinds and the AST
+### Proposal
 
-A functional grammar rule (`fjs/bnf/module.f.mjs`) is one of four shapes, behind
-an optional lazy thunk:
+#### 1. The protocol
 
-```ts
-type DataRule = Variant | Sequence | TerminalRange | string
-type Rule     = DataRule | (() => DataRule)
-```
-
-- `TerminalRange` — a packed `[lo, hi]` code-point range; matches one symbol.
-- `string` — sugar that expands into a `Sequence` of single-symbol terminals.
-- `Sequence` (`readonly Rule[]`) — match children in order.
-- `Variant` (`{ [tag]: Rule }`) — ordered alternation; the matched branch's key
-  is the `tag`.
-
-The combinators (`option`, `repeat0Plus`, `repeat1Plus`, `join0Plus`, …) are
-just helpers that build `Variant`/`Sequence` trees, e.g. `option(x) = { some:
-x, none: [] }` and `repeat0Plus(x) = () => option([x, self])`.
-
-`parser`/`descentParser` (`fjs/bnf/data/module.f.mjs`) produce a generic AST:
+A transformer is a fold over one rule invocation's children:
 
 ```ts
-type AstRule = { readonly tag: AstTag, readonly sequence: AstSequence }
-type AstSequence = readonly (AstRule | CodePoint)[]
-type AstTag = string | true | undefined   // variant key | sequence | empty
-```
-
-So the AST is a tree of `{ tag, sequence }` nodes whose leaves are code points.
-
-**Key observation.** An `AstRule` node records the *variant tag* that matched,
-but **not the name of the rule that produced it**. A `Sequence` rule yields
-`{ tag: undefined, sequence: [...] }` with no back-link to, say, `member`.
-Therefore actions cannot be applied by a post-hoc walk that only sees the AST —
-the evaluator must walk **in lockstep with the grammar**, carrying the rule
-definition alongside the AST node. This shapes the whole design (§3).
-
-### 2. The raw output of a rule
-
-Define the *raw output* of a rule as the structural value it would produce with
-**no** action attached. This is the natural shape an action transforms *from*:
-
-| Rule kind        | Raw output                                              |
-|------------------|---------------------------------------------------------|
-| `TerminalRange`  | the matched code point (`number`) — or its 1-char string |
-| `string` literal | the literal string                                      |
-| `Sequence`       | a tuple of the children's *effective* outputs           |
-| `Variant`        | a tagged value `{ tag, value }` (a discriminated union) |
-
-The *effective output* of a child is its action's output if it has one, else
-its raw output. Effective outputs compose bottom-up: the parent's raw tuple
-slot for a child is exactly that child's effective-output type. This recursion
-is what makes "the object rule receives decoded key strings" fall out
-automatically — `member`'s `string` slot is `string`'s *effective* output
-(decoded), not its raw `["\"", chars, "\""]`.
-
-#### Eliding noise (literals and whitespace)
-
-Most sequence elements an action does not care about are fixed literals (`"`,
-`{`, `:`) and whitespace rules. Two complementary mechanisms:
-
-- **Positional, author elides.** The action receives the full raw tuple and
-  destructures what it wants: `([, chars]) => decode(chars)`. Simple, explicit,
-  no new concept. This is the default.
-- **`unit` output.** A rule whose action returns a designated `unit` value (or
-  a rule marked *silent*) contributes nothing to the parent tuple, so
-  `[ws, string, ws, ':', ws, json]` collapses to `[key, value]`. This is sugar
-  over the positional model and can be deferred to a v2.
-
-The JSON worked example (§6) uses the positional model.
-
-#### 2.1 List rules: flattening right-recursion
-
-> The unambiguous, schema-free part of this section — detecting 0-or-more
-> right-recursion during `toData` and emitting a `repeat` rule so the parsers
-> produce a flat AST — has **shipped** for `bnf/data` and for both backends;
-> see [`fjs/bnf/data/README.md`](../data/README.md#the-repeat-rule). The AST is
-> one contract across backends
-> ([`fjs/bnf/README.md`](../README.md#the-ast-is-one-contract)): every rule
-> invocation owns a node, so an action attached to a rule finds that rule's
-> node in either backend. The opt-in for the *ambiguous* cases (list vs. right-associative tree)
-> via the `array(itemSchema)` action schema remains here (§5), and is what the
-> rest of this section is about.
-
-Repetition is a BNF primitive only in the data form, and only for the
-unambiguous 0-or-more case: the functional shapes are still
-`Variant | Sequence | TerminalRange | string`. Only the fixed-count `repeat(n)`
-is flat (it expands to a `Sequence` of `n` copies). Every *unbounded*
-repetition is encoded as **right-recursion**, whether built by a combinator or
-written by hand:
-
-```ts
-repeat0Plus(x)  // r = () => option([x, r])  ⇒  Variant { some: [x, r], none: [] }
-// hand-written, no helper:
-characters = () => ({ none, characters: [character, characters] })   // 0-or-more
-members    = () => ({ member, members: [member, ',', members] })     // 1-or-more
-digits     = () => [digit, digits0]                                  // 1-or-more
-```
-
-By §2 these produce a right-nested cons list — `{tag:'some', value:[x0,
-{tag:'some', value:[x1, {tag:'none', value:[]}]}]}` — i.e. nested `{tag, value}`
-objects wrapping 2-tuples, not the flat `[x0, x1, …]` an action wants.
-
-**Chosen approach: recognize the right-recursion structurally**, rather than
-relying on a marker emitted by a helper combinator. This way a list written
-directly as a recursive `Variant`/`Sequence` (the classic-JSON style above) is
-flattened identically to one built with `repeat0Plus` — the combinators get no
-special treatment, because there is nothing to special-case.
-
-**Detection.** Analyze tail-position recursion over the rule-reference graph: a
-rule `L` is *list-like* when every recursive reference within its
-strongly-connected component occurs in **tail position** (the last element of a
-`Sequence`, possibly through a thunk). For each branch:
-
-- split the branch's sequence into a **prefix** and an optional **tail** that
-  references back into `L`'s recursion group;
-- the prefix, after noise elision (§2 — fixed literals / silent rules drop out),
-  is *one item*; the tail recurses.
-
-Base branches (no tail) contribute their prefix item and stop; recursive
-branches contribute one item and continue. This covers all three shapes above:
-`characters` (empty base + `[character, ·]` tail), `members` (single-item base +
-`[member, ',', ·]` tail — the `,` elides), and the two-rule `digits`/`digits0`
-split (the tail reference points into the *other* rule of the same list group).
-A self-reference in **non-tail** position (e.g. `value` inside `object`/`array`)
-means the rule is a *tree*, not a list, and is left un-flattened.
-
-**Flattening** is then an unfold performed during the §3.2 fold: walk the
-matched branch, emit its prefix item, follow the tail, stop at a base branch —
-producing a flat `array` whose element is the (homogeneous) item's effective
-output. The parser and generic AST are untouched; this is purely how the *raw
-output* of a list-like rule is assembled (a fifth raw-output kind, "list",
-layered onto §2's table).
-
-**The fundamental limitation — and the opt-in that resolves it.** A flat list
-and a *right-associative tree* share the **same grammar**: `a = [x, '+', a] | x`
-is structurally indistinguishable from a separated list `x ('+' x)*`, yet an
-operator grammar wants the nested tree, not `[x, x, x]`. Structural detection
-alone therefore cannot decide whether to flatten. The resolution is to make
-flattening **opt-in via the action's RTTI schema (§5)**: detection establishes
-that a rule *can* be presented as a list, and declaring its `in`/`out` as
-`array(itemSchema)` requests it; absent that, the nested raw output is preserved
-(right-associative trees keep working). The §5.3 instantiation-time check
-verifies the unfolded item schema actually matches the declared `array`
-element — so a mis-detected or mis-shaped list fails at construction. This also
-subsumes the rejected "combinator marker" option: a combinator can simply
-declare the `array` schema on the author's behalf, which is the same opt-in done
-for you.
-
-### 3. Where actions attach and how they run
-
-#### 3.1 Attachment
-
-Two options were considered.
-
-- **(A) Name-keyed action map.** A side table `{ [ruleName]: Action }` keyed by
-  the same names `toData` derives from `fr.name`. Pro: leaves the grammar
-  untouched, mirrors the serializable data form (rules referenced by name).
-  Con: relies on every actioned rule being a *named* thunk; anonymous inline
-  rules can't be targeted; name collisions are resolved by `newName` (the data
-  builder appends `0`, `1`, …), so the key the author writes may not survive.
-- **(B) `mapRule(rule, action)` combinator.** Wrap a rule in a node that
-  carries its action, colocating grammar and semantics and giving TS a place to
-  attach (or try to attach, §4) types. Con: introduces a new `Rule` variant
-  that every existing consumer (`toData`, `dispatchMap`, both parsers) must
-  learn to skip; the action must be *transparent* to parsing.
-
-**Recommendation: (B), made transparent.** A `mapRule` wrapper keeps the action
-next to the rule it transforms (matching the codebase's separation-of-concerns
-ethos) and avoids the fragile name-key contract. The wrapper is erased before
-parsing: `toData` (and `descentParser`) unwrap `mapRule(r, _) → r` exactly as
-they already unwrap a lazy thunk, recording the action in a parallel
-`name → Action` map for the evaluator. So parsing is unchanged; only a new
-**evaluator** consumes the actions.
-
-#### 3.2 Evaluation: a grammar-directed fold
-
-Because AST nodes don't carry rule identity (§1), the transform is **not** a
-plain AST catamorphism. It is a fold that threads *both* the rule definition and
-the AST node:
-
-```
-eval(rule, astNode) -> value
-  TerminalRange : value = codePoint(astNode)          ; apply action if any
-  string        : value = literal                     ; apply action if any
-  Sequence      : value = rule.map((r,i) => eval(r, astNode.sequence[i]))
-                                                        ; apply action to tuple
-  Variant       : branch = rule[astNode.tag]
-                  value  = { tag, value: eval(branch, matchedChild) }
-                                                        ; apply action
-```
-
-This is essentially the existing `descentParser`/`parserRuleSet` walk with a
-result accumulator — the grammar shape and the AST shape are isomorphic by
-construction, so the walk can't desync.
-
-Two integration strategies:
-
-- **Fold over the AST (recommended).** Keep `parser` pure (code points → AST),
-  add a separate `evaluate(grammar, actions)(ast)` pass. Separation of concerns;
-  the same AST stays reusable (e.g. for the layered tokenizer in
-  [i165](./layered-parser.md)); the fold is testable in isolation.
-- **Semantic actions inlined into the parser.** The parser applies actions as
-  it reduces, never materializing the generic AST. Faster, but couples parsing
-  and evaluation and duplicates the walk. Defer unless profiling demands it.
-
-#### 3.3 Parser-agnostic evaluation: a reduction algebra
-
-A core design principle of this repository is a clean three-way split:
-
-- **one grammar definition** — the functional `Rule` form (`fjs/bnf/module.f.mjs`);
-- **one serializable form** — the function-free data form (`fjs/bnf/data`);
-- **many parsers** — LL(1) (`parserRuleSet`), recursive descent
-  (`descentParser`), and potentially LR(1), LR(k), GLR, … each a separate
-  consumer of the same grammar/data.
-
-Semantic actions and metadata must respect that split: they belong to **neither**
-the grammar definition nor any single parser. So the design does **not** bake
-evaluation into the LL(1) walk. Instead, evaluation is an **algebra** over
-parser-neutral reduction events:
-
-```
-type Semantics<R> = {
-    leaf:   (token) => R                       // a shifted terminal / token
-    reduce: (rule, tag, children: R[]) => R    // a completed rule
+type RuleTransformer<S, T> = {
+    readonly create: (tag: AstTag) => S
+    readonly update: (s: S) => (tag: AstTag) => (child: unknown) => S
+    readonly end: (s: S) => Result<T, string>
 }
 ```
 
-Every parser kind, however it works internally, ultimately *shifts* terminals
-and *reduces* rules — top-down (LL/recursive descent) or bottom-up
-(LR/shift-reduce). Driving a `Semantics<R>` from those events decouples actions
-and metadata from the parser entirely:
+- **`create`** starts a rule invocation, before its first symbol is consumed.
+  It receives the tag this invocation was *entered under* — exactly the
+  `AstTag` the AST would have stamped on its node, and `undefined` where the
+  parent is not a variant. It takes no child, so a rule that matches empty is
+  not a special case: it gets `create` then `end`, with no `update` in between.
+- **`update`** folds in one child: a sequence item, a repetition round, a
+  variant's chosen branch, or — for a terminal rule — the matched leaf. `tag`
+  is the child's tag, which names the branch when this rule is a variant and is
+  `undefined` otherwise. `child` is the child's *transformed* value: its own
+  `end` result if it has a transformer, otherwise its AST node (§3).
+- **`end`** finishes the invocation. It may fail: a transformer is where
+  `1e999`, a duplicate `__proto__` key, or an unresolved `const` is caught, and
+  [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) says
+  those are refused rather than answered with a plausible value. The engine
+  short-circuits the parse on an error and reports it with the rule name and
+  the input position, so a transformer does not carry a position itself.
 
-- The materialized `AstRuleMeta<T>` tree is just the **free / identity** algebra
-  (`reduce` builds a node, `leaf` keeps the token). §3.2's fold-over-AST is
-  "build the free algebra, then interpret it".
-- The value+metadata evaluation (§3.4) is another `Semantics<R>` with
-  `R = (value, meta)`. An **LR** parser drives the same algebra directly on each
-  reduce — no intermediate AST — which is exactly the "inlined" strategy above,
-  obtained for free rather than by duplicating a walk.
+Transformers are supplied as a map keyed by **data**-`RuleSet` rule name:
 
-So `Semantics<R>` is the parser↔semantics contract; swapping LL(1) for LR(k)
-changes which engine emits the shift/reduce events, not the actions, the
-metadata merge, or the RTTI schemas. (The grammar-directed nature noted in §3.2
-still holds: `reduce` receives the `rule` and `tag`, supplying the rule identity
-the bare AST lacks.)
-
-#### 3.4 Metadata: always carried, user-merged
-
-Parsing must **always** carry a metadata channel alongside the value channel —
-this is not optional and not the same as a semantic action. `descentParser`
-already threads it at the leaves (`CodePointMeta<T> = readonly[CodePoint, T]`);
-the missing piece is **merging** it as reductions combine children. The author
-supplies that merge as part of the semantics:
-
+```ts
+type TransformerMap = StringMap<RuleTransformer<unknown, unknown>>
 ```
-type Meta<M> = {
-    leaf:  (token) => M          // e.g. a source position → a one-point Range
-    merge: (a: M, b: M) => M     // associative; e.g. Range union
-    empty: M                     // identity for empty / `none` branches
+
+`S` is **existential** there: the engine never inspects a state and never hands
+one to a transformer that did not produce it, but TypeScript has no way to say
+so — `update: (s: number) => …` is not assignable to `update: (s: unknown) => …`
+under `strictFunctionTypes`. Two spellings, and the choice is an open question
+below: hide `S` behind a continuation the engine applies (a real existential, no
+cast), or keep the map as written and confine one documented cast to the engine,
+where the invariant that justifies it is enforced. `any` is not a candidate.
+
+A rule with no entry is not transformed — it builds its AST node exactly as
+today. That is what makes adoption incremental: a grammar with an empty map
+behaves bit for bit as it does now.
+
+Two invariants the engine owes the author, both checkable:
+
+- **`update` is called once per child, in input order, and `end` once per
+  successful invocation.** An invocation the parser abandons gets `create` and
+  any `update`s it reached, and never `end`; children that already succeeded
+  inside it did get their own `end`, and their values are dropped with the
+  frame.
+- **Every key resolves.** Names are checked against the `RuleSet` when the
+  parser is built (§8), so a typo or a renamed rule fails at construction,
+  before any input — never as a transformer that silently never fires.
+
+#### 2. What the events are, per rule kind
+
+| Data rule kind  | Events                                                       |
+|-----------------|--------------------------------------------------------------|
+| `TerminalRange` | `create(tag)`, `update(s)(undefined)(leaf)`, `end`            |
+| `Sequence`      | `create(tag)`, one `update(s)(undefined)(child)` per item, `end` |
+| `Repeat`        | `create(tag)`, one `update(s)(undefined)(item)` per round — none if it matched zero — `end` |
+| `Variant`       | `create(tag)`, exactly one `update(s)(branchTag)(value)`, `end` |
+| empty `Sequence`| `create(tag)`, `end`                                         |
+
+The leaf is the backend's own: `CodePoint` under `fjs/bnf/ll1`,
+`CodePointMeta<T>` under `fjs/bnf/descent`, which is where per-symbol metadata
+enters a transformer (§7).
+
+Rule identity is what the AST lacks and the event stream has: the map is keyed
+by rule name, so a transformer always knows which rule it is folding — the
+"key observation" the previous design had to work around by walking the grammar
+and the AST in lockstep.
+
+**Both tags are needed, and neither is redundant.** `create`'s tag is the
+role *this* invocation plays in its parent; `update`'s tag is which branch a
+variant took. A variant whose branches are distinct rules rarely needs the
+latter — in the data form each branch is a distinct rule name, so distinct
+branches already have distinct transformers — but branches that *share* a rule
+(`option(x)`'s `none` is the shared empty sequence) are distinguishable only
+by the tag. Neither costs an allocation: the engine holds both at the moment
+it delivers them.
+
+#### 3. The AST is the default transformer
+
+The default is not a parallel code path; it is an instance of the protocol:
+
+```ts
+const astTransformer = {
+    create: tag => ({ tag, items: null }),               // items: List, not Array
+    update: s => () => child => ({ ...s, items: concat(s.items)([child]) }),
+    end: s => ok({ tag: s.tag, sequence: toArray(s.items) }),
 }
 ```
 
-`(leaf, merge, empty)` form a **monoid**: `merge` is associative with `empty` as
-identity, so empty matches (`none`, optional, the base of a list) contribute
-`empty` and vanish under `merge`. The canonical instance maps each input
-position to a `Range` (`[start, end]`) and `merge` takes the union (`min start`,
-`max end`), so every node automatically acquires the source span covering all
-its leaves. Metadata flows up **whether or not a rule has a value action** — it
-is the `reduce` step folding children's `M` via `merge`, independent of the
-value channel.
+So "the AST is one contract" ([`../README.md`](../README.md#the-ast-is-one-contract))
+survives by construction, and the `descentEquivalence` proof group in
+`../ll1/proof.f.mjs` becomes the conformance test for the default map.
 
-**Metadata carries information forward across parser layers.** This is the
-mechanism behind the layered parser ([i165](./layered-parser.md)): a
-tokenizer reduces code points into tokens whose *value channel* is a single
-grammar-relevant **symbol** (`i` for identifier, `s` for string, `n` for number)
-while the *actual lexeme* (the identifier text, the decoded string) and its span
-ride in `M`. The next layer's grammar (e.g. parsing a function) matches only on
-the symbols — it neither sees nor cares about the lexeme — yet an action at that
-layer can still read the carried value out of `M` when it needs it (e.g. to put
-the identifier's name into the AST node). Each layer supplies its own
-`Meta<M>`; the mechanism is uniform across layers.
+One rule kind stays special-cased, deliberately. A **variant** contributes no
+node of its own today: both backends pass the branch tag *down* and let the
+branch's node be the variant's, so no node is allocated for the variant itself
+and `ll1` does not even need a frame — it retargets the current task at the
+branch. That stays exactly as it is when the variant has no transformer. A
+variant *with* a transformer gets a frame of its own (`descent` already has one
+for trying branches; `ll1` gains one) — an addition to the AST model, not a
+reimplementation of it — and pays for it only where it is used.
 
-So a full evaluation is a `Semantics<R>` with `R = readonly[value, M]`:
-`reduce` computes `value` via the rule's action (§3.1, over children's values)
-and `meta` via `merge` over children's metas; `leaf` seeds both from the token.
-The value channel is what RTTI schemas (§5) describe and check; the metadata
-channel is orthogonal — user-defined type, user-defined monoid — and is never
-dropped.
+A transformed value sitting inside an untransformed parent is an opaque child
+of that parent's node, so `AstSequence<L>` widens to admit it. Such a child
+carries no tag, because a tag lives on a node and there is no node. If the tag
+matters there, transform the parent too; partial adoption is a convenience, not
+a contract.
 
-Because metadata is **automatically** attached to every input symbol and to
-every produced (transformed) symbol — and merged without any per-action work —
-the rest of this document (diagrams, schemas, `fn` signatures) shows only the
-value channel for simplicity. Assume `M` rides alongside every value implicitly;
-an action only mentions it when it actually reads it (§7).
+#### 4. Streaming
 
-### 4. Type checking in TypeScript — what actually works
+Three independent levels. Only the first is this issue's core; the other two
+are what it makes possible, and both are named here because the protocol has to
+be shaped to admit them.
 
-The hope is that `mapRule(rule, action)` could *infer* `action`'s parameter
-type from `rule`'s structure, so the action is statically checked. I tested how
-far the existing combinators carry precise types.
+**4.1 Fold-level (this issue).** A rule's children are folded as they are
+matched, so nothing accumulates that a transformer did not ask to keep. Memory
+is O(depth) frames plus the sum of the live states along the spine. A 1M-element
+array is one frame whose state the author chose; a recognizer's states are all
+unit, so the whole parse is O(depth) whatever the input size — which is what
+[detect-json](../../media/type/todo/detect-json.md) needs and cannot get today.
 
-**Hypothesis 1 — acyclic, unannotated fragments keep precise types. ✅**
-`repeat0Plus`, `option`, `range`, etc. are generic (`<T extends Rule>`), so for
-an acyclic fragment the inferred types are exact:
+This is also where the AST's O(*n*) cost goes away rather than being paid and
+discarded: an untransformed rule allocates its node, a transformed one does not.
 
-```ts
-const digit  = range('09')          // number
-const digits = repeat0Plus(digit)   // Repeat0Plus<number>
-const optD   = option(digit)        // Option<number>
-// Repeat0Plus<number>, Option<number> assignability all type-check.
-// A `@ts-expect-error` on an extra struct key in a small recursive
-// `const value = () => ({...})` / `const arr = [...] as const` pair fires,
-// proving structure is retained.
-```
+**`update` must be O(1).** A transformer that spreads an array per child makes
+its rule quadratic in the number of children — the exact trap `descent`'s
+`_Items` and DJS's `_FoldFrame.done` comments already record. Accumulate with
+`List` (or `Vec`) and flatten in `end`; the helpers in §9 do this so most
+authors never touch it.
 
-**Hypothesis 2 — real cyclic grammars cannot stay unannotated. ❌**
-Reproducing the JSON shape from `fjs/bnf/testlib.f.mjs` *without* the `: Rule`
-annotations fails to compile:
+**4.2 Input-level.** [43](./043-stateful-parser.md) proposes
+`init`/`append`/`end` over input chunks. It composes with this protocol
+directly, because the parser state is a value: the frame stack, each frame's
+transformer state, and the cursor. Nothing here is mutable, so the state can be
+snapshotted, resumed, or forked — which is also what an incremental re-parse
+would need later.
 
-```ts
-const string    = ['"', repeat0Plus(character), '"'] as const
-const character = () => ({ c: range('  '), esc: ['\\', escape] })
-//                                  ^ string (line above) eagerly calls
-//                                    repeat0Plus(character) before character
-//                                    is declared:
-// TS2448 Block-scoped variable 'character' used before its declaration.
-// TS2454 Variable 'character' is used before being assigned.
-```
+Bounded-memory input streaming is a **backend property, not a protocol
+property**, and only `fjs/bnf/ll1` has it: it never backtracks, so a consumed
+chunk can be released. `fjs/bnf/descent` backtracks arbitrarily far and must
+retain input back to the oldest live rewind point; it gets streaming *output*
+from 4.1 regardless.
 
-A `() =>` thunk defers *runtime* evaluation, but an **eager** combinator call on
-a forward reference (`repeat0Plus(character)`) is a value-position use that TS
-flags in the temporal dead zone. Real grammars are mutually recursive
-(`json → object → member → json`), so such forward references are unavoidable.
-
-**Consequence.** The codebase's actual workaround — annotate every rule
-`const string: Rule = …` — breaks the inference cycle but **erases all
-structure to `Rule`**. Once a rule is `Rule`, `mapRule` has nothing precise to
-infer an action signature from. The two escape hatches both fail in practice:
-
-- Wrap *every* cross-reference in a thunk and never call a combinator eagerly on
-  a forward ref — viral, unergonomic, and the inferred types balloon to
-  unreadable recursive tuples that blow up `tsc`.
-- Keep `: Rule` annotations — structure is gone.
-
-**Verdict: do not rely on TypeScript to type the grammar↔action boundary.**
-Precise static typing is feasible only for small acyclic helper rules; it
-collapses for any realistic cyclic grammar. We need a runtime contract instead.
-
-### 5. RTTI as the type-checking contract
-
-RTTI (`fjs/rtti`) already gives us exactly the missing piece: a runtime
-schema (`Type`) that **also** projects to a static TypeScript type via
-`Ts<schema>`. The design uses it on both sides of every action:
+**4.3 Output-level.** A fold produces its value at the root's `end`, which for a
+1 GB document is still a 1 GB value unless the transformers discard. The way to
+get results *out* early, without letting a transformer perform effects (§6),
+is to let the caller read the root:
 
 ```ts
-mapRule(rule, {
-    in:  InSchema,                 // RTTI Type describing the raw input
-    out: OutSchema,                // RTTI Type describing the action's output
-    fn:  (x: Ts<typeof InSchema>): Ts<typeof OutSchema> => …,
-})
+const partial: (s: ParserState) => unknown   // the start rule's current transformer state
 ```
 
-This splits the problem cleanly:
+A `document = repeat(record)` grammar accumulates records in the root's state;
+the caller drains them between `append` calls and hands back a state with the
+drained ones removed. Pull, not push, so purity is untouched.
 
-- **Inside an action**, the body is *fully statically typed*: `fn` is checked as
-  `Ts<InSchema> → Ts<OutSchema>`. The author writes ordinary typed code. No
-  `Rule`-erasure problem, because the type comes from the schema, not the
-  grammar.
-- **At the grammar↔action boundary**, where TS can't help (§4), the contract is
-  checked dynamically. The naive form (§5.2) `validate`s/`parse`s the assembled
-  raw input against `InSchema` before each `fn` call; on success the value is
-  safely `Ts<InSchema>`. But most of this check can be lifted to a **one-time
-  check at grammar instantiation** (§5.3) instead of running per parsed node.
+`partial` is monotone only under `ll1`. Under `descent` a rewind can discard
+updates the caller has already seen, so the two backends differ here — the one
+place in this design where they do, and it is inherent to backtracking rather
+than a wart to fix.
 
-`fjs/rtti/parse` (`parse(schema)(value)` — builds a fresh value holding
-exactly the declared members) is directly usable, and is the reader to use: it
-already normalizes containers and drops undeclared slots.
+**4.4 What each backend can promise.**
 
-#### 5.1 Schemas compose the same way outputs compose
+| | `fjs/bnf/ll1` | `fjs/bnf/descent` |
+|---|---|---|
+| Fold-level streaming (4.1) | yes | yes |
+| Bounded-memory input (4.2) | yes | retains back to the oldest live rewind |
+| Monotone `partial` (4.3) | yes | no |
+| Transformer may run on an abandoned branch | never | yes |
 
-The raw-input schema of a rule is *derivable from its kind* (§2), with child
-slots filled by each child's **effective output schema**:
+#### 5. Where it lives
 
-```
-effectiveSchema(rule) = action.out          if rule has an action
-                      = rawSchema(rule)      otherwise
+In the shared matcher layer, not in a new pass over the AST and not twice.
 
-rawSchema(TerminalRange) = string            // or number, see §2
-rawSchema(string)        = that string literal (a Const schema)
-rawSchema(Sequence rs)   = readonly[ effectiveSchema(r) for r in rs ]   // Tuple
-rawSchema(Variant v)     = or( ...{ tag, value: effectiveSchema(branch) } )
-```
+Both backends are already the same machine: an explicit-stack loop whose frames
+hold an `AstSequence` under construction, finished with `mrSuccess(tag, seq, pos)`
+from [`../matcher/`](../matcher/). The change is to replace that
+`AstSequence` with the invocation's transformer state and those constructor
+calls with `create`/`update`/`end`. So:
 
-So an action's `in` schema should equal `rawSchema(rule)` computed with
-children's *effective* schemas — which is precisely "the object rule's key slot
-is `string`'s decoded output". This gives two payoffs:
+- `RuleTransformer`, `TransformerMap` and the default transformer go in
+  `fjs/bnf/matcher` (types in `types.ts`, the default in `module.f.mjs`);
+- `descentParserRuleSet` and `parserRuleSet` take an optional map and thread
+  states through their frames;
+- no third walk exists to desync from the other two.
 
-1. `action.in` can be verified compatible with the derived raw schema, catching
-   a mis-wired action *structurally* — either per node at parse time (§5.2) or,
-   better, once at grammar instantiation (§5.3).
-2. The raw schema can be **auto-derived** and offered as the default `in`, so an
-   author only writes `in` when narrowing (e.g. asserting a `repeat0Plus`
-   produced a non-empty list). This keeps boilerplate down.
+That is the answer to what the previous design called "parser-neutral
+evaluation" (its `Semantics<R>` algebra). The algebra is right; it belongs in
+the layer the backends already share, and it should be a fold over children
+rather than a `reduce` over a materialized child array — see §11.2.
 
-#### 5.2 Naive form: validate per parsed node
+#### 6. Backtracking, purity, errors
 
-The straightforward implementation runs the boundary check during evaluation:
-before invoking each `fn`, `validate`/`parse` the assembled raw input against
-`InSchema` (and optionally the result against `OutSchema`). This is correct and
-needs no new RTTI primitive, but it pays the cost on *every* parsed node and
-only surfaces a mis-wired action when an input happens to reach that branch.
+A transformer **must be pure and total**: same inputs, same outputs, no effects,
+no `throw` (the repository has no `try`/`catch`). Two reasons, and the first is
+not negotiable:
 
-#### 5.3 Lifting the check to grammar instantiation
+- `descent` speculates. A branch it abandons has already had `create` and some
+  `update`s. Because `S` is immutable, discarding it is dropping a frame — no
+  undo protocol, which is the property that makes this design work under a
+  backtracking parser at all, and the reason effects cannot be allowed.
+- A transformer that is expensive multiplies backtracking cost. Keep `update`
+  cheap; do the work in `end`, which runs only on a branch that survived.
 
-RTTI is doing **two distinct checks** here, and only one is inherently
-per-parse:
+Failure is `end`-only, on purpose. Anything a child could reject can be recorded
+in the state and reported when the rule finishes, so `update` stays a plain
+`S => tag => child => S` and there is one place to look for a rejection. The
+cost is that an error's *position* is the enclosing rule's, not the offending
+child's, unless the transformer kept the child's metadata (§7) — which the
+transformers that care already do.
 
-1. **Schema-vs-schema compatibility** — does `action.in` match the *raw schema
-   derived from the rule's structure* (§5.1, each child slot filled by that
-   child's effective `out`)? This depends only on **grammar + actions**, never
-   on input, so it can run **once, when the grammar is instantiated**.
-2. **Value-vs-schema validation** — does an actual parsed value conform to
-   `in`? This is the §5.2 per-node check.
+A transformer error aborts the parse; it does not make the branch fail and let
+the parser try another. A semantic rejection is not a syntactic one, and making
+it one would make `ll1` and `descent` disagree about which inputs parse.
 
-The key fact: **if (1) holds, (2) is redundant.** If `rawSchema(rule)` is
-provably a subtype of `action.in` for every actioned rule, then every value the
-grammar can produce at that node is already a valid `Ts<in>` by construction, so
-the per-node validation can be dropped (kept only as optional debug
-assertions). This is the compile-once-vs-cast-everywhere distinction: prove the
-pipeline sound once instead of re-checking each value.
+#### 7. Metadata
 
-**What it requires from RTTI.** A schema-vs-schema
-`subset`/`assignable(rawSchema, in): boolean` predicate — a subtyping relation,
-which `validate`/`parse` (value-vs-schema) do not give. This is exactly the
-`equal`/`subset` algebra of the function-free data form, and it **has since
-shipped**: `equal` and `subset` are exported from
-[`fjs/rtti/data/module.f.mjs`](../../rtti/data/module.f.mjs). This
-section is no longer gated on it; what is open is whether the shipped predicate
-fits, below.
+There is no separate metadata channel, and none is needed. Under
+`fjs/bnf/descent` a leaf *is* `readonly[CodePoint, T]`, so metadata arrives at
+the terminal rule's `update` already attached, and each transformer keeps
+whatever it needs — a span, a lexeme, nothing. A parent sees a child's metadata
+only if the child's `end` includes it, the same forwarding rule as everything
+else in a fold.
 
-Of the two wrinkles this section anticipated, the first is answered. `subset` is
-documented **coinductive on reference cycles**, so a recursive `rawSchema` does
-not loop, and the `out`-cuts-the-recursion argument below is a second,
-independent reason it terminates rather than the only one. The second wrinkle —
-sharing the grammar walk with `toData` — is untouched and still an
-implementation concern.
+This replaces the previous design's mandatory `(leaf, merge, empty)` monoid
+merged into every node. That monoid existed to guarantee error positions and to
+carry lexemes across parser layers; the first is now the engine's job (§1,
+§6) and the second is one transformer returning a pair. An automatic span
+monoid remains available as a *helper* (§9) for grammars that want one
+everywhere, which is the right altitude for it — sugar, not a channel every
+rule pays for.
 
-**Open question the original text did not anticipate.** The shipped `subset` is
-*sound but deliberately incomplete* (`fjs/rtti/data/README.md`): it never
-answers `true` for a non-inclusion, but it may answer `false` for an inclusion
-that holds only by distributing a union across positions, or whose left side is
-a non-syntactic empty set. "The predicate exists" is therefore not quite "every
-boundary is decidable at instantiation", and this design says nothing about a
-rule it cannot prove. Rejecting the grammar turns an incomplete answer into a
-false rejection; deferring that rule to the §5.2 per-node form keeps it working
-but costs §5.5 its "never during parsing" invariant for that rule. Settle this
-before implementing §5.3 — it is the one thing the shipped API changed that the
-design has no answer for.
+For the [layered parser](./layered-parser.md) this is the same mechanism it
+already wanted: a tokenizer layer's transformers reduce code points to a token
+whose value channel is one symbol and whose payload rides in the value the
+transformer returns; the next layer's leaves are those tokens. `fjs/djs` already
+runs exactly this shape by hand.
 
-The two wrinkles as originally written:
+#### 8. Types
 
-- **Recursion.** Grammars are cyclic, so `rawSchema` is a recursive schema and a
-  structural `subset` must be coinductive (assume-equal on cycle) or it loops.
-  *But* a declared `out` cuts the recursion: when deriving a parent's raw
-  schema, an actioned child contributes its author-declared `out`
-  (self-contained), not its expansion. As long as every grammar cycle passes
-  through at least one actioned rule, the derivation terminates by plain
-  induction — `out` schemas play the cycle-cutting role that `: Rule`
-  annotations play for TS inference (§4), but *without losing information*,
-  since the author supplied the type. (A cycle with no actioned rule transforms
-  nothing, so its raw schema is just the generic AST shape — fine.)
-- **Shared traversal.** Deriving `rawSchema` walks the grammar the same way
-  `toData` does; share that walk rather than duplicating it.
+The previous design proved that TypeScript cannot type a *functional* cyclic
+grammar: the `: Rule` annotations that break the inference cycle erase the
+structure an action would be inferred from. That result stands and is not
+worked around here — it is sidestepped, because this map is keyed over the
+**data** `RuleSet`, which is a flat `Record<string, Rule>` whose recursion goes
+through string names. There is no type-level cycle to break.
 
-**What stays at parse time regardless.** Anything the raw schema can't express:
-
-- **Author-declared narrowing** — if `in` is *stricter* than the derivable raw
-  schema (e.g. "a number that fits in u32" where the grammar only guarantees
-  "non-empty digit list"), that delta is unprovable at instantiation and remains
-  a runtime assertion (or is rejected as unprovable).
-- **Precision gaps** — RTTI can't say "non-empty array", so a `repeat1Plus`
-  action assuming non-emptiness keeps a runtime check.
-- **Data-dependent action logic** (overflow, semantic checks) — always runtime,
-  but that is the action body's own concern, not the RTTI boundary.
-- **Projection.** `parse` does not only accept a value, it *builds a fresh one
-  holding exactly the declared members*, normalizing containers and dropping
-  undeclared slots (§5). `subset(rawSchema, in)` proves acceptance and nothing
-  more, so lifting the check does not lift the projection: an action that
-  enumerates keys or reads a tuple's length would start seeing the extras the
-  per-node `parse` used to strip.
-
-  This is not a top-level property. `parse` recurses —
-  `fjs/rtti/parse/module.f.mjs` states that "every element/value is
-  itself parsed, so a fresh container is" built, and that a tuple result "has
-  the schema's length" — so `in = array({ a: number })` strips a stray `b`
-  from *every element* even though the outer schema is an array. The question
-  is therefore whether **any part** of `in` projects, not whether its outermost
-  kind is open. Either keep a per-node `parse` wherever it does, or drop
-  normalization from the action contract and say so — this design currently
-  assumes it without providing it.
-
-**Net effect.** Cost moves from O(parsed nodes) to O(actioned rules), once, and
-a mis-wired action surfaces at grammar construction instead of on the first
-input that reaches its branch. The predicate this needs now exists, so this is
-the recommended target — modulo the open question above about rules it cannot
-prove.
-
-#### 5.4 Cost
-
-Validating every node at parse time (§5.2) is not free. Mitigations: validate
-only at rules that *have* an action (untransformed subtrees pass through
-structurally); allow `in`/`out` to be omitted to skip the check for hot, trusted
-rules; or run full validation in a debug build and trust the schemas in release.
-§5.3 removes the per-node cost for every rule whose boundary is settled at
-instantiation; how many rules that is depends on the open question in §5.3. The
-allocation/short-circuit trade-offs of `validate` vs `parse` are already
-discussed in i172.
-
-#### 5.5 Principle: all transformer schemas are validated at parser instantiation
-
-§5.3 lifts *one* check (the list-item/`array` case) to instantiation time. State
-it as a general principle: **every transformer's schema is validated once, when
-the parser is instantiated — not during parsing.** Concretely, instantiation
-verifies, for each actioned rule:
-
-1. **name resolution** — every actioned rule name (and every rule it references)
-   exists in the grammar; and
-2. **shape compatibility** — the transformer's `in` schema matches the rule's
-   *raw-output* shape (the §2 table, including the §2.1 "list" kind), and its
-   `out` matches what the parent consumes (§5.1).
-
-**Why instantiation is the right phase.** The structural analysis this design
-already performs at runtime — cycle detection and the §2.1 tail-position/list
-recognition — runs exactly once, when the parser is built, and is precisely when
-each rule's raw-output shape becomes known. Folding transformer-compatibility
-into that same pass adds no new traversal: it confronts each declared `in`
-against the shape it will actually receive at the one moment both are available.
-
-**Runtime failure here is acceptable — indeed preferable.** A mis-wired
-transformer is a programming error. Failing at construction means it surfaces
-immediately, deterministically, and on *every* run, before any input is parsed —
-not mid-parse on whatever input first reaches the bad branch. The cost is paid
-once per parser (O(actioned rules)), never in the parse hot path, so the check
-can afford to be thorough.
-
-**Relation to the compile-time check.** This *complements*, not replaces, the
-`Ts<>` static check. For statically-written grammars TypeScript already verifies
-most wiring at compile time; the instantiation-time check is the backstop for
-what the type system cannot see — chiefly the structurally-detected "list"
-raw-output kind (TS has no idea a rule is list-like) and any dynamically
-assembled grammar or name-keyed action map.
-
-The *mechanism* for the shape-compatibility half is the schema-vs-schema
-`subset` predicate of §5.3, which has shipped; name resolution can still be
-checked at instantiation independently. The invariant above holds as stated only
-if a rule `subset` cannot prove is **rejected** at instantiation — deferring such
-a rule to the §5.2 per-node form would put its check back in the parse path,
-which is exactly what this section rules out. That is the open question in §5.3,
-and §5.5 is what hangs on it.
-
-### 6. Worked example: JSON
-
-Using a JSON grammar whose rules are named as below (`character`, `escape`,
-`string`, `member`, `object`, …) — the shape of `deterministic` in
-`fjs/bnf/testlib.f.mjs`, which spells `character` and `member` inline — and the
-positional elision model:
+So an author declares the value domain by rule name and gets ordinary static
+checking of every `end`:
 
 ```ts
-// escape: { '"' | '\\' | '/' | 'b'|'f'|'n'|'r'|'t' | u: ['u',h,h,h,h] }
-//   raw input  = or('"','\\','/','b','f','n','r','t',
-//                    { tag:'u', value: readonly[hex,hex,hex,hex] })
-//   out        = string   (the single decoded character)
-escape.fn = e =>
-    e.tag === 'u' ? String.fromCodePoint(hex4(e.value)) : escMap[e]
-
-// character: { ...nonEscape ranges, '\\': ['\\', escape] }
-//   out = string (one decoded char). The '\\' branch's value is escape.out.
-character.fn = c => c.tag === '\\' ? c.value[1] : codePointToString(c.value)
-
-// string: ['"', repeat0Plus(character), '"']
-//   raw input = readonly['"', readonly string[], '"']   (chars already decoded)
-//   out       = string
-string.fn = ([, chars]) => chars.join('')
-
-// member: [string, ws0, ':', ws0, json, ws0]
-//   raw input = readonly[string, Ws, ':', Ws, JsonValue, Ws]
-//   out       = readonly[string, JsonValue]
-member.fn = ([key, , , , value]) => [key, value] as const
-
-// object: ['{', ws0, join0Plus(member, separator), '}']
-//   out = { readonly [k: string]: JsonValue }
-object.fn = m => Object.fromEntries(collectMembers(m))
+type Values = {
+    readonly string: string
+    readonly member: readonly[string, Json]
+    readonly object: Json
+    // …
+}
+type Transformers = { readonly[K in keyof Values]?: RuleTransformer<unknown, Values[K]> }
 ```
 
-`object` never sees a quote, an escape, or whitespace — only decoded
-`[key, value]` pairs, because each child rule's *effective* output is what flows
-up. Each `fn` is statically typed via `Ts<…>`; the evaluator guards the
-boundaries with the RTTI schemas.
+`end`'s result type is checked per rule; the state parameter carries the §1
+existential wrinkle here too, and whichever spelling §1 settles on applies to
+this mapped type unchanged.
 
-> **Note — metadata is implicit here.** The schemas and `fn` signatures above
-> show only the **value channel**. Metadata (§3.4) is *automatically* attached
-> to every input symbol and to every produced (transformed) symbol, and merged
-> by the user's monoid as reductions combine — it rides alongside each value
-> without appearing in the action's type or body. We omit it from these
-> examples (and from the diagrams/symbols elsewhere) purely for readability; an
-> action that needs it (e.g. to attach a source span, or to read a lexeme
-> carried from a lower parser layer) receives it via the optional second
-> argument from §7.
+`update`'s `child` stays `unknown`. The child *names* are known only at runtime
+(the `RuleSet` is built by `toData`, so TS never sees the literal), and an
+author who narrows it does so unchecked — the same status as any `unknown`
+narrowing, and better than the previous design's position, which needed a
+schema language to say anything at all.
 
-### 7. Open questions
+What runs at parser construction is **name resolution only**: every key in the
+map names a rule in the `RuleSet`. That is O(rules), cannot be incomplete, and
+catches the failure that actually happens (a rule renamed or misspelled, whose
+transformer then never fires and whose absence looks like a parser bug).
 
-- **Terminal output: `number` or 1-char `string`?** Code points are numbers
-  internally; most actions want strings. Pick one default (lean: string) and a
-  helper for the other.
-- **Variant encoding.** `{ tag, value }` discriminated union vs. a bare value
-  plus a separately-passed tag. The discriminated union types best under
-  `Ts<or(...)>` and matches RTTI's `or`.
-- **Metadata API surface (designed in §3.4, details open).** How does a value
-  action *read* the merged `M` of its node (for the layered-parser lexeme
-  carry)? Likely a second, optional argument so the common value-only action
-  stays clean. Also: does `Meta<M>` need a per-rule hook, or is the single
-  `(leaf, merge, empty)` monoid plus the carried token value enough?
-- **Auto-derived vs. explicit `in` schema.** How much to auto-derive (§5.1)
-  before an author must write `in`. Deriving the raw schema needs the same
-  grammar walk as `toData`; worth sharing that traversal.
-- **Failure semantics.** An action can reject input the grammar accepted (e.g.
-  a number that overflows). Does a rejected `out`-validation surface as a parse
-  error with a path, reusing `ValidationError` from
-  i172?
-- **Where the evaluator lives.** A new `fjs/bnf/eval` (or `fjs/bnf/action`)
-  module, registered in `deno.json` per AGENTS.md.
+RTTI is **not** on this path. `in`/`out` schemas per transformer, `subset`
+compatibility at instantiation, and per-node `parse` remain available as an
+optional debug layer for anyone who wants values checked at a boundary, and
+their open question (a boundary `subset` cannot prove) stops being this issue's
+blocker because nothing here depends on the answer.
 
-### 8. Decision
+#### 9. Helpers
 
-Pursue **(B) transparent `mapRule` + grammar-directed fold (§3)** with the
-**RTTI contract (§5)** as the type-safety mechanism; do **not** attempt to type
-the grammar↔action boundary in TypeScript (§4 shows it cannot survive cyclic
-grammars). Start with the positional elision model and explicit `out` schemas,
-and the per-node boundary check (§5.2). Treat **instantiation-time validation of every transformer schema as a
-principle** (§5.5): the parser already analyzes cycles and list structure once at
-construction, so transformer compatibility is checked in that same pass and fails
-at construction rather than mid-parse (runtime failure is acceptable because it
-is pre-parse). The RTTI `subset` predicate this depended on has shipped, so lift
-the shape-compatibility half to grammar instantiation (§5.3) where it costs
-O(actioned rules) once, and resolve names at construction. Two things this
-Decision does not settle, both stated in §5.3: what to do with a rule `subset`
-cannot prove, and whether the per-node `parse` survives for its *projection*
-wherever any part of `in` performs one — at any depth, not just at its
-outermost kind — which `subset` does not replace. Recognize repetition by **structural right-recursion analysis**
-(§2.1) rather than a helper combinator, so hand-written and combinator-built
-list rules flatten identically; gate the flattening on an `array(item)` schema
-opt-in so right-associative trees are preserved. Define evaluation as a
-parser-neutral **reduction algebra** `Semantics<R>` (§3.3) so the same actions,
-metadata, and schemas run under any parser kind (LL(1), LR(1)/LR(k), GLR) —
-never baked into one parser. Always carry a **metadata channel** merged by a
-user-supplied monoid `(leaf, merge, empty)` (§3.4) — independent of the value
-channel and never dropped — which doubles as the cross-layer value carrier for
-the layered parser ([i165](./layered-parser.md)). Defer `unit`/silent rules,
-schema auto-derivation, and parser-inlined actions to follow-ups once the fold +
-a JSON action set exist as the first real consumer.
+The protocol is the primitive; the ergonomics come from a small library over it,
+which is also where the O(1)-`update` discipline is enforced once:
+
+- `map(f)` — a transformer from a plain function of the whole child list, for
+  small fixed sequences: `map(([, inner]) => inner)`. This is the
+  `reduce`-over-children shape of the previous design, recovered as sugar.
+- `tuple(f)` — like `map`, positionally typed for a `Sequence`.
+- `list()` — the identity fold for a `Repeat`: children in, array out, O(1) per
+  item.
+- `text()` — leaves in, string out; the common terminal/lexeme case.
+- `unit` — discards everything; a whole subtree costs nothing. `ws0`,
+  punctuation, and a recognizer's every rule.
+- `span(inner)` — wraps a transformer so its result carries the source range
+  merged from its children's metadata: the §7 monoid, opt-in.
+
+A fixed sequence that wants positional destructuring uses `map`/`tuple` and pays
+one small array; a repetition — where size is unbounded and streaming matters —
+uses `list` or a hand-written fold. That is the split the previous design's
+"positional elision" section was reaching for.
+
+#### 10. Worked examples
+
+**JSON value.** With the grammar from
+[bnf-grammar-single-owner](../../media/json/todo/bnf-grammar-single-owner.md):
+
+```ts
+{
+    character: map(c => decodeOne(c)),         // one decoded character
+    characters: text(),                        // Repeat of character → string
+    string:     map(([, chars]) => chars),     // '"' chars '"' → the chars
+    member:     map(([key, , , , value]) => [key, value]),
+    members:    list(),
+    object:     map(entries => Object.fromEntries(entries)),
+    ws0:        unit,
+}
+```
+
+`object` never sees a quote, an escape, or whitespace, because each child rule's
+value is what flows up. No AST node is allocated anywhere on this path.
+
+**JSON recognizer.** The same grammar, with a map that answers `unit` for
+every rule. The parse is O(depth) memory, no value is built, no token
+payload is buffered, and the verdict is the parse's own success —
+[streaming-recognizer](../../media/json/todo/streaming-recognizer.md) without a
+second implementation of JSON's shape.
+
+**DJS module.** `foldValue`, `descendantsTagged`, `slot`, `keyOf` and
+`_FoldFrame` all delete: elements arrive at their container's `update` instead
+of being searched for, and the engine's stack is the parser's already-explicit
+one, so the hand-rolled stack that exists to survive deep nesting is not needed.
+
+One thing does not fall out, and it is the design's honest limit: DJS resolves
+`const` references against names bound by *earlier* statements, which is an
+inherited attribute, and a fold only synthesizes. Two ways out, to be chosen
+when that work starts — the value transformer returns a closure
+`(refs) => AstConst` that the module transformer applies (pure, but the
+"const not found" error moves out of the parse and needs the metadata captured
+in the closure), or the engine gains an explicit downward channel. The first
+costs nothing to try and is where to start.
+
+#### 11. What this replaces
+
+**11.1 It is not blocked.** The previous design was blocked by
+[unicode-rules](./unicode-rules.md) because it described `string` as a generic
+`Rule` kind that the alphabet split removes. This one is defined over the data
+`RuleSet`, where the functional Unicode-literal string never arrives —
+`toData` has already expanded it to terminals, and the only string case there is
+`Repeat`. The split may change which rules a *grammar* has and what they are
+named, which is that grammar's business (JSON's is tracked in
+[bnf-grammar-single-owner](../../media/json/todo/bnf-grammar-single-owner.md)),
+not this protocol's.
+
+**11.2 Fold, not `reduce`.** The previous `Semantics<R>` gave `reduce` the whole
+child array. The conversion only goes one way: `create`/`update`/`end` gives you
+`reduce` (accumulate, then apply — that is `map` in §9), while `reduce` cannot
+give you streaming, because it must materialize every child list first. Both
+current backends produce children one at a time, so the array is a construction
+`reduce` would force them to build and this protocol does not.
+
+**11.3 `mapRule` is dropped.** Wrapping rules in the functional form to carry
+actions required every consumer (`toData`, `dispatchMap`, both backends) to
+learn to skip a wrapper, in exchange for TypeScript inference that §8's
+predecessor proved does not survive a cyclic grammar. Keying by data-rule name
+keeps the grammar untouched. Its cost — only rules `toData` names can carry a
+transformer, and it disambiguates collisions with `newName` — is real, and is
+what the construction-time name check makes visible instead of silent.
+
+**11.4 List flattening is already done.** The structural right-recursion
+detection the previous design spent a section on shipped as the `Repeat` rule,
+and a `Repeat`'s events (`create`, one `update` per round, `end`) are the case
+this protocol fits best.
+
+**11.5 The split is off.** What made the previous issue too big was the RTTI
+contract, the metadata monoid, and the flattening analysis. The first is
+optional (§8), the second is a helper (§7, §9), the third has shipped. What is
+left is one protocol and its two backends.
+
+### Tasks
+
+- [ ] Add `RuleTransformer` / `TransformerMap` to `fjs/bnf/matcher/types.ts`,
+      and the default AST transformer to `fjs/bnf/matcher/module.f.mjs`.
+- [ ] Thread transformer states through `fjs/bnf/descent` frames in place of
+      `AstSequence`, keeping the untransformed path byte-identical.
+- [ ] Same for `fjs/bnf/ll1`, adding a variant frame only when a variant has a
+      transformer.
+- [ ] Resolve every map key against the `RuleSet` when the parser is built;
+      fail at construction.
+- [ ] Short-circuit the parse on an `end` error, reporting rule name and
+      position.
+- [ ] Add the §9 helpers with the O(1)-`update` accumulation inside them.
+- [ ] Prove the default map reproduces today's AST — reuse
+      `descentEquivalence` in `../ll1/proof.f.mjs` — plus per-rule-kind event
+      order, the abandoned-branch case (`create` without `end`), an empty match,
+      and a deep-nesting case that would overflow a recursive fold.
+- [ ] Port `fjs/djs/parser` onto transformers and delete `foldValue`,
+      `descendantsTagged`, `slot`, `keyOf`, `_FoldFrame`; settle the inherited
+      `refs` attribute (§10) there.
+- [ ] Give `fjs/media/json` a transformer set over its own grammar, and the
+      all-`unit` map to
+      [streaming-recognizer](../../media/json/todo/streaming-recognizer.md).
+- [ ] Register any new module in `deno.json` per AGENTS.md; `npx tsc`, `fjs t`.
+
+### Open questions
+
+- **How `TransformerMap` hides `S` (§1).** A continuation-encoded existential
+  (no cast, heavier to write) or one documented cast inside the engine. This is
+  the only place the design needs an answer before code is written.
+- **`partial` (§4.3).** Is exposing the start rule's state the right API, or
+  should draining be a transformer-level concept? It is the only frame whose
+  liveness is guaranteed, which argues for keeping it as narrow as written.
+- **The inherited attribute (§10).** Closure-returning transformers, or a
+  downward channel in the engine? Decide with the DJS port, not before.
+- **Input streaming (§4.2) is [43](./043-stateful-parser.md)'s.** Whether that
+  issue absorbs `partial` or this one does depends on which lands first.
+- **Helper set (§9).** `map`, `tuple`, `list`, `text`, `unit`, `span` is a
+  guess at the working set; let the JSON and DJS ports pick the final list.
+- **Silent rules.** `unit` still delivers an `update` to the parent, which then
+  ignores it. A "do not report this child at all" marker would make positional
+  `tuple` transformers shorter (`[key, value]` instead of six slots). Sugar;
+  defer until the JSON port says whether it is missed.
 
 ### Related
 
-- [Separate alphabet-specific BNF helpers](./unicode-rules.md) — blocks this
-  design until generic `string` rules are removed and the examples/rule-kind
-  assumptions are rebased on the final alphabet-neutral `Rule` union.
-- [i165](./layered-parser.md) — layered parser. The metadata monoid (§3.4)
-  is the mechanism for both its "how does meta propagate up a reduction" and
-  "lower-layer values (lexemes) carried past the upper grammar" questions; the
-  reduction algebra (§3.3) is the shared evaluation contract across layers.
+- [43. Stateful parser](./043-stateful-parser.md) — `init`/`append`/`end` on the
+  input side; the same three-event shape at the other end of the pipeline, and
+  what §4.2 needs.
+- [i165](./layered-parser.md) — layered parser. §7 is the mechanism it wanted
+  for carrying a lexeme between layers; each layer is one grammar plus one
+  transformer map.
+- [`../README.md`](../README.md#the-ast-is-one-contract) — the AST contract the
+  default transformer (§3) has to keep reproducing.
+- [`../data/README.md`](../data/README.md#the-repeat-rule) — the `Repeat` rule,
+  whose events are §11.4.
+- [JSON BNF grammar owner](../../media/json/todo/bnf-grammar-single-owner.md) —
+  the grammar the JSON transformer set attaches to.
+- [streaming-recognizer](../../media/json/todo/streaming-recognizer.md) and
+  [detect-json](../../media/type/todo/detect-json.md) — the all-`unit` map is
+  the recognizer they specify.
+- [157. JSON/DJS shared value machine](../../djs/todo/157-json-djs-shared-value-machine.md)
+  — what the DJS port leaves behind on the parser side.
+- [Separate alphabet-specific BNF helpers](./unicode-rules.md) — no longer
+  blocks this issue (§11.1); it changes the grammars, not this protocol.
 - i172 (retired; shipped as [`fjs/rtti/validate/`](../../rtti/validate/module.f.mjs)
-  and [`fjs/rtti/parse/`](../../rtti/parse/module.f.mjs)) — `validate`/`parse`
-  skeleton and `ValidationError`; the runtime checker this design leans on.
+  and [`fjs/rtti/parse/`](../../rtti/parse/module.f.mjs)) — value-vs-schema
+  validation, now optional (§8) rather than the type-safety mechanism.
 - i143 (retired; shipped as [`fjs/rtti/data/`](../../rtti/data/module.f.mjs)) —
-  the serializable RTTI data form and its `equal`/`subset` algebra, both
-  exported; the predicate the instantiation-time boundary check (§5.3) depends
-  on — no longer a blocker — and relevant if schemas are auto-derived from the
-  BNF data form.
-- `fjs/bnf/testlib.f.mjs` — the `deterministic` grammar used in §6. A third
-  copy of it lived at `fjs/fsc/json.f.mjs` until it was deleted as dead code;
-  do not restore it, see
-  [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md).
+  the `subset` predicate the previous design's instantiation-time check was
+  built on; §8 replaces that check with name resolution.
