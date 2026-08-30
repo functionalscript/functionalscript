@@ -1,7 +1,7 @@
 /** @import { Rule } from '../../types.ts' */
 
 import { string } from '../../../rtti/module.f.mjs'
-import { array, createValue, digit, optionFloatSuffix, optionNeg, uint, ws, wsSymbol } from '../json/module.f.mjs'
+import { createValue, digit, optionFloatSuffix, optionNeg, uint, ws, wsSymbol } from '../json/module.f.mjs'
 import { option, range, repeat0Plus, repeat1Plus } from '../../module.f.mjs'
 
 const uNumber = {
