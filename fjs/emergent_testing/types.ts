@@ -262,7 +262,7 @@ export type RunState = {
  * tail that reports it — free of a parameter every caller would have to thread
  * through unchanged.
  */
-export type Reporter<O extends Operation> = {
+export type LeafReporter<O extends Operation> = {
     /**
      * A leaf is about to run, named before there is anything to say about it.
      *
@@ -287,6 +287,20 @@ export type Reporter<O extends Operation> = {
      * and the description needs the value.
      */
     readonly result: (t: TestResult, r: SandboxResult<unknown>, throws: boolean) => Effect<O, void, IoChannel>
+    readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>, IoChannel>
+}
+
+/**
+ * A reporter for a whole run: the leaf events, plus the one that ends it.
+ *
+ * The split is not decoration. `runEntries` walks leaves and calls exactly the
+ * three events above; the run-ended event belongs to whoever decided the run
+ * was over, which for a host that walks several modules is the host. Requiring
+ * it of every reporter meant a browser page — which folds its own report from
+ * the rows it collected — supplying a `summary` that nothing ever called, and a
+ * member nobody calls is a claim the type was making falsely.
+ */
+export type Reporter<O extends Operation> = LeafReporter<O> & {
     /**
      * The run ended, with everything folded from the leaves that landed: the
      * totals, and the failures in the order they happened.
@@ -299,7 +313,6 @@ export type Reporter<O extends Operation> = {
      * and hands them over here.
      */
     readonly summary: (state: RunState) => Effect<O, void, IoChannel>
-    readonly test: (file: string, path: Path, set: TestEntry) => Effect<O, SandboxResult<unknown>, IoChannel>
 }
 
 /** @internal */

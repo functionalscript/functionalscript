@@ -889,8 +889,18 @@ are shared.
       command `node ./fjs/module.mjs r ./fjs/website/module.f.mjs` once the
       FunctionalScript generator owns the complete build; do not restore the
       removed `index-html` alias.
-- [ ] Add `emergent_testing/browser/module.f.mjs` for pure browser application
-      composition and its complete proof.
+- [x] Add `emergent_testing/browser/module.f.mjs` for pure browser application
+      composition and its complete proof. **The orchestration moved: enumerate
+      a module, walk its entries, route a failure, decide how the run ended.**
+      Its own proofs cover it completely and none of them is a browser — the
+      point of moving it. Two things the move revealed, both fixed rather than
+      recorded, because both were the type lying about the code:
+      `runEntries` has **no error channel** (every failure a leaf's chain meets
+      is recorded in `RunState.aborted` and answered as a value), and the walk
+      needs only three of a reporter's events, so `LeafReporter` was split out
+      of `Reporter`. The browser was supplying a `summary` nothing ever called.
+      What is left in `browser.mjs` is the interpreter, the DOM, the wall
+      clock and `navigator`.
 - [ ] Move the current browser host code to
       `emergent_testing/browser/module.mjs` and reduce it to capability
       interpretation, DOM rendering, and browser publication.
@@ -917,9 +927,24 @@ are shared.
       of how the frame budget was got wrong three times before being measured,
       and why even measured-correct it could not fix the reporting burst, is
       the pitfall catalog above (items 1, 2, 4, 11, 12).
-- [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's
+- [x] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's
       own failure, as opposed to any proof's — **in step 7b, with the
-      minimal seam that makes it reachable.** Neither half of the branch (an
+      minimal seam that makes it reachable.** Done by the move above rather
+      than by a seam: with the orchestration an effect, a mock runner that
+      declares `report` and does not implement it answers `notImplemented`
+      through the ordinary continuation, which is the failure a page meets
+      when its own reporting breaks. `browser/proof.f.mjs` pins that the run
+      *stops* there and that the failure is answered rather than announced —
+      announcing is what broke.
+
+      **One half stays unproven and is now the only half.** A rejection —
+      a handler of the page's own interpreter throwing — cannot be produced
+      by a runner that answers through a continuation, so it is still the
+      `catch` in `browser.mjs`. It is also no longer a *routing* decision:
+      the walk is one effect now, so a rejection is not attributable to the
+      module it happened under, and the row it produces is named after the
+      runner rather than a module. That is a fault of this file rather than
+      of any module, which is what the name says. Neither half of the branch (an
       operation reporting through the error channel, or one the interpreter
       cannot dispatch, which rejects) is reachable through the public entry
       point — the reverted #1759 proved that by mutation: removing the guard
