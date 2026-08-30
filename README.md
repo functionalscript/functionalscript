@@ -88,7 +88,7 @@ data expressions (objects, arrays, strings, numbers, `bigint`, booleans, `null`,
 | `fjs compile` | Compile a FunctionalScript module to JavaScript or JSON        | [fjs/djs](fjs/djs/README.md), [fjs/fsc](fjs/fsc/README.md) |
 | `fjs cas`     | Content-addressable storage (`add`, `get`, `list`)             | [fjs/cas/README.md](fjs/cas/README.md)                 |
 | `fjs mcp`     | [MCP](https://modelcontextprotocol.io/) server over stdio, exposing the CAS and Evo as tools | [fjs/mcp/README.md](fjs/mcp/README.md) |
-| `fjs ci`      | Generate the GitHub Actions CI workflow                        | [fjs/ci/README.md](fjs/ci/README.md)                   |
+| `fjs ci`      | Generate the GitHub Actions CI and npm publishing workflows    | [fjs/ci/README.md](fjs/ci/README.md)                   |
 | `fjs web`     | Serve a directory over HTTP                                    | [fjs/web/README.md](fjs/web/README.md)                 |
 | `fjs run`     | Run a FunctionalScript module as a Node program                | [fjs/README.md](fjs/README.md)                         |
 | `fjs help`    | Print the available commands                                   | [fjs/README.md](fjs/README.md)                         |
