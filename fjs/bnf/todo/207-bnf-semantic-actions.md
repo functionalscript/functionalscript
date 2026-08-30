@@ -86,6 +86,15 @@ type RuleTransformer<S, T> = {
   otherwise. Value first, annotation second, like `CodePointMeta<T>`
   (`readonly[CodePoint, T]`) in `fjs/bnf/descent`, so the usual transformer
   destructures `(state, [value]) => …` and never mentions the tag.
+
+  **The `Result` is the engine's, not the child channel's.** A child's `end`
+  returns `Result<T, string>` and the engine eliminates it before the parent
+  sees anything: an `ok` is unwrapped, so a `Child` carries `T` and not
+  `['ok', T]`; an `error` never reaches `update` at all, because a refusal
+  replaces the enclosing fold's state instead of being folded into it (§6). So
+  no transformer ever matches on a child's `Result`, and both backends owe the
+  same event stream. That is why the examples in §10 destructure `key` rather
+  than `['ok', key]`.
 - **`end`** finishes the invocation. It may **refuse**: a transformer is where
   `1e999`, a duplicate `__proto__` key, or an unresolved `const` is caught, and
   [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) says
@@ -900,7 +909,10 @@ value* to check against a spec vector.
 - [ ] Port `fjs/djs/parser` onto transformers and delete `foldValue`,
       `descendantsTagged`, `slot`, `keyOf`, `_FoldFrame`; settle the inherited
       `refs` attribute (§10) there.
-- [ ] Register any new module in `deno.json` per AGENTS.md; `npx tsc`, `fjs t`.
+- [ ] Register any new module in `deno.json` per AGENTS.md, then run the check
+      set that file prescribes — `tsc` (the environment's compiler, not a
+      registry fetch: the repository pins no `typescript` package) and
+      `fjs test`.
 
 ### Open questions
 
