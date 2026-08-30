@@ -236,15 +236,39 @@ Stage 4 is the consumer 157 §2 was waiting for.
 **A fifth thing has to change, and it is not one of the four: container
 classification.** `treeSerialize` dispatches with `value instanceof Array`, and
 `isObject` excludes arrays with `fjs/types/array`'s `isArray`, which is also
-`instanceof Array`. A **null-prototype array** is therefore neither: measured,
-`Object.setPrototypeOf([1,2], null)` gives `instanceof Array === false` and
-`isObject === true`, so it goes down the *object* path and serializes as
-`{"0":1,"1":2}` — a different value, silently. The spec permits it explicitly:
-a null-prototype array "serializes as its data, and reads back ordinary". So
-the shared skeleton must classify containers with `Array.isArray`, which is
-prototype-independent, and the corpus's null-prototype-array case has to be a
-serializer vector. Note the two helpers cannot simply be inherited here: both
-are `instanceof`-based today, and changing them is wider than this issue.
+`instanceof Array`. `instanceof` asks about the prototype chain, so an array
+whose chain does not reach *this realm's* `Array.prototype` is neither an array
+nor an object to that dispatch — it lands on the object path and serializes as
+`{"0":1,"1":2}`, a different value, silently.
+
+Measured, with **no prototype manipulation anywhere** — a cross-realm array,
+which is what makes this reachable rather than hypothetical:
+
+```js
+const a = vm.runInNewContext('[1,2]')
+a instanceof Array   // false
+Array.isArray(a)     // true
+isObject(a)          // true   → the object path
+Object.entries(a)    // [["0",1],["1",2]]
+```
+
+So the shared skeleton must classify containers with `Array.isArray`, which is
+prototype-independent. The two helpers cannot simply be inherited: both are
+`instanceof`-based today, and changing them is wider than this issue.
+
+The spec names three cases here — "a `null`-prototype object, a `null`-prototype
+array, or an `Array` subclass all serialize as their data, and read back
+ordinary" — and only some of them break `instanceof`. An `Array` **subclass**
+does not: its chain still reaches `Array.prototype`, so `instanceof` is `true`
+and that case is already correct. The **null-prototype** array does break it,
+but FunctionalScript forbids `Object.setPrototypeOf` and every other way of
+replacing an object's prototype, so no proof in this repository can construct
+one. The vector that carries this is therefore the **cross-realm** array, built
+with `node:vm` in a host-specific `.mjs` proof — which is what §3 of
+[`AGENTS.md`](../../../../AGENTS.md) reserves plain `.mjs` for. A caller outside
+FunctionalScript may still hand the serializer a null-prototype array, and
+`Array.isArray` covers it for free; it is the construction, not the case, that
+this repository cannot write.
 
 **Rejection is a `try*`, not a panic.** A serializer's input is caller-supplied
 and may legitimately be outside the data model, which is
@@ -315,7 +339,8 @@ the spec judges them independently and this module provides all three.
       post-order naming.
 - [ ] Serializer over the shared walker of 157 §2, including the fifth change
       that is not one of its four seams: classify containers with
-      `Array.isArray`, and prove the null-prototype-array case.
+      `Array.isArray`, proved by a cross-realm array in a host-specific `.mjs`
+      proof — FunctionalScript cannot construct the null-prototype case.
 - [ ] Out-of-model rejection as a `try*`, descriptor-first so no accessor is
       invoked by the check that refuses it, with the attribute/enumerability
       line and the hole-vs-`undefined` distinction proved.
