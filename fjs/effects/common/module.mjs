@@ -9,6 +9,7 @@
  *
  * @module
  *
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Catch, Sandbox, SandboxResult } from './types.ts'
  * @import { ToAsyncOperationMap } from '../types.ts'
  */
@@ -35,19 +36,30 @@ import { tryCatch } from '../../types/result/module.mjs'
  * @returns {Promise<SandboxResult<Awaited<T>>>}
  */
 export const sandbox = async f => {
+    // **Every clock read is a statement of its own, in the order they happen.**
+    // A measurement written as an expression — a `?:` reading `performance.now()`
+    // in one branch and a saved value in another — hides *when* each reading is
+    // taken behind where it is used, which is the one thing a reader of a timing
+    // function has to see. `fjs/AGENTS.md` asks a sequence to read top-to-bottom
+    // in evaluation order; that a clock read is an evaluation with a moment
+    // attached is why the rule is at its sharpest here.
+    /** @type {Result<Awaited<T>, unknown>} */
+    let result
+    let after
     const before = performance.now()
     try {
-        const p = f()
-        const returned = performance.now()
-        // The clock is read again after awaiting, so an async thunk is measured
-        // to where it settled; a synchronous one keeps the reading taken the
-        // instant it returned.
-        return p instanceof Promise
-            ? { result: ok(await p), duration: performance.now() - before }
-            : { result: ok(/** @type {Awaited<T>} */ (p)), duration: returned - before }
+        let p = f()
+        after = performance.now()
+        if (p instanceof Promise) {
+            p = await p
+            after = performance.now()
+        }
+        result = ok(/** @type {Awaited<T>} */ (p))
     } catch (e) {
-        return { result: error(e), duration: performance.now() - before }
+        after = performance.now()
+        result = error(e)
     }
+    return { result, duration: after - before }
 }
 
 /**
