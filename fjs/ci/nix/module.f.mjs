@@ -28,9 +28,13 @@ import { install, test, uses } from '../common/module.f.mjs'
 import { nixpkgs, rustOverlay } from '../config/module.f.mjs'
 
 /**
- * Directory holding the generated environments, one subdirectory per job, each
- * with a `flake.nix` and a `run` script. The generator owns those
- * subdirectories, not everything here: `nix/README.md` is written by hand.
+ * Directory holding the generated environments, each a `flake.nix` and a `run`
+ * script beside it.
+ *
+ * The shared shell is *this* directory rather than one below it — see
+ * {@link nixShell} — and a job that needs a shell of its own gets a
+ * subdirectory named after it. So the generator owns `flake.nix`, `run`, and
+ * every subdirectory here; `nix/README.md` is written by hand.
  */
 export const generatedDirectory = /** @type {const} */ ('nix')
 
@@ -279,49 +283,82 @@ export const flakeText = job =>
     unwrapNullable(fromUndefined(nixToString(flake(job))))
 
 /**
- * The `run` script generated beside a job's flake. `./nix/node26/run npm run cov`
- * is what a workflow step says; this is what makes that a command.
+ * The `run` script generated beside a flake. `./nix/run npm run cov` is what a
+ * workflow step says; this is what makes that a command.
  *
- * It resolves the flake from its own location rather than from the working
- * directory, so it behaves the same run from the repository root, from `nix/`,
- * or by absolute path. `"$@"` passes the caller's argument vector through
- * unsplit, which is what lets a step keep quoting of its own —
- * `./nix/deno/run deno eval 'console.log(Deno.version.deno)'` arrives as three
- * arguments, not as text to re-parse.
+ * The flake's path is written in, because the generator knows it. An earlier
+ * version derived it from `$0` with a `case` arm and `${0%/*}` so the script
+ * worked from any working directory; that bought one thing — `../nix/run` from
+ * a subdirectory — at the cost of two lines of shell nobody should have to
+ * read. Every caller runs from the repository root: CI checks out there, and
+ * the path a step names is relative to it.
  *
- * That location comes from `case` and `${0%/*}`, which are shell syntax and
- * parameter expansion — not `dirname`, and not any other program. A generated
- * script calls no external tool (root `AGENTS.md` §6), and this one has no need
- * to: the `case` arm is what makes a `$0` with no `/` mean the current
- * directory, which is the one thing stripping a suffix cannot say by itself.
+ * Leaving the path out altogether does not work, which is the other thing this
+ * line settles. `nix develop` with no installable defaults to `.`, and `.` is
+ * the *process* working directory rather than the script's — so from the
+ * repository root it would look for a `flake.nix` that is not there.
  *
- * What holds that is the proof pinning this text exactly, not a scan for tool
- * names — §6 rules out the scan, and the exact text already fails on any change
- * at all.
+ * `"$@"` passes the caller's argument vector through unsplit, which is what
+ * lets a step keep quoting of its own — `./nix/run deno eval
+ * 'console.log(Deno.version.deno)'` arrives as three arguments, not as text to
+ * re-parse.
+ *
+ * A generated script calls no external tool (root `AGENTS.md` §6), and now has
+ * nothing that could: no `dirname`, and no shell doing its work either. What
+ * holds that is the proof pinning this text exactly, not a scan for tool names
+ * — §6 rules out the scan, and the exact text already fails on any change at
+ * all.
  *
  * `exec` replaces the shell, so the command's exit status is the script's and
  * no wrapper process sits between CI and the failure.
  *
- * The two flags live here rather than in every step. `--no-write-lock-file`
- * keeps the invocation read-only against the checkout: Nix otherwise writes a
+ * The flags live here rather than in every step. `--no-write-lock-file` keeps
+ * the invocation read-only against the checkout: Nix otherwise writes a
  * `flake.lock` beside the flake it enters, and the pin in `flake.nix` already
  * determines every input, so that lock resolves nothing the flake did not
- * already say. `--quiet` drops Nix's own logging one level, from `info` to
- * `notice`, which removes the substitution chatter — `copying N paths`, started
- * at `lvlInfo` — while leaving warnings and errors, which sit below `notice`.
+ * already say.
+ *
+ * **`--quiet` three times, and the count is arithmetic rather than emphasis.**
+ * Nix has one global verbosity integer. The levels run `lvlError = 0,
+ * lvlWarn = 1, lvlNotice = 2, lvlInfo = 3`; a message prints when its own level
+ * is at most the current verbosity; the default is `lvlInfo`; and each
+ * `--quiet` decrements by one, floored at `lvlError`. So one reaches `notice`
+ * and two reach `warn`, both of which still print a `lvlWarn` message. Only the
+ * third, reaching `lvlError`, does not.
+ *
+ * The first is what removes the substitution chatter — `copying N paths`,
+ * started at `lvlInfo`. The other two are spent on one warning, and it is worth
+ * being explicit about the cost: **no Nix warning of any kind reaches the log
+ * from here.** A failing substituter, a dirty tree, a deprecation notice — all
+ * gone, and only errors are left.
+ *
+ * What they buy is the removal of "not writing modified lock file", which these
+ * flakes emit on *every* step of every Nix job. It is not a defect to fix in
+ * passing: it is the exact consequence of `--no-write-lock-file` meeting a
+ * flake with no committed `flake.lock`, and the honest fix is to generate one.
+ * `../todo/generated-flake-lock.md` owns that, and taking it means taking these
+ * two flags back off in the same change — they pay for nothing else.
+ *
+ * Generating it rather than running `nix flake lock` is not a preference:
+ * `fjs ci` has to run on Windows, where Nix does not, so the input hashes have
+ * to be data in `../config/module.f.mjs` the way `bunSources` already is.
  *
  * `--quiet` is spelled long because Nix has no short form for it: `--verbose`
  * declares `.shortName = 'v'` and `--quiet` declares none, so `-q` is not an
- * option the `nix` CLI accepts. The one short flag nearby, `-Q`
- * (`--no-build-output`), belongs to `LegacyArgs` — `nix-build` and `nix-shell`,
- * not `nix develop`.
+ * option the `nix` CLI accepts, and neither is `-qqq`. There is no direct
+ * setter either — `--verbose`, `--quiet` and `--debug` are the whole of the
+ * logging category, verbosity is not a `nix.conf` setting, so `--option` cannot
+ * reach it. Repeating the long flag is the only spelling there is. The one
+ * short flag nearby, `-Q` (`--no-build-output`), belongs to `LegacyArgs` —
+ * `nix-build` and `nix-shell`, not `nix develop`.
  *
  * Neither flag reaches the command being run: `--command` execs it with stdio
  * inherited, so a job's own output is exactly what it was.
+ *
+ * @type {(id: string) => string}
  */
-export const runText = `#!/bin/sh
-case $0 in */*) d=\${0%/*} ;; *) d=. ;; esac
-exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
+export const runText = id => `#!/bin/sh
+exec nix develop --no-write-lock-file --quiet --quiet --quiet ${flakePath(id)} --command "$@"
 `
 
 /**
@@ -338,14 +375,17 @@ exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
  * @type {(job: NixJob) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
 const writeJob = job => {
-    const directory = `${generatedDirectory}/${job.id}`
+    // `flakePath` is what a workflow step names, so it is relative; the effects
+    // layer writes from the repository root, so the `./` comes off here rather
+    // than being a second opinion about where these files go.
+    const directory = flakePath(job.id).slice('./'.length)
     const created = mkdir(directory, { recursive: true })
     const flakeWritten = step(
         created,
         () => writeUtf8File(`${directory}/flake.nix`, flakeText(job)))
     return step(
         flakeWritten,
-        () => writeUtf8File(`${directory}/run`, runText))
+        () => writeUtf8File(`${directory}/run`, runText(job.id)))
 }
 
 /**
@@ -356,9 +396,44 @@ const writeJob = job => {
 export const nixFlakes = jobs =>
     forEachStep(pureOk(jobs), writeJob)
 
-/** Directory holding the flake and `run` script for the job of the given id. */
-/** @type {(id: string) => string} */
-export const flakePath = id => `./${generatedDirectory}/${id}`
+/**
+ * The one generated environment jobs share, and the directory its flake is
+ * written to.
+ *
+ * Most jobs name their runtime on the command line — `deno task cov`, `bun
+ * test`, `cargo test`, `tsc` — so what else is on `PATH` cannot decide which
+ * one runs, and a shell carrying all of them tests exactly what a narrower one
+ * would. Those jobs share this, and it is the same shell a developer enters, so
+ * the environment CI proves is the environment people work in.
+ *
+ * A job whose runtime is resolved from `PATH` rather than named cannot share
+ * it, and the Node jobs are that case: `npm ci` and `node --test` run whichever
+ * `node` comes first, so Node 22 and Node 24 keep a flake each carrying the one
+ * release they exist to test. `../dev/module.f.mjs` has the rest of the
+ * reasoning.
+ *
+ * The name is a label rather than a directory. This shell is written to
+ * {@link generatedDirectory} itself — see {@link flakePath} — because it
+ * belongs to no single job, and `nix develop ./nix` is the command a developer
+ * should have to remember.
+ */
+export const nixShell = /** @type {const} */ ('dev')
+
+/**
+ * Directory holding the flake and `run` script for the environment of the given
+ * id.
+ *
+ * The shared shell is the generated directory itself, so a developer types
+ * `nix develop ./nix` — the repository's environment, named after nothing in
+ * particular, because it belongs to no single job. The rest get a subdirectory
+ * apiece.
+ *
+ * @type {(id: string) => string}
+ */
+export const flakePath = id =>
+    id === nixShell
+        ? `./${generatedDirectory}`
+        : `./${generatedDirectory}/${id}`
 
 /** The `run` script a workflow step invokes, for the job of the given id. */
 /** @type {(id: string) => string} */

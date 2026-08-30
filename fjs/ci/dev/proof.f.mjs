@@ -1,62 +1,19 @@
-import { devJobId, devNixJob, devSteps, devSystems } from './module.f.mjs'
-import { bunNixJob } from '../bun/module.f.mjs'
-import { denoNixJob } from '../deno/module.f.mjs'
-import { wasmNixJob } from '../rust/module.f.mjs'
+import { devJobId, devNixJob, devSystems } from './module.f.mjs'
+import { bunPin } from '../bun/module.f.mjs'
 import { major, nodeNixJobs } from '../node/module.f.mjs'
-import { toSteps } from '../common/module.f.mjs'
-import { bun, deno, node, typescript, wasmer, wasmtime } from '../config/module.f.mjs'
-import { nixDevelop, nixSystem } from '../nix/module.f.mjs'
+import { wasmPackages, wasmRust } from '../rust/module.f.mjs'
+import { node } from '../config/module.f.mjs'
+import { nixShell, nixSystem } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
-const runs = toSteps(devSteps).flatMap(s => s.run !== undefined ? [s.run] : [])
-
-/** @type {(id: string, command: string, expected: string) => string} */
-const check = (id, command, expected) =>
-    `test "$(${nixDevelop(id, command)})" = "${expected}"`
-
 export const proof = {
-    // The shell is the union of what the jobs use, and it is *the same* union
-    // rather than a second copy of it. Each of these compares the developer
-    // environment against the job it came from, so a job changing its runtime
-    // without the shell following fails here rather than on someone's machine.
-    noDrift: () => {
-        // Rust: byte for byte the `wasm` job's toolchain, targets included. A
-        // developer who cannot build what CI builds has the wrong shell.
-        assertStructurallySame(devNixJob.rust, wasmNixJob.rust)
-        // Bun: the same override, over four systems instead of one. Only the
-        // per-system archives differ, which is what `sources` is for.
-        const { pin } = devNixJob
-        const bunPinned = bunNixJob.pin
-        assert(pin !== undefined && bunPinned !== undefined, 'expected both pins')
-        assertEq(pin.package, bunPinned.package)
-        assertEq(pin.version, bunPinned.version)
-        assertEq(pin.version, bun)
-        // Node: the version the canonical Node job runs, by the same mapping
-        // from version to package attribute that job uses.
-        const [newest] = nodeNixJobs.filter(job => job.id === `node${major(node.default)}`)
-        assert(newest !== undefined, 'expected the default Node job')
-        assert(
-            devNixJob.packages.includes(`nodejs_${major(node.default)}`),
-            devNixJob.packages.join(' '))
-        assertStructurallySame(
-            [...newest.packages],
-            [`nodejs_${major(node.default)}`, typescript.attribute])
-        // TypeScript: the attribute the one Node job that type-checks declares.
-        // A developer whose `tsc` is not the one CI runs gets errors CI does
-        // not, or misses errors CI has — and since `npx tsc` no longer reaches
-        // a `node_modules` copy, this shell is where a developer's compiler
-        // comes from.
-        // Deno and the two WASM runtimes, by attribute rather than version:
-        // those are the names their own jobs declare.
-        for (const name of [...denoNixJob.packages, ...wasmNixJob.packages]) {
-            assert(devNixJob.packages.includes(name), name)
-        }
-    },
     // Four systems, and `git` — the two things this declaration has that no CI
-    // job does. Both are the point of it: a shell that runs on one machine, or
-    // one a developer leaves to find `git`, is not a developer environment.
+    // job needs. Both are the point of it: a shell that runs on one machine, or
+    // one a developer leaves to find `git`, is not a developer environment,
+    // and this shell is the developer environment as well as the jobs'.
     shape: () => {
-        assertEq(devNixJob.id, devJobId)
+        assertEq(devJobId, nixShell)
+        assertEq(devNixJob.id, nixShell)
         assertStructurallySame([...devNixJob.systems], [...devSystems])
         assertStructurallySame([...devSystems], [
             'aarch64-linux',
@@ -64,7 +21,7 @@ export const proof = {
             'aarch64-darwin',
             'x86_64-darwin',
         ])
-        // The runner CI has is among them, since the `dev` job enters this
+        // The runner CI has is among them, since every job but two enters this
         // shell from it.
         assert(devSystems.includes(nixSystem), nixSystem)
         assert(devNixJob.packages.includes('git'), devNixJob.packages.join(' '))
@@ -74,30 +31,38 @@ export const proof = {
         assert(pin !== undefined, 'expected a pinned release')
         assertStructurallySame(Object.keys(pin.sources), [...devSystems])
     },
-    // The job, step for step: every version the shell hands a developer, then
-    // one plain command. Rust is absent for the reason it is absent from
-    // `wasm`'s checks — the flake names the release in full — and the plain
-    // command is what makes this a job that *enters* the shell rather than one
-    // that only reads versions out of substitutions.
-    steps: () => assertStructurallySame(runs, [
-        check(devJobId, 'node --version', `v${node.default}`),
-        check(devJobId, `deno eval 'console.log(Deno.version.deno)'`, deno),
-        check(devJobId, 'bun --version', bun),
-        check(devJobId, 'tsc --version', `Version ${typescript.version}`),
-        check(devJobId, 'wasmtime --version', `wasmtime ${wasmtime}`),
-        check(devJobId, 'wasmer --version', `wasmer ${wasmer}`),
-        nixDevelop(devJobId, 'git --version'),
-    ]),
-    // No `cargo`, deliberately: these steps are generated for whatever project
-    // runs `fjs ci`, and one without a `Cargo.toml` gets no Rust jobs and must
-    // get no Rust commands.
-    noCargo: () => assert(
-        !runs.some(run => run.includes('cargo')),
-        'unexpected cargo command in a job generated for every project'),
-    installsNixOnly: () => {
-        const used = toSteps(devSteps).flatMap(s => s.uses !== undefined ? [s.uses] : [])
+    // The one fact the whole arrangement turns on: this shell has exactly one
+    // `node`, and it is the default. That is why `node26` can run here — its
+    // `npm ci` and `npm run cov` resolve `node` from `PATH` and find the
+    // release they want — and why Node 22 and Node 24 cannot, which is what
+    // their own flakes below are.
+    //
+    // A second `nodejs_*` here would be worse than useless: `mkShell` puts both
+    // on `PATH` and one wins silently.
+    oneNodeAndItIsTheDefault: () => {
+        const nodes = devNixJob.packages.filter(p => p.startsWith('nodejs_'))
+        assertStructurallySame(nodes, [`nodejs_${major(node.default)}`])
+        // The versions that had to keep a flake are exactly the ones this shell
+        // cannot serve.
         assertStructurallySame(
-            used.filter(u => !u.startsWith('actions/checkout@')),
-            used.filter(u => u.startsWith('cachix/install-nix-action@')))
+            nodeNixJobs.map(job => job.id),
+            [node.node22, node.node24].map(v => `node${major(v)}`))
+        assert(
+            !nodeNixJobs.some(job => job.id === `node${major(node.default)}`),
+            'the default Node needs no flake of its own')
+    },
+    // Nothing here is a second copy. Each tool arrives from the module that
+    // owns the commands using it — the Bun override from `../bun`, the
+    // toolchain and the WASM runtimes from `../rust` — so a job changing what
+    // it needs changes this shell with it, rather than drifting from it.
+    //
+    // Identity rather than equality: a structurally equal copy would satisfy a
+    // comparison and still be a second place to edit.
+    takesEachToolFromItsOwner: () => {
+        assert(devNixJob.rust === wasmRust, 'expected the wasm toolchain itself')
+        for (const name of wasmPackages) {
+            assert(devNixJob.packages.includes(name), name)
+        }
+        assertStructurallySame(devNixJob.pin, bunPin(devSystems))
     },
 }
