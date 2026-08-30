@@ -1,7 +1,7 @@
-import { bunJobId, bunNixJob, bunSteps } from './module.f.mjs'
+import { bunJobId, bunNixJob, bunPin, bunSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
-import { bun, bunHash } from '../config/module.f.mjs'
-import { nixDevelop, nixSystem } from '../nix/module.f.mjs'
+import { bun, bunSources } from '../config/module.f.mjs'
+import { nixDevelop, nixSystem, nixSystems } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 const runs = toSteps(bunSteps).flatMap(s => s.run !== undefined ? [s.run] : [])
@@ -33,7 +33,7 @@ export const proof = {
     // shell, and a `packages` entry beside it would put both on `PATH`.
     nixJob: () => {
         assertEq(bunNixJob.id, bunJobId)
-        assertEq(bunNixJob.system, nixSystem)
+        assertStructurallySame(bunNixJob.systems, nixSystems)
         assertEq(bunNixJob.packages.length, 0)
         assertEq(bunNixJob.rust, undefined)
         assertEq(bunNixJob.shellHook, undefined)
@@ -41,12 +41,29 @@ export const proof = {
         assert(pin !== undefined, 'expected a pinned release')
         assertEq(pin.package, 'bun')
         assertEq(pin.version, bun)
-        assertEq(pin.hash, bunHash)
-        // The archive belongs to the release the job checks for, and to the
-        // system the flake declares. Neither is derivable from the other, so
-        // both are asserted rather than assumed.
-        assert(pin.url.includes(`/bun-v${bun}/`), pin.url)
-        assert(pin.url.endsWith('/bun-linux-aarch64.zip'), pin.url)
+        // One archive per declared system and no others: a source the flake
+        // never reads is a hash nobody checks, and a system with none would
+        // fail at generation instead of here.
+        assertStructurallySame(Object.keys(pin.sources), [...bunNixJob.systems])
+    },
+    // The pin covers whatever systems it is asked for, and each entry names the
+    // release the job checks for and the archive that system's packaging
+    // expects. Neither half is derivable from the other — Intel macOS takes a
+    // baseline build — so both come from the configured table.
+    pinSources: () => {
+        const { sources } = bunPin(['aarch64-linux', 'x86_64-darwin'])
+        for (const [system, { url, hash }] of Object.entries(sources)) {
+            const configured = bunSources[system]
+            assert(configured !== undefined, system)
+            assertEq(hash, configured.hash)
+            assertEq(
+                url,
+                `https://github.com/oven-sh/bun/releases/download/bun-v${bun}/${configured.archive}.zip`)
+        }
+        assertStructurallySame(
+            Object.keys(sources),
+            ['aarch64-linux', 'x86_64-darwin'])
+        assertEq(bunSources['x86_64-darwin']?.archive, 'bun-darwin-x64-baseline')
         assertEq(nixSystem, 'aarch64-linux')
     },
 }

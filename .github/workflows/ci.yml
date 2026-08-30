@@ -409,6 +409,35 @@
         }
       ]
     },
+    "dev": {
+      "runs-on": "ubuntu-26.04-arm",
+      "steps": [
+        {
+          "uses": "cachix/install-nix-action@v31.11.1"
+        },
+        {
+          "uses": "actions/checkout@v7.0.1"
+        },
+        {
+          "run": "test \"$(./nix/dev/run node --version)\" = \"v26.7.0\""
+        },
+        {
+          "run": "test \"$(./nix/dev/run deno eval 'console.log(Deno.version.deno)')\" = \"2.8.3\""
+        },
+        {
+          "run": "test \"$(./nix/dev/run bun --version)\" = \"1.4.0\""
+        },
+        {
+          "run": "test \"$(./nix/dev/run wasmtime --version)\" = \"wasmtime 45.0.2\""
+        },
+        {
+          "run": "test \"$(./nix/dev/run wasmer --version)\" = \"wasmer 7.1.0\""
+        },
+        {
+          "run": "./nix/dev/run git --version"
+        }
+      ]
+    },
     "node22": {
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
