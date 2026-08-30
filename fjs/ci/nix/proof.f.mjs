@@ -19,6 +19,7 @@ import {
     nixDevelop,
     nixFlakes,
     nixInstall,
+    nixShell,
     nixSteps,
     nixSystem,
     nixVersionStep,
@@ -288,9 +289,12 @@ const unwrapPin = ({ pin }) => {
 
 /** @type {(jobs: readonly NixJob[], id: string, file: string) => string} */
 const generatedFile = (jobs, id, file) => {
+    // `flakePath` rather than a second spelling of it: the shared shell is the
+    // generated directory itself, so a literal `nix/<id>/` here would read the
+    // one path the generator never writes.
     const written = ioStep(
         nixFlakes(jobs),
-        () => readUtf8File(`${generatedDirectory}/${id}/${file}`))
+        () => readUtf8File(`${flakePath(id).slice('./'.length)}/${file}`))
     const [, [tag, result]] = virtual(emptyState)(written)
     assert(tag === 'ok', result)
     return result
@@ -351,38 +355,35 @@ export const proof = {
         // so there is no name to derive — their jobs' version checks carry
         // that tie instead.
         //
-        // The runtime is the *first* package in every one of these, which is
-        // what lets the mapping be checked at all: `node26` carries a compiler
-        // after it, and `../dev/proof.f.mjs` is where that one is held to the
-        // job it came from.
+        // The runtime and nothing else. These two flakes exist only because
+        // `npm ci` and `node --test` resolve `node` from `PATH`, so each holds
+        // the one release its job proves this code runs on — anything more is
+        // a build neither job ever opens, and a second `nodejs_*` would put two
+        // on `PATH` with one winning silently.
         packages: () => {
             for (const { id, packages } of nodeNixJobs) {
-                assertEq(packages[0], `nodejs_${id.slice('node'.length)}`)
+                assertStructurallySame(
+                    [...packages],
+                    [`nodejs_${id.slice('node'.length)}`])
             }
+            // The compiler is in the shared shell, which is where the job that
+            // type-checks runs — see `../dev/proof.f.mjs`.
+            assert(
+                !nodeNixJobs.some(job => job.packages.includes(typescript.attribute)),
+                'a job that only runs the suite needs no compiler')
         },
-        // Two of the three Node shells carry the runtime and nothing else, and
-        // that is a property rather than an accident: a `tsc` on a shell whose
-        // job runs `npm ci` and `node --test` is a build nothing in that job
-        // ever opens.
-        onlyOneNodeShellHasACompiler: () => {
-            const withCompiler = nodeNixJobs.filter(
-                job => job.packages.includes(typescript.attribute))
-            assertStructurallySame(
-                withCompiler.map(job => job.id),
-                [`node${major(node.default)}`])
-        },
-        // The `run` script is written beside every flake, byte for byte the
-        // same for each job: it resolves its own flake from `$0`, so nothing
-        // in it varies by job.
+        // The `run` script is written beside every flake, naming that flake.
+        // The only thing that varies between copies is the path.
         run: () => {
             for (const job of nixJobs) {
-                assertEq(generatedFile(nixJobs, job.id, 'run'), runText)
+                assertEq(generatedFile(nixJobs, job.id, 'run'), runText(job.id))
             }
         },
-        // What that script must say, pinned rather than described. `exec` keeps
-        // the command's exit status; the `case` and `${0%/*}` find the flake
-        // from the script rather than from the working directory; `"$@"` passes
-        // the caller's arguments through unsplit.
+        // What that script must say, pinned rather than described, for the
+        // shared shell and for a flake with a directory of its own. `exec`
+        // keeps the command's exit status; the path is written in rather than
+        // derived, so there is no shell logic to read; `"$@"` passes the
+        // caller's arguments through unsplit.
         //
         // This is also the whole of what holds the script to root `AGENTS.md`
         // §6, which forbids a generated script from calling an external tool:
@@ -391,10 +392,41 @@ export const proof = {
         // coverage this does not already have, and would be the kind of check
         // §6 describes: blind to any name it does not list, and tripped by one
         // appearing in a comment.
-        runText: () => assertEq(runText, `#!/bin/sh
-case $0 in */*) d=\${0%/*} ;; *) d=. ;; esac
-exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
-`),
+        runText: () => {
+            assertEq(runText(nixShell), `#!/bin/sh
+exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix --command "$@"
+`)
+            assertEq(runText(plain.id), `#!/bin/sh
+exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix/node24 --command "$@"
+`)
+        },
+        // Three, and not two. Nix has one verbosity integer: the default is
+        // `lvlInfo` (3), each `--quiet` decrements it by one, and a message
+        // prints when its own level is at most the current value. The warning
+        // these silence is `lvlWarn` (1), so two would leave the dial at 1 and
+        // print it anyway. Dropping one of these is therefore not a tidy-up —
+        // it restores the noise while keeping the cost.
+        threeQuiets: () => {
+            for (const job of nixJobs) {
+                assertEq(
+                    runText(job.id).split(' --quiet').length - 1,
+                    3,
+                    `expected three --quiet in ${job.id}'s run script`)
+            }
+        },
+        // Two lines, and the second names a path. Omitting it would leave
+        // `nix develop` defaulting to `.` — the *process* working directory,
+        // which is the repository root, where there is no `flake.nix`.
+        runNamesItsFlake: () => {
+            for (const job of nixJobs) {
+                const [shebang, command, ...rest] = runText(job.id).split('\n')
+                assertEq(shebang, '#!/bin/sh')
+                assert(
+                    command?.includes(` ${flakePath(job.id)} `) === true,
+                    `expected ${job.id}'s run script to name its flake`)
+                assertStructurallySame([...rest], [''])
+            }
+        },
         // Every declared job runs on the one runner the flakes are generated
         // for. A second system would need its own `devShells.<system>.default`
         // rather than a loop, so a job that quietly declared another would
@@ -435,6 +467,16 @@ exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
             nixDevelop(plain.id, 'node --version'),
             './nix/node24/run node --version'),
         runPath: () => assertEq(runPath(plain.id), './nix/node24/run'),
+        // The shared shell is the generated directory itself, not a `dev`
+        // below it. `nix develop ./nix` is what a developer types, and the
+        // name stays only as the label the declaration is found by.
+        sharedShellIsTheDirectory: () => {
+            assertEq(flakePath(nixShell), `./${generatedDirectory}`)
+            assertEq(runPath(nixShell), `./${generatedDirectory}/run`)
+            assert(
+                !runPath(nixShell).includes(`/${nixShell}/`),
+                `the shared shell must not sit under ./${generatedDirectory}/${nixShell}`)
+        },
         // One step per command, each entering the shell itself (root
         // `AGENTS.md` §7) — never one invocation carrying the sequence.
         nixSteps: () => {
