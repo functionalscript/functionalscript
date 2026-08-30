@@ -45,12 +45,14 @@ close to either — the browser suite is 3,461 leaves across 138 modules, three 
 magnitude under both — so this is a real ceiling rather than a live problem, and it is
 recorded rather than fixed for that reason.
 
-The browser runner is immune for a reason that has nothing to do with its batching:
-`Promise.all(batch.map(…))` passes one iterable argument, so no spread exists there at any
+The browser runner was immune for a reason that had nothing to do with its batching:
+`Promise.all(batch.map(…))` passes one iterable argument, so no spread existed there at any
 batch size — the ceiling is the *variadic operation's*, not fan-out's in general. (An
 earlier version of this paragraph credited `batchSize = 25` with staying under the limit;
 that was a misattribution, corrected in the pitfall catalog in
 [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md).)
+Both `Promise.all`s are gone now that the page runs the shared sequential traversal, so the
+page performs no fan-out of any shape.
 The reverted functionalscript#1759 routed the page through the shared traversal and so
 briefly gave both runners the same ceiling; the sequential plan that replaced it removed
 the traversal's fan-outs entirely (functionalscript#1774). What remains is the registration

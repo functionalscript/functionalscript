@@ -38,13 +38,15 @@ cancelled run, and prevent that run from replacing a later run's progress,
 report, promise, or completion event. Work already executing in JavaScript
 cannot always be interrupted; cancellation should be cooperative at module
 and leaf boundaries and document that limitation. (When this was filed the
-page ran batches, and the batch boundary was a natural check point; the
-sequential plan in [share-browser-console-runner](share-browser-console-runner.md)
-removes batching, so the check point is before each leaf invocation — the
-next *sibling* and each returned *child* alike, since a cancel that lands
-during a parent's awaited report must keep its unstarted children unstarted,
-per the requirement above. The un-interruptible unit is one leaf's own test
-and report, which is finer-grained than the batch was.)
+page ran batches, and the batch boundary was a natural check point. Batching
+is gone — the page runs the shared sequential traversal — so the check point
+is before each leaf invocation: the next *sibling* and each returned *child*
+alike, since a cancel that lands during a parent's awaited report must keep
+its unstarted children unstarted, per the requirement above. The
+un-interruptible unit is one leaf's own test and report, which is
+finer-grained than the batch was. Where such a check goes is now a question
+about the shared traversal rather than about the page: the page's own loop
+holds only the *module* boundary, one call per module.)
 
 The final cancelled result needs a serializable status distinct from `failed`
 and `infrastructure-error`. Decide whether cancellation dispatches the existing
