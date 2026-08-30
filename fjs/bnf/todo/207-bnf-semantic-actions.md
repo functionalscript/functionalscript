@@ -368,10 +368,17 @@ optional: `M[K]` is then `Transformer<T> | undefined`, which is not a naked type
 parameter, so the conditional does not distribute and every output would resolve
 to `never`.
 
-**A failed match has no value, and says so.** The root's `end` never runs when
-the grammar rejects the input — a failure propagates straight out, past every
-frame — so there is no `T` to report and none is invented. The value slot is
-`null` exactly when `success` is `false`. That keeps the three states apart
+**A parse that did not finish has no value, and says so.** The root's `end`
+never runs when the grammar rejects the input — a failure propagates straight
+out, past every frame — so there is no `T` to report and none is invented. The
+same holds when the input **runs out** mid-rule: `end` is skipped for every
+frame on the spine rather than called on a fold that is missing children (§6 —
+a transformer is total for the shapes its rule can produce, and a truncated
+sequence is not one of them). So the value slot is `null` unless the parse both
+matched and finished: `success: false` says the grammar rejected the input, a
+`null` remainder says the input ended first, and either way there is no value to
+misread. The AST path is unaffected — an unmapped rule's node is the engine's
+own (§3), so `parserRuleSet` still reports the partial node it always has. That keeps the three states apart
 without a reserved error string: `null` is "the grammar did not match", `error`
 is "it matched and a transformer refused", `ok` is a value. (A three-way tagged
 union would say the same thing without the redundant boolean; the tuple is kept
@@ -395,11 +402,11 @@ by annotation. A start rule the map does not name gives `unknown`, which is
 honest: it builds an AST node whose children may themselves be transformed
 values, so it is not an `Ast<CodePoint>` and must not claim to be.
 
-The other two slots keep their present meaning, and all three are independent: a
-grammar that did not match reports `success: false`, a match that ran out of
-input reports a `null` remainder and a value folded from a truncated match, and
-a transformer that refused reports `error` with `success: true`. Read the value
-when the grammar matched and the remainder is empty.
+The other two slots keep their present meaning: `success: false` for a grammar
+that rejected the input, a `null` remainder for one that ran out of it, and
+`error` with `success: true` for a transformer that refused a value the grammar
+accepted. A value is present in exactly one case — matched, finished, and
+nothing refused.
 
 `parserRuleSet` then **is** this machine with an empty map, keeping its current
 type: with no entries every value is a node `astTransformer` built, over leaves
@@ -536,8 +543,9 @@ which is also where the O(1)-`update` discipline is enforced once:
 - `list()` — the identity fold for a `Repeat`: children in, array out, O(1) per
   item.
 - `text()` — leaves in, string out; the common terminal/lexeme case.
-- `unit` — discards everything; a whole subtree costs nothing. `ws0`,
-  punctuation, and a recognizer's every rule.
+- `unit` — keeps nothing: its own subtree costs nothing, though it still hands
+  the parent a value to ignore (see §10). Whitespace, punctuation, and a
+  recognizer's every rule.
 - `span(inner)` — wraps a transformer so its result carries the source range
   merged from its children's metadata: the §7 monoid, opt-in.
 
@@ -557,19 +565,43 @@ names is the first task of stage 2 rather than something this example can
 assume:
 
 ```ts
+// the grammar's rules, as named thunks:
+//   string  = () => ['"', characters, '"']
+//   member  = () => [string, ws, ':', ws, value]
+//   object  = () => ['{', ws, members, '}']
 {
-    character: map(c => decodeOne(c)),         // one decoded character
+    character:  map(([c]) => decodeOne(c)),    // one decoded character
     characters: text(),                        // Repeat of character → string
-    string:     map(([, chars]) => chars),     // '"' chars '"' → the chars
+    string:     map(([, chars]) => chars),
     member:     map(([key, , , , value]) => [key, value]),
     members:    list(),
-    object:     map(entries => Object.fromEntries(entries)),
-    ws0:        unit,
+    object:     map(([, , members]) => Object.fromEntries(members)),
+    ws:         unit,
 }
 ```
 
-`object` never sees a quote, an escape, or whitespace, because each child rule's
-value is what flows up. No AST node is allocated anywhere on this path.
+`object` never sees a quote, an escape, or a space *in its members* — each child
+rule's effective value is what flows up, so the key is decoded and the value is
+built. No AST node is allocated anywhere on this path.
+
+**But `object` does see its own braces, and that is the design's sharpest
+ergonomic cost.** Every direct child reaches the parent: a punctuation rule with
+no transformer contributes its AST node, and `unit` contributes a value rather
+than suppressing the parent's `update`. So `object`'s callback receives four
+children — `{`, the whitespace, the members, `}` — and
+`Object.fromEntries(children)` would throw on the first brace. A positional
+callback has to account for the whole sequence, which is what the destructuring
+above does.
+
+That is tolerable for a rule the author wrote, and **not** tolerable for one a
+combinator built: `commaJoin0Plus(ws)('{}', member)` expands into option and
+repetition scaffolding whose shape the author never wrote and cannot see, so
+counting positions through it is guesswork against an implementation detail. So
+the "silent rules" question below is not sugar — it is what makes a transformer
+map writable over a grammar built from combinators, and stage 2 has to settle it
+while writing this example rather than after. The options are a rule marked
+silent (its value never reaches the parent), a designated `unit` value the
+engine drops, or combinator-aware helpers that know the shapes they build.
 
 **Recognizing without building.** The same grammar, with a map that answers
 `unit` for every rule. The parse is O(depth) memory, no value is built, and the
@@ -791,10 +823,11 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
       where a value comes back out of it.
 - [ ] Carry a refusal as a value (§6): it replaces the fold's state, suppresses
       the rest of its `update`s and its `end`, and propagates unchanged.
-- [ ] Settle the truncated-match contract: running out of input mid-sequence
-      finishes the enclosing folds early (`pos === null`), so their `end` sees a
-      partial fold. Document it on `TransformMatchResult` — the value is
-      meaningful only when the remainder is empty.
+- [ ] Skip `end` when the input runs out mid-rule, for every frame on the spine,
+      so no transformer is ever handed a fold that is missing children (§5, §6).
+      The value slot is `null` there, as it is for a rejected match; the engine's
+      native AST path keeps reporting its partial node, so `parserRuleSet` is
+      unchanged.
 - [ ] Proofs: `descentEquivalence` and the existing AST expectations unchanged
       under the empty map; the per-rule-kind event order of §2 including the
       EOF terminal and an empty match; a refusal reported with `success: true`;
@@ -806,6 +839,9 @@ not `fjs/media/json`: the boundary in §11.6 keeps the codecs off BNF at runtime
 so what transformers buy JSON here is an *example grammar that can produce a
 value* to check against a spec vector.
 
+- [ ] Settle the silent-child question (§10) — a silent rule, an engine-dropped
+      `unit`, or combinator-aware helpers — before writing the example's map,
+      since a rule a combinator built has scaffolding the author cannot count.
 - [ ] Add the §9 helpers with the O(1)-`update` accumulation inside them.
 - [ ] Rewrite the JSON example grammar's rules as **named thunks**, so `toData`
       keeps their names: `deterministic()` yields 92 rules of which exactly one,
@@ -854,10 +890,13 @@ value* to check against a spec vector.
   issue absorbs `partial` or this one does depends on which lands first.
 - **Helper set (§9).** `map`, `tuple`, `list`, `text`, `unit`, `span` is a
   guess at the working set; let the JSON and DJS ports pick the final list.
-- **Silent rules.** `unit` still delivers an `update` to the parent, which then
-  ignores it. A "do not report this child at all" marker would make positional
-  `tuple` transformers shorter (`[key, value]` instead of six slots). Sugar;
-  defer until the JSON port says whether it is missed.
+- **Silent rules — no longer optional (§10).** `unit` still delivers an `update`
+  to the parent, so a positional callback must count punctuation, whitespace and
+  every scaffolding node a combinator built. That is guesswork against an
+  implementation detail for any rule the author did not spell out, which the
+  JSON example runs into immediately. A rule marked silent, a designated `unit`
+  the engine drops, or combinator-aware helpers — pick one in stage 2, with the
+  example as the test of whether it reads.
 
 ### Related
 
