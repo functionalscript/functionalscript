@@ -15,7 +15,7 @@
  * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Expression, _Binding, _Reference } from '../../media/nix/types.ts'
- * @import { NixJob, NixRust } from './types.ts'
+ * @import { NixJob, NixPin, NixRust } from './types.ts'
  */
 
 import { pureOk } from '../../effects/module.f.mjs'
@@ -59,15 +59,54 @@ const toolchain = ({ version, extensions, targets }) => ['apply',
     ]
 ]
 
+/** The `let` name a pinned package is bound to, whatever package it overrides. */
+const pinName = /** @type {const} */ ('pinned')
+
 /**
- * A job without a `rust` declaration generates exactly what it generated before
- * the declaration existed: one input, one lambda argument, no overlay, one
- * `let` binding. Everything the second input brings is conditional on the job
- * asking for it.
+ * The package expression a job with a `pin` binds to {@link pinName}.
+ *
+ * That name is the generator's, not the job's, and deliberately: a reference's
+ * root has to be a Nix identifier — `serializeReference` rejects anything else
+ * — while an attribute *selection* is quoted when it needs to be. Binding to a
+ * name the job supplied would make `flakeText` throw for a package like
+ * `not an identifier`, where `pkgs."not an identifier".overrideAttrs` is
+ * perfectly serializable. `rust` is named by the generator for the same reason.
+ *
+ * `overrideAttrs` rather than a package definition of our own: the snapshot's
+ * recipe already unpacks this archive, patches its interpreter and wraps the
+ * binary, and all of that stays. Only `src` moves, to a release the snapshot
+ * does not carry, with the hash checked before anything is unpacked.
+ *
+ * `version` moves with it because the two are one fact. Leaving it behind
+ * would name the derivation after a release it no longer contains — and the
+ * package builds its own download URLs from `version`, so a mismatch there is
+ * the kind that surfaces as a hash error in an unrelated place.
+ *
+ * @type {(pin: NixPin) => Expression}
+ */
+const pinned = ({ package: name, version, url: archive, hash }) => ['apply',
+    ['ref', 'pkgs', name, 'overrideAttrs'],
+    ['set',
+        ['=', ['version'], version],
+        ['=', ['src'], ['apply',
+            ['ref', 'pkgs', 'fetchurl'],
+            ['set',
+                ['=', ['url'], archive],
+                ['=', ['hash'], hash],
+            ]
+        ]],
+    ]
+]
+
+/**
+ * A job declaring neither `rust` nor `pin` generates exactly what it generated
+ * before those declarations existed: one input, one lambda argument, no
+ * overlay, one `let` binding. Everything either one brings is conditional on
+ * the job asking for it.
  *
  * @type {(job: NixJob) => Expression}
  */
-const flake = ({ system, packages, shellHook, rust }) => ['set',
+const flake = ({ system, packages, shellHook, rust, pin }) => ['set',
     ['=', ['inputs', 'nixpkgs', 'url'], url],
     ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
         ['=', ['inputs', 'rust-overlay', 'url'], rustOverlayUrl],
@@ -93,12 +132,16 @@ const flake = ({ system, packages, shellHook, rust }) => ['set',
                     ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
                         ['=', ['rust'], toolchain(rust)],
                     ])),
+                    ...(pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+                        ['=', [pinName], pinned(pin)],
+                    ])),
                 ],
                 ['apply',
                     ['ref', 'pkgs', 'mkShell'],
                     ['set',
                         ['=', ['packages'], ['list',
                             ...(rust === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', 'rust']])),
+                            ...(pin === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', pinName]])),
                             ...packages.map(p => /** @type {const} */ (['ref', 'pkgs', p])),
                         ]],
                         ...(shellHook === undefined

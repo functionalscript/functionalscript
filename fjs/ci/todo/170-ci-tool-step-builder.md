@@ -9,10 +9,10 @@ The abstraction was justified by its own count: "Three real consumers (bun, deno
 node), all shipping — past the 'second real consumer' bar." Two of those three are
 gone. `deno` moved to a generated Nix flake, so it begins with
 `cachix/install-nix-action` and a version check and every command after that is a
-`nix develop --command` step. `bun` kept its setup action — its migration is blocked,
-see [bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md). Both also lost the
-global install and the smoke test it fed, so each is now two commands about this
-repository. The skeleton this issue extracted,
+`nix develop --command` step. `bun` has since migrated too, on a flake that keeps the snapshot's packaging and
+replaces the archive — [65Z](65z-ci-nix.md) records why that exception exists. Both
+also lost the global install and the smoke test it fed, so each is now two commands
+about this repository. The skeleton this issue extracted,
 `[install(setup action), install(global fjs), …test commands]`, describes neither.
 
 What the migrated jobs share is factored where they share it: `nixInstall`, `nixSteps`
@@ -28,9 +28,9 @@ this only if a runtime lands that reintroduces the pattern — which neither `bu
 pending migration nor anything in
 [built-package-checks](built-package-checks.md) should.
 
-The sibling factory [i175](./175-ci-setup-tool-factory.md) is unaffected and stays
-open: `setupTool` constructs a pinned-version install step, and four call sites for
-that remain — `setup-node`, `setup-bun`, wasmtime and wasmer.
+The sibling factory [i175](./175-ci-setup-tool-factory.md) outlived this one but not
+by much: the four call sites it counted are down to `setup-node` alone, and it closed
+on its own criterion.
 
 ### Original report
 
