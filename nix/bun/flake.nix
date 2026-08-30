@@ -5,7 +5,7 @@
             pkgs = import nixpkgs {
                 system = "aarch64-linux";
             };
-            bun = pkgs.bun.overrideAttrs {
+            pinned = pkgs.bun.overrideAttrs {
                 version = "1.4.0";
                 src = pkgs.fetchurl {
                     url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip";
@@ -14,7 +14,7 @@
             };
         in
         pkgs.mkShell {
-            packages = [ bun ];
+            packages = [ pinned ];
         };
     };
 }

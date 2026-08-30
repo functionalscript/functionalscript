@@ -1,7 +1,7 @@
 /**
  * Proofs for generated CI flakes.
  *
- * @import { NixJob } from './types.ts'
+ * @import { NixJob, NixPin } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -71,9 +71,9 @@ const withRust = {
 /**
  * A job whose runtime the snapshot carries at a version its suite fails on. The
  * flake keeps the snapshot's packaging and replaces only the archive, so the
- * override is a `let` binding named for the package and the shell takes that
- * binding rather than `pkgs.<package>` — which is what keeps the snapshot's
- * copy off `PATH` beside it.
+ * override is a `let` binding and the shell takes that binding rather than
+ * `pkgs.<package>` — which is what keeps the snapshot's copy off `PATH` beside
+ * it.
  *
  * @type {NixJob}
  */
@@ -151,7 +151,7 @@ const pinFlake = `{
             pkgs = import nixpkgs {
                 system = "aarch64-linux";
             };
-            bun = pkgs.bun.overrideAttrs {
+            pinned = pkgs.bun.overrideAttrs {
                 version = "1.4.0";
                 src = pkgs.fetchurl {
                     url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip";
@@ -160,11 +160,22 @@ const pinFlake = `{
             };
         in
         pkgs.mkShell {
-            packages = [ bun ];
+            packages = [ pinned ];
         };
     };
 }
 `
+
+/**
+ * `withPin`'s pin, without the optionality the type carries for jobs that
+ * declare none.
+ *
+ * @type {(job: NixJob) => NixPin}
+ */
+const unwrapPin = ({ pin }) => {
+    assert(pin !== undefined, 'expected a pinned release')
+    return pin
+}
 
 /** @type {(jobs: readonly NixJob[], id: string, file: string) => string} */
 const generatedFile = (jobs, id, file) => {
@@ -192,6 +203,21 @@ export const proof = {
         // needs none — and the archive's hash is in the flake, so the fetch is
         // checked before anything unpacks it.
         pin: () => assertEq(flakeText(withPin), pinFlake),
+        // A package name reaches one quotable position and one binding the
+        // generator owns, so an unusual one is escaped rather than rejected.
+        // The `let` name is the generator's precisely so that it cannot be:
+        // a reference's root must be an identifier, while a selection need not
+        // be, and binding to the job's string would throw here instead.
+        quotedPin: () => {
+            const text = flakeText({
+                ...withPin,
+                pin: { ...unwrapPin(withPin), package: 'not an identifier' },
+            })
+            assert(
+                text.includes('pinned = pkgs."not an identifier".overrideAttrs'),
+                text)
+            assert(text.includes('packages = [ pinned ]'), text)
+        },
     },
     nixFlakes: {
         write: () => assertEq(generated([plain], plain.id), plainFlake),

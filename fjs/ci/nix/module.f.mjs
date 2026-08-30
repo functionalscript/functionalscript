@@ -59,8 +59,18 @@ const toolchain = ({ version, extensions, targets }) => ['apply',
     ]
 ]
 
+/** The `let` name a pinned package is bound to, whatever package it overrides. */
+const pinName = /** @type {const} */ ('pinned')
+
 /**
- * The package expression a job with a `pin` binds to that package's name.
+ * The package expression a job with a `pin` binds to {@link pinName}.
+ *
+ * That name is the generator's, not the job's, and deliberately: a reference's
+ * root has to be a Nix identifier — `serializeReference` rejects anything else
+ * — while an attribute *selection* is quoted when it needs to be. Binding to a
+ * name the job supplied would make `flakeText` throw for a package like
+ * `not an identifier`, where `pkgs."not an identifier".overrideAttrs` is
+ * perfectly serializable. `rust` is named by the generator for the same reason.
  *
  * `overrideAttrs` rather than a package definition of our own: the snapshot's
  * recipe already unpacks this archive, patches its interpreter and wraps the
@@ -123,7 +133,7 @@ const flake = ({ system, packages, shellHook, rust, pin }) => ['set',
                         ['=', ['rust'], toolchain(rust)],
                     ])),
                     ...(pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
-                        ['=', [pin.package], pinned(pin)],
+                        ['=', [pinName], pinned(pin)],
                     ])),
                 ],
                 ['apply',
@@ -131,7 +141,7 @@ const flake = ({ system, packages, shellHook, rust, pin }) => ['set',
                     ['set',
                         ['=', ['packages'], ['list',
                             ...(rust === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', 'rust']])),
-                            ...(pin === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', pin.package]])),
+                            ...(pin === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', pinName]])),
                             ...packages.map(p => /** @type {const} */ (['ref', 'pkgs', p])),
                         ]],
                         ...(shellHook === undefined

@@ -97,7 +97,7 @@ setting reaches. So that flake keeps the snapshot's recipe and replaces the
 archive it unpacks:
 
 ```nix
-bun = pkgs.bun.overrideAttrs {
+pinned = pkgs.bun.overrideAttrs {
     version = "1.4.0";
     src = pkgs.fetchurl {
         url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip";
@@ -110,6 +110,12 @@ Everything the snapshot does with that archive still happens — unzip,
 `autoPatchelfHook`, the wrapper — and the hash is checked before any of it. The
 shell takes the `let` binding rather than `pkgs.bun`, which is what keeps 1.3.13
 off `PATH` beside it.
+
+The binding is named `pinned` by the generator rather than after the package,
+like `rust` in the `wasm` flake. A Nix reference has to start with an
+identifier, while an attribute *selection* can be quoted — so naming it after
+the package would fail to serialize for any package name Nix would need to
+quote, in a flake where `pkgs."…"` is perfectly fine.
 
 This is possible only because Nixpkgs fetches Bun as a prebuilt archive; a
 package built from source would make this repository the maintainer of a package

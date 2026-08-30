@@ -84,11 +84,16 @@ archive** — `stdenvNoCC.mkDerivation`, `dontBuild = true`, unzip, `install -Dm
 builds. The job's flake therefore keeps that recipe and replaces only `src`:
 
 ```nix
-bun = pkgs.bun.overrideAttrs {
+pinned = pkgs.bun.overrideAttrs {
     version = "1.4.0";
     src = pkgs.fetchurl { url = "…/bun-v1.4.0/bun-linux-aarch64.zip"; hash = "sha256-…"; };
 };
 ```
+
+The binding is the generator's name, not the package's — as `rust` is in the
+`wasm` flake. A reference has to start with a Nix identifier while a selection
+can be quoted, so naming it after the package would refuse to serialize names
+that `pkgs."…"` handles without trouble.
 
 No second input, and no third party: the archive is the vendor's own release and the
 hash is this repository's, computed by downloading and hashing it. That is the whole
