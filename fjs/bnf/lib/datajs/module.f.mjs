@@ -1,8 +1,7 @@
 import { string } from '../../../rtti/module.f.mjs'
-import {  } from '../json/module.f.mjs'
+import { digit, false_, null_, optionFloatSuffix, optionNeg, true_, uint, ws, wsSymbol } from '../json/module.f.mjs'
 import { option, range, repeat0Plus, repeat1Plus } from '../../module.f.mjs'
 
-/*
 const uNumber = {
     finite: [uint, { n: 'n', optionFloatSuffix }],
     infinity: 'Infinity'
@@ -23,9 +22,9 @@ const value  = {
     number,
     nan: 'NaN',
     string,
-    false_,
-    true_,
-    null_,
+    false: false_,
+    true: true_,
+    null: null_,
     undefined: 'undefined',
     id,
 }
@@ -41,4 +40,3 @@ export const datajs = [
     ws1,
     value
 ]
-*/
