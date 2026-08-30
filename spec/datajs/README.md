@@ -366,8 +366,8 @@ rejects it rather than inventing a spelling — see
 
 A `const` name is an `id`, and each name is bound at most once. There is no
 list of excluded names: every `id` begins with `$`, and no JavaScript reserved
-word and none of this format's value words do, so a name can never collide
-with either.
+word and none of this format's value words does, so no name can collide with
+either.
 
 The two collisions that would otherwise need excluding are both real, and both
 gone:
@@ -386,6 +386,16 @@ gone:
 Neither list has to be written down, checked, or tracked as JavaScript grows
 new keywords, because `$class`, `$eval` and `$undefined` are ordinary names
 and `class`, `eval` and `undefined` are not names at all.
+
+The two halves of that do not rest on the same thing, and the
+[rationale](#rationale) separates them. The **value-word** half is closed by
+this grammar: the words DataJS reads as values are fixed here, and they do not
+grow when ECMA-262 grows. The **reserved-word** half is ECMA-262's to decide.
+It holds because no word JavaScript prohibits in binding position is spelled
+with a `$` — true of every such word today, and an argument about how the
+language grows rather than a guarantee about how it will. Were that ever to
+change, the exclusion list still does not come back: the rationale gives the
+mitigations and the one-line narrowing of `id` that would settle it.
 
 `$` alone is a name, and so is `$$`: the grammar requires the `$`, not
 anything after it.
@@ -840,13 +850,19 @@ shell is not the same thing.** An earlier draft of this section said the
 documents most likely to be piped through a shell for hashing or comparison
 were the most exposed, which is not so: a shell expands the words of a command
 before running it and does not rescan the bytes flowing through the pipeline.
-Measured — a document piped into a filter, redirected from a file, and captured
-in a quoted `$(…)` all come through byte for byte, with `sha256sum` giving the
-same digest through the pipe as from the file. Only writing the document *into*
-a script reaches it: in an unquoted `<<EOF` heredoc, `const $0=[1,2];` arrives
-as `const /bin/bash=[1,2];`. So the bulk operations — hashing, diffing, moving
-documents between commands — are not exposed at all, and what is left is the
-narrower case of pasting a document into a script.
+Measured — a document piped into a filter or redirected from a file comes
+through byte for byte, `sha256sum` giving the same digest through the pipe as
+from the file. A quoted `$(…)` capture does not expand `$0` either, but it is
+not byte-preserving, for a reason that has nothing to do with `$`: a command
+substitution has its trailing newlines stripped, so a document ending in one
+comes back a byte shorter and hashes differently. The value survives — trailing
+whitespace is insignificant, so it is the same document — but a capture is the
+wrong tool for comparing bytes whatever the text contains. Only writing the
+document *into* a script reaches it: in an unquoted `<<EOF` heredoc,
+`const $0=[1,2];` arrives as `const /bin/bash=[1,2];`. So the bulk
+operations — hashing, diffing, moving documents between commands — are not
+exposed at all, and what is left is the narrower case of pasting a document
+into a script.
 
 What the association does *not* cost is also worth stating. It is a hazard of
 the surrounding text, not of the format: embedding a document as data — in a
