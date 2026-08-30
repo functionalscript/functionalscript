@@ -38,7 +38,7 @@ const ws1 = repeat1Plus(wsSymbol)
 /** @type {(...v: readonly Rule[]) => Rule} */
 const statement = (...v) => [...v, value, ws, ';', ws]
 
-export const datajs = [
+export const dataJs = [
     ws,
     repeat0Plus(statement('const', ws1, id, ws, '=', ws)),
     statement('export', ws1, 'default', ws1)
