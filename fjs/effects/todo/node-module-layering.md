@@ -313,12 +313,18 @@ Judgement calls worth deciding explicitly rather than by accident:
       with its first consumer, which is the same second-implementer discipline
       that decided the rows above.
 - [ ] Move `Await` / `awaitIfPromise` to `fjs/effects/common`.
-- [ ] Move the console family to `fjs/effects/common`, add the
+- [x] Move the console family to `fjs/effects/common`, add the
       named `Std` type there as `RequiredMap<WriteConsoles, …>`, point
       `NodeProgramOptions.std` at it, and narrow `csiWrite` to take `Std`
-      (updating its one caller, `fjs/emergent_testing/module.f.mjs:360`). Verify
+      (updating its one caller in `fjs/emergent_testing/module.f.mjs`). Verify
       `fjs/text/sgr` no longer imports `effects/node` at all — that is the test
-      for this step.
+      for this step, and it passes for the directory rather than the module:
+      the proof had reached for the *virtual node runner* to give its bytes
+      somewhere to land, and now claims `write` on a mock, which is the same
+      coupling one file over. The family also gained the co-located proofs it
+      never had — `log`, `error`, `errorExit`, `read` and `readLine` were
+      covered only incidentally, through `protocol/mcp/stdio`, `web` and
+      `emergent_testing`.
 - [ ] Move `Test` / `TestFn` / `TestContext` / `test` to
       `fjs/effects/common` — **not** into `fjs/emergent_testing`, which
       would be a cycle (see the judgement call above). Confirm `effects/node`

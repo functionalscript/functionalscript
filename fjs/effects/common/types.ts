@@ -15,8 +15,11 @@
  * @module
  */
 
+import type { List as EffectList } from '../../types/list/types.ts'
+import type { RequiredMap } from '../../types/object/types.ts'
 import type { Result } from '../../types/result/types.ts'
-import type { OpResult } from '../types.ts'
+import type { Vec } from '../../types/bit_vec/types.ts'
+import type { Effect, OpResult } from '../types.ts'
 
 /**
  * The outcome of a `Sandbox` operation.
@@ -85,3 +88,47 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxRes
  * a proxy trap in one of them is a failure of that test rather than of the run.
  */
 export type Catch = readonly['catch', <T>(f: () => T) => OpResult<Result<T, unknown>>]
+
+// write
+
+/** Named output streams accepted by the `Write` effect. */
+export type WriteConsoles = 'stdout' | 'stderr'
+
+/**
+ * Raw byte write to a named output stream. Encoding-agnostic — callers supply
+ * a `Vec`. The Node runner maps each stream name to the appropriate fd and
+ * delegates to the OS via `stream.write()` with backpressure handling.
+ */
+export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => OpResult<void>]
+
+export type Console = (s: string) => Effect<Write, void>
+
+/**
+ * What each output stream is known to be at startup — today, whether it is a
+ * TTY.
+ *
+ * Named, rather than spelled inline where it is used, because two unrelated
+ * layers have to agree on it: a host fills it in, and `text/sgr`'s `csiWrite`
+ * reads it to decide whether ANSI sequences survive. Spelling it at both ends
+ * made the *whole* of a node program's options the argument a pure formatter
+ * had to take, which is how an ANSI helper came to name a host.
+ */
+export type Std = RequiredMap<WriteConsoles, { readonly isTTY: boolean }>
+
+// read
+
+/** Named input streams accepted by the `Read` effect. */
+export type ReadConsoles = 'stdin'
+
+/**
+ * Reads a single byte from a named input stream — the byte-granular dual of
+ * `write`. Resolves to the byte value (`0`–`255`) or `null` at end of
+ * input (EOF). One byte at a time: the effect carries no buffering or line
+ * policy, so higher-level framing (see `readLine`) lives in pure code
+ * rather than the interpreter. Back-pressure is naturally sequential — the next
+ * `read` is only issued once the previous byte is consumed.
+ */
+export type Read = readonly['read', (stream: ReadConsoles) => OpResult<number | null>]
+
+/** @internal */
+export type _UtfList = EffectList<number>
