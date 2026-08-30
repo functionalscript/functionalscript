@@ -1,0 +1,90 @@
+## One line per test serves a terminal, not a line-oriented consumer
+
+**Priority:** P2
+**Status:** open
+
+### Problem
+
+`fjs t` opens a leaf's line before the leaf runs — `name: ` with no newline —
+and closes it when the leaf lands: `ok, 1.2345 ms`. That is the right shape for
+someone watching a terminal, and it is what
+[report a test's name before running it](report-before-running.md) landed.
+
+It is not a record until the newline arrives, and two of the reasons the
+announcement exists are reasons a *consumer* needs it, not a reader:
+
+- **A slow test is invisible again to anything that reads lines.** A pipe, a CI
+  log collector, a controller watching the stream: none of them see `name: `
+  until the leaf finishes and the line is closed, which is exactly when the
+  result would have told them anyway.
+- **A killed run can lose the name.** The unterminated final line is the one
+  fact worth having when a proof takes the process down, and a consumer that
+  discards an incomplete final line drops it.
+
+Neither costs a terminal reader anything — a terminal shows an unterminated
+line the moment it is written — so this is not an argument for going back to
+two complete records per leaf. It is the observation that **the two audiences
+want different output**, and that `fjs t` currently picks one.
+
+### The design question
+
+A TTY and a pipe are not the same destination, and the difference is bigger
+than a newline:
+
+- **On a TTY** the runner may move the cursor. Rewriting a line in place,
+  overwriting a running test's name with its result, a counter that stays on
+  one row, a spinner, colour: the terminal is a canvas, and the announcement is
+  transient rather than part of the log.
+- **On a pipe** every event has to be a complete, self-contained record,
+  written once and never revised, because that is all a line reader can
+  observe. What is transient on a TTY has to be *emitted* here — or framed
+  some other way the consumer can act on immediately.
+
+So the answer is not a flag on the current format. It is that the reporter has
+two modes with different event shapes, and the run's records — which a reader
+of [reporter modes](211-reporter-modes.md) will recognise as one more mode
+question — have to be defined for each rather than derived from the other.
+
+`options.std` already carries `isTTY` per stream, so the *selection* is
+available today and costs nothing; what is missing is the second format and the
+decision about what each mode owes a consumer. Note that a CI log collector is
+a non-TTY destination that also wants the GitHub annotation format, so the two
+axes — TTY-ness and CI-ness — are not the same axis and should not be collapsed
+into one flag.
+
+### Constraints
+
+- **Not two records on a TTY.** Doubling every line to keep a rare splice tidy
+  is the trade [report-before-running](report-before-running.md) reversed
+  deliberately; a non-TTY requirement is not a reason to reinstate it where it
+  was rejected.
+- **One stream.** Whatever each mode emits still goes to `stdout`, for the
+  ordering reason in [reporter modes](211-reporter-modes.md). `stderr` stays
+  for a runner crash.
+- **The browser is a third destination**, not a variant of these two: it
+  renders rows, and its pending-row half of
+  [report-before-running](report-before-running.md) is still open. A mode
+  system that only distinguishes TTY from pipe should not make that harder to
+  add.
+- **Whatever a mode emits has to be provable through `effects/node/virtual`**,
+  which is neither a TTY nor a pipe but answers `isTTY` either way. A format
+  that can only be observed by looking at a real terminal is a format with no
+  proof.
+
+### Tasks
+
+- [ ] Decide what a non-TTY run emits per leaf, and whether the announcement is
+      a record of its own there.
+- [ ] Decide what a TTY run may do with the cursor, and whether the current
+      open-line format is already that answer or a step towards it.
+- [ ] Select on `options.std['stdout'].isTTY`, keeping CI-ness a separate axis.
+- [ ] Prove both modes through the virtual runner.
+
+### Related
+
+- [report a test's name before running it](report-before-running.md) — where
+  the open-line format came from, and the trade it made
+- [reporter modes](211-reporter-modes.md) — the mode system this belongs in,
+  including the dynamic-progress reporter a TTY mode overlaps with
+- [test framework silent mode](test-framework-silent-mode.md) — brief progress
+  output, the other consumer of a TTY-aware format
