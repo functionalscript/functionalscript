@@ -60,9 +60,12 @@ members" contract; none of them names it.
 
 ### Proposal
 
-Two extractions in `rtti/data`, both exported for `rtti/ts`:
+Two extractions in `rtti/data`. Only the first is exported, and the
+difference matters for what each one owes in proofs:
 
-1. A unary eliminator stating the trichotomy once:
+1. A unary eliminator stating the trichotomy once. It is **exported** —
+   `ts`'s `kindToTs` (`../ts/module.f.mjs:123`) is one of the sites being
+   rewritten through it, so it has to cross the module boundary:
 
    ```js
    /** @type {<T, R>(cases: {
@@ -70,7 +73,7 @@ Two extractions in `rtti/data`, both exported for `rtti/ts`:
     *     readonly whole: () => R
     *     readonly members: (list: readonly T[]) => R
     * }) => (k: KindSet<T> | undefined) => R} */
-   const kindFold = ({ absent, whole, members }) => k =>
+   export const kindFold = ({ absent, whole, members }) => k =>
        k === undefined ? absent() :
        k === true ? whole() :
        members(k)
@@ -80,7 +83,9 @@ Two extractions in `rtti/data`, both exported for `rtti/ts`:
    the rewriters below) from it.
 
 2. A shared skeleton for the two union rewriters, holding the spread and both
-   guards once:
+   guards once. This one stays **private**: both instantiations live in
+   `data` (`mapChildren`, `../data/module.f.mjs:703`; `dropSubsumedUnion`,
+   `:729`), so nothing outside the module needs the name.
 
    ```js
    /** @type {(onArray: (l: readonly ArraySet[]) => readonly ArraySet[],
@@ -99,11 +104,24 @@ at `kindFold` as the statement of the contract.
 
 - [ ] Add `kindFold` to `fjs/rtti/data/module.f.mjs`; rewrite `kindRefs`,
       `patternsValidate`, and `ts`'s `kindToTs` through it.
+- [ ] **Add a co-located proof entry for `kindFold`** in
+      `fjs/rtti/data/proof.f.mjs` — all three cases (`absent`, `whole`,
+      `members`), each observing that the matching branch ran. `kindFold` is
+      a newly published callable, and `fjs/AGENTS.md:25-34` requires an
+      export to be exercised by its own proof; the rewritten private
+      consumers may cover its lines incidentally, but nothing would then be
+      calling the exported name, and the case a consumer happens not to hit
+      would go unproven.
 - [ ] Extract `mapPatternKinds`; re-derive `mapChildren` and `dropSubsumedUnion`.
-- [ ] `npx tsc`, `fjs t` — pure refactor, rtti proofs pass unchanged.
+      It stays private, so its coverage comes from those two consumers.
+- [ ] `npx tsc`, `fjs t`. The rewrite is behavior-preserving and the existing
+      rtti proofs pass unchanged — but this is not a *pure* refactor: it adds
+      one export, which arrives with the proof above.
 
 ### Related
 
-- `../data/module.f.mjs` — `patternsValidate` and its callers. (The
-  validate/parse container-skeleton issue that used to be listed here was
-  resolved by deleting `validate`.)
+- `../data/module.f.mjs` — `patternsValidate` and its callers.
+- [container-read-skeleton.md](./container-read-skeleton.md) — the
+  validate/parse container-skeleton issue that used to be listed here; a
+  note briefly recorded it as resolved by deleting `validate`, but that
+  deletion never landed.

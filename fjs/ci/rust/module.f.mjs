@@ -1,16 +1,30 @@
 /**
  * CI step builder for the Rust crate: platform compatibility jobs run native
  * tests and Clippy, Intel jobs also run 32-bit target tests and Clippy, and the
- * canonical WASM job installs Wasmtime and Wasmer before exercising every WASM
- * target.
+ * canonical WASM job exercises every WASM target inside its generated flake.
+ *
+ * The two families get their toolchain from different places, and the reason is
+ * packaging rather than preference. The platform matrix runs on six runner
+ * images across three operating systems, only one of which a generated flake
+ * could serve, so it keeps `dtolnay/rust-toolchain`. The WASM job runs on one
+ * Linux runner and can have a flake — but not one built from Nixpkgs alone:
+ * Nixpkgs builds a single `rustc` and hard-codes the targets it builds `std`
+ * for, and three of this job's four are not among them at any version. Its
+ * flake takes the toolchain from `rust-overlay` instead, which unpacks the same
+ * release artifacts `rustup` would.
+ *
+ * Both name `../config/module.f.mjs`'s `rust`, so the version cannot differ
+ * between a platform job and this one.
  *
  * @module
  *
  * @import { Architecture, MetaStep, Os } from '../common/types.ts'
+ * @import { NixJob } from '../nix/types.ts'
  */
 
-import { wasmer, wasmtime } from '../config/module.f.mjs'
-import { install, test, uses } from '../common/module.f.mjs'
+import { rust, wasmer, wasmtime } from '../config/module.f.mjs'
+import { test } from '../common/module.f.mjs'
+import { nixInstall, nixSteps, nixSystem, nixVersionStep } from '../nix/module.f.mjs'
 
 /** @type {(tool: 'clippy' | 'test', target?: string, config?: string) => string} */
 const cargoCommand = (tool, target, config) => {
@@ -19,60 +33,35 @@ const cargoCommand = (tool, target, config) => {
     return `cargo ${tool}${to}${co}`
 }
 
-/** @type {(target?: string, config?: string) => MetaStep} */
-const cargoTest = (target, config) =>
-    test({ run: cargoCommand('test', target, config) })
+/** @type {(target?: string) => string} */
+const cargoClippy = target => `${cargoCommand('clippy', target)} -- -D warnings`
 
-/** @type {(target?: string) => MetaStep} */
-const cargoClippy = target =>
-    test({ run: `${cargoCommand('clippy', target)} -- -D warnings` })
-
-/** @type {(target?: string) => MetaStep} */
+/** @type {(target?: string) => string} */
 const cargoReleaseClippy = target =>
-    test({ run: `${cargoCommand('clippy', target)} --release -- -D warnings` })
+    `${cargoCommand('clippy', target)} --release -- -D warnings`
 
-/** @type {(target: string, config?: string) => readonly MetaStep[]} */
-const cargoTestPair = (target, config) => {
+/** Debug and release, tests then Clippy — the check set every target gets. */
+/** @type {(target?: string) => readonly string[]} */
+const targetCheckCommands = target => [
+    cargoCommand('test', target),
+    `${cargoCommand('test', target)} --release`,
+    cargoClippy(target),
+    cargoReleaseClippy(target),
+]
+
+/** @type {(target: string, config: string) => readonly string[]} */
+const cargoTestPairCommands = (target, config) => {
     const main = cargoCommand('test', target, config)
-    return [
-        cargoTest(target, config),
-        test({ run: `${main} --release` })
-    ]
+    return [main, `${main} --release`]
 }
 
-/** @type {(target?: string) => MetaStep} */
-const cargoReleaseTest = target =>
-    test({ run: `${cargoCommand('test', target)} --release` })
-
-/** @type {(target?: string) => readonly MetaStep[]} */
-const targetChecks = target => [
-    cargoTest(target),
-    cargoReleaseTest(target),
-    cargoClippy(target),
-    cargoReleaseClippy(target)
-]
+/** @type {(commands: readonly string[]) => readonly MetaStep[]} */
+const testSteps = commands => commands.map(run => test({ run }))
 
 /** @type {(target: string) => readonly MetaStep[]} */
 const rustTarget = target => [
     { type: 'rust', target },
-    ...targetChecks(target)
-]
-
-/** @type {(target: string) => readonly MetaStep[]} */
-const wasmTarget = target => [
-    { type: 'rust', target },
-    ...targetChecks(target),
-    ...cargoTestPair(target, '.cargo/config.wasmer.toml')
-]
-
-// Wasmtime 47 removed wasi-threads, so the threads target runs under Wasmer
-// only; Clippy needs no runner and stays. See todo/blocked/wasmtime-threads.md.
-/** @type {(target: string) => readonly MetaStep[]} */
-const wasmerOnlyTarget = target => [
-    { type: 'rust', target },
-    cargoClippy(target),
-    cargoReleaseClippy(target),
-    ...cargoTestPair(target, '.cargo/config.wasmer.toml')
+    ...testSteps(targetCheckCommands(target)),
 ]
 
 /** @type {(a: Architecture, v: Os) => readonly MetaStep[]} */
@@ -92,17 +81,99 @@ const i686 = (a, v) => {
 /** @type {(v: Os, a: Architecture) => readonly MetaStep[]} */
 export const rustPlatformSteps = (v, a) => [
     { type: 'rust' },
-    ...targetChecks(),
+    ...testSteps(targetCheckCommands()),
     ...i686(a, v),
 ]
 
-/** @type {readonly MetaStep[]} */
+/** CI job id, and the directory name of its generated flake. */
+export const wasmJobId = /** @type {const} */ ('wasm')
+
+const wasmerConfig = /** @type {const} */ ('.cargo/config.wasmer.toml')
+
+/**
+ * Wasmtime 47 removed wasi-threads, so this target runs under Wasmer only.
+ * Clippy needs no runner and stays. See `../../../todo/blocked/wasmtime-threads.md`.
+ *
+ * The Wasmtime the flake provides predates that removal, so the arrangement
+ * currently tests less than it could rather than something it cannot: revisit
+ * when the pinned snapshot moves past 47.
+ */
+const wasmerOnlyTarget = /** @type {const} */ ('wasm32-wasip1-threads')
+
+/**
+ * Every WASM target the job exercises, in the order it exercises them.
+ *
+ * One list, read twice: the flake declares these as the targets whose
+ * `rust-std` its toolchain must carry, and the steps below build the commands
+ * from the same array. A target added here therefore arrives in the shell and
+ * in the job together, rather than as a command with no standard library.
+ */
+const wasmTargets = /** @type {const} */ ([
+    'wasm32-wasip1',
+    'wasm32-wasip2',
+    'wasm32-unknown-unknown',
+    wasmerOnlyTarget,
+])
+
+/** @type {(target: string) => readonly string[]} */
+const wasmTargetCommands = target =>
+    target === wasmerOnlyTarget
+        ? [
+            cargoClippy(target),
+            cargoReleaseClippy(target),
+            ...cargoTestPairCommands(target, wasmerConfig),
+        ]
+        : [
+            ...targetCheckCommands(target),
+            ...cargoTestPairCommands(target, wasmerConfig),
+        ]
+
+/**
+ * The job's development environment: a `rust-overlay` toolchain plus the two
+ * runtimes `.cargo/config.toml` and `.cargo/config.wasmer.toml` name.
+ *
+ * `minimal` rather than `default`, with the two components the job actually
+ * runs named explicitly: the default profile would add `rust-docs`, which is a
+ * download this job never opens.
+ *
+ * Neither runtime attribute carries a version, so — as with `pkgs.deno` — the
+ * job's own checks are the whole tie between `../config/module.f.mjs` and what
+ * the shell provides. The toolchain is the opposite case: the flake names
+ * `1.98.0` in full, so a check would restate the flake rather than test it.
+ *
+ * @type {NixJob}
+ */
+export const wasmNixJob = {
+    id: wasmJobId,
+    system: nixSystem,
+    packages: ['wasmtime', 'wasmer'],
+    rust: {
+        version: rust,
+        extensions: ['clippy', 'rustfmt'],
+        targets: wasmTargets,
+    },
+}
+
+/**
+ * The migrated job: install Nix, check the two runtimes its flake provides,
+ * then format, test and lint every WASM target through that shell.
+ *
+ * It installs no toolchain of its own. `cargo` comes from the flake, which is
+ * also where `wasmtime` and `wasmer` come from — and that is not a detail:
+ * `cargo` invokes those runners itself, through the `runner` keys in
+ * `.cargo/config.toml`, so they have to be on the same `PATH` as the `cargo`
+ * that spawns them. A job taking the toolchain from an action and the runtimes
+ * from a flake would depend on whether `nix develop` keeps the runner's `PATH`,
+ * which nothing else here depends on.
+ *
+ * @type {readonly MetaStep[]}
+ */
 export const rustWasmSteps = [
-    test({ run: 'cargo fmt -- --check' }),
-    install(uses('bytecodealliance/actions/wasmtime/setup', { version: wasmtime })),
-    install(uses('wasmerio/setup-wasmer', { version: `v${wasmer}` })),
-    ...wasmTarget('wasm32-wasip1'),
-    ...wasmTarget('wasm32-wasip2'),
-    ...wasmTarget('wasm32-unknown-unknown'),
-    ...wasmerOnlyTarget('wasm32-wasip1-threads'),
+    nixInstall,
+    nixVersionStep(wasmJobId, 'wasmtime --version', `wasmtime ${wasmtime}`),
+    nixVersionStep(wasmJobId, 'wasmer --version', `wasmer ${wasmer}`),
+    ...nixSteps(wasmJobId)([
+        'cargo fmt -- --check',
+        ...wasmTargets.flatMap(wasmTargetCommands),
+    ]),
 ]

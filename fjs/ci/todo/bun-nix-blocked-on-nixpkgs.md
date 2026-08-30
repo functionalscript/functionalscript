@@ -1,14 +1,27 @@
 ## bun-nix-blocked-on-nixpkgs. Migrate the `bun` job to a generated flake
 
 **Priority:** P3
-**Status:** blocked — Nixpkgs has no Bun this repository's proofs pass on
+**Status:** open
+
+Not `blocked`, and not in [`todo/blocked/`](../../../todo/README.md#blocked-by-third-parties):
+Nixpkgs shipping a Bun that passes is one way out, but deciding whether
+`customSpeciesThatFailsIsReported` asserts something Bun owes is work that can
+be done today. If that decision goes Bun's way and only the wait is left, this
+moves to `todo/blocked/` with a Trigger section.
 
 ### Problem
 
-Every other canonical CI job runs through a generated Nix flake. `bun` is the
-one exception, still installing its runtime with `oven-sh/setup-bun`, so
-`fjs/ci/config/module.f.mjs`'s `bun` is a released version rather than a
-packaged one and `nixJobs` in `../module.f.mjs` has no entry for it.
+Every canonical **runtime** job but this one runs through a generated Nix flake.
+`bun` still installs its runtime with `oven-sh/setup-bun`, so
+`fjs/ci/config/module.f.mjs`'s `bun` is a released version rather than a packaged
+one and `nixJobs` in `../module.f.mjs` has no entry for it. One other job has no
+flake either — `package-check`, which has no checkout to hold one — and
+[65Z-ci-nix](65z-ci-nix.md) keeps that whole picture.
+
+`wasm` was the other, and is not any more: its toolchain comes from a second flake
+input rather than from Nixpkgs. That is not a route out of here. The WASM job's gap
+was a missing `rust-std`, which the Rust project itself publishes; Bun's is a
+runtime whose behaviour differs, and no packaging of 1.3.13 changes what it does.
 
 The migration itself is written and works: a `bunNixJob` declaring
 `packages: ['bun']` on `aarch64-linux`, `nixInstall`, a
@@ -71,8 +84,10 @@ Any one of these unblocks it; the first is the cheap one:
 
 ### Related
 
-- [65Z-ci-nix](65z-ci-nix.md) — the flake generation this job is the last
-  canonical holdout from
+- [65Z-ci-nix](65z-ci-nix.md) — the flake generation this job is a holdout
+  from, and where every job's Nix status is recorded
+- [65Z-ci-nix](65z-ci-nix.md), "`wasm`, and the second input" — the other job
+  Nixpkgs could not serve, and what taking a toolchain from elsewhere cost
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — the Node
   milestone that set the shape every migrated job follows
 - [built-package-checks](built-package-checks.md) — why the `bun` job no longer

@@ -16,7 +16,12 @@ export type _Reference = readonly ['ref', _Identifier, ..._AttributeName[]]
 
 export type _AttributeSet = readonly ['set', ..._Binding[]]
 
-export type _NixList = readonly ['list', ..._Reference[]]
+/**
+ * A list literal. Items are references or strings — the two forms the
+ * generators need, and the two the serializer can render without deciding when
+ * a nested expression has to be parenthesised.
+ */
+export type _NixList = readonly ['list', ...(_Reference | string)[]]
 
 type _ApplicationArgument = _Reference | _AttributeSet
 
