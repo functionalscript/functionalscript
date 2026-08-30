@@ -22,7 +22,7 @@
  * @import { NixJob } from '../nix/types.ts'
  */
 
-import { bun, deno, node, rust, wasmer, wasmtime } from '../config/module.f.mjs'
+import { bun, deno, node, rust, typescript, wasmer, wasmtime } from '../config/module.f.mjs'
 import { bunPin } from '../bun/module.f.mjs'
 import { major } from '../node/module.f.mjs'
 import { wasmTargets } from '../rust/module.f.mjs'
@@ -58,12 +58,25 @@ export const devSystems = [
  * is one a developer leaves immediately. The rest is the union of what the
  * canonical jobs run on.
  *
+ * The compiler is in that union rather than beside it. `npx tsc` used to reach
+ * a `typescript` in `node_modules`, so every environment that ran `npm ci` had
+ * one whether it type-checked or not; now only the `node26` job's shell carries
+ * it, and a developer needs the same one to run `npm test` or `npm pack` at
+ * all. See `../todo/65z-ci-nix.md`.
+ *
  * @type {NixJob}
  */
 export const devNixJob = {
     id: devJobId,
     systems: devSystems,
-    packages: [`nodejs_${major(node.default)}`, 'deno', 'wasmtime', 'wasmer', 'git'],
+    packages: [
+        `nodejs_${major(node.default)}`,
+        'deno',
+        typescript.attribute,
+        'wasmtime',
+        'wasmer',
+        'git',
+    ],
     rust: {
         version: rust,
         extensions: ['clippy', 'rustfmt'],
@@ -83,8 +96,8 @@ export const devNixJob = {
  * shell failed to build.
  *
  * Rust has no check, for the reason it has none in the `wasm` job: the flake
- * names `1.98.0` in full, so a check could only restate it. The five below are
- * the runtimes whose versions the flake does *not* say — three from unversioned
+ * names `1.98.0` in full, so a check could only restate it. The six below are
+ * the tools whose versions the flake does *not* say — four from unversioned
  * snapshot attributes, one from a major-versioned one, and Bun from an override
  * that has to be confirmed to have applied at all.
  *
@@ -115,6 +128,7 @@ export const devSteps = [
     nixVersionStep(devJobId, 'node --version', `v${node.default}`),
     nixVersionStep(devJobId, `deno eval 'console.log(Deno.version.deno)'`, deno),
     nixVersionStep(devJobId, 'bun --version', bun),
+    nixVersionStep(devJobId, 'tsc --version', `Version ${typescript.version}`),
     nixVersionStep(devJobId, 'wasmtime --version', `wasmtime ${wasmtime}`),
     nixVersionStep(devJobId, 'wasmer --version', `wasmer ${wasmer}`),
     ...nixSteps(devJobId)(['git --version']),

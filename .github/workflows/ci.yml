@@ -428,6 +428,9 @@
           "run": "test \"$(./nix/dev/run bun --version)\" = \"1.4.0\""
         },
         {
+          "run": "test \"$(./nix/dev/run tsc --version)\" = \"Version 7.0.2\""
+        },
+        {
           "run": "test \"$(./nix/dev/run wasmtime --version)\" = \"wasmtime 45.0.2\""
         },
         {
@@ -491,10 +494,13 @@
           "run": "test \"$(./nix/node26/run node --version)\" = \"v26.7.0\""
         },
         {
+          "run": "test \"$(./nix/node26/run tsc --version)\" = \"Version 7.0.2\""
+        },
+        {
           "run": "./nix/node26/run npm ci"
         },
         {
-          "run": "./nix/node26/run npx tsc"
+          "run": "./nix/node26/run tsc"
         },
         {
           "run": "./nix/node26/run npm run cov"
@@ -543,7 +549,7 @@
           "run": "npm install \"packed@file:$(echo *.tgz)\""
         },
         {
-          "run": "npm install \"typescript@=7.0.2\""
+          "run": "npm install \"typescript@7.0.2\""
         },
         {
           "run": "echo '{\"include\":[\"node_modules/packed/**/*\",\"node_modules/packed/**/.*\",\"node_modules/packed/**/.*/**/*\"],\"exclude\":[],\"compilerOptions\":{\"module\":\"nodenext\",\"target\":\"esnext\",\"strict\":true,\"noEmit\":true,\"skipLibCheck\":false}}' > tsconfig.json"

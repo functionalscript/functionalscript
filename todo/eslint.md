@@ -44,8 +44,9 @@ would have found most of the audit's 181-cast "remove" bucket on its own —
 plus `no-unnecessary-condition`, `no-explicit-any`,
 `consistent-type-assertions`, and a plugin surface for the three rules above.
 
-The cost is real and should be stated plainly: the repository has exactly two
-devDependencies (`typescript`, `@types/node`) and no other JavaScript tooling.
+The cost is real and should be stated plainly: the repository has exactly one
+devDependency (`@types/node`) and no other JavaScript tooling — even the
+compiler comes from the environment rather than from `npm ci`.
 ESLint with a TypeScript parser is a large dependency tree, needs its own
 config and CI step, and its typed rules re-run the type checker.
 

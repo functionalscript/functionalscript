@@ -7,7 +7,7 @@
  * @import { Job } from '../common/types.ts'
  */
 
-import { images, node } from '../config/module.f.mjs'
+import { images, node, typescript } from '../config/module.f.mjs'
 import { uses } from '../common/module.f.mjs'
 import { packageArtifact, packageJobId } from '../node/module.f.mjs'
 
@@ -83,19 +83,27 @@ const tsconfig = /** @type {const} */ ({
  * One command per step, so a failure names what failed rather than arriving as
  * an opaque script.
  *
- * The compiler is whatever the project pins, passed through untouched. With no
- * checkout there is no lockfile, so a version chosen here instead would let the
- * registry — or a constant that drifted from `package.json` — decide the
- * verdict.
+ * The compiler is `../config/module.f.mjs`'s, installed from npm because this
+ * job has no flake to take it from — no checkout means no file tree for one to
+ * live in. It is the same version the `node26` shell provides through Nix, so
+ * the declarations in the tarball are read by the compiler that emitted them.
+ *
+ * That version must stay exact for a reason peculiar to this job: with no
+ * checkout there is no lockfile, so a range would let a later registry release
+ * change the verdict with nothing here changing. It is a constant rather than a
+ * range by construction now — the earlier design read it out of the project's
+ * `package.json`, where it could be written as one, and validated it.
  *
  * `npm`, `npx` and `tsc` are the only external tools left, and root
  * `AGENTS.md` §6 is why there are no others: `tsc` is the established tool
  * that parses what it checks, and `npm` is the subject — a job proving the
  * package installs for a consumer cannot avoid the consumer's package manager.
+ * `npx` stays here, unlike in every other job: it runs the compiler this job
+ * just installed into a directory it built, which is the point.
  *
- * @type {(pin: string) => readonly string[]}
+ * @type {readonly string[]}
  */
-const commands = pin => [
+const commands = [
     'npm init -y > /dev/null',
     // `echo` is the shell's own builtin expanding its own glob; `ls` would be
     // a second process to learn what the shell already knew.
@@ -104,14 +112,15 @@ const commands = pin => [
     // inside one `file:` spec and npm fails ENOENT naming both, which is
     // louder than anything a count check would print.
     `npm install "${alias}@file:$(echo *.tgz)"`,
-    `npm install "typescript@${pin}"`,
+    `npm install "typescript@${typescript.version}"`,
     `echo '${JSON.stringify(tsconfig)}' > tsconfig.json`,
     'npx tsc',
 ]
 
 /**
  * Downloads the packed tarball, installs it as a real dependency, and
- * type-checks every declaration it ships with the compiler the package pins.
+ * type-checks every declaration it ships with the compiler the CI
+ * configuration names.
  *
  * Deliberately not built through `toSteps`: that helper injects
  * `actions/checkout`, and the missing checkout is this job's whole point. With
@@ -120,9 +129,9 @@ const commands = pin => [
  * stand in for a declaration the tarball omits — so the job can only see what a
  * real consumer sees.
  *
- * @type {(pin: string) => Job}
+ * @type {Job}
  */
-export const packageCheckJob = pin => ({
+export const packageCheckJob = {
     'runs-on': images.ubuntu.arm,
     // Without this the two jobs race and the download fails before the check
     // has run — red for a reason unrelated to what it tests.
@@ -130,6 +139,6 @@ export const packageCheckJob = pin => ({
     steps: [
         uses('actions/download-artifact', { name: packageArtifact }),
         uses('actions/setup-node', { 'node-version': node.default }),
-        ...commands(pin).map(run => ({ run })),
+        ...commands.map(run => ({ run })),
     ],
-})
+}

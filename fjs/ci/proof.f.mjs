@@ -6,7 +6,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main, nixJobs } from './module.f.mjs'
-import { actions, bun, deno, functionalscript, node, wasmer, wasmtime } from './config/module.f.mjs'
+import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
 import { flakeText, nixDevelop, runPath } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
@@ -104,9 +104,11 @@ const workflow = state => {
 const flake = (state, id) =>
     text(path(state.root, ['nix', id]), 'flake.nix')
 
-// The packed-package check is generated only when the project pins a compiler,
-// so the shared fixture supplies one. A pin no configuration holds, so an
-// assertion that finds it found the value that came from here.
+// A compiler pin no configuration anywhere holds, written into the fixture
+// project's `package.json` so that the generator can be shown to ignore it.
+// The packed-package check installs `../config/module.f.mjs`'s version; an
+// assertion that found this one instead would have found a generator reading
+// the project's dependencies, which is what this change stopped doing.
 const runPin = /** @type {const} */ ('=9.9.9')
 
 const runPackageJson = `{"name":"other-package","devDependencies":{"typescript":"${runPin}"}}`
@@ -275,7 +277,7 @@ export const proof = {
         for (const [version, commands] of /** @type {const} */ ([
             [node.node22, ['npm ci', 'node --test']],
             [node.node24, ['npm ci', 'node --test']],
-            [node.default, ['npm ci', 'npx tsc', 'npm run cov', 'npm pack', 'npm run ci-update']],
+            [node.default, ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run ci-update']],
         ])) {
             const id = `node${major(version)}`
             const job = gha.jobs[id]
@@ -295,6 +297,12 @@ export const proof = {
                 job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
                 [
                     `test "$(./nix/${id}/run node --version)" = "v${version}"`,
+                    // Node 26 is the one that type-checks and packs, so it is
+                    // the one whose shell carries a compiler — and the only one
+                    // with a second version to assert before running anything.
+                    ...(id === `node${major(node.default)}`
+                        ? [`test "$(./nix/${id}/run tsc --version)" = "Version ${typescript.version}"`]
+                        : []),
                     ...commands.map(command => `./nix/${id}/run ${command}`),
                     ...(id === `node${major(node.default)}`
                         ? ['git add -A && git diff --cached --exit-code']
@@ -316,7 +324,14 @@ export const proof = {
         const checks = [
             [`node${major(node.node22)}`, [['node --version', `v${node.node22}`]]],
             [`node${major(node.node24)}`, [['node --version', `v${node.node24}`]]],
-            [`node${major(node.default)}`, [['node --version', `v${node.default}`]]],
+            // Two, because this is the job that type-checks the repository and
+            // runs `npm pack`, whose `prepack` emits the declarations the
+            // package ships with the same compiler. `typescript-go` names no
+            // version, so this check is the whole tie.
+            [`node${major(node.default)}`, [
+                ['node --version', `v${node.default}`],
+                ['tsc --version', `Version ${typescript.version}`],
+            ]],
             // Deno prints three lines for `--version`, so it is asked for the
             // one field this repository configures.
             ['deno', [[`deno eval 'console.log(Deno.version.deno)'`, deno]]],
@@ -334,13 +349,14 @@ export const proof = {
             ['bun', [['bun --version', bun]]],
             // The developer environment, which is checked more thoroughly than
             // any job's: it is the only flake no other job enters, so these
-            // five are the whole of what keeps it from rotting. Its Rust goes
+            // six are the whole of what keeps it from rotting. Its Rust goes
             // unchecked for the reason `wasm`'s does — the flake names the
             // release in full.
             ['dev', [
                 ['node --version', `v${node.default}`],
                 [`deno eval 'console.log(Deno.version.deno)'`, deno],
                 ['bun --version', bun],
+                ['tsc --version', `Version ${typescript.version}`],
                 ['wasmtime --version', `wasmtime ${wasmtime}`],
                 ['wasmer --version', `wasmer ${wasmer}`],
             ]],
@@ -503,37 +519,42 @@ export const proof = {
             gha.jobs[packageJobId]?.steps.some(
                 step => step.uses?.startsWith('actions/upload-artifact@') === true) === true,
             'expected the needed job to be the one that uploads')
-        // The compiler comes from the project's own package.json, not from a
-        // constant here that could disagree with it silently.
+        // The compiler is the CI configuration's — the same version the
+        // `node26` shell provides, so the declarations in the tarball are read
+        // by the compiler that emitted them. Its exactness is proved next to
+        // the module, in `fjs/ci/package/proof.f.mjs`.
         assert(
-            job.steps.some(step => step.run?.includes(`"typescript@${runPin}"`) === true),
-            'expected the compiler pin read from package.json')
+            job.steps.some(step => step.run?.includes(`"typescript@${typescript.version}"`) === true),
+            'expected the configured compiler installed')
     },
-    // Without a pin the check cannot be run deterministically, so it is not
-    // generated at all rather than run against a compiler nobody chose.
-    packageCheckNeedsAPin: () => {
+    // The job used to appear only when the project's `package.json` pinned an
+    // exact compiler, and it is now generated for every project — there is no
+    // longer anything about the project for it to depend on. So the shapes that
+    // once removed it must not: a `package.json` that is missing, unparseable,
+    // or says nothing about TypeScript still gets the packed-package check,
+    // because the compiler no longer comes from there.
+    //
+    // This also covers a thing the generator stopped doing at all: reading
+    // `package.json`. Every entry below would have failed that read or the
+    // parse that followed it.
+    packageCheckIgnoresPackageJson: () => {
         for (const packageJson of /** @type {const} */ ([
             undefined,                                  // no package.json at all
             'not json',                                 // unparseable
             '"a string"',                               // not an object
-            '{"devDependencies":"x"}',                  // devDependencies not an object
-            '{"devDependencies":[]}',                   // nor an array
-            '{"devDependencies":{"typescript":1}}',     // pin not a string
             '{"name":"p"}',                             // no devDependencies
-            '{"name":"p","devDependencies":{}}',        // no typescript
-            '{"devDependencies":{"typescript":"^7.0.0"}}',   // a range, not a pin
-            '{"devDependencies":{"typescript":"7.0.2"}}',    // bare, still not exact
-            '{"devDependencies":{"typescript":"=7.x"}}',     // `=` prefixing a range
-            '{"devDependencies":{"typescript":"=7.0"}}',     // two segments is a range
-            '{"devDependencies":{"typescript":"=7.0.2.1"}}', // four is not a version
-            '{"devDependencies":{"typescript":"=7.0.2 || 8.x"}}', // a union
-            '{"devDependencies":{"typescript":"=7.0.beta"}}',// a non-numeric segment
-            '{"devDependencies":{"typescript":"=7..2"}}',    // an empty segment
-            '{"devDependencies":{"typescript":"="}}',        // nothing after the sign
+            '{"devDependencies":{"typescript":"^7.0.0"}}',   // a range of its own
+            '{"devDependencies":{"typescript":"=1.2.3"}}',   // a pin of its own
         ])) {
             const [state, result] = virtual(makeState(false, packageJson))(ci({ nodeExtra: () => [] }))
             assertEq(exitCode(result), 0)
-            assertEq(workflow(state).jobs[packageCheckJobId], undefined)
+            const job = workflow(state).jobs[packageCheckJobId]
+            assert(job !== undefined, `expected the check for ${packageJson}`)
+            // Not the project's pin, in the two cases that have one.
+            assert(
+                job.steps.some(step =>
+                    step.run?.includes(`"typescript@${typescript.version}"`) === true),
+                'expected the configured compiler rather than the project\'s')
         }
     },
     jobNeeds: () => {
