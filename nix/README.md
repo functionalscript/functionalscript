@@ -78,23 +78,55 @@ of a file that already exists. A job generated for the first time needs
 [`fjs/ci/todo/generated-run-script-mode.md`](../fjs/ci/todo/generated-run-script-mode.md)
 is about removing that step.
 
-Every canonical job with a flake runs through it — the three Node jobs, `deno`
-and `wasm`. Each installs Nix, checks the runtime its shell provides, and then runs
+Every canonical job with a flake runs through it — the three Node jobs, `deno`,
+`wasm` and `bun`. Each installs Nix, checks the runtime its shell provides, and then runs
 its commands one `nix develop` step each, because a CI step runs one command. No
 separate job makes that check — a flake is checked by the job that uses it, and
 every generated flake has one.
 
-Two canonical jobs have no flake, for unrelated reasons. `bun` still installs its
-runtime with `oven-sh/setup-bun`, because Nixpkgs packages no Bun this
-repository's proofs pass on —
-`fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` owns that. `package-check` runs with
-no checkout, which is the whole point of it, and a flake and its `run` script are
-files in a checkout. `fjs/ci/todo/65z-ci-nix.md` keeps both together.
+One canonical job has no flake: `package-check` runs with no checkout, which is
+the whole point of it, and a flake and its `run` script are files in a checkout.
+`fjs/ci/todo/65z-ci-nix.md` says so.
+
+### The `bun` flake's overridden package
+
+Every package in every other flake comes from the pinned snapshot. Bun does not.
+Nixpkgs ships 1.3.13, and two of this repository's proofs fail on it — one a real
+difference in when JavaScriptCore reads `Symbol.species`, which no timeout
+setting reaches. So that flake keeps the snapshot's recipe and replaces the
+archive it unpacks:
+
+```nix
+pinned = pkgs.bun.overrideAttrs {
+    version = "1.4.0";
+    src = pkgs.fetchurl {
+        url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip";
+        hash = "sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=";
+    };
+};
+```
+
+Everything the snapshot does with that archive still happens — unzip,
+`autoPatchelfHook`, the wrapper — and the hash is checked before any of it. The
+shell takes the `let` binding rather than `pkgs.bun`, which is what keeps 1.3.13
+off `PATH` beside it.
+
+The binding is named `pinned` by the generator rather than after the package,
+like `rust` in the `wasm` flake. A Nix reference has to start with an
+identifier, while an attribute *selection* can be quoted — so naming it after
+the package would fail to serialize for any package name Nix would need to
+quote, in a flake where `pkgs."…"` is perfectly fine.
+
+This is possible only because Nixpkgs fetches Bun as a prebuilt archive; a
+package built from source would make this repository the maintainer of a package
+definition. The archive name carries the system, so a job on another runner needs
+another URL *and* another hash. Both constants in `fjs/ci/config` are deleted the
+day the snapshot carries a Bun this suite passes on.
 
 ### The `wasm` flake's second input
 
-Four of the five flakes have one input. `wasm` has two, and the extra one is why
-that job could be migrated at all.
+`wasm` is the only flake with two inputs, and the extra one is why that job could
+be migrated at all.
 
 Nixpkgs builds a single `rustc` and hard-codes the targets it builds `std` for —
 the host, `wasm32-unknown-unknown`, `wasm32v1-none` and two BPF targets. Three of
@@ -126,7 +158,13 @@ prints a leading `v` the configured version does not carry, while
 `deno --version` prints three lines — the runtime, V8 and TypeScript — so Deno
 is asked for `Deno.version.deno` instead of pinning two versions nobody
 configured. `wasm` checks two runtimes rather than one, since its shell provides
-two, and neither `pkgs.wasmtime` nor `pkgs.wasmer` names a version.
+two, and neither `pkgs.wasmtime` nor `pkgs.wasmer` names a version. `bun` prints
+the bare version with no prefix at all.
+
+Bun's check is the one that carries a different weight. Every other confirms that
+a snapshot provides what the configuration claims; that one confirms an override
+took effect — a failed `overrideAttrs` would leave 1.3.13 in the shell, and two
+failing proofs would be how anyone found out.
 
 It checks no Rust. That is the same rule read the other way: a check earns its
 place where the flake does not already say the answer, and this one says

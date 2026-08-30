@@ -1,7 +1,7 @@
 /**
  * Proofs for generated CI flakes.
  *
- * @import { NixJob } from './types.ts'
+ * @import { NixJob, NixPin } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -68,6 +68,27 @@ const withRust = {
     },
 }
 
+/**
+ * A job whose runtime the snapshot carries at a version its suite fails on. The
+ * flake keeps the snapshot's packaging and replaces only the archive, so the
+ * override is a `let` binding and the shell takes that binding rather than
+ * `pkgs.<package>` — which is what keeps the snapshot's copy off `PATH` beside
+ * it.
+ *
+ * @type {NixJob}
+ */
+const withPin = {
+    ...plain,
+    id: 'bun',
+    packages: [],
+    pin: {
+        package: 'bun',
+        version: '1.4.0',
+        url: 'https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip',
+        hash: 'sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=',
+    },
+}
+
 const plainFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
     outputs = { nixpkgs, ... }: {
@@ -123,6 +144,39 @@ const rustFlake = `{
 }
 `
 
+const pinFlake = `{
+    inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
+    outputs = { nixpkgs, ... }: {
+        devShells.aarch64-linux.default = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+            };
+            pinned = pkgs.bun.overrideAttrs {
+                version = "1.4.0";
+                src = pkgs.fetchurl {
+                    url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip";
+                    hash = "sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=";
+                };
+            };
+        in
+        pkgs.mkShell {
+            packages = [ pinned ];
+        };
+    };
+}
+`
+
+/**
+ * `withPin`'s pin, without the optionality the type carries for jobs that
+ * declare none.
+ *
+ * @type {(job: NixJob) => NixPin}
+ */
+const unwrapPin = ({ pin }) => {
+    assert(pin !== undefined, 'expected a pinned release')
+    return pin
+}
+
 /** @type {(jobs: readonly NixJob[], id: string, file: string) => string} */
 const generatedFile = (jobs, id, file) => {
     const written = ioStep(
@@ -145,6 +199,25 @@ export const proof = {
         // overlay reaches `pkgs` through `import nixpkgs`, and the overlay's
         // own Nixpkgs follows ours so the flake resolves one snapshot.
         rust: () => assertEq(flakeText(withRust), rustFlake),
+        // The override, pinned rather than described: no second input — this
+        // needs none — and the archive's hash is in the flake, so the fetch is
+        // checked before anything unpacks it.
+        pin: () => assertEq(flakeText(withPin), pinFlake),
+        // A package name reaches one quotable position and one binding the
+        // generator owns, so an unusual one is escaped rather than rejected.
+        // The `let` name is the generator's precisely so that it cannot be:
+        // a reference's root must be an identifier, while a selection need not
+        // be, and binding to the job's string would throw here instead.
+        quotedPin: () => {
+            const text = flakeText({
+                ...withPin,
+                pin: { ...unwrapPin(withPin), package: 'not an identifier' },
+            })
+            assert(
+                text.includes('pinned = pkgs."not an identifier".overrideAttrs'),
+                text)
+            assert(text.includes('packages = [ pinned ]'), text)
+        },
     },
     nixFlakes: {
         write: () => assertEq(generated([plain], plain.id), plainFlake),

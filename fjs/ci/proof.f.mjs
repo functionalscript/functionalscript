@@ -6,7 +6,7 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main, nixJobs } from './module.f.mjs'
-import { actions, deno, functionalscript, node, wasmer, wasmtime } from './config/module.f.mjs'
+import { actions, bun, deno, functionalscript, node, wasmer, wasmtime } from './config/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
 import { flakeText, nixDevelop, runPath } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
@@ -245,7 +245,7 @@ export const proof = {
         // Every generated flake, not just the Node ones: `nixJobs` is what the
         // generator was given, so a family that declares an environment and
         // never has it written fails here.
-        assertEq(nixJobs.length, 5)
+        assertEq(nixJobs.length, 6)
         for (const job of nixJobs) {
             // The pipeline wrote that job's flake, whole, at the path a
             // `nix develop` step names. Equality rather than a substring
@@ -327,6 +327,11 @@ export const proof = {
                 ['wasmtime --version', `wasmtime ${wasmtime}`],
                 ['wasmer --version', `wasmer ${wasmer}`],
             ]],
+            // Bun prints the bare version, with no leading `v` and no program
+            // name. Its check is also the only one confirming that an override
+            // took effect rather than that a snapshot is what it claims: the
+            // shell's Bun is not the snapshot's.
+            ['bun', [['bun --version', bun]]],
         ]
         assertEq(checks.length, nixJobs.length)
         for (const [id, jobChecks] of checks) {
@@ -410,24 +415,29 @@ export const proof = {
             'duplicate flake declaration')
         assertStructurallySame(
             canonical.filter(id => !installsNix(gha.jobs[id])),
-            // `bun` waits on Nixpkgs; `package-check` runs with no checkout, so
-            // there is no file tree for a flake or its `run` script to be in.
-            ['bun', packageCheckJobId])
+            // `package-check` runs with no checkout, so there is no file tree
+            // for a flake or its `run` script to be in.
+            [packageCheckJobId])
     },
-    // Bun is the one canonical runtime job left on a setup action —
-    // `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` says why. It also no longer
-    // installs a published `functionalscript`, which is independent of Nix and
-    // is why its two remaining commands are only about this repository.
-    bunJob: () => {
+    // Bun, step for step. It lost its setup action, and every command it runs
+    // enters its own flake — whose Bun is the one thing in any generated shell
+    // that does not come from the pinned snapshot.
+    migratedBunJob: () => {
         const gha = run(false)
         const job = gha.jobs.bun
         assert(job !== undefined, 'expected the bun job')
         assert(
-            job.steps.some(step => step.uses?.startsWith('oven-sh/setup-bun@') === true),
-            'expected setup-bun')
+            job.steps.some(step => step.uses?.startsWith('cachix/install-nix-action@') === true),
+            'expected a pinned Nix installer in bun')
+        assert(
+            !job.steps.some(step => step.uses?.startsWith('oven-sh/setup-bun@') === true),
+            'unexpected setup-bun')
         assertStructurallySame(
-            job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
-            ['bun install --frozen-lockfile', 'bun test --coverage'])
+            job.steps
+                .flatMap(step => step.run === undefined ? [] : [step.run])
+                .slice(1),
+            ['bun install --frozen-lockfile', 'bun test --coverage']
+                .map(command => nixDevelop('bun', command)))
     },
     ubuntu: () => {
         const job = ubuntu([test({ run: 'echo hi' })])

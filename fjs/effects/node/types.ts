@@ -15,6 +15,10 @@ import type {
     Operation, ToAsyncOperationMap,
 } from '../types.ts'
 import type { List } from '../list/types.ts'
+import type {
+    Catch, Console, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write, WriteConsoles,
+    _UtfList,
+} from '../common/types.ts'
 
 /**
  * The vocabulary every operation is declared in — how a runner reports that it
@@ -25,6 +29,19 @@ import type { List } from '../list/types.ts'
  * on reading as one vocabulary rather than two.
  */
 export type { IoChannel, IoError, IoErrorInfo, IoResult, OpResult }
+
+/**
+ * The console family joins `Sandbox` and `Catch` in
+ * [`../common`](../common/types.ts) —
+ * they have a second implementer, and an operation belongs to the layer of
+ * whoever implements it. They are re-exported here because `NodeOp` unions
+ * them and dozens of signatures name them through this module; that makes this
+ * a live coupling rather than a shim.
+ */
+export type {
+    Catch, Console, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write, WriteConsoles,
+    _UtfList,
+}
 
 // all
 
@@ -230,62 +247,11 @@ export type Module = StringMap<unknown>
 
 export type Import = ['import', (path: string) => IoResult<Module>]
 
-// write
-
-/** Named output streams accepted by the `Write` effect. */
-export type WriteConsoles = 'stdout' | 'stderr'
-
-/**
- * Raw byte write to a named output stream. Encoding-agnostic — callers supply
- * a `Vec`. The Node runner maps each stream name to the appropriate fd and
- * delegates to the OS via `stream.write()` with backpressure handling.
- */
-export type Write = readonly['write', (stream: WriteConsoles, data: Vec) => OpResult<void>]
-
-export type Console = (s: string) => Effect<Write, void>
-
-// read
-
-/** Named input streams accepted by the `Read` effect. */
-export type ReadConsoles = 'stdin'
-
-/**
- * Reads a single byte from a named input stream — the byte-granular dual of
- * `write`. Resolves to the byte value (`0`–`255`) or `null` at end of
- * input (EOF). One byte at a time: the effect carries no buffering or line
- * policy, so higher-level framing (see `readLine`) lives in pure code
- * rather than the interpreter. Back-pressure is naturally sequential — the next
- * `read` is only issued once the previous byte is consumed.
- */
-export type Read = readonly['read', (stream: ReadConsoles) => OpResult<number | null>]
-
-/** @internal */
-export type _UtfList = EffectList<number>
-
 // now
 
 export type Now = readonly['now', () => OpResult<number>]
 
 // sandbox
-
-/**
- * The outcome of a `Sandbox` operation.
- *
- * `result` carries either `['ok', value]` or `['error', thrown]`. `duration`
- * is a floating-point millisecond count with up to microsecond precision,
- * matching `performance.now()` directly. Additional fields (allocated memory,
- * max stack depth, coverage) may be added in future without breaking consumers.
- */
-export type SandboxResult<T> = {
-    readonly result: Result<T, unknown>
-    /**
-     * Elapsed time in milliseconds (microsecond precision via `performance.now()`).
-     * The virtual runner returns `0` for deterministic tests.
-     */
-    readonly duration: number
-}
-
-export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxResult<T>>]
 
 /**
  * Resolves the return value of a test function inside the effect runner.
@@ -295,29 +261,6 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxRes
  * treated as ordinary values — not awaited. See `fjs/dev/tf/README.md`.
  */
 export type Await = readonly['await', (p: unknown) => OpResult<readonly[unknown]>]
-
-// catch
-
-/**
- * Runs a pure thunk and answers what it did: its value, or the value it threw.
- *
- * It sits beside {@link Sandbox} and is deliberately *not* it. `sandbox` carries
- * a clock and, in the virtual runner, a fixture convention — its handler is a
- * pass-through whose thunk is expected to answer a {@link SandboxResult}
- * directly, because `../virtual` is `.f.mjs` and FunctionalScript has no
- * `try`/`catch` to implement a real one with. Routing a tree walk through
- * `sandbox` would hand that handler a thunk answering something else entirely.
- *
- * This one carries neither, so every runner implements it truthfully: the real
- * Node runner and a browser interpreter with `tryCatch`, and the virtual runner
- * with `ok(ok(f()))` — a pure runner still cannot catch, so a hostile fixture
- * still panics there, which is the same bargain `sandbox` already makes.
- *
- * It exists because reading a *user* value is an operation, not pure logic: the
- * proof traversal enumerates values a test returned, and an enumerable getter or
- * a proxy trap in one of them is a failure of that test rather than of the run.
- */
-export type Catch = readonly['catch', <T>(f: () => T) => OpResult<Result<T, unknown>>]
 
 // Test registration
 
@@ -405,7 +348,7 @@ export type NodeProgramOptions = {
     readonly args: readonly string[]
     readonly env: Env
     readonly home: string
-    readonly std: { readonly [k in WriteConsoles]: { readonly isTTY: boolean } }
+    readonly std: Std
     readonly testContext: TestContext
     readonly bunTestContext: TestContext
     readonly engine: Engine

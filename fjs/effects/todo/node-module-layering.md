@@ -46,14 +46,29 @@ separation-of-concerns smell stated in the documentation.
 
 Move each non-Node concern to the layer that owns it, leaving
 `fjs/effects/node/module.f.mjs` to be exactly *the operations a Node-like host
-provides*. Proposed destinations:
+provides*.
+
+**One destination, `fjs/effects/common`, not one per family.** This table
+originally proposed `effects/all`, `effects/sandbox`, `effects/console` and
+`effects/test` — four directories, each holding one family. The project's
+direction settles it the other way: the goal is to reduce the JavaScript, put
+the logic in FunctionalScript, and have every host talk to it through generic
+effects, with a `fjs/effects/browser` interpreter joining `fjs/effects/node`.
+Under that goal the meaningful axis is *which host implements this*, not *what
+concern is it* — and the answer for these families is "more than one", which is
+one bucket. Four directories would name the concerns at the cost of making
+"what does a second host have to implement" something a reader assembles from
+four imports. The rows below keep their groupings as the order the moves happen
+in; the destination is `fjs/effects/common` for all of them.
+
+Proposed destinations:
 
 | Moves to | Contents |
 |---|---|
-| `fjs/effects/all/module.f.mjs` | `All`, `all`, `allOk`, `both`, and `allVoid`/`allReduce` when they land |
-| `fjs/effects/sandbox/module.f.mjs` | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise`, and `Catch`/`catch_` (landed after this table was written) — the "run foreign code and observe what happened" family. This row is what [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md) step 4's "shared module" resolves to: a browser gives `Sandbox` and `Catch` their second implementer; `Await` moves on this issue's layering argument alone, since it belongs to the registration path no browser runs |
-| `fjs/effects/console/module.f.mjs` | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
-| `fjs/effects/test/module.f.mjs` | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
+| `fjs/effects/common` (was `effects/all`) | `All`, `all`, `allOk`, `both`, and `allVoid`/`allReduce` when they land |
+| `fjs/effects/common` (was `effects/sandbox`) | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise`, and `Catch`/`catch_` (landed after this table was written) — the "run foreign code and observe what happened" family. This row is what [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md) step 4's "shared module" resolves to: a browser gives `Sandbox` and `Catch` their second implementer; `Await` moves on this issue's layering argument alone, since it belongs to the registration path no browser runs |
+| `fjs/effects/common` (was `effects/console`) | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
+| `fjs/effects/common` (was `effects/test`) | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
 | stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Forever`, `RandomInt`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
 | stays, now settled | `Now`, `Fetch`, `Import` — the browser interpreter implements none of them, so none has a second implementer (see the judgement call below) |
 | already moved to `fjs/effects` | `OpResult`, `IoChannel`, `IoError`, `IoErrorInfo`, `IoResult`, `ioError`, `toIoError` — the vocabulary every operation is declared in; `effects/node` re-exports them (see the judgement call below) |
@@ -273,20 +288,47 @@ Judgement calls worth deciding explicitly rather than by accident:
       with `Result<T, unknown>` from `fjs/types/result`, dropping its
       `effects` import — a pure consumer should not name an IO alias, whichever
       module the alias lives in.
-- [ ] Move `All` / `all` / `allOk` / `both` to `fjs/effects/all/module.f.mjs`.
+- [ ] Move `All` / `all` / `allOk` / `both` to `fjs/effects/common`.
       `allOk` is the ok-channel wrapper over `all` and belongs with it;
       [allvoid-combinator](./allvoid-combinator.md) builds on it, so leaving it
-      behind would make `effects/all` import from `effects/node`.
-- [ ] Move `Sandbox` / `Await` / `Catch` and helpers to
-      `fjs/effects/sandbox/module.f.mjs`.
-- [ ] Move the console family to `fjs/effects/console/module.f.mjs`, add the
+      behind would make the combinator import from `effects/node`.
+- [x] Move `Sandbox` / `SandboxResult` / `sandbox` and `Catch` / `catch_` to
+      `fjs/effects/common` — first, and without `Await`. These two are the
+      operations a browser interpreter implements (see the judgement call
+      above), so they are the ones a second host was blocked on; `Await`
+      belongs to the registration path no browser runs and moves on the
+      layering argument alone, which is not urgent.
+- [x] Move `Sandbox`'s and `Catch`'s *handlers* — the impure `sandbox` clock
+      helper and the `catch` thunk — to `fjs/effects/common/module.mjs`, which
+      `effects/node`'s runner spreads into its own operation map. Declaring an
+      operation in a shared layer while each host writes its own copy of the
+      obvious implementation would leave the JavaScript where it was; a browser
+      interpreter spreads the same object.
+- [ ] `fjs/effects/browser`: **still nothing to put in it, and now that is a
+      measurement rather than a guess.** Step 7b of
+      [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
+      has landed — the page runs the shared traversal — and its interpreter is
+      `asyncRun` over `commonOperationMap` plus the page's own `report`
+      operation, which belongs to `emergent_testing` because rendering a result
+      into a document is that host's, not an effect layer's. So what the second
+      host needed was these operations moving *out* of `effects/node`, which is
+      what the rows above did. This row stays open for the first operation a
+      browser implements that a page does not own; there is none today.
+- [ ] Move `Await` / `awaitIfPromise` to `fjs/effects/common`.
+- [x] Move the console family to `fjs/effects/common`, add the
       named `Std` type there as `RequiredMap<WriteConsoles, …>`, point
       `NodeProgramOptions.std` at it, and narrow `csiWrite` to take `Std`
-      (updating its one caller, `fjs/emergent_testing/module.f.mjs:360`). Verify
+      (updating its one caller in `fjs/emergent_testing/module.f.mjs`). Verify
       `fjs/text/sgr` no longer imports `effects/node` at all — that is the test
-      for this step.
+      for this step, and it passes for the directory rather than the module:
+      the proof had reached for the *virtual node runner* to give its bytes
+      somewhere to land, and now claims `write` on a mock, which is the same
+      coupling one file over. The family also gained the co-located proofs it
+      never had — `log`, `error`, `errorExit`, `read` and `readLine` were
+      covered only incidentally, through `protocol/mcp/stdio`, `web` and
+      `emergent_testing`.
 - [ ] Move `Test` / `TestFn` / `TestContext` / `test` to
-      `fjs/effects/test/module.f.mjs` — **not** into `fjs/emergent_testing`, which
+      `fjs/effects/common` — **not** into `fjs/emergent_testing`, which
       would be a cycle (see the judgement call above). Confirm `effects/node`
       still compiles with `NodeOp` and `NodeProgramOptions` importing only the
       surviving process-runner test contexts from there; no Playwright context

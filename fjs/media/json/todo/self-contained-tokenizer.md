@@ -860,11 +860,15 @@ a seam and a signature. Work through what DataJS actually has to do:
   JSON's accepting-terminator set — `12;1` is an `invalid number` today. A
   DataJS document with a numeric `const` ends that number exactly that way, so
   the seam is useless to stage 4 unless `;` can terminate an accepting number.
-  The document's *own* end needs nothing new: DataJS puts no `;` after
-  `export default <value>`, so a bare-number root stops at end of input, which
-  the accepting set above already holds. It is the `const` that needs the `;`,
-  not the export. Review found this one, and it is the finding that shapes the clause
-  below: two enumerated interceptions were never going to be enough.
+  The export needs it too, and for the same reason: DataJS terminates every
+  statement with `;`, `export default <value>;` included, so a bare-number root
+  also stops at a `;` rather than at end of input. Both statement kinds put a
+  numeric lexeme in front of one, which makes the requirement a single rule
+  rather than a `const`-only exception — an earlier draft of this paragraph had
+  the export ending at end of input, from a spec revision that briefly dropped
+  the final `;`. Review found the underlying issue, and it is the finding that
+  shapes the clause below: two enumerated interceptions were never going to be
+  enough.
 
 A contract of "named state, initial value, terminator rule" can be satisfied by
 an implementation whose state is opaque — and then neither interception is
@@ -923,9 +927,9 @@ enumeration was the wrong shape:
   the lexeme *is* — and reports where it stopped and in which state. Whether
   the stopping character *terminates* is policy applied afterwards, by whoever
   called it. JSON's tokenizer applies the measured set above and nothing
-  changes for it; DataJS applies that set plus `;`, so `const $0=1;`
-  yields `number 1` at the `;` and `export default 1` yields it at end of
-  input. Every other character DataJS can put after a number —
+  changes for it; DataJS applies that set plus `;`, so both `const $0=1;` and
+  `export default 1;` yield `number 1` at the `;`. Every other character DataJS
+  can put after a number —
   `,` `]` `}` and whitespace — is already in JSON's set, so `;` is the whole
   difference.
 

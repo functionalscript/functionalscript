@@ -30,11 +30,10 @@ tracked: `npm pack`'s tarball and the declarations its `prepack` emits are
 ignored, and `--no-write-lock-file` means Nix leaves nothing at all. The drift
 check is a plain step, since `git` is the runner's tool.
 
-Deno has since migrated the same way, under [65Z](65z-ci-nix.md), which named it as one
-of its own follow-ups; Bun was attempted and reverted, and is tracked by
-[bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md). Both are still out of this
-issue's scope — it is the Node milestone — but the sentences below about how a migrated
-job is shaped now describe four jobs rather than three.
+Deno, `wasm` and Bun have since migrated the same way, under [65Z](65z-ci-nix.md),
+which named the first as one of its own follow-ups. All are out of this issue's scope —
+it is the Node milestone — but the sentences below about how a migrated job is shaped
+now describe every canonical job rather than three.
 
 **No job exists to check the flakes.** The temporary `nix-flakes` job that
 instantiated each generated file and compared the Node it provided to an
@@ -286,10 +285,9 @@ Do not solve these in this task:
 - OCI output or caching.
 
 Create separate TODOs for those jobs when work begins. They do not block this Node
-milestone. Deno needed none: it was already listed as a follow-up in
-[65Z](65z-ci-nix.md), and migrated there once this milestone had settled the shape. Bun
-did need one after all — [bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md) —
-because its migration is blocked on what Nixpkgs packages rather than on this design.
+milestone. Neither Deno nor Bun ended up needing a lasting one: Deno was already listed
+as a follow-up in [65Z](65z-ci-nix.md), and Bun's own issue was closed by the migration
+it asked for. Both migrated once this milestone had settled the shape.
 
 ### Tasks
 
