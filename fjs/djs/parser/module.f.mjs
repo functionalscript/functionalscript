@@ -57,7 +57,13 @@ const splitEof = tokenList => {
         // where it happened — the same place the hand-written parser reports it.
         const lastToken = a[a.length - 1]
         return lastToken !== undefined && lastToken.token.kind === 'error'
-            ? error({ message: 'unexpected token', metadata: lastToken.metadata })
+            // the token's own span survives into the parse error: it is the one
+            // failure here that knows how far the offending source runs
+            ? error({
+                message: 'unexpected token',
+                metadata: lastToken.metadata,
+                end: lastToken.token.end,
+            })
             : error({ message: 'missing end-of-input token', metadata: null })
     }
     const last = a.length - 1

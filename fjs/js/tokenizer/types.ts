@@ -34,7 +34,36 @@ export type BigIntToken = {
     readonly value: bigint
 }
 
-export type ErrorToken = {readonly kind: 'error', message: _ErrorMessage}
+/**
+ * A position inside one file — `TokenMetadata` without the path.
+ *
+ * Used as the far end of a span whose near end is a `TokenMetadata`, so the
+ * path is stated once: a token does not straddle files.
+ */
+export type TokenPosition = {
+    readonly line: number
+    readonly column: number
+}
+
+/**
+ * A lexical error, and how far the source it is about extends.
+ *
+ * The *start* is the token's own `TokenMetadata`; `end` is where the offending
+ * source stops, so the two together are a span a caret-and-underline renderer
+ * can draw. What the span covers is per message — an unterminated comment runs
+ * from its `/*` to where the input ran out, a malformed number from the start
+ * of the number to the character that spoiled it.
+ *
+ * It is **optional** because not every error token knows one. The DJS layer
+ * remaps a `JsToken` it cannot accept into an error while holding no positions
+ * at all, so absent means "the tokenizer knows where, not how far" rather than
+ * "the span is empty".
+ */
+export type ErrorToken = {
+    readonly kind: 'error'
+    readonly message: _ErrorMessage
+    readonly end?: TokenPosition
+}
 
 /**
  * The two trivia kinds. A maximal run of whitespace and newlines collapses to

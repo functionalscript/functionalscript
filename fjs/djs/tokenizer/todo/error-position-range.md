@@ -1,18 +1,19 @@
 ## Report token errors as a position range
 
 **Priority:** P3
-**Status:** open
+**Status:** done — an error token that knows how far its source runs carries an
+`end`, the parser passes it through, and `errorLocation` renders the span.
+What remains speculative is deliberately left out; see **What was not done**.
 
 ### Problem
 
-An error token carries one `TokenMetadata` (`{ path, line, column }`,
-`fjs/js/tokenizer/types.ts:99-103`) — a single point. For errors whose whole
+An error token carried one `TokenMetadata` (`{ path, line, column }`,
+`fjs/js/tokenizer/types.ts`) — a single point. For errors whose whole
 meaning is a span, one point cannot say what the reader needs.
 
 Unterminated tokens are the clear case. The grammar *matches* an unterminated
 string and tags it `unterminated`, so `tokenizeJs` takes the structural-error
-path and `metadataAfterTag` (`fjs/djs/tokenizer/module.f.mjs:515`) reports the
-position of the token's **start**:
+path and reported the position of the token's **start**:
 
 | Input | Reported | Where the input ran out |
 |---|---|---|
@@ -21,78 +22,72 @@ position of the token's **start**:
 | `"a\nb"` | 1:1 | 2:3 |
 
 The start is a defensible anchor — TypeScript reports "Unterminated string
-literal" at the opening quote too — so this is not a wrong-position bug. The gap
-is that only one of the two useful positions survives. "Unterminated string
-starting at 1:1" and "expected `\"` before end of input at 1:14" are both worth
-saying, and a caret-and-underline renderer needs both to draw anything.
+literal" at the opening quote too — so this was not a wrong-position bug. The
+gap was that only one of the two useful positions survived.
 
-**The inconsistency this described is fixed, and it was the concrete half of
-this issue.** `'"value'` and `'/* c'` both reported different anchors — the
-string its start at 1:1, the comment the end of input at 1:5 — because the
-comment's content is consumed before the tag is emitted, so the report fell back
-to the end. An unterminated comment is now anchored at its `/*`, matching the
-string and matching what TypeScript reports, and a malformed number keeps its own
-convention of pointing at the offending character, which is what the reader has
-to change. The specific messages `*/ expected` and `invalid number` are used
-where the tokenizer already distinguishes those cases.
+### What landed
 
-What remains here is only the **end**, and it is still speculative: nothing
-renders a span. `errorLocation` in [`fjs/djs/module.f.mjs`](../../module.f.mjs)
-prints `path:line:column` and would discard one.
+Option 1 of the original proposal: a span on **error tokens only**, every other
+token's `metadata` staying a point.
 
-### Proposal
+- `ErrorToken` gained an optional `end?: TokenPosition`, where `TokenPosition`
+  is `TokenMetadata` without the path — the path is stated once, on the start,
+  because a token does not straddle files. This satisfies the no-duplication
+  requirement without a `TokenRange` pair type: the start already lives in
+  `JsTokenWithMetadata.metadata`, so a self-contained range on the token would
+  have duplicated it.
+- It is optional because not every error token knows an end. The DJS layer
+  remaps a `JsToken` it cannot accept into an error while holding no positions
+  at all (`mapDjsToken`, `parseDjsMinusState`), so a required field was never
+  available: absent means "the tokenizer knows where, not how far".
+- Two of the three error sites in `tokenizeJs` carry one: the partial-match
+  `invalid token` and the unterminated-comment `*/ expected`, both spanning to
+  where the input ran out. `invalid number` deliberately does **not** — its
+  anchor is the character that *spoiled* the number, so the source it is about
+  ends where the anchor starts, and a forward span from the anchor cannot
+  describe it. Giving it one would mean moving the anchor, which changes a
+  reported position for no consumer.
+- `ParseError` in `fjs/djs/parser/types.ts` gained the same optional `end`, and
+  `splitEof` passes a lexical error's span through — the one parser failure
+  that has a span to pass. A *grammar* failure points at one token, and a
+  token's extent is not recorded, so it stays a point.
+- `errorLocation` in `fjs/djs/module.f.mjs` renders the span:
+  `path:line:column-column` within one line, `path:line:column-line:column`
+  across several, the plain point when there is no end.
 
-Give an error token a start and an end.
+Pinned end to end: the `errorPosition` proof group in
+`fjs/djs/tokenizer/proof.f.mjs` asserts each span (or its absence) through
+`errorAt`, and `parseError` in `fjs/djs/proof.f.mjs` pins the three rendered
+forms through the compiler, which is the proof that a lexical span survives
+tokenizer → parser → `errorLocation`.
 
-```ts
-export type TokenRange = {
-    readonly start: TokenMetadata
-    readonly end: TokenMetadata
-}
-```
+### What was not done
 
-Options, to be settled when implementing:
-
-1. Add a range to the error token only (`ErrorToken` gains a `range` field),
-   leaving every other token's `metadata` a point. Smallest change; keeps the
-   common path untouched.
-2. Widen `JsTokenWithMetadata.metadata` to a range for every token. More
-   uniform, and a token *is* a span — but it touches every construction and
-   every metadata expectation in the proofs.
-
-Prefer 1 unless a second consumer wants spans for non-error tokens, in which
-case 2 stops being speculative.
-
-**The parser layer is that second consumer, in waiting.** The BNF parser in
-[the DJS parser](../../parser/README.md) matches rules over whole tokens, so
-every rule it reduces has a first and a last token and therefore a natural span —
-`export default <value>` is a span, not a point. That is an argument for option 2
-whenever a *formatter* wants one.
-
-None does yet: `errorLocation` in [`fjs/djs/module.f.mjs`](../../module.f.mjs)
-prints `path:line:column` and would discard an end. So the parser reports points
-for now, and this stays the issue that decides otherwise — with one more consumer
-on its side than when it was written.
-
-Whichever is chosen, `path` should not be duplicated across both ends — a token
-does not straddle files.
+Option 2 — widening every token's `metadata` to a range — stays speculative,
+and this section is what decides it later. The BNF parser matches rules over
+whole tokens, so every rule it reduces has a first and a last token and
+therefore a natural span; `export default <value>` is a span, not a point.
+Whenever a *formatter* wants rule spans, every token needs an end, and that is
+the moment to widen `JsTokenWithMetadata.metadata` rather than grow more
+special cases. Until then a grammar failure prints the point form, which the
+`point` proof in `fjs/djs/proof.f.mjs` pins.
 
 ### Tasks
 
-- [ ] Choose the shape; define `TokenRange`
-- [ ] Carry the start position through the structural-error path so both ends
-      are available where `metadataAfterTag` builds the error today
+- [x] Choose the shape — `end?: TokenPosition` on `ErrorToken`, not a
+      `TokenRange` pair, so the start is stated once
+- [x] Carry the start position through the structural-error path so both ends
+      are available where the error is built
 - [x] Make the unterminated-comment and unterminated-string cases agree — both
       anchor at the construct's opening
+- [x] Pass the span through `ParseError` and render it in `errorLocation`
 - [x] Update the `errorPosition` and `metadata` proof groups
-- [ ] `npx tsc`, `fjs t`
+- [x] `npx tsc`, `fjs t`
 
 ### Related
 
-- [the DJS parser](../../parser/README.md) — proposes
-  the same widening one layer up, for `ParseError.metadata`. The two should pick
-  the same range type rather than inventing one each; whichever lands first owns
-  it.
+- [the DJS parser](../../parser/README.md) — the second consumer in waiting:
+  rule spans are the case that turns option 2 real.
 - [../../../bnf/descent/README.md](../../../bnf/descent/README.md#failure-reporting)
   — `DescentFailure` reports the furthest rejected position. It does **not**
   cover this case: an unterminated token is a successful match with a tag, not a
