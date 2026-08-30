@@ -10,6 +10,7 @@ import { actions, bun, deno, functionalscript, node, wasmer, wasmtime } from './
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
 import { flakeText, nixDevelop, runPath } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
+import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
 import { architecture, os, test, ubuntu, parseGitHubAction } from './common/module.f.mjs'
@@ -94,11 +95,14 @@ const text = (dir, name) => {
 /** @type {(dir: Dir, names: readonly string[]) => Dir} */
 const path = (dir, names) => names.reduce(subDir, dir)
 
-/** @type {(state: State) => GitHubAction} */
-const workflow = state => {
+/** @type {(state: State, file: string) => GitHubAction} */
+const workflowFile = (state, file) => {
     const workflows = path(state.root, ['.github', 'workflows'])
-    return unwrap(parseGitHubAction(unwrap(jsonParse(text(workflows, 'ci.yml')))))
+    return unwrap(parseGitHubAction(unwrap(jsonParse(text(workflows, file)))))
 }
+
+/** @type {(state: State) => GitHubAction} */
+const workflow = state => workflowFile(state, 'ci.yml')
 
 /** @type {(state: State, id: string) => string} */
 const flake = (state, id) =>
@@ -535,6 +539,31 @@ export const proof = {
             assertEq(exitCode(result), 0)
             assertEq(workflow(state).jobs[packageCheckJobId], undefined)
         }
+    },
+    /**
+     * The second file the pipeline writes. Its shape is proved beside the
+     * module, in `fjs/ci/publish/proof.f.mjs`; what only the pipeline can show
+     * is that the file lands at the declared path and survives the round-trip —
+     * a workflow emitted past the schema would parse back to something else, or
+     * not at all.
+     */
+    publishWorkflow: () => {
+        const [state, result] = virtual(makeState(true, runPackageJson))(main())
+        assertEq(exitCode(result), 0)
+        // The path is a constant of the module rather than a literal here, so
+        // the two cannot name different files.
+        assertEq(npmPublishPath, '.github/workflows/npm-publish.yml')
+        assertStructurallySame(
+            workflowFile(state, 'npm-publish.yml'),
+            npmPublishWorkflow)
+        // Two workflows, kept apart. `ci.yml` gates a pull request and must
+        // never publish; the publish workflow runs one job and none of the
+        // matrix. Both would be true of a single file that merged them, and
+        // neither is what this generator writes.
+        const gha = workflow(state)
+        assert(!hasRun('npm publish')(gha), 'unexpected publish step in the CI workflow')
+        assertEq(gha.jobs[npmPublishJobId], undefined)
+        assertEq(npmPublishWorkflow.jobs[packageCheckJobId], undefined)
     },
     jobNeeds: () => {
         const steps = /** @type {const} */ ([{ run: 'echo hi' }])

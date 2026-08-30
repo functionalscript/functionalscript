@@ -169,5 +169,6 @@ Repeating a wrapper per step costs nothing that matters. Entering a Nix
 development shell re-runs that shell's `shellHook`, so a job-local environment
 is re-established for every step instead of being exported across them.
 
-`.github/workflows/ci.yml` is generated: change `fjs/ci`, run
-`npm run ci-update`, and commit the result. Never edit it by hand.
+Both workflows are generated — `.github/workflows/ci.yml` and
+`.github/workflows/npm-publish.yml`. Change `fjs/ci`, run `npm run ci-update`,
+and commit the result. Never edit either by hand.

@@ -51,7 +51,7 @@ const commands = [
     },
     {
         names: ['ci', 'i'],
-        description: 'Generate the GitHub Actions CI workflow',
+        description: 'Generate the GitHub Actions CI and npm publishing workflows',
         handler: ciMain,
     },
     {
