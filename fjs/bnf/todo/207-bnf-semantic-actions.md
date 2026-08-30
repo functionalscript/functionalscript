@@ -371,8 +371,12 @@ results are typed to the AST — `DescentMatchResult.ast` and `ll1`'s
 parse needs its own entry point and its own result:
 
 ```ts
-// `fjs/bnf/ll1`'s own shape: its input, its remainder, its tuple.
-type TransformMatchResult<T> = readonly[Result<T, string> | null, boolean, Remainder]
+// `fjs/bnf/ll1`'s own shape: its input, its remainder, its result.
+type TransformMatchResult<T> =
+    | readonly['ok', T, readonly CodePoint[]]   // matched, finished, nothing refused
+    | readonly['refused', string, Remainder]    // matched and finished; a transformer said no
+    | readonly['no-match', Remainder]           // rejected, or the input ran out (`null`)
+
 type TransformMatch<T> = (s: readonly CodePoint[]) => TransformMatchResult<T>
 
 const transformRuleSet:
@@ -390,30 +394,34 @@ the map with `satisfies` and never to annotate it: an annotation makes every
 declared key optional and present in `keyof M` at once, and then `_Output`
 cannot tell a rule the map supplies from one it omits.
 
-**A parse that did not finish has no value, and says so.** The root's `end`
-never runs when the grammar rejects the input — a failure propagates straight
-out, past every frame — so there is no `T` to report and none is invented. The
-same holds when the input **runs out** mid-rule: `end` is skipped for every
-frame on the spine rather than called on a fold that is missing children (§6 —
-a transformer is total for the shapes its rule can produce, and a truncated
-sequence is not one of them). So the value slot is `null` unless the parse both
-matched and finished: `success: false` says the grammar rejected the input, a
-`null` remainder says the input ended first, and either way there is no value to
-misread. The AST path is unaffected — an unmapped rule's node is the engine's
+**A parse that did not finish has no value, and the type says so.** The root's
+`end` never runs when the grammar rejects the input — a failure propagates
+straight out, past every frame — so there is no `T` to report and none is
+invented. The same holds when the input **runs out** mid-rule: `end` is skipped
+for every frame on the spine rather than called on a fold that is missing
+children (§6 — a transformer is total for the shapes its rule can produce, and a
+truncated sequence is not one of them). Both are `no-match`, told apart by the
+remainder: where matching stopped, or `null` for input that ended first.
+
+**That is why the result is a tagged union rather than a tuple with a boolean.**
+A `[value, success, remainder]` tuple mirroring `MatchResult` can spell states
+this design forbids — a refusal beside `success: false`, a value beside a `null`
+remainder — and a type that admits what the contract rules out has to be
+explained twice and checked by hand. Here each state carries exactly what it
+has: only `ok` carries a value, and only `ok` promises a non-`null` remainder,
+because a parse that ran out of input has neither. It reads as `Result` does
+elsewhere in the repository, so nothing new is invented, and `parserRuleSet`'s
+own `MatchResult` is untouched.
+
+The AST path is unaffected either way — an unmapped rule's node is the engine's
 own (§3), so `parserRuleSet` still reports the partial node it always has.
 
-No reserved error string is needed to tell the outcomes apart: `null` is "no
-value, see `success` and the remainder for which", `error` is "matched, finished,
-and a transformer refused", `ok` is a value. (A tagged union would say the same
-without the redundant boolean; the tuple is kept only to mirror `MatchResult`,
-and whoever implements it may prefer the union.)
-
-**The shape above is `ll1`'s, not a shared one.** Only the *value slot*
-generalizes. `fjs/bnf/descent` consumes `CodePointMeta<M>[]`, not `CodePoint[]`,
+**The shape above is `ll1`'s, not a shared one.** Only the three *outcomes*
+generalize. `fjs/bnf/descent` consumes `CodePointMeta<M>[]`, not `CodePoint[]`,
 and returns `{ ast, success, idx, failure? }` rather than a remainder tuple —
 its furthest-failure record is the reason that backend's result is an object.
-Its transforming entry keeps all of that and replaces `ast` with the same value
-slot. Two backends, two result types, one protocol: the same split
+Its transforming entry keeps all of that and replaces `ast` with the same three
+outcomes. Two backends, two result types, one protocol: the same split
 [`../matcher/README.md`](../matcher/README.md) already draws between what is
 shared and what is each machine's own.
 
@@ -425,11 +433,8 @@ by annotation. A start rule the map does not name gives `unknown`, which is
 honest: it builds an AST node whose children may themselves be transformed
 values, so it is not an `Ast<CodePoint>` and must not claim to be.
 
-The other two slots keep their present meaning: `success: false` for a grammar
-that rejected the input, a `null` remainder for one that ran out of it, and
-`error` with `success: true` for a transformer that refused a value the grammar
-accepted. A value is present in exactly one case — matched, finished, and
-nothing refused.
+The remainder keeps its present meaning in every case: what is left where the
+match stopped, and `null` where the input ran out.
 
 `parserRuleSet` then **is** this machine with an empty map, keeping its current
 type: with no entries every value is a node `astTransformer` built, over leaves
@@ -540,20 +545,23 @@ const map = { /* … */ } satisfies Transformers   // checked, never annotated
 
 **`satisfies`, not an annotation**, and the difference is not stylistic. The
 properties are optional, because a grammar has rules no one transforms — so
-`const map: Transformers = …` puts *every* declared key into `keyof M` whether
-or not the map supplies it. `_Output` (§5) then reads an omitted start rule as
-`Values[K]` while the parse takes the unmapped path and hands back an AST node,
-which is a wrong type reported confidently. `satisfies` checks each `end`
-against `Values[K]` while keeping the literal's own keys, so a rule the map
-supplies infers its `T` and one it omits falls through to `unknown` — exactly
-the reason [`fjs/AGENTS.md` §3.2](../../AGENTS.md#prefer-satisfies-over-type-when-checking-not-overriding)
+`const map: Transformers = …` widens every key to `Transformer<T> | undefined`,
+whether or not the map supplies it. `M[K]` is then a union in a non-distributive
+position, `_Output`'s conditional does not match, and **every** start rule
+resolves to `never`: the map compiles, and the first use of the parse's value
+does not. `satisfies` checks each `end` against `Values[K]` while keeping the
+literal's own keys, so a rule the map supplies infers its `T` and one it omits
+falls through to `unknown` — exactly the reason
+[`fjs/AGENTS.md` §3.2](../../AGENTS.md#prefer-satisfies-over-type-when-checking-not-overriding)
 prefers `@satisfies` wherever the goal is to check a shape rather than to
 declare one.
 
-`_Output` deliberately does **not** paper over a mis-annotated map with
-`NonNullable`: without it such a map resolves to `never` and fails to compile,
-which is the loud failure; with it, the same map would quietly type an AST node
-as a domain value.
+**Do not "fix" that `never` with `NonNullable<M[K]>`.** It looks like the
+obvious repair and it is the unsound one: stripping the `undefined` makes an
+*omitted* start rule infer `Values[K]` while the parse takes the unmapped path
+and returns an AST node — a wrong type reported confidently, in place of a
+compile error. The `never` is the failure worth having, and the fix belongs at
+the map, not at `_Output`.
 
 Every `end` is checked against the rule's declared output, and `_Output` (§5)
 reads the start rule's entry back out of the same map to type the parse's
@@ -884,9 +892,9 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
       value rather than a semantic error.
 - [ ] Skip `end` when the input runs out mid-rule, for every frame on the spine,
       so no transformer is ever handed a fold that is missing children (§5, §6).
-      The value slot is `null` there, as it is for a rejected match; the engine's
-      native AST path keeps reporting its partial node, so `parserRuleSet` is
-      unchanged.
+      That reports `no-match` with a `null` remainder, as a rejected match
+      reports `no-match` with the position it stopped at; the engine's native
+      AST path keeps building its partial node, so `parserRuleSet` is unchanged.
 - [ ] Proofs: `descentEquivalence` and the existing AST expectations unchanged
       under the empty map; the per-rule-kind event order of §2 including the
       EOF terminal and an empty match; a refusal reported with `success: true`;
