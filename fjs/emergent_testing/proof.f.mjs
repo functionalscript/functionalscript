@@ -275,8 +275,8 @@ export const defaultReporterOutput = () => {
     assertEq(stderr, '')
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").proof.x(): running\n'
-        + 'import("./a.proof.f.ts").proof.x(): ok, 0.0000 ms\n'
+        'import("./a.proof.f.ts").proof.x(): '
+        + 'ok, 0.0000 ms\n'
         + 'Number of tests: pass: 1, fail: 0, total: 1\n'
         + 'Time: 0.0000 ms\n',
     )
@@ -290,8 +290,8 @@ export const defaultReporterOutputLargeDuration = () => {
     assertEq(exit, 0)
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").proof.x(): running\n'
-        + 'import("./a.proof.f.ts").proof.x(): ok, 1.0000 ms\n'
+        'import("./a.proof.f.ts").proof.x(): '
+        + 'ok, 1.0000 ms\n'
         + 'Number of tests: pass: 1, fail: 0, total: 1\n'
         + 'Time: 1.0000 ms\n',
     )
@@ -317,8 +317,8 @@ export const defaultReporterFailOutput = () => {
     assertEq(stderr, '')
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").proof.bad(): running\n'
-        + 'import("./a.proof.f.ts").proof.bad(): error, 0.0000 ms\n'
+        'import("./a.proof.f.ts").proof.bad(): '
+        + 'error, 0.0000 ms\n'
         + 'import("./a.proof.f.ts").proof.bad()\n'
         + 'oops\n'
         + 'Number of tests: pass: 0, fail: 1, total: 1\n'
@@ -349,12 +349,12 @@ export const defaultReporterFailuresAtEnd = () => {
     assertEq(exit, 1)
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").proof.one(): running\n'
-        + 'import("./a.proof.f.ts").proof.one(): error, 0.0000 ms\n'
-        + 'import("./a.proof.f.ts").proof.two(): running\n'
-        + 'import("./a.proof.f.ts").proof.two(): ok, 0.0000 ms\n'
-        + 'import("./a.proof.f.ts").proof.three(): running\n'
-        + 'import("./a.proof.f.ts").proof.three(): error, 0.0000 ms\n'
+        'import("./a.proof.f.ts").proof.one(): '
+        + 'error, 0.0000 ms\n'
+        + 'import("./a.proof.f.ts").proof.two(): '
+        + 'ok, 0.0000 ms\n'
+        + 'import("./a.proof.f.ts").proof.three(): '
+        + 'error, 0.0000 ms\n'
         + 'import("./a.proof.f.ts").proof.one()\n'
         + 'first\n'
         + 'import("./a.proof.f.ts").proof.three()\n'
@@ -374,10 +374,10 @@ export const defaultReporterFailuresAcrossModules = () => {
     assertEq(exit, 1)
     assertEq(
         stdout,
-        'import("./a.proof.f.ts").proof.x(): running\n'
-        + 'import("./a.proof.f.ts").proof.x(): error, 0.0000 ms\n'
-        + 'import("./b.proof.f.ts").proof.y(): running\n'
-        + 'import("./b.proof.f.ts").proof.y(): error, 0.0000 ms\n'
+        'import("./a.proof.f.ts").proof.x(): '
+        + 'error, 0.0000 ms\n'
+        + 'import("./b.proof.f.ts").proof.y(): '
+        + 'error, 0.0000 ms\n'
         + 'import("./a.proof.f.ts").proof.x()\n'
         + 'from-a\n'
         + 'import("./b.proof.f.ts").proof.y()\n'
@@ -428,9 +428,9 @@ export const defaultReporterOutputDuringATest = () => {
     assertEq(exitCode(code), 0)
     assertEq(
         finalState.stdout,
-        'import("./a.proof.f.ts").proof.x(): running\n'
+        'import("./a.proof.f.ts").proof.x(): '
         + 'a line from inside the test\n'
-        + 'import("./a.proof.f.ts").proof.x(): ok, 0.0000 ms\n'
+        + 'ok, 0.0000 ms\n'
         + 'Number of tests: pass: 1, fail: 0, total: 1\n'
         + 'Time: 0.0000 ms\n',
     )
@@ -469,9 +469,9 @@ export const startSurvivesARunThatDies = () => {
     // there anyway.
     assertEq(
         finalState.stdout,
-        'import("./a.proof.f.ts").proof.x(): running\n'
-        + 'import("./a.proof.f.ts").proof.x(): ok, 0.0000 ms\n'
-        + 'import("./a.proof.f.ts").proof.y(): running\n',
+        'import("./a.proof.f.ts").proof.x(): '
+        + 'ok, 0.0000 ms\n'
+        + 'import("./a.proof.f.ts").proof.y(): \n',
     )
 }
 
@@ -508,9 +508,9 @@ export const failuresSurviveARunThatDies = () => {
     assertEq(exitCode(code), 1)
     assertEq(
         finalState.stdout,
-        'import("./a.proof.f.ts").proof.bad(): running\n'
-        + 'import("./a.proof.f.ts").proof.bad(): error, 0.0000 ms\n'
-        + 'import("./a.proof.f.ts").proof.later(): running\n'
+        'import("./a.proof.f.ts").proof.bad(): '
+        + 'error, 0.0000 ms\n'
+        + 'import("./a.proof.f.ts").proof.later(): \n'
         + 'import("./a.proof.f.ts").proof.bad()\n'
         + 'oops\n',
     )
@@ -543,7 +543,7 @@ export const aLeafSurvivesItsOwnReportFailing = () => {
     assertEq(exitCode(code), 1)
     assertEq(
         finalState.stdout,
-        'import("./a.proof.f.ts").proof.bad(): running\n'
+        'import("./a.proof.f.ts").proof.bad(): \n'
         + 'import("./a.proof.f.ts").proof.bad()\n'
         + 'oops\n',
     )
@@ -578,7 +578,7 @@ export const nothingRunsAfterARunIsAbandoned = () => {
     }
     const [finalState, code] = virtual({ ...emptyState, root })(testAll(dying)(opts))
     assertEq(exitCode(code), 1)
-    assertEq(finalState.stdout, 'import("./a.proof.f.ts").proof.stop(): running\n')
+    assertEq(finalState.stdout, 'import("./a.proof.f.ts").proof.stop(): \n')
 }
 
 // the GitHub reporter emits an `::error` annotation with a percent-encoded

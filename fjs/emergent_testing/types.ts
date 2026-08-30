@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Effect, Operation } from '../effects/types.ts'
+import type { Effect, OpResult, Operation } from '../effects/types.ts'
 import type { IoChannel } from '../effects/node/types.ts'
 import type { SandboxResult } from '../effects/common/types.ts'
 import type { List } from '../types/list/types.ts'
@@ -130,6 +130,18 @@ export type _BrowserTestResult = TestResult & {
     readonly stack?: string
 }
 
+/**
+ * The page's own operation: a leaf landed, here is the row.
+ *
+ * It is declared here rather than in `effects/` because it is nobody else's —
+ * `effects/common` holds what more than one host implements, and rendering a
+ * result into a document is what *this* host is. The page's interpreter is the
+ * shared operations plus this one, which is the whole of what the browser adds.
+ *
+ * @internal
+ */
+export type _BrowserReport = readonly['report', (result: _BrowserTestResult) => OpResult<void>]
+
 /** The serializable report a browser test run resolves with. */
 export type BrowserTestReport = {
     readonly status: string
@@ -159,11 +171,14 @@ export type _BrowserImporter = (source: string) => Promise<{ readonly proof?: un
  * are the same information at two moments — which is what lets both runners
  * answer "did the run pass" (`failed !== 0`) from the same fold.
  *
- * `duration` is the *sum* of the folded results' durations. For `fjs t`, which
- * runs leaves sequentially, that is also the run's time and is what its
- * `Time:` line prints. The browser runs leaves concurrently, so the sum stops
- * meaning "how long the run took" there; its wire report keeps its own
- * wall-clock `duration` and takes only the counts from the fold.
+ * `duration` is the *sum* of the folded results' durations, and it is a sum
+ * rather than a span even now that both runners walk sequentially. `fjs t`
+ * prints it as its `Time:` line, where it is within a second of the wall clock.
+ * The browser's is not: its report keeps its own wall clock, which includes the
+ * macrotask it yields between leaves so the page can paint — time the run took
+ * and no leaf spent. So the two numbers answer different questions wherever a
+ * runner does anything between leaves, which is why the wire report carries its
+ * own and takes only the counts from the fold.
  */
 export type RunTotals = {
     readonly passed: number
