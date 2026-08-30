@@ -13,7 +13,7 @@ export const proof = {
     // family, which can look at the tarball this commit builds instead of a
     // release that shipped weeks ago.
     steps: () => assertStructurallySame(runs, [
-        `test "$(${nixDevelop(denoJobId, `deno eval 'console.log(Deno.version.deno)'`)})" = ${deno}`,
+        `test "$(${nixDevelop(denoJobId, `deno eval 'console.log(Deno.version.deno)'`)})" = "${deno}"`,
         nixDevelop(denoJobId, 'deno install --frozen'),
         nixDevelop(denoJobId, 'deno task cov'),
     ]),

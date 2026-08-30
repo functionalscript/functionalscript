@@ -91,6 +91,18 @@ export const proof = {
             '[ pkgs.nodejs_22 pkgs.nodejs_24 ]\n'
         )
     },
+    // A list item is a reference or a string, and a string item is quoted and
+    // escaped exactly as a string anywhere else is. `rust-overlay` toolchain
+    // declarations are lists of component and target names, which is what this
+    // form exists for.
+    stringList: () => {
+        assertEq(
+            nixToString(['list', 'clippy', 'rustfmt']),
+            '[ "clippy" "rustfmt" ]\n')
+        assertEq(
+            nixToString(['list', ['ref', 'rust'], 'a"b']),
+            '[ rust "a\\"b" ]\n')
+    },
     compatiblePaths: () => {
         assertEq(
             nixToString(['set', ['=', ['x', 'y'], 'a'], ['=', ['x', 'z'], 'b']]),

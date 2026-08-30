@@ -5,40 +5,44 @@
 
 ### Problem
 
-`fjs/ci/rust/module.f.mjs` defines a family of one-line `MetaStep` builders that
-all wrap `cargoCommand(...)` and differ only by which suffixes (`--release`,
-`-- -D warnings`) they concatenate:
+**Note: the `wasm` migration reshaped this code, and this issue has not been
+restated against it.** Those builders returned `MetaStep`s; they now return
+command strings, because the WASM job wraps its commands in its flake's `run`
+script while the platform matrix wraps the same commands in plain steps, so the
+two families share commands rather than steps. The duplication this issue is
+about survived that change, in a smaller form — read the Proposal below as the
+idea rather than as a patch that would apply.
+
+`fjs/ci/rust/module.f.mjs` builds `cargo` command strings by concatenating
+suffixes (`--release`, `-- -D warnings`) onto `cargoCommand(...)`:
 
 ```ts
-// fjs/ci/rust/module.f.mjs:18-39
-const cargoTest = (target?: string, config?: string): MetaStep =>
-    test({ run: cargoCommand('test', target, config) })
+const cargoClippy = (target?: string): string =>
+    `${cargoCommand('clippy', target)} -- -D warnings`
 
-const cargoClippy = (target?: string): MetaStep =>
-    test({ run: `${cargoCommand('clippy', target)} -- -D warnings` })
+const cargoReleaseClippy = (target?: string): string =>
+    `${cargoCommand('clippy', target)} --release -- -D warnings`
 
-const cargoReleaseClippy = (target?: string): MetaStep =>
-    test({ run: `${cargoCommand('clippy', target)} --release -- -D warnings` })
+const targetCheckCommands = (target?: string): readonly string[] => [
+    cargoCommand('test', target),
+    `${cargoCommand('test', target)} --release`,
+    cargoClippy(target),
+    cargoReleaseClippy(target),
+]
 
-const cargoTestPair = (target: string, config?: string): readonly MetaStep[] => {
+const cargoTestPairCommands = (target: string, config: string): readonly string[] => {
     const main = cargoCommand('test', target, config)
-    return [
-        cargoTest(target, config),
-        test({ run: `${main} --release` })
-    ]
+    return [main, `${main} --release`]
 }
-
-const cargoReleaseTest = (target?: string): MetaStep =>
-    test({ run: `${cargoCommand('test', target)} --release` })
 ```
 
-These four single-step builders (`cargoTest`, `cargoClippy`,
-`cargoReleaseClippy`, `cargoReleaseTest`) — plus the `--release` arm inlined
-inside `cargoTestPair` — are the same construction repeated five times:
+`--release` is now spelled four times and `-- -D warnings` twice — down from the
+five and three this issue was filed against, since the per-variant `cargoTest`
+and `cargoReleaseTest` builders are gone. What is left is the same construction:
 
-> `test({ run: cargoCommand(tool, target, config) + maybe " --release" + maybe " -- -D warnings" })`
+> `cargoCommand(tool, target, config) + maybe " --release" + maybe " -- -D warnings"`
 
-They vary along three orthogonal axes only:
+varying along three axes only:
 
 | axis | values |
 |------|--------|
@@ -66,37 +70,31 @@ type CargoOptions = {
     readonly release?: boolean
 }
 
-const cargoStep = (tool: 'test' | 'clippy') => (o: CargoOptions): MetaStep => {
+const cargo = (tool: 'test' | 'clippy') => (o: CargoOptions): string => {
     const release = o.release ? ' --release' : ''
     const warnings = tool === 'clippy' ? ' -- -D warnings' : ''
-    return test({ run: `${cargoCommand(tool, o.target, o.config)}${release}${warnings}` })
+    return `${cargoCommand(tool, o.target, o.config)}${release}${warnings}`
 }
-
-const cargoTest = (target?: string, config?: string) => cargoStep('test')({ target, config })
-const cargoReleaseTest = (target?: string) => cargoStep('test')({ target, release: true })
-const cargoClippy = (target?: string) => cargoStep('clippy')({ target })
-const cargoReleaseClippy = (target?: string) => cargoStep('clippy')({ target, release: true })
-
-const cargoTestPair = (target: string, config?: string): readonly MetaStep[] =>
-    [cargoTest(target, config), cargoStep('test')({ target, config, release: true })]
 ```
 
-Now the `--release` / `-- -D warnings` strings each appear exactly once, the
-"clippy implies warnings" invariant is encoded in one place, and the existing
-public surface (`targetChecks`, `rustTarget`, `wasmTarget`,
-`rustPlatformSteps`, `rustWasmSteps`) is unchanged because the named builders
-keep their signatures. The generated workflow YAML is byte-identical.
+Then `targetCheckCommands` and `cargoTestPairCommands` are built from it, the
+`--release` and `-- -D warnings` strings each appear exactly once, and the
+"clippy implies warnings" invariant lives in one place. The exported surface
+(`rustPlatformSteps`, `rustWasmSteps`, `wasmNixJob`) is unchanged, and the
+generated workflow YAML is byte-identical.
 
-`targetChecks` (`:41`) can optionally be re-expressed as the cross product of
+`targetCheckCommands` can optionally be re-expressed as the cross product of
 `{ false, true }` (release) × `{ test, clippy }`, but that is a follow-up
-nicety — the core win is collapsing the five hand-spelled templates into one
+nicety — the core win is collapsing the hand-spelled templates into one
 factory.
 
 ### Tasks
 
-- [ ] Add the `cargoStep` factory and re-derive `cargoTest`,
-      `cargoReleaseTest`, `cargoClippy`, `cargoReleaseClippy`, and the
-      `cargoTestPair` release arm from it in `fjs/ci/rust/module.f.mjs`.
+- [ ] Restate the proposal against the current command builders, which return
+      strings rather than `MetaStep`s.
+- [ ] Add the `cargo` factory and re-derive `cargoClippy`,
+      `cargoReleaseClippy`, `targetCheckCommands` and `cargoTestPairCommands`
+      from it in `fjs/ci/rust/module.f.mjs`.
 - [ ] Confirm the generated CI YAML is unchanged (diff the `ci` output before
       and after — `npm run ci-update` / inspect `.github/workflows`).
 - [ ] Run `npx tsc` and `fjs t`; ensure `fjs/ci` proofs still pass with full
