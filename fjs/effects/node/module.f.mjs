@@ -3,8 +3,12 @@
  * `writeFile`, `rm`, `access`, plus the `readUtf8File`/`writeUtf8File` text
  * helpers), networking (`fetch`, `createServer`, `listen`),
  * subprocess `exec`, `log`/`error` (wrappers over `write`), `import_`, `now`,
- * `sandbox`, `forever`, and `all`/`both` parallelism; defines the
- * `NodeOp`/`NodeProgram` types used by the Node runner.
+ * `forever`, and `all`/`both` parallelism; defines the `NodeOp`/`NodeProgram`
+ * types used by the Node runner.
+ *
+ * `sandbox` and `catch_` are re-exported from [`../common`](../common/module.f.mjs)
+ * rather than declared here: a browser interpreter implements both, and an
+ * operation belongs to the layer of whoever implements it.
  *
  * See `./types.ts` for the type-level API.
  *
@@ -24,6 +28,7 @@ import { reverse } from '../../types/list/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { error as resultError, ok as resultOk, unwrap } from '../../types/result/module.f.mjs'
 import { do_, ioError, pure, toIoError } from '../module.f.mjs'
+import { catch_, sandbox } from '../common/module.f.mjs'
 import {
     mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
 } from '../module.f.mjs'
@@ -43,6 +48,12 @@ import {
  * host-agnostic — being about no host in particular does.
  */
 export { ioError, toIoError }
+
+// `sandbox` and `catch_` are `../common`'s: a browser interpreter implements
+// both, and an operation belongs to the layer of whoever implements it. Kept
+// visible here because `NodeOp` unions them and dozens of call sites name them
+// through this module — a live coupling, not a shim.
+export { catch_, sandbox }
 
 /**
  * The host a {@link Listen} refuses.
@@ -425,42 +436,12 @@ export const readLine = stream => {
 /** @type {Func<Now>} */
 export const now = do_('now')
 
-// sandbox
-
-/**
- * Runs a plain synchronous function in an isolated, measured environment.
- *
- * Combines try/catch and high-resolution timing into a single atomic operation.
- * Only plain synchronous functions are accepted — no effects, no promises.
- *
- * Using a single operation rather than separate `TryCatch` + `Perf` effects is
- * necessary for correctness: effects execute as async tasks, so the scheduler
- * can insert arbitrary work between two separate timing calls, making the
- * measured delta inaccurate. Here the clock reads happen synchronously around
- * the function call with nothing in between.
- *
- * Future parameters (time limit, memory limit) can be added to the payload
- * without breaking the API. Worker-based implementations can enforce hard
- * limits via worker termination.
- *
- * @see {@link SandboxResult}
- *
- * @type {Func<Sandbox>}
- */
-export const sandbox = do_('sandbox')
+// sandbox and catch are declared in `../common`, which is where an operation
+// with a second implementer belongs; they are re-exported below so a node-side
+// caller keeps one import.
 
 /** @type {Func<Await>} */
 const awaitPromise = do_('await')
-
-// catch
-
-/**
- * Runs a pure thunk, answering `ok(v)` for what it returned and `error(e)` for
- * what it threw. See {@link Catch} for why this is not `sandbox`.
- *
- * @type {Func<Catch>}
- */
-export const catch_ = do_('catch')
 
 /** @type {(p: unknown) => Effect<Await, unknown, NotImplemented>} */
 export const awaitIfPromise = p =>
