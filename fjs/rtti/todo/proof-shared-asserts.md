@@ -69,7 +69,7 @@ replaced by `unwrap` from `fjs/types/result/module.f.mjs`.
       fall.
 - [ ] Replace the local `unwrap` in `../parse/proof.f.mjs` with `unwrap`
       from `fjs/types/result/module.f.mjs`.
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.
 
 ### Related
 

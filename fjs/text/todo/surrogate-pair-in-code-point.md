@@ -76,7 +76,7 @@ string escape encoder) gets the arithmetic for free.
 - [ ] Add `toSurrogatePair`/`fromSurrogatePair` (and `supplementaryBase`) to
       `fjs/text/code_point/module.f.mjs`; cover them in its proof.
 - [ ] Rewrite the two utf16 sites through them.
-- [ ] `npx tsc` clean; `fjs t` passes (code_point/utf16 proofs).
+- [ ] `tsc` clean; `fjs t` passes (code_point/utf16 proofs).
 
 ### Related
 

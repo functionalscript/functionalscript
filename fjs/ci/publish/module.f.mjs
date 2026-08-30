@@ -13,7 +13,7 @@
  * @import { GitHubAction, Job, MetaStep } from '../common/types.ts'
  */
 
-import { node } from '../config/module.f.mjs'
+import { node, typescript } from '../config/module.f.mjs'
 import { install, test, ubuntuArm, uses } from '../common/module.f.mjs'
 
 /** Where the pipeline writes the workflow below. */
@@ -54,9 +54,20 @@ const publishSteps = [
         'node-version': node.default,
         'registry-url': registry,
     })),
-    // `prepack` emits the declarations the package ships, and it runs
-    // TypeScript from `devDependencies` — so the install is not optional the
-    // way it would be for a package that publishes its sources unchanged.
+    // The compiler `prepack` runs. It is not a dependency of the package, so
+    // `npm ci` below does not bring one, and this is the only job in either
+    // workflow that needs one without having a flake to take it from — a
+    // publish wants the `.npmrc` `setup-node` writes, and the shells know
+    // nothing about a registry.
+    //
+    // Nothing checks the version afterwards, unlike the shells that provide
+    // it: this step names the release it installs, so a check could only
+    // restate the line above it.
+    install({ run: `npm install -g typescript@${typescript.version}` }),
+    // `prepack` emits the declarations the package ships and type-checks them,
+    // so the install is not optional the way it would be for a package that
+    // publishes its sources unchanged — `@types/node` is what the compiler
+    // above resolves against.
     test({ run: 'npm ci' }),
     // Most pushes to the branch do not move `package.json`'s version, and npm
     // answers a republish of an existing version with a 403. That is the

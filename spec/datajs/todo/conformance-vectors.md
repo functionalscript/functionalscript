@@ -2082,7 +2082,7 @@ needs nothing beyond an engine.
       special numbers — see above.
 - [ ] Point stages 4 and 6 at the corpus as their proof source. Not stage 3 —
       see above.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 

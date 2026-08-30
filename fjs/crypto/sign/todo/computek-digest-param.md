@@ -49,7 +49,7 @@ is a breaking API change — update all importers in the same PR per
 - [ ] Change `computeK`'s last parameter from message `m` to digest `h1`;
       update `sign` to pass `hm`.
 - [ ] Update `proof.f.mjs` call sites and JSDoc.
-- [ ] Run `npx tsc` and `fjs t`; verify the RFC 6979 test vectors still
+- [ ] Run `tsc` and `fjs t`; verify the RFC 6979 test vectors still
       pass.
 
 ### Related

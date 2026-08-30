@@ -193,7 +193,7 @@ handler from accreting a dozen copies of the same ternary.
       over either, or it lands inside the per-request callback and is rebuilt on
       every message.
 - [ ] Confirm `fjs/protocol/mcp/proof.f.mjs` still passes (`fjs t`) with full branch
-      coverage (both `error` and `ok` sides of each method) and `npx tsc` is clean.
+      coverage (both `error` and `ok` sides of each method) and `tsc` is clean.
 
 ### Related
 

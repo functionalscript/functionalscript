@@ -77,7 +77,7 @@ which is also a way this kind of issue resolves.)
 
 - [ ] Add `cmpReduceBy` and derive `cmpReduce` / `intersectReduce` from it.
 - [ ] Confirm `fjs/types/sorted_list/proof.f.mjs` still passes (`fjs t`) with full
-      branch coverage and `npx tsc` is clean.
+      branch coverage and `tsc` is clean.
 
 ### Related
 

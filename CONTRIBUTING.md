@@ -38,9 +38,28 @@ work is tracked from then on.
 | Tool    | Version              | Required for                                                     |
 | ------- | -------------------- | ---------------------------------------------------------------- |
 | [Node.js](https://nodejs.org/en/download) | **latest** (22 min.) | Everything.                                                     |
+| [TypeScript](https://www.typescriptlang.org/) | the pinned version   | Type-checking, `npm test`, `npm pack`.                           |
 | [Rust](https://www.rust-lang.org/tools/install)    | **latest**           | NaNVM (`nanvm-lib`) development only.                            |
 | Deno    | latest               | Updating dependencies; an alternative test runtime.               |
 | Bun     | latest               | Updating dependencies; an alternative test runtime.               |
+
+TypeScript is the one row that is not simply "latest", and the only one that is
+**not** an npm dependency of this package. `npm ci` does not install it: it is a
+tool the environment provides, like the others in this table, so a runtime job
+that only runs the suite does not download a compiler it never opens.
+
+The version is pinned in
+[`fjs/ci/config/module.f.mjs`](./fjs/ci/config/module.f.mjs) — the same constant
+the generated CI uses, in the Nix shells and in the packed-package check — so
+install exactly that one:
+
+```bash
+npm install -g typescript@7.0.2   # or whatever that file pins today
+```
+
+Or take the Nix shell below and skip the question. Either way, do not reach for
+`npx tsc`: with nothing to resolve in `node_modules` it downloads whatever the
+registry calls latest, which is not the compiler CI runs.
 
 You may also use the [Dockerfile](./docker/Dockerfile), which sets all of this up
 and is the easiest way to get a known-good environment.
@@ -48,8 +67,8 @@ and is the easiest way to get a known-good environment.
 ### Or one Nix shell
 
 If you have Nix, `nix/dev` is a generated development environment carrying every
-tool in that table at the exact versions CI uses — Node, Deno, Bun, a Rust
-toolchain with the WASM targets, Wasmtime, Wasmer and `git`:
+tool in that table at the exact versions CI uses — Node, Deno, Bun, TypeScript,
+a Rust toolchain with the WASM targets, Wasmtime, Wasmer and `git`:
 
 ```bash
 nix develop ./nix/dev          # an interactive shell
@@ -80,12 +99,15 @@ cargo fetch   # Rust dependencies
 ### Running tests
 
 ```bash
-npx tsc                  # type-check with the repository's TypeScript
+tsc                      # type-check
 npm test                 # tsc + the FunctionalScript test suite
 cargo test               # only if you touched Rust
 cargo clippy
 cargo fmt -- --check
 ```
+
+Both of the first two need `tsc` on `PATH` — from the Nix shell, or from the
+global install described under [Requirements](#requirements).
 
 #### Ways to run the FunctionalScript test suite
 
@@ -94,7 +116,7 @@ environment.
 
 | Command                                 | Runtime  | Needs internet | Notes                                    |
 | --------------------------------------- | -------- | -------------- | ---------------------------------------- |
-| `npm test`                              | Node 22+ | no             | `tsc` + the repo's runner.               |
+| `npm test`                              | Node 22+ | no             | `tsc` + the repo's runner; needs `tsc`.  |
 | `npm start test`                        | Node 22+ | no             | The repo's runner, no type-check step.   |
 | `node --test`                           | Node 22+ | no             | Node's native test runner.               |
 | `npm run cov`                           | Node 22+ | no             | `node --test` plus coverage.             |

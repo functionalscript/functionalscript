@@ -34,4 +34,4 @@ and delete the three copies.
 - [ ] Export `nodeProgramOptions` (with proof coverage); update the JSDoc
       example to reference it.
 - [ ] Replace `makeOptions` in the three proof files.
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.

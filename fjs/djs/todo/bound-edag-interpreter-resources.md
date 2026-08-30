@@ -105,7 +105,7 @@ from source/load errors such as `ParseError`.
       not throw `RangeError` or exhaust the native stack; they complete or stop
       through a deterministic limit.
 - [ ] Verify resource limits do not participate in EDAG serialization or hashing.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 

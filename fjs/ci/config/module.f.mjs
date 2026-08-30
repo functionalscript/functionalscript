@@ -97,6 +97,31 @@ export const node = /** @type {const} */({
     node24: '24.19.0',
 })
 
+// The TypeScript this repository type-checks with, and the one `package-check`
+// installs from npm to check the declarations the packed tarball ships.
+//
+// `attribute` is the Nixpkgs attribute carrying it, and it is not `typescript`.
+// That one is the original compiler and the pinned snapshot has it at 5.9.3;
+// `typescript-go` is the Go implementation, at exactly the version below, with
+// `bin/tsc` symlinked to `tsgo` so the command every script already runs is the
+// command the shell provides. Both were read from
+// `pkgs/by-name/ty/typescript{,-go}/package.nix` at the commit pinned below.
+//
+// One version, two package managers, and that is the point of it being here.
+// npm resolves the platform binary for `package-check`, Nix builds it from
+// source for the shells; nothing in this generator picks a per-platform
+// artifact, because both tools already do. It is exact rather than a range in
+// both: `package-check` runs with no checkout, so a range there would let the
+// registry change the verdict with no change here.
+//
+// The two shells that carry it assert it from inside, since the attribute
+// names no version — the same tie `deno`, `wasmtime` and `wasmer` have.
+// https://github.com/microsoft/typescript-go
+export const typescript = /** @type {const} */({
+    version: '7.0.2',
+    attribute: 'typescript-go',
+})
+
 // The Rust the `wasm` job's flake provides, resolved by `rust-overlay` from
 // the official release manifest — so unlike the Nixpkgs pins below, this is an
 // exact release rather than whatever a snapshot happens to carry, and the flake

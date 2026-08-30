@@ -114,7 +114,7 @@ at `kindFold` as the statement of the contract.
       would go unproven.
 - [ ] Extract `mapPatternKinds`; re-derive `mapChildren` and `dropSubsumedUnion`.
       It stays private, so its coverage comes from those two consumers.
-- [ ] `npx tsc`, `fjs t`. The rewrite is behavior-preserving and the existing
+- [ ] `tsc`, `fjs t`. The rewrite is behavior-preserving and the existing
       rtti proofs pass unchanged — but this is not a *pure* refactor: it adds
       one export, which arrives with the proof above.
 
