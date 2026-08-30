@@ -3,7 +3,7 @@
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflow for this repository. Running the generator writes `.github/workflows/ci.yml`
 with the latest matrix of jobs and steps, plus one Nix development environment under
-`nix/` per canonical job that has one — the three Node jobs and `deno`. Which jobs
+`nix/` per canonical job that has one — the three Node jobs, `deno` and `wasm`. Which jobs
 have one and why the rest do not is
 [`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
 
@@ -47,11 +47,13 @@ for, and whether that answer should change, is
   standing in for declarations the tarball omits, so the check would pass on
   the repository rather than on the package.
   `proof.f.mjs` — its property-based proofs.
-- `rust/module.f.mjs` — Rust toolchain setup and `cargo` build/test steps. Its
-  three toolchains come from setup actions rather than a flake, and cannot come
-  from one today: Nixpkgs builds no `std` for three of the WASM job's four
-  targets. [`todo/wasm-nix-blocked-on-rust-targets.md`](./todo/wasm-nix-blocked-on-rust-targets.md)
-  owns that.
+- `rust/module.f.mjs` — `cargo` build/test steps, the platform matrix's toolchain
+  action, and the `wasm` job's steps and flake declaration. The two families get
+  their toolchain from different places for a packaging reason: the matrix spans
+  six runner images that one flake could not serve, and the WASM job needs three
+  targets Nixpkgs builds no `std` for, so its flake takes the toolchain from
+  `rust-overlay` instead. Both name `config/module.f.mjs`'s `rust`, so the
+  version cannot differ between them.
 - `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
   `proof.f.mjs` — its property-based proofs.
 - `bun/module.f.mjs` — the `bun` job's steps. The one canonical runtime job
@@ -78,19 +80,28 @@ plain text built from the pinned commit in `config/module.f.mjs`.
 Each canonical job with a flake declares a system and its Nixpkgs package attributes
 beside the steps that enter them — `nodeNixJobs` in `node/module.f.mjs`, `denoNixJob`
 in its own module — and `module.f.mjs` composes them into `nixJobs`, the one place the
-whole set is visible. `bun`, `wasm` and `package-check` declare none, for three
-different reasons the issue above collects. `nix/module.f.mjs` writes each out as one
+whole set is visible. `bun` and `package-check` declare none, for two different
+reasons the issue above collects. `nix/module.f.mjs` writes each out as one
 static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
 job-local `shellHook`, run on every entry to the shell; none does today. See
 [nix/README.md](../../nix/README.md) for how the generated files are meant to be
 consumed.
 
-`config/module.f.mjs` records the Node and Deno versions the pinned Nixpkgs snapshot
-provides — not each vendor's latest release, which the snapshot usually trails. They
-feed the flakes' package attributes where the attribute is versioned, as well as the
-`setup-node` steps left in the platform matrix and `package-check`. Bumping either
-therefore means moving the Nixpkgs commit first and copying the versions it offers.
-`bun` is not one of these: `setup-bun` installs it, so that pin is a released Bun.
+`config/module.f.mjs` records the Node, Deno, Wasmtime and Wasmer versions the pinned
+Nixpkgs snapshot provides — not each vendor's latest release, which the snapshot
+usually trails. They feed the flakes' package attributes where the attribute is
+versioned, as well as the `setup-node` steps left in the platform matrix and
+`package-check`. Bumping any of them therefore means moving the Nixpkgs commit first
+and copying the versions it offers. `bun` is not one of these: `setup-bun` installs
+it, so that pin is a released Bun.
+
+`rust` is not one of them either, and for the opposite reason. The `wasm` job's flake
+carries a second input, `rust-overlay`, pinned in `config/module.f.mjs` beside the
+Nixpkgs commit. Nixpkgs builds one `rustc` and hard-codes the targets it builds `std`
+for, and three of that job's four are not among them at any version; the overlay
+unpacks the same release artifacts `rustup` would, so `rust` is an exact Rust release
+the flake names in full. The platform matrix's `dtolnay/rust-toolchain` reads the same
+constant, so the two cannot drift.
 
 Each job directory also gets a generated `run` script, and a workflow step reads
 as the command it runs — `./nix/node26/run npm run cov` — rather than as a
@@ -107,21 +118,28 @@ canonical job asserts, as its first command, that its own shell reports the vers
 `config/module.f.mjs` records for it:
 
 ```sh
-test "$(./nix/node26/run node --version)" = v26.7.0
-test "$(./nix/deno/run deno eval 'console.log(Deno.version.deno)')" = 2.8.3
+test "$(./nix/node26/run node --version)" = "v26.7.0"
+test "$(./nix/deno/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
+test "$(./nix/wasm/run wasmtime --version)" = "wasmtime 45.0.2"
 ```
 
 The runtimes disagree on both halves, which is why the check takes the command and
 the expected string separately: `node --version` prints a leading `v` the configured
-version does not carry, and `deno --version` prints three lines — the runtime, V8 and
-TypeScript — so Deno is asked for the one field this repository configures.
+version does not carry, `deno --version` prints three lines — the runtime, V8 and
+TypeScript — so Deno is asked for the one field this repository configures, and
+Wasmtime and Wasmer print their own name first.
 
 That check is the *only* place the expectation is written: the generated flakes stay
 purely declarative, since a flake pinning an exact Nixpkgs commit already determines
-its package versions and an `assert` inside it would only restate that pin. For Deno
-it is also the only tie there is — `pkgs.deno` names no version, so unlike
-`pkgs.nodejs_26` the attribute cannot be checked against the configuration without
-evaluating it.
+its package versions and an `assert` inside it would only restate that pin. For Deno,
+Wasmtime and Wasmer it is also the only tie there is — those attributes name no
+version, so unlike `pkgs.nodejs_26` they cannot be checked against the configuration
+without evaluating them.
+
+The one runtime with no check is the `wasm` job's Rust, and for the reason that makes
+the others worth checking: its flake says `rust-bin.stable."1.98.0"`, naming the
+release in full rather than a major or nothing at all, so a check could only restate
+the flake it was meant to test.
 
 What can be established about a generated flake without Nix is asserted by two proofs.
 `proof.f.mjs` reads the file the pipeline wrote and requires it to equal the generator's
@@ -136,7 +154,7 @@ evaluated for real, by the job that uses it.
 The generated platform jobs run `npm ci`, install the pinned FunctionalScript
 package globally, and run `fjs test`. Those six are now the only place the
 published CLI is exercised: no canonical Node job does, and `deno` and `bun` both
-stopped. Every canonical job runs on Ubuntu ARM; four of them through a flake:
+stopped. Every canonical job runs on Ubuntu ARM; five of them through a flake:
 
 - Node 22 runs `npm ci` and `node --test` through its generated flake.
 - Node 24 runs the same pair through its own flake — one builder emits both
@@ -148,6 +166,11 @@ stopped. Every canonical job runs on Ubuntu ARM; four of them through a flake:
 - `deno` runs `deno install --frozen` and `deno task cov` through its flake.
 - `bun` runs `bun install --frozen-lockfile` and `bun test --coverage`, on a
   `setup-bun` runtime.
+- `wasm` runs `cargo fmt -- --check` and then tests and Clippy for four WASM
+  targets through its flake, which provides the toolchain and both runtimes.
+  `cargo` invokes `wasmtime` and `wasmer` itself, through the `runner` keys in
+  `.cargo/config.toml`, so they have to share a `PATH` with the `cargo` that
+  spawns them — which is why the whole toolchain moved rather than half of it.
 
 Neither installs a published package any more. That check subjects a release rather
 than this commit, so it belongs to the package job family, which already downloads
