@@ -8,7 +8,7 @@
 This is migration debt under the rule that business logic belongs in `.f.mjs`,
 not a new proposal.
 
-[`browser.mjs`](../browser.mjs) is a plain `.mjs` file holding a whole test
+[`browser/module.mjs`](../browser/module.mjs) is a plain `.mjs` file holding a whole test
 runner. Under the repository rule that business logic belongs in `.f.mjs` and
 plain `.mjs` is a thin host boundary, most of it is in the wrong place.
 
@@ -56,7 +56,8 @@ asks for, and it names two things the sharing plan does not:
   [hostile proof values](hostile-proof-values.md). Until then they are pure logic
   that legitimately cannot be `.f.mjs`, which is worth stating so it is not read
   as laziness.
-- **What should remain.** When the extraction is done, `browser.mjs` should hold
+- **What should remain.** When the extraction is done, `browser/module.mjs`
+  should hold
   the DOM adapter, the published promise and completion event, the loading
   importer, and the interpreter for the browser's operations. That is a plausible
   50–80 lines, against 405 today.

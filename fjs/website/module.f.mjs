@@ -49,7 +49,7 @@ pre { white-space: pre-wrap }
     ['script', { type: 'module', src: './_browser-test-entry.mjs' }]
 )
 
-const entry = utf8(`import { startBrowserTestSources } from './fjs/emergent_testing/browser.mjs'
+const entry = utf8(`import { startBrowserTestSources } from './fjs/emergent_testing/browser/module.mjs'
 import { browserProofSources } from './fjs/emergent_testing/_browser-suite.mjs'
 
 const root = /** @type {Element} */ (document.querySelector('[data-browser-tests]'))

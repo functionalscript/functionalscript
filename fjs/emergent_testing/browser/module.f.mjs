@@ -5,7 +5,7 @@
  * None of that is the browser's. Reading a user value, running a leaf and
  * announcing a row are operations; deciding what each outcome *means* is logic
  * over them, and logic belongs here where a runner can drive it. What is left
- * in [`../browser.mjs`](../browser.mjs) is the part that genuinely needs a
+ * in [`./module.mjs`](./module.mjs) is the part that genuinely needs a
  * page: the interpreter, the DOM, the wall clock, `navigator`.
  *
  * That split is not tidiness. The run's own failure — an operation answering

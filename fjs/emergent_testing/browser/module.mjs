@@ -18,20 +18,20 @@
  * @import {
  *     BrowserTestReport, Reporter, RunState, TestResult, _BrowserImporter, _BrowserReport,
  *     _BrowserTestResult, _TestAndPath,
- * } from './types.ts'
- * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
- * @import { IoChannel } from '../effects/node/types.ts'
- * @import { Effect, Func } from '../effects/types.ts'
- * @import { Result } from '../types/result/types.ts'
- * @import { List } from '../types/list/types.ts'
+ * } from '../types.ts'
+ * @import { Catch, Sandbox, SandboxResult } from '../../effects/common/types.ts'
+ * @import { IoChannel } from '../../effects/node/types.ts'
+ * @import { Effect, Func } from '../../effects/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  */
 
-import { addResult, zeroTotals } from './module.f.mjs'
-import { errorDetails, moduleFailure, runProofs } from './browser/module.f.mjs'
-import { asyncRun } from '../effects/module.mjs'
-import { commonOperationMap } from '../effects/common/module.mjs'
-import { concat, toArray } from '../types/list/module.f.mjs'
-import { ok, unwrap } from '../types/result/module.f.mjs'
+import { addResult, zeroTotals } from '../module.f.mjs'
+import { errorDetails, moduleFailure, runProofs } from './module.f.mjs'
+import { asyncRun } from '../../effects/module.mjs'
+import { commonOperationMap } from '../../effects/common/module.mjs'
+import { concat, toArray } from '../../types/list/module.f.mjs'
+import { ok, unwrap } from '../../types/result/module.f.mjs'
 
 /**
  * Return to the event loop, so the browser can paint what has been appended.

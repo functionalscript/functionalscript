@@ -5,7 +5,7 @@
 
 ### Problem
 
-The browser runner (`../browser.mjs`) defends against two things `fjs t` does
+The browser runner (`../browser/module.mjs`) defends against two things `fjs t` does
 not, and neither is reachable from ordinary FunctionalScript. That asymmetry is
 the point of this file: when the two runners are unified
 ([share the browser and console proof runners](share-browser-console-runner.md)),

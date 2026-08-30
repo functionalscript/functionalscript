@@ -36,7 +36,7 @@ are correct in their own layer. Nothing says so in one place.
 or a `node:vm` context is not `instanceof Promise` here, so under `fjs t` it is
 walked as a proof tree and a *rejected* one is reported as a pass. The browser
 runner defends against this with `Symbol.species` shadowing and an intrinsic
-`then` — about 150 lines (`../browser.mjs`, `../browser/species.proof.mjs`) that
+`then` — about 150 lines (`../browser/module.mjs`, `../browser/species.proof.mjs`) that
 read as a magic mess and are, today, the only place the exposure is covered. So
 the two runners answer this question differently, and
 [sharing them](share-browser-console-runner.md) forces a single answer: keep the
@@ -151,7 +151,7 @@ value's own `then`:
 One detail is not incidental: the `Reflect.apply` has to sit **outside** a `new
 Promise` executor. A throw inside an executor rejects the promise instead of
 propagating, so the brand check becomes uncatchable — which is exactly why
-`subscribe` in `../browser.mjs` captures its `settle` first and applies
+`subscribe` in `../browser/module.mjs` captures its `settle` first and applies
 afterwards. Written the obvious way instead, the check throws out of the runner.
 
 #### The species handling is load-bearing too
