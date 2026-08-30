@@ -372,18 +372,18 @@ export const proof = {
                 !nodeNixJobs.some(job => job.packages.includes(typescript.attribute)),
                 'a job that only runs the suite needs no compiler')
         },
-        // The `run` script is written beside every flake, byte for byte the
-        // same for each job: it resolves its own flake from `$0`, so nothing
-        // in it varies by job.
+        // The `run` script is written beside every flake, naming that flake.
+        // The only thing that varies between copies is the path.
         run: () => {
             for (const job of nixJobs) {
-                assertEq(generatedFile(nixJobs, job.id, 'run'), runText)
+                assertEq(generatedFile(nixJobs, job.id, 'run'), runText(job.id))
             }
         },
-        // What that script must say, pinned rather than described. `exec` keeps
-        // the command's exit status; the `case` and `${0%/*}` find the flake
-        // from the script rather than from the working directory; `"$@"` passes
-        // the caller's arguments through unsplit.
+        // What that script must say, pinned rather than described, for the
+        // shared shell and for a flake with a directory of its own. `exec`
+        // keeps the command's exit status; the path is written in rather than
+        // derived, so there is no shell logic to read; `"$@"` passes the
+        // caller's arguments through unsplit.
         //
         // This is also the whole of what holds the script to root `AGENTS.md`
         // §6, which forbids a generated script from calling an external tool:
@@ -392,10 +392,27 @@ export const proof = {
         // coverage this does not already have, and would be the kind of check
         // §6 describes: blind to any name it does not list, and tripped by one
         // appearing in a comment.
-        runText: () => assertEq(runText, `#!/bin/sh
-case $0 in */*) d=\${0%/*} ;; *) d=. ;; esac
-exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
-`),
+        runText: () => {
+            assertEq(runText(nixShell), `#!/bin/sh
+exec nix develop --no-write-lock-file --quiet ./nix --command "$@"
+`)
+            assertEq(runText(plain.id), `#!/bin/sh
+exec nix develop --no-write-lock-file --quiet ./nix/node24 --command "$@"
+`)
+        },
+        // Two lines, and the second names a path. Omitting it would leave
+        // `nix develop` defaulting to `.` — the *process* working directory,
+        // which is the repository root, where there is no `flake.nix`.
+        runNamesItsFlake: () => {
+            for (const job of nixJobs) {
+                const [shebang, command, ...rest] = runText(job.id).split('\n')
+                assertEq(shebang, '#!/bin/sh')
+                assert(
+                    command?.includes(` ${flakePath(job.id)} `) === true,
+                    `expected ${job.id}'s run script to name its flake`)
+                assertStructurallySame([...rest], [''])
+            }
+        },
         // Every declared job runs on the one runner the flakes are generated
         // for. A second system would need its own `devShells.<system>.default`
         // rather than a loop, so a job that quietly declared another would

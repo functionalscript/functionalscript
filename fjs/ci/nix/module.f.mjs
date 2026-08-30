@@ -283,25 +283,31 @@ export const flakeText = job =>
     unwrapNullable(fromUndefined(nixToString(flake(job))))
 
 /**
- * The `run` script generated beside a job's flake. `./nix/node26/run npm run cov`
- * is what a workflow step says; this is what makes that a command.
+ * The `run` script generated beside a flake. `./nix/run npm run cov` is what a
+ * workflow step says; this is what makes that a command.
  *
- * It resolves the flake from its own location rather than from the working
- * directory, so it behaves the same run from the repository root, from `nix/`,
- * or by absolute path. `"$@"` passes the caller's argument vector through
- * unsplit, which is what lets a step keep quoting of its own —
- * `./nix/deno/run deno eval 'console.log(Deno.version.deno)'` arrives as three
- * arguments, not as text to re-parse.
+ * The flake's path is written in, because the generator knows it. An earlier
+ * version derived it from `$0` with a `case` arm and `${0%/*}` so the script
+ * worked from any working directory; that bought one thing — `../nix/run` from
+ * a subdirectory — at the cost of two lines of shell nobody should have to
+ * read. Every caller runs from the repository root: CI checks out there, and
+ * the path a step names is relative to it.
  *
- * That location comes from `case` and `${0%/*}`, which are shell syntax and
- * parameter expansion — not `dirname`, and not any other program. A generated
- * script calls no external tool (root `AGENTS.md` §6), and this one has no need
- * to: the `case` arm is what makes a `$0` with no `/` mean the current
- * directory, which is the one thing stripping a suffix cannot say by itself.
+ * Leaving the path out altogether does not work, which is the other thing this
+ * line settles. `nix develop` with no installable defaults to `.`, and `.` is
+ * the *process* working directory rather than the script's — so from the
+ * repository root it would look for a `flake.nix` that is not there.
  *
- * What holds that is the proof pinning this text exactly, not a scan for tool
- * names — §6 rules out the scan, and the exact text already fails on any change
- * at all.
+ * `"$@"` passes the caller's argument vector through unsplit, which is what
+ * lets a step keep quoting of its own — `./nix/run deno eval
+ * 'console.log(Deno.version.deno)'` arrives as three arguments, not as text to
+ * re-parse.
+ *
+ * A generated script calls no external tool (root `AGENTS.md` §6), and now has
+ * nothing that could: no `dirname`, and no shell doing its work either. What
+ * holds that is the proof pinning this text exactly, not a scan for tool names
+ * — §6 rules out the scan, and the exact text already fails on any change at
+ * all.
  *
  * `exec` replaces the shell, so the command's exit status is the script's and
  * no wrapper process sits between CI and the failure.
@@ -312,7 +318,14 @@ export const flakeText = job =>
  * determines every input, so that lock resolves nothing the flake did not
  * already say. `--quiet` drops Nix's own logging one level, from `info` to
  * `notice`, which removes the substitution chatter — `copying N paths`, started
- * at `lvlInfo` — while leaving warnings and errors, which sit below `notice`.
+ * at `lvlInfo`.
+ *
+ * It leaves warnings, and that is arithmetic rather than a choice: the levels
+ * run `lvlError = 0, lvlWarn = 1, lvlNotice = 2, lvlInfo = 3`, a message prints
+ * when its level is at most the current verbosity, and `--quiet` decrements by
+ * one from `lvlInfo`. So the "not writing modified lock file" warning at
+ * `lvlWarn` survives one `--quiet`, and survives two; only a third, reaching
+ * `lvlError`, would hide it — along with every real warning Nix has.
  *
  * `--quiet` is spelled long because Nix has no short form for it: `--verbose`
  * declares `.shortName = 'v'` and `--quiet` declares none, so `-q` is not an
@@ -322,10 +335,11 @@ export const flakeText = job =>
  *
  * Neither flag reaches the command being run: `--command` execs it with stdio
  * inherited, so a job's own output is exactly what it was.
+ *
+ * @type {(id: string) => string}
  */
-export const runText = `#!/bin/sh
-case $0 in */*) d=\${0%/*} ;; *) d=. ;; esac
-exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
+export const runText = id => `#!/bin/sh
+exec nix develop --no-write-lock-file --quiet ${flakePath(id)} --command "$@"
 `
 
 /**
@@ -352,7 +366,7 @@ const writeJob = job => {
         () => writeUtf8File(`${directory}/flake.nix`, flakeText(job)))
     return step(
         flakeWritten,
-        () => writeUtf8File(`${directory}/run`, runText))
+        () => writeUtf8File(`${directory}/run`, runText(job.id)))
 }
 
 /**

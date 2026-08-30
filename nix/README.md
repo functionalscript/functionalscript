@@ -42,14 +42,18 @@ A generated `run` script sits beside every flake, and that is what CI invokes:
 ./nix/node22/run node --test   # a flake of its own
 ```
 
-It is the same two lines in every copy — it finds its flake from its own path,
-so nothing in it varies:
+Two lines, and the only thing that differs between copies is the path:
 
 ```sh
 #!/bin/sh
-case $0 in */*) d=${0%/*} ;; *) d=. ;; esac
-exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
+exec nix develop --no-write-lock-file --quiet ./nix --command "$@"
 ```
+
+The path is written in because the generator knows it. Leaving it out would not
+work: `nix develop` with no installable defaults to `.`, and that is the
+*process* working directory — the repository root, where there is no
+`flake.nix` — rather than the script's own directory. So every caller runs from
+the repository root, which CI and a developer both do anyway.
 
 The `case` line resolves the flake from the script's own location, so it behaves
 the same from the repository root, from `nix/`, or by absolute path. It is shell
