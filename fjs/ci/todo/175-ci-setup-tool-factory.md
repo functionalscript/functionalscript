@@ -3,7 +3,7 @@
 **Priority:** P3
 **Status:** open
 
-Four CI modules construct a GitHub Actions "setup" step with the identical
+Two CI modules construct a GitHub Actions "setup" step with the identical
 shape `install({ uses: '<action>', with: { '<x>-version': <pinnedVersion> } })`,
 differing only in the action string and the version key/value:
 
@@ -14,17 +14,19 @@ const installNode = (version: string) =>
 
 // ci/bun/module.f.mjs
 install(uses('oven-sh/setup-bun', { 'bun-version': bun }))
-
-// ci/rust/module.f.mjs
-install({ uses: 'bytecodealliance/actions/wasmtime/setup@v1', with: { version: wasmtime } })
-install({ uses: 'wasmerio/setup-wasmer@v3.1', with: { version: `v${wasmer}` } })
 ```
 
-It used to be five. Deno's went when that job moved to Nix: its runtime comes from a
-generated flake now, and the only action it installs is `cachix/install-nix-action`,
-which takes no version input. `installNode` survives because the platform matrix and
-`package-check` still use it, and `setup-bun` because that job's migration is blocked
-([bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md)).
+**It used to be five, and the trend is the point.** Deno's went when that job moved
+to Nix; Wasmtime's and Wasmer's went with `wasm`, whose runtimes now come from its
+flake. A migrated job installs `cachix/install-nix-action`, which takes no version
+input, so it is not a call site at all. `installNode` survives because the platform
+matrix and `package-check` still use it, and `setup-bun` because that job's migration
+waits on Nixpkgs ([bun-nix-blocked-on-nixpkgs](bun-nix-blocked-on-nixpkgs.md)).
+
+Two call sites is the bar this repository sets, not comfortably past it, and one of
+the two is expected to go. **Decide whether this is still worth doing before doing
+it**: if `bun` migrates, `installNode` is the only caller left and the factory has
+nothing to factor.
 
 ### Proposed abstraction
 
@@ -40,14 +42,13 @@ export const setupTool =
 
 - `installNode  = setupTool('actions/setup-node@v7', 'node-version')`
 - `installBun   = setupTool('oven-sh/setup-bun@v2', 'bun-version')`
-- wasmtime / wasmer = `setupTool('bytecodealliance/actions/wasmtime/setup@v1', 'version')`
-  and `setupTool('wasmerio/setup-wasmer@v3.1', 'version')` (wasmer keeps its
-  `v${...}` formatting at the call site).
+There is no third: the Wasmtime and Wasmer lines this issue used to name are gone
+with the `wasm` migration.
 
 ### Why this qualifies
 
-- Four real call sites today, all shipping — down from five, but still well past
-  the "second real consumer" bar.
+- Two real call sites today, both shipping — down from five, and exactly at the
+  "second real consumer" bar rather than past it.
 - It is the textbook `AGENTS.md` case: identical shape, only data (action
   descriptor, version key/value) varies.
 - It was **complementary to, not a duplicate of, [i170](./170-ci-tool-step-builder.md)**:

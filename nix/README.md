@@ -78,28 +78,59 @@ of a file that already exists. A job generated for the first time needs
 [`fjs/ci/todo/generated-run-script-mode.md`](../fjs/ci/todo/generated-run-script-mode.md)
 is about removing that step.
 
-Every canonical job with a flake runs through it — the three Node jobs and
-`deno`. Each installs Nix, checks the runtime its shell provides, and then runs
+Every canonical job with a flake runs through it — the three Node jobs, `deno`
+and `wasm`. Each installs Nix, checks the runtime its shell provides, and then runs
 its commands one `nix develop` step each, because a CI step runs one command. No
 separate job makes that check — a flake is checked by the job that uses it, and
 every generated flake has one.
 
-Three canonical jobs have no flake, for three unrelated reasons. `bun` still
-installs its runtime with `oven-sh/setup-bun`, because Nixpkgs packages no Bun
-this repository's proofs pass on. `wasm` takes its Rust, Wasmtime and Wasmer from
-setup actions, because Nixpkgs builds one `rustc` and it has no `std` for three of
-that job's four WASI targets — a gap no version bump closes.
-`package-check` runs with no checkout, which is the whole point of it, and a flake
-and its `run` script are files in a checkout. `fjs/ci/todo/65z-ci-nix.md` keeps the
-three together, and `fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` and
-`fjs/ci/todo/wasm-nix-blocked-on-rust-targets.md` own the two Nixpkgs cannot serve
-yet.
+Two canonical jobs have no flake, for unrelated reasons. `bun` still installs its
+runtime with `oven-sh/setup-bun`, because Nixpkgs packages no Bun this
+repository's proofs pass on —
+`fjs/ci/todo/bun-nix-blocked-on-nixpkgs.md` owns that. `package-check` runs with
+no checkout, which is the whole point of it, and a flake and its `run` script are
+files in a checkout. `fjs/ci/todo/65z-ci-nix.md` keeps both together.
+
+### The `wasm` flake's second input
+
+Four of the five flakes have one input. `wasm` has two, and the extra one is why
+that job could be migrated at all.
+
+Nixpkgs builds a single `rustc` and hard-codes the targets it builds `std` for —
+the host, `wasm32-unknown-unknown`, `wasm32v1-none` and two BPF targets. Three of
+this job's four are not among them, at any Nixpkgs version, because that list is
+compiled into the derivation rather than passed to it. So the flake takes its
+toolchain from `github:oxalica/rust-overlay`:
+
+```nix
+rust = pkgs.rust-bin.stable."1.98.0".minimal.override {
+    extensions = [ "clippy" "rustfmt" ];
+    targets = [ "wasm32-wasip1" "wasm32-wasip2" "wasm32-unknown-unknown" "wasm32-wasip1-threads" ];
+};
+```
+
+That overlay is not a different build of Rust; it is a different way of getting
+it. Rust publishes a manifest per release listing every component and target with
+a URL and a hash, and the overlay checks a generated Nix file per version into its
+own repository — so this expression selects among the same tarballs `rustup` would
+install, pinned by hashes inside an input `fjs/ci/config` pins. Nixpkgs ignores
+that manifest and compiles from source, which is the whole of the difference.
+
+`inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs"` keeps the flake resolving
+one snapshot rather than two. `minimal` plus the two components the job runs
+avoids `rust-docs`, which the `default` profile would download and nothing here
+opens. Wasmtime and Wasmer stay ordinary Nixpkgs packages.
 
 The check's shape follows the runtime rather than a convention: `node --version`
 prints a leading `v` the configured version does not carry, while
 `deno --version` prints three lines — the runtime, V8 and TypeScript — so Deno
 is asked for `Deno.version.deno` instead of pinning two versions nobody
-configured.
+configured. `wasm` checks two runtimes rather than one, since its shell provides
+two, and neither `pkgs.wasmtime` nor `pkgs.wasmer` names a version.
+
+It checks no Rust. That is the same rule read the other way: a check earns its
+place where the flake does not already say the answer, and this one says
+`stable."1.98.0"` in full.
 
 Node 26's drift check is a plain step, not a `nix develop` one: `git` is the
 runner's tool, and a step names the flake only when it needs something the flake
