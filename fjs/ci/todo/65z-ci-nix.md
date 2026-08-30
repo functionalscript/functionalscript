@@ -20,9 +20,13 @@ records that action version; its `deno` pin now names what the snapshot provides
 list.
 
 Separately from Nix, `deno` and `bun` both stopped installing and running a published
-`functionalscript`; the platform matrix is the only family that still does. That is
-[built-package-checks](built-package-checks.md)'s subject, not this issue's, but it is
-why those two jobs are shorter than the migration alone would leave them.
+`functionalscript`, and the three platform jobs that moved into the shared shell
+went the same way — `npm install -g` writes to the read-only store from inside a
+shell, and the check tests a shipped release rather than the commit under review.
+`ubuntu-intel` and the two Windows jobs still run it, so it survives on three
+images rather than six. That is [built-package-checks](built-package-checks.md)'s
+subject, not this issue's, but it is why those jobs are shorter than the
+migration alone would leave them.
 
 Deno brought one thing the Node jobs did not: `pkgs.deno` carries no version, so the
 proof that ties `nodejs_24` to the configured Node has no counterpart for it. Its CI
@@ -182,10 +186,26 @@ which side of the line it falls on.
   putting the repository back. Its Node comes from `setup-node`, and the version it
   names is the one `node26`'s flake already checks.
 
-The platform matrix — `{ubuntu,macos,windows}-{intel,arm}` — is out of scope for a
-related reason. Those six jobs exist to run on stock GitHub runner images across
-three operating systems and two architectures, so a flake would replace the thing
-they measure; four of the six are not `aarch64-linux` at all.
+Three of the six platform jobs are here too, and the reason each is here is a
+fact about the job rather than a preference:
+
+- **`windows-intel`, `windows-arm`** — Nix does not run natively on Windows.
+- **`ubuntu-intel`** — it checks `i686-unknown-linux-gnu`, and a 32-bit `libc`
+  is `pkgsi686Linux.*`, an attribute path a `NixJob`'s `packages` cannot name.
+  Serving it would mean teaching the generator non-`pkgs` attribute paths and a
+  linker override, for one target on one runner.
+
+The other three — `ubuntu-arm`, `macos-intel`, `macos-arm` — moved into the
+shared shell, and they are what makes `devSystems` mean anything: they are the
+only place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells are
+built rather than pinned as text.
+
+What that cost is worth naming. Those jobs used to measure a stock runner image,
+and now measure a pinned toolchain running *on* one. The distinction is smaller
+than it sounds — `dtolnay/rust-toolchain` and `setup-node` were already pinned to
+the same versions — but the system libraries a Nix build links against are Nix's,
+so "builds with the distro's toolchain" is no longer something CI says. Windows
+and `ubuntu-intel` still say it.
 
 What remains here is the Nixpkgs update command and removing stale generated
 directories, which waits on a recursive `rm` effect — the four directories this

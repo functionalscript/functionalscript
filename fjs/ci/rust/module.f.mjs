@@ -64,25 +64,58 @@ const rustTarget = target => [
     ...testSteps(targetCheckCommands(target)),
 ]
 
-/** @type {(a: Architecture, v: Os) => readonly MetaStep[]} */
-const i686 = (a, v) => {
+/**
+ * The 32-bit target a platform also checks, if it checks one.
+ *
+ * Exported because it decides more than the four steps below: a job with a
+ * 32-bit target is a job the shared Nix shell cannot serve. The shell carries
+ * one `stdenv`, and a 32-bit `libc` is `pkgsi686Linux.*` rather than
+ * `pkgs.*` — an attribute path a `NixJob`'s `packages` cannot name. So
+ * `../module.f.mjs` asks this before deciding where a platform job runs its
+ * commands, rather than restating the pair of names.
+ *
+ * @type {(v: Os, a: Architecture) => string | undefined}
+ */
+export const i686Target = (v, a) => {
     if (a === 'intel') {
         switch (v) {
-            case 'windows': return rustTarget('i686-pc-windows-msvc')
-            case 'ubuntu': return [
-                { type: 'apt-get', package: 'libc6-dev-i386' },
-                ...rustTarget('i686-unknown-linux-gnu'),
-            ]
+            case 'windows': return 'i686-pc-windows-msvc'
+            case 'ubuntu': return 'i686-unknown-linux-gnu'
         }
     }
-    return []
+    return undefined
 }
+
+/** @type {(v: Os, a: Architecture) => readonly MetaStep[]} */
+const i686 = (v, a) => {
+    const target = i686Target(v, a)
+    if (target === undefined) { return [] }
+    return [
+        // 32-bit Linux needs the multilib headers; the runner image has the
+        // 64-bit ones only. Windows needs nothing extra.
+        ...(v === 'ubuntu'
+            ? /** @type {readonly MetaStep[]} */ ([{ type: 'apt-get', package: 'libc6-dev-i386' }])
+            : []),
+        ...rustTarget(target),
+    ]
+}
+
+/**
+ * The native checks every platform job runs, as commands rather than steps.
+ *
+ * A job on the shared shell runs these through `nix develop` and needs no
+ * toolchain of its own; one off it wraps them in `rustPlatformSteps` below,
+ * whose `{ type: 'rust' }` marker is what makes `toSteps` install one.
+ *
+ * @type {readonly string[]}
+ */
+export const rustPlatformCommands = targetCheckCommands()
 
 /** @type {(v: Os, a: Architecture) => readonly MetaStep[]} */
 export const rustPlatformSteps = (v, a) => [
     { type: 'rust' },
-    ...testSteps(targetCheckCommands()),
-    ...i686(a, v),
+    ...testSteps(rustPlatformCommands),
+    ...i686(v, a),
 ]
 
 /** CI job id, and the directory name of its generated flake. */

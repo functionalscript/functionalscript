@@ -53,13 +53,13 @@ for, and whether that answer should change, is
   standing in for declarations the tarball omits, so the check would pass on
   the repository rather than on the package.
   `proof.f.mjs` — its property-based proofs.
-- `rust/module.f.mjs` — `cargo` build/test steps, the platform matrix's toolchain
-  action, and the `wasm` job's steps and flake declaration. The two families get
-  their toolchain from different places for a packaging reason: the matrix spans
-  six runner images that one flake could not serve, and the WASM job needs three
-  targets Nixpkgs builds no `std` for, so its flake takes the toolchain from
-  `rust-overlay` instead. Both name `config/module.f.mjs`'s `rust`, so the
-  version cannot differ between them.
+- `rust/module.f.mjs` — `cargo` build/test steps, the toolchain action the three
+  jobs that cannot use a flake still need, and the `wasm` job's steps. `cargo`
+  now comes from the shared shell everywhere Nix runs and no 32-bit target is in
+  play; `i686Target` is the predicate that decides which jobs those are, and
+  `../module.f.mjs` asks it rather than restating the pair of names. Both paths
+  name `config/module.f.mjs`'s `rust`, so the version cannot differ between
+  them.
 - `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
   `proof.f.mjs` — its property-based proofs.
 - `dev/module.f.mjs` — the developer environment: one shell carrying every
@@ -179,15 +179,26 @@ evaluated for real, by the job that uses it.
 
 ### Expected package scripts
 
-The generated platform jobs install the pinned FunctionalScript package globally
-and run `fjs test`. They do **not** run `npm ci`: they exercise the *published*
-CLI against this working tree, and the tree has nothing to install — no runtime
-dependency at all, and one `devDependency` that is types. The compiler used to
-arrive that way and now comes from a flake, which left the step installing a
-directory nothing opens. Those six are now the only place the
-published CLI is exercised: no canonical Node job does, and `deno` and `bun` both
-stopped. Every canonical job runs on Ubuntu ARM, and all but `package-check`
-through a flake:
+The platform matrix splits three ways now. `ubuntu-arm`, `macos-intel` and
+`macos-arm` run `cargo` and the suite in the shared shell, which is the only
+place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells get built
+at all. `ubuntu-intel` and the two Windows jobs keep the runner's toolchain:
+Windows has no native Nix, and `ubuntu-intel` checks
+`i686-unknown-linux-gnu`, whose `libc` is `pkgsi686Linux.*` — an attribute path
+a `NixJob` cannot name.
+
+Those three are also where the *published* CLI is still exercised, by
+`npm install -g functionalscript@<version>` and `fjs test`. The jobs that moved
+run this commit's suite instead: `npm install -g` writes to the read-only store
+from inside a shell, and the check was the one `deno` and `bun` already dropped
+because it tests a shipped release rather than the commit under review.
+
+None of them runs `npm ci`. The tree declares no runtime dependency and one
+`devDependency` that is types, so `node --test` runs the whole suite with no
+`node_modules` present.
+
+Every canonical job runs on Ubuntu ARM, and all but `package-check` through a
+flake:
 
 - Node 22 runs `npm ci` and `node --test` through a flake of its own.
 - Node 24 runs the same pair through its own — one builder emits both jobs,
@@ -291,9 +302,11 @@ your project depends on; and a package that ships no declarations now fails that
 check with `TS18003` rather than not being checked. See
 [`todo/ci-generator-audience.md`](./todo/ci-generator-audience.md).
 
-The FunctionalScript package version used by the platform matrix's smoke test is
-pinned in `config/module.f.mjs` too — nothing about the project reaches the
-generated steps except whether it has a `Cargo.toml`.
+The FunctionalScript package version used by the surviving smoke tests is pinned
+in `config/module.f.mjs` too — nothing about the project reaches the generated
+steps except whether it has a `Cargo.toml`. That one flag reaches further than
+it used to: without Rust there are no 32-bit checks, so `ubuntu-intel` shares
+the shell like the rest and only Windows stays off it.
 
 ## The publishing workflow
 

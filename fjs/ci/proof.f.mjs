@@ -439,8 +439,10 @@ export const proof = {
     // instead of joining the second list in silence.
     nixCoverage: () => {
         const gha = run(true)
-        const matrix = os.flatMap(o => architecture.map(a => `${o}-${a}`))
-        const canonical = Object.keys(gha.jobs).filter(id => !matrix.includes(id))
+        // Every job, matrix included. Three of the platform jobs run in the
+        // shared shell now, so a check that skipped them would be blind to the
+        // half of the workflow this most recently changed.
+        const canonical = Object.keys(gha.jobs)
         // Bootstrapping Nix and entering the shell are separate facts, and a
         // job doing only the first is the one that would slip past a check
         // reading either alone. Requiring them to agree job by job is what
@@ -484,11 +486,40 @@ export const proof = {
                 [id],
                 `expected only ${id} to enter its own flake`)
         }
-        assertStructurallySame(
-            canonical.filter(id => !installsNix(gha.jobs[id])),
+        // The whole of what is left off Nix, named rather than counted. Each
+        // entry is a fact about the job, and a fourth appearing here without a
+        // reason is what this is for.
+        const offNix = canonical.filter(id => !installsNix(gha.jobs[id]))
+        /** @type {readonly string[]} */
+        const expectedOffNix = [
+            // Nix does not run natively on Windows.
+            'windows-intel',
+            'windows-arm',
+            // 32-bit Linux: a `libc` for `i686-unknown-linux-gnu` is
+            // `pkgsi686Linux.*`, an attribute path a `NixJob` cannot name, so
+            // this one keeps the runner's toolchain and its `apt-get`.
+            'ubuntu-intel',
             // `package-check` runs with no checkout, so there is no file tree
             // for a flake or its `run` script to be in.
-            [packageCheckJobId])
+            packageCheckJobId,
+        ]
+        // Both directions rather than a list comparison: the workflow is read
+        // back through `parseGitHubAction`, which does not promise to hand the
+        // job names back in the order they were written, and this is a question
+        // about which jobs rather than about their order.
+        assertEq(offNix.length, expectedOffNix.length, offNix.join(' '))
+        for (const id of expectedOffNix) {
+            assert(offNix.includes(id), `expected ${id} off Nix`)
+        }
+        for (const id of offNix) {
+            assert(expectedOffNix.includes(id), `unexplained job off Nix: ${id}`)
+        }
+        // And the three that did move are exactly the systems the shell
+        // declares beyond the runner every other job uses. Before this they
+        // were generated as text and built nowhere.
+        for (const id of /** @type {const} */ (['ubuntu-arm', 'macos-intel', 'macos-arm'])) {
+            assertStructurallySame(flakesEntered(gha.jobs[id]), [nixShell])
+        }
     },
     // Bun, step for step. It lost its setup action, and every command it runs
     // enters its own flake — whose Bun is the one thing in any generated shell

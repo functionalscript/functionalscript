@@ -15,16 +15,16 @@
 import { resultStep } from '../effects/module.f.mjs'
 import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
-import { functionalscript, images } from './config/module.f.mjs'
+import { functionalscript, images, node } from './config/module.f.mjs'
 import {
     architecture,
     os,
     toSteps,
     ubuntuArm
 } from './common/module.f.mjs'
-import { rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
+import { i686Target, rustPlatformCommands, rustPlatformSteps, rustWasmSteps } from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.mjs'
-import { nixFlakes } from './nix/module.f.mjs'
+import { nixFlakes, nixInstall, nixShell, nixSteps, nixVersionStep } from './nix/module.f.mjs'
 import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
 import { bunSteps } from './bun/module.f.mjs'
 import { devNixJob } from './dev/module.f.mjs'
@@ -40,13 +40,71 @@ import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
  */
 const workflowText = gha => JSON.stringify(gha, null, '  ')
 
+/**
+ * Whether a platform job runs its commands in the shared shell.
+ *
+ * Two things keep a job off it, and both are facts about the job rather than
+ * preferences. **Windows**, because Nix does not run there natively. And a
+ * **32-bit target**, because a `libc` for one is `pkgsi686Linux.*` — an
+ * attribute path a `NixJob` cannot name — so `ubuntu-intel` keeps the runner's
+ * toolchain and the `apt-get` that feeds it. That second one is conditional on
+ * the project having Rust at all: without a `Cargo.toml` there are no 32-bit
+ * checks, and the job shares like the rest.
+ *
+ * The three that do share are the three systems the shell already declares and
+ * nothing else built: `x86_64-linux`, `aarch64-darwin`, `x86_64-darwin`. Before
+ * this they were generated as text and evaluated nowhere.
+ *
+ * @type {(rust: boolean, o: Os, a: Architecture) => boolean}
+ */
+const sharesTheShell = (rust, o, a) =>
+    o !== 'windows' && !(rust && i686Target(o, a) !== undefined)
+
+/**
+ * A platform job on the shared shell: every command through `nix develop`, and
+ * the runtime asserted first.
+ *
+ * It runs this commit's suite rather than installing a published
+ * FunctionalScript and running that. `npm install -g` writes to the read-only
+ * store from inside the shell, so keeping the old shape would mean an
+ * `NPM_CONFIG_PREFIX` in a flake developers also enter — and the check was the
+ * one `deno` and `bun` already dropped, for the reason
+ * `./todo/built-package-checks.md` records: it tests a shipped release rather
+ * than the commit under review. `ubuntu-intel` and the two Windows jobs still
+ * run it, so it survives on three images rather than six.
+ *
+ * No `npm ci` either, for the reason the platform jobs already had none: the
+ * tree declares no runtime dependency and one `devDependency` that is types, so
+ * `node --test` runs the whole suite with no `node_modules` present at all.
+ * `npm ci` stays in the three Node jobs, which type-check and pack.
+ *
+ * The version check is worth more here than in any other job. These are the
+ * only places the shell is built for a system other than `aarch64-linux`, so
+ * this is what turns three shells that were pinned as text into three that are
+ * known to work.
+ *
+ * @type {(rust: boolean) => readonly MetaStep[]}
+ */
+const shellPlatformSteps = rust => [
+    nixInstall,
+    nixVersionStep(nixShell, 'node --version', `v${node.default}`),
+    ...nixSteps(nixShell)([
+        ...(rust ? rustPlatformCommands : []),
+        'node --test',
+    ]),
+]
+
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
 const job = (rust, nodeExtra) => o => a => {
     const id = `${o}-${a}`
     const image = images[o][a]
     const result = [
-        ...(rust ? rustPlatformSteps(o, a) : []),
-        ...nodeMainSteps(functionalscript),
+        ...(sharesTheShell(rust, o, a)
+            ? shellPlatformSteps(rust)
+            : [
+                ...(rust ? rustPlatformSteps(o, a) : []),
+                ...nodeMainSteps(functionalscript),
+            ]),
         ...nodeExtra,
     ]
     return [id, { 'runs-on': image, steps: toSteps(result) }]
