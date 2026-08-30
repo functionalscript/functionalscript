@@ -9,7 +9,7 @@
 generates invokes it directly:
 
 ```sh
-./nix/dev/run git --version
+./nix/run git --version
 ```
 
 `writeUtf8File` reaches `fs.promises.writeFile`, which creates a new file as

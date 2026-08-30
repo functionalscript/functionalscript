@@ -1,7 +1,7 @@
 import { denoJobId, denoSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { deno } from '../config/module.f.mjs'
-import { nixDevelop, nixShell } from '../nix/module.f.mjs'
+import { nixDevelop, nixShell, runPath } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 const runs = toSteps(denoSteps).flatMap(s => s.run !== undefined ? [s.run] : [])
@@ -48,10 +48,10 @@ export const proof = {
     // `../dev/proof.f.mjs` is where that shell is held to providing a `deno`.
     sharesTheShell: () => {
         assert(
-            runs.every(run => run.includes(`/${nixShell}/run `)),
+            runs.every(run => run.includes(`${runPath(nixShell)} `)),
             `expected every command in the ${nixShell} shell`)
         assert(
-            !runs.some(run => run.includes(`/${denoJobId}/run `)),
+            !runs.some(run => run.includes(`${runPath(denoJobId)} `)),
             'unexpected flake of its own')
     },
 }

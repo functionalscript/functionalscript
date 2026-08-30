@@ -293,79 +293,79 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/dev/run wasmtime --version)\" = \"wasmtime 45.0.2\""
+          "run": "test \"$(./nix/run wasmtime --version)\" = \"wasmtime 45.0.2\""
         },
         {
-          "run": "test \"$(./nix/dev/run wasmer --version)\" = \"wasmer 7.1.0\""
+          "run": "test \"$(./nix/run wasmer --version)\" = \"wasmer 7.1.0\""
         },
         {
-          "run": "./nix/dev/run cargo fmt -- --check"
+          "run": "./nix/run cargo fmt -- --check"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-wasip1"
+          "run": "./nix/run cargo test --target wasm32-wasip1"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-wasip1 --release"
+          "run": "./nix/run cargo test --target wasm32-wasip1 --release"
         },
         {
-          "run": "./nix/dev/run cargo clippy --target wasm32-wasip1 -- -D warnings"
+          "run": "./nix/run cargo clippy --target wasm32-wasip1 -- -D warnings"
         },
         {
-          "run": "./nix/dev/run cargo clippy --target wasm32-wasip1 --release -- -D warnings"
+          "run": "./nix/run cargo clippy --target wasm32-wasip1 --release -- -D warnings"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
+          "run": "./nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
+          "run": "./nix/run cargo test --target wasm32-wasip1 --config .cargo/config.wasmer.toml --release"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-wasip2"
+          "run": "./nix/run cargo test --target wasm32-wasip2"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-wasip2 --release"
+          "run": "./nix/run cargo test --target wasm32-wasip2 --release"
         },
         {
-          "run": "./nix/dev/run cargo clippy --target wasm32-wasip2 -- -D warnings"
+          "run": "./nix/run cargo clippy --target wasm32-wasip2 -- -D warnings"
         },
         {
-          "run": "./nix/dev/run cargo clippy --target wasm32-wasip2 --release -- -D warnings"
+          "run": "./nix/run cargo clippy --target wasm32-wasip2 --release -- -D warnings"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
+          "run": "./nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
+          "run": "./nix/run cargo test --target wasm32-wasip2 --config .cargo/config.wasmer.toml --release"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-unknown-unknown"
+          "run": "./nix/run cargo test --target wasm32-unknown-unknown"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-unknown-unknown --release"
+          "run": "./nix/run cargo test --target wasm32-unknown-unknown --release"
         },
         {
-          "run": "./nix/dev/run cargo clippy --target wasm32-unknown-unknown -- -D warnings"
+          "run": "./nix/run cargo clippy --target wasm32-unknown-unknown -- -D warnings"
         },
         {
-          "run": "./nix/dev/run cargo clippy --target wasm32-unknown-unknown --release -- -D warnings"
+          "run": "./nix/run cargo clippy --target wasm32-unknown-unknown --release -- -D warnings"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
+          "run": "./nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
+          "run": "./nix/run cargo test --target wasm32-unknown-unknown --config .cargo/config.wasmer.toml --release"
         },
         {
-          "run": "./nix/dev/run cargo clippy --target wasm32-wasip1-threads -- -D warnings"
+          "run": "./nix/run cargo clippy --target wasm32-wasip1-threads -- -D warnings"
         },
         {
-          "run": "./nix/dev/run cargo clippy --target wasm32-wasip1-threads --release -- -D warnings"
+          "run": "./nix/run cargo clippy --target wasm32-wasip1-threads --release -- -D warnings"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
+          "run": "./nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml"
         },
         {
-          "run": "./nix/dev/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
+          "run": "./nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
         }
       ]
     },
@@ -379,13 +379,13 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/dev/run deno eval 'console.log(Deno.version.deno)')\" = \"2.8.3\""
+          "run": "test \"$(./nix/run deno eval 'console.log(Deno.version.deno)')\" = \"2.8.3\""
         },
         {
-          "run": "./nix/dev/run deno install --frozen"
+          "run": "./nix/run deno install --frozen"
         },
         {
-          "run": "./nix/dev/run deno task cov"
+          "run": "./nix/run deno task cov"
         }
       ]
     },
@@ -399,13 +399,13 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/dev/run bun --version)\" = \"1.4.0\""
+          "run": "test \"$(./nix/run bun --version)\" = \"1.4.0\""
         },
         {
-          "run": "./nix/dev/run bun install --frozen-lockfile"
+          "run": "./nix/run bun install --frozen-lockfile"
         },
         {
-          "run": "./nix/dev/run bun test --coverage"
+          "run": "./nix/run bun test --coverage"
         }
       ]
     },
@@ -459,25 +459,25 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/dev/run node --version)\" = \"v26.7.0\""
+          "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
         },
         {
-          "run": "test \"$(./nix/dev/run tsc --version)\" = \"Version 7.0.2\""
+          "run": "test \"$(./nix/run tsc --version)\" = \"Version 7.0.2\""
         },
         {
-          "run": "./nix/dev/run npm ci"
+          "run": "./nix/run npm ci"
         },
         {
-          "run": "./nix/dev/run tsc"
+          "run": "./nix/run tsc"
         },
         {
-          "run": "./nix/dev/run npm run cov"
+          "run": "./nix/run npm run cov"
         },
         {
-          "run": "./nix/dev/run npm pack"
+          "run": "./nix/run npm pack"
         },
         {
-          "run": "./nix/dev/run npm run ci-update"
+          "run": "./nix/run npm run ci-update"
         },
         {
           "run": "git add -A && git diff --cached --exit-code"

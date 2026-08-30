@@ -66,15 +66,15 @@ and is the easiest way to get a known-good environment.
 
 ### Or one Nix shell
 
-If you have Nix, `nix/dev` is a generated development environment carrying every
+If you have Nix, `nix/` is a generated development environment carrying every
 tool in that table at the exact versions CI uses — Node, Deno, Bun, TypeScript,
 a Rust toolchain with the WASM targets, Wasmtime, Wasmer and `git`. It is not a
 convenience built alongside CI: every job but the two older Node ones runs its
 commands inside this very shell, so what passes here is what passes there.
 
 ```bash
-nix develop ./nix/dev          # an interactive shell
-./nix/dev/run npm run cov      # or one command in it
+nix develop ./nix          # an interactive shell
+./nix/run npm run cov      # or one command in it
 ```
 
 It covers `aarch64-linux`, `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin`;

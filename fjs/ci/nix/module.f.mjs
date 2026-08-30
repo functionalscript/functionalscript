@@ -28,9 +28,13 @@ import { install, test, uses } from '../common/module.f.mjs'
 import { nixpkgs, rustOverlay } from '../config/module.f.mjs'
 
 /**
- * Directory holding the generated environments, one subdirectory per job, each
- * with a `flake.nix` and a `run` script. The generator owns those
- * subdirectories, not everything here: `nix/README.md` is written by hand.
+ * Directory holding the generated environments, each a `flake.nix` and a `run`
+ * script beside it.
+ *
+ * The shared shell is *this* directory rather than one below it — see
+ * {@link nixShell} — and a job that needs a shell of its own gets a
+ * subdirectory named after it. So the generator owns `flake.nix`, `run`, and
+ * every subdirectory here; `nix/README.md` is written by hand.
  */
 export const generatedDirectory = /** @type {const} */ ('nix')
 
@@ -338,7 +342,10 @@ exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
  * @type {(job: NixJob) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
 const writeJob = job => {
-    const directory = `${generatedDirectory}/${job.id}`
+    // `flakePath` is what a workflow step names, so it is relative; the effects
+    // layer writes from the repository root, so the `./` comes off here rather
+    // than being a second opinion about where these files go.
+    const directory = flakePath(job.id).slice('./'.length)
     const created = mkdir(directory, { recursive: true })
     const flakeWritten = step(
         created,
@@ -356,9 +363,44 @@ const writeJob = job => {
 export const nixFlakes = jobs =>
     forEachStep(pureOk(jobs), writeJob)
 
-/** Directory holding the flake and `run` script for the job of the given id. */
-/** @type {(id: string) => string} */
-export const flakePath = id => `./${generatedDirectory}/${id}`
+/**
+ * The one generated environment jobs share, and the directory its flake is
+ * written to.
+ *
+ * Most jobs name their runtime on the command line — `deno task cov`, `bun
+ * test`, `cargo test`, `tsc` — so what else is on `PATH` cannot decide which
+ * one runs, and a shell carrying all of them tests exactly what a narrower one
+ * would. Those jobs share this, and it is the same shell a developer enters, so
+ * the environment CI proves is the environment people work in.
+ *
+ * A job whose runtime is resolved from `PATH` rather than named cannot share
+ * it, and the Node jobs are that case: `npm ci` and `node --test` run whichever
+ * `node` comes first, so Node 22 and Node 24 keep a flake each carrying the one
+ * release they exist to test. `../dev/module.f.mjs` has the rest of the
+ * reasoning.
+ *
+ * The name is a label rather than a directory. This shell is written to
+ * {@link generatedDirectory} itself — see {@link flakePath} — because it
+ * belongs to no single job, and `nix develop ./nix` is the command a developer
+ * should have to remember.
+ */
+export const nixShell = /** @type {const} */ ('dev')
+
+/**
+ * Directory holding the flake and `run` script for the environment of the given
+ * id.
+ *
+ * The shared shell is the generated directory itself, so a developer types
+ * `nix develop ./nix` — the repository's environment, named after nothing in
+ * particular, because it belongs to no single job. The rest get a subdirectory
+ * apiece.
+ *
+ * @type {(id: string) => string}
+ */
+export const flakePath = id =>
+    id === nixShell
+        ? `./${generatedDirectory}`
+        : `./${generatedDirectory}/${id}`
 
 /** The `run` script a workflow step invokes, for the job of the given id. */
 /** @type {(id: string) => string} */
@@ -384,24 +426,6 @@ export const nixInstall = install(uses('cachix/install-nix-action'))
  * @type {(id: string, command: string) => string}
  */
 export const nixDevelop = (id, command) => `${runPath(id)} ${command}`
-
-/**
- * The one generated environment jobs share, and the directory its flake is
- * written to.
- *
- * Most jobs name their runtime on the command line — `deno task cov`, `bun
- * test`, `cargo test`, `tsc` — so what else is on `PATH` cannot decide which
- * one runs, and a shell carrying all of them tests exactly what a narrower one
- * would. Those jobs share this, and it is the same shell a developer enters, so
- * the environment CI proves is the environment people work in.
- *
- * A job whose runtime is resolved from `PATH` rather than named cannot share
- * it, and the Node jobs are that case: `npm ci` and `node --test` run whichever
- * `node` comes first, so Node 22 and Node 24 keep a flake each carrying the one
- * release they exist to test. `../dev/module.f.mjs` has the rest of the
- * reasoning.
- */
-export const nixShell = /** @type {const} */ ('dev')
 
 /**
  * The Nix system of the runner every job with a flake uses. `ubuntuArm` picks

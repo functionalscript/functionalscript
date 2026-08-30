@@ -278,21 +278,21 @@ this TODO does not prescribe which non-Node tools a job needs.
 Generate one self-contained file for each job:
 
 ```text
+nix/flake.nix
 nix/node22/flake.nix
 nix/node24/flake.nix
-nix/node26/flake.nix
-nix/deno/flake.nix
-nix/wasm/flake.nix
-nix/bun/flake.nix
-nix/dev/flake.nix
 ```
+
+The shared shell is `nix/` itself rather than a directory under it: it belongs
+to no single job, and `nix develop ./nix` is the command a developer should have
+to remember. The two that do belong to one job are named after it.
 
 Each generated file should:
 
 - pin the exact Nixpkgs commit;
-- expose one `devShells.<system>.default` per system the job declares — every CI
-  job declares the one ARM Linux runner it has, and the developer environment
-  declares four. Past one, the shell body is written once as a function those
+- expose one `devShells.<system>.default` per system the declaration names — a
+  job with a flake of its own declares the one ARM Linux runner it has, and the
+  shared shell declares four. Past one, the shell body is written once as a function those
   entries call; the systems stay named bindings rather than a fold;
 - use `pkgs.mkShell` with that job's declared packages;
 - be readable without inspecting the generator;

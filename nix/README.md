@@ -1,13 +1,15 @@
 # Nix environments
 
-`<name>/flake.nix` is **generated** by [`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs)
-— three self-contained flakes, in directories named after them. Do not edit
-these files by hand: run `npm run ci-update` and commit the result. The Node 26
-CI job fails when the committed files no longer match the generator's output.
-This README is the one file here that is written by hand.
+`flake.nix` here, and `<job>/flake.nix` below it, are **generated** by
+[`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs) — three self-contained flakes. Do not
+edit them by hand: run `npm run ci-update` and commit the result. The Node 26 CI
+job fails when the committed files no longer match the generator's output. This
+README is the one file here that is written by hand.
 
-`dev` is the shell: the one a developer enters, and the one all but two CI jobs
-run inside. `node22` and `node24` are the two exceptions, and the section below
+The flake in *this* directory is the shell: the one a developer enters, and the
+one all but two CI jobs run inside. It has no directory of its own because it
+belongs to no single job — `nix develop ./nix` is the whole of what there is to
+remember. `node22` and `node24` are the two exceptions, and the section below
 says why they have to be.
 
 Each flake pins the exact Nixpkgs commit from
@@ -33,14 +35,15 @@ loop.
 
 ### `run`
 
-Each job directory also holds a generated `run` script, and that is what CI
-invokes:
+A generated `run` script sits beside every flake, and that is what CI invokes:
 
 ```sh
-./nix/node26/run npm run cov
+./nix/run npm run cov          # the shared shell
+./nix/node22/run node --test   # a flake of its own
 ```
 
-It is the same two lines for every job:
+It is the same two lines in every copy — it finds its flake from its own path,
+so nothing in it varies:
 
 ```sh
 #!/bin/sh
@@ -79,7 +82,7 @@ output is unchanged.
 The generator writes the script's **content**; its executable bit is committed
 once and preserved by every regeneration, because `fs.writeFile` keeps the mode
 of a file that already exists. A job generated for the first time needs
-`git update-index --chmod=+x nix/<job>/run` by hand —
+`git update-index --chmod=+x <path>` by hand —
 [`fjs/ci/todo/generated-run-script-mode.md`](../fjs/ci/todo/generated-run-script-mode.md)
 is about removing that step.
 
@@ -100,8 +103,8 @@ pinned Bun, TypeScript, a Rust toolchain with every WASM target, Wasmtime,
 Wasmer and `git` — so that one shell is enough to work in:
 
 ```sh
-nix develop ./nix/dev          # an interactive shell
-./nix/dev/run npm run cov      # or one command in it
+nix develop ./nix          # an interactive shell
+./nix/run npm run cov      # or one command in it
 ```
 
 It cannot drift from what the jobs run, because it *is* what they run. Each tool

@@ -130,9 +130,9 @@ unpacks the same release artifacts `rustup` would, so `rust` is an exact Rust re
 the flake names in full. The platform matrix's `dtolnay/rust-toolchain` reads the same
 constant, so the two cannot drift.
 
-Each job directory also gets a generated `run` script, and a workflow step reads
-as the command it runs — `./nix/node26/run npm run cov` — rather than as a
-`nix develop` invocation repeated fifteen times. The script carries
+A generated `run` script sits beside every flake, and a workflow step reads as
+the command it runs — `./nix/run npm run cov` — rather than as a `nix develop`
+invocation repeated fifteen times. The script carries
 `--no-write-lock-file` (leave the checkout untouched) and `--quiet` (drop Nix's
 logging from `info` to `notice`, which removes the `copying N paths`
 substitution chatter without touching warnings, errors, or the command's own
@@ -145,9 +145,9 @@ canonical job asserts, as its first command, that its own shell reports the vers
 `config/module.f.mjs` records for it:
 
 ```sh
-test "$(./nix/node26/run node --version)" = "v26.7.0"
-test "$(./nix/deno/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
-test "$(./nix/wasm/run wasmtime --version)" = "wasmtime 45.0.2"
+test "$(./nix/run node --version)" = "v26.7.0"
+test "$(./nix/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
+test "$(./nix/node22/run node --version)" = "v22.23.2"
 ```
 
 The runtimes disagree on both halves, which is why the check takes the command and

@@ -8,7 +8,7 @@ import { exitCode } from '../effects/node/module.f.mjs'
 import { ci, main, nixJobs } from './module.f.mjs'
 import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtime } from './config/module.f.mjs'
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
-import { flakeText, nixDevelop, nixShell, runPath } from './nix/module.f.mjs'
+import { flakePath, flakeText, nixDevelop, nixShell, runPath } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
 import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
@@ -119,7 +119,7 @@ const workflow = state => workflowFile(state, 'ci.yml')
 
 /** @type {(state: State, id: string) => string} */
 const flake = (state, id) =>
-    text(path(state.root, ['nix', id]), 'flake.nix')
+    text(path(state.root, flakePath(id).slice('./'.length).split('/')), 'flake.nix')
 
 // A compiler pin no configuration anywhere holds, written into the fixture
 // project's `package.json` so that the generator can be shown to ignore it.
@@ -319,14 +319,14 @@ export const proof = {
             assertStructurallySame(
                 job.steps.flatMap(step => step.run === undefined ? [] : [step.run]),
                 [
-                    `test "$(./nix/${shell}/run node --version)" = "v${version}"`,
+                    `test "$(${runPath(shell)} node --version)" = "v${version}"`,
                     // Node 26 is the one that type-checks and packs, so it is
                     // the one that also asserts a compiler before running
                     // anything.
                     ...(version === node.default
-                        ? [`test "$(./nix/${shell}/run tsc --version)" = "Version ${typescript.version}"`]
+                        ? [`test "$(${runPath(shell)} tsc --version)" = "Version ${typescript.version}"`]
                         : []),
-                    ...commands.map(command => `./nix/${shell}/run ${command}`),
+                    ...commands.map(command => nixDevelop(shell, command)),
                     ...(id === `node${major(node.default)}`
                         ? ['git add -A && git diff --cached --exit-code']
                         : []),

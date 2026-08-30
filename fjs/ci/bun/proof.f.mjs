@@ -1,7 +1,7 @@
 import { bunJobId, bunPin, bunSteps } from './module.f.mjs'
 import { toSteps } from '../common/module.f.mjs'
 import { bun, bunSources } from '../config/module.f.mjs'
-import { nixDevelop, nixShell, nixSystem } from '../nix/module.f.mjs'
+import { nixDevelop, nixShell, nixSystem, runPath } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 
 const runs = toSteps(bunSteps).flatMap(s => s.run !== undefined ? [s.run] : [])
@@ -31,10 +31,10 @@ export const proof = {
     // the shared shell carries cannot decide what runs them.
     sharesTheShell: () => {
         assert(
-            runs.every(run => run.includes(`/${nixShell}/run `)),
+            runs.every(run => run.includes(`${runPath(nixShell)} `)),
             `expected every command in the ${nixShell} shell`)
         assert(
-            !runs.some(run => run.includes(`/${bunJobId}/run `)),
+            !runs.some(run => run.includes(`${runPath(bunJobId)} `)),
             'unexpected flake of its own')
     },
     // The pin covers whatever systems it is asked for, and each entry names the

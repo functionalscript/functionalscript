@@ -19,6 +19,7 @@ import {
     nixDevelop,
     nixFlakes,
     nixInstall,
+    nixShell,
     nixSteps,
     nixSystem,
     nixVersionStep,
@@ -288,9 +289,12 @@ const unwrapPin = ({ pin }) => {
 
 /** @type {(jobs: readonly NixJob[], id: string, file: string) => string} */
 const generatedFile = (jobs, id, file) => {
+    // `flakePath` rather than a second spelling of it: the shared shell is the
+    // generated directory itself, so a literal `nix/<id>/` here would read the
+    // one path the generator never writes.
     const written = ioStep(
         nixFlakes(jobs),
-        () => readUtf8File(`${generatedDirectory}/${id}/${file}`))
+        () => readUtf8File(`${flakePath(id).slice('./'.length)}/${file}`))
     const [, [tag, result]] = virtual(emptyState)(written)
     assert(tag === 'ok', result)
     return result
@@ -432,6 +436,16 @@ exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
             nixDevelop(plain.id, 'node --version'),
             './nix/node24/run node --version'),
         runPath: () => assertEq(runPath(plain.id), './nix/node24/run'),
+        // The shared shell is the generated directory itself, not a `dev`
+        // below it. `nix develop ./nix` is what a developer types, and the
+        // name stays only as the label the declaration is found by.
+        sharedShellIsTheDirectory: () => {
+            assertEq(flakePath(nixShell), `./${generatedDirectory}`)
+            assertEq(runPath(nixShell), `./${generatedDirectory}/run`)
+            assert(
+                !runPath(nixShell).includes(`/${nixShell}/`),
+                `the shared shell must not sit under ./${generatedDirectory}/${nixShell}`)
+        },
         // One step per command, each entering the shell itself (root
         // `AGENTS.md` §7) — never one invocation carrying the sequence.
         nixSteps: () => {
