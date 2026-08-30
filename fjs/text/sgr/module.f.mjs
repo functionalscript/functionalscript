@@ -6,14 +6,14 @@
  *
  * @module
  *
- * @import { Console, Write, WriteConsoles, NodeProgramOptions } from '../../effects/node/types.ts'
+ * @import { Console, Std, Write, WriteConsoles } from '../../effects/common/types.ts'
  * @import { Stdout, WriteText, CsiConsole } from './types.ts'
  */
 
 // C0 control codes
 // https://en.wikipedia.org/wiki/ANSI_escape_code#C0_control_codes
 
-import { write } from '../../effects/node/module.f.mjs'
+import { write } from '../../effects/common/module.f.mjs'
 import { utf8 } from "../module.f.mjs"
 
 /** @type {string} */
@@ -87,9 +87,13 @@ const str = isTTY => s =>
  * stream is not a TTY, then encodes to UTF-8 and emits a `Write` effect.
  * Does NOT append `\n` — callers are responsible for line termination.
  *
- * @type {(options: NodeProgramOptions) => (stream: WriteConsoles) => Console}
+ * It takes a {@link Std} rather than a whole program's options: what it needs
+ * to know is whether each stream is a TTY, and asking for the rest made an
+ * ANSI-sequence helper name a host it has nothing to do with.
+ *
+ * @type {(std: Std) => (stream: WriteConsoles) => Console}
  */
-export const csiWrite = ({ std }) => stream => {
+export const csiWrite = std => stream => {
     const toStr = str(std[stream].isTTY)
     return s => write(stream, utf8(toStr(s)))
 }
