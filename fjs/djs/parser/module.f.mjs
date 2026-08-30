@@ -194,18 +194,24 @@ const lineTrivia = repeat0Plus({
 })
 
 /**
- * What ends a statement: a `;` or the end of the line. DataJS requires the
- * `;` and FunctionalScript must accept every DataJS document, so both are
- * terminators here — the newline is the one the hand-written parser's `'nl'`
- * state enforced, the semicolon the one `spec/README.md`'s module-structure
- * rule adds for the inclusion. One terminator each: a second `;` is not an
- * empty statement, it is a stray token the next rule rejects.
+ * What ends a statement: a `;`, or, absent one, the first newline. DataJS
+ * requires the `;` and FunctionalScript must accept every DataJS document, so
+ * both are terminators here — the newline is the one the hand-written
+ * parser's `'nl'` state enforced, the semicolon the one `spec/README.md`'s
+ * module-structure rule adds for the inclusion.
+ *
+ * The `;` branch reaches through *full* trivia, newlines included: DataJS
+ * whitespace is insignificant between any two tokens, so `export default 1`
+ * and its `;` may sit on different lines. A newline is a terminator only when
+ * no `;` follows with just trivia between — which the branch order expresses,
+ * the semicolon branch rewinding to the newline one when it finds no `;`.
+ * One terminator each: a second `;` is not an empty statement, it is a stray
+ * token the next rule rejects.
  */
-const statementEnd = () => [
-    lineTrivia,
-    { semicolon: sym(';'), newline: sym('nl') },
-    trivia,
-]
+const statementEnd = {
+    semicolon: () => [trivia, sym(';'), trivia],
+    newline: () => [lineTrivia, sym('nl'), trivia],
+}
 
 /**
  * Every word that may stand where an identifier is expected: a plain `id` and
@@ -321,11 +327,10 @@ const djsModule = () => [
     repeat0Plus([importStatement, statementEnd]),
     repeat0Plus([constStatement, statementEnd]),
     exportStatement,
-    // the export statement may end with a `;` too, but needs no terminator:
-    // the end of input closes it. The `;` must precede any newline — once the
-    // line has ended, the statement has too, and a later `;` is a stray token.
-    lineTrivia,
-    { semicolon: sym(';'), none: [] },
+    // the export statement may end with a `;` too — reached through full
+    // trivia, like every terminator — but needs none: the end of input
+    // closes it.
+    { semicolon: () => [trivia, sym(';')], none: [] },
     trivia,
     eof,
 ]

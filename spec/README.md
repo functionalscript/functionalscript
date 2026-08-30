@@ -504,11 +504,13 @@ See
 ## Module Structure
 
 A module is a sequence of statements. Each statement is terminated by a
-semicolon or by the end of the line — `export default 5` and `export default
-5;` denote the same module, and the `;` lets several statements share a line.
-One terminator per statement: `;;` is an error, not an empty statement, and a
-`;` on the line after a statement terminates nothing, because the newline
-already did.
+semicolon, or, absent one, by the end of the line — `export default 5` and
+`export default 5;` denote the same module, and the `;` lets several
+statements share a line. Whitespace may precede the `;`, newlines included:
+a line break before an explicit `;` is insignificant, exactly as it is in
+DataJS and JavaScript, so the newline only terminates a statement that no
+`;` follows. One terminator per statement: `;;` is an error, not an empty
+statement.
 
 The `;` is not a stylistic allowance. [DataJS](./datajs/README.md) *requires*
 one after every statement, and every DataJS document must be a valid
