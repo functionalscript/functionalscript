@@ -528,9 +528,68 @@ and is reviewable without the next one.
       yields, enumeration, joining — not concurrency. Module loading is not
       part of it: the page's timer starts after its imports have settled, and
       stays there (step 6's note carries the same correction).
-      What the reverted #1759 validated and this PR re-lands: the traversal
-      threads a `RunOutcome<R>` — folded totals plus each host's leaf records
-      in the walk's order (`fjs t` answers `void` and collects nothing).
+      **Landed, and without the `RunOutcome<R>` below.** That is the one
+      substantial deviation from this design, so it is recorded rather than
+      quietly taken. The plan had the traversal thread each host's leaf
+      records out through its return value, which meant a breaking change to
+      `runModuleMap`'s answer, an `exitCodeOf` helper, and every importer
+      migrated. None of it was needed: the page must have a `report`
+      operation anyway, for the live rendering this step is about, and that
+      operation already carries every record in the walk's order. Threading
+      them through the return as well would collect the same records twice.
+      `runModuleMap` still answers `0 | 1`, nothing broke, and the page folds
+      its report from what it collected.
+
+      The page's modules stay a list, and the seam this design asked for is
+      why. `runEntries` takes a module's **already-collected** leaves, so the
+      page enumerates the export itself, once, under its own guard — items 5
+      and 6 together. An unreadable export is that page's failed module, as
+      before, and the traversal keeps reading a module's own `proof` unguarded
+      (`hostile-proof-values.md`'s open task) for `fjs t`.
+
+      **Skipping that seam is what a first attempt did, and review caught what
+      it cost.** Calling `runModuleMap` once per module also preserves a
+      duplicate label, so it looked equivalent; it is not, because it leaves
+      the enumeration inside the effect. An unreadable export and an
+      interpreter that cannot dispatch then arrive by the same route — a
+      rejection — and become indistinguishable, so one of them is reported
+      wrongly whichever way the `catch` is written. Ambiguity introduced by
+      the port, resolved by the design the plan already had.
+
+      **What is still not provable, and why that is the next step.** Both
+      runner-failure routes now end in `infrastructure-error` (item 8), and
+      nothing states it: the routing lives in `runBrowserProofs`, an impure
+      `async` function, and the failure it routes can only come from the
+      interpreter it builds internally. Two ways to reach it were tried and
+      both are wrong. Replacing `globalThis.setTimeout` broke twenty-four
+      unrelated proofs under `fjs test`, whose registration path runs proofs
+      *concurrently*, and was timing-dependent enough to stay green locally —
+      a proof that reaches outside its own values is not isolated. Passing the
+      yield in as a parameter is the same reach with a nicer name: a seam that
+      exists for the test.
+
+      The answer is the virtual interpreter, and it needs the orchestration to
+      be an *effect*. Enumerating a module, walking its entries, routing a
+      failure and folding a report are all pure logic over operations; only
+      rendering and the wall clock are the host's. Moved into `.f.mjs` behind
+      `report`, the whole of it is drivable by `effects/node/virtual` — a
+      runner that simply refuses `report` produces the failure this proof
+      needs, with nothing injected and nothing global touched. That is the same
+      reason `fjs t`'s traversal is provable and this is not, and it is the
+      next step here rather than a cleanup: the JavaScript that remains in
+      `browser.mjs` is exactly the JavaScript that cannot be proven.
+
+      **The page needed no browser-specific effect.** Its interpreter is
+      `asyncRun` over `commonOperationMap` plus its own `report` — nothing
+      else. So `effects/browser` still has no content to hold, which is now
+      recorded in `../../effects/todo/node-module-layering.md` where that
+      module is proposed. What a second host turned out to need was the
+      operations moving *out* of `effects/node`, not a directory of its own.
+
+      What the reverted #1759 validated, for whoever revisits this: the
+      traversal threading a `RunOutcome<R>` — folded totals plus each host's
+      leaf records in the walk's order (`fjs t` answers `void` and collects
+      nothing).
       **That is a breaking change to `runModuleMap`'s exported answer** —
       today it is an exit code, `0 | 1` — and re-landing it carries the same
       obligations it carried the first time: an `exitCodeOf` helper for

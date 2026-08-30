@@ -15,12 +15,37 @@
  *
  * @module
  *
- * @import { BrowserTestReport, TestResult, _BrowserImporter, _BrowserTestResult, _TestAndPath } from './types.ts'
+ * @import {
+ *     BrowserTestReport, Reporter, RunState, TestResult, _BrowserImporter, _BrowserReport,
+ *     _BrowserTestResult, _TestAndPath,
+ * } from './types.ts'
+ * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
+ * @import { IoChannel } from '../effects/node/types.ts'
+ * @import { Effect, Func } from '../effects/types.ts'
  * @import { Result } from '../types/result/types.ts'
+ * @import { List } from '../types/list/types.ts'
  */
 
-import { addResult, collectTests, testResult, zeroTotals } from './module.f.mjs'
-import { error as errorResult, invert, ok } from '../types/result/module.f.mjs'
+import { addResult, collectTests, defaultTest, runEntries, zeroState, zeroTotals } from './module.f.mjs'
+import { asyncRun } from '../effects/module.mjs'
+import { do_, pureOk } from '../effects/module.f.mjs'
+import { commonOperationMap } from '../effects/common/module.mjs'
+import { concat, toArray } from '../types/list/module.f.mjs'
+import { ok } from '../types/result/module.f.mjs'
+
+/** The page's leaf-landed operation; see `_BrowserReport`.
+ * @type {Func<_BrowserReport>} */
+const report = do_('report')
+
+/**
+ * Return to the event loop, so the browser can paint what has been appended.
+ *
+ * A macrotask rather than a microtask: draining the microtask queue is part of
+ * the same task, and a task is what a paint waits for.
+ *
+ * @type {() => Promise<void>}
+ */
+const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
 
 /** @type {(value: unknown) => string} */
 const text = value => {
@@ -79,110 +104,26 @@ const moduleFailure = (source, duration, message, stack) => ({
     module: source, path: '', name: source, status: 'failed', duration, message, stack,
 })
 
-/** @type {(module: string, path: readonly (string | null)[], throws: boolean, fn: () => unknown, result: (result: _BrowserTestResult) => void) => Promise<readonly _BrowserTestResult[]>} */
-const runOne = (module, path, throws, fn, result) => {
-    const start = performance.now()
-    // The throw expectation is applied with the same `invert` the console
-    // runner's `defaultTest` uses, and the status is then read off the result by
-    // the same `testResult`. Both runners therefore answer "did this leaf pass"
-    // in one place — the rule that used to be spelled out at four sites here and
-    // once again over there.
-    /** @type {(o: Result<unknown, unknown>, duration: number) => TestResult} */
-    const leaf = (o, duration) =>
-        testResult(module, path, { result: throws ? invert(o) : o, duration })
-    /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
-    const passed = value => {
-            const duration = performance.now() - start
-            if (throws) {
-                const failure = { ...leaf(ok(value), duration),
-                    message: 'Expected the proof to throw', stack: '' }
-                result(failure)
-                return [failure]
-            }
-            // Reading the returned tree runs user code: an enumerable getter
-            // or a proxy trap can throw. That is a failure of the test that
-            // produced the value, never of the run — a rejected run leaves the
-            // page in `running` with no report and no completion event.
-            /** @type {readonly _TestAndPath[]} */
-            let children
-            try {
-                children = collectTests([...path, null], false, value)
-            } catch (error) {
-                return failed(error)
-            }
-            return Promise.all(children.map(([childPath, child]) =>
-                runOne(module, childPath, child.throws, child.fn, result)
-            )).then(results => {
-                const success = leaf(ok(value), duration)
-                result(success)
-                return [success, ...results.flat()]
-            })
-        }
-    /** @type {(error: unknown) => readonly _BrowserTestResult[]} */
-    const failed = error => {
-            const duration = performance.now() - start
-            if (throws) {
-                const success = leaf(errorResult(error), duration)
-                result(success)
-                return [success]
-            }
-            const [message, stack] = errorDetails(error)
-            const failure = { ...leaf(errorResult(error), duration), message, stack }
-            result(failure)
-            return [failure]
-        }
-    // `instanceof Promise`, then `await` — the whole of `fjs t`'s promise
-    // handling, spelled the same way here.
-    //
-    // It is deliberately not more than that. A promise can replace its own
-    // `then`, present a `constructor` that is not the intrinsic `Promise`, or
-    // carry a `Symbol.species` that fails, and each of those defeats `await` in
-    // a different way. Defending against them takes about 150 lines, none of
-    // which authored FunctionalScript can reach: it has no `Promise`, no
-    // `class`, no `Proxy` and no `Symbol`. `todo/imports-promises-realms.md`
-    // records each case, what the deleted machinery did about it, and what a
-    // runner does without it — to be implemented when an input that needs it
-    // actually exists.
-    //
-    // The value is wrapped in a tuple first so that resolving it cannot
-    // assimilate a proof tree carrying a `then` key: such a tree is a sub-tree
-    // with a test called `then` in it, in both runners.
-    //
-    // What makes this enough is the `await` above, not an assumption about the
-    // values that reach it. FunctionalScript as specified has no promises, and
-    // the browser suite selects `.f.mjs` — but that selection is by filename
-    // with no content check (`website/browser-prepare.mjs`), so a module that
-    // does not conform is still loaded and can return one. The handling here is
-    // correct either way. See `todo/imports-promises-realms.md` for the
-    // machinery this replaces and the measurements behind removing it.
-    /** @type {(value: unknown) => Promise<readonly _BrowserTestResult[]> | readonly _BrowserTestResult[]} */
-    const settled = async value => {
-        // Even the brand check runs user code: `instanceof` consults
-        // `getPrototypeOf`, which a proxy can trap and a revoked one always
-        // throws from. `fjs t` performs this check inside `sandbox`'s
-        // `try`/`catch`, so it reports such a value as its test's failure; this
-        // handler has no enclosing `try`, so without one here the whole run
-        // rejects and the page never leaves `running`.
-        let isPromise = false
-        try {
-            isPromise = value instanceof Promise
-        } catch (error) {
-            return failed(error)
-        }
-        if (!isPromise) { return passed(value) }
-        /** @type {readonly [unknown]} */
-        let resolved
-        // Only the `await` is guarded. A throw from `passed` is the traversal's
-        // own and has its own handling; catching it here would report a broken
-        // proof tree as a rejected promise.
-        try {
-            resolved = [await value]
-        } catch (error) {
-            return failed(error)
-        }
-        return passed(resolved[0])
-    }
-    return Promise.resolve().then(() => [fn()]).then(([value]) => settled(value), failed)
+/**
+ * The page's half of a leaf-landed event: the shared {@link TestResult} plus a
+ * description of the value it failed with.
+ *
+ * Describing a thrown value is deliberately each host's, for the reason
+ * `TestResult` gives — the browser's report crosses a wire and cannot carry the
+ * value, so it reads `message` and `stack` off it here.
+ *
+ * An expected throw that returned cleanly is the one failure with nothing
+ * thrown to describe, which is why the reporter is handed `throws`: the value
+ * in the result is what the leaf *returned*, and saying so is more use than
+ * printing it.
+ *
+ * @type {(t: TestResult, r: SandboxResult<unknown>, throws: boolean) => _BrowserTestResult}
+ */
+const browserResult = (t, r, throws) => {
+    if (t.status === 'passed') { return t }
+    if (throws) { return { ...t, message: 'Expected the proof to throw', stack: '' } }
+    const [message, stack] = errorDetails(r.result[1])
+    return { ...t, message, stack }
 }
 
 /**
@@ -190,8 +131,8 @@ const runOne = (module, path, throws, fn, result) => {
  * run's own pass/fail status — come from folding the results with the same
  * `addResult` that decides `fjs t`'s summary and exit code, so "did the run
  * pass" has one answer across the runners. `duration` stays the page's own
- * wall clock: leaves run concurrently here, so the fold's summed duration is
- * not how long the run took (see `RunTotals`).
+ * wall clock: the run yields a macrotask between leaves so the page can paint,
+ * and that time is the run's without being any leaf's (see `RunTotals`).
  *
  * `status` overrides the folded decision when the run never got to its leaves
  * — module loading failed — which no leaf result can express.
@@ -223,44 +164,121 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
     // Reporting each result as it lands is the page's own code. A renderer that
     // throws must not take the run down with it: the report it fails to show is
     // the one thing the page is still waiting for.
-    /** @type {(result: _BrowserTestResult) => void} */
+    // A `List` joined with `concat`, not an array appended to: this collects
+    // one entry per leaf and an immutable append would copy the prefix every
+    // time — catalog item 9, which the sequential traversal does not grant for
+    // free.
+    /** @type {List<_BrowserTestResult>} */
+    let landed = null
+    /** @type {(value: _BrowserTestResult) => void} */
     const announce = value => {
+        landed = concat(landed)([value])
         try {
             result(value)
         } catch {
             // The result stays in the report the run resolves with.
         }
     }
-    /** @type {(module: string, error: unknown) => () => Promise<readonly _BrowserTestResult[]>} */
-    const unreadable = (module, error) => () => {
-        const [message, stack] = errorDetails(error)
-        const failure = moduleFailure(module, 0, message, stack)
-        announce(failure)
-        return Promise.resolve([failure])
+    /** @type {Reporter<_BrowserReport | Sandbox>} */
+    const reporter = {
+        // No pending row yet: the page renders a leaf once it has settled. The
+        // start event is where that changes, and it is
+        // `todo/report-before-running.md`'s remaining task rather than this
+        // port's.
+        start: () => pureOk(undefined),
+        result: (t, r, throws) => report(browserResult(t, r, throws)),
+        // The page folds its own report from the results it collected, and its
+        // `duration` is wall clock rather than the summed one — see `reportOf`.
+        summary: () => pureOk(undefined),
+        test: defaultTest,
     }
-    const tests = modules.flatMap(([module, proof]) => {
-        // Reading an exported tree runs user code just as reading a returned
-        // one does. A module that cannot be enumerated is one failed module,
-        // never a run that ends without a report.
-        try {
-            return collectTests([], false, proof).map(([path, entry]) =>
-                () => runOne(module, path, entry.throws, entry.fn, announce)
-            )
-        } catch (error) {
-            return [unreadable(module, error)]
-        }
+    /** @type {<T, E>(e: Effect<Catch | _BrowserReport | Sandbox, T, E>) => Promise<Result<T, E>>} */
+    const run = asyncRun({
+        ...commonOperationMap,
+        // **The page's only operation, and the port's only scheduling.** The
+        // await is a real macrotask boundary: a run is otherwise one
+        // uninterruptible task, and a browser paints nothing until it ends. It
+        // replaces what `batchSize = 25` was doing without being asked to, and
+        // yields per leaf rather than per twenty-five, so a row appears as its
+        // test finishes.
+        report: async (/** @type {_BrowserTestResult} */ value) => {
+            announce(value)
+            await macrotask()
+            return ok(undefined)
+        },
     })
-    const batchSize = 25
-    /** @type {(index: number, results: readonly _BrowserTestResult[]) => Promise<readonly _BrowserTestResult[]>} */
-    const runBatch = (index, results) => {
-        const batch = tests.slice(index, index + batchSize)
-        if (batch.length === 0) { return Promise.resolve(results) }
-        return Promise.all(batch.map(test => test())).then(next =>
-            new Promise(resolve => setTimeout(resolve, 0, [...results, ...next.flat()]))
-        ).then(next => runBatch(index + batchSize, next))
+    /**
+     * A module's own export, enumerated here rather than by the traversal.
+     *
+     * Reading it runs user code, and a value that resists being read has no
+     * leaf to be attributed to — so the traversal leaves the read to whoever
+     * loaded the module (`todo/hostile-proof-values.md`) and takes already
+     * collected leaves at `runEntries`. That is also what keeps the page's
+     * modules a *list*: two entries may share a label and are two runs, where a
+     * record-shaped map would keep only the last (catalog item 6).
+     *
+     * Enumerated exactly once, which is why the entries are carried rather than
+     * the value re-read: a getter runs on every read (item 5).
+     *
+     * @type {(module: string, proof: unknown) => readonly _TestAndPath[] | null}
+     */
+    const entriesOf = (module, proof) => {
+        try {
+            return collectTests([], false, proof)
+        } catch (error) {
+            const [message, stack] = errorDetails(error)
+            announce(moduleFailure(module, 0, message, stack))
+            return null
+        }
     }
-    const completed = runBatch(0, [])
-    return completed.then(results => reportOf(performance.now() - start, results))
+    /**
+     * A failure of the *runner*, which is not a failed test and must not be
+     * reported as one.
+     *
+     * It arrives two ways and both end here (catalog item 8): the error channel
+     * carries what an operation reported, a rejection carries what the
+     * interpreter could not dispatch at all, and an unhandled one of either is a
+     * page stuck in `running` for ever. The run stops — a runner that cannot
+     * dispatch will not dispatch the next leaf either — and the report says
+     * `infrastructure-error`, which is the status a controller reads to tell
+     * "the suite failed" from "the suite could not be run".
+     *
+     * @type {(module: string, cause: unknown) => 'infrastructure-error'}
+     */
+    const infrastructure = (module, cause) => {
+        const [message, stack] = errorDetails(cause)
+        announce(moduleFailure(module, 0, message, stack))
+        return 'infrastructure-error'
+    }
+    /** @type {(module: string, entries: readonly _TestAndPath[]) => Promise<string | null>} */
+    const runModule = async (module, entries) => {
+        /** @type {Result<RunState, IoChannel>} */
+        let answered
+        try {
+            answered = await run(runEntries(reporter)(module, entries)(zeroState))
+        } catch (error) {
+            return infrastructure(module, error)
+        }
+        if (answered[0] === 'error') { return infrastructure(module, answered[1]) }
+        const { aborted } = answered[1]
+        return aborted === null ? null : infrastructure(module, aborted)
+    }
+    /** @type {(rest: readonly (readonly [string, unknown])[]) => Promise<string | null>} */
+    const walk = async rest => {
+        if (rest.length === 0) { return null }
+        const [[module, proof], ...tail] = rest
+        const entries = entriesOf(module, proof)
+        const status = entries === null ? null : await runModule(module, entries)
+        return status === null ? walk(tail) : status
+    }
+    // Nothing that runs user code may start before the caller holds the
+    // promise: a leaf executes synchronously inside its handler, so without
+    // this deferral the first proofs run while this function is still building
+    // what it returns, and a proof reading `fjsBrowserTestReport` would see the
+    // previous run's promise. Catalog item 7.
+    return Promise.resolve()
+        .then(() => walk(modules))
+        .then(status => reportOf(performance.now() - start, toArray(landed), status ?? undefined))
 }
 
 /** @type {(root: Element) => (Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }) | null} */
