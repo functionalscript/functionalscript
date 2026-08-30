@@ -29,4 +29,6 @@ Keep `@types/node` in `devDependencies`. Preserve the checkout-free isolation of
 
 - [65Z-ci-nix](65z-ci-nix.md) — declarative per-job Nix architecture.
 - [66B-dockerfile-nix-integration](66b-dockerfile-nix-integration.md) — Node CI Nix migration.
-- [668-ci-npm-publish-workflow](668-ci-npm-publish-workflow.md) — npm publishing workflow generation.
+- [publish-only-a-new-version](publish-only-a-new-version.md) — the generated
+  npm publishing workflow, whose publish step is one of the paths this issue's
+  last task covers.
