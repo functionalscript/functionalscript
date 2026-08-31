@@ -4,6 +4,8 @@
 - NiX:
   - [ ] Generate lock files. Limitation: no Windows support.
   - [ ] Add another shell script: `nix develop ./nix`
+  - [ ] Add OCI image shell script build and run with docker.
+  - [ ] Delete `Dockerfile`
 - FunctionalScript
   - [ ] AST to EDAG
 - DataJS
