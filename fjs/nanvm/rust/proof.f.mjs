@@ -100,6 +100,7 @@ export const proof = {
             nodeExpr(['String', 'a']),
             'string_any("a").to_string().map(|v| v.to_any())')
         assertEq(nodeExpr(['*', 1, 2]), '(1f64).to_any() * (2f64).to_any()')
+        assertEq(nodeExpr(['-', 1, 2]), '(1f64).to_any() - (2f64).to_any()')
         assertEq(nodeExpr(['undefined']), 'Nullish::Undefined.to_any()')
     },
     /**
@@ -143,6 +144,7 @@ export const proof = {
     /** A Rust name is this printer's, and never derived from a punctuation id. */
     rustName: () => {
         assertEq(rustName['*'], 'mul')
+        assertEq(rustName['-'], 'sub')
         assertEq(rustName.neg, 'neg')
         assertEq(rustName.String, 'string_coercion')
         assertEq(rustName.unaryPlus, 'unary_plus')

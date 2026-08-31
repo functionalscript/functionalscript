@@ -83,6 +83,7 @@ export const rustName = {
     unaryPlus: 'unary_plus',
     neg: 'neg',
     '*': 'mul',
+    '-': 'sub',
     String: 'string_coercion',
 }
 
@@ -100,6 +101,7 @@ const op1Rust = {
 /** The same, for the binary operations. @type {{ readonly [k in OpId]?: (a: string, b: string) => string }} */
 const op2Rust = {
     '*': (a, b) => `${a} * ${b}`,
+    '-': (a, b) => `${a} - ${b}`,
 }
 
 /**
