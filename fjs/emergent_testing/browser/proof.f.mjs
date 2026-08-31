@@ -39,11 +39,17 @@ const handlers = {
     catch: f => rows => [rows, ok(ok(f()))],
     // A source resolves to a module whose `proof` names it, so a proof can see
     // *which* source produced what. `bad:` is the one that will not load.
+    // A module namespace, not a proof tree: `proof` beside another export, so
+    // a walk handed the *module* is visibly different from one handed its
+    // `proof`.
     import: path => rows => [
         rows,
         path.startsWith('bad:')
             ? error(ioError({ message: `cannot load ${path}` }))
-            : ok({ proof: { [path]: () => ({ result: ok(undefined), duration: 0 }) } }),
+            : ok({
+                extra: () => ({ result: ok(undefined), duration: 0 }),
+                proof: { [path]: () => ({ result: ok(undefined), duration: 0 }) },
+            }),
     ],
 
     // Only the settled rows are collected: a proof that asserted on loading
@@ -162,6 +168,25 @@ export const proof = {
             assertEq(outcome[1].length, 2)
             assertEq(outcome[1][0]?.[0], 'a')
             assertEq(outcome[1][1]?.[0], 'b')
+        },
+        /**
+         * **What is carried is the module's `proof`, not the module.**
+         *
+         * Handing the namespace on instead is not a naming slip: the traversal
+         * walks whatever it is given, so every other zero-argument export gets
+         * *run* as a test and the real proofs land under an extra `proof`
+         * level. Nothing else here would notice — the totals come out the same
+         * when a fixture has one extra export and one proof — which is why this
+         * asserts the value rather than a count.
+         */
+        readyCarriesTheProofExport: () => {
+            const [, answered] = working([])(loadProofs(['a']))
+            const outcome = answered[1]
+            assert(outcome[0] === 'ready', outcome)
+            const [, tree] = outcome[1][0] ?? []
+            assertStructurallySame(
+                Object.keys(/** @type {Record<string, unknown>} */ (tree)),
+                ['a'])
         },
         // One module that will not link stops the suite — it has no tests to
         // run — and every failed source is named, because a report listing one

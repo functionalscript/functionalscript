@@ -329,8 +329,13 @@ const collect = loads => {
     }
     const rejected = values.flatMap(([source, loaded]) =>
         loaded[0] === 'error' ? [/** @type {const} */ ([source, loaded[1]])] : [])
+    // **The module's `proof` export, not the module.** A namespace handed to
+    // the traversal is walked as a proof tree, so every other zero-argument
+    // export is *run* as a test and the real proofs land one level deeper,
+    // named `.proof.x` instead of `.x`. Running a module's unrelated exports
+    // is the part that is not merely wrong output.
     const ready = values.flatMap(([source, loaded]) =>
-        loaded[0] === 'ok' ? [/** @type {const} */ ([source, loaded[1]])] : [])
+        loaded[0] === 'ok' ? [/** @type {const} */ ([source, loaded[1].proof])] : [])
     // One module that will not link stops the suite: it has no tests to run,
     // and a partial suite reported as a whole one is worse than a refusal.
     return pureOk(rejected.length === 0

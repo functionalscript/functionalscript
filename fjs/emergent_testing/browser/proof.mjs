@@ -425,6 +425,20 @@ export const proof = {
         assertStructurallySame([...p.states], ['loading', 'running', 'passed'])
         assertEq(await p.view.fjsBrowserTestReport, report)
     },
+    // **A module's other exports are not tests.** What reaches the traversal is
+    // the module's `proof`, so a suite whose modules export anything else runs
+    // what it was asked to and nothing more — and the leaf is named `.a`, not
+    // `.proof.a`. Counting tests cannot see this: one extra export and one
+    // proof come to the same total either way.
+    onlyTheProofExportIsRun: async () => {
+        const p = page()
+        const report = await startBrowserTestSources(p.root, [dataModule(
+            'export const other = () => { throw new Error("not a test") }\n'
+            + 'export const proof = { a: () => undefined }')])
+        assertEq(report.status, 'passed')
+        assertEq(report.totals.tests, 1)
+        assert((report.results[0]?.name ?? '').endsWith('.proof.a()'), report.results[0]?.name)
+    },
     sourcesLoadingSummaryIsSynchronous: () => {
         // The summary must not keep showing idle text through loading: it is
         // replaced the instant a run starts, before any import has had a chance
