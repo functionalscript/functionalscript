@@ -109,6 +109,33 @@ exists is `--no-build-output` on `nix-build`/`nix-shell` rather than on this
 command. No flag reaches the command being run — `--command` execs it with stdio
 inherited — so a job's own output is unchanged.
 
+### `../dev.sh`
+
+`./nix/run` hands the shell a command; `../dev.sh` opens one:
+
+```sh
+#!/bin/sh
+exec nix develop ./nix
+```
+
+It is **not** generated — the one Nix-related script that is not. There is
+nothing in it that varies with a job, a pin or a system, so generating it would
+buy a drift check over two lines that have no reason to move, and would cost the
+generator a write into the repository root, where a consuming project is quite
+likely to have a `dev.sh` of its own. It is committed once, like this README.
+
+It lives at the root because that is where a person types it, and it takes no
+arguments — a shell is what it opens, so there is nothing to pass through.
+
+**It carries neither of `run`'s flags, and both absences are deliberate.**
+`--quiet` hides `copying path` and `building '…'`, which is right for a CI log
+and wrong at a terminal: on a first entry those lines are the only thing telling
+you a two-gigabyte fetch is progressing rather than hung.
+`--no-write-lock-file` stops CI writing a tracked file; your working tree is not
+CI's, and if Nix disagrees with the committed lock then letting it rewrite is the
+quickest way to see the hash it wanted — `git diff` prints exactly the value
+`fjs/ci/config` is missing, and `npm run ci-update` puts the generated file back.
+
 ### `flake.lock`
 
 A lock is generated beside every flake, from `narHash` and `lastModified` in
