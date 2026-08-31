@@ -7,18 +7,22 @@
  * FunctionalScript logic without importing a module named after a different
  * host.
  *
- * **Two implementers today**, and it is worth naming which rather than
- * summarising: {@link Sandbox} and {@link Catch}, both dispatched by the
- * browser page's interpreter as well as by Node's.
+ * **Counted by capability, which is the measure the trap below argues for,
+ * three have two implementers.** {@link Sandbox} and {@link Catch} are
+ * dispatched by the browser page's interpreter as well as by Node's.
+ * {@link Import} is supplied by the page rather than dispatched — it hands its
+ * own `import()` in as an argument — and an injected function is an operation
+ * nobody has named, so it counts. The line between the two cases is whether the
+ * host supplies the capability *to shared logic*: the page's `Promise.all`
+ * over its module loads is not injected anywhere, so it is that file's private
+ * business rather than an implementation of {@link All}.
  *
- * **Everything else here has one**, and is here on the layering argument
- * instead — nothing about it is Node's. {@link All} is fan-out, which is an
- * interpreter's job whoever the host is. {@link Import} resolves a path
- * against whatever a host resolves paths against, and the browser supplies its
- * `import()` as an argument today rather than dispatching it, which is the
- * measurement trap below. {@link Write} and {@link Read} are byte streams named
- * by a string; a page renders rows through an operation of its own instead,
- * which is a *different* operation and not an implementation of these.
+ * **{@link All}, {@link Write} and {@link Read} have one implementer**, and are
+ * here on the layering argument instead — nothing about them is Node's. Fan-out
+ * belongs to whichever interpreter has concurrency; a byte stream named by a
+ * string is not a filesystem fact. A page renders rows through an operation of
+ * its own, which is a *different* operation rather than an implementation of
+ * `Write`.
  *
  * Both are good reasons to be in this module. They are not the same reason, and
  * the count is written out because "everything here has two implementers" is

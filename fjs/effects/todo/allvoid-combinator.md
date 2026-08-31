@@ -15,10 +15,10 @@
 > there with them, and everything below naming the node module as their home
 > is describing the tree before that move.
 >
-> Land the `All` move first, then add `allVoid` to `fjs/effects/all` — writing
-> it into the node module now would only earn it a second, breaking relocation.
-> The proposal's body is otherwise unchanged and still correct; substitute
-> `fjs/effects/all/module.f.mjs` wherever it says `fjs/effects/node/module.f.mjs`.
+> The `All` move has landed, so what remains is to add `allVoid` beside it. The
+> proposal's body is otherwise unchanged and still correct; substitute
+> **`fjs/effects/common/module.f.mjs`** wherever it says
+> `fjs/effects/node/module.f.mjs`.
 
 ### Problem
 
