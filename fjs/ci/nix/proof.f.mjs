@@ -41,11 +41,15 @@ const plain = {
  * A hook in both its halves: text, and a package it has to name.
  *
  * The interpolation is the half that cannot be written as a string. A store
- * path is not knowable when this file is generated, so `${pkgs.gcc_multi}`
- * has to reach the flake unescaped and be resolved by Nix — which is exactly
- * what `ubuntu-intel` needs to point `cargo` at a multilib linker. The text
- * around it is escaped, so the `$HOME` below arrives as those five characters
- * rather than as anything Nix reads.
+ * path is not knowable when this file is generated, so a reference has to
+ * reach the flake unescaped and be resolved by Nix — which is exactly what
+ * `ubuntu-intel32` needs to point `cargo` at a 32-bit linker. The text around
+ * it is escaped, so the `$HOME` below arrives as those five characters rather
+ * than as anything Nix reads.
+ *
+ * The package named here is a fixture, not the one that job uses: this file
+ * proves how a hook *renders*, and `../rust/proof.f.mjs` proves what the job
+ * actually declares.
  *
  * @type {NixJob}
  */
@@ -448,9 +452,10 @@ exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix/node24 --com
         // system would otherwise generate a shell no runner enters.
         //
         // `dev` is the reason the list form exists — four systems, one per
-        // machine a developer might have. `ubuntu-intel` is the other, and its
-        // one system is not the one every other job declares: it runs on the
-        // Intel Linux runner, which is where `gcc_multi` exists.
+        // machine a developer might have. `ubuntu-intel32` is the other, and
+        // its one system is not the one every other job declares: it runs on
+        // the Intel Linux runner, which is the one system where `pkgsi686Linux`
+        // is not marked broken.
         systems: () => {
             for (const { id, systems } of nixJobs) {
                 if (id === devJobId) {

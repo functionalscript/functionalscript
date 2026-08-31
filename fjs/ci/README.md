@@ -3,12 +3,14 @@
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflows for this repository. Running the generator writes
 `.github/workflows/ci.yml` with the latest matrix of jobs and steps and
-`.github/workflows/npm-publish.yml` with the release job, plus three Nix
-development environments under `nix/`. One of those, `dev`, is the shell a
-developer enters and the shell all but two canonical jobs run inside; the other
-two exist for the two jobs that cannot share it. Which jobs have a flake and why
-the rest do not is [`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with
-no flake".
+`.github/workflows/npm-publish.yml` with the release job, plus four Nix
+development environments under `nix/`. The first of those, written to `nix/`
+itself, is the shell a developer enters and the shell eight of the fourteen
+jobs run inside; the other three exist for the jobs that cannot share it — Node
+22, Node 24 and `ubuntu-intel32`. Three jobs enter none: the two Windows ones,
+where Nix does not run, and `package-check`, which has no checkout. Which jobs
+have a flake and why the rest do not is
+[`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
 
 ## `fjs ci` is not stable
 
@@ -102,14 +104,15 @@ two Node flakes name one each, since their jobs run on one runner image; the
 shared shell names four, because a developer's machine is not a runner — which
 is the reason that field is a list. `nix/module.f.mjs` writes each out as one
 static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
-job-local `shellHook`, run on every entry to the shell; none does today. See
+job-local `shellHook`, run on every entry to the shell — `ubuntu-intel32`
+declares the one, pointing `cargo` at a 32-bit linker. See
 [nix/README.md](../../nix/README.md) for how the generated files are meant to be
 consumed.
 
 `config/module.f.mjs` records the Node, Deno, Wasmtime and Wasmer versions the pinned
 Nixpkgs snapshot provides — not each vendor's latest release, which the snapshot
 usually trails. They feed the flakes' package attributes where the attribute is
-versioned, as well as every `setup-node` step: the platform matrix,
+versioned, as well as every `setup-node` step left: the two Windows jobs,
 `package-check`, and the publishing workflow. Bumping any of them therefore means moving the Nixpkgs commit first
 and copying the versions it offers.
 
@@ -202,7 +205,9 @@ runs this commit's suite instead: `npm install -g` writes to the read-only store
 from inside a shell, and the check was the one `deno` and `bun` already dropped
 because it tests a shipped release rather than the commit under review.
 
-The four that moved run `npm ci` first. `fjs test` walked the tree for proof
+The four that moved assert their Node and then run `npm ci` — the version check
+first, deliberately, since `npm ci` runs lifecycle hooks and those should not be
+the thing that discovers the runtime. `fjs test` walked the tree for proof
 modules and resolved nothing; `node --test` runs a project's *test entry*, and
 the entry this README asks a consumer to write is
 `import 'functionalscript/fjs/emergent_testing/all.test.mjs'` — a bare
@@ -418,6 +423,9 @@ inside the shared shell, alongside the job's own — these jobs no longer instal
 Node with `setup-node`, so a step left on the runner would find whatever the
 image ships rather than the release the job asserts:
 
+The generator writes JSON, which every YAML reader accepts; shown here as YAML
+because that is how a reader thinks of a workflow:
+
 ```yaml
 - run: ./nix/run bash -e -c "$FJS_CI_RUN"
   env:
@@ -429,10 +437,16 @@ is not a style choice. GitHub substitutes `${{ … }}` into a step's `run` text
 before any shell reads it, so a substituted value lands inside whatever quotes
 the generator wrote — `echo "${{ matrix.name }}"` with a value of `O'Reilly`
 closes an argument its author never opened — and no escape applied at generation
-time can reach a value that does not exist yet. An `env` value is not shell
-source: GitHub substitutes into it the same way and sets the result, so
-`"$FJS_CI_RUN"` expands to exactly the text the consumer wrote, whatever it
-contains.
+time can reach a value that does not exist yet.
+
+What `env` buys is precise, and worth stating exactly: **the generator adds no
+quoting layer of its own.** `"$FJS_CI_RUN"` is a shell expansion, so the
+command arrives at `bash -e -c` as one argument holding exactly the text of the
+`env` value, whatever is in it. GitHub still substitutes `${{ … }}` into that
+value, and `bash` still executes the result — so a `${{ … }}` a consumer writes
+into their own command is theirs to get right, exactly as it would be in a
+hand-written `run:`. What is gone is the extra layer this generator used to add
+on top of that.
 
 Through a shell, because a GitHub `run:` is a shell script while the `run`
 script ends in `--command "$@"`, an argv. That distinction is invisible for this
@@ -450,7 +464,17 @@ point.
 A command declared as an `install` step moves too, losing the pre-checkout
 position that type normally buys. It has to: the flake lives in the checkout, so
 a step before it cannot enter the shell, and cannot count on a pinned Node
-either. A step naming an **action** keeps both its position and its shape —
+either.
+
+**Where it lands instead is worth saying, because it is not symmetric.**
+`toSteps` emits install steps, then the checkout, then test steps, so an
+injected command becomes a test step and runs *after* the job's own
+`node --test` on Linux and macOS — while on Windows, which wraps nothing, the
+same declaration still runs before `actions/checkout`. Declaring `install` no
+longer means "before the tests" anywhere it was moved. `extra.injectedPosition`
+asserts both halves.
+
+A step naming an **action** keeps both its position and its shape —
 there is nothing to wrap, and `actions/cache` and its like want to run early.
 Windows keeps everything as declared, having no shell at all.
 Rust steps are included automatically when `Cargo.toml` is present; no flag is needed.

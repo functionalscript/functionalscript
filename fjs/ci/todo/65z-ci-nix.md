@@ -158,13 +158,16 @@ developer reaches the shell through WSL2 or works the way this repository has
 always supported natively — nothing here requires Nix.
 
 There is no `dev` CI job. There was one, and its only reason was that nothing
-else evaluated this flake; four jobs entering it on every pull request answers
+else evaluated this flake; eight jobs entering it on every pull request answers
 that better than one job asserting six versions. Between them they still assert
 all six — `node` and `tsc` from `node26`, `deno` from `deno`, `bun` from `bun`,
 both WASM runtimes from `wasm`.
 
-Those jobs run on one runner, so one of the four shells is built for real; the
-other three are pinned as text and no further.
+And all four shells are now built for real, which was not true when this was
+written. The canonical jobs run on one runner, so they only ever exercised
+`aarch64-linux`; the four platform jobs that joined cover `x86_64-linux` and
+both Darwin systems, each asserting the Node its shell provides before running
+anything.
 
 One consequence for a project that is not this one: `nixJobs` is a list rather
 than a function of the project, so a project without a `Cargo.toml` gets no
@@ -369,11 +372,12 @@ system-selection framework.
 Node 22, Node 24, Node 26 and `deno` remain separate because they use different
 runtimes and run different command sequences.
 
-No job declares a `shellHook`. The generator still emits one — a job needing environment
-set up on shell entry can declare it, and `fjs/ci/nix/proof.f.mjs` holds that capability
-to its shape — but Node 22's, which existed for a global install the job no longer makes,
-is gone. Do not generalize this into a shell-configuration framework unless a surviving
-job proves that abstraction useful.
+One job declares a `shellHook`: `ubuntu-intel32`, pointing `cargo` at
+`pkgsi686Linux.stdenv.cc`. Node 22's, which existed for a global install the job no
+longer makes, is gone. So the capability has exactly one user, and it is the kind the
+field was for — a store path that cannot be written as text, resolved on entry. Do not
+generalize this into a shell-configuration framework unless a second job proves that
+abstraction useful.
 
 #### Nixpkgs update
 

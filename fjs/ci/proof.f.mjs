@@ -1,5 +1,5 @@
 /**
- * @import { Job, MetaStep, Os, GitHubAction } from './common/types.ts'
+ * @import { Job, MetaStep, Os, GitHubAction, Step } from './common/types.ts'
  * @import { Dir, State } from '../effects/node/virtual/types.ts'
  * @import { Unknown } from '../djs/types.ts'
  */
@@ -105,6 +105,30 @@ const hasInjected = (jobId, cmd) => gha =>
  */
 const carriesInjected = (jobId, cmd) => gha =>
     hasInjected(jobId, cmd)(gha) || hasExactRunInJob(jobId, cmd)(gha)
+
+/**
+ * Where a step sits in its job, by whatever identifies it: `-1` for absent.
+ *
+ * Position is a fact the `run`-text assertions above cannot reach, and it is
+ * the half of "the step moved into the shell" that actually matters. A wrapped
+ * command emitted as an `install` step lands before `actions/checkout`, where
+ * the `run` script it names does not exist yet — with the exact `run` text
+ * these proofs otherwise ask for.
+ *
+ * @type {(jobId: string, match: (step: Step) => boolean) => (gha: GitHubAction) => number}
+ */
+const stepIndex = (jobId, match) => gha =>
+    gha.jobs[jobId]?.steps.findIndex(match) ?? -1
+
+/** @type {(jobId: string, cmd: string) => (gha: GitHubAction) => number} */
+const runIndex = (jobId, cmd) => stepIndex(jobId, step => step.run === cmd)
+
+/** @type {(jobId: string) => (gha: GitHubAction) => number} */
+const checkoutIndex = jobId =>
+    stepIndex(jobId, step => step.uses?.startsWith('actions/checkout@') === true)
+
+/** @type {(jobId: string) => (gha: GitHubAction) => number} */
+const injectedIndex = jobId => stepIndex(jobId, step => step.run === injectedLine)
 
 const makeState = (/** @type {boolean} */ rust, /** @type {string | undefined} */ packageJson) => ({
     ...emptyState,
@@ -252,6 +276,50 @@ export const proof = {
         ])) {
             assert(!hasRunInJob(id, 'npm ci')(gha), `unexpected npm ci in ${id}`)
         }
+        // And in the four platform jobs, in that order. The version check goes
+        // first because `npm ci` runs `preinstall`/`install`/`postinstall`
+        // hooks from the project and its dependencies — code that should not be
+        // the thing that discovers which runtime it is on. `node --test` goes
+        // last because it is what `npm ci` installs the tree for.
+        for (const id of /** @type {const} */ ([
+            'ubuntu-intel',
+            'ubuntu-arm',
+            'macos-intel',
+            'macos-arm',
+        ])) {
+            const check = runIndex(
+                id,
+                `test "$(${nixDevelop(nixShell, 'node --version')})" = "v${node.default}"`)(gha)
+            const install = runIndex(id, nixDevelop(nixShell, 'npm ci'))(gha)
+            const suite = runIndex(id, nixDevelop(nixShell, 'node --test'))(gha)
+            assert(check !== -1 && install !== -1 && suite !== -1, id)
+            assert(check < install, `expected the version check before npm ci in ${id}`)
+            assert(install < suite, `expected npm ci before node --test in ${id}`)
+        }
+        // No `dtolnay/rust-toolchain` in any job that gets Rust from a flake.
+        // A `{ type: 'rust' }` marker anywhere in those steps puts the action
+        // back, silently, and the job would then run a runner toolchain while
+        // every other assertion about it still held.
+        for (const id of /** @type {const} */ ([
+            'ubuntu-intel',
+            'ubuntu-arm',
+            'macos-intel',
+            'macos-arm',
+            i686JobId,
+            'wasm',
+        ])) {
+            assert(
+                gha.jobs[id]?.steps.every(
+                    step => step.uses?.startsWith('dtolnay/rust-toolchain@') !== true) === true,
+                `unexpected runner toolchain in ${id}`)
+        }
+        // The two Windows jobs still have it, because they have no shell.
+        for (const id of /** @type {const} */ (['windows-intel', 'windows-arm'])) {
+            assert(
+                gha.jobs[id]?.steps.some(
+                    step => step.uses?.startsWith('dtolnay/rust-toolchain@') === true) === true,
+                `expected a runner toolchain in ${id}`)
+        }
     },
     rust: () => {
         assert(hasRun('cargo')(run(true)), 'expected Rust steps')
@@ -360,8 +428,62 @@ export const proof = {
                     `unexpected ${cmd} in a command line`)
             }
         },
+        // `nodeExtra` takes the OS, and `README.md` advertises that so a
+        // caller can branch on it. Nothing else here would notice if the
+        // generator stopped passing it: every other proof injects the same
+        // step into every job, so `nodeExtra(o)` and `nodeExtra('ubuntu')`
+        // would be indistinguishable.
+        osSpecific: () => {
+            const gha = run(false, o => [test({ run: `echo ${o}` })])
+            for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
+                for (const a of /** @type {const} */ (['intel', 'arm'])) {
+                    assert(
+                        carriesInjected(`${o}-${a}`, `echo ${o}`)(gha),
+                        `expected the ${o} spelling in ${o}-${a}`)
+                }
+            }
+        },
+        // Where an injected step lands, which is the half of "it moved into
+        // the shell" that the `run` text cannot express — and which is not
+        // symmetric, so both halves are stated.
+        //
+        // On a shell job it is a test step: after the checkout, because the
+        // `run` script it names lives there, and therefore after the job's own
+        // `node --test` too, since `toSteps` emits install steps, the checkout,
+        // then tests. Declaring `install` no longer means "before the tests"
+        // here. On Windows nothing is wrapped, so an `install` step keeps the
+        // pre-checkout position that type buys.
+        injectedPosition: () => {
+            const cmd = 'echo hello'
+            const gha = run(false, () => [install({ run: cmd })])
+            for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
+                for (const a of /** @type {const} */ (['intel', 'arm'])) {
+                    const id = `${o}-${a}`
+                    const injected = injectedIndex(id)(gha)
+                    const checkout = checkoutIndex(id)(gha)
+                    const suite = runIndex(id, nixDevelop(nixShell, 'node --test'))(gha)
+                    assert(injected !== -1 && checkout !== -1 && suite !== -1, id)
+                    assert(
+                        injected > checkout,
+                        `expected the injected step after the checkout in ${id}`)
+                    assert(
+                        injected > suite,
+                        `expected the injected step after the suite in ${id}`)
+                }
+            }
+            for (const a of /** @type {const} */ (['intel', 'arm'])) {
+                const id = `windows-${a}`
+                const declared = runIndex(id, cmd)(gha)
+                const checkout = checkoutIndex(id)(gha)
+                assert(declared !== -1 && checkout !== -1, id)
+                assert(
+                    declared < checkout,
+                    `expected the injected install step before the checkout in ${id}`)
+            }
+        },
         // A step naming an action keeps its position and its shape: there is no
-        // command to wrap, and `actions/cache` and its like want to run early.
+        // command to wrap, and an `actions/cache` declared as `install` still
+        // runs before the checkout, which is where a cache restore belongs.
         // A command does not keep its position — `toSteps` puts an `install`
         // step before the checkout the flake lives in, which is the one place
         // its runtime is guaranteed wrong now that these jobs have no
@@ -496,10 +618,12 @@ export const proof = {
         }
     },
     // Every job with a flake asserts the runtime it is about to use, read from
-    // that flake. The platform matrix installs Node and is deliberately not
-    // checked. Nothing else ties the versions `fjs/ci/config/module.f.mjs`
-    // records to what a job really runs — and for Deno and Bun nothing else
-    // could, since `pkgs.deno` and `pkgs.bun` name no version.
+    // that flake — the four platform jobs included, and they are listed below.
+    // The two Windows jobs are not: they run `run` steps under PowerShell,
+    // where this POSIX command would not survive. Nothing else ties the
+    // versions `fjs/ci/config/module.f.mjs` records to what a job really runs
+    // — and for Deno and Bun nothing else could, since `pkgs.deno` and
+    // `pkgs.bun` name no version.
     nixVersionChecks: () => {
         // With Rust, because `wasm` is the one job here that a project without
         // a `Cargo.toml` does not get — while its flake is generated either
@@ -595,20 +719,19 @@ export const proof = {
             ['deno install --frozen', 'deno task cov']
                 .map(command => nixDevelop(nixShell, command)))
     },
-    // Every job's Nix status, in one place. The platform matrix is excluded by
-    // construction rather than by exception: those six jobs exist to run on
-    // stock runner images across three operating systems and two
-    // architectures, and four of them are not `aarch64-linux` at all. What is
-    // left is the canonical set, and it splits in two — the jobs that enter a
-    // generated flake, and the three that do not, each with an issue saying
-    // why. `fjs/ci/todo/65z-ci-nix.md` holds those reasons together; this is
-    // what makes a job added later come and declare which side it is on,
-    // instead of joining the second list in silence.
+    // Every job's Nix status, in one place — the platform matrix included,
+    // which is the thing that changed. Those jobs used to be excluded by
+    // construction, on the grounds that they exist to run on stock runner
+    // images; five of the seven now enter a flake, so excluding them would
+    // leave the half of the workflow this most recently changed unread.
+    //
+    // The whole set splits in two: the jobs that enter a generated flake, and
+    // the three that do not, each with an issue saying why.
+    // `fjs/ci/todo/65z-ci-nix.md` holds those reasons together; this is what
+    // makes a job added later come and declare which side it is on, instead of
+    // joining the second list in silence.
     nixCoverage: () => {
         const gha = run(true)
-        // Every job, matrix included. Three of the platform jobs run in the
-        // shared shell now, so a check that skipped them would be blind to the
-        // half of the workflow this most recently changed.
         const canonical = Object.keys(gha.jobs)
         // Bootstrapping Nix and entering the shell are separate facts, and a
         // job doing only the first is the one that would slip past a check
@@ -678,14 +801,21 @@ export const proof = {
         for (const id of offNix) {
             assert(expectedOffNix.includes(id), `unexplained job off Nix: ${id}`)
         }
-        // The three that joined the shared shell are exactly the systems it
-        // declares beyond the runner every other job uses. Before this they
-        // were generated as text and built nowhere.
-        for (const id of /** @type {const} */ (['ubuntu-arm', 'macos-intel', 'macos-arm'])) {
+        // The four that joined the shared shell cover every system it declares.
+        // `ubuntu-intel` is its `x86_64-linux`, the two macOS jobs its two
+        // Darwin systems, and `ubuntu-arm` the `aarch64-linux` the canonical
+        // jobs already built. Before this, three of the four were generated as
+        // text and built nowhere.
+        for (const id of /** @type {const} */ ([
+            'ubuntu-intel',
+            'ubuntu-arm',
+            'macos-intel',
+            'macos-arm',
+        ])) {
             assertStructurallySame(flakesEntered(gha.jobs[id]), [nixShell])
         }
-        // And the fourth platform job entered one of its own, because a 32-bit
-        // link needs `gcc_multi` and that exists on one system.
+        // And the 32-bit job entered one of its own, because `pkgsi686Linux`
+        // is marked broken on every system but that one.
         assertStructurallySame(flakesEntered(gha.jobs[i686JobId]), [i686JobId])
     },
     // Bun, step for step. It lost its setup action, and every command it runs

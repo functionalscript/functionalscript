@@ -134,10 +134,17 @@ const injectedShell = /** @type {const} */ ('bash -e -c')
  * single-quoted argument its author never opened. No escape applied at
  * generation time can reach a value that does not exist yet.
  *
- * A step's `env` is not shell source. GitHub substitutes into it the same way
- * and sets the result as a value, so `"$FJS_CI_RUN"` expands to exactly the
- * text the consumer wrote — one word, whatever it contains, newlines and quotes
- * of either kind included. The quoting layer is removed rather than tightened.
+ * What this buys is exact, and worth stating exactly. `"$FJS_CI_RUN"` is a
+ * shell expansion, so the command arrives at {@link injectedShell} as one
+ * argument holding exactly the text of the `env` value — one word, whatever it
+ * contains, newlines and quotes of either kind included. **The generator's own
+ * quoting layer is gone**, rather than tightened.
+ *
+ * What it does not buy, since the sentence is easy to write and wrong: GitHub
+ * substitutes `${{ … }}` into an `env` value too, and `bash` then executes the
+ * result. A `${{ … }}` a consumer writes into their own command is theirs to
+ * get right, exactly as it would be in a hand-written `run:`. The layer this
+ * generator used to add on top of that is what is removed.
  */
 const injectedRun = /** @type {const} */ ('FJS_CI_RUN')
 
@@ -159,8 +166,8 @@ const injectedRun = /** @type {const} */ ('FJS_CI_RUN')
  * the `&&`, running the first half in the shell and the second on the runner
  * with nothing said about it. A GitHub `run:` is a shell script, so it is
  * handed to {@link injectedShell} — and reaches it through {@link injectedRun}
- * rather than through quotes, so nothing GitHub substitutes into it is read
- * back as source.
+ * rather than through quotes, so this generator adds no quoting for a
+ * substituted value to break out of.
  *
  * **Position moves with it.** `toSteps` puts an `install` step before
  * `actions/checkout`, and the flake lives in that checkout, so a step there
@@ -200,12 +207,20 @@ const job = (rust, nodeExtra) => o => a => {
 }
 
 /**
- * Every generated flake. Three, for eight jobs.
+ * Every generated flake. Four, for the fourteen jobs `./proof.f.mjs`'s
+ * `matrixShape` counts.
  *
- * `dev` is the shell all but two of them enter, and the one a developer enters
- * — see `./dev/module.f.mjs` for why sharing is safe where a command names its
- * runtime, and `./node/module.f.mjs` for the two jobs where it is not. Node 22
- * and Node 24 are those two.
+ * `dev` is the one a developer enters and the one **eight** of those jobs
+ * enter — see `./dev/module.f.mjs` for why sharing is safe where a command
+ * names its runtime, and `./node/module.f.mjs` for the two jobs where it is
+ * not. **Three** have a flake to themselves: Node 22 and Node 24, whose `node`
+ * is the thing under test, and `ubuntu-intel32`, whose 32-bit package set is
+ * marked broken on every other system this shell serves. **Three** enter none:
+ * the two Windows jobs, where Nix does not run, and `package-check`, which has
+ * no checkout for a flake to be in.
+ *
+ * `./proof.f.mjs`'s `nixCoverage` reads that split off the generated workflow
+ * rather than off this comment, so a job changing sides fails there.
  *
  * The list is not a function of the project, so `dev` is written whole whether
  * or not the project has a `Cargo.toml`: a project without Rust gets a shell
