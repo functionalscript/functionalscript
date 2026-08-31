@@ -119,11 +119,101 @@ export const proof = {
         assertEq(extra, undefined)
     },
     indentedStringEscaping: () => {
-        assertEq(nixToString(['indented-string', "a '' ${b}"]), "''\n    a ''' ''${b}\n''\n")
+        // Every `'` is escaped as `''\'`, so the pair here is two escapes
+        // rather than the `'''` a pair used to become — see the module for why
+        // a bare quote can never be left in front of an escape.
+        assertEq(
+            nixToString(['indented-string', "a '' ${b}"]),
+            "''\n    a ''\\'''\\' ''${b}\n''\n")
         assertEq(
             nixToString(['indented-string', '  a\n\t b\n  ']),
             "''\n    ''\\ ''\\ a\n    ''\\t''\\ b\n    ''\\ ''\\ \n''\n"
         )
+    },
+    // The two halves of an indented string, side by side. A `string` part is
+    // content — its `${` is escaped and reaches the file as those characters —
+    // and a `_Reference` part is an interpolation Nix resolves. That is the
+    // only way a generated hook can name a package, since a store path is not
+    // knowable when the file is written.
+    indentedStringInterpolation: () => {
+        assertEq(
+            nixToString(['indented-string', 'a=', ['ref', 'pkgs', 'gcc_multi'], '/bin/cc']),
+            "''\n    a=${pkgs.gcc_multi}/bin/cc\n''\n")
+        // Escaped beside unescaped, in one string: the literal `${b}` survives
+        // as text while the reference beside it does not.
+        assertEq(
+            nixToString(['indented-string', '${b}', ['ref', 'a']]),
+            "''\n    ''${b}${a}\n''\n")
+        // An attribute that is not an identifier is quoted, as in any other
+        // selection; a *root* that is not one has no spelling at all, so the
+        // whole expression is rejected rather than written wrong.
+        assertEq(
+            nixToString(['indented-string', ['ref', 'pkgs', 'not an identifier']]),
+            "''\n    ${pkgs.\"not an identifier\"}\n''\n")
+        assertEq(nixToString(['indented-string', ['ref', 'not an identifier']]), undefined)
+    },
+    // Escaping sees the text a reader sees, not each half of it. Both of these
+    // were wrong when parts were escaped one at a time, and both silently.
+    indentedStringEscapesAcrossParts: () => {
+        // Neither half contains `${`, so neither would be escaped alone — and
+        // the two concatenate into an interpolation Nix resolves.
+        assertEq(
+            nixToString(['indented-string', '$', '{x}']),
+            "''\n    ''${x}\n''\n")
+        // Worse: neither half contains `''` either, and the pair closes the
+        // string. Every quote is escaped, so the pair cannot form at all.
+        assertEq(
+            nixToString(['indented-string', "a'", "'b"]),
+            "''\n    a''\\'''\\'b\n''\n")
+    },
+    // A reference is the one boundary `coalesceStrings` does not join across,
+    // and both sides of it need their own care.
+    //
+    // Read against the lexer's rules rather than guessed: the catch-all
+    // `([^\$\']|\$[^\{\']|\'[^\'\$])+` matches `$$` through its second
+    // alternative and then runs on, so longest-match takes `$${a}{x}` as **one
+    // literal token** and the reference never resolves. That is why a `$` at
+    // the end of a string part is escaped when a reference follows: the `{`
+    // that makes it dangerous is in the next part, where `escapeIndented`
+    // cannot see it.
+    indentedStringEscapesIntoAReference: () => {
+        // `''$` is a literal `$`; the `${a}` after it is a live interpolation.
+        assertEq(
+            nixToString(['indented-string', '$', ['ref', 'a'], '{x}']),
+            "''\n    ''$${a}{x}\n''\n")
+        // Nothing to do on the other side: `{x}` after a reference has no `$`
+        // in front of it to make anything of.
+        assertEq(
+            nixToString(['indented-string', ['ref', 'a'], '{x}']),
+            "''\n    ${a}{x}\n''\n")
+        // A trailing `$` with no reference after it is already literal, and is
+        // left alone — `$PATH` and a `$` at the end of a hook both read back
+        // as themselves.
+        assertEq(
+            nixToString(['indented-string', 'echo $']),
+            "''\n    echo $\n''\n")
+        assertEq(
+            nixToString(['indented-string', 'echo $PATH']),
+            "''\n    echo $PATH\n''\n")
+    },
+    // A single quote in front of an escape is the collision that escaping
+    // pairs as `'''` could not avoid. `'` + `${x}` emitted `'''${x}`, which
+    // the lexer reads as an escaped `''` followed by a **live** interpolation
+    // — so a literal became a reference to whatever `x` is bound to.
+    //
+    // Escaping every quote as `''\'` is what forecloses it: no bare `'` is
+    // ever left adjacent to an escape.
+    indentedStringQuoteBeforeAnEscape: () => {
+        assertEq(
+            nixToString(['indented-string', "'${x}"]),
+            "''\n    ''\\'''${x}\n''\n")
+        assertEq(
+            nixToString(['indented-string', "'", ['ref', 'a']]),
+            "''\n    ''\\'${a}\n''\n")
+    },
+    // No parts at all is the empty string, not a failure.
+    indentedStringEmpty: () => {
+        assertEq(nixToString(['indented-string']), "''\n    \n''\n")
     },
     emptyPattern: () => {
         assertEq(nixToString(['lambda', ['open-set-pattern'], ['set']]), '{ ... }: {}\n')

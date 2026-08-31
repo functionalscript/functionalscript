@@ -113,9 +113,9 @@ installed CLI. Same module, same artifact, different runner requirements.
       it — `platformNodeSteps` is the last thing that does
 - [x] Drop Deno's `--minimum-dependency-age=0` with its reason — done when that
       job's registry install went
-- [ ] Consider dropping `NixJob.shellHook`: no job declares one since Node 22's
-      global install left, and no global install remains in any job with a flake.
-      Only `fjs/ci/nix/proof.f.mjs` holds the capability
+- [x] Consider dropping `NixJob.shellHook` — **no**: `ubuntu-intel32` declares one,
+      pointing `cargo` at `pkgsi686Linux.stdenv.cc`. Node 22's went with its global
+      install, but the field now has a user of the kind it was for
 - [ ] Update `../proof.f.mjs`: the job count, the per-job assertions, and
       `jobNeeds`'s ordering count
 
