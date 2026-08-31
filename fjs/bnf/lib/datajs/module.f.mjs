@@ -10,7 +10,7 @@
  */
 
 import { createValue, digit, optionFloatSuffix, optionNeg, string, uint, ws, wsSymbol } from '../json/module.f.mjs'
-import { option, range, repeat0Plus, repeat1Plus } from '../../module.f.mjs'
+import { range, repeat0Plus, repeat1Plus } from '../../module.f.mjs'
 
 const uNumber = {
     finite: [uint, { n: 'n', optionFloatSuffix }],
