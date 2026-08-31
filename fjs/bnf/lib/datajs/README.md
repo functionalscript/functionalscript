@@ -1,8 +1,8 @@
 # DataJS
 
-JSON forms a tree. DataJS is a valid JavaScript (ECMAScript) module.
+A JSON document represents a tree. DataJS is a valid JavaScript (ECMAScript) module.
 
-A DataJS value is a JSON value extended with bigint, undefined, non-finite numbers, and references to previously declared const values. Every JSON value is therefore DataJS value, with one minor exception, see `__proto__` properties.
+A DataJS value is a JSON value extended with bigint, undefined, non-finite numbers, and references to previously declared const values. Every JSON value is therefore DataJS value; only the source spelling of an `__proto__` property must change.
 
 ## The `__proto__` Properties
 
