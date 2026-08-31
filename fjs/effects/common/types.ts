@@ -1,11 +1,32 @@
 /**
- * Operations more than one host implements.
+ * Operations that are nobody's host in particular.
  *
  * `fjs/effects/node` declared these because Node was the only host that ran
  * them. It is not the criterion — an operation belongs to the layer of whoever
- * *implements* it, and a browser interpreter implements every one of them.
- * Declaring them here is what lets a host talk to the shared FunctionalScript
- * logic without importing a module named after a different host.
+ * *implements* it. Declaring them here is what lets a host talk to the shared
+ * FunctionalScript logic without importing a module named after a different
+ * host.
+ *
+ * **Counted by capability, which is the measure the trap below argues for,
+ * three have two implementers.** {@link Sandbox} and {@link Catch} are
+ * dispatched by the browser page's interpreter as well as by Node's.
+ * {@link Import} is supplied by the page rather than dispatched — it hands its
+ * own `import()` in as an argument — and an injected function is an operation
+ * nobody has named, so it counts. The line between the two cases is whether the
+ * host supplies the capability *to shared logic*: the page's `Promise.all`
+ * over its module loads is not injected anywhere, so it is that file's private
+ * business rather than an implementation of {@link All}.
+ *
+ * **{@link All}, {@link Write} and {@link Read} have one implementer**, and are
+ * here on the layering argument instead — nothing about them is Node's. Fan-out
+ * belongs to whichever interpreter has concurrency; a byte stream named by a
+ * string is not a filesystem fact. A page renders rows through an operation of
+ * its own, which is a *different* operation rather than an implementation of
+ * `Write`.
+ *
+ * Both are good reasons to be in this module. They are not the same reason, and
+ * the count is written out because "everything here has two implementers" is
+ * the sort of tidy summary that is easier to keep than to keep true.
  *
  * `effects/node` re-exports them all, so a node-side caller keeps one import
  * and signatures keep reading as one vocabulary. That re-export is not a shim:
@@ -96,6 +117,26 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxRes
  * a proxy trap in one of them is a failure of that test rather than of the run.
  */
 export type Catch = readonly['catch', <T>(f: () => T) => OpResult<Result<T, unknown>>]
+
+// all
+
+/**
+ * Runs its effects concurrently and answers each one's whole `Result`.
+ *
+ * The nesting is deliberate and belongs to the runner: this envelope says
+ * whether `all` itself could be dispatched, and each inner `Result` is what
+ * that effect answered. `allOk` (`./module.f.mjs`) is the collapse a fallible
+ * chain wants.
+ *
+ * **Fan-out is an interpreter's job, not a walk's.** A host that has
+ * concurrency implements this and keeps it; a host that does not answers the
+ * effects in turn, and the shared logic above reads the same either way. That
+ * is why it sits here rather than in a module named after one host — and it is
+ * the whole reason: unlike its neighbours here, this operation has one
+ * implementer today, the Node runners and the registration path they serve.
+ * Nothing in a browser dispatches it yet.
+ */
+export type All = ['all', <T, E>(...effects: Effect<never, T, E>[]) => OpResult<readonly Result<T, E>[]>]
 
 // import
 

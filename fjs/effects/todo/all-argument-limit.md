@@ -51,8 +51,11 @@ batch size — the ceiling is the *variadic operation's*, not fan-out's in gener
 earlier version of this paragraph credited `batchSize = 25` with staying under the limit;
 that was a misattribution, corrected in the pitfall catalog in
 [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md).)
-Both `Promise.all`s are gone now that the page runs the shared sequential traversal, so the
-page performs no fan-out of any shape.
+Both of the *traversal's* `Promise.all`s are gone now that the page runs the shared
+sequential traversal. The page still fans out once, over its module loading
+(`emergent_testing/browser/module.mjs`), which is a `Promise.all` in its own impure shell
+rather than an `all` dispatched through an interpreter — so it is outside this ceiling
+today, and inside it on the day that loading moves into `.f.mjs`.
 The reverted functionalscript#1759 routed the page through the shared traversal and so
 briefly gave both runners the same ceiling; the sequential plan that replaced it removed
 the traversal's fan-outs entirely (functionalscript#1774). What remains is the registration

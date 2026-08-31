@@ -65,7 +65,7 @@ Proposed destinations:
 
 | Moves to | Contents |
 |---|---|
-| `fjs/effects/common` (was `effects/all`) | `All`, `all`, `allOk`, `both`, and `allVoid`/`allReduce` when they land |
+| `fjs/effects/common` (was `effects/all`) | `All`, `all`, `allOk`, `both` — **moved** on the layering argument alone; `allVoid`/`allReduce` when they land. Its implementers today are still the Node runners and the registration path: the page's `Promise.all` coordinates module-loading promises directly, and its interpreter claims `Catch`, `Sandbox` and `report` and nothing else. Giving `all` a browser implementer is the *plan* for the loading walk, not a fact about the tree |
 | `fjs/effects/common` (was `effects/sandbox`) | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise`, and `Catch`/`catch_` (landed after this table was written) — the "run foreign code and observe what happened" family. This row is what [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md) step 4's "shared module" resolves to: a browser gives `Sandbox` and `Catch` their second implementer; `Await` moves on this issue's layering argument alone, since it belongs to the registration path no browser runs |
 | `fjs/effects/common` (was `effects/console`) | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/common` (was `effects/test`) | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
@@ -122,6 +122,16 @@ Judgement calls worth deciding explicitly rather than by accident:
   *step 4's* motivation, not out of this issue's: its move to `effects/all`
   above rests on the layering argument, and its implementers stay the Node
   runners and the registration path.
+
+  **That is still true after the move**, and worth saying because the move
+  invites the opposite reading. `all` is in `effects/common` because fan-out is
+  an interpreter's job, not because a browser dispatches it — the page's
+  `Promise.all` coordinates promises directly and its interpreter does not
+  claim `all` at all. It is expected to: moving the browser's module loading
+  into `.f.mjs` needs a fan-out the walk does not perform itself, which is what
+  the operation is for. Until that lands, this row's second implementer is a
+  plan, and a plan recorded as a fact is how a design comes to hold two
+  incompatible things at once.
 
   Worth recording, because the earlier expectation written here was wrong about
   two of them: "a browser proof run needs a clock and dynamic import" is true of
@@ -295,13 +305,15 @@ Judgement calls worth deciding explicitly rather than by accident:
 
 ### Six operation tuples are not `readonly`
 
-`All`, `Fetch`, `CreateServer`, `Listen` and `Forever` in
-[`../node/types.ts`](../node/types.ts) are declared as plain tuples where every
-other operation is `readonly`. `Import` was a sixth until it moved, and making
-it `readonly` on the way looked like tidying — but a `readonly` tuple is not
-assignable to a mutable one, so it is a break a consumer could hit, for
+`Fetch`, `CreateServer`, `Listen` and `Forever` in
+[`../node/types.ts`](../node/types.ts), and `All` in
+[`../common/types.ts`](../common/types.ts), are declared as plain tuples where
+every other operation is `readonly`. `Import` was a sixth until it moved, and
+making it `readonly` on the way looked like tidying — but a `readonly` tuple is
+not assignable to a mutable one, so it is a break a consumer could hit, for
 cosmetics. It was reverted rather than shipped with a `**BREAKING CHANGES:**`
-entry attached to a rename.
+entry attached to a rename; `All` moved afterwards and kept its plain tuple for
+the same reason.
 
 The five that remain are worth aligning *deliberately*, in one change that says
 so and takes the version bump for the set rather than smuggling it inside a
@@ -317,7 +329,7 @@ move. Nothing depends on it.
       with `Result<T, unknown>` from `fjs/types/result`, dropping its
       `effects` import — a pure consumer should not name an IO alias, whichever
       module the alias lives in.
-- [ ] Move `All` / `all` / `allOk` / `both` to `fjs/effects/common`.
+- [x] Move `All` / `all` / `allOk` / `both` to `fjs/effects/common`.
       `allOk` is the ok-channel wrapper over `all` and belongs with it;
       [allvoid-combinator](./allvoid-combinator.md) builds on it, so leaving it
       behind would make the combinator import from `effects/node`.
