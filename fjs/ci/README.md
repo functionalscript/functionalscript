@@ -3,12 +3,14 @@
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflows for this repository. Running the generator writes
 `.github/workflows/ci.yml` with the latest matrix of jobs and steps and
-`.github/workflows/npm-publish.yml` with the release job, plus three Nix
-development environments under `nix/`. One of those, `dev`, is the shell a
-developer enters and the shell all but two canonical jobs run inside; the other
-two exist for the two jobs that cannot share it. Which jobs have a flake and why
-the rest do not is [`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with
-no flake".
+`.github/workflows/npm-publish.yml` with the release job, plus four Nix
+development environments under `nix/`. The first of those, written to `nix/`
+itself, is the shell a developer enters and the shell eight of the fourteen
+jobs run inside; the other three exist for the jobs that cannot share it — Node
+22, Node 24 and `ubuntu-intel32`. Three jobs enter none: the two Windows ones,
+where Nix does not run, and `package-check`, which has no checkout. Which jobs
+have a flake and why the rest do not is
+[`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
 
 ## `fjs ci` is not stable
 
@@ -53,13 +55,13 @@ for, and whether that answer should change, is
   standing in for declarations the tarball omits, so the check would pass on
   the repository rather than on the package.
   `proof.f.mjs` — its property-based proofs.
-- `rust/module.f.mjs` — `cargo` build/test steps, the platform matrix's toolchain
-  action, and the `wasm` job's steps and flake declaration. The two families get
-  their toolchain from different places for a packaging reason: the matrix spans
-  six runner images that one flake could not serve, and the WASM job needs three
-  targets Nixpkgs builds no `std` for, so its flake takes the toolchain from
-  `rust-overlay` instead. Both name `config/module.f.mjs`'s `rust`, so the
-  version cannot differ between them.
+- `rust/module.f.mjs` — `cargo` build/test steps, the toolchain action the three
+  jobs that cannot use a flake still need, and the `wasm` job's steps. `cargo`
+  now comes from the shared shell everywhere Nix runs and no 32-bit target is in
+  play; `i686Target` is the predicate that decides which jobs those are, and
+  `../module.f.mjs` asks it rather than restating the pair of names. Both paths
+  name `config/module.f.mjs`'s `rust`, so the version cannot differ between
+  them.
 - `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
   `proof.f.mjs` — its property-based proofs.
 - `dev/module.f.mjs` — the developer environment: one shell carrying every
@@ -102,14 +104,15 @@ two Node flakes name one each, since their jobs run on one runner image; the
 shared shell names four, because a developer's machine is not a runner — which
 is the reason that field is a list. `nix/module.f.mjs` writes each out as one
 static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
-job-local `shellHook`, run on every entry to the shell; none does today. See
+job-local `shellHook`, run on every entry to the shell — `ubuntu-intel32`
+declares the one, pointing `cargo` at a 32-bit linker. See
 [nix/README.md](../../nix/README.md) for how the generated files are meant to be
 consumed.
 
 `config/module.f.mjs` records the Node, Deno, Wasmtime and Wasmer versions the pinned
 Nixpkgs snapshot provides — not each vendor's latest release, which the snapshot
 usually trails. They feed the flakes' package attributes where the attribute is
-versioned, as well as every `setup-node` step: the platform matrix,
+versioned, as well as every `setup-node` step left: the two Windows jobs,
 `package-check`, and the publishing workflow. Bumping any of them therefore means moving the Nixpkgs commit first
 and copying the versions it offers.
 
@@ -179,15 +182,42 @@ evaluated for real, by the job that uses it.
 
 ### Expected package scripts
 
-The generated platform jobs install the pinned FunctionalScript package globally
-and run `fjs test`. They do **not** run `npm ci`: they exercise the *published*
-CLI against this working tree, and the tree has nothing to install — no runtime
-dependency at all, and one `devDependency` that is types. The compiler used to
-arrive that way and now comes from a flake, which left the step installing a
-directory nothing opens. Those six are now the only place the
-published CLI is exercised: no canonical Node job does, and `deno` and `bun` both
-stopped. Every canonical job runs on Ubuntu ARM, and all but `package-check`
-through a flake:
+All four non-Windows platform jobs run `cargo` and the suite in the **same**
+shell, so the matrix differs by platform and by nothing else. They are also the
+only place that shell's `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin`
+outputs get built at all. Only the two Windows jobs are off Nix, because Nix has
+no native Windows.
+
+32-bit Linux is a job of its own, `ubuntu-intel32`, rather than four more steps
+on `ubuntu-intel`. Its linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for*
+`i686-linux` — and on every other system the shared shell serves, that package
+set is marked broken, so it cannot live there. Not `gcc_multi` either: a
+multilib wrapper finds the right 32-bit files and still emits `-m elf_x86_64`,
+which is `todo/65z-ci-nix.md`'s story. Separating it also lets the two run in
+parallel, and makes a red result say "32-bit Linux" rather than "something in
+the Intel Linux job". It replaces `apt-get install libc6-dev-i386` rather than
+joining it: a Nix toolchain does not look in `/usr`, so a libc installed by the
+runner's package manager would sit there unread.
+
+Windows is also where the *published* CLI is still exercised, by
+`npm install -g functionalscript@<version>` and `fjs test`. Every job that moved
+runs this commit's suite instead: `npm install -g` writes to the read-only store
+from inside a shell, and the check was the one `deno` and `bun` already dropped
+because it tests a shipped release rather than the commit under review.
+
+The four that moved assert their Node and then run `npm ci` — the version check
+first, deliberately, since `npm ci` runs lifecycle hooks and those should not be
+the thing that discovers the runtime. `fjs test` walked the tree for proof
+modules and resolved nothing; `node --test` runs a project's *test entry*, and
+the entry this README asks a consumer to write is
+`import 'functionalscript/fjs/emergent_testing/all.test.mjs'` — a bare
+specifier, which resolves through `node_modules` or not at all. This repository
+would never have shown the failure, having no such file: its proofs live under
+`fjs/`, where `node --test` reaches them by path. The two Windows jobs still run
+`fjs test` and still need no install.
+
+Every canonical job runs on Ubuntu ARM, and all but `package-check` through a
+flake:
 
 - Node 22 runs `npm ci` and `node --test` through a flake of its own.
 - Node 24 runs the same pair through its own — one builder emits both jobs,
@@ -291,9 +321,11 @@ your project depends on; and a package that ships no declarations now fails that
 check with `TS18003` rather than not being checked. See
 [`todo/ci-generator-audience.md`](./todo/ci-generator-audience.md).
 
-The FunctionalScript package version used by the platform matrix's smoke test is
-pinned in `config/module.f.mjs` too — nothing about the project reaches the
-generated steps except whether it has a `Cargo.toml`.
+The FunctionalScript package version used by the surviving smoke tests is pinned
+in `config/module.f.mjs` too — nothing about the project reaches the generated
+steps except whether it has a `Cargo.toml`. That one flag reaches further than
+it used to: without Rust there are no 32-bit checks, so `ubuntu-intel` shares
+the shell like the rest and only Windows stays off it.
 
 ## The publishing workflow
 
@@ -385,6 +417,66 @@ export type Setup = {
 ```
 
 `nodeExtra` receives the target OS so callers can conditionally add OS-specific steps.
+
+On every platform but Windows, an injected step that names a **command** runs
+inside the shared shell, alongside the job's own — these jobs no longer install
+Node with `setup-node`, so a step left on the runner would find whatever the
+image ships rather than the release the job asserts:
+
+The generator writes JSON, which every YAML reader accepts; shown here as YAML
+because that is how a reader thinks of a workflow:
+
+```yaml
+- run: ./nix/run bash -e -c "$FJS_CI_RUN"
+  env:
+    FJS_CI_RUN: NODE_OPTIONS=--max-old-space-size=4096 node tool.mjs
+```
+
+The command travels in `env` rather than in quotes on the command line, and that
+is not a style choice. GitHub substitutes `${{ … }}` into a step's `run` text
+before any shell reads it, so a substituted value lands inside whatever quotes
+the generator wrote — `echo "${{ matrix.name }}"` with a value of `O'Reilly`
+closes an argument its author never opened — and no escape applied at generation
+time can reach a value that does not exist yet.
+
+What `env` buys is precise, and worth stating exactly: **the generator adds no
+quoting layer of its own.** `"$FJS_CI_RUN"` is a shell expansion, so the
+command arrives at `bash -e -c` as one argument holding exactly the text of the
+`env` value, whatever is in it. GitHub still substitutes `${{ … }}` into that
+value, and `bash` still executes the result — so a `${{ … }}` a consumer writes
+into their own command is theirs to get right, exactly as it would be in a
+hand-written `run:`. What is gone is the extra layer this generator used to add
+on top of that.
+
+Through a shell, because a GitHub `run:` is a shell script while the `run`
+script ends in `--command "$@"`, an argv. That distinction is invisible for this
+generator's own commands — one program and its arguments, by §7 — and decisive
+for anything a consumer writes: a bare prefix would turn an assignment into a
+program name, and would split `a && b` so that only `a` entered the shell.
+
+`bash -e` rather than `sh`, because that is what GitHub runs a `run:` step as.
+`sh` is `dash` on the Ubuntu images, where `[[ … ]]` is not a command, and
+without `-e` a script like `false; echo done` exits 0 — the step would be green
+while the work in it failed. Not `-o pipefail`, which belongs to an explicit
+`shell: bash`; these steps declare none, and matching the default is the
+point.
+
+A command declared as an `install` step moves too, losing the pre-checkout
+position that type normally buys. It has to: the flake lives in the checkout, so
+a step before it cannot enter the shell, and cannot count on a pinned Node
+either.
+
+**Where it lands instead is worth saying, because it is not symmetric.**
+`toSteps` emits install steps, then the checkout, then test steps, so an
+injected command becomes a test step and runs *after* the job's own
+`node --test` on Linux and macOS — while on Windows, which wraps nothing, the
+same declaration still runs before `actions/checkout`. Declaring `install` no
+longer means "before the tests" anywhere it was moved. `extra.injectedPosition`
+asserts both halves.
+
+A step naming an **action** keeps both its position and its shape —
+there is nothing to wrap, and `actions/cache` and its like want to run early.
+Windows keeps everything as declared, having no shell at all.
 Rust steps are included automatically when `Cargo.toml` is present; no flag is needed.
 
 ## Related

@@ -4,6 +4,8 @@
  * @module
  */
 
+import type { _Reference } from '../../media/nix/types.ts'
+
 /**
  * A Rust toolchain for a job that needs one, taken from the `rust-overlay`
  * input rather than from Nixpkgs.
@@ -86,7 +88,7 @@ export type NixJob = {
     /** Nixpkgs attribute names made available in the job's shell. */
     readonly packages: readonly string[]
     /** Job-local shell initialization, when the job needs one. */
-    readonly shellHook?: string
+    readonly shellHook?: readonly (string | _Reference)[]
     /** A `rust-overlay` toolchain, for a job whose targets Nixpkgs has no `std` for. */
     readonly rust?: NixRust
     /** An upstream release replacing a snapshot package the job's suite fails on. */

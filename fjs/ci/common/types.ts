@@ -28,7 +28,4 @@ export type MetaStep = {
 } | {
     readonly type: 'rust'
     readonly target?: string
-} | {
-    readonly type: 'apt-get'
-    readonly package: string
 }
