@@ -18,14 +18,17 @@
  *
  * @module
  *
- * @import { LeafReporter, Reporter, TestResult, _BrowserReport, _BrowserTestResult, _TestAndPath } from '../types.ts'
+ * @import {
+ *     BrowserTestReport, LeafReporter, Reporter, TestResult, _BrowserReport,
+ *     _BrowserTestResult, _TestAndPath,
+ * } from '../types.ts'
  * @import { Catch, Sandbox, SandboxResult } from '../../effects/common/types.ts'
  * @import { Effect, Func, IoChannel } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
 import { catch_ } from '../../effects/common/module.f.mjs'
-import { collectTests, defaultTest, runEntries, zeroState } from '../module.f.mjs'
+import { addResult, collectTests, defaultTest, runEntries, zeroState, zeroTotals } from '../module.f.mjs'
 import { do_, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 
@@ -118,6 +121,38 @@ export const errorDetails = value =>
 export const moduleFailure = (source, duration, message, stack) => ({
     module: source, path: '', name: source, status: 'failed', duration, message, stack,
 })
+
+/**
+ * The run-ended event, as the page reports it.
+ *
+ * The counts — and with them the run's own pass/fail status — come from folding
+ * the results with the same `addResult` that decides `fjs t`'s summary and exit
+ * code, so "did the run pass" has one answer across the runners.
+ *
+ * **Nothing here is the browser's**, which is why it is here rather than in the
+ * host: folding results and deciding a status is arithmetic over values. The
+ * two things only a page knows are *given* to it — `browser` is what the host
+ * calls itself (`navigator.userAgent`), and `duration` is the host's wall
+ * clock, which is the run's without being any leaf's: the run yields a
+ * macrotask between leaves so the page can paint, and that time belongs to the
+ * run (see `RunTotals`).
+ *
+ * `status` overrides the folded decision, for a run that never reached its
+ * leaves — modules that would not load, or a runner that failed — which no leaf
+ * result can express. `null` means "let the results decide".
+ *
+ * @type {(browser: string, duration: number, results: readonly _BrowserTestResult[], status: string | null) => BrowserTestReport}
+ */
+export const reportOf = (browser, duration, results, status) => {
+    const { passed, failed } = results.reduce(addResult, zeroTotals)
+    return {
+        status: status ?? (failed !== 0 ? 'failed' : 'passed'),
+        browser,
+        totals: { tests: results.length, passed, failed },
+        duration,
+        results,
+    }
+}
 
 /** @type {(module: string, cause: unknown) => Effect<Catch, _BrowserTestResult, never>} */
 const failureOf = (module, cause) =>
