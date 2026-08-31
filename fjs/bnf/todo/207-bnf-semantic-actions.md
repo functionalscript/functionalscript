@@ -1227,11 +1227,16 @@ never wrote it and cannot see it.
 engine learns to hide children. Two mechanisms were considered and rejected
 first, and the reason is the same one both times:
 
-- **A designated `unit` the engine drops from the tuple** cannot reach the
-  children that need dropping. `list`'s brackets are inline literals, so
-  `toData` gives them *generated* names (§11.3) — a map cannot address them at
-  all, let alone mark them `unit`. To use this an author would have to name and
-  map every punctuation rule, which is more work than counting slots.
+- **A designated `unit` the engine drops from the tuple** reaches the wrong
+  half of the problem. Since the map is keyed by value, `list`'s brackets *are*
+  addressable — `DataRule` includes `string` and `find` compares with `===`, so
+  `entry('[', unit)` marks every `'['` in the grammar at once. But the children
+  that need dropping are the ones `commaJoin0Plus` generated, and those are
+  fresh values only the combinator holds. It would also make a sequence's
+  declared arity depend on which *other* entries the map has, and the alphabet
+  split removes `string` from `DataRule`, taking the addressable half with it.
+  (Stage 0 in Tasks records this in full, including that the original rejection
+  reason was a name-keying artifact and no longer holds.)
 - **A rule marked silent in the grammar** would work, but it is a change to the
   data `Rule` — a new field through `toData`, both backends, and every consumer
   of `fjs/bnf/data` — to solve a problem that does not need one.
@@ -1623,18 +1628,44 @@ types undecided cannot be implemented against.
 - [x] **Silent children: not a protocol change.** A combinator supplies
       transformers for the rules it generates, so an author never writes an
       entry for scaffolding they did not write (§10). The two mechanisms that
-      *would* have been protocol changes are rejected there: an engine-dropped
-      `unit` cannot address inline punctuation, whose `toData` names are
-      generated, and a grammar-level silent flag changes the data `Rule` to
-      solve a problem that does not need it. This one leaves stage 0 entirely —
-      it is stage-2 library work.
+      *would* have been protocol changes are rejected there. This one leaves
+      stage 0 entirely — it is stage-2 library work.
 
-      **This is what forced the map's key to be the rule value** (§1, §11.3). A
-      fragment keyed by *name* runs into the same wall as the engine-dropped
-      `unit`: a combinator cannot predict the names `toData` will generate for
-      the rules it built. Keyed by value it simply hands back what it holds, and
-      `toData` exposing its rule → name mapping is the one small addition that
-      makes the engine able to use it.
+      **The reason changed once the map became value-keyed, and the record
+      should say so.** This was first rejected because an engine-dropped `unit`
+      could not address inline punctuation, whose `toData` names are generated.
+      That was a *name-keying* limitation and it is gone: `DataRule` includes
+      `string` and `find` compares rules with `===`, which for a string
+      primitive is value equality — so `entry('[', unit)` is a well-defined key
+      that reaches every `'['` in the grammar at once. The mechanism is
+      addressable now. It is still rejected, for three reasons that survive:
+
+      - **It does not reach the case it was proposed for.** §10's problem is
+        combinator-built scaffolding — the option and repeat rules
+        `commaJoin0Plus` generates. Those are fresh array and object values per
+        call, so only the combinator holds them; an author cannot name them by
+        value any more than by name. Punctuation the author wrote is the easy
+        half, and they can already count it.
+      - **It makes a sequence's arity depend on the map.** Dropping `unit`
+        children means the declared arity is "items minus the ones this map
+        marks silent", so the same rule has different tuple shapes under
+        different maps, and `C` couples to entries elsewhere in the map. The
+        construction check could still be done — it sees the map — but the
+        author's claim would no longer be about the grammar alone.
+      - **The alphabet split erodes it.** [unicode-rules](./unicode-rules.md)
+        removes `string` from the functional `DataRule`, so `'['` stops being a
+        rule value and the shared-primitive trick disappears with it. Building a
+        protocol feature on a case an open issue deletes is not a foundation.
+
+      A grammar-level silent flag is rejected separately and unchanged: it
+      changes the data `Rule` to solve a problem that does not need it.
+
+      **This is also what forced the map's key to be the rule value** (§1,
+      §11.3). A fragment keyed by *name* cannot work at all — a combinator
+      cannot predict the names `toData` will generate for the rules it built.
+      Keyed by value it hands back what it holds, and `toData` exposing its
+      rule → name mapping is the one small addition that makes the engine able
+      to use it.
 
 **Stage 1 — the protocol and `fjs/bnf/ll1`.**
 
@@ -1731,9 +1762,10 @@ types undecided cannot be implemented against.
 - [ ] Proofs: `descentEquivalence` and the existing AST expectations unchanged
       under the empty map; what each kind receives per §2, including the EOF
       terminal, an empty `Sequence` and a zero-round `Repeat` (both of which
-      must see the monoid's identity); all five construction-time checks; and a
-      deep-nesting case, since a repetition's fold now runs on the machine's
-      explicit stack.
+      must see the monoid's identity); all **seven** construction-time checks,
+      each with a passing and a failing case, plus `map`'s duplicate-entry
+      refusal (§9); and a deep-nesting case, since a repetition's fold now runs
+      on the machine's explicit stack.
 
 **Stage 2 — helpers and the first consumer.** The consumer is inside `fjs/bnf`,
 not `fjs/media/json`: the boundary in §11.6 keeps the codecs off BNF at runtime,
