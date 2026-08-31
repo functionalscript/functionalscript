@@ -587,7 +587,7 @@ thing to keep in step — `seq`'s parameter is typed `C['length']`, so a `3` bes
 a four-slot tuple is a compile error, and `variant`'s is `keyof C & string`, so a
 name absent from the branch record is one too.
 
-**Six things are resolved when the parser is built**, all O(rules) and none of
+**Seven things are resolved when the parser is built**, all O(rules) and none of
 them able to be incomplete:
 
 - **Every keyed rule is reachable from the start rule.** Keying by value makes a
@@ -622,6 +622,16 @@ them able to be incomplete:
 - **No mapped branch sits under an unmapped variant.** The tag would have
   nowhere to go, so that map is refused here too, naming both rules — §3 is
   where the reasoning is.
+- **Every branch a mapped variant declares has an entry** — the same rule from
+  the other side. §10 states it as an obligation ("declaring a type for a
+  variant means transforming all of it"), and without this check nothing
+  enforced it: a variant could declare `noItems` in its branch list, omit the
+  entry, pass every other check, and hand its callback the branch's default AST
+  node where `C` said `readonly number[]`. A silently wrong value, which is what
+  §6 exists to prevent. The alternative — letting the author type such a branch
+  as an AST value in `C` — is worse: it puts the engine's node shape in the
+  author's value domain for no gain, since the point of mapping a variant is to
+  stop dealing in nodes.
 
 **A parse that did not finish has no value, and the type says so.** The root's
 transformer never runs when the grammar rejects the input — a failure propagates
@@ -1499,6 +1509,34 @@ One inconsistency worth settling while the family is in view, and not by this
 issue alone: `Accumulator.update` is `(item, state)` and flow's `Transducer` is
 `(state, item)`. §1 follows flow's order, `state` first.
 
+### How binding this is
+
+Detailed, and [REVIEW.md](../../../REVIEW.md#designs) says what that means: **the
+implementer is not bound by it, but deviating silently is not allowed — the
+reason goes here.** Three tiers, so it is clear which is which:
+
+- **Settled, and changing one is a design change.** The four kinds and their
+  signatures (§1), the metadata channel and its monoid (§7), refusal as an
+  engine channel (§6), the map keyed by rule value (§5), and the three stage-0
+  decisions with their evidence (Tasks). Each was decided against a compiled
+  example rather than an argument; if one turns out wrong, the finding belongs
+  in this document before the code changes.
+- **Specified because it was cheaper to settle than to leave open.** The seven
+  construction-time checks, the four default builders, the helper set (§9).
+  These are what two implementers would otherwise get differently, which is
+  [REVIEW.md](../../../REVIEW.md#designs)'s test for missing detail. Deviate
+  where the code disagrees; say so here.
+- **Deliberately left to the implementer.** Frame layout, where the existential
+  cast lives, how `toData` exposes its rule → name mapping, whether the helpers
+  are one module or several, and every error message's wording. The document
+  names the constraint (§5's checks must throw at construction, §4.1's `update`
+  must be O(1)); how is not its business.
+
+Nothing here is a prototype's output. The type-level claims were compiled, the
+grammar and worked map were written out in full and checked, and the monoid laws
+were tested — but no parser was built against any of it, so the first thing
+stage 1 should expect is that something in the middle tier is wrong.
+
 ### Tasks
 
 Staged. **Stage 0 was three decisions and no code** — each changed what stage 1
@@ -1618,8 +1656,9 @@ types undecided cannot be implemented against.
       matches its rule's** — a sequence's arity, a variant's branch names in
       both directions, a repetition's repeated rule; `start` is a rule of the
       grammar; `start`'s rule is **not** also in `rest`, since one rule must
-      mean one thing at the root and under recursion; and no mapped branch sits
-      under an unmapped variant. Throw rather than parse. None of these is
+      mean one thing at the root and under recursion; no mapped branch sits
+      under an unmapped variant; and every branch a mapped variant declares has
+      an entry of its own. Throw rather than parse. None of these is
       expressible in the type: the map's type does not know the grammar, so a
       terminal transformer supplied for a variant rule, or an entry for a rule
       the grammar no longer has, type-checks perfectly and is caught only here.
@@ -1630,9 +1669,11 @@ types undecided cannot be implemented against.
       variant (§3): the branch has no node for the engine to tag, so the tag
       would vanish. Name both rules in the error, and prove that an empty map
       and an all-`unit` map both stay legal.
-- [ ] Re-express `parserRuleSet` as that machine with an empty map, and keep its
-      current result type; the one place the machine's erasure is undone is
-      where a value comes back out of it.
+- [ ] Keep `parserRuleSet` on its **native path** — it is not this machine with
+      an empty map, and cannot be: the machine needs a `Monoid<M>` that the AST
+      API has no use for and cannot conjure for an arbitrary `M` (§5). What it
+      owes instead is the proof above: the same children the four default
+      builders specify.
 - [ ] Carry a refusal as a value (§6): it takes the place of the refusing
       invocation's result, the enclosing rule is not called, and it propagates
       unchanged so the first refusal is the one reported. Attach `rule` and `at`
