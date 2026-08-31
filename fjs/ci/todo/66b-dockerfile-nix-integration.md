@@ -179,21 +179,18 @@ The generator owns the job subdirectories of `nix/` and removes stale job output
 does not own `nix/` itself: `nix/README.md` is written by hand, so stale-output removal
 deletes directories it generated rather than everything it finds there.
 
-Nix writes a `flake.lock` beside a generated flake unless told not to, so every CI
-invocation passes `--no-write-lock-file` and leaves the checkout untouched. The root
-`.gitignore` rule stays for hand-run `nix develop`, which has no such flag:
-
-```gitignore
-/nix/*/flake.lock
-```
-
-The rule matches one level down, so it is limited to the generated per-job flakes. A
-future intentional `nix/flake.lock` remains visible to Git.
+A `flake.lock` is generated beside every `flake.nix` and committed, from `narHash`
+and `lastModified` in `../config/module.f.mjs` — so a Dockerfile that copies `nix/`
+gets a fully locked flake and needs no network to resolve inputs. Every CI
+invocation still passes `--no-write-lock-file`, now so that `nix develop` cannot
+write over the generated file. The `.gitignore` rule that used to hide these files
+is gone.
 
 ##### Shell hooks
 
-No job declares one. Node 22's kept `npm install -g functionalscript` writable and
-put the installed `fjs` on `PATH`, and went when that install did. The generator
+One job declares one: `ubuntu-intel32`, pointing `cargo` at a 32-bit linker. Node
+22's kept `npm install -g functionalscript` writable and put the installed `fjs` on
+`PATH`, and went when that install did. The generator
 still emits a `shellHook` for a job that declares one, and
 `fjs/ci/nix/proof.f.mjs` holds that capability to its shape; do not introduce a
 generalized shell-setup schema until a job needs it.
@@ -299,7 +296,7 @@ it asked for. Both migrated once this milestone had settled the shape.
 - [x] Generate separate Node 22, Node 24, and Node 26 flakes with
       `devShells.aarch64-linux.default`.
 - [ ] Remove stale generated job directories.
-- [x] Add `/nix/*/flake.lock` to `.gitignore`.
+- [x] Generate and commit a `flake.lock` per flake, so `nix/` is self-contained.
 - [x] Keep ordinary generation Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
 - [x] Add pinned Nix bootstrap to each migrated job.
