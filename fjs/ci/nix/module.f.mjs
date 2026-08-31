@@ -302,11 +302,13 @@ export const flakeText = job =>
  * URL, `narHash` and `lastModified`.
  *
  * Keys are written in the order Nix writes them, which is alphabetical: its
- * JSON goes through `nlohmann::json`, whose object is an ordered map. Matching
- * that is not cosmetic. A developer running plain `nix develop` — without CI's
- * `--no-write-lock-file` — gets the lock rewritten if Nix disagrees with it,
- * and a file that differs only in key order would come back as a diff the
- * drift check then fails on.
+ * JSON goes through `nlohmann::json`, whose object is an ordered map. That is a
+ * readability choice and nothing more — worth saying, because the reverse is
+ * easy to assume. Nix compares the *parsed* lock rather than the text, so a
+ * semantically identical file in any formatting is left alone: reversing every
+ * key and re-indenting to four spaces still produces no rewrite. What matching
+ * buys is that these files read like every other `flake.lock`, and that a diff
+ * against one Nix did write is about content.
  *
  * @type {(input: typeof nixpkgs | typeof rustOverlay) => object}
  */
@@ -399,18 +401,40 @@ export const lockText = job => {
  * `exec` replaces the shell, so the command's exit status is the script's and
  * no wrapper process sits between CI and the failure.
  *
- * The flags live here rather than in every step. `--no-write-lock-file` keeps
- * the invocation read-only against the checkout: {@link lockText} writes the
- * lock, and a `nix develop` that could write one too would put CI's copy of
- * this repository in a state the drift check has no reason to accept.
+ * The flags live here rather than in every step.
+ *
+ * **`--no-write-lock-file` is a guard, not a fix.** With a correct lock beside
+ * the flake, Nix writes nothing whether or not the flag is passed — it compares
+ * the lock it computes against the one on disk and only writes when they
+ * differ, so the file comes through byte-identical with its mtime untouched.
+ * What the flag buys is the case where they *do* differ: {@link lockText} owns
+ * this file, and without the flag every Nix step in every job becomes a writer
+ * of a tracked one. Nothing is lost by that — `npm run ci-update` regenerates
+ * the lock from `../config/module.f.mjs`, so a rewrite Nix made would be
+ * reverted by the next generator run anyway. Two writers where one is
+ * authoritative is churn rather than redundancy, and a future Nix whose lock
+ * schema moves past version 7 is the case where it would be churn on every
+ * step of every job at once.
  *
  * **One `--quiet`, and it does one thing.** Nix has a single global verbosity
  * integer. The levels run `lvlError = 0, lvlWarn = 1, lvlNotice = 2,
  * lvlInfo = 3`; a message prints when its own level is at most the current
  * verbosity; the default is `lvlInfo`; and each `--quiet` decrements by one,
- * floored at `lvlError`. So this one reaches `notice`, which removes the
- * substitution chatter — `copying N paths`, logged at `lvlInfo` — and leaves
- * every warning Nix has to give.
+ * floored at `lvlError`. So this one reaches `notice`.
+ *
+ * What that removes, measured rather than described: `this path will be fetched
+ * (N MiB download)` and one `copying path '…' from '…'` per store path, plus
+ * `this derivation will be built:` and `building '…'`. All `lvlInfo`, all
+ * progress rather than outcome.
+ *
+ * What it leaves is everything that reports a problem. A warning survives it —
+ * only the third `--quiet` reached below `lvlWarn` — and so does a failing
+ * build's log, which arrives inside the `lvlError` message as `last N log
+ * lines` rather than as the build output the flag suppressed. The one real
+ * cost is that a cache miss looks like a cache hit: Nix compiles from source in
+ * silence, and the job is only slower. That is bounded, because the store
+ * persists across a job's steps, so substitution happens on the first
+ * `./nix/run` and no other.
  *
  * **There used to be three**, and the second and third were spent on a single
  * warning: with no committed `flake.lock`, `--no-write-lock-file` made every

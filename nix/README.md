@@ -66,18 +66,33 @@ lets a step keep quoting of its own —
 than as text to re-parse. `exec` replaces the shell, so the command's exit
 status is the script's.
 
-The two flags live there rather than in every step. `--no-write-lock-file` keeps
-the invocation read-only against the checkout: the lock beside each flake is
-generated and committed, so a `nix develop` that could write one too would leave
-CI's checkout in a state the drift check has no reason to accept.
+The two flags live there rather than in every step.
+
+`--no-write-lock-file` is a **guard, not a fix**. With a correct lock beside the
+flake, Nix writes nothing whether or not the flag is passed: it compares the lock
+it computes against the one on disk and only writes when they differ. What the
+flag buys is the case where they do differ — the generator owns this file, and
+without the flag every Nix step in every job becomes a writer of a tracked one.
+Nothing is lost by that, since `npm run ci-update` regenerates the lock from
+`fjs/ci/config` and would revert a rewrite anyway. A future Nix whose lock schema
+moves past version 7 is where that would otherwise be churn on every step at once.
 
 `--quiet` appears **once**, and it does one thing. Nix has a single global
 verbosity integer: the levels run `lvlError = 0, lvlWarn = 1, lvlNotice = 2,
 lvlInfo = 3`, a message prints when its own level is at most the current value,
 the default is `lvlInfo`, and each `--quiet` decrements by one. One reaches
-`notice`, which removes the substitution chatter — the `copying N paths` lines,
-logged at `lvlInfo`, which are most of what these steps print and none of what
-they check — and leaves every warning Nix has to give.
+`notice`.
+
+What that removes: `this path will be fetched (N MiB download)` and one
+`copying path '…' from '…'` per store path, plus `this derivation will be built:`
+and `building '…'`. All `lvlInfo`, all progress rather than outcome.
+
+What it leaves is everything that reports a problem. A warning survives it — only
+the third `--quiet` reached below `lvlWarn` — and so does a failing build's log,
+which arrives inside the error as `last N log lines`. The one real cost is that a
+cache miss looks like a cache hit: Nix compiles from source in silence and the job
+is only slower. That is bounded, because the store persists across a job's steps,
+so substitution happens on the first `./nix/run` and no other.
 
 **There used to be three.** With no committed `flake.lock`,
 `--no-write-lock-file` made every step of every Nix job print `not writing
