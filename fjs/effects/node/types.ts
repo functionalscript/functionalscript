@@ -16,7 +16,7 @@ import type {
 } from '../types.ts'
 import type { List } from '../list/types.ts'
 import type {
-    Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
+    All, Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
     WriteConsoles, _UtfList,
 } from '../common/types.ts'
 
@@ -41,22 +41,14 @@ export type { IoChannel, IoError, IoErrorInfo, IoResult, OpResult }
  * a live coupling rather than a shim.
  */
 export type {
-    Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
+    All, Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
     WriteConsoles, _UtfList,
 }
 
 // all
 
-/**
- * Runs its effects concurrently and answers each one's whole `Result`.
- *
- * The nesting is deliberate and belongs to the runner: this envelope says
- * whether `all` itself could be dispatched, and each inner `Result` is what
- * that effect answered. `allOk` (`./module.f.mjs`) is the collapse a fallible
- * chain wants.
- */
-export type All = ['all', <T, E>(...effects: Effect<never, T, E>[]) => OpResult<readonly Result<T, E>[]>]
-
+// `All` is `../common`'s, re-exported above: fan-out is an interpreter's job,
+// and a browser page fans out its module loads with a `Promise.all`.
 // fetch
 
 export type Fetch = ['fetch', (url: string) => IoResult<Vec>]

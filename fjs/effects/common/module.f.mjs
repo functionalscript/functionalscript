@@ -4,12 +4,14 @@
  *
  * @module
  *
- * @import { Effect, Func, NotImplemented } from '../types.ts'
+ * @import { Effect, Func, NotImplemented, Operation } from '../types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Console, Read, ReadConsoles, Write, WriteConsoles, _UtfList } from './types.ts'
- * @import { Catch, Import, Sandbox, SandboxResult } from './types.ts'
+ * @import { All, Catch, Import, Sandbox, SandboxResult } from './types.ts'
  */
 
-import { do_, pureOk, resultMapStep, step } from '../module.f.mjs'
+import { do_, pure, pureOk, resultMapStep, step } from '../module.f.mjs'
+import { ok as resultOk, unwrap } from '../../types/result/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
@@ -40,6 +42,70 @@ export const sandbox = do_('sandbox')
  * @type {Func<Catch>}
  */
 export const catch_ = do_('catch')
+
+// all
+
+/**
+ * To run the operation `O` should be known by the runner/engine.
+ * This is the reason why we merge `O` with `All` in the resulting effect.
+ */
+export const all =
+    // `Func` cannot express a variadic generic operation, so the declared type
+    // is written out here and `do_`'s is set aside.
+    /** @type {<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O | All, readonly Result<T, E>[], NotImplemented>} */
+    (/** @type {unknown} */ (do_('all')))
+
+/**
+ * Collapses a list of results into a result of the list, keeping the **first**
+ * error in list order and discarding the later ones.
+ *
+ * Keeping one is what makes this a `Result` rather than a report: the callers
+ * that need it are chains, and a chain has one error channel. A site that wants
+ * every failure wants a different return type and should not reach for this.
+ *
+ * @type {<T, E>(list: readonly Result<T, E>[]) => Result<readonly T[], E>}
+ */
+const okList = list => {
+    for (const r of list) {
+        if (r[0] === 'error') { return r }
+    }
+    return resultOk(list.map(unwrap))
+}
+
+/**
+ * {@link all} in the `ok` channel: collects the values when every effect
+ * succeeded, and answers with the first failure otherwise.
+ *
+ * `all` alone cannot serve a fallible chain. Its envelope is the runner's
+ * (`OpResult`, saying whether the *operation* could be dispatched), so handing
+ * it `Effect`s nests one `Result` inside another and the caller receives
+ * `readonly Result<T, E>[]`. That has to be collapsed before the chain can
+ * `step` again, and a continuation that forgets to is the value-discarding
+ * hazard this migration exists to remove — one level in, where it is harder to
+ * see.
+ *
+ * **Every effect still runs.** The short-circuit is in the *result*, not in the
+ * execution: `all` performs them concurrently and this reads the answers once
+ * they are all in, so a failure does not cancel its siblings the way it stops
+ * the sequential `forEachStep` in `../module.f.mjs`. The error channel
+ * unions the runner's
+ * `NotImplemented` with the effects' own `E` for the same reason every other
+ * step does — either can be what went wrong.
+ *
+ * @type {<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O | All, readonly T[], NotImplemented | E>}
+ */
+export const allOk = (...a) =>
+    step(all(...a), rs => pure(okList(rs)))
+
+/**
+ * @template {Operation} O0
+ * @template T0
+ * @template E0
+ * @param {Effect<O0, T0, E0>} a
+ * @returns {<O1 extends Operation, T1, E1>(b: Effect<O1, T1, E1>) => Effect<O0 | O1 | All, readonly[Result<T0, E0>, Result<T1, E1>], NotImplemented>}
+ */
+export const both = a => b =>
+    /** @type {any} */ (all)(a, b)
 
 // import
 

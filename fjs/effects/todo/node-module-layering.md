@@ -65,7 +65,7 @@ Proposed destinations:
 
 | Moves to | Contents |
 |---|---|
-| `fjs/effects/common` (was `effects/all`) | `All`, `all`, `allOk`, `both`, and `allVoid`/`allReduce` when they land |
+| `fjs/effects/common` (was `effects/all`) | `All`, `all`, `allOk`, `both` — **moved**; `allVoid`/`allReduce` when they land. It moved on the layering argument, and gained a second implementer on the way: a browser page fans out its module loads, so the interpreter's `Promise.all` is as much an implementation of `all` as Node's |
 | `fjs/effects/common` (was `effects/sandbox`) | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise`, and `Catch`/`catch_` (landed after this table was written) — the "run foreign code and observe what happened" family. This row is what [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md) step 4's "shared module" resolves to: a browser gives `Sandbox` and `Catch` their second implementer; `Await` moves on this issue's layering argument alone, since it belongs to the registration path no browser runs |
 | `fjs/effects/common` (was `effects/console`) | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/common` (was `effects/test`) | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
@@ -317,7 +317,7 @@ move. Nothing depends on it.
       with `Result<T, unknown>` from `fjs/types/result`, dropping its
       `effects` import — a pure consumer should not name an IO alias, whichever
       module the alias lives in.
-- [ ] Move `All` / `all` / `allOk` / `both` to `fjs/effects/common`.
+- [x] Move `All` / `all` / `allOk` / `both` to `fjs/effects/common`.
       `allOk` is the ok-channel wrapper over `all` and belongs with it;
       [allvoid-combinator](./allvoid-combinator.md) builds on it, so leaving it
       behind would make the combinator import from `effects/node`.

@@ -2,14 +2,15 @@
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
  * `writeFile`, `rm`, `access`, plus the `readUtf8File`/`writeUtf8File` text
  * helpers), networking (`fetch`, `createServer`, `listen`),
- * subprocess `exec`, `now`, `forever`, and `all`/`both` parallelism;
- * defines the `NodeOp`/`NodeProgram` types used by the Node runner.
+ * subprocess `exec`, `now` and `forever`; defines the `NodeOp`/`NodeProgram`
+ * types used by the Node runner.
  *
  * The console family — `write`, `log`, `error`, `errorExit`, `read`,
- * `readLine` — and `sandbox`, `catch_` and `import_` are re-exported from
+ * `readLine` — together with `sandbox`, `catch_`, `import_` and the
+ * `all`/`allOk`/`both` fan-out are re-exported from
  * [`../common`](../common/module.f.mjs) rather than declared here: an operation
  * belongs to the layer of whoever implements it, and a browser sandboxes,
- * catches, writes and loads modules.
+ * catches, writes, loads modules and runs things at once.
  *
  * See `./types.ts` for the type-level API.
  *
@@ -19,7 +20,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { All, Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -27,10 +28,9 @@ import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
-import { error as resultError, ok as resultOk, unwrap } from '../../types/result/module.f.mjs'
-import { do_, ioError, pure, toIoError } from '../module.f.mjs'
+import { do_, ioError, toIoError } from '../module.f.mjs'
 import {
-    catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
+    all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
     mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
@@ -56,8 +56,9 @@ export { ioError, toIoError }
 // call sites name them through this module — a live coupling, not a shim. An
 // operation belongs to the layer of whoever implements it, and every one of
 // these has, or will have, a second implementer: a browser sandboxes, catches,
-// writes, and loads modules through an `import()` of its own.
-export { catch_, error, errorExit, import_, log, read, readLine, sandbox, write }
+// writes, loads modules through an `import()` of its own, and fans out with a
+// `Promise.all`.
+export { all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write }
 
 /**
  * The host a {@link Listen} refuses.
@@ -160,69 +161,8 @@ const nodeCommandSet = {
  */
 export const nodeCommands = /** @type {Commands<NodeOp>} */ (Object.keys(nodeCommandSet))
 
-// all
-
-/**
- * To run the operation `O` should be known by the runner/engine.
- * This is the reason why we merge `O` with `All` in the resulting effect.
- */
-export const all =
-    // `Func` cannot express a variadic generic operation, so the declared type
-    // is written out here and `do_`'s is set aside.
-    /** @type {<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O | All, readonly Result<T, E>[], NotImplemented>} */
-    (/** @type {unknown} */ (do_('all')))
-
-/**
- * Collapses a list of results into a result of the list, keeping the **first**
- * error in list order and discarding the later ones.
- *
- * Keeping one is what makes this a `Result` rather than a report: the callers
- * that need it are chains, and a chain has one error channel. A site that wants
- * every failure wants a different return type and should not reach for this.
- *
- * @type {<T, E>(list: readonly Result<T, E>[]) => Result<readonly T[], E>}
- */
-const okList = list => {
-    for (const r of list) {
-        if (r[0] === 'error') { return r }
-    }
-    return resultOk(list.map(unwrap))
-}
-
-/**
- * {@link all} in the `ok` channel: collects the values when every effect
- * succeeded, and answers with the first failure otherwise.
- *
- * `all` alone cannot serve a fallible chain. Its envelope is the runner's
- * (`OpResult`, saying whether the *operation* could be dispatched), so handing
- * it `Effect`s nests one `Result` inside another and the caller receives
- * `readonly Result<T, E>[]`. That has to be collapsed before the chain can
- * `step` again, and a continuation that forgets to is the value-discarding
- * hazard this migration exists to remove — one level in, where it is harder to
- * see.
- *
- * **Every effect still runs.** The short-circuit is in the *result*, not in the
- * execution: `all` performs them concurrently and this reads the answers once
- * they are all in, so a failure does not cancel its siblings the way it stops
- * the sequential `forEachStep` in `./module.f.mjs`. The error channel
- * unions the runner's
- * `NotImplemented` with the effects' own `E` for the same reason every other
- * step does — either can be what went wrong.
- *
- * @type {<O extends Operation, T, E>(...a: readonly Effect<O, T, E>[]) => Effect<O | All, readonly T[], NotImplemented | E>}
- */
-export const allOk = (...a) =>
-    ioStep(all(...a), rs => pure(okList(rs)))
-
-/**
- * @template {Operation} O0
- * @template T0
- * @template E0
- * @param {Effect<O0, T0, E0>} a
- * @returns {<O1 extends Operation, T1, E1>(b: Effect<O1, T1, E1>) => Effect<O0 | O1 | All, readonly[Result<T0, E0>, Result<T1, E1>], NotImplemented>}
- */
-export const both = a => b =>
-    /** @type {any} */ (all)(a, b)
+// `all`, `allOk` and `both` are `../common`'s, re-exported above: fan-out is an
+// interpreter's job, and a browser page fans out its module loads.
 
 // fetch
 

@@ -97,6 +97,25 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxRes
  */
 export type Catch = readonly['catch', <T>(f: () => T) => OpResult<Result<T, unknown>>]
 
+// all
+
+/**
+ * Runs its effects concurrently and answers each one's whole `Result`.
+ *
+ * The nesting is deliberate and belongs to the runner: this envelope says
+ * whether `all` itself could be dispatched, and each inner `Result` is what
+ * that effect answered. `allOk` (`./module.f.mjs`) is the collapse a fallible
+ * chain wants.
+ *
+ * **Fan-out is an interpreter's job, not a walk's.** A host that has
+ * concurrency implements this and keeps it; a host that does not answers the
+ * effects in turn, and the shared logic above reads the same either way. That
+ * is why it sits here rather than in a module named after one host: a browser
+ * page fans out its module loads, and a `Promise.all` is as much an
+ * implementation of this operation as Node's is.
+ */
+export type All = ['all', <T, E>(...effects: Effect<never, T, E>[]) => OpResult<readonly Result<T, E>[]>]
+
 // import
 
 /** A loaded module: its exported names, as values. */
