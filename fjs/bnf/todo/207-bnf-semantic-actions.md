@@ -557,8 +557,15 @@ it yields `[undefined, identity]` directly. That is what makes the all-`unit`
 recognizer of §10 allocation-free in the strong sense — not "builds cheap values
 and discards them" but "makes no call and holds no state" — and it is also why a
 rule that can match EOF is almost always `unit` rather than a terminal
-transformer that has to branch on `-1` (§2). A `unit` start entry is typed
-`Entry<M, undefined>`, which is honest: it kept nothing.
+transformer that has to branch on `-1` (§2).
+
+**`unit` is declared `Transformer<M, undefined>`, not the bare `['unit']`
+literal**, so that `entry(rule, unit)` infers `Entry<M, undefined>`. The literal
+type contains no occurrence of `entry`'s `T`, so there is nothing to infer from
+and `T` would fall back to `unknown` — a start matcher typed
+`TransformMatch<unknown, M>` whose value is always `undefined`. The arm itself
+stays `readonly['unit']`, which is why the declaration is sound: it is assignable
+at any `T`, and `undefined` is the honest one, since a `unit` entry kept nothing.
 
 **The tag is there because nothing else can carry the kind.** Erased, a
 terminal, a sequence and a variant transformer are the *same function type* —
@@ -580,7 +587,7 @@ thing to keep in step — `seq`'s parameter is typed `C['length']`, so a `3` bes
 a four-slot tuple is a compile error, and `variant`'s is `keyof C & string`, so a
 name absent from the branch record is one too.
 
-**Five things are resolved when the parser is built**, all O(rules) and none of
+**Six things are resolved when the parser is built**, all O(rules) and none of
 them able to be incomplete:
 
 - **Every keyed rule is reachable from the start rule.** Keying by value makes a
@@ -605,6 +612,13 @@ them able to be incomplete:
   a shape it did not expect.
 - **`start` is a rule value**, so it cannot be mistyped either — but it must be
   a rule of the grammar being built, and that is checked here.
+- **`start`'s rule has no entry in `rest`.** The two are supplied separately and
+  nothing in the types stops a map from also containing the start rule, at an
+  unrelated `T`. An implementation would then have to either honour the map
+  entry and break the `TransformMatch<T, M>` it advertised, or override it and
+  give a *recursive* invocation of that rule different semantics from the root
+  one — both silent. Refusing the collision is the only answer that keeps one
+  rule meaning one thing.
 - **No mapped branch sits under an unmapped variant.** The tag would have
   nowhere to go, so that map is refused here too, naming both rules — §3 is
   where the reasoning is.
@@ -995,7 +1009,7 @@ type Transformers<M> = {
         branches: readonly (keyof C & string)[], f: (b: Branch<C>) => T) => Transformer<M, T>
     readonly list: <C>(item: FRule) => Transformer<M, readonly C[]>
     readonly text: (item: FRule) => Transformer<M, string>
-    readonly unit: readonly['unit']
+    readonly unit: Transformer<M, undefined>
 
     readonly build: (rest: TransformerMap<M>) => <T>(start: Entry<M, T>) => TransformMatch<T, M>
 }
@@ -1041,7 +1055,8 @@ factory already has it.
   default AST node (§3). That is why §10 maps `digit` before using
   `text(digit)` for `digits`.
 - `unit` — keeps nothing, and is not a kind: it fits any rule, and the engine
-  answers it without calling anything (§5). Its own subtree costs nothing,
+  answers it without calling anything (§5). It is declared at `undefined` so an
+  `entry` built from it says so (§5). Its own subtree costs nothing,
   though it still occupies a slot in its parent's tuple rather than disappearing
   from it (see §10). Whitespace, punctuation, a rule that can match EOF, and a
   recognizer's every rule.
@@ -1602,11 +1617,12 @@ types undecided cannot be implemented against.
       tag matches its rule's kind**; every entry's **declared child shape
       matches its rule's** — a sequence's arity, a variant's branch names in
       both directions, a repetition's repeated rule; `start` is a rule of the
-      grammar; and no mapped branch sits under an unmapped variant. Throw rather
-      than parse. None of these is expressible in the type: the map's type does
-      not know the grammar, so a terminal transformer supplied for a variant
-      rule, or an entry for a rule the grammar no longer has, type-checks
-      perfectly and is caught only here.
+      grammar; `start`'s rule is **not** also in `rest`, since one rule must
+      mean one thing at the root and under recursion; and no mapped branch sits
+      under an unmapped variant. Throw rather than parse. None of these is
+      expressible in the type: the map's type does not know the grammar, so a
+      terminal transformer supplied for a variant rule, or an entry for a rule
+      the grammar no longer has, type-checks perfectly and is caught only here.
 - [ ] Answer a `unit` entry without calling anything and without allocating —
       it is the fifth arm of `Transformer`, it matches any rule kind, and it is
       what makes stage 2's recognizer mode free (§5, §9).

@@ -84,9 +84,15 @@ This split changes the public design assumptions used by older open TODOs:
   **no longer blocked** by this task. It has been rewritten over the *data*
   `RuleSet`, where the functional Unicode-literal string never arrives —
   `toData` has already expanded it to terminals — so it never names `string` as
-  a generic rule kind. What this split changes for it is indirect: it changes
-  which rules a grammar has and what `toData` names them, and a transformer map
-  is keyed by those names. That is the grammar's business (JSON's is tracked in
+  a generic rule kind. What this split changes for it is indirect and is **not**
+  about names: a transformer map is keyed by the *rule value*, not by anything
+  `toData` generates, so renaming nothing matters. What does matter is that
+  lowering text literals through the Unicode adapter changes **which rule values
+  a grammar has**, and an entry keyed on a rule the adapter replaced is an entry
+  for a rule the grammar no longer contains — which 207's construction check
+  rejects. Whoever ports a grammar re-points its entries at the adapter's rules,
+  or takes them from a fragment the adapter supplies. That is the grammar's
+  business (JSON's is tracked in
   [`bnf-grammar-single-owner`](../../media/json/todo/bnf-grammar-single-owner.md)),
   not the transformer protocol's.
 - The `Repeat` rule kind has shipped, and this split **helps** it. A `Repeat` is
@@ -146,10 +152,11 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Update/block `fjs/media/json/todo/bnf-grammar-single-owner.md` so its JSON
       grammar design imports Unicode helpers from `fjs/bnf/unicode/module.f.mjs`
       and does not depend on raw string rules in core BNF.
-- [ ] Re-check the rule names `fjs/bnf/todo/207-bnf-semantic-actions.md` keys its
-      transformer maps on after this split: it is no longer blocked by it, but
-      lowering text literals through the Unicode adapter changes which rules
-      `toData` emits and how it names them.
+- [ ] Re-point the rule **values** `fjs/bnf/todo/207-bnf-semantic-actions.md`
+      keys its transformer maps on after this split: it is no longer blocked by
+      it, but lowering text literals through the Unicode adapter replaces rule
+      values, and an entry for a replaced rule is one the grammar no longer
+      contains. Names are not involved — 207 keys by value.
 - [ ] Check `isRepeat` in `fjs/bnf/data/module.f.mjs` still holds after the
       split: a data `Rule` that is a string is a `Repeat`, and removing the
       functional Unicode-literal case only makes that reading unambiguous.
@@ -185,7 +192,8 @@ new module boundary and final rule discriminants before implementation starts.
   blocked on this split and must target `bnf/unicode` for text terminals.
 - [BNF rule transformers](./207-bnf-semantic-actions.md) — not blocked on this
   split: it is defined over the data `RuleSet`, which never had the generic
-  string case. This split changes the rule names its maps are keyed on.
+  string case. Its maps are keyed by rule **value**, so this split changes which
+  rule values its entries must name, not any spelling.
 - [`../data/README.md`](../data/README.md#the-repeat-rule) — unaffected by this
   split; the shipped `Repeat` encoding is a data-layer string, not a functional
   one.
