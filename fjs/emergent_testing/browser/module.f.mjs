@@ -58,6 +58,16 @@ const attempt = f =>
     resultStep(catch_(f), r => pureOk(r[0] === 'ok' ? r[1] : error(r[1])))
 
 /**
+ * What a value that cannot be read is called.
+ *
+ * A value reaches the report by being described, and describing runs the
+ * value's own code — a `toString`, a getter, a proxy trap — which can throw in
+ * its turn. Every route that meets one says this, so a reader meets one phrase
+ * rather than three spellings of the same defeat.
+ */
+export const unknownValue = 'Unknown thrown value'
+
+/**
  * The text of a value that may not want to be read. `String` runs user code —
  * a `toString`, a proxy trap — so it is attempted rather than called.
  *
@@ -66,7 +76,7 @@ const attempt = f =>
 const text = value =>
     mapStep(
         attempt(() => String(value)),
-        r => r[0] === 'ok' ? /** @type {string} */(r[1]) : 'Unknown thrown value')
+        r => r[0] === 'ok' ? /** @type {string} */(r[1]) : unknownValue)
 
 /**
  * The `message` and `stack` of a thrown value, read in one attempt.

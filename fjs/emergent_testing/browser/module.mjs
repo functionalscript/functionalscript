@@ -27,11 +27,11 @@
  */
 
 import {
-    errorDetails, loadProofs, moduleFailure, reportOf, runProofs, runnerSource,
+    errorDetails, loadProofs, moduleFailure, reportOf, runProofs, runnerSource, unknownValue,
 } from './module.f.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
-import { toIoError } from '../../effects/module.f.mjs'
+import { ioError, toIoError } from '../../effects/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 
@@ -58,7 +58,7 @@ const failureOf = async (source, duration, cause) => {
     const described = await asyncRun(commonOperationMap)(errorDetails(cause))
     const [message, stack] = described[0] === 'ok'
         ? described[1]
-        : /** @type {const} */ (['Unknown thrown value', 'Unknown thrown value'])
+        : /** @type {const} */ ([unknownValue, unknownValue])
     return moduleFailure(source, duration, message, stack)
 }
 
@@ -209,7 +209,18 @@ export const startBrowserTestSources = (root, sources) => {
             try {
                 return ok(await import(new URL(source, root.ownerDocument.baseURI).href))
             } catch (cause) {
-                return error(toIoError(cause))
+                // **Normalising runs the value's own code too.** A module that
+                // evaluates `throw { toString() { throw … } }` rejects with a
+                // value `toIoError` cannot describe, and an unguarded call here
+                // rejects the whole run — leaving the page at `Loading 0/N`
+                // with no report and no completion event, which is the one
+                // outcome an automated controller cannot act on. The value
+                // that will not be read is named rather than propagated.
+                try {
+                    return error(toIoError(cause))
+                } catch {
+                    return error(ioError({ message: unknownValue }))
+                }
             }
         },
         // The interpreter's fan-out, which is what keeps loading parallel now

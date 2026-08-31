@@ -472,6 +472,21 @@ export const proof = {
         assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
         assertEq(p.view.events.length, 1)
     },
+    // A module whose *thrown value* cannot be described either — the page must
+    // still reach a terminal state. Describing runs the value's own code, so an
+    // unguarded normalisation rejects the run and leaves the page at
+    // `Loading 0/N` for ever: no report, no completion event, nothing an
+    // automated controller can act on.
+    hostileModuleRejectionIsStillReported: async () => {
+        const p = page()
+        const report = await startBrowserTestSources(p.root, [
+            dataModule('throw { toString() { throw new Error("hostile") } }'),
+        ])
+        assertEq(report.status, 'infrastructure-error')
+        assertEq(report.results[0]?.message, 'Unknown thrown value')
+        assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
+        assertEq(p.view.events.length, 1)
+    },
     runControlAbsentButtonIsIgnored: async () => {
         // An embedding root with no `[data-test-run]` control is still
         // supported: `setState` finds nothing to toggle and moves on rather
