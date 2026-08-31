@@ -642,23 +642,45 @@ blocker because nothing here depends on the answer.
 The protocol is the primitive; the ergonomics come from a small library over it,
 which is also where the O(1)-`update` discipline is enforced once:
 
+```ts
+const map:  <C extends readonly unknown[], T>(f: (children: C) => T) => Transformer<T>
+const list: <T>() => Transformer<readonly T[]>
+const text: () => Transformer<string>
+const unit: Transformer<undefined>
+const span: <T>(inner: Transformer<T>) => Transformer<T>
+```
+
 - `map(f)` — a transformer from a plain function of the whole child list, for
-  small fixed sequences: `map(([, inner]) => inner)`. This is the
-  `reduce`-over-children shape of the previous design, recovered as sugar, and
-  it is where `tryFold`'s relationship to this protocol is most visible (§12).
-- `tuple(f)` — like `map`, positionally typed for a `Sequence`.
+  small fixed sequences. This is the `reduce`-over-children shape of the
+  previous design, recovered as sugar, and it is where `tryFold`'s relationship
+  to this protocol is most visible (§12).
 - `list()` — the identity fold for a `Repeat`: children in, array out, O(1) per
   item.
-- `text()` — leaves in, string out; the common terminal/lexeme case.
+- `text()` — the common lexeme case: its children concatenated into a string,
+  whether they are matched leaves or the strings a child rule's own transformer
+  already produced.
 - `unit` — keeps nothing: its own subtree costs nothing, though it still hands
   the parent a value to ignore (see §10). Whitespace, punctuation, and a
   recognizer's every rule.
 - `span(inner)` — wraps a transformer so its result carries the source range
   merged from its children's metadata: the §7 monoid, opt-in.
 
-A fixed sequence that wants positional destructuring uses `map`/`tuple` and pays
-one small array; a repetition — where size is unbounded and streaming matters —
-uses `list` or a hand-written fold. That is the split the previous design's
+**Every child type in those signatures is written by the author, not inferred.**
+`update` receives `unknown` (§8), so nothing in the map or the `RuleSet`
+determines `C` or `list`'s `T`: a callback written `([, inner]) => inner` infers
+`C = readonly unknown[]`, `inner` stays `unknown`, and `map` returns
+`Transformer<unknown>` — which is not assignable to the `Transformer<string>`
+that §8's `satisfies` demands, and the map fails to compile with the child types
+left implicit. `C` is inferred from the callback's own parameter annotation and
+from nowhere else, so the annotation is mandatory wherever a child's value is
+used: `map(([, inner]: readonly[unknown, string, unknown]) => inner)`. It is a
+claim about what the grammar produces, checked nowhere — the same unchecked
+narrowing §8 already grants over an `unknown` child, with the one improvement
+that writing it as a tuple puts the whole claim in one readable place per rule.
+
+A fixed sequence that wants positional destructuring uses `map` and pays one
+small array; a repetition — where size is unbounded and streaming matters — uses
+`list` or a hand-written fold. That is the split the previous design's
 "positional elision" section was reaching for.
 
 #### 10. Worked examples
@@ -677,31 +699,49 @@ assume:
 //   string  = () => ['"', characters, '"']
 //   member  = () => [string, ws, ':', ws, value]
 //   object  = () => ['{', ws, members, '}']
+//   number  = () => [digits]
+type Member = readonly[string, Json]
 {
-    character:  map(([c]) => decodeOne(c)),    // one decoded character
+    character:  map(([c]: readonly[CodePoint]) => decodeOne(c)),
     characters: text(),                        // Repeat of character → string
-    string:     map(([, chars]) => chars),
-    member:     map(([key, , , , value]) => [key, value]),
-    members:    list(),
-    object:     map(([, , members]) => Object.fromEntries(members)),
-    array:      map(([, , items]) => items),
-    items:      list(),
-    number:     map(cs => Number(cs.join(''))),
+    string:     map(([, chars]: readonly[unknown, string, unknown]) => chars),
+    member:     map(([k, , , , v]: readonly[string, unknown, unknown, unknown, Json]) =>
+                    [k, v] as const),
+    members:    list<Member>(),
+    object:     map(([, , ms]: readonly[unknown, unknown, readonly Member[], unknown]) =>
+                    Object.fromEntries(ms)),
+    array:      map(([, , items]: readonly[unknown, unknown, readonly Json[], unknown]) => items),
+    items:      list<Json>(),
+    digits:     text(),
+    number:     map(([digits]: readonly[string]) => Number(digits)),
     true:       map(() => true),
     false:      map(() => false),
     null:       map(() => null),
-    value:      map(([v]) => v),               // the branch's value, whichever it was
+    value:      map(([v]: readonly[Json]) => v),  // the branch's value, whichever it was
     ws:         unit,
 }
 ```
 
+**The annotations are the price of `unknown` children, and they are load-bearing
+(§9).** Without them `map` infers `readonly unknown[]`, every callback returns
+`unknown`, and the map does not satisfy the `Transformers` of §8 — so this is
+what a checked map looks like, not a decorated one. Two consequences worth
+reading off it: `as const` is needed wherever a callback builds a tuple, because
+`[k, v]` widens to `(string | Json)[]` and `member`'s declared value is
+`readonly[string, Json]`; and each annotation restates a slice of the grammar,
+so it goes stale silently if the grammar's sequence changes under it. Nothing in
+the protocol catches that — see the open question below on typing children per
+rule kind, which is the only way found so far to make the sequence's own shape
+supply these types instead of the author.
+
 **Declaring a type for a variant means transforming all of it.** `value` is in
 the map twice over: a mapped branch under an *unmapped* variant is refused at
 construction (§3), and `value` is the rule that gives a JSON value its type. But
-`value: map(([v]) => v)` can only claim to return `Json` if *every* branch does
-— an unmapped `number` or `true` would hand it an AST node, and forwarding that
-as `Json` is either a `satisfies` failure or an unchecked narrowing that returns
-the wrong runtime value. So the map names all seven branches, and the example is
+`value: map(([v]: readonly[Json]) => v)` can only claim to return `Json` if
+*every* branch does — an unmapped `number` or `true` would hand it an AST node,
+and that `readonly[Json]` would then be a false claim (§9) rather than a
+`satisfies` failure, returning the wrong runtime value under a type that says
+otherwise. So the map names all seven branches, and the example is
 no longer partial anywhere `value` can reach.
 
 That is the shape of the trade rather than a quirk of JSON: adoption is
@@ -1047,8 +1087,19 @@ value* to check against a spec vector.
 - **Input streaming (§4.2) is [43](./043-stateful-parser.md)'s.** This issue
   only has to leave the parser state plain data so that one can suspend and
   resume it; which of the two lands first decides where the entry points live.
-- **Helper set (§9).** `map`, `tuple`, `list`, `text`, `unit`, `span` is a
-  guess at the working set; let the JSON and DJS ports pick the final list.
+- **Helper set (§9).** `map`, `list`, `text`, `unit`, `span` is a guess at the
+  working set; let the JSON and DJS ports pick the final list.
+- **Typed children per rule kind (§1, §9).** `update`'s child is `unknown`, so
+  every child type in a map is an author's annotation that no one checks and the
+  grammar can invalidate silently (§10). A protocol split by rule kind would
+  supply them structurally instead — a `Sequence` transformer taking a typed
+  tuple of its children, a `Variant` transformer taking a branch name and that
+  branch's value, a `Repeat` transformer being the `Accumulator` of §12, and a
+  terminal transformer taking a leaf. It costs the single uniform
+  `RuleTransformer` of §1, and it has to answer how the four kinds compose into
+  one map keyed by rule name when the `RuleSet` — not the type system — is what
+  says which kind a name is. Worth settling before stage 2 writes the JSON map,
+  since that map is the evidence either way.
 - **Silent rules — no longer optional (§10).** `unit` still delivers an `update`
   to the parent, so a positional callback must count punctuation, whitespace and
   every scaffolding node a combinator built. That is guesswork against an
