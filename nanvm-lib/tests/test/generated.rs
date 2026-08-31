@@ -180,6 +180,8 @@ fn mul<A: IVm>() {
 fn sub<A: IVm>() {
     check::<A>("nullMinusNull", Nullish::Null.to_any() - Nullish::Null.to_any(), (0f64).to_any());
     check::<A>("nullMinusZero", Nullish::Null.to_any() - (0f64).to_any(), (0f64).to_any());
+    check::<A>("negativeZeroMinusZero", (-0f64).to_any() - (0f64).to_any(), (-0f64).to_any());
+    check::<A>("zeroMinusNegativeZero", (0f64).to_any() - (-0f64).to_any(), (0f64).to_any());
     check::<A>("undefinedMinusZero", Nullish::Undefined.to_any() - (0f64).to_any(), (f64::NAN).to_any());
     check::<A>("trueMinusOne", true.to_any() - (1f64).to_any(), (0f64).to_any());
     check::<A>("falseMinusOne", false.to_any() - (1f64).to_any(), (-1f64).to_any());
@@ -187,6 +189,7 @@ fn sub<A: IVm>() {
     check::<A>("oneMinusNegativeOne", (1f64).to_any() - (-1f64).to_any(), (2f64).to_any());
     check::<A>("negativeTenMinusTen", (-10f64).to_any() - (10f64).to_any(), (-20f64).to_any());
     check::<A>("bigZeroMinusZero", bigint_any(0) - bigint_any(0), bigint_any(0));
+    check::<A>("bigOneMinusOne", bigint_any(1) - bigint_any(1), bigint_any(0));
     check::<A>("bigOneMinusNegativeOne", bigint_any(1) - bigint_any(-1), bigint_any(2));
     check::<A>("bigNegativeOneMinusOne", bigint_any(-1) - bigint_any(1), bigint_any(-2));
     check::<A>("emptyStringMinusOne", string_any("") - (1f64).to_any(), (-1f64).to_any());

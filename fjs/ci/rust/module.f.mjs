@@ -19,7 +19,7 @@
  * @module
  *
  * @import { Architecture, MetaStep, Os } from '../common/types.ts'
- * @import { NixRust } from '../nix/types.ts'
+ * @import { NixJob, NixRust } from '../nix/types.ts'
  */
 
 import { rust, wasmer, wasmtime } from '../config/module.f.mjs'
@@ -64,25 +64,130 @@ const rustTarget = target => [
     ...testSteps(targetCheckCommands(target)),
 ]
 
-/** @type {(a: Architecture, v: Os) => readonly MetaStep[]} */
-const i686 = (a, v) => {
-    if (a === 'intel') {
-        switch (v) {
-            case 'windows': return rustTarget('i686-pc-windows-msvc')
-            case 'ubuntu': return [
-                { type: 'apt-get', package: 'libc6-dev-i386' },
-                ...rustTarget('i686-unknown-linux-gnu'),
-            ]
-        }
-    }
-    return []
+const i686Linux = /** @type {const} */ ('i686-unknown-linux-gnu')
+
+/**
+ * The 32-bit target a platform job also checks, which is now Windows Intel and
+ * nothing else.
+ *
+ * 32-bit Linux used to be here too, and became {@link i686JobId} — a job of its
+ * own, because its linker is `pkgsi686Linux.*`, which is broken on every system
+ * the shared shell serves but one. Windows stays because that job has no shell
+ * at all: Nix does not run there, so `dtolnay/rust-toolchain` provides the
+ * target the way it always did.
+ *
+ * @type {(v: Os, a: Architecture) => string | undefined}
+ */
+export const i686Target = (v, a) =>
+    a === 'intel' && v === 'windows' ? 'i686-pc-windows-msvc' : undefined
+
+/** CI job id of the 32-bit Linux job, and the directory of its flake. */
+export const i686JobId = /** @type {const} */ ('ubuntu-intel32')
+
+/** @type {(v: Os, a: Architecture) => readonly MetaStep[]} */
+const i686 = (v, a) => {
+    const target = i686Target(v, a)
+    return target === undefined ? [] : rustTarget(target)
 }
+
+
+
+/**
+ * The one platform job the shared shell cannot serve, and the environment it
+ * gets instead.
+ *
+ * The linker is the whole reason this is separate, and it is an **i686**
+ * toolchain rather than a multilib one. `pkgsi686Linux` is Nixpkgs built for
+ * `i686-linux`, so its cc-wrapper injects the 32-bit emulation and the 32-bit
+ * libc as a matter of what it is, with nothing to override.
+ *
+ * `gcc_multi` was tried first and does not work, which is worth recording
+ * because it looks like the obvious answer. It finds every 32-bit file
+ * correctly — `glibc_multi`'s `lib/32/Scrt1.o`, gcc's `32/crtbeginS.o` — and
+ * the link still fails with every object *"incompatible with elf64-x86-64"*.
+ * The wrapper is a 64-bit wrapper: its bintools inject `-m elf_x86_64`, which
+ * outlives gcc's own `-m32`, so `lld` is told to emit a 64-bit binary out of
+ * 32-bit input. A wrapper that is i686 has no such flag to inject.
+ *
+ * It replaces `apt-get install libc6-dev-i386` rather than joining it. A Nix
+ * toolchain does not look in `/usr`: the cc-wrapper is built to keep
+ * `/usr/include` and `/usr/lib` off its search paths, so a libc installed by
+ * the runner's package manager would sit there unread. The `rust-std` for the
+ * target comes from `rust-overlay`, as the `targets` list below asks; that is
+ * the standard library, and this is what it links against.
+ *
+ * Nothing names it in `packages`, and it does not need to: interpolating a
+ * derivation into the hook puts it in the shell's closure, which is all that is
+ * wanted here — a 32-bit `cc` on `PATH` would only shadow the host one that
+ * the untargeted `cargo test` needs.
+ *
+ * The `shellHook` names that linker outright rather than trusting `PATH`.
+ * `mkShell` brings its own `cc` from `stdenv`, and `addToSearchPath` appends,
+ * so which one `cargo` finds is a question about ordering;
+ * `CARGO_TARGET_<TARGET>_LINKER` is not. The `${...}` in it is Nix's
+ * interpolation, not this file's — the generator emits an indented string,
+ * where Nix resolves the reference to its store path.
+ *
+ * @type {NixJob}
+ */
+export const i686NixJob = {
+    id: i686JobId,
+    // The one system a 32-bit x86 toolchain exists for, and the runner this
+    // job has.
+    systems: ['x86_64-linux'],
+    // Nothing. This job builds one target and runs nothing else — the suite
+    // and every other check belong to jobs that share the developer shell.
+    packages: [],
+    rust: {
+        version: rust,
+        // No `rustfmt`: `wasm` runs the one `cargo fmt` this repository has.
+        extensions: ['clippy'],
+        targets: [i686Linux],
+    },
+    shellHook: [
+        'export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=',
+        /** @type {const} */ (['ref', 'pkgs', 'pkgsi686Linux', 'stdenv', 'cc']),
+        '/bin/cc',
+    ],
+}
+
+/**
+ * The 32-bit Linux job: one target, checked four ways, in a shell of its own.
+ *
+ * It is a job rather than four more steps on `ubuntu-intel` because its shell
+ * cannot be that job's. Keeping them apart buys three things beyond that. Every
+ * platform job now enters the *same* shell, so the matrix differs by platform
+ * and by nothing else. The two run in parallel rather than one after the other.
+ * And a red result here says "32-bit Linux", where a red `ubuntu-intel` used to
+ * mean one of nine things.
+ *
+ * No version check, unlike every other job with a flake: this shell provides
+ * one thing, its flake names `1.98.0` in full, and a check could only restate
+ * the file.
+ *
+ * @type {readonly MetaStep[]}
+ */
+export const i686Steps = [
+    nixInstall,
+    ...nixSteps(i686JobId)(targetCheckCommands(i686Linux)),
+]
+
+/**
+ * The native checks every platform job runs, as commands rather than steps.
+ *
+ * A job on the shared shell runs these through `nix develop` and needs no
+ * toolchain of its own; one off it wraps them in `rustPlatformSteps` below,
+ * whose `{ type: 'rust' }` marker is what makes `toSteps` install one.
+ *
+ * @type {readonly string[]}
+ */
+export const rustPlatformCommands = targetCheckCommands()
 
 /** @type {(v: Os, a: Architecture) => readonly MetaStep[]} */
 export const rustPlatformSteps = (v, a) => [
     { type: 'rust' },
-    ...testSteps(targetCheckCommands()),
-    ...i686(a, v),
+    ...testSteps(rustPlatformCommands),
+    ...i686(v, a),
 ]
 
 /** CI job id, and the directory name of its generated flake. */

@@ -155,6 +155,17 @@ fn unary_plus_bigint_message<A: IVm>() {
     );
 }
 
+/// The generated mixed-numeric cases assert only that they throw; this pins
+/// the message owned by `nanvm-lib`.
+fn mixed_numeric_operands_message<A: IVm>() {
+    let number: Any<A> = 1.0.to_any();
+    let bigint: Any<A> = BigInt::from(1u64).to_any();
+    let expected =
+        Err("TypeError: Cannot mix BigInt and other types, use explicit conversions".into());
+    assert_eq!(number.clone() * bigint.clone(), expected);
+    assert_eq!(number - bigint, expected);
+}
+
 fn bigint_add<A: IVm>() {
     let n0: Any<A> = BigInt::default().to_any();
     assert_eq!((n0.clone() + n0.clone()).unwrap(), n0);
@@ -165,6 +176,18 @@ fn bigint_add<A: IVm>() {
         (n2.clone() + n4.clone()).unwrap(),
         BigInt::from(6u64).to_any()
     );
+}
+
+/// Multi-limb subtraction, which the shared data cannot reach: its bigints
+/// all fit in an `i64`.
+fn bigint_sub<A: IVm>() {
+    let minuend: Any<A> = BigInt::normalize_new(Sign::Positive, [0, 1, 1]).to_any();
+    let subtrahend: Any<A> = BigInt::normalize_new(Sign::Positive, [1, 1]).to_any();
+    let expected: Any<A> = BigInt::normalize_new(Sign::Positive, [u64::MAX, u64::MAX, 0]).to_any();
+    assert_eq!((minuend.clone() - subtrahend.clone()).unwrap(), expected);
+    let negative_expected: Any<A> =
+        BigInt::normalize_new(Sign::Negative, [u64::MAX, u64::MAX, 0]).to_any();
+    assert_eq!((subtrahend - minuend).unwrap(), negative_expected);
 }
 
 /// Multi-limb multiplication, which the shared data cannot reach: its bigints
@@ -212,7 +235,9 @@ fn gen_test<A: IVm>() {
     bigint_debug_format::<A>();
     bigint_display_format::<A>();
     unary_plus_bigint_message::<A>();
+    mixed_numeric_operands_message::<A>();
     bigint_add::<A>();
+    bigint_sub::<A>();
     bigint_mul::<A>();
     bigint_negative_zero::<A>();
     format_fn::<A>();

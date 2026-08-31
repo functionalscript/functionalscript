@@ -67,6 +67,15 @@ have silently continued into an unrelated state rather than failing.
   space. Those are deliberate; enabling the flag forces a decision about them
   (export, drop, or annotate).
 
+The `TS6133` population is not static, which is the part worth weighing.
+[#1808](https://github.com/functionalscript/functionalscript/pull/1808) left
+three fresh unused imports behind — `architecture` and `os` in
+`fjs/ci/proof.f.mjs`, `major` in `fjs/ci/nix/proof.f.mjs` — all of them value
+imports orphaned by rewriting the proofs around them, and none visible to
+`tsc`. A review bot caught two; the third was found only by going looking. So
+the 81 are a backlog *and* a leak, and the deliberate constants above are the
+cost of closing it rather than the reason not to.
+
 ### Tasks
 
 - [x] Enable the four low-cost flags: `noImplicitReturns`,

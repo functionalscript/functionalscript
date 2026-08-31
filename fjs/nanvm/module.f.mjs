@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 4
+ * data.groups.length // 5
  * ```
  */
 
@@ -353,6 +353,8 @@ const mulCases = [
 const subCases = [
     { name: 'nullMinusNull', args: [null, null], expected: 0 },
     { name: 'nullMinusZero', args: [null, 0], expected: 0 },
+    { name: 'negativeZeroMinusZero', args: [-0, 0], expected: -0 },
+    { name: 'zeroMinusNegativeZero', args: [0, -0], expected: 0 },
     { name: 'undefinedMinusZero', args: [undefined, 0], expected: NaN },
     { name: 'trueMinusOne', args: [true, 1], expected: 0 },
     { name: 'falseMinusOne', args: [false, 1], expected: -1 },
@@ -360,6 +362,7 @@ const subCases = [
     { name: 'oneMinusNegativeOne', args: [1, -1], expected: 2 },
     { name: 'negativeTenMinusTen', args: [-10, 10], expected: -20 },
     { name: 'bigZeroMinusZero', args: [0n, 0n], expected: 0n },
+    { name: 'bigOneMinusOne', args: [1n, 1n], expected: 0n },
     { name: 'bigOneMinusNegativeOne', args: [1n, -1n], expected: 2n },
     { name: 'bigNegativeOneMinusOne', args: [-1n, 1n], expected: -2n },
     { name: 'emptyStringMinusOne', args: ['', 1], expected: -1 },
