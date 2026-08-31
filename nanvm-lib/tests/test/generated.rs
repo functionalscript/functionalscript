@@ -205,6 +205,29 @@ fn sub<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn add<A: IVm>() {
+    check::<A>("nullPlusOne", Nullish::Null.to_any() + (1f64).to_any(), (1f64).to_any());
+    check::<A>("undefinedPlusOne", Nullish::Undefined.to_any() + (1f64).to_any(), (f64::NAN).to_any());
+    check::<A>("truePlusTrue", true.to_any() + true.to_any(), (2f64).to_any());
+    check::<A>("onePlusNegativeOne", (1f64).to_any() + (-1f64).to_any(), (0f64).to_any());
+    check::<A>("negativeZeroPlusZero", (-0f64).to_any() + (0f64).to_any(), (0f64).to_any());
+    check::<A>("zeroPlusNegativeZero", (0f64).to_any() + (-0f64).to_any(), (0f64).to_any());
+    check::<A>("negativeZeroPlusNegativeZero", (-0f64).to_any() + (-0f64).to_any(), (-0f64).to_any());
+    check::<A>("emptyStringPlusOne", string_any("") + (1f64).to_any(), string_any("1"));
+    check::<A>("onePlusEmptyString", (1f64).to_any() + string_any(""), string_any("1"));
+    check::<A>("stringOnePlusTwo", string_any("1") + (2f64).to_any(), string_any("12"));
+    check::<A>("onePlusStringTwo", (1f64).to_any() + string_any("2"), string_any("12"));
+    check::<A>("bigOnePlusBigOne", bigint_any(1) + bigint_any(1), bigint_any(2));
+    check::<A>("bigOnePlusStringTwo", bigint_any(1) + string_any("2"), string_any("12"));
+    check::<A>("stringOnePlusBigTwo", string_any("1") + bigint_any(2), string_any("12"));
+    check::<A>("emptyArrayPlusOne", Array::default().to_any() + (1f64).to_any(), string_any("1"));
+    check::<A>("arrayOnePlusTwo", [(1f64).to_any()].to_array().to_any() + (2f64).to_any(), string_any("12"));
+    check::<A>("emptyObjectPlusOne", Object::default().to_any() + (1f64).to_any(), string_any("[object Object]1"));
+    check_throws::<A>("numberPlusBigint", (1f64).to_any() + bigint_any(1));
+    check_throws::<A>("bigintPlusNumber", bigint_any(1) + (1f64).to_any());
+}
+
+#[rustfmt::skip]
 fn string_coercion<A: IVm>() {
     check::<A>("number", (123f64).to_any().to_string().map(|v| v.to_any()), string_any("123"));
     check::<A>("negativeNumber", (-456f64).to_any().to_string().map(|v| v.to_any()), string_any("-456"));
@@ -235,5 +258,6 @@ pub fn all<A: IVm>() {
     neg::<A>();
     mul::<A>();
     sub::<A>();
+    add::<A>();
     string_coercion::<A>();
 }
