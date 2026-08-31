@@ -26,6 +26,13 @@
 > rule's own shape, lets construction check that an entry's kind matches its
 > rule's, and leaves the `init`/`update`/`end` fold where it is actually needed:
 > `Repeat`, the one kind whose size the grammar does not bound (§12).
+>
+> **One change reaches shipped code before any transformer does.** Every kind
+> carries a metadata channel `M`, and both backends implement it — so
+> `fjs/bnf/ll1`'s leaf becomes `Meta<CodePoint, M>`, the one `fjs/bnf/descent`
+> already has. That is a breaking change to `ll1`'s public types with no caller
+> outside its own proofs, and it deletes two workarounds that exist only because
+> the two backends disagreed about their leaf (§7).
 
 ### Problem
 
@@ -87,12 +94,13 @@ type RepeatTransformer<M, C, S, T> = {
 }
 ```
 
-- **`TerminalTransformer`** receives the one symbol the rule matched. `L` is the
-  backend's leaf — `CodePoint` today, generic over the alphabet after
-  [the alphabet split](./unicode-rules.md). Note what `Meta<L, M>` already is:
-  `fjs/bnf/descent`'s `CodePointMeta<M>` is `readonly[CodePoint, M]`, so a
-  terminal transformer's parameter is *literally* that backend's leaf type
-  rather than a new shape beside it.
+- **`TerminalTransformer`** receives the one symbol the rule matched, with its
+  metadata. `L` is the alphabet's *symbol* — `CodePoint` today, generic after
+  [the alphabet split](./unicode-rules.md) — and `Meta<L, M>` is the **leaf**:
+  a symbol paired with what the layer below knows about it. That is not a new
+  shape. `fjs/bnf/descent`'s `CodePointMeta<M>` is `readonly[CodePoint, M]`,
+  which is `Meta<CodePoint, M>` exactly, so a terminal transformer's parameter
+  is that backend's shipped leaf type. **Both backends carry it** — §7.
 - **`SequenceTransformer`** receives its children as a **typed tuple**. A
   `Sequence`'s arity is fixed and known from the `RuleSet`, so there is nothing
   to stream and no state to keep — the engine collects the items and calls once.
@@ -139,8 +147,8 @@ about: data belongs in one parameter, not spread across several.
 layer uses to carry what the value channel cannot. A tokenizer's output symbol
 `n` says only "a number is here"; *which* number rides in `M`, and the next
 layer's terminal transformer reads it straight off its leaf. Source ranges are
-one instance, lexemes another, and `null` — nothing at all — is what
-`fjs/bnf/ll1` uses today, since its leaves are bare `CodePoint`. This replaces
+one instance, lexemes another, and `null` — nothing at all — is what a caller
+that wants none instantiates. This replaces
 the previous design's mandatory `(leaf, merge, empty)` monoid merged into every
 node with a channel that is generic in what it carries (§7).
 
@@ -151,7 +159,7 @@ combines its children's. That is
 identity plus an associative operation — passed to `transformRuleSet` once
 rather than declared per rule. The identity is what an empty `Sequence` and a
 zero-round `Repeat` produce, so every kind is total without a special case, and
-`ll1`'s `M = null` monoid is the trivial one. A transformer's *output* `M` is
+a caller that wants no metadata picks `M = null` and the trivial monoid. A transformer's *output* `M` is
 its own to choose: it may forward what it was handed, replace it, or return the
 identity.
 
@@ -385,6 +393,7 @@ emission channel.
 
 | | `fjs/bnf/ll1` | `fjs/bnf/descent` |
 |---|---|---|
+| Metadata channel `M` (§7) | yes, after this change | yes, shipped |
 | Fold-level streaming (4.1) | yes | yes |
 | Bounded-memory input (4.2) | yes | retains back to the oldest live rewind |
 | A drained value can be un-drained by a rewind (4.3) | no | yes |
@@ -442,12 +451,14 @@ type Transformer<M, T> =
     | readonly['unit']
 type TransformerMap<M> = StringMap<Transformer<M, unknown>>
 
-// `fjs/bnf/ll1`'s own shape: its input, its remainder, its result.
+// `fjs/bnf/ll1`'s own shape: its remainder and its result. Its *input* is the
+// shared leaf now, the same one `descent` takes (§7).
+type Leaf<M> = Meta<CodePoint, M>
 type TransformMatchResult<T, M> =
-    | readonly['ok', Meta<T, M>, readonly CodePoint[]]  // matched and finished
-    | readonly['no-match', Remainder]        // rejected, or the input ran out (`null`)
+    | readonly['ok', Meta<T, M>, readonly Leaf<M>[]]  // matched and finished
+    | readonly['no-match', Remainder<M>]     // rejected, or the input ran out (`null`)
 
-type TransformMatch<T, M> = (s: readonly CodePoint[]) => TransformMatchResult<T, M>
+type TransformMatch<T, M> = (s: readonly Leaf<M>[]) => TransformMatchResult<T, M>
 
 const transformRuleSet:
     <M>(ruleSet: RuleSet, monoid: Monoid<M>) =>
@@ -543,14 +554,17 @@ the start rule chose to publish.
 The AST path is unaffected either way — an unmapped rule's node is the engine's
 own (§3), so `parserRuleSet` still reports the partial node it always has.
 
-**The shape above is `ll1`'s, not a shared one.** Only the two *outcomes*
-generalize. `fjs/bnf/descent` consumes `CodePointMeta<M>[]`, not `CodePoint[]`,
-and returns `{ ast, success, idx, failure? }` rather than a remainder tuple —
-its furthest-failure record is the reason that backend's result is an object.
-Its transforming entry keeps all of that and replaces `ast` with the same two
-outcomes. Two backends, two result types, one protocol: the same split
-[`../matcher/README.md`](../matcher/README.md) already draws between what is
-shared and what is each machine's own.
+**The shape above is `ll1`'s, not a shared one — but less of it is `ll1`'s than
+before.** The *input* is now shared: both backends take `readonly Leaf<M>[]`,
+because both carry metadata (§7). What stays each machine's own is how it
+reports where it stopped. `fjs/bnf/descent` returns
+`{ ast, success, idx, failure? }` rather than a remainder tuple — its
+furthest-failure record is the reason that backend's result is an object — and
+its transforming entry keeps all of that, replacing `ast` with the same two
+outcomes. Two backends, one input type, two result types, one protocol: the
+split [`../matcher/README.md`](../matcher/README.md) already draws between what
+is shared and what is each machine's own, with the leaf moving from the second
+column to the first.
 
 The start rule moves into the builder, and that is what connects the map to the
 parse's type: a map written as an object literal keeps its literal keys, so
@@ -561,12 +575,15 @@ honest: it builds an AST node whose children may themselves be transformed
 values, so it is not an `Ast<CodePoint>` and must not claim to be.
 
 The remainder keeps its present meaning in every case: what is left where the
-match stopped, and `null` where the input ran out.
+match stopped, and `null` where the input ran out. It is a suffix of the input,
+so it is leaves rather than bare symbols now — the metadata a caller passed in
+comes back with whatever it did not consume.
 
 `parserRuleSet` then **is** this machine with an empty map and the trivial
-`Monoid<null>`, keeping its current type: with no entries every value is a node
-the four default builders of §3 produce, over leaves that are this backend's
-own.
+`Monoid<null>`: with no entries every value is a node the four default builders
+of §3 produce, over the shared leaf. Its type does change, and only there — the
+leaf it builds its AST over gains metadata like everything else (§7), which is a
+breaking change whose only callers are `ll1`'s own proofs.
 
 #### 6. Backtracking, purity, refusals
 
@@ -639,25 +656,69 @@ as `Result<Meta<T, M>, Refusal>` in all four kinds, restoring `refused` to §5's
 result at the cost of a channel every rule pays for and a second error union
 beside the one a transformer's `T` can already carry.
 
-#### 7. Metadata
+#### 7. Metadata: both backends carry it
 
-`M` is the channel, it is generic in what it carries, and every transformer has
-it (§1). That is the one structural change from the earlier draft, which had no
-metadata channel at all and said none was needed.
+`M` is the channel, it is generic in what it carries, every transformer has it
+(§1), and **`fjs/bnf/ll1` and `fjs/bnf/descent` both implement it**. That is the
+one structural change from the earlier draft, which had no metadata channel at
+all and said none was needed.
 
 **It is not a source span.** A span is one instance. The motivating case is a
 layered parse: a tokenizer's output symbol `n` says only *that* a number is
 here, and *which* number rides in `M`, so the next layer's terminal transformer
-reads the value straight off its leaf instead of re-lexing the digits. Lexemes,
-positions, a token's precomputed payload, and `null` — nothing at all — are all
-the same channel at different instantiations.
+reads the value straight off its leaf. Lexemes, positions, a token's precomputed
+payload, and `null` — nothing at all — are all the same channel at different
+instantiations.
 
-**`fjs/bnf/descent`'s leaf already is this.** `CodePointMeta<M>` is
-`readonly[CodePoint, M]`, which is `Meta<CodePoint, M>`, which is exactly a
-terminal transformer's parameter (§1). So per-symbol metadata does not enter
-through a new door: the backend that has it already speaks this shape, and
-`fjs/bnf/ll1`, whose leaves are bare `CodePoint`, is the same protocol at
-`M = null`.
+**The leaf is `Meta<L, M>` in both backends, and that is the change.** Today
+they disagree: `descent` consumes `readonly CodePointMeta<T>[]` and builds
+`Ast<CodePointMeta<T>>`, while `ll1` consumes `readonly CodePoint[]` and builds
+`Ast<CodePoint>`. The shared layer is already parameterized for it —
+`Ast<L>`, `AstSequence<L>` and `AstResult<L, P>` in
+[`../matcher/types.ts`](../matcher/types.ts) take the leaf as a parameter, and
+that module's own comment says a backend picks `L` for "the code point alone, or
+the code point with metadata". So the split is `ll1`'s hard-coded choice, not a
+contract, and closing it is a rename plus a type parameter rather than a new
+mechanism.
+
+Concretely, in `fjs/bnf/ll1`:
+
+- `Match` becomes `<M>(name: string, s: readonly Meta<CodePoint, M>[]) => MatchResult<M>`;
+- `MatchResult<M>` is `readonly[Ast<Meta<CodePoint, M>>, boolean, Remainder<M>]`
+  and `Remainder<M>` is `readonly Meta<CodePoint, M>[] | null`;
+- `_Position`, `_Result`, `_SeqFrame`, `_RepeatFrame` and `_Items` in
+  [`../ll1/private.ts`](../ll1/private.ts) are written over `CodePoint` and
+  become `Meta<CodePoint, M>`.
+
+And `CodePointMeta<T>` moves from `fjs/bnf/descent/types.ts` to the shared
+`fjs/bnf/matcher/types.ts` as `Meta<T, M>`. That module's doc comment currently
+says the metadata leaf "stays here rather than moving to the shared layer"
+*because* "preserving metadata per consumed code point is what distinguishes
+this backend" — which stops being true the moment `ll1` does it too, so the
+comment is part of the change rather than a casualty of it.
+
+**This is a breaking change to a shipped public type whose only callers are its
+own proofs.** `fjs/djs` uses `descent` alone; nothing outside `fjs/bnf/ll1`
+imports `ll1`. And the proofs get *simpler*, which is the useful signal:
+
+- `bothBackends` in [`../ll1/proof.f.mjs`](../ll1/proof.f.mjs) feeds the two
+  backends different inputs today — `toArray(map(mapCodePoint)(cp))` to
+  `descentParser` and bare `cp` to `parser` — purely to bridge the leaf types.
+  One input serves both afterwards.
+- `showAst` in [`../testlib.f.mjs`](../testlib.f.mjs) is typed over
+  `Ast<number | readonly[number, unknown]>`, a leaf union that exists only
+  because the backends disagree. It collapses to one case.
+
+**The adapters already exist, and so does a real use.** `fjs/djs/tokenizer`
+ships both halves against `descent`:
+
+- `descentParserCpOnly` — `cp => [cp, undefined]` over the input, the "I want no
+  metadata" wrapper. It is the template for whatever `ll1` offers callers that
+  do not want `M`, and it generalizes rather than being copied.
+- `metadataScan` — a `StateScan` pairing each code point with the
+  `{ path, line, column }` *before* it is consumed, producing
+  `CodePointMeta<TokenMetadata>`. That is the `M` channel in production, built
+  by hand, today.
 
 **A parent's `M` is the monoid's, its own output `M` is its choice.** The engine
 combines the children's with the `Monoid<M>` given at construction (§1, §5) and
@@ -665,6 +726,13 @@ hands a sequence transformer one `M` for its whole tuple; what the transformer
 *returns* is unconstrained — forward it, replace it, or return the identity. The
 identity also covers the empty sequence and the zero-round repetition, so no
 kind needs a special case.
+
+DJS's shipped `TokenMetadata` is worth checking against that, because it is a
+*per-symbol position* and not obviously combinable. It is: take `M` as
+`TokenMetadata | undefined`, identity `undefined`, and the operation "leftmost
+defined". That is associative with a two-sided identity, and it gives every rule
+the position of its first symbol — which is exactly what a refusal needs to
+report where it happened (§6), from the channel rather than from the engine.
 
 This is the previous design's `(leaf, merge, empty)` monoid, kept but demoted:
 it is supplied once per parser rather than declared per rule, it is generic
@@ -677,7 +745,8 @@ children's metadata unless the protocol already threads it.
 For the [layered parser](./layered-parser.md) this is the mechanism it wanted,
 now named: each layer is one grammar plus one transformer map, a layer's output
 symbol is its value channel, and its payload is `M`. `fjs/djs` already runs
-exactly this shape by hand.
+exactly this shape by hand, and with both backends carrying `M` a layer may be
+matched by either one.
 
 #### 8. Types
 
@@ -1139,7 +1208,11 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
   fold-level guarantee alone does not give.
 - It is the **smaller change**, and stage 1 is where the protocol's shape is
   still cheap to move: `ll1` has no rewind state and no furthest-failure record,
-  so its machine is the one to be wrong on first. `fjs/djs`'s port is the
+  so its machine is the one to be wrong on first.
+- It is the backend that **does not carry metadata yet**, so the leaf change of
+  §7 lands here. Doing it in stage 1 is what lets stage 3 inherit the channel
+  instead of adding it: `descent`'s leaf is already `CodePointMeta`, so once
+  `ll1` matches, `M` is settled before the harder backend starts. `fjs/djs`'s port is the
   larger, riskier change and needs the inherited-attribute question (§10)
   answered before it starts.
 - `descentEquivalence` in `../ll1/proof.f.mjs` **already pins the AST both
@@ -1151,10 +1224,27 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
 - [ ] Add `Meta`, `Branch`, the four transformer types, the tagged erased
       `Transformer` and `TransformerMap` to `fjs/bnf/matcher/types.ts`, and the
       four default builders (§3) to its `module.f.mjs`.
+- [ ] Move `CodePointMeta<T>` out of `fjs/bnf/descent/types.ts` into
+      `fjs/bnf/matcher/types.ts` as `Meta<T, M>`, and rewrite the doc comment
+      that calls the metadata leaf "what distinguishes this backend" — it does
+      not, once `ll1` carries it too (§7).
+- [ ] **Give `fjs/bnf/ll1` the metadata leaf.** `Match`, `MatchResult` and
+      `Remainder` become generic in `M` over `readonly Meta<CodePoint, M>[]`,
+      and `_Position`, `_Result`, `_SeqFrame`, `_RepeatFrame` and `_Items` in
+      `ll1/private.ts` follow (§7). This is a breaking change to a shipped
+      public type; nothing outside `fjs/bnf/ll1` imports it, since `fjs/djs`
+      uses `descent`.
+- [ ] Simplify what that unblocks rather than leaving it: `bothBackends` in
+      `ll1/proof.f.mjs` stops building two different inputs, and `showAst` in
+      `testlib.f.mjs` loses the `number | readonly[number, unknown]` leaf union
+      that exists only because the backends disagreed.
+- [ ] Offer `ll1` the no-metadata adapter, generalizing
+      `descentParserCpOnly` in `fjs/djs/tokenizer` rather than copying it, so a
+      caller that wants no `M` still passes bare symbols.
 - [ ] Take a `Monoid<M>` at construction and thread `M` through every kind (§1,
-      §7). `ll1`'s own leaves carry none, so its instantiation is `M = null`
-      with the trivial monoid — but the channel has to be real from stage 1, or
-      `descent`'s `CodePointMeta` and the layered parser have nowhere to land.
+      §7). Prove it on a monoid that is not trivial — `TokenMetadata` under
+      "leftmost defined", which gives every rule the position of its first
+      symbol (§7) — not only on `Monoid<null>`, or the merge is untested.
 - [ ] Replace the `AstSequence` in `fjs/bnf/ll1`'s frames with the invocation's
       collected children — for a `Repeat`, its `(rule name, state)` — and its
       `mrSuccess` calls with the rule's transformer. The frame keeps its `tag`,
@@ -1232,7 +1322,9 @@ value* to check against a spec vector.
 **Stage 3 — `fjs/bnf/descent`.**
 
 - [ ] Thread transformer states through `fjs/bnf/descent`'s frames, keeping the
-      untransformed path byte-identical.
+      untransformed path byte-identical. Its leaf already carries `M`, so this
+      stage inherits the channel rather than adding it — stage 1 did that work
+      on the backend that did not have it.
 - [ ] Prove the speculative cases stage 1 cannot reach: a transformer that runs
       on an abandoned branch, and a refusal inside one that the parse recovers
       from by taking another branch (§6).
@@ -1275,13 +1367,13 @@ value* to check against a spec vector.
   stage 2, with the example as the test of whether it reads.
 - **How much of `M` the engine should merge (§1, §7).** A sequence transformer
   gets one `M` for its whole tuple, so the engine combines its children's with
-  the construction-time `Monoid<M>`. That is right for spans and for anything
-  else associative; it is less obviously right for a payload like a tokenizer's
-  number, which the terminal transformer consumes directly and which no parent
-  wants merged. Whether the answer is "carry only mergeable things in `M` and
-  consume payloads at the leaf" or a second, unmerged channel is a question the
-  layered-parser port should answer with a real tokenizer rather than this issue
-  in the abstract.
+  the construction-time `Monoid<M>`. Positions combine fine — DJS's shipped
+  `TokenMetadata` is a monoid under "leftmost defined" (§7) — but a *payload*
+  like a tokenizer's decoded number is consumed by the terminal transformer and
+  is not something a parent wants merged at all. Whether the answer is "carry
+  only mergeable things in `M`, consume payloads at the leaf" or a second,
+  unmerged channel is a question the layered-parser port should answer with a
+  real tokenizer rather than this issue in the abstract.
 - **`(state, item)` or `(item, state)` (§12).** The two shipped folds disagree.
   `RepeatTransformer` follows `todo/flow.md`; whoever unifies them may move it,
   and this issue should not settle a repository-wide argument on its own.
@@ -1320,8 +1412,15 @@ value* to check against a spec vector.
   wanted for carrying a payload between layers; each layer is one grammar plus
   one transformer map.
 - [`fjs/bnf/descent/types.ts`](../descent/types.ts) — `CodePointMeta<M>`, which
-  is `Meta<CodePoint, M>` and so is already a terminal transformer's parameter
-  (§7).
+  is `Meta<CodePoint, M>` and so is already a terminal transformer's parameter.
+  §7 moves it to the shared layer, because it stops being what distinguishes
+  this backend once `ll1` carries metadata too.
+- [`fjs/bnf/matcher/types.ts`](../matcher/types.ts) — `Ast<L>` is already
+  parameterized by the leaf, so §7's change to `ll1` is a type parameter it
+  was written for rather than a new mechanism.
+- [`fjs/djs/tokenizer/module.f.mjs`](../../djs/tokenizer/module.f.mjs) —
+  `metadataScan` builds `CodePointMeta<TokenMetadata>` by hand today, and
+  `descentParserCpOnly` is the no-metadata adapter `ll1` needs too (§7).
 - [`../README.md`](../README.md#the-ast-is-one-contract) — the AST contract the
   four default builders (§3) have to keep reproducing.
 - [`../data/README.md`](../data/README.md#the-repeat-rule) — the `Repeat` rule,
