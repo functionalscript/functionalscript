@@ -3,6 +3,12 @@
 **Priority:** P3
 **Status:** wip
 
+The `dockerfile` in this file's name is **historical** and outlives what it named. The
+task generates flakes; it has never produced a Dockerfile, this repository no longer
+carries one, and none is planned — `65Z-ci-nix` records why, and what an OCI image built
+from these flakes would have to look like instead. The name stays because it is the
+identifier other issues cite.
+
 ### Progress
 
 Phase 2 is done: `fjs/ci/nix/module.f.mjs` generates
@@ -180,8 +186,9 @@ does not own `nix/` itself: `nix/README.md` is written by hand, so stale-output 
 deletes directories it generated rather than everything it finds there.
 
 A `flake.lock` is generated beside every `flake.nix` and committed, from `narHash`
-and `lastModified` in `../config/module.f.mjs` — so a Dockerfile that copies `nix/`
-gets a fully locked flake and needs no network to resolve inputs. Every CI
+and `lastModified` in `../config/module.f.mjs` — so anything that copies `nix/`, an
+OCI image built from these flakes included, gets a fully locked flake and needs no
+network to resolve inputs. Every CI
 invocation still passes `--no-write-lock-file`, now so that `nix develop` cannot
 write over the generated file. The `.gitignore` rule that used to hide these files
 is gone.
@@ -279,7 +286,8 @@ Do not solve these in this task:
 - Playwright package/browser synchronization;
 - Rust components, targets, or linkers;
 - Deno or Bun flakes;
-- OCI output or caching.
+- OCI output or caching (`65Z-ci-nix` holds the terms for that; a Dockerfile is not one
+  of them).
 
 Create separate TODOs for those jobs when work begins. They do not block this Node
 milestone. Neither Deno nor Bun ended up needing a lasting one: Deno was already listed
