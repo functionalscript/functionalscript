@@ -575,9 +575,14 @@ throughout.
 - [663-json-djs-tree-type](../fjs/djs/todo/663-json-djs-tree-type.md) — the
   shared `Tree<P>` instantiation targets `fjs/media/datajs`; rename paths.
 - [bnf-grammar-single-owner](../fjs/media/json/todo/bnf-grammar-single-owner.md)
-  — re-scope: the canonical JSON grammar's owner is the spec (text) plus a
-  proof-covered `fjs/bnf` example, not a runtime module; the
-  `fjs/djs/tokenizer` pointer becomes the `fsc` tokenizer.
+  — **re-scoped**: the canonical JSON grammar's owner is the spec (text) plus a
+  proof-covered `fjs/bnf` example, not a runtime module, so its
+  `fjs/media/json/grammar` proposal is withdrawn and the grammar ships at
+  `fjs/bnf/lib/json`. What remains open there is lowering that example onto
+  `bnf/unicode`. The `fjs/djs/tokenizer` pointer is dropped rather than moved to
+  the `fsc` tokenizer: that scanner stays hand-written and takes no runtime
+  dependency on `fjs/bnf`, so the spec — not a shared module — keeps the two in
+  agreement.
 - [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) — its
   front-end paths move `djs` → `fsc` in stage 5, while its serializer
   citation (`../serializer/module.f.mjs`) follows the serializer into

@@ -1,4 +1,4 @@
-## bnf-grammar-single-owner. The JSON BNF grammar has no owner
+## bnf-grammar-single-owner. Lower the canonical JSON BNF grammar onto `bnf/unicode`
 
 **Priority:** P4
 **Status:** blocked
@@ -6,135 +6,127 @@
 
 ### Problem
 
-The JSON lexical grammar, written with `fjs/bnf` combinators, exists in two
-places, and neither copy is owned by `fjs/media/json`:
+The ownership question this issue opened with — *the JSON lexical grammar exists
+in two places and neither copy is owned* — is answered. The canonical
+deterministic grammar now lives at
+[`fjs/bnf/lib/json/module.f.mjs`](../../../bnf/lib/json/module.f.mjs) with a
+co-located `proof.f.mjs`, and `fjs/bnf/testlib.f.mjs`'s `deterministic()` is a
+one-line delegation to it rather than a second copy.
 
-- `fjs/bnf/testlib.f.mjs` contains the deterministic JSON grammar used by BNF
-  proofs plus the deliberately awkward `classic()` json.org fixture;
-- `fjs/djs/tokenizer/module.f.mjs` restates much of the JSON lexical grammar and
-  extends it for DJS.
+What is still owed is the *alphabet* migration. That module was written against
+the current API — `range`, `set`, `unicodeMax` imported from generic
+`fjs/bnf/module.f.mjs`, and raw JavaScript strings (`'"'`, `'\\'`, `'true'`)
+used directly as `Rule` values. The blocking split removes both: text
+interpretation moves to `fjs/bnf/unicode`, and `string` leaves the functional
+`DataRule`. So the canonical grammar has an owner but sits on an API that is
+going away.
 
-Two, not three: a dead third copy at `fjs/fsc/json.f.mjs` was deleted rather
-than given an owner, so this inventory is complete as written.
+**Do not create `fjs/media/json/grammar/module.f.mjs`.** That was this issue's
+original proposal and it is withdrawn.
+[parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)
+settles that the media codecs take **no runtime dependency** on `fjs/bnf`: the
+canonical JSON grammar's owner is the spec text plus a proof-covered `fjs/bnf`
+example, not a runtime module under `fjs/media/json`. A module there would
+recreate exactly the duplication this issue existed to remove.
 
-The duplicated digit/string rules have no single owner, while `fjs/bnf` itself
-should remain grammar tooling rather than the home of a concrete media grammar.
-
-This design originally imported Unicode helpers such as `range`, `set`, and
-`unicodeMax` from generic `fjs/bnf/module.f.mjs` and used raw JavaScript strings as
-`Rule` values. That API is removed by the blocking alphabet-specific BNF split.
-Do not implement this TODO against the old API.
+For the same reason `fjs/djs/tokenizer` — which moves to the `fsc` tokenizer in
+the restructure's stage 5 — is **not** re-pointed at the shared rules. It stays
+hand-written by decision
+([self-contained-tokenizer](./self-contained-tokenizer.md)), and the spec, not
+a shared runtime module, is what keeps it and the BNF example in agreement.
 
 ### Proposal
 
-Give the canonical grammar an owner at:
+Rebase [`fjs/bnf/lib/json`](../../../bnf/lib/json/module.f.mjs) and
+[`fjs/bnf/lib/datajs`](../../../bnf/lib/datajs/module.f.mjs) on the API the
+alphabet split produces, keeping the boundary visible:
 
-```text
-fjs/media/json/grammar/module.f.mjs
-```
-
-The dependency direction remains:
-
-```text
-fjs/media/json/grammar -> fjs/bnf + fjs/bnf/unicode
-```
-
-After the alphabet split:
-
-- generic grammar structure/combinators come from `fjs/bnf/module.f.mjs`;
+- generic grammar structure and combinators come from `fjs/bnf/module.f.mjs`;
 - all JavaScript-string / Unicode-code-point interpretation comes from
   `fjs/bnf/unicode/module.f.mjs`;
 - raw strings are not generic BNF rules. Text literals such as `"`, `\`, `/`,
-  punctuation, keywords, and character sets must be lowered through Unicode
-  helpers before they enter the generic grammar.
+  punctuation, keywords, and character sets are lowered through Unicode helpers
+  before they enter the generic grammar.
 
 Conceptually the imports should follow this boundary:
 
 ```ts
 import {
     commaJoin0Plus, option, remove, repeat, repeat0Plus,
-    type Rule, type Variant,
-} from '../../../bnf/module.f.mjs'
+} from '../../module.f.mjs'
 import {
     range, set, str, unicodeMax,
-} from '../../../bnf/unicode/module.f.mjs'
+} from '../../unicode/module.f.mjs'
 ```
 
 The exact helper names should follow the API produced by the blocking Unicode
-split. The important constraint is ownership: generic BNF does not regain string
-semantics merely to make this grammar convenient.
+split. The important constraint is the boundary: generic BNF does not regain
+string semantics merely to make this grammar convenient.
 
-Export the genuinely shared lexical pieces individually so DJS can reuse the
-parts it does not extend:
+The already-exported lexical pieces stay individually exported, so DataJS keeps
+reusing the parts it does not extend — `digit`, `string`, `optionNeg`, `uint`,
+`optionFloatSuffix`, `ws`, `wsSymbol`, `cj`, `array`, `object`, `createValue`,
+`json`. `createValue(property, value)` already owns the common JSON value
+structure while letting a caller supply its own property and value rules, which
+is how `fjs/bnf/lib/datajs` adds bigint, `NaN`, `Infinity`, `undefined`, and
+`$` references without restating the JSON value grammar.
 
-```ts
-export const onenine: Rule
-export const digit: Rule
-export const digits0: Rule
-export const digits: Rule
-export const string = (simpleEscapes: Variant): Rule => /* Unicode helpers */
-export const json: Rule
-```
+Only share what is actually common. DataJS's number grammar is materially
+different (bigint suffix, non-finite words), and it replaces the JSON number
+branch rather than parameterizing it. Keep such rules local rather than forcing
+a factory abstraction.
 
-`string(simpleEscapes)` still owns the common JSON string structure, including
-`\uXXXX`, while allowing callers to choose names for the simple-escape variant
-branches. The canonical JSON caller and DJS tokenizer can therefore preserve
-their existing tag differences without duplicating the whole string grammar.
-
-Only share what is actually common. DJS's number grammar is materially different
-(bigint suffix, error tagging, identifier-boundary handling), and DJS whitespace
-is newline-sensitive. Keep those DJS-specific rules local rather than forcing a
-factory abstraction.
-
-`fjs/bnf/testlib.f.mjs` may keep `classic()` as a BNF-local stress fixture, but the
-canonical deterministic JSON grammar should come from `fjs/media/json/grammar`.
-Document why `classic()` remains local if it stays.
+`fjs/bnf/testlib.f.mjs` keeps `classic()` as a BNF-local stress fixture — it is
+the deliberately awkward json.org spelling, kept to exercise backtracking, not a
+grammar anyone should consume. Its role is documented where it lives.
 
 ### Unicode migration requirements
 
 Before implementing this TODO after the blocking split:
 
-- [ ] Replace every old core import of `range`, `set`, `unicodeMax`, `str`, or
-      equivalent Unicode/text helpers with imports from
-      `fjs/bnf/unicode/module.f.mjs`.
+- [ ] Replace every core import of `range`, `set`, `unicodeMax`, `str`, or
+      equivalent Unicode/text helpers in `fjs/bnf/lib/json` and
+      `fjs/bnf/lib/datajs` with imports from `fjs/bnf/unicode/module.f.mjs`.
 - [ ] Replace every raw string used as a generic BNF `Rule` with the appropriate
-      Unicode helper construction.
+      Unicode helper construction. `fjs/bnf/lib/datajs` has one that must not be
+      split by the lowering: `'["__proto__"]'` is a single exact token, and the
+      spec forbids whitespace and escape substitutions inside it.
 - [ ] Ensure generic combinators receive already-lowered rules/symbols and do not
       reintroduce hidden string interpretation into `fjs/bnf/module.f.mjs`.
-- [ ] Update examples/proofs to make the generic-vs-Unicode boundary visible.
+- [ ] Re-point the rule **values** any transformer map keys on
+      ([207](../../../bnf/todo/207-bnf-semantic-actions.md) keys by value, and
+      lowering replaces rule values).
+- [ ] Update proofs to make the generic-vs-Unicode boundary visible.
 
 ### Tasks
 
 - [ ] Wait for [Separate alphabet-specific BNF helpers](../../../bnf/todo/unicode-rules.md)
-      and rebase this grammar on the resulting `bnf/unicode` API.
-- [ ] Create `fjs/media/json/grammar/module.f.mjs` with the standard `@module`
-      header and proof coverage.
-- [ ] Export the shared digit rules, parameterized JSON string rule, and complete
-      canonical JSON grammar.
-- [ ] Keep JSON-specific Unicode construction in `fjs/media/json/grammar` using
-      `fjs/bnf/unicode`; do not move it back into generic BNF.
-- [ ] Point `fjs/bnf/testlib.f.mjs` deterministic JSON use at this module (or remove
-      that wrapper and update proof importers); document the role of `classic()`.
-- [ ] Point `fjs/djs/tokenizer/module.f.mjs` at the shared digit/string rules while
-      keeping DJS-specific number/whitespace/token rules local.
+      and rebase the two `fjs/bnf/lib` grammars on the resulting `bnf/unicode` API.
+- [ ] Keep JSON-specific Unicode construction in `fjs/bnf/lib/json`; do not move
+      it back into generic BNF and do not move it into `fjs/media/json`.
+- [ ] Keep the exported readonly `Rule` / `Sequence` / `Variant` contracts on the
+      shared pieces so a consumer cannot mutate a shared grammar singleton.
 - [ ] Handle `deno.json` registration according to the repository's exports-map
-      state when this module is implemented; do not create a one-entry restrictive
-      exports map solely for this file.
-- [ ] `tsc`; run relevant BNF, JSON, and DJS tokenizer proofs/tests.
+      state, if and when a map exists; do not create a one-entry restrictive
+      exports map solely for these files.
+- [ ] `tsc`; run relevant BNF and JSON proofs/tests.
 
 ### Related
 
 - [Separate alphabet-specific BNF helpers](../../../bnf/todo/unicode-rules.md) —
   **blocks this task** and defines where string/code-point constructors live.
-- [`fjs/djs/tokenizer`](../../../djs/tokenizer/module.f.mjs) — same single-source
-  principle, already applied: `operatorTags` derives from the grammar's
-  `operator` keys, and `wsChars`/`nlChars` feed both the grammar rules and every
-  downstream trivia-tag check.
-- [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — shares JSON/DJS value machinery; orthogonal to
-  ownership of the lexical BNF grammar.
+- [`fjs/bnf/lib/json`](../../../bnf/lib/json/module.f.mjs),
+  [`fjs/bnf/lib/datajs`](../../../bnf/lib/datajs/module.f.mjs) — the canonical
+  grammars this task migrates.
+- [self-contained-tokenizer](./self-contained-tokenizer.md) — why the JSON
+  scanner stays hand-written and takes no runtime dependency on these grammars.
+- [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — shares JSON/DJS
+  value machinery; orthogonal to the lexical BNF grammar.
 - [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
-  — media-directory ownership convention followed by this placement.
+  — media-directory ownership convention; the withdrawn `fjs/media/json/grammar`
+  placement is no longer one of its exports-map dependents.
 - [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)
-  — the plan this task now sits inside; its stage 2 deleted the third copy, and
-  its BNF rule (grammars are spec text plus proof-covered `fjs/bnf` examples,
-  never a runtime dependency of the codecs) constrains where this one can land.
+  — the plan this task sits inside; its stage 2 deleted a third copy, and its BNF
+  rule (grammars are spec text plus proof-covered `fjs/bnf` examples, never a
+  runtime dependency of the codecs) is what withdrew this issue's original
+  proposal.

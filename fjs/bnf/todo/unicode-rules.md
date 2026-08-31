@@ -77,9 +77,12 @@ symbol alphabet without importing or depending on Unicode or byte-stream support
 This split changes the public design assumptions used by older open TODOs:
 
 - [`fjs/media/json/todo/bnf-grammar-single-owner.md`](../../media/json/todo/bnf-grammar-single-owner.md)
-  is blocked by this task. Its implementation must import Unicode-specific
-  construction from `fjs/bnf/unicode/module.f.mjs` and lower text literals to
-  generic rules before they reach core BNF.
+  is blocked by this task. The grammars it now owns — `fjs/bnf/lib/json` and
+  `fjs/bnf/lib/datajs` — must import Unicode-specific construction from
+  `fjs/bnf/unicode/module.f.mjs` and lower text literals to generic rules before
+  they reach core BNF. One literal there does not decompose: DataJS's
+  `'["__proto__"]'` key is a single exact token that admits no whitespace and no
+  escape substitutions.
 - [`fjs/bnf/todo/207-bnf-semantic-actions.md`](./207-bnf-semantic-actions.md) is
   **no longer blocked** by this task. It has been rewritten over the *data*
   `RuleSet`, where the functional Unicode-literal string never arrives —
@@ -149,9 +152,10 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Keep EOF generic and width-independent: use core BNF's `EOF = -1`, and keep
       all alphabet adapters restricted to ordinary non-negative symbols without
       reserving the maximal value.
-- [ ] Update/block `fjs/media/json/todo/bnf-grammar-single-owner.md` so its JSON
-      grammar design imports Unicode helpers from `fjs/bnf/unicode/module.f.mjs`
-      and does not depend on raw string rules in core BNF.
+- [ ] Port `fjs/bnf/lib/json` and `fjs/bnf/lib/datajs` (tracked by
+      [`bnf-grammar-single-owner`](../../media/json/todo/bnf-grammar-single-owner.md))
+      onto the Unicode helpers, so they no longer depend on raw string rules in
+      core BNF.
 - [ ] Re-point the rule **values** `fjs/bnf/todo/207-bnf-semantic-actions.md`
       keys its transformer maps on after this split: it is no longer blocked by
       it, but lowering text literals through the Unicode adapter replaces rule
@@ -189,7 +193,8 @@ new module boundary and final rule discriminants before implementation starts.
 - [UTF-8 token symbols](./utf8-token-symbols.md) — tokenizer-output symbols are
   another non-Unicode alphabet consumed by the generic BNF core.
 - [JSON BNF grammar owner](../../media/json/todo/bnf-grammar-single-owner.md) —
-  blocked on this split and must target `bnf/unicode` for text terminals.
+  blocked on this split; the grammars it owns (`fjs/bnf/lib/json`,
+  `fjs/bnf/lib/datajs`) must target `bnf/unicode` for text terminals.
 - [BNF rule transformers](./207-bnf-semantic-actions.md) — not blocked on this
   split: it is defined over the data `RuleSet`, which never had the generic
   string case. Its maps are keyed by rule **value**, so this split changes which
