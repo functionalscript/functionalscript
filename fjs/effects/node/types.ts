@@ -31,14 +31,18 @@ import type {
 export type { IoChannel, IoError, IoErrorInfo, IoResult, OpResult }
 
 /**
- * The console family joins `Sandbox`, `Catch` and `Import` in
- * [`../common`](../common/types.ts) —
- * they have a second implementer, and an operation belongs to the layer of
- * whoever implements it. A browser page loads modules too: its `import()`
- * resolves against a document rather than a filesystem, which is the
- * interpreter's business and not the operation's. They are re-exported here because `NodeOp` unions
- * them and dozens of signatures name them through this module; that makes this
- * a live coupling rather than a shim.
+ * The console family joins `Sandbox`, `Catch`, `Import` and `All` in
+ * [`../common`](../common/types.ts), for two different reasons that the module
+ * there keeps apart. Most have a second implementer, and an operation belongs
+ * to the layer of whoever implements it: a browser page loads modules too, and
+ * its `import()` resolves against a document rather than a filesystem, which is
+ * the interpreter's business and not the operation's. `All` is there on the
+ * layering argument instead — fan-out is an interpreter's job whoever the host
+ * is — and still has one implementer.
+ *
+ * They are re-exported here because `NodeOp` unions them and dozens of
+ * signatures name them through this module; that makes this a live coupling
+ * rather than a shim.
  */
 export type {
     All, Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
@@ -47,8 +51,9 @@ export type {
 
 // all
 
-// `All` is `../common`'s, re-exported above: fan-out is an interpreter's job,
-// and a browser page fans out its module loads with a `Promise.all`.
+// `All` is `../common`'s, re-exported above: fan-out is an interpreter's job
+// whoever the host is.
+
 // fetch
 
 export type Fetch = ['fetch', (url: string) => IoResult<Vec>]
