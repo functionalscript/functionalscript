@@ -1,11 +1,11 @@
-import type { StringMap } from "../../types/object/types.ts"
-import type { DataRule, Rule } from "../types.ts"
+import type { RequiredMap, StringMap } from "../../types/object/types.ts"
+import type { DataRule, Sequence, Variant } from "../types.ts"
 
 export type Meta<M, T> = readonly[value: T, meta: M]
 
 //
 
-export type RuleMap<K extends DataRule, V> = readonly[K, V]
+export type RuleMap<R extends DataRule, V> = readonly[R, V]
 
 // one
 
@@ -19,26 +19,39 @@ type MapMeta<M, I extends readonly unknown[]> = {
     readonly[K in keyof I]: Meta<M, I[K]>
 }
 
-export type SequenceMap<M, I extends readonly unknown[], O> =
+export type _SequenceMap<R extends DataRule, M, I extends readonly unknown[], O> = RuleMap<
+    R,
     (...value: MapMeta<M, I>) => Meta<M, O>
+>
 
-export type StringSequenceMap<M, O> = SequenceMap<M, readonly number[], O>
+export type SequenceMap<R extends Sequence, M, I extends readonly unknown[], O> =
+    _SequenceMap<R, M, I, R>
+
+export type StringSequenceMap<M, O> =
+    _SequenceMap<string, M, readonly number[], O>
 
 // variant
 
 export type VariantMeta<M, I extends StringMap<unknown>> = {
     readonly[K in keyof I]: readonly[K, Meta<M, I[K]>]
-}
+}[keyof I]
 
-export type VariantMap<M, I extends StringMap<unknown>, O> =
+export type VariantMap<
+    R extends Variant,
+    M,
+    I extends RequiredMap<keyof R & string, unknown>,
+    O
+> = RuleMap<
+    R,
     (value: VariantMeta<M, I>) => Meta<M, O>
+>
 
 // repeat
 
 export type RepeatMap<M, I, S, O> = {
     readonly init: S
     readonly update: (state: S, value: Meta<M, I>) => S
-    readonly end: (state: S) => Meta<M, S>
+    readonly end: (state: S) => Meta<M, O>
 }
 
 // Pairs
