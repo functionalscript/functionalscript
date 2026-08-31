@@ -116,8 +116,9 @@ needs:
    a shared container can short-circuit to `c<N>`;
 3. **a key seam** — `keySerialize`. JSON emits every key as a string; DJS emits
    `__proto__` as the exact sequence `["__proto__"]`, with no whitespace or
-   escape substitutions. On input, postprocessing decodes every JSON string
-   key and rejects it when the decoded value is `__proto__`; `{"__proto__": v}`
+   escape substitutions. On input, after grammar recognition and before
+   returning the parsed result, processing decodes every JSON string key and
+   rejects it when the decoded value is `__proto__`; `{"__proto__": v}`
    and escaped equivalents are prototype assignments in JavaScript and would
    not read back the value they were given. Round-tripping depends on this, so
    it is not a style difference the shared walker can hardcode away.

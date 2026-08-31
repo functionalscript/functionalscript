@@ -165,8 +165,9 @@ order. Sharing is semantic — two
 references to one `const` denote the same node, and references may only point
 at *earlier* consts, so a document is acyclic by construction and parseable in
 one pass. Postprocessing resolves every reference against those earlier
-bindings and fails the document if any reference is unresolved. The reference
-parser returns live JS values and does not freeze them
+bindings after grammar recognition and fails the document if any reference is
+unresolved before returning the parsed result. The reference parser returns
+live JS values and does not freeze them
 (FunctionalScript has no `Object.freeze`); the spec is silent on freezing and
 other implementations may.
 
@@ -251,8 +252,9 @@ key       ::= string | '["__proto__"]'
 - **Keys** are JSON strings, plus the exact computed sequence
   `["__proto__"]` as the only way to write that one key. The sequence is
   contiguous and literal: whitespace and escape substitutions are not allowed.
-  After decoding all JSON string escapes, the parser postprocesses every string
-  key and rejects it when the decoded value is `__proto__`; this rejects both
+  After grammar recognition and before returning the parsed result, processing
+  decodes all JSON string escapes in every key and rejects it when the decoded
+  value is `__proto__`; this rejects both
   `"__proto__"` and spellings such as `"\u005f_proto__"` (JS would read either
   as prototype replacement).
 - **Const names** are ASCII and **start with `$`**: `$[A-Za-z0-9_$]*`, each

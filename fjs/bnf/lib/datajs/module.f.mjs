@@ -3,10 +3,10 @@
  *
  * The only allowed spelling of the `__proto__` property is the exact character
  * sequence `["__proto__"]`, with no whitespace or escape substitutions. This
- * grammar recognizes JSON string keys syntactically; a DataJS postprocessor
- * must decode their escapes and reject every string key whose decoded value is
- * `__proto__`. The same postprocessor resolves `$` references against earlier
- * `const` declarations and fails if a reference is unresolved.
+ * grammar recognizes JSON string keys and `$` references syntactically. After
+ * grammar recognition and before returning the parsed result, processing must
+ * decode string-key escapes and reject a decoded `__proto__`, resolve references
+ * against earlier `const` declarations, and fail on an unresolved reference.
  *
  * @module
  *

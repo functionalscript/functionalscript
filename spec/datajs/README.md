@@ -327,8 +327,9 @@ export default {["__proto__"]:1};
 ```
 
 The rule for a plain string key is on its **decoded value**, not its source
-spelling. After resolving every JSON string escape, the parser postprocesses the
-property name and rejects it if the result is `__proto__`. Thus
+spelling. After grammar recognition and before returning the parsed result,
+processing resolves every JSON string escape in the property name and rejects
+it if the result is `__proto__`. Thus
 `{"\u005f_proto__":1}` is rejected exactly as `{"__proto__":1}` is. JavaScript
 decides the same way — the escaped form is a prototype assignment too, and an
 implementation matching source text instead would accept it and read back an
@@ -361,9 +362,10 @@ representation — handles, indices into a node table, whatever the host offers
 — because a reader that hands back two equal copies has returned a different
 graph. Documenting that it flattens does not make it conforming.
 
-A reference may name only a **previously declared** `const`. After parsing the
-module, postprocessing resolves each reference against those earlier bindings
-and fails the document if any reference is unresolved. That single rule gives
+A reference may name only a **previously declared** `const`. After grammar
+recognition and before returning the parsed result, processing resolves each
+reference against those earlier bindings and fails the document if any reference
+is unresolved. That single rule gives
 the format three properties for free: a document is acyclic by construction,
 it can be resolved in one forward pass, and no implementation needs cycle
 detection to read one.
