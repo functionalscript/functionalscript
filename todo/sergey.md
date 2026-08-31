@@ -11,7 +11,6 @@
 - FunctionalScript
   - [ ] AST to EDAG
 - DataJS
-  - [X] Investigate BNF
   - [ ] LL1 parser should support `Meta` propagation.
   - [ ] Rule Transformers in the flow style
     - [ ] `Map<Rule, Transformer>` instead of `StringMap`.
