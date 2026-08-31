@@ -1,7 +1,9 @@
 /**
  * @import { RunInstance } from '../mock/types.ts'
- * @import { Catch, Import, Module, Read, Sandbox, Write } from './types.ts'
+ * @import { All, Catch, Import, Module, Read, Sandbox, Write } from './types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Effect, NotImplemented } from '../types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
@@ -12,7 +14,10 @@ import { msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { catch_, error, errorExit, import_, log, read, readLine, sandbox, write } from './module.f.mjs'
+import {
+    all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
+} from './module.f.mjs'
+import { pureError, pureOk } from '../module.f.mjs'
 
 /**
  * A runner claiming both operations by the names they are declared under.
@@ -51,6 +56,22 @@ const runner = mockRun(/** @type {Parameters<typeof mockRun<Catch | Sandbox, nul
 const loader = mockRun(/** @type {Parameters<typeof mockRun<Import, null>>[0]} */ ({
     import: (/** @type {string} */ path) => (/** @type {null} */ s) =>
         [s, ok(/** @type {Module} */ ({ proof: path }))],
+}))
+
+/**
+ * A runner that answers `all` by running each effect through *itself*.
+ *
+ * Sequentially, which is not a compromise: `all` says the effects may run at
+ * once, not that they must, and a host without concurrency answering them in
+ * turn is a correct interpretation. What the operation fixes is the *shape* of
+ * the answer — one `Result` per effect, in argument order — and that is what
+ * these proofs are about. Whether a real host overlaps them is its own business
+ * and is not observable here.
+ *
+ * @type {RunInstance<All, null>} */
+const fanOut = mockRun(/** @type {Parameters<typeof mockRun<All, null>>[0]} */ ({
+    all: (/** @type {readonly Effect<never, unknown, unknown>[]} */ ...effects) =>
+        (/** @type {null} */ s) => [s, ok(effects.map(e => fanOut(s)(e)[1]))],
 }))
 
 /**
@@ -108,6 +129,57 @@ export const proof = {
         const [, r] = loader(null)(import_('a.f.mjs'))
         assert(r[0] === 'ok', r)
         assertEq(r[1].proof, 'a.f.mjs')
+    },
+    all: {
+        // The nesting is the operation's point: the outer `Result` is the
+        // runner's answer about `all` itself, and each inner one is what that
+        // effect answered. A caller sees both failures separately.
+        answersEachResultWhole: () => {
+            const [, r] = fanOut(null)(all(pureOk(1), pureError('no'), pureOk(3)))
+            assert(r[0] === 'ok', r)
+            assertEq(r[1].length, 3)
+            assertEq(r[1][0][1], 1)
+            assert(r[1][1][0] === 'error', r[1][1])
+            assertEq(r[1][1][1], 'no')
+            assertEq(r[1][2][1], 3)
+        },
+        // Nothing to run is not a failure, and the empty list is the answer a
+        // fold over no effects should give.
+        empty: () => {
+            const empty = /** @type {Effect<All, readonly Result<never, never>[], NotImplemented>} */ (
+                all())
+            const [, r] = fanOut(null)(empty)
+            assert(r[0] === 'ok', r)
+            assertEq(r[1].length, 0)
+        },
+    },
+    allOk: {
+        // The collapse a fallible chain wants: one `Result` rather than two
+        // levels of them, so the chain can `step` again.
+        collectsWhenEveryEffectSucceeded: () => {
+            const [, r] = fanOut(null)(allOk(pureOk(1), pureOk(2)))
+            assert(r[0] === 'ok', r)
+            assertEq(r[1][0], 1)
+            assertEq(r[1][1], 2)
+        },
+        // **The first error in list order, not the last and not all of them.**
+        // A chain has one error channel, so keeping one is what makes this a
+        // `Result` rather than a report — and *which* one is a decision worth
+        // pinning, since two failures make either choice look arbitrary from
+        // one example.
+        keepsTheFirstError: () => {
+            const [, r] = fanOut(null)(allOk(pureOk(1), pureError('first'), pureError('second')))
+            assert(r[0] === 'error', r)
+            assertEq(r[1], 'first')
+        },
+    },
+    // `both` is `all` at arity two, with the pair typed as a pair.
+    both: () => {
+        const [, r] = fanOut(null)(both(pureOk('a'))(pureError('b')))
+        assert(r[0] === 'ok', r)
+        assertEq(r[1][0][1], 'a')
+        assert(r[1][1][0] === 'error', r[1][1])
+        assertEq(r[1][1][1], 'b')
     },
     write: {
         // `log` and `error` differ in the stream and in nothing else, and each

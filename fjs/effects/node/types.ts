@@ -16,7 +16,7 @@ import type {
 } from '../types.ts'
 import type { List } from '../list/types.ts'
 import type {
-    Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
+    All, Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
     WriteConsoles, _UtfList,
 } from '../common/types.ts'
 
@@ -31,31 +31,28 @@ import type {
 export type { IoChannel, IoError, IoErrorInfo, IoResult, OpResult }
 
 /**
- * The console family joins `Sandbox`, `Catch` and `Import` in
- * [`../common`](../common/types.ts) —
- * they have a second implementer, and an operation belongs to the layer of
- * whoever implements it. A browser page loads modules too: its `import()`
- * resolves against a document rather than a filesystem, which is the
- * interpreter's business and not the operation's. They are re-exported here because `NodeOp` unions
- * them and dozens of signatures name them through this module; that makes this
- * a live coupling rather than a shim.
+ * The console family joins `Sandbox`, `Catch`, `Import` and `All` in
+ * [`../common`](../common/types.ts), for two different reasons that the module
+ * there keeps apart and counts out: `Sandbox`, `Catch` and `Import` have a
+ * second implementer, and the rest are there because nothing about them is
+ * Node's —
+ * fan-out belongs to whichever interpreter has concurrency, a path is resolved
+ * against whatever a host resolves paths against, and a byte stream named by a
+ * string is not a filesystem fact.
+ *
+ * They are re-exported here because `NodeOp` unions them and dozens of
+ * signatures name them through this module; that makes this a live coupling
+ * rather than a shim.
  */
 export type {
-    Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
+    All, Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
     WriteConsoles, _UtfList,
 }
 
 // all
 
-/**
- * Runs its effects concurrently and answers each one's whole `Result`.
- *
- * The nesting is deliberate and belongs to the runner: this envelope says
- * whether `all` itself could be dispatched, and each inner `Result` is what
- * that effect answered. `allOk` (`./module.f.mjs`) is the collapse a fallible
- * chain wants.
- */
-export type All = ['all', <T, E>(...effects: Effect<never, T, E>[]) => OpResult<readonly Result<T, E>[]>]
+// `All` is `../common`'s, re-exported above: fan-out is an interpreter's job
+// whoever the host is.
 
 // fetch
 
