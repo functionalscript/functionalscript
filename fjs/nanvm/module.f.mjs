@@ -375,6 +375,31 @@ const subCases = [
 ]
 
 /**
+ * Addition concatenates after `ToPrimitive` when either primitive is a
+ * string; otherwise it follows the same numeric rules as subtraction.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const addCases = [
+    { name: 'nullPlusOne', args: [null, 1], expected: 1 },
+    { name: 'undefinedPlusOne', args: [undefined, 1], expected: NaN },
+    { name: 'truePlusTrue', args: [true, true], expected: 2 },
+    { name: 'onePlusNegativeOne', args: [1, -1], expected: 0 },
+    { name: 'emptyStringPlusOne', args: ['', 1], expected: '1' },
+    { name: 'onePlusEmptyString', args: [1, ''], expected: '1' },
+    { name: 'stringOnePlusTwo', args: ['1', 2], expected: '12' },
+    { name: 'onePlusStringTwo', args: [1, '2'], expected: '12' },
+    { name: 'bigOnePlusBigOne', args: [1n, 1n], expected: 2n },
+    { name: 'bigOnePlusStringTwo', args: [1n, '2'], expected: '12' },
+    { name: 'stringOnePlusBigTwo', args: ['1', 2n], expected: '12' },
+    { name: 'emptyArrayPlusOne', args: [[], 1], expected: '1' },
+    { name: 'arrayOnePlusTwo', args: [[1], 2], expected: '12' },
+    { name: 'emptyObjectPlusOne', args: [{}, 1], expected: '[object Object]1' },
+    { name: 'numberPlusBigint', args: [1, 1n], expected: throws },
+    { name: 'bigintPlusNumber', args: [1n, 1], expected: throws },
+]
+
+/**
  * `String(x)`.
  *
  * A function's string form is its source text, which no two engines have to
@@ -473,6 +498,7 @@ export const data = {
         },
         { op: '*', commutative: true, cases: mulCases },
         { op: '-', cases: subCases },
+        { op: '+', cases: addCases },
         { op: 'String', cases: stringCoercionCases },
     ],
 }
