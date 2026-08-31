@@ -159,9 +159,9 @@ combines its children's. That is
 identity plus an associative operation — passed to `transformRuleSet` once
 rather than declared per rule. The identity is what an empty `Sequence` and a
 zero-round `Repeat` produce, so every kind is total without a special case, and
-a caller that wants no metadata picks `M = null` and the trivial monoid. A transformer's *output* `M` is
-its own to choose: it may forward what it was handed, replace it, or return the
-identity.
+a caller that wants no metadata picks `M = null` and the trivial monoid. A
+transformer's *output* `M` is its own to choose: it may forward what it was
+handed, replace it, or return the identity.
 
 The state a `RepeatTransformer` keeps stays **plain data**, which is what
 [`todo/flow.md`](../../../todo/flow.md) requires of an operator and what §4.2
@@ -628,7 +628,8 @@ through. A rule that must reject a value it can parse but cannot represent —
 `1e999`, a duplicate `__proto__` key, an unresolved `const`, everything
 [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) says to
 refuse rather than answer with a plausible value — does it by making `Result`
-part of its **own** `T`. `Values['number']` is then `Result<number, string>`,
+part of its **own** `T`. A rule that can overflow declares
+`Result<number, string>` as its value,
 its parent's child type says so, and the parent decides whether to propagate or
 handle it.
 
@@ -783,9 +784,9 @@ checking of every transformer's result:
 
 ```ts
 type Values = {
-    readonly string: string
-    readonly member: readonly[string, Json]
-    readonly object: Json
+    readonly digits: string
+    readonly item: Result<number, string>
+    readonly list: Result<readonly number[], string>
     // …
 }
 type Transformers = { readonly[K in keyof Values]?: Transformer<M, Values[K]> }
@@ -905,150 +906,156 @@ in a length the grammar fixes.
 
 #### 10. Worked examples
 
-**JSON value.** Over a JSON grammar in `fjs/bnf` — an example grammar that can
-produce a value is what makes it checkable against a spec test vector, and is
-not a codec (§11.6). A map names rules, so the grammar has to have names: this
-is written against one whose rules are named thunks, which `deterministic()` in
-[`../testlib.f.mjs`](../testlib.f.mjs) is **not** (§11.3), and giving it those
-names is the first task of stage 2 rather than something this example can
-assume:
+**A complete small grammar.** Written out in full rather than sketched, because
+a map and a grammar summarized in a comment can disagree — and in five
+successive review rounds against an abbreviated JSON sketch, they did, every
+time (see the end of this section). Twelve rules, exercising all four kinds and
+one refusal:
 
 ```ts
-// the grammar's rules, as named thunks. A comma-separated list is five rules,
-// and JSON's number is four — see below, that is the point of the example.
-//   value       = () => ({ object, array, string, number, true, false, null })
-//   string      = () => ['"', characters, '"']
-//   characters  = () => repeat(character)
-//   character   = () => ({ unescaped, escape })
-//   escape      = () => ['\\', escaped]
-//   escaped     = () => ({ simple, hex })
-//   object      = () => ['{', ws, memberList, '}']
-//   memberList  = () => ({ members, empty })
-//   members     = () => [member, moreMembers]
-//   moreMembers = () => repeat(nextMember)
-//   nextMember  = () => [',', ws, member]
-//   member      = () => [string, ws, ':', ws, value]
-//   number      = () => [minus, int, frac, exp]   each a possibly-empty lexeme
-type Member = readonly[string, Json]
-type Num = Result<number, string>
+//   list    = () => ['[', items, ']']        Sequence
+//   items   = () => ({ some, noItems })      Variant
+//   some    = () => [item, more]             Sequence
+//   more    = () => repeat(next)             Repeat
+//   next    = () => [',', item]              Sequence
+//   noItems = () => []                       Sequence, empty
+//   item    = () => [sign, digits]           Sequence
+//   sign    = () => ({ minus, noSign })      Variant
+//   minus   = () => range('--')              TerminalRange
+//   noSign  = () => []                       Sequence, empty
+//   digits  = () => repeat(digit)            Repeat
+//   digit   = () => range('09')              TerminalRange
+type Item = Result<number, string>
+type Nums = Result<readonly number[], string>
 {
-    unescaped:  terminal(c => String.fromCodePoint(c)),
-    simple:     seq(([, c]: readonly[unknown, string]) => simpleEscape(c)),
-    hex:        seq(([, d]: readonly[unknown, string]) => fromHex4(d)),
-    escaped:    variant(([, c]: Branch<{ simple: string, hex: string }>) => c),
-    escape:     seq(([, c]: readonly[unknown, string]) => c),
-    character:  variant(([, c]: Branch<{ unescaped: string, escape: string }>) => c),
-    characters: text(m),
-    string:     seq(([, chars]: readonly[unknown, string, unknown]) => chars),
-
-    member:     seq(([k, , , , v]: readonly[string, unknown, unknown, unknown, Json]) =>
-                    [k, v] as const),
-    nextMember: seq(([, , mem]: readonly[unknown, unknown, Member]) => mem),
-    moreMembers: list<M, Member>(m),
-    members:    seq(([first, rest]: readonly[Member, readonly Member[]]) => [first, ...rest]),
-    memberList: variant(([, ms]: Branch<{ members: readonly Member[], empty: readonly Member[] }>) => ms),
-    object:     seq(([, , ms]: readonly[unknown, unknown, readonly Member[], unknown]) =>
-                    Object.fromEntries(ms)),
-
-    minus:      text(m), int: text(m), frac: text(m), exp: text(m),
-    number:     seq(([sign, i, f, e]: readonly[string, string, string, string]) => {
-                    const n = Number(`${sign}${i}${f}${e}`)
-                    // §6: refuse what cannot be represented, do not answer `Infinity`
-                    return Number.isFinite(n) ? ok(n) : error(`number out of range`)
-                }),
-
-    true:       seq(() => true),
-    false:      seq(() => false),
-    null:       seq(() => null),
-    value:      variant(([k, v]: Branch<{
-                    object: Json, array: Json, string: Json, number: Num
-                    true: Json, false: Json, null: Json }>) =>
-                    k === 'number' ? v : ok(v)),
-    ws:         unit,
+    digit:   terminal(c => String.fromCodePoint(c)),
+    digits:  text(m),
+    minus:   terminal(() => '-'),
+    noSign:  seq(() => ''),
+    sign:    variant(([, s]: Branch<{ minus: string, noSign: string }>) => s),
+    item:    seq(([s, d]: readonly[string, string]) => {
+                 const n = Number(`${s}${d}`)
+                 // §6: refuse what cannot be represented
+                 return Number.isSafeInteger(n) ? ok(n) : error(`${s}${d} is not a safe integer`)
+             }),
+    next:    seq(([, it]: readonly[unknown, Item]) => it),
+    more:    list<M, Item>(m),
+    some:    seq(([first, rest]: readonly[Item, readonly Item[]]) =>
+                 allOk<number, string>([first, ...rest])),
+    noItems: seq(() => ok([])),
+    items:   variant(([, xs]: Branch<{ some: Nums, noItems: Nums }>) => xs),
+    list:    seq(([, xs]: readonly[unknown, Nums, unknown]) => xs),
 }
 ```
 
-**Three things this example had wrong until review caught them, all worth
-keeping visible**, because each is a way a design document can look finished
-while describing something that does not work:
+Read the shapes off it. `digit` is a terminal and gets a leaf. `sign` and
+`items` are variants and get a branch. `more` and `digits` are repetitions and
+are the only two folds. Everything else is a sequence and gets a tuple — one
+slot per item, punctuation included, which is where the cost below lives.
 
-- **`members = repeat(member)` is not JSON.** `{"a":1,"b":2}` cannot start a
-  second round, because the next symbol is a comma and `member` begins with a
-  string. A comma-separated list is five rules, and they are above.
-- **`number = [digits]` is not JSON either** — it rejects `-1`, `1.5` and `1e2`.
-  Four possibly-empty lexeme rules, assembled by the transformer.
-- **`Number(d)` answers `Infinity` for `1e999`**, which §6 names by name as a
-  value to refuse rather than answer plausibly. The map said `Json` and produced
-  something that is not.
+**Every rule above `item` carries the refusal, and that is the open question's
+price in code.** `item` refuses, so its value is `Result<number, string>` (§6).
+`next` forwards one. `more` collects a list *of results*. `some` has to
+`allOk` them into a single result — and needs explicit type arguments to do it,
+because `Result`'s two arms make `E` ambiguous to infer. `noItems` returns
+`ok([])` rather than `[]`, so the variant's two branches agree. `items` and
+`list` then thread the result outward, and `Nums` appears in four signatures
+that have nothing to do with numbers being out of range.
 
-**And the fix to the third one is the best evidence available about the open
-refusal question.** With refusal living in the transformer's own `T` (§6),
-`number` returns `Result<number, string>` — so `value`'s branch record is no
-longer uniform, `value` itself must return a `Result`, and every ancestor of a
-number is now in the error's type. That is refusal-in-`T` working exactly as
-specified, and also exactly what it costs: **one refusing rule types the whole
-spine above it.** The alternative — `Result<Meta<T, M>, Refusal>` in all four
-kinds — keeps `Values['number']` at `number` and the propagation in the engine,
-where a caller never sees it, at the price of a channel every rule pays for.
-Decide it against this example rather than in the abstract.
+That is refusal-in-`T` working exactly as specified, and exactly what it costs:
+**one refusing rule puts a `Result` in every container above it, and every
+container has to sequence its children's.** The alternative —
+`Result<Meta<T, M>, Refusal>` in all four kinds — deletes `allOk`, `noItems`'s
+`ok`, and `Nums`, and moves the propagation into the engine where a caller never
+writes it, at the price of a channel every rule pays for. This example is the
+argument; stage 0 is where it is decided.
 
-**The escape branches are not decoration — they are the bug the uniform protocol
-could not prevent.** An earlier version of this example wrote `character` as one
-callback claiming its child was a `CodePoint`. That is false whenever the input
-contains `\n` or `\u0041`: `character` is a *variant*, so its child is a branch,
-and `decodeOne` would have received an AST node. Under the uniform protocol
-nothing caught it — the child was `unknown`, the annotation was the author's
-word, and the map compiled. Here it is not writable: a variant transformer's
-parameter is `Branch<C>`, so claiming a leaf is a type error, and the branch
-names are declared once, by name rather than by position, so the branch set is
-written down where a reader can compare it against the grammar instead of being
-implied by a tuple's length. What no machine checks is whether that declared
-branch set is the grammar's — see §8.
-
-**Declaring a type for a variant still means transforming all of it.** `value`
-declares seven branches, so all seven must be mapped: a mapped branch under an
-*unmapped* variant is refused at construction (§3), and an unmapped branch would
-hand `value` an AST node — which `Branch<{ … Json }>` now says is wrong at the
-map rather than at some later use of the value.
-
-That is the shape of the trade rather than a quirk of JSON: adoption is
-incremental *up to* the first variant whose value you want typed, and from there
-down it is all-or-nothing. `object` never sees a quote, an escape, or a space
-*in its members* — each child rule's effective value is what flows up, so the
-key is decoded and the value is built.
-
-**What this saves is the tree, not every node.** A partial map like this one
-leaves punctuation terminals and the grammar's anonymous rules untransformed, so
-each of those still builds its own node (§3) — the very next paragraph is about
-one of them. What no longer happens is the O(*n*) part: a mapped rule builds no
-node, and the nodes its unmapped children built are dropped as soon as it folds
-them, so nothing accumulates into a root AST. Only a map that names every
-reachable rule — the recognizer below — allocates no node at all.
-
-**But `object` does see its own braces, and that is the design's sharpest
-remaining ergonomic cost.** Every direct child occupies a slot: a punctuation
-rule with no transformer contributes its AST node, and `unit` contributes
-`undefined` rather than removing itself from the tuple. So `object`'s tuple has
-four slots — `{`, the whitespace, the members, `}` — and
-`Object.fromEntries(children)` would throw on the first brace. The tuple type
-has to account for the whole sequence, which is what the `unknown` slots above
-do.
-
-Typed children make this *safer* than it was without making it shorter: a
-mis-counted sequence is now a type error at the first use of a child rather than
-a runtime surprise, but the count is still the author's to get right, and
-nothing checks a `C` whose length or order disagrees with the rule (§8).
+**`list` sees its own brackets, and that is the sharpest remaining ergonomic
+cost.** Every direct child occupies a slot: a punctuation rule with no
+transformer contributes its AST node, and `unit` contributes `undefined` rather
+than removing itself from the tuple. `list`'s tuple is three slots — `[`, the
+items, `]` — and the `unknown`s above are where the brackets land. Typed
+children make this *safer* than it was without making it shorter: a mis-counted
+sequence is now a type error at the first use of a child rather than a runtime
+surprise, but the count is still the author's to get right, and nothing checks a
+`C` whose length or order disagrees with the rule (§8).
 
 That is tolerable for a rule the author wrote, and **not** tolerable for one a
-combinator built: `commaJoin0Plus(ws)('{}', member)` expands into option and
-repetition scaffolding whose shape the author never wrote and cannot see, so
-counting positions through it is guesswork against an implementation detail. So
-the "silent rules" question below is not sugar — it is what makes a transformer
-map writable over a grammar built from combinators, and stage 2 has to settle it
-while writing this example rather than after. The options are a rule marked
-silent (its value never reaches the parent), a designated `unit` value the
-engine drops from the tuple, or combinator-aware helpers that know the shapes
-they build.
+combinator built: `commaJoin0Plus(ws)('[]', item)` expands into exactly the
+`items`/`some`/`more`/`next`/`noItems` scaffolding above, except that the author
+never wrote it and cannot see it, so counting positions through it is guesswork
+against an implementation detail. That is why the silent-rules question is
+stage 0 (§8, Tasks) rather than stage-2 sugar: a rule marked silent, a
+designated `unit` the engine drops from the tuple, or combinator-aware helpers
+that know the shapes they build.
+
+**Declaring a type for a variant means transforming all of it.** `items`
+declares two branches and `sign` declares two, so all four must be mapped —
+`noItems` and `noSign` included, which is why two rules exist only to return
+`ok([])` and `''`. An unmapped branch would hand its variant an AST node, and
+`Branch<{ some: Nums, noItems: Nums }>` says that is wrong at the map rather
+than at some later use of the value. Separately, a mapped branch under an
+*unmapped* variant is refused at construction (§3).
+
+So adoption is incremental *up to* the first variant whose value you want typed,
+and from there down it is all-or-nothing.
+
+**What this saves is the tree, not every node.** A partial map leaves
+punctuation terminals and the grammar's anonymous rules untransformed, so each
+of those still builds its own node (§3). What no longer happens is the O(*n*)
+part: a mapped rule builds no node, and the nodes its unmapped children built
+are dropped as soon as it folds them, so nothing accumulates into a root AST.
+Only a map that names every reachable rule — the recognizer below — allocates no
+node at all.
+
+**Why this is not the JSON example, and what JSON adds.** Stage 2 wants a JSON
+grammar checkable against the spec's test vectors (§11.6), and the map for one
+is this shape at four or five times the size. Counting the rules it needs makes
+the costs above concrete rather than rhetorical:
+
+- **A string** is six rules — `string`, `characters`, `character`, `escape`,
+  `escaped`, and the simple/hex escape forms under it — because a character is a
+  *variant* over plain and escaped, not a terminal.
+- **A number** is around nine: an optional sign, an integer part, an optional
+  fraction, an optional exponent with its own optional sign, and the digit
+  repetitions inside them. Each "optional" is a `Variant` with an empty branch,
+  so each needs two transformers, and neither may be a `Repeat` — a repetition
+  there would accept `--1` and `1.5.5`.
+- **An object and an array** are five rules each, the comma-list scaffolding
+  above.
+- **`value`** is a seven-branch variant, all seven of which must be mapped.
+
+And the refusal plumbing multiplies through every one of those containers, since
+JSON's `1e999` refuses exactly where this example's out-of-range integer does.
+
+**Five findings against the abbreviated version, kept as the reason for the
+change.** Each was a way a design document can look finished while describing
+something that does not work, and each was found in a JSON grammar that existed
+only as a comment:
+
+- `character` annotated as taking a `CodePoint` — false for `\n` or `A`,
+  because `character` is a variant over plain and escaped. Under the uniform
+  protocol nothing caught it: the child was `unknown` and the annotation was the
+  author's word. Under the four kinds it is not writable, since a variant
+  transformer's parameter is `Branch<C>`. **This is the finding the whole
+  redesign came from.**
+- `members = repeat(member)` — cannot parse `{"a":1,"b":2}`, whose second round
+  starts at a comma.
+- `number = [digits]` — rejects `-1`, `1.5`, `1e2`.
+- `Number(d)` answering `Infinity` for `1e999`, the value §6 names by name as
+  one to refuse.
+- Then, after fixing that one: `member` still declared its value child as bare
+  `Json`, so an object silently accepted a member whose value was an error
+  tuple. The refusal was typed at the top of the spine and dropped in the
+  middle.
+- And the optional number parts were mapped with `text()`, a `RepeatTransformer`
+  — which the construction-time kind check (§5) would have rejected, since they
+  are `Variant` rules. The check catching its own document's example is the best
+  evidence for it in this issue.
+
+The first three were the abbreviation's fault and the last three were the
+example's own. Writing the grammar out in full fixes the first class; the
+example being small enough to check by eye fixes the second.
 
 **Recognizing without building.** The same grammar, with a map that answers
 `unit` for every rule. The parse is O(depth) memory and no value is built — the
@@ -1286,8 +1293,9 @@ open questions marked below, gathered here because they share that property:
 
 - [ ] **The refusal channel (§6).** `Meta<T, M>` with the error in the
       transformer's own `T`, or `Result<Meta<T, M>, Refusal>` in all four kinds.
-      This is `TransformMatchResult` itself. §10's JSON example is the evidence:
-      one refusing `number` types every ancestor of a number.
+      This is `TransformMatchResult` itself. §10's example is the evidence: one
+      refusing `item` puts a `Result` in every container above it, and each has
+      to sequence its children's.
 - [ ] **Silent children (§10).** `unit` currently occupies a slot in its
       parent's tuple. An engine that *dropped* it instead would change every
       sequence's arity, and with it every `C` a map declares and every proof
@@ -1300,9 +1308,11 @@ open questions marked below, gathered here because they share that property:
       of calling a callback with the wrong shape. It changes the `Transformer`
       representation and the validator, both of which stage 1 publishes.
 
-Write §10's JSON map against each candidate before choosing; it is short enough
-to rewrite three times and is the only place the costs show up as something
-other than prose.
+Write §10's twelve-rule map against each candidate before choosing. It is short
+enough to rewrite three times, complete enough that the map and the grammar
+cannot disagree, and it is the only place these costs show up as something other
+than prose — the `Result` plumbing, the punctuation slots, and the two rules
+that exist only to give a variant's empty branch a value.
 
 **Stage 1 — the protocol and `fjs/bnf/ll1`.**
 
@@ -1382,11 +1392,17 @@ value* to check against a spec vector.
 - [ ] Add the §9 helpers. They write the kind tag, so an author never does, and
       the O(1) accumulation lives inside `list`/`text` — the only helpers with
       an `update` to be quadratic in.
-- [ ] Rewrite the JSON example grammar's rules as **named thunks**, so `toData`
-      keeps their names: `deterministic()` yields 92 rules of which exactly one,
+- [ ] Ship §10's twelve-rule grammar and its map first, as the proof that all
+      four kinds, an empty variant branch, and a refusal work end to end. It is
+      small enough to check by eye, which is what the JSON sketch was not.
+- [ ] Only then rewrite the JSON example grammar's rules as **named thunks**, so
+      `toData` keeps their names: `deterministic()` yields 92 rules of which exactly one,
       `value`, is named (§11.3), and no transformer map can address the rest.
       Prove the AST is unchanged — naming a rule must not reshape the grammar.
-- [ ] Then give that grammar a transformer set, and prove it against the spec's
+- [ ] Then give that grammar a transformer set, budgeting for what §10 counts:
+      six rules for a string, about nine for a number (each "optional" a
+      `Variant` with an empty branch, never a `Repeat`), five each for objects
+      and arrays, and a seven-branch `value`. Prove it against the spec's
       test vectors — the proof coverage
       [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
       requires of every example grammar, now checkable on values rather than on
@@ -1428,9 +1444,10 @@ value* to check against a spec vector.
   transformer knows the reason but not its rule name or position, so a grammar
   whose transformers refuse has to carry positions in `M`. The alternative is
   `Result<Meta<T, M>, Refusal>` in all four kinds. **Stage 0**, because it is
-  the public result type. §10's JSON example now shows the cost concretely: with
-  the error in `T`, one refusing `number` puts a `Result` in the type of every
-  ancestor of a number.
+  the public result type. §10 shows the cost concretely: with the error in `T`,
+  a refusing `item` puts a `Result` in `next`, `more`, `some`, `noItems`,
+  `items` and `list`, and `some` must `allOk` its children with explicit type
+  arguments.
 - **`C` is erased, so nothing checks it against the grammar (§8).** A
   sequence's arity and order, and a variant's branch names, are all the author's
   claim; only the *kind* survives to construction, because the §9 helpers write
@@ -1442,9 +1459,9 @@ value* to check against a spec vector.
   built is exactly the one whose arity an author cannot count.
 - **Silent rules — stage 0, not stage 2 (§10).** `unit` occupies a tuple
   slot, so a positional callback must count punctuation, whitespace and every
-  scaffolding node a combinator built. The JSON example runs into it
-  immediately: a comma-separated member list is five rules and JSON's number is
-  four, and an author counts slots through all of them. A rule marked silent, a
+  scaffolding node a combinator built. §10 runs into it immediately: its twelve
+  rules *are* what `commaJoin0Plus` would have built, and an author counts slots
+  through all of them. A rule marked silent, a
   designated `unit` the engine drops, or combinator-aware helpers. What moves
   this ahead of stage 1 is that the middle option **changes every sequence's
   arity** — and therefore every `C` in a map and every proof written against
