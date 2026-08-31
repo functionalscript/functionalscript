@@ -18,20 +18,19 @@
  * @import {
  *     BrowserTestReport, Reporter, RunState, TestResult, _BrowserImporter, _BrowserReport,
  *     _BrowserTestResult, _TestAndPath,
- * } from './types.ts'
- * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
- * @import { IoChannel } from '../effects/node/types.ts'
- * @import { Effect, Func } from '../effects/types.ts'
- * @import { Result } from '../types/result/types.ts'
- * @import { List } from '../types/list/types.ts'
+ * } from '../types.ts'
+ * @import { Catch, Sandbox, SandboxResult } from '../../effects/common/types.ts'
+ * @import { IoChannel } from '../../effects/node/types.ts'
+ * @import { Effect, Func } from '../../effects/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  */
 
-import { addResult, zeroTotals } from './module.f.mjs'
-import { errorDetails, moduleFailure, runProofs } from './browser/module.f.mjs'
-import { asyncRun } from '../effects/module.mjs'
-import { commonOperationMap } from '../effects/common/module.mjs'
-import { concat, toArray } from '../types/list/module.f.mjs'
-import { ok, unwrap } from '../types/result/module.f.mjs'
+import { errorDetails, moduleFailure, reportOf, runProofs } from './module.f.mjs'
+import { asyncRun } from '../../effects/module.mjs'
+import { commonOperationMap } from '../../effects/common/module.mjs'
+import { concat, toArray } from '../../types/list/module.f.mjs'
+import { ok, unwrap } from '../../types/result/module.f.mjs'
 
 /**
  * Return to the event loop, so the browser can paint what has been appended.
@@ -64,29 +63,6 @@ const failureOf = async (source, duration, cause) => {
         ? described[1]
         : /** @type {const} */ (['Unknown thrown value', 'Unknown thrown value'])
     return moduleFailure(source, duration, message, stack)
-}
-
-/**
- * The run-ended event, as the page reports it. The counts — and with them the
- * run's own pass/fail status — come from folding the results with the same
- * `addResult` that decides `fjs t`'s summary and exit code, so "did the run
- * pass" has one answer across the runners. `duration` stays the page's own
- * wall clock: the run yields a macrotask between leaves so the page can paint,
- * and that time is the run's without being any leaf's (see `RunTotals`).
- *
- * `status` overrides the folded decision when the run never got to its leaves
- * — module loading failed — which no leaf result can express.
- *
- * @type {(duration: number, results: readonly _BrowserTestResult[], status?: string) => BrowserTestReport} */
-const reportOf = (duration, results, status = undefined) => {
-    const { passed, failed } = results.reduce(addResult, zeroTotals)
-    return {
-        status: status ?? (failed !== 0 ? 'failed' : 'passed'),
-        browser: navigator.userAgent,
-        totals: { tests: results.length, passed, failed },
-        duration,
-        results,
-    }
 }
 
 /**
@@ -163,9 +139,10 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
         .then(unwrap)
         .catch(runnerFailure)
         .then(ended => reportOf(
+            navigator.userAgent,
             performance.now() - start,
             toArray(ended === null ? landed : concat(landed)([ended])),
-            ended === null ? undefined : 'infrastructure-error'))
+            ended === null ? null : 'infrastructure-error'))
 }
 
 /** @type {(root: Element) => (Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }) | null} */
@@ -238,7 +215,8 @@ export const startBrowserTestSources = (root, sources, importer) => {
             const duration = performance.now() - start
             return publish(root, Promise
                 .all(rejected.map(({ source, error }) => failureOf(source, duration, error)))
-                .then(failures => reportOf(duration, failures, 'infrastructure-error')))
+                .then(failures => reportOf(
+                    navigator.userAgent, duration, failures, 'infrastructure-error')))
         }
         return startBrowserTests(root, loadedModules.flatMap(module =>
             module.status === 'loaded'

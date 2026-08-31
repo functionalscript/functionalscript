@@ -61,8 +61,7 @@ impl<A: IVm> Dispatch<A> for StringCoercion {
     }
 
     fn bigint(self, v: BigInt<A>) -> Self::Result {
-        // TODO: we should use different algorithm for large numbers.
-        to_result(&format!("{v:?}"))
+        to_result(&v.to_string())
     }
 
     fn object(self, v: Object<A>) -> Self::Result {

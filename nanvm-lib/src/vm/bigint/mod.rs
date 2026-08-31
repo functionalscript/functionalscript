@@ -2,6 +2,7 @@ mod add;
 mod cmp;
 mod debug;
 mod default;
+mod display;
 mod from;
 mod index;
 mod mul;

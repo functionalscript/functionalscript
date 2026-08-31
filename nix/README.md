@@ -1,16 +1,18 @@
 # Nix environments
 
 `flake.nix` here, and `<job>/flake.nix` below it, are **generated** by
-[`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs) — three self-contained flakes. Do not
+[`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs) — four self-contained flakes. Do not
 edit them by hand: run `npm run ci-update` and commit the result. The Node 26 CI
 job fails when the committed files no longer match the generator's output. This
 README is the one file here that is written by hand.
 
 The flake in *this* directory is the shell: the one a developer enters, and the
-one all but two CI jobs run inside. It has no directory of its own because it
-belongs to no single job — `nix develop ./nix` is the whole of what there is to
-remember. `node22` and `node24` are the two exceptions, and the section below
-says why they have to be.
+one eight of the fourteen CI jobs run inside. It has no directory of its own
+because it belongs to no single job — `nix develop ./nix` is the whole of what
+there is to remember. Three jobs have a flake to themselves and a directory
+each: `node22` and `node24`, whose `node` is the thing under test, and
+`ubuntu-intel32`, whose 32-bit package set is marked broken on every system the
+shell serves but one. The sections below say why each has to be.
 
 Each flake pins the exact Nixpkgs commit from
 [`fjs/ci/config`](../fjs/ci/config/module.f.mjs) and exposes one development

@@ -177,7 +177,7 @@ const shell = ({ packages, shellHook, rust, pin }, { system, url: source, hash }
             ]],
             ...(shellHook === undefined
                 ? []
-                : [/** @type {const} */ (['=', ['shellHook'], ['indented-string', shellHook]])])
+                : [/** @type {const} */ (['=', ['shellHook'], ['indented-string', ...shellHook]])])
         ]
     ]
 ]
