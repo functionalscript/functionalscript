@@ -376,14 +376,29 @@ from a payload-free backend and cannot get while the AST is mandatory.
 This is also where the AST's O(*n*) cost goes away rather than being paid and
 discarded: an untransformed rule allocates its node, a transformed one does not.
 
-**Only a `Repeat` streams, and only a `Repeat` can be quadratic.** The other
-three kinds have an arity the grammar fixes, so the engine collects their
-children and calls once — there is nothing to stream and no state to grow. A
-repetition is the one kind whose size is the input's, and a `RepeatTransformer`
-whose `update` spreads an array per round makes its rule quadratic in the number
-of items: the exact trap `descent`'s `_Items` and DJS's `_FoldFrame.done`
-comments already record. Accumulate with `List` (or `Vec`) and flatten in `end`;
-the helpers in §9 do this so most authors never touch it.
+**Only a `Repeat` streams.** The other three kinds have an arity the grammar
+fixes, so the engine collects their children and calls once — there is nothing to
+stream and no state to grow. A repetition is the one kind whose *size* is the
+input's, and a `RepeatTransformer` whose `update` spreads an array per round
+makes its rule quadratic in the number of items: the exact trap `descent`'s
+`_Items` and DJS's `_FoldFrame.done` comments already record. Accumulate with
+`List` (or `Vec`) and flatten in `end`; the helpers in §9 do this so most authors
+never touch it.
+
+**A `Repeat` is not the only kind that can be quadratic, though — recursion is
+the other way in.** A fixed arity bounds one *invocation*; it does not bound how
+many invocations the input causes. Right-recurse a list —
+`list = () => [head, list]` — and a callback written `([h, t]) => [h, ...t]` runs
+once per element and copies a progressively longer tail, which is quadratic
+exactly as the repetition case is, with nothing in the arity to warn the author.
+
+So the discipline is **no growing copy in any callback a recursive rule
+reaches**, not "no growing copy in an `update`". The fixed-arity kinds are safe
+only when the rule is not recursive, which is a property of the grammar rather
+than of the transformer. Where a grammar has the choice, `Repeat` is the shape to
+prefer: it is why the `Repeat` rule exists (§11.4), it makes the accumulation
+explicit where the helpers can get it right, and it turns a trap that hides in a
+two-element tuple into one the author is looking at.
 
 That is not a narrowing of what 4.1 promises. Memory is still O(depth) frames
 plus the live states along the spine, because a fixed-arity rule's collected
@@ -1090,10 +1105,14 @@ transformer, not that transformer's children, so the merge has to be the
 engine's. It is — the `Monoid<M>` of §1, supplied once per parser. What was
 sugar for a channel the protocol lacked is now the channel.
 
-**The O(1)-`update` discipline (§4.1) applies to `list`, `text` and anything
-else passed to `repeatOf`**, because they are the only shapes with an `update`.
-A sequence transformer receives its whole tuple at once and cannot be quadratic
-in a length the grammar fixes.
+**The O(1) discipline (§4.1) is about growing copies, not about `update`.**
+`list`, `text` and anything else passed to `repeatOf` are where it usually
+bites, because they are the only shapes with an `update` — and the helpers get
+it right so most authors never touch it. But a fixed arity bounds one
+invocation, not how many the input causes: a `seq` callback on a
+*right-recursive* rule runs once per element, so `([h, t]) => [h, ...t]` is
+quadratic too (§4.1). Prefer `list` over right recursion where the grammar
+allows it.
 
 #### 10. Worked examples
 
@@ -1662,7 +1681,14 @@ types undecided cannot be implemented against.
       tag is inherited at rule entry and no synthesized builder can produce it
       (§3), which is why `variant`'s default is the identity. `descentEquivalence`
       already pins the tags.
-- [ ] Add `transformers`/`build` (§5) and run all five construction-time checks:
+- [ ] Add the §9 **primitives** alongside it, because there is otherwise no
+      supported way to build an entry: `entry`, `map`, the four `…Of`
+      constructors and `unit`. A bare §1 shape is not installable — the kind tag
+      is mandatory and an author must never write one by hand — so a `build`
+      published without them would have no callers, and no way to write stage
+      1's own proofs. The sugar (`terminal`, `seq`, `seqR`, `variant`, `list`,
+      `text`) is stage 2, adding methods to the same factory.
+- [ ] Add `transformers`/`build` (§5) and run all seven construction-time checks:
       every keyed rule is reachable from the start rule; every entry's **kind
       tag matches its rule's kind**; every entry's **declared child shape
       matches its rule's** — a sequence's arity, a variant's branch names in
@@ -1714,9 +1740,9 @@ not `fjs/media/json`: the boundary in §11.6 keeps the codecs off BNF at runtime
 so what transformers buy JSON here is an *example grammar that can produce a
 value* to check against a spec vector.
 
-- [ ] Add the §9 helpers. They write the kind tag, so an author never does, and
-      the O(1) accumulation lives inside `list`/`text` — the only helpers with
-      an `update` to be quadratic in.
+- [ ] Add the §9 **sugar**: `terminal`, `seq`, `seqR`, `variant`, `list`,
+      `text`. The primitives shipped in stage 1. The O(1) accumulation lives
+      inside `list`/`text`, so most authors never touch it (§4.1).
 - [ ] Ship §10's twelve-rule grammar and its map first, as the proof that all
       four kinds, an empty variant branch, and a refusal work end to end. It is
       small enough to check by eye, which is what the JSON sketch was not.
