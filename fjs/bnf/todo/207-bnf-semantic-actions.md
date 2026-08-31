@@ -238,7 +238,7 @@ it. One per kind, which is itself the clearest statement of what the kinds are:
 
 ```ts
 const terminal: TerminalTransformer<M, Ast<unknown>> =
-    ([leaf, m]) => [{ tag: undefined, sequence: leaf === EOF ? [] : [leaf] }, m]
+    v => [{ tag: undefined, sequence: v[0] === EOF ? [] : [v] }, v[1]]
 
 const sequence: SequenceTransformer<M, readonly unknown[], Ast<unknown>> =
     ([items, m]) => [{ tag: undefined, sequence: items }, m]
@@ -259,14 +259,23 @@ transformed, so what a node holds is no longer only nodes and leaves. A
 repetition accumulates as a `List`, which is also a small improvement on today's
 sequence frame — that one spreads an array per item.
 
-Two details of these four are the contract rather than the implementation's
-choice. `terminal` **drops the leaf at EOF**, because the EOF contract says the
-node has none (§2) — a default that appended `-1` would change the AST for every
-grammar that ends in `eof`. And `repeat` carries the merged metadata in its own
-state, because it is the one kind the engine cannot merge for: the others get
-their children all at once, a repetition gets its rounds one at a time, so
-combining them is the fold's job. Both are why a `RepeatTransformer` written by
-hand takes the monoid (§9).
+Three details of these four are the contract rather than the implementation's
+choice.
+
+`terminal` stores the **whole leaf**, `v`, not the symbol `v[0]`. The AST is
+`Ast<Meta<L, M>>` now that both backends carry metadata (§7), so a default that
+destructured the pair and kept only the symbol would drop every per-code-point
+position from every terminal node — and an empty-map parse would stop matching
+`descent`, which is the one thing §3 exists to preserve.
+
+`terminal` also **drops the leaf entirely at EOF**, because the EOF contract
+says that node has none (§2). A default that appended the synthesized symbol
+would change the AST for every grammar ending in `eof`.
+
+And `repeat` carries the merged metadata in its own state, because it is the one
+kind the engine cannot merge for: the others get their children all at once, a
+repetition gets its rounds one at a time, so combining them is the fold's job.
+That is why a `RepeatTransformer` written by hand takes the monoid (§9).
 
 **`variant` above is a specification, not what the engine runs.** A node's tag
 names the branch of the *enclosing variant* that reached it, and a variant
@@ -731,8 +740,20 @@ DJS's shipped `TokenMetadata` is worth checking against that, because it is a
 *per-symbol position* and not obviously combinable. It is: take `M` as
 `TokenMetadata | undefined`, identity `undefined`, and the operation "leftmost
 defined". That is associative with a two-sided identity, and it gives every rule
-the position of its first symbol — which is exactly what a refusal needs to
-report where it happened (§6), from the channel rather than from the engine.
+the position of its first symbol.
+
+**That position is a refusal's, but only if the refusing rule captures it.** A
+refusing transformer has its own merged `M` in hand, which under this monoid is
+where its rule started — so it can put that position *into the error value* it
+returns (§6). What it cannot do is leave the position on the channel and expect
+an ancestor to recover it: by then the `M` a parent sees is the merge of *its*
+children, which under "leftmost" is the parent's own start, and a tuple with two
+refusing slots has no way to tell them apart at all. So the rule is capture at
+the point of refusal, and it is a constraint on how a refusing transformer is
+written rather than something the channel does for it. This is the diagnostic
+the engine used to attach, moved to the only place that still knows the
+answer — and it is a cost of the refusal decision, not a free consequence of
+having `M`.
 
 This is the previous design's `(leaf, merge, empty)` monoid, kept but demoted:
 it is supplied once per parser rather than declared per rule, it is generic
@@ -893,19 +914,23 @@ names is the first task of stage 2 rather than something this example can
 assume:
 
 ```ts
-// the grammar's rules, as named thunks:
-//   value      = () => ({ object, array, string, number, true, false, null })
-//   string     = () => ['"', characters, '"']
-//   characters = () => repeat(character)
-//   character  = () => ({ unescaped, escape })
-//   escape     = () => ['\\', escaped]
-//   escaped    = () => ({ simple, hex })
-//   member     = () => [string, ws, ':', ws, value]
-//   members    = () => repeat(member)
-//   object     = () => ['{', ws, members, '}']
-//   array      = () => ['[', ws, items, ']']
-//   number     = () => [digits]
+// the grammar's rules, as named thunks. A comma-separated list is five rules,
+// and JSON's number is four — see below, that is the point of the example.
+//   value       = () => ({ object, array, string, number, true, false, null })
+//   string      = () => ['"', characters, '"']
+//   characters  = () => repeat(character)
+//   character   = () => ({ unescaped, escape })
+//   escape      = () => ['\\', escaped]
+//   escaped     = () => ({ simple, hex })
+//   object      = () => ['{', ws, memberList, '}']
+//   memberList  = () => ({ members, empty })
+//   members     = () => [member, moreMembers]
+//   moreMembers = () => repeat(nextMember)
+//   nextMember  = () => [',', ws, member]
+//   member      = () => [string, ws, ':', ws, value]
+//   number      = () => [minus, int, frac, exp]   each a possibly-empty lexeme
 type Member = readonly[string, Json]
+type Num = Result<number, string>
 {
     unescaped:  terminal(c => String.fromCodePoint(c)),
     simple:     seq(([, c]: readonly[unknown, string]) => simpleEscape(c)),
@@ -915,24 +940,57 @@ type Member = readonly[string, Json]
     character:  variant(([, c]: Branch<{ unescaped: string, escape: string }>) => c),
     characters: text(m),
     string:     seq(([, chars]: readonly[unknown, string, unknown]) => chars),
+
     member:     seq(([k, , , , v]: readonly[string, unknown, unknown, unknown, Json]) =>
                     [k, v] as const),
-    members:    list<M, Member>(m),
+    nextMember: seq(([, , mem]: readonly[unknown, unknown, Member]) => mem),
+    moreMembers: list<M, Member>(m),
+    members:    seq(([first, rest]: readonly[Member, readonly Member[]]) => [first, ...rest]),
+    memberList: variant(([, ms]: Branch<{ members: readonly Member[], empty: readonly Member[] }>) => ms),
     object:     seq(([, , ms]: readonly[unknown, unknown, readonly Member[], unknown]) =>
                     Object.fromEntries(ms)),
-    array:      seq(([, , items]: readonly[unknown, unknown, readonly Json[], unknown]) => items),
-    items:      list<M, Json>(m),
-    digits:     text(m),
-    number:     seq(([d]: readonly[string]) => Number(d)),
+
+    minus:      text(m), int: text(m), frac: text(m), exp: text(m),
+    number:     seq(([sign, i, f, e]: readonly[string, string, string, string]) => {
+                    const n = Number(`${sign}${i}${f}${e}`)
+                    // §6: refuse what cannot be represented, do not answer `Infinity`
+                    return Number.isFinite(n) ? ok(n) : error(`number out of range`)
+                }),
+
     true:       seq(() => true),
     false:      seq(() => false),
     null:       seq(() => null),
-    value:      variant(([, v]: Branch<{
-                    object: Json, array: Json, string: Json, number: Json
-                    true: Json, false: Json, null: Json }>) => v),
+    value:      variant(([k, v]: Branch<{
+                    object: Json, array: Json, string: Json, number: Num
+                    true: Json, false: Json, null: Json }>) =>
+                    k === 'number' ? v : ok(v)),
     ws:         unit,
 }
 ```
+
+**Three things this example had wrong until review caught them, all worth
+keeping visible**, because each is a way a design document can look finished
+while describing something that does not work:
+
+- **`members = repeat(member)` is not JSON.** `{"a":1,"b":2}` cannot start a
+  second round, because the next symbol is a comma and `member` begins with a
+  string. A comma-separated list is five rules, and they are above.
+- **`number = [digits]` is not JSON either** — it rejects `-1`, `1.5` and `1e2`.
+  Four possibly-empty lexeme rules, assembled by the transformer.
+- **`Number(d)` answers `Infinity` for `1e999`**, which §6 names by name as a
+  value to refuse rather than answer plausibly. The map said `Json` and produced
+  something that is not.
+
+**And the fix to the third one is the best evidence available about the open
+refusal question.** With refusal living in the transformer's own `T` (§6),
+`number` returns `Result<number, string>` — so `value`'s branch record is no
+longer uniform, `value` itself must return a `Result`, and every ancestor of a
+number is now in the error's type. That is refusal-in-`T` working exactly as
+specified, and also exactly what it costs: **one refusing rule types the whole
+spine above it.** The alternative — `Result<Meta<T, M>, Refusal>` in all four
+kinds — keeps `Values['number']` at `number` and the propagation in the engine,
+where a caller never sees it, at the price of a channel every rule pays for.
+Decide it against this example rather than in the abstract.
 
 **The escape branches are not decoration — they are the bug the uniform protocol
 could not prevent.** An earlier version of this example wrote `character` as one
@@ -1195,8 +1253,10 @@ issue alone: `Accumulator.update` is `(item, state)` and flow's `Transducer` is
 
 ### Tasks
 
-Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machine
-(it is, marginally) but because it is the one that settles the design:
+Staged. **Stage 0 is three decisions and no code** — each changes what stage 1
+publishes, so taking them afterwards means republishing it. Then
+**`fjs/bnf/ll1` is stage 1** — not because it is the easier machine (it is,
+marginally) but because it is the one that settles the rest of the design:
 
 - It **never backtracks**, so no transformer runs on a branch the parse goes on
   to abandon — which removes the *speculative* half of §6 from stage 1. With a
@@ -1208,16 +1268,41 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
   fold-level guarantee alone does not give.
 - It is the **smaller change**, and stage 1 is where the protocol's shape is
   still cheap to move: `ll1` has no rewind state and no furthest-failure record,
-  so its machine is the one to be wrong on first.
+  so its machine is the one to be wrong on first. `fjs/djs`'s port is the
+  larger, riskier change and needs the inherited-attribute question (§10)
+  answered before it starts.
 - It is the backend that **does not carry metadata yet**, so the leaf change of
   §7 lands here. Doing it in stage 1 is what lets stage 3 inherit the channel
   instead of adding it: `descent`'s leaf is already `CodePointMeta`, so once
-  `ll1` matches, `M` is settled before the harder backend starts. `fjs/djs`'s port is the
-  larger, riskier change and needs the inherited-attribute question (§10)
-  answered before it starts.
+  `ll1` matches, `M` is settled before the harder backend starts.
 - `descentEquivalence` in `../ll1/proof.f.mjs` **already pins the AST both
   backends build**, so the conformance test for "the default transformer
   reproduces today's AST" exists before the change that has to keep it passing.
+
+**Stage 0 — three decisions, before any code.** Each one changes stage 1's
+*public* types or its construction validator, so taking them later means
+republishing an API and rewriting proofs written against it. They are the three
+open questions marked below, gathered here because they share that property:
+
+- [ ] **The refusal channel (§6).** `Meta<T, M>` with the error in the
+      transformer's own `T`, or `Result<Meta<T, M>, Refusal>` in all four kinds.
+      This is `TransformMatchResult` itself. §10's JSON example is the evidence:
+      one refusing `number` types every ancestor of a number.
+- [ ] **Silent children (§10).** `unit` currently occupies a slot in its
+      parent's tuple. An engine that *dropped* it instead would change every
+      sequence's arity, and with it every `C` a map declares and every proof
+      written against one. That makes it a protocol decision, not the stage-2
+      ergonomics question it was filed as.
+- [ ] **Whether `C` is carried as data (§8).** Sequence arity and variant branch
+      names are erased today, so only the kind reaches the construction check.
+      Carrying them — the §9 helpers taking them alongside the callback — would
+      make a grammar change that invalidates a map fail at construction instead
+      of calling a callback with the wrong shape. It changes the `Transformer`
+      representation and the validator, both of which stage 1 publishes.
+
+Write §10's JSON map against each candidate before choosing; it is short enough
+to rewrite three times and is the only place the costs show up as something
+other than prose.
 
 **Stage 1 — the protocol and `fjs/bnf/ll1`.**
 
@@ -1294,9 +1379,6 @@ not `fjs/media/json`: the boundary in §11.6 keeps the codecs off BNF at runtime
 so what transformers buy JSON here is an *example grammar that can produce a
 value* to check against a spec vector.
 
-- [ ] Settle the silent-child question (§10) — a silent rule, an engine-dropped
-      `unit`, or combinator-aware helpers — before writing the example's map,
-      since a rule a combinator built has scaffolding the author cannot count.
 - [ ] Add the §9 helpers. They write the kind tag, so an author never does, and
       the O(1) accumulation lives inside `list`/`text` — the only helpers with
       an `update` to be quadratic in.
@@ -1345,26 +1427,28 @@ value* to check against a spec vector.
   `refused` case, at the price of the diagnostic the engine used to attach: a
   transformer knows the reason but not its rule name or position, so a grammar
   whose transformers refuse has to carry positions in `M`. The alternative is
-  `Result<Meta<T, M>, Refusal>` in all four kinds. **This is the one part of the
-  four-kind protocol not yet confirmed**, and stage 1 should not start until it
-  is, because it is the public result type.
+  `Result<Meta<T, M>, Refusal>` in all four kinds. **Stage 0**, because it is
+  the public result type. §10's JSON example now shows the cost concretely: with
+  the error in `T`, one refusing `number` puts a `Result` in the type of every
+  ancestor of a number.
 - **`C` is erased, so nothing checks it against the grammar (§8).** A
   sequence's arity and order, and a variant's branch names, are all the author's
   claim; only the *kind* survives to construction, because the §9 helpers write
   it as a tag. Carrying the rest as data would fix it — `variant` taking its
   branch names, `seq` its arity — at the cost of writing each twice and keeping
-  them in step. Worth deciding in stage 2 with the JSON map in hand, since that
-  map is where the duplication would either read as redundant or as the thing
-  that caught a bug. It is also the same question the silent-rules item below
-  asks from the other side: a rule a combinator built is exactly the one whose
-  arity an author cannot count.
-- **Silent rules — no longer optional (§10).** `unit` still occupies a tuple
+  them in step. **Stage 0**: it changes the `Transformer` representation and the
+  construction validator, so adding it after stage 1 republishes both. It is
+  also the silent-rules item below from the other side — a rule a combinator
+  built is exactly the one whose arity an author cannot count.
+- **Silent rules — stage 0, not stage 2 (§10).** `unit` occupies a tuple
   slot, so a positional callback must count punctuation, whitespace and every
-  scaffolding node a combinator built. That is guesswork against an
-  implementation detail for any rule the author did not spell out, which the
-  JSON example runs into immediately. A rule marked silent, a designated `unit`
-  the engine drops from the tuple, or combinator-aware helpers — pick one in
-  stage 2, with the example as the test of whether it reads.
+  scaffolding node a combinator built. The JSON example runs into it
+  immediately: a comma-separated member list is five rules and JSON's number is
+  four, and an author counts slots through all of them. A rule marked silent, a
+  designated `unit` the engine drops, or combinator-aware helpers. What moves
+  this ahead of stage 1 is that the middle option **changes every sequence's
+  arity** — and therefore every `C` in a map and every proof written against
+  one. It is a protocol decision wearing an ergonomics question's clothes.
 - **How much of `M` the engine should merge (§1, §7).** A sequence transformer
   gets one `M` for its whole tuple, so the engine combines its children's with
   the construction-time `Monoid<M>`. Positions combine fine — DJS's shipped
