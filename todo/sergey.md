@@ -1,12 +1,9 @@
 # Current Priority Tasks
 
+> Keep this file in the repository.
+
 - Browser Test
 - NiX:
-  - [ ] Add another shell script `dev.sh`:
-    ```sh
-    nix develop ./nix`
-    ```
-  - [ ] Add OCI image shell script build and run with docker.
   - [ ] Delete `Dockerfile`
 - FunctionalScript
   - [ ] AST to EDAG

@@ -376,10 +376,11 @@ rejects it rather than inventing a spelling — see
 
 ## Const names
 
-A `const` name is an `id`, and each name is bound at most once. There is no
-list of excluded names: every `id` begins with `$`, and no JavaScript reserved
-word and none of this format's value words does, so no name can collide with
-either.
+A `const` name is an `id`, and each name is bound at most once. After grammar
+recognition and before returning the parsed result, processing rejects a second
+declaration of the same name. There is no list of excluded names: every `id`
+begins with `$`, and no JavaScript reserved word and none of this format's value
+words does, so no name can collide with either.
 
 The two collisions that would otherwise need excluding are both real, and both
 gone:

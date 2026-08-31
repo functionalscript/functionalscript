@@ -6,7 +6,8 @@
  * grammar recognizes JSON string keys and `$` references syntactically. After
  * grammar recognition and before returning the parsed result, processing must
  * decode string-key escapes and reject a decoded `__proto__`, resolve references
- * against earlier `const` declarations, and fail on an unresolved reference.
+ * against earlier `const` declarations, reject a duplicate `const` declaration,
+ * and fail on an unresolved reference.
  *
  * @module
  *
@@ -16,13 +17,16 @@
 import { createValue, digit, optionFloatSuffix, optionNeg, string, uint, ws, wsSymbol } from '../json/module.f.mjs'
 import { range, repeat0Plus, repeat1Plus } from '../../module.f.mjs'
 
+/** @type {Rule} */
 const uNumber = {
     finite: [uint, { n: 'n', optionFloatSuffix }],
     infinity: 'Infinity'
 }
 
+/** @type {Rule} */
 const number = [optionNeg, uNumber]
 
+/** @type {Rule} */
 const letter = {
     lo: range('az'),
     up: range('AZ'),
@@ -30,8 +34,10 @@ const letter = {
     $: '$',
 }
 
+/** @type {Rule} */
 const id = ['$', repeat0Plus({ letter, digit })]
 
+/** @type {Rule} */
 const property = {
     string,
     proto: '["__proto__"]',
@@ -50,6 +56,7 @@ const ws1 = repeat1Plus(wsSymbol)
 /** @type {(...v: readonly Rule[]) => Rule} */
 const statement = (...v) => [...v, value, ws, ';', ws]
 
+/** @type {Rule} */
 export const dataJs = [
     ws,
     repeat0Plus(statement('const', ws1, id, ws, '=', ws)),

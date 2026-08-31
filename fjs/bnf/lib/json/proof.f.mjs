@@ -34,9 +34,22 @@ const matches = (rule, input) => {
 }
 
 export const proof = {
-    json: () => {
-        assert(matches(json, ' {"a":[null,true,false,-12.5e+2,"\\u0041"]} '))
-        assert(!matches(json, '{"a":1} trailing'))
+    json: {
+        accepts: [
+            () => assert(matches(json, ' {"a":[null,true,false,-12.5e+2,"\\u0041"]} ')),
+            () => assert(matches(json, '\t"\\t\\u00AF "\r\n')),
+            () => assert(matches(json, '[0,10,1e+5]')),
+        ],
+        rejects: [
+            () => assert(!matches(json, '{"a":1} trailing')),
+            () => assert(!matches(json, '01')),
+            () => assert(!matches(json, '00')),
+            () => assert(!matches(json, '+1')),
+            () => assert(!matches(json, '[1,]')),
+            () => assert(!matches(json, '"unterminated')),
+            () => assert(!matches(json, '"\\u00AG"')),
+            () => assert(!matches(json, '"\u0001"')),
+        ],
     },
     buildingBlocks: [
         () => assert(matches(digit, '7')),
