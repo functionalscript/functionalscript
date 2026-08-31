@@ -139,13 +139,12 @@ invocation repeated fifteen times. The script carries `--no-write-lock-file`
 (leave the checkout untouched) and one `--quiet`, which drops the `copying N
 paths` substitution chatter and leaves every warning.
 
-`./dev.sh` is generated too, at the repository root: `nix develop ./nix` with no
-flags and no arguments, for a person who wants the shell rather than one command
-in it. `nix/module.f.mjs`'s `devScriptText` says why it carries neither of the
-`run` script's flags. It is the one generated file outside a directory this
-generator owns, so it carries a marker line and the generator reads before it
-writes: an unmarked `dev.sh` in a consuming project is left alone rather than
-truncated.
+`./dev.sh` at the repository root is the interactive counterpart — `nix develop
+./nix`, with no flags and no arguments, for a person who wants the shell rather
+than one command in it. It is committed rather than generated: nothing in it
+varies with a job, a pin or a system, so there is nothing for a generator to
+compose or a drift check to catch. See [nix/README.md](../../nix/README.md) for
+why it carries neither of the `run` script's flags.
 
 A `flake.lock` is generated beside every `flake.nix`, from `narHash` and
 `lastModified` in `config/module.f.mjs`, and committed. Without one every

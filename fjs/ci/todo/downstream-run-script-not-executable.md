@@ -25,8 +25,8 @@ Our CI is green on a property of our tree rather than on anything the generator
 does.
 
 A project adopting these flakes has no such tree. In one with no `nix/`
-directory yet, *every* script is new at once — the per-job `run` scripts and the
-root `dev.sh` — so it is not one job that fails but all of them — and the fix is a command that only this repository's history
+directory yet, *every* script is new at once, so it is not one job that fails
+but all of them — and the fix is a command that only this repository's history
 teaches. The drift check does not help either, there or here:
 `git add -A && git diff --cached --exit-code` compares a tree the file is new
 in, so there is no recorded mode to differ from.

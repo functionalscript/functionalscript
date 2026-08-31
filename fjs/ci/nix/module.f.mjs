@@ -12,19 +12,16 @@
  * @module
  *
  * @import { MetaStep } from '../common/types.ts'
- * @import { IoChannel, Mkdir, ReadFile, WriteFile } from '../../effects/node/types.ts'
- * @import { Write } from '../../effects/common/types.ts'
- * @import { Result } from '../../types/result/types.ts'
+ * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Expression, _Binding, _Reference } from '../../media/nix/types.ts'
  * @import { NixArchive, NixJob, NixPin, NixRust } from './types.ts'
  * @import { _PerSystem } from './private.ts'
  */
 
-import { pureError, pureOk } from '../../effects/module.f.mjs'
-import { error } from '../../effects/common/module.f.mjs'
-import { isNotFound, mkdir, readUtf8File, writeUtf8File } from '../../effects/node/module.f.mjs'
-import { forEachStep, resultStep, step } from '../../effects/module.f.mjs'
+import { pureOk } from '../../effects/module.f.mjs'
+import { mkdir, writeUtf8File } from '../../effects/node/module.f.mjs'
+import { forEachStep, step } from '../../effects/module.f.mjs'
 import { nixToString } from '../../media/nix/module.f.mjs'
 import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
@@ -455,8 +452,8 @@ exec nix develop --no-write-lock-file --quiet ${flakePath(id)} --command "$@"
  * `fjs/effects/node` can set a file mode, and `fs.writeFile` preserves the mode
  * of a file that already exists — so a script committed once as `100755` stays
  * executable through every regeneration, and only a job that has never been
- * generated needs `git update-index --chmod=+x` by hand — as {@link devScriptPath}
- * did. See `../todo/generated-run-script-mode.md`.
+ * generated needs `git update-index --chmod=+x` by hand. See
+ * `../todo/generated-run-script-mode.md`.
  *
  * @type {(job: NixJob) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
@@ -478,51 +475,12 @@ const writeJob = job => {
 }
 
 /**
- * What to do about a file already at {@link devScriptPath} — the branch that
- * makes writing it safe for a project that is not this one.
+ * Writes one generated environment per job, stopping at the first failure.
  *
- * Exported for `./proof.f.mjs`, which reaches the third branch through it. The
- * virtual filesystem answers `ENOENT` for everything a fixture can express, so
- * a read that fails some other way is not a state a proof can build — it is a
- * `Result`, and this is the function that takes one.
- *
- * @type {(result: Result<string, IoChannel>) => Effect<Write | WriteFile, void, IoChannel>}
- */
-export const devScriptStep = result =>
-    result[0] === 'ok'
-        ? (isDevScript(result[1])
-            ? writeUtf8File(devScriptPath, devScriptText)
-            : error(`${devScriptPath} was not generated here — leaving it alone.`
-                + ` Delete it and rerun to get the Nix shell entry point.`))
-        : (isNotFound(result[1])
-            ? writeUtf8File(devScriptPath, devScriptText)
-            : pureError(result[1]))
-
-/**
- * Writes the interactive entry point, unless something else already owns that
- * name.
- *
- * The read is the whole point. Every other generated file lands under `nix/` or
- * `.github/workflows/`, and this one lands at the repository root, where a
- * project may well have a `dev.sh` of its own — so an unconditional write would
- * truncate a consumer's build script the first time they upgraded. It is
- * checked, and left alone when it is not ours, with one line on `stderr` rather
- * than nothing at all.
- *
- * A read that fails for any reason other than `ENOENT` is propagated. A file
- * that cannot be read is not a file known to be absent, and overwriting on that
- * basis is the same mistake in a quieter form.
- */
-const writeDevScript = () => resultStep(readUtf8File(devScriptPath), devScriptStep)
-
-/**
- * Writes one generated environment per job, then the interactive entry point,
- * stopping at the first failure.
- *
- * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | ReadFile | Write | WriteFile, void, IoChannel>}
+ * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
 export const nixFlakes = jobs =>
-    step(forEachStep(pureOk(jobs), writeJob), writeDevScript)
+    forEachStep(pureOk(jobs), writeJob)
 
 /**
  * The one generated environment jobs share, and the directory its flake is
@@ -566,63 +524,6 @@ export const flakePath = id =>
 /** The `run` script a workflow step invokes, for the job of the given id. */
 /** @type {(id: string) => string} */
 export const runPath = id => `${flakePath(id)}/run`
-
-/** Where the interactive entry point is written, relative to the repository root. */
-export const devScriptPath = /** @type {const} */ ('dev.sh')
-
-/**
- * The script that puts a developer in the shared shell.
- *
- * `./dev.sh` and `./nix/run` are the two halves of the same thing and differ in
- * the two ways that split implies. This one takes **no arguments** — it opens a
- * shell rather than running a command, so there is no `"$@"` and nothing for one
- * to be quoted against — and it carries **no flags**.
- *
- * Both omissions are deliberate, and both are the reverse of the reasoning in
- * {@link runText}, where the same two flags are argued for at length.
- *
- * **No `--quiet`.** What it suppresses is `copying path` and `building '…'`, and
- * in CI those are noise against a log nobody reads while it scrolls. Here they
- * are the only thing distinguishing a first entry that is fetching a couple of
- * gigabytes from a session that has hung. A person waiting at a terminal wants
- * the progress a log does not.
- *
- * **No `--no-write-lock-file`.** CI passes it because the generator owns
- * `flake.lock` and a job has no business writing tracked files. A developer's
- * tree is not CI's: if Nix disagrees with the committed lock, a rewrite there is
- * the fastest way to see the hash it wanted — `git diff` then prints exactly the
- * value `../config/module.f.mjs` is missing. `npm run ci-update` puts the
- * generated file back, so nothing is lost by letting it happen.
- *
- * The flake path comes from {@link flakePath} rather than being spelled here,
- * so `./nix` has one source across the `run` scripts and this.
- */
-export const devScriptMarker =
-    /** @type {const} */ ('# Generated by `fjs ci`. Edit fjs/ci/nix/module.f.mjs, not this file.')
-
-export const devScriptText = `#!/bin/sh
-${devScriptMarker}
-exec nix develop ${flakePath(nixShell)}
-`
-
-/**
- * Whether a file at {@link devScriptPath} is one this generator wrote.
- *
- * Every other generated file lives under `nix/` or `.github/workflows/`, both
- * of which this generator owns by convention. `dev.sh` is the first it writes
- * into a directory it does not — and `dev.sh` is a name a project is likely to
- * have already. Truncating a consumer's build script because they upgraded
- * `functionalscript` is not a trade this makes.
- *
- * The marker rather than the whole text, because the whole text is the wrong
- * question: an older generated `dev.sh` differs from the current one and is
- * still ours to replace, while a script that happens to open a Nix shell is
- * still theirs to keep. The line is what says which, and it is on the second
- * line because the first has to be the shebang.
- *
- * @type {(content: string) => boolean}
- */
-export const isDevScript = content => content.split('\n')[1] === devScriptMarker
 
 /** Installs Nix, with `nix-command` and `flakes` enabled by the action's defaults. */
 export const nixInstall = install(uses('cachix/install-nix-action'))
