@@ -70,7 +70,8 @@ Proposed destinations:
 | `fjs/effects/common` (was `effects/console`) | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/common` (was `effects/test`) | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
 | stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Forever`, `RandomInt`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
-| stays, now settled | `Now`, `Fetch`, `Import` — the browser interpreter implements none of them, so none has a second implementer (see the judgement call below) |
+| `fjs/effects/common` (was staying) | `Module`, `Import`, `import_` — **moved**: a browser page loads modules too, and had been doing it through an injected `importer` callback, which was the operation under another name (see the judgement call below) |
+| stays, now settled | `Now`, `Fetch` — the browser interpreter implements neither: a page measures its own wall clock rather than dispatching `now`, and performs no `fetch` at all |
 | already moved to `fjs/effects` | `OpResult`, `IoChannel`, `IoError`, `IoErrorInfo`, `IoResult`, `ioError`, `toIoError` — the vocabulary every operation is declared in; `effects/node` re-exports them (see the judgement call below) |
 
 `NodeOp` stays where it is and keeps unioning every family — it is the
@@ -84,8 +85,8 @@ Judgement calls worth deciding explicitly rather than by accident:
 - **`RandomInt` stays.** An ambient host capability with no cross-runtime
   abstraction to gain and no consumer outside `fjs/cas` and the interpreters.
   Moving it would be motion without a reader benefit.
-- **`Now`, `Fetch` and `Import` stay, and this was settled by building the
-  browser interpreter rather than by arguing.** This issue and
+- **`Now` and `Fetch` stay; `Import` moved, and both halves were settled by
+  building the browser interpreter rather than by arguing.** This issue and
   [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
   step 4 disagreed: this file put all three in "stays" on the reader-benefit
   argument, that one listed them among the operations to move. Neither was
@@ -100,7 +101,21 @@ Judgement calls worth deciding explicitly rather than by accident:
   importer rather than an `import` operation, measures its own wall clock
   rather than dispatching `now`, and performs no `fetch` at all. So none of
   the three gained a second implementer, and DESIGN.md §4 keeps them here
-  until one does. The sequential plan that replaced that attempt (see
+  until one does.
+
+  **`Import` since gained one, and the measurement had been reading it wrong.**
+  "A page loads its modules through its own importer" described a *callback*
+  parameter — `startBrowserTestSources(root, sources, importer)` — which is
+  what an operation is when it has not been named: a capability the caller
+  supplies because the interpreter does not. Counting implementers by which
+  operations a runner dispatches missed it, because the seam was an argument
+  rather than a command. Named, `import` has the two implementers the rule
+  asks for: Node's `asyncImport` and the page's own `import()`, one resolving
+  against a filesystem and the other against a document — which is the
+  interpreter's business and not the operation's. The lesson generalises: an
+  injected function is an unnamed operation, so the honest question is not
+  "which operations does this host dispatch" but "which capabilities does it
+  need supplied". The sequential plan that replaced that attempt (see
   share-browser-console-runner) shrinks the measured set once more: a
   sequential traversal performs no `all`, so the operations a browser gives a
   second implementer are `sandbox` and `catch` alone. That takes `all` out of
@@ -277,6 +292,20 @@ Judgement calls worth deciding explicitly rather than by accident:
   not before, so `allVoid` is written once in its final home.
 - **`Test`'s payload references `All` and `Await`** (`:471-472`), so the test
   move should follow the `all` and `sandbox` moves.
+
+### Six operation tuples are not `readonly`
+
+`All`, `Fetch`, `CreateServer`, `Listen` and `Forever` in
+[`../node/types.ts`](../node/types.ts) are declared as plain tuples where every
+other operation is `readonly`. `Import` was a sixth until it moved, and making
+it `readonly` on the way looked like tidying — but a `readonly` tuple is not
+assignable to a mutable one, so it is a break a consumer could hit, for
+cosmetics. It was reverted rather than shipped with a `**BREAKING CHANGES:**`
+entry attached to a rename.
+
+The five that remain are worth aligning *deliberately*, in one change that says
+so and takes the version bump for the set rather than smuggling it inside a
+move. Nothing depends on it.
 
 ### Tasks
 
