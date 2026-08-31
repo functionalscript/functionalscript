@@ -270,8 +270,11 @@ const terminal: TerminalTransformer<M, Ast<unknown>> =
 const sequence: SequenceTransformer<M, readonly unknown[], Ast<unknown>> =
     ([items, m]) => ok([{ tag: undefined, sequence: items }, m])
 
-const variant: VariantTransformer<M, StringMap<Ast<unknown>>, Ast<unknown>> =
-    ([[, node], m]) => ok([node, m])   // identity: a variant contributes no node
+// identity: a variant contributes no node. Its parameter is written out rather
+// than derived from a `C`, because no open-keyed record can express "any branch"
+// — see below.
+const variant = ([[, node], m]: Meta<readonly[string, Ast<unknown>], M>): Out<Ast<unknown>, M> =>
+    ok([node, m])
 
 const repeat = (m: Monoid<M>): RepeatTransformer<M, unknown, _Rounds, Ast<unknown>> => ({
     init: [null, m.identity],
@@ -321,6 +324,20 @@ entered with — so no builder above can produce that. `variant` is therefore th
 **identity**: it hands its branch's value up unchanged, which is exactly the
 engine's "contributes nothing". The other three write `tag: undefined` as a
 placeholder for a tag the engine supplies at entry.
+
+**`variant`'s parameter is written out rather than derived from a `C`**, and the
+repository's own types are why. The default handles *any* variant, so its branch
+record would have to be open-keyed — and `StringMap<T>` is
+`OptionalMap<string, T>`, whose values are optional by deliberate design ("every
+value can be missing at runtime"), so `Branch<StringMap<Ast<unknown>>>` gives
+`Ast<unknown> | undefined` and the builder does not compile. `RequiredMap` is no
+escape: it is `never` when its key set is `string`, on purpose, and its own
+comment explains that a bare required index signature over `string` types reads
+as `T` while the runtime value may be `undefined`. Both refusals are correct
+about open records in general and wrong about this one — the engine calls a
+variant transformer only with a branch it *selected*, so the value is always
+present. Writing `readonly[string, Ast<unknown>]` says that directly instead of
+asking a record type to say it.
 
 So these four specify the **children** an unmapped rule's node holds, not its
 tag. "The AST is one contract"
@@ -1292,8 +1309,12 @@ the costs above concrete rather than rhetorical:
   above.
 - **`value`** is a seven-branch variant, all seven of which must be mapped.
 
-And the refusal plumbing multiplies through every one of those containers, since
-JSON's `1e999` refuses exactly where this example's out-of-range integer does.
+What does **not** multiply is the refusal. JSON's `1e999` refuses exactly where
+this example's out-of-range integer does — in `number`'s own transformer, and
+nowhere else. The engine eliminates a child's `Result` before its parent sees
+anything (§2), so `member`, `object`, `array` and `value` are written as though
+refusal did not exist. That is the engine channel earning its keep at the scale
+where it matters: the alternative would have put a `Result` in all four.
 
 **Five findings against the abbreviated version, kept as the reason for the
 change.** Each was a way a design document can look finished while describing
