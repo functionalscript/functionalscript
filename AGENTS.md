@@ -20,6 +20,19 @@ cargo clippy
 cargo fmt -- --check
 ```
 
+Before committing, pushing, or opening a behavior-changing PR, run the same
+Node suite CI runs:
+
+```bash
+node --test
+```
+
+It must complete with exit code 0 and an observed final pass/fail summary. A
+targeted suite, partial output, or interrupted run does not satisfy this check.
+After `npm run ci-update`, rerun `node --test` and every relevant check above
+before publishing. If `tsc` is unavailable, enter the documented Nix shell or
+report the PR as unready; do not treat an unavailable required check as passing.
+
 `tsc` is not a dependency of this package. It comes from the Nix developer
 shell (`nix develop ./nix`), or from a global npm install of the version
 `fjs/ci/config/module.f.mjs` pins — [CONTRIBUTING.md](./CONTRIBUTING.md) has
