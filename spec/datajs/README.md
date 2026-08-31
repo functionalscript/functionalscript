@@ -361,9 +361,11 @@ representation — handles, indices into a node table, whatever the host offers
 — because a reader that hands back two equal copies has returned a different
 graph. Documenting that it flattens does not make it conforming.
 
-A reference may name only a **previously declared** `const`. That single rule
-gives the format three properties for free: a document is acyclic by
-construction, it can be parsed in one pass, and no implementation needs cycle
+A reference may name only a **previously declared** `const`. After parsing the
+module, postprocessing resolves each reference against those earlier bindings
+and fails the document if any reference is unresolved. That single rule gives
+the format three properties for free: a document is acyclic by construction,
+it can be resolved in one forward pass, and no implementation needs cycle
 detection to read one.
 
 Cycles are therefore unrepresentable. A serializer handed a cyclic value

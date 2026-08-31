@@ -480,7 +480,9 @@ delete. Its one hard case is that `const` references resolve against *earlier*
 statements — an inherited attribute, which a transformer cannot see. Resolve it
 in a **second pass** over the built module: no protocol change, all state stays
 plain data, and "const not found" becomes a check on a value, which is where a
-name-resolution error belongs. A downward channel in the engine would change
+name-resolution error belongs. The pass fails the document when any reference
+does not resolve to an earlier `const`; it never leaves an unresolved name in
+the result. A downward channel in the engine would change
 every signature; a closure-returning transformer would put functions in a
 suspended parse's state (§4).
 

@@ -5,7 +5,8 @@
  * sequence `["__proto__"]`, with no whitespace or escape substitutions. This
  * grammar recognizes JSON string keys syntactically; a DataJS postprocessor
  * must decode their escapes and reject every string key whose decoded value is
- * `__proto__`.
+ * `__proto__`. The same postprocessor resolves `$` references against earlier
+ * `const` declarations and fails if a reference is unresolved.
  *
  * @module
  *

@@ -164,7 +164,9 @@ reorder the same way. Normalized output emits keys in that observable
 order. Sharing is semantic — two
 references to one `const` denote the same node, and references may only point
 at *earlier* consts, so a document is acyclic by construction and parseable in
-one pass. The reference parser returns live JS values and does not freeze them
+one pass. Postprocessing resolves every reference against those earlier
+bindings and fails the document if any reference is unresolved. The reference
+parser returns live JS values and does not freeze them
 (FunctionalScript has no `Object.freeze`); the spec is silent on freezing and
 other implementations may.
 
