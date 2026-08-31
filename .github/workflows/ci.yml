@@ -12,53 +12,31 @@
       "runs-on": "ubuntu-26.04",
       "steps": [
         {
-          "run": "sudo apt-get update && sudo apt-get install -y libc6-dev-i386"
-        },
-        {
-          "uses": "dtolnay/rust-toolchain@1.98.0",
-          "with": {
-            "components": "rustfmt,clippy",
-            "targets": "i686-unknown-linux-gnu"
-          }
-        },
-        {
-          "uses": "actions/setup-node@v7.0.0",
-          "with": {
-            "node-version": "26.7.0"
-          }
-        },
-        {
-          "run": "npm install -g functionalscript@0.47.0"
+          "uses": "cachix/install-nix-action@v31.11.1"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "cargo test"
+          "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
         },
         {
-          "run": "cargo test --release"
+          "run": "./nix/run npm ci"
         },
         {
-          "run": "cargo clippy -- -D warnings"
+          "run": "./nix/run cargo test"
         },
         {
-          "run": "cargo clippy --release -- -D warnings"
+          "run": "./nix/run cargo test --release"
         },
         {
-          "run": "cargo test --target i686-unknown-linux-gnu"
+          "run": "./nix/run cargo clippy -- -D warnings"
         },
         {
-          "run": "cargo test --target i686-unknown-linux-gnu --release"
+          "run": "./nix/run cargo clippy --release -- -D warnings"
         },
         {
-          "run": "cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
-        },
-        {
-          "run": "cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings"
-        },
-        {
-          "run": "fjs test"
+          "run": "./nix/run node --test"
         }
       ]
     },
@@ -66,37 +44,31 @@
       "runs-on": "ubuntu-26.04-arm",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.98.0",
-          "with": {
-            "components": "rustfmt,clippy"
-          }
-        },
-        {
-          "uses": "actions/setup-node@v7.0.0",
-          "with": {
-            "node-version": "26.7.0"
-          }
-        },
-        {
-          "run": "npm install -g functionalscript@0.47.0"
+          "uses": "cachix/install-nix-action@v31.11.1"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "cargo test"
+          "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
         },
         {
-          "run": "cargo test --release"
+          "run": "./nix/run npm ci"
         },
         {
-          "run": "cargo clippy -- -D warnings"
+          "run": "./nix/run cargo test"
         },
         {
-          "run": "cargo clippy --release -- -D warnings"
+          "run": "./nix/run cargo test --release"
         },
         {
-          "run": "fjs test"
+          "run": "./nix/run cargo clippy -- -D warnings"
+        },
+        {
+          "run": "./nix/run cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "./nix/run node --test"
         }
       ]
     },
@@ -104,37 +76,31 @@
       "runs-on": "macos-26-intel",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.98.0",
-          "with": {
-            "components": "rustfmt,clippy"
-          }
-        },
-        {
-          "uses": "actions/setup-node@v7.0.0",
-          "with": {
-            "node-version": "26.7.0"
-          }
-        },
-        {
-          "run": "npm install -g functionalscript@0.47.0"
+          "uses": "cachix/install-nix-action@v31.11.1"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "cargo test"
+          "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
         },
         {
-          "run": "cargo test --release"
+          "run": "./nix/run npm ci"
         },
         {
-          "run": "cargo clippy -- -D warnings"
+          "run": "./nix/run cargo test"
         },
         {
-          "run": "cargo clippy --release -- -D warnings"
+          "run": "./nix/run cargo test --release"
         },
         {
-          "run": "fjs test"
+          "run": "./nix/run cargo clippy -- -D warnings"
+        },
+        {
+          "run": "./nix/run cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "./nix/run node --test"
         }
       ]
     },
@@ -142,37 +108,31 @@
       "runs-on": "macos-26",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.98.0",
-          "with": {
-            "components": "rustfmt,clippy"
-          }
-        },
-        {
-          "uses": "actions/setup-node@v7.0.0",
-          "with": {
-            "node-version": "26.7.0"
-          }
-        },
-        {
-          "run": "npm install -g functionalscript@0.47.0"
+          "uses": "cachix/install-nix-action@v31.11.1"
         },
         {
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "cargo test"
+          "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
         },
         {
-          "run": "cargo test --release"
+          "run": "./nix/run npm ci"
         },
         {
-          "run": "cargo clippy -- -D warnings"
+          "run": "./nix/run cargo test"
         },
         {
-          "run": "cargo clippy --release -- -D warnings"
+          "run": "./nix/run cargo test --release"
         },
         {
-          "run": "fjs test"
+          "run": "./nix/run cargo clippy -- -D warnings"
+        },
+        {
+          "run": "./nix/run cargo clippy --release -- -D warnings"
+        },
+        {
+          "run": "./nix/run node --test"
         }
       ]
     },
@@ -348,6 +308,29 @@
         },
         {
           "run": "./nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
+        }
+      ]
+    },
+    "ubuntu-intel32": {
+      "runs-on": "ubuntu-26.04",
+      "steps": [
+        {
+          "uses": "cachix/install-nix-action@v31.11.1"
+        },
+        {
+          "uses": "actions/checkout@v7.0.1"
+        },
+        {
+          "run": "./nix/ubuntu-intel32/run cargo test --target i686-unknown-linux-gnu"
+        },
+        {
+          "run": "./nix/ubuntu-intel32/run cargo test --target i686-unknown-linux-gnu --release"
+        },
+        {
+          "run": "./nix/ubuntu-intel32/run cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
+        },
+        {
+          "run": "./nix/ubuntu-intel32/run cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings"
         }
       ]
     },

@@ -33,7 +33,15 @@ export type _Lambda = readonly ['lambda', _OpenSetPattern, Expression]
 
 export type _Let = readonly ['let', readonly _Binding[], Expression]
 
-export type _IndentedString = readonly ['indented-string', string]
+/**
+ * A Nix indented string (`''…''`), as the parts it is made of.
+ *
+ * A `string` part is content: `''` and `${` in it are escaped, so it arrives in
+ * the file as the text it is. A `_Reference` part is an interpolation, written
+ * `${a.b}` and resolved by Nix — which is the only way a generated hook can
+ * name a package, since a store path is not knowable when the file is written.
+ */
+export type _IndentedString = readonly ['indented-string', ...(string | _Reference)[]]
 
 /** The Nix syntax supported by the serializer. */
 export type Expression =

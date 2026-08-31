@@ -344,9 +344,6 @@ const mulCases = [
     { name: 'numberByBigint', args: [1, 1n], expected: throws },
 ]
 
-const hexadecimalBigint =
-    'nanvm-lib prints bigints in hexadecimal; see nanvm-lib/todo/bigint-decimal-string-coercion.md'
-
 /**
  * `String(x)`.
  *
@@ -369,8 +366,8 @@ const stringCoercionCases = [
     { name: 'null', args: [null], expected: 'null' },
     { name: 'undefined', args: [undefined], expected: 'undefined' },
     { name: 'string', args: ['already'], expected: 'already' },
-    { name: 'bigint', args: [123n], expected: '123', rust: hexadecimalBigint },
-    { name: 'negativeBigint', args: [-456n], expected: '-456', rust: hexadecimalBigint },
+    { name: 'bigint', args: [123n], expected: '123' },
+    { name: 'negativeBigint', args: [-456n], expected: '-456' },
     { name: 'emptyArray', args: [[]], expected: '' },
     { name: 'singletonArray', args: [[1]], expected: '1' },
     { name: 'array', args: [[1, 2, 3]], expected: '1,2,3' },

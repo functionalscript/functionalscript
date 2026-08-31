@@ -48,7 +48,7 @@ three independent test frameworks.
 eventual isolated browser-test application root
 ├── index.html
 ├── _browser-test-entry.mjs
-├── fjs/emergent_testing/browser.mjs
+├── fjs/emergent_testing/browser/module.mjs
 └── authored or copied .f.mjs / .mjs modules
 ```
 
