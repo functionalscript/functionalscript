@@ -175,7 +175,7 @@ module    ::= const* export
 const     ::= 'const' id '=' value ';'
 export    ::= 'export' 'default' value ';'
 value     ::= primitive | id | array | object
-key       ::= string | '[' '"__proto__"' ']'
+key       ::= string | '["__proto__"]'
 ```
 
 - **`;` terminates every statement**, `export default` included; no empty
@@ -243,9 +243,11 @@ key       ::= string | '[' '"__proto__"' ']'
   `1e2n`, so "number + `n`" would over-accept. `-` is not an operator: it
   folds into a following number, bigint, or `Infinity` token only (`-NaN`,
   `-undefined`, a bare `-` are rejected).
-- **Keys** are JSON strings, plus the computed spelling `["__proto__"]` as the
-  only way to write that one key; a bare or string `"__proto__"` key is
-  rejected (JS would read it as prototype replacement).
+- **Keys** are JSON strings, plus the exact computed sequence
+  `["__proto__"]` as the only way to write that one key. The sequence is
+  contiguous: whitespace is not allowed between `[`, `"__proto__"`, and `]`.
+  A bare or string `"__proto__"` key is rejected (JS would read it as prototype
+  replacement).
 - **Const names** are ASCII and **start with `$`**: `$[A-Za-z0-9_$]*`, each
   bound once, with **no exclusion list**. The two collisions an exclusion list
   would have to cover are both closed by the leading `$` — though not with the
@@ -294,7 +296,8 @@ key       ::= string | '[' '"__proto__"' ']'
   document). The textual conversion `"export default " + json + ";"` — a prefix
   and a terminator — yields a valid document with one exception: a bare `"__proto__"` object key —
   rejected by DataJS because JS reads it as prototype replacement — must be
-  rewritten to the computed spelling `["__proto__"]` during conversion.
+  rewritten to the exact, whitespace-free computed sequence `["__proto__"]`
+  during conversion.
   Plain concatenation is exactly valid for JSON containing no `__proto__`
   key.
 
