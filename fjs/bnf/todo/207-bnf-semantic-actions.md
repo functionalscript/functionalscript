@@ -756,6 +756,29 @@ the engine used to attach, moved to the only place that still knows the
 answer — and it is a cost of the refusal decision, not a free consequence of
 having `M`.
 
+**One `M`, and a payload coexists with a mergeable field inside it.** The
+obvious worry is that these are two different things: a tokenizer's decoded
+number is consumed at the leaf and no parent wants it merged, while a position
+does want merging. They do not need two channels, because `M` may be a product
+and a monoid on a product is componentwise:
+
+```ts
+type M = readonly[Pos, Payload]                    // Pos = a range, Payload = a token's value
+const monoid: Monoid<M> = {
+    identity: [undefined, undefined],
+    // position: leftmost defined. payload: never merges, so no parent sees one.
+    operation: ([p0]) => ([p1]) => [p0 === undefined ? p1 : p0, undefined],
+}
+```
+
+The payload field's operation is constantly the identity, which is associative
+and unital, so this is a monoid. Its effect is exactly the semantics wanted: a
+leaf keeps its payload (the input supplied it, the monoid never touches it), the
+terminal transformer reads it, and every parent sees `undefined` there while
+positions keep combining. **So the design commits to one `M`** — a second,
+unmerged channel would change `Meta`, every transformer signature, the erased
+map representation and the matcher API, and it is not needed to express this.
+
 This is the previous design's `(leaf, merge, empty)` monoid, kept but demoted:
 it is supplied once per parser rather than declared per rule, it is generic
 rather than fixed to spans, and a grammar that wants none instantiates it
@@ -866,6 +889,13 @@ The four shapes are the primitive; the ergonomics come from a small library over
 them. It is also what writes the §5 kind tag, so an author never types one:
 
 ```ts
+// tagging constructors: a §1 shape in, a map-installable `Transformer` out
+const terminalOf: <M, T>(f: TerminalTransformer<M, T>) => Transformer<M, T>
+const seqOf:      <M, C extends readonly unknown[], T>(f: SequenceTransformer<M, C, T>) => Transformer<M, T>
+const variantOf:  <M, C, T>(f: VariantTransformer<M, C, T>) => Transformer<M, T>
+const repeatOf:   <M, C, S, T>(r: RepeatTransformer<M, C, S, T>) => Transformer<M, T>
+
+// sugar over them: the callback sees the value alone, `M` is forwarded unchanged
 const terminal: <M, T>(f: (leaf: L) => T) => Transformer<M, T>
 const seq:      <M, C extends readonly unknown[], T>(f: (children: C) => T) => Transformer<M, T>
 const variant:  <M, C, T>(f: (b: Branch<C>) => T) => Transformer<M, T>
@@ -874,15 +904,22 @@ const text:     <M>(m: Monoid<M>) => Transformer<M, string>
 const unit:     readonly['unit']
 ```
 
-- `terminal`, `seq`, `variant` — the fixed-arity kinds, for the common case of a
-  transformer that does not care about metadata: the callback sees the value
-  alone and the helper forwards `M` unchanged. A transformer that *does* care is
-  written as the bare function of §1. `terminal`'s callback is **not** given an
-  EOF branch, so a rule that can match the synthesized end-of-input symbol is
-  `unit` or a hand-written function (§2).
-- `list(m)` — the identity fold for a `Repeat`: children in, array out, O(1) per
-  item. It takes the monoid because it is the one kind that has to combine its
-  rounds' metadata itself.
+- **The four `…Of` constructors are the primitive, and there is no way around
+  them.** A map entry must carry the §5 kind tag — the construction-time kind
+  check reads it, and at runtime nothing else can distinguish a terminal
+  transformer from a variant one — so a bare `TerminalTransformer` or a
+  hand-written `RepeatTransformer` is *not* installable as written. It is
+  `terminalOf(f)` and `repeatOf(r)` that make it one. An author still never
+  types a tag; the constructor writes it.
+- `terminal`, `seq`, `variant` — the same three composed with "forward `M`
+  unchanged", for the common case of a transformer that does not care about
+  metadata. A transformer that *does* care is the §1 shape passed to its
+  `…Of`. `terminal`'s callback is **not** given an EOF branch, so a rule that
+  can match the synthesized end-of-input symbol is `unit` or a
+  `terminalOf` that handles `EOF` (§2).
+- `list(m)` — `repeatOf` applied to the identity fold: children in, array out,
+  O(1) per item. It takes the monoid because a repetition is the one kind that
+  has to combine its rounds' metadata itself (§3).
 - `text(m)` — the common lexeme case: its children concatenated into a string,
   whether they are matched leaves or the strings a child rule's own transformer
   already produced.
@@ -899,8 +936,8 @@ transformer, not that transformer's children, so the merge has to be the
 engine's. It is — the `Monoid<M>` of §1, supplied once per parser. What was
 sugar for a channel the protocol lacked is now the channel.
 
-**The O(1)-`update` discipline (§4.1) applies to `list`, `text` and hand-written
-`RepeatTransformer`s only**, because they are the only shapes with an `update`.
+**The O(1)-`update` discipline (§4.1) applies to `list`, `text` and anything
+else passed to `repeatOf`**, because they are the only shapes with an `update`.
 A sequence transformer receives its whole tuple at once and cannot be quadratic
 in a length the grammar fixes.
 
@@ -919,7 +956,7 @@ one refusal:
 //   more    = () => repeat(next)             Repeat
 //   next    = () => [',', item]              Sequence
 //   noItems = () => []                       Sequence, empty
-//   item    = () => [sign, digits]           Sequence
+//   item    = () => [sign, digit, digits]    Sequence, at least one digit
 //   sign    = () => ({ minus, noSign })      Variant
 //   minus   = () => range('--')              TerminalRange
 //   noSign  = () => []                       Sequence, empty
@@ -933,10 +970,10 @@ type Nums = Result<readonly number[], string>
     minus:   terminal(() => '-'),
     noSign:  seq(() => ''),
     sign:    variant(([, s]: Branch<{ minus: string, noSign: string }>) => s),
-    item:    seq(([s, d]: readonly[string, string]) => {
-                 const n = Number(`${s}${d}`)
+    item:    seq(([s, d0, ds]: readonly[string, string, string]) => {
+                 const n = Number(`${s}${d0}${ds}`)
                  // §6: refuse what cannot be represented
-                 return Number.isSafeInteger(n) ? ok(n) : error(`${s}${d} is not a safe integer`)
+                 return Number.isSafeInteger(n) ? ok(n) : error(`${s}${d0}${ds} not a safe integer`)
              }),
     next:    seq(([, it]: readonly[unknown, Item]) => it),
     more:    list<M, Item>(m),
@@ -952,6 +989,11 @@ Read the shapes off it. `digit` is a terminal and gets a leaf. `sign` and
 `items` are variants and get a branch. `more` and `digits` are repetitions and
 are the only two folds. Everything else is a sequence and gets a tuple — one
 slot per item, punctuation included, which is where the cost below lives.
+
+`item` takes a `digit` *and* a `digits` repetition because a `Repeat` matches
+zero rounds (§2). With `[sign, digits]` alone, and `noSign` also empty, `item`
+would match nothing at all: `Number('')` is `0`, so `[,]` would be accepted and
+answer `ok([0, 0])`. One-or-more has to be spelled as one plus zero-or-more.
 
 **Every rule above `item` carries the refusal, and that is the open question's
 price in code.** `item` refuses, so its value is `Result<number, string>` (§6).
@@ -1466,15 +1508,16 @@ value* to check against a spec vector.
   this ahead of stage 1 is that the middle option **changes every sequence's
   arity** — and therefore every `C` in a map and every proof written against
   one. It is a protocol decision wearing an ergonomics question's clothes.
-- **How much of `M` the engine should merge (§1, §7).** A sequence transformer
-  gets one `M` for its whole tuple, so the engine combines its children's with
-  the construction-time `Monoid<M>`. Positions combine fine — DJS's shipped
-  `TokenMetadata` is a monoid under "leftmost defined" (§7) — but a *payload*
-  like a tokenizer's decoded number is consumed by the terminal transformer and
-  is not something a parent wants merged at all. Whether the answer is "carry
-  only mergeable things in `M`, consume payloads at the leaf" or a second,
-  unmerged channel is a question the layered-parser port should answer with a
-  real tokenizer rather than this issue in the abstract.
+- **Does the product monoid read well on a real tokenizer (§7)?** Not a stage-0
+  question, because the design is committed: **one `M`**, with a payload and a
+  mergeable field coexisting as a product whose payload component's operation is
+  constantly the identity (§7). That is a monoid, and it gives a leaf its
+  payload while every parent sees only the merged positions. A second, unmerged
+  channel would change `Meta`, every transformer signature, the erased map
+  representation and the matcher API — the stage-0 property — which is exactly
+  why it is ruled out here rather than left open. What the layered-parser port
+  should report back is only whether the product is *pleasant* to write, and a
+  helper for building one would be the answer if it is not.
 - **`(state, item)` or `(item, state)` (§12).** The two shipped folds disagree.
   `RepeatTransformer` follows `todo/flow.md`; whoever unifies them may move it,
   and this issue should not settle a repository-wide argument on its own.
