@@ -13,7 +13,7 @@
 >
 > This version keeps the goal and replaces the mechanism: a transformer says
 > what a rule builds from its children, in **one shape per data rule kind**,
-> keyed by rule name over the *data* `RuleSet`, applied by the matcher backends
+> keyed by the rule value it belongs to, applied by the matcher backends
 > themselves. It never materializes the AST, it unblocks (§11.1), and it does
 > not need RTTI to be useful. It is one design again, so the split is off.
 >
@@ -114,8 +114,8 @@ never writes it — the §9 helpers wrap in `ok`.
 
   **The symbol type is `CodePoint`, written concretely and not as a free
   parameter.** Both backends use it today, so parameterizing the protocol by an
-  alphabet now would add a type argument to `Transformer`, `TransformerMap`,
-  `transformRuleSet` and `_Output` for a generality nothing yet supplies.
+  alphabet now would add a type argument to `Transformer`, `TransformerMap` and
+  `transformRuleSet` for a generality nothing yet supplies.
   [The alphabet split](./unicode-rules.md) is what introduces it, and when it
   lands the change is mechanical: `CodePoint` becomes a parameter here and
   threads through those four.
@@ -252,10 +252,10 @@ called at all.
 The alternative — putting a `-1` leaf in the node — would contradict the EOF
 contract, which is the one thing not on the table.
 
-Rule identity is what the AST lacks and this has: the map is keyed by rule name,
-so a transformer always knows which rule it is building — the "key observation"
-the previous design had to work around by walking the grammar and the AST in
-lockstep.
+Rule identity is what the AST lacks and this has: the map is keyed by the rule
+**value**, so a transformer always knows which rule it is building — the "key
+observation" the previous design had to work around by walking the grammar and
+the AST in lockstep. §5 says why the key is the rule rather than its name.
 
 #### 3. What an unmapped rule builds
 
@@ -270,8 +270,8 @@ const terminal: TerminalTransformer<M, Ast<unknown>> =
 const sequence: SequenceTransformer<M, readonly unknown[], Ast<unknown>> =
     ([items, m]) => ok([{ tag: undefined, sequence: items }, m])
 
-const variant: VariantTransformer<M, StringMap<unknown>, Ast<unknown>> =
-    ([[tag, value], m]) => ok([{ tag, sequence: [value] }, m])
+const variant: VariantTransformer<M, StringMap<Ast<unknown>>, Ast<unknown>> =
+    ([[tag, node], m]) => ok([{ tag, sequence: node.sequence }, m])
 
 const repeat = (m: Monoid<M>): RepeatTransformer<M, unknown, _Rounds, Ast<unknown>> => ({
     init: [null, m.identity],
@@ -305,19 +305,28 @@ kind the engine cannot merge for: the others get their children all at once, a
 repetition gets its rounds one at a time, so combining them is the fold's job.
 That is why a `RepeatTransformer` written by hand takes the monoid (§9).
 
-**`variant` above is a specification, not what the engine runs.** A node's tag
-names the branch of the *enclosing variant* that reached it, and a variant
+**`variant` *retags* its branch rather than wrapping it**, and that is the whole
+of the difference between the four builders and what the engine does. A node's
+tag names the branch of the *enclosing variant* that reached it, and a variant
 contributes no node of its own: both backends pass the branch tag *down* at rule
-entry and let the branch's node be the variant's, so `ll1` does not even
-allocate a frame for a variant — it retargets the current task. Building the
-node written above would cost a frame and a second node allocation per variant
-invocation, on the path that is supposed to be unchanged. So the tag stays the
-**engine's** business for unmapped rules, and the four transformers above are
-the *specification* of what an unmapped parse builds. "The AST is one contract"
-([`../README.md`](../README.md#the-ast-is-one-contract)) is then checkable two
-ways: the `descentEquivalence` proof group in `../ll1/proof.f.mjs` pins the
-empty-map parse unchanged, and a proof that these four produce the same children
-pins the specification to the implementation.
+entry, so the branch's node is built tagged in the first place and `ll1` does not
+even allocate a frame for a variant — it retargets the current task. A builder
+that returned `{ tag, sequence: [node] }` would add an AST level and an
+allocation per variant, on the path that is supposed to be unchanged, and no
+proof could then show it equivalent. Returning the branch's own children under
+the variant's tag is extensionally what the engine produces, which is what makes
+the equivalence provable.
+
+So the engine still applies the tag its own way — at entry, without a frame —
+and these four say *what* an unmapped parse builds rather than *how*. "The AST
+is one contract" ([`../README.md`](../README.md#the-ast-is-one-contract)) is
+then checkable two ways: the `descentEquivalence` proof group in
+`../ll1/proof.f.mjs` pins the empty-map parse unchanged, and a proof that these
+four produce the same nodes pins the specification to the implementation.
+
+The branch of an *unmapped* variant is itself unmapped — §3 refuses the mixed
+case below — so the `node` this builder retags is always a node, never a
+transformed value.
 
 A variant *with* a transformer does get a frame (`descent` already has one for
 trying branches; `ll1` gains one) and its one tagged call — an addition to the
@@ -482,12 +491,14 @@ type Transformer<M, T> =
     | readonly['terminal', TerminalTransformer<M, T>]
     | readonly['sequence', number, SequenceTransformer<M, never, T>]
     | readonly['variant', readonly string[], VariantTransformer<M, never, T>]
-    | readonly['repeat', string, {
+    | readonly['repeat', FRule, {
         readonly init: unknown
         readonly update: (state: never, c: Meta<never, M>) => unknown
         readonly end: (state: never) => Out<T, M> }]
     | readonly['unit']
-type TransformerMap<M> = StringMap<Transformer<M, unknown>>
+// keyed by the rule value — reference identity, the `===` `toData` already dedups on
+type Entry<M, T> = readonly[FRule, Transformer<M, T>]
+type TransformerMap<M> = ReadonlyMap<FRule, Transformer<M, unknown>>
 
 // `fjs/bnf/ll1`'s own shape: its remainder and its result. Its *input* is the
 // shared leaf now, the same one `descent` takes (§7).
@@ -500,23 +511,31 @@ type TransformMatchResult<T, M> =
 type TransformMatch<T, M> = (s: readonly Leaf<M>[]) => TransformMatchResult<T, M>
 
 const transformRuleSet:
-    <M>(ruleSet: RuleSet, monoid: Monoid<M>) =>
-    <Map_ extends TransformerMap<M>>(map: Map_) =>
-    <K extends string>(start: K) => TransformMatch<_Output<M, Map_, K>, M>
-
-type _Output<M, Map_, K> = K extends keyof Map_
-    ? Map_[K] extends Transformer<M, infer T> ? T : never
-    : unknown
+    <M>(monoid: Monoid<M>) =>
+    (rest: TransformerMap<M>) =>
+    <T>(start: Entry<M, T>) => TransformMatch<T, M>
 ```
 
-**Every kind erases to that bound, and `_Output` still reads the value back
-out.** A terminal, sequence or variant transformer is a function whose parameter
-is `Meta<C, M>` for its own `C`, and `Meta<never, M>` is assignable to every one
-of those, so each erases however its children are typed; a
-`RepeatTransformer<M, C, S, T>` erases for every `S`. `T` appears only in an
-output position in each arm that has one, so `Transformer<M, T>` stays covariant
-in `T` and `infer T` recovers the rule's declared value through the union. No
-`any`, and no cast to build a map.
+**Every kind erases to that bound.** A terminal, sequence or variant transformer
+is a function whose parameter is `Meta<C, M>` for its own `C`, and
+`Meta<never, M>` is assignable to every one of those, so each erases however its
+children are typed; a `RepeatTransformer<M, C, S, T>` erases for every `S`. `T`
+appears only in an output position in each arm that has one, so
+`Transformer<M, T>` stays covariant in `T`. No `any`, and no cast to build a map.
+
+**The start rule's value type comes from its own entry, and nothing else.** The
+map is a `ReadonlyMap` keyed by rule *values*, so there are no literal keys for a
+conditional type to read — and none are needed. `transformRuleSet` takes the
+start rule's entry separately, typed `Entry<M, T>`, and the parse's result is
+`TransformMatch<T, M>` with that same `T`.
+
+That is smaller than what it replaces and loses nothing. An earlier revision
+keyed the map by rule *name* and recovered the output with a conditional type
+reading `Map_[K]`. It worked, but only if the author wrote `satisfies` and never
+an annotation — an annotation made every declared key optional and present in
+`keyof Map_` at once, and *every* start rule then resolved to `never`: a map that
+compiled and a value that did not. With the type coming from one entry, there is
+no conditional to defeat, no annotation trap, and no `never` to explain.
 
 **`unit` is the fifth arm and it is not a kind.** It is the transformer that
 keeps nothing, so it has no children to be typed by and no state — which makes
@@ -525,8 +544,8 @@ it yields `[undefined, identity]` directly. That is what makes the all-`unit`
 recognizer of §10 allocation-free in the strong sense — not "builds cheap values
 and discards them" but "makes no call and holds no state" — and it is also why a
 rule that can match EOF is almost always `unit` rather than a terminal
-transformer that has to branch on `-1` (§2). `_Output` reads `unknown` for a
-`unit` start rule, which is honest: it kept nothing.
+transformer that has to branch on `-1` (§2). A `unit` start entry is typed
+`Entry<M, undefined>`, which is honest: it kept nothing.
 
 **The tag is there because nothing else can carry the kind.** Erased, a
 terminal, a sequence and a variant transformer are the *same function type* —
@@ -535,14 +554,14 @@ tag a map could supply a terminal transformer for a variant rule and neither the
 type nor a runtime inspection would notice: at runtime all three are just
 functions. It would fail as a variant handing its `[branchName, value]` pair to
 a callback expecting a leaf. The tag is written by the §9 helpers, never by
-hand, and it makes the kind visible exactly where the `RuleSet` is available to
+hand, and it makes the kind visible exactly where the rule is available to
 compare it against.
 
 **The child shape rides beside it, for the same reason.** `C` is a type
 parameter and is erased, so a sequence's arity and a variant's branch names
 would otherwise reach no check at all — an author's claim that a grammar change
 could silently invalidate (§8). Each entry now carries it as data: a sequence's
-arity, a variant's branch names, a repetition's repeated-rule name. The §9
+arity, a variant's branch names, a repetition's repeated rule. The §9
 helpers take it, and the type system makes it self-checking rather than a second
 thing to keep in step — `seq`'s parameter is typed `C['length']`, so a `3` beside
 a four-slot tuple is a compile error, and `variant`'s is `keyof C & string`, so a
@@ -551,9 +570,11 @@ name absent from the branch record is one too.
 **Five things are resolved when the parser is built**, all O(rules) and none of
 them able to be incomplete:
 
-- **Every map key names a rule.** This catches the failure that actually happens
-  — a rule renamed or misspelled, whose transformer then never fires and whose
-  absence looks like a parser bug.
+- **Every keyed rule is reachable from the start rule.** Keying by value makes a
+  *misspelled* key impossible — there is no spelling — but not a stale one: a
+  rule dropped from the grammar while its entry stayed behind is a transformer
+  that never fires, and looks like a parser bug. `toData` already visits every
+  reachable rule value, so this is a set difference.
 - **Every entry's kind agrees with its rule's.** The entry's tag against the
   `RuleSet`'s kind, all four ways — `unit` excepted, which matches any kind
   because it reads nothing. This is a *construction*-time check and not a
@@ -565,23 +586,15 @@ them able to be incomplete:
 - **Every entry's declared child shape agrees with its rule's.** A sequence's
   arity against the rule's item count, a variant's branch names against the
   rule's branch set — in both directions, so a branch the grammar has and the
-  map forgot fails here too — and a repetition's repeated-rule name against the
-  rule's. This is what closes the gap §8 used to end on: a grammar edit that
+  map forgot fails here too — and a repetition's declared repeated rule against
+  the rule's. This is what closes the gap §8 used to end on: a grammar edit that
   invalidates a map now fails at construction instead of calling a callback with
   a shape it did not expect.
-- **`start` resolves.** `K extends string` accepts any name — it has to, since a
-  start rule the map does not transform is legal (`_Output` gives it `unknown`)
-  — so nothing in the type stops a typo. The builder resolves `start` against
-  the `RuleSet` alongside every map key, and throws there rather than letting a
-  mistyped start rule reach the machine and fail on the first parse.
+- **`start` is a rule value**, so it cannot be mistyped either — but it must be
+  a rule of the grammar being built, and that is checked here.
 - **No mapped branch sits under an unmapped variant.** The tag would have
   nowhere to go, so that map is refused here too, naming both rules — §3 is
   where the reasoning is.
-
-The type reads `Map_` as the map literal's *own* type, which is why §8 says to
-check the map with `satisfies` and never to annotate it: an annotation makes
-every declared key optional and present in `keyof Map_` at once, and then
-`_Output` cannot tell a rule the map supplies from one it omits.
 
 **A parse that did not finish has no value, and the type says so.** The root's
 transformer never runs when the grammar rejects the input — a failure propagates
@@ -630,13 +643,11 @@ split [`../matcher/README.md`](../matcher/README.md) already draws between what
 is shared and what is each machine's own, with the leaf moving from the second
 column to the first.
 
-The start rule moves into the builder, and that is what connects the map to the
-parse's type: a map written as an object literal keeps its literal keys, so
-`Map_[K]` is the start rule's *own* transformer and `_Output` reads the output
-type out of it — no cast, and no unconstrained type parameter for a caller to fill in
-by annotation. A start rule the map does not name gives `unknown`, which is
-honest: it builds an AST node whose children may themselves be transformed
-values, so it is not an `Ast<CodePoint>` and must not claim to be.
+The start rule moves into the builder as a typed `Entry`, and that is what
+connects the map to the parse's type — no cast, no conditional, and no
+unconstrained type parameter for a caller to fill in by annotation. A start rule
+with no transformer is passed as `[rule, unit]` and yields `undefined`; a caller
+who wants the AST uses `parserRuleSet`.
 
 The remainder keeps its present meaning in every case: what is left where the
 match stopped, and `null` where the input ran out. It is a suffix of the input,
@@ -886,84 +897,38 @@ matched by either one.
 
 The previous design proved that TypeScript cannot type a *functional* cyclic
 grammar: the `: Rule` annotations that break the inference cycle erase the
-structure an action would be inferred from. That result stands and is not
-worked around here — it is sidestepped, because this map is keyed over the
-**data** `RuleSet`, which is a flat `Record<string, Rule>` whose recursion goes
-through string names. There is no type-level cycle to break.
+structure an action would be inferred from. That result stands and is not worked
+around here — it is sidestepped, because nothing in this design infers a
+transformer's types *from* a rule's type. An entry pairs a rule value with a
+transformer whose types the author writes; the rule contributes identity, not
+structure. There is no cycle to break.
 
-So an author declares the value domain by rule name and gets ordinary static
-checking of every transformer's result:
+So each transformer is checked where it is written, and the parse's value type
+comes from the start entry (§5) rather than from a table of rule names. What an
+author declares is:
 
-```ts
-type Values = {
-    readonly digits: string
-    readonly item: Result<number, string>
-    readonly list: Result<readonly number[], string>
-    // …
-}
-type Transformers = { readonly[K in keyof Values]?: Transformer<M, Values[K]> }
+- **the value a transformer produces**, which is just its callback's return
+  type;
+- **the types of that rule's children**, as the tuple `C` of a sequence or the
+  branch record of a variant.
 
-const map = { /* … */ } satisfies Transformers   // checked, never annotated
-```
-
-**`satisfies`, not an annotation**, and the difference is not stylistic. The
-properties are optional, because a grammar has rules no one transforms — so
-`const map: Transformers = …` widens every key to
-`Transformer<M, T> | undefined`, whether or not the map supplies it. `Map_[K]`
-is then a union in a non-distributive position, `_Output`'s conditional does not
-match, and **every** start rule resolves to `never`: the map compiles, and the
-first use of the parse's value does not. `satisfies` checks each result against
-`Values[K]` while keeping the
-literal's own keys, so a rule the map supplies infers its `T` and one it omits
-falls through to `unknown` — exactly the reason
-[`fjs/AGENTS.md` §3.2](../../AGENTS.md#prefer-satisfies-over-type-when-checking-not-overriding)
-prefers `@satisfies` wherever the goal is to check a shape rather than to
-declare one.
-
-**Do not "fix" that `never` with `NonNullable<Map_[K]>`.** It looks like the
-obvious repair and it is the unsound one: stripping the `undefined` makes an
-*omitted* start rule infer `Values[K]` while the parse takes the unmapped path
-and returns an AST node — a wrong type reported confidently, in place of a
-compile error. The `never` is the failure worth having, and the fix belongs at
-the map, not at `_Output`.
-
-Every transformer's result is checked against the rule's declared output, and
-`_Output` (§5) reads the start rule's entry back out of the same map to type the
-parse's result. A `RepeatTransformer`'s own `S` is checked where it is written;
-the map only ever sees the erased `Transformer<M, T>`.
-
-**Children are typed, and this is what the four kinds bought.** A uniform
-`update` taking one child at a time has `unknown` as its item type, so every
-child type in a map was an annotation the author wrote and nobody checked. Here
-a sequence transformer declares its children as a tuple and a variant
-transformer as a record of branches; the callback destructures them and each
-child arrives at its declared type.
-
-**`C` is erased, so the map carries the shape as data too.** A type parameter
-does not survive to runtime, so a sequence's tuple and a variant's record of
-branches reach no construction check on their own: a `C` with the wrong arity,
-two positions transposed, or a branch name the grammar does not have would
-compile and build a parser. That was the last of the annotation problem, and §5
-closes it — each entry declares its arity, branch names, or repeated-rule name,
-and construction compares them with the `RuleSet` in both directions.
-
-The declaration is not a second thing to keep in step with `C`, because the type
-system ties them together:
+The second is the claim worth being exact about, and §5 already narrows it. `C`
+is a type parameter and is erased, so the *shape* is carried as data alongside
+it and compared with the grammar at construction — a sequence's arity, a
+variant's branch names in both directions, a repetition's repeated rule. The
+declaration cannot drift from `C`, because the type system ties them:
 
 - **`seq`'s arity parameter is typed `C['length']`.** A tuple type's `length` is
-  a numeric literal, so `seq(3, …)` beside a four-slot `C` is a compile error,
-  not a runtime surprise.
+  a numeric literal, so `seq(3, …)` beside a four-slot `C` is a compile error.
 - **`variant`'s names are typed `keyof C & string`**, so a name absent from the
   branch record does not compile. The reverse direction — a branch the *grammar*
   has that neither `C` nor the list mentions — is what the construction check
-  catches, since only the `RuleSet` knows it.
-- **The kind itself** is checked the same way, from the tag the helpers write.
+  catches, since only the grammar knows it.
+- **The kind** is checked the same way, from the tag the §9 helpers write.
 
-What is left to the author is which types the slots hold, not how many there are
-or what they are called. That is a claim a reader can check against the grammar,
-and it is the residue this design accepts.
-
-The rest of what runs at parser construction is in §5.
+What is left to the author is which types the slots *hold*, not how many there
+are or what they are called. That is a claim a reader can check against the
+grammar, and it is the residue this design accepts.
 
 RTTI is **not** on this path. `in`/`out` schemas per transformer, `subset`
 compatibility at instantiation, and per-node `parse` remain available as an
@@ -977,6 +942,9 @@ The four shapes are the primitive; the ergonomics come from a small library over
 them. It is also what writes the §5 kind tag, so an author never types one:
 
 ```ts
+// pairs a rule value with its transformer; the start entry's `T` is the parse's
+const entry: <M, T>(rule: FRule, t: Transformer<M, T>) => Entry<M, T>
+
 // tagging constructors: a §1 shape plus its declared child shape in,
 // a map-installable `Transformer` out
 const terminalOf: <M, T>(f: TerminalTransformer<M, T>) => Transformer<M, T>
@@ -985,7 +953,7 @@ const seqOf:      <M, C extends readonly unknown[], T>(
 const variantOf:  <M, C, T>(
                       branches: readonly (keyof C & string)[],
                       f: VariantTransformer<M, C, T>) => Transformer<M, T>
-const repeatOf:   <M, C, S, T>(item: string, r: RepeatTransformer<M, C, S, T>) => Transformer<M, T>
+const repeatOf:   <M, C, S, T>(item: FRule, r: RepeatTransformer<M, C, S, T>) => Transformer<M, T>
 
 // sugar: the callback sees the value alone, `M` is forwarded, the result is `ok`
 const terminal: <M, T>(f: (symbol: CodePoint) => T) => Transformer<M, T>
@@ -995,8 +963,8 @@ const seqR:     <M, C extends readonly unknown[], T>(
                     arity: C['length'], f: (children: C) => Result<T, string>) => Transformer<M, T>
 const variant:  <M, C, T>(
                     branches: readonly (keyof C & string)[], f: (b: Branch<C>) => T) => Transformer<M, T>
-const list:     <M, C>(item: string, m: Monoid<M>) => Transformer<M, readonly C[]>
-const text:     <M>(item: string, m: Monoid<M>) => Transformer<M, string>
+const list:     <M, C>(item: FRule, m: Monoid<M>) => Transformer<M, readonly C[]>
+const text:     <M>(item: FRule, m: Monoid<M>) => Transformer<M, string>
 const unit:     readonly['unit']
 ```
 
@@ -1015,13 +983,16 @@ const unit:     readonly['unit']
   `terminal`'s callback is **not** given an EOF branch, so a rule that can match
   the synthesized end-of-input symbol is `unit` or a `terminalOf` that handles
   `EOF` (§2).
+- `entry(rule, t)` pairs a rule **value** with its transformer — the only place
+  the two meet. The start rule's entry goes to `transformRuleSet` separately,
+  because it carries the parse's value type (§5).
 - **The child-shape argument comes first in each**, and the compiler keeps it
   honest: `arity` is typed `C['length']` and `branches` is `keyof C & string`
   (§8), so neither can drift from the tuple or record it describes.
 - `list(item, m)` — `repeatOf` applied to the identity fold: children in, array
   out, O(1) per item. It takes the monoid because a repetition is the one kind
-  that has to combine its rounds' metadata itself (§3), and the repeated rule's
-  name because that is a `Repeat`'s child shape.
+  that has to combine its rounds' metadata itself (§3), and the repeated **rule
+  value** because that is a `Repeat`'s child shape.
 - `text(item, m)` — the common lexeme case: the repeated rule's results
   concatenated into a string. **Its item rule must produce a string**, because a
   `Repeat`'s children are rule *results* and never raw leaves — only a terminal
@@ -1067,26 +1038,30 @@ one refusal:
 //   noSign  = () => []                       Sequence, empty
 //   digits  = () => repeat(digit)            Repeat
 //   digit   = () => range('09')              TerminalRange
-{
-    digit:   terminal(c => String.fromCodePoint(c)),
-    digits:  text('digit', m),
-    minus:   terminal(() => '-'),
-    noSign:  seq(0, () => ''),
-    sign:    variant(['minus', 'noSign'],
-                 ([, s]: Branch<{ minus: string, noSign: string }>) => s),
-    item:    seqR(3, ([s, d0, ds]: readonly[string, string, string]) => {
-                 const n = Number(`${s}${d0}${ds}`)
-                 // §6: refuse what cannot be represented
-                 return Number.isSafeInteger(n) ? ok(n) : error(`${s}${d0}${ds} not a safe integer`)
-             }),
-    next:    seq(2, ([, it]: readonly[unknown, number]) => it),
-    more:    list<M, number>('next', m),
-    some:    seq(2, ([first, rest]: readonly[number, readonly number[]]) => [first, ...rest]),
-    noItems: seq(0, () => []),
-    items:   variant(['some', 'noItems'],
-                 ([, xs]: Branch<{ some: readonly number[], noItems: readonly number[] }>) => xs),
-    list:    seq(3, ([, xs]: readonly[unknown, readonly number[], unknown]) => xs),
-}
+// the rules are ordinary values the author holds; the map is keyed by them
+new Map([
+    entry(digit,   terminal(c => String.fromCodePoint(c))),
+    entry(digits,  text(digit, m)),
+    entry(minus,   terminal(() => '-')),
+    entry(noSign,  seq(0, () => '')),
+    entry(sign,    variant(['minus', 'noSign'],
+                       ([, x]: Branch<{ minus: string, noSign: string }>) => x)),
+    entry(item,    seqR(3, ([s, d0, ds]: readonly[string, string, string]) => {
+                       const n = Number(`${s}${d0}${ds}`)
+                       // §6: refuse what cannot be represented
+                       return Number.isSafeInteger(n) ? ok(n)
+                           : error(`${s}${d0}${ds} not a safe integer`)
+                   })),
+    entry(next,    seq(2, ([, it]: readonly[unknown, number]) => it)),
+    entry(more,    list<M, number>(next, m)),
+    entry(some,    seq(2, ([first, rest]: readonly[number, readonly number[]]) =>
+                       [first, ...rest])),
+    entry(noItems, seq(0, () => [])),
+    entry(items,   variant(['some', 'noItems'],
+                       ([, xs]: Branch<{ some: readonly number[], noItems: readonly number[] }>) => xs)),
+])
+// and the start rule's entry, passed separately because it carries the parse's type:
+entry(list, seq(3, ([, xs]: readonly[unknown, readonly number[], unknown]) => xs))
 ```
 
 Read the shapes off it. `digit` is a terminal and gets a leaf. `sign` and
@@ -1113,6 +1088,12 @@ in their declared value, `some` had to `allOk` its children with explicit type
 arguments, `noItems` had to return `ok([])` so the variant's arms agreed, and
 two type aliases existed only to name the plumbing. The engine channel costs a
 `Result` in four signatures nobody writes by hand, and this map is what it buys.
+
+**Each entry is keyed by the rule value, not a name.** `digit`, `items` and the
+rest are the grammar's own `const`s — no named-thunk rewrite, no generated names
+to predict, and `list` is passed as the start entry because it carries the
+parse's type (§5). `text(digit, m)` and `list(next, m)` name their repeated rule
+the same way: by handing over the rule.
 
 **Each entry declares its child shape, and the compiler will not let it drift.**
 `seq(3, …)` beside a four-slot tuple does not compile — the parameter is typed
@@ -1177,8 +1158,8 @@ punctuation terminals and the grammar's anonymous rules untransformed, so each
 of those still builds its own node (§3). What no longer happens is the O(*n*)
 part: a mapped rule builds no node, and the nodes its unmapped children built
 are dropped as soon as it folds them, so nothing accumulates into a root AST.
-Only a map that names every reachable rule — the recognizer below — allocates no
-node at all.
+Only a map with an entry for every reachable rule — the recognizer below —
+allocates no node at all.
 
 **Why this is not the JSON example, and what JSON adds.** Stage 2 wants a JSON
 grammar checkable against the spec's test vectors (§11.6), and the map for one
@@ -1302,30 +1283,35 @@ the split to four kinds exactly where it matters: a `Repeat` is the unbounded
 kind and it folds, while the fixed-arity kinds do take their children as a
 tuple — an array whose length the grammar bounds, not one the input grows.
 
-**11.3 `mapRule` is dropped, and name-keying costs the grammar its spelling.**
-Wrapping rules in the functional form to carry actions required every consumer
-(`toData`, `dispatchMap`, both backends) to learn to skip a wrapper, in exchange
-for TypeScript inference that §8's predecessor proved does not survive a cyclic
-grammar. Keying by data-rule name keeps the grammar untouched instead — but only
-rules `toData` can *name* may carry a transformer, and that bites harder than "a
-caveat".
+**11.3 `mapRule` is dropped, and keying by rule value costs the grammar
+nothing.** Wrapping rules in the functional form to carry actions required every
+consumer (`toData`, `dispatchMap`, both backends) to learn to skip a wrapper, in
+exchange for TypeScript inference that §8's predecessor proved does not survive
+a cyclic grammar. Keying a separate map by the rule **value** keeps the grammar
+untouched instead, and — unlike keying by name — asks nothing of how it is
+written.
 
-`toData` takes a name from a thunk's `fr.name`, so a rule written as a named
-`() =>` thunk keeps its name, while anything else — a `const` bound to an array
-or an object literal, an inline combinator call — is anonymous and gets a
-generated one (with `newName` disambiguating collisions). Measured on the
-shipped example: `toData(deterministic())`
-([`../testlib.f.mjs`](../testlib.f.mjs)) produces **92 rules**, named `1`…`87`,
-`r`, `r0`…`r3`, `value`, and `""` for the entry. One name in ninety-two is
-meaningful, because `value` is the only rule that grammar spells as a thunk.
+That last point was not free, and an intermediate revision of this issue got it
+wrong. Keyed by *name*, only rules `toData` can name could carry a transformer:
+it takes a name from a thunk's `fr.name`, so a named `() =>` thunk keeps its
+name while anything else — a `const` bound to an array or an object literal, an
+inline combinator call — is anonymous and gets a generated one, with `newName`
+disambiguating collisions. Measured on the shipped example:
+`toData(deterministic())` ([`../testlib.f.mjs`](../testlib.f.mjs)) produces
+**92 rules**, named `1`…`87`, `r`, `r0`…`r3`, `value`, and `""` for the entry —
+**one name in ninety-two** is meaningful, because `value` is the only rule that
+grammar spells as a thunk. Under name-keying, a grammar meant to carry
+transformers had to be rewritten so every interesting rule was a named thunk,
+and a combinator could not address the rules it generated at all (§10).
 
-So a grammar meant to carry transformers has to be *written* for it, with every
-rule an author wants to transform bound as a named thunk. That is an authoring
-rule rather than a limit of the protocol, but it is work on every existing
-grammar — which is why stage 2 starts by giving the example grammar stable names
-instead of by writing transformers for it. The construction-time name check (§1)
-is what turns getting this wrong into a failure at construction rather than a
-transformer that silently never fires.
+Keying by value deletes all of that. `find` in
+[`../data/module.f.mjs`](../data/module.f.mjs) already identifies rules by
+`v === fr`, so a rule value is a key whether or not it has a name, and whoever
+holds the rule holds the key. `deterministic()` can carry transformers as it is
+written. A combinator can hand back a fragment for the rules it built, because
+it holds them (§10). What `toData` owes this design is one thing rather than a
+naming convention: **expose the rule-value → name mapping it already builds**
+(`_FRuleMap`), so the engine can attach each entry to the rule it names.
 
 **11.4 List flattening is already done.** The structural right-recursion
 detection the previous design spent a section on shipped as the `Repeat` rule,
@@ -1478,7 +1464,7 @@ types undecided cannot be implemented against.
       restores the engine-attached `{ rule, at, message }`, so a grammar no
       longer has to carry positions in `M` to diagnose a refusal.
 - [x] **The child shape: carried as data.** Each entry declares its arity,
-      branch names, or repeated-rule name, and construction compares them with
+      branch names, or repeated rule, and construction compares them with
       the `RuleSet` in both directions (§5, §8). The duplication worry does not
       materialize, because the type system ties the declaration to `C`:
       `seq`'s parameter is `C['length']` and `variant`'s is `keyof C & string`,
@@ -1493,11 +1479,23 @@ types undecided cannot be implemented against.
       solve a problem that does not need it. This one leaves stage 0 entirely —
       it is stage-2 library work.
 
+      **This is what forced the map's key to be the rule value** (§1, §11.3). A
+      fragment keyed by *name* runs into the same wall as the engine-dropped
+      `unit`: a combinator cannot predict the names `toData` will generate for
+      the rules it built. Keyed by value it simply hands back what it holds, and
+      `toData` exposing its rule → name mapping is the one small addition that
+      makes the engine able to use it.
+
 **Stage 1 — the protocol and `fjs/bnf/ll1`.**
 
-- [ ] Add `Meta`, `Branch`, the four transformer types, the tagged erased
-      `Transformer` and `TransformerMap` to `fjs/bnf/matcher/types.ts`, and the
-      four default builders (§3) to its `module.f.mjs`.
+- [ ] Add `Meta`, `Branch`, the four transformer types, `Entry`, the tagged
+      erased `Transformer` and `TransformerMap` to `fjs/bnf/matcher/types.ts`,
+      and the four default builders (§3) to its `module.f.mjs`.
+- [ ] Have `toData` **expose the rule-value → name mapping** it already builds
+      (`_FRuleMap` in `fjs/bnf/data`), so the engine can attach an entry keyed by
+      a rule value to the data rule that value became (§5, §11.3). Additive: it
+      neither changes the `Rule` model nor the AST, which is what distinguishes
+      it from the silent-rule flag rejected in stage 0.
 - [ ] Move `CodePointMeta<T>` out of `fjs/bnf/descent/types.ts` into
       `fjs/bnf/matcher/types.ts` as `Meta<T, M>`, and rewrite the doc comment
       that calls the metadata leaf "what distinguishes this backend" — it does
@@ -1527,14 +1525,16 @@ types undecided cannot be implemented against.
 - [ ] Add a variant frame — `ll1` has none today, because a variant only
       retargets the current task — and push it **only** for a variant the map
       names, so the untransformed path keeps costing neither a frame nor a node.
-- [ ] Prove the four default builders (§3) produce the same children the
-      engine's native path builds a node from, so the specification and the
-      implementation of the default cannot drift.
+- [ ] Prove the four default builders (§3) produce the same nodes the engine's
+      native path does, so the specification and the implementation of the
+      default cannot drift. `variant` retags its branch rather than wrapping it,
+      which is what makes that provable — a wrapper would add an AST level the
+      engine never builds.
 - [ ] Add `transformRuleSet` (§5) and run all five construction-time checks:
-      every map key names a rule; every entry's **kind tag matches its rule's
+      every keyed rule is reachable from the start rule; every entry's **kind tag matches its rule's
       kind**; every entry's **declared child shape matches its rule's** — a
       sequence's arity, a variant's branch names in both directions, a
-      repetition's repeated-rule name; `start` resolves; and no mapped branch
+      repetition's repeated rule; `start` is a rule of the grammar; and no mapped branch
       sits under an unmapped variant. Throw rather than parse — `K extends string`
       cannot reject a mistyped start name, since an untransformed start rule is
       legal, and no type can reject a terminal transformer supplied for a
@@ -1583,12 +1583,12 @@ value* to check against a spec vector.
       entry for a rule they did not write (§10). This is stage 0's third
       decision landing as library work: no protocol change, and the fragment
       declares its own arities and branch names so it is checked like any other
-      entry.
-- [ ] Only then rewrite the JSON example grammar's rules as **named thunks**, so
-      `toData` keeps their names: `deterministic()` yields 92 rules of which exactly one,
-      `value`, is named (§11.3), and no transformer map can address the rest.
-      Prove the AST is unchanged — naming a rule must not reshape the grammar.
-- [ ] Then give that grammar a transformer set, budgeting for what §10 counts:
+      entry. It is keying by rule *value* that makes it possible at all: a
+      combinator holds the rules it built, and does not have to predict the
+      names `toData` will generate for them (§11.3).
+- [ ] Give the JSON example grammar a transformer set **as it is written** — no
+      rewrite into named thunks, which name-keying would have required and value
+      keying does not (§11.3). Budget for what §10 counts:
       six rules for a string, about nine for a number (each "optional" a
       `Variant` with an empty branch, never a `Repeat`), five each for objects
       and arrays, and a seven-branch `value`. Prove it against the spec's
@@ -1630,18 +1630,25 @@ shape as data, and silent children. Their decisions and the evidence are in
 Tasks, stage 0. What is left cannot change stage 1's public types:
 
 - **Does the product monoid read well on a real tokenizer (§7)?** Not a stage-0
-  question, because the design is committed: **one `M`**, with a payload and a
-  mergeable field coexisting as a product whose payload component's operation is
-  constantly the identity (§7). That is a monoid, and it gives a leaf its
-  payload while every parent sees only the merged positions. A second, unmerged
-  channel would change `Meta`, every transformer signature, the erased map
-  representation and the matcher API — the stage-0 property — which is exactly
-  why it is ruled out here rather than left open. What the layered-parser port
-  should report back is only whether the product is *pleasant* to write, and a
-  helper for building one would be the answer if it is not.
-- **`(state, item)` or `(item, state)` (§12).** The two shipped folds disagree.
-  `RepeatTransformer` follows `todo/flow.md`; whoever unifies them may move it,
-  and this issue should not settle a repository-wide argument on its own.
+  question, because the design is committed: **one `M`**, a product whose every
+  component is a lawful monoid — "leftmost defined" on each, per §7 — with the
+  transformer, not the carrier, deciding when to stop propagating a consumed
+  payload. A second, unmerged channel would change `Meta`, every transformer
+  signature, the erased map representation and the matcher API — the stage-0
+  property — which is why it is ruled out here rather than left open. What the
+  layered-parser port should report back is only whether the product is
+  *pleasant* to write, and a helper for building one would be the answer if it
+  is not.
+- **The repository-wide `(state, item)` argument (§12), not this issue's.**
+  `RepeatTransformer.update` is **`(state, item)`**, committed, following
+  `todo/flow.md`'s `Transducer`; `fjs/types/list`'s `Accumulator` is the other
+  way round. That is settled here because stage 1 publishes it and every
+  hand-written repeat transformer depends on it — an open question that could
+  move a published parameter order would belong in stage 0, and this one does
+  not, because it is decided. What stays open is the *repository's* eventual
+  unification, which this issue should not settle for `Accumulator` and `Sha2`
+  on its own; if it lands the other way, that is a breaking change with a
+  migration, not a question left dangling here.
 - **Output-level streaming (§4.3).** A typed drain needs the start rule to be a
   `Repeat` and needs its `S`, which the map erases; flow's output chunk taxes
   every rule with a channel it does not use. Deferred until a consumer names
