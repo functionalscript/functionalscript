@@ -14,7 +14,9 @@ site, with three naming conventions and no shared constructor:
   `"TypeError: Cannot convert a BigInt value to a number"`;
 - `src/vm/primitive_coercion.rs:8` — a file-local
   `const CANNOT_CONVERT_TO_PRIMITIVE_VALUE`;
-- `src/vm/numeric.rs:21` — `"TODO: Cannot multiply Number and BigInt"`;
+- `src/vm/numeric.rs:5-6` — a file-local
+  `CANNOT_MIX_NUMBER_AND_BIGINT` constant shared by multiplication and
+  subtraction;
 - `src/vm/bigint/shl.rs:8-12` — a file-local `TOO_LARGE` const plus a
   `too_large()` wrapper, i.e. one file already invented the missing
   abstraction privately.

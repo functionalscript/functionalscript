@@ -2,6 +2,7 @@ mod add;
 mod from;
 mod neg;
 mod partial_eq;
+mod sub;
 
 pub mod to_any;
 
