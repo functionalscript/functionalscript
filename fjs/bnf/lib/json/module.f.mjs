@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Rule, Variant } from '../../types.ts'
+ * @import { Rule, Sequence, Variant } from '../../types.ts'
  */
 
 import { commaJoin0Plus, option, range, remove, repeat, repeat0Plus, set, unicodeMax } from '../../module.f.mjs'
@@ -41,17 +41,15 @@ const digits = [digit, digits0]
 
 export const optionNeg = option('-')
 
-/** @type {Rule} */
-export const uint = {
+export const uint = /**@type {const}*/({
     0: '0',
     onenine: [onenine, digits0],
-}
+})
 
-/** @type {readonly [Rule, Rule]} */
-export const optionFloatSuffix = [
+export const optionFloatSuffix = /**@type {const}*/([
     option(['.', digits]),
     option([set('Ee'), option(set('+-')), digits])
-]
+])
 
 const number = [
     optionNeg,
@@ -65,10 +63,10 @@ export const ws = repeat0Plus(wsSymbol)
 
 export const cj = commaJoin0Plus(ws)
 
-/** @type {(v: Rule) => Rule} */
+/** @type {(v: Rule) => Sequence} */
 export const array = v => cj('[]', v)
 
-/** @type {(property: Rule, v: Rule) => Rule} */
+/** @type {(property: Rule, v: Rule) => Sequence} */
 export const object = (p, v) => cj('{}', [p, ws, ':', ws, v])
 
 /** @type {(property: Rule, v: Rule) => Variant} */
@@ -84,5 +82,4 @@ export const createValue = (p, v) => ({
 
 const value = () => createValue(string, value)
 
-/** @type {Rule} */
-export const json = [ws, value, ws]
+export const json = /**@type {const}*/([ws, value, ws])

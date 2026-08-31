@@ -11,37 +11,32 @@
  *
  * @module
  *
- * @import { Rule } from '../../types.ts'
+ * @import { Rule, Sequence, Variant } from '../../types.ts'
  */
 
 import { createValue, digit, optionFloatSuffix, optionNeg, string, uint, ws, wsSymbol } from '../json/module.f.mjs'
 import { range, repeat0Plus, repeat1Plus } from '../../module.f.mjs'
 
-/** @type {Rule} */
-const uNumber = {
+const uNumber = /**@type {const}*/({
     finite: [uint, { n: 'n', optionFloatSuffix }],
     infinity: 'Infinity'
-}
+})
 
-/** @type {Rule} */
-const number = [optionNeg, uNumber]
+const number = /**@type {const}*/([optionNeg, uNumber])
 
-/** @type {Rule} */
-const letter = {
+const letter = /**@type {const}*/({
     lo: range('az'),
     up: range('AZ'),
     _: '_',
     $: '$',
-}
+})
 
-/** @type {Rule} */
-const id = ['$', repeat0Plus({ letter, digit })]
+const id = /**@type {const}*/(['$', repeat0Plus({ letter, digit })])
 
-/** @type {Rule} */
-const property = {
+const property = /**@type {const}*/({
     string,
     proto: '["__proto__"]',
-}
+})
 
 const value = () => ({
     ...createValue(property, value),
@@ -53,15 +48,14 @@ const value = () => ({
 
 const ws1 = repeat1Plus(wsSymbol)
 
-/** @type {(...v: readonly Rule[]) => Rule} */
+/** @type {(...v: readonly Rule[]) => Sequence} */
 const statement = (...v) => [...v, value, ws, ';', ws]
 
-/** @type {Rule} */
-export const dataJs = [
+export const dataJs = /**@type {const}*/([
     ws,
     repeat0Plus(statement('const', ws1, id, ws, '=', ws)),
     statement('export', ws1, 'default', ws1)
-]
+])
 
 // const $0={["__proto__"]:"world!"};const $1=[3,5n];export default [4,$0,$1];
 // export default [4,{},{}];
