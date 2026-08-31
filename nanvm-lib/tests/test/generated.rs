@@ -190,10 +190,8 @@ fn string_coercion<A: IVm>() {
     check::<A>("null", Nullish::Null.to_any().to_string().map(|v| v.to_any()), string_any("null"));
     check::<A>("undefined", Nullish::Undefined.to_any().to_string().map(|v| v.to_any()), string_any("undefined"));
     check::<A>("string", string_any("already").to_string().map(|v| v.to_any()), string_any("already"));
-    // TODO: nanvm-lib prints bigints in hexadecimal; see nanvm-lib/todo/bigint-decimal-string-coercion.md
-    // check::<A>("bigint", bigint_any(123).to_string().map(|v| v.to_any()), string_any("123"));
-    // TODO: nanvm-lib prints bigints in hexadecimal; see nanvm-lib/todo/bigint-decimal-string-coercion.md
-    // check::<A>("negativeBigint", bigint_any(-456).to_string().map(|v| v.to_any()), string_any("-456"));
+    check::<A>("bigint", bigint_any(123).to_string().map(|v| v.to_any()), string_any("123"));
+    check::<A>("negativeBigint", bigint_any(-456).to_string().map(|v| v.to_any()), string_any("-456"));
     check::<A>("emptyArray", Array::default().to_any().to_string().map(|v| v.to_any()), string_any(""));
     check::<A>("singletonArray", [(1f64).to_any()].to_array().to_any().to_string().map(|v| v.to_any()), string_any("1"));
     check::<A>("array", [(1f64).to_any(), (2f64).to_any(), (3f64).to_any()].to_array().to_any().to_string().map(|v| v.to_any()), string_any("1,2,3"));
