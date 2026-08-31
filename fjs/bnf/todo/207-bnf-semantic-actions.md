@@ -115,7 +115,7 @@ never writes it — the §9 helpers wrap in `ok`.
   **The symbol type is `CodePoint`, written concretely and not as a free
   parameter.** Both backends use it today, so parameterizing the protocol by an
   alphabet now would add a type argument to `Transformer`, `TransformerMap` and
-  `transformRuleSet` for a generality nothing yet supplies.
+  `transformers` for a generality nothing yet supplies.
   [The alphabet split](./unicode-rules.md) is what introduces it, and when it
   lands the change is mechanical: `CodePoint` becomes a parameter here and
   threads through those four.
@@ -177,8 +177,8 @@ node with a channel that is generic in what it carries (§7).
 sequence transformer receives one `M` for the whole tuple, so the engine
 combines its children's. That is
 [`fjs/common/monoid`](../../common/monoid/module.f.mjs)'s shipped `Monoid<T>` —
-identity plus an associative operation — passed to `transformRuleSet` once
-rather than declared per rule. The identity is what an empty `Sequence` and a
+identity plus an associative operation — passed to `transformers` once rather
+than declared per rule. The identity is what an empty `Sequence` and a
 zero-round `Repeat` produce, so every kind is total without a special case, and
 a caller that wants no metadata picks `M = null` and the trivial monoid. A
 transformer's *output* `M` is its own to choose: it may forward what it was
@@ -342,7 +342,7 @@ refused.** An unmapped variant owns no node: the engine hands its branch's node
 the tag and that node *is* the variant's. If the branch is mapped, there is no
 node to tag, so the tag has nowhere to go at all — the unmapped variant would
 silently stop building the AST §3 promises, and a transformed ancestor could not
-tell which branch matched. So `transformRuleSet` refuses at construction when a
+tell which branch matched. So `build` refuses at construction when a
 mapped rule is the branch of an *unmapped* variant, naming both rules: transform
 the variant too, or drop the branch's transformer.
 
@@ -459,7 +459,7 @@ So:
 - the four transformer types, the erased `Transformer` and `TransformerMap` go
   in `fjs/bnf/matcher/types.ts`, the four default builders (§3) in its
   `module.f.mjs`;
-- each backend gains one entry point that takes a map (`transformRuleSet`
+- each backend gains one entry point that takes a map (`transformers`/`build`
   below), and its frames carry `(rule name, collected children — or, for a
   `Repeat`, state)` where they carried an `AstSequence`;
 - no third walk exists to desync from the other two.
@@ -510,11 +510,22 @@ type TransformMatchResult<T, M> =
 
 type TransformMatch<T, M> = (s: readonly Leaf<M>[]) => TransformMatchResult<T, M>
 
-const transformRuleSet:
-    <M>(monoid: Monoid<M>) =>
-    (rest: TransformerMap<M>) =>
-    <T>(start: Entry<M, T>) => TransformMatch<T, M>
+// `M` is bound once, by the factory, for the helpers and the engine alike (§9)
+const transformers: <M>(monoid: Monoid<M>) => Transformers<M>
+// …whose `build` is the entry point:
+//   build: (rest: TransformerMap<M>) => <T>(start: Entry<M, T>) => TransformMatch<T, M>
 ```
+
+**Why a factory rather than a free `transformRuleSet(monoid)(map)(start)`.** `M`
+appears in both an input and an output position of `Transformer<M, T>`, so it is
+invariant and has to be pinned. A helper call like `terminal(c => …)` mentions no
+metadata at all, so written free it infers `M = unknown` — fine inside a map with
+a contextual type, and **not** fine for the start entry, which stands alone:
+`Entry<unknown, T>` is not an `Entry<M, T>`, and the builder rejects it. Binding
+`M` once at `transformers(monoid)` makes every helper it returns, every entry, and
+`build` agree by construction, with no type argument written anywhere. That the
+monoid was already a once-per-parser thing (§1) is what makes this the natural
+place to bind it.
 
 **Every kind erases to that bound.** A terminal, sequence or variant transformer
 is a function whose parameter is `Meta<C, M>` for its own `C`, and
@@ -525,8 +536,8 @@ appears only in an output position in each arm that has one, so
 
 **The start rule's value type comes from its own entry, and nothing else.** The
 map is a `ReadonlyMap` keyed by rule *values*, so there are no literal keys for a
-conditional type to read — and none are needed. `transformRuleSet` takes the
-start rule's entry separately, typed `Entry<M, T>`, and the parse's result is
+conditional type to read — and none are needed. `build` takes the start rule's
+entry separately, typed `Entry<M, T>`, and the parse's result is
 `TransformMatch<T, M>` with that same `T`.
 
 That is smaller than what it replaces and loses nothing. An earlier revision
@@ -941,32 +952,46 @@ blocker because nothing here depends on the answer.
 The four shapes are the primitive; the ergonomics come from a small library over
 them. It is also what writes the §5 kind tag, so an author never types one:
 
+**Everything below comes from one factory**, `transformers(monoid)`, which binds
+`M` once (§5). Nothing here takes a type argument at a call site:
+
 ```ts
-// pairs a rule value with its transformer; the start entry's `T` is the parse's
-const entry: <M, T>(rule: FRule, t: Transformer<M, T>) => Entry<M, T>
+type Transformers<M> = {
+    // pairs a rule value with its transformer; the start entry's `T` is the parse's
+    readonly entry: <T>(rule: FRule, t: Transformer<M, T>) => Entry<M, T>
+    readonly map: (...entries: readonly Entry<M, unknown>[]) => TransformerMap<M>
 
-// tagging constructors: a §1 shape plus its declared child shape in,
-// a map-installable `Transformer` out
-const terminalOf: <M, T>(f: TerminalTransformer<M, T>) => Transformer<M, T>
-const seqOf:      <M, C extends readonly unknown[], T>(
-                      arity: C['length'], f: SequenceTransformer<M, C, T>) => Transformer<M, T>
-const variantOf:  <M, C, T>(
-                      branches: readonly (keyof C & string)[],
-                      f: VariantTransformer<M, C, T>) => Transformer<M, T>
-const repeatOf:   <M, C, S, T>(item: FRule, r: RepeatTransformer<M, C, S, T>) => Transformer<M, T>
+    // tagging constructors: a §1 shape plus its declared child shape in,
+    // a map-installable `Transformer` out
+    readonly terminalOf: <T>(f: TerminalTransformer<M, T>) => Transformer<M, T>
+    readonly seqOf: <C extends readonly unknown[], T>(
+        arity: C['length'], f: SequenceTransformer<M, C, T>) => Transformer<M, T>
+    readonly variantOf: <C, T>(
+        branches: readonly (keyof C & string)[], f: VariantTransformer<M, C, T>) => Transformer<M, T>
+    readonly repeatOf: <C, S, T>(item: FRule, r: RepeatTransformer<M, C, S, T>) => Transformer<M, T>
 
-// sugar: the callback sees the value alone, `M` is forwarded, the result is `ok`
-const terminal: <M, T>(f: (symbol: CodePoint) => T) => Transformer<M, T>
-const seq:      <M, C extends readonly unknown[], T>(
-                    arity: C['length'], f: (children: C) => T) => Transformer<M, T>
-const seqR:     <M, C extends readonly unknown[], T>(
-                    arity: C['length'], f: (children: C) => Result<T, string>) => Transformer<M, T>
-const variant:  <M, C, T>(
-                    branches: readonly (keyof C & string)[], f: (b: Branch<C>) => T) => Transformer<M, T>
-const list:     <M, C>(item: FRule, m: Monoid<M>) => Transformer<M, readonly C[]>
-const text:     <M>(item: FRule, m: Monoid<M>) => Transformer<M, string>
-const unit:     readonly['unit']
+    // sugar: the callback sees the value alone, `M` is forwarded, the result is `ok`
+    readonly terminal: <T>(f: (symbol: CodePoint) => T) => Transformer<M, T>
+    readonly seq: <C extends readonly unknown[], T>(
+        arity: C['length'], f: (children: C) => T) => Transformer<M, T>
+    readonly seqR: <C extends readonly unknown[], T>(
+        arity: C['length'], f: (children: C) => Result<T, string>) => Transformer<M, T>
+    readonly variant: <C, T>(
+        branches: readonly (keyof C & string)[], f: (b: Branch<C>) => T) => Transformer<M, T>
+    readonly list: <C>(item: FRule) => Transformer<M, readonly C[]>
+    readonly text: (item: FRule) => Transformer<M, string>
+    readonly unit: readonly['unit']
+
+    readonly build: (rest: TransformerMap<M>) => <T>(start: Entry<M, T>) => TransformMatch<T, M>
+}
 ```
+
+`map(...entries)` is part of it for a reason worth stating: entries have
+different `T`s, so a bare `new Map([…])` unifies its value type from the first
+element and rejects the rest. Taking `Entry<M, unknown>` widens each one where it
+is passed — `Transformer<M, T>` is covariant in `T` (§5) — so the map is written
+without an annotation. `list` and `text` no longer take the monoid either; the
+factory already has it.
 
 - **The four `…Of` constructors are the primitive, and there is no way around
   them.** A map entry must carry the §5 kind tag — the construction-time kind
@@ -984,21 +1009,22 @@ const unit:     readonly['unit']
   the synthesized end-of-input symbol is `unit` or a `terminalOf` that handles
   `EOF` (§2).
 - `entry(rule, t)` pairs a rule **value** with its transformer — the only place
-  the two meet. The start rule's entry goes to `transformRuleSet` separately,
-  because it carries the parse's value type (§5).
+  the two meet. The start rule's entry goes to `build` separately, because it
+  carries the parse's value type (§5), and it is the entry that most needs `M`
+  bound: standing outside any map, it has no contextual type to infer from.
 - **The child-shape argument comes first in each**, and the compiler keeps it
   honest: `arity` is typed `C['length']` and `branches` is `keyof C & string`
   (§8), so neither can drift from the tuple or record it describes.
-- `list(item, m)` — `repeatOf` applied to the identity fold: children in, array
-  out, O(1) per item. It takes the monoid because a repetition is the one kind
-  that has to combine its rounds' metadata itself (§3), and the repeated **rule
-  value** because that is a `Repeat`'s child shape.
-- `text(item, m)` — the common lexeme case: the repeated rule's results
+- `list(item)` — `repeatOf` applied to the identity fold: children in, array
+  out, O(1) per item. It takes the repeated **rule value**, which is a `Repeat`'s
+  child shape; the monoid it needs to combine its rounds' metadata (§3) comes
+  from the factory.
+- `text(item)` — the common lexeme case: the repeated rule's results
   concatenated into a string. **Its item rule must produce a string**, because a
   `Repeat`'s children are rule *results* and never raw leaves — only a terminal
   transformer sees a leaf (§2), and an unmapped item rule would hand `text` its
   default AST node (§3). That is why §10 maps `digit` before using
-  `text('digit', m)` for `digits`.
+  `text(digit)` for `digits`.
 - `unit` — keeps nothing, and is not a kind: it fits any rule, and the engine
   answers it without calling anything (§5). Its own subtree costs nothing,
   though it still occupies a slot in its parent's tuple rather than disappearing
@@ -1038,10 +1064,13 @@ one refusal:
 //   noSign  = () => []                       Sequence, empty
 //   digits  = () => repeat(digit)            Repeat
 //   digit   = () => range('09')              TerminalRange
-// the rules are ordinary values the author holds; the map is keyed by them
-new Map([
+// the rules are ordinary values the author holds; the map is keyed by them.
+// one factory binds `M`, so no call below takes a type argument (§9).
+const { entry, map, terminal, seq, seqR, variant, list, text, build } = transformers(m)
+
+const rest = map(
     entry(digit,   terminal(c => String.fromCodePoint(c))),
-    entry(digits,  text(digit, m)),
+    entry(digits,  text(digit)),
     entry(minus,   terminal(() => '-')),
     entry(noSign,  seq(0, () => '')),
     entry(sign,    variant(['minus', 'noSign'],
@@ -1053,15 +1082,17 @@ new Map([
                            : error(`${s}${d0}${ds} not a safe integer`)
                    })),
     entry(next,    seq(2, ([, it]: readonly[unknown, number]) => it)),
-    entry(more,    list<M, number>(next, m)),
+    entry(more,    list<number>(next)),
     entry(some,    seq(2, ([first, rest]: readonly[number, readonly number[]]) =>
                        [first, ...rest])),
     entry(noItems, seq(0, () => [])),
     entry(items,   variant(['some', 'noItems'],
                        ([, xs]: Branch<{ some: readonly number[], noItems: readonly number[] }>) => xs)),
-])
-// and the start rule's entry, passed separately because it carries the parse's type:
-entry(list, seq(3, ([, xs]: readonly[unknown, readonly number[], unknown]) => xs))
+)
+
+// the start entry is passed separately because it carries the parse's type (§5)
+const match = build(rest)(
+    entry(list, seq(3, ([, xs]: readonly[unknown, readonly number[], unknown]) => xs)))
 ```
 
 Read the shapes off it. `digit` is a terminal and gets a leaf. `sign` and
@@ -1090,10 +1121,17 @@ two type aliases existed only to name the plumbing. The engine channel costs a
 `Result` in four signatures nobody writes by hand, and this map is what it buys.
 
 **Each entry is keyed by the rule value, not a name.** `digit`, `items` and the
-rest are the grammar's own `const`s — no named-thunk rewrite, no generated names
-to predict, and `list` is passed as the start entry because it carries the
-parse's type (§5). `text(digit, m)` and `list(next, m)` name their repeated rule
-the same way: by handing over the rule.
+rest are the grammar's own `const`s — no named-thunk rewrite and no generated
+names to predict. `text(digit)` and `list<number>(next)` name their repeated rule
+the same way, by handing over the rule.
+
+**No call above takes a type argument, and that is what the factory is for.**
+`M` is invariant in `Transformer<M, T>`, and a call like `terminal(c => …)`
+mentions no metadata, so written against free helpers it would infer
+`M = unknown` — which a contextually typed map would paper over and the
+standalone start entry would not (§5). `transformers(m)` binds it once. The one
+explicit argument left is `list<number>`, because a repetition's item type
+appears nowhere in its arguments.
 
 **Each entry declares its child shape, and the compiler will not let it drift.**
 `seq(3, …)` beside a four-slot tuple does not compile — the parameter is typed
@@ -1530,15 +1568,16 @@ types undecided cannot be implemented against.
       default cannot drift. `variant` retags its branch rather than wrapping it,
       which is what makes that provable — a wrapper would add an AST level the
       engine never builds.
-- [ ] Add `transformRuleSet` (§5) and run all five construction-time checks:
-      every keyed rule is reachable from the start rule; every entry's **kind tag matches its rule's
-      kind**; every entry's **declared child shape matches its rule's** — a
-      sequence's arity, a variant's branch names in both directions, a
-      repetition's repeated rule; `start` is a rule of the grammar; and no mapped branch
-      sits under an unmapped variant. Throw rather than parse — `K extends string`
-      cannot reject a mistyped start name, since an untransformed start rule is
-      legal, and no type can reject a terminal transformer supplied for a
-      variant rule, since the map's type does not know the `RuleSet`.
+- [ ] Add `transformers`/`build` (§5) and run all five construction-time checks:
+      every keyed rule is reachable from the start rule; every entry's **kind
+      tag matches its rule's kind**; every entry's **declared child shape
+      matches its rule's** — a sequence's arity, a variant's branch names in
+      both directions, a repetition's repeated rule; `start` is a rule of the
+      grammar; and no mapped branch sits under an unmapped variant. Throw rather
+      than parse. None of these is expressible in the type: the map's type does
+      not know the grammar, so a terminal transformer supplied for a variant
+      rule, or an entry for a rule the grammar no longer has, type-checks
+      perfectly and is caught only here.
 - [ ] Answer a `unit` entry without calling anything and without allocating —
       it is the fifth arm of `Transformer`, it matches any rule kind, and it is
       what makes stage 2's recognizer mode free (§5, §9).
