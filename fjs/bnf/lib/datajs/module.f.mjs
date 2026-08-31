@@ -23,7 +23,7 @@ const letter = {
     $: '$',
 }
 
-const id = ['$', option({ letter, digit })]
+const id = ['$', repeat0Plus({ letter, digit })]
 
 const property = {
     string,
