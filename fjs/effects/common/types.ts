@@ -1,11 +1,19 @@
 /**
- * Operations more than one host implements.
+ * Operations that are nobody's host in particular.
  *
  * `fjs/effects/node` declared these because Node was the only host that ran
  * them. It is not the criterion — an operation belongs to the layer of whoever
- * *implements* it, and a browser interpreter implements every one of them.
- * Declaring them here is what lets a host talk to the shared FunctionalScript
- * logic without importing a module named after a different host.
+ * *implements* it. Declaring them here is what lets a host talk to the shared
+ * FunctionalScript logic without importing a module named after a different
+ * host.
+ *
+ * Most are here because a second host implements them: a browser interpreter
+ * sandboxes, catches, writes and loads modules. {@link All} is here on the
+ * layering argument alone — fan-out is an interpreter's job whoever the host
+ * is — and has one implementer today. Both are reasons to be in this module;
+ * they are not the same reason, and the difference is worth keeping visible,
+ * because "everything here has two implementers" is the sort of tidy summary
+ * that quietly stops being true.
  *
  * `effects/node` re-exports them all, so a node-side caller keeps one import
  * and signatures keep reading as one vocabulary. That re-export is not a shim:
@@ -110,9 +118,10 @@ export type Catch = readonly['catch', <T>(f: () => T) => OpResult<Result<T, unkn
  * **Fan-out is an interpreter's job, not a walk's.** A host that has
  * concurrency implements this and keeps it; a host that does not answers the
  * effects in turn, and the shared logic above reads the same either way. That
- * is why it sits here rather than in a module named after one host: a browser
- * page fans out its module loads, and a `Promise.all` is as much an
- * implementation of this operation as Node's is.
+ * is why it sits here rather than in a module named after one host — and it is
+ * the whole reason: unlike its neighbours here, this operation has one
+ * implementer today, the Node runners and the registration path they serve.
+ * Nothing in a browser dispatches it yet.
  */
 export type All = ['all', <T, E>(...effects: Effect<never, T, E>[]) => OpResult<readonly Result<T, E>[]>]
 
