@@ -357,13 +357,20 @@ and is reviewable without the next one.
       registration path, which no browser runs — though it *moves* with
       `sandbox` and `catch`, to the same `effects/sandbox` home, on
       node-module-layering's layering argument rather than on this step's
-      second-implementer one; that move is that issue's, not step 4's. `import`, `now` and `fetch`
-      never qualified either: a page loads modules through its own importer
-      and reads its own wall clock, in the impure shell where host values
-      belong. Everything without a second implementer stays in `effects/node`
-      until something gives it one — the same rule that shrank this list
-      twice. [node-module-layering](../../effects/todo/node-module-layering.md)
+      second-implementer one; that move is that issue's, not step 4's. `now`
+      and `fetch` never qualified either: a page reads its own wall clock and
+      fetches nothing, in the impure shell where host values belong.
+      Everything without a second implementer stays in `effects/node` until
+      something gives it one — the same rule that shrank this list twice.
+      [node-module-layering](../../effects/todo/node-module-layering.md)
       carries the same answer.
+
+      **`import` was on that list and should not have been**, which was found
+      later and is corrected there rather than here. "A page loads modules
+      through its own importer" describes a *callback parameter*, and a
+      callback is an operation nobody has named — so counting implementers by
+      dispatched commands could not see the page's `import()` at all. It moved
+      to `effects/common` once it was named.
 
       **The expectation this step was written with was wrong, which is why the
       list was measured rather than argued.** `all`, `await` and `sandbox` were
@@ -883,10 +890,16 @@ are shared.
       still each host's own.
 - [x] Decide whether browser import/time/yield/publication justify
       `fjs/effects/browser/`; document the decision before adding operations.
-      They do not: the reverted #1759 interpreter needed `sandbox`, `catch`
-      and `all` and nothing else, and the sequential plan drops `all` too —
-      import, time, yield and publication are all the page's, in its impure
-      shell. Recorded in
+      They do not — but not for the reason first recorded, and the difference
+      matters. The reverted #1759 interpreter needed `sandbox`, `catch` and
+      `all` and nothing else, and the sequential plan drops `all` too, which
+      was read as "import, time, yield and publication are all the page's, in
+      its impure shell". Import was not: it was a callback parameter, which is
+      an operation nobody had named, and it now lives in `effects/common` with
+      two implementers. Time, yield and publication remain the page's. The
+      answer to the question asked — no `fjs/effects/browser/` — is unchanged,
+      because a shared operation does not belong in a browser-only directory
+      either. Recorded in
       [node-module-layering](../../effects/todo/node-module-layering.md).
 - [ ] Move static proof discovery and `_browser-suite.mjs` generation into
       `fjs/website/module.f.mjs`; extend `fjs/effects/node/` only for a concrete

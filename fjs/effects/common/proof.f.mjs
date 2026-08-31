@@ -1,6 +1,6 @@
 /**
  * @import { RunInstance } from '../mock/types.ts'
- * @import { Catch, Read, Sandbox, Write } from './types.ts'
+ * @import { Catch, Import, Module, Read, Sandbox, Write } from './types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
@@ -12,7 +12,7 @@ import { msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { catch_, error, errorExit, log, read, readLine, sandbox, write } from './module.f.mjs'
+import { catch_, error, errorExit, import_, log, read, readLine, sandbox, write } from './module.f.mjs'
 
 /**
  * A runner claiming both operations by the names they are declared under.
@@ -36,6 +36,21 @@ import { catch_, error, errorExit, log, read, readLine, sandbox, write } from '.
 const runner = mockRun(/** @type {Parameters<typeof mockRun<Catch | Sandbox, null>>[0]} */ ({
     sandbox: (/** @type {() => unknown} */ f) => (/** @type {null} */ s) => [s, ok(f())],
     catch: (/** @type {() => unknown} */ f) => (/** @type {null} */ s) => [s, ok(ok(f()))],
+}))
+
+/**
+ * A runner that resolves one module, by the name `import_` builds its command
+ * under.
+ *
+ * The same point the runner above makes, for the operation that most needs it:
+ * `import` is dispatched by *two* hosts now — Node resolves the path against a
+ * filesystem, a browser page against its document — so the string is an
+ * agreement across three parties rather than two, and nothing type-checks it.
+ *
+ * @type {RunInstance<Import, null>} */
+const loader = mockRun(/** @type {Parameters<typeof mockRun<Import, null>>[0]} */ ({
+    import: (/** @type {string} */ path) => (/** @type {null} */ s) =>
+        [s, ok(/** @type {Module} */ ({ proof: path }))],
 }))
 
 /**
@@ -83,6 +98,16 @@ export const proof = {
         const [, r] = runner(null)(catch_(() => 'value'))
         assert(r[0] === 'ok', r)
         assertEq(r[1][1], 'value')
+    },
+    // The path travels to the handler and the module comes back, which is the
+    // whole of what this constructor promises. What a *real* loader does with
+    // the path is each host's, and is proven where each one lives:
+    // `../node/proof.f.mjs` for the filesystem resolution,
+    // `../node/virtual/proof.f.mjs` for the in-memory one.
+    import: () => {
+        const [, r] = loader(null)(import_('a.f.mjs'))
+        assert(r[0] === 'ok', r)
+        assertEq(r[1].proof, 'a.f.mjs')
     },
     write: {
         // `log` and `error` differ in the stream and in nothing else, and each
