@@ -6,7 +6,7 @@
  *
  * @import { Effect, Func, NotImplemented } from '../types.ts'
  * @import { Console, Read, ReadConsoles, Write, WriteConsoles, _UtfList } from './types.ts'
- * @import { Catch, Sandbox, SandboxResult } from './types.ts'
+ * @import { Catch, Import, Sandbox, SandboxResult } from './types.ts'
  */
 
 import { do_, pureOk, resultMapStep, step } from '../module.f.mjs'
@@ -40,6 +40,17 @@ export const sandbox = do_('sandbox')
  * @type {Func<Catch>}
  */
 export const catch_ = do_('catch')
+
+// import
+
+/**
+ * Loads the module at `path` and answers its exports. See {@link Import}.
+ *
+ * `import_` rather than `import`, which is a keyword.
+ *
+ * @type {Func<Import>}
+ */
+export const import_ = do_('import')
 
 // write
 
