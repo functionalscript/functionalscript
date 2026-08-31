@@ -1,4 +1,4 @@
-## 207. BNF rule transformers: a streaming fold per rule
+## 207. BNF rule transformers: one shape per rule kind
 
 **Priority:** P3
 **Status:** open
@@ -11,11 +11,21 @@
 > boundary `subset` cannot prove), and had grown large enough that it was marked
 > "to be split".
 >
-> This version keeps the goal and replaces the mechanism: a transformer is a
-> **fold over a rule's children as they are matched**, keyed by rule name over
-> the *data* `RuleSet`, applied by the matcher backends themselves. It never
-> materializes the AST, it unblocks (§11.1), and it does not need RTTI to be
-> useful. It is one design again, so the split is off.
+> This version keeps the goal and replaces the mechanism: a transformer says
+> what a rule builds from its children, in **one shape per data rule kind**,
+> keyed by rule name over the *data* `RuleSet`, applied by the matcher backends
+> themselves. It never materializes the AST, it unblocks (§11.1), and it does
+> not need RTTI to be useful. It is one design again, so the split is off.
+>
+> **A note on the four kinds.** An intermediate draft had a single uniform
+> `RuleTransformer` folding one child at a time. That shape cannot type a
+> child — a uniform `update`'s item is the union of everything any rule
+> produces, which is `unknown` — so every child type in a map was an unchecked
+> annotation, and review found the same class of bug in the worked example three
+> times running. Splitting by kind makes the children's types come from the
+> rule's own shape, lets construction check that an entry's kind matches its
+> rule's, and leaves the `init`/`update`/`end` fold where it is actually needed:
+> `Repeat`, the one kind whose size the grammar does not bound (§12).
 
 ### Problem
 
@@ -59,87 +69,93 @@ A rule that could say what to build would remove all three.
 
 #### 1. The protocol
 
-A transformer is a fold over one rule invocation's children, in the shape this
-repository already packages a fold as data (§12):
+A transformer says what a rule builds from its children. There is **one shape
+per data rule kind**, not one shape for all four, and each carries a metadata
+channel `M` alongside the value:
 
 ```ts
-type Child = readonly[unknown, AstTag]
+type Meta<T, M> = readonly[T, M]
+type Branch<C> = { readonly [K in keyof C]: readonly[K, C[K]] }[keyof C]
 
-type RuleTransformer<S, T> = {
+type TerminalTransformer<M, T> = (v: Meta<L, M>) => Meta<T, M>
+type SequenceTransformer<M, C extends readonly unknown[], T> = (v: Meta<C, M>) => Meta<T, M>
+type VariantTransformer<M, C, T> = (v: Meta<Branch<C>, M>) => Meta<T, M>
+type RepeatTransformer<M, C, S, T> = {
     readonly init: S
-    readonly update: (state: S, child: Child) => S
-    readonly end: (state: S) => Result<T, string>
+    readonly update: (state: S, c: Meta<C, M>) => S
+    readonly end: (state: S) => Meta<T, M>
 }
 ```
 
-- **`init`** is the state a rule invocation starts from, before its first symbol
-  is consumed. A plain value, and that is the whole point: `() => S` adds a
-  thunk that buys nothing, and a `create(first)` that starts from the first
-  child is strictly *weaker* — it is `v => update(init, [v, undefined])`, while
-  nothing recovers `init` from it, so a rule that matches empty could not be
-  expressed at all. With `init` a value, an empty match is just `end(init)`.
-- **`update`** folds in one child: a sequence item, a repetition round, a
-  variant's chosen branch, or — for a terminal rule — the matched leaf. A
-  `Child` is the child's *transformed* value — its own `end` result where it has
-  a transformer, its AST node where it does not (§3) — paired with its tag,
-  which names the branch when this rule is a variant and is `undefined`
-  otherwise. Value first, annotation second, like `CodePointMeta<T>`
-  (`readonly[CodePoint, T]`) in `fjs/bnf/descent`, so the usual transformer
-  destructures `(state, [value]) => …` and never mentions the tag.
+- **`TerminalTransformer`** receives the one symbol the rule matched. `L` is the
+  backend's leaf — `CodePoint` today, generic over the alphabet after
+  [the alphabet split](./unicode-rules.md). Note what `Meta<L, M>` already is:
+  `fjs/bnf/descent`'s `CodePointMeta<M>` is `readonly[CodePoint, M]`, so a
+  terminal transformer's parameter is *literally* that backend's leaf type
+  rather than a new shape beside it.
+- **`SequenceTransformer`** receives its children as a **typed tuple**. A
+  `Sequence`'s arity is fixed and known from the `RuleSet`, so there is nothing
+  to stream and no state to keep — the engine collects the items and calls once.
+- **`VariantTransformer`** receives the branch name paired with that branch's
+  value, and `C` is a record from branch name to value type, so `Branch<C>`
+  narrows: matching on the name narrows the value.
+- **`RepeatTransformer`** is the only kind that keeps state, because a
+  repetition is the only kind whose size the grammar does not bound. It is the
+  `init`/`update`/`end` fold-as-data this repository already ships (§12) —
+  `fjs/types/list`'s `Accumulator` exactly — and it is here rather than
+  everywhere because this is where it earns its keep.
 
-  **The `Result` is the engine's, not the child channel's.** A child's `end`
-  returns `Result<T, string>` and the engine eliminates it before the parent
-  sees anything: an `ok` is unwrapped, so a `Child` carries `T` and not
-  `['ok', T]`; an `error` never reaches `update` at all, because a refusal
-  replaces the enclosing fold's state instead of being folded into it (§6). So
-  no transformer ever matches on a child's `Result`, and both backends owe the
-  same event stream. That is why the examples in §10 destructure `key` rather
-  than `['ok', key]`.
-- **`end`** finishes the invocation. It may **refuse**: a transformer is where
-  `1e999`, a duplicate `__proto__` key, or an unresolved `const` is caught, and
-  [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) says
-  those are refused rather than answered with a plausible value. A refusal is a
-  *value*, not a control-flow event — it never changes what the grammar accepts
-  (§6).
+**Why four shapes and not one.** A single `RuleTransformer` whose `update` took
+one child at a time is expressible — it is what an earlier draft of this issue
+proposed — and it costs three things the split recovers:
 
-**One state, one item, uncurried.** Pairing the tag with the value rather than
-passing it beside them is what makes `update` a fold's step and nothing more:
-`(state, item) => state` is flow's `Transducer` exactly (§12), so a rule
-transformer *is* a member of that family rather than a look-alike, and the
-alphabet it folds — a tagged child — is nameable. Both parameters are data, and
-currying data invites a partial application that captures an accumulator, which
-is why `StateScan` was uncurried in
-[#763](https://github.com/functionalscript/functionalscript/pull/763) and what
+- **Typed children.** A uniform `update` folds children one at a time, so its
+  item type is the union of everything any rule can produce, which is `unknown`.
+  Every child type in a map was then an annotation the author wrote and nobody
+  checked, invalidated silently whenever the grammar's sequence changed under
+  it. Here the types come from the rule's own shape: `C` is a tuple for a
+  sequence and a record for a variant.
+- **Kind agreement.** The `RuleSet` says which kind each name is, so supplying a
+  `RepeatTransformer` for a `Sequence` is a construction-time error (§5). A
+  uniform shape fits every rule by definition and can never catch it.
+- **State only where it is needed.** Three of the four kinds are plain
+  functions. The existential state of §5 exists for `Repeat` alone.
+
+**A tag is a variant's business and no one else's.** The uniform version paired
+every child with an `AstTag` that was `undefined` except under a variant. Only
+`VariantTransformer` receives a name now, and it is paired with the value in
+**one** parameter rather than passed beside it — not for symmetry but because
+TypeScript will not otherwise correlate them. Written
+`<K extends keyof C>(k: K, v: Meta<C[K], M>) => …`, matching on `k` leaves `v`
+at the union of every branch type and forces a cast in the one place the design
+is trying to make safe; destructuring a single `readonly[K, C[K]]` union
+narrows. That is also what
 [uncurry-accumulator-types](../../types/function/todo/uncurry-accumulator-types.md)
-is generalizing.
+and the `StateScan` uncurrying in
+[#763](https://github.com/functionalscript/functionalscript/pull/763) are
+about: data belongs in one parameter, not spread across several.
 
-The engine pays one `Child` per child event, which two arguments would not cost.
-It pays it only where a transformer exists: an unmapped rule's node is built by
-the engine natively (§3), so an untransformed parse allocates no `Child` at
-all.
+**`M` is any additional information, not a source span.** It is the channel a
+layer uses to carry what the value channel cannot. A tokenizer's output symbol
+`n` says only "a number is here"; *which* number rides in `M`, and the next
+layer's terminal transformer reads it straight off its leaf. Source ranges are
+one instance, lexemes another, and `null` — nothing at all — is what
+`fjs/bnf/ll1` uses today, since its leaves are bare `CodePoint`. This replaces
+the previous design's mandatory `(leaf, merge, empty)` monoid merged into every
+node with a channel that is generic in what it carries (§7).
 
-Transformers are supplied as a map keyed by **data**-`RuleSet` rule name, which
-means one map holds transformers whose states are unrelated types. `S` is
-therefore **existential** in the map, and its upper bound is written by putting
-`unknown` in every output position and `never` in every input one:
+**How a parent's `M` is produced: a `Monoid<M>` supplied at construction.** A
+sequence transformer receives one `M` for the whole tuple, so the engine
+combines its children's. That is
+[`fjs/common/monoid`](../../common/monoid/module.f.mjs)'s shipped `Monoid<T>` —
+identity plus an associative operation — passed to `transformRuleSet` once
+rather than declared per rule. The identity is what an empty `Sequence` and a
+zero-round `Repeat` produce, so every kind is total without a special case, and
+`ll1`'s `M = null` monoid is the trivial one. A transformer's *output* `M` is
+its own to choose: it may forward what it was handed, replace it, or return the
+identity.
 
-```ts
-type Transformer<T> = {
-    readonly init: unknown
-    readonly update: (state: never, child: Child) => unknown
-    readonly end: (state: never) => Result<T, string>
-}
-type TransformerMap = StringMap<Transformer<unknown>>
-```
-
-Every `RuleTransformer<S, T>` is assignable to `Transformer<T>` whatever `S` is,
-and `Transformer<T>` stays covariant in `T` — `T` appears only in an output —
-so a `Transformer<string>` sits in a `TransformerMap` unchanged. No `any`, and
-no cast to *build* a map. The bound cannot be *called*, which is correct: the
-engine eliminates the existential in one documented place (§5), where a state is
-handed back to the transformer that produced it.
-
-The state stays **plain data**, which is what
+The state a `RepeatTransformer` keeps stays **plain data**, which is what
 [`todo/flow.md`](../../../todo/flow.md) requires of an operator and what §4.2
 needs: a parser state that is a closure cannot be serialized, checkpointed, or
 shipped to another process, and a resumable streaming parse is the point.
@@ -150,113 +166,122 @@ behaves bit for bit as it does now.
 
 Two invariants the engine owes the author, both checkable:
 
-- **`update` is called once per child, in input order, and `end` once per
-  successful invocation.** An invocation the parser abandons gets any `update`s
-  it reached and never `end`; children that already succeeded
-  inside it did get their own `end`, and their values are dropped with the
-  frame. An invocation whose child refused gets no further `update` and no
-  `end` either: the refusal takes the place of its state (§6).
-- **Every name resolves, and no tag is silently dropped.** The map's keys and
-  the start rule are checked against the `RuleSet` when the parser is built
-  (§5, §8), so a typo or a renamed rule fails at construction rather than as a
-  transformer that never fires or a parse that throws on its first input. The
-  same pass refuses a map that transforms the branch of an *unmapped* variant,
-  which is the one shape where partial adoption would lose a tag (§3).
+- **A transformer runs once per successful rule invocation**, and a
+  `RepeatTransformer` sees one `update` per round in input order before its
+  `end`. An invocation the parser abandons runs no transformer at all except a
+  repetition's `update`s for rounds it had already completed, whose state is
+  dropped with the frame; children that already succeeded inside it did run,
+  and their values are dropped too.
+- **Every name resolves, every kind agrees, and no tag is silently dropped.**
+  The map's keys, each entry's kind, and the start rule are checked against the
+  `RuleSet` when the parser is built (§5, §8), so a typo, a renamed rule, or a
+  transformer written for the wrong rule kind fails at construction rather than
+  as a transformer that never fires. The same pass refuses a map that transforms
+  the branch of an *unmapped* variant, which is the one shape where partial
+  adoption would lose a tag (§3).
 
-#### 2. What the events are, per rule kind
+#### 2. What each kind receives
 
-| Data rule kind  | Events, starting from `init`                                  |
-|-----------------|--------------------------------------------------------------|
-| `TerminalRange` | one `update(s, [leaf, undefined])`, then `end`                |
-| `TerminalRange` matching EOF | `end` — no child                                 |
-| `Sequence`      | one `update(s, [child, undefined])` per item, then `end`      |
-| `Repeat`        | one `update(s, [item, undefined])` per round — none if it matched zero — then `end` |
-| `Variant`       | exactly one `update(s, [value, branchTag])`, then `end`       |
-| empty `Sequence`| `end` alone                                                   |
+| Data rule kind  | The transformer receives                                        |
+|-----------------|-----------------------------------------------------------------|
+| `TerminalRange` | `[leaf, M]` — the matched symbol and its own metadata            |
+| `TerminalRange` matching EOF | `[EOF, identity]` — see below                       |
+| `Sequence`      | `[[c₀, …, cₙ], merged M]`, one tuple slot per item               |
+| empty `Sequence`| `[[], identity]`                                                 |
+| `Variant`       | `[[branchName, value], that branch's M]`                         |
+| `Repeat`        | `init`, one `update(state, [item, M])` per round, then `end`      |
+| `Repeat`, zero rounds | `init` then `end` — no `update`                            |
 
-The leaf is the backend's own: `CodePoint` under `fjs/bnf/ll1`,
-`CodePointMeta<T>` under `fjs/bnf/descent`, which is where per-symbol metadata
-enters a transformer (§7).
+Each `cᵢ` and each `item` is the child's *transformed* value where it has a
+transformer and its AST node where it does not (§3). There is no `Result` in
+that channel and nothing to unwrap: a transformer returns `Meta<T, M>` and the
+parent receives the `T` (§6).
 
-**A terminal that consumed the synthesized end-of-input symbol folds in
-nothing.** EOF has no source element, so it contributes no leaf — that is
-[the EOF contract](../README.md#logical-eof-in-parser-input), and `leafAt` in
-`fjs/bnf/matcher` is where it already lives: it yields the leaf inside the
-physical input and an empty sequence at the end. An `eof` terminal's default
-node is therefore `{ tag, sequence: [] }`, exactly as it is today, and its
-transformer sees `create` then `end` with no `update` between them. The
-alternative — synthesizing a `-1` child — would put a leaf in the AST that the
-contract says is not there. Every helper (§9) has to be total over zero
-children for the same reason a nullable rule makes it necessary.
+**A terminal that consumed the synthesized end-of-input symbol has no source
+element**, so there is nothing to attach metadata to and no leaf in the AST —
+that is [the EOF contract](../README.md#logical-eof-in-parser-input), and
+`leafAt` in `fjs/bnf/matcher` is where it already lives: it yields the leaf
+inside the physical input and an empty sequence at the end. An `eof` terminal's
+default node is therefore `{ tag, sequence: [] }`, exactly as it is today.
 
-Rule identity is what the AST lacks and the event stream has: the map is keyed
-by rule name, so a transformer always knows which rule it is folding — the
-"key observation" the previous design had to work around by walking the grammar
-and the AST in lockstep.
+Its transformer is still called, with the `EOF` symbol and the monoid's
+identity. A terminal transformer is a function of one argument, so there is no
+call to skip the way an `update` could be skipped, and not calling it would
+leave the rule with no value at all. **So a terminal transformer for a rule that
+can match EOF has to handle `EOF` itself** — `String.fromCodePoint(leaf)` on
+`-1` is garbage, not an empty string. The default builder in §3 shows the
+branch, and the `terminal` helper in §9 does not: a rule that can reach EOF
+either writes the bare function or, far more usually, is `unit`, which is not
+called at all.
 
-**The tag rides on the edge, not on the invocation.** A tag says which branch of
-a *variant* was taken, so it is something the variant produced, not something
-its branch is. The `Child` an `update` folds in is that edge — value and tag
-together — and it is the only place a tag is delivered: an `init` that is a
-plain value has nowhere to receive one, which is the right answer rather than a
-limitation.
+The alternative — putting a `-1` leaf in the node — would contradict the EOF
+contract, which is the one thing not on the table.
 
-A rule therefore does not learn the tag it was *entered under*, and almost never
-wants to: in the data form each branch of a variant is a distinct rule name with
-its own transformer, so branches are already told apart by which transformer
-runs. What needs the tag is a variant whose branches *share* a rule —
-`option(x)`'s `none` is the shared empty sequence — and there the variant's own
-transformer reads it off its one `update`. The AST's habit of stamping the tag
-on the branch's node is an encoding of the same fact, discussed in §3.
+Rule identity is what the AST lacks and this has: the map is keyed by rule name,
+so a transformer always knows which rule it is building — the "key observation"
+the previous design had to work around by walking the grammar and the AST in
+lockstep.
 
 #### 3. What an unmapped rule builds
 
-Its AST node, exactly as today — and the node builder is an ordinary
-transformer, so the AST is one instance of this protocol rather than a rival to
-it:
+Its AST node, exactly as today — and the node builders are ordinary
+transformers, so the AST is one instance of this protocol rather than a rival to
+it. One per kind, which is itself the clearest statement of what the kinds are:
 
 ```ts
-const astTransformer: RuleTransformer<List<unknown>, Ast<unknown>> = {
-    init: null,
-    update: (children, [child]) => concat(children)([child]),
-    end: children => ok({ tag: undefined, sequence: toArray(children) }),
-}
+const terminal: TerminalTransformer<M, Ast<unknown>> =
+    ([leaf, m]) => [{ tag: undefined, sequence: leaf === EOF ? [] : [leaf] }, m]
+
+const sequence: SequenceTransformer<M, readonly unknown[], Ast<unknown>> =
+    ([items, m]) => [{ tag: undefined, sequence: items }, m]
+
+const variant: VariantTransformer<M, StringMap<unknown>, Ast<unknown>> =
+    ([[tag, value], m]) => [{ tag, sequence: [value] }, m]
+
+const repeat = (m: Monoid<M>): RepeatTransformer<M, unknown, _Rounds, Ast<unknown>> => ({
+    init: [null, m.identity],
+    update: ([items, acc], [item, im]) => [concat(items)([item]), m.operation(acc)(im)],
+    end: ([items, acc]) => [{ tag: undefined, sequence: toArray(items) }, acc],
+})
+type _Rounds = readonly[List<unknown>, M]
 ```
 
-Its node is `Ast<unknown>`, because a child of an unmapped rule may itself be
-transformed, so what a node holds is no longer only nodes and leaves. Children
-accumulate as a `List`, which is also a small improvement on today's sequence
-frame — that one spreads an array per item.
+Their node is `Ast<unknown>`, because a child of an unmapped rule may itself be
+transformed, so what a node holds is no longer only nodes and leaves. A
+repetition accumulates as a `List`, which is also a small improvement on today's
+sequence frame — that one spreads an array per item.
 
-**The tag is the one thing this transformer cannot supply, and the engine keeps
-supplying it.** A node's tag names the branch of the *enclosing variant* that
-reached it (§2), and a variant contributes no node of its own: both backends
-pass the branch tag *down* at rule entry and let the branch's node be the
-variant's, so `ll1` does not even allocate a frame for a variant — it retargets
-the current task. Since `init` is a value, a transformer has nowhere to receive
-that tag, and the alternatives both cost something real: give the variant its
-own default fold that re-tags its one child (a frame and a second node
-allocation per variant invocation, on the path that is supposed to be
-unchanged), or hand the tag to `init` and lose everything §1 gains from it.
+Two details of these four are the contract rather than the implementation's
+choice. `terminal` **drops the leaf at EOF**, because the EOF contract says the
+node has none (§2) — a default that appended `-1` would change the AST for every
+grammar that ends in `eof`. And `repeat` carries the merged metadata in its own
+state, because it is the one kind the engine cannot merge for: the others get
+their children all at once, a repetition gets its rounds one at a time, so
+combining them is the fold's job. Both are why a `RepeatTransformer` written by
+hand takes the monoid (§9).
 
-So the tag stays the **engine's** business for unmapped rules. `astTransformer`
-above is the *specification* of what an unmapped rule builds — its children, in
-order, in one node — and the engine implements it natively so that an
-untransformed parse still allocates exactly what it allocates today, a variant
-still owning neither node nor frame. "The AST is one contract"
+**`variant` above is a specification, not what the engine runs.** A node's tag
+names the branch of the *enclosing variant* that reached it, and a variant
+contributes no node of its own: both backends pass the branch tag *down* at rule
+entry and let the branch's node be the variant's, so `ll1` does not even
+allocate a frame for a variant — it retargets the current task. Building the
+node written above would cost a frame and a second node allocation per variant
+invocation, on the path that is supposed to be unchanged. So the tag stays the
+**engine's** business for unmapped rules, and the four transformers above are
+the *specification* of what an unmapped parse builds. "The AST is one contract"
 ([`../README.md`](../README.md#the-ast-is-one-contract)) is then checkable two
 ways: the `descentEquivalence` proof group in `../ll1/proof.f.mjs` pins the
-empty-map parse unchanged, and a proof that the transformer above produces the
-same children pins the specification to the implementation.
+empty-map parse unchanged, and a proof that these four produce the same children
+pins the specification to the implementation.
 
 A variant *with* a transformer does get a frame (`descent` already has one for
-trying branches; `ll1` gains one) and its one tagged `update` — an addition to
-the AST model, not a reimplementation of it, paid for only where it is used.
+trying branches; `ll1` gains one) and its one tagged call — an addition to the
+AST model, not a reimplementation of it, paid for only where it is used.
 
-A transformed value sitting inside an untransformed parent is an opaque child
-of that parent's node, so `AstSequence<L>` widens to admit it. For a sequence or
-a repetition that costs nothing — an item's own tag is `undefined` anyway (§2),
-so there is nothing to lose.
+A transformed value sitting inside an untransformed parent is an opaque child of
+that parent's node, so `AstSequence<L>` widens to admit it. For a sequence or a
+repetition that costs nothing — those children carry no tag anyway (§2), so
+there is nothing to lose.
 
 **A variant is the one place where it would lose something, and that map is
 refused.** An unmapped variant owns no node: the engine hands its branch's node
@@ -281,10 +306,13 @@ Three independent levels. Only the first is this issue's core; the other two
 are what it makes possible, and both are named here because the protocol has to
 be shaped to admit them.
 
-**4.1 Fold-level (this issue).** A rule's children are folded as they are
-matched, so nothing accumulates that a transformer did not ask to keep. Memory
-is O(depth) frames plus the sum of the live states along the spine. A 1M-element
-array is one frame whose state the author chose; a map that answers `unit` for
+**4.1 Fold-level (this issue).** A repetition's rounds are folded as they are
+matched and every other kind's children are bounded by its arity, so nothing
+accumulates that a transformer did not ask to keep. Memory is O(depth) frames,
+plus the live states of the repetitions along the spine, plus the partly
+collected children of the fixed-arity rules on it — and that last term is
+bounded by the grammar rather than the input. A 1M-element array is one
+repetition frame whose state the author chose; a map that answers `unit` for
 every rule keeps nothing at all, so the whole parse is O(depth) whatever the
 input size — which is what [recognizer-backend](./recognizer-backend.md) wants
 from a payload-free backend and cannot get while the AST is mandatory.
@@ -292,11 +320,18 @@ from a payload-free backend and cannot get while the AST is mandatory.
 This is also where the AST's O(*n*) cost goes away rather than being paid and
 discarded: an untransformed rule allocates its node, a transformed one does not.
 
-**`update` must be O(1).** A transformer that spreads an array per child makes
-its rule quadratic in the number of children — the exact trap `descent`'s
-`_Items` and DJS's `_FoldFrame.done` comments already record. Accumulate with
-`List` (or `Vec`) and flatten in `end`; the helpers in §9 do this so most
-authors never touch it.
+**Only a `Repeat` streams, and only a `Repeat` can be quadratic.** The other
+three kinds have an arity the grammar fixes, so the engine collects their
+children and calls once — there is nothing to stream and no state to grow. A
+repetition is the one kind whose size is the input's, and a `RepeatTransformer`
+whose `update` spreads an array per round makes its rule quadratic in the number
+of items: the exact trap `descent`'s `_Items` and DJS's `_FoldFrame.done`
+comments already record. Accumulate with `List` (or `Vec`) and flatten in `end`;
+the helpers in §9 do this so most authors never touch it.
+
+That is not a narrowing of what 4.1 promises. Memory is still O(depth) frames
+plus the live states along the spine, because a fixed-arity rule's collected
+children are bounded by its arity and released as soon as it is built.
 
 **4.2 Input-level.** [43](./043-stateful-parser.md) proposes
 `init`/`append`/`end` over input chunks — the same trio this protocol uses, one
@@ -327,9 +362,10 @@ freed, memory stays O(n), and the reading half alone buys nothing. The write
 half is the whole problem, and it needs two things this design does not supply:
 
 - **A typed drain** — `(rootState) => [emitted, rootState']`, folded back into
-  the parser state. The root state's type is the start transformer's `S`, which
-  `Transformer<T>` erases (§1), so it is `unknown` in and `unknown` out unless
-  that erasure changes.
+  the parser state. It only means anything when the start rule is a `Repeat`,
+  since that is the only kind with a state to drain; and that state's type is
+  its `S`, which `Transformer<M, T>` erases (§5), so it is `unknown` in and
+  `unknown` out unless that erasure changes.
 - **A rule for speculation.** Under `descent` a rewind can discard updates a
   caller has already drained, so draining is sound only where the parse cannot
   rewind past the drain point — always true under `ll1`, never guaranteed under
@@ -361,23 +397,27 @@ In the shared matcher layer, not in a new pass over the AST and not twice.
 Both backends are already the same machine: an explicit-stack loop whose frames
 hold an `AstSequence` under construction, finished with `mrSuccess(tag, seq, pos)`
 from [`../matcher/`](../matcher/). The change is to replace that
-`AstSequence` with the invocation's transformer state and those constructor
-calls with `create`/`update`/`end`. So:
+`AstSequence` with the invocation's collected children — or, for a `Repeat`,
+its transformer state — and those constructor calls with the rule's transformer.
+So:
 
-- `RuleTransformer`, `Transformer` and `TransformerMap` go in
-  `fjs/bnf/matcher/types.ts`, `astTransformer` in its `module.f.mjs`;
+- the four transformer types, the erased `Transformer` and `TransformerMap` go
+  in `fjs/bnf/matcher/types.ts`, the four default builders (§3) in its
+  `module.f.mjs`;
 - each backend gains one entry point that takes a map (`transformRuleSet`
-  below), and its frames carry `(rule name, state)` where they carried an
-  `AstSequence`;
+  below), and its frames carry `(rule name, collected children — or, for a
+  `Repeat`, state)` where they carried an `AstSequence`;
 - no third walk exists to desync from the other two.
 
-**Where the existential is eliminated.** A frame holds a state whose type the
-map has erased, so calling `update` on it is the one place a cast is needed — it
-is what "this state belongs to this transformer" means, and the frame carrying
-the rule name is what makes the claim checkable by eye. Keeping the *name* in
-the frame rather than a closure is also what keeps a suspended parse plain data:
-`(rule name, state)` pairs and a cursor serialize, so §4.2's checkpoint is a
-real one.
+**Where the existential is eliminated, and how little of it is left.** Only a
+`RepeatTransformer` has a state, so a frame holds one whose type the map has
+erased, and calling `update` on it is the one place a cast is needed — it is
+what "this state belongs to this transformer" means, and the frame carrying the
+rule name is what makes the claim checkable by eye. The other three kinds are
+plain functions applied once to children the engine already holds, so nothing
+about them is existential at all. Keeping the *name* in the frame rather than a
+closure is also what keeps a suspended parse plain data: `(rule name, state)`
+pairs and a cursor serialize, so §4.2's checkpoint is a real one.
 
 That is the answer to what the previous design called "parser-neutral
 evaluation" (its `Semantics<R>` algebra). The algebra is right; it belongs in
@@ -390,78 +430,132 @@ results are typed to the AST — `DescentMatchResult.ast` and `ll1`'s
 parse needs its own entry point and its own result:
 
 ```ts
-// `fjs/bnf/ll1`'s own shape: its input, its remainder, its result.
-type TransformMatchResult<T> =
-    | readonly['ok', T, readonly CodePoint[]]   // matched, finished, nothing refused
-    | readonly['refused', Refusal, readonly CodePoint[]] // matched and finished; a transformer said no (§6)
-    | readonly['no-match', Remainder]           // rejected, or the input ran out (`null`)
+// the erased upper bound: tagged by rule kind, so construction can check all four
+type Transformer<M, T> =
+    | readonly['terminal', TerminalTransformer<M, T>]
+    | readonly['sequence', SequenceTransformer<M, never, T>]
+    | readonly['variant', VariantTransformer<M, never, T>]
+    | readonly['repeat', {
+        readonly init: unknown
+        readonly update: (state: never, c: Meta<never, M>) => unknown
+        readonly end: (state: never) => Meta<T, M> }]
+    | readonly['unit']
+type TransformerMap<M> = StringMap<Transformer<M, unknown>>
 
-type TransformMatch<T> = (s: readonly CodePoint[]) => TransformMatchResult<T>
+// `fjs/bnf/ll1`'s own shape: its input, its remainder, its result.
+type TransformMatchResult<T, M> =
+    | readonly['ok', Meta<T, M>, readonly CodePoint[]]  // matched and finished
+    | readonly['no-match', Remainder]        // rejected, or the input ran out (`null`)
+
+type TransformMatch<T, M> = (s: readonly CodePoint[]) => TransformMatchResult<T, M>
 
 const transformRuleSet:
-    (ruleSet: RuleSet) =>
-    <M extends TransformerMap>(map: M) =>
-    <K extends string>(start: K) => TransformMatch<_Output<M, K>>
+    <M>(ruleSet: RuleSet, monoid: Monoid<M>) =>
+    <Map_ extends TransformerMap<M>>(map: Map_) =>
+    <K extends string>(start: K) => TransformMatch<_Output<M, Map_, K>, M>
 
-type _Output<M, K> = K extends keyof M
-    ? M[K] extends Transformer<infer T> ? T : never
+type _Output<M, Map_, K> = K extends keyof Map_
+    ? Map_[K] extends Transformer<M, infer T> ? T : never
     : unknown
 ```
 
-`refused` carries a physical remainder for the same reason `ok` does: it can
-only happen after the matched rule finished and ran `end`, and a parse that ran
-out of input mid-rule never reaches `end` at all — that one is `no-match` with
-a `null` remainder. `Remainder` there would re-admit `['refused', reason, null]`,
-which is precisely the contradiction this union exists to rule out.
+**Every kind erases to that bound, and `_Output` still reads the value back
+out.** A terminal, sequence or variant transformer is a function whose parameter
+is `Meta<C, M>` for its own `C`, and `Meta<never, M>` is assignable to every one
+of those, so each erases however its children are typed; a
+`RepeatTransformer<M, C, S, T>` erases for every `S`. `T` appears only in an
+output position in each arm that has one, so `Transformer<M, T>` stays covariant
+in `T` and `infer T` recovers the rule's declared value through the union. No
+`any`, and no cast to build a map.
 
-The type reads `M` as the map literal's *own* type, which is why §8 says to
+**`unit` is the fifth arm and it is not a kind.** It is the transformer that
+keeps nothing, so it has no children to be typed by and no state — which makes
+it the one entry that fits any rule. The engine does not call anything for it:
+it yields `[undefined, identity]` directly. That is what makes the all-`unit`
+recognizer of §10 allocation-free in the strong sense — not "builds cheap values
+and discards them" but "makes no call and holds no state" — and it is also why a
+rule that can match EOF is almost always `unit` rather than a terminal
+transformer that has to branch on `-1` (§2). `_Output` reads `unknown` for a
+`unit` start rule, which is honest: it kept nothing.
+
+**The tag is there because nothing else can carry the kind.** Erased, a
+terminal, a sequence and a variant transformer are the *same function type* —
+each takes one argument that `Meta<never, M>` is assignable to — so without a
+tag a map could supply a terminal transformer for a variant rule and neither the
+type nor a runtime inspection would notice: at runtime all three are just
+functions. It would fail as a variant handing its `[branchName, value]` pair to
+a callback expecting a leaf. The tag is written by the §9 helpers, never by
+hand, and it makes the kind visible exactly where the `RuleSet` is available to
+compare it against.
+
+**Four things are resolved when the parser is built**, all O(rules) and none of
+them able to be incomplete:
+
+- **Every map key names a rule.** This catches the failure that actually happens
+  — a rule renamed or misspelled, whose transformer then never fires and whose
+  absence looks like a parser bug.
+- **Every entry's kind agrees with its rule's.** The entry's tag against the
+  `RuleSet`'s kind, all four ways — `unit` excepted, which matches any kind
+  because it reads nothing. This is a *construction*-time check and not a
+  type-level one, and it cannot be otherwise: the map's type does not know the
+  `RuleSet`, so `character: terminal(…)` for a variant rule type-checks
+  perfectly and is caught only here. The uniform protocol of the earlier draft
+  could not catch it at all, at either time, because one shape fits every rule
+  by definition (§1).
+- **`start` resolves.** `K extends string` accepts any name — it has to, since a
+  start rule the map does not transform is legal (`_Output` gives it `unknown`)
+  — so nothing in the type stops a typo. The builder resolves `start` against
+  the `RuleSet` alongside every map key, and throws there rather than letting a
+  mistyped start rule reach the machine and fail on the first parse.
+- **No mapped branch sits under an unmapped variant.** The tag would have
+  nowhere to go, so that map is refused here too, naming both rules — §3 is
+  where the reasoning is.
+
+The type reads `Map_` as the map literal's *own* type, which is why §8 says to
 check the map with `satisfies` and never to annotate it: an annotation makes
-every declared key optional and present in `keyof M` at once, and then `_Output`
-cannot tell a rule the map supplies from one it omits.
-
-**`start` is checked too, not only the map's keys.** `K extends string` accepts
-any name — it has to, since a start rule the map does not transform is legal
-(`_Output` gives it `unknown`) — so nothing in the type stops a typo. The
-builder resolves `start` against the `RuleSet` alongside every map key, and
-throws there. Otherwise a mistyped start rule reaches the machine and fails on
-the first parse instead of at the boundary that was built to catch exactly this
-(§1).
+every declared key optional and present in `keyof Map_` at once, and then
+`_Output` cannot tell a rule the map supplies from one it omits.
 
 **A parse that did not finish has no value, and the type says so.** The root's
-`end` never runs when the grammar rejects the input — a failure propagates
+transformer never runs when the grammar rejects the input — a failure propagates
 straight out, past every frame — so there is no `T` to report and none is
-invented. The same holds when the input **runs out** mid-rule: `end` is skipped
-for every frame on the spine rather than called on a fold that is missing
-children (§6 — a transformer is total for the shapes its rule can produce, and a
-truncated sequence is not one of them). Both are `no-match`, told apart by the
-remainder: where matching stopped, or `null` for input that ended first.
+invented. The same holds when the input **runs out** mid-rule: no transformer on
+the spine is called, rather than a sequence transformer being handed a tuple
+that is missing its last items (§6 — a transformer is total for the shapes its
+rule can produce, and a truncated sequence is not one of them; with children
+typed as a tuple this is now a type error waiting to happen rather than only a
+contract). Both are `no-match`, told apart by the remainder: where matching
+stopped, or `null` for input that ended first.
 
 **That is why the result is a tagged union rather than a tuple with a boolean.**
 A `[value, success, remainder]` tuple mirroring `MatchResult` can spell states
-this design forbids — a refusal beside `success: false`, a value beside a `null`
-remainder — and a type that admits what the contract rules out has to be
-explained twice and checked by hand. Here each state carries exactly what it
-has: only `ok` carries a value, and only `ok` promises a non-`null` remainder,
-because a parse that ran out of input has neither. It reads as `Result` does
-elsewhere in the repository, so nothing new is invented, and `parserRuleSet`'s
-own `MatchResult` is untouched.
+this design forbids — a value beside a `null` remainder — and a type that admits
+what the contract rules out has to be explained twice and checked by hand. Here
+each state carries exactly what it has: only `ok` carries a value, and only `ok`
+promises a non-`null` remainder, because a parse that ran out of input has
+neither. It reads as `Result` does elsewhere in the repository, so nothing new
+is invented, and `parserRuleSet`'s own `MatchResult` is untouched.
+
+The root's `M` comes out with its value, which is the whole metadata channel
+arriving where a caller can use it: the merged span of the document, or whatever
+the start rule chose to publish.
 
 The AST path is unaffected either way — an unmapped rule's node is the engine's
 own (§3), so `parserRuleSet` still reports the partial node it always has.
 
-**The shape above is `ll1`'s, not a shared one.** Only the three *outcomes*
+**The shape above is `ll1`'s, not a shared one.** Only the two *outcomes*
 generalize. `fjs/bnf/descent` consumes `CodePointMeta<M>[]`, not `CodePoint[]`,
 and returns `{ ast, success, idx, failure? }` rather than a remainder tuple —
 its furthest-failure record is the reason that backend's result is an object.
-Its transforming entry keeps all of that and replaces `ast` with the same three
+Its transforming entry keeps all of that and replaces `ast` with the same two
 outcomes. Two backends, two result types, one protocol: the same split
 [`../matcher/README.md`](../matcher/README.md) already draws between what is
 shared and what is each machine's own.
 
 The start rule moves into the builder, and that is what connects the map to the
 parse's type: a map written as an object literal keeps its literal keys, so
-`M[K]` is the start rule's *own* transformer and `_Output` reads the output type
-out of it — no cast, and no unconstrained type parameter for a caller to fill in
+`Map_[K]` is the start rule's *own* transformer and `_Output` reads the output
+type out of it — no cast, and no unconstrained type parameter for a caller to fill in
 by annotation. A start rule the map does not name gives `unknown`, which is
 honest: it builds an AST node whose children may themselves be transformed
 values, so it is not an `Ast<CodePoint>` and must not claim to be.
@@ -469,106 +563,121 @@ values, so it is not an `Ast<CodePoint>` and must not claim to be.
 The remainder keeps its present meaning in every case: what is left where the
 match stopped, and `null` where the input ran out.
 
-`parserRuleSet` then **is** this machine with an empty map, keeping its current
-type: with no entries every value is a node `astTransformer` built, over leaves
-that are this backend's own.
+`parserRuleSet` then **is** this machine with an empty map and the trivial
+`Monoid<null>`, keeping its current type: with no entries every value is a node
+the four default builders of §3 produce, over leaves that are this backend's
+own.
 
-#### 6. Backtracking, purity, errors
+#### 6. Backtracking, purity, refusals
 
 A transformer **must be pure and total**: same inputs, same outputs, no effects,
 no `throw` (the repository has no `try`/`catch`). Two reasons, and the first is
 not negotiable:
 
-- `descent` speculates. A branch it abandons has already had `create` and some
-  `update`s. Because `S` is immutable, discarding it is dropping a frame — no
-  undo protocol, which is the property that makes this design work under a
-  backtracking parser at all, and the reason effects cannot be allowed.
-- A transformer that is expensive multiplies backtracking cost, and moving the
-  work into `end` does not avoid it: `end` runs for every invocation that
-  *succeeded*, including one inside an alternative a later sibling then fails —
-  which is the same invariant §1 states about abandoned frames, read from the
-  other side. So under `descent` both `update` and `end` want to be cheap, and
-  only `ll1` guarantees no transformer runs on work that is thrown away.
+- `descent` speculates. A branch it abandons may already have run transformers
+  for children that succeeded inside it, and a repetition inside it may already
+  hold state from completed rounds. Because that state is immutable, discarding
+  it is dropping a frame — no undo protocol, which is the property that makes
+  this design work under a backtracking parser at all, and the reason effects
+  cannot be allowed.
+- A transformer that is expensive multiplies backtracking cost. Under the four
+  kinds this is sharper than it was: a terminal, sequence or variant transformer
+  runs exactly once, when its rule succeeds — including inside an alternative a
+  later sibling then fails — and a repetition's `update` runs per round. So
+  under `descent` all of it wants to be cheap, and only `ll1` guarantees no
+  transformer runs on work that is thrown away.
 
-Refusal is `end`-only, on purpose. Anything a child could reject can be recorded
-in the state and reported when the rule finishes, so `update` stays a plain
-`(state, child) => S` and there is one place to look for a rejection. The
-cost is that a refusal's *position* is the enclosing rule's, not the offending
-child's, unless the transformer kept the child's metadata (§7) — which the
-transformers that care already do.
+**Totality is now partly the type system's job.** A transformer must be total
+for the shapes its rule can produce, and with children typed as a tuple (a
+sequence) or a named union (a variant), most of "the shapes its rule can
+produce" is written down: a variant transformer that forgets a branch fails to
+compile rather than falling through at runtime, and a sequence transformer
+cannot destructure a position its rule does not have. What is left to the
+contract is what the types still cannot say — that a truncated sequence never
+reaches a transformer at all (§5).
 
-**What a refusal carries is split between the two who know something.** A
-transformer returns a `string`: the reason, which is the only part it knows —
-it has no idea what it is called or where in the input it ran. The engine knows
-both, and attaches them, so what reaches the caller is structured:
+**Refusal is not a channel in the protocol.** The four signatures return
+`Meta<T, M>` and nothing else: there is no `Result` for a transformer to refuse
+through. A rule that must reject a value it can parse but cannot represent —
+`1e999`, a duplicate `__proto__` key, an unresolved `const`, everything
+[DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) says to
+refuse rather than answer with a plausible value — does it by making `Result`
+part of its **own** `T`. `Values['number']` is then `Result<number, string>`,
+its parent's child type says so, and the parent decides whether to propagate or
+handle it.
 
-```ts
-type Refusal = {
-    readonly rule: string     // the data-`RuleSet` name whose `end` refused
-    readonly at: number       // the physical index its invocation ended at
-    readonly message: string  // what the transformer said
-}
-```
+That is a real simplification rather than a deletion, because it makes the
+guarantee this issue most needed hold by construction:
 
-That is the `refused` payload of §5's result, and it is settled here rather
-than left to stage 1: the alternative — a bare `string` all the way out — would
-make a semantic refusal the *least* diagnosable outcome a parse has, next to a
-syntactic failure that already reports a position and an expected set.
+**A refusal never changes what the grammar accepts** — and with the refusal
+inside `T`, there is no longer any mechanism by which it could. Aborting the
+parse at the refusing rule would have been wrong, and `descent` is where it
+shows: a child can succeed and run its transformer inside a branch that a
+*later* item then fails, so the parser moves on to another alternative. Try
+`[specialNumber, 'x']` before `[plainText, 'y']` on an input ending in `y`: if
+`specialNumber` refuses, aborting rejects an input the grammar accepts, and
+which inputs parse becomes branch-order dependent. `ll1` needs the same answer
+for a reason of its own — a refusal is not final even where nothing can be
+abandoned, because a later sibling can still fail syntactically, and then the
+honest answer is a syntax failure with no value (§5), not a semantic error about
+a parse that never happened. Both are now non-questions: an error is a value, it
+travels up as any value does, and a branch the parser abandons drops it with
+everything else it produced.
 
-**A refusal never changes what the grammar accepts.** Aborting the parse at the
-refusing rule would be wrong, and `descent` is where it shows: a child can
-succeed and run `end` inside a branch that a *later* item then fails, so the
-parser moves on to another alternative. Try `[specialNumber, 'x']` before
-`[plainText, 'y']` on an input ending in `y`: if `specialNumber`'s transformer
-refuses, aborting rejects an input the grammar accepts, and which inputs parse
-becomes branch-order dependent. Restricting transformers to non-speculative
-rules is the other way out, and it is worse — it would make the protocol mean
-something different on each backend.
+**What it costs is the diagnostic the engine used to attach.** An earlier draft
+had `end` return `Result<T, string>` and the engine complete it into
+`{ rule, at, message }`, because a transformer knows only the reason — not what
+it is called or where in the input it ran. With refusal in `T`, that completion
+has nowhere to happen, and the position has to come from `M` instead. This is
+the concrete reason `M` matters even for a grammar that wants no metadata for
+its own sake: a grammar whose transformers refuse should carry positions in `M`,
+and one that does not can only report *what* went wrong, not *where*.
 
-So a refusal is a **value**. The refusing invocation's value is the error; the
-enclosing fold takes it in place of its state and stops calling `update`; it
-travels up the spine unchanged, so the first refusal is the one reported.
-Matching continues exactly as it would have, and a branch the parser abandons is
-dropped with its refusal like any other value it produced.
-
-**`ll1` needs this rule too, for a reason of its own.** It is not merely
-inheriting a constraint from the backtracking backend: a refusal is not final
-when it happens even where nothing can be abandoned, because a *later sibling
-can still fail syntactically*. Match `[specialNumber, 'x']` on input where
-`specialNumber` matches, its transformer refuses, and the next symbol is not
-`x`: the sequence does not match, so the honest answer is a syntax failure with
-no value (§5), not a semantic error about a parse that never happened. Aborting
-at the refusing rule would report the refusal instead — and would leave
-`success` and the remainder with nothing to say. Carrying the refusal as a value
-gets both right: it is discarded with everything else the failed match produced.
-
-So the rule is the protocol's on both backends, and stage 1 exercises it rather
-than merely implementing it.
+That trade is what the signatures say, and it is the one part of the redesign
+not yet confirmed — see the open question. The alternative is to wrap the return
+as `Result<Meta<T, M>, Refusal>` in all four kinds, restoring `refused` to §5's
+result at the cost of a channel every rule pays for and a second error union
+beside the one a transformer's `T` can already carry.
 
 #### 7. Metadata
 
-There is no separate metadata channel, and none is needed. Under
-`fjs/bnf/descent` a leaf *is* `readonly[CodePoint, T]`, so metadata arrives at
-the terminal rule's `update` already attached, and each transformer keeps
-whatever it needs — a span, a lexeme, nothing. A parent sees a child's metadata
-only if the child's `end` includes it, the same forwarding rule as everything
-else in a fold.
+`M` is the channel, it is generic in what it carries, and every transformer has
+it (§1). That is the one structural change from the earlier draft, which had no
+metadata channel at all and said none was needed.
 
-This replaces the previous design's mandatory `(leaf, merge, empty)` monoid
-merged into every node. That monoid existed to guarantee error positions and to
-carry lexemes across parser layers; the first is the engine's to attach — it
-knows the rule and the cursor a refusal happened at, which is what the open
-question about a refusal's payload is about — and the second is one transformer
-returning a pair. An automatic span
-monoid remains available as a *helper* (§9) for grammars that want one
-everywhere, which is the right altitude for it — sugar, not a channel every
-rule pays for.
+**It is not a source span.** A span is one instance. The motivating case is a
+layered parse: a tokenizer's output symbol `n` says only *that* a number is
+here, and *which* number rides in `M`, so the next layer's terminal transformer
+reads the value straight off its leaf instead of re-lexing the digits. Lexemes,
+positions, a token's precomputed payload, and `null` — nothing at all — are all
+the same channel at different instantiations.
 
-For the [layered parser](./layered-parser.md) this is the same mechanism it
-already wanted: a tokenizer layer's transformers reduce code points to a token
-whose value channel is one symbol and whose payload rides in the value the
-transformer returns; the next layer's leaves are those tokens. `fjs/djs` already
-runs exactly this shape by hand.
+**`fjs/bnf/descent`'s leaf already is this.** `CodePointMeta<M>` is
+`readonly[CodePoint, M]`, which is `Meta<CodePoint, M>`, which is exactly a
+terminal transformer's parameter (§1). So per-symbol metadata does not enter
+through a new door: the backend that has it already speaks this shape, and
+`fjs/bnf/ll1`, whose leaves are bare `CodePoint`, is the same protocol at
+`M = null`.
+
+**A parent's `M` is the monoid's, its own output `M` is its choice.** The engine
+combines the children's with the `Monoid<M>` given at construction (§1, §5) and
+hands a sequence transformer one `M` for its whole tuple; what the transformer
+*returns* is unconstrained — forward it, replace it, or return the identity. The
+identity also covers the empty sequence and the zero-round repetition, so no
+kind needs a special case.
+
+This is the previous design's `(leaf, merge, empty)` monoid, kept but demoted:
+it is supplied once per parser rather than declared per rule, it is generic
+rather than fixed to spans, and a grammar that wants none instantiates it
+trivially. What it is *not* is optional — the earlier draft made an automatic
+span a `span(inner)` helper (§9) and left `M` out of the protocol, which could
+not work, because a helper wrapping one transformer has no access to its
+children's metadata unless the protocol already threads it.
+
+For the [layered parser](./layered-parser.md) this is the mechanism it wanted,
+now named: each layer is one grammar plus one transformer map, a layer's output
+symbol is its value channel, and its payload is `M`. `fjs/djs` already runs
+exactly this shape by hand.
 
 #### 8. Types
 
@@ -580,7 +689,7 @@ worked around here — it is sidestepped, because this map is keyed over the
 through string names. There is no type-level cycle to break.
 
 So an author declares the value domain by rule name and gets ordinary static
-checking of every `end`:
+checking of every transformer's result:
 
 ```ts
 type Values = {
@@ -589,47 +698,70 @@ type Values = {
     readonly object: Json
     // …
 }
-type Transformers = { readonly[K in keyof Values]?: Transformer<Values[K]> }
+type Transformers = { readonly[K in keyof Values]?: Transformer<M, Values[K]> }
 
 const map = { /* … */ } satisfies Transformers   // checked, never annotated
 ```
 
 **`satisfies`, not an annotation**, and the difference is not stylistic. The
 properties are optional, because a grammar has rules no one transforms — so
-`const map: Transformers = …` widens every key to `Transformer<T> | undefined`,
-whether or not the map supplies it. `M[K]` is then a union in a non-distributive
-position, `_Output`'s conditional does not match, and **every** start rule
-resolves to `never`: the map compiles, and the first use of the parse's value
-does not. `satisfies` checks each `end` against `Values[K]` while keeping the
+`const map: Transformers = …` widens every key to
+`Transformer<M, T> | undefined`, whether or not the map supplies it. `Map_[K]`
+is then a union in a non-distributive position, `_Output`'s conditional does not
+match, and **every** start rule resolves to `never`: the map compiles, and the
+first use of the parse's value does not. `satisfies` checks each result against
+`Values[K]` while keeping the
 literal's own keys, so a rule the map supplies infers its `T` and one it omits
 falls through to `unknown` — exactly the reason
 [`fjs/AGENTS.md` §3.2](../../AGENTS.md#prefer-satisfies-over-type-when-checking-not-overriding)
 prefers `@satisfies` wherever the goal is to check a shape rather than to
 declare one.
 
-**Do not "fix" that `never` with `NonNullable<M[K]>`.** It looks like the
+**Do not "fix" that `never` with `NonNullable<Map_[K]>`.** It looks like the
 obvious repair and it is the unsound one: stripping the `undefined` makes an
 *omitted* start rule infer `Values[K]` while the parse takes the unmapped path
 and returns an AST node — a wrong type reported confidently, in place of a
 compile error. The `never` is the failure worth having, and the fix belongs at
 the map, not at `_Output`.
 
-Every `end` is checked against the rule's declared output, and `_Output` (§5)
-reads the start rule's entry back out of the same map to type the parse's
-result. Each transformer's own `S` is checked where it is written, against the
-`RuleTransformer<S, T>` it is written as; the map only ever sees the erased
-`Transformer<T>`.
+Every transformer's result is checked against the rule's declared output, and
+`_Output` (§5) reads the start rule's entry back out of the same map to type the
+parse's result. A `RepeatTransformer`'s own `S` is checked where it is written;
+the map only ever sees the erased `Transformer<M, T>`.
 
-`update`'s `child` stays `unknown`. The child *names* are known only at runtime
-(the `RuleSet` is built by `toData`, so TS never sees the literal), and an
-author who narrows it does so unchecked — the same status as any `unknown`
-narrowing, and better than the previous design's position, which needed a
-schema language to say anything at all.
+**Children are typed, and this is what the four kinds bought.** A uniform
+`update` taking one child at a time has `unknown` as its item type, so every
+child type in a map was an annotation the author wrote and nobody checked. Here
+a sequence transformer declares its children as a tuple and a variant
+transformer as a record of branches; the callback destructures them and each
+child arrives at its declared type.
 
-What runs at parser construction is **name resolution only**: every key in the
-map names a rule in the `RuleSet`. That is O(rules), cannot be incomplete, and
-catches the failure that actually happens (a rule renamed or misspelled, whose
-transformer then never fires and whose absence looks like a parser bug).
+**What is *not* checked, and it is worth being exact about it.** `C` is a type
+parameter, so it is erased: neither a sequence's tuple nor a variant's record of
+branches survives to construction, and nothing compares either against the
+`RuleSet`. A `C` with the wrong arity, two positions transposed, or a branch
+name the grammar does not have still compiles and still builds a parser. So `C`
+is the author's claim about the grammar, exactly as the old per-callback
+annotation was.
+
+What changed is how much that claim can go wrong and how visibly:
+
+- **It is one claim per rule instead of one per child**, written where the rule
+  is named rather than inline in a callback.
+- **A variant's claim is keyed by name.** Positions can transpose silently;
+  names cannot. And the compiler enforces the claim *internally* — a callback
+  that fails to handle a branch it declared does not compile — so the residue is
+  narrowed to "did I declare the branches this grammar actually has", not "did I
+  handle the ones I declared".
+- **The kind itself *is* checked**, at construction, against the `RuleSet` (§5).
+  That is the one part of the shape the map carries to runtime, because the §9
+  helpers write it as a tag.
+
+Making `C` checkable would mean carrying the branch names or the arity as data
+rather than only as types — the helpers could take them — which is a real option
+and is left to the open question below rather than assumed here.
+
+The rest of what runs at parser construction is in §5.
 
 RTTI is **not** on this path. `in`/`out` schemas per transformer, `subset`
 compatibility at instantiation, and per-node `parse` remain available as an
@@ -639,49 +771,47 @@ blocker because nothing here depends on the answer.
 
 #### 9. Helpers
 
-The protocol is the primitive; the ergonomics come from a small library over it,
-which is also where the O(1)-`update` discipline is enforced once:
+The four shapes are the primitive; the ergonomics come from a small library over
+them. It is also what writes the §5 kind tag, so an author never types one:
 
 ```ts
-const map:  <C extends readonly unknown[], T>(f: (children: C) => T) => Transformer<T>
-const list: <T>() => Transformer<readonly T[]>
-const text: () => Transformer<string>
-const unit: Transformer<undefined>
-const span: <T>(inner: Transformer<T>) => Transformer<T>
+const terminal: <M, T>(f: (leaf: L) => T) => Transformer<M, T>
+const seq:      <M, C extends readonly unknown[], T>(f: (children: C) => T) => Transformer<M, T>
+const variant:  <M, C, T>(f: (b: Branch<C>) => T) => Transformer<M, T>
+const list:     <M, C>(m: Monoid<M>) => Transformer<M, readonly C[]>
+const text:     <M>(m: Monoid<M>) => Transformer<M, string>
+const unit:     readonly['unit']
 ```
 
-- `map(f)` — a transformer from a plain function of the whole child list, for
-  small fixed sequences. This is the `reduce`-over-children shape of the
-  previous design, recovered as sugar, and it is where `tryFold`'s relationship
-  to this protocol is most visible (§12).
-- `list()` — the identity fold for a `Repeat`: children in, array out, O(1) per
-  item.
-- `text()` — the common lexeme case: its children concatenated into a string,
+- `terminal`, `seq`, `variant` — the fixed-arity kinds, for the common case of a
+  transformer that does not care about metadata: the callback sees the value
+  alone and the helper forwards `M` unchanged. A transformer that *does* care is
+  written as the bare function of §1. `terminal`'s callback is **not** given an
+  EOF branch, so a rule that can match the synthesized end-of-input symbol is
+  `unit` or a hand-written function (§2).
+- `list(m)` — the identity fold for a `Repeat`: children in, array out, O(1) per
+  item. It takes the monoid because it is the one kind that has to combine its
+  rounds' metadata itself.
+- `text(m)` — the common lexeme case: its children concatenated into a string,
   whether they are matched leaves or the strings a child rule's own transformer
   already produced.
-- `unit` — keeps nothing: its own subtree costs nothing, though it still hands
-  the parent a value to ignore (see §10). Whitespace, punctuation, and a
+- `unit` — keeps nothing, and is not a kind: it fits any rule, and the engine
+  answers it without calling anything (§5). Its own subtree costs nothing,
+  though it still occupies a slot in its parent's tuple rather than disappearing
+  from it (see §10). Whitespace, punctuation, a rule that can match EOF, and a
   recognizer's every rule.
-- `span(inner)` — wraps a transformer so its result carries the source range
-  merged from its children's metadata: the §7 monoid, opt-in.
 
-**Every child type in those signatures is written by the author, not inferred.**
-`update` receives `unknown` (§8), so nothing in the map or the `RuleSet`
-determines `C` or `list`'s `T`: a callback written `([, inner]) => inner` infers
-`C = readonly unknown[]`, `inner` stays `unknown`, and `map` returns
-`Transformer<unknown>` — which is not assignable to the `Transformer<string>`
-that §8's `satisfies` demands, and the map fails to compile with the child types
-left implicit. `C` is inferred from the callback's own parameter annotation and
-from nowhere else, so the annotation is mandatory wherever a child's value is
-used: `map(([, inner]: readonly[unknown, string, unknown]) => inner)`. It is a
-claim about what the grammar produces, checked nowhere — the same unchecked
-narrowing §8 already grants over an `unknown` child, with the one improvement
-that writing it as a tuple puts the whole claim in one readable place per rule.
+**There is no `span` helper, and §7 is why.** An earlier draft had
+`span(inner)`, a wrapper that gave a transformer's result the source range
+merged from its children's metadata. A wrapper cannot do that: it sees one
+transformer, not that transformer's children, so the merge has to be the
+engine's. It is — the `Monoid<M>` of §1, supplied once per parser. What was
+sugar for a channel the protocol lacked is now the channel.
 
-A fixed sequence that wants positional destructuring uses `map` and pays one
-small array; a repetition — where size is unbounded and streaming matters — uses
-`list` or a hand-written fold. That is the split the previous design's
-"positional elision" section was reaching for.
+**The O(1)-`update` discipline (§4.1) applies to `list`, `text` and hand-written
+`RepeatTransformer`s only**, because they are the only shapes with an `update`.
+A sequence transformer receives its whole tuple at once and cannot be quadratic
+in a length the grammar fixes.
 
 #### 10. Worked examples
 
@@ -695,54 +825,64 @@ assume:
 
 ```ts
 // the grammar's rules, as named thunks:
-//   value   = () => ({ object, array, string, number, … })
-//   string  = () => ['"', characters, '"']
-//   member  = () => [string, ws, ':', ws, value]
-//   object  = () => ['{', ws, members, '}']
-//   number  = () => [digits]
+//   value      = () => ({ object, array, string, number, true, false, null })
+//   string     = () => ['"', characters, '"']
+//   characters = () => repeat(character)
+//   character  = () => ({ unescaped, escape })
+//   escape     = () => ['\\', escaped]
+//   escaped    = () => ({ simple, hex })
+//   member     = () => [string, ws, ':', ws, value]
+//   members    = () => repeat(member)
+//   object     = () => ['{', ws, members, '}']
+//   array      = () => ['[', ws, items, ']']
+//   number     = () => [digits]
 type Member = readonly[string, Json]
 {
-    character:  map(([c]: readonly[CodePoint]) => decodeOne(c)),
-    characters: text(),                        // Repeat of character → string
-    string:     map(([, chars]: readonly[unknown, string, unknown]) => chars),
-    member:     map(([k, , , , v]: readonly[string, unknown, unknown, unknown, Json]) =>
+    unescaped:  terminal(c => String.fromCodePoint(c)),
+    simple:     seq(([, c]: readonly[unknown, string]) => simpleEscape(c)),
+    hex:        seq(([, d]: readonly[unknown, string]) => fromHex4(d)),
+    escaped:    variant(([, c]: Branch<{ simple: string, hex: string }>) => c),
+    escape:     seq(([, c]: readonly[unknown, string]) => c),
+    character:  variant(([, c]: Branch<{ unescaped: string, escape: string }>) => c),
+    characters: text(m),
+    string:     seq(([, chars]: readonly[unknown, string, unknown]) => chars),
+    member:     seq(([k, , , , v]: readonly[string, unknown, unknown, unknown, Json]) =>
                     [k, v] as const),
-    members:    list<Member>(),
-    object:     map(([, , ms]: readonly[unknown, unknown, readonly Member[], unknown]) =>
+    members:    list<M, Member>(m),
+    object:     seq(([, , ms]: readonly[unknown, unknown, readonly Member[], unknown]) =>
                     Object.fromEntries(ms)),
-    array:      map(([, , items]: readonly[unknown, unknown, readonly Json[], unknown]) => items),
-    items:      list<Json>(),
-    digits:     text(),
-    number:     map(([digits]: readonly[string]) => Number(digits)),
-    true:       map(() => true),
-    false:      map(() => false),
-    null:       map(() => null),
-    value:      map(([v]: readonly[Json]) => v),  // the branch's value, whichever it was
+    array:      seq(([, , items]: readonly[unknown, unknown, readonly Json[], unknown]) => items),
+    items:      list<M, Json>(m),
+    digits:     text(m),
+    number:     seq(([d]: readonly[string]) => Number(d)),
+    true:       seq(() => true),
+    false:      seq(() => false),
+    null:       seq(() => null),
+    value:      variant(([, v]: Branch<{
+                    object: Json, array: Json, string: Json, number: Json
+                    true: Json, false: Json, null: Json }>) => v),
     ws:         unit,
 }
 ```
 
-**The annotations are the price of `unknown` children, and they are load-bearing
-(§9).** Without them `map` infers `readonly unknown[]`, every callback returns
-`unknown`, and the map does not satisfy the `Transformers` of §8 — so this is
-what a checked map looks like, not a decorated one. Two consequences worth
-reading off it: `as const` is needed wherever a callback builds a tuple, because
-`[k, v]` widens to `(string | Json)[]` and `member`'s declared value is
-`readonly[string, Json]`; and each annotation restates a slice of the grammar,
-so it goes stale silently if the grammar's sequence changes under it. Nothing in
-the protocol catches that — see the open question below on typing children per
-rule kind, which is the only way found so far to make the sequence's own shape
-supply these types instead of the author.
+**The escape branches are not decoration — they are the bug the uniform protocol
+could not prevent.** An earlier version of this example wrote `character` as one
+callback claiming its child was a `CodePoint`. That is false whenever the input
+contains `\n` or `\u0041`: `character` is a *variant*, so its child is a branch,
+and `decodeOne` would have received an AST node. Under the uniform protocol
+nothing caught it — the child was `unknown`, the annotation was the author's
+word, and the map compiled. Here it is not writable: a variant transformer's
+parameter is `Branch<C>`, so claiming a leaf is a type error, and the branch
+names are declared once, by name rather than by position, so the branch set is
+written down where a reader can compare it against the grammar instead of being
+implied by a tuple's length. What no machine checks is whether that declared
+branch set is the grammar's — see §8.
 
-**Declaring a type for a variant means transforming all of it.** `value` is in
-the map twice over: a mapped branch under an *unmapped* variant is refused at
-construction (§3), and `value` is the rule that gives a JSON value its type. But
-`value: map(([v]: readonly[Json]) => v)` can only claim to return `Json` if
-*every* branch does — an unmapped `number` or `true` would hand it an AST node,
-and that `readonly[Json]` would then be a false claim (§9) rather than a
-`satisfies` failure, returning the wrong runtime value under a type that says
-otherwise. So the map names all seven branches, and the example is
-no longer partial anywhere `value` can reach.
+**Declaring a type for a variant still means transforming all of it.** `value`
+declares seven branches, so all seven must be mapped: a mapped branch under an
+*unmapped* variant is refused at construction (§3), and an unmapped branch would
+hand `value` an AST node — which `Branch<{ … Json }>` now says is wrong at the
+map rather than at some later use of the value.
 
 That is the shape of the trade rather than a quirk of JSON: adoption is
 incremental *up to* the first variant whose value you want typed, and from there
@@ -759,13 +899,18 @@ them, so nothing accumulates into a root AST. Only a map that names every
 reachable rule — the recognizer below — allocates no node at all.
 
 **But `object` does see its own braces, and that is the design's sharpest
-ergonomic cost.** Every direct child reaches the parent: a punctuation rule with
-no transformer contributes its AST node, and `unit` contributes a value rather
-than suppressing the parent's `update`. So `object`'s callback receives four
-children — `{`, the whitespace, the members, `}` — and
-`Object.fromEntries(children)` would throw on the first brace. A positional
-callback has to account for the whole sequence, which is what the destructuring
-above does.
+remaining ergonomic cost.** Every direct child occupies a slot: a punctuation
+rule with no transformer contributes its AST node, and `unit` contributes
+`undefined` rather than removing itself from the tuple. So `object`'s tuple has
+four slots — `{`, the whitespace, the members, `}` — and
+`Object.fromEntries(children)` would throw on the first brace. The tuple type
+has to account for the whole sequence, which is what the `unknown` slots above
+do.
+
+Typed children make this *safer* than it was without making it shorter: a
+mis-counted sequence is now a type error at the first use of a child rather than
+a runtime surprise, but the count is still the author's to get right, and
+nothing checks a `C` whose length or order disagrees with the rule (§8).
 
 That is tolerable for a rule the author wrote, and **not** tolerable for one a
 combinator built: `commaJoin0Plus(ws)('{}', member)` expands into option and
@@ -775,7 +920,8 @@ the "silent rules" question below is not sugar — it is what makes a transforme
 map writable over a grammar built from combinators, and stage 2 has to settle it
 while writing this example rather than after. The options are a rule marked
 silent (its value never reaches the parent), a designated `unit` value the
-engine drops, or combinator-aware helpers that know the shapes they build.
+engine drops from the tuple, or combinator-aware helpers that know the shapes
+they build.
 
 **Recognizing without building.** The same grammar, with a map that answers
 `unit` for every rule. The parse is O(depth) memory and no value is built — the
@@ -801,22 +947,23 @@ boundary in §11.6. This issue supplies one half of the mechanism and none of
 that module.
 
 **DJS module.** `foldValue`, `descendantsTagged`, `slot`, `keyOf` and
-`_FoldFrame` all delete: elements arrive at their container's `update` instead
-of being searched for, and the engine's stack is the parser's already-explicit
-one, so the hand-rolled stack that exists to survive deep nesting is not needed.
+`_FoldFrame` all delete: elements arrive at their container's transformer
+instead of being searched for, and the engine's stack is the parser's already-
+explicit one, so the hand-rolled stack that exists to survive deep nesting is
+not needed.
 
 One thing does not fall out, and it is the design's honest limit: DJS resolves
 `const` references against names bound by *earlier* statements, which is an
 inherited attribute, and a fold only synthesizes. Two ways out, to be chosen
 when that work starts:
 
-- **A downward channel** in the engine, so a rule's `init` can see what its
-  ancestors bound. New mechanism, but the state stays plain data.
+- **A downward channel** in the engine, so a rule can see what its ancestors
+  bound. New mechanism, but the state stays plain data.
 - **The value transformer returns a closure** `(refs) => AstConst` that the
   module transformer applies. Pure and needs no new mechanism, but it costs two
   things: "const not found" moves out of the parse and needs the offending
   metadata captured in the closure, and — the one that matters — a closure
-  nested in a half-built array or object *is* transformer state while later
+  nested in a half-built array or object *is* a repetition's state while later
   siblings are parsed, so a parse suspended there holds functions. That
   contradicts §1 and §4.2, where a suspended parse is plain data.
 
@@ -824,6 +971,10 @@ So the closure is not the cheap default it looks like: taking it means saying
 out loud that a DJS parse is exempt from the checkpointing contract. Prefer the
 downward channel unless that exemption is acceptable, and decide it with the
 port rather than now.
+
+Worth noting against `M`: an inherited attribute is *not* what the metadata
+channel provides. `M` flows up with values, so it can carry where a `const`
+reference was but not what an earlier statement bound to it.
 
 #### 11. What this replaces
 
@@ -838,11 +989,12 @@ named, which is that grammar's business (JSON's is tracked in
 not this protocol's.
 
 **11.2 Fold, not `reduce`.** The previous `Semantics<R>` gave `reduce` the whole
-child array. The conversion only goes one way: `create`/`update`/`end` gives you
-`reduce` (accumulate, then apply — that is `map` in §9), while `reduce` cannot
-give you streaming, because it must materialize every child list first. Both
-current backends produce children one at a time, so the array is a construction
-`reduce` would force them to build and this protocol does not.
+child array. The conversion only goes one way: `init`/`update`/`end` gives you
+`reduce` (accumulate, then apply), while `reduce` cannot give you streaming,
+because it must materialize every child list first. That distinction survives
+the split to four kinds exactly where it matters: a `Repeat` is the unbounded
+kind and it folds, while the fixed-arity kinds do take their children as a
+tuple — an array whose length the grammar bounds, not one the input grows.
 
 **11.3 `mapRule` is dropped, and name-keying costs the grammar its spelling.**
 Wrapping rules in the functional form to carry actions required every consumer
@@ -871,8 +1023,8 @@ transformer that silently never fires.
 
 **11.4 List flattening is already done.** The structural right-recursion
 detection the previous design spent a section on shipped as the `Repeat` rule,
-and a `Repeat`'s events (`create`, one `update` per round, `end`) are the case
-this protocol fits best.
+and `RepeatTransformer` (`init`, one `update` per round, `end`) is the one kind
+that keeps the fold-as-data shape — §12.
 
 **11.6 It does not reopen the media/BNF boundary.** An earlier draft of this
 issue had `fjs/media/json` running its grammar through the transformer matcher.
@@ -894,14 +1046,18 @@ runtime consumer of this protocol is the front end that already runs on BNF —
 
 **11.5 The split is off.** What made the previous issue too big was the RTTI
 contract, the metadata monoid, and the flattening analysis. The first is
-optional (§8), the second is a helper (§7, §9), the third has shipped. What is
-left is one protocol and its two backends.
+optional (§8), the third has shipped. The second is the one this rewrite kept —
+it comes back as `M` and a construction-time `Monoid<M>` (§1, §7) — but it is a
+fraction of what it was: one monoid per parser instead of a `(leaf, merge,
+empty)` triple declared per rule, generic in what it carries instead of fixed to
+spans, and trivially instantiated by a grammar that wants none. What is left is
+one protocol and its two backends.
 
-#### 12. This is the repository's fold-as-data shape
+#### 12. `RepeatTransformer` is the repository's fold-as-data shape
 
 `init`/`update`/`end` is not a new invention here. It is already shipped four
-times and designed a fifth, and §1 is deliberately the same shape rather than a
-sibling of it:
+times and designed a fifth, and §1's `RepeatTransformer` is deliberately the
+same shape rather than a sibling of it:
 
 | Where | Shape |
 |---|---|
@@ -917,32 +1073,38 @@ Around them sits the closure-form family in
 `tryFold`, `scan`, `stateScan`, `foldScan` in `fjs/types/list`.
 [recognizer-backend](./recognizer-backend.md) already tells this issue's
 neighbours to use that family as the streaming contract rather than inventing a
-type, and this protocol is that instruction taken literally: a rule transformer
-is an `Accumulator` whose item is a tagged child.
+type, and this protocol is that instruction taken literally — for the one kind
+that needs it.
 
-Stated against flow's operator, a rule transformer **is** a `Transducer` with
+**The claim is `RepeatTransformer`'s, not every transformer's.** Splitting the
+protocol by rule kind (§1) is also a claim about *where* the fold-as-data shape
+belongs: a repetition is the only rule whose children the grammar does not
+count, so it is the only one with a state to carry between them. Terminal,
+sequence and variant transformers are plain functions of children the engine
+already holds, and calling those a degenerate three-event fold — `init` that
+nothing updates, one `update`, `end` — would be describing a function in a
+fold's vocabulary for the sake of a uniformity that costs typed children (§1).
+
+Stated against flow's operator, a `RepeatTransformer` **is** a `Transducer` with
 two of its four channels removed: no output stream (`O`) — a rule produces one
-value, not a stream — and no early `done`, because a fold over a rule's children
+value, not a stream — and no early `done`, because a fold over a rule's rounds
 ends when the rule does, not when the transformer decides. What is left is
 `init`, `update: (state, item) => state`, and `end` yielding the summary `A`.
-Its alphabet `I` is the `Child` of §1, which is exactly why the tag is paired
-with the value instead of passed beside it: a fold has one item type, and
-naming it is what makes this an instance rather than a look-alike.
+Its alphabet `I` is `Meta<C, M>`, the round's value paired with its metadata,
+which is one item type and not two parameters — the same reason a variant's
+branch name rides with its value (§1).
 
-Two deliberate differences remain, each with a reason:
+One deliberate difference remains: **the state is existential in a map.**
+`Accumulator` and `Transducer` are each used one at a time; a `TransformerMap`
+holds many with unrelated states, which is what §5's erased `Transformer<M, T>`
+bound and its single elimination are for.
 
-- **A refusal carries a reason.** `Accumulator`'s `update` short-circuits with
-  `Nullable<T>` and flow's `Step` with `done`; neither says *why*, and
-  [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) wants a
-  refusal, not a silence. Hence `end: (state) => Result<T, string>` (§6).
-- **The state is existential in a map.** `Accumulator` and `Transducer` are each
-  used one at a time; a `TransformerMap` holds many with unrelated states, which
-  is what §1's erased `Transformer<T>` bound and §5's single elimination are
-  for.
-
-Settle the first and the parameter order below, and `RuleTransformer<S, T>` has
-nothing of its own left to be: it becomes `Accumulator<Child, S, Result<T,
-string>>`, and this section becomes an import.
+Settle the parameter order below and `RepeatTransformer<M, C, S, T>` has nothing
+of its own left to be: it becomes `Accumulator<Meta<C, M>, S, Meta<T, M>>`, and
+this part of the section becomes an import. Note what the refusal decision in §6
+already bought here — with an error living in the transformer's own `T` rather
+than in a `Result` around `end`, there is no longer a second difference to
+reconcile.
 
 Two things this alignment hands to whoever implements it. `todo/flow.md`'s
 "explicit state `S`, not self-returning closures — the closure form is
@@ -968,10 +1130,10 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
 (it is, marginally) but because it is the one that settles the design:
 
 - It **never backtracks**, so no transformer runs on a branch the parse goes on
-  to abandon — which removes the *speculative* half of §6 from stage 1 without
-  removing the refusal rule itself: `ll1` still discards a refusal when a later
-  sibling fails syntactically (§6), so stage 1 exercises the rule on the case it
-  has, and stage 3 adds only the abandoned-branch case.
+  to abandon — which removes the *speculative* half of §6 from stage 1. With a
+  refusal living in the transformer's own `T` (§6), a refused value is discarded
+  with everything else a failed match produced, so stage 1 has that case for
+  free and stage 3 adds only the abandoned-branch one.
 - It is the backend that can promise **bounded-memory input streaming** (§4.2),
   which is what a payload-free recognizer over a stream needs and what the
   fold-level guarantee alone does not give.
@@ -986,23 +1148,33 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
 
 **Stage 1 — the protocol and `fjs/bnf/ll1`.**
 
-- [ ] Add `RuleTransformer`, `Transformer` and `TransformerMap` to
-      `fjs/bnf/matcher/types.ts`, and `astTransformer` to its `module.f.mjs`.
+- [ ] Add `Meta`, `Branch`, the four transformer types, the tagged erased
+      `Transformer` and `TransformerMap` to `fjs/bnf/matcher/types.ts`, and the
+      four default builders (§3) to its `module.f.mjs`.
+- [ ] Take a `Monoid<M>` at construction and thread `M` through every kind (§1,
+      §7). `ll1`'s own leaves carry none, so its instantiation is `M = null`
+      with the trivial monoid — but the channel has to be real from stage 1, or
+      `descent`'s `CodePointMeta` and the layered parser have nowhere to land.
 - [ ] Replace the `AstSequence` in `fjs/bnf/ll1`'s frames with the invocation's
-      `(rule name, state)`, and its `mrSuccess` calls with `update`/`end`. The
-      frame keeps its `tag`, which stays the engine's own for unmapped rules
-      (§3), and the one cast that eliminates the state's existential lives at
-      the `update` call.
+      collected children — for a `Repeat`, its `(rule name, state)` — and its
+      `mrSuccess` calls with the rule's transformer. The frame keeps its `tag`,
+      which stays the engine's own for unmapped rules (§3), and the one cast
+      that eliminates a repetition's existential state lives at its `update`.
 - [ ] Add a variant frame — `ll1` has none today, because a variant only
       retargets the current task — and push it **only** for a variant the map
       names, so the untransformed path keeps costing neither a frame nor a node.
-- [ ] Prove `astTransformer` (§3) folds the same children the engine's native
-      path builds a node from, so the specification and the implementation of
-      the default cannot drift.
-- [ ] Add `transformRuleSet` (§5) and check **both** the map's keys and the
-      `start` rule against the `RuleSet` at construction, throwing rather than
-      parsing — `K extends string` cannot reject a mistyped start name, since an
-      untransformed start rule is legal.
+- [ ] Prove the four default builders (§3) produce the same children the
+      engine's native path builds a node from, so the specification and the
+      implementation of the default cannot drift.
+- [ ] Add `transformRuleSet` (§5) and run all three construction-time checks:
+      every map key names a rule, every entry's **kind tag matches its rule's
+      kind**, and `start` resolves. Throw rather than parse — `K extends string`
+      cannot reject a mistyped start name, since an untransformed start rule is
+      legal, and no type can reject a terminal transformer supplied for a
+      variant rule, since the map's type does not know the `RuleSet`.
+- [ ] Answer a `unit` entry without calling anything and without allocating —
+      it is the fifth arm of `Transformer`, it matches any rule kind, and it is
+      what makes stage 2's recognizer mode free (§5, §9).
 - [ ] Refuse, in the same pass, a map that transforms the branch of an unmapped
       variant (§3): the branch has no node for the engine to tag, so the tag
       would vanish. Name both rules in the error, and prove that an empty map
@@ -1010,21 +1182,22 @@ Staged, and **`fjs/bnf/ll1` is stage 1** — not because it is the easier machin
 - [ ] Re-express `parserRuleSet` as that machine with an empty map, and keep its
       current result type; the one place the machine's erasure is undone is
       where a value comes back out of it.
-- [ ] Carry a refusal as a value (§6): it replaces the fold's state, suppresses
-      the rest of its `update`s and its `end`, and propagates unchanged — and
-      prove the case `ll1` has on its own, where a later sibling fails
-      syntactically after a refusal and the result is a syntax failure with no
-      value rather than a semantic error.
-- [ ] Skip `end` when the input runs out mid-rule, for every frame on the spine,
-      so no transformer is ever handed a fold that is missing children (§5, §6).
+- [ ] Prove a refusal is inert as far as the grammar is concerned (§6): with
+      the error inside the transformer's `T` there is no engine mechanism to
+      test, so what stage 1 owes is the case `ll1` has on its own — a later
+      sibling failing syntactically after a rule whose value was an error, with
+      the result a syntax failure and no value rather than a semantic one.
+- [ ] Skip the transformer when the input runs out mid-rule, for every frame on
+      the spine, so none is ever handed a truncated tuple (§5, §6).
       That reports `no-match` with a `null` remainder, as a rejected match
       reports `no-match` with the position it stopped at; the engine's native
       AST path keeps building its partial node, so `parserRuleSet` is unchanged.
 - [ ] Proofs: `descentEquivalence` and the existing AST expectations unchanged
-      under the empty map; the per-rule-kind event order of §2 including the
-      EOF terminal and an empty match; a refusal reported with `success: true`;
-      the construction-time name check; and a deep-nesting case, since the fold
-      now runs on the machine's explicit stack.
+      under the empty map; what each kind receives per §2, including the EOF
+      terminal, an empty `Sequence` and a zero-round `Repeat` (both of which
+      must see the monoid's identity); all three construction-time checks; and a
+      deep-nesting case, since a repetition's fold now runs on the machine's
+      explicit stack.
 
 **Stage 2 — helpers and the first consumer.** The consumer is inside `fjs/bnf`,
 not `fjs/media/json`: the boundary in §11.6 keeps the codecs off BNF at runtime,
@@ -1034,7 +1207,9 @@ value* to check against a spec vector.
 - [ ] Settle the silent-child question (§10) — a silent rule, an engine-dropped
       `unit`, or combinator-aware helpers — before writing the example's map,
       since a rule a combinator built has scaffolding the author cannot count.
-- [ ] Add the §9 helpers with the O(1)-`update` accumulation inside them.
+- [ ] Add the §9 helpers. They write the kind tag, so an author never does, and
+      the O(1) accumulation lives inside `list`/`text` — the only helpers with
+      an `update` to be quadratic in.
 - [ ] Rewrite the JSON example grammar's rules as **named thunks**, so `toData`
       keeps their names: `deterministic()` yields 92 rules of which exactly one,
       `value`, is named (§11.3), and no transformer map can address the rest.
@@ -1071,42 +1246,57 @@ value* to check against a spec vector.
 
 ### Open questions
 
-- **Which position a refusal reports (§6).** The payload is settled — see §6 —
-  but a rule's *start* would point at the offending construct better than its
-  end, and `ll1`'s frames carry no start position today. Whether to add one is a
-  stage-1 cost to weigh, not a question the design should answer blind.
+- **Does a transformer need a refusal channel of its own (§6)?** The four
+  signatures return `Meta<T, M>`, so a refusing rule puts `Result` in its own
+  `T` and the parse has no semantic-error outcome. That makes "a refusal never
+  changes what the grammar accepts" true by construction and deletes §5's
+  `refused` case, at the price of the diagnostic the engine used to attach: a
+  transformer knows the reason but not its rule name or position, so a grammar
+  whose transformers refuse has to carry positions in `M`. The alternative is
+  `Result<Meta<T, M>, Refusal>` in all four kinds. **This is the one part of the
+  four-kind protocol not yet confirmed**, and stage 1 should not start until it
+  is, because it is the public result type.
+- **`C` is erased, so nothing checks it against the grammar (§8).** A
+  sequence's arity and order, and a variant's branch names, are all the author's
+  claim; only the *kind* survives to construction, because the §9 helpers write
+  it as a tag. Carrying the rest as data would fix it — `variant` taking its
+  branch names, `seq` its arity — at the cost of writing each twice and keeping
+  them in step. Worth deciding in stage 2 with the JSON map in hand, since that
+  map is where the duplication would either read as redundant or as the thing
+  that caught a bug. It is also the same question the silent-rules item below
+  asks from the other side: a rule a combinator built is exactly the one whose
+  arity an author cannot count.
+- **Silent rules — no longer optional (§10).** `unit` still occupies a tuple
+  slot, so a positional callback must count punctuation, whitespace and every
+  scaffolding node a combinator built. That is guesswork against an
+  implementation detail for any rule the author did not spell out, which the
+  JSON example runs into immediately. A rule marked silent, a designated `unit`
+  the engine drops from the tuple, or combinator-aware helpers — pick one in
+  stage 2, with the example as the test of whether it reads.
+- **How much of `M` the engine should merge (§1, §7).** A sequence transformer
+  gets one `M` for its whole tuple, so the engine combines its children's with
+  the construction-time `Monoid<M>`. That is right for spans and for anything
+  else associative; it is less obviously right for a payload like a tokenizer's
+  number, which the terminal transformer consumes directly and which no parent
+  wants merged. Whether the answer is "carry only mergeable things in `M` and
+  consume payloads at the leaf" or a second, unmerged channel is a question the
+  layered-parser port should answer with a real tokenizer rather than this issue
+  in the abstract.
 - **`(state, item)` or `(item, state)` (§12).** The two shipped folds disagree.
-  §1 follows `todo/flow.md`; whoever unifies them may move it, and this issue
-  should not settle a repository-wide argument on its own.
-- **Output-level streaming (§4.3).** A typed drain needs the start
-  transformer's `S`, which the map erases; flow's output chunk taxes every rule
-  with a channel it does not use. Deferred until a consumer names which cost it
-  would rather pay.
+  `RepeatTransformer` follows `todo/flow.md`; whoever unifies them may move it,
+  and this issue should not settle a repository-wide argument on its own.
+- **Output-level streaming (§4.3).** A typed drain needs the start rule to be a
+  `Repeat` and needs its `S`, which the map erases; flow's output chunk taxes
+  every rule with a channel it does not use. Deferred until a consumer names
+  which cost it would rather pay.
 - **The inherited attribute (§10).** Closure-returning transformers, or a
-  downward channel in the engine? Decide with the DJS port, not before.
+  downward channel in the engine? `M` does not answer it — it flows up. Decide
+  with the DJS port, not before.
 - **Input streaming (§4.2) is [43](./043-stateful-parser.md)'s.** This issue
   only has to leave the parser state plain data so that one can suspend and
   resume it; which of the two lands first decides where the entry points live.
-- **Helper set (§9).** `map`, `list`, `text`, `unit`, `span` is a guess at the
-  working set; let the JSON and DJS ports pick the final list.
-- **Typed children per rule kind (§1, §9).** `update`'s child is `unknown`, so
-  every child type in a map is an author's annotation that no one checks and the
-  grammar can invalidate silently (§10). A protocol split by rule kind would
-  supply them structurally instead — a `Sequence` transformer taking a typed
-  tuple of its children, a `Variant` transformer taking a branch name and that
-  branch's value, a `Repeat` transformer being the `Accumulator` of §12, and a
-  terminal transformer taking a leaf. It costs the single uniform
-  `RuleTransformer` of §1, and it has to answer how the four kinds compose into
-  one map keyed by rule name when the `RuleSet` — not the type system — is what
-  says which kind a name is. Worth settling before stage 2 writes the JSON map,
-  since that map is the evidence either way.
-- **Silent rules — no longer optional (§10).** `unit` still delivers an `update`
-  to the parent, so a positional callback must count punctuation, whitespace and
-  every scaffolding node a combinator built. That is guesswork against an
-  implementation detail for any rule the author did not spell out, which the
-  JSON example runs into immediately. A rule marked silent, a designated `unit`
-  the engine drops, or combinator-aware helpers — pick one in stage 2, with the
-  example as the test of whether it reads.
+- **Helper set (§9).** `terminal`, `seq`, `variant`, `list`, `text`, `unit` is a
+  guess at the working set; let the JSON and DJS ports pick the final list.
 
 ### Related
 
@@ -1114,23 +1304,28 @@ value* to check against a spec vector.
   input side; the same three-event shape at the other end of the pipeline, and
   what §4.2 needs.
 - [`todo/flow.md`](../../../todo/flow.md) — the universal `Transducer` operator
-  this protocol is shaped after (§12), where operator composition and stage
-  fusion belong.
+  `RepeatTransformer` is shaped after (§12), where operator composition and
+  stage fusion belong.
 - [`fjs/types/list/types.ts`](../../types/list/types.ts) — `Accumulator` and
-  `tryFold`, the shipped fold-as-data and its driver.
+  `tryFold`, the shipped fold-as-data `RepeatTransformer` becomes (§12).
+- [`fjs/common/monoid`](../../common/monoid/module.f.mjs) — the shipped
+  `Monoid<T>` a parser takes at construction to combine children's `M` (§1, §7).
 - [`fjs/crypto/sha2`](../../crypto/sha2/module.f.mjs) — `init`/`append`/`end`
   over a stream, the same trio one level up.
 - [uncurry-accumulator-types](../../types/function/todo/uncurry-accumulator-types.md)
-  — why §1's data parameters are uncurried.
+  — why a variant's branch name rides with its value in one parameter (§1).
 - [recognizer-backend](./recognizer-backend.md) — "use the existing `Scan`
   family as the streaming contract (no new type)", which §12 follows.
-- [i165](./layered-parser.md) — layered parser. §7 is the mechanism it wanted
-  for carrying a lexeme between layers; each layer is one grammar plus one
-  transformer map.
+- [i165](./layered-parser.md) — layered parser. `M` (§7) is the mechanism it
+  wanted for carrying a payload between layers; each layer is one grammar plus
+  one transformer map.
+- [`fjs/bnf/descent/types.ts`](../descent/types.ts) — `CodePointMeta<M>`, which
+  is `Meta<CodePoint, M>` and so is already a terminal transformer's parameter
+  (§7).
 - [`../README.md`](../README.md#the-ast-is-one-contract) — the AST contract the
-  default transformer (§3) has to keep reproducing.
+  four default builders (§3) have to keep reproducing.
 - [`../data/README.md`](../data/README.md#the-repeat-rule) — the `Repeat` rule,
-  whose events are §11.4.
+  the one kind that keeps a fold (§11.4, §12).
 - [JSON BNF grammar owner](../../media/json/todo/bnf-grammar-single-owner.md) —
   where the JSON grammar lands; §11.6 is the constraint it also records.
 - [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
@@ -1150,4 +1345,4 @@ value* to check against a spec vector.
   validation, now optional (§8) rather than the type-safety mechanism.
 - i143 (retired; shipped as [`fjs/rtti/data/`](../../rtti/data/module.f.mjs)) —
   the `subset` predicate the previous design's instantiation-time check was
-  built on; §8 replaces that check with name resolution.
+  built on; §5 replaces that check with name, kind and `start` resolution.
