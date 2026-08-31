@@ -271,7 +271,7 @@ const sequence: SequenceTransformer<M, readonly unknown[], Ast<unknown>> =
     ([items, m]) => ok([{ tag: undefined, sequence: items }, m])
 
 const variant: VariantTransformer<M, StringMap<Ast<unknown>>, Ast<unknown>> =
-    ([[tag, node], m]) => ok([{ tag, sequence: node.sequence }, m])
+    ([[, node], m]) => ok([node, m])   // identity: a variant contributes no node
 
 const repeat = (m: Monoid<M>): RepeatTransformer<M, unknown, _Rounds, Ast<unknown>> => ({
     init: [null, m.identity],
@@ -287,7 +287,10 @@ repetition accumulates as a `List`, which is also a small improvement on today's
 sequence frame — that one spreads an array per item.
 
 None of the four ever refuses — the AST is what a rule builds when nobody said
-otherwise, so an unmapped rule cannot fail semantically. Three further details
+otherwise, so an unmapped rule cannot fail semantically. (`ok` here is the
+`Meta`-shaped constructor, `<M, T>(v: Meta<T, M>) => Out<T, M>`; a bare
+`<T>(v: T) => Result<T, never>` widens `[node, m]` to an array before the
+contextual type reaches it.) Three further details
 are the contract rather than the implementation's choice.
 
 `terminal` stores the **whole leaf**, `v`, not the symbol `v[0]`. The AST is
@@ -305,28 +308,27 @@ kind the engine cannot merge for: the others get their children all at once, a
 repetition gets its rounds one at a time, so combining them is the fold's job.
 That is why a `RepeatTransformer` written by hand takes the monoid (§9).
 
-**`variant` *retags* its branch rather than wrapping it**, and that is the whole
-of the difference between the four builders and what the engine does. A node's
-tag names the branch of the *enclosing variant* that reached it, and a variant
-contributes no node of its own: both backends pass the branch tag *down* at rule
-entry, so the branch's node is built tagged in the first place and `ll1` does not
-even allocate a frame for a variant — it retargets the current task. A builder
-that returned `{ tag, sequence: [node] }` would add an AST level and an
-allocation per variant, on the path that is supposed to be unchanged, and no
-proof could then show it equivalent. Returning the branch's own children under
-the variant's tag is extensionally what the engine produces, which is what makes
-the equivalence provable.
+**The node's *tag* is an inherited attribute, and none of these four can supply
+it.** A rule invocation is entered *with* a tag and the node it builds carries
+that tag; a variant contributes no node at all, it re-enters its chosen branch
+with the branch's tag, so `ll1` does not even allocate a frame for one — it
+retargets the current task (`fjs/bnf/ll1/module.f.mjs`). Nest two variants and
+the inner one overwrites: `{ outer: { inner: … } }` tags the node `inner`,
+because each variant on the way down replaces the tag before the node exists.
 
-So the engine still applies the tag its own way — at entry, without a frame —
-and these four say *what* an unmapped parse builds rather than *how*. "The AST
-is one contract" ([`../README.md`](../README.md#the-ast-is-one-contract)) is
-then checkable two ways: the `descentEquivalence` proof group in
-`../ll1/proof.f.mjs` pins the empty-map parse unchanged, and a proof that these
-four produce the same nodes pins the specification to the implementation.
+A transformer is synthesized-only — it sees its children, never what it was
+entered with — so no builder above can produce that. `variant` is therefore the
+**identity**: it hands its branch's value up unchanged, which is exactly the
+engine's "contributes nothing". The other three write `tag: undefined` as a
+placeholder for a tag the engine supplies at entry.
 
-The branch of an *unmapped* variant is itself unmapped — §3 refuses the mixed
-case below — so the `node` this builder retags is always a node, never a
-transformed value.
+So these four specify the **children** an unmapped rule's node holds, not its
+tag. "The AST is one contract"
+([`../README.md`](../README.md#the-ast-is-one-contract)) stays checkable two
+ways: the `descentEquivalence` proof group in `../ll1/proof.f.mjs` pins the whole
+empty-map parse, tags included, and a proof that these four produce the same
+*children* pins the specification to the implementation on the part it actually
+specifies.
 
 A variant *with* a transformer does get a frame (`descent` already has one for
 trying branches; `ll1` gains one) and its one tagged call — an addition to the
@@ -665,11 +667,24 @@ match stopped, and `null` where the input ran out. It is a suffix of the input,
 so it is leaves rather than bare symbols now — the metadata a caller passed in
 comes back with whatever it did not consume.
 
-`parserRuleSet` then **is** this machine with an empty map and the trivial
-`Monoid<null>`: with no entries every value is a node the four default builders
-of §3 produce, over the shared leaf. Its type does change, and only there — the
-leaf it builds its AST over gains metadata like everything else (§7), which is a
-breaking change whose only callers are `ll1`'s own proofs.
+**`parserRuleSet` keeps its own native path**, and does *not* become this
+machine with an empty map. It cannot: this machine is parameterized by `M` and
+needs a `Monoid<M>` — the default `repeat` builder combines its rounds'
+metadata with it (§3) — while `parserRuleSet` has no use for one and cannot
+conjure an identity for an arbitrary `M`. Giving it a monoid parameter would tax
+every AST caller for a channel none of them read.
+
+That is not a compromise, because §3 already said the four builders are a
+*specification* rather than what the engine runs: the untransformed path
+allocates no frame for a variant and applies tags at rule entry, neither of
+which a synthesized builder expresses. So the relationship is the one a
+specification has to an implementation — proved, not asserted by construction —
+and the stage-1 proof is where it is discharged.
+
+What does change for `parserRuleSet` is its leaf: it builds its AST over
+`Meta<CodePoint, M>` like everything else (§7), generic in `M` and taking no
+monoid. That is a breaking type change whose only callers are `ll1`'s own
+proofs.
 
 #### 6. Backtracking, purity, refusals
 
@@ -1279,27 +1294,39 @@ not needed.
 
 One thing does not fall out, and it is the design's honest limit: DJS resolves
 `const` references against names bound by *earlier* statements, which is an
-inherited attribute, and a fold only synthesizes. Two ways out, to be chosen
-when that work starts:
+**inherited** attribute, and a transformer only synthesizes. Three ways out, and
+this has to be settled now rather than at the port, because two of them change
+what stage 1 publishes:
 
 - **A downward channel** in the engine, so a rule can see what its ancestors
-  bound. New mechanism, but the state stays plain data.
+  bound. No §1 signature accepts one and `build` has nowhere to supply it, so
+  this is a protocol change — the transformer types, the erased map, the frames
+  and the entry point. Deferring it would mean republishing the stage-1 API.
 - **The value transformer returns a closure** `(refs) => AstConst` that the
-  module transformer applies. Pure and needs no new mechanism, but it costs two
-  things: "const not found" moves out of the parse and needs the offending
-  metadata captured in the closure, and — the one that matters — a closure
-  nested in a half-built array or object *is* a repetition's state while later
-  siblings are parsed, so a parse suspended there holds functions. That
-  contradicts §1 and §4.2, where a suspended parse is plain data.
+  module transformer applies. No protocol change, but a closure nested in a
+  half-built array or object *is* a repetition's state while later siblings are
+  parsed, so a parse suspended there holds functions — contradicting §1 and
+  §4.2, where a suspended parse is plain data.
+- **Resolve in a second pass** over the value the parse produced. The
+  transformers build a module whose `const` references are unresolved names, and
+  an ordinary function walks the statements in order and resolves them.
 
-So the closure is not the cheap default it looks like: taking it means saying
-out loud that a DJS parse is exempt from the checkpointing contract. Prefer the
-downward channel unless that exemption is acceptable, and decide it with the
-port rather than now.
+**Take the second pass.** It needs no protocol change, so stage 1's types are
+safe; it keeps every transformer state plain data, so §4.2's checkpoint survives;
+and "const not found" becomes a check on a built value, which is where a
+name-resolution error belongs anyway — it is not a parse concern, and it gets to
+report its own position from the metadata the value carries (§7). The cost is
+one extra traversal of a module's statements, which is bounded by the program
+rather than the input, and a value type that admits unresolved references
+between the two passes.
+
+That leaves the protocol synthesized-only, deliberately. Inherited attributes are
+a real gap, and the answer here is that a fold is the wrong place to close it.
 
 Worth noting against `M`: an inherited attribute is *not* what the metadata
 channel provides. `M` flows up with values, so it can carry where a `const`
-reference was but not what an earlier statement bound to it.
+reference was — which is what the second pass needs to report an unresolved
+one — but not what an earlier statement bound to it.
 
 #### 11. What this replaces
 
@@ -1476,8 +1503,9 @@ the design:
 - It is the **smaller change**, and stage 1 is where the protocol's shape is
   still cheap to move: `ll1` has no rewind state and no furthest-failure record,
   so its machine is the one to be wrong on first. `fjs/djs`'s port is the
-  larger, riskier change and needs the inherited-attribute question (§10)
-  answered before it starts.
+  larger, riskier change; its inherited-attribute question is settled in §10 —
+  a second pass over the built value, chosen because the alternatives would
+  change what stage 1 publishes.
 - It is the backend that **does not carry metadata yet**, so the leaf change of
   §7 lands here. Doing it in stage 1 is what lets stage 3 inherit the channel
   instead of adding it: `descent`'s leaf is already `CodePointMeta`, so once
@@ -1563,11 +1591,12 @@ types undecided cannot be implemented against.
 - [ ] Add a variant frame — `ll1` has none today, because a variant only
       retargets the current task — and push it **only** for a variant the map
       names, so the untransformed path keeps costing neither a frame nor a node.
-- [ ] Prove the four default builders (§3) produce the same nodes the engine's
-      native path does, so the specification and the implementation of the
-      default cannot drift. `variant` retags its branch rather than wrapping it,
-      which is what makes that provable — a wrapper would add an AST level the
-      engine never builds.
+- [ ] Prove the four default builders (§3) produce the same children the
+      engine's native path does, so the specification and the implementation of the
+      default cannot drift. Prove it on **children**, not whole nodes: a node's
+      tag is inherited at rule entry and no synthesized builder can produce it
+      (§3), which is why `variant`'s default is the identity. `descentEquivalence`
+      already pins the tags.
 - [ ] Add `transformers`/`build` (§5) and run all five construction-time checks:
       every keyed rule is reachable from the start rule; every entry's **kind
       tag matches its rule's kind**; every entry's **declared child shape
@@ -1655,8 +1684,10 @@ value* to check against a spec vector.
       on an abandoned branch, and a refusal inside one that the parse recovers
       from by taking another branch (§6).
 - [ ] Port `fjs/djs/parser` onto transformers and delete `foldValue`,
-      `descendantsTagged`, `slot`, `keyOf`, `_FoldFrame`; settle the inherited
-      `refs` attribute (§10) there.
+      `descendantsTagged`, `slot`, `keyOf`, `_FoldFrame`. Resolve the inherited
+      `refs` attribute in a **second pass** over the built module (§10), not in
+      the parse: the protocol stays synthesized-only and every transformer state
+      stays plain data.
 - [ ] Register any new module in `deno.json` per AGENTS.md, then run the check
       set that file prescribes — `tsc` (the environment's compiler, not a
       registry fetch: the repository pins no `typescript` package) and
@@ -1692,9 +1723,6 @@ Tasks, stage 0. What is left cannot change stage 1's public types:
   `Repeat` and needs its `S`, which the map erases; flow's output chunk taxes
   every rule with a channel it does not use. Deferred until a consumer names
   which cost it would rather pay.
-- **The inherited attribute (§10).** Closure-returning transformers, or a
-  downward channel in the engine? `M` does not answer it — it flows up. Decide
-  with the DJS port, not before.
 - **Input streaming (§4.2) is [43](./043-stateful-parser.md)'s.** This issue
   only has to leave the parser state plain data so that one can suspend and
   resume it; which of the two lands first decides where the entry points live.
