@@ -33,12 +33,11 @@ export type { IoChannel, IoError, IoErrorInfo, IoResult, OpResult }
 /**
  * The console family joins `Sandbox`, `Catch`, `Import` and `All` in
  * [`../common`](../common/types.ts), for two different reasons that the module
- * there keeps apart. Most have a second implementer, and an operation belongs
- * to the layer of whoever implements it: a browser page loads modules too, and
- * its `import()` resolves against a document rather than a filesystem, which is
- * the interpreter's business and not the operation's. `All` is there on the
- * layering argument instead — fan-out is an interpreter's job whoever the host
- * is — and still has one implementer.
+ * there keeps apart and counts out: `Sandbox` and `Catch` have a second
+ * implementer, and the rest are there because nothing about them is Node's —
+ * fan-out belongs to whichever interpreter has concurrency, a path is resolved
+ * against whatever a host resolves paths against, and a byte stream named by a
+ * string is not a filesystem fact.
  *
  * They are re-exported here because `NodeOp` unions them and dozens of
  * signatures name them through this module; that makes this a live coupling

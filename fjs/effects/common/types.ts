@@ -7,13 +7,22 @@
  * FunctionalScript logic without importing a module named after a different
  * host.
  *
- * Most are here because a second host implements them: a browser interpreter
- * sandboxes, catches, writes and loads modules. {@link All} is here on the
- * layering argument alone — fan-out is an interpreter's job whoever the host
- * is — and has one implementer today. Both are reasons to be in this module;
- * they are not the same reason, and the difference is worth keeping visible,
- * because "everything here has two implementers" is the sort of tidy summary
- * that quietly stops being true.
+ * **Two implementers today**, and it is worth naming which rather than
+ * summarising: {@link Sandbox} and {@link Catch}, both dispatched by the
+ * browser page's interpreter as well as by Node's.
+ *
+ * **Everything else here has one**, and is here on the layering argument
+ * instead — nothing about it is Node's. {@link All} is fan-out, which is an
+ * interpreter's job whoever the host is. {@link Import} resolves a path
+ * against whatever a host resolves paths against, and the browser supplies its
+ * `import()` as an argument today rather than dispatching it, which is the
+ * measurement trap below. {@link Write} and {@link Read} are byte streams named
+ * by a string; a page renders rows through an operation of its own instead,
+ * which is a *different* operation and not an implementation of these.
+ *
+ * Both are good reasons to be in this module. They are not the same reason, and
+ * the count is written out because "everything here has two implementers" is
+ * the sort of tidy summary that is easier to keep than to keep true.
  *
  * `effects/node` re-exports them all, so a node-side caller keeps one import
  * and signatures keep reading as one vocabulary. That re-export is not a shim:

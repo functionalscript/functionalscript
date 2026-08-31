@@ -1,6 +1,7 @@
 /**
- * Operations more than one host implements. See [`./types.ts`](./types.ts) for
- * why they are not in `../node`.
+ * Operations that are nobody's host in particular. See
+ * [`./types.ts`](./types.ts) for which of them a second host implements today
+ * and which are here because nothing about them is Node's.
  *
  * @module
  *
