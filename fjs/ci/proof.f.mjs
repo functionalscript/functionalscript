@@ -238,16 +238,17 @@ export const proof = {
         // an injected `node tool.mjs` left on the runner would find whatever
         // the image ships rather than the release every other step asserts.
         //
-        // Through `sh -c`, because a GitHub `run:` is a shell script while the
-        // `run` script's `--command "$@"` is an argv. Windows is the exception,
-        // and has to be — there is no shell there to put anything in.
+        // Through `bash -e -c`, because a GitHub `run:` is a shell script
+        // while the `run` script's `--command "$@"` is an argv. Windows is the
+        // exception, and has to be — there is no shell there to put anything
+        // in.
         inTheSameShell: () => {
             const cmd = 'echo hello'
             const gha = run(false, () => [test({ run: cmd })])
             for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
                 for (const a of /** @type {const} */ (['intel', 'arm'])) {
                     assert(
-                        hasExactRunInJob(`${o}-${a}`, `${runPath(nixShell)} sh -c '${cmd}'`)(gha),
+                        hasExactRunInJob(`${o}-${a}`, `${runPath(nixShell)} bash -e -c '${cmd}'`)(gha),
                         `expected the extra step in the shell in ${o}-${a}`)
                 }
             }
@@ -269,9 +270,32 @@ export const proof = {
             ])) {
                 const gha = run(false, () => [test({ run: cmd })])
                 assert(
-                    hasExactRunInJob('ubuntu-arm', `${runPath(nixShell)} sh -c '${cmd}'`)(gha),
+                    hasExactRunInJob('ubuntu-arm', `${runPath(nixShell)} bash -e -c '${cmd}'`)(gha),
                     `expected ${cmd} handed to a shell whole`)
             }
+        },
+        // `bash`, not `sh`, and `-e`, because that is what GitHub runs a
+        // `run:` step as — `bash -e {0}`, from this repository's own job logs.
+        //
+        // Both halves are load-bearing. `sh` is `dash` on the Ubuntu images,
+        // where `[[ … ]]` is not a command; and without `-e`, `false; echo
+        // done` exits 0, so a step would be green while the work in it failed.
+        // Not `-o pipefail`: that belongs to an explicit `shell: bash`, and
+        // these steps declare none, so matching the default is the point.
+        matchesTheRunnerShell: () => {
+            const cmd = 'false; echo done'
+            const gha = run(false, () => [test({ run: cmd })])
+            assert(
+                hasExactRunInJob(
+                    'ubuntu-arm',
+                    `${runPath(nixShell)} bash -e -c '${cmd}'`)(gha),
+                'expected the runner\'s own interpreter and fail-fast flag')
+            assert(
+                !hasRunInJob('ubuntu-arm', 'sh -c')(gha),
+                'unexpected sh: dash would reject bash-only syntax')
+            assert(
+                !hasRunInJob('ubuntu-arm', 'pipefail')(gha),
+                'unexpected pipefail: the default shell does not set it')
         },
         // The one character single quotes cannot contain. Leave, emit a
         // backslashed quote, re-enter — so the command a shell reconstructs is
@@ -281,7 +305,7 @@ export const proof = {
             assert(
                 hasExactRunInJob(
                     'ubuntu-arm',
-                    `${runPath(nixShell)} sh -c 'echo '\\''hi'\\'''`)(gha),
+                    `${runPath(nixShell)} bash -e -c 'echo '\\''hi'\\'''`)(gha),
                 'expected an embedded quote escaped rather than closing the argument')
         },
         // A step naming an action keeps its position and its shape: there is no
@@ -300,7 +324,7 @@ export const proof = {
                 for (const a of /** @type {const} */ (['intel', 'arm'])) {
                     const id = `${o}-${a}`
                     assert(
-                        hasExactRunInJob(id, `${runPath(nixShell)} sh -c '${cmd}'`)(gha),
+                        hasExactRunInJob(id, `${runPath(nixShell)} bash -e -c '${cmd}'`)(gha),
                         `expected the install command moved into the shell in ${id}`)
                     assert(
                         gha.jobs[id]?.steps.some(

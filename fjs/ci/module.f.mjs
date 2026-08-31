@@ -96,6 +96,23 @@ const shellPlatformSteps = rust => [
 ]
 
 /**
+ * The interpreter an injected command is handed to, and the flags that make it
+ * the one it was written for.
+ *
+ * GitHub runs a `run:` step as `bash -e {0}` — that spelling, from this
+ * repository's own job logs. Both halves matter. **`bash`**, because `sh` is
+ * `dash` on the Ubuntu images, where `[[ … ]]` is not a command; and **`-e`**,
+ * because without it `false; echo done` exits 0 and the step is green while the
+ * work in it failed.
+ *
+ * Not `-o pipefail`: that belongs to an explicit `shell: bash`, and these steps
+ * declare no `shell`, so the default is what they get. Matching the default is
+ * the point — an injected command should behave the same whether the job it
+ * lands in has a shell or not.
+ */
+const injectedShell = /** @type {const} */ ('bash -e -c')
+
+/**
  * A command as one argument to something else, in POSIX single quotes.
  *
  * `'` is the only character that cannot appear inside them, and the escape is
@@ -116,7 +133,7 @@ const singleQuoted = command => `'${command.replaceAll("'", "'\\''")}'`
  * `setup-node`, so an injected `node tool.mjs` would find whatever the image
  * ships rather than the release every other step in the job asserts.
  *
- * **Through `sh -c`, and that is not decoration.** The `run` script ends in
+ * **Through a shell, and that is not decoration.** The `run` script ends in
  * `--command "$@"`, which is an argv rather than a script — right for this
  * generator's own commands, which are one program and its arguments by
  * construction (root `AGENTS.md` §7), and wrong for anything a consumer writes.
@@ -124,7 +141,7 @@ const singleQuoted = command => `'${command.replaceAll("'", "'\\''")}'`
  * program named `NODE_OPTIONS=x`, and would split `cd dir && node tool.mjs` at
  * the `&&`, running the first half in the shell and the second on the runner
  * with nothing said about it. A GitHub `run:` is a shell script, so it is
- * handed to a shell.
+ * handed to {@link injectedShell}.
  *
  * **Position moves with it.** `toSteps` puts an `install` step before
  * `actions/checkout`, and the flake lives in that checkout, so a step there
@@ -142,7 +159,9 @@ const inShell = step =>
     step.type !== 'rust' && step.step.run !== undefined
         ? test({
             ...step.step,
-            run: nixDevelop(nixShell, `sh -c ${singleQuoted(step.step.run)}`),
+            run: nixDevelop(
+                nixShell,
+                `${injectedShell} ${singleQuoted(step.step.run)}`),
         })
         : step
 

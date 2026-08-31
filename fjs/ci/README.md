@@ -414,14 +414,21 @@ Node with `setup-node`, so a step left on the runner would find whatever the
 image ships rather than the release the job asserts:
 
 ```sh
-./nix/run sh -c 'NODE_OPTIONS=--max-old-space-size=4096 node tool.mjs'
+./nix/run bash -e -c 'NODE_OPTIONS=--max-old-space-size=4096 node tool.mjs'
 ```
 
-Through `sh -c`, because a GitHub `run:` is a shell script while the `run`
+Through a shell, because a GitHub `run:` is a shell script while the `run`
 script ends in `--command "$@"`, an argv. That distinction is invisible for this
 generator's own commands — one program and its arguments, by §7 — and decisive
 for anything a consumer writes: a bare prefix would turn an assignment into a
 program name, and would split `a && b` so that only `a` entered the shell.
+
+`bash -e` rather than `sh`, because that is what GitHub runs a `run:` step as.
+`sh` is `dash` on the Ubuntu images, where `[[ … ]]` is not a command, and
+without `-e` a script like `false; echo done` exits 0 — the step would be green
+while the work in it failed. Not `-o pipefail`, which belongs to an explicit
+`shell: bash`; these steps declare none, and matching the default is the
+point.
 
 A command declared as an `install` step moves too, losing the pre-checkout
 position that type normally buys. It has to: the flake lives in the checkout, so
