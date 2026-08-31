@@ -1032,6 +1032,18 @@ is passed — `Transformer<M, T>` is covariant in `T` (§5) — so the map is wr
 without an annotation. `list` and `text` no longer take the monoid either; the
 factory already has it.
 
+**`map` throws on a duplicate rule**, and that is the third face of one
+invariant: *one rule value means one transformer*. §5 refuses a start rule that
+is also in `rest`; §3 refuses a mapped branch under an unmapped variant and its
+converse. Here the widening to `Entry<M, unknown>` is what makes the hazard
+invisible — two entries for the same rule at unrelated `T` both type-check, and
+`Map` construction silently keeps the last. The parser's own checks then see
+only the survivor, so a parent whose `C` declared the *other* one's type gets a
+plausible wrong value at runtime, which is the outcome §6 exists to prevent.
+Merging a combinator's fragment (§10) with local entries is exactly where this
+would happen, so it is refused where the entries meet rather than left to be
+discovered downstream.
+
 - **The four `…Of` constructors are the primitive, and there is no way around
   them.** A map entry must carry the §5 kind tag — the construction-time kind
   check reads it, and at runtime nothing else can distinguish a terminal
@@ -1048,7 +1060,7 @@ factory already has it.
   the synthesized end-of-input symbol is `unit` or a `terminalOf` that handles
   `EOF` (§2).
 - `entry(rule, t)` pairs a rule **value** with its transformer — the only place
-  the two meet. The start rule's entry goes to `build` separately, because it
+  the two meet, and `map` refuses two entries for the same rule. The start rule's entry goes to `build` separately, because it
   carries the parse's value type (§5), and it is the entry that most needs `M`
   bound: standing outside any map, it has no contextual type to infer from.
 - **The child-shape argument comes first in each**, and the compiler keeps it
@@ -1662,6 +1674,11 @@ types undecided cannot be implemented against.
       expressible in the type: the map's type does not know the grammar, so a
       terminal transformer supplied for a variant rule, or an entry for a rule
       the grammar no longer has, type-checks perfectly and is caught only here.
+- [ ] Have `map` refuse two entries for the same rule value, before the parser
+      is built (§9). It is the one place a duplicate can enter — the widening to
+      `Entry<M, unknown>` hides it from the type, and `Map` construction would
+      silently keep the last — and the parser's own checks cannot see it because
+      only the survivor reaches them.
 - [ ] Answer a `unit` entry without calling anything and without allocating —
       it is the fifth arm of `Transformer`, it matches any rule kind, and it is
       what makes stage 2's recognizer mode free (§5, §9).
