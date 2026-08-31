@@ -135,10 +135,20 @@ export const rust = '1.98.0'
 // stable channel the commit is accepted from; `commit` is the exact revision
 // every generated `flake.nix` pins. The Node versions above come from this
 // snapshot, so the two move together.
+//
+// `narHash` and `lastModified` are what a `flake.lock` adds on top of the
+// revision, and they are data here for the same reason `bunSources`' hashes
+// are: `fjs ci` runs wherever the project is developed, including Windows,
+// where Nix does not run at all. See {@link nixInput} for how to recompute
+// them when this commit moves.
 // https://channels.nixos.org/nixos-26.05/git-revision
 export const nixpkgs = /** @type {const} */({
+    owner: 'NixOS',
+    repo: 'nixpkgs',
     ref: 'nixos-26.05',
     commit: '062346a6d85bc4b49dfaa61c986e9c5be21217d1',
+    narHash: 'sha256-BZWCi9ZRJiARTuKTbbtvFTj7t1TK4G3UEckT3HyNfRg=',
+    lastModified: 1787753485,
 })
 
 // Wasmtime and Wasmer are installed by their own setup actions, so these are
@@ -154,9 +164,36 @@ export const nixpkgs = /** @type {const} */({
 // repository. `ref` is the branch the commit is accepted from.
 // https://github.com/oxalica/rust-overlay
 export const rustOverlay = /** @type {const} */({
+    owner: 'oxalica',
+    repo: 'rust-overlay',
     ref: 'master',
     commit: '996e9b0b019a4a9eb9e9a5641aefa06d801b5895',
+    narHash: 'sha256-+IAEnmmx5YIhUWo0lp15jLLHchnXo5yKgWsi6C6Cf+0=',
+    lastModified: 1787993548,
 })
+
+// **Recomputing `narHash` and `lastModified`** when either pin moves. Neither is
+// knowable from the revision alone, and neither can be computed here — that is
+// the whole reason they are data.
+//
+// `narHash` is the hash of the unpacked source tree, and Nix prints it for
+// exactly the revision a flake names:
+//
+//     nix flake metadata --json github:NixOS/nixpkgs/<commit> | jq -r .locked.narHash
+//
+// A CI log answers the same question with no Nix installed: with a hash wrong
+// or missing, `nix develop` prints `not writing modified lock file` and lists
+// every input's `narHash`. Both values above were first read that way.
+//
+// `lastModified` is the revision's committer date as a Unix timestamp, which
+// `git` gives without Nix and without a full checkout:
+//
+//     git init -q x && cd x && git remote add origin <repo url>
+//     git fetch -q --depth=1 origin <commit> && git log -1 --format=%ct FETCH_HEAD
+//
+// Getting either wrong is loud rather than silent: Nix recomputes, disagrees
+// with the committed lock, and warns on every step of every Nix job — which is
+// the state this repository was in before the lock existed.
 
 // The Wasmtime and Wasmer versions the pinned Nixpkgs snapshot provides — read
 // from `pkgs/by-name/wa/{wasmtime,wasmer}/package.nix` at that commit. The
