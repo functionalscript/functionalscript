@@ -84,6 +84,7 @@ export const rustName = {
     neg: 'neg',
     '*': 'mul',
     '-': 'sub',
+    '+': 'add',
     String: 'string_coercion',
 }
 
@@ -102,6 +103,7 @@ const op1Rust = {
 const op2Rust = {
     '*': (a, b) => `${a} * ${b}`,
     '-': (a, b) => `${a} - ${b}`,
+    '+': (a, b) => `${a} + ${b}`,
 }
 
 /**

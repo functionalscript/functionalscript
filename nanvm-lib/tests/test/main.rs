@@ -168,11 +168,14 @@ fn mixed_numeric_operands_message<A: IVm>() {
 
 fn bigint_add<A: IVm>() {
     let n0: Any<A> = BigInt::default().to_any();
-    assert_eq!((n0.clone() + n0.clone()), n0);
+    assert_eq!((n0.clone() + n0.clone()).unwrap(), n0);
     let n2: Any<A> = BigInt::from(2u64).to_any();
     let n4: Any<A> = BigInt::from(4u64).to_any();
-    assert_eq!((n0.clone() + n2.clone()), n2);
-    assert_eq!((n2.clone() + n4.clone()), BigInt::from(6u64).to_any());
+    assert_eq!((n0.clone() + n2.clone()).unwrap(), n2);
+    assert_eq!(
+        (n2.clone() + n4.clone()).unwrap(),
+        BigInt::from(6u64).to_any()
+    );
 }
 
 /// Multi-limb subtraction, which the shared data cannot reach: its bigints
