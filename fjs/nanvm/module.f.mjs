@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 4
+ * data.groups.length // 5
  * ```
  */
 
@@ -344,8 +344,38 @@ const mulCases = [
     { name: 'numberByBigint', args: [1, 1n], expected: throws },
 ]
 
-const hexadecimalBigint =
-    'nanvm-lib prints bigints in hexadecimal; see nanvm-lib/todo/bigint-decimal-string-coercion.md'
+/**
+ * Subtraction has the same numeric coercion and mixed-number-kind rejection
+ * as multiplication, but its operand order is observable.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const subCases = [
+    { name: 'nullMinusNull', args: [null, null], expected: 0 },
+    { name: 'nullMinusZero', args: [null, 0], expected: 0 },
+    { name: 'negativeZeroMinusZero', args: [-0, 0], expected: -0 },
+    { name: 'zeroMinusNegativeZero', args: [0, -0], expected: 0 },
+    { name: 'undefinedMinusZero', args: [undefined, 0], expected: NaN },
+    { name: 'trueMinusOne', args: [true, 1], expected: 0 },
+    { name: 'falseMinusOne', args: [false, 1], expected: -1 },
+    { name: 'zeroMinusOne', args: [0, 1], expected: -1 },
+    { name: 'oneMinusNegativeOne', args: [1, -1], expected: 2 },
+    { name: 'negativeTenMinusTen', args: [-10, 10], expected: -20 },
+    { name: 'bigZeroMinusZero', args: [0n, 0n], expected: 0n },
+    { name: 'bigOneMinusOne', args: [1n, 1n], expected: 0n },
+    { name: 'bigOneMinusNegativeOne', args: [1n, -1n], expected: 2n },
+    { name: 'bigNegativeOneMinusOne', args: [-1n, 1n], expected: -2n },
+    { name: 'emptyStringMinusOne', args: ['', 1], expected: -1 },
+    { name: 'stringTenMinusOne', args: ['10', 1], expected: 9 },
+    { name: 'stringLetterMinusOne', args: ['a', 1], expected: NaN },
+    { name: 'emptyArrayMinusOne', args: [[], 1], expected: -1 },
+    { name: 'arrayTenMinusOne', args: [[10], 1], expected: 9 },
+    { name: 'arrayPairMinusOne', args: [[0, 0], 1], expected: NaN },
+    { name: 'emptyObjectMinusOne', args: [{}, 1], expected: NaN },
+    { name: 'functionMinusOne', args: [functionValue, 1], expected: NaN },
+    { name: 'numberMinusBigint', args: [1, 1n], expected: throws },
+    { name: 'bigintMinusNumber', args: [1n, 1], expected: throws },
+]
 
 /**
  * `String(x)`.
@@ -369,8 +399,8 @@ const stringCoercionCases = [
     { name: 'null', args: [null], expected: 'null' },
     { name: 'undefined', args: [undefined], expected: 'undefined' },
     { name: 'string', args: ['already'], expected: 'already' },
-    { name: 'bigint', args: [123n], expected: '123', rust: hexadecimalBigint },
-    { name: 'negativeBigint', args: [-456n], expected: '-456', rust: hexadecimalBigint },
+    { name: 'bigint', args: [123n], expected: '123' },
+    { name: 'negativeBigint', args: [-456n], expected: '-456' },
     { name: 'emptyArray', args: [[]], expected: '' },
     { name: 'singletonArray', args: [[1]], expected: '1' },
     { name: 'array', args: [[1, 2, 3]], expected: '1,2,3' },
@@ -445,6 +475,7 @@ export const data = {
             ],
         },
         { op: '*', commutative: true, cases: mulCases },
+        { op: '-', cases: subCases },
         { op: 'String', cases: stringCoercionCases },
     ],
 }

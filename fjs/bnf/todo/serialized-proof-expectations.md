@@ -94,7 +94,7 @@ measured against what reads `emptyTag`.
       or keep those specific ones as strings and say why.
 - [ ] Leave `fjs/media/json/serializer/proof.f.mjs` as string comparisons —
       serialized text is that module's contract.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 

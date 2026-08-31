@@ -59,7 +59,7 @@ of this issue.
 
 - [ ] Delete `propertyLambda`; route the `.` handler through
       `optionPropertyLambda`; move the prose.
-- [ ] `npx tsc`, `fjs t`; the amnesia proofs — the `(a?.b)(c)` and `?.()`
+- [ ] `tsc`, `fjs t`; the amnesia proofs — the `(a?.b)(c)` and `?.()`
       short-circuit rows in particular — pass unchanged.
 
 ### Related

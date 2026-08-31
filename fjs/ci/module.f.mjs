@@ -10,28 +10,41 @@
  * @import { NixJob } from './nix/types.ts'
  * @import { Setup } from './types.ts'
  * @import { Effect } from '../effects/types.ts'
- * @import { Result } from '../types/result/types.ts'
- * @import { IoChannel } from '../effects/node/types.ts'
  */
 
 import { resultStep } from '../effects/module.f.mjs'
-import { access, exitStep, readUtf8File, writeUtf8File } from '../effects/node/module.f.mjs'
+import { access, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 import { step as ioStep } from '../effects/module.f.mjs'
-import { functionalscript, images } from './config/module.f.mjs'
+import { functionalscript, images, node } from './config/module.f.mjs'
 import {
     architecture,
     os,
+    test,
     toSteps,
+    ubuntu,
     ubuntuArm
 } from './common/module.f.mjs'
-import { rustPlatformSteps, rustWasmSteps, wasmNixJob } from './rust/module.f.mjs'
+import {
+    i686JobId,
+    i686NixJob,
+    i686Steps,
+    rustPlatformCommands,
+    rustPlatformSteps,
+    rustWasmSteps,
+} from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.mjs'
-import { nixFlakes } from './nix/module.f.mjs'
-import { parse as jsonParse } from '../media/json/module.f.mjs'
+import {
+    nixDevelop,
+    nixFlakes,
+    nixInstall,
+    nixShell,
+    nixSteps,
+    nixVersionStep,
+} from './nix/module.f.mjs'
 import { packageCheckJob, packageCheckJobId } from './package/module.f.mjs'
-import { bunNixJob, bunSteps } from './bun/module.f.mjs'
-import { devNixJob, devSteps } from './dev/module.f.mjs'
-import { denoNixJob, denoSteps } from './deno/module.f.mjs'
+import { bunSteps } from './bun/module.f.mjs'
+import { devNixJob } from './dev/module.f.mjs'
+import { denoSteps } from './deno/module.f.mjs'
 import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 
 /**
@@ -43,117 +56,234 @@ import { npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
  */
 const workflowText = gha => JSON.stringify(gha, null, '  ')
 
+/**
+ * A platform job on the shared shell: every command through `nix develop`, and
+ * the runtime asserted first.
+ *
+ * All four non-Windows platform jobs enter the same shell, so the matrix
+ * differs by platform and by nothing else. Windows is the only exception left,
+ * because Nix does not run there natively; 32-bit Linux used to be a second
+ * one, and is now `../rust/module.f.mjs`'s `ubuntu-intel32` — a job whose
+ * linker is broken on every system this shell serves but one.
+ *
+ * It runs this commit's suite rather than installing a published
+ * FunctionalScript and running that. `npm install -g` writes to the read-only
+ * store from inside the shell, so keeping the old shape would mean an
+ * `NPM_CONFIG_PREFIX` in a flake developers also enter — and the check was the
+ * one `deno` and `bun` already dropped, for the reason
+ * `./todo/built-package-checks.md` records: it tests a shipped release rather
+ * than the commit under review. The two Windows jobs still run it.
+ *
+ * It does run `npm ci`, and that is a change from the shape these jobs had. The
+ * old one installed a published FunctionalScript globally and ran `fjs test`,
+ * which discovers proof modules by walking the tree and so needs nothing
+ * resolved. `node --test` is not that: it runs a project's test entry, and
+ * `../README.md` tells a consumer to write that entry as
+ * `import 'functionalscript/fjs/emergent_testing/all.test.mjs'` — a bare
+ * specifier, which resolves through `node_modules` or not at all. This
+ * repository would not have noticed, having no such file: its proofs live under
+ * `fjs/`, where `node --test` reaches them by path. A consumer's job would have
+ * failed on `ERR_MODULE_NOT_FOUND`.
+ *
+ * It adds no requirement a consumer did not already have — every canonical Node
+ * job runs `npm ci`, so a lockfile is table stakes for this generator — and it
+ * costs this repository one install of one `devDependency` that is types.
+ *
+ * The version check is worth more here than in any other job. These are the
+ * only places the shell is built for a system other than `aarch64-linux`, so
+ * this is what turns four shells that were pinned as text into four that are
+ * known to work.
+ *
+ * @type {(rust: boolean) => readonly MetaStep[]}
+ */
+const shellPlatformSteps = rust => [
+    nixInstall,
+    nixVersionStep(nixShell, 'node --version', `v${node.default}`),
+    ...nixSteps(nixShell)([
+        'npm ci',
+        ...(rust ? rustPlatformCommands : []),
+        'node --test',
+    ]),
+]
+
+/**
+ * The interpreter an injected command is handed to, and the flags that make it
+ * the one it was written for.
+ *
+ * GitHub runs a `run:` step as `bash -e {0}` — that spelling, from this
+ * repository's own job logs. Both halves matter. **`bash`**, because `sh` is
+ * `dash` on the Ubuntu images, where `[[ … ]]` is not a command; and **`-e`**,
+ * because without it `false; echo done` exits 0 and the step is green while the
+ * work in it failed.
+ *
+ * Not `-o pipefail`: that belongs to an explicit `shell: bash`, and these steps
+ * declare no `shell`, so the default is what they get. Matching the default is
+ * the point — an injected command should behave the same whether the job it
+ * lands in has a shell or not.
+ */
+const injectedShell = /** @type {const} */ ('bash -e -c')
+
+/**
+ * The variable an injected command travels in, rather than being quoted into
+ * the command line that runs it.
+ *
+ * Quoting cannot be made correct here, and not for want of a better escape.
+ * GitHub substitutes `${{ … }}` into a step's `run` text *before* any shell
+ * reads it, so a substituted value lands inside whatever quotes the generator
+ * wrote: `echo "${{ matrix.name }}"` with a value of `O'Reilly` closes a
+ * single-quoted argument its author never opened. No escape applied at
+ * generation time can reach a value that does not exist yet.
+ *
+ * What this buys is exact, and worth stating exactly. `"$FJS_CI_RUN"` is a
+ * shell expansion, so the command arrives at {@link injectedShell} as one
+ * argument holding exactly the text of the `env` value — one word, whatever it
+ * contains, newlines and quotes of either kind included. **The generator's own
+ * quoting layer is gone**, rather than tightened.
+ *
+ * What it does not buy, since the sentence is easy to write and wrong: GitHub
+ * substitutes `${{ … }}` into an `env` value too, and `bash` then executes the
+ * result. A `${{ … }}` a consumer writes into their own command is theirs to
+ * get right, exactly as it would be in a hand-written `run:`. The layer this
+ * generator used to add on top of that is what is removed.
+ */
+const injectedRun = /** @type {const} */ ('FJS_CI_RUN')
+
+/**
+ * An injected step, moved into the shared shell where the job's own commands
+ * run.
+ *
+ * Without this a `nodeExtra` step would keep running on the runner, and the
+ * runner no longer has what it used to: these jobs stopped installing Node with
+ * `setup-node`, so an injected `node tool.mjs` would find whatever the image
+ * ships rather than the release every other step in the job asserts.
+ *
+ * **Through a shell, and that is not decoration.** The `run` script ends in
+ * `--command "$@"`, which is an argv rather than a script — right for this
+ * generator's own commands, which are one program and its arguments by
+ * construction (root `AGENTS.md` §7), and wrong for anything a consumer writes.
+ * A bare prefix would make `NODE_OPTIONS=x node tool.mjs` try to execute a
+ * program named `NODE_OPTIONS=x`, and would split `cd dir && node tool.mjs` at
+ * the `&&`, running the first half in the shell and the second on the runner
+ * with nothing said about it. A GitHub `run:` is a shell script, so it is
+ * handed to {@link injectedShell} — and reaches it through {@link injectedRun}
+ * rather than through quotes, so this generator adds no quoting for a
+ * substituted value to break out of.
+ *
+ * **Position moves with it.** `toSteps` puts an `install` step before
+ * `actions/checkout`, and the flake lives in that checkout, so a step there
+ * cannot enter the shell at all — and, since these jobs dropped `setup-node`,
+ * cannot count on a pinned Node either. An injected command is therefore a
+ * command in the shell whichever type it was declared as; the alternative was
+ * to leave it in the one position where its runtime is guaranteed wrong.
+ *
+ * A step naming an action keeps both its position and its shape. There is no
+ * command to wrap, and `actions/cache` and its like want to run early.
+ *
+ * @type {(step: MetaStep) => MetaStep}
+ */
+const inShell = step =>
+    step.type !== 'rust' && step.step.run !== undefined
+        ? test({
+            ...step.step,
+            run: nixDevelop(nixShell, `${injectedShell} "$${injectedRun}"`),
+            env: { ...step.step.env, [injectedRun]: step.step.run },
+        })
+        : step
+
 /** @type {(rust: boolean, nodeExtra: readonly MetaStep[]) => (o: Os) => (a: Architecture) => readonly [string, Job]} */
 const job = (rust, nodeExtra) => o => a => {
     const id = `${o}-${a}`
     const image = images[o][a]
-    const result = [
-        ...(rust ? rustPlatformSteps(o, a) : []),
-        ...nodeMainSteps(functionalscript),
-        ...nodeExtra,
-    ]
+    // Windows is the one platform with no shell to enter, so it keeps the
+    // runner's toolchain — and its injected steps keep the runner too.
+    const result = o === 'windows'
+        ? [
+            ...(rust ? rustPlatformSteps(o, a) : []),
+            ...nodeMainSteps(functionalscript),
+            ...nodeExtra,
+        ]
+        : [...shellPlatformSteps(rust), ...nodeExtra.map(inShell)]
     return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
 
 /**
- * Every generated flake, across all job families that own one. Each family
- * declares its own environment beside the steps that enter it; this is the list
- * the generator writes out, and the only place the whole set is visible.
+ * Every generated flake. Four, for the fourteen jobs `./proof.f.mjs`'s
+ * `matrixShape` counts.
  *
- * `wasm` is here only conditionally in spirit: its flake is generated whether or
- * not the project has a `Cargo.toml`, because the generator writes flakes from
- * this list rather than from the jobs it emitted. A project without Rust gets a
- * `nix/wasm` directory it never enters — the same trade `./todo/ci-generator-audience.md`
- * describes for every other job this generator writes unconditionally.
+ * `dev` is the one a developer enters and the one **eight** of those jobs
+ * enter — see `./dev/module.f.mjs` for why sharing is safe where a command
+ * names its runtime, and `./node/module.f.mjs` for the two jobs where it is
+ * not. **Three** have a flake to themselves: Node 22 and Node 24, whose `node`
+ * is the thing under test, and `ubuntu-intel32`, whose 32-bit package set is
+ * marked broken on every other system this shell serves. **Three** enter none:
+ * the two Windows jobs, where Nix does not run, and `package-check`, which has
+ * no checkout for a flake to be in.
+ *
+ * `./proof.f.mjs`'s `nixCoverage` reads that split off the generated workflow
+ * rather than off this comment, so a job changing sides fails there.
+ *
+ * The list is not a function of the project, so `dev` is written whole whether
+ * or not the project has a `Cargo.toml`: a project without Rust gets a shell
+ * carrying a toolchain no job of its uses, and no job checking the two WASM
+ * runtimes in it. That is the same trade `./todo/ci-generator-audience.md`
+ * describes for every job this generator writes unconditionally.
  *
  * One canonical job is absent: `package-check` runs with no checkout, so there
  * is no file tree for a flake to be in. `./todo/65z-ci-nix.md` says why, and
  * `./proof.f.mjs`'s `nixCoverage` keeps the list from growing by accident.
  *
- * `dev` is the one entry that is not a runtime under test. It is the developer
- * environment, and it is here rather than hand-written so that it cannot drift
- * from the jobs it is the union of — and so that the drift check covers it.
- *
  * @type {readonly NixJob[]}
  */
 export const nixJobs = [
     ...nodeNixJobs,
-    denoNixJob,
-    wasmNixJob,
-    bunNixJob,
+    i686NixJob,
     devNixJob,
 ]
 
-/** @type {(rust: boolean, pin: string | undefined) => Jobs} */
-const canonicalJobs = (rust, pin) => ({
-    ...(rust ? { wasm: ubuntuArm(rustWasmSteps) } : {}),
+/**
+ * Every job that is not the platform matrix.
+ *
+ * There is no `dev` job any more. It existed because nothing else entered the
+ * developer shell, so that flake would have rotted unnoticed; now every job
+ * below but Node 22 and Node 24 enters it, and each asserts the versions it
+ * depends on before running anything — `node` and `tsc` from Node 26, `deno`
+ * from `deno`, `bun` from `bun`, both WASM runtimes from `wasm`. A separate job
+ * could only repeat those six.
+ *
+ * All of them are generated for every project, `wasm` excepted — which is a
+ * change `package-check` brings. It used to appear only when the project's
+ * `package.json` pinned an exact TypeScript, so a project with no compiler of
+ * its own got no packed-package check; the compiler is the CI configuration's
+ * now, so there is nothing left to be absent. What the job checks is the
+ * declarations the tarball ships, and a package shipping none fails it with
+ * `TS18003` — see `./todo/ci-generator-audience.md`, which owns the general
+ * shape of this trade.
+ *
+ * @type {(rust: boolean) => Jobs}
+ */
+const canonicalJobs = rust => ({
+    ...(rust
+        ? {
+            wasm: ubuntuArm(rustWasmSteps),
+            // Intel, because that is where a 32-bit x86 target can be built.
+            [i686JobId]: ubuntu(i686Steps),
+        }
+        : {}),
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
-    dev: ubuntuArm(devSteps),
     ...nodeVersionJobs(),
-    ...(pin === undefined ? {} : { [packageCheckJobId]: packageCheckJob(pin) }),
+    [packageCheckJobId]: packageCheckJob,
 })
-
-/** @type {(s: string) => boolean} */
-const digits = s => s !== '' && [...s].every(c => c >= '0' && c <= '9')
-
-/**
- * `=MAJOR.MINOR.PATCH` and nothing else.
- *
- * Anything npm reads as a *range* — `^7.0.0`, `=7.x`, `=7.0`, `=7.0.2 || 8.x` —
- * lets a later registry release change this check's verdict with no change
- * here, which is the one thing running it without a checkout is meant to
- * prevent. A leading `=` is not enough on its own: it can prefix a range. So
- * the whole value is validated rather than its first character.
- *
- * A prerelease pin is rejected too. That is stricter than npm needs, and the
- * cost of being wrong is the job disappearing from `ci.yml` — a visible diff in
- * review — rather than a check that silently stops meaning anything.
- *
- * @type {(pin: string) => boolean}
- */
-const exact = pin => {
-    if (!pin.startsWith('=')) { return false }
-    const parts = pin.slice(1).split('.')
-    return parts.length === 3 && parts.every(digits)
-}
-
-/**
- * The compiler the packed-package check installs, read out of the project's own
- * `package.json` rather than restated anywhere. A second copy could disagree
- * with this one silently, and a check running a compiler the package does not
- * pin is a green result about the wrong thing.
- *
- * `undefined` when there is no package.json or no pin: the check cannot be run
- * deterministically then, so it is not generated at all rather than run against
- * a compiler nobody chose.
- *
- * @type {(text: Result<string, IoChannel>) => string | undefined}
- */
-const compilerPin = text => {
-    if (text[0] !== 'ok') { return undefined }
-    const json = jsonParse(text[1])
-    if (json[0] !== 'ok') { return undefined }
-    const root = json[1]
-    if (typeof root !== 'object' || root === null || root instanceof Array) { return undefined }
-    const dev = root.devDependencies
-    if (typeof dev !== 'object' || dev === null || dev instanceof Array) { return undefined }
-    const pin = dev.typescript
-    return typeof pin === 'string' && exact(pin) ? pin : undefined
-}
 
 /** @type {(setup: Setup) => Effect<NodeOp, 0, number>} */
 export const ci = ({ nodeExtra }) => resultStep(
-    readUtf8File('package.json'),
-    packageJson => resultStep(
     access('Cargo.toml'),
     result => {
         const rust = result[0] === 'ok'
-        const pin = compilerPin(packageJson)
         /** @type {Jobs} */
         const jobs = {
             ...Object.fromEntries(os.flatMap(o => architecture.map(job(rust, nodeExtra(o))(o)))),
-            ...canonicalJobs(rust, pin),
+            ...canonicalJobs(rust),
         }
         /** @type {GitHubAction} */
         const gha = {
@@ -178,6 +308,6 @@ export const ci = ({ nodeExtra }) => resultStep(
             () => writeUtf8File(npmPublishPath, workflowText(npmPublishWorkflow)))
         const flakesWritten = ioStep(publishWritten, () => nixFlakes(nixJobs))
         return exitStep(flakesWritten)
-    }))
+    })
 
 export const main = () => ci({ nodeExtra: () => [] })

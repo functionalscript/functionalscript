@@ -57,7 +57,7 @@ states admit, and it is the copy most likely to drift silently.
       `_optionPropertyLambda` in `../module.f.mjs`, JSDoc included — with the
       common-segment type in `../types.ts` or inlined, never as a file-scope
       `@typedef` in the `.mjs`.
-- [ ] `npx tsc`, `fjs t`; the edag schema proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; the edag schema proofs pass unchanged.
 
 ### Related
 

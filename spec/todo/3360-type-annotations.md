@@ -92,7 +92,7 @@ More than half of this is built:
 | Value checking | `fjs/rtti/parse/` | `parse(schema)(value)` |
 | Canonical data form | `fjs/rtti/data/` | `toData`, `cmp`, `equal`, **`subset`**, data-driven `validate` |
 | TypeScript emission | `fjs/rtti/ts/module.f.mjs` | runtime printer: `thunk RTTI → toData → dataToTs`, emitting canonical type aliases, recursion included |
-| Compile-time bridge | `Ts<T>` in `fjs/rtti/ts/types.ts` | maps a schema to its TypeScript type, so `npx tsc` keeps working through the transition |
+| Compile-time bridge | `Ts<T>` in `fjs/rtti/ts/types.ts` | maps a schema to its TypeScript type, so `tsc` keeps working through the transition |
 
 Two of these matter more than they look. `data`'s **`subset`** is assignability
 as a decidable operation on the canonical form — the primitive a checker needs.
@@ -235,7 +235,7 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
   ids and none exist yet, so those were never real names.)
 - [tsconfig-strict-flags.md](../../todo/tsconfig-strict-flags.md) and
   [strict-static-analysis.md](../../todo/strict-static-analysis.md) are unaffected, and
-  are the near-term work. `npx tsc` and the standard toolchain remain the
+  are the near-term work. `tsc` and the standard toolchain remain the
   checker until all of the above exists.
 
 ## Related

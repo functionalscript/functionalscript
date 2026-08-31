@@ -3,9 +3,13 @@
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflows for this repository. Running the generator writes
 `.github/workflows/ci.yml` with the latest matrix of jobs and steps and
-`.github/workflows/npm-publish.yml` with the release job, plus one Nix
-development environment under `nix/` per canonical job that has one — every one
-but `package-check`. Which jobs have one and why the rest do not is
+`.github/workflows/npm-publish.yml` with the release job, plus four Nix
+development environments under `nix/`. The first of those, written to `nix/`
+itself, is the shell a developer enters and the shell eight of the fourteen
+jobs run inside; the other three exist for the jobs that cannot share it — Node
+22, Node 24 and `ubuntu-intel32`. Three jobs enter none: the two Windows ones,
+where Nix does not run, and `package-check`, which has no checkout. Which jobs
+have a flake and why the rest do not is
 [`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
 
 ## `fjs ci` is not stable
@@ -51,13 +55,13 @@ for, and whether that answer should change, is
   standing in for declarations the tarball omits, so the check would pass on
   the repository rather than on the package.
   `proof.f.mjs` — its property-based proofs.
-- `rust/module.f.mjs` — `cargo` build/test steps, the platform matrix's toolchain
-  action, and the `wasm` job's steps and flake declaration. The two families get
-  their toolchain from different places for a packaging reason: the matrix spans
-  six runner images that one flake could not serve, and the WASM job needs three
-  targets Nixpkgs builds no `std` for, so its flake takes the toolchain from
-  `rust-overlay` instead. Both name `config/module.f.mjs`'s `rust`, so the
-  version cannot differ between them.
+- `rust/module.f.mjs` — `cargo` build/test steps, the toolchain action the three
+  jobs that cannot use a flake still need, and the `wasm` job's steps. `cargo`
+  now comes from the shared shell everywhere Nix runs and no 32-bit target is in
+  play; `i686Target` is the predicate that decides which jobs those are, and
+  `../module.f.mjs` asks it rather than restating the pair of names. Both paths
+  name `config/module.f.mjs`'s `rust`, so the version cannot differ between
+  them.
 - `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
   `proof.f.mjs` — its property-based proofs.
 - `dev/module.f.mjs` — the developer environment: one shell carrying every
@@ -95,18 +99,20 @@ whole set is visible. `package-check` declares none — it runs with no checkout
  there is no file tree for a flake to be in.
 
 A declaration names the systems it wants a shell for, and the generator writes
-one explicit `devShells.<system>.default` per system rather than looping. Every
-CI job names exactly one, since it runs on one runner image; the developer
-environment names four, which is the reason that field is a list. `nix/module.f.mjs` writes each out as one
+one explicit `devShells.<system>.default` per system rather than looping. The
+two Node flakes name one each, since their jobs run on one runner image; the
+shared shell names four, because a developer's machine is not a runner — which
+is the reason that field is a list. `nix/module.f.mjs` writes each out as one
 static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
-job-local `shellHook`, run on every entry to the shell; none does today. See
+job-local `shellHook`, run on every entry to the shell — `ubuntu-intel32`
+declares the one, pointing `cargo` at a 32-bit linker. See
 [nix/README.md](../../nix/README.md) for how the generated files are meant to be
 consumed.
 
 `config/module.f.mjs` records the Node, Deno, Wasmtime and Wasmer versions the pinned
 Nixpkgs snapshot provides — not each vendor's latest release, which the snapshot
 usually trails. They feed the flakes' package attributes where the attribute is
-versioned, as well as every `setup-node` step: the platform matrix,
+versioned, as well as every `setup-node` step left: the two Windows jobs,
 `package-check`, and the publishing workflow. Bumping any of them therefore means moving the Nixpkgs commit first
 and copying the versions it offers.
 
@@ -127,24 +133,28 @@ unpacks the same release artifacts `rustup` would, so `rust` is an exact Rust re
 the flake names in full. The platform matrix's `dtolnay/rust-toolchain` reads the same
 constant, so the two cannot drift.
 
-Each job directory also gets a generated `run` script, and a workflow step reads
-as the command it runs — `./nix/node26/run npm run cov` — rather than as a
-`nix develop` invocation repeated fifteen times. The script carries
-`--no-write-lock-file` (leave the checkout untouched) and `--quiet` (drop Nix's
-logging from `info` to `notice`, which removes the `copying N paths`
-substitution chatter without touching warnings, errors, or the command's own
-output). `-q` is not a spelling Nix accepts; see
-[nix/README.md](../../nix/README.md), which also covers why the executable bit
-is committed rather than generated.
+A generated `run` script sits beside every flake, and a workflow step reads as
+the command it runs — `./nix/run npm run cov` — rather than as a `nix develop`
+invocation repeated fifteen times. The script carries `--no-write-lock-file`
+(leave the checkout untouched) and one `--quiet`, which drops the `copying N
+paths` substitution chatter and leaves every warning.
+
+A `flake.lock` is generated beside every `flake.nix`, from `narHash` and
+`lastModified` in `config/module.f.mjs`, and committed. Without one every
+`nix develop` computed a lock, found it differed from nothing, and said so —
+which used to cost two more `--quiet`s and, with them, every Nix warning of any
+kind. Nothing runs `nix flake lock` to produce it: `fjs ci` has to work on
+Windows, where Nix does not, so the two values a lock adds are data the way
+`bunSources`' hashes are. See [nix/README.md](../../nix/README.md).
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical job asserts, as its first command, that its own shell reports the version
 `config/module.f.mjs` records for it:
 
 ```sh
-test "$(./nix/node26/run node --version)" = "v26.7.0"
-test "$(./nix/deno/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
-test "$(./nix/wasm/run wasmtime --version)" = "wasmtime 45.0.2"
+test "$(./nix/run node --version)" = "v26.7.0"
+test "$(./nix/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
+test "$(./nix/node22/run node --version)" = "v22.23.2"
 ```
 
 The runtimes disagree on both halves, which is why the check takes the command and
@@ -175,27 +185,61 @@ evaluated for real, by the job that uses it.
 
 ### Expected package scripts
 
-The generated platform jobs run `npm ci`, install the pinned FunctionalScript
-package globally, and run `fjs test`. Those six are now the only place the
-published CLI is exercised: no canonical Node job does, and `deno` and `bun` both
-stopped. Every canonical job runs on Ubuntu ARM, and all but `package-check`
-through a flake:
+All four non-Windows platform jobs run `cargo` and the suite in the **same**
+shell, so the matrix differs by platform and by nothing else. They are also the
+only place that shell's `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin`
+outputs get built at all. Only the two Windows jobs are off Nix, because Nix has
+no native Windows.
 
-- Node 22 runs `npm ci` and `node --test` through its generated flake.
-- Node 24 runs the same pair through its own flake — one builder emits both
-  jobs, which differ only in the version they name.
-- Node 26 runs `npm ci`, `npx tsc`, `npm run cov`, `npm pack` and `npm run ci-update`
-  through its flake the same way, then `git add -A && git diff --cached --exit-code`
+32-bit Linux is a job of its own, `ubuntu-intel32`, rather than four more steps
+on `ubuntu-intel`. Its linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for*
+`i686-linux` — and on every other system the shared shell serves, that package
+set is marked broken, so it cannot live there. Not `gcc_multi` either: a
+multilib wrapper finds the right 32-bit files and still emits `-m elf_x86_64`,
+which is `todo/65z-ci-nix.md`'s story. Separating it also lets the two run in
+parallel, and makes a red result say "32-bit Linux" rather than "something in
+the Intel Linux job". It replaces `apt-get install libc6-dev-i386` rather than
+joining it: a Nix toolchain does not look in `/usr`, so a libc installed by the
+runner's package manager would sit there unread.
+
+Windows is also where the *published* CLI is still exercised, by
+`npm install -g functionalscript@<version>` and `fjs test`. Every job that moved
+runs this commit's suite instead: `npm install -g` writes to the read-only store
+from inside a shell, and the check was the one `deno` and `bun` already dropped
+because it tests a shipped release rather than the commit under review.
+
+The four that moved assert their Node and then run `npm ci` — the version check
+first, deliberately, since `npm ci` runs lifecycle hooks and those should not be
+the thing that discovers the runtime. `fjs test` walked the tree for proof
+modules and resolved nothing; `node --test` runs a project's *test entry*, and
+the entry this README asks a consumer to write is
+`import 'functionalscript/fjs/emergent_testing/all.test.mjs'` — a bare
+specifier, which resolves through `node_modules` or not at all. This repository
+would never have shown the failure, having no such file: its proofs live under
+`fjs/`, where `node --test` reaches them by path. The two Windows jobs still run
+`fjs test` and still need no install.
+
+Every canonical job runs on Ubuntu ARM, and all but `package-check` through a
+flake:
+
+- Node 22 runs `npm ci` and `node --test` through a flake of its own.
+- Node 24 runs the same pair through its own — one builder emits both jobs,
+  which differ only in the version they name. These two are the only jobs left
+  with a flake to themselves: `npm ci` and `node --test` take whichever `node`
+  reaches `PATH` first, and one shell holds one, so each needs a shell carrying
+  the single release it exists to test.
+- Node 26 runs `npm ci`, `tsc`, `npm run cov`, `npm pack` and `npm run ci-update`
+  through the shared shell, then `git add -A && git diff --cached --exit-code`
   as a plain step — `git` is the runner's tool, and a step names the flake only when
-  it needs something the flake pins.
-- `deno` runs `deno install --frozen` and `deno task cov` through its flake.
-- `bun` runs `bun install --frozen-lockfile` and `bun test --coverage` through its
-  flake, whose Bun is an overridden archive rather than the snapshot's.
-- `dev` enters the developer shell, asserts the five runtime versions it hands
-  a developer, and runs one plain command in it. It tests no runtime of its own:
-  it exists so the shell developers use cannot rot unnoticed.
+  it needs something the flake pins. The release it wants is the shared shell's,
+  so it needs no flake of its own. It asserts `tsc` alongside `node`, since
+  `pkgs.typescript-go` names no version and this is the job whose `npm pack`
+  emits the declarations the package ships.
+- `deno` runs `deno install --frozen` and `deno task cov` in the shared shell.
+- `bun` runs `bun install --frozen-lockfile` and `bun test --coverage` there
+  too, on a Bun that is an overridden archive rather than the snapshot's.
 - `wasm` runs `cargo fmt -- --check` and then tests and Clippy for four WASM
-  targets through its flake, which provides the toolchain and both runtimes.
+  targets in the shared shell, which provides the toolchain and both runtimes.
   `cargo` invokes `wasmtime` and `wasmer` itself, through the `runner` keys in
   `.cargo/config.toml`, so they have to share a `PATH` with the `cargo` that
   spawns them — which is why the whole toolchain moved rather than half of it.
@@ -240,9 +284,16 @@ cover newly created and deleted generated files, not just modified ones — a pl
 instead uses its checked-in sources (`node ./fjs/module.mjs ci`), so the check always
 reflects the generator being reviewed, not the pinned published release.
 
-Keep `npx tsc` passing independently because the generated CI runs it as its own
+Keep `tsc` passing independently because the generated CI runs it as its own
 step before coverage and package creation. Keep `test` as the fast local
 correctness loop even though generated CI no longer calls `npm test` directly.
+
+Both scripts name `tsc` rather than `npx tsc`, and TypeScript is deliberately not
+a `devDependency`. The compiler comes from the environment — the shared `dev`
+shell for anyone with Nix, a global npm install otherwise — so the two jobs that
+only run the suite do not install one. `npx tsc` would defeat that: with
+nothing to resolve in `node_modules` it downloads the registry's latest, which
+is the one version nothing here pins.
 
 For `node --test` and `npm run cov` to execute FunctionalScript proofs, the
 repository must include a Node test entry file, conventionally `all.test.ts`:
@@ -261,15 +312,23 @@ package has been installed. Custom projects that need different runtime setup st
 should use `fjs run <custom-ci-module>` and call `ci(setup)` directly instead of
 modifying the built-in command.
 
-The built-in command reads `package.json` for one thing: `devDependencies.typescript`.
-An exact version there — `=7.0.2`, not `^7.0.0` — generates the `package-check`
-job and is the compiler that job installs, because a job with no checkout has no
-lockfile to resolve a range against. Anything else, including no entry at all,
-generates no `package-check` job.
+The built-in command does not read `package.json` at all. It used to, for one
+thing — `devDependencies.typescript`, which decided whether the `package-check`
+job was generated and which compiler it installed. That version is now
+`config/module.f.mjs`'s, like every other version this generator names, so
+`package-check` is generated for every project.
 
-Nothing else in `package.json` reaches the generated steps. The FunctionalScript
-package version used by the platform matrix's smoke test is pinned in
-`config/module.f.mjs`, not read from `package.json`.
+Two consequences worth knowing before you adopt this generator. The compiler the
+packed-package check runs is the one **this** configuration pins, not the one
+your project depends on; and a package that ships no declarations now fails that
+check with `TS18003` rather than not being checked. See
+[`todo/ci-generator-audience.md`](./todo/ci-generator-audience.md).
+
+The FunctionalScript package version used by the surviving smoke tests is pinned
+in `config/module.f.mjs` too — nothing about the project reaches the generated
+steps except whether it has a `Cargo.toml`. That one flag reaches further than
+it used to: without Rust there are no 32-bit checks, so `ubuntu-intel` shares
+the shell like the rest and only Windows stays off it.
 
 ## The publishing workflow
 
@@ -299,11 +358,21 @@ The generated workflow is:
   one addition and it is spent by the step below.
 - **one job**, `publish-npm`, on the same Ubuntu ARM image the canonical jobs
   use, running `setup-node` (which writes the registry into the job's `.npmrc`),
-  `actions/checkout`, `npm ci`, and `npm publish --provenance`.
+  a global install of the configured TypeScript, `actions/checkout`, `npm ci`,
+  and `npm publish --provenance`.
 
-`npm ci` is not optional here the way it would be for a package that publishes
+Neither install is optional the way both would be for a package that publishes
 its sources unchanged: `prepack` emits the declarations the package ships and
-runs TypeScript from `devDependencies`.
+type-checks them. The compiler is not a dependency of the package, so this job
+installs it — and this is the one job in either workflow that needs a compiler
+without a flake to take it from, because a publish wants the `.npmrc`
+`setup-node` writes and a flake has nothing to say about a registry. `npm ci`
+still runs, for the `@types/node` that compiler resolves against.
+
+Being generated is what lets the step name `config/module.f.mjs`'s version as a
+literal. A hand-written workflow would have to either restate the number, where
+nothing would catch it drifting from the flakes, or read it back out at run
+time.
 
 There is no `NODE_AUTH_TOKEN` and no secret of any kind. `id-token: write` lets
 npm's trusted publishing exchange the runner's OIDC token for the credential,
@@ -351,6 +420,66 @@ export type Setup = {
 ```
 
 `nodeExtra` receives the target OS so callers can conditionally add OS-specific steps.
+
+On every platform but Windows, an injected step that names a **command** runs
+inside the shared shell, alongside the job's own — these jobs no longer install
+Node with `setup-node`, so a step left on the runner would find whatever the
+image ships rather than the release the job asserts:
+
+The generator writes JSON, which every YAML reader accepts; shown here as YAML
+because that is how a reader thinks of a workflow:
+
+```yaml
+- run: ./nix/run bash -e -c "$FJS_CI_RUN"
+  env:
+    FJS_CI_RUN: NODE_OPTIONS=--max-old-space-size=4096 node tool.mjs
+```
+
+The command travels in `env` rather than in quotes on the command line, and that
+is not a style choice. GitHub substitutes `${{ … }}` into a step's `run` text
+before any shell reads it, so a substituted value lands inside whatever quotes
+the generator wrote — `echo "${{ matrix.name }}"` with a value of `O'Reilly`
+closes an argument its author never opened — and no escape applied at generation
+time can reach a value that does not exist yet.
+
+What `env` buys is precise, and worth stating exactly: **the generator adds no
+quoting layer of its own.** `"$FJS_CI_RUN"` is a shell expansion, so the
+command arrives at `bash -e -c` as one argument holding exactly the text of the
+`env` value, whatever is in it. GitHub still substitutes `${{ … }}` into that
+value, and `bash` still executes the result — so a `${{ … }}` a consumer writes
+into their own command is theirs to get right, exactly as it would be in a
+hand-written `run:`. What is gone is the extra layer this generator used to add
+on top of that.
+
+Through a shell, because a GitHub `run:` is a shell script while the `run`
+script ends in `--command "$@"`, an argv. That distinction is invisible for this
+generator's own commands — one program and its arguments, by §7 — and decisive
+for anything a consumer writes: a bare prefix would turn an assignment into a
+program name, and would split `a && b` so that only `a` entered the shell.
+
+`bash -e` rather than `sh`, because that is what GitHub runs a `run:` step as.
+`sh` is `dash` on the Ubuntu images, where `[[ … ]]` is not a command, and
+without `-e` a script like `false; echo done` exits 0 — the step would be green
+while the work in it failed. Not `-o pipefail`, which belongs to an explicit
+`shell: bash`; these steps declare none, and matching the default is the
+point.
+
+A command declared as an `install` step moves too, losing the pre-checkout
+position that type normally buys. It has to: the flake lives in the checkout, so
+a step before it cannot enter the shell, and cannot count on a pinned Node
+either.
+
+**Where it lands instead is worth saying, because it is not symmetric.**
+`toSteps` emits install steps, then the checkout, then test steps, so an
+injected command becomes a test step and runs *after* the job's own
+`node --test` on Linux and macOS — while on Windows, which wraps nothing, the
+same declaration still runs before `actions/checkout`. Declaring `install` no
+longer means "before the tests" anywhere it was moved. `extra.injectedPosition`
+asserts both halves.
+
+A step naming an **action** keeps both its position and its shape —
+there is nothing to wrap, and `actions/cache` and its like want to run early.
+Windows keeps everything as declared, having no shell at all.
 Rust steps are included automatically when `Cargo.toml` is present; no flag is needed.
 
 ## Related

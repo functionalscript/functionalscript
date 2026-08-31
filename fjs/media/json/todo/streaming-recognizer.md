@@ -237,7 +237,7 @@ property, scoped to make it actually hold:
       mix — a stack may be pushed for one container kind and not the other —
       and take `tryRecognizerInitCapped(0)`, which accepts a bare scalar and
       rejects `[]`. The DoS guard, scoped out of the equivalence above.
-- [ ] `npx tsc` clean; `fjs t` green.
+- [ ] `tsc` clean; `fjs t` green.
 
 ### Related
 

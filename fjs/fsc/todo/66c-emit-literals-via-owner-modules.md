@@ -137,7 +137,7 @@ but isn't exposed in a reusable (bare-string) form.
       311).
 - [ ] Decide the `types/ts` string-quoting case per the layering note above;
       record the decision in this file before closing.
-- [ ] Run `npx tsc` and `fjs t`; confirm `fjs/types/ts`, `fjs/media/json/serializer`,
+- [ ] Run `tsc` and `fjs t`; confirm `fjs/types/ts`, `fjs/media/json/serializer`,
       and `fjs/emergent_testing` proofs still pass with full coverage.
 
 ### Related

@@ -88,7 +88,7 @@ Both changes are behavior-preserving; existing proofs must pass unchanged.
 
 - [ ] Add `flushThen`/`flush`; rewrite the 11 flush-and-replay sites.
 - [ ] Split `tokenizeEofOp` into `eofFlush` + a single eof envelope.
-- [ ] `npx tsc` clean; `fjs t` passes with full existing coverage.
+- [ ] `tsc` clean; `fjs t` passes with full existing coverage.
 
 ### Related
 

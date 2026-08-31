@@ -23,6 +23,9 @@
           }
         },
         {
+          "run": "npm install -g typescript@7.0.2"
+        },
+        {
           "uses": "actions/checkout@v7.0.1"
         },
         {

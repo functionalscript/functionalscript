@@ -57,7 +57,7 @@ by a one-line JSDoc claim, as above. No fragment extraction.
 - [ ] After [fold-stream-combinator](../../effects/todo/fold-stream-combinator.md)
       lands, express the chunk loop through `foldStream`; otherwise hoist it
       closed directly and note why here.
-- [ ] `npx tsc`, `fjs t`; existing CAS proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; existing CAS proofs pass unchanged.
 
 ### Related
 

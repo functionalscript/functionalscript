@@ -55,7 +55,7 @@ its tokenizer: a proof-local stringifier over the production tokenizer.
 - [ ] Unify the `/*`-with-newline rule; delete one of the twin functions.
 - [ ] Rewrite `tokenizeString` as a projection of `tokenizeJs`; move it to
       the proof; drop the serializer imports from the tokenizer module.
-- [ ] `npx tsc`, `fjs t` — the ~90 `tokenizeString` proof cases pass
+- [ ] `tsc`, `fjs t` — the ~90 `tokenizeString` proof cases pass
       unchanged.
 
 ### Related

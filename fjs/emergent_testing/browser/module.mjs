@@ -18,24 +18,19 @@
  * @import {
  *     BrowserTestReport, Reporter, RunState, TestResult, _BrowserImporter, _BrowserReport,
  *     _BrowserTestResult, _TestAndPath,
- * } from './types.ts'
- * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
- * @import { IoChannel } from '../effects/node/types.ts'
- * @import { Effect, Func } from '../effects/types.ts'
- * @import { Result } from '../types/result/types.ts'
- * @import { List } from '../types/list/types.ts'
+ * } from '../types.ts'
+ * @import { Catch, Sandbox, SandboxResult } from '../../effects/common/types.ts'
+ * @import { IoChannel } from '../../effects/node/types.ts'
+ * @import { Effect, Func } from '../../effects/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  */
 
-import { addResult, collectTests, defaultTest, runEntries, zeroState, zeroTotals } from './module.f.mjs'
-import { asyncRun } from '../effects/module.mjs'
-import { do_, pureOk } from '../effects/module.f.mjs'
-import { commonOperationMap } from '../effects/common/module.mjs'
-import { concat, toArray } from '../types/list/module.f.mjs'
-import { ok } from '../types/result/module.f.mjs'
-
-/** The page's leaf-landed operation; see `_BrowserReport`.
- * @type {Func<_BrowserReport>} */
-const report = do_('report')
+import { errorDetails, moduleFailure, reportOf, runProofs } from './module.f.mjs'
+import { asyncRun } from '../../effects/module.mjs'
+import { commonOperationMap } from '../../effects/common/module.mjs'
+import { concat, toArray } from '../../types/list/module.f.mjs'
+import { ok, unwrap } from '../../types/result/module.f.mjs'
 
 /**
  * Return to the event loop, so the browser can paint what has been appended.
@@ -47,106 +42,27 @@ const report = do_('report')
  */
 const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
 
-/** @type {(value: unknown) => string} */
-const text = value => {
-    try {
-        return String(value)
-    } catch {
-        return 'Unknown thrown value'
-    }
-}
-
 /**
- * The message and stack to report a thrown value by.
- *
- * An Error thrown from another realm — an iframe, a worker — is not
- * `instanceof Error` here, and its stack is the very thing the report exists to
- * carry. What the fields say is therefore the test, not where the value was
- * made: anything carrying `message` or `stack` is read as the failure it
- * describes, and everything else by its own text.
- *
- * @type {(error: unknown) => readonly [string, string]}
+ * The name a runner failure is reported under. It is not a module — see
+ * `runnerFailure` — and reads as what it is in the page's list of rows.
  */
-const errorDetails = error => {
-    try {
-        if (error !== null && (typeof error === 'object' || typeof error === 'function')
-            && ('message' in error || 'stack' in error)) {
-            const { message, stack } = /** @type {{ readonly message?: unknown, readonly stack?: unknown }} */ (error)
-            const described = text(message)
-            return [described, stack === undefined ? described : text(stack)]
-        }
-    } catch {
-        // Reading the fields, and asking whether they are there at all, are
-        // user-observable operations: revoked proxies and accessors can throw
-        // while the failure is inspected.
-    }
-    const fallback = text(error)
-    return [fallback, fallback]
-}
+const runnerSource = 'the browser runner'
 
 /**
- * A failure of a whole module — one that will not link, or whose `proof` export
- * cannot be enumerated. It does not go through `testResult`, and that is the
- * point: there is no leaf here, so there is no path and no `fmtImport` name to
- * build. What is known about it is its source, so its source is its name.
+ * A whole module's failure, described by the shared reader.
  *
- * It is still a `TestResult`, and still counted, because a report whose totals
- * disagreed with its `results` would tell an automated consumer that the suite
- * was empty rather than that it was broken. The cost is that a consumer cannot
- * assume every entry names a leaf — which is why {@link TestResult} says so.
- * Whether these belong in a variant of their own is part of the report-shape
- * decision `todo/share-browser-console-runner.md` tracks, and is deliberately
- * not settled here.
+ * The reader is an effect over `catch`, because reading a thrown value runs
+ * user code, so describing one takes an interpreter — a minimal one, holding
+ * nothing but the common operations.
  *
- * @type {(source: string, duration: number, message: string, stack: string) => _BrowserTestResult}
+ * @type {(source: string, duration: number, cause: unknown) => Promise<_BrowserTestResult>}
  */
-const moduleFailure = (source, duration, message, stack) => ({
-    module: source, path: '', name: source, status: 'failed', duration, message, stack,
-})
-
-/**
- * The page's half of a leaf-landed event: the shared {@link TestResult} plus a
- * description of the value it failed with.
- *
- * Describing a thrown value is deliberately each host's, for the reason
- * `TestResult` gives — the browser's report crosses a wire and cannot carry the
- * value, so it reads `message` and `stack` off it here.
- *
- * An expected throw that returned cleanly is the one failure with nothing
- * thrown to describe, which is why the reporter is handed `throws`: the value
- * in the result is what the leaf *returned*, and saying so is more use than
- * printing it.
- *
- * @type {(t: TestResult, r: SandboxResult<unknown>, throws: boolean) => _BrowserTestResult}
- */
-const browserResult = (t, r, throws) => {
-    if (t.status === 'passed') { return t }
-    if (throws) { return { ...t, message: 'Expected the proof to throw', stack: '' } }
-    const [message, stack] = errorDetails(r.result[1])
-    return { ...t, message, stack }
-}
-
-/**
- * The run-ended event, as the page reports it. The counts — and with them the
- * run's own pass/fail status — come from folding the results with the same
- * `addResult` that decides `fjs t`'s summary and exit code, so "did the run
- * pass" has one answer across the runners. `duration` stays the page's own
- * wall clock: the run yields a macrotask between leaves so the page can paint,
- * and that time is the run's without being any leaf's (see `RunTotals`).
- *
- * `status` overrides the folded decision when the run never got to its leaves
- * — module loading failed — which no leaf result can express.
- *
- * @type {(duration: number, results: readonly _BrowserTestResult[], status?: string) => BrowserTestReport} */
-const reportOf = (duration, results, status = undefined) => {
-    const { passed, failed } = results.reduce(addResult, zeroTotals)
-    return {
-        status: status ?? (failed !== 0 ? 'failed' : 'passed'),
-        browser: navigator.userAgent,
-        totals: { tests: results.length, passed, failed },
-        duration,
-        results,
-    }
+const failureOf = async (source, duration, cause) => {
+    const described = await asyncRun(commonOperationMap)(errorDetails(cause))
+    const [message, stack] = described[0] === 'ok'
+        ? described[1]
+        : /** @type {const} */ (['Unknown thrown value', 'Unknown thrown value'])
+    return moduleFailure(source, duration, message, stack)
 }
 
 /**
@@ -179,19 +95,6 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             // The result stays in the report the run resolves with.
         }
     }
-    /** @type {Reporter<_BrowserReport | Sandbox>} */
-    const reporter = {
-        // No pending row yet: the page renders a leaf once it has settled. The
-        // start event is where that changes, and it is
-        // `todo/report-before-running.md`'s remaining task rather than this
-        // port's.
-        start: () => pureOk(undefined),
-        result: (t, r, throws) => report(browserResult(t, r, throws)),
-        // The page folds its own report from the results it collected, and its
-        // `duration` is wall clock rather than the summed one — see `reportOf`.
-        summary: () => pureOk(undefined),
-        test: defaultTest,
-    }
     /** @type {<T, E>(e: Effect<Catch | _BrowserReport | Sandbox, T, E>) => Promise<Result<T, E>>} */
     const run = asyncRun({
         ...commonOperationMap,
@@ -208,77 +111,38 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
         },
     })
     /**
-     * A module's own export, enumerated here rather than by the traversal.
+     * The failure of a *runner* that did not even answer through its error
+     * channel: a handler of this interpreter threw, so the whole run rejected.
      *
-     * Reading it runs user code, and a value that resists being read has no
-     * leaf to be attributed to — so the traversal leaves the read to whoever
-     * loaded the module (`todo/hostile-proof-values.md`) and takes already
-     * collected leaves at `runEntries`. That is also what keeps the page's
-     * modules a *list*: two entries may share a label and are two runs, where a
-     * record-shaped map would keep only the last (catalog item 6).
+     * It is the one route the orchestration cannot decide, because it is this
+     * file's own fault rather than anything the walk can observe — which is
+     * also why the entry is not named after a module. The walk is one effect
+     * now, so a rejection is not attributable to the module it happened under.
      *
-     * Enumerated exactly once, which is why the entries are carried rather than
-     * the value re-read: a getter runs on every read (item 5).
+     * The description is read by the shared reader, on an interpreter that
+     * needs nothing but `catch` — deliberately not the one that just failed.
      *
-     * @type {(module: string, proof: unknown) => readonly _TestAndPath[] | null}
+     * @type {(cause: unknown) => Promise<_BrowserTestResult>}
      */
-    const entriesOf = (module, proof) => {
-        try {
-            return collectTests([], false, proof)
-        } catch (error) {
-            const [message, stack] = errorDetails(error)
-            announce(moduleFailure(module, 0, message, stack))
-            return null
-        }
-    }
-    /**
-     * A failure of the *runner*, which is not a failed test and must not be
-     * reported as one.
-     *
-     * It arrives two ways and both end here (catalog item 8): the error channel
-     * carries what an operation reported, a rejection carries what the
-     * interpreter could not dispatch at all, and an unhandled one of either is a
-     * page stuck in `running` for ever. The run stops — a runner that cannot
-     * dispatch will not dispatch the next leaf either — and the report says
-     * `infrastructure-error`, which is the status a controller reads to tell
-     * "the suite failed" from "the suite could not be run".
-     *
-     * @type {(module: string, cause: unknown) => 'infrastructure-error'}
-     */
-    const infrastructure = (module, cause) => {
-        const [message, stack] = errorDetails(cause)
-        announce(moduleFailure(module, 0, message, stack))
-        return 'infrastructure-error'
-    }
-    /** @type {(module: string, entries: readonly _TestAndPath[]) => Promise<string | null>} */
-    const runModule = async (module, entries) => {
-        /** @type {Result<RunState, IoChannel>} */
-        let answered
-        try {
-            answered = await run(runEntries(reporter)(module, entries)(zeroState))
-        } catch (error) {
-            return infrastructure(module, error)
-        }
-        if (answered[0] === 'error') { return infrastructure(module, answered[1]) }
-        const { aborted } = answered[1]
-        return aborted === null ? null : infrastructure(module, aborted)
-    }
-    /** @type {(rest: readonly (readonly [string, unknown])[]) => Promise<string | null>} */
-    const walk = async rest => {
-        if (rest.length === 0) { return null }
-        const [[module, proof], ...tail] = rest
-        const entries = entriesOf(module, proof)
-        const status = entries === null ? null : await runModule(module, entries)
-        return status === null ? walk(tail) : status
-    }
+    const runnerFailure = cause => failureOf(runnerSource, 0, cause)
     // Nothing that runs user code may start before the caller holds the
     // promise: a leaf executes synchronously inside its handler, so without
     // this deferral the first proofs run while this function is still building
     // what it returns, and a proof reading `fjsBrowserTestReport` would see the
     // previous run's promise. Catalog item 7.
     return Promise.resolve()
-        .then(() => walk(modules))
-        .then(status => reportOf(performance.now() - start, toArray(landed), status ?? undefined))
+        .then(() => run(runProofs(modules)))
+        // `runProofs` has no error channel — every failure it can meet is a
+        // value it decides about — so there is no branch to write here, and
+        // `unwrap` says exactly that. What it cannot cover is a rejection,
+        // which is what the `catch` below is for.
+        .then(unwrap)
+        .catch(runnerFailure)
+        .then(ended => reportOf(
+            navigator.userAgent,
+            performance.now() - start,
+            toArray(ended === null ? landed : concat(landed)([ended])),
+            ended === null ? null : 'infrastructure-error'))
 }
 
 /** @type {(root: Element) => (Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }) | null} */
@@ -349,12 +213,10 @@ export const startBrowserTestSources = (root, sources, importer) => {
             // that disagreed with `results` would tell an automated consumer
             // the suite was empty rather than broken.
             const duration = performance.now() - start
-            return publish(root, Promise.resolve(reportOf(duration,
-                rejected.map(({ source, error }) => {
-                    const [message, stack] = errorDetails(error)
-                    return moduleFailure(source, duration, message, stack)
-                }),
-                'infrastructure-error')))
+            return publish(root, Promise
+                .all(rejected.map(({ source, error }) => failureOf(source, duration, error)))
+                .then(failures => reportOf(
+                    navigator.userAgent, duration, failures, 'infrastructure-error')))
         }
         return startBrowserTests(root, loadedModules.flatMap(module =>
             module.status === 'loaded'

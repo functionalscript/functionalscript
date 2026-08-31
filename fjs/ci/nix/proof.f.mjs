@@ -8,17 +8,20 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { step as ioStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
-import { nixpkgs, rustOverlay } from '../config/module.f.mjs'
+import { nixpkgs, node, rustOverlay, typescript } from '../config/module.f.mjs'
 import { devJobId, devSystems } from '../dev/module.f.mjs'
+import { i686JobId } from '../rust/module.f.mjs'
 import { nixJobs } from '../module.f.mjs'
 import { nodeNixJobs } from '../node/module.f.mjs'
 import {
     flakePath,
     flakeText,
+    lockText,
     generatedDirectory,
     nixDevelop,
     nixFlakes,
     nixInstall,
+    nixShell,
     nixSteps,
     nixSystem,
     nixVersionStep,
@@ -36,9 +39,18 @@ const plain = {
 }
 
 /**
- * No declared job needs a `shellHook` any more — Node 22's went with the global
- * install it existed for. The generator still emits one, and this fixture is
- * what holds that capability to its shape.
+ * A hook in both its halves: text, and a package it has to name.
+ *
+ * The interpolation is the half that cannot be written as a string. A store
+ * path is not knowable when this file is generated, so a reference has to
+ * reach the flake unescaped and be resolved by Nix — which is exactly what
+ * `ubuntu-intel32` needs to point `cargo` at a 32-bit linker. The text around
+ * it is escaped, so the `$HOME` below arrives as those five characters rather
+ * than as anything Nix reads.
+ *
+ * The package named here is a fixture, not the one that job uses: this file
+ * proves how a hook *renders*, and `../rust/proof.f.mjs` proves what the job
+ * actually declares.
  *
  * @type {NixJob}
  */
@@ -46,7 +58,11 @@ const withShellHook = {
     ...plain,
     id: 'node22',
     packages: ['nodejs_22'],
-    shellHook: `export NPM_CONFIG_PREFIX="$HOME/.npm-global"`,
+    shellHook: [
+        'export NPM_CONFIG_PREFIX="$HOME/.npm-global"\nexport CC=',
+        ['ref', 'pkgs', 'gcc_multi'],
+        '/bin/cc',
+    ],
 }
 
 /**
@@ -121,6 +137,7 @@ const shellHookFlake = `{
             packages = [ pkgs.nodejs_22 ];
             shellHook = ''
                 export NPM_CONFIG_PREFIX="$HOME/.npm-global"
+                export CC=\${pkgs.gcc_multi}/bin/cc
             '';
         };
     };
@@ -288,9 +305,12 @@ const unwrapPin = ({ pin }) => {
 
 /** @type {(jobs: readonly NixJob[], id: string, file: string) => string} */
 const generatedFile = (jobs, id, file) => {
+    // `flakePath` rather than a second spelling of it: the shared shell is the
+    // generated directory itself, so a literal `nix/<id>/` here would read the
+    // one path the generator never writes.
     const written = ioStep(
         nixFlakes(jobs),
-        () => readUtf8File(`${generatedDirectory}/${id}/${file}`))
+        () => readUtf8File(`${flakePath(id).slice('./'.length)}/${file}`))
     const [, [tag, result]] = virtual(emptyState)(written)
     assert(tag === 'ok', result)
     return result
@@ -350,24 +370,107 @@ export const proof = {
         // The Node mapping only. Deno's and Bun's attributes are unversioned,
         // so there is no name to derive — their jobs' version checks carry
         // that tie instead.
+        //
+        // The runtime and nothing else. These two flakes exist only because
+        // `npm ci` and `node --test` resolve `node` from `PATH`, so each holds
+        // the one release its job proves this code runs on — anything more is
+        // a build neither job ever opens, and a second `nodejs_*` would put two
+        // on `PATH` with one winning silently.
         packages: () => {
             for (const { id, packages } of nodeNixJobs) {
-                assertEq(packages.length, 1)
-                assertEq(packages[0], `nodejs_${id.slice('node'.length)}`)
+                assertStructurallySame(
+                    [...packages],
+                    [`nodejs_${id.slice('node'.length)}`])
             }
+            // The compiler is in the shared shell, which is where the job that
+            // type-checks runs — see `../dev/proof.f.mjs`.
+            assert(
+                !nodeNixJobs.some(job => job.packages.includes(typescript.attribute)),
+                'a job that only runs the suite needs no compiler')
         },
-        // The `run` script is written beside every flake, byte for byte the
-        // same for each job: it resolves its own flake from `$0`, so nothing
-        // in it varies by job.
+        // The `run` script is written beside every flake, naming that flake.
+        // The only thing that varies between copies is the path.
         run: () => {
             for (const job of nixJobs) {
-                assertEq(generatedFile(nixJobs, job.id, 'run'), runText)
+                assertEq(generatedFile(nixJobs, job.id, 'run'), runText(job.id))
             }
         },
-        // What that script must say, pinned rather than described. `exec` keeps
-        // the command's exit status; the `case` and `${0%/*}` find the flake
-        // from the script rather than from the working directory; `"$@"` passes
-        // the caller's arguments through unsplit.
+        // And so is the lock, which is the whole of why `--quiet` is back to
+        // one. A flake with no lock beside it makes every `nix develop` compute
+        // one, find it differs from nothing, and say so.
+        lock: () => {
+            for (const job of nixJobs) {
+                assertEq(
+                    generatedFile(nixJobs, job.id, 'flake.lock'),
+                    lockText(job))
+            }
+        },
+        // What a lock has to say, pinned rather than described — for a flake
+        // with one input and for one with two.
+        //
+        // Every field is checked because every field is load-bearing to Nix:
+        // drop `narHash` or `lastModified` and the lock is incomplete, so Nix
+        // recomputes it and the warning this exists to remove comes back. The
+        // revision appears twice on purpose. `original` is what the flake asked
+        // for and `locked` is what that resolved to, and here they agree
+        // because `github:owner/repo/<rev>` is already exact.
+        lockText: () => {
+            assertEq(lockText(plain), `{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": ${nixpkgs.lastModified},
+        "narHash": "${nixpkgs.narHash}",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "${commit}",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "${commit}",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
+`)
+        },
+        // The second input, and the `follows` that keeps one Nixpkgs revision
+        // in the lock rather than two. Nix writes a redirected input as the
+        // path to the node it follows — `["nixpkgs"]` — where a resolved one
+        // gets `locked` and `original` of its own.
+        lockTextFollows: () => {
+            const text = lockText(withRust)
+            assert(
+                text.includes(`      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },`),
+                'expected rust-overlay to follow the root nixpkgs')
+            assert(
+                text.includes(`"rev": "${rustOverlay.commit}"`),
+                'expected the pinned rust-overlay revision')
+            assert(
+                text.includes(`"narHash": "${rustOverlay.narHash}"`),
+                'expected the pinned rust-overlay hash')
+            // One Nixpkgs, named once in each half of the one node that has it.
+            assertEq(text.split(`"repo": "nixpkgs"`).length - 1, 2)
+        },
+        // What that script must say, pinned rather than described, for the
+        // shared shell and for a flake with a directory of its own. `exec`
+        // keeps the command's exit status; the path is written in rather than
+        // derived, so there is no shell logic to read; `"$@"` passes the
+        // caller's arguments through unsplit.
         //
         // This is also the whole of what holds the script to root `AGENTS.md`
         // §6, which forbids a generated script from calling an external tool:
@@ -376,23 +479,67 @@ export const proof = {
         // coverage this does not already have, and would be the kind of check
         // §6 describes: blind to any name it does not list, and tripped by one
         // appearing in a comment.
-        runText: () => assertEq(runText, `#!/bin/sh
-case $0 in */*) d=\${0%/*} ;; *) d=. ;; esac
-exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
-`),
+        runText: () => {
+            assertEq(runText(nixShell), `#!/bin/sh
+exec nix develop --no-write-lock-file --quiet ./nix --command "$@"
+`)
+            assertEq(runText(plain.id), `#!/bin/sh
+exec nix develop --no-write-lock-file --quiet ./nix/node24 --command "$@"
+`)
+        },
+        // One, and the count is arithmetic rather than taste. Nix has a single
+        // verbosity integer: the default is `lvlInfo` (3), each `--quiet`
+        // decrements it by one, and a message prints when its own level is at
+        // most the current value. One reaches `lvlNotice` (2), which drops the
+        // `copying N paths` chatter at `lvlInfo` and keeps every warning.
+        //
+        // There were three, and the second and third only existed to get below
+        // `lvlWarn` (1) and hide `not writing modified lock file`. That took
+        // every other Nix warning with them — a failing substituter, a dirty
+        // tree, a deprecation notice — because global verbosity is the only
+        // lever Nix has. `lockText` removed the cause, so a second `--quiet`
+        // here would now buy nothing and cost the warning channel again.
+        oneQuiet: () => {
+            for (const job of nixJobs) {
+                assertEq(
+                    runText(job.id).split(' --quiet').length - 1,
+                    1,
+                    `expected one --quiet in ${job.id}'s run script`)
+            }
+        },
+        // Two lines, and the second names a path. Omitting it would leave
+        // `nix develop` defaulting to `.` — the *process* working directory,
+        // which is the repository root, where there is no `flake.nix`.
+        runNamesItsFlake: () => {
+            for (const job of nixJobs) {
+                const [shebang, command, ...rest] = runText(job.id).split('\n')
+                assertEq(shebang, '#!/bin/sh')
+                assert(
+                    command?.includes(` ${flakePath(job.id)} `) === true,
+                    `expected ${job.id}'s run script to name its flake`)
+                assertStructurallySame([...rest], [''])
+            }
+        },
         // Every declared job runs on the one runner the flakes are generated
         // for. A second system would need its own `devShells.<system>.default`
         // rather than a loop, so a job that quietly declared another would
         // otherwise generate a shell no runner can enter.
         // Every job but the developer environment runs on one runner, and
-        // declares the one system that runner is. `dev` is the exception the
-        // list form exists for, so it is named rather than exempted by a
-        // pattern: a job quietly declaring a second system would otherwise
-        // generate a shell no runner enters.
+        // declares the one system that runner is. Both exceptions are named
+        // rather than exempted by a pattern: a job quietly declaring a second
+        // system would otherwise generate a shell no runner enters.
+        //
+        // `dev` is the reason the list form exists — four systems, one per
+        // machine a developer might have. `ubuntu-intel32` is the other, and
+        // its one system is not the one every other job declares: it runs on
+        // the Intel Linux runner, which is the one system where `pkgsi686Linux`
+        // is not marked broken.
         systems: () => {
             for (const { id, systems } of nixJobs) {
                 if (id === devJobId) {
                     assertStructurallySame([...systems], [...devSystems])
+                } else if (id === i686JobId) {
+                    assertStructurallySame([...systems], ['x86_64-linux'])
                 } else {
                     assertStructurallySame([...systems], [nixSystem])
                 }
@@ -420,6 +567,16 @@ exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
             nixDevelop(plain.id, 'node --version'),
             './nix/node24/run node --version'),
         runPath: () => assertEq(runPath(plain.id), './nix/node24/run'),
+        // The shared shell is the generated directory itself, not a `dev`
+        // below it. `nix develop ./nix` is what a developer types, and the
+        // name stays only as the label the declaration is found by.
+        sharedShellIsTheDirectory: () => {
+            assertEq(flakePath(nixShell), `./${generatedDirectory}`)
+            assertEq(runPath(nixShell), `./${generatedDirectory}/run`)
+            assert(
+                !runPath(nixShell).includes(`/${nixShell}/`),
+                `the shared shell must not sit under ./${generatedDirectory}/${nixShell}`)
+        },
         // One step per command, each entering the shell itself (root
         // `AGENTS.md` §7) — never one invocation carrying the sequence.
         nixSteps: () => {

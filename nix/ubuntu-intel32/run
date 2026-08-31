@@ -1,0 +1,2 @@
+#!/bin/sh
+exec nix develop --no-write-lock-file --quiet ./nix/ubuntu-intel32 --command "$@"

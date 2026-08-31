@@ -54,7 +54,7 @@ NaNVM-specific vocabulary did not:
   within a case and the printer emits one `let` binding cloned at each
   reference, so `arrayByItself` means "the same object" on both sides.
 - **The two cannot drift.** The ids are spelled as literals, so respelling one
-  in `fjs/edag/types.ts` fails `npx tsc` here; and the proof's `edagShape`
+  in `fjs/edag/types.ts` fails `tsc` here; and the proof's `edagShape`
   validates every derived expression against the schema, so an operand shape or
   validation rule changing under the corpus fails there.
 
@@ -131,12 +131,3 @@ form (engine-specific source text). `nanvm-lib` has no object methods yet.
 formatting, multi-limb bigint arithmetic, serialization round-trips, and the
 exact text of `nanvm-lib`'s own error messages. These are properties of the VM,
 not of JavaScript.
-
-## Known divergence
-
-`String(123n)` is `"123"` in JavaScript and `"0x7Bn"` in `nanvm-lib` — see
-[bigint-decimal-string-coercion](../../nanvm-lib/todo/bigint-decimal-string-coercion.md).
-The two affected cases carry a `rust` reason, so the gap is recorded in the data
-itself rather than in a coverage table. That is the point of the arrangement: a
-divergence is a property of a case, and a table of them goes stale the moment
-someone fixes one.

@@ -177,6 +177,34 @@ fn mul<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn sub<A: IVm>() {
+    check::<A>("nullMinusNull", Nullish::Null.to_any() - Nullish::Null.to_any(), (0f64).to_any());
+    check::<A>("nullMinusZero", Nullish::Null.to_any() - (0f64).to_any(), (0f64).to_any());
+    check::<A>("negativeZeroMinusZero", (-0f64).to_any() - (0f64).to_any(), (-0f64).to_any());
+    check::<A>("zeroMinusNegativeZero", (0f64).to_any() - (-0f64).to_any(), (0f64).to_any());
+    check::<A>("undefinedMinusZero", Nullish::Undefined.to_any() - (0f64).to_any(), (f64::NAN).to_any());
+    check::<A>("trueMinusOne", true.to_any() - (1f64).to_any(), (0f64).to_any());
+    check::<A>("falseMinusOne", false.to_any() - (1f64).to_any(), (-1f64).to_any());
+    check::<A>("zeroMinusOne", (0f64).to_any() - (1f64).to_any(), (-1f64).to_any());
+    check::<A>("oneMinusNegativeOne", (1f64).to_any() - (-1f64).to_any(), (2f64).to_any());
+    check::<A>("negativeTenMinusTen", (-10f64).to_any() - (10f64).to_any(), (-20f64).to_any());
+    check::<A>("bigZeroMinusZero", bigint_any(0) - bigint_any(0), bigint_any(0));
+    check::<A>("bigOneMinusOne", bigint_any(1) - bigint_any(1), bigint_any(0));
+    check::<A>("bigOneMinusNegativeOne", bigint_any(1) - bigint_any(-1), bigint_any(2));
+    check::<A>("bigNegativeOneMinusOne", bigint_any(-1) - bigint_any(1), bigint_any(-2));
+    check::<A>("emptyStringMinusOne", string_any("") - (1f64).to_any(), (-1f64).to_any());
+    check::<A>("stringTenMinusOne", string_any("10") - (1f64).to_any(), (9f64).to_any());
+    check::<A>("stringLetterMinusOne", string_any("a") - (1f64).to_any(), (f64::NAN).to_any());
+    check::<A>("emptyArrayMinusOne", Array::default().to_any() - (1f64).to_any(), (-1f64).to_any());
+    check::<A>("arrayTenMinusOne", [(10f64).to_any()].to_array().to_any() - (1f64).to_any(), (9f64).to_any());
+    check::<A>("arrayPairMinusOne", [(0f64).to_any(), (0f64).to_any()].to_array().to_any() - (1f64).to_any(), (f64::NAN).to_any());
+    check::<A>("emptyObjectMinusOne", Object::default().to_any() - (1f64).to_any(), (f64::NAN).to_any());
+    check::<A>("functionMinusOne", function_any() - (1f64).to_any(), (f64::NAN).to_any());
+    check_throws::<A>("numberMinusBigint", (1f64).to_any() - bigint_any(1));
+    check_throws::<A>("bigintMinusNumber", bigint_any(1) - (1f64).to_any());
+}
+
+#[rustfmt::skip]
 fn string_coercion<A: IVm>() {
     check::<A>("number", (123f64).to_any().to_string().map(|v| v.to_any()), string_any("123"));
     check::<A>("negativeNumber", (-456f64).to_any().to_string().map(|v| v.to_any()), string_any("-456"));
@@ -190,10 +218,8 @@ fn string_coercion<A: IVm>() {
     check::<A>("null", Nullish::Null.to_any().to_string().map(|v| v.to_any()), string_any("null"));
     check::<A>("undefined", Nullish::Undefined.to_any().to_string().map(|v| v.to_any()), string_any("undefined"));
     check::<A>("string", string_any("already").to_string().map(|v| v.to_any()), string_any("already"));
-    // TODO: nanvm-lib prints bigints in hexadecimal; see nanvm-lib/todo/bigint-decimal-string-coercion.md
-    // check::<A>("bigint", bigint_any(123).to_string().map(|v| v.to_any()), string_any("123"));
-    // TODO: nanvm-lib prints bigints in hexadecimal; see nanvm-lib/todo/bigint-decimal-string-coercion.md
-    // check::<A>("negativeBigint", bigint_any(-456).to_string().map(|v| v.to_any()), string_any("-456"));
+    check::<A>("bigint", bigint_any(123).to_string().map(|v| v.to_any()), string_any("123"));
+    check::<A>("negativeBigint", bigint_any(-456).to_string().map(|v| v.to_any()), string_any("-456"));
     check::<A>("emptyArray", Array::default().to_any().to_string().map(|v| v.to_any()), string_any(""));
     check::<A>("singletonArray", [(1f64).to_any()].to_array().to_any().to_string().map(|v| v.to_any()), string_any("1"));
     check::<A>("array", [(1f64).to_any(), (2f64).to_any(), (3f64).to_any()].to_array().to_any().to_string().map(|v| v.to_any()), string_any("1,2,3"));
@@ -208,5 +234,6 @@ pub fn all<A: IVm>() {
     unary_plus::<A>();
     neg::<A>();
     mul::<A>();
+    sub::<A>();
     string_coercion::<A>();
 }

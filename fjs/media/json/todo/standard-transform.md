@@ -102,7 +102,7 @@ the P5 [native JSON compatibility](./native-json-compatibility.md) task.
       and negative zero.
 - [ ] Keep parser/stringifier composition and native `JSON.*` compatibility out
       of these reusable transforms.
-- [ ] `npx tsc`, `fjs test`.
+- [ ] `tsc`, `fjs test`.
 
 ### Related
 

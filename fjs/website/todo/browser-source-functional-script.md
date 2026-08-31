@@ -33,4 +33,4 @@ Update website preparation to consume the FunctionalScript module directly.
 ### Related
 
 - [`browser-source.mjs`](../browser-source.mjs)
-- [`emergent_testing/todo/share-browser-console-runner.md`](../../emergent_testing/todo/share-browser-console-runner.md) — existing ordered migration plan for the separate `emergent_testing/browser.mjs` violation.
+- [`emergent_testing/todo/share-browser-console-runner.md`](../../emergent_testing/todo/share-browser-console-runner.md) — existing ordered migration plan for the separate `emergent_testing/browser/module.mjs` violation.

@@ -357,13 +357,20 @@ and is reviewable without the next one.
       registration path, which no browser runs — though it *moves* with
       `sandbox` and `catch`, to the same `effects/sandbox` home, on
       node-module-layering's layering argument rather than on this step's
-      second-implementer one; that move is that issue's, not step 4's. `import`, `now` and `fetch`
-      never qualified either: a page loads modules through its own importer
-      and reads its own wall clock, in the impure shell where host values
-      belong. Everything without a second implementer stays in `effects/node`
-      until something gives it one — the same rule that shrank this list
-      twice. [node-module-layering](../../effects/todo/node-module-layering.md)
+      second-implementer one; that move is that issue's, not step 4's. `now`
+      and `fetch` never qualified either: a page reads its own wall clock and
+      fetches nothing, in the impure shell where host values belong.
+      Everything without a second implementer stays in `effects/node` until
+      something gives it one — the same rule that shrank this list twice.
+      [node-module-layering](../../effects/todo/node-module-layering.md)
       carries the same answer.
+
+      **`import` was on that list and should not have been**, which was found
+      later and is corrected there rather than here. "A page loads modules
+      through its own importer" describes a *callback parameter*, and a
+      callback is an operation nobody has named — so counting implementers by
+      dispatched commands could not see the page's `import()` at all. It moved
+      to `effects/common` once it was named.
 
       **The expectation this step was written with was wrong, which is why the
       list was measured rather than argued.** `all`, `await` and `sandbox` were
@@ -688,8 +695,9 @@ holds as `Nominal<'server', '160855c4…', unknown>` — a handle whose identity
 a content hash, with the real object kept by the interpreter.
 
 The repository rule now says this outright — business logic in `.f.mjs`, plain
-`.mjs` only as a thin host boundary — and by that measure `browser.mjs` is
-migration debt: roughly 200 of its 405 lines are logic wearing one host touch.
+`.mjs` only as a thin host boundary — and by that measure `browser.mjs` was
+migration debt: roughly 200 of its 405 lines were logic wearing one host touch.
+Most of that is now `browser/module.f.mjs`.
 That is recorded in
 [move the browser runner's business logic to FunctionalScript](browser-runner-functional-script.md),
 which is the same work seen from the purity side rather than the sharing side.
@@ -703,8 +711,11 @@ So the remaining steps are that boundary, applied to the browser:
   where host values must never be.
 
 When they are done, `instanceof Promise` lives in exactly one interpreter, as
-glue, and no shared code asks the question. The three lines in `browser.mjs`
-today are in the right *place* only because the boundary has not been drawn
+glue, and no shared code asks the question. The asks have already left the
+browser file: the two that survive are in `effects/common`'s `sandbox` and
+`effects/node`'s `await`, which are interpreters — though `effects/common` is
+shared by design, so this is not yet the "exactly one" the goal names. They are
+in the right *place* only because the boundary has not been drawn
 there yet — they are temporary in a way the rest of the shared core is not.
 See [`todo/plan/capl.md`](../../../todo/plan/capl.md), which argues the general
 form: logic pure, serializable and content-addressed; host values behind
@@ -751,7 +762,9 @@ reasonable second change rather than part of the first one — but it is part of
 this issue, so it does not get dropped on the way.
 
 Move `emergent_testing/browser.mjs` to
-`emergent_testing/browser/module.mjs`. It should become a thin impure shell:
+`emergent_testing/browser/module.mjs` — **done**, once the orchestration had
+already left it, so the move was a rename and its importers rather than a
+rewrite. It should become a thin impure shell:
 provide browser capabilities, start the pure program, render semantic events,
 publish `window.fjsBrowserTestReport`, and dispatch the completion event. Pure
 code belongs in `emergent_testing/browser/module.f.mjs` or in the shared
@@ -877,10 +890,16 @@ are shared.
       still each host's own.
 - [x] Decide whether browser import/time/yield/publication justify
       `fjs/effects/browser/`; document the decision before adding operations.
-      They do not: the reverted #1759 interpreter needed `sandbox`, `catch`
-      and `all` and nothing else, and the sequential plan drops `all` too —
-      import, time, yield and publication are all the page's, in its impure
-      shell. Recorded in
+      They do not — but not for the reason first recorded, and the difference
+      matters. The reverted #1759 interpreter needed `sandbox`, `catch` and
+      `all` and nothing else, and the sequential plan drops `all` too, which
+      was read as "import, time, yield and publication are all the page's, in
+      its impure shell". Import was not: it was a callback parameter, which is
+      an operation nobody had named, and it now lives in `effects/common` with
+      two implementers. Time, yield and publication remain the page's. The
+      answer to the question asked — no `fjs/effects/browser/` — is unchanged,
+      because a shared operation does not belong in a browser-only directory
+      either. Recorded in
       [node-module-layering](../../effects/todo/node-module-layering.md).
 - [ ] Move static proof discovery and `_browser-suite.mjs` generation into
       `fjs/website/module.f.mjs`; extend `fjs/effects/node/` only for a concrete
@@ -889,13 +908,29 @@ are shared.
       command `node ./fjs/module.mjs r ./fjs/website/module.f.mjs` once the
       FunctionalScript generator owns the complete build; do not restore the
       removed `index-html` alias.
-- [ ] Add `emergent_testing/browser/module.f.mjs` for pure browser application
-      composition and its complete proof.
-- [ ] Move the current browser host code to
+- [x] Add `emergent_testing/browser/module.f.mjs` for pure browser application
+      composition and its complete proof. **The orchestration moved: enumerate
+      a module, walk its entries, route a failure, decide how the run ended.**
+      Its own proofs cover it completely and none of them is a browser — the
+      point of moving it. Two things the move revealed, both fixed rather than
+      recorded, because both were the type lying about the code:
+      `runEntries` has **no error channel** (every failure a leaf's chain meets
+      is recorded in `RunState.aborted` and answered as a value), and the walk
+      needs only three of a reporter's events, so `LeafReporter` was split out
+      of `Reporter`. The browser was supplying a `summary` nothing ever called.
+      What is left in `browser.mjs` is the interpreter, the DOM, the wall
+      clock and `navigator`.
+- [x] Move the current browser host code to
       `emergent_testing/browser/module.mjs` and reduce it to capability
-      interpretation, DOM rendering, and browser publication.
-- [ ] Update the generated website entry and browser-test application imports
-      to the new module paths.
+      interpretation, DOM rendering, and browser publication. The reduction
+      came first — the orchestration moved to `browser/module.f.mjs` — so this
+      was the rename and its importers, and the directory now reads as one
+      unit: logic, host, private types, and a proof for each.
+- [x] Update the generated website entry and browser-test application imports
+      to the new module paths. Both are *generated*, so the check is that
+      regenerating them produces the new path rather than that a hand edit
+      matched: `npm run website` rewrites the entry, and the browser suite
+      manifest is derived the same way.
 - [ ] Prove both runners produce equivalent paths, throw outcomes, recursive
       test counts, and normalized failures from the same fixtures. The
       existing `nameMatchesTheConsoleRunner`,
@@ -917,9 +952,24 @@ are shared.
       of how the frame budget was got wrong three times before being measured,
       and why even measured-correct it could not fix the reporting burst, is
       the pitfall catalog above (items 1, 2, 4, 11, 12).
-- [ ] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's
+- [x] Prove `runBrowserProofs`'s `infrastructure-error` branch — the run's
       own failure, as opposed to any proof's — **in step 7b, with the
-      minimal seam that makes it reachable.** Neither half of the branch (an
+      minimal seam that makes it reachable.** Done by the move above rather
+      than by a seam: with the orchestration an effect, a mock runner that
+      declares `report` and does not implement it answers `notImplemented`
+      through the ordinary continuation, which is the failure a page meets
+      when its own reporting breaks. `browser/proof.f.mjs` pins that the run
+      *stops* there and that the failure is answered rather than announced —
+      announcing is what broke.
+
+      **One half stays unproven and is now the only half.** A rejection —
+      a handler of the page's own interpreter throwing — cannot be produced
+      by a runner that answers through a continuation, so it is still the
+      `catch` in `browser.mjs`. It is also no longer a *routing* decision:
+      the walk is one effect now, so a rejection is not attributable to the
+      module it happened under, and the row it produces is named after the
+      runner rather than a module. That is a fault of this file rather than
+      of any module, which is what the name says. Neither half of the branch (an
       operation reporting through the error channel, or one the interpreter
       cannot dispatch, which rejects) is reachable through the public entry
       point — the reverted #1759 proved that by mutation: removing the guard

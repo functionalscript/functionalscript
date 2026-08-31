@@ -20,9 +20,13 @@ records that action version; its `deno` pin now names what the snapshot provides
 list.
 
 Separately from Nix, `deno` and `bun` both stopped installing and running a published
-`functionalscript`; the platform matrix is the only family that still does. That is
-[built-package-checks](built-package-checks.md)'s subject, not this issue's, but it is
-why those two jobs are shorter than the migration alone would leave them.
+`functionalscript`, and the three platform jobs that moved into the shared shell
+went the same way — `npm install -g` writes to the read-only store from inside a
+shell, and the check tests a shipped release rather than the commit under review.
+`ubuntu-intel` and the two Windows jobs still run it, so it survives on three
+images rather than six. That is [built-package-checks](built-package-checks.md)'s
+subject, not this issue's, but it is why those jobs are shorter than the
+migration alone would leave them.
 
 Deno brought one thing the Node jobs did not: `pkgs.deno` carries no version, so the
 proof that ties `nodejs_24` to the configured Node has no counterpart for it. Its CI
@@ -108,19 +112,32 @@ this suite passes on. The job's version check is what holds it: unlike every oth
 check, which confirms a snapshot provides what the configuration claims, this one
 confirms the override took effect at all.
 
-#### The developer environment
+#### The shell
 
-Every flake above serves one job testing one runtime. `dev` is the other kind:
-one shell carrying all of them — Node 26, Deno, the pinned Bun, the toolchain
-with its WASM targets, Wasmtime, Wasmer and `git` — for a developer to work in.
+`dev` carries every tool the jobs use — Node 26, Deno, the pinned Bun,
+TypeScript, the toolchain with its WASM targets, Wasmtime, Wasmer and `git`. It
+is what a developer enters, and what all but two CI jobs run inside.
 
 It is generated rather than hand-written for two reasons. It cannot drift from
 the jobs, since it is built from their own declarations; and the drift check
 covers it, which a hand-written `nix/flake.nix` would have escaped — verifying
 one would mean pattern-matching Nix source, which root `AGENTS.md` §6 rules out.
 
-The jobs deliberately do not share it. Each exists to test one runtime, and a
-shell with five would let a job pass on whichever `node` reached `PATH` first.
+**Sharing, and its one limit.** Each job started with a flake of its own, on the
+reasoning that a shell with five runtimes would let a job pass on whichever
+`node` reached `PATH` first. That risk is real and narrower than the rule it
+produced: it applies only where a command resolves its runtime from `PATH`.
+`deno task cov`, `bun test`, `cargo test` and `tsc` all name theirs, so what
+else is installed cannot decide what runs them.
+
+`npm ci` and `node --test` name nothing, and one shell holds one `node`. So
+Node 22 and Node 24 keep a flake apiece, and everything else shares — which is
+worth more than the uniformity: the environment CI proves is now the one people
+work in, rather than a fifth arrangement nobody uses.
+
+The cost is per-job download. A `deno` job that used to realise one package now
+realises the whole closure, toolchain included, and there is no binary cache of
+our own yet — `096-ci-caching.md` is where that goes.
 
 **It is why a declaration names systems rather than a system.** A CI job runs on
 one runner image; a developer environment has to work on Linux and macOS, on
@@ -140,11 +157,23 @@ Nix does not run natively on Windows, so those four are all there are. A Windows
 developer reaches the shell through WSL2 or works the way this repository has
 always supported natively — nothing here requires Nix.
 
-A `dev` CI job enters the shell and asserts the five versions it hands a
-developer. Without it nothing would evaluate this flake at all: every other one
-is entered by the job that owns it, and this one has no such job unless it is
-written. That job runs on one runner, so one of the four shells is evaluated for
-real; the other three are pinned as text and no further.
+There is no `dev` CI job. There was one, and its only reason was that nothing
+else evaluated this flake; eight jobs entering it on every pull request answers
+that better than one job asserting six versions. Between them they still assert
+all six — `node` and `tsc` from `node26`, `deno` from `deno`, `bun` from `bun`,
+both WASM runtimes from `wasm`.
+
+And all four shells are now built for real, which was not true when this was
+written. The canonical jobs run on one runner, so they only ever exercised
+`aarch64-linux`; the four platform jobs that joined cover `x86_64-linux` and
+both Darwin systems, each asserting the Node its shell provides before running
+anything.
+
+One consequence for a project that is not this one: `nixJobs` is a list rather
+than a function of the project, so a project without a `Cargo.toml` gets no
+`wasm` job and therefore nothing checking the two WASM runtimes in its shell.
+That is the same trade `ci-generator-audience.md` describes for every job this
+generator writes unconditionally.
 
 #### Jobs with no flake
 
@@ -160,13 +189,54 @@ which side of the line it falls on.
   putting the repository back. Its Node comes from `setup-node`, and the version it
   names is the one `node26`'s flake already checks.
 
-The platform matrix — `{ubuntu,macos,windows}-{intel,arm}` — is out of scope for a
-related reason. Those six jobs exist to run on stock GitHub runner images across
-three operating systems and two architectures, so a flake would replace the thing
-they measure; four of the six are not `aarch64-linux` at all.
+Two of the six platform jobs are here too, and for one reason: **Nix does not
+run natively on Windows**. `windows-intel` and `windows-arm` keep the runner's
+toolchain, and are the last jobs in the workflow that install one.
 
-What remains here is the Nixpkgs update command and removing stale generated job
-directories, which waits on a recursive `rm` effect. Every canonical job but
+The other four — `ubuntu-intel`, `ubuntu-arm`, `macos-intel`, `macos-arm` —
+moved into the shared shell, all of them, so the matrix differs by platform and
+by nothing else. They are also what makes `devSystems` mean anything: they are
+the only place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells
+are built rather than pinned as text.
+
+32-bit Linux became a **job of its own**, `ubuntu-intel32`, with a flake of its
+own. Its linker is `pkgsi686Linux.stdenv.cc`, and on every system the shared
+shell serves except `x86_64-linux` that package set is marked broken — so
+folding it in would break `nix develop ./nix` on both macOS systems and on ARM
+Linux. Splitting the *job* rather than giving `ubuntu-intel` two shells keeps
+the one-shell-per-job property `../proof.f.mjs`'s `nixCoverage` asserts, lets
+the two run in parallel, and makes a red result name 32-bit Linux rather than
+one of nine things.
+That replaced `apt-get install libc6-dev-i386` rather than joining it: the Nix
+cc-wrapper keeps `/usr/include` and `/usr/lib` off its search paths, so a libc
+from the runner's package manager is invisible to the compiler `cargo` invokes.
+
+The linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for* `i686-linux`.
+**`gcc_multi` was tried first and does not work**, which is worth keeping
+because it is the obvious answer. It finds every 32-bit file correctly —
+`glibc_multi`'s `lib/32/Scrt1.o`, gcc's `32/crtbeginS.o` — and the link still
+fails with every object *"incompatible with elf64-x86-64"*, because the wrapper
+is a 64-bit wrapper whose bintools inject `-m elf_x86_64`, outliving gcc's own
+`-m32`. A wrapper that *is* i686 has no such flag to inject.
+
+Its `shellHook` names that linker outright — `CARGO_TARGET_..._LINKER` — rather
+than trusting `PATH`, because `stdenv`'s own `cc` is added to `PATH` before
+`packages` and `addToSearchPath` appends. Naming a store path is what made
+`indented-string` take parts: a `_Reference` part interpolates, a `string` part
+is escaped. Interpolating the derivation is also what puts it in the closure, so
+it needs no `packages` entry — and should not have one, since a 32-bit `cc` on
+`PATH` would shadow the host one the untargeted `cargo test` needs.
+
+What that cost is worth naming. Those jobs used to measure a stock runner image,
+and now measure a pinned toolchain running *on* one. The distinction is smaller
+than it sounds — `dtolnay/rust-toolchain` and `setup-node` were already pinned to
+the same versions — but the system libraries a Nix build links against are Nix's,
+so "builds with the distro's toolchain" is no longer something CI says. Windows
+and `ubuntu-intel` still say it.
+
+What remains here is the Nixpkgs update command and removing stale generated
+directories, which waits on a recursive `rm` effect — the four directories this
+change orphaned had to be deleted by hand. Every canonical job but
 `package-check` now runs through a flake.
 
 ### Problem
@@ -255,21 +325,21 @@ this TODO does not prescribe which non-Node tools a job needs.
 Generate one self-contained file for each job:
 
 ```text
+nix/flake.nix
 nix/node22/flake.nix
 nix/node24/flake.nix
-nix/node26/flake.nix
-nix/deno/flake.nix
-nix/wasm/flake.nix
-nix/bun/flake.nix
-nix/dev/flake.nix
 ```
+
+The shared shell is `nix/` itself rather than a directory under it: it belongs
+to no single job, and `nix develop ./nix` is the command a developer should have
+to remember. The two that do belong to one job are named after it.
 
 Each generated file should:
 
 - pin the exact Nixpkgs commit;
-- expose one `devShells.<system>.default` per system the job declares — every CI
-  job declares the one ARM Linux runner it has, and the developer environment
-  declares four. Past one, the shell body is written once as a function those
+- expose one `devShells.<system>.default` per system the declaration names — a
+  job with a flake of its own declares the one ARM Linux runner it has, and the
+  shared shell declares four. Past one, the shell body is written once as a function those
   entries call; the systems stay named bindings rather than a fold;
 - use `pkgs.mkShell` with that job's declared packages;
 - be readable without inspecting the generator;
@@ -302,11 +372,12 @@ system-selection framework.
 Node 22, Node 24, Node 26 and `deno` remain separate because they use different
 runtimes and run different command sequences.
 
-No job declares a `shellHook`. The generator still emits one — a job needing environment
-set up on shell entry can declare it, and `fjs/ci/nix/proof.f.mjs` holds that capability
-to its shape — but Node 22's, which existed for a global install the job no longer makes,
-is gone. Do not generalize this into a shell-configuration framework unless a surviving
-job proves that abstraction useful.
+One job declares a `shellHook`: `ubuntu-intel32`, pointing `cargo` at
+`pkgsi686Linux.stdenv.cc`. Node 22's, which existed for a global install the job no
+longer makes, is gone. So the capability has exactly one user, and it is the kind the
+field was for — a store path that cannot be written as text, resolved on entry. Do not
+generalize this into a shell-configuration framework unless a second job proves that
+abstraction useful.
 
 #### Nixpkgs update
 
@@ -334,15 +405,21 @@ Browser-runner and browser-package synchronization is outside this Node-only upd
 
 #### Generated flake locks
 
-Nix writes a `flake.lock` beside the `flake.nix` it evaluates unless told not to. CI
-tells it not to: every invocation passes `--no-write-lock-file`, so a CI run leaves the
-checkout exactly as it found it. The pin in `flake.nix` already determines every input,
-so the lock resolves nothing the flake did not already say.
+A `flake.lock` is generated beside every `flake.nix` and committed, from `narHash`
+and `lastModified` in `../config/module.f.mjs`. Nothing runs `nix flake lock` to
+produce it — this issue requires the generator stay Nix-independent, and those two
+values are facts about a published revision, so they are data the way `bunSources`'
+archive hashes are.
 
-Every invocation also passes `--quiet`, which is about the log rather than the
+CI still passes `--no-write-lock-file`, now so that `nix develop` cannot write over
+the generated file and leave the checkout in a state the drift check would fail on.
+
+Every invocation also passes `--quiet`, once, which is about the log rather than the
 checkout: it drops Nix's logging from `info` to `notice`, removing the `copying N
-paths` substitution chatter and leaving warnings and errors. Nix has no short
-spelling — `--quiet` declares no short name, and the `-Q` that exists is
+paths` substitution chatter and leaving warnings and errors. There were briefly three,
+to hide the `not writing modified lock file` warning a missing lock produced on every
+step; that took every other Nix warning with it, and the lock removed the cause. Nix
+has no short spelling — `--quiet` declares no short name, and the `-Q` that exists is
 `--no-build-output` on the legacy commands — so `-q` is not available here.
 
 #### Generated `run` scripts
@@ -354,24 +431,18 @@ Neither flag is written in a workflow step. Each job directory holds a generated
 ./nix/node26/run npm run cov
 ```
 
-The script is the same for every job — it resolves its own directory with shell
-parameter expansion rather than `dirname`, since a generated script calls no
-external tool (§6), and `exec`s `nix develop … --command "$@"` — so the spelling
-and its flags have one home instead of fifteen, and a step reads as the command
-it runs. Its executable bit is committed rather
-than generated, because nothing in `fjs/effects/node` can set a file mode;
+The script differs between jobs only in the path it names — written in, since the
+generator knows it — and `exec`s `nix develop … --command "$@"`, so the spelling
+and its flags have one home instead of fifteen, and a step reads as the command it
+runs. A generated script calls no external tool (§6), and this one has nothing that
+could. Its executable bit is committed rather than generated, because nothing in
+`fjs/effects/node` can set a file mode;
 [generated-run-script-mode](generated-run-script-mode.md) owns closing that gap.
 
 An earlier revision took the opposite trade — ignore the lock rather than add a flag to
-every invocation — and the scoped root `.gitignore` rule it added stays:
-
-```gitignore
-/nix/*/flake.lock
-```
-
-Not for CI, which no longer writes one, but for a developer running `nix develop` by hand
-without the flag. The rule matches one level down, so it covers the per-job flakes and no
-more: a future intentional `nix/flake.lock`, hand-maintained, is unaffected.
+every invocation — and added a scoped root `.gitignore` rule for `/nix/*/flake.lock`.
+That rule is gone: the locks are generated and committed now, so ignoring them would
+hide the very files the drift check exists to compare.
 
 #### Validation and adoption
 
@@ -450,7 +521,8 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [ ] Remove stale generated job directories.
 - [x] Generate a `run` script per job, so a workflow step names a command rather
       than a `nix develop` invocation.
-- [x] Ignore `/nix/*/flake.lock`.
+- [x] Generate and commit a `flake.lock` per flake, from data, so no Nix run is
+      needed to write one.
 - [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
 - [x] Bootstrap Nix through a pinned CI action in each migrated job.

@@ -166,7 +166,7 @@ Playwright execution obtains skip results from the shared browser application.
       the rejected informational-run alternative.
 - [ ] Update `AGENTS.md`: a `skip` marker must be paired with a
       `todo/{slug}.md` stating its unskip trigger.
-- [ ] Confirm `fjs t` proofs pass with full branch coverage and `npx tsc` is
+- [ ] Confirm `fjs t` proofs pass with full branch coverage and `tsc` is
       clean.
 
 ### Related

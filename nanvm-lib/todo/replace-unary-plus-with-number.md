@@ -115,7 +115,7 @@ cases takes the corpus's escape path rather than deriving an expression — movi
       Rust call and its pinned expected snippets.
 - [ ] `npm run ci-update` to regenerate `nanvm-lib/tests/test/generated.rs`.
 - [ ] `nanvm-lib/tests/test/main.rs`: remove or repoint `unary_plus_bigint_message`.
-- [ ] `npx tsc`, `fjs test`, `npm run ci-update` (no diff), `cargo test`,
+- [ ] `tsc`, `fjs test`, `npm run ci-update` (no diff), `cargo test`,
       `cargo clippy -- -D warnings`, and `cargo fmt -- --check`.
 - [ ] Changelog: `nanvm-lib` drops the public `unary_plus` method (BREAKING CHANGES).
 
@@ -125,8 +125,8 @@ cases takes the corpus's escape path rather than deriving an expression — movi
   table this decision comes from: no unary `+`, `Number` is the one coercion node.
 - [`fjs/nanvm/README.md`](../../fjs/nanvm/README.md) — the corpus's canonical-id rule,
   and why `unaryPlus` is its one exception.
-- [`numeric-operator-home.md`](./numeric-operator-home.md) — adjacent `Numeric<A>` algebra
-  layout, same `any/`-vs-`numeric.rs` split this touches.
+- `src/vm/numeric.rs` — adjacent `Numeric<A>` algebra, with the same
+  `any/`-vs-`numeric.rs` split this touches.
 - operator-test-operation-model and reuse-edag-operators (both retired; shipped as the
   canonical-id corpus in [`fjs/nanvm/`](../../fjs/nanvm/README.md)) — the `Op`-union
   redesign this predates.

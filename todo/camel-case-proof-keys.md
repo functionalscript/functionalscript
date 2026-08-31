@@ -44,7 +44,7 @@ everywhere at once.
 
 - [ ] Rename the keys in the six files above.
 - [ ] Add the convention to `AGENTS.md`, noting the keyword/export exception.
-- [ ] `npx tsc` clean; `fjs t` passes (test names change, counts do not).
+- [ ] `tsc` clean; `fjs t` passes (test names change, counts do not).
 
 ### Related
 

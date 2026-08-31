@@ -3,18 +3,21 @@
     inputs.rust-overlay.url = "github:oxalica/rust-overlay/996e9b0b019a4a9eb9e9a5641aefa06d801b5895";
     inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     outputs = { nixpkgs, rust-overlay, ... }: {
-        devShells.aarch64-linux.default = let
+        devShells.x86_64-linux.default = let
             pkgs = import nixpkgs {
-                system = "aarch64-linux";
+                system = "x86_64-linux";
                 overlays = [ rust-overlay.overlays.default ];
             };
             rust = pkgs.rust-bin.stable."1.98.0".minimal.override {
-                extensions = [ "clippy" "rustfmt" ];
-                targets = [ "wasm32-wasip1" "wasm32-wasip2" "wasm32-unknown-unknown" "wasm32-wasip1-threads" ];
+                extensions = [ "clippy" ];
+                targets = [ "i686-unknown-linux-gnu" ];
             };
         in
         pkgs.mkShell {
-            packages = [ rust pkgs.wasmtime pkgs.wasmer ];
+            packages = [ rust ];
+            shellHook = ''
+                export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=${pkgs.pkgsi686Linux.stdenv.cc}/bin/cc
+            '';
         };
     };
 }
