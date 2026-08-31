@@ -142,7 +142,10 @@ paths` substitution chatter and leaves every warning.
 `./dev.sh` is generated too, at the repository root: `nix develop ./nix` with no
 flags and no arguments, for a person who wants the shell rather than one command
 in it. `nix/module.f.mjs`'s `devScriptText` says why it carries neither of the
-`run` script's flags.
+`run` script's flags. It is the one generated file outside a directory this
+generator owns, so it carries a marker line and the generator reads before it
+writes: an unmarked `dev.sh` in a consuming project is left alone rather than
+truncated.
 
 A `flake.lock` is generated beside every `flake.nix`, from `narHash` and
 `lastModified` in `config/module.f.mjs`, and committed. Without one every
