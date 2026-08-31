@@ -184,10 +184,12 @@ a caller that wants no metadata picks `M = null` and the trivial monoid. A
 transformer's *output* `M` is its own to choose: it may forward what it was
 handed, replace it, or return the identity.
 
-The state a `RepeatTransformer` keeps stays **plain data**, which is what
+A `RepeatTransformer`'s state should be **plain data**, which is what
 [`todo/flow.md`](../../../todo/flow.md) requires of an operator and what §4.2
-needs: a parser state that is a closure cannot be serialized, checkpointed, or
-shipped to another process, and a resumable streaming parse is the point.
+needs: a parser state that holds a closure cannot be serialized, checkpointed,
+or shipped to another process, and a resumable streaming parse is the point. `S`
+is unconstrained, so this is an obligation on the author rather than something
+the types enforce — §4.2 says what it buys and what it costs to ignore.
 
 A rule with no entry is not transformed — it builds its AST node exactly as
 today. That is what makes adoption incremental: a grammar with an empty map
@@ -425,11 +427,25 @@ children are bounded by its arity and released as soon as it is built.
 `init`/`append`/`end` over input chunks — the same trio this protocol uses, one
 level up, and the shape `fjs/crypto/sha2` already ships (§12). It composes with
 this protocol directly, because the parser state is a value: the frame stack,
-each frame's `(rule name, state)`, and the cursor. Nothing here is mutable and
-nothing is a closure, so the state can be snapshotted, resumed, forked — or
-serialized and resumed elsewhere, which is the property
-[`todo/flow.md`](../../../todo/flow.md) keeps operator state as plain data for,
-and what an incremental re-parse would need later.
+each frame's `(rule name, state)`, and the cursor. **The engine's half of that
+holds no closures** — a frame carries a rule name and not the transformer it
+belongs to (§5), which is the design decision that makes the rest possible.
+
+**The author's half is the author's, and this is a condition rather than a
+guarantee.** `T` and `S` are unconstrained, so a transformer may return a
+closure, a `Map`, or anything else, and such a value sits in a partly collected
+sequence or a repetition's state while more input is awaited. Nothing checks it
+— nothing usefully could, short of an RTTI boundary this design took off the
+critical path (§8). So the honest statement is: **a suspended parse is
+serializable exactly when every live transformer value is**, and a grammar that
+wants §4.2's checkpoint owes plain data from its transformers.
+
+That is not a footnote — it is the argument §10 already makes against the
+closure form of the DJS `const` resolution, where a closure nested in a
+half-built array *is* a repetition's state. The same reasoning applies to any
+transformer, which is why the condition belongs here rather than only there. It
+is what [`todo/flow.md`](../../../todo/flow.md) keeps operator state as plain
+data for, and what an incremental re-parse would need later.
 
 Bounded-memory input streaming is a **backend property, not a protocol
 property**, and only `fjs/bnf/ll1` has it: it never backtracks, so a consumed
@@ -1451,14 +1467,45 @@ grammar spells as a thunk. Under name-keying, a grammar meant to carry
 transformers had to be rewritten so every interesting rule was a named thunk,
 and a combinator could not address the rules it generated at all (§10).
 
-Keying by value deletes all of that. `find` in
+Keying by value replaces that requirement with a weaker one. `find` in
 [`../data/module.f.mjs`](../data/module.f.mjs) already identifies rules by
-`v === fr`, so a rule value is a key whether or not it has a name, and whoever
-holds the rule holds the key. `deterministic()` can carry transformers as it is
-written. A combinator can hand back a fragment for the rules it built, because
-it holds them (§10). What `toData` owes this design is one thing rather than a
-naming convention: **expose the rule-value → name mapping it already builds**
-(`_FRuleMap`), so the engine can attach each entry to the rule it names.
+`v === fr`, so a rule value is a key whether or not it has a name, and **whoever
+holds the rule holds the key**. What `toData` owes this design is one thing
+rather than a naming convention: **expose the rule-value → name mapping it
+already builds** (`_FRuleMap`), so the engine can attach each entry to the rule
+it names.
+
+**"Holds" is the whole of the requirement, and it is not nothing.** A rule a
+thunk allocates *on each invocation* is not held by anybody: `toData` calls the
+thunk once and recurses into that call's values, and an author who calls it
+again gets different objects. `deterministic()` is the live case —
+
+```js
+const value = () => ({
+    array: cj('[]', value),
+    object: cj('{}', [string, ws, ':', ws, value]),
+    string, number, true: 'true', false: 'false', null: 'null'
+})
+```
+
+— where `value` itself is keyable (the thunk is one value) but the `array` and
+`object` branches are freshly allocated per call and are not. Mapping `value` as
+a variant would then be impossible, since the seventh construction check (§5)
+requires an entry for every branch it declares.
+
+So the authoring rule is **bind a rule you want to transform to a value you
+keep**, which is far weaker than name-keying's "make it a named thunk" but is
+still a rule. For `deterministic()` that means hoisting `array` and `object` out
+of the thunk — the mutual recursion survives it, because `cj('[]', value)` takes
+the thunk by reference and does not call it.
+
+Two things this does *not* need, and the reason is that a decision already
+covers them. A **post-conversion map phase** keyed on what `toData` generated is
+name-keying again, with the same unpredictability. **Memoizing combinator
+results** would make `cj(…)` return one value per argument list — but the rules
+a combinator builds are exactly the ones stage 0 already decided the combinator
+supplies transformers for (§10), and it holds them without needing to be
+memoized. What is left for the author is the rules the author wrote.
 
 **11.4 List flattening is already done.** The structural right-recursion
 detection the previous design spent a section on shipped as the `Repeat` rule,
@@ -1807,9 +1854,12 @@ value* to check against a spec vector.
       entry. It is keying by rule *value* that makes it possible at all: a
       combinator holds the rules it built, and does not have to predict the
       names `toData` will generate for them (§11.3).
-- [ ] Give the JSON example grammar a transformer set **as it is written** — no
-      rewrite into named thunks, which name-keying would have required and value
-      keying does not (§11.3). Budget for what §10 counts:
+- [ ] Give the JSON example grammar a transformer set. It needs a **small
+      restructuring, not the named-thunk rewrite** name-keying would have
+      required: hoist the rules a thunk allocates per call — `deterministic()`'s
+      `array` and `object` branches — to `const`s the author holds, so they can
+      be keyed (§11.3). The mutual recursion survives it. Budget for what §10
+      counts:
       six rules for a string, about nine for a number (each "optional" a
       `Variant` with an empty branch, never a `Repeat`), five each for objects
       and arrays, and a seven-branch `value`. Prove it against the spec's
