@@ -2,14 +2,14 @@
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
  * `writeFile`, `rm`, `access`, plus the `readUtf8File`/`writeUtf8File` text
  * helpers), networking (`fetch`, `createServer`, `listen`),
- * subprocess `exec`, `import_`, `now`, `forever`, and `all`/`both` parallelism;
+ * subprocess `exec`, `now`, `forever`, and `all`/`both` parallelism;
  * defines the `NodeOp`/`NodeProgram` types used by the Node runner.
  *
  * The console family — `write`, `log`, `error`, `errorExit`, `read`,
- * `readLine` — and `sandbox`/`catch_` are re-exported from
+ * `readLine` — and `sandbox`, `catch_` and `import_` are re-exported from
  * [`../common`](../common/module.f.mjs) rather than declared here: an operation
  * belongs to the layer of whoever implements it, and a browser sandboxes,
- * catches and writes.
+ * catches, writes and loads modules.
  *
  * See `./types.ts` for the type-level API.
  *
@@ -19,7 +19,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { All, Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
+ * @import { All, Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -30,7 +30,7 @@ import { length } from '../../types/bit_vec/module.f.mjs'
 import { error as resultError, ok as resultOk, unwrap } from '../../types/result/module.f.mjs'
 import { do_, ioError, pure, toIoError } from '../module.f.mjs'
 import {
-    catch_, error, errorExit, log, read, readLine, sandbox, write,
+    catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
     mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
@@ -56,8 +56,8 @@ export { ioError, toIoError }
 // call sites name them through this module — a live coupling, not a shim. An
 // operation belongs to the layer of whoever implements it, and every one of
 // these has, or will have, a second implementer: a browser sandboxes, catches,
-// and writes.
-export { catch_, error, errorExit, log, read, readLine, sandbox, write }
+// writes, and loads modules through an `import()` of its own.
+export { catch_, error, errorExit, import_, log, read, readLine, sandbox, write }
 
 /**
  * The host a {@link Listen} refuses.
@@ -361,10 +361,9 @@ export const listen = do_('listen')
 /** @type {Func<Forever>} */
 export const forever = do_('forever')
 
-// import
-
-/** @type {Func<Import>} */
-export const import_ = do_('import')
+// import — `import_` is `../common`'s, re-exported above: Node resolves a path
+// against the filesystem and a page resolves it against its document, which is
+// each interpreter's business rather than the operation's.
 
 // now
 
