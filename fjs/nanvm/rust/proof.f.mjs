@@ -101,6 +101,7 @@ export const proof = {
             'string_any("a").to_string().map(|v| v.to_any())')
         assertEq(nodeExpr(['*', 1, 2]), '(1f64).to_any() * (2f64).to_any()')
         assertEq(nodeExpr(['-', 1, 2]), '(1f64).to_any() - (2f64).to_any()')
+        assertEq(nodeExpr(['+', 1, 2]), '(1f64).to_any() + (2f64).to_any()')
         assertEq(nodeExpr(['undefined']), 'Nullish::Undefined.to_any()')
     },
     /**
@@ -145,6 +146,7 @@ export const proof = {
     rustName: () => {
         assertEq(rustName['*'], 'mul')
         assertEq(rustName['-'], 'sub')
+        assertEq(rustName['+'], 'add')
         assertEq(rustName.neg, 'neg')
         assertEq(rustName.String, 'string_coercion')
         assertEq(rustName.unaryPlus, 'unary_plus')
@@ -191,7 +193,7 @@ export const proof = {
          * generated file would otherwise carry a statement that does not
          * compile, or worse, one that does and means something else.
          */
-        unknownOperation: () => nodeExpr(['+', 1, 2]),
+        unknownOperation: () => nodeExpr(['/', 1, 2]),
         /** An object key the corpus cannot produce and Rust cannot spell. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**
