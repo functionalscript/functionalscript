@@ -548,5 +548,3 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
   implementation, whose shape every migrated job follows.
 - [browser-testing](../../emergent_testing/todo/browser-testing.md) — replacement design
   for real browser execution and the optional external Playwright runner.
-- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI design work after
-  one direct-Nix job completes validation.

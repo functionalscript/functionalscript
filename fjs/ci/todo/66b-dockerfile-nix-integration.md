@@ -312,5 +312,3 @@ it asked for. Both migrated once this milestone had settled the shape.
 ### Related
 
 - [65Z-ci-nix](65z-ci-nix.md) — architecture and task boundaries.
-- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — later OCI design work after one
-  direct-Nix Linux job works.

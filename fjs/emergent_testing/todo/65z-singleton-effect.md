@@ -115,5 +115,4 @@ address the general problem.
 
 ### Related
 
-- [i65Z-ci-scenario-docker](../../ci/todo/65z-ci-scenario-docker.md) — CI scenario job; duplicate execution is a latent issue when multiple runners scan the same directory
 - i183 — scenario test infrastructure
