@@ -12,6 +12,9 @@ invokes it directly:
 ./nix/node26/run npm run cov
 ```
 
+It also generates `dev.sh` at the repository root, which a person invokes the
+same way. Same problem, same workaround, one more file.
+
 That requires the executable bit, and the generator cannot set it. Nothing in
 [`fjs/effects/node`](../../effects/node/module.f.mjs) takes a file mode:
 `writeFile` is `(path, data)`, there is no `chmod` operation, and the virtual
@@ -68,7 +71,8 @@ proof is the thing this repository does not ship.
 - [ ] Decide what it does on Windows, and record the answer
 - [ ] Teach `../../effects/node/virtual` to model the bit, so the behaviour is
       provable without touching a real filesystem
-- [ ] Have `writeJob` in `../nix/module.f.mjs` mark `run` executable
+- [ ] Have `writeJob` in `../nix/module.f.mjs` mark `run` executable, and
+      `nixFlakes` do the same for `dev.sh`
 - [ ] Drop the `git update-index --chmod=+x` note from `writeJob`'s docstring,
       `nix/README.md` and this file's siblings once it is untrue
 

@@ -469,8 +469,8 @@ exec nix develop --no-write-lock-file --quiet ${flakePath(id)} --command "$@"
  * `fjs/effects/node` can set a file mode, and `fs.writeFile` preserves the mode
  * of a file that already exists — so a script committed once as `100755` stays
  * executable through every regeneration, and only a job that has never been
- * generated needs `git update-index --chmod=+x` by hand. See
- * `../todo/generated-run-script-mode.md`.
+ * generated needs `git update-index --chmod=+x` by hand — as {@link devScriptPath}
+ * did. See `../todo/generated-run-script-mode.md`.
  *
  * @type {(job: NixJob) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
@@ -492,12 +492,15 @@ const writeJob = job => {
 }
 
 /**
- * Writes one generated environment per job, stopping at the first failure.
+ * Writes one generated environment per job, then the interactive entry point,
+ * stopping at the first failure.
  *
  * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
 export const nixFlakes = jobs =>
-    forEachStep(pureOk(jobs), writeJob)
+    step(
+        forEachStep(pureOk(jobs), writeJob),
+        () => writeUtf8File(devScriptPath, devScriptText))
 
 /**
  * The one generated environment jobs share, and the directory its flake is
@@ -541,6 +544,40 @@ export const flakePath = id =>
 /** The `run` script a workflow step invokes, for the job of the given id. */
 /** @type {(id: string) => string} */
 export const runPath = id => `${flakePath(id)}/run`
+
+/** Where the interactive entry point is written, relative to the repository root. */
+export const devScriptPath = /** @type {const} */ ('dev.sh')
+
+/**
+ * The script that puts a developer in the shared shell.
+ *
+ * `./dev.sh` and `./nix/run` are the two halves of the same thing and differ in
+ * the two ways that split implies. This one takes **no arguments** — it opens a
+ * shell rather than running a command, so there is no `"$@"` and nothing for one
+ * to be quoted against — and it carries **no flags**.
+ *
+ * Both omissions are deliberate, and both are the reverse of the reasoning in
+ * {@link runText}, where the same two flags are argued for at length.
+ *
+ * **No `--quiet`.** What it suppresses is `copying path` and `building '…'`, and
+ * in CI those are noise against a log nobody reads while it scrolls. Here they
+ * are the only thing distinguishing a first entry that is fetching a couple of
+ * gigabytes from a session that has hung. A person waiting at a terminal wants
+ * the progress a log does not.
+ *
+ * **No `--no-write-lock-file`.** CI passes it because the generator owns
+ * `flake.lock` and a job has no business writing tracked files. A developer's
+ * tree is not CI's: if Nix disagrees with the committed lock, a rewrite there is
+ * the fastest way to see the hash it wanted — `git diff` then prints exactly the
+ * value `../config/module.f.mjs` is missing. `npm run ci-update` puts the
+ * generated file back, so nothing is lost by letting it happen.
+ *
+ * The flake path comes from {@link flakePath} rather than being spelled here,
+ * so `./nix` has one source across the `run` scripts and this.
+ */
+export const devScriptText = `#!/bin/sh
+exec nix develop ${flakePath(nixShell)}
+`
 
 /** Installs Nix, with `nix-command` and `flakes` enabled by the action's defaults. */
 export const nixInstall = install(uses('cachix/install-nix-action'))

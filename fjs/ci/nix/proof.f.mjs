@@ -14,6 +14,8 @@ import { i686JobId } from '../rust/module.f.mjs'
 import { nixJobs } from '../module.f.mjs'
 import { nodeNixJobs } from '../node/module.f.mjs'
 import {
+    devScriptPath,
+    devScriptText,
     flakePath,
     flakeText,
     lockText,
@@ -319,6 +321,18 @@ const generatedFile = (jobs, id, file) => {
 /** @type {(jobs: readonly NixJob[], id: string) => string} */
 const generated = (jobs, id) => generatedFile(jobs, id, 'flake.nix')
 
+/**
+ * A file `nixFlakes` writes outside any job's directory. There is one.
+ *
+ * @type {(jobs: readonly NixJob[], path: string) => string}
+ */
+const generatedRootFile = (jobs, path) => {
+    const written = ioStep(nixFlakes(jobs), () => readUtf8File(path))
+    const [, [tag, result]] = virtual(emptyState)(written)
+    assert(tag === 'ok', result)
+    return result
+}
+
 export const proof = {
     flakeText: {
         plain: () => assertEq(flakeText(plain), plainFlake),
@@ -394,6 +408,51 @@ export const proof = {
             for (const job of nixJobs) {
                 assertEq(generatedFile(nixJobs, job.id, 'run'), runText(job.id))
             }
+        },
+        // `./dev.sh` is written once rather than per job, because it opens the
+        // one shell a developer enters.
+        devScript: () => {
+            assertEq(
+                generatedRootFile(nixJobs, devScriptPath),
+                devScriptText)
+            assertEq(devScriptPath, 'dev.sh')
+        },
+        // What it says, pinned. Two lines, and the second is the command a
+        // person would otherwise have to remember.
+        devScriptText: () => {
+            assertEq(devScriptText, `#!/bin/sh
+exec nix develop ./nix
+`)
+        },
+        // It names the shared shell, and it names it the way the `run` script
+        // beside that shell does — one source for `./nix`, so a flake that
+        // moved could not leave this pointing at where it used to be.
+        devScriptNamesTheSharedShell: () => {
+            assert(
+                devScriptText.includes(` ${flakePath(nixShell)}\n`),
+                'expected ./dev.sh to name the shared shell')
+        },
+        // **No flags, and that is the difference from `run` rather than an
+        // omission.** `--quiet` hides `copying path` and `building`, which are
+        // noise in a CI log and the only sign of life at a terminal during a
+        // first entry that fetches gigabytes. `--no-write-lock-file` stops CI
+        // writing a tracked file; a developer's tree is not CI's, and a rewrite
+        // there prints the hash `../config/module.f.mjs` is missing.
+        //
+        // A tidy-up that made this match the `run` script would be a
+        // regression in both directions, so both absences are asserted.
+        devScriptHasNoFlags: () => {
+            assert(
+                !devScriptText.includes('--quiet'),
+                'unexpected --quiet: progress is what a person at a terminal wants')
+            assert(
+                !devScriptText.includes('--no-write-lock-file'),
+                'unexpected --no-write-lock-file: a rewrite in a developer tree is useful')
+            // And no `"$@"`: it opens a shell rather than running a command,
+            // which is the whole of what separates it from `run`.
+            assert(
+                !devScriptText.includes('"$@"'),
+                'unexpected argument pass-through in an interactive entry point')
         },
         // And so is the lock, which is the whole of why `--quiet` is back to
         // one. A flake with no lock beside it makes every `nix develop` compute

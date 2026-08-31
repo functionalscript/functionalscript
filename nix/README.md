@@ -1,7 +1,7 @@
 # Nix environments
 
-`flake.nix` and `flake.lock` here, and `<job>/` copies of both below them, are
-**generated** by
+`flake.nix` and `flake.lock` here, `<job>/` copies of both below them, and
+`../dev.sh` at the repository root are all **generated** by
 [`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs) — four self-contained flakes. Do not
 edit them by hand: run `npm run ci-update` and commit the result. The Node 26 CI
 job fails when the committed files no longer match the generator's output. This
@@ -109,6 +109,28 @@ exists is `--no-build-output` on `nix-build`/`nix-shell` rather than on this
 command. No flag reaches the command being run — `--command` execs it with stdio
 inherited — so a job's own output is unchanged.
 
+### `../dev.sh`
+
+`./nix/run` hands the shell a command; `./dev.sh` opens one:
+
+```sh
+#!/bin/sh
+exec nix develop ./nix
+```
+
+It lives at the repository root because that is where a person types it, and it
+takes no arguments — a shell is what it opens, so there is nothing to pass
+through.
+
+**It carries neither of `run`'s flags, and both absences are deliberate.**
+`--quiet` hides `copying path` and `building '…'`, which is right for a CI log
+and wrong at a terminal: on a first entry those lines are the only thing telling
+you a two-gigabyte fetch is progressing rather than hung.
+`--no-write-lock-file` stops CI writing a tracked file; your working tree is not
+CI's, and if Nix disagrees with the committed lock then letting it rewrite is the
+quickest way to see the hash it wanted — `git diff` prints exactly the value
+`fjs/ci/config` is missing, and `npm run ci-update` puts the generated file back.
+
 ### `flake.lock`
 
 A lock is generated beside every flake, from `narHash` and `lastModified` in
@@ -129,10 +151,10 @@ CI log, which lists every input's `narHash` in exactly the warning a missing loc
 produces. Getting one wrong is loud rather than silent: Nix recomputes,
 disagrees, and warns on every step again.
 
-The generator writes the script's **content**; its executable bit is committed
+The generator writes a script's **content**; its executable bit is committed
 once and preserved by every regeneration, because `fs.writeFile` keeps the mode
-of a file that already exists. A job generated for the first time needs
-`git update-index --chmod=+x <path>` by hand —
+of a file that already exists. That covers `../dev.sh` too. A script generated
+for the first time needs `git update-index --chmod=+x <path>` by hand —
 [`fjs/ci/todo/generated-run-script-mode.md`](../fjs/ci/todo/generated-run-script-mode.md)
 is about removing that step.
 

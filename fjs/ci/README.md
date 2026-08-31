@@ -139,6 +139,11 @@ invocation repeated fifteen times. The script carries `--no-write-lock-file`
 (leave the checkout untouched) and one `--quiet`, which drops the `copying N
 paths` substitution chatter and leaves every warning.
 
+`./dev.sh` is generated too, at the repository root: `nix develop ./nix` with no
+flags and no arguments, for a person who wants the shell rather than one command
+in it. `nix/module.f.mjs`'s `devScriptText` says why it carries neither of the
+`run` script's flags.
+
 A `flake.lock` is generated beside every `flake.nix`, from `narHash` and
 `lastModified` in `config/module.f.mjs`, and committed. Without one every
 `nix develop` computed a lock, found it differed from nothing, and said so —

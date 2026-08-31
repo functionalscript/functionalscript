@@ -73,9 +73,14 @@ convenience built alongside CI: every job but the two older Node ones runs its
 commands inside this very shell, so what passes here is what passes there.
 
 ```bash
-nix develop ./nix          # an interactive shell
+./dev.sh                   # an interactive shell
 ./nix/run npm run cov      # or one command in it
 ```
+
+Both are generated. `./dev.sh` is `nix develop ./nix` and nothing else — no
+flags, so you see what it is fetching or building on a first entry — and
+`./nix/run` is the same shell with a command handed to it, which is what a CI
+step names.
 
 It covers `aarch64-linux`, `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin`;
 `nix develop` picks the one for your machine. Nix does not run natively on
