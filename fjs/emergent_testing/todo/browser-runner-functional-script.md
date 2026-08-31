@@ -41,9 +41,11 @@ the orchestration the sharing plan moved. That is what took the file from 405
 lines to 298.
 
 **The proof file is the visible cost.** [`browser/proof.mjs`](../browser/proof.mjs)
-is 524 lines — about seven times the next impure proof file in the repository,
-`effects/node/memory/proof.mjs` at 78 — and it
-exists to test that logic from Node through a DOM stand-in. Logic in `.f.mjs`
+is 524 lines — the largest impure proof file in the repository, and more than a
+third of all the impure proof code there is (1,434 lines across six files; the
+next largest is `rtti/host.proof.mjs` at 379, which exists to build values
+FunctionalScript cannot express). It exists to test that logic from Node through
+a DOM stand-in. Logic in `.f.mjs`
 would be proven by an ordinary co-located `proof.f.mjs`; only the DOM adapter
 would still need an impure proof. Thin glue needs few `.mjs` proofs, and the
 size of this one is a measurement of how thick the glue has become.
