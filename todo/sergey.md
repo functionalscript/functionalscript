@@ -3,7 +3,10 @@
 - Browser Test
 - NiX:
   - [ ] Generate lock files. Limitation: no Windows support.
-  - [ ] Add another shell script: `nix develop ./nix`
+  - [ ] Add another shell script `dev.sh`:
+    ```sh
+    nix develop ./nix`
+    ```
   - [ ] Add OCI image shell script build and run with docker.
   - [ ] Delete `Dockerfile`
 - FunctionalScript
