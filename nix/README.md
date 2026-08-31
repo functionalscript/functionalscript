@@ -1,6 +1,7 @@
 # Nix environments
 
-`flake.nix` here, and `<job>/flake.nix` below it, are **generated** by
+`flake.nix` and `flake.lock` here, and `<job>/` copies of both below them, are
+**generated** by
 [`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs) — four self-contained flakes. Do not
 edit them by hand: run `npm run ci-update` and commit the result. The Node 26 CI
 job fails when the committed files no longer match the generator's output. This
@@ -48,7 +49,7 @@ Two lines, and the only thing that differs between copies is the path:
 
 ```sh
 #!/bin/sh
-exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix --command "$@"
+exec nix develop --no-write-lock-file --quiet ./nix --command "$@"
 ```
 
 The path is written in because the generator knows it. Leaving it out would not
@@ -57,50 +58,76 @@ work: `nix develop` with no installable defaults to `.`, and that is the
 `flake.nix` — rather than the script's own directory. So every caller runs from
 the repository root, which CI and a developer both do anyway.
 
-The `case` line resolves the flake from the script's own location, so it behaves
-the same from the repository root, from `nix/`, or by absolute path. It is shell
-syntax and parameter expansion rather than `dirname`, because a generated script
-calls no external tool ([`AGENTS.md`](../AGENTS.md) §6); the second arm is what
-makes a `$0` with no `/` mean the current directory, which stripping a suffix
-cannot say by itself. `"$@"` passes the caller's argument vector through
-unsplit, which is what lets a step keep quoting of its own —
+A generated script calls no external tool ([`AGENTS.md`](../AGENTS.md) §6), and
+this one has nothing that could: no `dirname`, and no shell logic doing its work
+either. `"$@"` passes the caller's argument vector through unsplit, which is what
+lets a step keep quoting of its own —
 `./nix/deno/run deno eval 'console.log(…)'` arrives as three arguments rather
 than as text to re-parse. `exec` replaces the shell, so the command's exit
 status is the script's.
 
-The two flags live there rather than in every step. `--no-write-lock-file` keeps
-the invocation read-only against the checkout: Nix otherwise writes a
-`flake.lock` beside the flake it enters, and the pin already determines every
-input, so that lock resolves nothing the flake did not already say. The root
-`.gitignore` still ignores those files, for a hand-run `nix develop` that omits
-the flag.
+The two flags live there rather than in every step.
 
-`--quiet` appears **three times**, and the count is arithmetic. Nix has one
-global verbosity integer: the levels run `lvlError = 0, lvlWarn = 1,
-lvlNotice = 2, lvlInfo = 3`, a message prints when its own level is at most the
-current value, the default is `lvlInfo`, and each `--quiet` decrements by one.
-So one reaches `notice` and two reach `warn` — both of which still print a
-warning — and only the third, reaching `error`, does not.
+`--no-write-lock-file` is a **guard, not a fix**. With a correct lock beside the
+flake, Nix writes nothing whether or not the flag is passed: it compares the lock
+it computes against the one on disk and only writes when they differ. What the
+flag buys is the case where they do differ — the generator owns this file, and
+without the flag every Nix step in every job becomes a writer of a tracked one.
+Nothing is lost by that, since `npm run ci-update` regenerates the lock from
+`fjs/ci/config` and would revert a rewrite anyway. A future Nix whose lock schema
+moves past version 7 is where that would otherwise be churn on every step at once.
 
-The first removes the substitution chatter: the `copying N paths` lines, started
-at `lvlInfo`, which are most of what these steps print and none of what they
-check. The other two are spent silencing one warning, and the price is worth
-stating plainly: **no Nix warning of any kind reaches the log from here.** A
-failing substituter, a dirty tree, a deprecation notice — all gone, errors only.
+`--quiet` appears **once**, and it does one thing. Nix has a single global
+verbosity integer: the levels run `lvlError = 0, lvlWarn = 1, lvlNotice = 2,
+lvlInfo = 3`, a message prints when its own level is at most the current value,
+the default is `lvlInfo`, and each `--quiet` decrements by one. One reaches
+`notice`.
 
-What they buy is "not writing modified lock file", which these flakes emit on
-every step of every Nix job. That warning is the exact consequence of
-`--no-write-lock-file` meeting a flake with no committed `flake.lock`, so the
-honest fix is to generate one and take these two flags back off —
-[`fjs/ci/todo/generated-flake-lock.md`](../fjs/ci/todo/generated-flake-lock.md)
-owns that.
+What that removes: `this path will be fetched (N MiB download)` and one
+`copying path '…' from '…'` per store path, plus `this derivation will be built:`
+and `building '…'`. All `lvlInfo`, all progress rather than outcome.
 
-Nix has no shorter spelling. `--verbose` declares a `v` short name and `--quiet`
-declares none, so neither `-q` nor `-qqq` is an option the `nix` CLI accepts;
-the `-Q` that exists is `--no-build-output` on `nix-build`/`nix-shell` rather
-than on this command; and verbosity is not a `nix.conf` setting, so `--option`
-cannot reach it either. No flag reaches the command being run — `--command`
-execs it with stdio inherited — so a job's own output is unchanged.
+What it leaves is everything that reports a problem. A warning survives it — only
+the third `--quiet` reached below `lvlWarn` — and so does a failing build's log,
+which arrives inside the error as `last N log lines`. The one real cost is that a
+cache miss looks like a cache hit: Nix compiles from source in silence and the job
+is only slower. That is bounded, because the store persists across a job's steps,
+so substitution happens on the first `./nix/run` and no other.
+
+**There used to be three.** With no committed `flake.lock`,
+`--no-write-lock-file` made every step of every Nix job print `not writing
+modified lock file` and list every input, five lines at a time. Global verbosity
+is the only lever Nix offers — `--verbose`, `--quiet` and `--debug` are the whole
+logging category, and verbosity is not a `nix.conf` setting, so `--option` cannot
+reach it — so getting below `lvlWarn` to hide that one warning hid them all: a
+failing substituter, a dirty tree, a deprecation notice. The lock removed the
+cause, and the two flags came off with it.
+
+Nix has no shorter spelling: `--verbose` declares a `v` short name and `--quiet`
+declares none, so `-q` is not an option the `nix` CLI accepts, and the `-Q` that
+exists is `--no-build-output` on `nix-build`/`nix-shell` rather than on this
+command. No flag reaches the command being run — `--command` execs it with stdio
+inherited — so a job's own output is unchanged.
+
+### `flake.lock`
+
+A lock is generated beside every flake, from `narHash` and `lastModified` in
+[`fjs/ci/config`](../fjs/ci/config/module.f.mjs), and committed.
+
+Nothing runs `nix flake lock` to produce it. `fjs ci` has to run wherever the
+project is developed, including Windows, where Nix does not run at all — so the
+two values a lock adds on top of the revision are **data**, the way `bunSources`'
+archive hashes already are, and the generator writes the file the way it writes
+`flake.nix`. That keeps `npm run ci-update` pure text generation on every
+operating system, and keeps the lock inside the drift check: bump the Nixpkgs
+pin without updating its hash and `node26` fails, where a hand-written lock would
+simply rot.
+
+Both values are facts about a published revision. `fjs/ci/config` records the two
+ways to recompute them — `nix flake metadata` on a machine that has Nix, or a
+CI log, which lists every input's `narHash` in exactly the warning a missing lock
+produces. Getting one wrong is loud rather than silent: Nix recomputes,
+disagrees, and warns on every step again.
 
 The generator writes the script's **content**; its executable bit is committed
 once and preserved by every regeneration, because `fs.writeFile` keeps the mode

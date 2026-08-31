@@ -135,14 +135,17 @@ constant, so the two cannot drift.
 
 A generated `run` script sits beside every flake, and a workflow step reads as
 the command it runs — `./nix/run npm run cov` — rather than as a `nix develop`
-invocation repeated fifteen times. The script carries
-`--no-write-lock-file` (leave the checkout untouched) and `--quiet` three times.
-Nix's verbosity is one integer and each `--quiet` decrements it, so the first
-drops the `copying N paths` substitution chatter and the other two are what it
-takes to get below warnings — which silences every Nix warning, not just the
-`not writing modified lock file` one they were added for. `-q` is not a spelling
-Nix accepts; see [nix/README.md](../../nix/README.md), which has the arithmetic,
-the cost, and the `flake.lock` that would let two of them come back off.
+invocation repeated fifteen times. The script carries `--no-write-lock-file`
+(leave the checkout untouched) and one `--quiet`, which drops the `copying N
+paths` substitution chatter and leaves every warning.
+
+A `flake.lock` is generated beside every `flake.nix`, from `narHash` and
+`lastModified` in `config/module.f.mjs`, and committed. Without one every
+`nix develop` computed a lock, found it differed from nothing, and said so —
+which used to cost two more `--quiet`s and, with them, every Nix warning of any
+kind. Nothing runs `nix flake lock` to produce it: `fjs ci` has to work on
+Windows, where Nix does not, so the two values a lock adds are data the way
+`bunSources`' hashes are. See [nix/README.md](../../nix/README.md).
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical job asserts, as its first command, that its own shell reports the version

@@ -38,11 +38,21 @@ import { nixpkgs, rustOverlay } from '../config/module.f.mjs'
  */
 export const generatedDirectory = /** @type {const} */ ('nix')
 
-const { commit } = nixpkgs
+/**
+ * A flake input's `url`, built from the pin rather than spelled beside it.
+ *
+ * The owner and the repository are in `../config/module.f.mjs` because
+ * {@link lockText} needs them apart — a lock names them as fields, where a
+ * flake names them as one string — and one source for both is what keeps a
+ * lock from pinning a repository the flake does not.
+ *
+ * @type {(input: { owner: string, repo: string, commit: string }) => string}
+ */
+const inputUrl = ({ owner, repo, commit }) => `github:${owner}/${repo}/${commit}`
 
-const url = `github:NixOS/nixpkgs/${commit}`
+const url = inputUrl(nixpkgs)
 
-const rustOverlayUrl = `github:oxalica/rust-overlay/${rustOverlay.commit}`
+const rustOverlayUrl = inputUrl(rustOverlay)
 
 /**
  * The toolchain expression a job with a `rust` declaration binds to `rust`.
@@ -283,6 +293,85 @@ export const flakeText = job =>
     unwrapNullable(fromUndefined(nixToString(flake(job))))
 
 /**
+ * One input as the pair of nodes a lock file records for it.
+ *
+ * `locked` is what the input resolved to and `original` is what the flake
+ * asked for, and here they carry the same revision because the flake asks for
+ * one: `github:owner/repo/<40 hex>` is already exact, so locking adds no
+ * revision — only the two facts about that revision Nix cannot read off the
+ * URL, `narHash` and `lastModified`.
+ *
+ * Keys are written in the order Nix writes them, which is alphabetical: its
+ * JSON goes through `nlohmann::json`, whose object is an ordered map. That is a
+ * readability choice and nothing more — worth saying, because the reverse is
+ * easy to assume. Nix compares the *parsed* lock rather than the text, so a
+ * semantically identical file in any formatting is left alone: reversing every
+ * key and re-indenting to four spaces still produces no rewrite. What matching
+ * buys is that these files read like every other `flake.lock`, and that a diff
+ * against one Nix did write is about content.
+ *
+ * @type {(input: typeof nixpkgs | typeof rustOverlay) => object}
+ */
+const lockNode = ({ owner, repo, commit, narHash, lastModified }) => {
+    const locked = {
+        lastModified,
+        narHash,
+        owner,
+        repo,
+        rev: commit,
+        type: 'github',
+    }
+    return { locked, original: { owner, repo, rev: commit, type: 'github' } }
+}
+
+/**
+ * The `flake.lock` written beside a flake, and the reason CI can hear Nix warn
+ * again.
+ *
+ * Without one, every `nix develop` computes a lock, finds it differs from the
+ * nothing on disk, and — because {@link runText} passes `--no-write-lock-file`
+ * to keep the checkout clean — says so, five lines at a time, on every step of
+ * every Nix job. The only lever Nix offers against that is global verbosity, so
+ * silencing it cost every other Nix warning too. A committed lock removes the
+ * cause instead, and `--quiet` goes back to meaning one thing.
+ *
+ * It is **generated** rather than written by hand, which is the whole design.
+ * A hand-written lock is a file the drift check cannot regenerate, so it would
+ * rot the first time a pin moved; this one moves with
+ * `../config/module.f.mjs`, and `node26` fails if the two disagree.
+ *
+ * And it is generated **from data** rather than by running `nix flake lock`.
+ * `fjs ci` runs wherever the project is developed — `../todo/65z-ci-nix.md`
+ * requires it stay Nix-independent, and `CONTRIBUTING.md` supports a Windows
+ * contributor with no Nix at all — so nothing here may shell out to a tool that
+ * does not exist on that machine, which root `AGENTS.md` §6 would also have to
+ * approve. What that costs is one lookup by whoever moves a pin, and
+ * `../config/module.f.mjs` records both ways to do it.
+ *
+ * `rust-overlay`'s `nixpkgs` is a `follows`, written as the path
+ * `["nixpkgs"]` — the array Nix uses for an input redirected to another node
+ * rather than resolved on its own. Without it the lock would carry a second
+ * Nixpkgs revision the flake never asked for.
+ *
+ * @type {(job: NixJob) => string}
+ */
+export const lockText = job => {
+    const rust = job.rust !== undefined
+    const nodes = {
+        nixpkgs: lockNode(nixpkgs),
+        root: {
+            inputs: rust
+                ? { nixpkgs: 'nixpkgs', 'rust-overlay': 'rust-overlay' }
+                : { nixpkgs: 'nixpkgs' },
+        },
+        ...(rust
+            ? { 'rust-overlay': { inputs: { nixpkgs: ['nixpkgs'] }, ...lockNode(rustOverlay) } }
+            : {}),
+    }
+    return `${JSON.stringify({ nodes, root: 'root', version: 7 }, null, '  ')}\n`
+}
+
+/**
  * The `run` script generated beside a flake. `./nix/run npm run cov` is what a
  * workflow step says; this is what makes that a command.
  *
@@ -312,45 +401,56 @@ export const flakeText = job =>
  * `exec` replaces the shell, so the command's exit status is the script's and
  * no wrapper process sits between CI and the failure.
  *
- * The flags live here rather than in every step. `--no-write-lock-file` keeps
- * the invocation read-only against the checkout: Nix otherwise writes a
- * `flake.lock` beside the flake it enters, and the pin in `flake.nix` already
- * determines every input, so that lock resolves nothing the flake did not
- * already say.
+ * The flags live here rather than in every step.
  *
- * **`--quiet` three times, and the count is arithmetic rather than emphasis.**
- * Nix has one global verbosity integer. The levels run `lvlError = 0,
- * lvlWarn = 1, lvlNotice = 2, lvlInfo = 3`; a message prints when its own level
- * is at most the current verbosity; the default is `lvlInfo`; and each
- * `--quiet` decrements by one, floored at `lvlError`. So one reaches `notice`
- * and two reach `warn`, both of which still print a `lvlWarn` message. Only the
- * third, reaching `lvlError`, does not.
+ * **`--no-write-lock-file` is a guard, not a fix.** With a correct lock beside
+ * the flake, Nix writes nothing whether or not the flag is passed — it compares
+ * the lock it computes against the one on disk and only writes when they
+ * differ, so the file comes through byte-identical with its mtime untouched.
+ * What the flag buys is the case where they *do* differ: {@link lockText} owns
+ * this file, and without the flag every Nix step in every job becomes a writer
+ * of a tracked one. Nothing is lost by that — `npm run ci-update` regenerates
+ * the lock from `../config/module.f.mjs`, so a rewrite Nix made would be
+ * reverted by the next generator run anyway. Two writers where one is
+ * authoritative is churn rather than redundancy, and a future Nix whose lock
+ * schema moves past version 7 is the case where it would be churn on every
+ * step of every job at once.
  *
- * The first is what removes the substitution chatter — `copying N paths`,
- * started at `lvlInfo`. The other two are spent on one warning, and it is worth
- * being explicit about the cost: **no Nix warning of any kind reaches the log
- * from here.** A failing substituter, a dirty tree, a deprecation notice — all
- * gone, and only errors are left.
+ * **One `--quiet`, and it does one thing.** Nix has a single global verbosity
+ * integer. The levels run `lvlError = 0, lvlWarn = 1, lvlNotice = 2,
+ * lvlInfo = 3`; a message prints when its own level is at most the current
+ * verbosity; the default is `lvlInfo`; and each `--quiet` decrements by one,
+ * floored at `lvlError`. So this one reaches `notice`.
  *
- * What they buy is the removal of "not writing modified lock file", which these
- * flakes emit on *every* step of every Nix job. It is not a defect to fix in
- * passing: it is the exact consequence of `--no-write-lock-file` meeting a
- * flake with no committed `flake.lock`, and the honest fix is to generate one.
- * `../todo/generated-flake-lock.md` owns that, and taking it means taking these
- * two flags back off in the same change — they pay for nothing else.
+ * What that removes, measured rather than described: `this path will be fetched
+ * (N MiB download)` and one `copying path '…' from '…'` per store path, plus
+ * `this derivation will be built:` and `building '…'`. All `lvlInfo`, all
+ * progress rather than outcome.
  *
- * Generating it rather than running `nix flake lock` is not a preference:
- * `fjs ci` has to run on Windows, where Nix does not, so the input hashes have
- * to be data in `../config/module.f.mjs` the way `bunSources` already is.
+ * What it leaves is everything that reports a problem. A warning survives it —
+ * only the third `--quiet` reached below `lvlWarn` — and so does a failing
+ * build's log, which arrives inside the `lvlError` message as `last N log
+ * lines` rather than as the build output the flag suppressed. The one real
+ * cost is that a cache miss looks like a cache hit: Nix compiles from source in
+ * silence, and the job is only slower. That is bounded, because the store
+ * persists across a job's steps, so substitution happens on the first
+ * `./nix/run` and no other.
+ *
+ * **There used to be three**, and the second and third were spent on a single
+ * warning: with no committed `flake.lock`, `--no-write-lock-file` made every
+ * step of every Nix job print `not writing modified lock file` and list every
+ * input. Reaching below `lvlWarn` is the only lever Nix offers — `--verbose`,
+ * `--quiet` and `--debug` are the whole logging category, and verbosity is not
+ * a `nix.conf` setting, so `--option` cannot reach it — so silencing that one
+ * warning silenced them all: a failing substituter, a dirty tree, a
+ * deprecation notice. The lock removes the cause, and the two flags came off
+ * with it.
  *
  * `--quiet` is spelled long because Nix has no short form for it: `--verbose`
  * declares `.shortName = 'v'` and `--quiet` declares none, so `-q` is not an
- * option the `nix` CLI accepts, and neither is `-qqq`. There is no direct
- * setter either — `--verbose`, `--quiet` and `--debug` are the whole of the
- * logging category, verbosity is not a `nix.conf` setting, so `--option` cannot
- * reach it. Repeating the long flag is the only spelling there is. The one
- * short flag nearby, `-Q` (`--no-build-output`), belongs to `LegacyArgs` —
- * `nix-build` and `nix-shell`, not `nix develop`.
+ * option the `nix` CLI accepts. The one short flag nearby, `-Q`
+ * (`--no-build-output`), belongs to `LegacyArgs` — `nix-build` and
+ * `nix-shell`, not `nix develop`.
  *
  * Neither flag reaches the command being run: `--command` execs it with stdio
  * inherited, so a job's own output is exactly what it was.
@@ -358,7 +458,7 @@ export const flakeText = job =>
  * @type {(id: string) => string}
  */
 export const runText = id => `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet --quiet --quiet ${flakePath(id)} --command "$@"
+exec nix develop --no-write-lock-file --quiet ${flakePath(id)} --command "$@"
 `
 
 /**
@@ -383,8 +483,11 @@ const writeJob = job => {
     const flakeWritten = step(
         created,
         () => writeUtf8File(`${directory}/flake.nix`, flakeText(job)))
-    return step(
+    const lockWritten = step(
         flakeWritten,
+        () => writeUtf8File(`${directory}/flake.lock`, lockText(job)))
+    return step(
+        lockWritten,
         () => writeUtf8File(`${directory}/run`, runText(job.id)))
 }
 
