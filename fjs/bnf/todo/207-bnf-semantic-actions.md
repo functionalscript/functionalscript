@@ -393,7 +393,7 @@ parse needs its own entry point and its own result:
 // `fjs/bnf/ll1`'s own shape: its input, its remainder, its result.
 type TransformMatchResult<T> =
     | readonly['ok', T, readonly CodePoint[]]   // matched, finished, nothing refused
-    | readonly['refused', string, readonly CodePoint[]] // matched and finished; a transformer said no
+    | readonly['refused', Refusal, readonly CodePoint[]] // matched and finished; a transformer said no (§6)
     | readonly['no-match', Remainder]           // rejected, or the input ran out (`null`)
 
 type TransformMatch<T> = (s: readonly CodePoint[]) => TransformMatchResult<T>
@@ -496,6 +496,24 @@ in the state and reported when the rule finishes, so `update` stays a plain
 cost is that a refusal's *position* is the enclosing rule's, not the offending
 child's, unless the transformer kept the child's metadata (§7) — which the
 transformers that care already do.
+
+**What a refusal carries is split between the two who know something.** A
+transformer returns a `string`: the reason, which is the only part it knows —
+it has no idea what it is called or where in the input it ran. The engine knows
+both, and attaches them, so what reaches the caller is structured:
+
+```ts
+type Refusal = {
+    readonly rule: string     // the data-`RuleSet` name whose `end` refused
+    readonly at: number       // the physical index its invocation ended at
+    readonly message: string  // what the transformer said
+}
+```
+
+That is the `refused` payload of §5's result, and it is settled here rather
+than left to stage 1: the alternative — a bare `string` all the way out — would
+make a semantic refusal the *least* diagnosable outcome a parse has, next to a
+syntactic failure that already reports a position and an expected set.
 
 **A refusal never changes what the grammar accepts.** Aborting the parse at the
 refusing rule would be wrong, and `descent` is where it shows: a child can
@@ -666,16 +684,31 @@ assume:
     member:     map(([key, , , , value]) => [key, value]),
     members:    list(),
     object:     map(([, , members]) => Object.fromEntries(members)),
+    array:      map(([, , items]) => items),
+    items:      list(),
+    number:     map(cs => Number(cs.join(''))),
+    true:       map(() => true),
+    false:      map(() => false),
+    null:       map(() => null),
     value:      map(([v]) => v),               // the branch's value, whichever it was
     ws:         unit,
 }
 ```
 
-`value` is in the map because `string` and `object` are its branches: a mapped
-branch under an unmapped variant is refused at construction (§3), and here it
-would also be the rule that gives a JSON value its type. `object` never sees a
-quote, an escape, or a space *in its members* — each child rule's effective
-value is what flows up, so the key is decoded and the value is built.
+**Declaring a type for a variant means transforming all of it.** `value` is in
+the map twice over: a mapped branch under an *unmapped* variant is refused at
+construction (§3), and `value` is the rule that gives a JSON value its type. But
+`value: map(([v]) => v)` can only claim to return `Json` if *every* branch does
+— an unmapped `number` or `true` would hand it an AST node, and forwarding that
+as `Json` is either a `satisfies` failure or an unchecked narrowing that returns
+the wrong runtime value. So the map names all seven branches, and the example is
+no longer partial anywhere `value` can reach.
+
+That is the shape of the trade rather than a quirk of JSON: adoption is
+incremental *up to* the first variant whose value you want typed, and from there
+down it is all-or-nothing. `object` never sees a quote, an escape, or a space
+*in its members* — each child rule's effective value is what flows up, so the
+key is decoded and the value is built.
 
 **What this saves is the tree, not every node.** A partial map like this one
 leaves punctuation terminals and the grammar's anonymous rules untransformed, so
@@ -998,10 +1031,10 @@ value* to check against a spec vector.
 
 ### Open questions
 
-- **What a refusal carries.** `string` is the placeholder in §1. A structured
-  error — the rule name the engine already knows, plus a position — would make
-  a transformer's refusal as diagnosable as a syntactic failure. Decide with
-  stage 1, since the engine is what would attach the rule name.
+- **Which position a refusal reports (§6).** The payload is settled — see §6 —
+  but a rule's *start* would point at the offending construct better than its
+  end, and `ll1`'s frames carry no start position today. Whether to add one is a
+  stage-1 cost to weigh, not a question the design should answer blind.
 - **`(state, item)` or `(item, state)` (§12).** The two shipped folds disagree.
   §1 follows `todo/flow.md`; whoever unifies them may move it, and this issue
   should not settle a repository-wide argument on its own.
