@@ -2,7 +2,6 @@
 
 - Browser Test
 - NiX:
-  - [X] Generate lock files. Limitation: no Windows support.
   - [ ] Add another shell script `dev.sh`:
     ```sh
     nix develop ./nix`
