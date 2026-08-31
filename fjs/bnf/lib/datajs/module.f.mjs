@@ -1,6 +1,9 @@
 /**
  * DataJS grammar.
  *
+ * The only allowed spelling of the `__proto__` property is the exact sequence
+ * `["__proto__"]`; whitespace is not allowed anywhere within that sequence.
+ *
  * @module
  *
  * @import { Rule } from '../../types.ts'
