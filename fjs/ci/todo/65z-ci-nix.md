@@ -405,15 +405,21 @@ Browser-runner and browser-package synchronization is outside this Node-only upd
 
 #### Generated flake locks
 
-Nix writes a `flake.lock` beside the `flake.nix` it evaluates unless told not to. CI
-tells it not to: every invocation passes `--no-write-lock-file`, so a CI run leaves the
-checkout exactly as it found it. The pin in `flake.nix` already determines every input,
-so the lock resolves nothing the flake did not already say.
+A `flake.lock` is generated beside every `flake.nix` and committed, from `narHash`
+and `lastModified` in `../config/module.f.mjs`. Nothing runs `nix flake lock` to
+produce it — this issue requires the generator stay Nix-independent, and those two
+values are facts about a published revision, so they are data the way `bunSources`'
+archive hashes are.
 
-Every invocation also passes `--quiet`, which is about the log rather than the
+CI still passes `--no-write-lock-file`, now so that `nix develop` cannot write over
+the generated file and leave the checkout in a state the drift check would fail on.
+
+Every invocation also passes `--quiet`, once, which is about the log rather than the
 checkout: it drops Nix's logging from `info` to `notice`, removing the `copying N
-paths` substitution chatter and leaving warnings and errors. Nix has no short
-spelling — `--quiet` declares no short name, and the `-Q` that exists is
+paths` substitution chatter and leaving warnings and errors. There were briefly three,
+to hide the `not writing modified lock file` warning a missing lock produced on every
+step; that took every other Nix warning with it, and the lock removed the cause. Nix
+has no short spelling — `--quiet` declares no short name, and the `-Q` that exists is
 `--no-build-output` on the legacy commands — so `-q` is not available here.
 
 #### Generated `run` scripts
@@ -425,24 +431,18 @@ Neither flag is written in a workflow step. Each job directory holds a generated
 ./nix/node26/run npm run cov
 ```
 
-The script is the same for every job — it resolves its own directory with shell
-parameter expansion rather than `dirname`, since a generated script calls no
-external tool (§6), and `exec`s `nix develop … --command "$@"` — so the spelling
-and its flags have one home instead of fifteen, and a step reads as the command
-it runs. Its executable bit is committed rather
-than generated, because nothing in `fjs/effects/node` can set a file mode;
+The script differs between jobs only in the path it names — written in, since the
+generator knows it — and `exec`s `nix develop … --command "$@"`, so the spelling
+and its flags have one home instead of fifteen, and a step reads as the command it
+runs. A generated script calls no external tool (§6), and this one has nothing that
+could. Its executable bit is committed rather than generated, because nothing in
+`fjs/effects/node` can set a file mode;
 [generated-run-script-mode](generated-run-script-mode.md) owns closing that gap.
 
 An earlier revision took the opposite trade — ignore the lock rather than add a flag to
-every invocation — and the scoped root `.gitignore` rule it added stays:
-
-```gitignore
-/nix/*/flake.lock
-```
-
-Not for CI, which no longer writes one, but for a developer running `nix develop` by hand
-without the flag. The rule matches one level down, so it covers the per-job flakes and no
-more: a future intentional `nix/flake.lock`, hand-maintained, is unaffected.
+every invocation — and added a scoped root `.gitignore` rule for `/nix/*/flake.lock`.
+That rule is gone: the locks are generated and committed now, so ignoring them would
+hide the very files the drift check exists to compare.
 
 #### Validation and adoption
 
@@ -521,7 +521,8 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [ ] Remove stale generated job directories.
 - [x] Generate a `run` script per job, so a workflow step names a command rather
       than a `nix develop` invocation.
-- [x] Ignore `/nix/*/flake.lock`.
+- [x] Generate and commit a `flake.lock` per flake, from data, so no Nix run is
+      needed to write one.
 - [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
 - [x] Bootstrap Nix through a pinned CI action in each migrated job.
