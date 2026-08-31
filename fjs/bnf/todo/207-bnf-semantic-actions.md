@@ -91,7 +91,7 @@ type Meta<T, M> = readonly[T, M]
 type Branch<C> = { readonly [K in keyof C]: readonly[K, C[K]] }[keyof C]
 type Out<T, M> = Result<Meta<T, M>, string>   // the refusal channel — §6
 
-type TerminalTransformer<M, T> = (v: Meta<L, M>) => Out<T, M>
+type TerminalTransformer<M, T> = (v: Meta<CodePoint, M>) => Out<T, M>
 type SequenceTransformer<M, C extends readonly unknown[], T> = (v: Meta<C, M>) => Out<T, M>
 type VariantTransformer<M, C, T> = (v: Meta<Branch<C>, M>) => Out<T, M>
 type RepeatTransformer<M, C, S, T> = {
@@ -106,12 +106,19 @@ That is the engine-level refusal channel of §6, and an author who never refuses
 never writes it — the §9 helpers wrap in `ok`.
 
 - **`TerminalTransformer`** receives the one symbol the rule matched, with its
-  metadata. `L` is the alphabet's *symbol* — `CodePoint` today, generic after
-  [the alphabet split](./unicode-rules.md) — and `Meta<L, M>` is the **leaf**:
-  a symbol paired with what the layer below knows about it. That is not a new
-  shape. `fjs/bnf/descent`'s `CodePointMeta<M>` is `readonly[CodePoint, M]`,
-  which is `Meta<CodePoint, M>` exactly, so a terminal transformer's parameter
-  is that backend's shipped leaf type. **Both backends carry it** — §7.
+  metadata. `Meta<CodePoint, M>` is the **leaf**: a symbol paired with what the
+  layer below knows about it. That is not a new shape —
+  `fjs/bnf/descent`'s `CodePointMeta<M>` is `readonly[CodePoint, M]`, which is
+  `Meta<CodePoint, M>` exactly, so a terminal transformer's parameter is that
+  backend's shipped leaf type. **Both backends carry it** — §7.
+
+  **The symbol type is `CodePoint`, written concretely and not as a free
+  parameter.** Both backends use it today, so parameterizing the protocol by an
+  alphabet now would add a type argument to `Transformer`, `TransformerMap`,
+  `transformRuleSet` and `_Output` for a generality nothing yet supplies.
+  [The alphabet split](./unicode-rules.md) is what introduces it, and when it
+  lands the change is mechanical: `CodePoint` becomes a parameter here and
+  threads through those four.
 - **`SequenceTransformer`** receives its children as a **typed tuple**. A
   `Sequence`'s arity is fixed and known from the `RuleSet`, so there is nothing
   to stream and no state to keep — the engine collects the items and calls once.
@@ -833,18 +840,33 @@ and a monoid on a product is componentwise:
 type M = readonly[Pos, Payload]                    // Pos = a range, Payload = a token's value
 const monoid: Monoid<M> = {
     identity: [undefined, undefined],
-    // position: leftmost defined. payload: never merges, so no parent sees one.
-    operation: ([p0]) => ([p1]) => [p0 === undefined ? p1 : p0, undefined],
+    operation: ([p0, q0]) => ([p1, q1]) =>       // componentwise leftmost-defined
+        [p0 === undefined ? p1 : p0, q0 === undefined ? q1 : q0],
 }
 ```
 
-The payload field's operation is constantly the identity, which is associative
-and unital, so this is a monoid. Its effect is exactly the semantics wanted: a
-leaf keeps its payload (the input supplied it, the monoid never touches it), the
-terminal transformer reads it, and every parent sees `undefined` there while
-positions keep combining. **So the design commits to one `M`** — a second,
-unmerged channel would change `Meta`, every transformer signature, the erased
-map representation and the matcher API, and it is not needed to express this.
+Both components are "leftmost defined", which is associative with a two-sided
+identity — so this is a monoid, and every field of a product `M` must be one for
+the same reason.
+
+**The monoid does not stop a payload from propagating, and it must not try.** An
+earlier draft made the payload component's operation constantly the identity, so
+that no parent would inherit a token's value. That is associative but **not
+unital** — `operation(identity)([pos, payload])` gives `[pos, undefined]`, not
+the original — so it is not a monoid at all, and its behaviour would depend on
+grammar shape: a one-child sequence would fold `identity ⊕ m` and lose the
+payload, while a variant forwarding its branch's `M` would keep it.
+
+What stops the propagation is the **transformer**, which §1 already puts in
+charge of its own output `M`: the terminal transformer that consumed a payload
+returns an `M` without it. That is a per-rule decision made where the knowledge
+is, rather than a law the carrier cannot satisfy. A grammar that does not bother
+simply carries a stale payload upward, which is imprecise and harmless — nothing
+reads it.
+
+**So the design commits to one `M`** — a second, unmerged channel would change
+`Meta`, every transformer signature, the erased map representation and the
+matcher API, and it is not needed to express this.
 
 This is the previous design's `(leaf, merge, empty)` monoid, kept but demoted:
 it is supplied once per parser rather than declared per rule, it is generic
@@ -966,7 +988,7 @@ const variantOf:  <M, C, T>(
 const repeatOf:   <M, C, S, T>(item: string, r: RepeatTransformer<M, C, S, T>) => Transformer<M, T>
 
 // sugar: the callback sees the value alone, `M` is forwarded, the result is `ok`
-const terminal: <M, T>(f: (leaf: L) => T) => Transformer<M, T>
+const terminal: <M, T>(f: (symbol: CodePoint) => T) => Transformer<M, T>
 const seq:      <M, C extends readonly unknown[], T>(
                     arity: C['length'], f: (children: C) => T) => Transformer<M, T>
 const seqR:     <M, C extends readonly unknown[], T>(
@@ -1000,9 +1022,12 @@ const unit:     readonly['unit']
   out, O(1) per item. It takes the monoid because a repetition is the one kind
   that has to combine its rounds' metadata itself (§3), and the repeated rule's
   name because that is a `Repeat`'s child shape.
-- `text(item, m)` — the common lexeme case: its children concatenated into a string,
-  whether they are matched leaves or the strings a child rule's own transformer
-  already produced.
+- `text(item, m)` — the common lexeme case: the repeated rule's results
+  concatenated into a string. **Its item rule must produce a string**, because a
+  `Repeat`'s children are rule *results* and never raw leaves — only a terminal
+  transformer sees a leaf (§2), and an unmapped item rule would hand `text` its
+  default AST node (§3). That is why §10 maps `digit` before using
+  `text('digit', m)` for `digits`.
 - `unit` — keeps nothing, and is not a kind: it fits any rule, and the engine
   answers it without calling anything (§5). Its own subtree costs nothing,
   though it still occupies a slot in its parent's tuple rather than disappearing
