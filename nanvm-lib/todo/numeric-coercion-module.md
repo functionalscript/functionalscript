@@ -57,6 +57,5 @@ like its `to_string`/`to_number` siblings:
   shared coerce-`Any`-to-T skeleton for `number_coercion.rs` /
   `string_coercion.rs`; this issue adds the third operation to that layer's
   scope.
-- [numeric-operator-home](./numeric-operator-home.md) — `Numeric`'s
-  *operators*; explicitly leaves the coercion layer out, which this issue
-  covers.
+- `src/vm/numeric.rs` — `Numeric` owns arithmetic operators; this issue
+  explicitly leaves the coercion layer out, which it covers.
