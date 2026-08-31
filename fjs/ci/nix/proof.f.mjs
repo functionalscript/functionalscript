@@ -16,6 +16,7 @@ import { nodeNixJobs } from '../node/module.f.mjs'
 import {
     flakePath,
     flakeText,
+    lockText,
     generatedDirectory,
     nixDevelop,
     nixFlakes,
@@ -394,6 +395,77 @@ export const proof = {
                 assertEq(generatedFile(nixJobs, job.id, 'run'), runText(job.id))
             }
         },
+        // And so is the lock, which is the whole of why `--quiet` is back to
+        // one. A flake with no lock beside it makes every `nix develop` compute
+        // one, find it differs from nothing, and say so.
+        lock: () => {
+            for (const job of nixJobs) {
+                assertEq(
+                    generatedFile(nixJobs, job.id, 'flake.lock'),
+                    lockText(job))
+            }
+        },
+        // What a lock has to say, pinned rather than described — for a flake
+        // with one input and for one with two.
+        //
+        // Every field is checked because every field is load-bearing to Nix:
+        // drop `narHash` or `lastModified` and the lock is incomplete, so Nix
+        // recomputes it and the warning this exists to remove comes back. The
+        // revision appears twice on purpose. `original` is what the flake asked
+        // for and `locked` is what that resolved to, and here they agree
+        // because `github:owner/repo/<rev>` is already exact.
+        lockText: () => {
+            assertEq(lockText(plain), `{
+  "nodes": {
+    "nixpkgs": {
+      "locked": {
+        "lastModified": ${nixpkgs.lastModified},
+        "narHash": "${nixpkgs.narHash}",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "${commit}",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "${commit}",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
+`)
+        },
+        // The second input, and the `follows` that keeps one Nixpkgs revision
+        // in the lock rather than two. Nix writes a redirected input as the
+        // path to the node it follows — `["nixpkgs"]` — where a resolved one
+        // gets `locked` and `original` of its own.
+        lockTextFollows: () => {
+            const text = lockText(withRust)
+            assert(
+                text.includes(`      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },`),
+                'expected rust-overlay to follow the root nixpkgs')
+            assert(
+                text.includes(`"rev": "${rustOverlay.commit}"`),
+                'expected the pinned rust-overlay revision')
+            assert(
+                text.includes(`"narHash": "${rustOverlay.narHash}"`),
+                'expected the pinned rust-overlay hash')
+            // One Nixpkgs, named once in each half of the one node that has it.
+            assertEq(text.split(`"repo": "nixpkgs"`).length - 1, 2)
+        },
         // What that script must say, pinned rather than described, for the
         // shared shell and for a flake with a directory of its own. `exec`
         // keeps the command's exit status; the path is written in rather than
@@ -409,24 +481,30 @@ export const proof = {
         // appearing in a comment.
         runText: () => {
             assertEq(runText(nixShell), `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix --command "$@"
+exec nix develop --no-write-lock-file --quiet ./nix --command "$@"
 `)
             assertEq(runText(plain.id), `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix/node24 --command "$@"
+exec nix develop --no-write-lock-file --quiet ./nix/node24 --command "$@"
 `)
         },
-        // Three, and not two. Nix has one verbosity integer: the default is
-        // `lvlInfo` (3), each `--quiet` decrements it by one, and a message
-        // prints when its own level is at most the current value. The warning
-        // these silence is `lvlWarn` (1), so two would leave the dial at 1 and
-        // print it anyway. Dropping one of these is therefore not a tidy-up —
-        // it restores the noise while keeping the cost.
-        threeQuiets: () => {
+        // One, and the count is arithmetic rather than taste. Nix has a single
+        // verbosity integer: the default is `lvlInfo` (3), each `--quiet`
+        // decrements it by one, and a message prints when its own level is at
+        // most the current value. One reaches `lvlNotice` (2), which drops the
+        // `copying N paths` chatter at `lvlInfo` and keeps every warning.
+        //
+        // There were three, and the second and third only existed to get below
+        // `lvlWarn` (1) and hide `not writing modified lock file`. That took
+        // every other Nix warning with them — a failing substituter, a dirty
+        // tree, a deprecation notice — because global verbosity is the only
+        // lever Nix has. `lockText` removed the cause, so a second `--quiet`
+        // here would now buy nothing and cost the warning channel again.
+        oneQuiet: () => {
             for (const job of nixJobs) {
                 assertEq(
                     runText(job.id).split(' --quiet').length - 1,
-                    3,
-                    `expected three --quiet in ${job.id}'s run script`)
+                    1,
+                    `expected one --quiet in ${job.id}'s run script`)
             }
         },
         // Two lines, and the second names a path. Omitting it would leave
