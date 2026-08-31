@@ -12,7 +12,7 @@ impl<A: IVm> Display for BigInt<A> {
         if self.is_zero() {
             return f.write_char('0');
         }
-        if *self.0.header() == Sign::Negative {
+        if self.sign() == Sign::Negative {
             f.write_char('-')?;
         }
 

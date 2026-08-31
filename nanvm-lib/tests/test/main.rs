@@ -122,6 +122,10 @@ fn bigint_display_format<A: IVm>() {
     let two_to_64 = BigInt::<A>::normalize_new(Sign::Positive, [0, 1]);
     assert_eq!(two_to_64.to_string(), "18446744073709551616");
 
+    let decimal_group_boundary =
+        BigInt::<A>::normalize_new(Sign::Positive, [10_000_000_000_000_000_000]);
+    assert_eq!(decimal_group_boundary.to_string(), "10000000000000000000");
+
     let max_u128 = BigInt::<A>::normalize_new(Sign::Positive, [u64::MAX, u64::MAX]);
     assert_eq!(
         max_u128.to_string(),
