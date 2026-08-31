@@ -43,3 +43,6 @@ export const dataJs = [
     repeat0Plus(statement('const', ws1, id, ws, '=', ws)),
     statement('export', ws1, 'default', ws1)
 ]
+
+// const $0={["__proto__"]:"world!"};const $1=[3,5n];export default [4,$0,$1];
+// export default [4,{},{}];
