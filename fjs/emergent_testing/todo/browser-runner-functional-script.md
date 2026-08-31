@@ -17,22 +17,27 @@ Measured by whether a definition touches a host object at all:
 | | lines |
 | --- | --- |
 | genuine DOM/window glue (`setState`, `render*`, `publish`, `viewOf`, `startBrowserTests`) | ~85 |
-| logic wearing one thin host touch (`runBrowserProofs`, `startBrowserTestSources`) | ~134 |
-| pure already (`text`, `errorDetails`, `moduleFailure`, `reportOf`) | ~50, **moved** |
+| the interpreter (`import`, `all`, `report`, the macrotask yield) | ~60 |
+| logic wearing one thin host touch (`runBrowserProofs`'s tail) | ~25 |
+| pure already (`text`, `errorDetails`, `moduleFailure`, `reportOf`, the walks) | **moved** |
 
-The middle row is the debt, and it is still the largest part of the file.
-`runOne` was the largest entry and is gone — the shared traversal replaced it in
-functionalscript#1796 — but `runBrowserProofs` still owns the interpreter and the
-run's wall clock, and `startBrowserTestSources` sequences loading and calls
-`import()`. In each case a few host touches keep a hundred and thirty lines out
-of FunctionalScript.
+**The debt row is nearly gone.** `runOne` went with the shared traversal
+(functionalscript#1796), `reportOf` and the orchestration followed, and the
+loading walk is now `loadProofs`. What is left of `runBrowserProofs` is its
+tail: build the interpreter, hold the collected rows, fold the report, and the
+deferral that keeps user code from running before the caller holds the promise.
 
-`reportOf` was the third, and it moved once the question was asked precisely:
-folding results and deciding a status is arithmetic, and the two things only a
-page knows — what the browser calls itself, and the run's wall clock — are
-*given* to it rather than read by it. That is the shape the remaining two are
-tested against: not "does it touch a host object" but "which values does it need
-from one".
+The row that grew is the *interpreter*, and that is the shape the file should
+have: `import` resolves a source against the document, `all` answers the shared
+fan-out with `Promise.all`, `report` renders and counts, and the macrotask
+yield gives the page a chance to paint. None of that is logic — each is one
+host capability, spelled the way this host spells it.
+
+The question that moved each of them was the same, and it is worth keeping:
+not *"does this touch a host object"* but *"which values does it need from
+one"*. `reportOf` needed two, so they are passed in. The loading walk needed a
+module loader and a fan-out, so both became operations — and naming them was
+what turned an injected `importer` parameter into an interpreter's handler.
 
 The pure row has **left**: `text`, `errorDetails`, `moduleFailure` (in
 functionalscript#1802, once the `catch` operation existed to carry the first

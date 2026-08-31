@@ -21,7 +21,7 @@ import { error, ok } from '../../types/result/module.f.mjs'
  */
 const dom = () => {
     /** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
-    /** @typedef {{ defaultView: _View | null, readonly createElement: (tag: string) => _Element }} _Document */
+    /** @typedef {{ defaultView: _View | null, readonly baseURI: string, readonly createElement: (tag: string) => _Element }} _Document */
     /** @typedef {{ events: readonly CustomEvent[], readonly dispatchEvent: (event: Event) => boolean, fjsBrowserTestReport?: Promise<unknown> }} _View */
 
     /** @type {(node: _Element, name: string) => _Element | null} */
@@ -72,6 +72,11 @@ const dom = () => {
         /** @type {_Document} */
         const document = {
             defaultView: null,
+            // The runner resolves a source against this rather than against its
+            // own module URL, so the stand-in has to carry one. The `data:`
+            // sources below are already absolute and ignore it, which is what
+            // makes them usable as fixtures at all.
+            baseURI: 'https://example.invalid/',
             createElement: tag => element(document, tag, [], states),
         }
         /** @type {_View} */
@@ -108,6 +113,19 @@ const { element, page, statuses } = dom()
 
 /** @type {(proof: unknown) => ReturnType<typeof runBrowserProofs>} */
 const run = proof => runBrowserProofs([['proof', proof]])
+
+/**
+ * A module written here, as a specifier the page's own `import()` resolves.
+ *
+ * The runner no longer takes an importer, so there is nothing to inject: the
+ * loading proofs below import for real, which is closer to what a page does
+ * than a hand-supplied loader was. What the *walk* decides — which outcome a
+ * failure produces, what is announced — is proven without a DOM in
+ * `./proof.f.mjs`.
+ *
+ * @type {(body: string) => string}
+ */
+const dataModule = body => `data:text/javascript,${encodeURIComponent(body)}`
 
 export const proof = {
     namedThrow: async () => {
@@ -398,8 +416,10 @@ export const proof = {
     },
     sources: async () => {
         const p = page()
-        const report = await startBrowserTestSources(p.root, ['a.mjs', 'b.mjs'],
-            source => Promise.resolve({ proof: { [source]: () => undefined } }))
+        const report = await startBrowserTestSources(p.root, [
+            dataModule('export const proof = { a: () => undefined }'),
+            dataModule('export const proof = { b: () => undefined }'),
+        ])
         assertEq(report.status, 'passed')
         assertEq(report.totals.tests, 2)
         assertStructurallySame([...p.states], ['loading', 'running', 'passed'])
@@ -407,36 +427,34 @@ export const proof = {
     },
     sourcesLoadingSummaryIsSynchronous: () => {
         // The summary must not keep showing idle text through loading: it is
-        // replaced the instant a run starts, before any import has had a
-        // chance to settle — even one that never does.
+        // replaced the instant a run starts, before any import has had a chance
+        // to settle — even one that never does.
         const p = page()
-        void startBrowserTestSources(p.root, ['a.mjs', 'b.mjs'], () => new Promise(() => undefined))
-        assertEq(p.summary.textContent, 'Loading 0/2')
+        void startBrowserTestSources(p.root, ['data:text/javascript,export const proof = {}'])
+        assertEq(p.summary.textContent, 'Loading 0/1')
     },
     sourcesProgress: async () => {
+        // The count is the *page's*: loads are fanned out, so no branch of the
+        // walk knows how many others have finished — it announces each module
+        // as it lands and this file counts what it has seen. Both sources here
+        // settle, so the assertion is where the count ends rather than an
+        // ordering between two concurrent imports.
         const p = page()
-        /** @type {(module: { readonly proof?: unknown }) => void} */
-        let release = () => undefined
-        /** @type {Promise<{ readonly proof?: unknown }>} */
-        const pending = new Promise(resolve => { release = resolve })
-        const done = startBrowserTestSources(p.root, ['a.mjs', 'b.mjs'],
-            source => source === 'a.mjs' ? Promise.resolve({ proof: {} }) : pending)
-        await Promise.resolve()
-        await Promise.resolve()
-        assertEq(p.summary.textContent, 'Loading 1/2: a.mjs')
-        release({ proof: {} })
-        assertEq((await done).status, 'passed')
+        const report = await startBrowserTestSources(p.root, [
+            dataModule('export const proof = { a: () => undefined }'),
+            dataModule('export const proof = { b: () => undefined }'),
+        ])
+        assertEq(report.status, 'passed')
+        assert((p.summary.textContent ?? '').startsWith('2 passed'), p.summary.textContent)
     },
-    sourcesImporterThrows: async () => {
-        // An importer that throws before it returns a promise is a loader
-        // failure like any other: the page must not be left in `loading` with
-        // no report and no completion event.
+    sourceThatCannotBeImported: async () => {
+        // A source the page cannot import is a loader failure like any other:
+        // the page must not be left in `loading` with no report and no
+        // completion event for a controller to act on.
         const p = page()
-        const report = await startBrowserTestSources(p.root, ['bad.mjs'],
-            source => { throw new Error(`no loader for ${source}`) })
+        const report = await startBrowserTestSources(p.root, ['data:text/javascript,synt@x error'])
         assertEq(report.status, 'infrastructure-error')
         assertStructurallySame({ ...report.totals }, { tests: 1, passed: 0, failed: 1 })
-        assertEq(report.results[0]?.message, 'no loader for bad.mjs')
         assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
         assertEq(p.view.events.length, 1)
     },
@@ -449,6 +467,11 @@ export const proof = {
         /** @type {Parameters<typeof element>[0]} */
         const document = {
             defaultView: null,
+            // The runner resolves a source against this rather than against its
+            // own module URL, so the stand-in has to carry one. The `data:`
+            // sources below are already absolute and ignore it, which is what
+            // makes them usable as fixtures at all.
+            baseURI: 'https://example.invalid/',
             createElement: tag => element(document, tag, [], states),
         }
         const root = element(document, 'main', ['data-browser-tests'], states)
@@ -464,17 +487,11 @@ export const proof = {
         // for the whole span between a click and the next terminal state:
         // through loading and through execution.
         const p = page()
-        /** @type {(module: { readonly proof?: unknown }) => void} */
-        let release = () => undefined
-        /** @type {Promise<{ readonly proof?: unknown }>} */
-        const pending = new Promise(resolve => { release = resolve })
-        const done = startBrowserTestSources(p.root, ['a.mjs'], () => pending)
-        await Promise.resolve()
+        const done = startBrowserTestSources(p.root,
+            [dataModule('export const proof = { t: () => undefined }')])
+        // Synchronously, before the import settles: the control is passive from
+        // the click, not from the first module's arrival.
         assertEq(p.states[0], 'loading')
-        assertEq(p.runButton.attributes.has('disabled'), true)
-        release({ proof: { t: () => undefined } })
-        await Promise.resolve()
-        await Promise.resolve()
         assertEq(p.runButton.attributes.has('disabled'), true)
         const report = await done
         assertEq(report.status, 'passed')
@@ -485,8 +502,7 @@ export const proof = {
         // A failed or infrastructure-error run is just as terminal as a passed
         // one: `Run` reactivates either way.
         const p = page()
-        const report = await startBrowserTestSources(p.root, ['bad.mjs'],
-            source => Promise.reject(new Error(`offline: ${source}`)))
+        const report = await startBrowserTestSources(p.root, ['data:text/javascript,synt@x'])
         assertEq(report.status, 'infrastructure-error')
         assertEq(p.runButton.attributes.has('disabled'), false)
     },
@@ -494,27 +510,25 @@ export const proof = {
         // The same action starts every run: nothing but the `Run` control's
         // own state stands between a completed run and the next one.
         const p = page()
-        await startBrowserTestSources(p.root, ['a.mjs'],
-            () => Promise.resolve({ proof: { t: () => undefined } }))
+        const source = dataModule('export const proof = { t: () => undefined }')
+        await startBrowserTestSources(p.root, [source])
         assertEq(p.runButton.attributes.has('disabled'), false)
-        const second = await startBrowserTestSources(p.root, ['a.mjs'],
-            () => Promise.resolve({ proof: { t: () => undefined } }))
+        const second = await startBrowserTestSources(p.root, [source])
         assertEq(second.status, 'passed')
         assertStructurallySame([...p.states],
             ['loading', 'running', 'passed', 'loading', 'running', 'passed'])
     },
     sourcesLoadFailure: async () => {
         const p = page()
-        const report = await startBrowserTestSources(p.root, ['ok.mjs', 'bad.mjs'],
-            source => source === 'bad.mjs'
-                ? Promise.reject(new Error('offline'))
-                : Promise.resolve({ proof: { t: () => undefined } }))
+        const bad = 'data:text/javascript,synt@x error'
+        const report = await startBrowserTestSources(p.root,
+            [dataModule('export const proof = { t: () => undefined }'), bad])
         assertEq(report.status, 'infrastructure-error')
         // The totals have to agree with `results`: a consumer reading
         // `0 of 0` would take a broken suite for an empty one.
         assertStructurallySame({ ...report.totals }, { tests: 1, passed: 0, failed: 1 })
-        assertEq(report.results[0]?.module, 'bad.mjs')
-        assertEq(report.results[0]?.message, 'offline')
+        // Named by the source, which is all a module that never linked has.
+        assertEq(report.results[0]?.module, bad)
         assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
         assert(p.summary.textContent.startsWith('Infrastructure error: 1 failed to load'),
             p.summary.textContent)

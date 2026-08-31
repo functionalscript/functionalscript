@@ -901,6 +901,13 @@ are shared.
       because a shared operation does not belong in a browser-only directory
       either. Recorded in
       [node-module-layering](../../effects/todo/node-module-layering.md).
+- [x] Move the browser's module loading behind operations. `import` and `all`
+      are `effects/common`'s (functionalscript#1812, #1815), so the walk over
+      sources is `browser/module.f.mjs`'s `loadProofs` and the page implements
+      the two capabilities it needs: `import()` against its own document, and
+      `Promise.all` for the fan-out that keeps loading parallel. The
+      `importer` parameter is gone — an injected function is an unnamed
+      operation, and naming it is what let the walk move.
 - [ ] Move static proof discovery and `_browser-suite.mjs` generation into
       `fjs/website/module.f.mjs`; extend `fjs/effects/node/` only for a concrete
       missing capability and prove the real and virtual interpretations.

@@ -10,6 +10,7 @@
  * with nothing injected and nothing global touched.
  *
  * @import { MemOperationMap, RunInstance } from '../../effects/mock/types.ts'
+ * @import { All } from '../../effects/common/types.ts'
  * @import { SandboxResult } from '../../effects/common/types.ts'
  * @import { Commands } from '../../effects/types.ts'
  * @import { _BrowserOp, _Rows } from './private.ts'
@@ -17,9 +18,10 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { reportOf, runProofs } from './module.f.mjs'
+import { loadProofs, reportOf, runProofs } from './module.f.mjs'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.mjs'
+import { ioError } from '../../effects/module.f.mjs'
 
 /**
  * The handlers a working page supplies. `catch` cannot really catch — a pure
@@ -27,16 +29,57 @@ import { ok } from '../../types/result/module.f.mjs'
  * makes, so the fixtures here are benign and the hostile ones stay with the
  * runner that has a real one.
  *
- * @type {MemOperationMap<_BrowserOp, _Rows>}
+ * `all` is not here: it needs the runner that is asking, so each one adds its
+ * own with {@link fanOut}.
+ *
+ * @type {Omit<MemOperationMap<_BrowserOp, _Rows>, 'all'>}
  */
 const handlers = {
     sandbox: f => rows => [rows, ok(/** @type {SandboxResult<unknown>} */ (f()))],
     catch: f => rows => [rows, ok(ok(f()))],
-    report: value => rows => [[...rows, value], ok(undefined)],
+    // A source resolves to a module whose `proof` names it, so a proof can see
+    // *which* source produced what. `bad:` is the one that will not load.
+    import: path => rows => [
+        rows,
+        path.startsWith('bad:')
+            ? error(ioError({ message: `cannot load ${path}` }))
+            : ok({ proof: { [path]: () => ({ result: ok(undefined), duration: 0 }) } }),
+    ],
+
+    // Only the settled rows are collected: a proof that asserted on loading
+    // messages would be asserting the mock's own bookkeeping.
+    report: event => rows =>
+        [event[0] === 'result' ? [...rows, event[1]] : rows, ok(undefined)],
+}
+
+/**
+ * `all`, answered by running each effect through **the runner doing the
+ * asking**.
+ *
+ * Taking the runner as an argument is the whole point: a handler that recursed
+ * into some other runner would answer the sub-effects with capabilities the
+ * caller does not have, and a proof of "this runner refuses `report`" would
+ * quietly report through one that does not. That is exactly what the first
+ * version of this file did, and its `refusedReportEndsLoading` proof passed
+ * for the wrong reason until the answer disagreed with it.
+ *
+ * Sequential, which `all` permits: what the operation fixes is the shape of the
+ * answer, and a runner without concurrency is a correct interpreter of it.
+ *
+ * @type {(self: () => RunInstance<_BrowserOp, _Rows>) => MemOperationMap<All, _Rows>['all']}
+ */
+const fanOut = self => (...effects) => rows => {
+    let state = rows
+    const answers = effects.map(e => {
+        const [next, r] = self()(state)(e)
+        state = next
+        return r
+    })
+    return [state, ok(answers)]
 }
 
 /** @type {RunInstance<_BrowserOp, _Rows>} */
-const working = mockRun(handlers)
+const working = mockRun({ ...handlers, all: fanOut(() => working) })
 
 /**
  * A runner that has every operation but `report`. `partialRun` answers
@@ -45,9 +88,12 @@ const working = mockRun(handlers)
  *
  * @type {RunInstance<_BrowserOp, _Rows>}
  */
-const mute = partialRun(/** @type {Commands<_BrowserOp>} */ (['sandbox', 'catch', 'report']))({
+const mute = partialRun(/** @type {Commands<_BrowserOp>} */ (
+    ['all', 'catch', 'import', 'report', 'sandbox']))({
     sandbox: handlers.sandbox,
     catch: handlers.catch,
+    import: handlers.import,
+    all: fanOut(() => mute),
 })
 
 /**
@@ -59,7 +105,8 @@ const mute = partialRun(/** @type {Commands<_BrowserOp>} */ (['sandbox', 'catch'
  *
  * @type {RunInstance<_BrowserOp, _Rows>}
  */
-const blind = partialRun(/** @type {Commands<_BrowserOp>} */ (['sandbox', 'catch', 'report']))({
+const blind = partialRun(/** @type {Commands<_BrowserOp>} */ (
+    ['all', 'catch', 'import', 'report', 'sandbox']))({
     sandbox: handlers.sandbox,
     report: handlers.report,
 })
@@ -71,8 +118,23 @@ const blind = partialRun(/** @type {Commands<_BrowserOp>} */ (['sandbox', 'catch
  *
  * @type {RunInstance<_BrowserOp, _Rows>}
  */
-const deaf = partialRun(/** @type {Commands<_BrowserOp>} */ (['sandbox', 'catch', 'report']))({
+const deaf = partialRun(/** @type {Commands<_BrowserOp>} */ (
+    ['all', 'catch', 'import', 'report', 'sandbox']))({
     sandbox: handlers.sandbox,
+})
+
+/**
+ * A runner with no fan-out: `all` is declared and not implemented, so it
+ * answers `notImplemented` through the ordinary continuation.
+ *
+ * @type {RunInstance<_BrowserOp, _Rows>}
+ */
+const handless = partialRun(/** @type {Commands<_BrowserOp>} */ (
+    ['all', 'catch', 'import', 'report', 'sandbox']))({
+    sandbox: handlers.sandbox,
+    catch: handlers.catch,
+    import: handlers.import,
+    report: handlers.report,
 })
 
 /** @type {() => unknown} */
@@ -88,6 +150,73 @@ const leaf = (status, duration) => ({
 })
 
 export const proof = {
+    loadProofs: {
+        // Every source loads: the walk answers the modules to run, paired with
+        // the source that produced each, in the order they were asked for
+        // rather than the order they arrived.
+        ready: () => {
+            const [, answered] = working([])(loadProofs(['a', 'b']))
+            assertEq(answered[0], 'ok')
+            const outcome = answered[1]
+            assert(outcome[0] === 'ready', outcome)
+            assertEq(outcome[1].length, 2)
+            assertEq(outcome[1][0]?.[0], 'a')
+            assertEq(outcome[1][1]?.[0], 'b')
+        },
+        // One module that will not link stops the suite — it has no tests to
+        // run — and every failed source is named, because a report listing one
+        // of two broken modules sends a reader to fix half the problem.
+        failedNamesEverySource: () => {
+            const [, answered] = working([])(loadProofs(['bad:one', 'a', 'bad:two']))
+            const outcome = answered[1]
+            assert(outcome[0] === 'failed', outcome)
+            assertEq(outcome[1].length, 2)
+            assertEq(outcome[1][0]?.module, 'bad:one')
+            assertEq(outcome[1][1]?.module, 'bad:two')
+            // The row carries the channel's own sentence, which is what a
+            // reader needs and what a tuple spelled out is not.
+            assertEq(outcome[1][0]?.message, 'cannot load bad:one')
+        },
+        // Nothing to load is not a failure: an empty suite is a suite.
+        noSources: () => {
+            const [, answered] = working([])(loadProofs([]))
+            const outcome = answered[1]
+            assert(outcome[0] === 'ready', outcome)
+            assertEq(outcome[1].length, 0)
+        },
+        // Each module is announced as it lands, which is what a page counts to
+        // render `3/141`. The rows stay empty: a loading event is not a result.
+        announcesEachModule: () => {
+            const [rows, answered] = working([])(loadProofs(['a', 'b']))
+            assertEq(answered[0], 'ok')
+            assertEq(rows.length, 0)
+        },
+        /**
+         * **A page that cannot be told stops the walk, and says so instead of
+         * the modules.**
+         *
+         * A run whose reporting is broken cannot describe the failed modules
+         * either, so a list assembled for nobody to see would be the wrong
+         * answer — and the row names the runner rather than a module, because
+         * no module is to blame.
+         */
+        refusedReportEndsLoading: () => {
+            const [rows, answered] = mute([])(loadProofs(['bad:one', 'a']))
+            assertEq(rows.length, 0)
+            const outcome = answered[1]
+            assert(outcome[0] === 'failed', outcome)
+            assertEq(outcome[1].length, 1)
+            assertEq(outcome[1][0]?.module, 'the browser runner')
+        },
+        // A runner without fan-out cannot load at all, and that is the run's
+        // failure rather than any module's: there is no source to blame.
+        refusedFanOutIsTheRunnersFailure: () => {
+            const [, answered] = handless([])(loadProofs(['a']))
+            const outcome = answered[1]
+            assert(outcome[0] === 'failed', outcome)
+            assertEq(outcome[1][0]?.module, 'the browser runner')
+        },
+    },
     reportOf: {
         // The status the results decide: any failure fails the run.
         folds: () => {

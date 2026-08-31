@@ -55,7 +55,7 @@ import { browserProofSources } from './fjs/emergent_testing/_browser-suite.mjs'
 const root = /** @type {Element} */ (document.querySelector('[data-browser-tests]'))
 const sources = [...browserProofSources, './fjs/website/browser.mjs']
 const runButton = /** @type {Element} */ (document.querySelector('[data-test-run]'))
-const start = () => startBrowserTestSources(root, sources, source => import(source))
+const start = () => startBrowserTestSources(root, sources)
 runButton.addEventListener('click', start)
 `)
 

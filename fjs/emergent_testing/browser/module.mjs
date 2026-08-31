@@ -16,21 +16,24 @@
  * @module
  *
  * @import {
- *     BrowserTestReport, Reporter, RunState, TestResult, _BrowserImporter, _BrowserReport,
+ *     BrowserTestReport, Reporter, RunState, TestResult, _BrowserEvent, _BrowserReport,
  *     _BrowserTestResult, _TestAndPath,
  * } from '../types.ts'
- * @import { Catch, Sandbox, SandboxResult } from '../../effects/common/types.ts'
+ * @import { All, Catch, Import, Sandbox, SandboxResult } from '../../effects/common/types.ts'
  * @import { IoChannel } from '../../effects/node/types.ts'
  * @import { Effect, Func } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
 
-import { errorDetails, moduleFailure, reportOf, runProofs } from './module.f.mjs'
+import {
+    errorDetails, loadProofs, moduleFailure, reportOf, runProofs, runnerSource,
+} from './module.f.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
+import { toIoError } from '../../effects/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
-import { ok, unwrap } from '../../types/result/module.f.mjs'
+import { error, ok, unwrap } from '../../types/result/module.f.mjs'
 
 /**
  * Return to the event loop, so the browser can paint what has been appended.
@@ -41,12 +44,6 @@ import { ok, unwrap } from '../../types/result/module.f.mjs'
  * @type {() => Promise<void>}
  */
 const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
-
-/**
- * The name a runner failure is reported under. It is not a module — see
- * `runnerFailure` — and reads as what it is in the page's list of rows.
- */
-const runnerSource = 'the browser runner'
 
 /**
  * A whole module's failure, described by the shared reader.
@@ -104,8 +101,8 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
         // replaces what `batchSize = 25` was doing without being asked to, and
         // yields per leaf rather than per twenty-five, so a row appears as its
         // test finishes.
-        report: async (/** @type {_BrowserTestResult} */ value) => {
-            announce(value)
+        report: async (/** @type {_BrowserEvent} */ event) => {
+            if (event[0] === 'result') { announce(event[1]) }
             await macrotask()
             return ok(undefined)
         },
@@ -170,58 +167,79 @@ const publish = (root, report) => {
  * Loads proof modules after the page has rendered, reporting module-loading
  * progress before proof execution begins.
  *
- * @type {(root: Element, sources: readonly string[], importer: _BrowserImporter) => Promise<BrowserTestReport>}
+ * The walk itself is [`./module.f.mjs`](./module.f.mjs)'s `loadProofs`. What is
+ * here is what a page is: the `import()` that resolves a source against this
+ * document, the `Promise.all` that answers the shared fan-out, the summary line
+ * the count is rendered into, and the publication.
+ *
+ * **The count is the page's, not the walk's.** Loads are fanned out, so no
+ * branch knows how many others have finished; the walk announces each module as
+ * it arrives and whoever watches the sequence counts. That is this function.
+ *
+ * @type {(root: Element, sources: readonly string[]) => Promise<BrowserTestReport>}
  */
-export const startBrowserTestSources = (root, sources, importer) => {
-    /** @typedef {{ readonly status: 'loaded', readonly source: string, readonly proof: unknown } | { readonly status: 'error', readonly source: string, readonly error: unknown }} _LoadedModule */
+export const startBrowserTestSources = (root, sources) => {
     const start = performance.now()
     setState(root, 'loading')
     let loaded = 0
     const summary = root.querySelector('[data-test-summary]')
+    /** @type {(text: string) => void} */
+    const say = text => { if (summary !== null) { summary.textContent = text } }
     // Set synchronously, before any import settles: otherwise the page keeps
     // showing its idle text throughout loading — indefinitely, if a module
-    // import never settles — even though the state and control already
-    // changed.
-    if (summary !== null) { summary.textContent = `Loading 0/${sources.length}` }
-    // The importer is supplied by the page, so obtaining the promise is itself
-    // a failure point: a synchronous throw becomes a rejection here and is
-    // reported as a loader failure, rather than escaping past a `loading` state
-    // that no report or completion event ever replaces.
-    /** @type {(source: string) => Promise<{ readonly proof?: unknown }>} */
-    const load = source => {
-        try {
-            return importer(source)
-        } catch (error) {
-            return Promise.reject(error)
-        }
-    }
-    /** @type {Promise<readonly _LoadedModule[]>} */
-    const modules = Promise.all(sources.map(source => load(source).then(
-        module => {
-            loaded += 1
-            if (summary !== null) { summary.textContent = `Loading ${loaded}/${sources.length}: ${source}` }
-            return /** @type {const} */ ({ status: 'loaded', source, proof: module.proof })
+    // import never settles — even though the state and control already changed.
+    say(`Loading 0/${sources.length}`)
+    /** @type {<T, E>(e: Effect<All | Catch | Import | _BrowserReport, T, E>) => Promise<Result<T, E>>} */
+    const run = asyncRun({
+        ...commonOperationMap,
+        // **Resolved against the document, not against this file.** The
+        // manifest's sources are written relative to the page — `./fjs/…` —
+        // and a bare `import(source)` here would resolve them against
+        // *this module's* URL instead, sending every load two directories
+        // deep and 404ing the suite. Which is what the operation's own
+        // documentation says a browser does with a path: resolves it against
+        // its document. `root.ownerDocument` rather than the ambient one, so a
+        // suite embedded in an iframe loads from that frame.
+        //
+        // Obtaining the promise is itself a failure point — a synchronous
+        // throw would escape past a `loading` state that no report ever
+        // replaces — so it is caught and answered through the operation's own
+        // error channel, where the walk reads it as that module's failure.
+        import: async (/** @type {string} */ source) => {
+            try {
+                return ok(await import(new URL(source, root.ownerDocument.baseURI).href))
+            } catch (cause) {
+                return error(toIoError(cause))
+            }
         },
-        error => /** @type {const} */ ({ status: 'error', source, error })
-    )))
-    const report = modules.then(loadedModules => {
-        const rejected = loadedModules.flatMap(module =>
-            module.status === 'error' ? [module] : [])
-        if (rejected.length !== 0) {
+        // The interpreter's fan-out, which is what keeps loading parallel now
+        // that the walk over sources is pure.
+        all: (/** @type {readonly Effect<never, unknown, unknown>[]} */ ...effects) =>
+            Promise.all(effects.map(e => run(e))).then(ok),
+        report: async (/** @type {_BrowserEvent} */ event) => {
+            if (event[0] === 'loading') {
+                loaded += 1
+                say(`Loading ${loaded}/${sources.length}: ${event[1]}`)
+            }
+            return ok(undefined)
+        },
+    })
+    const report = run(loadProofs(sources)).then(outcome => {
+        // `loadProofs` answers every failure it can meet as a value, so a
+        // rejection here is this file's own interpreter breaking.
+        const loadedModules = unwrap(outcome)
+        if (loadedModules[0] === 'failed') {
             // A module that never linked has no tests to run, so the run stops
-            // here. Each rejection is still counted as a failed result: totals
-            // that disagreed with `results` would tell an automated consumer
-            // the suite was empty rather than broken.
-            const duration = performance.now() - start
-            return publish(root, Promise
-                .all(rejected.map(({ source, error }) => failureOf(source, duration, error)))
-                .then(failures => reportOf(
-                    navigator.userAgent, duration, failures, 'infrastructure-error')))
+            // here. Each failure is still a counted result: totals that
+            // disagreed with `results` would tell an automated consumer the
+            // suite was empty rather than broken.
+            return publish(root, Promise.resolve(reportOf(
+                navigator.userAgent,
+                performance.now() - start,
+                loadedModules[1],
+                'infrastructure-error')))
         }
-        return startBrowserTests(root, loadedModules.flatMap(module =>
-            module.status === 'loaded'
-                ? [/** @type {const} */ ([module.source, module.proof])]
-                : []))
+        return startBrowserTests(root, loadedModules[1])
     })
     const view = viewOf(root)
     if (view !== null) { view.fjsBrowserTestReport = report }

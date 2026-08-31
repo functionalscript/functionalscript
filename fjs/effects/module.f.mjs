@@ -124,6 +124,20 @@ export const toIoError = e => {
 }
 
 /**
+ * Renders a channel error as a human line: an {@link IoError}'s own message, or
+ * the command name a runner could not dispatch.
+ *
+ * It is here rather than in a host's module because an {@link IoChannel} is
+ * here: every operation is declared over this channel, so every host has the
+ * same two things to say about a failure, and a browser page describing why a
+ * module would not load needs the same sentence Node's does.
+ *
+ * @type {(e: IoChannel) => string}
+ */
+export const errorMessage = ([tag, payload]) =>
+    tag === 'notImplemented' ? `operation not implemented: ${payload}` : payload.message
+
+/**
  * Lifts an already-computed {@link Result} into an effect that performs no
  * command.
  *

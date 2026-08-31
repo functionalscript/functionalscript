@@ -13,17 +13,18 @@
  * @module
  */
 
-import type { Catch, Sandbox } from '../../effects/common/types.ts'
+import type { All, Catch, Import, Sandbox } from '../../effects/common/types.ts'
 import type { _BrowserReport, _BrowserTestResult } from '../types.ts'
 
 /**
- * Everything the orchestration asks of a runner: read a user value, run a
- * leaf, announce a row. A page's interpreter is exactly this — the shared
- * operations plus its own `report`, and no operation named after a browser.
+ * Everything the orchestration asks of a runner: load a module, fan out, read
+ * a user value, run a leaf, announce what happened. A page's interpreter is
+ * exactly this — the shared operations plus its own `report`, and no operation
+ * named after a browser.
  *
  * @internal
  */
-export type _BrowserOp = Catch | Sandbox | _BrowserReport
+export type _BrowserOp = All | Catch | Import | Sandbox | _BrowserReport
 
 /**
  * A mock runner's state: the rows it was asked to report, in order.
