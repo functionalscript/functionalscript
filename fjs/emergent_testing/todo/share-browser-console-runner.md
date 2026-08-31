@@ -688,8 +688,9 @@ holds as `Nominal<'server', '160855c4…', unknown>` — a handle whose identity
 a content hash, with the real object kept by the interpreter.
 
 The repository rule now says this outright — business logic in `.f.mjs`, plain
-`.mjs` only as a thin host boundary — and by that measure `browser.mjs` is
-migration debt: roughly 200 of its 405 lines are logic wearing one host touch.
+`.mjs` only as a thin host boundary — and by that measure `browser.mjs` was
+migration debt: roughly 200 of its 405 lines were logic wearing one host touch.
+Most of that is now `browser/module.f.mjs`.
 That is recorded in
 [move the browser runner's business logic to FunctionalScript](browser-runner-functional-script.md),
 which is the same work seen from the purity side rather than the sharing side.
@@ -703,8 +704,11 @@ So the remaining steps are that boundary, applied to the browser:
   where host values must never be.
 
 When they are done, `instanceof Promise` lives in exactly one interpreter, as
-glue, and no shared code asks the question. The three lines in `browser.mjs`
-today are in the right *place* only because the boundary has not been drawn
+glue, and no shared code asks the question. The asks have already left the
+browser file: the two that survive are in `effects/common`'s `sandbox` and
+`effects/node`'s `await`, which are interpreters — though `effects/common` is
+shared by design, so this is not yet the "exactly one" the goal names. They are
+in the right *place* only because the boundary has not been drawn
 there yet — they are temporary in a way the rest of the shared core is not.
 See [`todo/plan/capl.md`](../../../todo/plan/capl.md), which argues the general
 form: logic pure, serializable and content-addressed; host values behind
@@ -751,7 +755,9 @@ reasonable second change rather than part of the first one — but it is part of
 this issue, so it does not get dropped on the way.
 
 Move `emergent_testing/browser.mjs` to
-`emergent_testing/browser/module.mjs`. It should become a thin impure shell:
+`emergent_testing/browser/module.mjs` — **done**, once the orchestration had
+already left it, so the move was a rename and its importers rather than a
+rewrite. It should become a thin impure shell:
 provide browser capabilities, start the pure program, render semantic events,
 publish `window.fjsBrowserTestReport`, and dispatch the completion event. Pure
 code belongs in `emergent_testing/browser/module.f.mjs` or in the shared
@@ -901,11 +907,17 @@ are shared.
       of `Reporter`. The browser was supplying a `summary` nothing ever called.
       What is left in `browser.mjs` is the interpreter, the DOM, the wall
       clock and `navigator`.
-- [ ] Move the current browser host code to
+- [x] Move the current browser host code to
       `emergent_testing/browser/module.mjs` and reduce it to capability
-      interpretation, DOM rendering, and browser publication.
-- [ ] Update the generated website entry and browser-test application imports
-      to the new module paths.
+      interpretation, DOM rendering, and browser publication. The reduction
+      came first — the orchestration moved to `browser/module.f.mjs` — so this
+      was the rename and its importers, and the directory now reads as one
+      unit: logic, host, private types, and a proof for each.
+- [x] Update the generated website entry and browser-test application imports
+      to the new module paths. Both are *generated*, so the check is that
+      regenerating them produces the new path rather than that a hand edit
+      matched: `npm run website` rewrites the entry, and the browser suite
+      manifest is derived the same way.
 - [ ] Prove both runners produce equivalent paths, throw outcomes, recursive
       test counts, and normalized failures from the same fixtures. The
       existing `nameMatchesTheConsoleRunner`,

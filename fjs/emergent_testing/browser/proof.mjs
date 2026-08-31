@@ -10,7 +10,7 @@
 import { runInNewContext } from 'node:vm'
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from '../browser.mjs'
+import { renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from './module.mjs'
 import { fmtImport, testResult } from '../module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 
