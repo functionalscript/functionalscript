@@ -1,19 +1,73 @@
-# Current priority order
+# Current Priority Tasks
 
-Not a tracker and not a second place to write designs: every item below is a
-link to the issue that owns the work, and this file only says which of them to
-pick up first. The issues themselves live next to the code they describe, per
-[todo/README.md](./README.md). An item here without a link is one nobody has
-filed yet — file it before working on it.
+> Keep this file in the repository.
 
-1. [Run FunctionalScript proofs inside real browsers](../fjs/emergent_testing/todo/browser-testing.md)
-2. [Compile modules to EDAG before loading imports](../fjs/djs/todo/compile-modules-to-edag.md)
-   — the AST-to-EDAG front end, against [the EDAG spec](./edag-spec.md).
-3. [BNF rule transformers: one shape per rule kind](../fjs/bnf/todo/207-bnf-semantic-actions.md)
-   — the DataJS evaluation path. It already owns what used to be sketched here:
-   the four transformer shapes, the map keyed by rule **value** rather than by
-   name, the optional RTTI schemas, and the `fjs/bnf/ll1` metadata leaf that
-   "LL1 should propagate `Meta`" asked for (its stage 1).
-4. [An `index.html` for every module directory](../fjs/website/todo/directory-index-pages.md)
-   — website module browsing.
-5. [Decide whether the Dockerfile still earns its place](../docker/todo/retire-dockerfile.md)
+- Browser Test
+- NiX:
+  - [ ] Delete `Dockerfile`
+- FunctionalScript
+  - [ ] AST to EDAG
+- DataJS
+  - [ ] LL1 parser should support `Meta` propagation.
+  - [ ] Rule Transformers in the flow style
+    - [ ] `Map<Rule, Transformer>` instead of `StringMap`.
+    - [ ] Different Transformers:
+      ```ts
+      type Meta<T, M> = readonly[T, M]
+      type Branch<C> = { readonly [K in keyof C]: readonly[K, C[K]] }[keyof C]
+
+      type TerminalTransformer<M, T> = (v: Meta<L, M>) => Meta<T, M>
+      type SequenceTransformer<M, C extends readonly unknown[], T> = (v: Meta<C, M>) => Meta<T, M>
+      type VariantTransformer<M, C, T> = (v: Meta<Branch<C>, M>) => Meta<T, M>
+      type RepeatTransformer<M, C, S, T> = {
+          readonly init: S
+          readonly update: (state: S, c: Meta<C, M>) => S
+          readonly end: (state: S) => Meta<T, M>
+      }
+      ```
+    - [ ] RTTI support:
+      ```ts
+      import type { Type } from '../rtti/types.ts'
+
+      type Meta<T, M> = readonly[T, M]
+
+      type Branch<C> = { readonly [K in keyof C]: readonly[K, C[K]] }[keyof C]
+
+      type TerminalTransformer<M, O extends Type> = {
+          readonly output: O,
+          readonly map: (v: Meta<number, M>) => Meta<Ts<O>, M>,
+      }
+
+      type SequenceTransformer<M, I extends readonly Type[], S, O extends Type> = {
+          readonly input: I
+          readonly output: O
+          readonly map: (v: Meta<C, M>) => Meta<Ts<O>, M>
+      }
+
+      type VariantTransformer<M, I extends Type, O extends Type> = {
+          readonly input: I
+          readonly output: O
+          readonly map: (v: Meta<Branch<Ts<I>>, M>) => Meta<Ts<O>, M>
+      }
+
+      type RepeatTransformer<M, I extends Type, S, O extends Type> = {
+          readonly input: I
+          readonly output: O
+          readonly map: {
+              readonly init: S
+              readonly update: (state: S, c: Meta<Ts<I>, M>) => S
+              readonly end: (state: S) => Meta<Ts<T>, M>
+          }
+      }
+      ```
+- Website Module Browsing
+  - [ ]
+
+----------------
+
+```js
+A = 'x'
+B = ['x', B] | []
+
+B = 'x'*
+```
