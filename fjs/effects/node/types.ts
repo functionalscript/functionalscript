@@ -243,7 +243,8 @@ export type Http = CreateServer | Listen
 
 export type Forever = ['forever', () => OpResult<never>]
 
-// import
+// import — `Import` and `Module` are `../common`'s, re-exported above: a
+// browser page loads modules too.
 
 // now
 

@@ -2,14 +2,14 @@
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
  * `writeFile`, `rm`, `access`, plus the `readUtf8File`/`writeUtf8File` text
  * helpers), networking (`fetch`, `createServer`, `listen`),
- * subprocess `exec`, `import_`, `now`, `forever`, and `all`/`both` parallelism;
+ * subprocess `exec`, `now`, `forever`, and `all`/`both` parallelism;
  * defines the `NodeOp`/`NodeProgram` types used by the Node runner.
  *
  * The console family — `write`, `log`, `error`, `errorExit`, `read`,
- * `readLine` — and `sandbox`/`catch_` are re-exported from
+ * `readLine` — and `sandbox`, `catch_` and `import_` are re-exported from
  * [`../common`](../common/module.f.mjs) rather than declared here: an operation
  * belongs to the layer of whoever implements it, and a browser sandboxes,
- * catches and writes.
+ * catches, writes and loads modules.
  *
  * See `./types.ts` for the type-level API.
  *
@@ -56,7 +56,7 @@ export { ioError, toIoError }
 // call sites name them through this module — a live coupling, not a shim. An
 // operation belongs to the layer of whoever implements it, and every one of
 // these has, or will have, a second implementer: a browser sandboxes, catches,
-// and writes.
+// writes, and loads modules through an `import()` of its own.
 export { catch_, error, errorExit, import_, log, read, readLine, sandbox, write }
 
 /**
@@ -361,7 +361,9 @@ export const listen = do_('listen')
 /** @type {Func<Forever>} */
 export const forever = do_('forever')
 
-// import
+// import — `import_` is `../common`'s, re-exported above: Node resolves a path
+// against the filesystem and a page resolves it against its document, which is
+// each interpreter's business rather than the operation's.
 
 // now
 

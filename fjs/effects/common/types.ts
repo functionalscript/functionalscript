@@ -3,14 +3,21 @@
  *
  * `fjs/effects/node` declared these because Node was the only host that ran
  * them. It is not the criterion — an operation belongs to the layer of whoever
- * *implements* it, and a browser interpreter implements these two. Declaring
- * them here is what lets a host talk to the shared FunctionalScript logic
- * without importing a module named after a different host.
+ * *implements* it, and a browser interpreter implements every one of them.
+ * Declaring them here is what lets a host talk to the shared FunctionalScript
+ * logic without importing a module named after a different host.
  *
- * `effects/node` re-exports both, so a node-side caller keeps one import and
- * signatures keep reading as one vocabulary. That re-export is not a shim: it
- * would be one if it kept a *dead* coupling alive, and `NodeOp` is genuinely
- * declared over `Sandbox` and `Catch`.
+ * `effects/node` re-exports them all, so a node-side caller keeps one import
+ * and signatures keep reading as one vocabulary. That re-export is not a shim:
+ * it would be one if it kept a *dead* coupling alive, and `NodeOp` is
+ * genuinely declared over these operations.
+ *
+ * **What counts as a second implementer is easy to measure wrongly**, and
+ * `Import` is the case that showed how: a browser page was said to load its
+ * modules "through its own importer rather than an `import` operation", which
+ * described a callback it was handed. A callback is an operation nobody has
+ * named, so counting by *dispatched commands* misses it. The honest question
+ * is which capabilities a host needs supplied, not which commands it issues.
  *
  * @module
  */
