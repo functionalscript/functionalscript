@@ -210,6 +210,9 @@ fn add<A: IVm>() {
     check::<A>("undefinedPlusOne", Nullish::Undefined.to_any() + (1f64).to_any(), (f64::NAN).to_any());
     check::<A>("truePlusTrue", true.to_any() + true.to_any(), (2f64).to_any());
     check::<A>("onePlusNegativeOne", (1f64).to_any() + (-1f64).to_any(), (0f64).to_any());
+    check::<A>("negativeZeroPlusZero", (-0f64).to_any() + (0f64).to_any(), (0f64).to_any());
+    check::<A>("zeroPlusNegativeZero", (0f64).to_any() + (-0f64).to_any(), (0f64).to_any());
+    check::<A>("negativeZeroPlusNegativeZero", (-0f64).to_any() + (-0f64).to_any(), (-0f64).to_any());
     check::<A>("emptyStringPlusOne", string_any("") + (1f64).to_any(), string_any("1"));
     check::<A>("onePlusEmptyString", (1f64).to_any() + string_any(""), string_any("1"));
     check::<A>("stringOnePlusTwo", string_any("1") + (2f64).to_any(), string_any("12"));
