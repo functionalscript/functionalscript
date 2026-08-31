@@ -1,2 +1,2 @@
 #!/bin/sh
-exec nix develop ./nix
+exec nix develop --extra-experimental-features nix-command --extra-experimental-features flakes ./nix
