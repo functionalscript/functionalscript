@@ -1,4 +1,10 @@
-/** @import { Rule } from '../../types.ts' */
+/**
+ * JSON grammar building blocks.
+ *
+ * @module
+ *
+ * @import { Rule } from '../../types.ts'
+ */
 
 import { commaJoin0Plus, option, range, remove, repeat, repeat0Plus, set, unicodeMax } from "../../module.f.mjs"
 
@@ -6,7 +12,7 @@ const onenine = range('19')
 
 export const digit = range('09')
 
-const string = [
+export const string = [
     '"',
     repeat0Plus({
         ...remove(range(` ${unicodeMax}`), set('"\\')),
@@ -59,12 +65,12 @@ export const cj = commaJoin0Plus(ws)
 /** @type {(v: Rule) => Rule} */
 export const array = v => cj('[]', v)
 
-/** @type {(v: Rule, property: Rule) => Rule} */
+/** @type {(property: Rule, v: Rule) => Rule} */
 export const object = (p, v) => cj('{}', [p, ws, ':', ws, v])
 
 export const createValue = (/**@type {Rule}*/p, /**@type {Rule}*/v) => ({
     array: array(v),
-    object: object(string, v),
+    object: object(p, v),
     string,
     number,
     true: 'true',

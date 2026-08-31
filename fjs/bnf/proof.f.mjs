@@ -34,7 +34,7 @@ const maxSymbol = 0xFFFFFE
 export const proof = {
     test: () => {
         classic()
-        deterministic
+        deterministic()
     },
     throw: {
         rangeEncodeInvalid: [
