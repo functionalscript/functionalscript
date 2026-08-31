@@ -1140,8 +1140,9 @@ declares two branches and `sign` declares two, so all four must be mapped —
 `[]` and `''`. An unmapped branch would hand its variant an AST node, and
 `Branch<{ some: readonly number[], noItems: readonly number[] }>` says that is
 wrong at the map rather than at some later use of the value, and the
-construction check (§5) catches a branch the grammar has that the map forgot. Separately, a mapped branch under an
-*unmapped* variant is refused at construction (§3).
+construction check (§5) catches a branch the grammar has that the map forgot.
+Separately, a mapped branch under an *unmapped* variant is refused at
+construction (§3).
 
 So adoption is incremental *up to* the first variant whose value you want typed,
 and from there down it is all-or-nothing.
