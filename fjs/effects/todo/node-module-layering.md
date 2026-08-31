@@ -293,6 +293,20 @@ Judgement calls worth deciding explicitly rather than by accident:
 - **`Test`'s payload references `All` and `Await`** (`:471-472`), so the test
   move should follow the `all` and `sandbox` moves.
 
+### Six operation tuples are not `readonly`
+
+`All`, `Fetch`, `CreateServer`, `Listen` and `Forever` in
+[`../node/types.ts`](../node/types.ts) are declared as plain tuples where every
+other operation is `readonly`. `Import` was a sixth until it moved, and making
+it `readonly` on the way looked like tidying — but a `readonly` tuple is not
+assignable to a mutable one, so it is a break a consumer could hit, for
+cosmetics. It was reverted rather than shipped with a `**BREAKING CHANGES:**`
+entry attached to a rename.
+
+The five that remain are worth aligning *deliberately*, in one change that says
+so and takes the version bump for the set rather than smuggling it inside a
+move. Nothing depends on it.
+
 ### Tasks
 
 - [x] Move the operation vocabulary (`OpResult`, `IoChannel`, `IoError`,

@@ -116,7 +116,7 @@ export type Module = StringMap<unknown>
  * network that dropped. A caller that must report such a failure rather than
  * die needs the reason as a value, which is what the error channel carries.
  */
-export type Import = readonly['import', (path: string) => IoResult<Module>]
+export type Import = ['import', (path: string) => IoResult<Module>]
 
 // write
 
