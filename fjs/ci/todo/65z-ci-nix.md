@@ -108,6 +108,66 @@ this suite passes on. The job's version check is what holds it: unlike every oth
 check, which confirms a snapshot provides what the configuration claims, this one
 confirms the override took effect at all.
 
+#### The shell
+
+`dev` carries every tool the jobs use — Node 26, Deno, the pinned Bun,
+TypeScript, the toolchain with its WASM targets, Wasmtime, Wasmer and `git`. It
+is what a developer enters, and what all but two CI jobs run inside.
+
+It is generated rather than hand-written for two reasons. It cannot drift from
+the jobs, since it is built from their own declarations; and the drift check
+covers it, which a hand-written `nix/flake.nix` would have escaped — verifying
+one would mean pattern-matching Nix source, which root `AGENTS.md` §6 rules out.
+
+**Sharing, and its one limit.** Each job started with a flake of its own, on the
+reasoning that a shell with five runtimes would let a job pass on whichever
+`node` reached `PATH` first. That risk is real and narrower than the rule it
+produced: it applies only where a command resolves its runtime from `PATH`.
+`deno task cov`, `bun test`, `cargo test` and `tsc` all name theirs, so what
+else is installed cannot decide what runs them.
+
+`npm ci` and `node --test` name nothing, and one shell holds one `node`. So
+Node 22 and Node 24 keep a flake apiece, and everything else shares — which is
+worth more than the uniformity: the environment CI proves is now the one people
+work in, rather than a fifth arrangement nobody uses.
+
+The cost is per-job download. A `deno` job that used to realise one package now
+realises the whole closure, toolchain included, and there is no binary cache of
+our own yet — `096-ci-caching.md` is where that goes.
+
+**It is why a declaration names systems rather than a system.** A CI job runs on
+one runner image; a developer environment has to work on Linux and macOS, on
+both architectures.
+
+Each system is its own named `devShells.<system>.default`, and past the first
+they share the shell between them: the body is written once as a function, and
+each entry calls it with the three things that differ — the system, and the
+archive and hash a pinned package takes on it. That keeps `flake-utils` out
+without keeping four copies of twenty lines in. The distinction worth holding
+is *named entries versus a fold*: which systems a flake serves is still
+something the file says, rather than something a loop over a list computes. A
+single-system flake stays flat, byte for byte what it was, because a function
+called once is indirection for nothing.
+
+Nix does not run natively on Windows, so those four are all there are. A Windows
+developer reaches the shell through WSL2 or works the way this repository has
+always supported natively — nothing here requires Nix.
+
+There is no `dev` CI job. There was one, and its only reason was that nothing
+else evaluated this flake; four jobs entering it on every pull request answers
+that better than one job asserting six versions. Between them they still assert
+all six — `node` and `tsc` from `node26`, `deno` from `deno`, `bun` from `bun`,
+both WASM runtimes from `wasm`.
+
+Those jobs run on one runner, so one of the four shells is built for real; the
+other three are pinned as text and no further.
+
+One consequence for a project that is not this one: `nixJobs` is a list rather
+than a function of the project, so a project without a `Cargo.toml` gets no
+`wasm` job and therefore nothing checking the two WASM runtimes in its shell.
+That is the same trade `ci-generator-audience.md` describes for every job this
+generator writes unconditionally.
+
 #### Jobs with no flake
 
 One canonical job has none. That the set is exactly this one is asserted by
@@ -127,8 +187,9 @@ related reason. Those six jobs exist to run on stock GitHub runner images across
 three operating systems and two architectures, so a flake would replace the thing
 they measure; four of the six are not `aarch64-linux` at all.
 
-What remains here is the Nixpkgs update command and removing stale generated job
-directories, which waits on a recursive `rm` effect. Every canonical job but
+What remains here is the Nixpkgs update command and removing stale generated
+directories, which waits on a recursive `rm` effect — the four directories this
+change orphaned had to be deleted by hand. Every canonical job but
 `package-check` now runs through a flake.
 
 ### Problem
@@ -194,6 +255,8 @@ node24: aarch64-linux, nodejs_24
 node26: aarch64-linux, nodejs_26
 deno:   aarch64-linux, deno
 wasm:   aarch64-linux, wasmtime, wasmer, and a rust-overlay toolchain
+bun:    aarch64-linux, bun overridden to an exact upstream release
+dev:    four systems, everything above at once, plus git
 ```
 
 `bun` is `aarch64-linux, bun`, with the package overridden to an exact upstream
@@ -215,18 +278,22 @@ this TODO does not prescribe which non-Node tools a job needs.
 Generate one self-contained file for each job:
 
 ```text
+nix/flake.nix
 nix/node22/flake.nix
 nix/node24/flake.nix
-nix/node26/flake.nix
-nix/deno/flake.nix
-nix/wasm/flake.nix
-nix/bun/flake.nix
 ```
+
+The shared shell is `nix/` itself rather than a directory under it: it belongs
+to no single job, and `nix develop ./nix` is the command a developer should have
+to remember. The two that do belong to one job are named after it.
 
 Each generated file should:
 
 - pin the exact Nixpkgs commit;
-- expose `devShells.aarch64-linux.default` for the current ARM Linux job;
+- expose one `devShells.<system>.default` per system the declaration names — a
+  job with a flake of its own declares the one ARM Linux runner it has, and the
+  shared shell declares four. Past one, the shell body is written once as a function those
+  entries call; the systems stay named bindings rather than a fold;
 - use `pkgs.mkShell` with that job's declared packages;
 - be readable without inspecting the generator;
 - contain no job-selection logic;
@@ -417,6 +484,8 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
 - [x] Migrate jobs one at a time — Node 24, then Node 26, then Node 22, then `deno`.
 - [x] Migrate `bun`, by overriding the snapshot's package with an exact upstream
       release rather than waiting for Nixpkgs to ship one.
+- [x] Generate a developer environment carrying every runtime at once, on all
+      four systems Nix runs on, checked by a job of its own.
 - [x] Migrate `wasm`, which needed this issue's "official Nixpkgs only" scope
       widened by one input: Nixpkgs builds no `std` for three of its four targets,
       at any version.

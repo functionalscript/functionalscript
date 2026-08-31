@@ -72,10 +72,12 @@ exactly one byte sequence.
 ## Status
 
 **This document specifies a target, not the current implementation.** The
-FunctionalScript compiler in this repository does not accept DataJS today: it
-separates statements by newline, so it rejects the `;` this format requires.
-The `;` is the difference that stops a document parsing at all, but it is not
-the only one. The shipped `fjs/djs` serializer also differs from
+`;` this format requires after every statement is accepted — the compiler's
+parser takes a semicolon or a newline as the statement terminator, so a
+document that stays on the finite leaves parses today; `NaN` and the
+infinities do not parse yet, which is the reader-side gap that remains
+(tracked with the numeric-leaf work in the restructure plan below).
+The shipped `fjs/djs` serializer also differs from
 [normalized form](#normalized-form) in four ways, each of them stage 4–6 work
 rather than a bug:
 
@@ -95,8 +97,8 @@ The work that closes all of it is staged in
 
 Note the two nearby uses of "DJS". [`spec/README.md`](../README.md) uses it for
 the data subset the compiler accepts **today**, which is wider than DataJS:
-it has `import`, comments, identifier keys, trailing commas, and newline
-separation. This document specifies **DataJS**, the narrow interchange format.
+it has `import`, comments, identifier keys, trailing commas, and the newline
+as a second statement terminator alongside the `;`. This document specifies **DataJS**, the narrow interchange format.
 "DJS" survives only as an informal abbreviation of DataJS.
 
 ## Principles

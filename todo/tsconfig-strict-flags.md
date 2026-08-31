@@ -22,7 +22,7 @@ candidates: `fjs/effects/node/virtual/`, `fjs/bnf/descent/`,
 
 ### Measurements
 
-Error counts from `npx tsc --<flag>` on a clean tree (TypeScript 7.0.2), one
+Error counts from `tsc --<flag>` on a clean tree (TypeScript 7.0.2), one
 flag at a time. The four enabled flags are listed with the count they carried
 when they were turned on; the rest are current.
 
@@ -80,7 +80,7 @@ have silently continued into an unrelated state rather than failing.
       worth doing on its own even if the flag stays off. Decide the 81 unused
       values separately.
 
-Each step is independently verifiable with `npx tsc` and `fjs t`. Re-measure
+Each step is independently verifiable with `tsc` and `fjs t`. Re-measure
 before starting one: the counts above are a snapshot, and
 `noFallthroughCasesInSwitch` is the standing proof that they drift.
 

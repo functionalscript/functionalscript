@@ -37,8 +37,9 @@ Read in this order; each line says what to do and why it comes when it does.
    which is JSON's own tokenizer and settles its own accepted set with JSON's
    own proofs — unchanged but for one enumerated defect, an `n` today's
    tokenizer deletes from inside a number.
-3. **Then: stage 4, `fjs/media/datajs`.** No todo file yet — file one under
-   `fjs/media/datajs/todo/` before starting, per the workflow. The normative
+3. **Then: stage 4, `fjs/media/datajs`.** Design is filed:
+   [`fjs/media/datajs/todo/parser-serializer.md`](../fjs/media/datajs/todo/parser-serializer.md).
+   The normative
    behavior is already settled in
    [`spec/datajs/README.md`](../spec/datajs/README.md); stage 4 implements that
    spec, it does not redesign it. Known prerequisite work is named in the stage
@@ -378,8 +379,11 @@ combined marker would encode a redundant fact.
   FunctionalScript accepts identifiers that do not start with `$`, so it needs
   the restriction for itself; DataJS no longer relies on inheriting it, its
   `$`-leading names making the collision unreachable.
-- The moved parser's separator rule changes from newline to `';'` (the moved
-  tokenizer's operator vocabulary gains `;`).
+- The moved parser's separator rule narrows to `';'` only. The shipped
+  `fjs/djs` already accepts `;` alongside the newline (its tokenizer's
+  operator vocabulary carries `;`), so stage 5's change is dropping the
+  newline terminator, not introducing the semicolon — the breaking half of
+  the two, which is why it waits for the migration this stage owns.
 - **Whether FunctionalScript takes DataJS's positional whitespace rule is a
   stage-5 decision, and DataJS does not depend on the answer.** DataJS requires
   *more* whitespace than a merging-based rule would, so every DataJS document
@@ -545,7 +549,7 @@ throughout.
 - [ ] Stage 6: normalizer + subset-law proofs; file its todo.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
 - [ ] Update affected issues as their subject matter moves (see below).
-- [ ] `npx tsc`, `fjs test` at every stage.
+- [ ] `tsc`, `fjs test` at every stage.
 
 ### Edits owed to existing issues
 

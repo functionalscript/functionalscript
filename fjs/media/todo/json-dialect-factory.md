@@ -536,7 +536,7 @@ level up from the seven-line kit.
       if it expresses cleanly — but the assert stays either way. If the
       constraint is dropped, take the value-position cast at both JSON-only
       boundaries — `stringify(sort)` and the `jsonExact` walk — as above;
-      `npx tsc` fails without it.
+      `tsc` fails without it.
 - [ ] Walk `encodeText`'s argument for `jsonLeaf` — every runtime leaf, not
       just the numbers — and `assert` rather than returning a `Result`. It
       takes a bare `ValueOf<S>` no one has to have validated, and
@@ -588,7 +588,7 @@ level up from the seven-line kit.
       of exported names and their types should be identical. That is the
       check, not reading the diff — `../../mcp/cas/module.f.mjs:120-122` is
       production code importing the three entry names.
-- [ ] `npx tsc`, `fjs t`; the media and mcp proofs pass unchanged.
+- [ ] `tsc`, `fjs t`; the media and mcp proofs pass unchanged.
 
 ### Related
 

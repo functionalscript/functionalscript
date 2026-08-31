@@ -35,14 +35,16 @@ are correct in their own layer. Nothing says so in one place.
 **`instanceof Promise` is realm-local.** A promise built in an iframe, a worker
 or a `node:vm` context is not `instanceof Promise` here, so under `fjs t` it is
 walked as a proof tree and a *rejected* one is reported as a pass. The browser
-runner defends against this with `Symbol.species` shadowing and an intrinsic
-`then` — about 150 lines (`../browser.mjs`, `../browser/species.proof.mjs`) that
-read as a magic mess and are, today, the only place the exposure is covered. So
-the two runners answer this question differently, and
-[sharing them](share-browser-console-runner.md) forces a single answer: keep the
-machinery, replace it with something statable, or accept `fjs t`'s exposure
-knowingly. Deciding that by default, inside a port, is how the coverage gets
-lost without anyone choosing to lose it.
+runner used to defend against this with `Symbol.species` shadowing and an
+intrinsic `then` — about 150 lines that read as a magic mess and were, at the
+time, the only place the exposure was covered — and
+[sharing the runners](share-browser-console-runner.md) forced the single answer
+this section was written to demand. **It was answered knowingly**, in
+functionalscript#1742: the machinery and its `species.proof.mjs` are gone, both
+runners ask `instanceof Promise` in `effects/common`'s `sandbox`, and the
+exposure below is now one exposure rather than a difference between two hosts.
+The rest of this file is the study that decision was made from, and it stays
+because the exposure did.
 
 The three are usually discussed one at a time, which is why the interaction
 keeps being rediscovered: the thing that makes a namespace dangerous (`then` is
@@ -150,9 +152,11 @@ value's own `then`:
 
 One detail is not incidental: the `Reflect.apply` has to sit **outside** a `new
 Promise` executor. A throw inside an executor rejects the promise instead of
-propagating, so the brand check becomes uncatchable — which is exactly why
-`subscribe` in `../browser.mjs` captures its `settle` first and applies
-afterwards. Written the obvious way instead, the check throws out of the runner.
+propagating, so the brand check becomes uncatchable — which is exactly why the
+prototype's `subscribe` captured its `settle` first and applied it afterwards.
+Written the obvious way instead, the check throws out of the runner. That
+prototype is gone with the machinery, so this is a note for whoever writes the
+next one rather than a description of code in the tree.
 
 #### The species handling is load-bearing too
 
@@ -229,16 +233,25 @@ builds its answer through `constructor[Symbol.species]`, either of which a
 promise can replace, so a proof's subtree can be lost or the run handed a
 non-promise. `await` on a same-realm promise adopts internal state and consults
 neither, which is why three lines recover everything the machinery gave for the
-values this runner can actually meet. `awaitIgnoresAnOwnThenOverride` and
-`awaitIgnoresACustomSpecies` pin both, and both fail against `.then`.
-`hostileBrandCheckIsReported` pins the third thing `fjs t` does that the page
-must too: run the `instanceof` inside a guard, because the check consults
-`getPrototypeOf` and a proxy can trap it — unguarded, the run rejects and the
-page never leaves `running`.
+values this runner can actually meet.
 
-`subscribe`, `speciesFails`, `runPromise` and `species.proof.mjs` are deleted. `crossRealmPromise` became
-`crossRealmPromiseIsWalkedAsATree`, which pins the two runners agreeing rather
-than the browser defending alone — the gap is real, shared, and recorded here.
+**The proofs that pinned the `then` and species cases are gone**, deleted in
+functionalscript#1796 rather than kept: the rule they were chasing is that a
+value which is not a well-known `Promise` is not run as one, full stop, and that
+rule is stated on `Sandbox` in `../../effects/common/types.ts` where a reader
+meets it. Four proofs enumerating ways to violate a stated rule bought no
+guarantee the rule did not already give, and invited the next variant.
+`hostileBrandCheckIsReported` went with them as redundant with
+`returnedTreeThrows`, which pins the same guarantee — user code throwing while
+the runner reads a value fails that test rather than rejecting the run — without
+a proxy.
+
+`subscribe`, `speciesFails`, `runPromise` and `species.proof.mjs` are deleted.
+What survives in `../browser/proof.mjs` states the rule positively rather than
+chasing it: `crossRealmPromiseSilentlyPasses` pins the two runners *agreeing*
+rather than the browser defending alone, and `spoofedPromiseTag` and
+`frozenPromiseTag` pin that a spoof is walked as an ordinary tree. The gap is
+real, shared, and recorded here.
 
 Strictly, the browser needs no promise handling whatever — it runs only
 `.f.mjs`. `instanceof` is kept anyway: one expression, and it keeps the two

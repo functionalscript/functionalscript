@@ -42,7 +42,7 @@ points at the one `Nullable` combinator instead of a bespoke ternary.
 ### Tasks
 
 - [ ] Rewrite `at` through `nullable`'s `map`.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

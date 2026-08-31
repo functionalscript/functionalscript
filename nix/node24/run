@@ -1,3 +1,2 @@
 #!/bin/sh
-case $0 in */*) d=${0%/*} ;; *) d=. ;; esac
-exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
+exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix/node24 --command "$@"

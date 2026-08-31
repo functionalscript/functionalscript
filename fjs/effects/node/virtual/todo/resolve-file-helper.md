@@ -66,7 +66,7 @@ casts disappear with it.
 
 - [ ] Add `resolveFile`; rewrite the four handlers on top of it, settling
       the JsModule policy for `statOp`/`writeBytesOp` explicitly.
-- [ ] `npx tsc`, `fjs t`; virtual-FS proofs pass unchanged (or with
+- [ ] `tsc`, `fjs t`; virtual-FS proofs pass unchanged (or with
       deliberate, documented JsModule-policy updates).
 
 ### Related

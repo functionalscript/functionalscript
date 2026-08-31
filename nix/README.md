@@ -1,14 +1,20 @@
 # Nix environments
 
-`<job>/flake.nix` is **generated** by [`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs)
-— one self-contained flake per CI job, in a directory named after the job. Do
-not edit these files by hand: run `npm run ci-update` and commit the result. The
-Node 26 CI job fails when the committed files no longer match the generator's
-output. This README is the one file here that is written by hand.
+`flake.nix` here, and `<job>/flake.nix` below it, are **generated** by
+[`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs) — three self-contained flakes. Do not
+edit them by hand: run `npm run ci-update` and commit the result. The Node 26 CI
+job fails when the committed files no longer match the generator's output. This
+README is the one file here that is written by hand.
+
+The flake in *this* directory is the shell: the one a developer enters, and the
+one all but two CI jobs run inside. It has no directory of its own because it
+belongs to no single job — `nix develop ./nix` is the whole of what there is to
+remember. `node22` and `node24` are the two exceptions, and the section below
+says why they have to be.
 
 Each flake pins the exact Nixpkgs commit from
-[`fjs/ci/config`](../fjs/ci/config/module.f.mjs) and exposes a single
-development shell for the job's runner:
+[`fjs/ci/config`](../fjs/ci/config/module.f.mjs) and exposes one development
+shell per system:
 
 ```sh
 ./nix/node24/run node --version
@@ -18,8 +24,9 @@ The pinned commit determines the package versions: `pkgs.nodejs_24` at that
 revision is one exact Node release, and the same number is recorded in
 `fjs/ci/config`. The flakes do not restate it — the job checks it from inside
 the shell instead (below), which also catches a shell that builds but provides
-the wrong binary. `pkgs.deno` names no version at all, so for that job the check
-is the only thing tying the recorded version to what the shell provides.
+the wrong binary. `pkgs.deno` and `pkgs.typescript-go` name no version at all,
+so for those the check is the only thing tying the recorded version to what the
+shell provides.
 
 The files stay static and readable on purpose — no job selection, no
 `flake-utils`, no shared Nix modules. A job that later needs a second system
@@ -28,20 +35,25 @@ loop.
 
 ### `run`
 
-Each job directory also holds a generated `run` script, and that is what CI
-invokes:
+A generated `run` script sits beside every flake, and that is what CI invokes:
 
 ```sh
-./nix/node26/run npm run cov
+./nix/run npm run cov          # the shared shell
+./nix/node22/run node --test   # a flake of its own
 ```
 
-It is the same two lines for every job:
+Two lines, and the only thing that differs between copies is the path:
 
 ```sh
 #!/bin/sh
-case $0 in */*) d=${0%/*} ;; *) d=. ;; esac
-exec nix develop --no-write-lock-file --quiet "$d" --command "$@"
+exec nix develop --no-write-lock-file --quiet --quiet --quiet ./nix --command "$@"
 ```
+
+The path is written in because the generator knows it. Leaving it out would not
+work: `nix develop` with no installable defaults to `.`, and that is the
+*process* working directory — the repository root, where there is no
+`flake.nix` — rather than the script's own directory. So every caller runs from
+the repository root, which CI and a developer both do anyway.
 
 The `case` line resolves the flake from the script's own location, so it behaves
 the same from the repository root, from `nix/`, or by absolute path. It is shell
@@ -61,32 +73,106 @@ input, so that lock resolves nothing the flake did not already say. The root
 `.gitignore` still ignores those files, for a hand-run `nix develop` that omits
 the flag.
 
-`--quiet` drops Nix's own logging from `info` to `notice`. That removes the
-substitution chatter — the `copying N paths` lines that are most of what these
-steps print and none of what they check — while leaving warnings and errors,
-which sit below `notice`. Nix has no short spelling for it: `--verbose` declares
-a `v` short name and `--quiet` declares none, so `-q` is not an option the `nix`
-CLI accepts, and the `-Q` that exists is `--no-build-output` on
-`nix-build`/`nix-shell` rather than on this command. Neither flag reaches the
-command being run — `--command` execs it with stdio inherited — so a job's own
-output is unchanged.
+`--quiet` appears **three times**, and the count is arithmetic. Nix has one
+global verbosity integer: the levels run `lvlError = 0, lvlWarn = 1,
+lvlNotice = 2, lvlInfo = 3`, a message prints when its own level is at most the
+current value, the default is `lvlInfo`, and each `--quiet` decrements by one.
+So one reaches `notice` and two reach `warn` — both of which still print a
+warning — and only the third, reaching `error`, does not.
+
+The first removes the substitution chatter: the `copying N paths` lines, started
+at `lvlInfo`, which are most of what these steps print and none of what they
+check. The other two are spent silencing one warning, and the price is worth
+stating plainly: **no Nix warning of any kind reaches the log from here.** A
+failing substituter, a dirty tree, a deprecation notice — all gone, errors only.
+
+What they buy is "not writing modified lock file", which these flakes emit on
+every step of every Nix job. That warning is the exact consequence of
+`--no-write-lock-file` meeting a flake with no committed `flake.lock`, so the
+honest fix is to generate one and take these two flags back off —
+[`fjs/ci/todo/generated-flake-lock.md`](../fjs/ci/todo/generated-flake-lock.md)
+owns that.
+
+Nix has no shorter spelling. `--verbose` declares a `v` short name and `--quiet`
+declares none, so neither `-q` nor `-qqq` is an option the `nix` CLI accepts;
+the `-Q` that exists is `--no-build-output` on `nix-build`/`nix-shell` rather
+than on this command; and verbosity is not a `nix.conf` setting, so `--option`
+cannot reach it either. No flag reaches the command being run — `--command`
+execs it with stdio inherited — so a job's own output is unchanged.
 
 The generator writes the script's **content**; its executable bit is committed
 once and preserved by every regeneration, because `fs.writeFile` keeps the mode
 of a file that already exists. A job generated for the first time needs
-`git update-index --chmod=+x nix/<job>/run` by hand —
+`git update-index --chmod=+x <path>` by hand —
 [`fjs/ci/todo/generated-run-script-mode.md`](../fjs/ci/todo/generated-run-script-mode.md)
 is about removing that step.
 
 Every canonical job with a flake runs through it — the three Node jobs, `deno`,
-`wasm` and `bun`. Each installs Nix, checks the runtime its shell provides, and then runs
-its commands one `nix develop` step each, because a CI step runs one command. No
-separate job makes that check — a flake is checked by the job that uses it, and
-every generated flake has one.
+`wasm` and `bun`. Each installs Nix, asserts the versions of the tools it is
+about to use, and then runs its commands one `nix develop` step each, because a
+CI step runs one command. No separate job makes those checks: a flake is checked
+by the jobs that use it, and every generated flake has at least one.
 
 One canonical job has no flake: `package-check` runs with no checkout, which is
 the whole point of it, and a flake and its `run` script are files in a checkout.
 `fjs/ci/todo/65z-ci-nix.md` says so.
+
+### The developer environment
+
+`dev` carries everything the canonical jobs use at once — Node 26, Deno, the
+pinned Bun, TypeScript, a Rust toolchain with every WASM target, Wasmtime,
+Wasmer and `git` — so that one shell is enough to work in:
+
+```sh
+nix develop ./nix          # an interactive shell
+./nix/run npm run cov      # or one command in it
+```
+
+It cannot drift from what the jobs run, because it *is* what they run. Each tool
+is declared beside the commands using it — the Bun override in `fjs/ci/bun`, the
+toolchain and its targets in `fjs/ci/rust` — and this shell takes those
+declarations rather than restating them. `git` is here for the developer alone:
+`nix develop` builds an environment from what the shell asks for rather than
+from what the machine has, so a shell without it is one you leave immediately.
+
+TypeScript is here for a reason the others are not: it is no longer an npm
+dependency of this repository, so `npm ci` does not put a `tsc` in
+`node_modules` and `npm test` or `npm pack` outside this shell needs one
+installed globally. `fjs/ci/config/module.f.mjs` says which version, and why the
+attribute is `typescript-go` rather than `typescript`.
+
+**Why sharing is safe, and where it is not.** The jobs used to have a flake
+each, on the reasoning that a shell with five runtimes would let a job pass on
+whichever `node` came first on `PATH`. That risk is real and it is narrower than
+the rule it produced: it applies only where a command resolves its runtime from
+`PATH`. `deno task cov`, `bun test`, `cargo test` and `tsc` all name theirs, so
+what else is installed cannot decide what runs them — those jobs share this
+shell, and CI therefore proves the environment people actually work in.
+
+`npm ci` and `node --test` name nothing. They run whichever `node` they find,
+and one shell has one `node` — so `node22` and `node24` keep a flake apiece
+holding the single release each exists to test. `node26` needs no such thing:
+the release it wants is this shell's.
+
+It exposes four shells — `aarch64-linux`, `x86_64-linux`, `aarch64-darwin`,
+`x86_64-darwin` — one named `devShells.<system>.default` each, and
+`nix develop` picks the one matching the machine. The shell itself is written
+once, as a function those four entries call with the three things that differ:
+the system, and the archive and hash Bun publishes for it. The single-system
+flakes keep their shell inline, since a function called once would be
+indirection for nothing. Nix does not run natively on Windows, so a Windows
+developer reaches it through WSL2 or works the way this repository has always
+supported natively.
+
+There is no `dev` CI job. There was one, for exactly one reason — nothing else
+evaluated this flake, so it would have rotted until a developer's shell failed
+to build — and four jobs entering it on every pull request is a stronger answer
+than one job asserting six versions. Between them they still assert all six:
+`node` and `tsc` from `node26`, `deno` from `deno`, `bun` from `bun`, both WASM
+runtimes from `wasm`.
+
+Those jobs run on one runner, so one of the four shells is built for real; the
+other three are generated from the same declaration and pinned as text.
 
 ### The `bun` flake's overridden package
 

@@ -62,7 +62,7 @@ Design first, then migrate. The design should settle:
       proof coverage.
 - [ ] Migrate existing commands; retire the hand-rolled arity checks
       ([positional-arity-check](./positional-arity-check.md)).
-- [ ] `npx tsc`, `fjs t`.
+- [ ] `tsc`, `fjs t`.
 
 ### Related
 

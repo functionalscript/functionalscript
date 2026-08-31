@@ -16,6 +16,20 @@ until a second consumer actually reappears. Leaving this open rather than closin
 since a future global-install site (or the return of a tsgo-like tool) would revive the
 case for it.
 
+**Update:** it reappeared. `fjs/ci/publish/module.f.mjs` installs the configured
+TypeScript globally, because `npm publish` runs `prepack`, which runs `tsc`, and that
+compiler is no longer a `devDependency` — so there are two sites again:
+
+```js
+// fjs/ci/node/module.f.mjs
+install({ run: `npm install -g functionalscript@${version}` })
+// fjs/ci/publish/module.f.mjs
+install({ run: `npm install -g typescript@${typescript.version}` })
+```
+
+The threshold this proposal set is therefore met. Whether two one-line call sites are
+worth a factory is the open question, not whether the duplication exists.
+
 Originally, two CI step sites built the same `run`-based step for globally installing a
 pinned npm package:
 
@@ -83,7 +97,7 @@ This remains distinct from:
       longer exists — see Problem update)
 - [ ] Confirm proof coverage for the surviving consumer and the generated step shape.
 - [ ] Verify generated workflow output is unchanged.
-- [ ] Run `npx tsc` and `fjs t`.
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

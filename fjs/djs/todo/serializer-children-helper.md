@@ -70,7 +70,7 @@ No behavior change: the same child lists flow into the same folds.
 
 - [ ] Add `children`; collapse the twin arms in `countRefsOp` and
       `getConstants`'s `op`.
-- [ ] `npx tsc` clean; `fjs t` passes (`fjs/djs/serializer/proof.f.mjs`).
+- [ ] `tsc` clean; `fjs t` passes (`fjs/djs/serializer/proof.f.mjs`).
 
 ### Related
 

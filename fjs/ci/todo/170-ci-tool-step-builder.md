@@ -112,7 +112,7 @@ install may vary per `(Os, Architecture)`; deno and node pass a fixed
 
 - **Partial fit for node.** Node interleaves `npm ci` before the global
   install and has three per-version jobs with different tails
-  (`node --test`, `npx tsc`/`npm run cov`/`npm pack`); the factory covers the
+  (`node --test`, `tsc`/`npm run cov`/`npm pack`); the factory covers the
   bun/deno shape cleanly, node only partially. Don't force node in — a
   recipe that only bun and deno consume is still two real consumers.
 - **Command ordering differs**: deno runs the smoke test *before*

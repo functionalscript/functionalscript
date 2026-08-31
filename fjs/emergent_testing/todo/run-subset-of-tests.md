@@ -71,7 +71,7 @@ Open design questions to settle before implementing:
       them inside the browser runner; Playwright only forwards that configuration.
 - [ ] Report the active selector and the matched/total counts in every supported report;
       fail on a selector that matches nothing.
-- [ ] Proof coverage via the virtual runner; `npx tsc`, `fjs t`.
+- [ ] Proof coverage via the virtual runner; `tsc`, `fjs t`.
 
 ### Related
 

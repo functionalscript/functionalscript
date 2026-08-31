@@ -18,7 +18,7 @@
  * @import { Result } from '../types/result/types.ts'
  * @import { Effect, NotImplemented } from '../effects/types.ts'
  * @import { LoadModuleOperations, ModuleMap } from '../dev/types.ts'
- * @import { TestFn, TestEntry, TestSet, Path, Reporter, RunState, RunTotals, TestFailure, TestId, TestResult, _TestAndPath } from './types.ts'
+ * @import { TestFn, TestEntry, TestSet, Path, LeafReporter, Reporter, RunState, RunTotals, TestFailure, TestId, TestResult, _TestAndPath } from './types.ts'
  * @import { All, Await, Env, IoChannel, NodeProgram, NodeProgramOptions, Program, Test, TestContext, Write, WriteConsoles } from '../effects/node/types.ts'
  * @import { Catch, Sandbox, SandboxResult } from '../effects/common/types.ts'
  */
@@ -232,15 +232,21 @@ export const registerModule = (ctx, k, v, star) => {
  * It also keeps a host's modules a *list*: two modules may share a label, and
  * they are two runs. Nothing here is a map.
  *
+ * **It has no error channel**, and that is a property of the walk rather than
+ * of the operations it uses: every failure a leaf's chain can produce is
+ * recorded in `RunState.aborted` and answered as a value, because a run that
+ * ended early still has failures worth describing. A host therefore gets the
+ * state back whatever happened, and reads `aborted` to find out what happened.
+ *
  * @template {Operation} O
- * @param {Reporter<O>} reporter
- * @returns {(k: string, entries: readonly _TestAndPath[]) => (state: RunState) => Effect<O | Catch, RunState, IoChannel>}
+ * @param {LeafReporter<O>} reporter
+ * @returns {(k: string, entries: readonly _TestAndPath[]) => (state: RunState) => Effect<O | Catch, RunState, never>}
  */
 export const runEntries = ({ result, start, test }) => (k, entries) => state => {
     /**
      * @type {(entry: _TestAndPath) =>
      *     (acc: RunState) =>
-     *         Effect<O | Catch, readonly[RunState, readonly _TestAndPath[]], IoChannel>}
+     *         Effect<O | Catch, readonly[RunState, readonly _TestAndPath[]], never>}
      */
     const one = ([testPath, set]) => acc => {
         // Nothing runs after the run has been abandoned. The walk cannot simply
@@ -376,7 +382,7 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
      * merged out: `one` extends what it is given, so a module continues the run
      * it is part of and there is nothing to join afterwards.
      *
-     * @type {(entries: readonly _TestAndPath[]) => Effect<O | Catch, RunState, IoChannel>}
+     * @type {(entries: readonly _TestAndPath[]) => Effect<O | Catch, RunState, never>}
      */
     const walkEntries = entries => walkStep(pureOk(entries), state, one)
     return walkEntries(entries)
@@ -609,9 +615,15 @@ const resultOf = (id, { result: [s], duration }) => ({
  */
 export const testResult = (file, path, r) => resultOf(testId(file, path), r)
 
-/** @type {(r: TestResult, color: string, label: string) => string} */
-const fmtResultLine = ({ name, duration }, color, label) =>
-    `${name}: ${color}${label}${reset}, ${timeFormat(duration)}`
+/**
+ * The *end* of a leaf's line. The name is already on the stream — `start` wrote
+ * it before the leaf ran — so this completes that line rather than repeating
+ * it.
+ *
+ * @type {(r: TestResult, color: string, label: string) => string}
+ */
+const fmtResultEnd = ({ duration }, color, label) =>
+    `${color}${label}${reset}, ${timeFormat(duration)}`
 
 /**
  * The terminal/GitHub reporter used by `fjs t`. Output goes through
@@ -629,11 +641,7 @@ export const defaultReporter = options => {
     // decide that here: the failure travels to the program's tail, which ends
     // the run with the reason on `stderr` and exit `1`. That is the same
     // outcome a panic produced, minus the stack trace.
-    /** @type {(w: WriteConsoles) => (s: string) => Effect<Write, void, NotImplemented>} */
-    const line = w => {
-        const x = write(w)
-        return s => x(s + '\n')
-    }
+    const out = write('stdout')
     // **Every record a run produces goes to `stdout`, failures included.** The
     // two streams are not ordered against each other, so splitting the report
     // across them means a reader — or a consumer collecting the log — cannot
@@ -642,7 +650,7 @@ export const defaultReporter = options => {
     // left for a runner *crash*: the tail's channel-failure message, written by
     // `errorExit` after the run is over, where nothing remains to correlate it
     // with.
-    const csiLog = line('stdout')
+    const csiLog = (/** @type {string} */ s) => out(s + '\n')
     const isGitHub = options.env['GITHUB_ACTIONS'] !== undefined
     // What a failure *was* is written once the run has ended, not where it
     // happened: an error's detail — a message, a whole stack — is as many lines
@@ -663,18 +671,22 @@ export const defaultReporter = options => {
                 csiLog(`${fgRed}${t.name}${reset}`),
                 () => csiLog(`${fgRed}${error}${reset}`))
     return {
-        // Two self-contained records per leaf, not one line completed in place.
-        // No *other* leaf runs between a start and its own result under the
-        // sequential traversal, but the leaf itself does, and anything it puts
-        // on this stream — a proof that logs at runtime, a node warning — would
-        // splice into an open line and attach the later `ok` to unrelated
-        // output. Both records name the test, which is what keeps the pair
-        // legible when something lands between them.
-        start: ({ name }) => csiLog(`${name}: running`),
+        // One line per leaf, opened before it runs and closed when it lands:
+        // `name: ` here, `ok, 1.2345 ms` from `result`. A reader watching a
+        // suite sees the name of the test that is running now, and the finished
+        // line says the same thing a single-record reporter would.
+        //
+        // The line is open while the leaf runs, so anything the leaf itself
+        // puts on this stream — a proof that logs, a node warning — splices
+        // into it, and the same happens to a leaf whose run never reports: the
+        // line stays open. Both are visible rather than silent, the name is on
+        // the stream either way, and `summary` closes a line left open by a run
+        // that was abandoned.
+        start: ({ name }) => out(`${name}: `),
         result: (t, _r, throws) =>
             t.status === 'passed'
-                ? csiLog(fmtResultLine(t, fgGreen, 'ok') + (throws ? ' # EXPECTED TO THROW' : ''))
-                : csiLog(fmtResultLine(t, fgRed, 'error')),
+                ? csiLog(fmtResultEnd(t, fgGreen, 'ok') + (throws ? ' # EXPECTED TO THROW' : ''))
+                : csiLog(fmtResultEnd(t, fgRed, 'error')),
         // The details come before the counts, so the numbers a reader is
         // looking for are still the last thing on the screen.
         // A run that was abandoned gets its failures described and no counts:
@@ -682,8 +694,13 @@ export const defaultReporter = options => {
         // finished run and is not one. What ended it is the tail's to report.
         summary: ({ totals: { passed, failed, duration }, failures, aborted }) => {
             const fgFail = failed === 0 ? fgGreen : fgRed
+            // A run that was abandoned left its last leaf's line open — the
+            // leaf was announced and never landed. Close it before anything
+            // else is written, so the detail below starts where a line starts.
             return step(
-                forEachStep(pureOk(failures), detail),
+                step(
+                    aborted === null ? pureOk(undefined) : csiLog(''),
+                    () => forEachStep(pureOk(failures), detail)),
                 () => aborted !== null
                     ? pureOk(undefined)
                     : step(

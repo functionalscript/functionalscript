@@ -17,7 +17,10 @@ live in [DESIGN.md](../DESIGN.md).
 
 ### 1.1 Commands
 
-- `npx tsc` — type-check using the repository's version of TypeScript.
+- `tsc` — type-check. The compiler is the environment's, not a dependency of
+  this package: the Nix developer shell provides it, or install the version
+  `fjs/ci/config/module.f.mjs` pins globally. Not `npx tsc`, which resolves
+  nothing locally and fetches the registry's latest.
 - `fjs test` (or any equivalent from
   [CONTRIBUTING.md](../CONTRIBUTING.md#ways-to-run-the-functionalscript-test-suite))
   — test FunctionalScript (`.f.mjs`) files.
@@ -101,7 +104,7 @@ never counted as a test either.
 
 Some facts have nowhere else to be checked and so *require* one. A `const` type
 parameter is the standing example: dropping the modifier widens every call site
-silently and `npx tsc` still passes, so the assertion is the only thing standing
+silently and `tsc` still passes, so the assertion is the only thing standing
 between the signature and a schema quietly typed one notch too loose. See
 [§3.2](#32-types), "Prefer a `const` type parameter to a cast at the call site".
 
@@ -258,6 +261,24 @@ Where each kind of documentation belongs:
   new values with `.map`, `.filter`, `.flatMap`, spread, `new Set([...prev, x])`,
   `new Map([...prev, [k, v]])`, and `Object.fromEntries(entries.map(...))`.
 - Use `let` variables only within the function body where they are declared.
+
+#### One realm, one prototype chain
+
+FunctionalScript never handles objects from another realm — a `node:vm`
+context, an iframe, a worker — and never replaces an object's prototype:
+`Object.setPrototypeOf`, `Reflect.setPrototypeOf` and the `__proto__` setter
+are out, and `__proto__` as a data member is written `{ ['__proto__']: v }`.
+
+The two halves buy the same thing, which is why they are one rule: every value
+an `.f.mjs` function sees was built by this realm's constructors, so
+`instanceof` and the prototype chain are reliable.
+
+**Detect an array with `a instanceof Array`.** That is the spelling
+FunctionalScript uses. `Array.isArray` is not a more careful version of it
+here, only a longer one guarding against values this rule already excludes.
+
+A boundary that does take foreign values is a host boundary: it belongs in a
+thin `.mjs` that converts them before any `.f.mjs` sees them.
 
 #### No regular expressions
 
@@ -476,7 +497,7 @@ Three things bound the rule:
   type parameter's constraint admits primitives, so `validate(42)` reads `42`
   either way. The modifier earns its place on object and array literals.
 - **Do not add one that changes nothing.** Removing a `const` must break
-  `npx tsc`; if it does not, the modifier is noise — delete it, or add the
+  `tsc`; if it does not, the modifier is noise — delete it, or add the
   assertion that makes it load-bearing (below). A general-purpose value lifter
   is usually the wrong place for one: `const` on `pureOk` would infer
   `pureOk([])` as `readonly []`, which stops unifying with the array branch
@@ -637,7 +658,7 @@ Forward references are fine: `unknown` is annotated in terms of `object` and
 `array`, declared below it.
 
 `@type {const}` is wrong here even though it compiles. It pins the tuple, so
-`npx tsc` and `fjs t` both pass — but it gives declaration emit no *name* for
+`tsc` and `fjs t` both pass — but it gives declaration emit no *name* for
 the recursive positions, so the emitter inlines the structure, gives up at
 depth, and writes `/*elided*/ any`. On `fjs/media/json/rtti/module.f.mjs` the
 const cast emitted 4 `any` and 2 `/*elided*/`; the `typeof` form emitted

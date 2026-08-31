@@ -83,7 +83,7 @@ the shared one.
       `undeclaredMembers`. This is a refactor with no behavior change — the
       two agree on every input today — so no new proof row is expected; the
       existing tables are the check.
-- [ ] `npx tsc`, `fjs t`; the three-reader agreement tables pass unchanged.
+- [ ] `tsc`, `fjs t`; the three-reader agreement tables pass unchanged.
 
 ### Related
 

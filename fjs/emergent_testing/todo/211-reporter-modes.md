@@ -17,9 +17,9 @@ exactly what a reader of a test log is asking. `stderr` is for a runner
 run to correlate anything with.
 
 `fjs t` was split across both until functionalscript#1790 — failures and
-GitHub annotations on `stderr`, progress on `stdout` — which also meant its two
-records for one leaf (`running`, then the verdict) landed on different streams
-when the leaf failed. A mode that wants a separate error stream has to answer
+GitHub annotations on `stderr`, progress on `stdout` — which also meant a
+leaf's announcement and its verdict landed on different streams when the leaf
+failed, and they are now two halves of one line. A mode that wants a separate error stream has to answer
 the ordering question first.
 
 ### GitHub Actions reporter
@@ -47,6 +47,13 @@ A reporter where `enter` and `pass` are no-ops (`pure()`); only `moduleStart`,
 Selected via a CLI flag or env. See
 [test-framework-silent-mode](./test-framework-silent-mode.md), the retired `i21`
 under its current slug.
+
+### TTY and non-TTY are different formats
+
+The mode question this file lists is joined by one the open-line format raised:
+a terminal and a line-oriented consumer want different records for the same
+run. See [TTY and line-oriented consumers](tty-and-line-consumers.md), which
+also notes that CI-ness is a second axis rather than the same one.
 
 ### Dynamic progress reporter
 

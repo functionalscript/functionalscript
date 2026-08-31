@@ -31,25 +31,50 @@ export const functionalscript = /** @type {const} */ '0.47.0'
 // Nixpkgs ships 1.3.13 — on the pin and on `master` — and two of this
 // repository's proofs fail on it, one of them a real difference in when
 // `Symbol.species` is read rather than a slow machine. So the `bun` job's flake
-// keeps the snapshot's packaging and replaces only the archive, with the
-// version and the hash below.
+// keeps the snapshot's packaging and replaces only the archive, named by the
+// version here and the table below.
 //
 // This is the exception, not a pattern: it works because Nixpkgs fetches Bun as
 // a prebuilt archive, so overriding it moves bytes rather than adopting a
-// package definition. Delete both constants the day the snapshot carries a Bun
-// this suite passes on.
+// package definition. Delete this and the table below the day the snapshot
+// carries a Bun this suite passes on.
 // https://bun.sh/
 export const bun = '1.4.0'
 
-// SHA-256 of the archive that release publishes for `aarch64-linux`, the one
-// system the generated flakes target, as an SRI string.
+// The archive that release publishes for each system a generated flake targets,
+// with the SHA-256 its content must have, as an SRI string.
 //
-// Verified rather than copied: the artifact was downloaded and hashed, and the
-// result compared against the value an independent packaging of the same
-// release records. Recompute it the same way when the version above moves —
+// The names are not a free choice. The snapshot's packaging strips a directory
+// whose name it derives from the system — `bun-darwin-x64-baseline` for
+// `x86_64-darwin` — so each archive here is the one that recipe already
+// expects, which is why Intel macOS takes a baseline build rather than the
+// newer one beside it.
+//
+// Verified rather than copied: every archive was downloaded and hashed here,
+// and three of the four matched an independent packaging of the same release.
+// The fourth, Intel macOS, is one nothing else packages, so our own download is
+// its only source. Recompute them the same way when the version above moves —
 // `nix-prefetch-url` where Nix is available, otherwise a download and a
 // `sha256sum` re-encoded as base64.
-export const bunHash = 'sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4='
+/** @type {{ readonly [system: string]: { readonly archive: string, readonly hash: string } }} */
+export const bunSources = {
+    'aarch64-linux': {
+        archive: 'bun-linux-aarch64',
+        hash: 'sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=',
+    },
+    'x86_64-linux': {
+        archive: 'bun-linux-x64',
+        hash: 'sha256-LQP7X7g6yLVnrKCigbLOGhoZ1Ij1bClo2Iw/Jekv5FI=',
+    },
+    'aarch64-darwin': {
+        archive: 'bun-darwin-aarch64',
+        hash: 'sha256-xmnpf2Fk4cluBwF0jbmN+ndJKQjL2DlMdVcTSnNd44E=',
+    },
+    'x86_64-darwin': {
+        archive: 'bun-darwin-x64-baseline',
+        hash: 'sha256-2pufG0unZsbymXEfON+qmGI+HtnECJaqU9uAPFLsH6A=',
+    },
+}
 
 // The Deno version the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/by-name/de/deno/package.nix` at that commit. The job asserts the
@@ -61,7 +86,8 @@ export const deno = '2.8.3'
 // The Node versions the pinned Nixpkgs snapshot below provides — read from
 // `pkgs/development/web/nodejs/v{22,24,26}.nix` at that commit. They feed the
 // canonical jobs' flakes, which assert the version they actually get, as well
-// as the `setup-node` steps left in the platform matrix and `package-check`.
+// as every `setup-node` step: the platform matrix, `package-check`, and the
+// publishing workflow.
 // Nixpkgs usually trails nodejs.org, so bump the snapshot first and copy the
 // versions it offers rather than the latest release.
 // https://nodejs.org/en/download
@@ -69,6 +95,31 @@ export const node = /** @type {const} */({
     default: '26.7.0',
     node22: '22.23.2',
     node24: '24.19.0',
+})
+
+// The TypeScript this repository type-checks with, and the one `package-check`
+// installs from npm to check the declarations the packed tarball ships.
+//
+// `attribute` is the Nixpkgs attribute carrying it, and it is not `typescript`.
+// That one is the original compiler and the pinned snapshot has it at 5.9.3;
+// `typescript-go` is the Go implementation, at exactly the version below, with
+// `bin/tsc` symlinked to `tsgo` so the command every script already runs is the
+// command the shell provides. Both were read from
+// `pkgs/by-name/ty/typescript{,-go}/package.nix` at the commit pinned below.
+//
+// One version, two package managers, and that is the point of it being here.
+// npm resolves the platform binary for `package-check`, Nix builds it from
+// source for the shells; nothing in this generator picks a per-platform
+// artifact, because both tools already do. It is exact rather than a range in
+// both: `package-check` runs with no checkout, so a range there would let the
+// registry change the verdict with no change here.
+//
+// The two shells that carry it assert it from inside, since the attribute
+// names no version — the same tie `deno`, `wasmtime` and `wasmer` have.
+// https://github.com/microsoft/typescript-go
+export const typescript = /** @type {const} */({
+    version: '7.0.2',
+    attribute: 'typescript-go',
 })
 
 // The Rust the `wasm` job's flake provides, resolved by `rust-overlay` from

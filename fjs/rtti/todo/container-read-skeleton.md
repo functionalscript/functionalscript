@@ -133,7 +133,7 @@ of this issue.
 - [ ] Consolidate the read-order commentary on the shared skeleton; fix
       `../common/types.ts:2` vs `../common/module.f.mjs:5-8` to name the same
       consumer set.
-- [ ] `npx tsc`, `fjs t`; the acceptance tables in `../validate/proof.f.mjs`
+- [ ] `tsc`, `fjs t`; the acceptance tables in `../validate/proof.f.mjs`
       and `../host.proof.mjs` pass unchanged.
 
 ### Related

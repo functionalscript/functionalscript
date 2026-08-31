@@ -13,50 +13,52 @@
  * @module
  *
  * @import { MetaStep } from '../common/types.ts'
- * @import { NixJob } from '../nix/types.ts'
+ * @import { NixPin } from '../nix/types.ts'
  */
 
-import { bun, bunHash } from '../config/module.f.mjs'
-import { nixInstall, nixSteps, nixSystem, nixVersionStep } from '../nix/module.f.mjs'
+import { bun, bunSources } from '../config/module.f.mjs'
+import { nixInstall, nixShell, nixSteps, nixVersionStep } from '../nix/module.f.mjs'
+import { fromUndefined, unwrap as unwrapNullable } from '../../types/nullable/module.f.mjs'
 
 /** CI job id, and the directory name of its generated flake. */
 export const bunJobId = /** @type {const} */ ('bun')
 
 /**
- * The archive Bun publishes for the system the generated flakes target.
+ * The override the shared flake declares, over the systems it targets.
  *
- * The name carries that system — `aarch64-linux` is Bun's `linux-aarch64` —
- * so it is written beside `nixSystem` rather than derived from it: a job on
- * another runner needs another archive *and* another hash, and deriving the
- * first would leave the second silently wrong.
+ * It lives here rather than beside that flake because it is knowledge about
+ * Bun: which archive each system takes, and why Intel macOS takes a baseline
+ * build. `../dev/module.f.mjs` asks for it by name and stays free of all of
+ * that.
+ *
+ * The archive name and the hash travel together out of `../config/module.f.mjs`.
+ * Deriving the name from the system while looking the hash up separately is
+ * exactly how the two would come apart — and the names are not derivable
+ * anyway, since Intel macOS takes a baseline build the others do not.
+ *
+ * @type {(systems: readonly string[]) => NixPin}
  */
-const bunArchive = `https://github.com/oven-sh/bun/releases/download/bun-v${bun}/bun-linux-aarch64.zip`
+export const bunPin = systems => ({
+    package: 'bun',
+    version: bun,
+    sources: Object.fromEntries(systems.map(system => {
+        const { archive, hash } = unwrapNullable(fromUndefined(bunSources[system]))
+        return [
+            system,
+            {
+                url: `https://github.com/oven-sh/bun/releases/download/bun-v${bun}/${archive}.zip`,
+                hash,
+            },
+        ]
+    })),
+})
 
 /**
- * The job's development environment: the snapshot's `bun`, with its source
- * replaced by an exact upstream release.
+ * The migrated job: install Nix, check the Bun the shared flake provides, then
+ * this repository's dependencies and its suite, one step each.
  *
- * `packages` is empty because the pinned package is the whole shell — the
- * generator puts it there, and adding `bun` here as well would put the
- * snapshot's 1.3.13 on `PATH` beside the one this job exists to run.
- *
- * @type {NixJob}
- */
-export const bunNixJob = {
-    id: bunJobId,
-    system: nixSystem,
-    packages: [],
-    pin: {
-        package: 'bun',
-        version: bun,
-        url: bunArchive,
-        hash: bunHash,
-    },
-}
-
-/**
- * The migrated job: install Nix, check the Bun its flake provides, then this
- * repository's dependencies and its suite, one step each.
+ * Both commands name `bun`, so sharing a shell with the other jobs changes
+ * nothing about which runtime runs them.
  *
  * The version check earns more here than anywhere else. Every other job's check
  * confirms that a snapshot provides what the configuration claims; this one
@@ -78,8 +80,8 @@ export const bunNixJob = {
  */
 export const bunSteps = [
     nixInstall,
-    nixVersionStep(bunJobId, 'bun --version', bun),
-    ...nixSteps(bunJobId)([
+    nixVersionStep(nixShell, 'bun --version', bun),
+    ...nixSteps(nixShell)([
         'bun install --frozen-lockfile',
         'bun test --coverage',
     ]),

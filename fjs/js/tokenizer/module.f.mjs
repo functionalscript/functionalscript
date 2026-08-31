@@ -57,6 +57,7 @@ import {
     digitRange,
     digit0,
     colon,
+    semicolon,
     //
     hexDigitValue,
     //
@@ -105,6 +106,7 @@ const rangeSetTerminalForNumber = [
     one(comma),
     one(solidus),
     one(colon),
+    one(semicolon),
     one(lessThanSign),
     one(equalsSign),
     one(greaterThanSign),
@@ -138,6 +140,7 @@ const rangeOpStart = [
     one(fullStop),
     one(solidus),
     one(colon),
+    one(semicolon),
     one(lessThanSign),
     one(equalsSign),
     one(greaterThanSign),
@@ -295,6 +298,7 @@ const operatorEntries = [
     ['/', { kind: '/' }],
     ['/=', { kind: '/=' }],
     [':', { kind: ':' }],
+    [';', { kind: ';' }],
     ['<', { kind: '<' }],
     ['<<', { kind: '<<' }],
     ['<<=', { kind: '<<=' }],
