@@ -21,6 +21,9 @@
           "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
         },
         {
+          "run": "./nix/run npm ci"
+        },
+        {
           "run": "./nix/run cargo test"
         },
         {
@@ -48,6 +51,9 @@
         },
         {
           "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
+        },
+        {
+          "run": "./nix/run npm ci"
         },
         {
           "run": "./nix/run cargo test"
@@ -79,6 +85,9 @@
           "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
         },
         {
+          "run": "./nix/run npm ci"
+        },
+        {
           "run": "./nix/run cargo test"
         },
         {
@@ -106,6 +115,9 @@
         },
         {
           "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
+        },
+        {
+          "run": "./nix/run npm ci"
         },
         {
           "run": "./nix/run cargo test"

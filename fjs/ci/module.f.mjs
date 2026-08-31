@@ -74,10 +74,20 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
  * `./todo/built-package-checks.md` records: it tests a shipped release rather
  * than the commit under review. The two Windows jobs still run it.
  *
- * No `npm ci` either, for the reason the platform jobs already had none: the
- * tree declares no runtime dependency and one `devDependency` that is types, so
- * `node --test` runs the whole suite with no `node_modules` present at all.
- * `npm ci` stays in the three Node jobs, which type-check and pack.
+ * It does run `npm ci`, and that is a change from the shape these jobs had. The
+ * old one installed a published FunctionalScript globally and ran `fjs test`,
+ * which discovers proof modules by walking the tree and so needs nothing
+ * resolved. `node --test` is not that: it runs a project's test entry, and
+ * `../README.md` tells a consumer to write that entry as
+ * `import 'functionalscript/fjs/emergent_testing/all.test.mjs'` — a bare
+ * specifier, which resolves through `node_modules` or not at all. This
+ * repository would not have noticed, having no such file: its proofs live under
+ * `fjs/`, where `node --test` reaches them by path. A consumer's job would have
+ * failed on `ERR_MODULE_NOT_FOUND`.
+ *
+ * It adds no requirement a consumer did not already have — every canonical Node
+ * job runs `npm ci`, so a lockfile is table stakes for this generator — and it
+ * costs this repository one install of one `devDependency` that is types.
  *
  * The version check is worth more here than in any other job. These are the
  * only places the shell is built for a system other than `aarch64-linux`, so
@@ -90,6 +100,7 @@ const shellPlatformSteps = rust => [
     nixInstall,
     nixVersionStep(nixShell, 'node --version', `v${node.default}`),
     ...nixSteps(nixShell)([
+        'npm ci',
         ...(rust ? rustPlatformCommands : []),
         'node --test',
     ]),
@@ -113,16 +124,22 @@ const shellPlatformSteps = rust => [
 const injectedShell = /** @type {const} */ ('bash -e -c')
 
 /**
- * A command as one argument to something else, in POSIX single quotes.
+ * The variable an injected command travels in, rather than being quoted into
+ * the command line that runs it.
  *
- * `'` is the only character that cannot appear inside them, and the escape is
- * to leave, emit a backslashed quote, and re-enter — so a command containing
- * one comes out as `'echo '\''hi'\'''`. Nothing else needs touching, which is
- * what makes single quotes the right ones here.
+ * Quoting cannot be made correct here, and not for want of a better escape.
+ * GitHub substitutes `${{ … }}` into a step's `run` text *before* any shell
+ * reads it, so a substituted value lands inside whatever quotes the generator
+ * wrote: `echo "${{ matrix.name }}"` with a value of `O'Reilly` closes a
+ * single-quoted argument its author never opened. No escape applied at
+ * generation time can reach a value that does not exist yet.
  *
- * @type {(command: string) => string}
+ * A step's `env` is not shell source. GitHub substitutes into it the same way
+ * and sets the result as a value, so `"$FJS_CI_RUN"` expands to exactly the
+ * text the consumer wrote — one word, whatever it contains, newlines and quotes
+ * of either kind included. The quoting layer is removed rather than tightened.
  */
-const singleQuoted = command => `'${command.replaceAll("'", "'\\''")}'`
+const injectedRun = /** @type {const} */ ('FJS_CI_RUN')
 
 /**
  * An injected step, moved into the shared shell where the job's own commands
@@ -141,7 +158,9 @@ const singleQuoted = command => `'${command.replaceAll("'", "'\\''")}'`
  * program named `NODE_OPTIONS=x`, and would split `cd dir && node tool.mjs` at
  * the `&&`, running the first half in the shell and the second on the runner
  * with nothing said about it. A GitHub `run:` is a shell script, so it is
- * handed to {@link injectedShell}.
+ * handed to {@link injectedShell} — and reaches it through {@link injectedRun}
+ * rather than through quotes, so nothing GitHub substitutes into it is read
+ * back as source.
  *
  * **Position moves with it.** `toSteps` puts an `install` step before
  * `actions/checkout`, and the flake lives in that checkout, so a step there
@@ -159,9 +178,8 @@ const inShell = step =>
     step.type !== 'rust' && step.step.run !== undefined
         ? test({
             ...step.step,
-            run: nixDevelop(
-                nixShell,
-                `${injectedShell} ${singleQuoted(step.step.run)}`),
+            run: nixDevelop(nixShell, `${injectedShell} "$${injectedRun}"`),
+            env: { ...step.step.env, [injectedRun]: step.step.run },
         })
         : step
 

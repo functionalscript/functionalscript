@@ -202,9 +202,14 @@ runs this commit's suite instead: `npm install -g` writes to the read-only store
 from inside a shell, and the check was the one `deno` and `bun` already dropped
 because it tests a shipped release rather than the commit under review.
 
-None of them runs `npm ci`. The tree declares no runtime dependency and one
-`devDependency` that is types, so `node --test` runs the whole suite with no
-`node_modules` present.
+The four that moved run `npm ci` first. `fjs test` walked the tree for proof
+modules and resolved nothing; `node --test` runs a project's *test entry*, and
+the entry this README asks a consumer to write is
+`import 'functionalscript/fjs/emergent_testing/all.test.mjs'` — a bare
+specifier, which resolves through `node_modules` or not at all. This repository
+would never have shown the failure, having no such file: its proofs live under
+`fjs/`, where `node --test` reaches them by path. The two Windows jobs still run
+`fjs test` and still need no install.
 
 Every canonical job runs on Ubuntu ARM, and all but `package-check` through a
 flake:
@@ -413,9 +418,21 @@ inside the shared shell, alongside the job's own — these jobs no longer instal
 Node with `setup-node`, so a step left on the runner would find whatever the
 image ships rather than the release the job asserts:
 
-```sh
-./nix/run bash -e -c 'NODE_OPTIONS=--max-old-space-size=4096 node tool.mjs'
+```yaml
+- run: ./nix/run bash -e -c "$FJS_CI_RUN"
+  env:
+    FJS_CI_RUN: NODE_OPTIONS=--max-old-space-size=4096 node tool.mjs
 ```
+
+The command travels in `env` rather than in quotes on the command line, and that
+is not a style choice. GitHub substitutes `${{ … }}` into a step's `run` text
+before any shell reads it, so a substituted value lands inside whatever quotes
+the generator wrote — `echo "${{ matrix.name }}"` with a value of `O'Reilly`
+closes an argument its author never opened — and no escape applied at generation
+time can reach a value that does not exist yet. An `env` value is not shell
+source: GitHub substitutes into it the same way and sets the result, so
+`"$FJS_CI_RUN"` expands to exactly the text the consumer wrote, whatever it
+contains.
 
 Through a shell, because a GitHub `run:` is a shell script while the `run`
 script ends in `--command "$@"`, an argv. That distinction is invisible for this

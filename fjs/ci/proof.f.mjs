@@ -80,6 +80,32 @@ const hasRunInJob = (jobId, cmd) => gha =>
 const hasExactRunInJob = (jobId, cmd) => gha =>
     gha.jobs[jobId]?.steps.some(step => step.run === cmd) ?? false
 
+/**
+ * The line every injected command is run by. It names the interpreter and the
+ * variable and nothing else — the command itself is not in it, which is the
+ * property {@link hasInjected} exists to check.
+ */
+const injectedLine = `${runPath(nixShell)} bash -e -c "$FJS_CI_RUN"`
+
+/**
+ * An injected command as it reaches the shell: that one fixed line, and the
+ * command itself in the step's environment rather than quoted into it.
+ *
+ * @type {(jobId: string, cmd: string) => (gha: GitHubAction) => boolean}
+ */
+const hasInjected = (jobId, cmd) => gha =>
+    gha.jobs[jobId]?.steps.some(step =>
+        step.run === injectedLine && step.env?.['FJS_CI_RUN'] === cmd) ?? false
+
+/**
+ * An injected command present in a job at all, in either of the two shapes it
+ * can take. `allOs` asks reach with this; `inTheSameShell` asks which shape.
+ *
+ * @type {(jobId: string, cmd: string) => (gha: GitHubAction) => boolean}
+ */
+const carriesInjected = (jobId, cmd) => gha =>
+    hasInjected(jobId, cmd)(gha) || hasExactRunInJob(jobId, cmd)(gha)
+
 const makeState = (/** @type {boolean} */ rust, /** @type {string | undefined} */ packageJson) => ({
     ...emptyState,
     root: {
@@ -195,22 +221,32 @@ export const proof = {
         assert(hasRunInJob('node26', 'git add -A && git diff --cached --exit-code')(gha), 'expected Node 26 generated-file drift check')
         assert(!hasRun('npm publish --dry-run')(gha), 'unexpected npm publish dry-run')
         // `npm ci` belongs to the jobs that need what it installs, and to no
-        // others. The three Node jobs type-check, pack and run the suite under
-        // Node; `deno` and `bun` install through their own package managers.
-        for (const id of /** @type {const} */ (['node22', 'node24', 'node26'])) {
+        // others. The three Node jobs type-check, pack and run the suite; the
+        // four platform jobs that moved into the shared shell run the suite
+        // too. `deno` and `bun` install through their own package managers.
+        for (const id of /** @type {const} */ ([
+            'node22',
+            'node24',
+            'node26',
+            // The four platform jobs that run `node --test` need it too, and
+            // for a reason this repository cannot show: `node --test` runs a
+            // project's test entry, and `./README.md` tells a consumer to
+            // write that entry as a bare `functionalscript/…` import. Ours
+            // live under `fjs/`, reached by path, so the failure would only
+            // ever have appeared downstream.
+            'ubuntu-intel',
+            'ubuntu-arm',
+            'macos-intel',
+            'macos-arm',
+        ])) {
             assert(hasRunInJob(id, 'npm ci')(gha), `expected npm ci in ${id}`)
         }
         for (const id of /** @type {const} */ ([
             'deno',
             'bun',
-            // The six platform jobs run a *published* CLI against this tree,
-            // and the tree has nothing to install: no runtime dependency, and
-            // one `devDependency` that is types. `fjs/ci/node/proof.f.mjs`
-            // holds the builder to that; this holds the workflow to it.
-            'ubuntu-intel',
-            'ubuntu-arm',
-            'macos-intel',
-            'macos-arm',
+            // The two Windows jobs run a *published* CLI against this tree
+            // through `fjs test`, which walks the tree for proof modules and
+            // resolves nothing.
             'windows-intel',
             'windows-arm',
         ])) {
@@ -229,7 +265,7 @@ export const proof = {
             const gha = run(false, () => [test({ run: cmd })])
             for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
                 for (const a of /** @type {const} */ (['intel', 'arm'])) {
-                    assert(hasRunInJob(`${o}-${a}`, cmd)(gha), `missing extra step in ${o}-${a}`)
+                    assert(carriesInjected(`${o}-${a}`, cmd)(gha), `missing extra step in ${o}-${a}`)
                 }
             }
         },
@@ -248,7 +284,7 @@ export const proof = {
             for (const o of /** @type {const} */ (['ubuntu', 'macos'])) {
                 for (const a of /** @type {const} */ (['intel', 'arm'])) {
                     assert(
-                        hasExactRunInJob(`${o}-${a}`, `${runPath(nixShell)} bash -e -c '${cmd}'`)(gha),
+                        hasInjected(`${o}-${a}`, cmd)(gha),
                         `expected the extra step in the shell in ${o}-${a}`)
                 }
             }
@@ -270,7 +306,7 @@ export const proof = {
             ])) {
                 const gha = run(false, () => [test({ run: cmd })])
                 assert(
-                    hasExactRunInJob('ubuntu-arm', `${runPath(nixShell)} bash -e -c '${cmd}'`)(gha),
+                    hasInjected('ubuntu-arm', cmd)(gha),
                     `expected ${cmd} handed to a shell whole`)
             }
         },
@@ -286,9 +322,7 @@ export const proof = {
             const cmd = 'false; echo done'
             const gha = run(false, () => [test({ run: cmd })])
             assert(
-                hasExactRunInJob(
-                    'ubuntu-arm',
-                    `${runPath(nixShell)} bash -e -c '${cmd}'`)(gha),
+                hasInjected('ubuntu-arm', cmd)(gha),
                 'expected the runner\'s own interpreter and fail-fast flag')
             assert(
                 !hasRunInJob('ubuntu-arm', 'sh -c')(gha),
@@ -297,16 +331,34 @@ export const proof = {
                 !hasRunInJob('ubuntu-arm', 'pipefail')(gha),
                 'unexpected pipefail: the default shell does not set it')
         },
-        // The one character single quotes cannot contain. Leave, emit a
-        // backslashed quote, re-enter — so the command a shell reconstructs is
-        // the command that went in.
-        quotesSurvive: () => {
-            const gha = run(false, () => [test({ run: "echo 'hi'" })])
-            assert(
-                hasExactRunInJob(
-                    'ubuntu-arm',
-                    `${runPath(nixShell)} bash -e -c 'echo '\\''hi'\\'''`)(gha),
-                'expected an embedded quote escaped rather than closing the argument')
+        // The command never appears in the line that runs it, so there is no
+        // quoting for it to break out of.
+        //
+        // That is the whole point of the environment variable rather than a
+        // nicety of it. GitHub substitutes `${{ … }}` into a step's `run` text
+        // before any shell reads it, so a value substituted into a quoted
+        // argument can close it — `echo "${{ matrix.name }}"` with a value of
+        // `O'Reilly` — and no escape applied here can reach a value that does
+        // not exist yet. A `${{ … }}` in the command is therefore *expected*
+        // to pass through untouched: it is substituted into an `env` value,
+        // which is data.
+        //
+        // Three commands that would each have needed different escaping, and
+        // one line for all of them.
+        outsideTheQuoting: () => {
+            for (const cmd of /** @type {const} */ ([
+                "echo 'hi'",
+                'echo "${{ matrix.name }}"',
+                'printf %s\\n "a\\"b"',
+            ])) {
+                const gha = run(false, () => [test({ run: cmd })])
+                assert(
+                    hasInjected('ubuntu-arm', cmd)(gha),
+                    `expected ${cmd} carried as a value rather than as source`)
+                assert(
+                    !hasRunInJob('ubuntu-arm', cmd)(gha),
+                    `unexpected ${cmd} in a command line`)
+            }
         },
         // A step naming an action keeps its position and its shape: there is no
         // command to wrap, and `actions/cache` and its like want to run early.
@@ -324,7 +376,7 @@ export const proof = {
                 for (const a of /** @type {const} */ (['intel', 'arm'])) {
                     const id = `${o}-${a}`
                     assert(
-                        hasExactRunInJob(id, `${runPath(nixShell)} bash -e -c '${cmd}'`)(gha),
+                        hasInjected(id, cmd)(gha),
                         `expected the install command moved into the shell in ${id}`)
                     assert(
                         gha.jobs[id]?.steps.some(

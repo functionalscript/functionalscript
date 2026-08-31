@@ -22,7 +22,7 @@ export const architecture = /** @type {const} */ (['intel', 'arm'])
 // one here: `parseGitHubAction` reads back a workflow this repo generates, so
 // a key the schema does not name is generator drift rather than a field a
 // third party added. Reading a hand-written workflow — which carries `name`,
-// `if`, `env` and much else — would need `open`.
+// `if` and much else — would need `open`.
 
 // `continue-on-error` is admitted as the literal `true` rather than as a
 // boolean: `false` is the field's own default, so emitting it would say
@@ -34,6 +34,11 @@ export const stepSchema = /** @type {const} */ ({
     run: or(option, string),
     uses: or(option, string),
     with: or(option, record(string)),
+    // Environment for one step. The generator writes it in exactly one
+    // place: an injected command travels here rather than inside the quotes
+    // of the command that runs it, so a value GitHub substitutes into it is
+    // never read back as shell source. See `../module.f.mjs`'s `inShell`.
+    env: or(option, record(string)),
     'continue-on-error': or(option, true)
 })
 
