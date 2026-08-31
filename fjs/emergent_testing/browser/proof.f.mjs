@@ -13,10 +13,11 @@
  * @import { SandboxResult } from '../../effects/common/types.ts'
  * @import { Commands } from '../../effects/types.ts'
  * @import { _BrowserOp, _Rows } from './private.ts'
+ * @import { TestStatus, _BrowserTestResult } from '../types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { runProofs } from './module.f.mjs'
+import { reportOf, runProofs } from './module.f.mjs'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 
@@ -81,7 +82,49 @@ const failWith = value => () => ({ result: /** @type {const} */ (['error', value
 /** @type {() => unknown} */
 const fail = () => ({ result: /** @type {const} */ (['error', 'oops']), duration: 0 })
 
+/** @type {(status: TestStatus, duration: number) => _BrowserTestResult} */
+const leaf = (status, duration) => ({
+    module: 'a', path: '.x', name: 'import("a").proof.x()', status, duration,
+})
+
 export const proof = {
+    reportOf: {
+        // The status the results decide: any failure fails the run.
+        folds: () => {
+            const r = reportOf('a browser', 12, [leaf('passed', 1), leaf('failed', 2)], null)
+            assertEq(r.status, 'failed')
+            assertEq(r.totals.tests, 2)
+            assertEq(r.totals.passed, 1)
+            assertEq(r.totals.failed, 1)
+        },
+        allPassed: () => {
+            assertEq(reportOf('a browser', 0, [leaf('passed', 1)], null).status, 'passed')
+        },
+        // A run with no results at all passed: there was nothing to fail. The
+        // *reason* a suite is empty is a status the caller overrides with.
+        empty: () => {
+            const r = reportOf('a browser', 0, [], null)
+            assertEq(r.status, 'passed')
+            assertEq(r.totals.tests, 0)
+        },
+        // An override wins over the fold, which is the case it exists for: a
+        // run that never reached its leaves cannot say so through them.
+        overrideBeatsThePassingFold: () => {
+            const r = reportOf('a browser', 0, [leaf('passed', 1)], 'infrastructure-error')
+            assertEq(r.status, 'infrastructure-error')
+            // The results are still counted: totals that disagreed with
+            // `results` would read as an empty suite rather than a broken one.
+            assertEq(r.totals.tests, 1)
+            assertEq(r.totals.passed, 1)
+        },
+        // The two things only a host knows are carried through untouched, not
+        // derived: this function reads no clock and knows no browser.
+        carriesTheHostsFacts: () => {
+            const r = reportOf('Mozilla/5.0 (a fiction)', 12.5, [], null)
+            assertEq(r.browser, 'Mozilla/5.0 (a fiction)')
+            assertEq(r.duration, 12.5)
+        },
+    },
     // The ordinary run: one row per leaf, in order, and no runner failure.
     reportsEveryLeaf: () => {
         const [rows, answered] = working([])(runProofs([['a', { x: pass, y: fail }]]))
