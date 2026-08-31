@@ -19,7 +19,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { All, Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Import, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Module, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
+ * @import { All, Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -30,7 +30,7 @@ import { length } from '../../types/bit_vec/module.f.mjs'
 import { error as resultError, ok as resultOk, unwrap } from '../../types/result/module.f.mjs'
 import { do_, ioError, pure, toIoError } from '../module.f.mjs'
 import {
-    catch_, error, errorExit, log, read, readLine, sandbox, write,
+    catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
 import {
     mapStep as ioMapStep, pureError, pureOk, resultMapStep, resultStep, step as ioStep,
@@ -57,7 +57,7 @@ export { ioError, toIoError }
 // operation belongs to the layer of whoever implements it, and every one of
 // these has, or will have, a second implementer: a browser sandboxes, catches,
 // and writes.
-export { catch_, error, errorExit, log, read, readLine, sandbox, write }
+export { catch_, error, errorExit, import_, log, read, readLine, sandbox, write }
 
 /**
  * The host a {@link Listen} refuses.
@@ -362,9 +362,6 @@ export const listen = do_('listen')
 export const forever = do_('forever')
 
 // import
-
-/** @type {Func<Import>} */
-export const import_ = do_('import')
 
 // now
 

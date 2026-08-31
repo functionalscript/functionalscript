@@ -19,7 +19,8 @@ import type { List as EffectList } from '../../types/list/types.ts'
 import type { RequiredMap } from '../../types/object/types.ts'
 import type { Result } from '../../types/result/types.ts'
 import type { Vec } from '../../types/bit_vec/types.ts'
-import type { Effect, OpResult } from '../types.ts'
+import type { Effect, IoResult, OpResult } from '../types.ts'
+import type { StringMap } from '../../types/object/types.ts'
 
 /**
  * The outcome of a `Sandbox` operation.
@@ -88,6 +89,27 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxRes
  * a proxy trap in one of them is a failure of that test rather than of the run.
  */
 export type Catch = readonly['catch', <T>(f: () => T) => OpResult<Result<T, unknown>>]
+
+// import
+
+/** A loaded module: its exported names, as values. */
+export type Module = StringMap<unknown>
+
+/**
+ * Loads a module by path and answers its exports.
+ *
+ * Node resolves the path against the filesystem and a browser page resolves it
+ * against its own document, but *what the operation means* is one thing in both:
+ * hand back what that module exports, or say why it could not. Which is the
+ * criterion — an operation belongs to the layer of whoever implements it, and
+ * this one has two implementers.
+ *
+ * It answers an `IoResult` rather than an `OpResult` because loading genuinely
+ * fails: a module that will not parse, a path that resolves to nothing, a
+ * network that dropped. A caller that must report such a failure rather than
+ * die needs the reason as a value, which is what the error channel carries.
+ */
+export type Import = readonly['import', (path: string) => IoResult<Module>]
 
 // write
 

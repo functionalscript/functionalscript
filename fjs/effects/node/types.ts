@@ -16,8 +16,8 @@ import type {
 } from '../types.ts'
 import type { List } from '../list/types.ts'
 import type {
-    Catch, Console, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write, WriteConsoles,
-    _UtfList,
+    Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
+    WriteConsoles, _UtfList,
 } from '../common/types.ts'
 
 /**
@@ -31,16 +31,18 @@ import type {
 export type { IoChannel, IoError, IoErrorInfo, IoResult, OpResult }
 
 /**
- * The console family joins `Sandbox` and `Catch` in
+ * The console family joins `Sandbox`, `Catch` and `Import` in
  * [`../common`](../common/types.ts) —
  * they have a second implementer, and an operation belongs to the layer of
- * whoever implements it. They are re-exported here because `NodeOp` unions
+ * whoever implements it. A browser page loads modules too: its `import()`
+ * resolves against a document rather than a filesystem, which is the
+ * interpreter's business and not the operation's. They are re-exported here because `NodeOp` unions
  * them and dozens of signatures name them through this module; that makes this
  * a live coupling rather than a shim.
  */
 export type {
-    Catch, Console, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write, WriteConsoles,
-    _UtfList,
+    Catch, Console, Import, Module, Read, ReadConsoles, Sandbox, SandboxResult, Std, Write,
+    WriteConsoles, _UtfList,
 }
 
 // all
@@ -242,10 +244,6 @@ export type Http = CreateServer | Listen
 export type Forever = ['forever', () => OpResult<never>]
 
 // import
-
-export type Module = StringMap<unknown>
-
-export type Import = ['import', (path: string) => IoResult<Module>]
 
 // now
 
