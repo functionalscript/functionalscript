@@ -2,6 +2,9 @@ use std::ops::{Mul, Neg, Sub};
 
 use crate::vm::{Any, BigInt, IVm, Unpacked};
 
+const CANNOT_MIX_NUMBER_AND_BIGINT: &str =
+    "TypeError: Cannot mix BigInt and other types, use explicit conversions";
+
 /// <https://tc39.es/ecma262/#sec-tonumeric>
 /// Represents ECMAScript numeric types, i.e. `Number` or `BigInt`, as defined by ToNumeric.
 #[allow(dead_code)]
@@ -38,7 +41,7 @@ impl<A: IVm> Mul for Numeric<A> {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a * b),
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a * b),
-            _ => return Err("TODO: Cannot multiply Number and BigInt".into()),
+            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
         })
     }
 }
@@ -50,7 +53,7 @@ impl<A: IVm> Sub for Numeric<A> {
         Ok(match (self, rhs) {
             (Numeric::Number(a), Numeric::Number(b)) => Numeric::Number(a - b),
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a - b),
-            _ => return Err("TODO: Cannot subtract Number and BigInt".into()),
+            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
         })
     }
 }

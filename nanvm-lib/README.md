@@ -11,7 +11,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | Operator | Description         | `Any<A>` | Notes |
 |----------|---------------------|----------|-------|
 | `+`      | Addition / concat   | [x]      | [`any/add.rs`](src/vm/any/add.rs) — delegates to `Unpacked`; handles `number`, `string`, `bigint` |
-| `-`      | Subtraction         | [x]      | [`any/sub.rs`](src/vm/any/sub.rs) — delegates to `Numeric`; handles `number`, `bigint` |
+| `-`      | Subtraction         | [x]      | [`any/sub.rs`](src/vm/any/sub.rs) — `ToNumeric` coercion; rejects mixed `number`/`bigint` |
 | `*`      | Multiplication      | [x]      | [`impls/mul.rs`](src/vm/impls/mul.rs) → `Numeric * Numeric` |
 | `/`      | Division            | [ ]      | |
 | `%`      | Remainder           | [ ]      | |
