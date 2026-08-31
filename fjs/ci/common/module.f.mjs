@@ -22,7 +22,7 @@ export const architecture = /** @type {const} */ (['intel', 'arm'])
 // one here: `parseGitHubAction` reads back a workflow this repo generates, so
 // a key the schema does not name is generator drift rather than a field a
 // third party added. Reading a hand-written workflow — which carries `name`,
-// `if`, `env` and much else — would need `open`.
+// `if` and much else — would need `open`.
 
 // `continue-on-error` is admitted as the literal `true` rather than as a
 // boolean: `false` is the field's own default, so emitting it would say
@@ -34,6 +34,11 @@ export const stepSchema = /** @type {const} */ ({
     run: or(option, string),
     uses: or(option, string),
     with: or(option, record(string)),
+    // Environment for one step. The generator writes it in exactly one
+    // place: an injected command travels here rather than inside the quotes
+    // of the command that runs it, so a value GitHub substitutes into it is
+    // never read back as shell source. See `../module.f.mjs`'s `inShell`.
+    env: or(option, record(string)),
     'continue-on-error': or(option, true)
 })
 
@@ -83,12 +88,9 @@ export const test = step => ({ type: 'test', step })
 export const toSteps = m => {
     /** @type {(st: StepType) => Step[]} */
     const filter = st => m.flatMap(mt => mt.type === st ? [mt.step] : [])
-    const aptGet = m.flatMap(v => v.type === 'apt-get' ? [v.package] : []).join(' ')
-
     const needRust = m.find(v => v.type === 'rust') !== undefined
     const targets = m.flatMap(v => v.type === 'rust' && v.target !== undefined ? [v.target] : []).join(',')
     return [
-        ...(aptGet !== '' ? [{ run: `sudo apt-get update && sudo apt-get install -y ${aptGet}` }] : []),
         ...(needRust ? [uses('dtolnay/rust-toolchain', {
             components: 'rustfmt,clippy',
             ...(targets === '' ? {} : { targets }),

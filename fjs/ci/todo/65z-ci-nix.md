@@ -20,9 +20,13 @@ records that action version; its `deno` pin now names what the snapshot provides
 list.
 
 Separately from Nix, `deno` and `bun` both stopped installing and running a published
-`functionalscript`; the platform matrix is the only family that still does. That is
-[built-package-checks](built-package-checks.md)'s subject, not this issue's, but it is
-why those two jobs are shorter than the migration alone would leave them.
+`functionalscript`, and the three platform jobs that moved into the shared shell
+went the same way — `npm install -g` writes to the read-only store from inside a
+shell, and the check tests a shipped release rather than the commit under review.
+`ubuntu-intel` and the two Windows jobs still run it, so it survives on three
+images rather than six. That is [built-package-checks](built-package-checks.md)'s
+subject, not this issue's, but it is why those jobs are shorter than the
+migration alone would leave them.
 
 Deno brought one thing the Node jobs did not: `pkgs.deno` carries no version, so the
 proof that ties `nodejs_24` to the configured Node has no counterpart for it. Its CI
@@ -154,13 +158,16 @@ developer reaches the shell through WSL2 or works the way this repository has
 always supported natively — nothing here requires Nix.
 
 There is no `dev` CI job. There was one, and its only reason was that nothing
-else evaluated this flake; four jobs entering it on every pull request answers
+else evaluated this flake; eight jobs entering it on every pull request answers
 that better than one job asserting six versions. Between them they still assert
 all six — `node` and `tsc` from `node26`, `deno` from `deno`, `bun` from `bun`,
 both WASM runtimes from `wasm`.
 
-Those jobs run on one runner, so one of the four shells is built for real; the
-other three are pinned as text and no further.
+And all four shells are now built for real, which was not true when this was
+written. The canonical jobs run on one runner, so they only ever exercised
+`aarch64-linux`; the four platform jobs that joined cover `x86_64-linux` and
+both Darwin systems, each asserting the Node its shell provides before running
+anything.
 
 One consequence for a project that is not this one: `nixJobs` is a list rather
 than a function of the project, so a project without a `Cargo.toml` gets no
@@ -182,10 +189,50 @@ which side of the line it falls on.
   putting the repository back. Its Node comes from `setup-node`, and the version it
   names is the one `node26`'s flake already checks.
 
-The platform matrix — `{ubuntu,macos,windows}-{intel,arm}` — is out of scope for a
-related reason. Those six jobs exist to run on stock GitHub runner images across
-three operating systems and two architectures, so a flake would replace the thing
-they measure; four of the six are not `aarch64-linux` at all.
+Two of the six platform jobs are here too, and for one reason: **Nix does not
+run natively on Windows**. `windows-intel` and `windows-arm` keep the runner's
+toolchain, and are the last jobs in the workflow that install one.
+
+The other four — `ubuntu-intel`, `ubuntu-arm`, `macos-intel`, `macos-arm` —
+moved into the shared shell, all of them, so the matrix differs by platform and
+by nothing else. They are also what makes `devSystems` mean anything: they are
+the only place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells
+are built rather than pinned as text.
+
+32-bit Linux became a **job of its own**, `ubuntu-intel32`, with a flake of its
+own. Its linker is `pkgsi686Linux.stdenv.cc`, and on every system the shared
+shell serves except `x86_64-linux` that package set is marked broken — so
+folding it in would break `nix develop ./nix` on both macOS systems and on ARM
+Linux. Splitting the *job* rather than giving `ubuntu-intel` two shells keeps
+the one-shell-per-job property `../proof.f.mjs`'s `nixCoverage` asserts, lets
+the two run in parallel, and makes a red result name 32-bit Linux rather than
+one of nine things.
+That replaced `apt-get install libc6-dev-i386` rather than joining it: the Nix
+cc-wrapper keeps `/usr/include` and `/usr/lib` off its search paths, so a libc
+from the runner's package manager is invisible to the compiler `cargo` invokes.
+
+The linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for* `i686-linux`.
+**`gcc_multi` was tried first and does not work**, which is worth keeping
+because it is the obvious answer. It finds every 32-bit file correctly —
+`glibc_multi`'s `lib/32/Scrt1.o`, gcc's `32/crtbeginS.o` — and the link still
+fails with every object *"incompatible with elf64-x86-64"*, because the wrapper
+is a 64-bit wrapper whose bintools inject `-m elf_x86_64`, outliving gcc's own
+`-m32`. A wrapper that *is* i686 has no such flag to inject.
+
+Its `shellHook` names that linker outright — `CARGO_TARGET_..._LINKER` — rather
+than trusting `PATH`, because `stdenv`'s own `cc` is added to `PATH` before
+`packages` and `addToSearchPath` appends. Naming a store path is what made
+`indented-string` take parts: a `_Reference` part interpolates, a `string` part
+is escaped. Interpolating the derivation is also what puts it in the closure, so
+it needs no `packages` entry — and should not have one, since a 32-bit `cc` on
+`PATH` would shadow the host one the untargeted `cargo test` needs.
+
+What that cost is worth naming. Those jobs used to measure a stock runner image,
+and now measure a pinned toolchain running *on* one. The distinction is smaller
+than it sounds — `dtolnay/rust-toolchain` and `setup-node` were already pinned to
+the same versions — but the system libraries a Nix build links against are Nix's,
+so "builds with the distro's toolchain" is no longer something CI says. Windows
+and `ubuntu-intel` still say it.
 
 What remains here is the Nixpkgs update command and removing stale generated
 directories, which waits on a recursive `rm` effect — the four directories this
@@ -325,11 +372,12 @@ system-selection framework.
 Node 22, Node 24, Node 26 and `deno` remain separate because they use different
 runtimes and run different command sequences.
 
-No job declares a `shellHook`. The generator still emits one — a job needing environment
-set up on shell entry can declare it, and `fjs/ci/nix/proof.f.mjs` holds that capability
-to its shape — but Node 22's, which existed for a global install the job no longer makes,
-is gone. Do not generalize this into a shell-configuration framework unless a surviving
-job proves that abstraction useful.
+One job declares a `shellHook`: `ubuntu-intel32`, pointing `cargo` at
+`pkgsi686Linux.stdenv.cc`. Node 22's, which existed for a global install the job no
+longer makes, is gone. So the capability has exactly one user, and it is the kind the
+field was for — a store path that cannot be written as text, resolved on entry. Do not
+generalize this into a shell-configuration framework unless a second job proves that
+abstraction useful.
 
 #### Nixpkgs update
 
