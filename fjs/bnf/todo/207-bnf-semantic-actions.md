@@ -33,6 +33,12 @@
 > already has. That is a breaking change to `ll1`'s public types with no caller
 > outside its own proofs, and it deletes two workarounds that exist only because
 > the two backends disagreed about their leaf (§7).
+>
+> **The three decisions that gated implementation are made.** Refusal is an
+> engine-level channel, each map entry declares its child shape as data, and
+> silent children are a combinator's job rather than a protocol change. Each was
+> settled by writing §10's worked map both ways and compiling it; the evidence
+> is in Tasks, stage 0.
 
 ### Problem
 
@@ -83,16 +89,21 @@ channel `M` alongside the value:
 ```ts
 type Meta<T, M> = readonly[T, M]
 type Branch<C> = { readonly [K in keyof C]: readonly[K, C[K]] }[keyof C]
+type Out<T, M> = Result<Meta<T, M>, string>   // the refusal channel — §6
 
-type TerminalTransformer<M, T> = (v: Meta<L, M>) => Meta<T, M>
-type SequenceTransformer<M, C extends readonly unknown[], T> = (v: Meta<C, M>) => Meta<T, M>
-type VariantTransformer<M, C, T> = (v: Meta<Branch<C>, M>) => Meta<T, M>
+type TerminalTransformer<M, T> = (v: Meta<L, M>) => Out<T, M>
+type SequenceTransformer<M, C extends readonly unknown[], T> = (v: Meta<C, M>) => Out<T, M>
+type VariantTransformer<M, C, T> = (v: Meta<Branch<C>, M>) => Out<T, M>
 type RepeatTransformer<M, C, S, T> = {
     readonly init: S
     readonly update: (state: S, c: Meta<C, M>) => S
-    readonly end: (state: S) => Meta<T, M>
+    readonly end: (state: S) => Out<T, M>
 }
 ```
+
+Every kind returns `Out<T, M>`: a value with its metadata, or a **refusal**.
+That is the engine-level refusal channel of §6, and an author who never refuses
+never writes it — the §9 helpers wrap in `ok`.
 
 - **`TerminalTransformer`** receives the one symbol the rule matched, with its
   metadata. `L` is the alphabet's *symbol* — `CodePoint` today, generic after
@@ -104,9 +115,12 @@ type RepeatTransformer<M, C, S, T> = {
 - **`SequenceTransformer`** receives its children as a **typed tuple**. A
   `Sequence`'s arity is fixed and known from the `RuleSet`, so there is nothing
   to stream and no state to keep — the engine collects the items and calls once.
+  The arity is also declared to the map as data, so construction can compare it
+  against the rule's (§5, §9).
 - **`VariantTransformer`** receives the branch name paired with that branch's
   value, and `C` is a record from branch name to value type, so `Branch<C>`
-  narrows: matching on the name narrows the value.
+  narrows: matching on the name narrows the value. The branch names are
+  likewise declared as data and checked against the rule's.
 - **`RepeatTransformer`** is the only kind that keeps state, because a
   repetition is the only kind whose size the grammar does not bound. It is the
   `init`/`update`/`end` fold-as-data this repository already ships (§12) —
@@ -201,9 +215,15 @@ Two invariants the engine owes the author, both checkable:
 | `Repeat`, zero rounds | `init` then `end` — no `update`                            |
 
 Each `cᵢ` and each `item` is the child's *transformed* value where it has a
-transformer and its AST node where it does not (§3). There is no `Result` in
-that channel and nothing to unwrap: a transformer returns `Meta<T, M>` and the
-parent receives the `T` (§6).
+transformer and its AST node where it does not (§3).
+
+**The `Result` is the engine's, not the child channel's.** A transformer returns
+`Result<Meta<T, M>, string>` and the engine eliminates it before the parent sees
+anything: an `ok` is unwrapped, so a child arrives as `T` and not `['ok', T]`;
+an `error` never reaches the parent at all, because the parent is not called —
+the refusal takes the place of the whole invocation (§6). So no transformer ever
+matches on a child's `Result`, and both backends owe the same event stream. That
+is why §10's callbacks destructure `xs` rather than `['ok', xs]`.
 
 **A terminal that consumed the synthesized end-of-input symbol has no source
 element**, so there is nothing to attach metadata to and no leaf in the AST —
@@ -238,18 +258,18 @@ it. One per kind, which is itself the clearest statement of what the kinds are:
 
 ```ts
 const terminal: TerminalTransformer<M, Ast<unknown>> =
-    v => [{ tag: undefined, sequence: v[0] === EOF ? [] : [v] }, v[1]]
+    v => ok([{ tag: undefined, sequence: v[0] === EOF ? [] : [v] }, v[1]])
 
 const sequence: SequenceTransformer<M, readonly unknown[], Ast<unknown>> =
-    ([items, m]) => [{ tag: undefined, sequence: items }, m]
+    ([items, m]) => ok([{ tag: undefined, sequence: items }, m])
 
 const variant: VariantTransformer<M, StringMap<unknown>, Ast<unknown>> =
-    ([[tag, value], m]) => [{ tag, sequence: [value] }, m]
+    ([[tag, value], m]) => ok([{ tag, sequence: [value] }, m])
 
 const repeat = (m: Monoid<M>): RepeatTransformer<M, unknown, _Rounds, Ast<unknown>> => ({
     init: [null, m.identity],
     update: ([items, acc], [item, im]) => [concat(items)([item]), m.operation(acc)(im)],
-    end: ([items, acc]) => [{ tag: undefined, sequence: toArray(items) }, acc],
+    end: ([items, acc]) => ok([{ tag: undefined, sequence: toArray(items) }, acc]),
 })
 type _Rounds = readonly[List<unknown>, M]
 ```
@@ -259,8 +279,9 @@ transformed, so what a node holds is no longer only nodes and leaves. A
 repetition accumulates as a `List`, which is also a small improvement on today's
 sequence frame — that one spreads an array per item.
 
-Three details of these four are the contract rather than the implementation's
-choice.
+None of the four ever refuses — the AST is what a rule builds when nobody said
+otherwise, so an unmapped rule cannot fail semantically. Three further details
+are the contract rather than the implementation's choice.
 
 `terminal` stores the **whole leaf**, `v`, not the symbol `v[0]`. The AST is
 `Ast<Meta<L, M>>` now that both backends carry metadata (§7), so a default that
@@ -448,15 +469,16 @@ results are typed to the AST — `DescentMatchResult.ast` and `ll1`'s
 parse needs its own entry point and its own result:
 
 ```ts
-// the erased upper bound: tagged by rule kind, so construction can check all four
+// the erased upper bound: tagged by rule kind, and carrying the child shape the
+// author declared, so construction can check both against the `RuleSet`
 type Transformer<M, T> =
     | readonly['terminal', TerminalTransformer<M, T>]
-    | readonly['sequence', SequenceTransformer<M, never, T>]
-    | readonly['variant', VariantTransformer<M, never, T>]
-    | readonly['repeat', {
+    | readonly['sequence', number, SequenceTransformer<M, never, T>]
+    | readonly['variant', readonly string[], VariantTransformer<M, never, T>]
+    | readonly['repeat', string, {
         readonly init: unknown
         readonly update: (state: never, c: Meta<never, M>) => unknown
-        readonly end: (state: never) => Meta<T, M> }]
+        readonly end: (state: never) => Out<T, M> }]
     | readonly['unit']
 type TransformerMap<M> = StringMap<Transformer<M, unknown>>
 
@@ -464,7 +486,8 @@ type TransformerMap<M> = StringMap<Transformer<M, unknown>>
 // shared leaf now, the same one `descent` takes (§7).
 type Leaf<M> = Meta<CodePoint, M>
 type TransformMatchResult<T, M> =
-    | readonly['ok', Meta<T, M>, readonly Leaf<M>[]]  // matched and finished
+    | readonly['ok', Meta<T, M>, readonly Leaf<M>[]]  // matched, finished, nothing refused
+    | readonly['refused', Refusal, readonly Leaf<M>[]]  // a transformer said no (§6)
     | readonly['no-match', Remainder<M>]     // rejected, or the input ran out (`null`)
 
 type TransformMatch<T, M> = (s: readonly Leaf<M>[]) => TransformMatchResult<T, M>
@@ -508,7 +531,17 @@ a callback expecting a leaf. The tag is written by the §9 helpers, never by
 hand, and it makes the kind visible exactly where the `RuleSet` is available to
 compare it against.
 
-**Four things are resolved when the parser is built**, all O(rules) and none of
+**The child shape rides beside it, for the same reason.** `C` is a type
+parameter and is erased, so a sequence's arity and a variant's branch names
+would otherwise reach no check at all — an author's claim that a grammar change
+could silently invalidate (§8). Each entry now carries it as data: a sequence's
+arity, a variant's branch names, a repetition's repeated-rule name. The §9
+helpers take it, and the type system makes it self-checking rather than a second
+thing to keep in step — `seq`'s parameter is typed `C['length']`, so a `3` beside
+a four-slot tuple is a compile error, and `variant`'s is `keyof C & string`, so a
+name absent from the branch record is one too.
+
+**Five things are resolved when the parser is built**, all O(rules) and none of
 them able to be incomplete:
 
 - **Every map key names a rule.** This catches the failure that actually happens
@@ -518,10 +551,17 @@ them able to be incomplete:
   `RuleSet`'s kind, all four ways — `unit` excepted, which matches any kind
   because it reads nothing. This is a *construction*-time check and not a
   type-level one, and it cannot be otherwise: the map's type does not know the
-  `RuleSet`, so `character: terminal(…)` for a variant rule type-checks
+  `RuleSet`, so a terminal transformer supplied for a variant rule type-checks
   perfectly and is caught only here. The uniform protocol of the earlier draft
   could not catch it at all, at either time, because one shape fits every rule
   by definition (§1).
+- **Every entry's declared child shape agrees with its rule's.** A sequence's
+  arity against the rule's item count, a variant's branch names against the
+  rule's branch set — in both directions, so a branch the grammar has and the
+  map forgot fails here too — and a repetition's repeated-rule name against the
+  rule's. This is what closes the gap §8 used to end on: a grammar edit that
+  invalidates a map now fails at construction instead of calling a callback with
+  a shape it did not expect.
 - **`start` resolves.** `K extends string` accepts any name — it has to, since a
   start rule the map does not transform is legal (`_Output` gives it `unknown`)
   — so nothing in the type stops a typo. The builder resolves `start` against
@@ -549,12 +589,20 @@ stopped, or `null` for input that ended first.
 
 **That is why the result is a tagged union rather than a tuple with a boolean.**
 A `[value, success, remainder]` tuple mirroring `MatchResult` can spell states
-this design forbids — a value beside a `null` remainder — and a type that admits
-what the contract rules out has to be explained twice and checked by hand. Here
-each state carries exactly what it has: only `ok` carries a value, and only `ok`
-promises a non-`null` remainder, because a parse that ran out of input has
-neither. It reads as `Result` does elsewhere in the repository, so nothing new
-is invented, and `parserRuleSet`'s own `MatchResult` is untouched.
+this design forbids — a refusal beside `success: false`, a value beside a `null`
+remainder — and a type that admits what the contract rules out has to be
+explained twice and checked by hand. Here each state carries exactly what it
+has: only `ok` carries a value, and `ok` and `refused` alike promise a
+non-`null` remainder, because both mean the *grammar* matched and finished. It
+reads as `Result` does elsewhere in the repository, so nothing new is invented,
+and `parserRuleSet`'s own `MatchResult` is untouched.
+
+`refused` carries a physical remainder for the same reason `ok` does: it can
+only happen after the matched rule finished and ran its transformer, and a parse
+that ran out of input mid-rule never reaches one at all — that is `no-match`
+with a `null` remainder. Using `Remainder<M>` there would re-admit
+`['refused', reason, null]`, which is precisely the contradiction this union
+exists to rule out.
 
 The root's `M` comes out with its value, which is the whole metadata channel
 arriving where a caller can use it: the merged span of the document, or whatever
@@ -569,7 +617,7 @@ because both carry metadata (§7). What stays each machine's own is how it
 reports where it stopped. `fjs/bnf/descent` returns
 `{ ast, success, idx, failure? }` rather than a remainder tuple — its
 furthest-failure record is the reason that backend's result is an object — and
-its transforming entry keeps all of that, replacing `ast` with the same two
+its transforming entry keeps all of that, replacing `ast` with the same three
 outcomes. Two backends, one input type, two result types, one protocol: the
 split [`../matcher/README.md`](../matcher/README.md) already draws between what
 is shared and what is each machine's own, with the leaf moving from the second
@@ -622,49 +670,74 @@ cannot destructure a position its rule does not have. What is left to the
 contract is what the types still cannot say — that a truncated sequence never
 reaches a transformer at all (§5).
 
-**Refusal is not a channel in the protocol.** The four signatures return
-`Meta<T, M>` and nothing else: there is no `Result` for a transformer to refuse
-through. A rule that must reject a value it can parse but cannot represent —
-`1e999`, a duplicate `__proto__` key, an unresolved `const`, everything
+**Refusal is a channel, and it is the engine's.** Every kind returns
+`Out<T, M>` = `Result<Meta<T, M>, string>` (§1), so a rule that must reject a
+value it can parse but cannot represent — `1e999`, a duplicate `__proto__` key,
+an unresolved `const`, everything
 [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) says to
-refuse rather than answer with a plausible value — does it by making `Result`
-part of its **own** `T`. A rule that can overflow declares
-`Result<number, string>` as its value,
-its parent's child type says so, and the parent decides whether to propagate or
-handle it.
+refuse rather than answer with a plausible value — returns an `error` and stops
+there.
 
-That is a real simplification rather than a deletion, because it makes the
-guarantee this issue most needed hold by construction:
+**The alternative was tried and measured.** An earlier revision put the error in
+the transformer's own `T` and gave the protocol no channel at all — a refusing
+rule declared `Result<number, string>` as its value and every ancestor dealt
+with it. That is elegant on paper and expensive in fact: written out against
+§10's twelve-rule grammar, one refusing rule put a `Result` into six of the
+eleven others, forced the list-building rule to sequence its children with an
+`allOk` that needed explicit type arguments, forced an empty branch to return
+`ok([])` so its variant's arms agreed, and introduced two type aliases that
+existed only to name the plumbing. The engine channel deletes all of it: §10's
+map now differs from the no-refusal version in exactly one entry.
 
-**A refusal never changes what the grammar accepts** — and with the refusal
-inside `T`, there is no longer any mechanism by which it could. Aborting the
-parse at the refusing rule would have been wrong, and `descent` is where it
-shows: a child can succeed and run its transformer inside a branch that a
-*later* item then fails, so the parser moves on to another alternative. Try
-`[specialNumber, 'x']` before `[plainText, 'y']` on an input ending in `y`: if
-`specialNumber` refuses, aborting rejects an input the grammar accepts, and
-which inputs parse becomes branch-order dependent. `ll1` needs the same answer
-for a reason of its own — a refusal is not final even where nothing can be
-abandoned, because a later sibling can still fail syntactically, and then the
-honest answer is a syntax failure with no value (§5), not a semantic error about
-a parse that never happened. Both are now non-questions: an error is a value, it
-travels up as any value does, and a branch the parser abandons drops it with
-everything else it produced.
+**What a refusal carries is split between the two who know something.** A
+transformer returns a `string`: the reason, which is the only part it knows —
+it has no idea what it is called or where in the input it ran. The engine knows
+both, and attaches them, so what reaches the caller is structured:
 
-**What it costs is the diagnostic the engine used to attach.** An earlier draft
-had `end` return `Result<T, string>` and the engine complete it into
-`{ rule, at, message }`, because a transformer knows only the reason — not what
-it is called or where in the input it ran. With refusal in `T`, that completion
-has nowhere to happen, and the position has to come from `M` instead. This is
-the concrete reason `M` matters even for a grammar that wants no metadata for
-its own sake: a grammar whose transformers refuse should carry positions in `M`,
-and one that does not can only report *what* went wrong, not *where*.
+```ts
+type Refusal = {
+    readonly rule: string     // the data-`RuleSet` name whose transformer refused
+    readonly at: number       // the physical index its invocation ended at
+    readonly message: string  // what the transformer said
+}
+```
 
-That trade is what the signatures say, and it is the one part of the redesign
-not yet confirmed — see the open question. The alternative is to wrap the return
-as `Result<Meta<T, M>, Refusal>` in all four kinds, restoring `refused` to §5's
-result at the cost of a channel every rule pays for and a second error union
-beside the one a transformer's `T` can already carry.
+That is the `refused` payload of §5's result. The alternative — a bare `string`
+all the way out — would make a semantic refusal the *least* diagnosable outcome
+a parse has, next to a syntactic failure that already reports a position and an
+expected set. It also means a grammar gets refusal positions **without** having
+to carry them in `M`: the engine has the cursor. `M` remains free for what only
+the layer below knows (§7).
+
+**A refusal never changes what the grammar accepts.** Aborting the parse at the
+refusing rule would be wrong, and `descent` is where it shows: a child can
+succeed and run its transformer inside a branch that a *later* item then fails,
+so the parser moves on to another alternative. Try `[specialNumber, 'x']` before
+`[plainText, 'y']` on an input ending in `y`: if `specialNumber` refuses,
+aborting rejects an input the grammar accepts, and which inputs parse becomes
+branch-order dependent. Restricting transformers to non-speculative rules is the
+other way out, and it is worse — it would make the protocol mean something
+different on each backend.
+
+So a refusal is a **value**. The refusing invocation's result is the error; it
+takes the place of that invocation's value, the enclosing rule is not called,
+and it travels up the spine unchanged, so the first refusal is the one reported.
+Matching continues exactly as it would have, and a branch the parser abandons
+drops its refusal like any other value it produced.
+
+**`ll1` needs this rule too, for a reason of its own.** It is not merely
+inheriting a constraint from the backtracking backend: a refusal is not final
+when it happens even where nothing can be abandoned, because a *later sibling
+can still fail syntactically*. Match `[specialNumber, 'x']` on input where
+`specialNumber` matches, its transformer refuses, and the next symbol is not
+`x`: the sequence does not match, so the honest answer is a syntax failure with
+no value (§5), not a semantic error about a parse that never happened. Carrying
+the refusal as a value gets both right — it is discarded with everything else
+the failed match produced.
+
+An author who wants a refusal to be an ordinary value rather than an outcome can
+still put `Result` in their own `T`; nothing prevents it. What changed is that
+they no longer *must*.
 
 #### 7. Metadata: both backends carry it
 
@@ -743,18 +816,12 @@ DJS's shipped `TokenMetadata` is worth checking against that, because it is a
 defined". That is associative with a two-sided identity, and it gives every rule
 the position of its first symbol.
 
-**That position is a refusal's, but only if the refusing rule captures it.** A
-refusing transformer has its own merged `M` in hand, which under this monoid is
-where its rule started — so it can put that position *into the error value* it
-returns (§6). What it cannot do is leave the position on the channel and expect
-an ancestor to recover it: by then the `M` a parent sees is the merge of *its*
-children, which under "leftmost" is the parent's own start, and a tuple with two
-refusing slots has no way to tell them apart at all. So the rule is capture at
-the point of refusal, and it is a constraint on how a refusing transformer is
-written rather than something the channel does for it. This is the diagnostic
-the engine used to attach, moved to the only place that still knows the
-answer — and it is a cost of the refusal decision, not a free consequence of
-having `M`.
+**Refusal positions are *not* what this is for**, and that is a change from an
+earlier revision. With the engine-level refusal channel (§6) the engine attaches
+`{ rule, at, message }` from its own cursor, so a grammar does not have to carry
+positions in `M` to get diagnosable refusals. `M` is free for what only the
+layer below knows — a token's payload, a lexeme, a range a caller wants for its
+own reasons.
 
 **One `M`, and a payload coexists with a mergeable field inside it.** The
 obvious worry is that these are two different things: a tokenizer's decoded
@@ -850,30 +917,29 @@ a sequence transformer declares its children as a tuple and a variant
 transformer as a record of branches; the callback destructures them and each
 child arrives at its declared type.
 
-**What is *not* checked, and it is worth being exact about it.** `C` is a type
-parameter, so it is erased: neither a sequence's tuple nor a variant's record of
-branches survives to construction, and nothing compares either against the
-`RuleSet`. A `C` with the wrong arity, two positions transposed, or a branch
-name the grammar does not have still compiles and still builds a parser. So `C`
-is the author's claim about the grammar, exactly as the old per-callback
-annotation was.
+**`C` is erased, so the map carries the shape as data too.** A type parameter
+does not survive to runtime, so a sequence's tuple and a variant's record of
+branches reach no construction check on their own: a `C` with the wrong arity,
+two positions transposed, or a branch name the grammar does not have would
+compile and build a parser. That was the last of the annotation problem, and §5
+closes it — each entry declares its arity, branch names, or repeated-rule name,
+and construction compares them with the `RuleSet` in both directions.
 
-What changed is how much that claim can go wrong and how visibly:
+The declaration is not a second thing to keep in step with `C`, because the type
+system ties them together:
 
-- **It is one claim per rule instead of one per child**, written where the rule
-  is named rather than inline in a callback.
-- **A variant's claim is keyed by name.** Positions can transpose silently;
-  names cannot. And the compiler enforces the claim *internally* — a callback
-  that fails to handle a branch it declared does not compile — so the residue is
-  narrowed to "did I declare the branches this grammar actually has", not "did I
-  handle the ones I declared".
-- **The kind itself *is* checked**, at construction, against the `RuleSet` (§5).
-  That is the one part of the shape the map carries to runtime, because the §9
-  helpers write it as a tag.
+- **`seq`'s arity parameter is typed `C['length']`.** A tuple type's `length` is
+  a numeric literal, so `seq(3, …)` beside a four-slot `C` is a compile error,
+  not a runtime surprise.
+- **`variant`'s names are typed `keyof C & string`**, so a name absent from the
+  branch record does not compile. The reverse direction — a branch the *grammar*
+  has that neither `C` nor the list mentions — is what the construction check
+  catches, since only the `RuleSet` knows it.
+- **The kind itself** is checked the same way, from the tag the helpers write.
 
-Making `C` checkable would mean carrying the branch names or the arity as data
-rather than only as types — the helpers could take them — which is a real option
-and is left to the open question below rather than assumed here.
+What is left to the author is which types the slots hold, not how many there are
+or what they are called. That is a claim a reader can check against the grammar,
+and it is the residue this design accepts.
 
 The rest of what runs at parser construction is in §5.
 
@@ -889,18 +955,26 @@ The four shapes are the primitive; the ergonomics come from a small library over
 them. It is also what writes the §5 kind tag, so an author never types one:
 
 ```ts
-// tagging constructors: a §1 shape in, a map-installable `Transformer` out
+// tagging constructors: a §1 shape plus its declared child shape in,
+// a map-installable `Transformer` out
 const terminalOf: <M, T>(f: TerminalTransformer<M, T>) => Transformer<M, T>
-const seqOf:      <M, C extends readonly unknown[], T>(f: SequenceTransformer<M, C, T>) => Transformer<M, T>
-const variantOf:  <M, C, T>(f: VariantTransformer<M, C, T>) => Transformer<M, T>
-const repeatOf:   <M, C, S, T>(r: RepeatTransformer<M, C, S, T>) => Transformer<M, T>
+const seqOf:      <M, C extends readonly unknown[], T>(
+                      arity: C['length'], f: SequenceTransformer<M, C, T>) => Transformer<M, T>
+const variantOf:  <M, C, T>(
+                      branches: readonly (keyof C & string)[],
+                      f: VariantTransformer<M, C, T>) => Transformer<M, T>
+const repeatOf:   <M, C, S, T>(item: string, r: RepeatTransformer<M, C, S, T>) => Transformer<M, T>
 
-// sugar over them: the callback sees the value alone, `M` is forwarded unchanged
+// sugar: the callback sees the value alone, `M` is forwarded, the result is `ok`
 const terminal: <M, T>(f: (leaf: L) => T) => Transformer<M, T>
-const seq:      <M, C extends readonly unknown[], T>(f: (children: C) => T) => Transformer<M, T>
-const variant:  <M, C, T>(f: (b: Branch<C>) => T) => Transformer<M, T>
-const list:     <M, C>(m: Monoid<M>) => Transformer<M, readonly C[]>
-const text:     <M>(m: Monoid<M>) => Transformer<M, string>
+const seq:      <M, C extends readonly unknown[], T>(
+                    arity: C['length'], f: (children: C) => T) => Transformer<M, T>
+const seqR:     <M, C extends readonly unknown[], T>(
+                    arity: C['length'], f: (children: C) => Result<T, string>) => Transformer<M, T>
+const variant:  <M, C, T>(
+                    branches: readonly (keyof C & string)[], f: (b: Branch<C>) => T) => Transformer<M, T>
+const list:     <M, C>(item: string, m: Monoid<M>) => Transformer<M, readonly C[]>
+const text:     <M>(item: string, m: Monoid<M>) => Transformer<M, string>
 const unit:     readonly['unit']
 ```
 
@@ -912,15 +986,21 @@ const unit:     readonly['unit']
   `terminalOf(f)` and `repeatOf(r)` that make it one. An author still never
   types a tag; the constructor writes it.
 - `terminal`, `seq`, `variant` — the same three composed with "forward `M`
-  unchanged", for the common case of a transformer that does not care about
-  metadata. A transformer that *does* care is the §1 shape passed to its
-  `…Of`. `terminal`'s callback is **not** given an EOF branch, so a rule that
-  can match the synthesized end-of-input symbol is `unit` or a
-  `terminalOf` that handles `EOF` (§2).
-- `list(m)` — `repeatOf` applied to the identity fold: children in, array out,
-  O(1) per item. It takes the monoid because a repetition is the one kind that
-  has to combine its rounds' metadata itself (§3).
-- `text(m)` — the common lexeme case: its children concatenated into a string,
+  unchanged, wrap in `ok`", for the common case of a transformer that neither
+  reads metadata nor refuses. One that *does* care about `M` is the §1 shape
+  passed to its `…Of`; one that only refuses uses `seqR` and its siblings, whose
+  callback returns a `Result` while `M` still rides along untouched.
+  `terminal`'s callback is **not** given an EOF branch, so a rule that can match
+  the synthesized end-of-input symbol is `unit` or a `terminalOf` that handles
+  `EOF` (§2).
+- **The child-shape argument comes first in each**, and the compiler keeps it
+  honest: `arity` is typed `C['length']` and `branches` is `keyof C & string`
+  (§8), so neither can drift from the tuple or record it describes.
+- `list(item, m)` — `repeatOf` applied to the identity fold: children in, array
+  out, O(1) per item. It takes the monoid because a repetition is the one kind
+  that has to combine its rounds' metadata itself (§3), and the repeated rule's
+  name because that is a `Repeat`'s child shape.
+- `text(item, m)` — the common lexeme case: its children concatenated into a string,
   whether they are matched leaves or the strings a child rule's own transformer
   already produced.
 - `unit` — keeps nothing, and is not a kind: it fits any rule, and the engine
@@ -962,26 +1042,25 @@ one refusal:
 //   noSign  = () => []                       Sequence, empty
 //   digits  = () => repeat(digit)            Repeat
 //   digit   = () => range('09')              TerminalRange
-type Item = Result<number, string>
-type Nums = Result<readonly number[], string>
 {
     digit:   terminal(c => String.fromCodePoint(c)),
-    digits:  text(m),
+    digits:  text('digit', m),
     minus:   terminal(() => '-'),
-    noSign:  seq(() => ''),
-    sign:    variant(([, s]: Branch<{ minus: string, noSign: string }>) => s),
-    item:    seq(([s, d0, ds]: readonly[string, string, string]) => {
+    noSign:  seq(0, () => ''),
+    sign:    variant(['minus', 'noSign'],
+                 ([, s]: Branch<{ minus: string, noSign: string }>) => s),
+    item:    seqR(3, ([s, d0, ds]: readonly[string, string, string]) => {
                  const n = Number(`${s}${d0}${ds}`)
                  // §6: refuse what cannot be represented
                  return Number.isSafeInteger(n) ? ok(n) : error(`${s}${d0}${ds} not a safe integer`)
              }),
-    next:    seq(([, it]: readonly[unknown, Item]) => it),
-    more:    list<M, Item>(m),
-    some:    seq(([first, rest]: readonly[Item, readonly Item[]]) =>
-                 allOk<number, string>([first, ...rest])),
-    noItems: seq(() => ok([])),
-    items:   variant(([, xs]: Branch<{ some: Nums, noItems: Nums }>) => xs),
-    list:    seq(([, xs]: readonly[unknown, Nums, unknown]) => xs),
+    next:    seq(2, ([, it]: readonly[unknown, number]) => it),
+    more:    list<M, number>('next', m),
+    some:    seq(2, ([first, rest]: readonly[number, readonly number[]]) => [first, ...rest]),
+    noItems: seq(0, () => []),
+    items:   variant(['some', 'noItems'],
+                 ([, xs]: Branch<{ some: readonly number[], noItems: readonly number[] }>) => xs),
+    list:    seq(3, ([, xs]: readonly[unknown, readonly number[], unknown]) => xs),
 }
 ```
 
@@ -995,48 +1074,73 @@ zero rounds (§2). With `[sign, digits]` alone, and `noSign` also empty, `item`
 would match nothing at all: `Number('')` is `0`, so `[,]` would be accepted and
 answer `ok([0, 0])`. One-or-more has to be spelled as one plus zero-or-more.
 
-**Every rule above `item` carries the refusal, and that is the open question's
-price in code.** `item` refuses, so its value is `Result<number, string>` (§6).
-`next` forwards one. `more` collects a list *of results*. `some` has to
-`allOk` them into a single result — and needs explicit type arguments to do it,
-because `Result`'s two arms make `E` ambiguous to infer. `noItems` returns
-`ok([])` rather than `[]`, so the variant's two branches agree. `items` and
-`list` then thread the result outward, and `Nums` appears in four signatures
-that have nothing to do with numbers being out of range.
+**One rule refuses and no other rule mentions it.** `item` is `seqR`, so its
+callback returns a `Result`; the engine takes an `error` as that invocation's
+outcome, attaches the rule name and position, and reports `refused` (§6). Every
+other entry is written as though refusal did not exist, and `next`, `more`,
+`some`, `items` and `list` all say plainly what they build: `number` and
+`readonly number[]`.
 
-That is refusal-in-`T` working exactly as specified, and exactly what it costs:
-**one refusing rule puts a `Result` in every container above it, and every
-container has to sequence its children's.** The alternative —
-`Result<Meta<T, M>, Refusal>` in all four kinds — deletes `allOk`, `noItems`'s
-`ok`, and `Nums`, and moves the propagation into the engine where a caller never
-writes it, at the price of a channel every rule pays for. This example is the
-argument; stage 0 is where it is decided.
+That is the measured difference between the two refusal designs, not a claim
+about them. Written against this same grammar with the error in the
+transformer's own `T` instead, six of the other eleven rules gained a `Result`
+in their declared value, `some` had to `allOk` its children with explicit type
+arguments, `noItems` had to return `ok([])` so the variant's arms agreed, and
+two type aliases existed only to name the plumbing. The engine channel costs a
+`Result` in four signatures nobody writes by hand, and this map is what it buys.
+
+**Each entry declares its child shape, and the compiler will not let it drift.**
+`seq(3, …)` beside a four-slot tuple does not compile — the parameter is typed
+`C['length']` — and `variant(['some', 'nope'], …)` does not compile against a
+branch record without `nope` (§8). What the *compiler* cannot know is whether
+the grammar agrees; that is the construction-time check of §5, which compares
+each declaration with the `RuleSet` in both directions. A branch added to
+`items` in the grammar and forgotten in the map fails when the parser is built.
 
 **`list` sees its own brackets, and that is the sharpest remaining ergonomic
 cost.** Every direct child occupies a slot: a punctuation rule with no
 transformer contributes its AST node, and `unit` contributes `undefined` rather
 than removing itself from the tuple. `list`'s tuple is three slots — `[`, the
-items, `]` — and the `unknown`s above are where the brackets land. Typed
-children make this *safer* than it was without making it shorter: a mis-counted
-sequence is now a type error at the first use of a child rather than a runtime
-surprise, but the count is still the author's to get right, and nothing checks a
-`C` whose length or order disagrees with the rule (§8).
+items, `]` — and the `unknown`s above are where the brackets land.
 
 That is tolerable for a rule the author wrote, and **not** tolerable for one a
 combinator built: `commaJoin0Plus(ws)('[]', item)` expands into exactly the
 `items`/`some`/`more`/`next`/`noItems` scaffolding above, except that the author
-never wrote it and cannot see it, so counting positions through it is guesswork
-against an implementation detail. That is why the silent-rules question is
-stage 0 (§8, Tasks) rather than stage-2 sugar: a rule marked silent, a
-designated `unit` the engine drops from the tuple, or combinator-aware helpers
-that know the shapes they build.
+never wrote it and cannot see it.
+
+**The answer is that a combinator supplies transformers too**, not that the
+engine learns to hide children. Two mechanisms were considered and rejected
+first, and the reason is the same one both times:
+
+- **A designated `unit` the engine drops from the tuple** cannot reach the
+  children that need dropping. `list`'s brackets are inline literals, so
+  `toData` gives them *generated* names (§11.3) — a map cannot address them at
+  all, let alone mark them `unit`. To use this an author would have to name and
+  map every punctuation rule, which is more work than counting slots.
+- **A rule marked silent in the grammar** would work, but it is a change to the
+  data `Rule` — a new field through `toData`, both backends, and every consumer
+  of `fjs/bnf/data` — to solve a problem that does not need one.
+
+What the author is missing is not a way to *hide* the scaffolding but a
+transformer *for* it, and the thing that knows its shape already exists: the
+combinator that built it. So `commaJoin0Plus` returns rules **and a map
+fragment** for the rules it generated, which the author merges into their own.
+They never count through scaffolding because they never write an entry for it —
+and the fragment declares its own arities and branch names (§8), so it is
+checked at construction like everything else.
+
+This needs no protocol change, which is why it is stage-2 library work rather
+than a stage-0 decision (Tasks). Hand-written sequences are still counted by
+hand, which is fair: the author wrote them, and `seq`'s arity argument now makes
+a miscount a compile error.
 
 **Declaring a type for a variant means transforming all of it.** `items`
 declares two branches and `sign` declares two, so all four must be mapped —
 `noItems` and `noSign` included, which is why two rules exist only to return
-`ok([])` and `''`. An unmapped branch would hand its variant an AST node, and
-`Branch<{ some: Nums, noItems: Nums }>` says that is wrong at the map rather
-than at some later use of the value. Separately, a mapped branch under an
+`[]` and `''`. An unmapped branch would hand its variant an AST node, and
+`Branch<{ some: readonly number[], noItems: readonly number[] }>` says that is
+wrong at the map rather than at some later use of the value, and the
+construction check (§5) catches a branch the grammar has that the map forgot. Separately, a mapped branch under an
 *unmapped* variant is refused at construction (§3).
 
 So adoption is incremental *up to* the first variant whose value you want typed,
@@ -1277,10 +1381,13 @@ bound and its single elimination are for.
 
 Settle the parameter order below and `RepeatTransformer<M, C, S, T>` has nothing
 of its own left to be: it becomes `Accumulator<Meta<C, M>, S, Meta<T, M>>`, and
-this part of the section becomes an import. Note what the refusal decision in §6
-already bought here — with an error living in the transformer's own `T` rather
-than in a `Result` around `end`, there is no longer a second difference to
-reconcile.
+this part of the section becomes an import — modulo one thing `Accumulator` does
+not have: **a refusal carries a reason.** `Accumulator`'s `update`
+short-circuits with `Nullable<T>` and flow's `Step` with `done`; neither says
+*why*, and [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle)
+wants a refusal, not a silence. Hence `end: (state) => Result<Meta<T, M>, string>`
+(§6). Unifying the two would mean giving the shipped folds a reason channel, not
+taking this one away.
 
 Two things this alignment hands to whoever implements it. `todo/flow.md`'s
 "explicit state `S`, not self-returning closures — the closure form is
@@ -1302,16 +1409,17 @@ issue alone: `Accumulator.update` is `(item, state)` and flow's `Transducer` is
 
 ### Tasks
 
-Staged. **Stage 0 is three decisions and no code** — each changes what stage 1
-publishes, so taking them afterwards means republishing it. Then
-**`fjs/bnf/ll1` is stage 1** — not because it is the easier machine (it is,
-marginally) but because it is the one that settles the rest of the design:
+Staged. **Stage 0 was three decisions and no code** — each changed what stage 1
+publishes, so taking them afterwards would have meant republishing it. They are
+settled below. Then **`fjs/bnf/ll1` is stage 1** — not because it is the easier
+machine (it is, marginally) but because it is the one that settles the rest of
+the design:
 
 - It **never backtracks**, so no transformer runs on a branch the parse goes on
   to abandon — which removes the *speculative* half of §6 from stage 1. With a
-  refusal living in the transformer's own `T` (§6), a refused value is discarded
-  with everything else a failed match produced, so stage 1 has that case for
-  free and stage 3 adds only the abandoned-branch one.
+  refusal carried as a *value* rather than an abort (§6), a refused invocation
+  inside a failed match is discarded with everything else it produced — so
+  stage 1 has that case and stage 3 adds only the abandoned-branch one.
 - It is the backend that can promise **bounded-memory input streaming** (§4.2),
   which is what a payload-free recognizer over a stream needs and what the
   fold-level guarantee alone does not give.
@@ -1328,33 +1436,36 @@ marginally) but because it is the one that settles the rest of the design:
   backends build**, so the conformance test for "the default transformer
   reproduces today's AST" exists before the change that has to keep it passing.
 
-**Stage 0 — three decisions, before any code.** Each one changes stage 1's
-*public* types or its construction validator, so taking them later means
-republishing an API and rewriting proofs written against it. They are the three
-open questions marked below, gathered here because they share that property:
+**Stage 0 — decided, with the evidence.** Three choices changed what stage 1
+publishes, so each was settled before any code by writing §10's twelve-rule map
+against both candidates and compiling them. All three are recorded here rather
+than in the open questions, because a design document that leaves its public
+types undecided cannot be implemented against.
 
-- [ ] **The refusal channel (§6).** `Meta<T, M>` with the error in the
-      transformer's own `T`, or `Result<Meta<T, M>, Refusal>` in all four kinds.
-      This is `TransformMatchResult` itself. §10's example is the evidence: one
-      refusing `item` puts a `Result` in every container above it, and each has
-      to sequence its children's.
-- [ ] **Silent children (§10).** `unit` currently occupies a slot in its
-      parent's tuple. An engine that *dropped* it instead would change every
-      sequence's arity, and with it every `C` a map declares and every proof
-      written against one. That makes it a protocol decision, not the stage-2
-      ergonomics question it was filed as.
-- [ ] **Whether `C` is carried as data (§8).** Sequence arity and variant branch
-      names are erased today, so only the kind reaches the construction check.
-      Carrying them — the §9 helpers taking them alongside the callback — would
-      make a grammar change that invalidates a map fail at construction instead
-      of calling a callback with the wrong shape. It changes the `Transformer`
-      representation and the validator, both of which stage 1 publishes.
-
-Write §10's twelve-rule map against each candidate before choosing. It is short
-enough to rewrite three times, complete enough that the map and the grammar
-cannot disagree, and it is the only place these costs show up as something other
-than prose — the `Result` plumbing, the punctuation slots, and the two rules
-that exist only to give a variant's empty branch a value.
+- [x] **The refusal channel: the engine's.** Every kind returns
+      `Result<Meta<T, M>, string>` and §5's result regains `refused` (§6). The
+      alternative — the error in the transformer's own `T`, no channel at all —
+      put a `Result` into six of §10's other eleven rules, forced an `allOk`
+      with explicit type arguments, forced an empty branch to return `ok([])`,
+      and added two aliases that named nothing but plumbing. The channel costs a
+      `Result` in four signatures that the §9 helpers write for you. It also
+      restores the engine-attached `{ rule, at, message }`, so a grammar no
+      longer has to carry positions in `M` to diagnose a refusal.
+- [x] **The child shape: carried as data.** Each entry declares its arity,
+      branch names, or repeated-rule name, and construction compares them with
+      the `RuleSet` in both directions (§5, §8). The duplication worry does not
+      materialize, because the type system ties the declaration to `C`:
+      `seq`'s parameter is `C['length']` and `variant`'s is `keyof C & string`,
+      so neither can drift from the shape it describes. Cost: one literal per
+      entry.
+- [x] **Silent children: not a protocol change.** A combinator supplies
+      transformers for the rules it generates, so an author never writes an
+      entry for scaffolding they did not write (§10). The two mechanisms that
+      *would* have been protocol changes are rejected there: an engine-dropped
+      `unit` cannot address inline punctuation, whose `toData` names are
+      generated, and a grammar-level silent flag changes the data `Rule` to
+      solve a problem that does not need it. This one leaves stage 0 entirely —
+      it is stage-2 library work.
 
 **Stage 1 — the protocol and `fjs/bnf/ll1`.**
 
@@ -1393,9 +1504,12 @@ that exist only to give a variant's empty branch a value.
 - [ ] Prove the four default builders (§3) produce the same children the
       engine's native path builds a node from, so the specification and the
       implementation of the default cannot drift.
-- [ ] Add `transformRuleSet` (§5) and run all three construction-time checks:
-      every map key names a rule, every entry's **kind tag matches its rule's
-      kind**, and `start` resolves. Throw rather than parse — `K extends string`
+- [ ] Add `transformRuleSet` (§5) and run all five construction-time checks:
+      every map key names a rule; every entry's **kind tag matches its rule's
+      kind**; every entry's **declared child shape matches its rule's** — a
+      sequence's arity, a variant's branch names in both directions, a
+      repetition's repeated-rule name; `start` resolves; and no mapped branch
+      sits under an unmapped variant. Throw rather than parse — `K extends string`
       cannot reject a mistyped start name, since an untransformed start rule is
       legal, and no type can reject a terminal transformer supplied for a
       variant rule, since the map's type does not know the `RuleSet`.
@@ -1409,11 +1523,12 @@ that exist only to give a variant's empty branch a value.
 - [ ] Re-express `parserRuleSet` as that machine with an empty map, and keep its
       current result type; the one place the machine's erasure is undone is
       where a value comes back out of it.
-- [ ] Prove a refusal is inert as far as the grammar is concerned (§6): with
-      the error inside the transformer's `T` there is no engine mechanism to
-      test, so what stage 1 owes is the case `ll1` has on its own — a later
-      sibling failing syntactically after a rule whose value was an error, with
-      the result a syntax failure and no value rather than a semantic one.
+- [ ] Carry a refusal as a value (§6): it takes the place of the refusing
+      invocation's result, the enclosing rule is not called, and it propagates
+      unchanged so the first refusal is the one reported. Attach `rule` and `at`
+      from the engine's own cursor. Prove the case `ll1` has on its own — a
+      later sibling failing syntactically after a refusal, with the result a
+      syntax failure and no value rather than a semantic error.
 - [ ] Skip the transformer when the input runs out mid-rule, for every frame on
       the spine, so none is ever handed a truncated tuple (§5, §6).
       That reports `no-match` with a `null` remainder, as a rejected match
@@ -1422,7 +1537,7 @@ that exist only to give a variant's empty branch a value.
 - [ ] Proofs: `descentEquivalence` and the existing AST expectations unchanged
       under the empty map; what each kind receives per §2, including the EOF
       terminal, an empty `Sequence` and a zero-round `Repeat` (both of which
-      must see the monoid's identity); all three construction-time checks; and a
+      must see the monoid's identity); all five construction-time checks; and a
       deep-nesting case, since a repetition's fold now runs on the machine's
       explicit stack.
 
@@ -1437,6 +1552,12 @@ value* to check against a spec vector.
 - [ ] Ship §10's twelve-rule grammar and its map first, as the proof that all
       four kinds, an empty variant branch, and a refusal work end to end. It is
       small enough to check by eye, which is what the JSON sketch was not.
+- [ ] Have the combinators return **transformers alongside rules** — a map
+      fragment for the scaffolding they generate — so an author never writes an
+      entry for a rule they did not write (§10). This is stage 0's third
+      decision landing as library work: no protocol change, and the fragment
+      declares its own arities and branch names so it is checked like any other
+      entry.
 - [ ] Only then rewrite the JSON example grammar's rules as **named thunks**, so
       `toData` keeps their names: `deterministic()` yields 92 rules of which exactly one,
       `value`, is named (§11.3), and no transformer map can address the rest.
@@ -1478,36 +1599,10 @@ value* to check against a spec vector.
 
 ### Open questions
 
-- **Does a transformer need a refusal channel of its own (§6)?** The four
-  signatures return `Meta<T, M>`, so a refusing rule puts `Result` in its own
-  `T` and the parse has no semantic-error outcome. That makes "a refusal never
-  changes what the grammar accepts" true by construction and deletes §5's
-  `refused` case, at the price of the diagnostic the engine used to attach: a
-  transformer knows the reason but not its rule name or position, so a grammar
-  whose transformers refuse has to carry positions in `M`. The alternative is
-  `Result<Meta<T, M>, Refusal>` in all four kinds. **Stage 0**, because it is
-  the public result type. §10 shows the cost concretely: with the error in `T`,
-  a refusing `item` puts a `Result` in `next`, `more`, `some`, `noItems`,
-  `items` and `list`, and `some` must `allOk` its children with explicit type
-  arguments.
-- **`C` is erased, so nothing checks it against the grammar (§8).** A
-  sequence's arity and order, and a variant's branch names, are all the author's
-  claim; only the *kind* survives to construction, because the §9 helpers write
-  it as a tag. Carrying the rest as data would fix it — `variant` taking its
-  branch names, `seq` its arity — at the cost of writing each twice and keeping
-  them in step. **Stage 0**: it changes the `Transformer` representation and the
-  construction validator, so adding it after stage 1 republishes both. It is
-  also the silent-rules item below from the other side — a rule a combinator
-  built is exactly the one whose arity an author cannot count.
-- **Silent rules — stage 0, not stage 2 (§10).** `unit` occupies a tuple
-  slot, so a positional callback must count punctuation, whitespace and every
-  scaffolding node a combinator built. §10 runs into it immediately: its twelve
-  rules *are* what `commaJoin0Plus` would have built, and an author counts slots
-  through all of them. A rule marked silent, a
-  designated `unit` the engine drops, or combinator-aware helpers. What moves
-  this ahead of stage 1 is that the middle option **changes every sequence's
-  arity** — and therefore every `C` in a map and every proof written against
-  one. It is a protocol decision wearing an ergonomics question's clothes.
+The three that gated stage 1 are **settled** — the refusal channel, the child
+shape as data, and silent children. Their decisions and the evidence are in
+Tasks, stage 0. What is left cannot change stage 1's public types:
+
 - **Does the product monoid read well on a real tokenizer (§7)?** Not a stage-0
   question, because the design is committed: **one `M`**, with a payload and a
   mergeable field coexisting as a product whose payload component's operation is
@@ -1531,8 +1626,15 @@ value* to check against a spec vector.
 - **Input streaming (§4.2) is [43](./043-stateful-parser.md)'s.** This issue
   only has to leave the parser state plain data so that one can suspend and
   resume it; which of the two lands first decides where the entry points live.
-- **Helper set (§9).** `terminal`, `seq`, `variant`, `list`, `text`, `unit` is a
-  guess at the working set; let the JSON and DJS ports pick the final list.
+- **Helper set (§9).** `terminalOf`/`seqOf`/`variantOf`/`repeatOf` are the
+  primitives and are settled by §5's representation; `terminal`, `seq`, `seqR`,
+  `variant`, `list`, `text`, `unit` is a guess at the sugar. Let the JSON and
+  DJS ports pick the final list.
+- **What a combinator's map fragment looks like (§10).** Stage 2's answer to
+  silent children is that `commaJoin0Plus` and its siblings return rules *and*
+  transformers for the rules they generate. Whether that is a second return
+  value, a paired builder, or a convention is a library-shape question with no
+  protocol consequence — which is exactly why it is here and not in stage 0.
 
 ### Related
 
