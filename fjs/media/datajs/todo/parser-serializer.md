@@ -17,6 +17,27 @@ The spec is finished and normative. **This issue implements it and does not
 redesign it.** Where the two disagree the spec wins, and a disagreement is a bug
 in this file.
 
+> **The machine below is stale, the obligations are not.**
+> [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)
+> has reversed its BNF rule: the reader is now a grammar over `fjs/bnf` plus a
+> transformer map ([207](../../../bnf/todo/207-bnf-semantic-actions.md)), not a
+> hand-written tokenizer feeding a generalized JSON container machine. So §2 and
+> §3's *mechanism* — the leaf and key seams, the token vocabulary, the
+> order-preserving member accumulation — describes work that will not be done
+> in that form.
+>
+> Everything those sections establish about the **format** survives the change
+> and is why this file is not simply deleted: what the reader must accept and
+> refuse, that the `__proto__` rule is on the decoded key, that member order is
+> first-occurrence and no comparator produces it, that the BOM is rejected
+> rather than stripped, that a reference must read back as the same node. Those
+> are obligations on any reader. §4 and §5 — the serializer, the hoisting pass,
+> the rejection rules, normalized form — are untouched: a grammar describes what
+> is accepted, not what is emitted.
+>
+> Rewriting §2 and §3 against the grammar route waits on 207 stage 1, since what
+> the transformer protocol looks like decides what replaces them.
+
 Three things make it more than "JSON plus four leaves", and each is a section
 below:
 

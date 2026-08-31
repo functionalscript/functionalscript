@@ -1,6 +1,8 @@
 ## 207. BNF rule transformers: one shape per rule kind
 
-**Priority:** P3
+**Priority:** P1 — [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
+now makes the JSON and DataJS readers grammars rather than hand-written
+machines, and stage 1 of this issue is what those readers need to exist.
 **Status:** open
 
 ### Problem
@@ -20,12 +22,15 @@ value walks that tree afterwards, and each one writes the walk again:
 One cause: the AST is **mandatory**, **anonymous** (a node records the branch tag
 but not the rule that produced it), and **complete before anything else starts**.
 
-**Not in this list: `fjs/media/json`.** Its codec keeps a hand-written tokenizer
-and container-stack parser by decision —
+**`fjs/media/json` is now in this list, and that is a reversal.** This issue
+previously recorded the opposite: the media codecs took no runtime dependency on
+`fjs/bnf`, so JSON and DataJS grammars were proof-covered examples and this issue
+made those examples produce values without making them a codec.
 [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
-settles that the media codecs take no runtime dependency on `fjs/bnf`. `fjs/bnf`
-may hold JSON and DataJS grammars only as proof-covered examples. This issue
-makes those examples produce values; it does not make them a codec.
+has since reversed that rule — the JSON and DataJS readers *are* a grammar plus a
+transformer map. So this issue is no longer a convenience for examples; it is the
+mechanism both codecs are built on, which is why it is P1 and why stage 1 comes
+before the media work rather than after it.
 
 ### Proposal
 

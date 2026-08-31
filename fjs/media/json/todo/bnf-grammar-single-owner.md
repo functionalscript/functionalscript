@@ -1,6 +1,7 @@
 ## bnf-grammar-single-owner. The JSON BNF grammar has no owner
 
-**Priority:** P4
+**Priority:** P2 — the reader is now a grammar, so this grammar is the codec
+rather than a test fixture with no owner.
 **Status:** blocked
 **Blocked by:** [Separate alphabet-specific BNF helpers](../../../bnf/todo/unicode-rules.md)
 
@@ -135,6 +136,11 @@ Before implementing this TODO after the blocking split:
 - [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
   — media-directory ownership convention followed by this placement.
 - [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)
-  — the plan this task now sits inside; its stage 2 deleted the third copy, and
-  its BNF rule (grammars are spec text plus proof-covered `fjs/bnf` examples,
-  never a runtime dependency of the codecs) constrains where this one can land.
+  — the plan this task now sits inside; its stage 2 deleted the third copy. Its
+  BNF rule has been **reversed**: grammars were "spec text plus proof-covered
+  `fjs/bnf` examples, never a runtime dependency of the codecs", and the reader
+  is now a grammar plus a transformer map. So this task is no longer about
+  giving a test fixture an owner — the module it creates is what `fjs/media/json`
+  parses with, which raises the bar on its proofs rather than lowering it.
+- [207](../../../bnf/todo/207-bnf-semantic-actions.md) — the transformer
+  protocol that turns this grammar into a reader. Its stage 1 comes first.

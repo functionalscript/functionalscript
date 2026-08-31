@@ -5,6 +5,26 @@
 priority note. EDAG needs a DataJS codec, and this stage is its prerequisite.
 **Status:** open
 
+> **3b's mechanism is stale; 3a and the whole error design are not.**
+> [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)
+> has reversed its BNF rule — JSON is now read by a grammar over `fjs/bnf` plus
+> a transformer map ([207](../../../bnf/todo/207-bnf-semantic-actions.md)), so
+> **3b** no longer means hand-writing a scanner of JSON's lexical grammar. The
+> goal 3b existed for is unchanged and the grammar reaches it a different way:
+> JSON stops depending on the 747-line JavaScript tokenizer, which is the point
+> of the restructure.
+>
+> **3a is untouched and still worth landing on its own.** The fabricated
+> `string` token after a malformed literal is a defect in code that ships
+> today, provable without any of this, and the reason it was split out in the
+> first place.
+>
+> What survives beyond 3a is the expensive half: the error rule, the two
+> invariants that decide whether a difference is expected, the table of error
+> shapes that change, and the edits owed to other issues. Those describe what
+> JSON's *lexis* is and which differences are acceptable — questions a grammar
+> has to answer as squarely as a scanner does.
+
 ### Problem
 
 `fjs/media/json/tokenizer/module.f.mjs` does not scan JSON. It calls
@@ -163,8 +183,9 @@ Replace the wrapper with a scanner of JSON's own lexical grammar, in the same
 shape as the JS tokenizer it replaces: a `StateScan` over **UTF-16 code
 units** followed by a single `null` end-of-input sentinel, folded with
 `stateScan` and `flat`.
-No `fjs/bnf` dependency — the format's grammars are spec text plus
-proof-covered examples, never a runtime dependency of the codecs.
+No `fjs/bnf` dependency — **superseded**, see the note at the top: the
+grammars are the reader now, so this sentence describes 3b as it was designed
+rather than as it will be built.
 
 The public signature does not change:
 
@@ -1350,9 +1371,9 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
   *unchanged* — the bigint is a separate production reusing JSON's integer
   part, and `NaN`/`Infinity` are words rather than number syntax. Stage 4
   reuses JSON's scanners; it does not widen JSON's grammar.
-- [bnf-grammar-single-owner](./bnf-grammar-single-owner.md) — the BNF copy of
-  this grammar; spec text and proof-covered example, never a runtime
-  dependency of this scanner.
+- [bnf-grammar-single-owner](./bnf-grammar-single-owner.md) — no longer a
+  *copy* of this grammar. Since the BNF rule was reversed it is the owner, and
+  what this file contributes to it is the error design rather than a scanner.
 - [number-edge-cases](./number-edge-cases.md),
   [standard-parse-serialize](./standard-parse-serialize.md) — behavior
   downstream of this tokenizer, unchanged by the swap.

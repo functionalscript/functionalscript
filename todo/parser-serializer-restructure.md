@@ -12,7 +12,21 @@ not here.
 
 Read in this order; each line says what to do and why it comes when it does.
 
-1. **Next: stage 3, the JSON self-contained tokenizer.** Design is written and
+1. **Next: [207](../fjs/bnf/todo/207-bnf-semantic-actions.md), stage 1 —
+   metadata in `ll1`, then the transformer protocol.** The BNF bullet below
+   reverses this plan's old rule and makes the JSON and DataJS readers grammars
+   rather than hand-written machines; 207 stage 1 is what those readers need to
+   exist, in the order the bullet gives. Nothing downstream of it is worth
+   starting first, because stages 3 and 4 as written below assume the machines
+   the reversal replaces.
+
+   *Both stage entries that follow are stale in that respect and say so in
+   place.* They are kept because what they establish about the **formats** —
+   the error rule, the invariants, the conformance obligations, the spec rules
+   a reader must honor — is independent of which machine reads them, and it is
+   the expensive half.
+
+2. **Then: stage 3, the JSON self-contained tokenizer.** Design is written and
    reviewed:
    [`fjs/media/json/todo/self-contained-tokenizer.md`](../fjs/media/json/todo/self-contained-tokenizer.md).
    It has the grammar, the error rule and the two invariants that decide
@@ -29,7 +43,7 @@ Read in this order; each line says what to do and why it comes when it does.
    *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
    scanner unchanged and its number core extended, so JSON has to own those
    scanners before DataJS can borrow them.
-2. **Then: stage 1b, the conformance vectors**
+3. **Then: stage 1b, the conformance vectors**
    ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)).
    *Why here:* it is stage 4's proof source, so landing stage 4 first means
    writing its proofs twice. The corpus bootstraps in JSON precisely so it can
@@ -37,7 +51,7 @@ Read in this order; each line says what to do and why it comes when it does.
    which is JSON's own tokenizer and settles its own accepted set with JSON's
    own proofs — unchanged but for one enumerated defect, an `n` today's
    tokenizer deletes from inside a number.
-3. **Then: stage 4, `fjs/media/datajs`.** Design is filed:
+4. **Then: stage 4, `fjs/media/datajs`.** Design is filed:
    [`fjs/media/datajs/todo/parser-serializer.md`](../fjs/media/datajs/todo/parser-serializer.md).
    The normative
    behavior is already settled in
@@ -47,7 +61,7 @@ Read in this order; each line says what to do and why it comes when it does.
    generalized first.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
-4. **Then stages 5–7**, in order, as listed below.
+5. **Then stages 5–7**, in order, as listed below.
 
 **Already done, do not redo:** stage 1a (the DataJS specification) and stage 2
 (the dead `fjs/fsc` grammars, deleted). Both are on `main`.
@@ -55,8 +69,8 @@ Read in this order; each line says what to do and why it comes when it does.
 **Three things are decided and should not be reopened without a reason:**
 DataJS is frozen at "JSON extended from a tree to a DAG, plus the leaves JSON
 cannot spell" — new syntax belongs in FunctionalScript, not here; the media
-codecs take no runtime dependency on `fjs/bnf` or on `fjs/js/tokenizer`, which
-is the whole point of the restructure; and the mandatory identifier prefix is
+codecs take no runtime dependency on **`fjs/js/tokenizer`**, which is the whole
+point of the restructure; and the mandatory identifier prefix is
 **`$`**, not `_` or any other character. The prefix itself is what carries the
 design — it retires the exclusion list — and the grammar does not force which
 character does it, so the choice was made once and is closed. The objection on
@@ -94,8 +108,8 @@ Two structural problems follow:
 1. **The media codecs sit downstream of permanently evolving code.** JSON and
    the data format depend on the JS token vocabulary (`fjs/js/tokenizer`),
    which must grow with FunctionalScript. A frozen interchange format cannot
-   be built on a mutating lexer, and the same argument bars a runtime
-   dependency on `fjs/bnf` until that module is stable.
+   be built on a mutating lexer. That argument was once extended to `fjs/bnf`
+   as well; it no longer is — see the BNF bullet below, which reverses it.
 2. **The data format and the compiler front end are one codebase.** The DJS
    pipeline cannot be promoted to a spec'd, "implement it in an afternoon"
    format while it also carries module framing, trivia, and the growth path of
@@ -123,20 +137,45 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
   exception — inputs like `1n1`, which today's tokenizer accepts as a number
   by deleting the `n`, start erroring. No existing proof is in that class.
 - **DataJS** (the format known in this repository as DJS): a new, minimal,
-  spec'd format — JSON extended from a tree to a DAG, nothing else. New
-  hand-written parser and serializer in `fjs/media/datajs`, layered on JSON's
-  exported pieces. Everything that is not needed for the DAG property moves to
+  spec'd format — JSON extended from a tree to a DAG, nothing else. Parser and
+  serializer in `fjs/media/datajs`: the reader is a BNF grammar plus a
+  transformer map, the serializer is hand-written either way, since a grammar
+  describes what is accepted and not what is emitted. Everything that is not needed for the DAG property moves to
   FunctionalScript.
 - **FunctionalScript**: the current `fjs/djs` front end (grammar-based
   tokenizer, BNF parser, AST, transpiler) moves to `fjs/fsc` and continues to
   grow there — comments, imports, identifier keys, and the staged EDAG work.
   The compiler can emit DataJS (normalized) or JSON.
-- **BNF is not a runtime dependency of the media codecs.** The spec carries
-  the grammars as BNF text; `fjs/bnf/**` may hold the JSON and DataJS grammars
-  as *proof-covered examples* cross-checked against the spec's test vectors.
-  An example grammar without proof coverage is how the dead `fjs/fsc` copy
-  happened — nothing imported or proved it, so it silently drifted from the
-  other two; none may be added without proofs.
+- **BNF *is* how JSON and DataJS are parsed. (Reversed — decision record.)**
+  This plan previously read "BNF is not a runtime dependency of the media
+  codecs", with the grammars kept as proof-covered examples only. That is no
+  longer the design: the JSON and DataJS readers are a grammar plus a
+  transformer map over `fjs/bnf`, and the grammar is the codec rather than an
+  example of it.
+
+  *Why the reversal.* The old rule rested on `fjs/bnf` not being stable enough
+  to depend on. What changed is not that argument but what the alternative
+  costs: a hand-written tokenizer and container machine per format, against a
+  grammar of a few dozen readable lines. The DataJS grammar is 42 lines against
+  a stage-4 design whose own review found five defects of the same shape in
+  five rounds — the maintenance ratio is the argument, and it is not close.
+  The old rule's *other* half survives untouched: an example grammar without
+  proof coverage is how the dead `fjs/fsc` copy happened, so none may be added
+  without proofs, and that now applies to a codec grammar with more force.
+
+  **Two prerequisites come first**, and both are
+  [207](../fjs/bnf/todo/207-bnf-semantic-actions.md):
+
+  1. **`fjs/bnf/ll1` must carry generic metadata** — 207 §7. `descent` already
+     has it as `CodePointMeta<M>`; `ll1` hard-coded the leaf, so `Match`,
+     `MatchResult`, `Remainder` and the frame types become generic in `M`, and
+     `CodePointMeta` moves to `fjs/bnf/matcher/types.ts` as `Meta`. This is
+     what lets a token say *which* number is here rather than only that one is.
+  2. **AST node transformers** — 207's protocol: one transformer shape per rule
+     kind, keyed by the rule value and applied by the backends, so a grammar
+     produces a value instead of an AST somebody then walks. Both prerequisites
+     are stage 1 of that issue, in that order, which is why 207 is the next
+     thing to build rather than stage 3.
 
 ### The DataJS format (decision record)
 
