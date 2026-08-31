@@ -187,7 +187,8 @@ key       ::= string | '["__proto__"]'
   cannot differ in meaning; and a document minifies to one line —
   `const $0=[];export default [$0,$0];` — enabling DataJS inside JSON strings,
   line-delimited streaming, and one-line test fixtures. Whitespace is required
-  at three positions and optional everywhere else, per the next bullet.
+  at three positions and optional between other tokens, except within the exact
+  `["__proto__"]` key sequence, per the next bullets.
 - **Every statement ends with `;`, `export default` included** — the `;`
   terminates a statement, as it does in JavaScript, rather than separating one
   from the next. An intermediate draft dropped the final one on the reasoning
@@ -209,10 +210,12 @@ key       ::= string | '["__proto__"]'
   rather than a bare prefix. Measured against Node: `export default [1]`
   without the `;`, followed by an appended line beginning with `[`, silently
   exports `1` instead of `[1]`; with the `;` it stays `[1]`.
-- **Whitespace is JSON's** — space, tab, LF, CR — insignificant everywhere.
-  Other JS whitespace (U+2028/U+2029, NBSP, FF, BOM) is rejected.
+- **Whitespace is JSON's** — space, tab, LF, CR — insignificant between tokens.
+  The exact `["__proto__"]` key is one token and contains none. Other JS
+  whitespace (U+2028/U+2029, NBSP, FF, BOM) is rejected.
 - **Whitespace is required after `const`, `export` and `default`**, with no
-  condition, and optional everywhere else. Two of the three were forced
+  condition, and optional between other tokens except within `["__proto__"]`.
+  Two of the three were forced
   already — a name begins with `$` and `export` is always followed by
   `default`, so `const$0` and `exportdefault` are each one identifier — and the
   third is the choice: `export default[1];` would lex, but requiring the space
@@ -245,9 +248,11 @@ key       ::= string | '["__proto__"]'
   `-undefined`, a bare `-` are rejected).
 - **Keys** are JSON strings, plus the exact computed sequence
   `["__proto__"]` as the only way to write that one key. The sequence is
-  contiguous: whitespace is not allowed between `[`, `"__proto__"`, and `]`.
-  A bare or string `"__proto__"` key is rejected (JS would read it as prototype
-  replacement).
+  contiguous and literal: whitespace and escape substitutions are not allowed.
+  After decoding all JSON string escapes, the parser postprocesses every string
+  key and rejects it when the decoded value is `__proto__`; this rejects both
+  `"__proto__"` and spellings such as `"\u005f_proto__"` (JS would read either
+  as prototype replacement).
 - **Const names** are ASCII and **start with `$`**: `$[A-Za-z0-9_$]*`, each
   bound once, with **no exclusion list**. The two collisions an exclusion list
   would have to cover are both closed by the leading `$` — though not with the
@@ -296,8 +301,8 @@ key       ::= string | '["__proto__"]'
   document). The textual conversion `"export default " + json + ";"` — a prefix
   and a terminator — yields a valid document with one exception: a bare `"__proto__"` object key —
   rejected by DataJS because JS reads it as prototype replacement — must be
-  rewritten to the exact, whitespace-free computed sequence `["__proto__"]`
-  during conversion.
+  rewritten to the exact, whitespace- and escape-free computed sequence
+  `["__proto__"]` during conversion.
   Plain concatenation is exactly valid for JSON containing no `__proto__`
   key.
 

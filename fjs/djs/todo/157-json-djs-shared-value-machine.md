@@ -115,10 +115,12 @@ needs:
 2. **a pre-recursion seam** — `refLookup`, running before container dispatch, so
    a shared container can short-circuit to `c<N>`;
 3. **a key seam** — `keySerialize`. JSON emits every key as a string; DJS emits
-   `__proto__` as the exact, whitespace-free sequence `["__proto__"]`, because
-   `{"__proto__": v}` is a prototype assignment in JavaScript and would not
-   read back the value it was given. Round-tripping depends on it, so it is not
-   a style difference the shared walker can hardcode away.
+   `__proto__` as the exact sequence `["__proto__"]`, with no whitespace or
+   escape substitutions. On input, postprocessing decodes every JSON string
+   key and rejects it when the decoded value is `__proto__`; `{"__proto__": v}`
+   and escaped equivalents are prototype assignments in JavaScript and would
+   not read back the value they were given. Round-tripping depends on this, so
+   it is not a style difference the shared walker can hardcode away.
 4. **an entry-enumeration seam** — `treeSerialize` reads an object through
    `definedEntries`, which drops a property whose value is `undefined` before
    any other seam runs; `buildSerialize` reads it through `entries`, which keeps

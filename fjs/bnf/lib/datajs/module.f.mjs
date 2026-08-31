@@ -1,8 +1,11 @@
 /**
  * DataJS grammar.
  *
- * The only allowed spelling of the `__proto__` property is the exact sequence
- * `["__proto__"]`; whitespace is not allowed anywhere within that sequence.
+ * The only allowed spelling of the `__proto__` property is the exact character
+ * sequence `["__proto__"]`, with no whitespace or escape substitutions. This
+ * grammar recognizes JSON string keys syntactically; a DataJS postprocessor
+ * must decode their escapes and reject every string key whose decoded value is
+ * `__proto__`.
  *
  * @module
  *

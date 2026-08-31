@@ -270,7 +270,11 @@ truncated sequence never reaches a transformer at all.
 
 **Refusal is the engine's channel.** A rule that must reject a value it can parse
 but cannot represent — `1e999`, a duplicate `__proto__`, an unresolved `const` —
-returns an `error`. The engine completes it:
+returns an `error`. DataJS property processing is one concrete use: after the
+JSON string transformer resolves every escape, a string key whose decoded value
+is `__proto__` refuses. Only the separately tagged, exact source sequence
+`["__proto__"]` produces that property; whitespace and escape substitutions in
+the computed form do not match its grammar. The engine completes a refusal:
 
 ```ts
 type Refusal = {
