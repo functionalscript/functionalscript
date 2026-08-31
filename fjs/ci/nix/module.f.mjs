@@ -16,6 +16,7 @@
  * @import { Effect } from '../../effects/types.ts'
  * @import { Expression, _Binding, _Reference } from '../../media/nix/types.ts'
  * @import { NixArchive, NixJob, NixPin, NixRust } from './types.ts'
+ * @import { _PerSystem } from './private.ts'
  */
 
 import { pureOk } from '../../effects/module.f.mjs'
@@ -122,31 +123,13 @@ const pinned = ({ package: name, version }, source, hash) => ['apply',
 const shellName = /** @type {const} */ ('shell')
 
 /**
- * The parts of a shell that differ between one system and the next.
- *
- * Two ways to fill them, and that is the whole of the choice this module makes
- * about repetition. A flake with one shell passes the values themselves, and
- * reads with nothing to look up. A flake with several passes references to a
- * function's arguments, and the shell is written once.
- *
- * The archive halves are read only under a `pin`, so for a job that pins
- * nothing whatever fills them never reaches the file.
- *
- * @typedef {{
- *   readonly system: Expression
- *   readonly url: Expression
- *   readonly hash: Expression
- * }} PerSystem
- */
-
-/**
  * One development shell: the `let` that builds it and the `mkShell` that is it.
  *
  * What varies with the system is not only its name — a pinned package names a
  * different archive, with a hash of its own — so all three arrive together
  * rather than being derived from each other here.
  *
- * @type {(job: NixJob, perSystem: PerSystem) => Expression}
+ * @type {(job: NixJob, perSystem: _PerSystem) => Expression}
  */
 const shell = ({ packages, shellHook, rust, pin }, { system, url: source, hash }) => ['let',
     [
