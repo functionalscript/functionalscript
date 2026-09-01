@@ -8,10 +8,26 @@
 import type { List } from '../../types/list/types.ts'
 import type { StateFold } from '../../types/function/operator/types.ts'
 import type { CodePoint } from '../../text/utf16/types.ts'
+import type { Assert } from '../../asserts/types.ts'
+import type { Equal } from '../../types/ts/types.ts'
 import type { Rule } from '../types.ts'
 
 /** A value paired with metadata. */
 export type Meta<M, T> = readonly[value: T, metadata: M]
+
+/**
+ * The runtime tag of a variant branch: each key of `T` as it appears in a
+ * {@link Branch} pair. Numeric keys are stringified, so `keyof T & string`
+ * would drop them.
+ */
+export type BranchKey<T> = {
+    readonly[K in keyof T]: K extends string | number ? `${K}` : never
+}[keyof T]
+
+type _NumericBranchKey = Assert<Equal<
+    BranchKey<{ readonly 0: string }>,
+    '0'
+>>
 
 /** A variant branch paired with the value produced by that branch. */
 export type Branch<T> = {
@@ -70,7 +86,7 @@ export type TransformerTools<M> = {
         f: SequenceTransformer<M, C, T>,
     ) => Transformer<M, T>
     readonly variantOf: <C extends object, T>(
-        branches: readonly (keyof C & string)[],
+        branches: readonly BranchKey<C>[],
         f: VariantTransformer<M, C, T>,
     ) => Transformer<M, T>
     readonly repeatOf: <C, S, T>(
@@ -79,6 +95,25 @@ export type TransformerTools<M> = {
     ) => Transformer<M, T>
     readonly unit: Transformer<M, undefined>
 }
+
+/**
+ * `variantOf` accepts a numeric-keyed variant listed by its runtime tag, the
+ * same `'0'` that {@link Branch} hands the transformer.
+ */
+type _NumericVariantOf = Assert<
+    TransformerTools<null>['variantOf'] extends (
+        branches: readonly['0'],
+        f: VariantTransformer<null, { readonly 0: string }, bigint>,
+    ) => Transformer<null, bigint>
+        ? true
+        : false
+>
+
+/** A mixed variant lists both kinds of key as their string tags. */
+type _MixedBranchKey = Assert<Equal<
+    BranchKey<{ readonly 0: string, readonly a: bigint }>,
+    '0' | 'a'
+>>
 
 /** State used by the default AST repetition transformer. */
 export type _AstRepeatState<M> = readonly[items: List<unknown>, metadata: M]
