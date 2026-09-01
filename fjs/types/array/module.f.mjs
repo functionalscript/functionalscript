@@ -6,6 +6,7 @@
  * @import { Tuple } from './types.ts'
  */
 
+import { toArray, repeat as listRepeat } from '../list/module.f.mjs'
 import { fromUndefined } from '../nullable/module.f.mjs'
 
 /**
@@ -118,3 +119,16 @@ export const includes =
      */
     v =>
     a.includes(v)
+
+export const repeat =
+    /**
+     * @template {number} N
+     * @param {N} n
+     */
+    n =>
+    /**
+     * @template T
+     * @param {T} v
+     * @return {Tuple<N, T>}
+     */
+    v => /**@type{any}*/(toArray(listRepeat(v)(n)))

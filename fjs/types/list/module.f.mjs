@@ -5,7 +5,7 @@
  *
  * @import { Nullable } from '../nullable/types.ts'
  * @import {Scan, StateScan, Fold, Reduce, Equal} from '../function/operator/types.ts'
- * @import { Accumulator, Concat, Entry, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts'
+ * @import { Accumulator, Entry, List, NonEmpty, NotLazy, Result, Thunk } from './types.ts'
  */
 
 import { identity, fn, compose } from '../function/module.f.mjs'
