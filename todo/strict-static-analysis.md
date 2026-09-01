@@ -26,7 +26,7 @@ checker, and they should be turned up as far as they go.
 ### How to add a check
 
 The workflow is **generated**: `.github/workflows/ci.yml` is written by
-`fjs/ci/` via `npm run ci-update`, and CI verifies the committed file matches
+`fjs/ci/` via `npm run gen`, and CI verifies the committed file matches
 (`git add -A && git diff --cached --exit-code`). A new check is a change to
 `fjs/ci/`, not to the YAML. Deno and Bun are already installed on every runner,
 so tools shipping with them cost no extra setup step.

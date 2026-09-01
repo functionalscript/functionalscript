@@ -135,9 +135,11 @@ constant, so the two cannot drift.
 
 A generated `run` script sits beside every flake, and a workflow step reads as
 the command it runs — `./nix/run npm run cov` — rather than as a `nix develop`
-invocation repeated fifteen times. The script carries `--no-write-lock-file`
-(leave the checkout untouched) and one `--quiet`, which drops the `copying N
-paths` substitution chatter and leaves every warning.
+invocation repeated fifteen times. The script carries `--no-update-lock-file`
+(error rather than silently resolve a mismatched input — a plain
+`--no-write-lock-file` would leave the checkout untouched but still resolve
+in memory and warn) and one `--quiet`, which drops the `copying N paths`
+substitution chatter and leaves every warning.
 
 `./dev.sh` at the repository root is the interactive counterpart — `nix develop
 ./nix`, with no flags and no arguments, for a person who wants the shell rather
@@ -146,13 +148,15 @@ varies with a job, a pin or a system, so there is nothing for a generator to
 compose or a drift check to catch. See [nix/README.md](../../nix/README.md) for
 why it carries neither of the `run` script's flags.
 
-A `flake.lock` is generated beside every `flake.nix`, from `narHash` and
-`lastModified` in `config/module.f.mjs`, and committed. Without one every
-`nix develop` computed a lock, found it differed from nothing, and said so —
+A `flake.lock` is committed beside every `flake.nix`, but `gen` (`fjs ci`)
+never writes one: `nix flake lock` is a real Nix command, and `gen` has to
+work on Windows, where Nix does not run at all. Without a committed lock every
+`nix develop` would compute one, find it differed from nothing, and say so —
 which used to cost two more `--quiet`s and, with them, every Nix warning of any
-kind. Nothing runs `nix flake lock` to produce it: `fjs ci` has to work on
-Windows, where Nix does not, so the two values a lock adds are data the way
-`bunSources`' hashes are. See [nix/README.md](../../nix/README.md).
+kind. Instead `fjs ci` also writes `nix/lock-update.sh`, one `nix flake lock`
+per generated directory, for a maintainer to run — with real Nix, hence
+`npm run lock-update` rather than `gen` — only when a pin in
+`config/module.f.mjs` moves. See [nix/README.md](../../nix/README.md).
 
 No job checks the flakes; the jobs that use them check the runtime they get. Every
 canonical job asserts, as its first command, that its own shell reports the version
@@ -235,7 +239,7 @@ flake:
   with a flake to themselves: `npm ci` and `node --test` take whichever `node`
   reaches `PATH` first, and one shell holds one, so each needs a shell carrying
   the single release it exists to test.
-- Node 26 runs `npm ci`, `tsc`, `npm run cov`, `npm pack` and `npm run ci-update`
+- Node 26 runs `npm ci`, `tsc`, `npm run cov`, `npm pack` and `npm run gen`
   through the shared shell, then `git add -A && git diff --cached --exit-code`
   as a plain step — `git` is the runner's tool, and a step names the flake only when
   it needs something the flake pins. The release it wants is the shared shell's,
@@ -260,22 +264,24 @@ registry install take a package younger than Deno's 24-hour default, and no regi
 install is left.
 
 The commands that must be provided by `package.json` for generated CI are `cov`
-and `ci-update`. A typical FunctionalScript project can define them like this:
+and `gen`. A typical FunctionalScript project can define them like this:
 
 ```json
 {
   "scripts": {
     "test": "tsc && fjs test",
     "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs",
-    "ci-update": "fjs ci"
+    "gen": "fjs ci"
   }
 }
 ```
 
-`ci-update` must regenerate every generated file the project keeps in Git, not
-only the workflows. `fjs ci` covers `.github/workflows/ci.yml`,
-`.github/workflows/npm-publish.yml` and the generated Nix flakes; a project with other generators chains them into the same script, as
-this repository does for `nanvm-lib/tests/test/generated.rs` (see
+`gen` must regenerate every deterministic generated file the project keeps in
+Git, not only the workflows. `fjs ci` covers `.github/workflows/ci.yml`,
+`.github/workflows/npm-publish.yml` and the generated Nix flakes (`flake.nix`
+and `run`, deliberately not `flake.lock` — see "Generated flake locks" below);
+a project with other generators chains them into the same script, as this
+repository does for `nanvm-lib/tests/test/generated.rs` (see
 [`fjs/nanvm/README.md`](../nanvm/README.md)). Everything chained there is
 covered by the drift check below for free.
 
@@ -290,6 +296,13 @@ cover newly created and deleted generated files, not just modified ones — a pl
 `fjs ci` resolves the project's own `functionalscript` devDependency; this repository
 instead uses its checked-in sources (`node ./fjs/module.mjs ci`), so the check always
 reflects the generator being reviewed, not the pinned published release.
+
+`gen` is deliberately Nix-independent — it never shells out to `nix`, so it
+also runs on Windows and needs no network fetch — which is exactly why it
+cannot be the thing that refreshes `flake.lock`. A separate, maintainer-run
+`npm run lock-update` (`nix/lock-update.sh`, generated alongside the flakes)
+does that with real Nix; ordinary contributors only ever run `gen` after
+changing source.
 
 Keep `tsc` passing independently because the generated CI runs it as its own
 step before coverage and package creation. Keep `test` as the fast local
@@ -313,7 +326,7 @@ Without that file, third-party test runners discover no FunctionalScript proofs
 and will report zero tests. `fjs test` is the exception: it discovers proof modules
 directly and does not need `all.test.ts`.
 
-**Note,** `npm run ci-update` in this repository runs the same built-in command through the
+**Note,** `npm run gen` in this repository runs the same built-in command through the
 checked-in Node entry point, which avoids relying on the package bin before the
 package has been installed. Custom projects that need different runtime setup steps
 should use `fjs run <custom-ci-module>` and call `ci(setup)` directly instead of
@@ -343,9 +356,9 @@ the shell like the rest and only Windows stays off it.
 generated by the same command rather than by one of its own: the two workflows
 share every pin they name — the runner image, the Node version, the pinned
 action refs, all of `config/module.f.mjs` — and the Node 26 drift check
-(`npm run ci-update`, then `git add -A && git diff --cached --exit-code`) covers
+(`npm run gen`, then `git add -A && git diff --cached --exit-code`) covers
 whatever `fjs ci` writes for free. A separate command would have to be chained
-into `ci-update` to reach the same place, and a consumer who forgot would keep a
+into `gen` to reach the same place, and a consumer who forgot would keep a
 publish workflow that silently stopped matching its CI.
 
 It keeps the file name it had while it was hand-written. A rename to
@@ -408,7 +421,7 @@ it.
 Which is also the one thing to know before running `fjs ci` in a project that
 does not want to publish: it is written unconditionally, like every other job
 this generator emits, and deleting the file does not opt out — the next run
-writes it back, and `ci-update`'s drift check then fails on its absence. There
+writes it back, and `gen`'s drift check then fails on its absence. There
 is no way to decline it: `Setup` has no field for it, and
 `fjs run <custom-ci-module>` is not the escape hatch it looks like — a custom module calls `ci(setup)`, which is the function that writes both
 files. Assembling a workflow from this directory's parts instead is all that is

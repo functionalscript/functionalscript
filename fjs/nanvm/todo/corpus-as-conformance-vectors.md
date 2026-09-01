@@ -125,7 +125,7 @@ identity-memoization contract the corpus already relies on.
       roadmap's post-MVP serialization exists).
 - [ ] Register the corpus as the shared conformance vectors of
       [edag-spec](../../../todo/edag-spec.md).
-- [ ] `tsc`, `fjs test`, `npm run ci-update`, `cargo test`,
+- [ ] `tsc`, `fjs test`, `npm run gen`, `cargo test`,
       `cargo clippy -- -D warnings`, and `cargo fmt -- --check`.
 
 ### Related

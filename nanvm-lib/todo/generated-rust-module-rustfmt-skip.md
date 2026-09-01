@@ -60,8 +60,8 @@ the layout chosen by the generator.
       the module-level formatting policy owned by `main.rs`.
 - [ ] Update the Rust generator proof if its expected output covers these
       attributes.
-- [ ] Regenerate `nanvm-lib/tests/test/generated.rs` with `npm run ci-update`.
-- [ ] Verify a second `npm run ci-update` leaves the tree unchanged.
+- [ ] Regenerate `nanvm-lib/tests/test/generated.rs` with `npm run gen`.
+- [ ] Verify a second `npm run gen` leaves the tree unchanged.
 - [ ] Run `fjs test`, `cargo check --tests`, `cargo test`, and
       `cargo fmt -- --check`.
 

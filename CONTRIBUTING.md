@@ -164,19 +164,34 @@ FunctionalScript is JavaScript with JSDoc: a `module.f.mjs` is accompanied by a
 `types.ts`. Current FunctionalScript compiler support is not required for either
 file.
 
+### Regenerating after a source change
+
+```bash
+npm run gen
+```
+
+Run this after changing anything a generator reads — `fjs/ci`'s workflows and
+Nix flakes, `fjs/nanvm`'s Rust test data, `.copilot/mcp.json`. It needs
+nothing beyond Node, runs on Windows, and never touches a lockfile of any
+kind — CI's drift check runs the same command and fails if the committed
+tree no longer matches its output.
+
 ### Updating dependencies
 
 To bump an npm devDependency version, edit `package.json` by hand first (there
-is no `npm-check-updates` step anymore). Then run:
+is no `npm-check-updates` step anymore). To move a pinned Nixpkgs or
+`rust-overlay` commit, edit `fjs/ci/config/module.f.mjs`. Either way, then run:
 
 ```bash
-npm run update
+npm run lock-update
 ```
 
-Run this after changing source code. It requires Node, Deno, and Bun to all be
-installed: `package-lock.json`, `deno.lock`, and `bun.lock` are all under Git
-control, and the update refreshes each of them (plus the generated CI workflow)
-to match whatever versions are currently declared in `package.json`.
+This is a maintainer action, not something to run after an ordinary source
+change — `gen` above covers that. It requires Node, Deno, Bun, Cargo, and Nix
+all installed (so it does not run on Windows): it runs `gen` first, then
+refreshes `package-lock.json`, `deno.lock`, `bun.lock`, and `Cargo.lock`, and
+runs the generated `nix/lock-update.sh` to refresh every `flake.lock` through
+real Nix — see [`nix/README.md`](./nix/README.md).
 
 ## Using MCP with VS Code
 
@@ -185,12 +200,10 @@ auto-discovers `.vscode/mcp.json`; that file is **not committed** — generate i
 in your local clone with:
 
 ```bash
-npm run dev-update
+npm run gen
 ```
 
-After editing `.copilot/mcp.json`, run `npm run dev-update` again. The
-cross-platform FunctionalScript updater also accommodates future local
-development configuration generators.
+After editing `.copilot/mcp.json`, run `npm run gen` again.
 
 To use the MCP tools in Copilot Chat, open it (`Ctrl+Alt+I` on Windows/Linux,
 `Cmd+Option+I` on macOS), select **Agent**, then use **Configure Tools** to
