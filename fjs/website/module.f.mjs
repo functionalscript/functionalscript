@@ -112,7 +112,10 @@ const walk = dir => step(readdir(dir, {}), entries => foldStep(
     /** @type {readonly string[]} */ ([]),
     entry => found => {
         const path = pathConcat(dir)(entry.name)
-        if (entry.isFile) { return pureOk(authored(path) ? [...found, path] : found) }
+        // `isDirectory` and not `!isFile`: a symbolic link is neither, and
+        // `readdir` on one fails with `ENOTDIR` — a build broken by a link
+        // somebody left in the tree.
+        if (!entry.isDirectory) { return pureOk(authored(path) ? [...found, path] : found) }
         return ignored(entry.name)
             ? pureOk(found)
             : mapStep(walk(path), inner => [...found, ...inner])

@@ -611,7 +611,7 @@ export const reporterWriteFailure = () => {
     /** @type {RunInstance<_FailOps, undefined>} */
     let runner
     runner = mockRun(/** @type {Parameters<typeof mockRun<_FailOps, undefined>>[0]} */ ({
-        readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true }])],
+        readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true, isDirectory: false }])],
         import: _path => s => [s, ok({ proof: { x: () => { } } })],
         all: (...effects) => s => {
             const [st, rs] = effects.reduce(
@@ -810,7 +810,7 @@ export const registerSelectsContextAndStar = () => {
         /** @type {RunInstance<_RegisterMockOps | Readdir | Import, undefined>} */
         let runner
         runner = mockRun(/** @type {Parameters<typeof mockRun<_RegisterMockOps | Readdir | Import, undefined>>[0]} */ ({
-            readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true }])],
+            readdir: (_path, _o) => s => [s, ok([{ name: 'a.proof.f.ts', parentPath: '.', isFile: true, isDirectory: false }])],
             import: _path => s => [s, ok({ proof: { ok: () => {} } })],
             all: (...effects) => s => {
                 const [st, rs] = effects.reduce(
