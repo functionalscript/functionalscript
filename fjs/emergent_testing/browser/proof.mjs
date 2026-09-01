@@ -457,23 +457,27 @@ export const proof = {
         assertEq(p.summary.textContent, 'Loading 0/1')
     },
     sourcesProgress: async () => {
-        // **The count is the page's**, and this is where it is proven. Loads are
-        // fanned out, so no branch of the walk knows how many others have
-        // finished: it announces each module as it lands, and this file counts
-        // what it has seen. A runner that announced under another name — or a
-        // page that counted the wrong event — would sit at `Loading 0/N` for a
-        // whole run, which reading the summary at the end cannot see.
+        // **The count is the page's**, and this is where it is proven. The walk
+        // announces each module as it lands, and this file counts what it has
+        // seen. A runner that announced under another name — or a page that
+        // counted the wrong event — would sit at `Loading 0/N` for a whole run,
+        // which reading the summary at the end cannot see.
         //
         // The *lines said while loading* are the subject, so the assertion is
-        // on what was rendered rather than on what is left showing. One source,
-        // because two concurrent imports have no guaranteed order between them.
+        // on what was rendered rather than on what is left showing. Two
+        // sources, and the order between them is asserted: loading is
+        // sequential, so the modules arrive in the order they were asked for.
+        // Under the fan-out this replaced, only one source could be pinned at
+        // all — concurrent imports have no guaranteed order — which is one
+        // measure of what the concurrency cost.
         const p = page()
-        const source = dataModule('export const proof = { a: () => undefined }')
-        const report = await startBrowserTestSources(p.root, [source])
+        const first = dataModule('export const proof = { a: () => undefined }')
+        const second = dataModule('export const proof = { b: () => undefined }')
+        const report = await startBrowserTestSources(p.root, [first, second])
         assertEq(report.status, 'passed')
         assertStructurallySame(
             p.summary.texts.filter(t => t.startsWith('Loading')),
-            ['Loading 0/1', `Loading 1/1: ${source}`])
+            ['Loading 0/2', `Loading 1/2: ${first}`, `Loading 2/2: ${second}`])
     },
     sourceThatCannotBeImported: async () => {
         // A source the page cannot import is a loader failure like any other:

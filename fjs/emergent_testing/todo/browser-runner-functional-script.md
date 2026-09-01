@@ -17,7 +17,7 @@ Measured by whether a definition touches a host object at all:
 | | lines |
 | --- | --- |
 | genuine DOM/window glue (`setState`, `render*`, `publish`, `viewOf`, `startBrowserTests`) | ~85 |
-| the interpreter (`import`, `all`, `report`, the macrotask yield) | ~60 |
+| the interpreter (`import`, `report`, the macrotask yield) | ~55 |
 | logic wearing one thin host touch (`runBrowserProofs`'s tail) | ~25 |
 | pure already (`text`, `errorDetails`, `moduleFailure`, `reportOf`, the walks) | **moved** |
 
@@ -28,26 +28,29 @@ tail: build the interpreter, hold the collected rows, fold the report, and the
 deferral that keeps user code from running before the caller holds the promise.
 
 The row that grew is the *interpreter*, and that is the shape the file should
-have: `import` resolves a source against the document, `all` answers the shared
-fan-out with `Promise.all`, `report` renders and counts, and the macrotask
-yield gives the page a chance to paint. None of that is logic — each is one
-host capability, spelled the way this host spells it.
+have: `import` resolves a source against the document, `report` renders and
+counts, and the macrotask yield gives the page a chance to paint. None of that
+is logic — each is one host capability, spelled the way this host spells it.
+It grew by less than it might have: the loading walk kept its concurrency
+through an `all` handler for one PR, and loading is a sequential fold now, so
+the page implements no fan-out and schedules nothing but that one yield.
 
 The question that moved each of them was the same, and it is worth keeping:
 not *"does this touch a host object"* but *"which values does it need from
 one"*. `reportOf` needed two, so they are passed in. The loading walk needed a
-module loader and a fan-out, so both became operations — and naming them was
-what turned an injected `importer` parameter into an interpreter's handler.
+module loader, so that became an operation — and naming it is what turned an
+injected `importer` parameter into an interpreter's handler. It appeared to
+need a fan-out too; it needed sequencing, which an effect already is.
 
 The pure row has **left**: `text`, `errorDetails`, `moduleFailure` (in
 functionalscript#1802, once the `catch` operation existed to carry the first
 two) and now `reportOf` are in `../browser/module.f.mjs`, along with
 the orchestration the sharing plan moved. That is what took the file from 405
-lines to 298.
+lines to 330.
 
 **The proof file is the visible cost.** [`browser/proof.mjs`](../browser/proof.mjs)
-is 524 lines — the largest impure proof file in the repository, and more than a
-third of all the impure proof code there is (1,434 lines across six files; the
+is 581 lines — the largest impure proof file in the repository, and more than a
+third of all the impure proof code there is (1,491 lines across six files; the
 next largest is `rtti/host.proof.mjs` at 379, which exists to build values
 FunctionalScript cannot express). It exists to test that logic from Node through
 a DOM stand-in. Logic in `.f.mjs`
