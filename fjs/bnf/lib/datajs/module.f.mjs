@@ -11,7 +11,7 @@
  *
  * @module
  *
- * @import { Rule, Sequence, Variant } from '../../types.ts'
+ * @import { Rule, Sequence } from '../../types.ts'
  */
 
 import { createValue, digit, optionFloatSuffix, optionNeg, string, uint, ws, wsSymbol } from '../json/module.f.mjs'

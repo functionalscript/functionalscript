@@ -83,5 +83,3 @@ export type Repeat1Plus<T> = readonly[T, Repeat0Plus<T>]
 export type Join1Plus<T, S> = readonly[T, Repeat0Plus<readonly[S, T]>]
 
 export type Join0Plus<T, S> = Option<readonly[T, Repeat0Plus<readonly[S, T]>]>
-
-export type Repeat<T> = readonly T[]
