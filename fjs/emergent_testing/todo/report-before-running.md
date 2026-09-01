@@ -45,7 +45,8 @@ before the leaf is sandboxed, and let each host decide what to do with it:
   shape: no *other* leaf runs between a start and its own result under the
   sequential runner, but the leaf itself does, and anything it writes — a
   proof that logs at runtime (purity is a convention the sandbox does not
-  enforce; see [hostile-proof-values](hostile-proof-values.md)), a Node
+  enforce; see `Catch` in
+  [`fjs/effects/common/types.ts`](../../effects/common/types.ts)), a Node
   warning — splices into an open line. That defence costs every reader a
   doubled log on every run to keep a rare case tidy, which is the wrong trade:
   the splice is *visible* when it happens, the name is on the stream either
@@ -164,5 +165,7 @@ call. The browser's cost is not the event, it is the yield and proving it.
 - [Share the browser and console proof runners](share-browser-console-runner.md)
   — reporting is one of the things each host still does its own way, and this
   is the same question twice until they share a reporter.
-- [Hostile proof values](hostile-proof-values.md) — the crash case this would
-  make diagnosable, where today the run ends with no summary and no name.
+- `Catch` in [`fjs/effects/common/types.ts`](../../effects/common/types.ts) —
+  the three reads of user values a run guards. A leaf that ends the run is no
+  longer the crash this issue was written against, but a leaf that hangs still
+  is, and only a start record names it.

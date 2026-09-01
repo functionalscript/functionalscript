@@ -439,10 +439,10 @@ const unreadableModule = ({ start, result }) => (k, thrown) => state => {
  * hostile, the second module's passing proofs were never reported.
  *
  * The browser page has read it this way since functionalscript#1809, through
- * its own `attempt`, and reported one failed module. This is that answer moved
- * into the shared core, which is where `todo/hostile-proof-values.md` says it
- * belongs: `fjs t` is the reference runner, so the asymmetry was a gap in it
- * rather than a defence the page had earned.
+ * its own `attempt`, and reported one failed module. This is that answer in the
+ * shared core: `fjs t` is the reference runner, so the asymmetry was a gap in
+ * it rather than a defence the page had earned. `Catch`'s own documentation in
+ * `../effects/common/types.ts` records what the three guarded reads are worth.
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter

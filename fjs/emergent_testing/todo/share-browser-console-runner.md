@@ -3,8 +3,9 @@
 **Priority:** P3
 **Status:** open — every step has landed. Two proofs are left: that the two
 runners answer identically from the same fixtures, and that the page reports an
-`infrastructure-error` when its *own interpreter* rejects, which 7b named and
-did not build.
+`infrastructure-error` when its *own interpreter* **rejects**, which 7b named
+and did not build. The other runner-failure route, an operation answering
+through its error channel, is proved by `refusedReportEndsTheRun`.
 
 ### Problem
 
@@ -108,8 +109,8 @@ both are properly issues rather than fixes inside a port:
   workaround. See [Browser timer precision](timer-precision.md).
 - Hostile values and cross-realm promises. The browser file today carries
   defenses `fjs t` has never had. Sharing the core means deciding what the rule
-  *is*, once — not quietly keeping two. See
-  [Hostile thrown values and cross-realm promises](hostile-proof-values.md) and
+  *is*, once — not quietly keeping two. See `Catch` in
+  [`fjs/effects/common/types.ts`](../../effects/common/types.ts) and
   [Imports, promises and realms](imports-promises-realms.md).
 
 The rule that follows: **a port changes only the behaviour its own argument
@@ -417,8 +418,9 @@ and is reviewable without the next one.
       user code; the browser catches that today and the shared walk did not, so
       sharing the traversal would have *lost* a behaviour. `sandbox` could not
       hold the guard — the virtual runner's is a fixture pass-through — so
-      [hostile proof values](hostile-proof-values.md) named a second operation
-      and this took it. `fjs t` gained the behaviour in the process, which is
+      the guard needed a second operation and this took it; what each of its
+      three call sites is worth is written down under `Catch` in
+      [`fjs/effects/common/types.ts`](../../effects/common/types.ts). `fjs t` gained the behaviour in the process, which is
       what made that change worth landing on its own rather than inside the port.
 
 - [x] **5. A browser interpreter** for `sandbox` and `catch`, plus whatever
@@ -981,11 +983,13 @@ are shared.
       regenerating them produces the new path rather than that a hand edit
       matched: `npm run website` rewrites the entry, and the browser suite
       manifest is derived the same way.
-- [ ] Prove the page's two runner-failure routes, which 7b described and left
-      unbuilt: an operation answering through its error channel, and an
-      operation the interpreter cannot dispatch, which *rejects*. Only the
-      first is reachable today — `runBrowserProofs`' `.catch(runnerFailure)`
-      has no proof, and the `infrastructure-error` cases in
+- [ ] Prove the page's *rejection* runner-failure route: an operation the
+      interpreter cannot dispatch, which rejects rather than answering. The
+      other route landed in 7b — an operation answering through its error
+      channel is `refusedReportEndsTheRun` in `browser/proof.f.mjs`, which
+      pins that the run stops and that the failure is answered. What has no
+      proof is `runBrowserProofs`' `.catch(runnerFailure)` in
+      `browser/module.mjs`: the `infrastructure-error` cases in
       `browser/proof.mjs` all come from the loading path's own `catch`, one
       function away. The seam 7b specifies is the page's run core taking its
       interpreter as an argument, exported for proofs from the page's own
@@ -1001,8 +1005,8 @@ are shared.
       not keep, as an issue, before the sharing change merges. Two: the
       `batchSize = 25` yielding — whose *constant* was the mistake and whose
       *yielding* was load-bearing, see below — and the unguarded read of a
-      module's *exported* tree, which stays the page's own and is tracked by
-      [hostile-proof-values](./hostile-proof-values.md).
+      module's *exported* tree, which stays the page's own — both are closed
+      below.
 - [x] Close each of those issues for both runners at once, so the two stay in
       sync rather than drifting from the day the core is shared. Both are
       closed, and *where* differs by which one it is.
@@ -1076,9 +1080,9 @@ are shared.
   `all` sibling fan-out; that issue now requires the sibling combination to be
   the instantiation's parameter (sequential for the run path, fan-out for
   registration), so a later walker cannot undo step 7a's scheduling.
-- [Hostile thrown values and cross-realm promises](hostile-proof-values.md) —
-  a behaviour the browser has and `fjs t` does not; decide it, do not inherit
-  two answers.
+- `Catch` in [`fjs/effects/common/types.ts`](../../effects/common/types.ts) —
+  the answer that decision reached: the three reads of user values a run
+  guards, now shared rather than the browser's own.
 - [Imports, promises and realms](imports-promises-realms.md) — the same, for the
   loading and promise-detection machinery.
 - [Browser timer precision](timer-precision.md) — `sandbox` is shared, so its

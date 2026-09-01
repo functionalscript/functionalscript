@@ -224,11 +224,13 @@ structural rule hold.
 
 ### Outcome
 
-**The investigation is finished and its decision is implemented; what is left is
-deferred, which is what `on-hold` above means.** Nothing here is waiting on a
-person: it is waiting on proofs running in iframes or workers, which nothing
-does today. The file stays because the measurements below are the input to that
-decision when it arrives, and re-deriving them cost several review rounds.
+**The investigation is finished and its decision is implemented.** The
+cross-realm promise is not a deferral: it is a **non-goal** — this framework
+runs proofs in one realm, one prototype chain, and a value from another realm
+is out of scope by the rule the Scope note above cites. The file stays open for
+the rest of its study, and the measurements below stay because they are what
+makes that ruling defensible rather than convenient, and re-deriving them cost
+several review rounds.
 
 **Done.** The browser's `sandbox` decides with `p instanceof Promise` and then
 **`await`s** — exactly as `fjs t` does, and the `await` is the load-bearing half.
@@ -319,8 +321,9 @@ Three ways it could have been paid, with what each costs:
 
 - **Leave it.** Both runners agree, and the value is unreachable from authored
   FunctionalScript — only an impure proof using `node:vm`, an iframe or a worker
-  can build one. This is the current state, and it is a deferral rather than an
-  answer. Its price is the table above, and a proof that names it.
+  can build one. **This is the current state and the answer**, given that a
+  second realm is a non-goal. Its price is the table above, and a proof that
+  names it.
 - **Subscribe with the intrinsic `then`** (the deleted machinery). Correct on
   every case. Its price is ~150 lines in the path that executes every proof
   body, plus `speciesFails` and the shadow to tell "not a promise" from "promise
@@ -438,8 +441,9 @@ Three things to consider first, if the day comes:
 
 ### Related
 
-- [Hostile proof values](hostile-proof-values.md) — the cross-realm promise
-  exposure, and the traversal guard it shares a cause with.
+- `Catch` in [`fjs/effects/common/types.ts`](../../effects/common/types.ts) —
+  the guarded reads of user values, which share a cause with the cross-realm
+  exposure this file measures.
 - [Browser testing](browser-testing.md) — iframes and workers.
 - [`spec/todo/3240-export.md`](../../../spec/todo/3240-export.md) — the `then`
   export ban.
