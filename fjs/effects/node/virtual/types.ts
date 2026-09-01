@@ -72,30 +72,30 @@ export type _Binding = {
 }
 
 export type State = {
-    stdout: string
-    stderr: string
+    readonly stdout: string
+    readonly stderr: string
     /** Remaining stdin bytes; each `read` pops the first, `null` at EOF. */
-    stdin: readonly number[]
-    root: Dir
-    internet: {
+    readonly stdin: readonly number[]
+    readonly root: Dir
+    readonly internet: {
         readonly[url: string]: Vec
     }
-    epochNs: number
-    memoryNext: number
-    memoryValues: { readonly [key: string]: unknown }
+    readonly epochNs: number
+    readonly memoryNext: number
+    readonly memoryValues: { readonly [key: string]: unknown }
     /** Monotonically increasing counter returned by `randomInt`; starts at 0. */
-    randomNext: number
+    readonly randomNext: number
     /**
      * What is listening, oldest first. An address appears once: a second
      * `listen` on one that is taken fails, as it does on a host.
      */
-    listening: readonly _Binding[]
+    readonly listening: readonly _Binding[]
     /**
      * The requests a fixture queues for the server to answer. `listen` delivers
      * every one of them to the {@link _VirtualListener} its handle carries, and
      * empties the queue — the virtual counterpart of accepting connections.
      */
-    requests: readonly IncomingMessage[]
+    readonly requests: readonly IncomingMessage[]
     /** What the listener answered, oldest first. */
-    responses: readonly ServerResponse[]
+    readonly responses: readonly ServerResponse[]
 }
