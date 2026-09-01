@@ -303,12 +303,13 @@ export const flakeText = job =>
  */
 export const lockUpdateText = jobs => `#!/bin/sh
 set -e
-${jobs.map(({ id }) => `nix flake lock ${flakePath(id)}`).join('\n')}
+${jobs.map(({ id }) => `nix flake lock ${experimentalFeatures} ${flakePath(id)}`).join('\n')}
 `
 
 /**
- * Enables the two experimental features every command here needs: `nix-command`
- * is `nix develop` itself, and `flakes` is the flake it names.
+ * Enables the two experimental features every generated script needs.
+ * `nix-command` is the modern `nix` CLI — both `nix develop` and `nix flake` —
+ * and `flakes` is the flake each one names.
  *
  * A Nix installation enables them in `nix.conf` or does not, and the ones that
  * do not are not exotic — a plain `sh <(curl -L https://nixos.org/nix/install)`
@@ -317,6 +318,11 @@ ${jobs.map(({ id }) => `nix flake lock ${flakePath(id)}`).join('\n')}
  * is disabled` from a script whose whole purpose is to need no setup. CI's
  * installer action happens to enable them, which is exactly why this went
  * unnoticed there.
+ *
+ * **Both generated scripts, not only `run`.** `nix flake` is gated behind the
+ * same two features as `nix develop`, so leaving {@link lockUpdateText} out
+ * would fix `./nix/run` for exactly the contributor who would then meet the
+ * identical error from `npm run lock-update`.
  *
  * Passing them makes the script say what it needs instead of asking the machine
  * to have been configured for it. It costs nothing where they are already on:

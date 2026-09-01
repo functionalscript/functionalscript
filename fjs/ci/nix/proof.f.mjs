@@ -410,11 +410,16 @@ export const proof = {
         // One `nix flake lock` per generated directory — Nix has no form that
         // locks several flakes at once — under `set -e`, so a later directory
         // is never silently skipped after an earlier one fails.
+        //
+        // Each line carries the experimental features for the same reason the
+        // `run` scripts do: `nix flake` is gated behind `nix-command` and
+        // `flakes` exactly as `nix develop` is, so a stock installation that
+        // could not run `./nix/run` could not run this either.
         lockUpdateText: () => {
             assertEq(lockUpdateText([plain, withRust]), `#!/bin/sh
 set -e
-nix flake lock ${flakePath(plain.id)}
-nix flake lock ${flakePath(withRust.id)}
+nix flake lock --extra-experimental-features 'nix-command flakes' ${flakePath(plain.id)}
+nix flake lock --extra-experimental-features 'nix-command flakes' ${flakePath(withRust.id)}
 `)
         },
         // What that script must say, pinned rather than described, for the
