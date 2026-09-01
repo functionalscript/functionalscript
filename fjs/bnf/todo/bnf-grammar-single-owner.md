@@ -35,11 +35,19 @@ must move onto — lives under `fjs/bnf`, and it now rules out adding any code a
 all under `fjs/media/json`, so a reader of the media codec's `todo/` would find
 nothing here to act on.
 
-For the same reason `fjs/djs/tokenizer` — which moves to the `fsc` tokenizer in
-the restructure's stage 5 — is **not** re-pointed at the shared rules. It stays
-hand-written by decision
-([self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md)), and the spec, not
-a shared runtime module, is what keeps it and the BNF example in agreement.
+That constraint is on the **media codecs**, and only them. Their scanners stay
+hand-written and take no runtime dependency on `fjs/bnf`
+([self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md)
+covers the JSON one), so for those the spec — not a shared module — is what
+keeps them and the BNF example in agreement.
+
+The compiler front end is the opposite case and keeps this issue's original
+task. `fjs/djs`'s tokenizer is already grammar-based
+([parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)),
+and stage 5 moves it to `fjs/fsc` as a **rename**, BNF dependency intact. So
+pointing it at the shared digit and string rules — while its DJS-specific
+number, whitespace, and token rules stay local — remains live work; only the
+path changes, from `fjs/djs/tokenizer` to the `fsc` tokenizer.
 
 ### Proposal
 
@@ -158,6 +166,11 @@ Before implementing this TODO after the blocking split:
       it back into generic BNF and do not move it into `fjs/media/json`.
 - [ ] Keep the exported readonly `Rule` / `Sequence` / `Variant` contracts on the
       shared pieces so a consumer cannot mutate a shared grammar singleton.
+- [ ] Point the `fsc` tokenizer (`fjs/djs/tokenizer` until stage 5 renames it)
+      at the shared digit and string rules, keeping its DJS-specific number,
+      whitespace, and token rules local. It is grammar-based and stays so, so
+      this is sharing rules with a BNF consumer, not giving a media codec a BNF
+      dependency.
 - [ ] Handle `deno.json` registration according to the repository's exports-map
       state, if and when a map exists; do not create a one-entry restrictive
       exports map solely for these files.
@@ -173,8 +186,10 @@ Before implementing this TODO after the blocking split:
 - [`fjs/bnf/lib/json`](../lib/json/module.f.mjs),
   [`fjs/bnf/lib/datajs`](../lib/datajs/module.f.mjs) — the canonical
   grammars this task migrates.
-- [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md) — why the JSON
-  scanner stays hand-written and takes no runtime dependency on these grammars.
+- [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md) — why the
+  **media** JSON scanner stays hand-written and takes no runtime dependency on
+  these grammars. It does not govern the compiler front end, whose tokenizer is
+  grammar-based and stays so.
 - [157](../../djs/todo/157-json-djs-shared-value-machine.md) — shares JSON/DJS
   value machinery; orthogonal to the lexical BNF grammar.
 - [group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
@@ -183,5 +198,7 @@ Before implementing this TODO after the blocking split:
 - [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
   — the plan this task sits inside; its stage 2 deleted a third copy, and its BNF
   rule (grammars are spec text plus proof-covered `fjs/bnf` examples, never a
-  runtime dependency of the codecs) is what withdrew this issue's original
-  proposal.
+  runtime dependency of the **media codecs**) is what withdrew this issue's
+  original proposal. Its stage 5 renames the grammar-based front-end tokenizer
+  into `fjs/fsc`, which is why this issue's tokenizer task survives with a new
+  path rather than being withdrawn with the rest.

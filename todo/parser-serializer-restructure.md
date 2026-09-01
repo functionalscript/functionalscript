@@ -579,10 +579,9 @@ throughout.
   proof-covered `fjs/bnf` example, not a runtime module, so its
   `fjs/media/json/grammar` proposal is withdrawn and the grammar ships at
   `fjs/bnf/lib/json`. What remains open there is lowering that example onto
-  `bnf/unicode`. The `fjs/djs/tokenizer` pointer is dropped rather than moved to
-  the `fsc` tokenizer: that scanner stays hand-written and takes no runtime
-  dependency on `fjs/bnf`, so the spec — not a shared module — keeps the two in
-  agreement.
+  `bnf/unicode`. The `fjs/djs/tokenizer` pointer becomes the `fsc` tokenizer,
+  which stays grammar-based across the stage-5 rename; the no-runtime-BNF rule
+  binds the media codecs, not the front end.
 - [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) — its
   front-end paths move `djs` → `fsc` in stage 5, while its serializer
   citation (`../serializer/module.f.mjs`) follows the serializer into
