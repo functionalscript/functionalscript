@@ -21,7 +21,14 @@ guard: the `collectTests` traversal enumerates a returned proof tree, and
 throwing accessor, a revoked `Proxy`, or a hostile `toString` panics through
 either, and there is no `try`/`catch` in FunctionalScript for the core to catch
 it with. `fjs t` ends with a stack trace and no summary; the browser runner
-today loses one test and carries on. Measured, with two modules in the tree and
+today loses one test and carries on.
+
+**The `collectTests` half is closed** (functionalscript#1830): both the
+returned sub-tree and the module's own export are read under `catch`, in the
+shared traversal, so both runners answer one unreadable value with one failed
+record and keep going. What is left of this issue is `errorDetails` — reading
+the *thrown* value, which each host still does its own way — and the
+cross-realm promise below. Measured, with two modules in the tree and
 only the first hostile: `fjs t` exits on an uncaught `hostile` and the second
 module's passing proofs are never reported, while the browser records one failed
 result and runs the rest. That asymmetry is now noted on `TestResult` in
@@ -104,12 +111,18 @@ adopting a `then`, and a proof tree refusing to — which are studied together i
       which is where a browser runner will first dispatch one.
 - [x] Read the *returned* sub-tree through it in `walk`, reporting an unreadable
       tree as that leaf's failure rather than a panic.
-- [ ] The **exported** tree is still read unguarded, and deliberately: there is
-      no leaf to attribute it to, so an unreadable `proof` export belongs to
-      whatever loaded the module. `fjs t` still panics on one; the browser page
-      still catches it and reports one failed module. Closing *that* asymmetry
-      is a report-shape question (what a non-leaf failure is called) rather than
-      a missing operation, and it is the part of this issue still open.
+- [x] Read the **exported** tree through it too, in `runModule`. The report
+      shape this was waiting on turned out to need no new vocabulary: the
+      module is named the way a leaf is, `import("./a.f.mjs").proof()` with an
+      empty path, and travels through the same `start` and `result` events with
+      the thrown value in its `SandboxResult` — so a host describes it exactly
+      as it describes a leaf's, and a filter that matches leaf names matches
+      this too. Measured before the change, two modules with only the first
+      hostile: `fjs t` exited on the throw with no summary and the second
+      module's passing proofs were never reported. After: one failed record,
+      the second module runs, `pass: 2, fail: 1`, exit 1.
+      Pinned by `moduleExportThrows` and `moduleFailureThatCannotBeReported` in
+      `../catch.proof.mjs`, both mutation-checked.
 - [x] Prove an unreadable returned tree for `fjs t` — `returnedTreeThrows` in
       `../catch.proof.mjs`, beside `returnedTreeIsStillWalked`. The file is
       `.mjs` for the reason this whole issue rests on: a runner that reports a
