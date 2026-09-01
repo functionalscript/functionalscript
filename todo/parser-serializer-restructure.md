@@ -574,10 +574,18 @@ throughout.
   the JSON tokenizer. Rebase the issue on this plan or fold it in.
 - [663-json-djs-tree-type](../fjs/djs/todo/663-json-djs-tree-type.md) — the
   shared `Tree<P>` instantiation targets `fjs/media/datajs`; rename paths.
-- [bnf-grammar-single-owner](../fjs/media/json/todo/bnf-grammar-single-owner.md)
-  — re-scope: the canonical JSON grammar's owner is the spec (text) plus a
-  proof-covered `fjs/bnf` example, not a runtime module; the
-  `fjs/djs/tokenizer` pointer becomes the `fsc` tokenizer.
+- [bnf-grammar-single-owner](../fjs/bnf/todo/bnf-grammar-single-owner.md)
+  — **re-scoped**: the canonical JSON grammar's owner is the spec (text) plus a
+  proof-covered `fjs/bnf` example, not a runtime module, so its
+  `fjs/media/json/grammar` proposal is withdrawn and the grammar ships at
+  `fjs/bnf/lib/json`. Lowering that example onto `bnf/unicode` is **not** open
+  there: it belongs to the alphabet split, which breaks these grammars and so
+  ports them in the same change. What remains open is the shared lexical API
+  #1817 shipped only partly — parameterizing `string` over its simple escapes,
+  exporting the digit rules, and pointing the tokenizer at them. The
+  `fjs/djs/tokenizer` pointer becomes the `fsc` tokenizer,
+  which stays grammar-based across the stage-5 rename; the no-runtime-BNF rule
+  binds the media codecs, not the front end.
 - [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) — its
   front-end paths move `djs` → `fsc` in stage 5, while its serializer
   citation (`../serializer/module.f.mjs`) follows the serializer into

@@ -76,10 +76,17 @@ symbol alphabet without importing or depending on Unicode or byte-stream support
 
 This split changes the public design assumptions used by older open TODOs:
 
-- [`fjs/media/json/todo/bnf-grammar-single-owner.md`](../../media/json/todo/bnf-grammar-single-owner.md)
-  is blocked by this task. Its implementation must import Unicode-specific
+- [`fjs/bnf/todo/bnf-grammar-single-owner.md`](./bnf-grammar-single-owner.md)
+  owns the two grammars this task ports — `fjs/bnf/lib/json` and
+  `fjs/bnf/lib/datajs` — and its "Unicode migration requirements" section is
+  written for whoever makes that port. They must import Unicode-specific
   construction from `fjs/bnf/unicode/module.f.mjs` and lower text literals to
-  generic rules before they reach core BNF.
+  generic rules before they reach core BNF. DataJS's `'["__proto__"]'` key needs care: `str` lowers
+  it to a contiguous sequence of terminal ranges, which is what it must become —
+  the parser consumes code points, so a single terminal could not match it. It
+  is one *token* because nothing separates that sequence's elements, not because
+  it is one rule; keep it that way, with no `ws` between elements and no escape
+  substitution inside.
 - [`fjs/bnf/todo/207-bnf-semantic-actions.md`](./207-bnf-semantic-actions.md) is
   **no longer blocked** by this task. It has been rewritten over the *data*
   `RuleSet`, where the functional Unicode-literal string never arrives —
@@ -92,9 +99,8 @@ This split changes the public design assumptions used by older open TODOs:
   for a rule the grammar no longer contains — which 207's construction check
   rejects. Whoever ports a grammar re-points its entries at the adapter's rules,
   or takes them from a fragment the adapter supplies. That is the grammar's
-  business (JSON's is tracked in
-  [`bnf-grammar-single-owner`](../../media/json/todo/bnf-grammar-single-owner.md)),
-  not the transformer protocol's.
+  business, not the transformer protocol's — and for the two `fjs/bnf/lib`
+  grammars it happens here, in the same change that ports them.
 - The `Repeat` rule kind has shipped, and this split **helps** it. A `Repeat` is
   a bare rule name, so `bnf/data`'s `Rule` now has a string case — but that is
   the *data* `Rule`, which never had the Unicode-literal string case this task
@@ -145,13 +151,23 @@ new module boundary and final rule discriminants before implementation starts.
       alphabet-agnostic; keep optional Unicode conveniences in
       `fjs/bnf/unicode/module.f.mjs`.
 - [ ] Update grammars and imports to construct text terminals through the Unicode
-      helpers instead of relying on raw strings as generic rules.
+      helpers instead of relying on raw strings as generic rules. `fjs/bnf/lib/json`
+      and `fjs/bnf/lib/datajs` are importers of the removed core helpers and use
+      raw strings throughout, so they are ported **in this change**: this is a
+      breaking change, and [AGENTS.md §5](../../../AGENTS.md) requires every
+      importer updated in the same PR. `tsc` enforces it regardless — the split
+      cannot land green without them. Staging it (add `fjs/bnf/unicode`, port the
+      importers, then remove the core exports) is the alternative, not deferral.
 - [ ] Keep EOF generic and width-independent: use core BNF's `EOF = -1`, and keep
       all alphabet adapters restricted to ordinary non-negative symbols without
       reserving the maximal value.
-- [ ] Update/block `fjs/media/json/todo/bnf-grammar-single-owner.md` so its JSON
-      grammar design imports Unicode helpers from `fjs/bnf/unicode/module.f.mjs`
-      and does not depend on raw string rules in core BNF.
+- [ ] Restate the helper set and import boundary in
+      [`bnf-grammar-single-owner`](./bnf-grammar-single-owner.md) against the
+      names this split actually ships, rather than the proposed ones it is
+      written on. That issue is blocked on this split for the design work the
+      port does not settle — parameterizing `string`, which digit rules are
+      exported, and sharing them with the `fsc` tokenizer — not for the port
+      itself, which is the previous task's and lands here.
 - [ ] Re-point the rule **values** `fjs/bnf/todo/207-bnf-semantic-actions.md`
       keys its transformer maps on after this split: it is no longer blocked by
       it, but lowering text literals through the Unicode adapter replaces rule
@@ -188,8 +204,10 @@ new module boundary and final rule discriminants before implementation starts.
   machinery with a different symbol alphabet.
 - [UTF-8 token symbols](./utf8-token-symbols.md) — tokenizer-output symbols are
   another non-Unicode alphabet consumed by the generic BNF core.
-- [JSON BNF grammar owner](../../media/json/todo/bnf-grammar-single-owner.md) —
-  blocked on this split and must target `bnf/unicode` for text terminals.
+- [JSON BNF grammar owner](./bnf-grammar-single-owner.md) — owns
+  `fjs/bnf/lib/json` and `fjs/bnf/lib/datajs`, and records what their port must
+  preserve. This split makes that port, since it is what breaks them; that issue
+  is blocked on this one for the shared-lexical-API work that follows.
 - [BNF rule transformers](./207-bnf-semantic-actions.md) — not blocked on this
   split: it is defined over the data `RuleSet`, which never had the generic
   string case. Its maps are keyed by rule **value**, so this split changes which
