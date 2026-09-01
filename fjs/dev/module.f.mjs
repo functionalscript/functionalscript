@@ -60,9 +60,11 @@ const allFiles = (s, predicate) => {
                 const { name } = i
                 if (name.startsWith('.')) { return [] }
                 const file = join(p, name)
-                return i.isFile
-                    ? (predicate(file) ? [pureOk([file])] : [])
-                    : (name === 'node_modules' ? [] : [load(file)])
+                // `isDirectory` and not `!isFile`: a symbolic link is neither,
+                // and `readdir` on one fails with `ENOTDIR`.
+                return i.isDirectory
+                    ? (name === 'node_modules' ? [] : [load(file)])
+                    : (predicate(file) ? [pureOk([file])] : [])
             })))
         return mapStep(listed, v => v.flat())
     }
