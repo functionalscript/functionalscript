@@ -2,7 +2,7 @@
  * Writes the generated Rust operator tests.
  *
  * The printer in [`../rust/module.f.mjs`](../rust/module.f.mjs) is pure; this
- * module is the thin effectful shell around it, invoked from `ci-update` so
+ * module is the thin effectful shell around it, invoked from `gen` so
  * the CI drift check regenerates the file on every pull request and fails
  * when the committed copy is stale.
  *

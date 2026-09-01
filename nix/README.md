@@ -1,10 +1,11 @@
 # Nix environments
 
-`flake.nix` and `flake.lock` here, and `<job>/` copies of both below them, are
-**generated** by
+`flake.nix` here, and `<job>/` copies of it below, are **generated** by
 [`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs) — four self-contained flakes. Do not
-edit them by hand: run `npm run ci-update` and commit the result. The Node 26 CI
-job fails when the committed files no longer match the generator's output. This
+edit them by hand: run `npm run gen` and commit the result. The Node 26 CI
+job fails when the committed files no longer match the generator's output.
+`flake.lock` is committed beside each, but by a separate, maintainer-run
+`npm run lock-update` rather than by `gen` — see "`flake.lock`" below. This
 README is the one file here that is written by hand.
 
 The flake in *this* directory is the shell: the one a developer enters, and the
@@ -49,7 +50,7 @@ Two lines, and the only thing that differs between copies is the path:
 
 ```sh
 #!/bin/sh
-exec nix develop --no-write-lock-file --quiet ./nix --command "$@"
+exec nix develop --no-update-lock-file --quiet ./nix --command "$@"
 ```
 
 The path is written in because the generator knows it. Leaving it out would not
@@ -68,14 +69,19 @@ status is the script's.
 
 The two flags live there rather than in every step.
 
-`--no-write-lock-file` is a **guard, not a fix**. With a correct lock beside the
-flake, Nix writes nothing whether or not the flag is passed: it compares the lock
-it computes against the one on disk and only writes when they differ. What the
-flag buys is the case where they do differ — the generator owns this file, and
-without the flag every Nix step in every job becomes a writer of a tracked one.
-Nothing is lost by that, since `npm run ci-update` regenerates the lock from
-`fjs/ci/config` and would revert a rewrite anyway. A future Nix whose lock schema
-moves past version 7 is where that would otherwise be churn on every step at once.
+**`--no-update-lock-file`, not the more tempting `--no-write-lock-file`.** Nix
+describes them itself: `--no-write-lock-file` is "do not write the flake's
+newly generated lock file" — it still *resolves* a mismatched input in memory
+and proceeds with that, only skipping the write, so a stale lock costs one
+`warning: not writing modified lock file` and the command runs anyway.
+`--no-update-lock-file` is "do not allow any updates to the flake's lock
+file" — it refuses the resolve itself, so the same mismatch is an error and
+the command stops. With a correct lock beside the flake, neither flag does
+anything: Nix compares the lock it would produce against the one on disk and
+only acts when they differ. What `--no-update-lock-file` buys is exactly that
+differing case — the one a forgotten `npm run lock-update` leaves behind, and
+`--no-write-lock-file` would have let through with a warning nobody's drift
+check reads.
 
 `--quiet` appears **once**, and it does one thing. Nix has a single global
 verbosity integer: the levels run `lvlError = 0, lvlWarn = 1, lvlNotice = 2,
@@ -122,25 +128,35 @@ likely to have a `dev.sh` of its own. It is committed once, like this README.
 It lives at the root because that is where a person types it, and it takes no
 arguments — a shell is what it opens, so there is nothing to pass through.
 
+**It carries neither of `run`'s flags, and both absences are deliberate.**
+`--quiet` hides `copying path` and `building '…'`, which is right for a CI log
+and wrong at a terminal: on a first entry those lines are the only thing telling
+you a two-gigabyte fetch is progressing rather than hung.
+`--no-update-lock-file` stops CI resolving, let alone writing, a tracked file;
+your working tree is not CI's, and if Nix disagrees with the committed lock
+then letting it resolve and rewrite is the quickest way to fix it by hand —
+`git diff` shows exactly what changed, and you commit the result exactly as
+`npm run lock-update` would have produced it.
+
 ### `flake.lock`
 
-A lock is generated beside every flake, from `narHash` and `lastModified` in
-[`fjs/ci/config`](../fjs/ci/config/module.f.mjs), and committed.
+A lock is committed beside every flake, but `npm run gen` (`fjs ci`) never
+writes one — unlike `flake.nix`, which it regenerates on every run from
+[`fjs/ci/config`](../fjs/ci/config/module.f.mjs). `gen` has to run wherever
+the project is developed, including Windows, where Nix does not run at all,
+so it cannot shell out to `nix flake lock` — and a lock is exactly `narHash`
+and `lastModified` for the pinned revision, both facts only real Nix can
+establish.
 
-Nothing runs `nix flake lock` to produce it. `fjs ci` has to run wherever the
-project is developed, including Windows, where Nix does not run at all — so the
-two values a lock adds on top of the revision are **data**, the way `bunSources`'
-archive hashes already are, and the generator writes the file the way it writes
-`flake.nix`. That keeps `npm run ci-update` pure text generation on every
-operating system, and keeps the lock inside the drift check: bump the Nixpkgs
-pin without updating its hash and `node26` fails, where a hand-written lock would
-simply rot.
-
-Both values are facts about a published revision. `fjs/ci/config` records the two
-ways to recompute them — `nix flake metadata` on a machine that has Nix, or a
-CI log, which lists every input's `narHash` in exactly the warning a missing lock
-produces. Getting one wrong is loud rather than silent: Nix recomputes,
-disagrees, and warns on every step again.
+So `gen` instead writes `lock-update.sh` beside the flakes: one
+`nix flake lock <path>` per generated directory, run by a maintainer — with
+Nix, hence `npm run lock-update` rather than `gen` — only when a commit in
+`fjs/ci/config` moves. A forgotten `lock-update` is still not silent:
+`flake.nix`'s `inputs.nixpkgs.url` already names the new commit once `gen`
+has run, so a `flake.lock` still naming the old one no longer matches what
+`flake.nix` asks for, and `--no-update-lock-file` (below) turns the very first
+`nix develop` any CI job makes into a loud failure instead of Nix quietly
+recomputing it.
 
 The generator writes the script's **content**; its executable bit is committed
 once and preserved by every regeneration, because `fs.writeFile` keeps the mode

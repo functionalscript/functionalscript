@@ -1,2 +1,2 @@
 #!/bin/sh
-exec nix develop --no-write-lock-file --quiet ./nix/node24 --command "$@"
+exec nix develop --no-update-lock-file --quiet ./nix/node24 --command "$@"

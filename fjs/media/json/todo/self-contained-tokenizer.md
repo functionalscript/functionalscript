@@ -1104,7 +1104,7 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
 - [ ] `changelog/unreleased/<PR>.md`, `**BREAKING CHANGES:**` — a consumer
       relying on a value token after a malformed literal stops receiving one.
       Valid JSON is unaffected, and the entry should say so.
-- [ ] `npm run update`, then `tsc`, `fjs test`, `cargo clippy` and
+- [ ] `npm run gen`, then `tsc`, `fjs test`, `cargo clippy` and
       `cargo fmt -- --check`.
 
 #### Stage 3b — the port
@@ -1331,13 +1331,14 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       discovered — it is the exception the no-suffix-loss claim carries, and a
       proof that states it is what stops the next reader from "fixing" it by
       teaching JSON's scanner about comments.
-- [ ] `npm run update`, then `tsc`, `fjs test`, `cargo clippy` and
+- [ ] `npm run gen`, then `tsc`, `fjs test`, `cargo clippy` and
       `cargo fmt -- --check`. The check set lists the last two unconditionally —
       only `cargo test` is scoped to having touched Rust — and they are quick
-      no-ops for a change that touches none. The update step is not
-      optional bookkeeping here: it regenerates CI workflows and lockfiles, and
-      this stage adds no dependency, but it does change the module's exports
-      and types, and the generated declaration output moves with them.
+      no-ops for a change that touches none. The `gen` step is not
+      optional bookkeeping here: it regenerates the CI workflows, and this
+      stage adds no dependency so no lockfile needs `lock-update`, but it does
+      change the module's exports and types, and the generated declaration
+      output moves with them.
 
 ### Related
 

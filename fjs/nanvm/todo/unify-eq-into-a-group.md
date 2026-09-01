@@ -57,7 +57,7 @@ object" through it, which is the one thing to check at each step.
       `LoweredEq`, and `lowerEq` with the consumers' `eq` branches.
 - [ ] Regenerate `nanvm-lib/tests/test/generated.rs`, preserving the existing
       test names.
-- [ ] `tsc`, `fjs test`, `npm run ci-update`, `cargo test`,
+- [ ] `tsc`, `fjs test`, `npm run gen`, `cargo test`,
       `cargo clippy -- -D warnings`, and `cargo fmt -- --check`.
 
 ### Related

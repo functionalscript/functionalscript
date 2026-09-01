@@ -19,7 +19,7 @@ subdirectory to stay ordinary submodules, and a subdirectory's entry point is
 ## Changing what is tested
 
 An operator case belongs in [`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs);
-`npm run ci-update` regenerates `test/generated.rs` from it, and CI fails if the
+`npm run gen` regenerates `test/generated.rs` from it, and CI fails if the
 committed copy is stale.
 
 What stays here is everything with no JavaScript counterpart: `try_into` out of

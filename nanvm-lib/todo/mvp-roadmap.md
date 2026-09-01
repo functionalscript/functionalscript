@@ -194,7 +194,7 @@ packages it like any other source file — no `include` special-casing and no
 strength and nothing uncommitted can ride into the `.crate`. The committed
 copy is a **verified cache** of the generator's output, not a second
 source: the CI drift check (the generated Node 26 job runs
-`npm run ci-update`, then fails via `git add -A && git diff --cached
+`npm run gen`, then fails via `git add -A && git diff --cached
 --exit-code` — see [fjs/ci](../../fjs/ci/README.md)) regenerates on every
 PR and rejects any change whose committed output is stale, so the files can
 neither drift nor be hand-edited unnoticed. Reviewers see the generated
@@ -231,7 +231,7 @@ developer entry point is "regenerate, then commit what changed", and the
 generator writes a file only when its content actually changed, so a no-op
 regeneration leaves mtimes untouched and cargo's fingerprinting skips the
 rebuild. **One `package.json` script is the single regeneration entry
-point for every generated file** — the `ci-update` contract already
+point for every generated file** — the `gen` contract already
 required by generated CI (see [fjs/ci](../../fjs/ci/README.md)): today it
 generates `.github/workflows/ci.yml`; the compiler Rust, the effects stub,
 and any future generated files fold into the same script (possibly renamed
