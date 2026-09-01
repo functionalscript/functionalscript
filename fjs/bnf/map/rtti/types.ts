@@ -11,32 +11,51 @@ export type Base = {
     readonly map: unknown
 }
 
+type AssertBase<T extends Base> = T
+
+//
+
 export type TerminalInfo<MI, MO, RO extends Type> = {
     readonly tag: 'terminal'
     readonly ro: RO
     readonly map: TerminalMap<MI, MO, Ts<RO>>
 }
 
-type _Terminal = Assert<TerminalInfo<unknown, unknown, Type> extends Base ? true: false>
+type _Terminal = AssertBase<TerminalInfo<unknown, unknown, Type>>
+
+//
 
 export type SequenceInfo<MI, RI extends readonly Type[], MO, RO extends Type> = {
+    readonly tag: 'sequence'
     readonly ri: RI
     readonly ro: RO
     readonly map: SequenceMap<MI, TupleTs<RI>, MO, Ts<RO>>
 }
+
+type _Sequence = AssertBase<SequenceInfo<unknown, readonly Type[], unknown, Type>>
+
+//
 
 type VariantTs<RI extends { readonly[K in keyof RI]: Type }> = {
     readonly[K in keyof RI]: Ts<RI[K]>
 }
 
 export type VariantInfo<MI, RI extends { readonly[K in keyof RI]: Type }, MO, RO extends Type> = {
+    readonly tag: 'variant'
     readonly ri: RI
     readonly ro: RO
     readonly map: VariantMap<MI, VariantTs<RI>, MO, Ts<RO>>
 }
 
+type _Variant = AssertBase<VariantInfo<unknown, { readonly[k in string]: Type }, unknown, Type>>
+
+//
+
 export type RepeatInfo<MI, RI extends Type, S, MO, RO extends Type> = {
+    readonly tag: 'repeat'
     readonly ri: RI
     readonly ro: RO
     readonly map: RepeatMap<MI, Ts<RI>, S, MO, Ts<RO>>
 }
+
+type _Repeat = AssertBase<RepeatInfo<unknown, Type, unknown, unknown, Type>>
