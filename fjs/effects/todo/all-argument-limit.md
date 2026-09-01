@@ -35,8 +35,8 @@ The throw is in **building** the effect, before any interpreter sees it, so no r
 recover from it and no `catch` operation is in the path. Today the paths that reach it are
 `fjs t`'s module *loading* and the registration entry point, and both panic. (The reverted functionalscript#1759 briefly put the browser page on
 it too, where the page's run-failure guard reported one `infrastructure-error` — the guard
-working as intended, but not an answer; the current page takes the `Promise.all` path
-below and never builds the effect.)
+working as intended, but not an answer; the current page loads sequentially and never
+builds the effect.)
 
 The ceiling applies **per fan-out**, and the registration path has two: one module with too
 many sibling leaves breaks the inner spread, and a run with too many *modules* breaks the
@@ -52,10 +52,16 @@ earlier version of this paragraph credited `batchSize = 25` with staying under t
 that was a misattribution, corrected in the pitfall catalog in
 [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md).)
 Both of the *traversal's* `Promise.all`s are gone now that the page runs the shared
-sequential traversal. The page still fans out once, over its module loading
-(`emergent_testing/browser/module.mjs`), which is a `Promise.all` in its own impure shell
-rather than an `all` dispatched through an interpreter — so it is outside this ceiling
-today, and inside it on the day that loading moves into `.f.mjs`.
+sequential traversal, and so is the page's last fan-out. The loading walk did dispatch
+`all` briefly (functionalscript#1818), which put the browser inside this ceiling for the
+first time; loading is a sequential fold now, so nothing a browser runs builds a variadic
+`all` and the page is outside it again — for a reason this time rather than by accident.
+
+That episode is also this issue's own warning, met: the proof written for it asserted
+that 150,000 sources *fail*, which is Node's ceiling and not a property of the code —
+Bun has no ceiling there, actually attempted the 150,000 imports, and the proof failed.
+The task below already says a proof here asserts that a large fan-out **completes**, never
+where an engine gives up; the deleted proof is what the other spelling costs.
 The reverted functionalscript#1759 routed the page through the shared traversal and so
 briefly gave both runners the same ceiling; the sequential plan that replaced it removed
 the traversal's fan-outs entirely (functionalscript#1774). What remains is the registration

@@ -10,8 +10,7 @@
  * `all`/`allOk`/`both` fan-out are re-exported from
  * [`../common`](../common/module.f.mjs) rather than declared here: an operation
  * belongs to the layer of whoever implements it, and none of these is Node's by
- * nature. A browser dispatches `sandbox` and `catch` today, and supplies its
- * own `import`.
+ * nature. A browser page dispatches `sandbox`, `catch` and `import`.
  *
  * See `./types.ts` for the type-level API.
  *
@@ -29,7 +28,7 @@ import { toCodePointList } from '../../text/utf8/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { reverse } from '../../types/list/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
-import { do_, ioError, toIoError } from '../module.f.mjs'
+import { do_, errorMessage, ioError, toIoError } from '../module.f.mjs'
 import {
     all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write,
 } from '../common/module.f.mjs'
@@ -38,7 +37,7 @@ import {
 } from '../module.f.mjs'
 
 /**
- * `ioError` and `toIoError` are declared in
+ * `errorMessage`, `ioError` and `toIoError` are declared in
  * [`../module.f.mjs`](../module.f.mjs) beside the effect representation,
  * because neither is node's: normalizing a thrown value into serializable
  * effect data is what any host's interpreter does at its `catch`. They are
@@ -51,14 +50,14 @@ import {
  * ever reports. Being about a *host failure* does not make a thing
  * host-agnostic — being about no host in particular does.
  */
-export { ioError, toIoError }
+export { errorMessage, ioError, toIoError }
 
 // `../common`'s, kept visible here because `NodeOp` unions them and dozens of
 // call sites name them through this module — a live coupling, not a shim. An
-// operation belongs to the layer of whoever implements it: a browser
-// dispatches `sandbox` and `catch` and supplies its own `import`, and the rest
-// are there because nothing about them is Node's. `../common/types.ts` keeps
-// the count, and says how it counts.
+// operation belongs to the layer of whoever implements it: a browser page
+// dispatches `sandbox`, `catch` and `import`, and the rest are there because
+// nothing about them is Node's. `../common/types.ts` keeps the count,
+// and says how it counts.
 export { all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write }
 
 /**
@@ -163,7 +162,8 @@ const nodeCommandSet = {
 export const nodeCommands = /** @type {Commands<NodeOp>} */ (Object.keys(nodeCommandSet))
 
 // `all`, `allOk` and `both` are `../common`'s, re-exported above: fan-out is an
-// interpreter's job, and a browser page fans out its module loads.
+// interpreter's job whoever the host is, which is the whole of why they are
+// there — no browser implements them.
 
 // fetch
 
@@ -345,15 +345,6 @@ export const test = do_('test')
  * @type {(r: Result<0, number>) => number}
  */
 export const exitCode = ([, code]) => code
-
-/**
- * Renders a channel error as a human line: an {@link IoError}'s own message, or
- * the command name a runner could not dispatch.
- *
- * @type {(e: IoChannel) => string}
- */
-export const errorMessage = ([tag, payload]) =>
-    tag === 'notImplemented' ? `operation not implemented: ${payload}` : payload.message
 
 /**
  * Renders a channel error for a **remote** caller: the command name for a

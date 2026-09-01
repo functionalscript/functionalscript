@@ -17,9 +17,10 @@
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { reportOf, runProofs } from './module.f.mjs'
+import { loadProofs, reportOf, runProofs } from './module.f.mjs'
 import { partialRun, run as mockRun } from '../../effects/mock/module.f.mjs'
-import { ok } from '../../types/result/module.f.mjs'
+import { error, ok } from '../../types/result/module.f.mjs'
+import { ioError } from '../../effects/module.f.mjs'
 
 /**
  * The handlers a working page supplies. `catch` cannot really catch — a pure
@@ -32,7 +33,22 @@ import { ok } from '../../types/result/module.f.mjs'
 const handlers = {
     sandbox: f => rows => [rows, ok(/** @type {SandboxResult<unknown>} */ (f()))],
     catch: f => rows => [rows, ok(ok(f()))],
-    report: value => rows => [[...rows, value], ok(undefined)],
+    // A source resolves to a module whose `proof` names it, so a proof can see
+    // *which* source produced what. `bad:` is the one that will not load.
+    // A module namespace, not a proof tree: `proof` beside another export, so
+    // a walk handed the *module* is visibly different from one handed its
+    // `proof`.
+    import: path => rows => [
+        rows,
+        path.startsWith('bad:')
+            ? error(ioError({ message: `cannot load ${path}` }))
+            : ok({
+                extra: () => ({ result: ok(undefined), duration: 0 }),
+                proof: { [path]: () => ({ result: ok(undefined), duration: 0 }) },
+            }),
+    ],
+
+    report: event => rows => [[...rows, event], ok(undefined)],
 }
 
 /** @type {RunInstance<_BrowserOp, _Rows>} */
@@ -45,9 +61,11 @@ const working = mockRun(handlers)
  *
  * @type {RunInstance<_BrowserOp, _Rows>}
  */
-const mute = partialRun(/** @type {Commands<_BrowserOp>} */ (['sandbox', 'catch', 'report']))({
+const mute = partialRun(/** @type {Commands<_BrowserOp>} */ (
+    ['catch', 'import', 'report', 'sandbox']))({
     sandbox: handlers.sandbox,
     catch: handlers.catch,
+    import: handlers.import,
 })
 
 /**
@@ -59,7 +77,8 @@ const mute = partialRun(/** @type {Commands<_BrowserOp>} */ (['sandbox', 'catch'
  *
  * @type {RunInstance<_BrowserOp, _Rows>}
  */
-const blind = partialRun(/** @type {Commands<_BrowserOp>} */ (['sandbox', 'catch', 'report']))({
+const blind = partialRun(/** @type {Commands<_BrowserOp>} */ (
+    ['catch', 'import', 'report', 'sandbox']))({
     sandbox: handlers.sandbox,
     report: handlers.report,
 })
@@ -71,7 +90,8 @@ const blind = partialRun(/** @type {Commands<_BrowserOp>} */ (['sandbox', 'catch
  *
  * @type {RunInstance<_BrowserOp, _Rows>}
  */
-const deaf = partialRun(/** @type {Commands<_BrowserOp>} */ (['sandbox', 'catch', 'report']))({
+const deaf = partialRun(/** @type {Commands<_BrowserOp>} */ (
+    ['catch', 'import', 'report', 'sandbox']))({
     sandbox: handlers.sandbox,
 })
 
@@ -87,7 +107,111 @@ const leaf = (status, duration) => ({
     module: 'a', path: '.x', name: 'import("a").proof.x()', status, duration,
 })
 
+/**
+ * The settled rows among what a run reported, which is what most proofs here
+ * are about. The announcements are asserted where they are the subject.
+ *
+ * @type {(events: _Rows) => readonly _BrowserTestResult[]}
+ */
+const settled = events => events.flatMap(e => e[0] === 'result' ? [e[1]] : [])
+
+/**
+ * The sources a run announced as loaded, in the order it announced them.
+ *
+ * @type {(events: _Rows) => readonly string[]}
+ */
+const announced = events => events.flatMap(e => e[0] === 'loading' ? [e[1]] : [])
+
 export const proof = {
+    loadProofs: {
+        // Every source loads: the walk answers the modules to run, paired with
+        // the source that produced each, in the order they were asked for
+        // rather than the order they arrived.
+        ready: () => {
+            const [, answered] = working([])(loadProofs(['a', 'b']))
+            assertEq(answered[0], 'ok')
+            const outcome = answered[1]
+            assert(outcome[0] === 'ready', outcome)
+            assertEq(outcome[1].length, 2)
+            assertEq(outcome[1][0]?.[0], 'a')
+            assertEq(outcome[1][1]?.[0], 'b')
+        },
+        /**
+         * **What is carried is the module's `proof`, not the module.**
+         *
+         * Handing the namespace on instead is not a naming slip: the traversal
+         * walks whatever it is given, so every other zero-argument export gets
+         * *run* as a test and the real proofs land under an extra `proof`
+         * level. Nothing else here would notice — the totals come out the same
+         * when a fixture has one extra export and one proof — which is why this
+         * asserts the value rather than a count.
+         */
+        readyCarriesTheProofExport: () => {
+            const [, answered] = working([])(loadProofs(['a']))
+            const outcome = answered[1]
+            assert(outcome[0] === 'ready', outcome)
+            const [, tree] = outcome[1][0] ?? []
+            assertStructurallySame(
+                Object.keys(/** @type {Record<string, unknown>} */ (tree)),
+                ['a'])
+        },
+        // One module that will not link stops the suite — it has no tests to
+        // run — and every failed source is named, because a report listing one
+        // of two broken modules sends a reader to fix half the problem.
+        failedNamesEverySource: () => {
+            const [, answered] = working([])(loadProofs(['bad:one', 'a', 'bad:two']))
+            const outcome = answered[1]
+            assert(outcome[0] === 'failed', outcome)
+            assertEq(outcome[1].length, 2)
+            assertEq(outcome[1][0]?.module, 'bad:one')
+            assertEq(outcome[1][1]?.module, 'bad:two')
+            // The row carries the channel's own sentence, which is what a
+            // reader needs and what a tuple spelled out is not.
+            assertEq(outcome[1][0]?.message, 'cannot load bad:one')
+        },
+        // Nothing to load is not a failure: an empty suite is a suite.
+        noSources: () => {
+            const [, answered] = working([])(loadProofs([]))
+            const outcome = answered[1]
+            assert(outcome[0] === 'ready', outcome)
+            assertEq(outcome[1].length, 0)
+        },
+        /**
+         * **Each module is announced as it lands**, which is what a page counts
+         * to render `3/141`.
+         *
+         * The announcement is asserted rather than assumed: the page's counter
+         * increments on this event's tag, so a walk that announced under
+         * another name would leave a suite sitting at `Loading 0/N` for its
+         * whole run with every gate green. Nothing else here would notice — the
+         * outcome and the rows are the same either way.
+         *
+         * No result rows: a module arriving is not a test landing.
+         */
+        announcesEachModule: () => {
+            const [events, answered] = working([])(loadProofs(['a', 'b']))
+            assertEq(answered[0], 'ok')
+            assertStructurallySame(announced(events), ['a', 'b'])
+            assertEq(settled(events).length, 0)
+        },
+        /**
+         * **A page that cannot be told stops the walk, and says so instead of
+         * the modules.**
+         *
+         * A run whose reporting is broken cannot describe the failed modules
+         * either, so a list assembled for nobody to see would be the wrong
+         * answer — and the row names the runner rather than a module, because
+         * no module is to blame.
+         */
+        refusedReportEndsLoading: () => {
+            const [rows, answered] = mute([])(loadProofs(['bad:one', 'a']))
+            assertEq(rows.length, 0)
+            const outcome = answered[1]
+            assert(outcome[0] === 'failed', outcome)
+            assertEq(outcome[1].length, 1)
+            assertEq(outcome[1][0]?.module, 'the browser runner')
+        },
+    },
     reportOf: {
         // The status the results decide: any failure fails the run.
         folds: () => {
@@ -138,7 +262,8 @@ export const proof = {
     },
     // The ordinary run: one row per leaf, in order, and no runner failure.
     reportsEveryLeaf: () => {
-        const [rows, answered] = working([])(runProofs([['a', { x: pass, y: fail }]]))
+        const [events, answered] = working([])(runProofs([['a', { x: pass, y: fail }]]))
+        const rows = settled(events)
         assertEq(answered[0], 'ok')
         assertEq(answered[1], null)
         assertEq(rows.length, 2)
@@ -150,7 +275,7 @@ export const proof = {
     // Modules are a list, not a map: two entries sharing a label are two runs
     // (catalog item 6).
     repeatedModuleLabelIsTwoRuns: () => {
-        const [rows] = working([])(runProofs([['a', { x: pass }], ['a', { x: pass }]]))
+        const rows = settled(working([])(runProofs([['a', { x: pass }], ['a', { x: pass }]]))[0])
         assertEq(rows.length, 2)
         assertEq(rows[0]?.name, rows[1]?.name)
     },
@@ -158,7 +283,7 @@ export const proof = {
     // nothing thrown to describe, so the message says what happened instead of
     // printing the value.
     expectedThrowIsDescribed: () => {
-        const [rows] = working([])(runProofs([['a', { throw: { x: pass } }]]))
+        const rows = settled(working([])(runProofs([['a', { throw: { x: pass } }]]))[0])
         assertEq(rows[0]?.status, 'failed')
         assertEq(rows[0]?.message, 'Expected the proof to throw')
     },
@@ -173,8 +298,8 @@ export const proof = {
      * `infrastructure-error` rather than looking like an empty suite.
      */
     refusedReportEndsTheRun: () => {
-        const [rows, answered] = mute([])(runProofs([['a', { x: pass, y: pass }], ['b', { z: pass }]]))
-        assertEq(rows.length, 0)
+        const [events, answered] = mute([])(runProofs([['a', { x: pass, y: pass }], ['b', { z: pass }]]))
+        assertEq(settled(events).length, 0)
         assertEq(answered[0], 'ok')
         const ended = answered[1]
         assert(ended !== null, ended)
@@ -193,20 +318,20 @@ export const proof = {
     // names the failure and the stack is what a report crossing a wire exists
     // to carry.
     errorFieldsAreRead: () => {
-        const [rows] = working([])(runProofs([['a', { x: failWith({ message: 'm', stack: 's' }) }]]))
+        const rows = settled(working([])(runProofs([['a', { x: failWith({ message: 'm', stack: 's' }) }]]))[0])
         assertEq(rows[0]?.message, 'm')
         assertEq(rows[0]?.stack, 's')
     },
     // With no stack there is nothing better to say than the message, and a
     // consumer still gets both fields rather than a missing one.
     errorWithoutStack: () => {
-        const [rows] = working([])(runProofs([['a', { x: failWith({ message: 'm' }) }]]))
+        const rows = settled(working([])(runProofs([['a', { x: failWith({ message: 'm' }) }]]))[0])
         assertEq(rows[0]?.message, 'm')
         assertEq(rows[0]?.stack, 'm')
     },
     // A value that is not error-shaped is described by its own text.
     plainThrownValueIsPrinted: () => {
-        const [rows] = working([])(runProofs([['a', { x: failWith(42) }]]))
+        const rows = settled(working([])(runProofs([['a', { x: failWith(42) }]]))[0])
         assertEq(rows[0]?.message, '42')
         assertEq(rows[0]?.stack, '42')
     },
@@ -219,8 +344,9 @@ export const proof = {
      * refusal itself — which is what the fallback text is for.
      */
     withoutCatchAModuleFailsAndTheRunGoesOn: () => {
-        const [rows, answered] = blind([])(runProofs([['a', { x: pass }], ['b', { y: pass }]]))
+        const [events, answered] = blind([])(runProofs([['a', { x: pass }], ['b', { y: pass }]]))
         assertEq(answered[1], null)
+        const rows = settled(events)
         assertEq(rows.length, 2)
         assertEq(rows[0]?.module, 'a')
         assertEq(rows[0]?.status, 'failed')
@@ -231,16 +357,16 @@ export const proof = {
     // report ends the run there — with the failure answered rather than
     // announced, which is the only way it can travel at all.
     aModuleFailureThatCannotBeAnnouncedEndsTheRun: () => {
-        const [rows, answered] = deaf([])(runProofs([['a', { x: pass }], ['b', { y: pass }]]))
-        assertEq(rows.length, 0)
+        const [events, answered] = deaf([])(runProofs([['a', { x: pass }], ['b', { y: pass }]]))
+        assertEq(settled(events).length, 0)
         const ended = answered[1]
         assert(ended !== null, ended)
         assertEq(ended?.module, 'a')
     },
     // Nothing at all to run is not a failure.
     noModules: () => {
-        const [rows, answered] = working([])(runProofs([]))
-        assertEq(rows.length, 0)
+        const [events, answered] = working([])(runProofs([]))
+        assertEq(events.length, 0)
         assertEq(answered[1], null)
     },
 }

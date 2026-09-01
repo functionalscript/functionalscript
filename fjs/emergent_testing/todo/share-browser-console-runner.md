@@ -40,10 +40,13 @@ Everything host-specific is a **part** the skeleton calls at a place it names �
 where the leaf body is executed, where a result is reported — and a part is
 where a browser is allowed to be a browser. This paragraph originally listed
 "where a module is linked" among the parts, and building it settled the
-boundary the other way: **linking happens before the skeleton, in host code,
-and the skeleton accepts linked modules** — `fjs t` loads through its module
-map, the page through its own importer with its own loading UI, and neither
-shape fits a part the other host could supply. The tasks below record the
+boundary the other way: **linking happens before the skeleton, and the
+skeleton accepts linked modules** — `fjs t` loads through its module map, the
+page through the `import` operation, and neither shape fits a part the other
+host could supply. (The "in host code, through its own importer" this
+paragraph used to say was a mis-measurement, corrected below and in
+functionalscript#1818: a callback is an operation nobody has named, and the
+page dispatches `import` like any other host now.) The tasks below record the
 consequence: the runner exposes an entry point for a host that enumerates its
 own modules, and enumerating a module's export is that host's own guarded
 read.
@@ -173,8 +176,8 @@ the next leaf starts. That is the entire design. Its consequences:
   blocking task is the longest single proof, with zero tuning.
 - **The traversal never fans out**, so the variadic-`all` argument ceiling
   ([all-argument-limit](../../effects/todo/all-argument-limit.md)) leaves the
-  traversal entirely, and the browser interpreter needs only `sandbox` and
-  `catch`.
+  traversal entirely, and the browser interpreter needs only `sandbox`,
+  `catch`, `import` and its own `report` — nothing that schedules.
 - **`fjs t`'s output becomes honest**: lines print after each test in
   structural order, and per-leaf durations stop being inflated by concurrent
   wall time — today a browser-suite leaf reports ~20 s because ~130 others
@@ -892,7 +895,8 @@ are shared.
       `fjs/effects/browser/`; document the decision before adding operations.
       They do not — but not for the reason first recorded, and the difference
       matters. The reverted #1759 interpreter needed `sandbox`, `catch` and
-      `all` and nothing else, and the sequential plan drops `all` too, which
+      `all` and nothing else, and the sequential plan drops `all` too (the
+      loading walk borrowed it back for one PR and gave it up again), which
       was read as "import, time, yield and publication are all the page's, in
       its impure shell". Import was not: it was a callback parameter, which is
       an operation nobody had named, and it now lives in `effects/common` with
@@ -901,6 +905,24 @@ are shared.
       because a shared operation does not belong in a browser-only directory
       either. Recorded in
       [node-module-layering](../../effects/todo/node-module-layering.md).
+- [x] Move the browser's module loading behind operations. `import` is
+      `effects/common`'s (functionalscript#1812), so the walk over sources is
+      `browser/module.f.mjs`'s `loadProofs` and the page implements the one
+      capability it needs: `import()` against its own document. The `importer`
+      parameter is gone — an injected function is an unnamed operation, and
+      naming it is what let the walk move.
+
+      **The walk loads one module at a time** (functionalscript#1818). It first
+      kept the old concurrency by dispatching `all`, which the page answered
+      with `Promise.all`, and that was a step backwards on this issue's own
+      terms: it put the browser back inside the variadic-`all` ceiling (item 3
+      below, which the sequential traversal had just taken it out of), made the
+      page's interpreter implement concurrency, and left a walk in which no
+      branch knew what any other had done. The engine-specific proof written
+      for that ceiling then failed on bun, which has no ceiling where node
+      does. The sequential fold costs a cold page the difference between the
+      slowest import and the sum of 141 of them, and buys the shape every
+      other walk in this package has.
 - [ ] Move static proof discovery and `_browser-suite.mjs` generation into
       `fjs/website/module.f.mjs`; extend `fjs/effects/node/` only for a concrete
       missing capability and prove the real and virtual interpretations.

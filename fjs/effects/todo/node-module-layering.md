@@ -65,7 +65,7 @@ Proposed destinations:
 
 | Moves to | Contents |
 |---|---|
-| `fjs/effects/common` (was `effects/all`) | `All`, `all`, `allOk`, `both` — **moved** on the layering argument alone; `allVoid`/`allReduce` when they land. Its implementers today are still the Node runners and the registration path: the page's `Promise.all` coordinates module-loading promises directly, and its interpreter claims `Catch`, `Sandbox` and `report` and nothing else. Giving `all` a browser implementer is the *plan* for the loading walk, not a fact about the tree |
+| `fjs/effects/common` (was `effects/all`) | `All`, `all`, `allOk`, `both` — **moved** on the layering argument alone; `allVoid`/`allReduce` when they land. Still no second implementer: the browser's loading walk fanned out through `all` briefly (functionalscript#1818) and is a sequential fold again |
 | `fjs/effects/common` (was `effects/sandbox`) | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise`, and `Catch`/`catch_` (landed after this table was written) — the "run foreign code and observe what happened" family. This row is what [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md) step 4's "shared module" resolves to: a browser gives `Sandbox` and `Catch` their second implementer; `Await` moves on this issue's layering argument alone, since it belongs to the registration path no browser runs |
 | `fjs/effects/common` (was `effects/console`) | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/common` (was `effects/test`) | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
@@ -123,15 +123,16 @@ Judgement calls worth deciding explicitly rather than by accident:
   above rests on the layering argument, and its implementers stay the Node
   runners and the registration path.
 
-  **That is still true after the move**, and worth saying because the move
-  invites the opposite reading. `all` is in `effects/common` because fan-out is
-  an interpreter's job, not because a browser dispatches it — the page's
-  `Promise.all` coordinates promises directly and its interpreter does not
-  claim `all` at all. It is expected to: moving the browser's module loading
-  into `.f.mjs` needs a fan-out the walk does not perform itself, which is what
-  the operation is for. Until that lands, this row's second implementer is a
-  plan, and a plan recorded as a fact is how a design comes to hold two
-  incompatible things at once.
+  **That is still true, after a detour.** `all` went to `effects/common`
+  because fan-out is an interpreter's job, not because a browser dispatched
+  it — the page's `Promise.all` coordinated promises directly and its
+  interpreter did not claim `all` at all. It was *expected* to, and this file
+  said so as an expectation rather than a fact, because a plan recorded as a
+  fact is how a design comes to hold two incompatible things at once. The
+  expectation briefly became a measurement (functionalscript#1818, the loading
+  walk fanning out through `all`) and then stopped being one: loading is a
+  sequential fold now, so no browser implements `all` again. The operations a
+  browser gives a second implementer are `sandbox`, `catch` and `import`.
 
   Worth recording, because the earlier expectation written here was wrong about
   two of them: "a browser proof run needs a clock and dynamic import" is true of
