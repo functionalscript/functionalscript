@@ -33,7 +33,7 @@ fields all being mutable, is fixed — see Tasks):
 - [ ] Replace the three inline record types with `StringMap`
 - [x] Mark `State` fields `readonly`; fix any compile fallout — done in
       functionalscript#1822, together with the repo-wide `readonly` rule in
-      [AGENTS.md §3.2](../../AGENTS.md#32-types). `Dir` and `_Entity` in the
+      [AGENTS.md §3.2](../../../AGENTS.md#32-types). `Dir` and `_Entity` in the
       same file already had `readonly`.
 
 ### Related
