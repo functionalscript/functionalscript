@@ -152,10 +152,11 @@ new module boundary and final rule discriminants before implementation starts.
 - [ ] Keep EOF generic and width-independent: use core BNF's `EOF = -1`, and keep
       all alphabet adapters restricted to ordinary non-negative symbols without
       reserving the maximal value.
-- [ ] Port `fjs/bnf/lib/json` and `fjs/bnf/lib/datajs` (tracked by
-      [`bnf-grammar-single-owner`](./bnf-grammar-single-owner.md))
-      onto the Unicode helpers, so they no longer depend on raw string rules in
-      core BNF.
+- [ ] Restate the helper set and import boundary in
+      [`bnf-grammar-single-owner`](./bnf-grammar-single-owner.md) once this
+      split's real API exists, so the port it describes is written against
+      shipped names rather than proposed ones. The port itself is that issue's
+      to make and is blocked on this one — not a box this task can tick.
 - [ ] Re-point the rule **values** `fjs/bnf/todo/207-bnf-semantic-actions.md`
       keys its transformer maps on after this split: it is no longer blocked by
       it, but lowering text literals through the Unicode adapter replaces rule

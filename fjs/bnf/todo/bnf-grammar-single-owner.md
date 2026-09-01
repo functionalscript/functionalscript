@@ -58,16 +58,23 @@ Conceptually the imports should follow this boundary:
 
 ```ts
 import {
-    commaJoin0Plus, option, remove, repeat, repeat0Plus,
+    commaJoin0Plus, option, remove, repeat0Plus,
 } from '../../module.f.mjs'
 import {
     range, set, str, unicodeMax,
 } from '../../unicode/module.f.mjs'
+import { repeat } from '../../../types/array/module.f.mjs'
 ```
 
-The exact helper names should follow the API produced by the blocking Unicode
-split. The important constraint is the boundary: generic BNF does not regain
-string semantics merely to make this grammar convenient.
+`repeat` is in that third line rather than the first because the split does not
+touch it: [#1817](https://github.com/functionalscript/functionalscript/pull/1817)
+already moved it out of `fjs/bnf` to `types/array` as a breaking change, so it
+is an array helper today and stays one afterwards. Only `str` is a name this
+split introduces.
+
+The other helper names should follow the API the Unicode split produces. The
+important constraint is the boundary: generic BNF does not regain string
+semantics merely to make this grammar convenient.
 
 The already-exported lexical pieces stay individually exported, so DataJS keeps
 reusing the parts it does not extend — `digit`, `string`, `optionNeg`, `uint`,
@@ -85,6 +92,45 @@ a factory abstraction.
 `fjs/bnf/testlib.f.mjs` keeps `classic()` as a BNF-local stress fixture — it is
 the deliberately awkward json.org spelling, kept to exercise backtracking, not a
 grammar anyone should consume. Its role is documented where it lives.
+
+### The post-recognition pass is documented but unowned
+
+Recorded here because this issue is the owner of record for both grammars, not
+because this issue implements it.
+
+`../lib/datajs/module.f.mjs`'s header specifies a pass that runs after grammar
+recognition and before a parsed result is returned: decode string-key escapes
+and reject a decoded `__proto__`, resolve references against earlier `const`
+declarations, reject a duplicate `const`, and fail on an unresolved reference.
+[`spec/datajs/README.md`](../../../spec/datajs/README.md) and
+`../lib/datajs/README.md` say the same. Nothing implements it, and no open task
+owns it.
+
+The grammars are recognizers, so a recognizer accepting these is correct
+behavior rather than a bug in the rule set — but every input the documentation
+calls invalid is accepted today. Measured against `dataJs` through
+`descentParser`, each of these matches to the end of input:
+
+```js
+export default {"__proto__":5};              // README calls this invalid
+export default {"\u005f_proto__":5};         // README calls this invalid
+const $x=1;const $x=2;export default $x;     // duplicate const
+export default $nope;                        // unresolved reference
+const $a=$b;const $b=1;export default $a;    // forward reference
+```
+
+The last one is worth separating: the spec derives acyclicity from references
+naming only an *earlier* `const`, so a forward reference is not merely
+unvalidated — accepting it is what would let a cycle be written at all.
+
+No caller is wrong today because no parser returns these to anyone; the risk
+arrives with the first one that does.
+[`207-bnf-semantic-actions`](./207-bnf-semantic-actions.md) is where the
+implementation belongs — it owns refusal as an engine channel, names the
+`__proto__` key as a concrete use, and puts reference resolution in a second
+pass over the built module. Whoever builds a DataJS parser on these grammars
+implements the pass with it; shipping one that skips it would be
+[DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle)'s silence.
 
 ### Unicode migration requirements
 
@@ -115,6 +161,9 @@ Before implementing this TODO after the blocking split:
 - [ ] Handle `deno.json` registration according to the repository's exports-map
       state, if and when a map exists; do not create a one-entry restrictive
       exports map solely for these files.
+- [ ] Implement the post-recognition pass with
+      [`207-bnf-semantic-actions`](./207-bnf-semantic-actions.md), or file it as
+      its own issue, before any DataJS parser built on these grammars ships.
 - [ ] `tsc`; run relevant BNF and JSON proofs/tests.
 
 ### Related
