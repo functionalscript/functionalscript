@@ -30,7 +30,6 @@
 import { catch_, import_ } from '../../effects/common/module.f.mjs'
 import { addResult, collectTests, defaultTest, runEntries, zeroState, zeroTotals } from '../module.f.mjs'
 import { do_, errorMessage, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.mjs'
-import { concat, toArray } from '../../types/list/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 
 /** The page's leaf-landed operation; see `_BrowserReport`.
@@ -278,7 +277,7 @@ const loadOne = source => state => {
                 if (loaded[0] === 'error') {
                     return {
                         ...state,
-                        rejected: concat(state.rejected)([channelFailure([source, loaded[1]])]),
+                        rejected: [...state.rejected, channelFailure([source, loaded[1]])],
                     }
                 }
                 // **The module's `proof` export, not the module.** A namespace
@@ -289,14 +288,13 @@ const loadOne = source => state => {
                 // is not merely wrong output.
                 return {
                     ...state,
-                    ready: concat(state.ready)(
-                        [/** @type {const} */ ([source, loaded[1].proof])]),
+                    ready: [...state.ready, /** @type {const} */ ([source, loaded[1].proof])],
                 }
             }))
 }
 
 /** @type {_LoadState} */
-const zeroLoad = { ready: null, rejected: null, stopped: null }
+const zeroLoad = { ready: [], rejected: [], stopped: null }
 
 /**
  * Loads the suite's modules, one after another, and answers what to do next.
@@ -307,9 +305,7 @@ const zeroLoad = { ready: null, rejected: null, stopped: null }
  * implement concurrency, and a walk in which no branch knew what any other had
  * done. A sequential fold is the shape the rest of this package already has —
  * `runProofs` below is one — and it makes the walk's own state readable: what
- * has loaded, what would not, and whether the page stopped answering. The two
- * collections are `List`s (catalog item 9): a sequential walk that appended to
- * an array would copy the prefix once per source.
+ * has loaded, what would not, and whether the page stopped answering.
  *
  * @type {(sources: readonly string[]) => Effect<Import | _BrowserReport, _LoadOutcome, never>}
  */
@@ -322,15 +318,12 @@ export const loadProofs = sources =>
             // wrong answer, and the row names the runner because no module is
             // to blame for it.
             if (stopped !== null) { return /** @type {_LoadOutcome} */ (['failed', [stopped]]) }
-            // The two lists are materialised here, once, and nowhere in the
-            // walk.
-            const rows = toArray(rejected)
             // One module that will not link stops the suite: it has no tests to
             // run, and a partial suite reported as a whole one is worse than a
             // refusal.
-            return /** @type {_LoadOutcome} */ (rows.length === 0
-                ? ['ready', toArray(ready)]
-                : ['failed', rows])
+            return /** @type {_LoadOutcome} */ (rejected.length === 0
+                ? ['ready', ready]
+                : ['failed', rejected])
         })
 
 /**

@@ -187,16 +187,17 @@ export type _LoadOutcome =
  * while a page that cannot be told is the run's, and stops it: a run whose
  * reporting is broken cannot describe the rest either.
  *
- * The two collections are `List`s joined with `concat`, not arrays appended to:
- * the walk adds one entry per source, and an immutable append would copy the
- * prefix every time — quadratic in the size of the suite. Catalog item 9. They
- * are materialised once, when the walk has finished.
+ * Two plain arrays, appended to. A suite is 141 sources, and the walk is
+ * already waiting on an `import()` per step, so the copy an immutable append
+ * makes is not something a page can measure. The simplest thing that reads
+ * correctly wins here; catalog item 9's `List` is what to reach for the day a
+ * suite is large enough for the shape to matter.
  *
  * @internal
  */
 export type _LoadState = {
-    readonly ready: List<readonly[string, unknown]>
-    readonly rejected: List<_BrowserTestResult>
+    readonly ready: readonly (readonly[string, unknown])[]
+    readonly rejected: readonly _BrowserTestResult[]
     readonly stopped: _BrowserTestResult | null
 }
 

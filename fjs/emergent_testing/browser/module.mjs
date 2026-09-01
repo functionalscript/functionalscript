@@ -242,6 +242,12 @@ export const startBrowserTestSources = (root, sources) => {
                 // renderer, where nothing knows which source it came from — so
                 // the row would name the runner instead of the module that
                 // failed.
+                //
+                // No proof pins this one. The fixture has to be a module that
+                // throws, and bun does not reject a top-level `throw` in a
+                // `data:` module at all, so the proof would assert one engine's
+                // behaviour rather than this code's — the mistake this branch
+                // already paid for once.
                 try {
                     const [, info] = toIoError(cause)
                     return error(ioError({ ...info, message: `${info.message}` }))
