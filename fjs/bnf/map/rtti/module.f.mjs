@@ -5,7 +5,7 @@
  *
  * @import { Rule } from '../../types.ts'
  * @import { Type } from '../../../rtti/types.ts'
- * @import { RuleInfo, Base } from './types.ts'
+ * @import { RuleInfo, Base, Mapped } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -30,7 +30,7 @@ const typeEqual = (a, b) => equal(toData(a))(toData(b))
 /** @type {(a: readonly Rule[], rule: Rule) => boolean} */
 const hasRule = (a, rule) => a.some(v => v === rule)
 
-/** @type {(ri: readonly RuleInfo[], rule: Rule) => Base | null} */
+/** @type {(ri: readonly RuleInfo[], rule: Rule) => Mapped | null} */
 const findInfo = (ri, rule) => ri.find(([r]) => r === rule)?.[1] ?? null
 
 /** @type {(rule: Rule) => Rule | null} */
@@ -89,7 +89,7 @@ const touch = (seen, rule) => {
     return children(rule).reduce(touch, [...seen, rule])
 }
 
-/** @type {(ri: readonly RuleInfo[]) => Map<Rule, Base>} */
+/** @type {(ri: readonly RuleInfo[]) => ReadonlyMap<Rule, Base>} */
 export const checkMap = ri => {
     for (let i = 0; i < ri.length; ++i) {
         const [rule, info] = ri[i]
@@ -110,7 +110,7 @@ export const checkMap = ri => {
         }
     }
     const input = inputOf(ri)
-    return new Map(touched.map(rule => {
+    return new Map(/** @type {readonly (readonly [Rule, Base])[]} */ (touched.map(rule => {
         const declared = findInfo(ri, rule)
         const inferred = input(rule)
         if (declared !== null) {
@@ -120,5 +120,5 @@ export const checkMap = ri => {
         /** @type {Base} */
         const identity = { tag: tagOf(rule), ri: inferred, ro: ast, map: null }
         return /** @type {const} */ ([rule, identity])
-    }))
+    })))
 }

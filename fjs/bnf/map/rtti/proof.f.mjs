@@ -1,5 +1,5 @@
 /**
- * @import { Base } from './types.ts'
+ * @import { Mapped } from './types.ts'
  * @import { Type } from '../../../rtti/types.ts'
  */
 
@@ -19,7 +19,7 @@ const ast = () => ['const', {
     sequence: array(or(ast, [number, unknown])),
 }]
 
-/** @type {Base} */
+/** @type {Mapped} */
 const terminalInfo = {
     tag: 'terminal',
     ri: number,
@@ -27,7 +27,7 @@ const terminalInfo = {
     map: /** @type {any} */ (() => ['digit', undefined]),
 }
 
-/** @type {Base} */
+/** @type {Mapped} */
 const sequenceInfo = {
     tag: 'sequence',
     ri: [string],
@@ -35,7 +35,7 @@ const sequenceInfo = {
     map: /** @type {any} */ (() => ['sequence', undefined]),
 }
 
-/** @type {Base} */
+/** @type {Mapped} */
 const variantInfo = {
     tag: 'variant',
     ri: { digit: string },
@@ -43,7 +43,7 @@ const variantInfo = {
     map: /** @type {any} */ (() => ['variant', undefined]),
 }
 
-/** @type {Base} */
+/** @type {Mapped} */
 const repeatInfo = {
     tag: 'repeat',
     ri: string,
@@ -66,7 +66,7 @@ export const proof = {
         assertEq(result.get(repeated), repeatInfo)
     },
     stringSequence: () => {
-        /** @type {Base} */
+        /** @type {Mapped} */
         const info = {
             tag: 'sequence',
             ri: [ast, ast],
@@ -77,7 +77,7 @@ export const proof = {
     },
     implicitAst: () => {
         const parent = [digit]
-        /** @type {Base} */
+        /** @type {Mapped} */
         const info = {
             tag: 'sequence',
             ri: [ast],
@@ -90,7 +90,7 @@ export const proof = {
     },
     sharedChild: () => {
         const parent = [digit, digit]
-        /** @type {Base} */
+        /** @type {Mapped} */
         const info = {
             tag: 'sequence',
             ri: [ast, ast],
@@ -111,7 +111,7 @@ export const proof = {
         const badStep = () => ({ none, some: digit })
         const badTailStep = [digit, digit]
         const badTail = () => ({ none, some: badTailStep })
-        /** @type {(tag: Base['tag'], ri: Type) => Base} */
+        /** @type {(tag: Mapped['tag'], ri: Type) => any} */
         const info = (tag, ri) => ({
             tag,
             ri,
@@ -143,7 +143,7 @@ export const proof = {
     throw: {
         duplicate: () => checkMap([[digit, terminalInfo], [digit, terminalInfo]]),
         kind: () => checkMap([[digit, sequenceInfo]]),
-        input: () => checkMap([[digit, { ...terminalInfo, ri: string }]]),
+        input: () => checkMap([[digit, /** @type {any} */ ({ ...terminalInfo, ri: string })]]),
         mappedVariantBranch: () => checkMap([[variant, variantInfo]]),
         mappedBranchUnderVariant: () => checkMap([[[variant], {
             ...sequenceInfo,
