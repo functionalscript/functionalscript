@@ -188,7 +188,19 @@ type Transformer<M, T> =
 // keyed by the rule value — the `===` `toData` already dedups on
 type Entry<M, T> = readonly[FRule, Transformer<M, T>]
 type TransformerMap<M> = ReadonlyMap<FRule, Transformer<M, unknown>>
+```
 
+`FRule` is the **functional** `Rule` of [`../types.ts`](../types.ts) — the whole
+union, `LazyRule` included. Narrowing the key to `DataRule` would look harmless
+and would exclude the design's central case: a recursive rule is written as
+`() => DataRule`, so `value` in [`../lib/datajs/module.f.mjs`](../lib/datajs/module.f.mjs)
+and [`../lib/json/module.f.mjs`](../lib/json/module.f.mjs) — the rules a
+transformer most wants to key — are `Rule` but not `DataRule`, and a map that
+cannot name them cannot evaluate either grammar. The data `Rule` of
+[`../data/types.ts`](../data/types.ts) is a different type and is not the key
+either: `toData` has already replaced the values a map is written against.
+
+```ts
 type Leaf<M> = Meta<CodePoint, M>
 type TransformMatchResult<T, M> =
     | readonly['ok', Meta<T, M>, readonly Leaf<M>[]]
