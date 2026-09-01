@@ -17,7 +17,7 @@ export type _Socket = {
 export type _Server = {
     readonly listen: (port: number, host: string) => void
     readonly once: (event: string, f: (e: unknown) => void) => void
-    on(event: string, f: (req: unknown, socket: _Socket) => void): void
+    readonly on: (event: string, f: (req: unknown, socket: _Socket) => void) => void
     readonly removeListener: (event: string, f: (e: unknown) => void) => void
 }
 

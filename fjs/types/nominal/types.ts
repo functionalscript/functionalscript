@@ -26,4 +26,4 @@ declare const brand: unique symbol
 export type _SymbolKeyBranded = { readonly [noCompareBrand]: void }
 
 /** A `symbol` intersection brand. `<` on this is TS2469, so the proof only comments it. */
-export type _SymbolIntersectionBranded = symbol & { [brand]: 'SafeId' }
+export type _SymbolIntersectionBranded = symbol & { readonly [brand]: 'SafeId' }

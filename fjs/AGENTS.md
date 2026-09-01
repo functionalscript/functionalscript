@@ -448,12 +448,32 @@ container. A mapped type's brand/index signature is not exempt just because
 the field is never assigned a real value at runtime (e.g. `Nominal`'s
 `{ readonly[k in N]: … }` in `fjs/types/nominal/types.ts`).
 
-**No unapproved exceptions.** If a type must genuinely expose a mutable
-field (rather than being an oversight), it needs an explicit reviewer
-sign-off on the PR that introduces it, with a comment on the field
-explaining why it is mutable — the same bar as any other rule exception in
-this document. Do not add a non-`readonly` member and assume it will pass
-review silently.
+**Exceptions need explicit reviewer sign-off, and most legitimate ones share
+one shape: the type describes an object that lives outside FunctionalScript
+files** — a host or library API this repository does not own and cannot
+redeclare, mutable by that API's own contract (a Node.js builtin, a
+third-party SDK's object). `IncomingMessage = Readable & {…}` in
+`fjs/effects/node/module.mjs` (§3.2, "Composition over intersection") is the
+existing example: it describes Node's own object, not FunctionalScript data.
+Even there, prefer `readonly` on any member this codebase only reads — the
+exception is for a member the external API itself requires writable or
+reassigns, not a blanket pass for the whole type.
+
+A type over data this repository defines and constructs is not exempt just
+because a change would be a breaking API change for consumers — that is a
+reason to plan and land the fix deliberately (see "Breaking changes and
+versioning" in [changelog/README.md](../changelog/README.md)), not a reason
+to leave the member mutable. `fjs/effects/node/todo/state-types-conventions.md`
+and the "Six operation tuples are not `readonly`" section of
+[`fjs/effects/todo/node-module-layering.md`](./effects/todo/node-module-layering.md)
+track exactly this kind of already-known, deliberately-deferred gap; a type
+left mutable for this reason needs a comment pointing to its tracking issue,
+same as any other approved exception.
+
+If a type must genuinely expose a mutable field for some other reason, it
+needs the same explicit reviewer sign-off on the PR that introduces it, with
+a comment on the field explaining why it is mutable. Do not add a
+non-`readonly` member and assume it will pass review silently.
 
 #### Prefer inference
 

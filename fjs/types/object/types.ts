@@ -42,7 +42,7 @@ export type Entry<T> = readonly[string, T]
  */
 export type OneKey<K extends string, V> = {
     [P in K]: (RequiredMap<P, V> & OptionalMap<Exclude<K, P>, never>) extends infer O
-        ? { [Q in keyof O]: O[Q] }
+        ? { readonly [Q in keyof O]: O[Q] }
         : never
 }[K];
 
