@@ -307,6 +307,25 @@ ${jobs.map(({ id }) => `nix flake lock ${flakePath(id)}`).join('\n')}
 `
 
 /**
+ * Enables the two experimental features every command here needs: `nix-command`
+ * is `nix develop` itself, and `flakes` is the flake it names.
+ *
+ * A Nix installation enables them in `nix.conf` or does not, and the ones that
+ * do not are not exotic — a plain `sh <(curl -L https://nixos.org/nix/install)`
+ * leaves both off, and so does the Determinate installer's non-default path. So
+ * a contributor whose Nix is stock reads `experimental Nix feature 'nix-command'
+ * is disabled` from a script whose whole purpose is to need no setup. CI's
+ * installer action happens to enable them, which is exactly why this went
+ * unnoticed there.
+ *
+ * Passing them makes the script say what it needs instead of asking the machine
+ * to have been configured for it. It costs nothing where they are already on:
+ * `--extra-experimental-features` adds to the configured set rather than
+ * replacing it, so an installation with more of them enabled keeps them.
+ */
+const experimentalFeatures = `--extra-experimental-features 'nix-command flakes'`
+
+/**
  * The `run` script generated beside a flake. `./nix/run npm run cov` is what a
  * workflow step says; this is what makes that a command.
  *
@@ -398,7 +417,7 @@ ${jobs.map(({ id }) => `nix flake lock ${flakePath(id)}`).join('\n')}
  * @type {(id: string) => string}
  */
 export const runText = id => `#!/bin/sh
-exec nix develop --no-update-lock-file --quiet ${flakePath(id)} --command "$@"
+exec nix develop ${experimentalFeatures} --no-update-lock-file --quiet ${flakePath(id)} --command "$@"
 `
 
 /**

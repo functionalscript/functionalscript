@@ -1,2 +1,2 @@
 #!/bin/sh
-exec nix develop --no-update-lock-file --quiet ./nix --command "$@"
+exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-lock-file --quiet ./nix --command "$@"
