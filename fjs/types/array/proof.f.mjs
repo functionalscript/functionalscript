@@ -1,4 +1,4 @@
-import { at, first, last, head, tail, splitFirst, splitLast, empty } from './module.f.mjs'
+import { at, first, last, head, tail, splitFirst, splitLast, empty, repeat } from './module.f.mjs'
 import { stringify as jsonStringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -120,5 +120,9 @@ export const proof = {
         const b = x
         const c = [...a, ...b, ...x]
         assertEq(c.length, 0, c)
-    }
+    },
+    repeat: [
+        () => assertStructurallySame(repeat(0)('x'), []),
+        () => assertStructurallySame(repeat(3)('x'), ['x', 'x', 'x'])
+    ]
 }

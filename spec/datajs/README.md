@@ -123,8 +123,9 @@ as a second statement terminator alongside the `;`. This document specifies **Da
 ### Whitespace
 
 Whitespace is exactly JSON's: **space** (U+0020), **tab** (U+0009), **LF**
-(U+000A), **CR** (U+000D). It is insignificant everywhere and may appear
-between any two tokens.
+(U+000A), **CR** (U+000D). It is insignificant and may appear between tokens,
+except that the special property-key sequence `["__proto__"]` is one token and
+must contain exactly those characters without whitespace or escapes.
 
 Every other character JavaScript treats as whitespace or a line terminator is
 **rejected**: U+2028, U+2029, no-break space, form feed, vertical tab, and a
@@ -132,8 +133,8 @@ byte order mark, wherever they appear outside a string literal. Accepting them
 would import a taxonomy no implementer of a data format should have to know.
 
 Whitespace is **required after `const`, after `export`, and after `default`**.
-Three positions, with no condition attached to any of them, and optional
-everywhere else.
+Three positions, with no condition attached to any of them. Elsewhere it is
+optional between tokens, except within the single-token `["__proto__"]` key.
 
 Two of the three were never a choice. A `const` name begins with `$`, and
 `export` is always followed by `default`, so `const$0` and `exportdefault` lex
@@ -247,7 +248,7 @@ value    ::= 'null' | 'true' | 'false' | 'undefined' | 'NaN'
 array    ::= '[' (value (',' value)*)? ']'
 object   ::= '{' (member (',' member)*)? '}'
 member   ::= key ':' value
-key      ::= string | '[' '"__proto__"' ']'
+key      ::= string | '["__proto__"]'
 ```
 
 **Every statement ends with `;`**, `export default` included. The `;`
@@ -325,13 +326,19 @@ computed form:
 export default {["__proto__"]:1};
 ```
 
-The rule is on the key's **decoded value**, not its spelling: a plain string
-key is rejected whenever it decodes to `__proto__`, so `{"\u005f_proto__":1}`
-is rejected exactly as `{"__proto__":1}` is. JavaScript decides the same way —
-the escaped form is a prototype assignment too, and an implementation matching
-source text instead would accept it and read back an own property JavaScript
-never created. The computed form is spelled `["__proto__"]` and only that,
-since one spelling is the point of the rule.
+The rule for a plain string key is on its **decoded value**, not its source
+spelling. After grammar recognition and before returning the parsed result,
+processing resolves every JSON string escape in the property name and rejects
+it if the result is `__proto__`. Thus
+`{"\u005f_proto__":1}` is rejected exactly as `{"__proto__":1}` is. JavaScript
+decides the same way — the escaped form is a prototype assignment too, and an
+implementation matching source text instead would accept it and read back an
+own property JavaScript never created.
+
+The computed form bypasses that rejection only when its source is the exact
+character sequence `["__proto__"]`. It contains no whitespace and no escape
+substitutions: `[ "__proto__" ]`, `["\u005f_proto__"]`, and every other
+variation are rejected. One spelling is the point of the rule.
 
 A bare `__proto__` key and the string form `{"__proto__":1}` are **rejected**,
 because JavaScript reads them as an instruction to replace the object's
@@ -355,9 +362,12 @@ representation — handles, indices into a node table, whatever the host offers
 — because a reader that hands back two equal copies has returned a different
 graph. Documenting that it flattens does not make it conforming.
 
-A reference may name only a **previously declared** `const`. That single rule
-gives the format three properties for free: a document is acyclic by
-construction, it can be parsed in one pass, and no implementation needs cycle
+A reference may name only a **previously declared** `const`. After grammar
+recognition and before returning the parsed result, processing resolves each
+reference against those earlier bindings and fails the document if any reference
+is unresolved. That single rule gives
+the format three properties for free: a document is acyclic by construction,
+it can be resolved in one forward pass, and no implementation needs cycle
 detection to read one.
 
 Cycles are therefore unrepresentable. A serializer handed a cyclic value
@@ -366,10 +376,11 @@ rejects it rather than inventing a spelling — see
 
 ## Const names
 
-A `const` name is an `id`, and each name is bound at most once. There is no
-list of excluded names: every `id` begins with `$`, and no JavaScript reserved
-word and none of this format's value words does, so no name can collide with
-either.
+A `const` name is an `id`, and each name is bound at most once. After grammar
+recognition and before returning the parsed result, processing rejects a second
+declaration of the same name. There is no list of excluded names: every `id`
+begins with `$`, and no JavaScript reserved word and none of this format's value
+words does, so no name can collide with either.
 
 The two collisions that would otherwise need excluding are both real, and both
 gone:
