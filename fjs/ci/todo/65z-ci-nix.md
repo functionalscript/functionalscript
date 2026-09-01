@@ -274,7 +274,7 @@ This task does not own:
 - designing a repository-wide CI lock format;
 - browser-test application or Playwright adapter design;
 - solving Rust target/toolchain composition;
-- building OCI images.
+- building OCI images from the generated flakes.
 
 Those concerns evolve independently and must not block the first Node flakes.
 
@@ -501,10 +501,30 @@ Add other jobs only when useful:
 - a future browser runner may use Nix-provided browsers, but that should be designed after
   the shared HTML/JavaScript browser application exists and must not restore the deleted
   Node-only Playwright job;
-- OCI remains a later design and optimization task after one direct-Nix Linux job
-  completes validation.
+- an OCI image stays available as a later optimization, built from these flakes — see
+  below.
 
 A failure or unresolved design in one follow-up must not block unrelated flakes.
+
+##### OCI images, and why no Dockerfile
+
+Direct Nix is the reference behavior. An OCI image stays available as a later
+optimization, and it would be built from these flakes, so that the image and the jobs
+cannot come to describe different environments. Whether it improves total CI behavior is
+unmeasured; design it from a measured bottleneck rather than in advance, and let the
+design choose the builder, the image layout and the rest. Nothing here depends on the
+answer.
+
+Whatever that design turns out to be, an implementation must:
+
+- publish only immutable identities;
+- avoid exposing package-write credentials to pull-request code;
+- validate before publishing;
+- keep direct Nix as the fallback and reference path.
+
+A Dockerfile is not one of the options: a hand-written recipe is a second declaration of
+an environment these generated flakes already declare. The one this repository had was
+removed; `git log -- docker/` has it.
 
 ### Tasks
 
@@ -539,6 +559,9 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
       widened by one input: Nixpkgs builds no `std` for three of its four targets,
       at any version.
 - [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
+- [ ] Decide, from a measured bottleneck rather than in advance, whether CI produces an
+      OCI image — see *OCI images, and why no Dockerfile* above. Deferred, not
+      abandoned: nothing here waits on the answer.
 
 ### Related
 
@@ -548,5 +571,3 @@ A failure or unresolved design in one follow-up must not block unrelated flakes.
   implementation, whose shape every migrated job follows.
 - [browser-testing](../../emergent_testing/todo/browser-testing.md) — replacement design
   for real browser execution and the optional external Playwright runner.
-- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — optional OCI design work after
-  one direct-Nix job completes validation.

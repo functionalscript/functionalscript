@@ -61,9 +61,6 @@ Or take the Nix shell below and skip the question. Either way, do not reach for
 `npx tsc`: with nothing to resolve in `node_modules` it downloads whatever the
 registry calls latest, which is not the compiler CI runs.
 
-You may also use the [Dockerfile](./docker/Dockerfile), which sets all of this up
-and is the easiest way to get a known-good environment.
-
 ### Or one Nix shell
 
 If you have Nix, `nix/` is a generated development environment carrying every
