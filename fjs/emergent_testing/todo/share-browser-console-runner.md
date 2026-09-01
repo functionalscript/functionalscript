@@ -1,9 +1,8 @@
 ## Share the browser and console proof runners
 
 **Priority:** P3
-**Status:** open — steps 1–7 have landed; what is left is the layout move
-(step 8) and one proof that the two runners answer identically from the same
-fixtures.
+**Status:** open — every step has landed; what is left is one proof that the
+two runners answer identically from the same fixtures.
 
 ### Problem
 
@@ -645,7 +644,12 @@ and is reviewable without the next one.
       over instead. Routing the page through `runModule` would read the export
       a second time and lose the description its report carries.
 
-- [ ] **8. The layout move**, and the website preparation program.
+- [x] **8. The layout move**, and the website preparation program. Every task
+      it names has landed: `emergent_testing/browser/module.f.mjs` holds the
+      pure half and `browser/module.mjs` the host, the generated website entry
+      and suite manifest regenerate to the new paths, and the preparation
+      program moved into `website/module.f.mjs` with `browser-prepare.mjs`
+      deleted (functionalscript#1827).
 
 Steps 3 and 7 are the ones that change behaviour, so they are the ones to keep
 smallest. Step 3 changed less than expected: with the scope written down, it was
@@ -990,11 +994,20 @@ are shared.
       [hostile-proof-values](./hostile-proof-values.md).
 - [x] Close each of those issues for both runners at once, so the two stay in
       sync rather than drifting from the day the core is shared. Both are
-      closed and both were closed in the shared core: the `batchSize` yielding
-      became one macrotask per report in the page's own handler (step 7b), and
-      the unguarded reads became `catch` — a leaf's returned tree in
-      functionalscript#1809, a module's export in functionalscript#1830, a
-      thrown value in functionalscript#1832.
+      closed, and *where* differs by which one it is.
+
+      The `batchSize` yielding is **host-local by design**: it became one
+      macrotask per report in the page's own `report` handler (step 7b), which
+      is where scheduling belongs — `fjs t` yields nothing, because a terminal
+      needs no paint.
+
+      The unguarded reads became `catch`, and the reads are shared while the
+      *call sites* are not all: a leaf's returned tree in the traversal
+      (functionalscript#1809), a module's export at two guarded sites — the
+      page's own, because it builds its report row from the value, and
+      `runModule`'s for a host that hands the value over
+      (functionalscript#1830) — and a thrown value through the core's `text`,
+      which both reporters call (functionalscript#1832).
 - [x] Decide where a browser run gives the thread back. **One macrotask per
       report, in the page's own `report` handler** — the sequential plan's
       answer, superseding the reverted #1759's frame budget. The full story

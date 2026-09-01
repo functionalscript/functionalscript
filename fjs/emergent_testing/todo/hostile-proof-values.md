@@ -11,8 +11,8 @@ its own change rather than a line in someone else's.
 
 The browser runner (`../browser/module.mjs`) defended against things `fjs t`
 did not, none of them reachable from ordinary FunctionalScript. That asymmetry
-is the point of this file — two of the three are closed and the cross-realm
-promise below is what is left: when the two runners are unified
+is the point of this file — the two that were work are closed, and the third,
+the cross-realm promise below, is a non-goal: when the two runners are unified
 ([share the browser and console proof runners](share-browser-console-runner.md)),
 the shared core has to have *one* answer for each of them, decided rather than
 inherited twice. `fjs t` is the reference, so the honest reading is that these
