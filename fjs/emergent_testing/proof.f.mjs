@@ -404,8 +404,8 @@ export const defaultReporterExpectedThrowNotReported = () => {
  * completed in place.
  *
  * Under the sequential traversal no other leaf runs in that gap, but the leaf
- * itself does, and purity is a convention the sandbox does not enforce (see
- * `todo/hostile-proof-values.md`): a proof that logs at runtime, or a node
+ * itself does, and purity is a convention the sandbox does not enforce: a
+ * proof that logs at runtime, or a node
  * warning on the same stream, writes here. Were the start record an unfinished
  * line, that output would be appended to it and the later `ok` would attach to
  * whatever the leaf said.

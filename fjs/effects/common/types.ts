@@ -116,6 +116,22 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxRes
  * It exists because reading a *user* value is an operation, not pure logic: the
  * proof traversal enumerates values a test returned, and an enumerable getter or
  * a proxy trap in one of them is a failure of that test rather than of the run.
+ *
+ * **What it is worth, measured.** `emergent_testing` reads user values in three
+ * places and every one of them used to be able to end a run: a leaf's returned
+ * tree (functionalscript#1809), a module's `proof` export (functionalscript#1830)
+ * and a thrown value being described (functionalscript#1832). Unguarded, the
+ * last was the worst — `fjs t` describes its failures *after* the last leaf, so
+ * a value whose `toString` threw killed the report when every test had already
+ * run and been announced: no totals, no exit code, from a run that completed.
+ * Each is now one failed record and the run goes on.
+ *
+ * A value from *another realm* is not what this defends against, and is not
+ * supported: `fjs/AGENTS.md`'s "One realm, one prototype chain" puts a promise
+ * built in an iframe, a worker or a `node:vm` context outside the language this
+ * runner runs. `emergent_testing/todo/imports-promises-realms.md` measures what
+ * each detector would answer and why refusing such a value would fail
+ * *reachable* proof trees.
  */
 export type Catch = readonly['catch', <T>(f: () => T) => OpResult<Result<T, unknown>>]
 
