@@ -7,8 +7,8 @@
 
 The browser runner (`../browser/module.mjs`) defended against things `fjs t`
 did not, none of them reachable from ordinary FunctionalScript. That asymmetry
-is the point of this file — one of the three is closed and the other two are
-below: when the two runners are unified
+is the point of this file — two of the three are closed and the cross-realm
+promise below is what is left: when the two runners are unified
 ([share the browser and console proof runners](share-browser-console-runner.md)),
 the shared core has to have *one* answer for each of them, decided rather than
 inherited twice. `fjs t` is the reference, so the honest reading is that these
@@ -29,15 +29,22 @@ functionalscript#1830 — in the shared traversal, so both runners answer one
 unreadable value with one failed record and keep going, and `TestResult` says
 so. What it cost is recorded in the task list below.
 
-**`errorDetails` is the half still open**, and it is the one where the two
-runners still differ: reading the *thrown* value is each host's own, because a
-serializable record cannot carry a raw one. `fjs t` prints it with `String(v)`,
-the page reads `message` and `stack` off it, and neither read is guarded in the
-core.
+**Describing a thrown value is closed too** (functionalscript#1832), and it
+closed differently from the other half. What the runners share is not the
+*description* — a report crossing a wire needs `message` and `stack`, a
+terminal line needs the value's own text — but the **read**: `text` lives in
+the core, attempts `String` through `catch`, and answers `unknownValue` when
+the value or the runner will not have it. Both runners read through it, and
+each still says what its own reader needs.
 
-Whichever runner ends up on top of it, the outcome to avoid is unchanged: a
-page left in `running`, or a process that exits with no summary, is what an
-automated controller cannot act on.
+The failure it removes was the far end of a run rather than the middle of one:
+`fjs t` describes its failures *after* the last leaf, so a hostile `toString`
+killed the report when every test had already run and been announced — no
+totals, no exit code, from a run that completed. Measured before the change,
+one hostile leaf beside a passing one: both lines printed, then `Error: trap`
+and nothing else. After: `Unknown thrown value`, the summary, exit 1.
+
+What is left in this file is the cross-realm promise below.
 
 **A promise from another realm is not awaited.** `fjs t`'s `sandbox` asks `p
 instanceof Promise`, which is false for a promise built in an iframe, a worker,
@@ -130,7 +137,15 @@ adopting a `then`, and a proof tree refusing to — which are studied together i
       throw needs a real `try` to write, so it drives `runModuleMap` through a
       mock rather than through the virtual runner, and a mock like that cannot
       be written in `.f.mjs`.
-- [ ] Read a thrown value through it at `errorDetails`' call site.
+- [x] Read a thrown value through it at `errorDetails`' call site — and at
+      `fjs t`'s, which is where it was actually killing runs. `text` and
+      `unknownValue` moved from `browser/module.f.mjs` into the core, so
+      `defaultReporter`'s failure detail and the page's `errorDetails` read
+      through one function. `defaultReporter` is a `Reporter<Write | Sandbox |
+      Catch>` now: describing a value is dispatching an operation, and its
+      signature says so. Pinned by `thrownValueThatCannotBeDescribed` and
+      `thrownValueIsStillDescribed` in `../catch.proof.mjs`, mutation-checked
+      against the unguarded `String(error)` it replaced.
 
 ### Constraints
 

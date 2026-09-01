@@ -13,13 +13,15 @@
  * @import { Catch, Sandbox } from '../effects/common/types.ts'
  * @import { Commands } from '../effects/types.ts'
  * @import { Reporter } from './types.ts'
+ * @import { NodeProgramOptions } from '../effects/node/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
 import { assert } from '../asserts/module.f.mjs'
 import { log } from '../effects/node/module.f.mjs'
 import { partialRun, run as mockRun } from '../effects/mock/module.f.mjs'
-import { defaultTest, runModuleMap } from './module.f.mjs'
+import { defaultReporter, defaultTest, runModuleMap } from './module.f.mjs'
+import { defaultNodeProgramOptions } from '../effects/node/virtual/module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { utf8ToString } from '../text/module.f.mjs'
 
@@ -31,16 +33,18 @@ import { utf8ToString } from '../text/module.f.mjs'
  * the proof reads the same way a virtual run does and nothing here mutates a
  * value it closed over.
  *
- * @type {(moduleMap: Record<string, { readonly proof: unknown }>) => string}
+ * A reporter can be passed in: most proofs here want the terse one below,
+ * where a line is one assertion, and the two about *describing* a value want
+ * `fjs t`'s own, because the describing is its.
+ *
+ * @type {(moduleMap: Record<string, { readonly proof: unknown }>, reporter?: Reporter<Catch | Sandbox | Write>) => string}
  */
-const runModules = moduleMap => {
-    /** @type {Reporter<Sandbox | Write>} */
-    const reporter = {
-        start: ({ name }) => log(`start:${name}`),
-        result: (t, _r, _throws) => log(`${t.path}:${t.status}`),
-        summary: ({ totals: { passed, failed } }) => log(`summary:${passed}:${failed}`),
-        test: defaultTest,
-    }
+const runModules = (moduleMap, reporter = {
+    start: ({ name }) => log(`start:${name}`),
+    result: (t, _r, _throws) => log(`${t.path}:${t.status}`),
+    summary: ({ totals: { passed, failed } }) => log(`summary:${passed}:${failed}`),
+    test: defaultTest,
+}) => {
     // No `all` handler, and that is not an omission: the shared traversal is
     // sequential, so it issues none — a restored fan-out would panic here as an
     // unclaimed command. What the *order* of a run must be is proved
@@ -189,10 +193,53 @@ const moduleExportIsStillWalked = () => {
     assert(written.includes('summary:2:0'), written)
 }
 
+/**
+ * **A thrown value that will not be read does not take the summary with it.**
+ *
+ * The leaf's own failure is caught by `sandbox` and reported like any other —
+ * that part always worked. What did not is the *end* of the run: `fjs t`
+ * describes each failure after the last leaf, and describing runs the value's
+ * own code, so `{ toString() { throw … } }` killed the report there. Every
+ * test had run and been announced, and the run still printed no totals and no
+ * exit code.
+ *
+ * This drives the real reporter rather than the mock one above, because the
+ * describing is the reporter's and that is what is under test. Both halves are
+ * asserted: the shared phrase in place of the value, and the summary line that
+ * used to be lost.
+ */
+const thrownValueThatCannotBeDescribed = () => {
+    /** @type {NodeProgramOptions} */
+    const options = { ...defaultNodeProgramOptions, env: {} }
+    const written = runModules({
+        './h.proof.f.mjs': {
+            proof: { boom: () => { throw { toString() { throw new Error('trap') } } } },
+        },
+    }, defaultReporter(options))
+    assert(written.includes('Unknown thrown value'), written)
+    assert(written.includes('Number of tests: pass: 0, fail: 1, total: 1'), written)
+}
+
+/**
+ * The same reporter still prints an ordinary value's own text, so the guard
+ * did not replace describing with the fallback phrase.
+ */
+const thrownValueIsStillDescribed = () => {
+    /** @type {NodeProgramOptions} */
+    const options = { ...defaultNodeProgramOptions, env: {} }
+    const written = runModules({
+        './h.proof.f.mjs': { proof: { boom: () => { throw 'plain trouble' } } },
+    }, defaultReporter(options))
+    assert(written.includes('plain trouble'), written)
+    assert(!written.includes('Unknown thrown value'), written)
+}
+
 export const proof = {
     returnedTreeThrows,
     returnedTreeIsStillWalked,
     moduleExportThrows,
     moduleFailureThatCannotBeReported,
     moduleExportIsStillWalked,
+    thrownValueThatCannotBeDescribed,
+    thrownValueIsStillDescribed,
 }

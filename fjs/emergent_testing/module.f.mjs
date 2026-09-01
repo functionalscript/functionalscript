@@ -677,13 +677,41 @@ const fmtResultEnd = ({ duration }, color, label) =>
     `${color}${label}${reset}, ${timeFormat(duration)}`
 
 /**
+ * What a value that cannot be read is called.
+ *
+ * A value reaches a report by being described, and describing runs the value's
+ * own code — a `toString`, a getter, a proxy trap — which can throw in its
+ * turn. Every route that meets one says this, so a reader meets one phrase
+ * rather than a spelling per runner.
+ */
+export const unknownValue = 'Unknown thrown value'
+
+/**
+ * The text of a value that may not want to be read. `String` runs user code, so
+ * it is attempted rather than called.
+ *
+ * **A runner that cannot `catch` gets the same phrase**, which is why the
+ * refusal is folded in here rather than propagated: there is no reader for whom
+ * "the value could not be read" and "the runner would not read it" are
+ * different facts, and a describer with an error channel would put that
+ * distinction in every caller.
+ *
+ * @type {(value: unknown) => Effect<Catch, string, never>}
+ */
+export const text = value => resultStep(
+    catch_(() => String(value)),
+    r => pureOk(r[0] === 'ok' && r[1][0] === 'ok'
+        ? /** @type {string} */ (r[1][1])
+        : unknownValue))
+
+/**
  * The terminal/GitHub reporter used by `fjs t`. Output goes through
  * `csiWrite`, so ANSI styles are stripped on non-TTY streams. When
  * `GITHUB_ACTIONS` is set, failures are emitted as `::error` workflow
  * annotations instead of colored lines. Exported as a factory so the
  * GitHub format path can be exercised directly from tests.
  *
- * @type {(options: NodeProgramOptions) => Reporter<Write | Sandbox>}
+ * @type {(options: NodeProgramOptions) => Reporter<Write | Sandbox | Catch>}
  */
 export const defaultReporter = options => {
     const write = csiWrite(options.std)
@@ -711,16 +739,24 @@ export const defaultReporter = options => {
     // afterwards, in the order they landed.
     //
     // https://github.com/OndraM/ci-detector/blob/main/src/Ci/GitHubActions.php
-    /** @type {(f: TestFailure) => Effect<Write, void, NotImplemented>} */
-    const detail = ({ t, error }) =>
+    //
+    // **The value is read through {@link text}, because reading it runs the
+    // value's own code.** A proof that throws `{ toString() { throw … } }` used
+    // to kill the summary *here* — after every leaf had run and been reported —
+    // so a completed run printed no totals and no exit code, which is the one
+    // outcome an automated consumer cannot act on. The page has described
+    // values this way since functionalscript#1802; this is the same read, in
+    // the reporter that needed it.
+    /** @type {(f: TestFailure) => Effect<Write | Catch, void, NotImplemented>} */
+    const detail = ({ t, error }) => step(text(error), described =>
         isGitHub
-            ? csiLog(`::error file=${t.module},line=1,title=${ghEscape(t.name)}::${ghEscape(String(error))}`)
+            ? csiLog(`::error file=${t.module},line=1,title=${ghEscape(t.name)}::${ghEscape(described)}`)
             // `step`, so the value is attempted only when the line naming the
             // test it belongs to was written: two halves of one report, and
             // half of it is worse than none.
             : step(
                 csiLog(`${fgRed}${t.name}${reset}`),
-                () => csiLog(`${fgRed}${error}${reset}`))
+                () => csiLog(`${fgRed}${described}${reset}`)))
     return {
         // One line per leaf, opened before it runs and closed when it lands:
         // `name: ` here, `ok, 1.2345 ms` from `result`. A reader watching a

@@ -27,8 +27,11 @@
  */
 
 import {
-    errorDetails, loadProofs, moduleFailure, reportOf, runProofs, runnerSource, unknownValue,
+    errorDetails, loadProofs, moduleFailure, reportOf, runProofs, runnerSource,
 } from './module.f.mjs'
+// The phrase for a value that will not be read is the runners' shared one:
+// this host meets such a value at its `import` boundary, where the walk cannot.
+import { unknownValue } from '../module.f.mjs'
 import { asyncRun } from '../../effects/module.mjs'
 import { commonOperationMap } from '../../effects/common/module.mjs'
 import { ioError, toIoError } from '../../effects/module.f.mjs'
