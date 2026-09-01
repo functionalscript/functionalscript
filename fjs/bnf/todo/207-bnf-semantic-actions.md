@@ -49,7 +49,7 @@ type VariantTransformer<M, C, T> = (v: Meta<M, Branch<C>>) => Out<M, T>
 type RepeatTransformer<M, C, S, T> = {
     readonly init: S
     readonly update: (state: S, c: Meta<M, C>) => S
-    readonly end: (state: Meta<M, S>) => Out<M, T>
+    readonly end: (state: S) => Out<M, T>
 }
 ```
 
@@ -81,8 +81,8 @@ empty map behaves bit for bit as it does now.
 | `Sequence`      | `[[c₀, …, cₙ], merged M]`, one slot per item                 |
 | empty `Sequence`| `[[], identity]`                                             |
 | `Variant`       | `[[branchName, value], that branch's M]`                     |
-| `Repeat`        | `init`, one `update` per round, then `end([state, merged M])` |
-| zero rounds     | `init` then `end([state, identity])`                          |
+| `Repeat`        | `init`, one `update` per round, then `end(state)`             |
+| zero rounds     | `init` then `end(init)`                                       |
 
 Each child is its *transformed* value where it has a transformer, its AST node
 where it does not (§3).
@@ -109,11 +109,12 @@ const sequence: SequenceTransformer<M, readonly unknown[], Ast<unknown>> =
 const variant = ([[, node], m]: Meta<M, readonly[string, Ast<unknown>]>): Out<M, Ast<unknown>> =>
     ok([node, m])
 
-const repeat: RepeatTransformer<M, unknown, List<unknown>, Ast<unknown>> = {
-    init: null,
-    update: (items, [item]) => concat(items)([item]),
-    end: ([items, m]) => ok([{ tag: undefined, sequence: toArray(items) }, m]),
-}
+const repeat = (m: Monoid<M>): RepeatTransformer<M, unknown, _Rounds, Ast<unknown>> => ({
+    init: [null, m.identity],
+    update: ([items, acc], [item, im]) => [concat(items)([item]), m.operation(acc)(im)],
+    end: ([items, acc]) => ok([{ tag: undefined, sequence: toArray(items) }, acc]),
+})
+type _Rounds = readonly[List<unknown>, M]
 ```
 
 Their leaf is the whole `Meta<M, CodePoint>` pair and their node is
@@ -181,7 +182,7 @@ type Transformer<M, T> =
     | readonly['repeat', FRule, {
         readonly init: unknown
         readonly update: (state: never, c: Meta<M, never>) => unknown
-        readonly end: (state: Meta<M, never>) => Out<M, T> }]
+        readonly end: (state: never) => Out<M, T> }]
     | readonly['unit']
 
 // keyed by the rule value — the `===` `toData` already dedups on
@@ -336,12 +337,11 @@ combines children's with a `Monoid<M>` given to the factory
 ([`fjs/common/monoid`](../../common/monoid/module.f.mjs)), whose identity covers
 the empty sequence and the zero-round repetition.
 
-For a repetition, the engine carries transformer state and accumulated metadata
-as separate values. Each round calls `update` with the child `Meta`, while the
-engine independently adds that child's metadata to its accumulator. After the
-last round, `end` receives `[state, accumulatedMetadata]`. This keeps metadata
-composition universal without forcing every repeat transformer to duplicate it
-inside `S`.
+Repetition is the stateful exception to engine-level composition. Each round's
+complete child `Meta` reaches `update`, so the transformer keeps whatever
+metadata it needs in `S`; `end` then forms the final value and metadata together
+as `Out<M, T>`. The default AST transformer uses the monoid in its state, but an
+explicit transformer may derive its output metadata differently.
 
 One `M` suffices, because a monoid on a product is componentwise:
 

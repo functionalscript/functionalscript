@@ -44,17 +44,20 @@ boundaries.
 Input symbols are `Meta<M, CodePoint>`. The caller supplies their metadata; a
 parser must not invent source positions or otherwise interpret `M`.
 
-The parser derives parent metadata as follows:
+Metadata reaches each rule kind as follows:
 
 - a terminal preserves its input symbol's metadata;
 - a sequence folds child metadata from left to right;
 - a string rule behaves as its sequence of terminal rules;
 - a variant preserves the selected child's metadata;
-- a repetition folds iteration metadata from left to right independently of
-  transformer state, then passes `[state, mergedMetadata]` to `end`;
-- an empty sequence or zero repetition uses the monoid identity;
-- an explicit mapping receives the derived input metadata and may return any
-  value of the same metadata type `M` as its output metadata.
+- an implicit repetition folds iteration metadata from left to right in its
+  default transformer state;
+- an empty sequence and an implicit zero repetition use the monoid identity;
+- an explicit repetition mapping receives each child `Meta` in `update`, keeps
+  any metadata it needs in `S`, and forms its output metadata in `end`;
+- an explicit terminal, sequence, or variant mapping receives the derived input
+  metadata and may return any value of the same metadata type `M` as its output
+  metadata.
 
 Consequently, mapping types should use one `M` instead of independent `MI` and
 `MO` parameters. Different metadata *values* across a transformation are
