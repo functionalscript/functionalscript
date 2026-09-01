@@ -10,7 +10,7 @@
  * `all`/`allOk`/`both` fan-out are re-exported from
  * [`../common`](../common/module.f.mjs) rather than declared here: an operation
  * belongs to the layer of whoever implements it, and none of these is Node's by
- * nature. A browser page dispatches `sandbox`, `catch`, `import` and `all`.
+ * nature. A browser page dispatches `sandbox`, `catch` and `import`.
  *
  * See `./types.ts` for the type-level API.
  *
@@ -55,8 +55,8 @@ export { errorMessage, ioError, toIoError }
 // `../common`'s, kept visible here because `NodeOp` unions them and dozens of
 // call sites name them through this module — a live coupling, not a shim. An
 // operation belongs to the layer of whoever implements it: a browser page
-// dispatches `sandbox`, `catch`, `import` and `all`, and the rest are there
-// because nothing about them is Node's. `../common/types.ts` keeps the count,
+// dispatches `sandbox`, `catch` and `import`, and the rest are there because
+// nothing about them is Node's. `../common/types.ts` keeps the count,
 // and says how it counts.
 export { all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write }
 
@@ -162,7 +162,8 @@ const nodeCommandSet = {
 export const nodeCommands = /** @type {Commands<NodeOp>} */ (Object.keys(nodeCommandSet))
 
 // `all`, `allOk` and `both` are `../common`'s, re-exported above: fan-out is an
-// interpreter's job, and a browser page fans out its module loads.
+// interpreter's job whoever the host is, which is the whole of why they are
+// there — no browser implements them.
 
 // fetch
 

@@ -10,7 +10,6 @@
  * with nothing injected and nothing global touched.
  *
  * @import { MemOperationMap, RunInstance } from '../../effects/mock/types.ts'
- * @import { All } from '../../effects/common/types.ts'
  * @import { SandboxResult } from '../../effects/common/types.ts'
  * @import { Commands } from '../../effects/types.ts'
  * @import { _BrowserOp, _Rows } from './private.ts'
@@ -29,10 +28,7 @@ import { ioError } from '../../effects/module.f.mjs'
  * makes, so the fixtures here are benign and the hostile ones stay with the
  * runner that has a real one.
  *
- * `all` is not here: it needs the runner that is asking, so each one adds its
- * own with {@link fanOut}.
- *
- * @type {Omit<MemOperationMap<_BrowserOp, _Rows>, 'all'>}
+ * @type {MemOperationMap<_BrowserOp, _Rows>}
  */
 const handlers = {
     sandbox: f => rows => [rows, ok(/** @type {SandboxResult<unknown>} */ (f()))],
@@ -55,34 +51,8 @@ const handlers = {
     report: event => rows => [[...rows, event], ok(undefined)],
 }
 
-/**
- * `all`, answered by running each effect through **the runner doing the
- * asking**.
- *
- * Taking the runner as an argument is the whole point: a handler that recursed
- * into some other runner would answer the sub-effects with capabilities the
- * caller does not have, and a proof of "this runner refuses `report`" would
- * quietly report through one that does not. That is exactly what the first
- * version of this file did, and its `refusedReportEndsLoading` proof passed
- * for the wrong reason until the answer disagreed with it.
- *
- * Sequential, which `all` permits: what the operation fixes is the shape of the
- * answer, and a runner without concurrency is a correct interpreter of it.
- *
- * @type {(self: () => RunInstance<_BrowserOp, _Rows>) => MemOperationMap<All, _Rows>['all']}
- */
-const fanOut = self => (...effects) => rows => {
-    let state = rows
-    const answers = effects.map(e => {
-        const [next, r] = self()(state)(e)
-        state = next
-        return r
-    })
-    return [state, ok(answers)]
-}
-
 /** @type {RunInstance<_BrowserOp, _Rows>} */
-const working = mockRun({ ...handlers, all: fanOut(() => working) })
+const working = mockRun(handlers)
 
 /**
  * A runner that has every operation but `report`. `partialRun` answers
@@ -92,11 +62,10 @@ const working = mockRun({ ...handlers, all: fanOut(() => working) })
  * @type {RunInstance<_BrowserOp, _Rows>}
  */
 const mute = partialRun(/** @type {Commands<_BrowserOp>} */ (
-    ['all', 'catch', 'import', 'report', 'sandbox']))({
+    ['catch', 'import', 'report', 'sandbox']))({
     sandbox: handlers.sandbox,
     catch: handlers.catch,
     import: handlers.import,
-    all: fanOut(() => mute),
 })
 
 /**
@@ -109,7 +78,7 @@ const mute = partialRun(/** @type {Commands<_BrowserOp>} */ (
  * @type {RunInstance<_BrowserOp, _Rows>}
  */
 const blind = partialRun(/** @type {Commands<_BrowserOp>} */ (
-    ['all', 'catch', 'import', 'report', 'sandbox']))({
+    ['catch', 'import', 'report', 'sandbox']))({
     sandbox: handlers.sandbox,
     report: handlers.report,
 })
@@ -122,22 +91,8 @@ const blind = partialRun(/** @type {Commands<_BrowserOp>} */ (
  * @type {RunInstance<_BrowserOp, _Rows>}
  */
 const deaf = partialRun(/** @type {Commands<_BrowserOp>} */ (
-    ['all', 'catch', 'import', 'report', 'sandbox']))({
+    ['catch', 'import', 'report', 'sandbox']))({
     sandbox: handlers.sandbox,
-})
-
-/**
- * A runner with no fan-out: `all` is declared and not implemented, so it
- * answers `notImplemented` through the ordinary continuation.
- *
- * @type {RunInstance<_BrowserOp, _Rows>}
- */
-const handless = partialRun(/** @type {Commands<_BrowserOp>} */ (
-    ['all', 'catch', 'import', 'report', 'sandbox']))({
-    sandbox: handlers.sandbox,
-    catch: handlers.catch,
-    import: handlers.import,
-    report: handlers.report,
 })
 
 /** @type {() => unknown} */
@@ -254,14 +209,6 @@ export const proof = {
             const outcome = answered[1]
             assert(outcome[0] === 'failed', outcome)
             assertEq(outcome[1].length, 1)
-            assertEq(outcome[1][0]?.module, 'the browser runner')
-        },
-        // A runner without fan-out cannot load at all, and that is the run's
-        // failure rather than any module's: there is no source to blame.
-        refusedFanOutIsTheRunnersFailure: () => {
-            const [, answered] = handless([])(loadProofs(['a']))
-            const outcome = answered[1]
-            assert(outcome[0] === 'failed', outcome)
             assertEq(outcome[1][0]?.module, 'the browser runner')
         },
     },

@@ -7,19 +7,22 @@
  * FunctionalScript logic without importing a module named after a different
  * host.
  *
- * **Four have two implementers**, all four now dispatched rather than counted
- * by argument: {@link Sandbox}, {@link Catch}, {@link Import} and {@link All}
- * are answered by the browser page's interpreter as well as by Node's. The last
- * two arrived when the page's module loading moved into FunctionalScript — its
- * `import()` had been an injected argument and its `Promise.all` its own
- * private business, and naming both as operations is what let the walk over
- * them be shared.
+ * **Three have two implementers**, all three dispatched rather than counted by
+ * argument: {@link Sandbox}, {@link Catch} and {@link Import} are answered by
+ * the browser page's interpreter as well as by Node's. `Import` arrived when
+ * the page's module loading moved into FunctionalScript — its `import()` had
+ * been an injected argument, and naming it is what let the walk over it be
+ * shared.
  *
- * **{@link Write} and {@link Read} have one implementer**, and are here on the
- * layering argument instead — nothing about them is Node's: a byte stream named
+ * **{@link All}, {@link Write} and {@link Read} have one implementer**, and are
+ * here on the layering argument instead — nothing about them is Node's: a byte stream named
  * by a string is not a filesystem fact. A page renders rows through an
  * operation of its own, which is a *different* operation rather than an
- * implementation of `Write`.
+ * implementation of `Write`. `All` is the layering argument by itself: fan-out
+ * is what an interpreter does with sibling effects, whoever the host is. The
+ * page briefly implemented it, for a loading walk that fanned out
+ * (functionalscript#1818); loading is a sequential fold now and the count is
+ * back where it was.
  *
  * Both are good reasons to be in this module. They are not the same reason, and
  * the count is written out because "everything here has two implementers" is

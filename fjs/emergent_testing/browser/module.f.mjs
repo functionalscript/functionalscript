@@ -20,14 +20,14 @@
  *
  * @import {
  *     BrowserTestReport, LeafReporter, Reporter, TestResult, _BrowserEvent,
- *     _BrowserReport, _BrowserTestResult, _LoadOutcome, _TestAndPath,
+ *     _BrowserReport, _BrowserTestResult, _LoadOutcome, _LoadState, _TestAndPath,
  * } from '../types.ts'
- * @import { All, Catch, Import, Module, Sandbox, SandboxResult } from '../../effects/common/types.ts'
- * @import { Effect, Func, IoChannel, NotImplemented } from '../../effects/types.ts'
+ * @import { Catch, Import, Sandbox, SandboxResult } from '../../effects/common/types.ts'
+ * @import { Effect, Func, IoChannel } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { all, catch_, import_ } from '../../effects/common/module.f.mjs'
+import { catch_, import_ } from '../../effects/common/module.f.mjs'
 import { addResult, collectTests, defaultTest, runEntries, zeroState, zeroTotals } from '../module.f.mjs'
 import { do_, errorMessage, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
@@ -253,49 +253,82 @@ const one = ([module, proof]) => ended => {
 }
 
 /**
- * One module loaded, and the page told that it arrived.
+ * One source: loaded, announced, and folded into the walk's state.
  *
- * Both halves answer as *values*: an import that failed is this module's
- * failure and not the walk's, and a page that cannot be told is the run's
- * failure rather than this module's. Keeping them apart here is what lets the
- * fold below decide which of the two happened without a channel to inspect.
+ * Both failures answer as *values*, and the state keeps them apart: an import
+ * that failed is this module's failure and the walk goes on, while a page that
+ * cannot be told is the run's and stops it.
  *
- * @type {(source: string) => Effect<Import | _BrowserReport, readonly [string, Result<Module, IoChannel>, Result<void, NotImplemented>], never>}
+ * @type {(source: string) => (state: _LoadState) => Effect<Import | _BrowserReport, _LoadState, never>}
  */
-const loadOne = source =>
-    step(
+const loadOne = source => state => {
+    // A walk that has been stopped loads nothing more. The only thing that
+    // stops it is the page refusing to be told, and a run whose reporting is
+    // broken has no way to describe what the rest of the loading did.
+    if (state.stopped !== null) { return pureOk(state) }
+    return step(
         resultStep(import_(source), loaded => pureOk(loaded)),
-        loaded => resultStep(
-            report(/** @type {const} */ (['loading', source])),
-            told => pureOk(/** @type {const} */ ([source, loaded, told]))))
+        loaded => mapStep(
+            resultStep(report(/** @type {const} */ (['loading', source])), told => pureOk(told)),
+            told => {
+                if (told[0] === 'error') {
+                    return { ...state, stopped: channelFailure([runnerSource, told[1]]) }
+                }
+                if (loaded[0] === 'error') {
+                    return {
+                        ...state,
+                        rejected: [...state.rejected, channelFailure([source, loaded[1]])],
+                    }
+                }
+                // **The module's `proof` export, not the module.** A namespace
+                // handed to the traversal is walked as a proof tree, so every
+                // other zero-argument export is *run* as a test and the real
+                // proofs land one level deeper, named `.proof.x` instead of
+                // `.x`. Running a module's unrelated exports is the part that
+                // is not merely wrong output.
+                return {
+                    ...state,
+                    ready: [...state.ready, /** @type {const} */ ([source, loaded[1].proof])],
+                }
+            }))
+}
+
+/** @type {_LoadState} */
+const zeroLoad = { ready: [], rejected: [], stopped: null }
 
 /**
- * Loads the suite's modules, in parallel, and answers what to do next.
+ * Loads the suite's modules, one after another, and answers what to do next.
  *
- * **The fan-out is the interpreter's.** `all` says these may run at once; a
- * page implements it with `Promise.all` and keeps the concurrency the loading
- * always had, while a runner without concurrency answers them in turn and
- * reads the same. That is the whole reason this walk can be pure without
- * making a page load 141 modules one after another.
+ * **One at a time, deliberately.** The loads used to be fanned out through
+ * `all`, which bought a cold page a shorter wait and cost the reader a
+ * variadic call whose width the engine limits, an interpreter that had to
+ * implement concurrency, and a walk in which no branch knew what any other had
+ * done. A sequential fold is the shape the rest of this package already has —
+ * `runProofs` below is one — and it makes the walk's own state readable: what
+ * has loaded, what would not, and whether the page stopped answering.
  *
- * A refused `all` is the run's failure and not any module's, so it is answered
- * as one: there is nothing to load with, and no source to blame.
- *
- * @type {(sources: readonly string[]) => Effect<All | Catch | Import | _BrowserReport, _LoadOutcome, never>}
+ * @type {(sources: readonly string[]) => Effect<Import | _BrowserReport, _LoadOutcome, never>}
  */
 export const loadProofs = sources =>
-    step(
-        resultStep(all(...sources.map(loadOne)), fanned => pureOk(fanned)),
-        fanned => fanned[0] === 'error'
-            ? pureOk(/** @type {const} */ ([
-                'failed',
-                [channelFailure([runnerSource, fanned[1]])],
-            ]))
-            : collect(fanned[1]))
+    mapStep(
+        foldStep(pureOk(sources), zeroLoad, loadOne),
+        ({ ready, rejected, stopped }) => {
+            // A page that could not be told takes precedence over a module
+            // that would not load: a list assembled for nobody to see is the
+            // wrong answer, and the row names the runner because no module is
+            // to blame for it.
+            if (stopped !== null) { return /** @type {_LoadOutcome} */ (['failed', [stopped]]) }
+            // One module that will not link stops the suite: it has no tests to
+            // run, and a partial suite reported as a whole one is worse than a
+            // refusal.
+            return /** @type {_LoadOutcome} */ (rejected.length === 0
+                ? ['ready', ready]
+                : ['failed', rejected])
+        })
 
 /**
  * The name a failure of the *runner* is reported under, when no module is to
- * blame for it: the page could not be told, could not fan out, or — in
+ * blame for it: the page could not be told, or — in
  * [`./module.mjs`](./module.mjs), which imports this — broke its own
  * interpreter. One name, because a reader meeting it in a report should not
  * have to learn two.
@@ -316,41 +349,6 @@ export const runnerSource = 'the browser runner'
 const channelFailure = ([source, cause]) => {
     const text = errorMessage(cause)
     return moduleFailure(source, 0, text, text)
-}
-
-/**
- * Folds what the loads answered into one outcome.
- *
- * A page that could not be told takes precedence over a module that would not
- * load, and stops the walk: a run whose reporting is broken cannot describe
- * the modules that failed either, so the honest answer is the reporting
- * failure rather than a list assembled for nobody to see.
- *
- * @type {(loads: readonly Result<readonly [string, Result<Module, IoChannel>, Result<void, NotImplemented>], never>[]) => Effect<never, _LoadOutcome, never>}
- */
-const collect = loads => {
-    const values = loads.map(l => l[1])
-    const untold = values.find(([, , told]) => told[0] === 'error')
-    if (untold !== undefined) {
-        return pureOk(/** @type {const} */ ([
-            'failed',
-            [channelFailure([runnerSource, /** @type {NotImplemented} */ (untold[2][1])])],
-        ]))
-    }
-    const rejected = values.flatMap(([source, loaded]) =>
-        loaded[0] === 'error' ? [/** @type {const} */ ([source, loaded[1]])] : [])
-    // **The module's `proof` export, not the module.** A namespace handed to
-    // the traversal is walked as a proof tree, so every other zero-argument
-    // export is *run* as a test and the real proofs land one level deeper,
-    // named `.proof.x` instead of `.x`. Running a module's unrelated exports
-    // is the part that is not merely wrong output.
-    const ready = values.flatMap(([source, loaded]) =>
-        loaded[0] === 'ok' ? [/** @type {const} */ ([source, loaded[1].proof])] : [])
-    // One module that will not link stops the suite: it has no tests to run,
-    // and a partial suite reported as a whole one is worse than a refusal.
-    return pureOk(rejected.length === 0
-        ? /** @type {const} */ (['ready', ready])
-        : /** @type {const} */ (['failed', rejected.map(channelFailure)]))
 }
 
 /**

@@ -140,9 +140,9 @@ export type _BrowserTestResult = TestResult & {
  * failure cheap to reach in a proof.
  *
  * The loading half names only the module. Counting how many have arrived is
- * the observer's, not the walk's: loads are fanned out, so no single branch
- * knows how many others have finished, and a page that renders `3/141` is
- * counting what it has seen.
+ * the observer's, not the walk's: the walk says *what* happened and a page
+ * decides what to render from the sequence it has seen, which is the same
+ * bargain the leaf-landed half makes.
  *
  * @internal
  */
@@ -176,6 +176,24 @@ export type _BrowserReport = readonly['report', (event: _BrowserEvent) => OpResu
 export type _LoadOutcome =
     | readonly['ready', readonly (readonly[string, unknown])[]]
     | readonly['failed', readonly _BrowserTestResult[]]
+
+/**
+ * The loading walk's accumulator: what has loaded, what would not, and the
+ * failure that stopped the walk.
+ *
+ * Three fields and not two, because the two failures are not the same failure.
+ * A module that will not link is *its* failure and the walk goes on — a report
+ * naming one of two broken modules sends a reader to fix half the problem —
+ * while a page that cannot be told is the run's, and stops it: a run whose
+ * reporting is broken cannot describe the rest either.
+ *
+ * @internal
+ */
+export type _LoadState = {
+    readonly ready: readonly (readonly[string, unknown])[]
+    readonly rejected: readonly _BrowserTestResult[]
+    readonly stopped: _BrowserTestResult | null
+}
 
 /** The serializable report a browser test run resolves with. */
 export type BrowserTestReport = {

@@ -486,24 +486,6 @@ export const proof = {
         assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
         assertEq(p.view.events.length, 1)
     },
-    // **A suite too large to fan out still reports.** `all` is variadic, so
-    // building the walk raises `RangeError` past the engine's call-argument
-    // ceiling — before the effect runs, in the argument to `run`. Unguarded
-    // that escaped synchronously and left the page at `Loading 0/N`; the
-    // ceiling is `../../effects/todo/all-argument-limit.md`'s to remove, and
-    // this pins that meeting it is a report rather than a hang.
-    //
-    // The size is measured, not guessed: 100,000 sources build, 150,000 throw.
-    aSuiteTooLargeToFanOutIsReported: async () => {
-        const p = page()
-        const source = dataModule('export const proof = {}')
-        const report = await startBrowserTestSources(p.root,
-            Array.from({ length: 150_000 }, () => source))
-        assertEq(report.status, 'infrastructure-error')
-        assertEq(report.results[0]?.module, 'the browser runner')
-        assertStructurallySame([...p.states], ['loading', 'infrastructure-error'])
-        assertEq(p.view.events.length, 1)
-    },
     // A module whose *thrown value* cannot be described either — the page must
     // still reach a terminal state. Describing runs the value's own code, so an
     // unguarded normalisation rejects the run and leaves the page at

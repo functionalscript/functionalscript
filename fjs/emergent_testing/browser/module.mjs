@@ -19,7 +19,7 @@
  *     BrowserTestReport, Reporter, RunState, TestResult, _BrowserEvent, _BrowserReport,
  *     _BrowserTestResult, _TestAndPath,
  * } from '../types.ts'
- * @import { All, Catch, Import, Sandbox, SandboxResult } from '../../effects/common/types.ts'
+ * @import { Catch, Import, Sandbox, SandboxResult } from '../../effects/common/types.ts'
  * @import { IoChannel } from '../../effects/node/types.ts'
  * @import { Effect, Func } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
@@ -167,14 +167,15 @@ const publish = (root, report) => {
  * Loads proof modules after the page has rendered, reporting module-loading
  * progress before proof execution begins.
  *
- * The walk itself is [`./module.f.mjs`](./module.f.mjs)'s `loadProofs`. What is
- * here is what a page is: the `import()` that resolves a source against this
- * document, the `Promise.all` that answers the shared fan-out, the summary line
- * the count is rendered into, and the publication.
+ * The walk itself is [`./module.f.mjs`](./module.f.mjs)'s `loadProofs`, which
+ * loads one module after another. What is here is what a page is: the
+ * `import()` that resolves a source against this document, the summary line the
+ * count is rendered into, and the publication.
  *
- * **The count is the page's, not the walk's.** Loads are fanned out, so no
- * branch knows how many others have finished; the walk announces each module as
- * it arrives and whoever watches the sequence counts. That is this function.
+ * **The count is the page's, not the walk's.** The walk announces *what*
+ * happened — this module arrived — and whoever watches the sequence decides
+ * what to render from it, which is the same bargain the leaf-landed event
+ * makes.
  *
  * @type {(root: Element, sources: readonly string[]) => Promise<BrowserTestReport>}
  */
@@ -189,7 +190,7 @@ export const startBrowserTestSources = (root, sources) => {
     // showing its idle text throughout loading — indefinitely, if a module
     // import never settles — even though the state and control already changed.
     say(`Loading 0/${sources.length}`)
-    /** @type {<T, E>(e: Effect<All | Catch | Import | _BrowserReport, T, E>) => Promise<Result<T, E>>} */
+    /** @type {<T, E>(e: Effect<Import | _BrowserReport, T, E>) => Promise<Result<T, E>>} */
     const run = asyncRun({
         ...commonOperationMap,
         // **Resolved against the document, not against this file.** The
@@ -223,10 +224,6 @@ export const startBrowserTestSources = (root, sources) => {
                 }
             }
         },
-        // The interpreter's fan-out, which is what keeps loading parallel now
-        // that the walk over sources is pure.
-        all: (/** @type {readonly Effect<never, unknown, unknown>[]} */ ...effects) =>
-            Promise.all(effects.map(e => run(e))).then(ok),
         report: async (/** @type {_BrowserEvent} */ event) => {
             if (event[0] === 'loading') {
                 loaded += 1
@@ -235,18 +232,7 @@ export const startBrowserTestSources = (root, sources) => {
             return ok(undefined)
         },
     })
-    // **Building the walk can throw before it is ever run.** `all` is variadic,
-    // so a suite larger than the engine's call-argument ceiling — measured
-    // between 100,000 and 150,000 sources here — raises `RangeError` while the
-    // effect is *constructed*, in the argument to `run`. Unguarded, that
-    // escapes `startBrowserTestSources` synchronously and leaves the page at
-    // `Loading 0/N` with no report: the outcome nothing can act on. Deferring
-    // makes it a rejection like any other, and the tail below turns it into a
-    // report the page can show. The ceiling itself belongs to
-    // `../../effects/todo/all-argument-limit.md`; this is only about failing
-    // where a reader can see it.
-    const report = Promise.resolve()
-        .then(() => run(loadProofs(sources)))
+    const report = run(loadProofs(sources))
         .then(outcome => {
             // `loadProofs` answers every failure it can meet as a value, so a
             // rejection here is this file's own interpreter breaking.
