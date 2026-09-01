@@ -258,3 +258,25 @@ messages are not working notes: write each one for a reader who meets it on
 ### Addressing review comments
 
 Once the pull request is open, which comments to fix, which to push back on,
+and what a push-back has to leave behind: [REVIEW.md](./REVIEW.md).
+
+## OpenAI Codex environment
+
+Set Node.js to 22. Both `npm test` and `npm run cov` work in this environment;
+the latter uses the automatic inline test-registration fallback.
+
+Setup script:
+
+```sh
+rustup component add clippy
+rustup component add rustfmt
+
+# Install Node.js dependencies.
+npm ci
+
+# Install Rust dependencies.
+cargo fetch
+
+rustup show
+node -v
+```
