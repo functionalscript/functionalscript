@@ -14,13 +14,18 @@
  * identifier, a quoted export name — reads as punctuation and so never matches
  * `proof`, `from` or `import`, the only names looked for here.
  *
- * @type {(char: string) => boolean}
+ * The end of the source is not a name character, which is what `undefined`
+ * means here: a name runs to the end of the file as often as it runs into a
+ * space, so the scan asks this question past the last character too.
+ *
+ * @type {(char: string | undefined) => boolean}
  */
 const nameChar = char =>
-    (char >= 'a' && char <= 'z')
+    char !== undefined
+    && ((char >= 'a' && char <= 'z')
     || (char >= 'A' && char <= 'Z')
     || (char >= '0' && char <= '9')
-    || char === '_' || char === '$'
+    || char === '_' || char === '$')
 
 /** @type {(char: string) => boolean} */
 const space = char => char === ' ' || char === '\t' || char === '\n' || char === '\r'
@@ -46,8 +51,14 @@ const separator = '\u0000'
 const read = source => {
     let out = ''
     let index = 0
-    while (index < source.length) {
-        const char = source[index] ?? ''
+    // The end of the source is read as a value — `undefined` — rather than
+    // tested for as a length. Each is the same loop, and the first has no
+    // unreachable half: a bound and an index that can also be out of bounds
+    // say the same thing twice, and a proof can only ever exercise one of the
+    // two answers.
+    while (true) {
+        const char = source[index]
+        if (char === undefined) { break }
         const next = source[index + 1]
         if (char === '/' && next === '/') {
             while (index < source.length && source[index] !== '\n') { index += 1 }
@@ -78,7 +89,7 @@ const read = source => {
         }
         if (nameChar(char)) {
             let text = ''
-            while (nameChar(source[index] ?? '')) {
+            while (nameChar(source[index])) {
                 text += source[index]
                 index += 1
             }

@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url'
 
 import { run } from '../effects/node/module.mjs'
 import { toPosix } from '../path/module.f.mjs'
-import { exportsProof, local, specifiers } from './browser-source.f.mjs'
+import { exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { main } from './module.f.mjs'
 
 const sourceRoot = new URL('../../', import.meta.url)

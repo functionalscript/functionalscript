@@ -6,8 +6,8 @@
  * module wrongly skipped simply never runs in the browser.
  */
 
-import { assert, assertStructurallySame } from '../asserts/module.f.mjs'
-import { exportsProof, local, specifiers } from './browser-source.f.mjs'
+import { assert, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { exportsProof, local, specifiers } from './module.f.mjs'
 
 /** @type {(source: string) => void} */
 const exports = source => assert(exportsProof(source), source)
