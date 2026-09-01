@@ -5,7 +5,7 @@
 
 import { assertEq } from '../../../asserts/module.f.mjs'
 import { array, number, or, string, unknown } from '../../../rtti/module.f.mjs'
-import { range, repeat0Plus } from '../../module.f.mjs'
+import { none, option, range, repeat0Plus } from '../../module.f.mjs'
 import { checkMap } from './module.f.mjs'
 
 const digit = range('09')
@@ -134,6 +134,24 @@ export const proof = {
         assertEq(result.get(noEmptyBranch)?.tag, 'variant')
         assertEq(result.get(badStep)?.tag, 'variant')
         assertEq(result.get(badTail)?.tag, 'variant')
+    },
+    ambiguousNonRepeats: () => {
+        const nullable = repeat0Plus(option('a'))
+        const recursive = () => ({ none, some: [nested, recursive] })
+        const nested = () => ({ leaf: digit, group: ['(', recursive, ')'] })
+        /** @type {(ri: Type) => Base} */
+        const info = ri => ({
+            tag: 'variant',
+            ri,
+            ro: string,
+            map: /** @type {any} */ (() => ['mapped', undefined]),
+        })
+        const result = checkMap([
+            [nullable, info({ some: ast, none: ast })],
+            [recursive, info({ none: ast, some: ast })],
+        ])
+        assertEq(result.get(nullable)?.tag, 'variant')
+        assertEq(result.get(recursive)?.tag, 'variant')
     },
     throw: {
         duplicate: () => checkMap([[digit, terminalInfo], [digit, terminalInfo]]),

@@ -1,7 +1,13 @@
-import type { Ts, TupleTs } from "../../../rtti/ts/types.ts"
-import type { Type, Number } from "../../../rtti/types.ts"
-import type { Rule } from "../../types.ts"
-import type { RepeatMap, SequenceMap, TerminalMap, VariantMap } from "../types.ts"
+/**
+ * Runtime type information for BNF rule mappings.
+ *
+ * @module
+ */
+
+import type { Ts, TupleTs } from '../../../rtti/ts/types.ts'
+import type { Type, Number } from '../../../rtti/types.ts'
+import type { Rule } from '../../types.ts'
+import type { RepeatMap, SequenceMap, TerminalMap, VariantMap } from '../types.ts'
 
 export type Tag = 'terminal' | 'sequence' | 'variant' | 'repeat'
 

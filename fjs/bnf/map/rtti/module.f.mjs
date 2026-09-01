@@ -9,6 +9,7 @@
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
+import { isRepeat, toData as ruleToData } from '../../data/module.f.mjs'
 import { number, string, unknown, array, or } from '../../../rtti/module.f.mjs'
 import { equal, toData } from '../../../rtti/data/module.f.mjs'
 import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
@@ -42,7 +43,9 @@ const repeatItem = rule => {
     const emptyIndex = branches.findIndex(v => v instanceof Array && v.length === 0)
     if (emptyIndex === -1) { return null }
     const step = branches[1 - emptyIndex]
-    return step instanceof Array && step.length === 2 && step[1] === rule ? step[0] : null
+    if (!(step instanceof Array) || step.length !== 2 || step[1] !== rule) { return null }
+    const [ruleSet, entry] = ruleToData(rule)
+    return isRepeat(ruleSet[entry]) ? step[0] : null
 }
 
 /** @type {(rule: Rule) => readonly Rule[]} */

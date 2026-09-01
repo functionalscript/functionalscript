@@ -1,3 +1,9 @@
+/**
+ * Mapping functions for transforming BNF abstract syntax trees.
+ *
+ * @module
+ */
+
 export type Meta<M, T> = readonly[value: T, meta: M]
 
 // one.
