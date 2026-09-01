@@ -695,14 +695,17 @@ there — 16 and 18 failures, exit 1. So a reporter defect shows up as `fjs t`
 disagreeing with the external runners, never as every gate lying together —
 and `fjs t`'s own exit code is trustworthy only in that company.
 
-### Why the remaining steps are worth taking
+### Why steps 4 through 7 were worth taking
 
-Steps 4 through 7 look like tidying — move some operations, add an interpreter,
-share a reporter, delete a traversal. They are not. They draw a boundary the
-browser runner does not have, and the promise episode is what its absence costs.
+They looked like tidying — move some operations, add an interpreter, share a
+reporter, delete a traversal. They were not. They drew a boundary the browser
+runner did not have, and the promise episode is what its absence cost. All four
+have landed; this section is why, kept because the reasoning outlives the
+steps.
 
-`browser.mjs` is impure `.mjs`, so a live host promise and a proof tree travel
-the same code path, and the code has to ask *which of these is a promise?* That
+`browser.mjs` was impure `.mjs`, so a live host promise and a proof tree
+travelled the same code path, and the code had to ask *which of these is a
+promise?* That
 is an identity-by-origin question — `instanceof` asks which copy of the
 constructor made the value, not what the value is — and asking it in a place
 that handles business logic is what produced ~150 lines of `Symbol.species`
@@ -727,17 +730,17 @@ That is recorded in
 [move the browser runner's business logic to FunctionalScript](browser-runner-functional-script.md),
 which is the same work seen from the purity side rather than the sharing side.
 
-So the remaining steps are that boundary, applied to the browser:
+So those steps were that boundary, applied to the browser:
 
-- **step 4** puts the host-independent operations somewhere both hosts can name;
-- **step 5** gives the browser an interpreter, which is where its host values
+- **step 4** put the host-independent operations somewhere both hosts can name;
+- **step 5** gave the browser an interpreter, which is where its host values
   belong;
-- **steps 6 and 7** move reporting and traversal into the pure core, which is
+- **steps 6 and 7** moved reporting and traversal into the pure core, which is
   where host values must never be.
 
-When they are done, `instanceof Promise` lives in exactly one interpreter, as
-glue, and no shared code asks the question. The asks have already left the
-browser file: the two that survive are in `effects/common`'s `sandbox` and
+With them done, `instanceof Promise` lives in interpreters, as glue, and no
+shared code asks the question. The asks have left the browser file: the two
+that survive are in `effects/common`'s `sandbox` and
 `effects/node`'s `await`, which are interpreters — though `effects/common` is
 shared by design, so this is not yet the "exactly one" the goal names. They are
 in the right *place* only because the boundary has not been drawn
@@ -1055,19 +1058,27 @@ are shared.
       `module.f.mjs`/`module.mjs` split" — superseded, because that ships a
       branch known to be untested whose failure mode is a page stuck in
       `running` forever, exactly the class of hazard catalog item 11 exists
-      for. 7b instead carries the seam itself, at its smallest: the page's
-      run core takes its interpreter (or reporter) as an argument and is
-      exported for proofs from the page's own module, so proofs drive **each
-      failure route separately** — one case for an operation answering
-      through the error channel, one for an operation the interpreter cannot
-      dispatch, which rejects — and watch the `infrastructure-error` report
-      land from both. Two routes need two mutations: delete either half of
+      for. 7b was to carry the seam itself, at its smallest: the page's run core
+      taking its interpreter (or reporter) as an argument and exported for
+      proofs from the page's own module, so proofs could drive **each failure
+      route separately**.
+
+      **What landed is smaller, and covers one route.** Making the
+      orchestration an effect was enough for the error channel: a mock runner
+      that declares `report` and does not implement it answers `notImplemented`
+      through the ordinary continuation, which is `refusedReportEndsTheRun`
+      above — no seam needed. The rejection route did not follow.
+      `browser/module.mjs` still builds its interpreter internally, so
+      `.catch(runnerFailure)` has no way in and no proof. The seam described
+      here is therefore **still to be built**, by the open task above and for
+      that route alone; it is not something to go looking for in the code.
+
+      When it is built: two routes need two mutations — delete either half of
       the guard alone and its case fails while the other stays green, or the
       surviving half is masking an untested branch that can still leave the
-      page in `running` forever. This is a testing seam, not a public-API widening — the
-      page's published entry point is unchanged, which is what the rejected
-      "widen the API to reach the branch" alternative got wrong. Step 8's
-      full layout split then absorbs the seam rather than creating it.
+      page in `running` forever. It is a testing seam, not a public-API
+      widening — the page's published entry point is unchanged, which is what
+      the rejected "widen the API to reach the branch" alternative got wrong.
 
 ### Related
 
