@@ -315,15 +315,22 @@ combines children's with a `Monoid<M>` given to the factory
 ([`fjs/common/monoid`](../../common/monoid/module.f.mjs)), whose identity covers
 the empty sequence and the zero-round repetition.
 
-> **Superseded by [43](./043-stateful-parser.md).** A parser transforms
-> metadata, so one `M` became `MI` and `MO`, and the monoid became two
-> operations: `translate: (mi: MI) => MO` and `reduce: Reduce<MO>`, folded
-> strictly left to right with no associativity required. Everything below about
-> *which* metadata each rule kind contributes still holds; only the algebra
-> changed. The identity is the part that did not survive — what an empty
+> **This is the shipped API, and [43](./043-stateful-parser.md) replaces it.**
+> Stage 1 below is complete: `transformers(monoid)` exists in
+> [`../ll1/module.f.mjs`](../ll1/module.f.mjs), taking one `Monoid<M>`, and this
+> issue's signatures describe that working code rather than a proposal. Do not
+> read them as the new pair — they are what is there today.
+>
+> What 43 changes, when it is implemented: one `M` becomes `MI` and `MO`; the
+> monoid becomes `translate: (mi: MI) => MO` and `reduce: Reduce<MO>`, folded
+> strictly left to right with no associativity required; and the terminal
+> becomes the boundary, so `TerminalTransformer` takes `Meta<MI, CodePoint>` and
+> returns `Out<MO, T>` while every composite callback stays `MO → MO`. That is a
+> breaking change to stage 1's public types, made deliberately. Everything about
+> *which* metadata each rule kind contributes survives it; only the algebra and
+> the type count change. The identity does not survive at all — what an empty
 > sequence, a zero-round repetition and an EOF terminal contribute is 43's open
-> question, and the rest of this section's `Monoid<M>` should be read as that
-> pair.
+> question.
 
 Repetition is the stateful exception to engine-level composition. Each round's
 complete child `Meta` reaches `update`, so the transformer keeps whatever
@@ -364,6 +371,8 @@ transformer map, and a layer's payload is its output metadata `MO`.
 #### 8. Helpers
 
 Everything comes from one factory, `transformers(monoid)`, which binds `M` once.
+*(Shipped as written; [43](./043-stateful-parser.md) replaces the `monoid`
+argument with `translate`/`reduce` and splits `M` — see §7's note.)*
 `M` is invariant in `Transformer<M, T>` and a call like `terminal(c => …)`
 mentions no metadata, so free helpers would infer `M = unknown` — survivable
 inside a contextually typed map, fatal for the standalone start entry.
@@ -609,7 +618,11 @@ it is the smaller machine, it is the backend without metadata yet, and
 
 ### Open questions
 
-None can change stage 1's public types.
+None of the questions *in this section* can change stage 1's public types.
+[43](./043-stateful-parser.md) does change them — `MI`/`MO` and
+`translate`/`reduce` replace the single `M` and its monoid — but that is a
+design decision taken after this issue shipped, not one of these questions
+resolving itself into a breaking change.
 
 - ~~**Does the product monoid read well on a real tokenizer (§7)?**~~ Answered
   by the tokenizer case itself, and not in the product's favour: a layer

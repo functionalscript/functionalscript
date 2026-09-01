@@ -49,39 +49,18 @@ consume it. If `Transducer` ships, this parser becomes one; until then it is the
 same shape as everything else.
 
 **This is the value-producing top layer, and only that.** A `StateFold` emits
-nothing until `end`, so it is the right shape for the stage that answers with
-one AST or one domain value, and the wrong shape for a stage whose output is a
-*stream* the next stage consumes. [layered-parser](./layered-parser.md)'s
-`bytes → code-points → tokens → AST` needs its lower stages to emit as they go —
-maximal munch cuts a token and restarts. Nothing here is a streaming decoder or
-tokenizer.
+nothing until `end`, which is right for a stage answering with one AST and wrong
+for one whose output is a stream. [layered-parser](./layered-parser.md)'s lower
+stages emit as they go; nothing here is a decoder or tokenizer.
 
-**`StateScan` is not quite that shape either**, which is worth saying because
-layered-parser names it. `StateScan<I, S, O>` is
-`(input, prior) => [output, state]`
-([`../../types/function/operator/types.ts`](../../types/function/operator/types.ts))
-— emission per input, but no lifecycle, so a stage holding buffered output at
-end of input has nowhere to flush it. That is not hypothetical: `decoder` in
-[`../../text/code_point/module.f.mjs`](../../text/code_point/module.f.mjs) takes
-a *second* operation, `eofOp`, and splices a synthetic `null` into the input to
-drive it. A decoder ending mid-sequence and a tokenizer ending inside token text
-are the same case, and getting it wrong drops the last token or accepts a
-truncated encoding silently.
-
-So an emitting layer needs emission **and** an emitting `end` — which is what
-[`todo/flow.md`](../../../todo/flow.md)'s `Transducer` has and `StateScan` does
-not, its `end` returning a `Terminal` that carries a flush chunk. That is the
-second argument for `Transducer` shipping eventually; it does not change what
-*this* stage is, since a value-producing top layer has nothing to flush.
-
-Two things are therefore unresolved rather than solved, and both are
-layered-parser's rather than this issue's — though this issue is why they now
-have to be decided. Since layered-parser says *"every layer reuses the same BNF
-engine"*: a BNF grammar used as an emitting layer needs a shape this issue does
-not give it, so either the engine grows an emitting entry point beside this one
-or the lower layers are not BNF grammars. And whatever that shape is, its
-end-of-input convention has to be explicit rather than each layer inventing its
-own sentinel.
+That leaves layered-parser two things to settle, neither this issue's: it says
+every layer reuses the same BNF engine, and a grammar used as an emitting layer
+has no shape here — and `StateScan`, which it names, is
+`(input, prior) => [output, state]` with no lifecycle, so a stage cannot flush
+what it buffered at end of input. `decoder` in
+[`../../text/code_point/module.f.mjs`](../../text/code_point/module.f.mjs)
+already works around that with a second `eofOp`. An emitting layer wants
+emission *and* an emitting `end`, which is `Transducer`'s and not `StateScan`'s.
 
 **Metadata is the outermost wrapper.** `Meta<…>` outside rather than a result
 type outside, because metadata is orthogonal to whether the parse succeeded — it
@@ -96,6 +75,30 @@ and emits the token symbol `n` for the next layer, carrying the numeric value in
 its output metadata. With one `M` that value either rides along uselessly
 through every later rule, or has to be recovered in a postprocessing pass — both
 of which describe the pipeline worse than two types do.
+
+**The metadata algebra is two operations, given at construction.** One monoid
+needs one type, so with two it becomes:
+
+```ts
+readonly translate: (mi: MI) => MO      // an unmapped terminal's metadata
+readonly reduce: Reduce<MO>             // two siblings, combined
+```
+
+The **terminal is the boundary**: a terminal transformer takes
+`Meta<MI, CodePoint>` and returns `Out<MO, T>`, and `translate` supplies the
+metadata only where a terminal has no transformer — parallel to
+[207 §3](./207-bnf-semantic-actions.md)'s default builders supplying the value
+for an unmapped rule. Translating on entry instead would put it in front of the
+transformer, which would then see `MO` alone and could not read the token
+payload the split exists to keep out of `MO`. Everything above a terminal is
+`MO`, so `reduce` never sees `MI`.
+
+**`reduce` need not be associative**, so the fold is strictly left to right and
+the **grouping is part of the contract**: `reduce(reduce(a, b), c)`. That rules
+out `fold` and `foldAbsorbing` in
+[`fjs/common/monoid`](../../common/monoid/module.f.mjs), which combine as a
+*balanced* tree — "associativity is what licenses the re-grouping" — and would
+regroup silently, producing plausible metadata rather than an error.
 
 **`T`, not `Ts<O>`.** The parser's output type is not RTTI-described; a
 validatable root output belongs to `checkMap` and the `fjs/bnf/map` layer alone,
@@ -146,9 +149,8 @@ engine that value is not yet decided**; see the open questions.
 
 ### Tasks
 
-- [ ] Settle what a match with no children produces, now that `translate` and
-      `reduce` replace the monoid (see the open question). Everything else here
-      is mechanical; this is not.
+- [ ] Answer the open questions below. Everything else here is mechanical;
+      those are not.
 - [ ] Replace the cursor-into-array reads in
       [`../ll1/module.f.mjs`](../ll1/module.f.mjs) with a state that suspends
       when it needs the next symbol. `symbolAtCp`, `leafAt` and the
@@ -162,6 +164,12 @@ engine that value is not yet decided**; see the open questions.
       cannot return the unconsumed tail, so prefix parsing — which `Match` has
       today — either goes away deliberately or needs a different reporting
       point.
+- [ ] Migrate the shipped single-`M` API rather than leaving two: `transformers`
+      in [`../ll1/module.f.mjs`](../ll1/module.f.mjs) takes a `Monoid<M>` today,
+      and [207](./207-bnf-semantic-actions.md)'s §1, §5 and §8 signatures
+      describe it. They are correct until this lands and wrong the moment it
+      does, so they change with the code — this is a breaking change to stage
+      1's public types.
 - [ ] Prove: one-symbol-at-a-time equals the array path on the same input; a
       parse suspended and resumed equals an uninterrupted one; an error state
       absorbs; `end` on a zero-symbol input.
@@ -172,125 +180,32 @@ engine that value is not yet decided**; see the open questions.
 
 ### Open questions
 
-- **Who hands `end` the value for a rejected parse?** The machine having no
-  error channel settles what a failure *is* — an ordinary `T` the author
-  declared — and not who constructs it. `T` is unconstrained, so the engine has
-  no constructor for it, and [207 §6](./207-bnf-semantic-actions.md) says no
-  transformer on the rejected spine runs: the root's transformer is exactly what
-  did not get to produce a value. An error state in `S` records *that* the parse
-  failed and still leaves `end` with nothing to return, so as written the
-  contract is completable only by an unchecked cast or by inventing a plausible
-  success value — which is the outcome DESIGN.md §10 forbids.
+Undecided, deliberately. Each is visible in the public type, so none is an
+implementer's to settle quietly ([REVIEW.md](../../../REVIEW.md#designs)); each
+is small enough to answer in a pull request that implements nothing.
 
-  Three ways to close it, none of which is a parser-wide error channel:
-
-  - the root entry supplies a rejection value alongside its transformer, the way
-    `Monoid` supplies an identity — one value, declared by the author, in the
-    author's own `T`;
-  - the root transformer is required to be a fold, whose `end` is total over its
-    state by construction, so the author's own `end` covers the failed state;
-  - `T` is constrained to admit absence at the root only — `Nullable<T>` in
-    `end`'s return, nowhere else.
-
-  The first looks smallest. Whichever it is, it belongs in this section rather
-  than in an implementer's head, because all three are visible in the public
-  type.
-- **What supplies the metadata of a match with no children?** Two metadata types
-  replace the single `Monoid<M>` with two operations, given to the parser at
-  construction beside the map:
-
-  ```ts
-  readonly translate: (mi: MI) => MO      // a terminal's metadata, lifted
-  readonly reduce: Reduce<MO>             // two siblings, combined
-  ```
-
-  Everything above a terminal is `MO`, so `reduce` never sees `MI`.
-  `Reduce<MO>` is
-  [`fjs/types/function/operator`](../../types/function/operator/types.ts)'s
-  already. That settles what
-  [generic-parser-metadata](./generic-parser-metadata.md)'s rule-by-rule
-  derivation folds with.
-
-  **`translate` is the default for an *unmapped* terminal, not a step every
-  terminal passes through.** Translating on entry would put it in front of
-  [207 §1](./207-bnf-semantic-actions.md)'s `TerminalTransformer`, which would
-  then see `MO` alone — and that breaks the case the split exists for. A
-  tokenizer puts a token's numeric value in the metadata it emits; the parser
-  above it reads that value in `MI` to build its semantic number. With
-  `translate` first, either the callback cannot reach the value, or `translate`
-  has to smuggle it into `MO`, which is the payload the split was meant to keep
-  out of `MO`.
-
-  So the terminal *is* the `MI → MO` boundary:
-  `TerminalTransformer` becomes `(v: Meta<MI, CodePoint>) => Out<MO, T>`, and
-  `translate` supplies the metadata for a terminal that has no transformer —
-  exactly parallel to [207 §3](./207-bnf-semantic-actions.md)'s default builders
-  supplying the *value* for an unmapped rule. One boundary, crossed in one
-  place, declared by the author wherever they care and defaulted where they do
-  not.
-
-  What it does not settle: a `Monoid` also carried an **identity**, which
-  [207 §2](./207-bnf-semantic-actions.md) spends in three places that have no
-  child metadata to combine — an empty `Sequence`, a zero-round `Repeat`, and a
-  terminal matching EOF, where no leaf exists. Two operations leave those three
-  with nothing to produce. Either:
-
-  - add the identity back as a third field, `empty: MO`, beside `translate` and
-    `reduce` — two operations and one constant, the smallest change. **Not
-    `Monoid<MO>`**, whose identity comes with an associativity *law*
-    ([`fjs/common/monoid/types.ts`](../../common/monoid/types.ts): "the
-    operation must be associative"). Naming that type would contradict the
-    paragraph below and license the balanced folds it rules out. What is wanted
-    is a unit without the law — which is the `{ empty, join }` record
-    [generic-parser-metadata](./generic-parser-metadata.md) first wrote down,
-    minus its claim to be a monoid; or
-  - represent absence, `MO | undefined`, and let `reduce` skip it. This is the
-    honest answer to a complaint the constant identity has anyway: a single
-    identity value gives every empty match the same metadata regardless of where
-    it matched, so a position-carrying `MO` cannot say *where* the empty match
-    was. The cost is that every transformer's metadata admits `undefined`.
-
-  **`reduce` is not required to be associative.** It folds strictly left to
-  right in grammar order, so no law is needed and none is claimed —
-  `Reduce<MO>` carries none either, the laws in `fjs/common/monoid` belonging to
-  `Monoid` rather than to the operation type.
-
-  That makes the **grouping part of the contract** rather than an implementation
-  detail: `reduce(reduce(a, b), c)`, never `reduce(a, reduce(b, c))`, and the
-  engine has to say so where it folds. It also rules out one specific reuse.
-  `fold` and `foldAbsorbing` in
-  [`fjs/common/monoid`](../../common/monoid/module.f.mjs) combine a list as a
-  *balanced* binary tree — "associativity is what licenses the re-grouping" —
-  so calling them here would regroup a fold that must not be regrouped, and
-  would do it silently, producing plausible metadata rather than an error. The
-  parser needs its own left fold.
-- **Where does the EOF symbol's `MI` come from?** Making the terminal the
-  boundary gives `TerminalTransformer` an `Meta<MI, CodePoint>` argument, and
-  the one symbol that has no `MI` is the synthesized end-of-input:
-  [the contract](../README.md#logical-eof-in-parser-input) says it "has no
-  physical source element", and
-  [generic-parser-metadata](./generic-parser-metadata.md) says a parser "must
-  not invent source positions or otherwise interpret" metadata — so the engine
-  may not conjure one. `empty: MO` does not help; it answers the *output* side,
-  and this is the argument.
-
-  The answer that keeps both rules is that the **driver supplies it**, feeding a
-  final EOF-tagged `Meta<MI, …>` through `update` before calling `end`. That is
-  what `decoder` in
-  [`../../text/code_point/module.f.mjs`](../../text/code_point/module.f.mjs)
-  already does with its synthetic marker, it leaves metadata the caller's as the
-  rule requires, and it keeps `StateFold`'s shape rather than adding a parameter
-  to `end`. The alternative is to forbid mapping a terminal that can match EOF —
-  [207 §2](./207-bnf-semantic-actions.md) already notes such a rule is "usually
-  `unit`" — but that trades a general capability for a constant, and an unmapped
-  EOF terminal still needs metadata from somewhere.
-- **How far does `MI ≠ MO` reach?** The decision above is about the parser
-  boundary. [generic-parser-metadata](./generic-parser-metadata.md) states the
-  stronger rule that *both* mapping APIs use one `M`, and PR #1828 shipped it by
-  removing `MI`/`MO` from the map and RTTI types. Re-splitting at the parser
-  does not by itself un-ship that: a mapping's callback may still be `M → M`
-  within one layer while the layer as a whole is `MI → MO`. Say which, since one
-  answer is a code change to already-merged types.
+- **Nothing constructs the value for a rejected parse.** `T` is unconstrained
+  and [207 §6](./207-bnf-semantic-actions.md) says no transformer on a rejected
+  spine runs — including the root's — so an error state in `S` records *that*
+  the parse failed and still leaves `end` with nothing to return. Candidates:
+  the root entry supplies a rejection value, the root transformer is required to
+  be a fold whose `end` is total by construction, or `end` returns
+  `Nullable<T>`.
+- **`reduce` has no identity**, and [207 §2](./207-bnf-semantic-actions.md)
+  spends one on an empty `Sequence`, a zero-round `Repeat`, and an EOF terminal.
+  Candidates: a third field `empty: MO`, or `MO | undefined` with `reduce`
+  skipping absence. Not `Monoid<MO>` — its identity comes with an associativity
+  law this `reduce` does not promise. One constant also cannot say *where* an
+  empty match matched, which the second candidate can.
+- **The synthesized EOF has no `MI`** to hand a mapped terminal. The caller may
+  not supply it ([the contract](../README.md#logical-eof-in-parser-input): never
+  append EOF) and the engine may not invent it
+  ([generic-parser-metadata](./generic-parser-metadata.md)), so it reaches the
+  parser at construction — an `eof: MI` constant is the cheapest shape.
+- **How far `MI ≠ MO` reaches.** Re-splitting at the parser does not by itself
+  un-ship PR #1828's single-`M` map and RTTI types: a callback may stay `M → M`
+  inside one layer while the layer is `MI → MO`. One answer is a code change to
+  merged types, so say which.
 
 ### Related
 
