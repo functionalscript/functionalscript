@@ -6,6 +6,7 @@
 
 import type { Ts, TupleTs } from '../../../rtti/ts/types.ts'
 import type { Type, Number } from '../../../rtti/types.ts'
+import type { AbstractRequiredMap } from '../../../types/object/types.ts'
 import type { Rule } from '../../types.ts'
 import type { RepeatMap, SequenceMap, TerminalMap, VariantMap } from '../types.ts'
 
@@ -70,7 +71,7 @@ export type Mapped =
     }>
     | MappedInfo<{
         readonly tag: 'variant'
-        readonly ri: Readonly<Record<string, Type>>
+        readonly ri: AbstractRequiredMap<string, Type>
         readonly ro: Type
         readonly map: (...i: any[]) => unknown
     }>
