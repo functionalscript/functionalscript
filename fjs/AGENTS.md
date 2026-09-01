@@ -432,6 +432,72 @@ TypeScript one, but the public type contract must not become weaker for being
 written in JavaScript. Types authored in `types.ts` use ordinary TypeScript
 syntax and declaration emit.
 
+#### Types are `readonly`
+
+Every array, tuple, and object member in a repository type declaration —
+`types.ts` or `private.ts` — must be `readonly`: `readonly T[]`, not `T[]`;
+`readonly [A, B]`, not `[A, B]`; `readonly a: T`, not `a: T`. This is the
+type-level counterpart of [§3.1](#31-immutability-and-purity):
+FunctionalScript data is immutable, and a type that admits mutation
+misdescribes the value even where nothing ever mutates it.
+
+**Scope: TypeScript source, not JSDoc.** A function-local JSDoc `@typedef`
+(§3.2, "JavaScript/JSDoc type declarations") is out of scope — the `@property`
+list style has no established `readonly` spelling in this codebase, and every
+such typedef is proof-local, describing one call's shape rather than named,
+reusable repository data. Inlining the type instead of using `@property`
+(`@typedef {{ readonly a: T }} _Name`) can still take `readonly`, and should
+where it reads no worse; nothing here requires converting existing
+`@property` typedefs.
+
+Function parameters are exempt — `(name: string, fn: () => void) => …` needs
+no `readonly` on `name`/`fn`, since a parameter list is not itself a mutable
+container. A mapped type's brand/index signature is not exempt just because
+the field is never assigned a real value at runtime (e.g. `Nominal`'s
+`{ readonly[k in N]: … }` in `fjs/types/nominal/types.ts`), and neither is a
+mapped type used only inside a conditional/indexed-access type-level check and
+never as a value's own type (e.g. `NotUnion`'s `readonly [U] extends
+readonly [T]` in `fjs/types/object/types.ts`) — the rule is about what the
+declaration says, not about whether a mismatch is currently observable.
+
+**Exceptions need explicit reviewer sign-off, and most legitimate ones share
+one shape: the type describes an object that lives outside FunctionalScript
+files** — a host or library API this repository does not own and cannot
+redeclare, mutable by that API's own contract (a Node.js builtin, a
+third-party SDK's object). `IncomingMessage = Readable & {…}` in
+`fjs/effects/node/module.mjs` (§3.2, "Composition over intersection") is the
+existing example: it describes Node's own object, not FunctionalScript data.
+Even there, prefer `readonly` on any member this codebase only reads — the
+exception is for a member the external API itself requires writable or
+reassigns, not a blanket pass for the whole type.
+
+A type over data this repository defines and constructs is not exempt just
+because a change would be a breaking API change for consumers — that is a
+reason to plan and land the fix deliberately (see "Breaking changes and
+versioning" in [changelog/README.md](../changelog/README.md)), not a reason
+to leave the member mutable. `fjs/effects/node/todo/state-types-conventions.md`
+and the "Six operation tuples are not `readonly`" section of
+[`fjs/effects/todo/node-module-layering.md`](./effects/todo/node-module-layering.md)
+track exactly this kind of already-known, deliberately-deferred gap; a type
+left mutable for this reason needs a comment pointing to its tracking issue,
+same as any other approved exception.
+
+A third legitimate shape: the compiler itself rejects the `readonly` spelling.
+`fjs/media/html/types.ts`'s `Element1`/`Element2` rest tail stays a plain
+`Node[]` because `readonly Node[]` there makes `tsc` report TS2456
+("circularly references itself") on the mutually-recursive
+`Element1`/`Element2` → `Node` → `Element` cycle, which the identical
+structure with a mutable rest array does not trigger. Verify against the
+pinned compiler before claiming this exception — most recursive types in this
+repository (e.g. `fjs/rtti/ts/types.ts`'s `_SelfArray`) take `readonly` without
+issue, so this is a specific compiler limitation on that shape, not a general
+excuse for anything recursive.
+
+If a type must genuinely expose a mutable field for some other reason, it
+needs the same explicit reviewer sign-off on the PR that introduces it, with
+a comment on the field explaining why it is mutable. Do not add a
+non-`readonly` member and assume it will pass review silently.
+
 #### Prefer inference
 
 Let TypeScript infer the type of private constants, local variables, and return
@@ -766,9 +832,9 @@ satisfy the rule. The cases in this repository:
   the base under a field there would describe something that isn't there — and
   for a wire format it would change the encoding, not just the type.
 - **A facade adding a member to a generic interface.**
-  `FileCas = Cas<FileCasOperation> & { url: (v: Vec) => string }` — composition
-  would route every consumer through an extra hop (`fileCas.cas.read(…)`) to
-  express one added member.
+  `FileCas = Cas<FileCasOperation> & { readonly url: (v: Vec) => string }` —
+  composition would route every consumer through an extra hop
+  (`fileCas.cas.read(…)`) to express one added member.
 - **Opening a record type to dynamic keys.** A record type restricts its fields:
   unknown keys are neither writable in a literal nor readable off a value.
   Intersecting it with `StringMap<unknown>` keeps the declared fields

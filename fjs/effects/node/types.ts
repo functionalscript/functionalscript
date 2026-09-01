@@ -56,6 +56,11 @@ export type {
 
 // fetch
 
+/**
+ * The tuple itself is a documented exception to the repo-wide `readonly`
+ * rule (`fjs/AGENTS.md` §3.2) — see "Six operation tuples are not
+ * `readonly`" in `fjs/effects/todo/node-module-layering.md`.
+ */
 export type Fetch = ['fetch', (url: string) => IoResult<Vec>]
 
 // mkdir
@@ -211,6 +216,10 @@ export type ServerResponse = {
  */
 export type RequestListener<O extends Operation> = (_: IncomingMessage) => Effect<O, ServerResponse, never>
 
+/**
+ * The tuple itself is a documented exception to the repo-wide `readonly`
+ * rule (`fjs/AGENTS.md` §3.2) — see the note on `Fetch` above.
+ */
 export type CreateServer = ['createServer', (listener: RequestListener<Operation>) => OpResult<Server>]
 
 // listen
@@ -229,6 +238,9 @@ export type CreateServer = ['createServer', (listener: RequestListener<Operation
  * arrives asynchronously, as the server's `error` event. An operation that
  * answered the moment `listen` was *called* would report a server that never
  * started, and leave the host to kill the process a moment later.
+ *
+ * The tuple itself is a documented exception to the repo-wide `readonly`
+ * rule (`fjs/AGENTS.md` §3.2) — see the note on `Fetch` above.
  */
 export type Listen = ['listen', (server: Server, port: number, host: string) => IoResult<void>]
 
@@ -238,6 +250,10 @@ export type Http = CreateServer | Listen
 
 // Wait forever
 
+/**
+ * The tuple itself is a documented exception to the repo-wide `readonly`
+ * rule (`fjs/AGENTS.md` §3.2) — see the note on `Fetch` above.
+ */
 export type Forever = ['forever', () => OpResult<never>]
 
 // import — `Import` and `Module` are `../common`'s, re-exported above: a

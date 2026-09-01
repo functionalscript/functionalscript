@@ -5,7 +5,8 @@
 
 ### Problem
 
-Three deviations from rules AGENTS.md states explicitly:
+Two deviations from rules AGENTS.md states explicitly (a third, `State`'s
+fields all being mutable, is fixed — see Tasks):
 
 1. **`Env` re-rolls `StringMap` in a file that already imports it.**
    `fjs/effects/node/types.ts:291-293` spells out
@@ -21,21 +22,19 @@ Three deviations from rules AGENTS.md states explicitly:
    `result === undefined` on a read the type says is always a `Vec`. Both
    should be `StringMap<…>`. (The recursive `Dir` in the same file is the
    documented inline-form exception and stays.)
-3. **`State`'s fields are all mutable.** `virtual/types.ts:28-41` — no
-   `readonly` on `stdout`, `stderr`, `stdin`, `root`, `internet`, `epochNs`,
-   `memoryNext`, `memoryValues`, `randomNext`, while every operation rebuilds
-   the record by spread. The mutability is unused and unenforced; `Dir` and
-   `_Entity` in the same file already have `readonly`.
 
 ### Proposal
 
 `Env = StringMap<string>`, `internet: StringMap<Vec>`,
-`memoryValues: StringMap<unknown>`, and `readonly` on every `State` field.
+`memoryValues: StringMap<unknown>`.
 
 ### Tasks
 
 - [ ] Replace the three inline record types with `StringMap`
-- [ ] Mark `State` fields `readonly`; fix any compile fallout
+- [x] Mark `State` fields `readonly`; fix any compile fallout — done in
+      functionalscript#1822, together with the repo-wide `readonly` rule in
+      [AGENTS.md §3.2](../../../AGENTS.md#32-types). `Dir` and `_Entity` in the
+      same file already had `readonly`.
 
 ### Related
 
