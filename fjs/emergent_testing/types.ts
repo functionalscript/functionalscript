@@ -81,14 +81,16 @@ export type TestId = {
      * `todo/share-browser-console-runner.md`, with the rest of the report
      * shape.
      *
-     * **The runners are not symmetric here, and that is a known gap rather than
-     * a design.** Only the browser reports a non-leaf outcome at all: the same
-     * `proof` export that it records as one failed result makes `fjs t` panic,
-     * taking down the whole run — including the modules that would have passed,
-     * which are then never reported either. So a consumer must not read this
-     * field's tolerance as a promise that every runner keeps going. Closing the
-     * gap is `todo/hostile-proof-values.md`, which needs an operation the
-     * shared traversal does not have.
+     * **Both runners keep going, since functionalscript#1830.** A `proof`
+     * export that cannot be enumerated is one failed record whose `name` is
+     * the module itself — an empty `path` would render as
+     * `import("./a.f.mjs").proof()`, which a module exporting `proof` as a
+     * bare function already produces — and the modules after it still run and
+     * are still reported. `fjs t` used to panic on one and take the whole run
+     * with it; the shared traversal reads the export under `catch` now, so the
+     * answer is one runner's rather than one host's. What is still each host's
+     * own is *describing* the value that could not be read, which is the rest
+     * of `todo/hostile-proof-values.md`.
      */
     readonly name: string
 }

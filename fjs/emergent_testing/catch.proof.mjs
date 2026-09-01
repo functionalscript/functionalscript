@@ -11,13 +11,14 @@
  * @import { RunInstance } from '../effects/mock/types.ts'
  * @import { Write } from '../effects/node/types.ts'
  * @import { Catch, Sandbox } from '../effects/common/types.ts'
+ * @import { Commands } from '../effects/types.ts'
  * @import { Reporter } from './types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
 import { assert } from '../asserts/module.f.mjs'
 import { log } from '../effects/node/module.f.mjs'
-import { run as mockRun } from '../effects/mock/module.f.mjs'
+import { partialRun, run as mockRun } from '../effects/mock/module.f.mjs'
 import { defaultTest, runModuleMap } from './module.f.mjs'
 import { error, ok } from '../types/result/module.f.mjs'
 import { utf8ToString } from '../text/module.f.mjs'
@@ -30,12 +31,12 @@ import { utf8ToString } from '../text/module.f.mjs'
  * the proof reads the same way a virtual run does and nothing here mutates a
  * value it closed over.
  *
- * @type {(proof: unknown) => string}
+ * @type {(moduleMap: Record<string, { readonly proof: unknown }>) => string}
  */
-const runWith = proof => {
+const runModules = moduleMap => {
     /** @type {Reporter<Sandbox | Write>} */
     const reporter = {
-        start: ({ path }) => log(`start:${path}`),
+        start: ({ name }) => log(`start:${name}`),
         result: (t, _r, _throws) => log(`${t.path}:${t.status}`),
         summary: ({ totals: { passed, failed } }) => log(`summary:${passed}:${failed}`),
         test: defaultTest,
@@ -65,9 +66,16 @@ const runWith = proof => {
         write: (_stream, /** @type {Vec} */ data) => (/** @type {string} */ s) =>
             [s + utf8ToString(data), ok(undefined)],
     }))
-    const [written] = runner('')(runModuleMap(reporter)({ './h.proof.f.mjs': { proof } }))
+    const [written] = runner('')(runModuleMap(reporter)(moduleMap))
     return written
 }
+
+/**
+ * The one-module case, which is most of them.
+ *
+ * @type {(proof: unknown) => string}
+ */
+const runWith = proof => runModules({ './h.proof.f.mjs': { proof } })
 
 /**
  * A leaf whose returned tree cannot be enumerated is that leaf's failure, not
@@ -100,7 +108,91 @@ const returnedTreeIsStillWalked = () => {
     assert(written.includes('summary:2:0'), written)
 }
 
+/**
+ * **A module whose `proof` export cannot be enumerated is one failed module,
+ * and the run goes on.**
+ *
+ * This is the same guard as {@link returnedTreeThrows} one level up: there the
+ * unreadable value is what a leaf returned, here it is the module's own
+ * export, and until functionalscript#1830 only the first of the two was
+ * guarded. `fjs t` exited on the throw with no summary, so `./g` — a module
+ * that had nothing wrong with it — was never reported.
+ *
+ * The second assertion is the one that matters: `good` is not company, it is
+ * what used to be lost.
+ */
+const moduleExportThrows = () => {
+    const written = runModules({
+        // Enumerating this export reads `bad`, which runs the getter.
+        './h.proof.f.mjs': { proof: { get bad() { throw new Error('trap') } } },
+        './g.proof.f.mjs': { proof: { good: () => 1 } },
+    })
+    // **The module is its own name**, which is what the browser reports for the
+    // same case: the leaf spelling with an empty path would be
+    // `import("./h.proof.f.mjs").proof()`, indistinguishable from a module
+    // whose `proof` is a bare function.
+    assert(written.includes('start:./h.proof.f.mjs\n'), written)
+    assert(written.includes(':failed'), written)
+    assert(written.includes('.good:passed'), written)
+    assert(written.includes('summary:1:1'), written)
+}
+
+/**
+ * **A module failure that cannot even be reported ends the run**, and is still
+ * counted on the way out.
+ *
+ * The two events a module failure travels through are a reporter's, so a
+ * reporter that refuses them is the one case where nothing can be said about
+ * the module — and the run has to stop rather than walk on silently. It is
+ * counted first: unlike a leaf, whose failed `start` means nothing ran, here
+ * the failure *is* the outcome and it happened before anyone was told.
+ */
+const moduleFailureThatCannotBeReported = () => {
+    /** @type {Reporter<Sandbox | Write>} */
+    const reporter = {
+        start: ({ name }) => log(`start:${name}`),
+        result: (t, _r, _throws) => log(`${t.path}:${t.status}`),
+        summary: ({ totals: { passed, failed } }) => log(`summary:${passed}:${failed}`),
+        test: defaultTest,
+    }
+    // Everything but `write`: the traversal can read a value and run a leaf,
+    // and cannot say a word about either.
+    const runner = partialRun(/** @type {Commands<Catch | Sandbox | Write>} */ (
+        ['catch', 'sandbox', 'write']))({
+        sandbox: (/** @type {() => unknown} */ f) => (/** @type {string} */ s) =>
+            [s, ok({ result: ok(f()), duration: 0 })],
+        catch: (/** @type {() => unknown} */ f) => (/** @type {string} */ s) => {
+            try {
+                return [s, ok(ok(f()))]
+            } catch (e) {
+                return [s, ok(error(e))]
+            }
+        },
+    })
+    const [written, result] = runner('')(runModuleMap(reporter)({
+        './h.proof.f.mjs': { proof: { get bad() { throw new Error('trap') } } },
+    }))
+    assert(written === '', written)
+    // The run ends through its own failure channel rather than with an exit
+    // code, which is what an abandoned run answers.
+    assert(result[0] === 'error', result)
+}
+
+/**
+ * A readable export is still walked, so the guard did not turn enumeration
+ * into a refusal to enumerate.
+ */
+const moduleExportIsStillWalked = () => {
+    const written = runWith({ a: () => 1, b: () => 1 })
+    assert(written.includes('.a:passed'), written)
+    assert(written.includes('.b:passed'), written)
+    assert(written.includes('summary:2:0'), written)
+}
+
 export const proof = {
     returnedTreeThrows,
     returnedTreeIsStillWalked,
+    moduleExportThrows,
+    moduleFailureThatCannotBeReported,
+    moduleExportIsStillWalked,
 }
