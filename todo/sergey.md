@@ -10,7 +10,7 @@
   - [ ] `npm run update` additionally to `npm run dev-update` it should also regenerate lock files (NiX, package-lock.json, deno.lock, bun.lock, Cargo.lock).
 - [ ] FunctionalScript
   - [ ] AST to EDAG
-- DataJS
+- [ ] DataJS
   - [ ] LL1 parser should support `Meta` propagation.
   - [ ] Check the `repeat` rule
   - [ ] Rule Transformers in the flow style (SHA2 and BNF.Map.Repeat)
@@ -19,5 +19,4 @@
   - [ ] rename `checkMap`.
   - [ ] Consider `checkMap` returns simplified map using DataRules. We may need root rule in this case.
   - [ ] Parser that apply map rules.
-- Website Module Browsing
-  - [ ]
+- [ ] Website Module Browsing
