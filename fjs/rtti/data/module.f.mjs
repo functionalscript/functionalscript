@@ -212,10 +212,10 @@ const cmpUnion = (a, b) => {
  * @type {(a: Node, b: Node) => number}
  */
 const cmpNode = (a, b) => {
-    if (typeof a === 'string') {
-        return typeof b === 'string' ? cmpString(a, b) : 1
-    }
-    return typeof b === 'string' ? -1 : cmpUnion(a, b)
+    const bs = typeof b === 'string'
+    return typeof a === 'string' ?
+        (bs ? cmpString(a, b) : 1) :
+        (bs ? -1 : cmpUnion(a, b))
 }
 
 /**

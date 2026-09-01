@@ -256,6 +256,20 @@ const repeatOf = (ruleSet, emptyTags) => name => {
 }
 
 /**
+ * Returns the functional item of an unambiguous zero-or-more rule.
+ *
+ * Recognition runs over the normalized data rules, so lazy aliases in the
+ * empty or recursive branch have the same meaning as their direct forms.
+ *
+ * @type {(rule: FRule) => FRule | null}
+ */
+export const repeatItem = rule => {
+    const [map, ruleSet, entry] = toDataAdd({})(rule)
+    const item = repeatOf(ruleSet, emptyTagMap(ruleSet))(entry)
+    return item === undefined ? null : /** @type {FRule} */ (map[item])
+}
+
+/**
  * Rewrites every right-recursive 0-or-more rule of a {@link RuleSet} into a
  * {@link Repeat}, and drops the rules that the rewrite orphans.
  *

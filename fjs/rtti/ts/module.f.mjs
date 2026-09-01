@@ -13,7 +13,7 @@
  *
  * @module
  *
- * @import { Printer, StructField } from '../../types/ts/types.ts'
+ * @import { StructField } from '../../types/ts/types.ts'
  * @import { Type } from '../types.ts'
  * @import { ArraySet, Data, KindSet, Node, ObjectSet, RuleSet, UnionSet } from '../data/types.ts'
  * @import { _Ctx } from './private.ts'
