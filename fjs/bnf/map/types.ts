@@ -2,10 +2,12 @@ import type { RequiredMap } from "../../types/object/types.ts"
 
 export type Meta<M, T> = readonly[value: T, meta: M]
 
-// one
+// one.
 
 export type OneMap<MI, I, MO, O> =
     (i: Meta<MI, I>) => Meta<MO, O>
+
+export type TerminalMap<MI, MO, O> = OneMap<MI, number, MO, O>
 
 // sequence. [...v]
 
@@ -24,3 +26,11 @@ export type VariantMeta<M, T extends RequiredMap<string, unknown>> = {
 
 export type VariantMap<MI, I extends RequiredMap<string, unknown>, MO, O> =
     (i: VariantMeta<MI, I>) => Meta<MO, O>
+
+// repeat 0+. if recognized as `T = () => { some: T, none: [] }
+
+export type Repeat<MI, I, S, MO, O> = {
+    readonly init: S
+    readonly update: (state: S, i: Meta<MI, I>) => S
+    readonly end: (state: S) => Meta<MO, O>
+}
