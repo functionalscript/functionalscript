@@ -5,9 +5,10 @@
 
 ### Problem
 
-The browser runner (`../browser/module.mjs`) defends against something `fjs t`
-does not, and it is not reachable from ordinary FunctionalScript. That asymmetry is
-the point of this file: when the two runners are unified
+The browser runner (`../browser/module.mjs`) defended against things `fjs t`
+did not, none of them reachable from ordinary FunctionalScript. That asymmetry
+is the point of this file — one of the three is closed and the other two are
+below: when the two runners are unified
 ([share the browser and console proof runners](share-browser-console-runner.md)),
 the shared core has to have *one* answer for each of them, decided rather than
 inherited twice. `fjs t` is the reference, so the honest reading is that these
@@ -15,29 +16,28 @@ are gaps in `fjs t` which the browser happened to cover — and closing them in
 the shared core is the way to keep that coverage instead of losing it to a port.
 
 **A value that resists being read is not attributed to the test that produced
-it.** Two functions in the shared core read user-supplied values without a
-guard: the `collectTests` traversal enumerates a returned proof tree, and
-`errorDetails` reads `message`/`stack` and calls `String` on a thrown value. A
-throwing accessor, a revoked `Proxy`, or a hostile `toString` panics through
-either, and there is no `try`/`catch` in FunctionalScript for the core to catch
-it with. `fjs t` ends with a stack trace and no summary; the browser runner
-today loses one test and carries on.
+it.** Two functions in the shared core read user-supplied values, and a
+throwing accessor, a revoked `Proxy` or a hostile `toString` reaches both:
+`collectTests` enumerates a proof tree — a module's export, and whatever a leaf
+returned — and `errorDetails` reads `message`/`stack` and calls `String` on a
+thrown value. FunctionalScript has no `try`/`catch` for the core to catch
+either with, which is what the `catch` operation below exists for.
 
-**The `collectTests` half is closed** (functionalscript#1830): both the
-returned sub-tree and the module's own export are read under `catch`, in the
-shared traversal, so both runners answer one unreadable value with one failed
-record and keep going. What is left of this issue is `errorDetails` — reading
-the *thrown* value, which each host still does its own way — and the
-cross-realm promise below. Measured, with two modules in the tree and
-only the first hostile: `fjs t` exits on an uncaught `hostile` and the second
-module's passing proofs are never reported, while the browser records one failed
-result and runs the rest. That asymmetry is now noted on `TestResult` in
-`../types.ts`, because the type otherwise reads as though every runner tolerates
-a non-leaf failure. What is missing from the core is
-*attribution*: naming the leaf whose value could not be read, and continuing
-with the rest. Whichever runner ends up on top of it, a page left in `running`
-or a process that exits with no summary is the outcome an automated controller
-cannot act on.
+**The `collectTests` half is closed.** Both reads go through `catch` now — the
+returned sub-tree in functionalscript#1809, the module's own export in
+functionalscript#1830 — in the shared traversal, so both runners answer one
+unreadable value with one failed record and keep going, and `TestResult` says
+so. What it cost is recorded in the task list below.
+
+**`errorDetails` is the half still open**, and it is the one where the two
+runners still differ: reading the *thrown* value is each host's own, because a
+serializable record cannot carry a raw one. `fjs t` prints it with `String(v)`,
+the page reads `message` and `stack` off it, and neither read is guarded in the
+core.
+
+Whichever runner ends up on top of it, the outcome to avoid is unchanged: a
+page left in `running`, or a process that exits with no summary, is what an
+automated controller cannot act on.
 
 **A promise from another realm is not awaited.** `fjs t`'s `sandbox` asks `p
 instanceof Promise`, which is false for a promise built in an iframe, a worker,
