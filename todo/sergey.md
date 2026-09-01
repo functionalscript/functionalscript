@@ -32,3 +32,4 @@
         - `update: (state: ParserState, terminal: Meta<MI, number>) => ParserState`
         - `end: (state: ParserState) => Ts<RttiOutput>`
 - [ ] Website Module Browsing
+- [ ] NiX. Should `run.sh` have `--extra-experimental-features 'nix-command flakes'`? I think yes.

@@ -3,15 +3,13 @@
 One reproducible toolchain, shared by developers and CI, so that what passes on
 your machine is what passes on the runners.
 
-```sh
-./dev.sh                   # an interactive shell
-./nix/run npm run cov      # or one command in it
-```
+[`../dev.sh`](../dev.sh) opens the shell; [`run`](./run) hands it one command,
+and is what a CI step names.
 
-Everything the project builds and tests with lives in the shell this directory
-defines — the runtimes, the compilers, the WASM tooling. It is not a
-convenience assembled alongside CI: most CI jobs run their commands inside this
-very shell, so it cannot drift from them.
+Everything the project builds and tests with lives in the shell
+[`flake.nix`](./flake.nix) defines — the runtimes, the compilers, the WASM
+tooling. It is not a convenience assembled alongside CI: most CI jobs run their
+commands inside this very shell, so it cannot drift from them.
 
 A few jobs need something this shell deliberately cannot provide — an older
 `node` for the commands that resolve their runtime from `PATH`, or a package
@@ -27,15 +25,15 @@ versions and pinned commits are chosen. Don't edit them by hand — change the
 generator or the config, run `npm run gen`, and commit the result. CI fails when
 the committed files no longer match what the generator produces.
 
-`flake.lock` is the exception to the exception: `gen` runs on Windows, where Nix
-does not, so it cannot write a lock. It writes `lock-update.sh` instead, and a
-maintainer runs `npm run lock-update` when a pinned commit moves. Forgetting is
-not silent — the next CI job into the shell fails rather than quietly resolving
-a new lock.
+[`flake.lock`](./flake.lock) is the exception to the exception: `gen` runs on
+Windows, where Nix does not, so it cannot write a lock. It writes
+[`lock-update.sh`](./lock-update.sh) instead, and a maintainer runs
+`npm run lock-update` when a pinned commit moves. Forgetting is not silent — the
+next CI job into the shell fails rather than quietly resolving a new lock.
 
-This README is written by hand, and `../dev.sh` is the one script here that is
-not generated: nothing in it varies with a job, a pin or a system, and
-generating it would mean writing into the repository root of every consuming
+This README is written by hand, and [`../dev.sh`](../dev.sh) is the one script
+here that is not generated: nothing in it varies with a job, a pin or a system,
+and generating it would mean writing into the repository root of every consuming
 project.
 
 ## Why the shells look the way they do

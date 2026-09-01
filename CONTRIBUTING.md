@@ -64,10 +64,10 @@ passes there.
 ./nix/run npm run cov      # or one command in it
 ```
 
-`./dev.sh` opens the shell; `./nix/run` hands it a single command, and is what a
-CI step names. Nix does not run natively on Windows, so a Windows contributor
-either works through WSL2 or installs the table above — nothing in this
-repository requires Nix.
+[`dev.sh`](./dev.sh) opens the shell; [`nix/run`](./nix/run) hands it a single
+command, and is what a CI step names. Nix does not run natively on Windows, so a
+Windows contributor either works through WSL2 or installs the table above —
+nothing in this repository requires Nix.
 
 [`nix/README.md`](./nix/README.md) explains the shell and how it is generated.
 

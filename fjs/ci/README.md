@@ -141,10 +141,10 @@ invocation repeated fifteen times. The script carries `--no-update-lock-file`
 in memory and warn) and one `--quiet`, which drops the `copying N paths`
 substitution chatter and leaves every warning.
 
-`./dev.sh` at the repository root is the interactive counterpart, for a person
-who wants the shell rather than one command in it. It is committed rather than
-generated: nothing in it varies with a job, a pin or a system, so there is
-nothing for a generator to compose or a drift check to catch. See
+[`dev.sh`](../../dev.sh) at the repository root is the interactive counterpart,
+for a person who wants the shell rather than one command in it. It is committed
+rather than generated: nothing in it varies with a job, a pin or a system, so
+there is nothing for a generator to compose or a drift check to catch. See
 [nix/README.md](../../nix/README.md).
 
 A `flake.lock` is committed beside every `flake.nix`, but `gen` (`fjs ci`)
