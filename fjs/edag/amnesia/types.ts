@@ -20,7 +20,7 @@ type Get0<T extends ExpOp, K extends ExpOp[0]> =
 // workaround (microsoft/TypeScript#47109). Indexing `Map` with a
 // non-generic union key still yields the uncallable union, so dispatch
 // must go through such a `K`.
-export type TagMap = { [K in ExpOp[0]]: Get0<ExpOp, K> }
+export type TagMap = { readonly[K in ExpOp[0]]: Get0<ExpOp, K> }
 
 export type Map = {
     readonly[K in ExpOp[0]]: (c: Context, r: TagMap[K]) => unknown
