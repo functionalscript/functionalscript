@@ -142,6 +142,26 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             ended === null ? null : 'infrastructure-error'))
 }
 
+/**
+ * What a page hands `import()` for one of its sources.
+ *
+ * **Only a relative specifier is rebased.** The manifest writes its sources
+ * relative to the page (`./fjs/…`), and a bare `import(source)` inside this
+ * module would resolve those against *this module's* URL — two directories
+ * deep, every load 404.
+ *
+ * Everything else is handed over unchanged, deliberately: a bare specifier
+ * (`proofs/core`) is an import map's to resolve, and rewriting it into a
+ * document-relative URL is how a map gets broken invisibly. An absolute URL —
+ * `https:`, `data:` — already carries its own base.
+ *
+ * @type {(base: string, source: string) => string}
+ */
+const specifier = (base, source) =>
+    source.startsWith('./') || source.startsWith('../') || source.startsWith('/')
+        ? new URL(source, base).href
+        : source
+
 /** @type {(root: Element) => (Window & { fjsBrowserTestReport?: Promise<BrowserTestReport> }) | null} */
 const viewOf = root => root.ownerDocument.defaultView
 
@@ -193,14 +213,11 @@ export const startBrowserTestSources = (root, sources) => {
     /** @type {<T, E>(e: Effect<Import | _BrowserReport, T, E>) => Promise<Result<T, E>>} */
     const run = asyncRun({
         ...commonOperationMap,
-        // **Resolved against the document, not against this file.** The
-        // manifest's sources are written relative to the page — `./fjs/…` —
-        // and a bare `import(source)` here would resolve them against
-        // *this module's* URL instead, sending every load two directories
-        // deep and 404ing the suite. Which is what the operation's own
-        // documentation says a browser does with a path: resolves it against
-        // its document. `root.ownerDocument` rather than the ambient one, so a
-        // suite embedded in an iframe loads from that frame.
+        // **Resolved against the document, not against this file**, by
+        // `specifier` above — and only when the source is relative, so an
+        // import map still gets to answer for a bare one.
+        // `root.ownerDocument` rather than the ambient document, so a suite
+        // embedded in an iframe loads from that frame.
         //
         // Obtaining the promise is itself a failure point — a synchronous
         // throw would escape past a `loading` state that no report ever
@@ -208,7 +225,7 @@ export const startBrowserTestSources = (root, sources) => {
         // error channel, where the walk reads it as that module's failure.
         import: async (/** @type {string} */ source) => {
             try {
-                return ok(await import(new URL(source, root.ownerDocument.baseURI).href))
+                return ok(await import(specifier(root.ownerDocument.baseURI, source)))
             } catch (cause) {
                 // **Normalising runs the value's own code too.** A module that
                 // evaluates `throw { toString() { throw … } }` rejects with a

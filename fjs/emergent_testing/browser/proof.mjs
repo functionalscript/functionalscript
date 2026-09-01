@@ -73,9 +73,12 @@ const dom = () => {
      * paragraph and the result list. `states` records every `data-state` written,
      * so a proof can check the whole progression and not just its last step.
      *
-     * @type {(withView?: boolean) => { readonly root: Element, readonly summary: _Element, readonly results: _Element, readonly runButton: _Element, readonly view: _View, readonly states: readonly string[] }}
+     * `baseURI` is what the runner resolves a relative source against, so a
+     * proof about resolution supplies a real one.
+     *
+     * @type {(withView?: boolean, baseURI?: string) => { readonly root: Element, readonly summary: _Element, readonly results: _Element, readonly runButton: _Element, readonly view: _View, readonly states: readonly string[] }}
      */
-    const page = (withView = true) => {
+    const page = (withView = true, baseURI = 'https://example.invalid/') => {
         /** @type {string[]} */
         const states = []
         /** @type {_Document} */
@@ -85,7 +88,7 @@ const dom = () => {
             // own module URL, so the stand-in has to carry one. The `data:`
             // sources below are already absolute and ignore it, which is what
             // makes them usable as fixtures at all.
-            baseURI: 'https://example.invalid/',
+            baseURI,
             createElement: tag => element(document, tag, [], states),
         }
         /** @type {_View} */
@@ -478,6 +481,46 @@ export const proof = {
         assertStructurallySame(
             p.summary.texts.filter(t => t.startsWith('Loading')),
             ['Loading 0/2', `Loading 1/2: ${first}`, `Loading 2/2: ${second}`])
+    },
+    /**
+     * **A bare specifier is handed to `import()` unchanged.**
+     *
+     * `proofs/core` is an import map's key, and rebasing it would quietly turn
+     * it into a URL under the document's directory that the map never sees.
+     *
+     * Neither specifier resolves here, so what is asserted is that the
+     * document's directory is *not* in the failure: an engine that failed to
+     * load a rebased specifier names the path it tried, and this one must not
+     * name that path. Asserting the message itself would pin one engine's
+     * wording, which is the mistake this file already made once.
+     */
+    bareSpecifiersAreNotRebased: async () => {
+        const p = page(true, 'file:///the-document-directory/')
+        const report = await startBrowserTestSources(p.root, ['proofs/core'])
+        assertEq(report.status, 'infrastructure-error')
+        assertEq(report.results[0]?.module, 'proofs/core')
+        assertEq(
+            (report.results[0]?.message ?? '').includes('the-document-directory'),
+            false)
+    },
+    /**
+     * The other half of the same branch, proven by a load that **succeeds**: a
+     * relative source is resolved against the document.
+     *
+     * The document's base is this repository's root and the source is written
+     * the way the manifest writes one — `./fjs/…`. Resolved against
+     * `module.mjs`'s own URL instead, it would be
+     * `fjs/emergent_testing/browser/fjs/types/…` and load nothing, which is
+     * exactly the 404 that resolving against the document exists to avoid. A
+     * real module is imported rather than a `data:` one because a `data:`
+     * source is absolute and would pass either way.
+     */
+    relativeSourcesAreRebasedOnTheDocument: async () => {
+        const p = page(true, new URL('../../../', import.meta.url).href)
+        const report = await startBrowserTestSources(p.root,
+            ['./fjs/types/nullable/proof.f.mjs'])
+        assertEq(report.status, 'passed')
+        assert(report.totals.tests > 0, report.totals)
     },
     sourceThatCannotBeImported: async () => {
         // A source the page cannot import is a loader failure like any other:
