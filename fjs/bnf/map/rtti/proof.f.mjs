@@ -88,6 +88,53 @@ export const proof = {
         assertEq(result.size, 2)
         assertEq(result.get(digit)?.map, null)
     },
+    sharedChild: () => {
+        const parent = [digit, digit]
+        /** @type {Base} */
+        const info = {
+            tag: 'sequence',
+            ri: [ast, ast],
+            ro: string,
+            map: /** @type {any} */ (() => ['parent', undefined]),
+        }
+        assertEq(checkMap([[parent, info]]).size, 2)
+    },
+    lazyNonRepeats: () => {
+        const lazyTerminal = () => digit
+        const lazyString = () => 'x'
+        const lazySequence = () => sequence
+        const oneBranch = () => ({ digit })
+        const branchA = [digit]
+        const branchB = [digit]
+        const noEmptyBranch = () => ({ a: branchA, b: branchB })
+        const none = /** @type {const} */ ([])
+        const badStep = () => ({ none, some: digit })
+        const badTailStep = [digit, digit]
+        const badTail = () => ({ none, some: badTailStep })
+        /** @type {(tag: Base['tag'], ri: Type) => Base} */
+        const info = (tag, ri) => ({
+            tag,
+            ri,
+            ro: string,
+            map: /** @type {any} */ (() => ['mapped', undefined]),
+        })
+        const result = checkMap([
+            [lazyTerminal, info('terminal', number)],
+            [lazyString, info('sequence', [number])],
+            [lazySequence, info('sequence', [ast])],
+            [oneBranch, info('variant', { digit: ast })],
+            [noEmptyBranch, info('variant', { a: ast, b: ast })],
+            [badStep, info('variant', { none: ast, some: ast })],
+            [badTail, info('variant', { none: ast, some: ast })],
+        ])
+        assertEq(result.get(lazyTerminal)?.tag, 'terminal')
+        assertEq(result.get(lazyString)?.tag, 'sequence')
+        assertEq(result.get(lazySequence)?.tag, 'sequence')
+        assertEq(result.get(oneBranch)?.tag, 'variant')
+        assertEq(result.get(noEmptyBranch)?.tag, 'variant')
+        assertEq(result.get(badStep)?.tag, 'variant')
+        assertEq(result.get(badTail)?.tag, 'variant')
+    },
     throw: {
         duplicate: () => checkMap([[digit, terminalInfo], [digit, terminalInfo]]),
         kind: () => checkMap([[digit, sequenceInfo]]),
