@@ -111,12 +111,7 @@ inherited — so a job's own output is unchanged.
 
 ### `../dev.sh`
 
-`./nix/run` hands the shell a command; `../dev.sh` opens one:
-
-```sh
-#!/bin/sh
-exec nix develop ./nix
-```
+`./nix/run` hands the shell a command: `../dev.sh`.
 
 It is **not** generated — the one Nix-related script that is not. There is
 nothing in it that varies with a job, a pin or a system, so generating it would
@@ -126,15 +121,6 @@ likely to have a `dev.sh` of its own. It is committed once, like this README.
 
 It lives at the root because that is where a person types it, and it takes no
 arguments — a shell is what it opens, so there is nothing to pass through.
-
-**It carries neither of `run`'s flags, and both absences are deliberate.**
-`--quiet` hides `copying path` and `building '…'`, which is right for a CI log
-and wrong at a terminal: on a first entry those lines are the only thing telling
-you a two-gigabyte fetch is progressing rather than hung.
-`--no-write-lock-file` stops CI writing a tracked file; your working tree is not
-CI's, and if Nix disagrees with the committed lock then letting it rewrite is the
-quickest way to see the hash it wanted — `git diff` prints exactly the value
-`fjs/ci/config` is missing, and `npm run ci-update` puts the generated file back.
 
 ### `flake.lock`
 
@@ -272,52 +258,3 @@ be migrated at all.
 
 Nixpkgs builds a single `rustc` and hard-codes the targets it builds `std` for —
 the host, `wasm32-unknown-unknown`, `wasm32v1-none` and two BPF targets. Three of
-this job's four are not among them, at any Nixpkgs version, because that list is
-compiled into the derivation rather than passed to it. So the flake takes its
-toolchain from `github:oxalica/rust-overlay`:
-
-```nix
-rust = pkgs.rust-bin.stable."1.98.0".minimal.override {
-    extensions = [ "clippy" "rustfmt" ];
-    targets = [ "wasm32-wasip1" "wasm32-wasip2" "wasm32-unknown-unknown" "wasm32-wasip1-threads" ];
-};
-```
-
-That overlay is not a different build of Rust; it is a different way of getting
-it. Rust publishes a manifest per release listing every component and target with
-a URL and a hash, and the overlay checks a generated Nix file per version into its
-own repository — so this expression selects among the same tarballs `rustup` would
-install, pinned by hashes inside an input `fjs/ci/config` pins. Nixpkgs ignores
-that manifest and compiles from source, which is the whole of the difference.
-
-`inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs"` keeps the flake resolving
-one snapshot rather than two. `minimal` plus the two components the job runs
-avoids `rust-docs`, which the `default` profile would download and nothing here
-opens. Wasmtime and Wasmer stay ordinary Nixpkgs packages.
-
-The check's shape follows the runtime rather than a convention: `node --version`
-prints a leading `v` the configured version does not carry, while
-`deno --version` prints three lines — the runtime, V8 and TypeScript — so Deno
-is asked for `Deno.version.deno` instead of pinning two versions nobody
-configured. `wasm` checks two runtimes rather than one, since its shell provides
-two, and neither `pkgs.wasmtime` nor `pkgs.wasmer` names a version. `bun` prints
-the bare version with no prefix at all.
-
-Bun's check is the one that carries a different weight. Every other confirms that
-a snapshot provides what the configuration claims; that one confirms an override
-took effect — a failed `overrideAttrs` would leave 1.3.13 in the shell, and two
-failing proofs would be how anyone found out.
-
-It checks no Rust. That is the same rule read the other way: a check earns its
-place where the flake does not already say the answer, and this one says
-`stable."1.98.0"` in full.
-
-Node 26's drift check is a plain step, not a `nix develop` one: `git` is the
-runner's tool, and a step names the flake only when it needs something the flake
-pins.
-
-Nix runs nowhere else in CI. What a generated flake declares is asserted without
-Nix by two proofs: `fjs/ci/proof.f.mjs` requires the written file to equal the
-generator's text for that job, and each Node job's package attribute to follow
-the configured version; `fjs/ci/nix/proof.f.mjs` pins that text character for
-character, the pinned commit and `devShells.<system>.default` included.
