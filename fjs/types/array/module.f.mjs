@@ -6,7 +6,6 @@
  * @import { Tuple } from './types.ts'
  */
 
-import { todo } from '../../asserts/module.f.mjs'
 import { toArray, repeat as listRepeat } from '../list/module.f.mjs'
 import { fromUndefined } from '../nullable/module.f.mjs'
 
