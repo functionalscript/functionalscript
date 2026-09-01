@@ -37,7 +37,7 @@ export const string = [
 
 const digits0 = repeat0Plus(digit)
 
-const digits = [digit, digits0]
+const digits = /**@type{const}*/([digit, digits0])
 
 export const optionNeg = option('-')
 
