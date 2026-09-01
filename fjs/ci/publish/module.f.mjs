@@ -6,7 +6,7 @@
  * workflows share every pin they name — the runner image, the Node version, the
  * pinned actions — and `../README.md`'s drift check covers whatever `fjs ci`
  * writes for free, so a separate command would have to be chained into
- * `ci-update` to get back to where this already is.
+ * `gen` to get back to where this already is.
  *
  * @module
  *

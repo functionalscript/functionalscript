@@ -396,8 +396,12 @@ At a high level it:
    read from the snapshot's package files by hand;
 4. updates the Nixpkgs commit and relevant exact versions in
    `fjs/ci/config/module.f.mjs`;
-5. runs ordinary CI generation to regenerate the declared flakes;
-6. leaves all generated changes for review and commit.
+5. runs ordinary CI generation (`npm run gen`) to regenerate the declared
+   flakes' `flake.nix`;
+6. runs `npm run lock-update` to refresh every `flake.lock` against the new
+   commit — see "Generated flake locks" below, which this command needs Nix
+   for and `gen` deliberately does not;
+7. leaves all generated changes for review and commit.
 
 Do not require the generic dependency updater to run this flow. Package-manager manifests
 and lockfiles are changed only when a separately scoped task explicitly requires them.
@@ -405,14 +409,19 @@ Browser-runner and browser-package synchronization is outside this Node-only upd
 
 #### Generated flake locks
 
-A `flake.lock` is generated beside every `flake.nix` and committed, from `narHash`
-and `lastModified` in `../config/module.f.mjs`. Nothing runs `nix flake lock` to
-produce it — this issue requires the generator stay Nix-independent, and those two
-values are facts about a published revision, so they are data the way `bunSources`'
-archive hashes are.
+A `flake.lock` is committed beside every `flake.nix`, but `npm run gen`
+(`fjs ci`) never writes one — this issue requires that command stay
+Nix-independent, and a lock's two facts on top of a pinned revision,
+`narHash` and `lastModified`, are only real Nix's to establish.
+
+So `fjs ci` also writes `nix/lock-update.sh`, one `nix flake lock <path>` per
+generated directory, and a maintainer runs it — through `npm run lock-update`,
+which needs Nix and is never run by ordinary contributors — only when a pin in
+`../config/module.f.mjs` moves.
 
 CI still passes `--no-write-lock-file`, now so that `nix develop` cannot write over
-the generated file and leave the checkout in a state the drift check would fail on.
+the committed file and leave the checkout in a state a forgotten `lock-update`
+would fail loudly on instead of silently.
 
 Every invocation also passes `--quiet`, once, which is about the log rather than the
 checkout: it drops Nix's logging from `info` to `notice`, removing the `copying N
@@ -464,7 +473,7 @@ A step enters the shell only when it needs a tool the flake pins. `git` is the
 runner's, so the Node 26 drift check stays a plain step:
 
 ```sh
-./nix/node26/run npm run ci-update
+./nix/node26/run npm run gen
 git add -A && git diff --cached --exit-code
 ```
 
@@ -541,9 +550,10 @@ removed; `git log -- docker/` has it.
 - [ ] Remove stale generated job directories.
 - [x] Generate a `run` script per job, so a workflow step names a command rather
       than a `nix develop` invocation.
-- [x] Generate and commit a `flake.lock` per flake, from data, so no Nix run is
-      needed to write one.
-- [x] Keep `npm run ci-update` Nix-independent and Windows-compatible.
+- [x] Generate and commit a `flake.lock` per flake, refreshed by a
+      maintainer-run `npm run lock-update` (generated `nix/lock-update.sh`,
+      real `nix flake lock`) rather than by `gen`, which needs no Nix to run.
+- [x] Keep `npm run gen` Nix-independent and Windows-compatible.
 - [x] Commit the generated flakes.
 - [x] Bootstrap Nix through a pinned CI action in each migrated job.
 - [x] Run each migrated job's complete command sequence through its flake, one

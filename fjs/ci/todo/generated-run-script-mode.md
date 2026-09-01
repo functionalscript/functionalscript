@@ -21,7 +21,7 @@ What makes this survivable rather than broken:
 
 - `fs.writeFile` **preserves the mode of a file that already exists** — it
   truncates rather than recreating. So a script committed once as `100755` stays
-  executable through every regeneration, and `npm run ci-update` never has to
+  executable through every regeneration, and `npm run gen` never has to
   care.
 - The repository already tracks one `100755` file, `fjs/module.mjs`, so an
   executable in Git is not a new thing here.

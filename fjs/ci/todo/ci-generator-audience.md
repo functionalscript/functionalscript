@@ -18,12 +18,12 @@ yields the canonical Node jobs unconditionally — so every consumer's generated
 
 Most of that job is a documented contract and works as intended.
 [`../README.md`](../README.md) states which commands a consuming `package.json`
-must provide — `cov` and `ci-update` — shows the typical definitions, and
-explains that a project chains its own generators into `ci-update` so the drift
-check covers them for free. This repository's own `ci-update` spells itself
+must provide — `cov` and `gen` — shows the typical definitions, and
+explains that a project chains its own generators into `gen` so the drift
+check covers them for free. This repository's own `gen` spells itself
 `node ./fjs/module.mjs ci && …` only to avoid depending on the package bin
 before the package is installed, which that README says outright. So
-`npm run ci-update` and its drift check are an extension point, not a private
+`npm run gen` and its drift check are an extension point, not a private
 gate.
 
 **The one step that was not covered by that contract has been deleted.** The
@@ -39,7 +39,7 @@ pattern cannot answer a question about scope
 ([`../publish/module.f.mjs`](../publish/module.f.mjs)), so a project that
 regenerates gets a workflow that attempts to publish it to npm on every push to
 `main`. Deleting the file does not opt out: the next `fjs ci` writes it again,
-and `ci-update`'s drift check then fails on its absence. `Setup` has no field
+and `gen`'s drift check then fails on its absence. `Setup` has no field
 that turns it off, for the same reason it has none for `node26` — and
 `fjs run <custom-ci-module>`, which [`fjs/README.md`](../../README.md) offers as
 the escape hatch for exactly this, is not one here: a custom module calls
@@ -70,7 +70,7 @@ No design agreed; the choice is what `fjs ci` is *for*.
 - **Split the job.** `nodeVersionJobs` yields the portable per-version jobs;
   this repository's convention gates — should any be built — move to a
   `nodeExtra`-style hook it passes itself. A consumer keeps the documented
-  `cov`/`ci-update` contract and gets none of our conventions. Under this
+  `cov`/`gen` contract and gets none of our conventions. Under this
   option the publishing workflow becomes something a consumer asks for rather
   than something they receive — a `Setup` field, or a separate export
   `ci(setup)` does not call.

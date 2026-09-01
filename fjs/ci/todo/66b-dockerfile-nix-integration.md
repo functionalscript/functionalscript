@@ -10,7 +10,7 @@ Dockerfile is planned — see `65Z-ci-nix`. The name stays because other issues 
 
 Phase 2 is done: `fjs/ci/nix/module.f.mjs` generates
 `nix/node{22,24,26}/flake.nix` from the pinned Nixpkgs commit in
-`fjs/ci/config/module.f.mjs`, and `npm run ci-update` regenerates them without
+`fjs/ci/config/module.f.mjs`, and `npm run gen` regenerates them without
 running Nix. `nodejs_22`, `nodejs_24`, and `nodejs_26` were verified to exist in
 the accepted snapshot.
 
@@ -25,7 +25,7 @@ Node 22 and Node 24 run the suite and nothing else, and differ only in the
 version they name, so one builder emits both.
 
 Node 26 orders itself differently, for a reason that is about the job rather
-than about Nix: `npm run ci-update` and the drift check it feeds run last, after
+than about Nix: `npm run gen` and the drift check it feeds run last, after
 `npm ci`, `tsc`, `npm run cov` and `npm pack`. The check compares the tree
 against what the generator produces, so running it at the end makes it the last
 word — every earlier step has finished writing. Nothing those steps leave is
@@ -99,7 +99,7 @@ existing CI config -> generated Node flake.nix -> existing Node job commands
 - run each migrated job's complete command sequence through its flake, one
   `nix develop --command` step per command;
 - preserve each job's current commands, order, and coverage;
-- keep `npm run ci-update` Nix-independent and runnable on Windows;
+- keep `npm run gen` Nix-independent and runnable on Windows;
 - ignore per-job lock files created beside generated flakes;
 - let a job add tools required by its own work without changing the Node runtime mapping;
 - defer generalized shell, cache, and package-provider abstractions until a real
@@ -123,7 +123,7 @@ It should:
 3. verify that the snapshot exposes `nodejs_22`, `nodejs_24`, and `nodejs_26`;
 4. update the commit and relevant exact versions in
    `fjs/ci/config/module.f.mjs`;
-5. invoke `npm run ci-update` to regenerate files.
+5. invoke `npm run gen` to regenerate files.
 
 It does not update npm dependencies or package-manager lockfiles.
 
@@ -216,7 +216,7 @@ persists across steps regardless — while each step names the flake, so none ca
 to the runner's preinstalled Node.
 
 A step names the flake only when it needs a tool the flake pins. Node 26's sequence is
-the case that shows the difference: `npm run ci-update`, `tsc`, `npm run cov` and
+the case that shows the difference: `npm run gen`, `tsc`, `npm run cov` and
 `npm pack` run on the pinned Node, while `git add -A && git diff --cached --exit-code`
 uses the runner's `git` and stays a plain step. It reads the workspace the Nix steps
 wrote, which is the same workspace either way.
@@ -244,7 +244,7 @@ node26 (flake):
   ./nix/node26/run tsc
   ./nix/node26/run npm run cov
   ./nix/node26/run npm pack
-  ./nix/node26/run npm run ci-update
+  ./nix/node26/run npm run gen
   git add -A && git diff --cached --exit-code
 ```
 

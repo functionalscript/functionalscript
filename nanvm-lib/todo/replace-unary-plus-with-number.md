@@ -95,7 +95,7 @@ cases takes the corpus's escape path rather than deriving an expression — movi
   expected-output strings and synthetic `sample` corpus to match — the sample is the
   printer's only `NonEdagGroup`, so it needs a new shape for that construct or its
   removal along with the type.
-- Regenerate `nanvm-lib/tests/test/generated.rs` via `npm run ci-update` rather than
+- Regenerate `nanvm-lib/tests/test/generated.rs` via `npm run gen` rather than
   hand-editing it.
 - `nanvm-lib/tests/test/main.rs`'s `unary_plus_bigint_message` pins a throw message that no
   longer occurs under the new coercion — remove it (or, if some other input to the new
@@ -113,9 +113,9 @@ cases takes the corpus's escape path rather than deriving an expression — movi
 - [ ] `fjs/nanvm/proof.f.mjs`: dispatch `'Number'` to `Number(a)`.
 - [ ] `fjs/nanvm/rust/module.f.mjs` and `fjs/nanvm/rust/proof.f.mjs`: update the emitted
       Rust call and its pinned expected snippets.
-- [ ] `npm run ci-update` to regenerate `nanvm-lib/tests/test/generated.rs`.
+- [ ] `npm run gen` to regenerate `nanvm-lib/tests/test/generated.rs`.
 - [ ] `nanvm-lib/tests/test/main.rs`: remove or repoint `unary_plus_bigint_message`.
-- [ ] `tsc`, `fjs test`, `npm run ci-update` (no diff), `cargo test`,
+- [ ] `tsc`, `fjs test`, `npm run gen` (no diff), `cargo test`,
       `cargo clippy -- -D warnings`, and `cargo fmt -- --check`.
 - [ ] Changelog: `nanvm-lib` drops the public `unary_plus` method (BREAKING CHANGES).
 

@@ -119,7 +119,7 @@ const suiteNixSteps = version => [
  * Node 24's, with two differences that come from what this job does rather than
  * from Nix.
  *
- * `npm run ci-update` and the drift check it feeds run **last**, after every
+ * `npm run gen` and the drift check it feeds run **last**, after every
  * other command. The check compares the working tree against what the generator
  * produces, so putting it at the end makes it the last word: any file an earlier
  * step wrote is in the comparison. Nothing those steps leave behind is tracked:
@@ -136,7 +136,7 @@ const node26NixSteps = [
     nodeVersionStep(nixShell, node.default),
     tscVersionStep,
     ...nixSteps(nixShell)(
-        ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run ci-update']),
+        ['npm ci', 'tsc', 'npm run cov', 'npm pack', 'npm run gen']),
     test({ run: 'git add -A && git diff --cached --exit-code' }),
     // Hands the tarball to a job that has no checkout, which is the only place
     // the package can be checked as a consumer sees it. `if-no-files-found`

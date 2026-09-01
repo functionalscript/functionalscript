@@ -42,10 +42,10 @@ export const generatedDirectory = /** @type {const} */ ('nix')
 /**
  * A flake input's `url`, built from the pin rather than spelled beside it.
  *
- * The owner and the repository are in `../config/module.f.mjs` because
- * {@link lockText} needs them apart — a lock names them as fields, where a
- * flake names them as one string — and one source for both is what keeps a
- * lock from pinning a repository the flake does not.
+ * The owner, the repository and the commit are separate fields in
+ * `../config/module.f.mjs` rather than one URL, so a caller that needs one of
+ * the three alone — {@link lockUpdateText}'s script needs only the commit's
+ * directory, not this URL — reads it without parsing this string back apart.
  *
  * @type {(input: { owner: string, repo: string, commit: string }) => string}
  */
@@ -276,83 +276,35 @@ export const flakeText = job =>
     unwrapNullable(fromUndefined(nixToString(flake(job))))
 
 /**
- * One input as the pair of nodes a lock file records for it.
+ * The maintainer-run script that refreshes every generated flake's
+ * `flake.lock`, through real Nix rather than data.
  *
- * `locked` is what the input resolved to and `original` is what the flake
- * asked for, and here they carry the same revision because the flake asks for
- * one: `github:owner/repo/<40 hex>` is already exact, so locking adds no
- * revision — only the two facts about that revision Nix cannot read off the
- * URL, `narHash` and `lastModified`.
+ * `flake.nix` already pins an exact revision — `github:owner/repo/<40 hex>` —
+ * so `nix flake lock` adds nothing a person chose; it only fills in the two
+ * facts about that revision Nix cannot read off the URL, `narHash` and
+ * `lastModified`. Computing those needs Nix and a network fetch of the pinned
+ * revision, neither of which `npm run gen` may require: `../todo/65z-ci-nix.md`
+ * keeps that command Nix-independent so it still runs on Windows, and root
+ * `AGENTS.md` §6 bars shelling out to an unapproved tool from ordinary
+ * generation. So this is a second, narrower script — run by hand, only when
+ * `../config/module.f.mjs` moves a pin — rather than a step `gen` takes on
+ * every run.
  *
- * Keys are written in the order Nix writes them, which is alphabetical: its
- * JSON goes through `nlohmann::json`, whose object is an ordered map. That is a
- * readability choice and nothing more — worth saying, because the reverse is
- * easy to assume. Nix compares the *parsed* lock rather than the text, so a
- * semantically identical file in any formatting is left alone: reversing every
- * key and re-indenting to four spaces still produces no rewrite. What matching
- * buys is that these files read like every other `flake.lock`, and that a diff
- * against one Nix did write is about content.
+ * One `nix flake lock` per generated directory, because Nix has no form that
+ * locks several flakes at once. `set -e` stops at the first failure rather
+ * than leaving a later directory silently unlocked.
  *
- * @type {(input: typeof nixpkgs | typeof rustOverlay) => object}
+ * A stale committed lock is not silent: `nix develop`'s
+ * `--no-write-lock-file` (see {@link runText}) means it cannot repair itself,
+ * so every command through a mismatched flake fails loudly until this script
+ * is run and its result committed.
+ *
+ * @type {(jobs: readonly NixJob[]) => string}
  */
-const lockNode = ({ owner, repo, commit, narHash, lastModified }) => {
-    const locked = {
-        lastModified,
-        narHash,
-        owner,
-        repo,
-        rev: commit,
-        type: 'github',
-    }
-    return { locked, original: { owner, repo, rev: commit, type: 'github' } }
-}
-
-/**
- * The `flake.lock` written beside a flake, and the reason CI can hear Nix warn
- * again.
- *
- * Without one, every `nix develop` computes a lock, finds it differs from the
- * nothing on disk, and — because {@link runText} passes `--no-write-lock-file`
- * to keep the checkout clean — says so, five lines at a time, on every step of
- * every Nix job. The only lever Nix offers against that is global verbosity, so
- * silencing it cost every other Nix warning too. A committed lock removes the
- * cause instead, and `--quiet` goes back to meaning one thing.
- *
- * It is **generated** rather than written by hand, which is the whole design.
- * A hand-written lock is a file the drift check cannot regenerate, so it would
- * rot the first time a pin moved; this one moves with
- * `../config/module.f.mjs`, and `node26` fails if the two disagree.
- *
- * And it is generated **from data** rather than by running `nix flake lock`.
- * `fjs ci` runs wherever the project is developed — `../todo/65z-ci-nix.md`
- * requires it stay Nix-independent, and `CONTRIBUTING.md` supports a Windows
- * contributor with no Nix at all — so nothing here may shell out to a tool that
- * does not exist on that machine, which root `AGENTS.md` §6 would also have to
- * approve. What that costs is one lookup by whoever moves a pin, and
- * `../config/module.f.mjs` records both ways to do it.
- *
- * `rust-overlay`'s `nixpkgs` is a `follows`, written as the path
- * `["nixpkgs"]` — the array Nix uses for an input redirected to another node
- * rather than resolved on its own. Without it the lock would carry a second
- * Nixpkgs revision the flake never asked for.
- *
- * @type {(job: NixJob) => string}
- */
-export const lockText = job => {
-    const rust = job.rust !== undefined
-    const nodes = {
-        nixpkgs: lockNode(nixpkgs),
-        root: {
-            inputs: rust
-                ? { nixpkgs: 'nixpkgs', 'rust-overlay': 'rust-overlay' }
-                : { nixpkgs: 'nixpkgs' },
-        },
-        ...(rust
-            ? { 'rust-overlay': { inputs: { nixpkgs: ['nixpkgs'] }, ...lockNode(rustOverlay) } }
-            : {}),
-    }
-    return `${JSON.stringify({ nodes, root: 'root', version: 7 }, null, '  ')}\n`
-}
+export const lockUpdateText = jobs => `#!/bin/sh
+set -e
+${jobs.map(({ id }) => `nix flake lock ${flakePath(id)}`).join('\n')}
+`
 
 /**
  * The `run` script generated beside a flake. `./nix/run npm run cov` is what a
@@ -390,14 +342,12 @@ export const lockText = job => {
  * the flake, Nix writes nothing whether or not the flag is passed — it compares
  * the lock it computes against the one on disk and only writes when they
  * differ, so the file comes through byte-identical with its mtime untouched.
- * What the flag buys is the case where they *do* differ: {@link lockText} owns
- * this file, and without the flag every Nix step in every job becomes a writer
- * of a tracked one. Nothing is lost by that — `npm run ci-update` regenerates
- * the lock from `../config/module.f.mjs`, so a rewrite Nix made would be
- * reverted by the next generator run anyway. Two writers where one is
- * authoritative is churn rather than redundancy, and a future Nix whose lock
- * schema moves past version 7 is the case where it would be churn on every
- * step of every job at once.
+ * What the flag buys is the case where they *do* differ: {@link lockUpdateText}
+ * owns refreshing this file, deliberately by hand rather than on every run, so
+ * without the flag every Nix step in every job would become a writer of a
+ * tracked one that no generator run reverts. A stale lock therefore fails
+ * loudly instead — every command through the mismatched flake errors — rather
+ * than Nix quietly rewriting a file `git diff` was supposed to catch.
  *
  * **One `--quiet`, and it does one thing.** Nix has a single global verbosity
  * integer. The levels run `lvlError = 0, lvlWarn = 1, lvlNotice = 2,
@@ -466,21 +416,28 @@ const writeJob = job => {
     const flakeWritten = step(
         created,
         () => writeUtf8File(`${directory}/flake.nix`, flakeText(job)))
-    const lockWritten = step(
-        flakeWritten,
-        () => writeUtf8File(`${directory}/flake.lock`, lockText(job)))
     return step(
-        lockWritten,
+        flakeWritten,
         () => writeUtf8File(`${directory}/run`, runText(job.id)))
 }
 
 /**
- * Writes one generated environment per job, stopping at the first failure.
+ * Writes one generated environment per job, stopping at the first failure, and
+ * the `lock-update.sh` script beside the shared shell that covers all of them.
+ *
+ * `flake.lock` is deliberately not written here — see {@link lockUpdateText}
+ * — so this leaves whatever lock is already committed alone; only
+ * `nix/lock-update.sh` itself, and the generated `flake.nix`/`run` pair each
+ * job takes, are this function's output.
  *
  * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
-export const nixFlakes = jobs =>
-    forEachStep(pureOk(jobs), writeJob)
+export const nixFlakes = jobs => {
+    const written = forEachStep(pureOk(jobs), writeJob)
+    return step(
+        written,
+        () => writeUtf8File(`${generatedDirectory}/lock-update.sh`, lockUpdateText(jobs)))
+}
 
 /**
  * The one generated environment jobs share, and the directory its flake is
@@ -537,10 +494,9 @@ export const nixInstall = install(uses('cachix/install-nix-action'))
  * repeated fifteen times across the workflow. {@link runText} documents what
  * that spelling is and why.
  *
- * The `.gitignore` rule for a per-job `flake.lock` stays even though the script
- * passes `--no-write-lock-file`: it is there for a hand-run `nix develop` that
- * omits the flag, and never for CI, whose drift check could not have seen an
- * ignored file anyway.
+ * Every `flake.lock` is committed, not ignored: the script's
+ * `--no-write-lock-file` keeps `nix develop` from touching it, so only
+ * `nix/lock-update.sh` — never a Nix step in CI — ever writes one.
  *
  * @type {(id: string, command: string) => string}
  */
