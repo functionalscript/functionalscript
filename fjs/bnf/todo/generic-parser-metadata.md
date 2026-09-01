@@ -76,8 +76,12 @@ does not claim to validate the parser's generic `M`.
 
 The parser and all constructors used to create entries for its checked map must
 come from the same metadata-bound factory. Otherwise structurally compatible
-entries could accidentally combine values using a different monoid. Preserve
-that relationship with the existing mapping brand or a new factory brand.
+entries could accidentally combine values using a different monoid. Each
+factory allocates a fresh opaque runtime token, and its parser and entry
+constructors carry that token. `build` rejects an entry whose token differs
+from the parser's before validating the map. The existing module-wide mapping
+brand may still classify mapping entries, but it cannot establish factory
+identity.
 
 ### Tasks
 

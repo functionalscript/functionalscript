@@ -425,16 +425,20 @@ const rest = map(
 )
 
 const match = build(rest)(
-    entry(list, seq(3, ([, xs]: readonly[unknown, readonly number[], unknown]) => xs)))
+    entry(list, seq(3, ([, xs]: readonly[unknown, readonly number[], unknown]) =>
+        xs.every(Number.isSafeInteger)
+            ? ok(xs)
+            : error('integer is outside Number safe range'))))
 ```
 
 `item` needs a `digit` *and* a `digits` repetition because a `Repeat` matches
 zero rounds: with `[sign, digits]` alone, `item` matches nothing, `Number('')` is
 `0`, and `[,]` would be accepted. One-or-more is one plus zero-or-more.
 
-If this grammar must reject a number it cannot represent, its mappings may make
-the relevant `T` a `Result`, or the completed number list may be validated once
-after parsing. The parser itself needs no semantic-error channel (§6).
+The start rule makes its `T` a `Result<readonly number[], string>` and rejects
+the completed value if any integer is outside `Number`'s exact range. Therefore
+an input such as `[9007199254740993]` cannot produce a plausible rounded list.
+The parser itself needs no semantic-error channel (§6).
 
 **`list` sees its own brackets** — every direct child occupies a slot, and `unit`
 contributes `undefined` rather than removing itself. Tolerable for a rule the
