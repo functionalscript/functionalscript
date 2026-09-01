@@ -7,6 +7,8 @@
  * so both questions are answered here by reading the source as tokens, with
  * their own proofs, rather than by patterns over lines: whether a declaration
  * fits on one line, and how it is spaced, are not part of the syntax.
+ *
+ * @module
  */
 
 /**
