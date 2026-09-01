@@ -117,26 +117,10 @@ inherited — so a job's own output is unchanged.
 
 ### `../dev.sh`
 
-`./nix/run` hands the shell a command: `../dev.sh`.
-
-It is **not** generated — the one Nix-related script that is not. There is
-nothing in it that varies with a job, a pin or a system, so generating it would
-buy a drift check over two lines that have no reason to move, and would cost the
-generator a write into the repository root, where a consuming project is quite
-likely to have a `dev.sh` of its own. It is committed once, like this README.
-
-It lives at the root because that is where a person types it, and it takes no
-arguments — a shell is what it opens, so there is nothing to pass through.
-
-**It carries neither of `run`'s flags, and both absences are deliberate.**
-`--quiet` hides `copying path` and `building '…'`, which is right for a CI log
-and wrong at a terminal: on a first entry those lines are the only thing telling
-you a two-gigabyte fetch is progressing rather than hung.
-`--no-update-lock-file` stops CI resolving, let alone writing, a tracked file;
-your working tree is not CI's, and if Nix disagrees with the committed lock
-then letting it resolve and rewrite is the quickest way to fix it by hand —
-`git diff` shows exactly what changed, and you commit the result exactly as
-`npm run lock-update` would have produced it.
+`../dev.sh` is the repository's stable entry point to the interactive developer
+environment. It gives contributors one memorable command for entering the same
+toolchain CI validates; the generated `run` scripts remain the entry points for
+running individual CI commands.
 
 ### `flake.lock`
 
