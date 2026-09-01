@@ -19,17 +19,17 @@
  * @module
  *
  * @import {
- *     BrowserTestReport, LeafReporter, Reporter, TestResult, _BrowserReport,
- *     _BrowserTestResult, _TestAndPath,
+ *     BrowserTestReport, LeafReporter, Reporter, TestResult, _BrowserEvent,
+ *     _BrowserReport, _BrowserTestResult, _LoadOutcome, _LoadState, _TestAndPath,
  * } from '../types.ts'
- * @import { Catch, Sandbox, SandboxResult } from '../../effects/common/types.ts'
+ * @import { Catch, Import, Sandbox, SandboxResult } from '../../effects/common/types.ts'
  * @import { Effect, Func, IoChannel } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  */
 
-import { catch_ } from '../../effects/common/module.f.mjs'
+import { catch_, import_ } from '../../effects/common/module.f.mjs'
 import { addResult, collectTests, defaultTest, runEntries, zeroState, zeroTotals } from '../module.f.mjs'
-import { do_, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.mjs'
+import { do_, errorMessage, foldStep, mapStep, pureOk, resultStep, step } from '../../effects/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
 
 /** The page's leaf-landed operation; see `_BrowserReport`.
@@ -58,6 +58,16 @@ const attempt = f =>
     resultStep(catch_(f), r => pureOk(r[0] === 'ok' ? r[1] : error(r[1])))
 
 /**
+ * What a value that cannot be read is called.
+ *
+ * A value reaches the report by being described, and describing runs the
+ * value's own code — a `toString`, a getter, a proxy trap — which can throw in
+ * its turn. Every route that meets one says this, so a reader meets one phrase
+ * rather than three spellings of the same defeat.
+ */
+export const unknownValue = 'Unknown thrown value'
+
+/**
  * The text of a value that may not want to be read. `String` runs user code —
  * a `toString`, a proxy trap — so it is attempted rather than called.
  *
@@ -66,7 +76,7 @@ const attempt = f =>
 const text = value =>
     mapStep(
         attempt(() => String(value)),
-        r => r[0] === 'ok' ? /** @type {string} */(r[1]) : 'Unknown thrown value')
+        r => r[0] === 'ok' ? /** @type {string} */(r[1]) : unknownValue)
 
 /**
  * The `message` and `stack` of a thrown value, read in one attempt.
@@ -191,7 +201,8 @@ const reporter = {
     // start event is where that changes, and it is
     // `../todo/report-before-running.md`'s remaining task.
     start: () => pureOk(undefined),
-    result: (t, r, throws) => step(browserResult(t, r, throws), report),
+    result: (t, r, throws) =>
+        step(browserResult(t, r, throws), row => report(['result', row])),
     test: defaultTest,
 }
 
@@ -236,9 +247,114 @@ const one = ([module, proof]) => ended => {
     return step(collect, collected =>
         collected[0] === 'error'
             ? step(failureOf(module, collected[1]), failure =>
-                resultStep(report(failure), r =>
+                resultStep(report(['result', failure]), r =>
                     r[0] === 'ok' ? pureOk(null) : failureOf(module, r[1])))
             : runEntriesOf(module, collected[1]))
+}
+
+/**
+ * One source: loaded, announced, and folded into the walk's state.
+ *
+ * Both failures answer as *values*, and the state keeps them apart: an import
+ * that failed is this module's failure and the walk goes on, while a page that
+ * cannot be told is the run's and stops it.
+ *
+ * @type {(source: string) => (state: _LoadState) => Effect<Import | _BrowserReport, _LoadState, never>}
+ */
+const loadOne = source => state => {
+    // A walk that has been stopped loads nothing more. The only thing that
+    // stops it is the page refusing to be told, and once that has happened
+    // there is nothing to gain by *evaluating* the rest of the suite's
+    // modules — a module's top-level code runs when it links.
+    //
+    // No proof pins this: the outcome is the same either way (the run failed
+    // as the runner), so what it saves is user code that would have run for a
+    // report nobody can see. A mock that counted imports would be asserting
+    // its own bookkeeping.
+    if (state.stopped !== null) { return pureOk(state) }
+    return step(
+        resultStep(import_(source), loaded => pureOk(loaded)),
+        loaded => mapStep(
+            resultStep(report(/** @type {const} */ (['loading', source])), told => pureOk(told)),
+            told => {
+                if (told[0] === 'error') {
+                    return { ...state, stopped: channelFailure([runnerSource, told[1]]) }
+                }
+                if (loaded[0] === 'error') {
+                    return {
+                        ...state,
+                        rejected: [...state.rejected, channelFailure([source, loaded[1]])],
+                    }
+                }
+                // **The module's `proof` export, not the module.** A namespace
+                // handed to the traversal is walked as a proof tree, so every
+                // other zero-argument export is *run* as a test and the real
+                // proofs land one level deeper, named `.proof.x` instead of
+                // `.x`. Running a module's unrelated exports is the part that
+                // is not merely wrong output.
+                return {
+                    ...state,
+                    ready: [...state.ready, /** @type {const} */ ([source, loaded[1].proof])],
+                }
+            }))
+}
+
+/** @type {_LoadState} */
+const zeroLoad = { ready: [], rejected: [], stopped: null }
+
+/**
+ * Loads the suite's modules, one after another, and answers what to do next.
+ *
+ * **One at a time, deliberately.** The loads used to be fanned out through
+ * `all`, which bought a cold page a shorter wait and cost the reader a
+ * variadic call whose width the engine limits, an interpreter that had to
+ * implement concurrency, and a walk in which no branch knew what any other had
+ * done. A sequential fold is the shape the rest of this package already has —
+ * `runProofs` below is one — and it makes the walk's own state readable: what
+ * has loaded, what would not, and whether the page stopped answering.
+ *
+ * @type {(sources: readonly string[]) => Effect<Import | _BrowserReport, _LoadOutcome, never>}
+ */
+export const loadProofs = sources =>
+    mapStep(
+        foldStep(pureOk(sources), zeroLoad, loadOne),
+        ({ ready, rejected, stopped }) => {
+            // A page that could not be told takes precedence over a module
+            // that would not load: a list assembled for nobody to see is the
+            // wrong answer, and the row names the runner because no module is
+            // to blame for it.
+            if (stopped !== null) { return /** @type {_LoadOutcome} */ (['failed', [stopped]]) }
+            // One module that will not link stops the suite: it has no tests to
+            // run, and a partial suite reported as a whole one is worse than a
+            // refusal.
+            return /** @type {_LoadOutcome} */ (rejected.length === 0
+                ? ['ready', ready]
+                : ['failed', rejected])
+        })
+
+/**
+ * The name a failure of the *runner* is reported under, when no module is to
+ * blame for it: the page could not be told, or — in
+ * [`./module.mjs`](./module.mjs), which imports this — broke its own
+ * interpreter. One name, because a reader meeting it in a report should not
+ * have to learn two.
+ */
+export const runnerSource = 'the browser runner'
+
+/**
+ * A failure that arrived through an **operation's error channel**, as a row.
+ *
+ * Not `errorDetails`: that reads `message` and `stack` off a value a *test*
+ * threw, and a channel error is not one of those — reading it that way spells a
+ * tuple, which is how the first version of this described every unloadable
+ * module. `errorMessage` is the sentence the channel is for, and every host
+ * says it the same way.
+ *
+ * @type {(f: readonly [string, IoChannel]) => _BrowserTestResult}
+ */
+const channelFailure = ([source, cause]) => {
+    const text = errorMessage(cause)
+    return moduleFailure(source, 0, text, text)
 }
 
 /**

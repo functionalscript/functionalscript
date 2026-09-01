@@ -131,16 +131,75 @@ export type _BrowserTestResult = TestResult & {
 }
 
 /**
- * The page's own operation: a leaf landed, here is the row.
+ * What the page is told, as it happens: a module finished loading, or a leaf
+ * landed.
  *
- * It is declared here rather than in `effects/` because it is nobody else's —
- * `effects/common` holds what more than one host implements, and rendering a
- * result into a document is what *this* host is. The page's interpreter is the
- * shared operations plus this one, which is the whole of what the browser adds.
+ * One operation carries both because both are the same thing to a page — the
+ * suite made progress, show it — and because the browser's whole vocabulary is
+ * the shared operations plus *one*, which is what made the interpreter's own
+ * failure cheap to reach in a proof.
+ *
+ * The loading half names only the module. Counting how many have arrived is
+ * the observer's, not the walk's: the walk says *what* happened and a page
+ * decides what to render from the sequence it has seen, which is the same
+ * bargain the leaf-landed half makes.
  *
  * @internal
  */
-export type _BrowserReport = readonly['report', (result: _BrowserTestResult) => OpResult<void>]
+export type _BrowserEvent =
+    | readonly['loading', string]
+    | readonly['result', _BrowserTestResult]
+
+/**
+ * The page's own operation: something happened, here it is.
+ *
+ * It is declared here rather than in `effects/` because it is nobody else's —
+ * `effects/common` holds what is not one host's, and rendering into a document
+ * is what *this* host is. The page's interpreter is the shared operations plus
+ * this one, which is the whole of what the browser adds.
+ *
+ * @internal
+ */
+export type _BrowserReport = readonly['report', (event: _BrowserEvent) => OpResult<void>]
+
+/**
+ * What loading the suite's modules answered: the proofs to run, or the rows
+ * describing why the run cannot start.
+ *
+ * A module that will not link has no tests, so one failure stops the suite —
+ * the page reports `infrastructure-error` and the rows say which sources.
+ * Every failure is still a counted row, because totals that disagreed with
+ * `results` would tell a consumer the suite was empty rather than broken.
+ *
+ * @internal
+ */
+export type _LoadOutcome =
+    | readonly['ready', readonly (readonly[string, unknown])[]]
+    | readonly['failed', readonly _BrowserTestResult[]]
+
+/**
+ * The loading walk's accumulator: what has loaded, what would not, and the
+ * failure that stopped the walk.
+ *
+ * Three fields and not two, because the two failures are not the same failure.
+ * A module that will not link is *its* failure and the walk goes on — a report
+ * naming one of two broken modules sends a reader to fix half the problem —
+ * while a page that cannot be told is the run's, and stops it: a run whose
+ * reporting is broken cannot describe the rest either.
+ *
+ * Two plain arrays, appended to. A suite is 141 sources, and the walk is
+ * already waiting on an `import()` per step, so the copy an immutable append
+ * makes is not something a page can measure. The simplest thing that reads
+ * correctly wins here; catalog item 9's `List` is what to reach for the day a
+ * suite is large enough for the shape to matter.
+ *
+ * @internal
+ */
+export type _LoadState = {
+    readonly ready: readonly (readonly[string, unknown])[]
+    readonly rejected: readonly _BrowserTestResult[]
+    readonly stopped: _BrowserTestResult | null
+}
 
 /** The serializable report a browser test run resolves with. */
 export type BrowserTestReport = {
@@ -154,13 +213,6 @@ export type BrowserTestReport = {
     readonly duration: number
     readonly results: readonly _BrowserTestResult[]
 }
-
-/**
- * Loads one proof module by its source path for the browser runner.
- *
- * @internal
- */
-export type _BrowserImporter = (source: string) => Promise<{ readonly proof?: unknown }>
 
 /**
  * A run's outcome, folded from its leaf results: how many passed, how many
