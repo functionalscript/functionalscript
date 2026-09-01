@@ -15,6 +15,7 @@
   - [ ] Consider `checkMap` returns simplified map using DataRules. We may need root rule in this case.
   - [ ] Parser that apply map rules.
   - [ ] LL1 parser preparation should fail on non-LL1 grammar.
+  - [ ] We need a `Ast<R extends Rule>` that creates an AST result type for a `Rule`.
   - [ ] Workflow:
     - Create BNF Rules.
     - Create Rule Maps.
