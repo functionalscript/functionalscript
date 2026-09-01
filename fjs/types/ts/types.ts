@@ -13,7 +13,7 @@ export type Equal<A, B> =
         : false
 
 export type And<A extends boolean, B extends boolean> =
-    [A, B] extends [true, true] ? true : false
+    readonly [A, B] extends readonly [true, true] ? true : false
 
 type _AndFF = Assert<Equal<And<false, false>, false>>
 type _AndFT = Assert<Equal<And<false, true>, false>>
