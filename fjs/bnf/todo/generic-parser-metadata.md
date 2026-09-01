@@ -34,12 +34,22 @@ names make parser call sites materially clearer.
 
 ### Proposal
 
-Use one metadata type `M` throughout one parser and checked map. Construct the
-parser with `Monoid<M>` so its TypeScript type and combining operation are bound
-once instead of asking each rule mapping to repeat them. Neither the parser nor
-`checkMap` needs metadata RTTI: metadata is one unchanged channel, while RTTI
-exists in `checkMap` only to validate rule values whose types change at mapping
-boundaries.
+Use one metadata type `M` throughout one parser and its transformer map.
+Construct the parser with `Monoid<M>` so its TypeScript type and combining
+operation are bound once instead of asking each rule transformer to repeat them.
+Neither the parser nor `checkMap` needs metadata RTTI: metadata is one unchanged
+channel, while RTTI exists in `checkMap` only to validate rule values whose
+types change at mapping boundaries.
+
+There are two separate mapping APIs. The parser consumes the RTTI-free
+`TransformerMap` designed in issue 207: its transformers return bare
+`Meta<M, T>`, and a recoverable semantic error is an ordinary `T = Result<V,
+E>`. The existing `fjs/bnf/map` API is an optional RTTI-checking layer; its
+callbacks continue to return `Result<Meta<M, T>, string>`, and `checkMap`
+continues to consume those entries. A parser does not consume a checked RTTI
+entry, and `checkMap` does not produce a parser transformer entry. Giving both
+APIs one `M` aligns their metadata channel; it does not carry the RTTI layer's
+engine-level `Result` into the parser protocol.
 
 Input symbols are `Meta<M, CodePoint>`. The caller supplies their metadata; a
 parser must not invent source positions or otherwise interpret `M`.
@@ -59,8 +69,8 @@ Metadata reaches each rule kind as follows:
   metadata and may return any value of the same metadata type `M` as its output
   metadata.
 
-Consequently, mapping types should use one `M` instead of independent `MI` and
-`MO` parameters. Different metadata *values* across a transformation are
+Consequently, both mapping APIs should use one `M` instead of independent `MI`
+and `MO` parameters. Different metadata *values* across a transformation are
 supported; different metadata *types* inside one parser are not. A caller that
 needs several channels can use a product metadata type whose monoid combines
 the components.
@@ -74,14 +84,14 @@ only rule value RTTI (`ri` and `ro`). Its implicit AST RTTI may continue to use
 `unknown` for leaf metadata: that schema describes the AST value protocol and
 does not claim to validate the parser's generic `M`.
 
-The parser and all constructors used to create entries for its checked map must
-come from the same metadata-bound factory. Otherwise structurally compatible
-entries could accidentally combine values using a different monoid. Each
-factory allocates a fresh opaque runtime token, and its parser and entry
+The parser and all constructors used to create entries for its transformer map
+must come from the same metadata-bound factory. Otherwise structurally
+compatible entries could accidentally combine values using a different monoid.
+Each factory allocates a fresh opaque runtime token, and its parser and entry
 constructors carry that token. `build` rejects an entry whose token differs
-from the parser's before validating the map. The existing module-wide mapping
-brand may still classify mapping entries, but it cannot establish factory
-identity.
+from the parser's before validating the map. The existing module-wide RTTI
+mapping brand classifies `checkMap` entries only; it neither brands transformer
+entries nor establishes factory identity.
 
 ### Tasks
 
@@ -89,11 +99,15 @@ identity.
 - [x] Make LL(1) and descent accept the same metadata-carrying input.
 - [ ] Bind `Monoid<M>` in each transforming parser factory. LL(1) is complete;
       descent belongs to stage 3 of issue 207.
-- [x] Replace mapping `MI`/`MO` parameters with the factory's single `M`.
+- [x] Use the factory's single `M` in the parser transformer protocol.
+- [x] Replace the RTTI mapping API's `MI`/`MO` parameters with one `M`, without
+      changing its separate `Result<Meta<M, T>, string>` contract.
 - [ ] Derive metadata for terminal, sequence, string, variant, and repeat rules.
+      LL(1) is complete; descent belongs to stage 3 of issue 207.
 - [x] Keep metadata out of `checkMap`'s RTTI validation contract.
 - [ ] Prove order, associativity-independent grouping, explicit overrides, and
-      identity metadata for both empty sequence and zero repetition.
+      identity metadata for both empty sequence and zero repetition. LL(1) is
+      complete; descent belongs to stage 3 of issue 207.
 
 ### Related
 
