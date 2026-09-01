@@ -41,6 +41,10 @@ survive, and where it went is [43](./043-stateful-parser.md)'s open question.)*
 Use one metadata type `M` throughout one parser and its transformer map.
 Construct the parser with `Monoid<M>` so its TypeScript type and combining
 operation are bound once instead of asking each rule transformer to repeat them.
+*(Both halves of that sentence are revised at the end of this section: the type
+became `MI` and `MO`, and the monoid became `translate` plus a non-associative
+`reduce`. What survives is binding them once at construction rather than per
+transformer.)*
 Neither the parser nor `checkMap` needs metadata RTTI: metadata is one unchanged
 channel, while RTTI exists in `checkMap` only to validate rule values whose
 types change at mapping boundaries.

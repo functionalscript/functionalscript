@@ -211,14 +211,21 @@ engine that value is not yet decided**; see the open questions.
   [generic-parser-metadata](./generic-parser-metadata.md)'s rule-by-rule
   derivation folds with.
 
-  What it does not settle: `reduce` is a semigroup, and a `Monoid` also carried
-  an **identity**, which [207 §2](./207-bnf-semantic-actions.md) spends in three
-  places that have no child metadata to combine — an empty `Sequence`, a
-  zero-round `Repeat`, and a terminal matching EOF, where no leaf exists. Two
-  operations leave those three with nothing to produce. Either:
+  What it does not settle: a `Monoid` also carried an **identity**, which
+  [207 §2](./207-bnf-semantic-actions.md) spends in three places that have no
+  child metadata to combine — an empty `Sequence`, a zero-round `Repeat`, and a
+  terminal matching EOF, where no leaf exists. Two operations leave those three
+  with nothing to produce. Either:
 
-  - add the identity back, so the pair is `translate` plus a `Monoid<MO>` — two
-    operations and one constant, the smallest change; or
+  - add the identity back as a third field, `empty: MO`, beside `translate` and
+    `reduce` — two operations and one constant, the smallest change. **Not
+    `Monoid<MO>`**, whose identity comes with an associativity *law*
+    ([`fjs/common/monoid/types.ts`](../../common/monoid/types.ts): "the
+    operation must be associative"). Naming that type would contradict the
+    paragraph below and license the balanced folds it rules out. What is wanted
+    is a unit without the law — which is the `{ empty, join }` record
+    [generic-parser-metadata](./generic-parser-metadata.md) first wrote down,
+    minus its claim to be a monoid; or
   - represent absence, `MO | undefined`, and let `reduce` skip it. This is the
     honest answer to a complaint the constant identity has anyway: a single
     identity value gives every empty match the same metadata regardless of where
