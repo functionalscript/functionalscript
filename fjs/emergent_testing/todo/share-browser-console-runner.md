@@ -1,8 +1,10 @@
 ## Share the browser and console proof runners
 
 **Priority:** P3
-**Status:** open — every step has landed; what is left is one proof that the
-two runners answer identically from the same fixtures.
+**Status:** open — every step has landed. Two proofs are left: that the two
+runners answer identically from the same fixtures, and that the page reports an
+`infrastructure-error` when its *own interpreter* rejects, which 7b named and
+did not build.
 
 ### Problem
 
@@ -979,6 +981,15 @@ are shared.
       regenerating them produces the new path rather than that a hand edit
       matched: `npm run website` rewrites the entry, and the browser suite
       manifest is derived the same way.
+- [ ] Prove the page's two runner-failure routes, which 7b described and left
+      unbuilt: an operation answering through its error channel, and an
+      operation the interpreter cannot dispatch, which *rejects*. Only the
+      first is reachable today — `runBrowserProofs`' `.catch(runnerFailure)`
+      has no proof, and the `infrastructure-error` cases in
+      `browser/proof.mjs` all come from the loading path's own `catch`, one
+      function away. The seam 7b specifies is the page's run core taking its
+      interpreter as an argument, exported for proofs from the page's own
+      module — a testing seam, not a public-API widening.
 - [ ] Prove both runners produce equivalent paths, throw outcomes, recursive
       test counts, and normalized failures from the same fixtures. The
       existing `nameMatchesTheConsoleRunner`,

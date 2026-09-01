@@ -1,7 +1,8 @@
 ## Investigate imports, promises and realms
 
 **Priority:** P3
-**Status:** on-hold
+**Status:** on-hold — the cross-realm promise is a non-goal (see below); what
+keeps this file open is the rest of its study.
 
 > **Scope.** In a browser this framework runs `.f.mjs` and nothing else; under
 > `fjs t` it also runs a few impure `.mjs` proofs; and covering every edge case
@@ -54,9 +55,12 @@ survive a realm boundary.
 
 ### What was investigated
 
-This is a study, not a design. It is worth doing before
-[browser-testing](browser-testing.md) puts proofs in iframes or workers, because
-that is the point at which cross-realm promises stop being hypothetical.
+This is a study, not a design. It was written expecting
+[browser-testing](browser-testing.md) to put proofs in iframes or workers —
+the point at which cross-realm promises would stop being hypothetical. That is
+now a non-goal, so what the study is worth is the measurements: what each
+detector actually answers, and what a runner does with a value it cannot
+subscribe to.
 
 - **State the layering.** One document saying which layer adopts a `then` and
   which layer refuses to, and why both are right. Until that exists, every fix
@@ -296,15 +300,22 @@ phrase "reported as a pass" suggests:
 a proof: a test that kills the runner is not a test, which is itself worth
 knowing about this failure mode.
 
-**This is a debt, not a menu.** [REVIEW.md](../../../REVIEW.md) says an
-unsupported input is refused, never answered with a plausible wrong value, and a
-cross-realm promise reported as `passed` is exactly that. So refusal is what
-this owes; the entries below are what it would cost to pay it, and the reason it
-is deferred rather than done is that the only available detector is measurably
-worse than the defect. It is deferred as a pre-existing defect — both runners
-have always behaved this way — and it is not deferrable indefinitely.
+**This was recorded as a debt, and the owner has ruled it a non-goal.**
+Cross-realm testing is not supported and not wanted: `fjs/AGENTS.md`'s "One
+realm, one prototype chain" puts a value built in an iframe, a worker or a
+`node:vm` context outside the language this runner runs, so a proof that hands
+one over has already left the subset. [REVIEW.md](../../../REVIEW.md)'s rule —
+an unsupported input is refused, never answered with a plausible wrong value —
+is about inputs the language admits; this value is not one.
 
-Three ways to pay it, with what each costs:
+The measurements below are kept because they are what makes the decision
+defensible rather than convenient, and the third entry is the one that matters:
+the only available detector fails 2 of 7 cases, and both misses are *reachable*
+proof trees that would be failed instead of walked. Refusing would trade a
+silent pass on a value no conforming proof can build for a false failure on one
+it can.
+
+Three ways it could have been paid, with what each costs:
 
 - **Leave it.** Both runners agree, and the value is unreachable from authored
   FunctionalScript — only an impure proof using `node:vm`, an iframe or a worker
@@ -323,8 +334,9 @@ Three ways to pay it, with what each costs:
   `Symbol.toStringTag: 'Promise'` would be failed instead of walked. That trades
   a silent pass on an unreachable value for a false failure on a reachable one.
   A refusal that fires on valid input is not refusing loudly; it is a new wrong
-  answer with a louder voice. **This is the shape of the fix, and it needs a
-  detector that does not exist yet** — finding one is the actual open work here.
+  answer with a louder voice. **This was the shape of the fix, and it needs a
+  detector that does not exist** — which, with cross-realm ruled out of scope,
+  is now a reason not to do it rather than open work.
 
 Whichever is chosen, it is a change to the rule both runners share, so it lands
 in the shared `sandbox` — step 4 and after in
