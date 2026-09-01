@@ -490,6 +490,11 @@ suspended parse's state (§4).
 - **RTTI is optional.** `in`/`out` schemas and `subset` remain available as a
   debug layer; the open question that blocked the previous design (a boundary
   `subset` cannot prove) no longer gates anything.
+- **The RTTI map is not the parser map.** `fjs/bnf/map` keeps its checked
+  callbacks and `Result<Meta<M, T>, string>` output as a separate validation
+  API. The parser consumes `TransformerMap`, whose callbacks return bare
+  `Meta<M, T>` and may choose `T = Result<V, E>`. Neither API's entries are
+  accepted by the other; sharing one metadata type `M` is their only contract.
 - **The split is off.** What made the old issue too big was the RTTI contract,
   the metadata monoid and the flattening analysis. The first is optional, the
   third shipped as `Repeat`, and the second is now one monoid per parser rather
