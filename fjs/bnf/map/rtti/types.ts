@@ -1,4 +1,3 @@
-import type { Assert } from "../../../asserts/types.ts"
 import type { Ts, TupleTs } from "../../../rtti/ts/types.ts"
 import type { Type } from "../../../rtti/types.ts"
 import type { RepeatMap, SequenceMap, TerminalMap, VariantMap } from "../types.ts"
