@@ -30,6 +30,3 @@ export type Array1_5<T> =
     Tuple<1, T> | Tuple<2, T> | Tuple<3, T> | Tuple<4, T> | Tuple<5, T>
 
 export type Includes<I, T extends readonly I[]> = (v: I) => v is T[number]
-
-export type Concat<N0 extends number, N1 extends number, T> =
-    readonly[...Tuple<N0, T>, ...Tuple<N1, T>]
