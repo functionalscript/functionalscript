@@ -434,19 +434,31 @@ syntax and declaration emit.
 
 #### Types are `readonly`
 
-Every array, tuple, and object member in a repository type declaration
-(`types.ts`, `private.ts`, or a JSDoc `@typedef`) must be `readonly` —
-`readonly T[]`, not `T[]`; `readonly [A, B]`, not `[A, B]`; `readonly a: T`,
-not `a: T`. This is the type-level counterpart of
-[§3.1](#31-immutability-and-purity): FunctionalScript data is immutable, and a
-type that admits mutation misdescribes the value even where nothing ever
-mutates it.
+Every array, tuple, and object member in a repository type declaration —
+`types.ts` or `private.ts` — must be `readonly`: `readonly T[]`, not `T[]`;
+`readonly [A, B]`, not `[A, B]`; `readonly a: T`, not `a: T`. This is the
+type-level counterpart of [§3.1](#31-immutability-and-purity):
+FunctionalScript data is immutable, and a type that admits mutation
+misdescribes the value even where nothing ever mutates it.
+
+**Scope: TypeScript source, not JSDoc.** A function-local JSDoc `@typedef`
+(§3.2, "JavaScript/JSDoc type declarations") is out of scope — the `@property`
+list style has no established `readonly` spelling in this codebase, and every
+such typedef is proof-local, describing one call's shape rather than named,
+reusable repository data. Inlining the type instead of using `@property`
+(`@typedef {{ readonly a: T }} _Name`) can still take `readonly`, and should
+where it reads no worse; nothing here requires converting existing
+`@property` typedefs.
 
 Function parameters are exempt — `(name: string, fn: () => void) => …` needs
 no `readonly` on `name`/`fn`, since a parameter list is not itself a mutable
 container. A mapped type's brand/index signature is not exempt just because
 the field is never assigned a real value at runtime (e.g. `Nominal`'s
-`{ readonly[k in N]: … }` in `fjs/types/nominal/types.ts`).
+`{ readonly[k in N]: … }` in `fjs/types/nominal/types.ts`), and neither is a
+mapped type used only inside a conditional/indexed-access type-level check and
+never as a value's own type (e.g. `NotUnion`'s `readonly [U] extends
+readonly [T]` in `fjs/types/object/types.ts`) — the rule is about what the
+declaration says, not about whether a mismatch is currently observable.
 
 **Exceptions need explicit reviewer sign-off, and most legitimate ones share
 one shape: the type describes an object that lives outside FunctionalScript
