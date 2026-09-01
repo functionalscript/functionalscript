@@ -27,7 +27,7 @@ export type VariantMeta<M, T extends RequiredMap<string, unknown>> = {
 export type VariantMap<MI, I extends RequiredMap<string, unknown>, MO, O> =
     (i: VariantMeta<MI, I>) => Meta<MO, O>
 
-// repeat 0+. if recognized as `T = () => { some: T, none: [] }
+// repeat 0+. if recognized as `T = () => { some: T, none: [] }`
 
 export type Repeat<MI, I, S, MO, O> = {
     readonly init: S

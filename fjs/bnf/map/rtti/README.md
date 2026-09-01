@@ -1,0 +1,1 @@
+# Mapping with RTTI checks
