@@ -50,7 +50,8 @@ The parser derives parent metadata as follows:
 - a sequence folds child metadata from left to right;
 - a string rule behaves as its sequence of terminal rules;
 - a variant preserves the selected child's metadata;
-- a repetition folds the metadata of its iterations from left to right;
+- a repetition folds iteration metadata from left to right independently of
+  transformer state, then passes `[state, mergedMetadata]` to `end`;
 - an empty sequence or zero repetition uses the monoid identity;
 - an explicit mapping receives the derived input metadata and may return any
   value of the same metadata type `M` as its output metadata.
@@ -88,5 +89,5 @@ that relationship with the existing mapping brand or a new factory brand.
 
 ### Related
 
-- [`fjs/bnf/todo/207-bnf-semantic-actions.md`](../../../todo/207-bnf-semantic-actions.md)
+- [`207-bnf-semantic-actions.md`](./207-bnf-semantic-actions.md)
   — broader parser transformation design and metadata rationale.
