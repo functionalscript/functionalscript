@@ -61,11 +61,26 @@ here only as pointers:
   `reduce` being under no obligation to be associative. What an **empty** match
   contributes is still open, since the monoid identity used to answer it and
   `reduce` has none: [43](./043-stateful-parser.md)'s.
-- **Error reporting** — there is no unified error representation to design,
+- **Error reporting** — there is no unified error *representation* to design,
   because no layer has an error channel to unify. Each layer is a total fold
   whose failure is ordinary data in its own output type
   ([43](./043-stateful-parser.md), [`todo/flow.md`](../../../todo/flow.md)), so
   a bad token and a bad structure are values of the layer that produced them,
-  carrying that layer's metadata by construction. What remains is a library
-  question — whether the layers should agree on a *convention* for the shape of
-  that value — not a protocol one.
+  carrying that layer's metadata by construction.
+
+  **What is still open is where in the output that data goes**, and it is a
+  protocol question for the pipeline rather than a matter of taste.
+  [`todo/flow.md`](../../../todo/flow.md) offers two conventions: *in-band*,
+  emitting `O = Result<T, Err>` so the next stage confronts failure per item, or
+  *in the summary*, reporting through `A = Result<…, Err>` — and it is explicit
+  that the summary form is only sound when "the final program result is
+  assembled by combining the `result` flows of the stages that matter".
+
+  A stack that mixes them silently loses failures. If a decoder reports a
+  truncated encoding in its summary and the tokenizer above it reads only the
+  emitted stream, the parser accepts the successfully decoded prefix and nothing
+  ever reads the summary — which is exactly the silent truncation
+  [43](./043-stateful-parser.md)'s end-of-input note and
+  [DESIGN.md §10](../../../DESIGN.md) both warn about. So this pipeline has to
+  say which convention each layer uses, and where a summary is checked if any
+  layer uses one.

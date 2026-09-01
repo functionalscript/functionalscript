@@ -264,6 +264,26 @@ engine that value is not yet decided**; see the open questions.
   so calling them here would regroup a fold that must not be regrouped, and
   would do it silently, producing plausible metadata rather than an error. The
   parser needs its own left fold.
+- **Where does the EOF symbol's `MI` come from?** Making the terminal the
+  boundary gives `TerminalTransformer` an `Meta<MI, CodePoint>` argument, and
+  the one symbol that has no `MI` is the synthesized end-of-input:
+  [the contract](../README.md#logical-eof-in-parser-input) says it "has no
+  physical source element", and
+  [generic-parser-metadata](./generic-parser-metadata.md) says a parser "must
+  not invent source positions or otherwise interpret" metadata — so the engine
+  may not conjure one. `empty: MO` does not help; it answers the *output* side,
+  and this is the argument.
+
+  The answer that keeps both rules is that the **driver supplies it**, feeding a
+  final EOF-tagged `Meta<MI, …>` through `update` before calling `end`. That is
+  what `decoder` in
+  [`../../text/code_point/module.f.mjs`](../../text/code_point/module.f.mjs)
+  already does with its synthetic marker, it leaves metadata the caller's as the
+  rule requires, and it keeps `StateFold`'s shape rather than adding a parameter
+  to `end`. The alternative is to forbid mapping a terminal that can match EOF —
+  [207 §2](./207-bnf-semantic-actions.md) already notes such a rule is "usually
+  `unit`" — but that trades a general capability for a constant, and an unmapped
+  EOF terminal still needs metadata from somewhere.
 - **How far does `MI ≠ MO` reach?** The decision above is about the parser
   boundary. [generic-parser-metadata](./generic-parser-metadata.md) states the
   stronger rule that *both* mapping APIs use one `M`, and PR #1828 shipped it by
