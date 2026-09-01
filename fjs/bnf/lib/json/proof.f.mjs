@@ -38,7 +38,7 @@ export const proof = {
         accepts: [
             () => assert(matches(json, ' {"a":[null,true,false,-12.5e+2,"\\u0041"]} ')),
             () => assert(matches(json, '\t"\\t\\u00AF "\r\n')),
-            () => assert(matches(json, '[0,19,1e+5,"\\u0099"]')),
+            () => assert(matches(json, '[0,9,19,1e+5,"\\u0099"]')),
         ],
         rejects: [
             () => assert(!matches(json, '{"a":1} trailing')),
