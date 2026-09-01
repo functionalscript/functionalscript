@@ -3,6 +3,9 @@
 **Priority:** P3
 **Status:** wip
 
+The `dockerfile` in this file's name is historical: the task generates flakes and no
+Dockerfile is planned — see `65Z-ci-nix`. The name stays because other issues cite it.
+
 ### Progress
 
 Phase 2 is done: `fjs/ci/nix/module.f.mjs` generates
@@ -180,11 +183,12 @@ does not own `nix/` itself: `nix/README.md` is written by hand, so stale-output 
 deletes directories it generated rather than everything it finds there.
 
 A `flake.lock` is generated beside every `flake.nix` and committed, from `narHash`
-and `lastModified` in `../config/module.f.mjs` — so a Dockerfile that copies `nix/`
-gets a fully locked flake and needs no network to resolve inputs. Every CI
-invocation still passes `--no-write-lock-file`, now so that `nix develop` cannot
-write over the generated file. The `.gitignore` rule that used to hide these files
-is gone.
+and `lastModified` in `../config/module.f.mjs` — so a copy of `nix/` carries a fully
+locked flake, resolving to the same inputs wherever it is evaluated. It pins those
+inputs rather than vendoring them; what a build still has to fetch, and from where, is
+for whoever needs one to establish. Every CI invocation still passes
+`--no-write-lock-file`, now so that `nix develop` cannot write over the generated
+file. The `.gitignore` rule that used to hide these files is gone.
 
 ##### Shell hooks
 
@@ -279,7 +283,7 @@ Do not solve these in this task:
 - Playwright package/browser synchronization;
 - Rust components, targets, or linkers;
 - Deno or Bun flakes;
-- OCI output or caching.
+- OCI output or caching (see `65Z-ci-nix`).
 
 Create separate TODOs for those jobs when work begins. They do not block this Node
 milestone. Neither Deno nor Bun ended up needing a lasting one: Deno was already listed
@@ -312,5 +316,3 @@ it asked for. Both migrated once this milestone had settled the shape.
 ### Related
 
 - [65Z-ci-nix](65z-ci-nix.md) — architecture and task boundaries.
-- [65Z-ci-scenario-docker](65z-ci-scenario-docker.md) — later OCI design work after one
-  direct-Nix Linux job works.
