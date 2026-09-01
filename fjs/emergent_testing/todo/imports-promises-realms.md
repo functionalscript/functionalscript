@@ -1,8 +1,12 @@
 ## Investigate imports, promises and realms
 
-**Priority:** P3
-**Status:** on-hold — the cross-realm promise is a non-goal (see below); what
-keeps this file open is the rest of its study.
+**Priority:** P5
+**Status:** on-hold — the cross-realm promise is a non-goal (see below). What
+keeps this file open is one concrete defect plus the rest of its study: under
+`fjs t`, an impure `.mjs` proof returning a same-realm `Promise` subclass that
+overrides `then` **hangs**, where the browser settles it. The fix is one line
+in `effects/node/module.mjs`'s `sandbox`, described below. It is P5 because no
+authored proof does this — the hang predates this work and nothing has hit it.
 
 > **Scope.** In a browser this framework runs `.f.mjs` and nothing else; under
 > `fjs t` it also runs a few impure `.mjs` proofs; and covering every edge case
