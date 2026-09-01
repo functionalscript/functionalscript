@@ -53,16 +53,35 @@ nothing until `end`, so it is the right shape for the stage that answers with
 one AST or one domain value, and the wrong shape for a stage whose output is a
 *stream* the next stage consumes. [layered-parser](./layered-parser.md)'s
 `bytes → code-points → tokens → AST` needs its lower stages to emit as they go —
-maximal munch cuts a token and restarts — and already names the shape for that:
-`StateScan<I, S, O>`, which exists today. Nothing here is a streaming decoder or
+maximal munch cuts a token and restarts. Nothing here is a streaming decoder or
 tokenizer.
 
-That leaves one thing unresolved rather than solved, since layered-parser also
-says *"every layer reuses the same BNF engine"*: a BNF grammar used as an
-emitting layer needs a shape this issue does not give it. Either the engine
-grows an emitting entry point beside this one, or the lower layers are not BNF
-grammars after all. Deciding that is layered-parser's, not this issue's — but
-this issue is the reason it now has to be decided.
+**`StateScan` is not quite that shape either**, which is worth saying because
+layered-parser names it. `StateScan<I, S, O>` is
+`(input, prior) => [output, state]`
+([`../../types/function/operator/types.ts`](../../types/function/operator/types.ts))
+— emission per input, but no lifecycle, so a stage holding buffered output at
+end of input has nowhere to flush it. That is not hypothetical: `decoder` in
+[`../../text/code_point/module.f.mjs`](../../text/code_point/module.f.mjs) takes
+a *second* operation, `eofOp`, and splices a synthetic `null` into the input to
+drive it. A decoder ending mid-sequence and a tokenizer ending inside token text
+are the same case, and getting it wrong drops the last token or accepts a
+truncated encoding silently.
+
+So an emitting layer needs emission **and** an emitting `end` — which is what
+[`todo/flow.md`](../../../todo/flow.md)'s `Transducer` has and `StateScan` does
+not, its `end` returning a `Terminal` that carries a flush chunk. That is the
+second argument for `Transducer` shipping eventually; it does not change what
+*this* stage is, since a value-producing top layer has nothing to flush.
+
+Two things are therefore unresolved rather than solved, and both are
+layered-parser's rather than this issue's — though this issue is why they now
+have to be decided. Since layered-parser says *"every layer reuses the same BNF
+engine"*: a BNF grammar used as an emitting layer needs a shape this issue does
+not give it, so either the engine grows an emitting entry point beside this one
+or the lower layers are not BNF grammars. And whatever that shape is, its
+end-of-input convention has to be explicit rather than each layer inventing its
+own sentinel.
 
 **Metadata is the outermost wrapper.** `Meta<…>` outside rather than a result
 type outside, because metadata is orthogonal to whether the parse succeeded — it
