@@ -5,6 +5,8 @@
  */
 
 import type { Result } from '../../types/result/types.ts'
+import type { Assert } from '../../asserts/types.ts'
+import type { Equal } from '../../types/ts/types.ts'
 
 export type Meta<M, T> = readonly[value: T, meta: M]
 
@@ -27,8 +29,15 @@ export type SequenceMap<MI, I extends readonly unknown[], MO, O> =
 // variant
 
 export type VariantValue<T extends object> = {
-    readonly[K in keyof T]: readonly[K, T[K]]
+    readonly[K in keyof T]: K extends string | number
+        ? readonly[`${K}`, T[K]]
+        : never
 }[keyof T]
+
+type _NumericVariantKey = Assert<Equal<
+    VariantValue<{ readonly 0: string }>,
+    readonly['0', string]
+>>
 
 export type VariantMeta<M, T extends object> = Meta<M, VariantValue<T>>
 
