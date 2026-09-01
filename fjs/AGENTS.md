@@ -432,6 +432,29 @@ TypeScript one, but the public type contract must not become weaker for being
 written in JavaScript. Types authored in `types.ts` use ordinary TypeScript
 syntax and declaration emit.
 
+#### Types are `readonly`
+
+Every array, tuple, and object member in a repository type declaration
+(`types.ts`, `private.ts`, or a JSDoc `@typedef`) must be `readonly` —
+`readonly T[]`, not `T[]`; `readonly [A, B]`, not `[A, B]`; `readonly a: T`,
+not `a: T`. This is the type-level counterpart of
+[§3.1](#31-immutability-and-purity): FunctionalScript data is immutable, and a
+type that admits mutation misdescribes the value even where nothing ever
+mutates it.
+
+Function parameters are exempt — `(name: string, fn: () => void) => …` needs
+no `readonly` on `name`/`fn`, since a parameter list is not itself a mutable
+container. A mapped type's brand/index signature is not exempt just because
+the field is never assigned a real value at runtime (e.g. `Nominal`'s
+`{ readonly[k in N]: … }` in `fjs/types/nominal/types.ts`).
+
+**No unapproved exceptions.** If a type must genuinely expose a mutable
+field (rather than being an oversight), it needs an explicit reviewer
+sign-off on the PR that introduces it, with a comment on the field
+explaining why it is mutable — the same bar as any other rule exception in
+this document. Do not add a non-`readonly` member and assume it will pass
+review silently.
+
 #### Prefer inference
 
 Let TypeScript infer the type of private constants, local variables, and return
@@ -766,9 +789,9 @@ satisfy the rule. The cases in this repository:
   the base under a field there would describe something that isn't there — and
   for a wire format it would change the encoding, not just the type.
 - **A facade adding a member to a generic interface.**
-  `FileCas = Cas<FileCasOperation> & { url: (v: Vec) => string }` — composition
-  would route every consumer through an extra hop (`fileCas.cas.read(…)`) to
-  express one added member.
+  `FileCas = Cas<FileCasOperation> & { readonly url: (v: Vec) => string }` —
+  composition would route every consumer through an extra hop
+  (`fileCas.cas.read(…)`) to express one added member.
 - **Opening a record type to dynamic keys.** A record type restricts its fields:
   unknown keys are neither writable in a literal nor readable off a value.
   Intersecting it with `StringMap<unknown>` keeps the declared fields

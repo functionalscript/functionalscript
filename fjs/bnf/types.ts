@@ -72,8 +72,8 @@ export type None = readonly[]
  * Optional grammar branch.
  */
 export type Option<S> = {
-    some: S
-    none: None
+    readonly some: S
+    readonly none: None
 }
 
 export type Repeat0Plus<T> = () => Option<readonly[T, Repeat0Plus<T>]>
