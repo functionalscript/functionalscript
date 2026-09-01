@@ -1,5 +1,3 @@
-import type { RequiredMap } from "../../types/object/types.ts"
-
 export type Meta<M, T> = readonly[value: T, meta: M]
 
 // one.
@@ -20,12 +18,12 @@ export type SequenceMap<MI, I extends readonly unknown[], MO, O> =
 
 // variant
 
-export type VariantMeta<M, K extends string, T extends RequiredMap<K, unknown>> = {
+export type VariantMeta<M, T extends object> = {
     readonly[K in keyof T]: readonly[K, Meta<M, T[K]>]
 }[keyof T]
 
-export type VariantMap<MI, K extends string, I extends RequiredMap<K, unknown>, MO, O> =
-    (i: VariantMeta<MI, K, I>) => Meta<MO, O>
+export type VariantMap<MI, I extends object, MO, O> =
+    (i: VariantMeta<MI, I>) => Meta<MO, O>
 
 // repeat 0+. if recognized as `T = () => { some: T, none: [] }`
 
