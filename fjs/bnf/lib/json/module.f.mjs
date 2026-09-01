@@ -6,7 +6,8 @@
  * @import { Rule, Sequence, Variant } from '../../types.ts'
  */
 
-import { commaJoin0Plus, option, range, remove, repeat, repeat0Plus, set, unicodeMax } from '../../module.f.mjs'
+import { repeat } from '../../../types/array/module.f.mjs'
+import { commaJoin0Plus, option, range, remove, repeat0Plus, set, unicodeMax } from '../../module.f.mjs'
 
 const onenine = range('19')
 

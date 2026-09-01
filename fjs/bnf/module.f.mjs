@@ -319,14 +319,6 @@ export const commaJoin0Plus = ws =>
         [open, ws, join0Plus([item, ws], [',', ws]), close]
 
 /**
- * Repeats a rule a fixed number of times.
- *
- * @type {(n: number) => <T extends Rule>(some: T) => Repeat<T>}
- */
-export const repeat = n => some =>
-    toArray(listRepeat(some)(n))
-
-/**
  * Determines whether the rule is an empty rule.
  *
  * @type {(rule: Rule) => boolean}
