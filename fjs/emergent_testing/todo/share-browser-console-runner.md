@@ -1,7 +1,9 @@
 ## Share the browser and console proof runners
 
 **Priority:** P3
-**Status:** open
+**Status:** open — steps 1–7 have landed; what is left is the layout move
+(step 8) and one proof that the two runners answer identically from the same
+fixtures.
 
 ### Problem
 
@@ -338,7 +340,7 @@ and is reviewable without the next one.
       in [imports, promises and realms](imports-promises-realms.md); the scope
       rule they rest on is in [browser testing](browser-testing.md).
 
-- [ ] **4. Common effects.** Move `sandbox` and `catch` out of `effects/node`
+- [x] **4. Common effects.** Move `sandbox` and `catch` out of `effects/node`
       into a shared module that `effects/node` re-exports unchanged, so
       node-side callers keep one import. The re-export is legitimate here by
       [node-module-layering](../../effects/todo/node-module-layering.md)'s own
@@ -418,7 +420,7 @@ and is reviewable without the next one.
       and this took it. `fjs t` gained the behaviour in the process, which is
       what made that change worth landing on its own rather than inside the port.
 
-- [ ] **5. A browser interpreter** for `sandbox` and `catch`, plus whatever
+- [x] **5. A browser interpreter** for `sandbox` and `catch`, plus whatever
       operations the application adds — for the page, one `report`. Nothing
       else: a sequential traversal performs no `all`. `sandbox` is
       `effects/node`'s, copied rather than redesigned, because two runners
@@ -456,7 +458,7 @@ and is reviewable without the next one.
       keeps doing so.) Step 7b updates this reasoning where it is published,
       in `RunTotals`'s JSDoc (`types.ts`), which today still explains the gap
       by concurrency.
-- [ ] **7. One sequential skeleton.** Two PRs, in this order.
+- [x] **7. One sequential skeleton.** Two PRs, in this order.
 
       **7a. Make the shared traversal sequential**, in `module.f.mjs` alone.
       Replace the `all` fan-outs with a sequential fold: one leaf's whole
@@ -625,11 +627,13 @@ and is reviewable without the next one.
       `fjs t` already use. The port adopts the shared order for live progress
       too; prove it rather than inheriting it silently.
 
-      **What stays the page's own, with the reason:** reading a *module's*
-      exported tree. The shared walk guards a returned tree through `catch`
-      (see [hostile proof values](hostile-proof-values.md)) but deliberately
-      not the exported one, because there is no leaf to attribute that failure
-      to. `fjs t` panics; the page catches it and reports one failed module.
+      **What was the page's own, and is not any more:** reading a *module's*
+      exported tree. This said the shared walk guards a returned tree but
+      deliberately not the exported one, "because there is no leaf to attribute
+      that failure to" — and that reasoning did not survive being written down.
+      The module is the attribution: functionalscript#1830 reads the export
+      under `catch` in the shared walk, and names the record for the module
+      itself, which is what the page had been doing all along.
 
 - [ ] **8. The layout move**, and the website preparation program.
 
@@ -878,10 +882,11 @@ are shared.
       stays outside the skeleton, which is why the reverted #1759 gave
       `runModuleMap` a sibling entry point taking already-collected leaves,
       and step 7b does again.
-- [ ] Make the existing `collectTests`/path behavior the single source of truth
+- [x] Make the existing `collectTests`/path behavior the single source of truth
       for console and browser execution. Done in the reverted #1759 — the
       page's walk was deleted, `collectTests` called once under the page's own
-      guard — and re-lands with step 7b.
+      guard — and re-landed with step 7b: `browser/module.f.mjs` imports
+      `collectTests` from `../module.f.mjs` and has no walk of its own.
 - [x] Share the test-name format, and prove both runners name the same leaf
       identically. The browser report carries a `name` built by `fmtImport`, and
       `nameMatchesTheConsoleRunner` pins it to that function rather than to a
@@ -973,8 +978,13 @@ are shared.
       *yielding* was load-bearing, see below — and the unguarded read of a
       module's *exported* tree, which stays the page's own and is tracked by
       [hostile-proof-values](./hostile-proof-values.md).
-- [ ] Close each of those issues for both runners at once, so the two stay in
-      sync rather than drifting from the day the core is shared.
+- [x] Close each of those issues for both runners at once, so the two stay in
+      sync rather than drifting from the day the core is shared. Both are
+      closed and both were closed in the shared core: the `batchSize` yielding
+      became one macrotask per report in the page's own handler (step 7b), and
+      the unguarded reads became `catch` — a leaf's returned tree in
+      functionalscript#1809, a module's export in functionalscript#1830, a
+      thrown value in functionalscript#1832.
 - [x] Decide where a browser run gives the thread back. **One macrotask per
       report, in the page's own `report` handler** — the sequential plan's
       answer, superseding the reverted #1759's frame budget. The full story
