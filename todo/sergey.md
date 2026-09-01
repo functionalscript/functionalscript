@@ -4,7 +4,7 @@
 
 - [ ] Browser Test
 - [ ] NiX:
-  - [ ] Delete `Dockerfile`
+  - [x] Delete `Dockerfile`
   - [ ] NiX lockfile should be generate in `npm run ci-update` for the drift test in CI.
 - [ ] Investigate `npm run dev-update`. It updates unrelated to development files but doesn't update Rust generated files. Proposal: two scripts:
   - [ ] `npm run dev-update` scripts: run code generator
