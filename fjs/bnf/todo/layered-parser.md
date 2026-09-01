@@ -47,5 +47,21 @@ Two mechanics the layers need:
 ### Open Questions
 
 - **Keyword disambiguation**: identifiers and keywords may share the same symbol. Options: separate token type per keyword, or grammar rules that inspect meta info.
-- **Meta info propagation**: when the upper parser reduces a sequence of tokens, how does meta info (e.g. source span) combine into the parent node?
-- **Error reporting**: lower-layer errors (bad token) and upper-layer errors (bad structure) need a unified error representation that carries the right meta info.
+
+Two questions this section used to carry are answered elsewhere and are kept
+here only as pointers:
+
+- **Meta info propagation** — settled by
+  [generic parser metadata](./generic-parser-metadata.md), which gives the
+  combining rule per rule kind: a sequence folds child metadata left to right, a
+  variant preserves the selected branch's, a repetition folds its rounds, and an
+  empty match takes the monoid identity. A layer's payload is its `M`
+  ([207 §7](./207-bnf-semantic-actions.md)).
+- **Error reporting** — there is no unified error representation to design,
+  because no layer has an error channel to unify. Each layer is a total fold
+  whose failure is ordinary data in its own output type
+  ([43](./043-stateful-parser.md), [`todo/flow.md`](../../../todo/flow.md)), so
+  a bad token and a bad structure are values of the layer that produced them,
+  carrying that layer's metadata by construction. What remains is a library
+  question — whether the layers should agree on a *convention* for the shape of
+  that value — not a protocol one.

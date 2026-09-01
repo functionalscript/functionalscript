@@ -141,7 +141,10 @@ bounds one invocation, not how many the input causes: right-recurse a list and
 Accumulate with `List` and flatten in `end`. Where the grammar has the choice,
 prefer `Repeat` — the helpers get its accumulation right.
 
-**Input-level** is [43](./043-stateful-parser.md)'s. It composes because the
+**Input-level** is [43](./043-stateful-parser.md)'s, which now carries that
+design: a `StateFold` over one symbol at a time, RTTI-free, keeping §10's
+separation — a validatable root output stays `checkMap`'s and this map's
+callbacks stay bare. It composes because the
 parser state is a value: the frame stack, each frame's `(rule name, state)`, and
 the cursor. The engine's half holds no closures — a frame carries a rule *name*.
 `T` and `S` are unconstrained, so **a suspended parse is serializable exactly
