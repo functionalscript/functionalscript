@@ -234,8 +234,17 @@ export const startBrowserTestSources = (root, sources) => {
                 // with no report and no completion event, which is the one
                 // outcome an automated controller cannot act on. The value
                 // that will not be read is named rather than propagated.
+                //
+                // The message is read **here**, inside the same guard, because
+                // `toIoError` takes an `Error`'s own `message` as it finds it:
+                // an `Error` whose `message` is an object with a hostile
+                // `toString` passes through it and throws later, in the
+                // renderer, where nothing knows which source it came from — so
+                // the row would name the runner instead of the module that
+                // failed.
                 try {
-                    return error(toIoError(cause))
+                    const [, info] = toIoError(cause)
+                    return error(ioError({ ...info, message: `${info.message}` }))
                 } catch {
                     return error(ioError({ message: unknownValue }))
                 }

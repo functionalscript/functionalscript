@@ -187,11 +187,16 @@ export type _LoadOutcome =
  * while a page that cannot be told is the run's, and stops it: a run whose
  * reporting is broken cannot describe the rest either.
  *
+ * The two collections are `List`s joined with `concat`, not arrays appended to:
+ * the walk adds one entry per source, and an immutable append would copy the
+ * prefix every time — quadratic in the size of the suite. Catalog item 9. They
+ * are materialised once, when the walk has finished.
+ *
  * @internal
  */
 export type _LoadState = {
-    readonly ready: readonly (readonly[string, unknown])[]
-    readonly rejected: readonly _BrowserTestResult[]
+    readonly ready: List<readonly[string, unknown]>
+    readonly rejected: List<_BrowserTestResult>
     readonly stopped: _BrowserTestResult | null
 }
 

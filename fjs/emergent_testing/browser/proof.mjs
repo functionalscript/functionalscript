@@ -522,6 +522,25 @@ export const proof = {
         assertEq(report.status, 'passed')
         assert(report.totals.tests > 0, report.totals)
     },
+    /**
+     * **A hostile `Error.message` is still the module's failure.**
+     *
+     * `toIoError` takes an `Error`'s own `message` as it finds it, so a module
+     * that replaced it with an object whose `toString` throws hands the walk a
+     * value that is not text. Left unread until the page renders it, the
+     * coercion throws where nothing knows which source it belonged to, and the
+     * row names the runner instead of the module — a report that sends a reader
+     * looking in the wrong file.
+     */
+    hostileErrorMessageIsTheModulesFailure: async () => {
+        const p = page()
+        const source = dataModule(
+            'const e = new Error(); e.message = { toString() { throw new Error("trap") } }; throw e')
+        const report = await startBrowserTestSources(p.root, [source])
+        assertEq(report.status, 'infrastructure-error')
+        assertEq(report.results[0]?.module, source)
+        assertEq(report.results[0]?.message, 'Unknown thrown value')
+    },
     sourceThatCannotBeImported: async () => {
         // A source the page cannot import is a loader failure like any other:
         // the page must not be left in `loading` with no report and no
