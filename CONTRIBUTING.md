@@ -71,7 +71,13 @@ commands inside this very shell, so what passes here is what passes there.
 
 ```bash
 ./dev.sh                   # an interactive shell
+./nix/run npm run cov      # or one command in it
 ```
+
+`./dev.sh` is `nix develop ./nix` and nothing else — no flags, so you see what it
+is fetching or building on a first entry. `./nix/run` is the same shell with a
+command handed to it, and is what a CI step names; it is generated, where
+`dev.sh` is two committed lines.
 
 It covers `aarch64-linux`, `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin`;
 `nix develop` picks the one for your machine. Nix does not run natively on
