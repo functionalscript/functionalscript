@@ -6,17 +6,7 @@
 
 import { codePointToString } from '../text/utf16/module.f.mjs'
 import { json } from './lib/json/module.f.mjs'
-import {
-    commaJoin0Plus,
-    none,
-    option,
-    range,
-    remove,
-    repeat,
-    repeat0Plus,
-    set,
-    unicodeMax,
-} from './module.f.mjs'
+import { none, range, set } from './module.f.mjs'
 
 /** @type {() => Rule} */
 export const classic = () => {
