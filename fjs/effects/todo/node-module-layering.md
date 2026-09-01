@@ -306,18 +306,28 @@ Judgement calls worth deciding explicitly rather than by accident:
 ### Six operation tuples are not `readonly`
 
 `Fetch`, `CreateServer`, `Listen` and `Forever` in
-[`../node/types.ts`](../node/types.ts), and `All` in
+[`../node/types.ts`](../node/types.ts), and `All` and `Import` in
 [`../common/types.ts`](../common/types.ts), are declared as plain tuples where
-every other operation is `readonly`. `Import` was a sixth until it moved, and
+every other operation is `readonly`. `Import` moved here from `../node/types.ts`;
 making it `readonly` on the way looked like tidying — but a `readonly` tuple is
 not assignable to a mutable one, so it is a break a consumer could hit, for
 cosmetics. It was reverted rather than shipped with a `**BREAKING CHANGES:**`
-entry attached to a rename; `All` moved afterwards and kept its plain tuple for
-the same reason.
+entry attached to a rename, kept its plain tuple in its new home, and `All`
+moved afterwards and kept its plain tuple for the same reason. All six —
+`Fetch`, `CreateServer`, `Listen`, `Forever`, `All`, `Import` — remain plain
+tuples today.
 
-The five that remain are worth aligning *deliberately*, in one change that says
-so and takes the version bump for the set rather than smuggling it inside a
-move. Nothing depends on it.
+The six are worth aligning *deliberately*, in one change that says so and takes
+the version bump for the set rather than smuggling it inside a move. Nothing
+depends on it.
+
+functionalscript#1822 (which added the repo-wide `readonly`-types rule in
+`fjs/AGENTS.md`) considered aligning these six as part of that sweep and
+deliberately deferred them here instead, even though that PR's own other
+changes already forced a version bump: each of the six now carries an inline
+comment pointing back at this section, and folding them in without giving the
+rename its own changelog entry and its own look at every call site would have
+been exactly the kind of smuggled break this section exists to avoid.
 
 ### Tasks
 
