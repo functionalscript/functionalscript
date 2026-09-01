@@ -235,23 +235,40 @@ export const startBrowserTestSources = (root, sources) => {
             return ok(undefined)
         },
     })
-    const report = run(loadProofs(sources)).then(outcome => {
-        // `loadProofs` answers every failure it can meet as a value, so a
-        // rejection here is this file's own interpreter breaking.
-        const loadedModules = unwrap(outcome)
-        if (loadedModules[0] === 'failed') {
-            // A module that never linked has no tests to run, so the run stops
-            // here. Each failure is still a counted result: totals that
-            // disagreed with `results` would tell an automated consumer the
-            // suite was empty rather than broken.
-            return publish(root, Promise.resolve(reportOf(
-                navigator.userAgent,
-                performance.now() - start,
-                loadedModules[1],
-                'infrastructure-error')))
-        }
-        return startBrowserTests(root, loadedModules[1])
-    })
+    // **Building the walk can throw before it is ever run.** `all` is variadic,
+    // so a suite larger than the engine's call-argument ceiling — measured
+    // between 100,000 and 150,000 sources here — raises `RangeError` while the
+    // effect is *constructed*, in the argument to `run`. Unguarded, that
+    // escapes `startBrowserTestSources` synchronously and leaves the page at
+    // `Loading 0/N` with no report: the outcome nothing can act on. Deferring
+    // makes it a rejection like any other, and the tail below turns it into a
+    // report the page can show. The ceiling itself belongs to
+    // `../../effects/todo/all-argument-limit.md`; this is only about failing
+    // where a reader can see it.
+    const report = Promise.resolve()
+        .then(() => run(loadProofs(sources)))
+        .then(outcome => {
+            // `loadProofs` answers every failure it can meet as a value, so a
+            // rejection here is this file's own interpreter breaking.
+            const loadedModules = unwrap(outcome)
+            if (loadedModules[0] === 'failed') {
+                // A module that never linked has no tests to run, so the run
+                // stops here. Each failure is still a counted result: totals
+                // that disagreed with `results` would tell an automated
+                // consumer the suite was empty rather than broken.
+                return publish(root, Promise.resolve(reportOf(
+                    navigator.userAgent,
+                    performance.now() - start,
+                    loadedModules[1],
+                    'infrastructure-error')))
+            }
+            return startBrowserTests(root, loadedModules[1])
+        })
+        .catch(async cause => publish(root, Promise.resolve(reportOf(
+            navigator.userAgent,
+            performance.now() - start,
+            [await failureOf(runnerSource, performance.now() - start, cause)],
+            'infrastructure-error'))))
     const view = viewOf(root)
     if (view !== null) { view.fjsBrowserTestReport = report }
     return report

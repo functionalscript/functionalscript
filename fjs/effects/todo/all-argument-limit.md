@@ -52,10 +52,15 @@ earlier version of this paragraph credited `batchSize = 25` with staying under t
 that was a misattribution, corrected in the pitfall catalog in
 [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md).)
 Both of the *traversal's* `Promise.all`s are gone now that the page runs the shared
-sequential traversal. The page still fans out once, over its module loading
-(`emergent_testing/browser/module.mjs`), which is a `Promise.all` in its own impure shell
-rather than an `all` dispatched through an interpreter — so it is outside this ceiling
-today, and inside it on the day that loading moves into `.f.mjs`.
+sequential traversal. The page still fans out once, over its module loading — and **that
+fan-out is now inside this ceiling**: the loading walk moved into
+`emergent_testing/browser/module.f.mjs` and dispatches `all`, which the page answers with
+`Promise.all`. Measured in this repository's Node: 100,000 sources build the effect,
+150,000 raise `RangeError` while it is *constructed*. The browser suite is 141 sources,
+so the ceiling is remote rather than near — but it is reachable now in a way it was not,
+and meeting it is a reported `infrastructure-error` rather than a page stuck in
+`loading`, pinned by `aSuiteTooLargeToFanOutIsReported`. A list-shaped `allOk` (below)
+removes it.
 The reverted functionalscript#1759 routed the page through the shared traversal and so
 briefly gave both runners the same ceiling; the sequential plan that replaced it removed
 the traversal's fan-outs entirely (functionalscript#1774). What remains is the registration
