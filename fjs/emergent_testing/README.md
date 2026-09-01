@@ -8,7 +8,7 @@ any other value.
 ## Scope
 
 **In a browser, this framework runs authored FunctionalScript — `.f.mjs` — and
-nothing else.** `website/browser-prepare.mjs` selects on the extension and the
+nothing else.** `website/module.f.mjs` selects on the extension and the
 generated manifest contains only those modules. That is the design, not a first
 iteration: an impure `.mjs` proof means whatever its host gives it — `node:fs`,
 `node:vm`, `process`, `node:test`, a filesystem, a subprocess — and a page has

@@ -923,13 +923,20 @@ are shared.
       does. The sequential fold costs a cold page the difference between the
       slowest import and the sum of 141 of them, and buys the shape every
       other walk in this package has.
-- [ ] Move static proof discovery and `_browser-suite.mjs` generation into
+- [x] Move static proof discovery and `_browser-suite.mjs` generation into
       `fjs/website/module.f.mjs`; extend `fjs/effects/node/` only for a concrete
       missing capability and prove the real and virtual interpretations.
-- [ ] Delete `fjs/website/browser-prepare.mjs` and make the sole `website`
+      **No operation was missing**: `readdir`, `readFile` and `writeFile` were
+      already there, and `readdir`'s own `recursive` option replaced the
+      hand-rolled directory recursion. What the move buys is the proof — the
+      generator runs against `effects/node/virtual`'s in-memory tree, so a
+      manifest is asserted from a directory of fixtures instead of being
+      checked by running the command and reading a `git diff`.
+- [x] Delete `fjs/website/browser-prepare.mjs` and make the sole `website`
       command `node ./fjs/module.mjs r ./fjs/website/module.f.mjs` once the
       FunctionalScript generator owns the complete build; do not restore the
-      removed `index-html` alias.
+      removed `index-html` alias. Done with the discovery move above: the
+      script had nothing left to do.
 - [x] Add `emergent_testing/browser/module.f.mjs` for pure browser application
       composition and its complete proof. **The orchestration moved: enumerate
       a module, walk its entries, route a failure, decide how the run ended.**
