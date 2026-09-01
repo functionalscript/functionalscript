@@ -122,6 +122,13 @@ export const proof = {
         assert(result[0] === 'ok')
         assert(result[0] === 'ok', result)
         assertEq(result[1].length, 2)
+        // A walk asks `isDirectory` rather than `!isFile`, because on a host
+        // the two differ — a symbolic link is neither — so both flags are
+        // answered here as well.
+        assertEq(result[1][0]?.isDirectory, true)
+        assertEq(result[1][0]?.isFile, false)
+        assertEq(result[1][1]?.isDirectory, false)
+        assertEq(result[1][1]?.isFile, true)
     },
     accessNestedPathThroughFile: () => {
         // 'a/b/c' where 'a' is a file: the operation wrapper's "not a directory"

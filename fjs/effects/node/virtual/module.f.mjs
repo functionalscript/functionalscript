@@ -216,7 +216,7 @@ const readdir = (base, recursive) => readOperation((dir, path) => {
         for (const [name, content] of entries(d)) {
             if (content === undefined) { continue }
             const isFile = !isDir(content)
-            result = [...result, { name, parentPath, isFile }]
+            result = [...result, { name, parentPath, isFile, isDirectory: !isFile }]
             if (!isFile && recursive) {
                 result = [...result, ...f(join(parentPath, name), content)]
             }
