@@ -5,7 +5,7 @@
 
 Split the CI pipeline into two stages:
 
-1. **Build stage** — a single, minimal job (e.g. Docker + Node 26) that runs unit tests (`fjs t`) and coverage, then publishes the package as a CI artifact. Platform coverage here is unimportant — FunctionalScript unit tests are platform-agnostic.
+1. **Build stage** — a single, minimal job (e.g. the Nix shell + Node 26) that runs unit tests (`fjs t`) and coverage, then publishes the package as a CI artifact. Platform coverage here is unimportant — FunctionalScript unit tests are platform-agnostic.
 2. **Integration stage** — a broad matrix of jobs (multiple OS × architecture combinations) that each download the artifact, install it, and run scenarios. This is where platform-specific failures actually surface: a package that installs and runs correctly on Linux/x64 may fail on Windows/ARM or macOS/ARM.
 
 The key insight: it matters far more that the *published package* works on every platform than that unit tests pass on every platform.

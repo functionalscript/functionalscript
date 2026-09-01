@@ -136,6 +136,12 @@ export type Catch = readonly['catch', <T>(f: () => T) => OpResult<Result<T, unkn
  * the whole reason: unlike its neighbours here, this operation has one
  * implementer today, the Node runners and the registration path they serve.
  * Nothing in a browser dispatches it yet.
+ *
+ * The tuple itself is a documented exception to the repo-wide `readonly`
+ * rule (`fjs/AGENTS.md` §3.2): making it `readonly` is a breaking change a
+ * consumer's mutable tuple could fail, tracked and deferred deliberately —
+ * see "Six operation tuples are not `readonly`" in
+ * `fjs/effects/todo/node-module-layering.md`.
  */
 export type All = ['all', <T, E>(...effects: Effect<never, T, E>[]) => OpResult<readonly Result<T, E>[]>]
 
@@ -157,6 +163,9 @@ export type Module = StringMap<unknown>
  * fails: a module that will not parse, a path that resolves to nothing, a
  * network that dropped. A caller that must report such a failure rather than
  * die needs the reason as a value, which is what the error channel carries.
+ *
+ * The tuple itself is a documented exception to the repo-wide `readonly`
+ * rule (`fjs/AGENTS.md` §3.2) — see the note on `All` above.
  */
 export type Import = ['import', (path: string) => IoResult<Module>]
 

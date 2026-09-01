@@ -8,7 +8,7 @@ import type { Equal, Reduce } from '../function/operator/types.ts'
 import type { Range } from '../range/types.ts'
 import type { SortedList } from '../sorted_list/types.ts'
 
-export type Entry<T> = [T, number]
+export type Entry<T> = readonly [T, number]
 
 /**
  * A sorted list of entries, where each entry is a tuple `[T, number]` that maps

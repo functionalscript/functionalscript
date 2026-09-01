@@ -14,7 +14,7 @@ import type { Primitive } from '../types.ts'
  *
  * The specifier list indexes `['aref', i]`.
  */
-export type AstModule = [readonly string[], AstBody]
+export type AstModule = readonly [readonly string[], AstBody]
 
 /** A value in a module body: a primitive, a reference, an array, or an object. */
 export type AstConst = Primitive|AstModuleRef|AstArray|AstObject
@@ -35,10 +35,10 @@ export type AstConst = Primitive|AstModuleRef|AstArray|AstObject
  * later entry is unsatisfiable. It is not rejected: it resolves to the most
  * recently evaluated entry instead.
  */
-export type AstModuleRef = ['aref' | 'cref', number]
+export type AstModuleRef = readonly ['aref' | 'cref', number]
 
 /** An array value; its elements are evaluated in order. */
-export type AstArray = ['array', readonly AstConst[]]
+export type AstArray = readonly ['array', readonly AstConst[]]
 
 /** An object value, keyed by property name. */
 export type AstObject = { readonly[k in string]?: AstConst }
