@@ -11,6 +11,14 @@
  * manifest out, no filesystem touched. What used to check this was running the
  * command and reading a `git diff`.
  *
+ * **It costs 42 s where the script it replaced took 1.65 s**, and the whole
+ * difference is one function: reading a file through the operation decodes it
+ * with `text`'s `utf8ToString`, at ~23 ms per module against ~1 ms for a
+ * native read. Nothing here is worth tuning for it — the walk is 0.14 s and
+ * the reads themselves 0.1 s — so it is recorded where it belongs, in
+ * [`../text/todo/utf8-to-string-cost.md`](../text/todo/utf8-to-string-cost.md),
+ * with the measurements and with why fanning the reads out does not help.
+ *
  * @module
  *
  * @import { All, ReadFile, Readdir, Write, WriteFile } from '../effects/node/types.ts'
