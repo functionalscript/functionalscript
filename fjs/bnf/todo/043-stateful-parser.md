@@ -204,12 +204,30 @@ engine that value is not yet decided**; see the open questions.
   readonly reduce: Reduce<MO>             // two siblings, combined
   ```
 
-  A terminal's `MI` is translated on entry, everything above it is `MO`, and
-  `reduce` never sees `MI`. `Reduce<MO>` is
+  Everything above a terminal is `MO`, so `reduce` never sees `MI`.
+  `Reduce<MO>` is
   [`fjs/types/function/operator`](../../types/function/operator/types.ts)'s
   already. That settles what
   [generic-parser-metadata](./generic-parser-metadata.md)'s rule-by-rule
   derivation folds with.
+
+  **`translate` is the default for an *unmapped* terminal, not a step every
+  terminal passes through.** Translating on entry would put it in front of
+  [207 §1](./207-bnf-semantic-actions.md)'s `TerminalTransformer`, which would
+  then see `MO` alone — and that breaks the case the split exists for. A
+  tokenizer puts a token's numeric value in the metadata it emits; the parser
+  above it reads that value in `MI` to build its semantic number. With
+  `translate` first, either the callback cannot reach the value, or `translate`
+  has to smuggle it into `MO`, which is the payload the split was meant to keep
+  out of `MO`.
+
+  So the terminal *is* the `MI → MO` boundary:
+  `TerminalTransformer` becomes `(v: Meta<MI, CodePoint>) => Out<MO, T>`, and
+  `translate` supplies the metadata for a terminal that has no transformer —
+  exactly parallel to [207 §3](./207-bnf-semantic-actions.md)'s default builders
+  supplying the *value* for an unmapped rule. One boundary, crossed in one
+  place, declared by the author wherever they care and defaulted where they do
+  not.
 
   What it does not settle: a `Monoid` also carried an **identity**, which
   [207 §2](./207-bnf-semantic-actions.md) spends in three places that have no

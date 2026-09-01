@@ -97,11 +97,17 @@ it is written against. `Monoid<M>` needs one type, so with two it becomes two
 operations supplied at construction:
 
 ```ts
-readonly translate: (mi: MI) => MO      // a terminal's metadata, lifted
+readonly translate: (mi: MI) => MO      // an unmapped terminal's metadata
 readonly reduce: Reduce<MO>             // two siblings, combined
 ```
 
-Everything above a terminal is `MO`, and `reduce` never sees `MI`. Read every
+Everything above a terminal is `MO`, and `reduce` never sees `MI`. The terminal
+is the boundary: a terminal transformer takes `Meta<MI, CodePoint>` and returns
+`Out<MO, T>`, and `translate` supplies the metadata only where a terminal has no
+transformer — so "a terminal preserves its input symbol's metadata" above now
+means it preserves `MI` *into* the transformer, which is what lets a mapped
+terminal read a token payload the split keeps out of `MO`
+([43](./043-stateful-parser.md)). Read every
 "folds child metadata" above as `reduce`, and every "uses the monoid identity"
 as [43](./043-stateful-parser.md)'s open question — a semigroup has no identity,
 and the empty sequence, the zero-round repetition and the EOF terminal are

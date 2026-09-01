@@ -49,7 +49,9 @@ type RepeatTransformer<M, C, S, T> = StateFold<Meta<M, C>, S, Out<M, T>>
 ```
 
 - **Terminal** gets the matched symbol with its metadata. `Meta<M, CodePoint>` is
-  the shared parser leaf (§7).
+  the shared parser leaf (§7). *(With `MI`/`MO` this is where the two meet:
+  `(v: Meta<MI, CodePoint>) => Out<MO, T>`, the one place the boundary is
+  crossed — see [43](./043-stateful-parser.md).)*
 - **Sequence** gets its children as a typed tuple. Fixed arity, so nothing to
   stream and no state.
 - **Variant** gets the branch name paired with its value, in *one* parameter:
