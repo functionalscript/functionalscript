@@ -6,6 +6,7 @@
  * @import { Rule, Sequence, Variant } from '../../types.ts'
  */
 
+import { escape } from 'node:querystring'
 import { repeat } from '../../../types/array/module.f.mjs'
 import { commaJoin0Plus, option, range, remove, repeat0Plus, set, unicodeMax } from '../../module.f.mjs'
 
