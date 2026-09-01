@@ -5,11 +5,11 @@
  *
  * @import { Rule } from '../../types.ts'
  * @import { Type } from '../../../rtti/types.ts'
- * @import { RuleInfo, Base, Mapped } from './types.ts'
+ * @import { RuleInfo, Base, Mapped, Terminal, Sequence, Variant, Repeat } from './types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
-import { isRepeat, toData as ruleToData } from '../../data/module.f.mjs'
+import { repeatItem as normalizedRepeatItem } from '../../data/module.f.mjs'
 import { number, string, unknown, array, or } from '../../../rtti/module.f.mjs'
 import { equal, toData } from '../../../rtti/data/module.f.mjs'
 import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
@@ -34,19 +34,19 @@ const hasRule = (a, rule) => a.some(v => v === rule)
 const findInfo = (ri, rule) => ri.find(([r]) => r === rule)?.[1] ?? null
 
 /** @type {(rule: Rule) => Rule | null} */
-const repeatItem = rule => {
-    if (typeof rule !== 'function') { return null }
-    const data = rule()
-    if (typeof data === 'number' || typeof data === 'string' || data instanceof Array) { return null }
-    const branches = definedValues(data)
-    if (branches.length !== 2) { return null }
-    const emptyIndex = branches.findIndex(v => v instanceof Array && v.length === 0)
-    if (emptyIndex === -1) { return null }
-    const step = branches[1 - emptyIndex]
-    if (!(step instanceof Array) || step.length !== 2 || step[1] !== rule) { return null }
-    const [ruleSet, entry] = ruleToData(rule)
-    return isRepeat(ruleSet[entry]) ? step[0] : null
-}
+const repeatItem = normalizedRepeatItem
+
+/** @type {Terminal} */
+export const terminal = info => /** @type {any} */ (info)
+
+/** @type {Sequence} */
+export const sequence = info => /** @type {any} */ (info)
+
+/** @type {Variant} */
+export const variant = info => /** @type {any} */ (info)
+
+/** @type {Repeat} */
+export const repeat = info => /** @type {any} */ (info)
 
 /** @type {(rule: Rule) => readonly Rule[]} */
 const children = rule => {

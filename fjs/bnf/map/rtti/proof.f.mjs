@@ -6,7 +6,13 @@
 import { assertEq } from '../../../asserts/module.f.mjs'
 import { array, number, or, string, unknown } from '../../../rtti/module.f.mjs'
 import { none, option, range, repeat0Plus } from '../../module.f.mjs'
-import { checkMap } from './module.f.mjs'
+import {
+    checkMap,
+    repeat as mappedRepeat,
+    sequence as mappedSequence,
+    terminal as mappedTerminal,
+    variant as mappedVariant,
+} from './module.f.mjs'
 
 const digit = range('09')
 const sequence = [digit]
@@ -19,37 +25,33 @@ const ast = () => ['const', {
     sequence: array(or(ast, [number, unknown])),
 }]
 
-/** @type {Mapped} */
-const terminalInfo = {
+const terminalInfo = mappedTerminal({
     tag: 'terminal',
     ri: number,
     ro: string,
     map: /** @type {any} */ (() => ['digit', undefined]),
-}
+})
 
-/** @type {Mapped} */
-const sequenceInfo = {
+const sequenceInfo = mappedSequence({
     tag: 'sequence',
     ri: [string],
     ro: string,
     map: /** @type {any} */ (() => ['sequence', undefined]),
-}
+})
 
-/** @type {Mapped} */
-const variantInfo = {
+const variantInfo = mappedVariant({
     tag: 'variant',
     ri: { digit: string },
     ro: string,
     map: /** @type {any} */ (() => ['variant', undefined]),
-}
+})
 
-/** @type {Mapped} */
-const repeatInfo = {
+const repeatInfo = mappedRepeat({
     tag: 'repeat',
     ri: string,
     ro: string,
     map: /** @type {any} */ ({ init: null, update: () => null, end: () => ['repeat', undefined] }),
-}
+})
 
 export const proof = {
     kinds: () => {
@@ -67,23 +69,23 @@ export const proof = {
     },
     stringSequence: () => {
         /** @type {Mapped} */
-        const info = {
+        const info = /** @type {any} */ (mappedSequence(/** @type {any} */ ({
             tag: 'sequence',
             ri: [ast, ast],
             ro: string,
             map: /** @type {any} */ (() => ['hi', undefined]),
-        }
+        })))
         assertEq(checkMap([['hi', info]]).get('hi'), info)
     },
     implicitAst: () => {
         const parent = [digit]
         /** @type {Mapped} */
-        const info = {
+        const info = /** @type {any} */ (mappedSequence(/** @type {any} */ ({
             tag: 'sequence',
             ri: [ast],
             ro: string,
             map: /** @type {any} */ (() => ['parent', undefined]),
-        }
+        })))
         const result = checkMap([[parent, info]])
         assertEq(result.size, 2)
         assertEq(result.get(digit)?.map, null)
@@ -91,13 +93,21 @@ export const proof = {
     sharedChild: () => {
         const parent = [digit, digit]
         /** @type {Mapped} */
-        const info = {
+        const info = /** @type {any} */ (mappedSequence(/** @type {any} */ ({
             tag: 'sequence',
             ri: [ast, ast],
             ro: string,
             map: /** @type {any} */ (() => ['parent', undefined]),
-        }
+        })))
         assertEq(checkMap([[parent, info]]).size, 2)
+    },
+    lazyRepeat: () => {
+        const empty = () => []
+        const lazyRepeated = () => ({ none: empty, some: [digit, lazyRepeated] })
+        assertEq(checkMap([
+            [lazyRepeated, repeatInfo],
+            [digit, terminalInfo],
+        ]).get(lazyRepeated), repeatInfo)
     },
     lazyNonRepeats: () => {
         const lazyTerminal = () => digit
@@ -111,7 +121,7 @@ export const proof = {
         const badStep = () => ({ none, some: digit })
         const badTailStep = [digit, digit]
         const badTail = () => ({ none, some: badTailStep })
-        /** @type {(tag: Mapped['tag'], ri: Type) => any} */
+        /** @type {(tag: 'terminal' | 'sequence' | 'variant' | 'repeat', ri: Type) => any} */
         const info = (tag, ri) => ({
             tag,
             ri,
