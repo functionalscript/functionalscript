@@ -151,15 +151,23 @@ new module boundary and final rule discriminants before implementation starts.
       alphabet-agnostic; keep optional Unicode conveniences in
       `fjs/bnf/unicode/module.f.mjs`.
 - [ ] Update grammars and imports to construct text terminals through the Unicode
-      helpers instead of relying on raw strings as generic rules.
+      helpers instead of relying on raw strings as generic rules. `fjs/bnf/lib/json`
+      and `fjs/bnf/lib/datajs` are importers of the removed core helpers and use
+      raw strings throughout, so they are ported **in this change**: this is a
+      breaking change, and [AGENTS.md §5](../../../AGENTS.md) requires every
+      importer updated in the same PR. `tsc` enforces it regardless — the split
+      cannot land green without them. Staging it (add `fjs/bnf/unicode`, port the
+      importers, then remove the core exports) is the alternative, not deferral.
 - [ ] Keep EOF generic and width-independent: use core BNF's `EOF = -1`, and keep
       all alphabet adapters restricted to ordinary non-negative symbols without
       reserving the maximal value.
 - [ ] Restate the helper set and import boundary in
-      [`bnf-grammar-single-owner`](./bnf-grammar-single-owner.md) once this
-      split's real API exists, so the port it describes is written against
-      shipped names rather than proposed ones. The port itself is that issue's
-      to make and is blocked on this one — not a box this task can tick.
+      [`bnf-grammar-single-owner`](./bnf-grammar-single-owner.md) against the
+      names this split actually ships, rather than the proposed ones it is
+      written on. That issue is blocked on this split for the design work the
+      port does not settle — parameterizing `string`, which digit rules are
+      exported, and sharing them with the `fsc` tokenizer — not for the port
+      itself, which is the previous task's and lands here.
 - [ ] Re-point the rule **values** `fjs/bnf/todo/207-bnf-semantic-actions.md`
       keys its transformer maps on after this split: it is no longer blocked by
       it, but lowering text literals through the Unicode adapter replaces rule

@@ -1,4 +1,4 @@
-## bnf-grammar-single-owner. Lower the canonical JSON BNF grammar onto `bnf/unicode`
+## bnf-grammar-single-owner. Finish the canonical grammars' shared lexical API
 
 **Priority:** P4
 **Status:** blocked
@@ -13,13 +13,22 @@ deterministic grammar now lives at
 co-located `proof.f.mjs`, and `fjs/bnf/testlib.f.mjs`'s `deterministic()` is a
 one-line delegation to it rather than a second copy.
 
-What is still owed is the *alphabet* migration. That module was written against
-the current API — `range`, `set`, `unicodeMax` imported from generic
-`fjs/bnf/module.f.mjs`, and raw JavaScript strings (`'"'`, `'\\'`, `'true'`)
-used directly as `Rule` values. The blocking split removes both: text
-interpretation moves to `fjs/bnf/unicode`, and `string` leaves the functional
-`DataRule`. So the canonical grammar has an owner but sits on an API that is
-going away.
+Two things are still owed, and they belong to different changes.
+
+The module was written against the current API — `range`, `set`, `unicodeMax`
+imported from generic `fjs/bnf/module.f.mjs`, and raw JavaScript strings
+(`'"'`, `'\\'`, `'true'`) used directly as `Rule` values. The blocking split
+removes both: text interpretation moves to `fjs/bnf/unicode`, and `string`
+leaves the functional `DataRule`. That **port is the split's own**, not this
+issue's — it breaks these grammars, so it fixes them in the same change. This
+issue records what the port has to preserve.
+
+What is left for this issue is the shared lexical API itself, which #1817 shipped
+only partly: `string` is not parameterized over its simple escapes, so a second
+caller cannot keep its own branch tags; `onenine`, `digits0` and `digits` are
+private, so "reuse the digit rules" has nothing to import; and the `fsc`
+tokenizer is not pointed at any of it. None of that is alphabet work, but all of
+it is easier to land once the split has settled the names.
 
 **Do not create `fjs/media/json/grammar/module.f.mjs`.** That was this issue's
 original proposal and it is withdrawn.
@@ -51,9 +60,9 @@ path changes, from `fjs/djs/tokenizer` to the `fsc` tokenizer.
 
 ### Proposal
 
-Rebase [`fjs/bnf/lib/json`](../lib/json/module.f.mjs) and
-[`fjs/bnf/lib/datajs`](../lib/datajs/module.f.mjs) on the API the
-alphabet split produces, keeping the boundary visible:
+When the split rebases [`fjs/bnf/lib/json`](../lib/json/module.f.mjs) and
+[`fjs/bnf/lib/datajs`](../lib/datajs/module.f.mjs) onto the API it produces, the
+boundary it must leave visible is:
 
 - generic grammar structure and combinators come from `fjs/bnf/module.f.mjs`;
 - all JavaScript-string / Unicode-code-point interpretation comes from
@@ -157,7 +166,14 @@ implements the pass with it; shipping one that skips it would be
 
 ### Unicode migration requirements
 
-Before implementing this TODO after the blocking split:
+These constrain the **split's own port**, not work that follows it. Removing
+`range`, `set` and `unicodeMax` from core BNF and dropping `string` from the
+functional `DataRule` breaks both grammars the moment it lands, so
+[`unicode-rules`](./unicode-rules.md) ports them in the same change —
+[AGENTS.md §5](../../../AGENTS.md) requires every importer updated in the PR
+that breaks them, and `tsc` will not let it land otherwise. They are recorded
+here because this issue owns these grammars, and whoever does that port should
+read them first:
 
 - [ ] Replace every core import of `range`, `set`, `unicodeMax`, `str`, or
       equivalent Unicode/text helpers in `fjs/bnf/lib/json` and
@@ -180,8 +196,10 @@ Before implementing this TODO after the blocking split:
 
 ### Tasks
 
-- [ ] Wait for [Separate alphabet-specific BNF helpers](./unicode-rules.md)
-      and rebase the two `fjs/bnf/lib` grammars on the resulting `bnf/unicode` API.
+- [ ] Wait for [Separate alphabet-specific BNF helpers](./unicode-rules.md),
+      which ports both `fjs/bnf/lib` grammars onto `bnf/unicode` as part of its
+      own change, and check the result against the requirements above. What
+      follows below is the design work that port does not settle.
 - [ ] Keep JSON-specific Unicode construction in `fjs/bnf/lib/json`; do not move
       it back into generic BNF and do not move it into `fjs/media/json`.
 - [ ] Keep the exported readonly `Rule` / `Sequence` / `Variant` contracts on the
