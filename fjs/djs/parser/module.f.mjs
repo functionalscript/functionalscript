@@ -8,7 +8,7 @@
  * @import { DjsToken, DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstArray, AstConst, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { ParseError, _OrdinaryTokenName, _ValueToken } from './types.ts'
- * @import { CodePointMeta } from '../../bnf/descent/types.ts'
+ * @import { Meta } from '../../bnf/matcher/types.ts'
  * @import { AstSequence } from '../../bnf/matcher/types.ts'
  * @import { Rule, TerminalRange } from '../../bnf/types.ts'
  * @import { DescentMatch } from '../../bnf/descent/types.ts'
@@ -150,7 +150,7 @@ const tokenEncoding = encoding(_ordinaryTokenNames)
  * means {@link splitEof} was skipped, which is a caller bug rather than bad
  * input, so this asserts instead of widening the result to a `Result`.
  *
- * @type {(t: DjsTokenWithMetadata) => CodePointMeta<DjsTokenWithMetadata>}
+ * @type {(t: DjsTokenWithMetadata) => Meta<DjsTokenWithMetadata, number>}
  */
 const tokenToSymbol = t => {
     const { token } = t
@@ -450,7 +450,7 @@ const slot = tag => node => {
  */
 const descendantsTagged = tag => root => {
     /** Pushes a node's children so the leftmost is visited first. */
-    /** @type {(rest: List<_Node>, sequence: AstSequence<CodePointMeta<DjsTokenWithMetadata>>) => List<_Node>} */
+    /** @type {(rest: List<_Node>, sequence: AstSequence<Meta<DjsTokenWithMetadata, number>>) => List<_Node>} */
     const pushChildren = (rest, sequence) => {
         let stack = rest
         let i = sequence.length

@@ -1,7 +1,9 @@
 /**
  * @import { CodePoint } from '../../text/utf16/types.ts'
  * @import { RuleSet } from '../data/types.ts'
- * @import { CodePointMeta } from '../descent/types.ts'
+ * @import { Ast, Meta } from '../matcher/types.ts'
+ * @import { Monoid } from '../../common/monoid/types.ts'
+ * @import { SequenceTransformer } from '../matcher/types.ts'
  * @import { Rule as FRule } from '../types.ts'
  * @import { Match } from './types.ts'
  * @import { MatchResult } from './types.ts'
@@ -12,20 +14,45 @@ import { map, toArray } from '../../types/list/module.f.mjs'
 import { commaJoin0Plus, eof, option, range, repeat0Plus, set } from '../module.f.mjs'
 import { toData } from '../data/module.f.mjs'
 import { descentParser } from '../descent/module.f.mjs'
-import { dispatchMap, parser, parserRuleSet } from './module.f.mjs'
-import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { dispatchMap, parser, parserRuleSet, transformers } from './module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { deterministic, showAst } from '../testlib.f.mjs'
 import { repeat } from '../../types/array/module.f.mjs'
 
-/** @type {(cp: CodePoint) => CodePointMeta<unknown>} */
+/** @type {(cp: CodePoint) => Meta<unknown, CodePoint>} */
 const mapCodePoint = cp => [cp, undefined]
 
-/** @type {(mr: MatchResult) => boolean} */
+/** @type {(cp: CodePoint) => Meta<string, CodePoint>} */
+const mapCodePointEmpty = cp => [cp, '']
+
+/** @type {(cp: readonly CodePoint[]) => readonly Meta<unknown, CodePoint>[]} */
+const withMeta = cp => toArray(map(mapCodePoint)(cp))
+
+/** @type {Monoid<string>} */
+const stringMonoid = {
+    identity: '',
+    operation: a => b => a + b,
+}
+
+/** @type {(mr: MatchResult<unknown>) => boolean} */
 const isMatchSuccess = ([, success, remainder]) => success && remainder?.length === 0
 
-/** @type {(m: Match) => (s: string, success: boolean) => void} */
+/** @type {(ast: Ast<Meta<unknown, CodePoint>>) => Ast<CodePoint>} */
+const astWithoutMeta = ast => ({
+    ...ast,
+    sequence: ast.sequence.map(item => item instanceof Array ? item[0] : astWithoutMeta(item)),
+})
+
+/** @type {(mr: MatchResult<unknown>) => string} */
+const matchJson = ([ast, success, remainder]) => JSON.stringify([
+    astWithoutMeta(ast),
+    success,
+    remainder?.map(([cp]) => cp) ?? remainder,
+])
+
+/** @type {(m: Match<unknown>) => (s: string, success: boolean) => void} */
 const expectMatch = m => (s, success) => {
-    const mr = m('', toArray(stringToCodePointList(s)))
+    const mr = m('', withMeta(toArray(stringToCodePointList(s))))
     assertEq(isMatchSuccess(mr), success, mr)
 }
 
@@ -39,9 +66,10 @@ const expectMatch = m => (s, success) => {
 const bothBackends = (rule, s, expected) => () => {
     const [, entry] = toData(rule)
     const cp = toArray(stringToCodePointList(s))
-    const dm = descentParser(rule)(entry, toArray(map(mapCodePoint)(cp)))
+    const input = withMeta(cp)
+    const dm = descentParser(rule)(entry, input)
     assertEq(showAst(dm.ast), expected, s)
-    assertEq(showAst(parser(rule)(entry, cp)[0]), expected, s)
+    assertEq(showAst(parser(rule)(entry, input)[0]), expected, s)
 }
 
 export const proof = {
@@ -137,7 +165,7 @@ export const proof = {
                 JSON.stringify(dispatchMap(ruleSet)),
                 '{"m":{"rangeMap":[[null,44],[{"name":"m"},45]]},"e":{"rangeMap":[]},"o1":{"empty":{"tag":"none","name":"e"},"rangeMap":[[null,44],[{"tag":"some","name":"m"},45]]},"a":{"rangeMap":[[null,64],[{"name":"a"},65]]},"o2":{"empty":{"tag":"none","name":"e"},"rangeMap":[[null,64],[{"tag":"some","name":"a"},65]]},"s":{"rangeMap":[[null,44],[{"tag":"some","name":"m"},45],[null,64],[{"tag":"some","name":"a"},65]]}}')
             assertEq(
-                JSON.stringify(parserRuleSet(ruleSet)('s', [45, 65])),
+                matchJson(parserRuleSet(ruleSet)('s', withMeta([45, 65]))),
                 '[{"sequence":[{"tag":"some","sequence":[45]},{"tag":"some","sequence":[65]}]},true,[]]')
         }
     ],
@@ -145,63 +173,63 @@ export const proof = {
         () => {
             const emptyRule = ''
             const m = parser(emptyRule)
-            assertEq(JSON.stringify(m("", [])), '[{"sequence":[]},true,[]]')
+            assertEq(matchJson(m("", [])), '[{"sequence":[]},true,[]]')
         },
         () => {
             const emptyRule = ''
             const m = parser(emptyRule)
-            assertEq(JSON.stringify(m("", [65, 70])), '[{"sequence":[]},true,[65,70]]')
+            assertEq(matchJson(m("", withMeta([65, 70]))), '[{"sequence":[]},true,[65,70]]')
         },
         () => {
             const terminalRangeRule = range('AF')
             const m = parser(terminalRangeRule)
-            assertEq(JSON.stringify(m("", [65])), '[{"sequence":[65]},true,[]]')
+            assertEq(matchJson(m("", withMeta([65]))), '[{"sequence":[65]},true,[]]')
         },
         () => {
             const terminalRangeRule = 0x000079_000087
             const m = parser(terminalRangeRule)
-            assertEq(JSON.stringify(m("", [64])), '[{"sequence":[]},false,[64]]')
+            assertEq(matchJson(m("", withMeta([64]))), '[{"sequence":[]},false,[64]]')
         },
         () => {
             const terminalRangeRule = 0x000080_000087 //broken range
             const m = parser(terminalRangeRule)
-            assertEq(JSON.stringify(m("", [64])), '[{"sequence":[]},false,[64]]')
+            assertEq(matchJson(m("", withMeta([64]))), '[{"sequence":[]},false,[64]]')
         },
         () => {
             const variantRule = { 'a': range('AA'), 'b': range('BB')}
             const m = parser(variantRule)
-            assertEq(JSON.stringify(m("", [65])), '[{"tag":"a","sequence":[65]},true,[]]')
+            assertEq(matchJson(m("", withMeta([65]))), '[{"tag":"a","sequence":[65]},true,[]]')
         },
         () => {
             const variantRule = { 'a': range('AA'), 'b': range('BB')}
             const m = parser(variantRule)
-            assertEq(JSON.stringify(m("", [64])), '[{"sequence":[]},false,[64]]')
+            assertEq(matchJson(m("", withMeta([64]))), '[{"sequence":[]},false,[64]]')
         },
         () => {
             // No branch dispatches on the end of input and none is nullable:
             // the match ran out of input, the `null` remainder.
             const variantRule = { 'a': range('AA'), 'b': range('BB')}
             const m = parser(variantRule)
-            assertEq(JSON.stringify(m("", [])), '[{"sequence":[]},true,null]')
+            assertEq(matchJson(m("", [])), '[{"sequence":[]},true,null]')
         },
         () => {
             const emptyRule = ''
             const variantRule = { 'e': emptyRule, 'a': range('AA')}
             const m = parser(variantRule)
-            assertEq(JSON.stringify(m("", [])), '[{"tag":"e","sequence":[]},true,[]]')
+            assertEq(matchJson(m("", [])), '[{"tag":"e","sequence":[]},true,[]]')
         },
         () => {
             const emptyRule = ''
             const variantRule = { 'e': emptyRule, 'a': range('AA')}
             const m = parser(variantRule)
-            assertEq(JSON.stringify(m("", [64])), '[{"tag":"e","sequence":[]},true,[64]]')
+            assertEq(matchJson(m("", withMeta([64]))), '[{"tag":"e","sequence":[]},true,[64]]')
         },
         () => {
             // Every item of a sequence owns a node — the leading one included.
             const stringRule = 'AB'
             const m = parser(stringRule)
             assertEq(
-                JSON.stringify(m("", [65,66])),
+                matchJson(m("", withMeta([65,66]))),
                 '[{"sequence":[{"sequence":[65]},{"sequence":[66]}]},true,[]]')
         },
         () => {
@@ -209,7 +237,7 @@ export const proof = {
             // matching stopped: on the rejected `C`.
             const stringRule = 'AB'
             const m = parser(stringRule)
-            assertEq(JSON.stringify(m("", [65,67])), '[{"sequence":[]},false,[67]]')
+            assertEq(matchJson(m("", withMeta([65,67]))), '[{"sequence":[]},false,[67]]')
         },
         () => {
             // An option that matched empty still owns a node, so the AST says
@@ -221,7 +249,7 @@ export const proof = {
             const numberRule = [optionalMinusRule, digitRule]
             const m = parser(numberRule)
             assertEq(
-                JSON.stringify(m("", [50])),
+                matchJson(m("", withMeta([50]))),
                 '[{"sequence":[{"tag":"none","sequence":[]},{"sequence":[50]}]},true,[]]')
         },
         () => {
@@ -234,7 +262,7 @@ export const proof = {
             const numberRule = [optionalMinusRule, digitRule]
             const m = parser(numberRule)
             assertEq(
-                JSON.stringify(m("", [45,50])),
+                matchJson(m("", withMeta([45,50]))),
                 '[{"sequence":[{"tag":"minus","sequence":[45]},{"sequence":[50]}]},true,[]]')
         },
         () => {
@@ -247,7 +275,7 @@ export const proof = {
             // The `null` remainder means the match ran out of input; the AST
             // keeps what had matched by then.
             assertEq(
-                JSON.stringify(m("", [])),
+                matchJson(m("", [])),
                 '[{"sequence":[{"tag":"none","sequence":[]},{"sequence":[]}]},true,null]')
         },
         () => {
@@ -275,7 +303,7 @@ export const proof = {
 
             /** @type {(s: string, success: boolean) => void} */
             const expect = (s, success) => {
-                const mr = m('value', toArray(stringToCodePointList(s)))
+                const mr = m('value', withMeta(toArray(stringToCodePointList(s))))
                 assertEq(isMatchSuccess(mr), success, mr)
             }
 
@@ -298,8 +326,9 @@ export const proof = {
             /** @type {(s: string) => void} */
             const expectSameAst = s => {
                 const cp = toArray(stringToCodePointList(s))
-                const dm = md(entry, toArray(map(mapCodePoint)(cp)))
-                const mr = ml(entry, cp)
+                const input = withMeta(cp)
+                const dm = md(entry, input)
+                const mr = ml(entry, input)
                 assertEq(mr[1], true, s)
                 assertEq(mr[2]?.length, 0, s)
                 assertEq(showAst(mr[0]), showAst(dm.ast), s)
@@ -307,7 +336,7 @@ export const proof = {
 
             /** @type {(s: string) => void} */
             const expectNoMatch = s => {
-                const mr = ml(entry, toArray(stringToCodePointList(s)))
+                const mr = ml(entry, withMeta(toArray(stringToCodePointList(s))))
                 assertEq(isMatchSuccess(mr), false, s)
             }
 
@@ -337,20 +366,242 @@ export const proof = {
             // nothing, the same position the descent backend reports as its
             // furthest failure.
             const bad = '   [{ "q": [ 12, false, [}], "a"] }]  '
-            const badMr = ml(entry, toArray(stringToCodePointList(bad)))
+            const badMr = ml(entry, withMeta(toArray(stringToCodePointList(bad))))
             assertEq(badMr[1], false, bad)
             const remainder = assertNotNullish(badMr[2])
             assertEq(bad.length - remainder.length, 25, bad)
             assertEq(bad[25], '}', bad)
         }
     ],
+    transformers: {
+        terminalSequence: () => {
+            const a = range('AA')
+            const b = range('BB')
+            const rule = /** @type {const} */ ([a, b])
+            const t = transformers(stringMonoid)
+            const terminal = t.terminalOf(([cp, metadata]) => [String.fromCodePoint(cp), metadata])
+            /** @type {SequenceTransformer<string, readonly[string, string], string>} */
+            const join = ([[x, y], metadata]) => [x + y, metadata]
+            const sequence = t.sequenceOf(2, join)
+            const match = t.build(t.map(
+                t.entry(a, terminal),
+                t.entry(b, terminal),
+            ))(t.entry(rule, sequence))
+            assertEq(
+                JSON.stringify(match([[65, 'a'], [66, 'b']])),
+                '["ok",["AB","ab"],[]]')
+        },
+        terminalEof: () => {
+            const t = transformers(stringMonoid)
+            const terminal = t.terminalOf(([cp, metadata]) => [cp, metadata])
+            const match = t.build(t.map())(t.entry(eof, terminal))
+            assertEq(JSON.stringify(match([])), '["ok",[-1,""],[]]')
+        },
+        emptySequence: () => {
+            const empty = /** @type {const} */ ([])
+            const t = transformers(stringMonoid)
+            const sequence = t.sequenceOf(0, ([items, metadata]) => [items.length, metadata])
+            const match = t.build(t.map())(t.entry(empty, sequence))
+            assertEq(JSON.stringify(match([])), '["ok",[0,""],[]]')
+        },
+        variant: () => {
+            const a = range('AA')
+            const b = range('BB')
+            const rule = /** @type {const} */ ({ a, b })
+            const t = transformers(stringMonoid)
+            const terminal = t.terminalOf(([cp, metadata]) => [String.fromCodePoint(cp), metadata])
+            const variant = t.variantOf(['a', 'b'], ([[tag, value], metadata]) => [tag + value, metadata])
+            const match = t.build(t.map(
+                t.entry(a, terminal),
+                t.entry(b, terminal),
+            ))(t.entry(rule, variant))
+            assertEq(JSON.stringify(match([[65, 'm']])), '["ok",["aA","m"],[]]')
+        },
+        repeat: () => {
+            const a = range('AA')
+            const rule = repeat0Plus(a)
+            const t = transformers(stringMonoid)
+            const terminal = t.terminalOf(([cp, metadata]) => [String.fromCodePoint(cp), metadata])
+            const repeated = t.repeatOf(a, {
+                init: '',
+                update: (state, [value, metadata]) => state + value + metadata,
+                end: state => [state, 'end:' + state],
+            })
+            const match = t.build(t.map(t.entry(a, terminal)))(t.entry(rule, repeated))
+            assertEq(JSON.stringify(match([])), '["ok",["","end:"],[]]')
+            assertEq(
+                JSON.stringify(match([[65, 'x'], [65, 'y']])),
+                '["ok",["AxAy","end:AxAy"],[]]')
+        },
+        defaultChildren: () => {
+            const a = range('AA')
+            const choice = /** @type {const} */ ({ a })
+            const rule = /** @type {const} */ ([choice])
+            const t = transformers(stringMonoid)
+            /** @type {SequenceTransformer<string, readonly[Ast<unknown>], string>} */
+            const show = ([[node], metadata]) => [JSON.stringify(node), metadata]
+            const sequence = t.sequenceOf(1, show)
+            const match = t.build(t.map())(t.entry(rule, sequence))
+            assertEq(
+                JSON.stringify(match([[65, 'm']])),
+                '["ok",["{\\"tag\\":\\"a\\",\\"sequence\\":[[65,\\"m\\"]]}","m"],[]]')
+        },
+        defaultRepeat: () => {
+            const repeated = repeat0Plus(range('AA'))
+            const rule = /** @type {const} */ ([repeated])
+            const t = transformers(stringMonoid)
+            const match = t.build(t.map())(t.entry(
+                rule,
+                t.sequenceOf(1, ([items, metadata]) => [items, metadata]),
+            ))
+            assertEq(
+                JSON.stringify(match([[65, 'a'], [65, 'b']])),
+                '["ok",[[{"sequence":[{"sequence":[[65,"a"]]},{"sequence":[[65,"b"]]}]}],"ab"],[]]')
+        },
+        unitKinds: () => {
+            const a = range('AA')
+            const empty = /** @type {const} */ ([])
+            const choice = /** @type {const} */ ({ a })
+            const repeated = repeat0Plus(a)
+
+            const terminalTools = transformers(stringMonoid)
+            assertEq(
+                JSON.stringify(terminalTools.build(terminalTools.map())(
+                    terminalTools.entry(a, terminalTools.unit))([[65, 'a']])),
+                '["ok",[null,"a"],[]]')
+
+            const emptyTools = transformers(stringMonoid)
+            assertEq(
+                JSON.stringify(emptyTools.build(emptyTools.map())(
+                    emptyTools.entry(empty, emptyTools.unit))([])),
+                '["ok",[null,""],[]]')
+
+            const variantTools = transformers(stringMonoid)
+            const variantMatch = variantTools.build(variantTools.map(
+                variantTools.entry(a, variantTools.unit),
+            ))(variantTools.entry(choice, variantTools.unit))
+            assertEq(JSON.stringify(variantMatch([[65, 'a']])), '["ok",[null,"a"],[]]')
+            assertEq(JSON.stringify(variantMatch([[66, 'b']])), '["no-match",[[66,"b"]]]')
+            assertEq(JSON.stringify(variantMatch([])), '["no-match",null]')
+
+            const repeatTools = transformers(stringMonoid)
+            const repeatMatch = repeatTools.build(repeatTools.map())(
+                repeatTools.entry(repeated, repeatTools.unit))
+            assertEq(
+                JSON.stringify(repeatMatch([[65, 'a'], [65, 'b']])),
+                '["ok",[null,"ab"],[]]')
+        },
+        metadataGrouping: () => {
+            const a = range('AA')
+            const b = range('BB')
+            const c = range('CC')
+            const inner = /** @type {const} */ ([b, c])
+            const nested = /** @type {const} */ ([a, inner])
+            const flat = /** @type {const} */ ([a, b, c])
+            const t0 = transformers(stringMonoid)
+            const nestedMatch = t0.build(t0.map(
+                t0.entry(inner, t0.sequenceOf(2, ([items, metadata]) => [items, metadata])),
+            ))(t0.entry(nested, t0.sequenceOf(2, ([items, metadata]) => [items, metadata])))
+            const t1 = transformers(stringMonoid)
+            const flatMatch = t1.build(t1.map())(
+                t1.entry(flat, t1.sequenceOf(3, ([items, metadata]) => [items, metadata])))
+            const input = /** @type {const} */ ([[65, 'a'], [66, 'b'], [67, 'c']])
+            const nestedResult = nestedMatch(input)
+            const flatResult = flatMatch(input)
+            assert(nestedResult[0] === 'ok')
+            assert(flatResult[0] === 'ok')
+            assertEq(nestedResult[1][1], flatResult[1][1])
+            assertEq(flatResult[1][1], 'abc')
+        },
+        noMatch: () => {
+            const rule = /** @type {const} */ ([range('AA'), range('BB')])
+            const t = transformers(stringMonoid)
+            const match = t.build(t.map())(
+                t.entry(rule, t.sequenceOf(2, ([items, metadata]) => [items, metadata])))
+            assertEq(JSON.stringify(match([[65, 'a']])), '["no-match",null]')
+            assertEq(JSON.stringify(match([[65, 'a'], [67, 'c']])), '["no-match",[[67,"c"]]]')
+
+            const pastEof = /** @type {const} */ ([eof, { a: range('AA') }])
+            const pastEofMatch = t.build(t.map())(t.entry(
+                pastEof,
+                t.sequenceOf(2, ([items, metadata]) => [items, metadata]),
+            ))
+            assertEq(JSON.stringify(pastEofMatch([])), '["no-match",null]')
+        },
+        deep: () => {
+            const t = transformers(stringMonoid)
+            const match = t.build(t.map())(t.entry(deterministic(), t.unit))
+            const n = 1000
+            const cp = toArray(map(mapCodePointEmpty)(
+                toArray(stringToCodePointList('['.repeat(n) + ']'.repeat(n)))))
+            assertEq(JSON.stringify(match(cp)), '["ok",[null,""],[]]')
+        },
+        throw: {
+            unreachable: () => {
+                const t = transformers(stringMonoid)
+                return t.build(t.map(t.entry(range('BB'), t.unit)))(t.entry(range('AA'), t.unit))
+            },
+            kind: () => {
+                const t = transformers(stringMonoid)
+                return t.build(t.map())(t.entry(range('AA'), t.sequenceOf(0, ([items, metadata]) => [items, metadata])))
+            },
+            sequenceArity: () => {
+                const t = transformers(stringMonoid)
+                const rule = /** @type {const} */ ([range('AA')])
+                return t.build(t.map())(t.entry(rule, t.sequenceOf(0, ([items, metadata]) => [items, metadata])))
+            },
+            variantBranches: () => {
+                const t = transformers(stringMonoid)
+                const rule = /** @type {const} */ ({ a: range('AA') })
+                return t.build(t.map())(t.entry(rule, t.variantOf(['b'], ([branch, metadata]) => [branch, metadata])))
+            },
+            duplicateVariantBranch: () => {
+                const t = transformers(stringMonoid)
+                const rule = /** @type {const} */ ({ a: range('AA'), b: range('BB') })
+                return t.build(t.map())(t.entry(rule, t.variantOf(['a', 'a'], ([branch, metadata]) => [branch, metadata])))
+            },
+            repeatItem: () => {
+                const a = range('AA')
+                const t = transformers(stringMonoid)
+                const repeated = t.repeatOf(range('BB'), {
+                    init: '',
+                    update: state => state,
+                    end: state => [state, state],
+                })
+                return t.build(t.map())(t.entry(repeat0Plus(a), repeated))
+            },
+            duplicateStart: () => {
+                const rule = range('AA')
+                const t = transformers(stringMonoid)
+                return t.build(t.map(t.entry(rule, t.unit)))(t.entry(rule, t.unit))
+            },
+            mappedBranch: () => {
+                const a = range('AA')
+                const choice = /** @type {const} */ ({ a })
+                const rule = /** @type {const} */ ([choice])
+                const t = transformers(stringMonoid)
+                return t.build(t.map(t.entry(a, t.unit)))(t.entry(rule, t.unit))
+            },
+            unmappedBranch: () => {
+                const a = range('AA')
+                const rule = /** @type {const} */ ({ a })
+                const t = transformers(stringMonoid)
+                return t.build(t.map())(t.entry(rule, t.variantOf(['a'], ([branch, metadata]) => [branch, metadata])))
+            },
+            factory: () => {
+                const a = transformers(stringMonoid)
+                const b = transformers(stringMonoid)
+                return a.build(a.map())(b.entry(range('AA'), b.unit))
+            },
+        },
+    },
     longInput: [
         () => {
             // Long repetition across the whole input: matched iteratively, so
             // neither the JS call stack nor the frame stack grows with it.
             const rule = repeat0Plus(set(' \n\r\t'))
             const m = parser(rule)
-            const [, success, remainder] = m(toData(rule)[1], toArray(stringToCodePointList(' '.repeat(10000))))
+            const [, success, remainder] = m(toData(rule)[1], withMeta(toArray(stringToCodePointList(' '.repeat(10000)))))
             assertEq(success, true)
             assertEq(remainder?.length, 0)
         },
@@ -361,7 +612,7 @@ export const proof = {
             const m = parser(deterministic())
             const n = 5000
             const cp = toArray(stringToCodePointList('['.repeat(n) + ']'.repeat(n)))
-            const [, success, remainder] = m('', cp)
+            const [, success, remainder] = m('', withMeta(cp))
             assertEq(success, true)
             assertEq(remainder?.length, 0)
         },
@@ -378,38 +629,38 @@ export const proof = {
             // `eof` terminal matches empty input. It adds no AST leaf, and the
             // remainder stays physical: empty, not `null`.
             const m = parser(eof)
-            assertEq(JSON.stringify(m('', [])), '[{"sequence":[]},true,[]]')
+            assertEq(matchJson(m('', [])), '[{"sequence":[]},true,[]]')
         },
         () => {
             // Callers pass physical symbols only, so EOF is not available
             // before the end of the input.
             const m = parser(eof)
-            assertEq(JSON.stringify(m('', [65])), '[{"sequence":[]},false,[65]]')
+            assertEq(matchJson(m('', withMeta([65]))), '[{"sequence":[]},false,[65]]')
         },
         () => {
             // Non-empty input: the terminal consumes the synthesized EOF after
             // the last code point.
             const m = parser([range('AA'), eof])
-            assertEq(JSON.stringify(m('', [65])), '[{"sequence":[{"sequence":[65]},{"sequence":[]}]},true,[]]')
+            assertEq(matchJson(m('', withMeta([65]))), '[{"sequence":[{"sequence":[65]},{"sequence":[]}]},true,[]]')
         },
         () => {
             // Exactly one EOF is synthesized: the second `eof` terminal has
             // nothing to consume, so the match runs out of input — the `null`
             // remainder this backend reports for that.
             const m = parser([eof, eof])
-            assertEq(JSON.stringify(m('', [])), '[{"sequence":[{"sequence":[]},{"sequence":[]}]},true,null]')
+            assertEq(matchJson(m('', [])), '[{"sequence":[{"sequence":[]},{"sequence":[]}]},true,null]')
         },
         () => {
             // A variant past the consumed EOF has no symbol to dispatch on:
             // the match runs out of input there too.
             const m = parser([eof, { a: range('AA') }])
-            assertEq(JSON.stringify(m('', [])), '[{"sequence":[{"sequence":[]},{"sequence":[]}]},true,null]')
+            assertEq(matchJson(m('', [])), '[{"sequence":[{"sequence":[]},{"sequence":[]}]},true,null]')
         },
         () => {
             // EOF as one alternative among ordinary terminals.
             const m = parser({ a: range('AA'), e: eof })
-            assertEq(JSON.stringify(m('', [])), '[{"tag":"e","sequence":[]},true,[]]')
-            assertEq(JSON.stringify(m('', [65])), '[{"tag":"a","sequence":[65]},true,[]]')
+            assertEq(matchJson(m('', [])), '[{"tag":"e","sequence":[]},true,[]]')
+            assertEq(matchJson(m('', withMeta([65]))), '[{"tag":"a","sequence":[65]},true,[]]')
         },
         () => {
             // Repetition terminates on EOF: consuming it moves the cursor, so
@@ -417,7 +668,7 @@ export const proof = {
             // round has no symbol left to dispatch on.
             const rule = repeat0Plus(eof)
             const m = parser(rule)
-            assertEq(JSON.stringify(m(toData(rule)[1], [])), '[{"sequence":[{"sequence":[]}]},true,[]]')
+            assertEq(matchJson(m(toData(rule)[1], [])), '[{"sequence":[{"sequence":[]}]},true,[]]')
         },
         () => {
             // Running out of input inside a repetition round ends the whole
@@ -425,7 +676,7 @@ export const proof = {
             const rule = repeat0Plus([eof, eof])
             const m = parser(rule)
             assertEq(
-                JSON.stringify(m(toData(rule)[1], [])),
+                matchJson(m(toData(rule)[1], [])),
                 '[{"sequence":[{"sequence":[{"sequence":[]},{"sequence":[]}]}]},true,null]')
         },
     ],
@@ -452,8 +703,8 @@ export const proof = {
                 JSON.stringify(dispatchMap(ruleSet)),
                 '{"repeated":{"rangeMap":[]}}')
             const m = parserRuleSet(ruleSet)
-            assertEq(JSON.stringify(m('repeated', [])), '[{"sequence":[]},true,[]]')
-            assertEq(JSON.stringify(m('repeated', [65])), '[{"sequence":[]},true,[65]]')
+            assertEq(matchJson(m('repeated', [])), '[{"sequence":[]},true,[]]')
+            assertEq(matchJson(m('repeated', withMeta([65]))), '[{"sequence":[]},true,[65]]')
         },
         () => {
             // The right-recursive spelling `toData` folds away can still be
@@ -476,17 +727,17 @@ export const proof = {
             const repeatData = [{"":["ws","repa"],"ws":[],"repa":["a",""],"a":1090519105},""]
             const m = parserRuleSet(repeatData[0])
             assertEq(
-                JSON.stringify(m("", [])),
+                matchJson(m("", [])),
                 '[{"sequence":[{"sequence":[]},{"sequence":[{"sequence":[]}]}]},true,null]')
-            const mr1 = m("", [65])
+            const mr1 = m("", withMeta([65]))
             assertEq(showAst(mr1[0]), '(() (("A") (() (()))))')
             assertEq(mr1[1], true)
             assertEq(mr1[2], null)
-            const mr3 = m("", [65,65,65])
+            const mr3 = m("", withMeta([65,65,65]))
             assertEq(showAst(mr3[0]), '(() (("A") (() (("A") (() (("A") (() (()))))))))')
             assertEq(mr3[1], true)
             assertEq(mr3[2], null)
-            assertEq(JSON.stringify(m("", [66])), '[{"sequence":[]},false,[66]]')
+            assertEq(matchJson(m("", withMeta([66]))), '[{"sequence":[]},false,[66]]')
         },
     ],
     // The two backends consume the same `RuleSet` and must agree about the AST

@@ -15,7 +15,7 @@
  *
  * @import { DataRule, Rule as FRule, Sequence as FSequence } from '../types.ts'
  * @import { StringSet } from '../../types/string_set/types.ts'
- * @import { EmptyTag, Repeat, Rule, RuleSet, Sequence, Variant, _EmptyTagMap } from './types.ts'
+ * @import { EmptyTag, GrammarData, Repeat, Rule, RuleSet, Sequence, Variant, _EmptyTagMap } from './types.ts'
  * @import { _FRuleMap, _NewRule } from './private.ts'
  */
 
@@ -296,6 +296,25 @@ export const detectRepeat = (ruleSet, entry) => {
  * @type {(fr: FRule) => readonly [RuleSet, string]}
  */
 export const toData = fr => {
-    const [, ruleSet, id] = toDataAdd({})(fr)
-    return [detectRepeat(ruleSet, id), id]
+    const [ruleSet, id] = toDataWithRules(fr)
+    return [ruleSet, id]
+}
+
+/**
+ * Converts a functional grammar while retaining the identity-to-name map the
+ * transformation engine needs to attach rule mappings after normalization.
+ *
+ * Only names that remain reachable after repeat normalization are exposed.
+ *
+ * @type {(fr: FRule) => GrammarData}
+ */
+export const toDataWithRules = fr => {
+    const [map, rawRuleSet, id] = toDataAdd({})(fr)
+    const ruleSet = detectRepeat(rawRuleSet, id)
+    const names = new Map(
+        definedEntries(map)
+            .filter(([name]) => name in ruleSet)
+            .map(([name, rule]) => [rule, name]),
+    )
+    return [ruleSet, id, names]
 }

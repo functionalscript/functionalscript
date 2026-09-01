@@ -21,10 +21,9 @@ rewinds. `../ll1` is predictive: sequence and repetition frames with no rewind
 state, and a cursor that never moves backwards. Their public results are different types on purpose —
 `{ ast, success, idx, failure? }` against `readonly [ast, success, Remainder]`.
 
-Nor is a leaf. A backend picks `L` for what it keeps of a consumed symbol:
-`../ll1` keeps the code point, `../descent` keeps it paired with metadata, which
-is the whole reason that backend exists. `CodePointMeta<T>` stays in
-`../descent`.
+Nor is a leaf. Both backends consume metadata-bearing code points; `Ast<L>`
+remains generic because the shared constructors do not depend on a specific
+leaf type.
 
 ## One module rather than three
 
@@ -38,8 +37,7 @@ one concept behind three imports.
 a parameter rather than branching on it:
 
 ```js
-const symbolOf = identity          // ../ll1: the leaf is the symbol
-const symbolOf = ([symbol]) => symbol   // ../descent: the symbol is its first half
+const symbolOf = ([symbol]) => symbol
 ```
 
 Each backend binds the partial application once at module scope, per

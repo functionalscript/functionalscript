@@ -5,6 +5,7 @@
  */
 
 import type { StringMap } from '../../types/object/types.ts'
+import type { Rule as FRule } from '../types.ts'
 
 /**
  * Encoded terminal range value used by BNF data rules.
@@ -52,6 +53,16 @@ export type Rule = Variant | Sequence | TerminalRange | Repeat
 
 /** The full grammar */
 export type RuleSet = Readonly<Record<string, Rule>>
+
+/** Functional rules keyed to the generated names used by a {@link RuleSet}. */
+export type RuleNameMap = ReadonlyMap<FRule, string>
+
+/** Grammar data together with the functional-rule identities that produced it. */
+export type GrammarData = readonly[
+    ruleSet: RuleSet,
+    entry: string,
+    names: RuleNameMap,
+]
 
 /**
  * Whether a rule can match empty input: `undefined` if it never can, `true`

@@ -2,7 +2,7 @@
  * Types for the recursive descent matcher backend.
  *
  * The AST it builds is the shared one, over leaves that carry metadata:
- * `Ast<CodePointMeta<T>>` from [`../matcher`](../matcher). What is declared
+ * `Ast<Meta<T, CodePoint>>` from [`../matcher`](../matcher). What is declared
  * here is what belongs to *this* backend — the metadata-carrying leaf, the
  * diagnostics a backtracking matcher can report, and its public result.
  *
@@ -10,7 +10,7 @@
  */
 
 import type { CodePoint } from '../../text/utf16/types.ts'
-import type { Ast, AstTag } from '../matcher/types.ts'
+import type { Ast, AstTag, Meta } from '../matcher/types.ts'
 import type { TerminalRange } from '../types.ts'
 
 /**
@@ -18,7 +18,7 @@ import type { TerminalRange } from '../types.ts'
  * a position that counts the synthesized end-of-input symbol, unlike the public
  * `idx` of the result.
  */
-export type DescentMatchRule<T> = (name: string, tag: AstTag, s: readonly CodePointMeta<T>[], startPos: number) => DescentMatchResult<T>
+export type DescentMatchRule<T> = (name: string, tag: AstTag, s: readonly Meta<T, CodePoint>[], startPos: number) => DescentMatchResult<T>
 
 /**
  * Where a match ran out of road, for diagnostics.
@@ -62,7 +62,7 @@ export type DescentFailure = {
  * stopped just before it.
  */
 export type DescentMatchResult<T> = {
-    readonly ast: Ast<CodePointMeta<T>>
+    readonly ast: Ast<Meta<T, CodePoint>>
     readonly success: boolean
     readonly idx: number
     readonly failure?: DescentFailure
@@ -71,13 +71,4 @@ export type DescentMatchResult<T> = {
 /**
  * Entry-point recursive descent matcher.
  */
-export type DescentMatch<T> = (name: string, s: readonly CodePointMeta<T>[]) => DescentMatchResult<T>
-
-/**
- * Code point value paired with metadata: this backend's AST leaf.
- *
- * Preserving metadata per consumed code point is what distinguishes this
- * backend, so the leaf type stays here rather than moving to the shared layer,
- * which is parameterized by it.
- */
-export type CodePointMeta<T> = readonly[CodePoint, T]
+export type DescentMatch<T> = (name: string, s: readonly Meta<T, CodePoint>[]) => DescentMatchResult<T>

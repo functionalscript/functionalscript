@@ -5,8 +5,8 @@
 import { identity } from '../../types/function/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { none, oneEncode, option, range, rangeDecode, repeat0Plus, set } from '../module.f.mjs'
-import { detectRepeat, emptyTagMap, isRepeat, toData } from './module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { detectRepeat, emptyTagMap, isRepeat, toData, toDataWithRules } from './module.f.mjs'
+import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { classic, deterministic } from '../testlib.f.mjs'
 
@@ -94,6 +94,15 @@ export const proof = {
             assertEq(result, expected, [result, expected])
         }
     ],
+    toDataWithRules: () => {
+        const digit = range('09')
+        const sequence = /** @type {const} */ ([digit, digit])
+        const [ruleSet, entry, names] = toDataWithRules(sequence)
+        assertEq(names.get(sequence), entry)
+        const digitName = assertNotNullish(names.get(digit))
+        assertEq(JSON.stringify(ruleSet[entry]), JSON.stringify([digitName, digitName]))
+        assertEq(names.size, 2)
+    },
     isRepeat: () => {
         assertEq(isRepeat('a'), true)
         // Nothing else in a rule set is a string, so the four rule kinds are

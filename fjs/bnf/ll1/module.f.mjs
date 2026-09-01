@@ -16,9 +16,9 @@
  * rule is matched iteratively and produces one node holding a flat sequence
  * of the items it matched.
  *
- * The caller passes physical symbols only; the matcher synthesizes the one
- * logical EOF after them, so a grammar can dispatch on the end of input with
- * the `eof` terminal. The position it does that at, the AST it builds, and the
+ * The caller passes metadata-bearing physical symbols; the matcher synthesizes
+ * the one logical EOF after them, so a grammar can dispatch on the end of input
+ * with the `eof` terminal. The position it does that at, the AST it builds, and the
  * constructors that pair them are the shared layer in `fjs/bnf/matcher`.
  *
  * See `./types.ts` for the type-level API.
@@ -26,25 +26,26 @@
  * @module
  *
  * @import { CodePoint } from '../../text/utf16/types.ts'
+ * @import { Monoid } from '../../common/monoid/types.ts'
  * @import { Properties } from '../../types/range_map/types.ts'
  * @import { StringSet } from '../../types/string_set/types.ts'
- * @import { RuleSet } from '../data/types.ts'
+ * @import { Rule as DataRule, RuleSet } from '../data/types.ts'
  * @import { Rule as FRule } from '../types.ts'
- * @import { Match, MatchResult, Remainder, _Dispatch, _DispatchBranch, _DispatchMap, _DispatchResult, _DispatchRule } from './types.ts'
+ * @import { AstTag, Meta, Out, RepeatTransformer, SequenceTransformer, TerminalTransformer, Transformer, VariantTransformer } from '../matcher/types.ts'
+ * @import { Match, MatchResult, Remainder, Transformers, TransformMatch, _Dispatch, _DispatchBranch, _DispatchMap, _DispatchResult, _DispatchRule } from './types.ts'
  * @import { _Position, _Result, _Stack, _Task } from './private.ts'
  */
 
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
-import { assertNotNullish } from '../../asserts/module.f.mjs'
-import { identity } from '../../types/function/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { rangeMap } from '../../types/range_map/module.f.mjs'
 import { contains as rangeContains } from '../../types/range/module.f.mjs'
 import { contains, set } from '../../types/string_set/module.f.mjs'
-import { rangeDecode } from '../module.f.mjs'
-import { definedEntries } from '../../types/object/module.f.mjs'
-import { emptyTagMap, isRepeat, toData } from '../data/module.f.mjs'
-import { leafAt, mrFail, mrSuccess, physicalIdx, symbolAt } from '../matcher/module.f.mjs'
+import { eofSymbol, rangeDecode } from '../module.f.mjs'
+import { definedEntries, definedValues } from '../../types/object/module.f.mjs'
+import { emptyTagMap, isRepeat, toData, toDataWithRules } from '../data/module.f.mjs'
+import { astRepeat, astSequence, astTerminal, leafAt, mrFail, mrSuccess, physicalIdx, symbolAt, transformerTools } from '../matcher/module.f.mjs'
 
 /** @type {Properties<_DispatchResult>} */
 const dispatchProps = {
@@ -155,7 +156,9 @@ export const dispatchMap = ruleSet => {
 /**
  * Creates an LL(1) parser from a functional grammar rule.
  *
- * @type {(fr: FRule) => Match}
+ * @template M
+ * @param {FRule} fr
+ * @returns {Match<M>}
  */
 export const parser = fr => {
     const data = toData(fr)
@@ -167,9 +170,9 @@ export const parser = fr => {
  * annotation pins `identity`'s type parameter, which `symbolAt`'s own cannot
  * infer from a fully generic argument.
  *
- * @type {(leaf: CodePoint) => number}
+ * @type {<M>(leaf: Meta<M, CodePoint>) => number}
  */
-const symbolOf = identity
+const symbolOf = ([symbol]) => symbol
 
 const symbolAtCp = symbolAt(symbolOf)
 
@@ -177,14 +180,16 @@ const symbolAtCp = symbolAt(symbolOf)
  * The public remainder of a position. It stays physical, so consuming EOF
  * leaves it empty; the slice is materialized once, at the end of a match.
  *
- * @type {(cp: readonly CodePoint[], pos: _Position) => Remainder}
+ * @type {<M>(cp: readonly Meta<M, CodePoint>[], pos: _Position) => Remainder<M>}
  */
 const remainderAt = (cp, pos) => pos === null ? null : cp.slice(physicalIdx(cp.length)(pos))
 
 /**
  * Creates an LL(1) parser from an already materialized {@link RuleSet}.
  *
- * @type {(ruleSet: RuleSet) => Match}
+ * @template M
+ * @param {RuleSet} ruleSet
+ * @returns {Match<M>}
  */
 export const parserRuleSet = ruleSet => {
     const map = dispatchMap(ruleSet)
@@ -204,13 +209,13 @@ export const parserRuleSet = ruleSet => {
     // Unlike `bnf/descent` it never backtracks: the dispatch map decides every
     // choice from the lookahead symbol, so a cursor only moves forward and no
     // frame needs rewind state.
-    /** @type {(name: string, cp: readonly CodePoint[]) => MatchResult} */
+    /** @type {(name: string, cp: readonly Meta<M, CodePoint>[]) => MatchResult<M>} */
     const f = (name, cp) => {
-        /** @type {_Stack} */
+        /** @type {_Stack<M>} */
         let stack = null
-        /** @type {_Task|null} */
+        /** @type {_Task<M>|null} */
         let task = {kind: 'rule', name, tag: undefined, pos: 0}
-        /** @type {_Result} */
+        /** @type {_Result<M>} */
         let result = mrFail(undefined, [], 0)
 
         while (true) {
@@ -218,7 +223,7 @@ export const parserRuleSet = ruleSet => {
                 // The explicit cast cuts a control-flow inference cycle
                 // (TS7022): `task`'s narrowed type feeds `pos`, which feeds the
                 // `task` assignment below that the narrowing depends on.
-                const current = /** @type {_Task} */ (task)
+                const current = /** @type {_Task<M>} */ (task)
                 task = null
                 if (current.kind === 'repeat') {
                     const {tag, item, items, pos} = current
@@ -313,4 +318,322 @@ export const parserRuleSet = ruleSet => {
     }
 
     return f
+}
+
+/** @type {(rule: DataRule) => 'terminal'|'sequence'|'variant'|'repeat'} */
+const dataKind = rule => typeof rule === 'number'
+    ? 'terminal'
+    : rule instanceof Array
+        ? 'sequence'
+        : isRepeat(rule)
+            ? 'repeat'
+            : 'variant'
+
+/** @type {(a: readonly string[], b: readonly string[]) => boolean} */
+const sameKeys = (a, b) =>
+    a.length === b.length
+    && a.every(key => b.includes(key))
+    && b.every(key => a.includes(key))
+
+/**
+ * Repetition fold for `unit`: consume every round, retain only its metadata.
+ *
+ * @type {<M>(monoid: Monoid<M>) => RepeatTransformer<M, unknown, M, undefined>}
+ */
+const unitRepeat = monoid => ({
+    init: monoid.identity,
+    update: (metadata, [, itemMetadata]) => monoid.operation(metadata)(itemMetadata),
+    end: metadata => [undefined, metadata],
+})
+
+/**
+ * Creates metadata-bound rule transformers for the LL(1) backend.
+ *
+ * The native {@link parserRuleSet} path remains independent: it preserves
+ * metadata in AST leaves and needs no monoid. This factory is the semantic
+ * path, where the monoid combines metadata at sequence boundaries and in the
+ * default repetition transformer.
+ *
+ * @template M
+ * @param {Monoid<M>} monoid
+ * @returns {Transformers<M>}
+ */
+export const transformers = monoid => {
+    const tools = transformerTools(monoid)
+    const factory = tools.map().factory
+
+    /** @type {Transformers<M>['build']} */
+    const build = rest => start => {
+        assert(rest.factory === factory && start.factory === factory, 'transformer factory mismatch')
+        assert(!rest.entries.has(start.rule), 'start rule transformer is duplicated')
+
+        const [ruleSet, entryName, names] = toDataWithRules(start.rule)
+        const rulesByName = new Map([...names].map(([rule, name]) => [name, rule]))
+        const all = new Map([...rest.entries, [start.rule, start.transformer]])
+
+        for (const [rule, transformer] of all) {
+            const name = names.get(rule)
+            assert(name !== undefined, 'unreachable rule transformer')
+            const dataRule = ruleSet[name]
+            if (transformer[0] === 'unit') { continue }
+            assert(transformer[0] === dataKind(dataRule), 'wrong rule transformer kind')
+            if (transformer[0] === 'sequence') {
+                assert(dataRule instanceof Array && transformer[1] === dataRule.length, 'wrong sequence transformer arity')
+            } else if (transformer[0] === 'variant') {
+                assert(
+                    typeof dataRule === 'object'
+                    && !(dataRule instanceof Array)
+                    && sameKeys(transformer[1], definedEntries(dataRule).map(([tag]) => tag)),
+                    'wrong variant transformer branches',
+                )
+            } else if (transformer[0] === 'repeat') {
+                assert(
+                    isRepeat(dataRule) && names.get(transformer[1]) === dataRule,
+                    'wrong repeat transformer item',
+                )
+            }
+        }
+
+        for (const [name, dataRule] of definedEntries(ruleSet)) {
+            if (dataKind(dataRule) !== 'variant') { continue }
+            assert(typeof dataRule === 'object' && !(dataRule instanceof Array))
+            const rule = assertNotNullish(rulesByName.get(name))
+            const mapped = all.has(rule)
+            assert(
+                definedValues(dataRule).every(child =>
+                    all.has(assertNotNullish(rulesByName.get(child))) === mapped),
+                'mixed mapped and unmapped variant boundary',
+            )
+        }
+
+        const byName = new Map([...all].map(([rule, transformer]) => [
+            assertNotNullish(names.get(rule)),
+            transformer,
+        ]))
+        const dispatch = dispatchMap(ruleSet)
+        /** @type {(name: string) => _DispatchRule} */
+        const dispatched = name => assertNotNullish(dispatch[name])
+        /** @type {(name: string) => Transformer<M, unknown> | undefined} */
+        const transformed = name => byName.get(name)
+        const unitFold = unitRepeat(monoid)
+
+        /** @type {TransformMatch<unknown, M>} */
+        const match = cp => {
+            /**
+             * @typedef {{
+             *     readonly kind: 'sequence'
+             *     readonly tag: AstTag
+             *     readonly transformer: Transformer<M, unknown> | undefined
+             *     readonly items: readonly string[]
+             *     readonly itemIndex: number
+             *     readonly values: readonly unknown[]
+             *     readonly metadata: M
+             * }} _TransformSequenceFrame
+             */
+            /**
+             * @typedef {{
+             *     readonly kind: 'variant'
+             *     readonly branch: string
+             *     readonly transformer: Transformer<M, unknown>
+             * }} _TransformVariantFrame
+             */
+            /**
+             * @typedef {{
+             *     readonly kind: 'repeat'
+             *     readonly tag: AstTag
+             *     readonly item: string
+             *     readonly fold: RepeatTransformer<M, unknown, unknown, unknown>
+             *     readonly state: unknown
+             * }} _TransformRepeatFrame
+             */
+            /** @typedef {_TransformSequenceFrame | _TransformVariantFrame | _TransformRepeatFrame} _TransformFrame */
+            /** @typedef {null | { readonly top: _TransformFrame, readonly rest: _TransformStack }} _TransformStack */
+            /**
+             * @typedef {{
+             *     readonly kind: 'rule'
+             *     readonly name: string
+             *     readonly tag: AstTag
+             *     readonly pos: number
+             * } | {
+             *     readonly kind: 'repeat'
+             *     readonly tag: AstTag
+             *     readonly item: string
+             *     readonly fold: RepeatTransformer<M, unknown, unknown, unknown>
+             *     readonly state: unknown
+             *     readonly pos: number
+             * }} _TransformTask
+             */
+            /**
+             * @typedef {{
+             *     readonly value: Out<M, unknown> | null
+             *     readonly success: boolean
+             *     readonly pos: number | null
+             * }} _TransformResult
+             */
+
+            /** @type {_TransformStack} */
+            let stack = null
+            /** @type {_TransformTask | null} */
+            let task = { kind: 'rule', name: entryName, tag: undefined, pos: 0 }
+            /** @type {_TransformResult} */
+            let result = { value: null, success: false, pos: 0 }
+
+            while (true) {
+                if (task !== null) {
+                    const current = /** @type {_TransformTask} */ (task)
+                    task = null
+                    if (current.kind === 'repeat') {
+                        const { tag, item, fold, state, pos } = current
+                        if (pos <= cp.length && dispatchOp.get(dispatched(item).rangeMap)(symbolAtCp(cp, pos)) !== null) {
+                            stack = { top: { kind: 'repeat', tag, item, fold, state }, rest: stack }
+                            task = { kind: 'rule', name: item, tag: undefined, pos }
+                        } else {
+                            result = { value: fold.end(state), success: true, pos }
+                        }
+                        continue
+                    }
+
+                    const { name, tag, pos } = current
+                    const dataRule = ruleSet[name]
+                    const transformer = transformed(name)
+                    if (typeof dataRule === 'number') {
+                        if (pos <= cp.length && rangeContains(...rangeDecode(dataRule))(symbolAtCp(cp, pos))) {
+                            const input = pos < cp.length
+                                ? cp[pos]
+                                : /** @type {const} */ ([eofSymbol, monoid.identity])
+                            /** @type {Out<M, unknown>} */
+                            let value
+                            if (transformer === undefined) {
+                                value = astTerminal(tag)(input)
+                            } else if (transformer[0] === 'unit') {
+                                value = [undefined, input[1]]
+                            } else {
+                                assert(transformer[0] === 'terminal')
+                                const transform = /** @type {TerminalTransformer<M, unknown>} */ (transformer[1])
+                                value = transform(input)
+                            }
+                            result = { value, success: true, pos: pos + 1 }
+                        } else if (pos >= cp.length) {
+                            result = { value: null, success: true, pos: null }
+                        } else {
+                            result = { value: null, success: false, pos }
+                        }
+                    } else if (dataRule instanceof Array) {
+                        if (dataRule.length === 0) {
+                            const input = /** @type {const} */ ([[], monoid.identity])
+                            /** @type {Out<M, unknown>} */
+                            let value
+                            if (transformer === undefined) {
+                                value = astSequence(tag)(input)
+                            } else if (transformer[0] === 'unit') {
+                                value = [undefined, monoid.identity]
+                            } else {
+                                assert(transformer[0] === 'sequence')
+                                const transform = /** @type {SequenceTransformer<M, readonly unknown[], unknown>} */ (transformer[2])
+                                value = transform(input)
+                            }
+                            result = { value, success: true, pos }
+                        } else {
+                            stack = { top: {
+                                kind: 'sequence', tag, transformer,
+                                items: dataRule, itemIndex: 0, values: [],
+                                metadata: monoid.identity,
+                            }, rest: stack }
+                            task = { kind: 'rule', name: dataRule[0], tag: undefined, pos }
+                        }
+                    } else if (isRepeat(dataRule)) {
+                        /** @type {RepeatTransformer<M, unknown, any, unknown>} */
+                        let fold
+                        if (transformer === undefined) {
+                            fold = astRepeat(monoid)(tag)
+                        } else if (transformer[0] === 'unit') {
+                            fold = unitFold
+                        } else {
+                            assert(transformer[0] === 'repeat')
+                            fold = /** @type {any} */ (transformer[2])
+                        }
+                        task = { kind: 'repeat', tag, item: dataRule, fold, state: fold.init, pos }
+                    } else {
+                        const { empty, rangeMap } = dispatched(name)
+                        const selected = pos > cp.length ? null : dispatchOp.get(rangeMap)(symbolAtCp(cp, pos))
+                        const branch = selected ?? empty
+                        if (branch === undefined) {
+                            result = pos >= cp.length
+                                ? { value: null, success: true, pos: null }
+                                : { value: null, success: false, pos }
+                        } else if (transformer === undefined) {
+                            task = { kind: 'rule', name: branch.name, tag: branch.tag, pos }
+                        } else {
+                            stack = { top: {
+                                kind: 'variant', branch: assertNotNullish(branch.tag), transformer,
+                            }, rest: stack }
+                            task = { kind: 'rule', name: branch.name, tag: undefined, pos }
+                        }
+                    }
+                    continue
+                }
+
+                if (stack === null) {
+                    if (result.pos === null) { return ['no-match', null] }
+                    const remainder = cp.slice(physicalIdx(cp.length)(result.pos))
+                    return result.success
+                        ? ['ok', assertNotNullish(result.value), remainder]
+                        : ['no-match', remainder]
+                }
+
+                const frame = stack.top
+                stack = stack.rest
+                if (result.pos === null) { return ['no-match', null] }
+                if (result.success === false) { continue }
+                const [value, metadata] = assertNotNullish(result.value)
+
+                if (frame.kind === 'sequence') {
+                    const values = [...frame.values, value]
+                    const combined = monoid.operation(frame.metadata)(metadata)
+                    const itemIndex = frame.itemIndex + 1
+                    if (itemIndex < frame.items.length) {
+                        stack = { top: { ...frame, itemIndex, values, metadata: combined }, rest: stack }
+                        task = { kind: 'rule', name: frame.items[itemIndex], tag: undefined, pos: result.pos }
+                    } else {
+                        const input = /** @type {const} */ ([values, combined])
+                        const transformer = frame.transformer
+                        /** @type {Out<M, unknown>} */
+                        let output
+                        if (transformer === undefined) {
+                            output = astSequence(frame.tag)(input)
+                        } else if (transformer[0] === 'unit') {
+                            output = [undefined, combined]
+                        } else {
+                            assert(transformer[0] === 'sequence')
+                            const transform = /** @type {SequenceTransformer<M, readonly unknown[], unknown>} */ (transformer[2])
+                            output = transform(input)
+                        }
+                        result = { value: output, success: true, pos: result.pos }
+                    }
+                } else if (frame.kind === 'variant') {
+                    const input = /** @type {const} */ ([[frame.branch, value], metadata])
+                    /** @type {Out<M, unknown>} */
+                    let output
+                    if (frame.transformer[0] === 'unit') {
+                        output = [undefined, metadata]
+                    } else {
+                        assert(frame.transformer[0] === 'variant')
+                        const transform = /** @type {VariantTransformer<M, {readonly[k: string]: unknown}, unknown>} */ (frame.transformer[2])
+                        output = transform(input)
+                    }
+                    result = { value: output, success: true, pos: result.pos }
+                } else {
+                    const state = frame.fold.update(frame.state, [value, metadata])
+                    task = {
+                        kind: 'repeat', tag: frame.tag, item: frame.item,
+                        fold: frame.fold, state, pos: result.pos,
+                    }
+                }
+            }
+        }
+
+        return /** @type {TransformMatch<any, M>} */ (match)
+    }
+
+    return { ...tools, build }
 }

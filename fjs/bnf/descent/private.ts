@@ -5,8 +5,9 @@
  */
 
 import type { TerminalRange } from '../types.ts'
-import type { AstResult, Cursor } from '../matcher/types.ts'
-import type { CodePointMeta, DescentFailure } from './types.ts'
+import type { CodePoint } from '../../text/utf16/types.ts'
+import type { AstResult, Cursor, Meta } from '../matcher/types.ts'
+import type { DescentFailure } from './types.ts'
 
 /**
  * The furthest-failure record while matching, positioned by the complete
@@ -24,4 +25,4 @@ export type _Failure = {
  * than per frame. This backend always has a position, so it needs no `null`
  * case.
  */
-export type _Result<T> = AstResult<CodePointMeta<T>, Cursor>
+export type _Result<T> = AstResult<Meta<T, CodePoint>, Cursor>

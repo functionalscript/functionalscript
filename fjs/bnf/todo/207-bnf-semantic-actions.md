@@ -49,7 +49,7 @@ type RepeatTransformer<M, C, S, T> = StateFold<Meta<M, C>, S, Out<M, T>>
 ```
 
 - **Terminal** gets the matched symbol with its metadata. `Meta<M, CodePoint>` is
-  the leaf — `descent`'s shipped `CodePointMeta<M>` exactly (§7).
+  the shared parser leaf (§7).
 - **Sequence** gets its children as a typed tuple. Fixed arity, so nothing to
   stream and no state.
 - **Variant** gets the branch name paired with its value, in *one* parameter:
@@ -294,11 +294,11 @@ spine runs when the grammar rejects or the input runs out mid-rule. Both are
 instance. The motivating case is a layered parse: a tokenizer's symbol says only
 *that* a number is here, and *which* number rides in `M`.
 
-`descent` already has this — `CodePointMeta<M>` *is* `Meta<M, CodePoint>`.
+`descent` previously carried the same pair under a backend-specific name.
 **`ll1` gains it**, which is the one part of this issue that reaches shipped
 types: `Match`, `MatchResult` and `Remainder` become generic in `M` over
 `readonly Meta<M, CodePoint>[]`, `ll1/private.ts`'s frame types follow, and
-`CodePointMeta` moves to `fjs/bnf/matcher/types.ts` as `Meta`. `matcher` was
+That pair moves to `fjs/bnf/matcher/types.ts` as `Meta`. `matcher` was
 written for it — `Ast<L>` already takes the leaf as a parameter — so the
 asymmetry was `ll1`'s hard-coded choice, not a contract. Nothing outside
 `fjs/bnf/ll1` imports `ll1`, so this breaking change has no caller but its own
@@ -514,9 +514,12 @@ deviating silently is not allowed — the reason goes here.
   `toData` exposes its rule → name mapping, how factory products are bound
   together, error wording.
 
-Nothing here came from a prototype. The types compile and the monoid laws were
-tested, but no parser was built, so the middle tier is where stage 1 should
-expect to find something wrong.
+Stage 1 found two useful simplifications. `build(rest)(start)` defines the
+grammar from `start.rule`, so check 4 is true by construction rather than a
+runtime check. `toDataWithRules` leaves the established `toData` result intact
+and exposes the rule-value → name map only to callers that need it. Factory
+products carry a fresh runtime symbol; this is the existential boundary where
+the heterogeneous transformer map is deliberately erased.
 
 ### Tasks
 
@@ -533,20 +536,21 @@ expect to find something wrong.
 it is the smaller machine, it is the backend without metadata yet, and
 `descentEquivalence` already pins the AST.
 
-- [ ] Add `Meta`, `Branch`, `Out`, the four transformer types, `Entry`, the
+- [x] Add `Meta`, `Branch`, `Out`, the four transformer types, `Entry`, the
       erased `Transformer` and `TransformerMap` to `fjs/bnf/matcher/types.ts`,
       and the four default builders to its `module.f.mjs`.
-- [ ] Have `toData` expose the rule-value → name mapping it already builds.
-- [ ] Give `fjs/bnf/ll1` the metadata leaf, and simplify `bothBackends` and
+- [x] Have `toData` expose the rule-value → name mapping it already builds.
+- [x] Give `fjs/bnf/ll1` the metadata leaf, and simplify `bothBackends` and
       `showAst` accordingly (§7).
-- [ ] Add `transformers`/`build` with the §8 primitives — `entry`, `map`, the
+- [x] Add `transformers`/`build` with the §8 primitives — `entry`, `map`, the
       four `…Of`, `unit` — since a bare shape is not installable and stage 1's
       own proofs need a map.
-- [ ] Run the seven construction checks (§5) and `map`'s duplicate rejection.
-- [ ] Add a variant frame to `ll1`, pushed only for a variant the map names.
-- [ ] Skip the transformer when input runs out mid-rule, for the whole spine.
-- [ ] Keep `parserRuleSet` on its native path.
-- [ ] Proofs: `descentEquivalence` and existing AST expectations unchanged under
+- [x] Run the construction checks (§5) and `map`'s duplicate rejection. Check 4
+      is guaranteed by the `build(rest)(start)` API rather than tested at runtime.
+- [x] Add a variant frame to `ll1`, pushed only for a variant the map names.
+- [x] Skip the transformer when input runs out mid-rule, for the whole spine.
+- [x] Keep `parserRuleSet` on its native path.
+- [x] Proofs: `descentEquivalence` and existing AST expectations unchanged under
       the empty map; the default builders' *children* matching the native path;
       what each kind receives per §2, including EOF, an empty `Sequence` and a
       zero-round `Repeat`; all seven checks and duplicate rejection, each with a
@@ -602,11 +606,10 @@ None can change stage 1's public types.
   parser takes at construction.
 - [`fjs/bnf/matcher/types.ts`](../matcher/types.ts) — `Ast<L>` is already
   parameterized by the leaf.
-- [`fjs/bnf/descent/types.ts`](../descent/types.ts) — `CodePointMeta<M>`, which
-  moves to the shared layer.
+- [`fjs/bnf/descent/types.ts`](../descent/types.ts) — the recursive-descent
+  backend now imports the shared `Meta<M, T>` pair.
 - [`fjs/djs/tokenizer`](../../djs/tokenizer/module.f.mjs) — `metadataScan` builds
-  `CodePointMeta<TokenMetadata>` today; `descentParserCpOnly` is the no-metadata
-  adapter `ll1` will need too.
+  `Meta<TokenMetadata, CodePoint>` values for the parser.
 - [recognizer-backend](./recognizer-backend.md) — the payload-free mode the
   all-`unit` map supplies.
 - [layered parser](./layered-parser.md) — each layer is one grammar plus one map.

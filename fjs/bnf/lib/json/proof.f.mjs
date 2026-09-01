@@ -1,6 +1,6 @@
 /**
  * @import { CodePoint } from '../../../text/utf16/types.ts'
- * @import { CodePointMeta } from '../../descent/types.ts'
+ * @import { Meta } from '../../matcher/types.ts'
  * @import { Rule } from '../../types.ts'
  */
 
@@ -23,7 +23,7 @@ import {
     wsSymbol,
 } from './module.f.mjs'
 
-/** @type {(symbol: CodePoint) => CodePointMeta<undefined>} */
+/** @type {(symbol: CodePoint) => Meta<undefined, CodePoint>} */
 const withMeta = symbol => [symbol, undefined]
 
 /** @type {(rule: Rule, input: string) => boolean} */
