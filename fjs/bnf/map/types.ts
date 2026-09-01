@@ -7,6 +7,7 @@
 import type { Result } from '../../types/result/types.ts'
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
+import type { StateFold } from '../../types/function/operator/types.ts'
 
 export type Meta<M, T> = readonly[value: T, meta: M]
 
@@ -46,8 +47,5 @@ export type VariantMap<MI, I extends object, MO, O> =
 
 // repeat 0+. if recognized as `T = () => { some: T, none: [] }`
 
-export type RepeatMap<MI, I, S, MO, O> = {
-    readonly init: S
-    readonly update: (state: S, i: Meta<MI, I>) => S
-    readonly end: (state: S) => Out<MO, O>
-}
+export type RepeatMap<MI, I, S, MO, O> =
+    StateFold<Meta<MI, I>, S, Out<MO, O>>

@@ -10,6 +10,19 @@ export type Fold<I, O> = Binary<I, O, O>
 
 export type Reduce<T> = Fold<T, T>
 
+/**
+ * A fold with explicit state and lifecycle operations.
+ *
+ * Generic operator functors that expose their state use the `State` prefix;
+ * compare {@link StateScan}. `init` creates the state, `update` consumes one
+ * input, and `end` turns the final state into the result.
+ */
+export type StateFold<I, S, O> = {
+    readonly init: S
+    readonly update: (state: S, input: I) => S
+    readonly end: (state: S) => O
+}
+
 export type Unary<T, R> = (value: T) => R
 
 export type Equal<T> = Binary<T, T, boolean>

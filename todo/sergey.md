@@ -14,4 +14,5 @@
   - [ ] rename `checkMap`.
   - [ ] Consider `checkMap` returns simplified map using DataRules. We may need root rule in this case.
   - [ ] Parser that apply map rules.
+  - [ ] LL1 parser preparation should fail on non-LL1 grammar.
 - [ ] Website Module Browsing

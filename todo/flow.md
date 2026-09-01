@@ -87,6 +87,12 @@ type Transducer<I, S, O, A> = {
 
 Design decisions, in the order they were made:
 
+- **Generic operator functors with explicit state use the `State` prefix.**
+  `StateScan<I, S, O>` and `StateFold<I, S, O>` establish the convention in
+  `fjs/types/function/operator`; it groups state-threading signatures without
+  committing them to this future graph or to one execution engine. Named
+  domain abstractions such as `Transducer` keep their established names.
+
 - **Explicit state `S`, not self-returning closures** (cf. `Scan` in
   `fjs/types/function/operator`): a transducer is a record of closed
   module-scope functions plus plain-data state, so operators can be
