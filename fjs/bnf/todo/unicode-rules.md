@@ -80,9 +80,12 @@ This split changes the public design assumptions used by older open TODOs:
   is blocked by this task. The grammars it now owns — `fjs/bnf/lib/json` and
   `fjs/bnf/lib/datajs` — must import Unicode-specific construction from
   `fjs/bnf/unicode/module.f.mjs` and lower text literals to generic rules before
-  they reach core BNF. One literal there does not decompose: DataJS's
-  `'["__proto__"]'` key is a single exact token that admits no whitespace and no
-  escape substitutions.
+  they reach core BNF. DataJS's `'["__proto__"]'` key needs care: `str` lowers
+  it to a contiguous sequence of terminal ranges, which is what it must become —
+  the parser consumes code points, so a single terminal could not match it. It
+  is one *token* because nothing separates that sequence's elements, not because
+  it is one rule; keep it that way, with no `ws` between elements and no escape
+  substitution inside.
 - [`fjs/bnf/todo/207-bnf-semantic-actions.md`](./207-bnf-semantic-actions.md) is
   **no longer blocked** by this task. It has been rewritten over the *data*
   `RuleSet`, where the functional Unicode-literal string never arrives —

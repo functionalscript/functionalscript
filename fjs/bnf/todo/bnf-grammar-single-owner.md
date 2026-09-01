@@ -111,7 +111,10 @@ a factory abstraction.
 
 `fjs/bnf/testlib.f.mjs` keeps `classic()` as a BNF-local stress fixture — it is
 the deliberately awkward json.org spelling, kept to exercise backtracking, not a
-grammar anyone should consume. Its role is documented where it lives.
+grammar anyone should consume. That is *not* written down where it lives:
+`classic()` carries a bare `@type` annotation and nothing else, so a reader who
+finds it next to a one-line `deterministic()` has no way to tell it is kept on
+purpose. Saying so beside the code is still owed.
 
 ### The post-recognition pass is documented but unowned
 
@@ -186,18 +189,22 @@ Before implementing this TODO after the blocking split:
 - [ ] Parameterize `string` over its simple-escape variant, so a caller can name
       those branches. Required before the next task: the tokenizer's `solidus`
       tag is not cosmetic.
+- [ ] Export the digit rules a caller actually needs. Only `digit` is exported
+      today; `onenine`, `digits0`, and `digits` are private, so "reuse the shared
+      digit rules" cannot be done as written. The original issue listed all four.
 - [ ] Point the `fsc` tokenizer (`fjs/djs/tokenizer` until stage 5 renames it)
       at the shared digit and string rules, keeping its DJS-specific number,
       whitespace, and token rules local, and its own simple-escape branch names.
       It is grammar-based and stays so, so this is sharing rules with a BNF
       consumer, not giving a media codec a BNF dependency.
+- [ ] Document `classic()`'s role beside it in `fjs/bnf/testlib.f.mjs`.
 - [ ] Handle `deno.json` registration according to the repository's exports-map
       state, if and when a map exists; do not create a one-entry restrictive
       exports map solely for these files.
 - [ ] Implement the post-recognition pass with
       [`207-bnf-semantic-actions`](./207-bnf-semantic-actions.md), or file it as
       its own issue, before any DataJS parser built on these grammars ships.
-- [ ] `tsc`; run relevant BNF and JSON proofs/tests.
+- [ ] `tsc`; run relevant BNF, JSON, and DJS/fsc tokenizer proofs/tests.
 
 ### Related
 
