@@ -1,7 +1,8 @@
 /**
  * @import { CodePoint } from '../../text/utf16/types.ts'
  * @import { RuleSet } from '../data/types.ts'
- * @import { DescentMatch, CodePointMeta, DescentMatchResult } from './types.ts'
+ * @import { Meta } from '../matcher/types.ts'
+ * @import { DescentMatch, DescentMatchResult } from './types.ts'
  */
 
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
@@ -12,7 +13,7 @@ import { descentParser, descentParserRuleSet } from './module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { deterministic, showAst } from '../testlib.f.mjs'
 
-/** @type {(cp: CodePoint) => CodePointMeta<unknown>} */
+/** @type {(cp: CodePoint) => Meta<unknown, CodePoint>} */
 const mapCodePoint = cp => [cp, undefined]
 
 /**

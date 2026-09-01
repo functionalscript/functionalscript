@@ -8,24 +8,25 @@ import type { Result } from '../../types/result/types.ts'
 import type { Assert } from '../../asserts/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { StateFold } from '../../types/function/operator/types.ts'
+import type { Meta } from '../matcher/types.ts'
 
-export type Meta<M, T> = readonly[value: T, meta: M]
+export type { Meta } from '../matcher/types.ts'
 
 export type Out<M, T> = Result<Meta<M, T>, string>
 
 // one.
 
-export type OneMap<MI, I, MO, O> =
-    (i: Meta<MI, I>) => Out<MO, O>
+export type OneMap<M, I, O> =
+    (i: Meta<M, I>) => Out<M, O>
 
-export type TerminalMap<MI, MO, O> = OneMap<MI, number, MO, O>
+export type TerminalMap<M, O> = OneMap<M, number, O>
 
 // sequence. [...v]
 
 export type SequenceMeta<M, T extends readonly unknown[]> = Meta<M, T>
 
-export type SequenceMap<MI, I extends readonly unknown[], MO, O> =
-    (i: SequenceMeta<MI, I>) => Out<MO, O>
+export type SequenceMap<M, I extends readonly unknown[], O> =
+    (i: SequenceMeta<M, I>) => Out<M, O>
 
 // variant
 
@@ -42,10 +43,10 @@ type _NumericVariantKey = Assert<Equal<
 
 export type VariantMeta<M, T extends object> = Meta<M, VariantValue<T>>
 
-export type VariantMap<MI, I extends object, MO, O> =
-    (i: VariantMeta<MI, I>) => Out<MO, O>
+export type VariantMap<M, I extends object, O> =
+    (i: VariantMeta<M, I>) => Out<M, O>
 
 // repeat 0+. if recognized as `T = () => { some: T, none: [] }`
 
-export type RepeatMap<MI, I, S, MO, O> =
-    StateFold<Meta<MI, I>, S, Out<MO, O>>
+export type RepeatMap<M, I, S, O> =
+    StateFold<Meta<M, I>, S, Out<M, O>>

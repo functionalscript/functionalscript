@@ -1,17 +1,35 @@
 /**
- * @import { CodePointMeta } from '../descent/types.ts'
+ * @import { Meta } from './types.ts'
+ * @import { Monoid } from '../../common/monoid/types.ts'
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
 import { identity } from '../../types/function/module.f.mjs'
 import { eofSymbol } from '../module.f.mjs'
-import { leafAt, mrFail, mrSuccess, physicalIdx, symbolAt } from './module.f.mjs'
+import {
+    astRepeat,
+    astSequence,
+    astTerminal,
+    astVariant,
+    leafAt,
+    mrFail,
+    mrSuccess,
+    physicalIdx,
+    symbolAt,
+    transformerTools,
+} from './module.f.mjs'
 
-/** @type {readonly CodePointMeta<string>[]} */
+/** @type {readonly Meta<string, number>[]} */
 const withMeta = [[0x41, 'a'], [0x42, 'b']]
 
-/** @type {(leaf: CodePointMeta<string>) => number} */
+/** @type {(leaf: Meta<string, number>) => number} */
 const metaSymbolOf = ([symbol]) => symbol
+
+/** @type {Monoid<string>} */
+const stringMonoid = {
+    identity: '',
+    operation: a => b => a + b,
+}
 
 export const proof = {
     leafAt: [
@@ -75,5 +93,64 @@ export const proof = {
         assertEq(
             JSON.stringify(mrFail(true, [], 0)),
             '{"ast":{"tag":true,"sequence":[]},"success":false,"pos":0}')
+    },
+    astTransformers: {
+        terminal: () => {
+            assertEq(
+                JSON.stringify(astTerminal('x')([65, 'a'])),
+                '[{"tag":"x","sequence":[[65,"a"]]},"a"]')
+            assertEq(
+                JSON.stringify(astTerminal(undefined)([eofSymbol, ''])),
+                '[{"sequence":[]},""]')
+        },
+        sequence: () => {
+            assertEq(
+                JSON.stringify(astSequence(true)([['a', 'b'], 'ab'])),
+                '[{"tag":true,"sequence":["a","b"]},"ab"]')
+        },
+        variant: () => {
+            const node = /** @type {const} */ ({ tag: 'a', sequence: [] })
+            assertEq(
+                JSON.stringify(astVariant([['a', node], 'm'])),
+                '[{"tag":"a","sequence":[]},"m"]')
+        },
+        repeat: () => {
+            const fold = astRepeat(stringMonoid)(undefined)
+            assertEq(JSON.stringify(fold.end(fold.init)), '[{"sequence":[]},""]')
+            const s0 = fold.update(fold.init, ['a', 'A'])
+            const s1 = fold.update(s0, ['b', 'B'])
+            assertEq(JSON.stringify(fold.end(s1)), '[{"sequence":["a","b"]},"AB"]')
+        },
+    },
+    transformerTools: () => {
+        const tools = transformerTools(stringMonoid)
+        const terminal = tools.terminalOf(([cp, metadata]) => [cp, metadata])
+        const sequence = tools.sequenceOf(1, ([items, metadata]) => [items[0], metadata])
+        const variant = tools.variantOf(['a'], ([branch, metadata]) => [branch[1], metadata])
+        const repeat = tools.repeatOf('a', {
+            init: '',
+            update: (state, [, metadata]) => state + metadata,
+            end: state => [state, state],
+        })
+        const entries = [
+            tools.entry(1, terminal),
+            tools.entry(/** @type {const} */ ([1]), sequence),
+            tools.entry(/** @type {const} */ ({ a: 1 }), variant),
+            tools.entry('a', repeat),
+        ]
+        assertEq(tools.map(...entries).entries.size, 4)
+        assertEq(JSON.stringify(tools.unit), '["unit"]')
+    },
+    throw: {
+        duplicate: () => {
+            const tools = transformerTools(stringMonoid)
+            const entry = tools.entry(1, tools.unit)
+            return tools.map(entry, entry)
+        },
+        factory: () => {
+            const a = transformerTools(stringMonoid)
+            const b = transformerTools(stringMonoid)
+            return a.map(b.entry(1, b.unit))
+        },
     },
 }

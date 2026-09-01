@@ -5,6 +5,79 @@
  * @module
  */
 
+import type { List } from '../../types/list/types.ts'
+import type { StateFold } from '../../types/function/operator/types.ts'
+import type { CodePoint } from '../../text/utf16/types.ts'
+import type { Rule } from '../types.ts'
+
+/** A value paired with metadata. */
+export type Meta<M, T> = readonly[value: T, metadata: M]
+
+/** A variant branch paired with the value produced by that branch. */
+export type Branch<T> = {
+    readonly[K in keyof T]: K extends string | number
+        ? readonly[`${K}`, T[K]]
+        : never
+}[keyof T]
+
+/** Output produced by a rule transformer. */
+export type Out<M, T> = Meta<M, T>
+
+export type TerminalTransformer<M, T> =
+    (value: Meta<M, CodePoint>) => Out<M, T>
+
+export type SequenceTransformer<M, C extends readonly unknown[], T> =
+    (value: Meta<M, C>) => Out<M, T>
+
+export type VariantTransformer<M, C extends object, T> =
+    (value: Meta<M, Branch<C>>) => Out<M, T>
+
+export type RepeatTransformer<M, C, S, T> =
+    StateFold<Meta<M, C>, S, Out<M, T>>
+
+export type Transformer<M, T> =
+    | readonly['terminal', TerminalTransformer<M, T>]
+    | readonly['sequence', number, SequenceTransformer<M, never, T>]
+    | readonly['variant', readonly string[], VariantTransformer<M, never, T>]
+    | readonly['repeat', Rule, RepeatTransformer<M, never, unknown, T>]
+    | readonly['unit']
+
+/** A transformer tied to the metadata factory that created it. */
+export type Entry<M, T> = {
+    readonly factory: symbol
+    readonly rule: Rule
+    readonly transformer: Transformer<M, T>
+}
+
+/** A checked collection of entries from one metadata factory. */
+export type TransformerMap<M> = {
+    readonly factory: symbol
+    readonly entries: ReadonlyMap<Rule, Transformer<M, unknown>>
+}
+
+/** Constructors shared by backend-specific transformer factories. */
+export type TransformerTools<M> = {
+    readonly entry: <T>(rule: Rule, transformer: Transformer<M, T>) => Entry<M, T>
+    readonly map: (...entries: readonly Entry<M, unknown>[]) => TransformerMap<M>
+    readonly terminalOf: <T>(f: TerminalTransformer<M, T>) => Transformer<M, T>
+    readonly sequenceOf: <C extends readonly unknown[], T>(
+        arity: C['length'],
+        f: SequenceTransformer<M, C, T>,
+    ) => Transformer<M, T>
+    readonly variantOf: <C extends object, T>(
+        branches: readonly (keyof C & string)[],
+        f: VariantTransformer<M, C, T>,
+    ) => Transformer<M, T>
+    readonly repeatOf: <C, S, T>(
+        item: Rule,
+        fold: RepeatTransformer<M, C, S, T>,
+    ) => Transformer<M, T>
+    readonly unit: Transformer<M, undefined>
+}
+
+/** State used by the default AST repetition transformer. */
+export type _AstRepeatState<M> = readonly[items: List<unknown>, metadata: M]
+
 /**
  * Tag of an AST node: the variant branch that matched, `true` where a rule
  * matched empty input without naming a branch, and `undefined` where the rule
@@ -13,8 +86,8 @@
 export type AstTag = string | true | undefined
 
 /**
- * An AST over leaves of type `L`. A backend picks `L` for what it keeps of a
- * consumed symbol — the code point alone, or the code point with metadata.
+ * An AST over leaves of type `L`. Parser backends use metadata-bearing code
+ * points; the generic remains useful to the shared constructors.
  */
 export type Ast<L> = {
     readonly tag: AstTag

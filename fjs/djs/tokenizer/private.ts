@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { CodePointMeta } from '../../bnf/descent/types.ts'
+import type { Meta } from '../../bnf/matcher/types.ts'
 import type { TokenMetadata } from '../../js/tokenizer/types.ts'
 import type { List } from '../../types/list/types.ts'
 
@@ -12,7 +12,7 @@ import type { List } from '../../types/list/types.ts'
 export type _Token = readonly [string, TokenMetadata, readonly number[]]
 
 /** One item of a flattened match: a tag, or a code point with its metadata. */
-export type _FlatToken = string | CodePointMeta<TokenMetadata>
+export type _FlatToken = string | Meta<TokenMetadata, number>
 
 /** A token being accumulated: its tag, start metadata, and code points so far. */
 export type _TokenScanState = readonly [string, TokenMetadata | null, List<number>]

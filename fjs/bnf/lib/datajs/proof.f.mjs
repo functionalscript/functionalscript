@@ -1,6 +1,6 @@
 /**
  * @import { CodePoint } from '../../../text/utf16/types.ts'
- * @import { CodePointMeta } from '../../descent/types.ts'
+ * @import { Meta } from '../../matcher/types.ts'
  */
 
 import { assert } from '../../../asserts/module.f.mjs'
@@ -9,7 +9,7 @@ import { map, toArray } from '../../../types/list/module.f.mjs'
 import { descentParser } from '../../descent/module.f.mjs'
 import { dataJs } from './module.f.mjs'
 
-/** @type {(symbol: CodePoint) => CodePointMeta<undefined>} */
+/** @type {(symbol: CodePoint) => Meta<undefined, CodePoint>} */
 const withMeta = symbol => [symbol, undefined]
 
 /** @type {(input: string) => boolean} */

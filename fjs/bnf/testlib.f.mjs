@@ -133,10 +133,10 @@ export const deterministic = () => json
  * @param {_AstChild} child
  * @returns {child is _AstNode}
  */
-const isAstNode = child => typeof child !== 'number' && !(child instanceof Array)
+const isAstNode = child => !(child instanceof Array)
 
 /** @type {(child: _Leaf) => number} */
-const codePointOf = child => typeof child === 'number' ? child : child[0]
+const codePointOf = child => child[0]
 
 /**
  * A tag as `showAst` writes it: a quoted string, `*` for the tagless empty
@@ -182,7 +182,7 @@ const noParts = { parts: [], text: '' }
  * `_Leaf` in `./private.ts`, written inline here so the exported declaration
  * does not depend on the private module.
  *
- * @type {(node: Ast<number | readonly [number, unknown]>) => string}
+ * @type {(node: Ast<readonly [number, unknown]>) => string}
  *
  * @example
  *

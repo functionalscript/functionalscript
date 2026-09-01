@@ -7,7 +7,7 @@
 import type { CodePoint } from '../../text/utf16/types.ts'
 import type { RangeMapArray } from '../../types/range_map/types.ts'
 import type { StringMap } from '../../types/object/types.ts'
-import type { Ast } from '../matcher/types.ts'
+import type { Entry, Ast, Meta, TransformerMap, TransformerTools } from '../matcher/types.ts'
 
 /**
  * A rule's dispatch entry: its first set as a range map, and — for a variant
@@ -48,19 +48,35 @@ export type _DispatchMap = StringMap<_DispatchRule>
  * The remainder is physical: consuming the synthesized end-of-input symbol
  * leaves it empty rather than making it `null`.
  */
-export type Remainder = readonly CodePoint[] | null
+export type Remainder<M> = readonly Meta<M, CodePoint>[] | null
 
 /**
  * Parsing result of `parser` and `parserRuleSet`.
  *
  * Represents the result of a match operation, including the parsed AST rule and the remainder of the input.
  */
-export type MatchResult = readonly[Ast<CodePoint>, boolean, Remainder]
+export type MatchResult<M> = readonly[Ast<Meta<M, CodePoint>>, boolean, Remainder<M>]
 
 /**
  * LL(1) parser function for matching by rule name.
  *
- * `s` holds physical symbols only; the matcher synthesizes the one logical
- * end-of-input symbol after them.
+ * `s` holds metadata-bearing physical symbols; the matcher synthesizes the one
+ * logical end-of-input symbol after them.
  */
-export type Match = (name: string, s: readonly CodePoint[]) => MatchResult
+export type Match<M> = (name: string, s: readonly Meta<M, CodePoint>[]) => MatchResult<M>
+
+/** Result of an LL(1) match that applies rule transformers while parsing. */
+export type TransformMatchResult<T, M> =
+    | readonly['ok', Meta<M, T>, readonly Meta<M, CodePoint>[]]
+    | readonly['no-match', Remainder<M>]
+
+/** A metadata-aware transforming match from one start rule. */
+export type TransformMatch<T, M> =
+    (s: readonly Meta<M, CodePoint>[]) => TransformMatchResult<T, M>
+
+/** Metadata-bound transformer constructors and LL(1) builder. */
+export type Transformers<M> = TransformerTools<M> & {
+    readonly build: (rest: TransformerMap<M>) => <T>(
+        start: Entry<M, T>,
+    ) => TransformMatch<T, M>
+}

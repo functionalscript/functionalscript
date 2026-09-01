@@ -3,12 +3,8 @@
  *
  * @module
  *
- * @import { Ast, AstSequence, AstTag } from '../../bnf/matcher/types.ts'
- * @import {
- *   CodePointMeta,
- *   DescentMatch,
- *   DescentMatchResult,
- * } from '../../bnf/descent/types.ts'
+ * @import { Ast, AstSequence, AstTag, Meta } from '../../bnf/matcher/types.ts'
+ * @import { DescentMatch, DescentMatchResult } from '../../bnf/descent/types.ts'
  * @import { DataRule, Rule } from '../../bnf/types.ts'
  * @import {
  *   JsToken,
@@ -292,7 +288,7 @@ export const jsMatcher = () => {
 
 const stringify = stringifyAsTree(sort)
 
-/** @type {(cp: CodePoint) => CodePointMeta<unknown>} */
+/** @type {(cp: CodePoint) => Meta<unknown, CodePoint>} */
 const mapCodePoint = cp => [cp, undefined]
 
 /** @type {(m: DescentMatch<unknown>, name: string, cp: readonly CodePoint[]) => DescentMatchResult<unknown>} */
@@ -308,10 +304,10 @@ const advanceMetadata = cp => metadata => cp === lf
     : { path: metadata.path, line: metadata.line, column: metadata.column + 1 }
 
 // Pairs each code point with the metadata of its position *before* it's consumed.
-/** @type {StateScan<number, TokenMetadata, readonly [CodePointMeta<TokenMetadata>]>} */
+/** @type {StateScan<number, TokenMetadata, readonly [Meta<TokenMetadata, CodePoint>]>} */
 const metadataScan = (cp, metadata) => [[[cp, metadata]], advanceMetadata(cp)(metadata)]
 
-/** @type {(path: string) => (cp: readonly number[]) => readonly CodePointMeta<TokenMetadata>[]} */
+/** @type {(path: string) => (cp: readonly number[]) => readonly Meta<TokenMetadata, CodePoint>[]} */
 const codePointsWithMetadata = path => cp => toArray(flat(stateScan(metadataScan)({ path, line: 1, column: 1 })(cp)))
 
 /**
@@ -474,7 +470,7 @@ const toJsTokenWithMetadata = tk => {
     return [{ token, metadata }]
 }
 
-/** @type {(value: Ast<CodePointMeta<TokenMetadata>>|CodePointMeta<TokenMetadata>) => List<_FlatToken>} */
+/** @type {(value: Ast<Meta<TokenMetadata, CodePoint>>|Meta<TokenMetadata, CodePoint>) => List<_FlatToken>} */
 const getTokensFromAstRuleOrCodePoint = value => {
     if (value instanceof Array)
         return [value]
@@ -482,7 +478,7 @@ const getTokensFromAstRuleOrCodePoint = value => {
     return getTokensFromAstRule(value)
 }
 
-/** @type {(seq: AstSequence<CodePointMeta<TokenMetadata>>) => List<_FlatToken>} */
+/** @type {(seq: AstSequence<Meta<TokenMetadata, CodePoint>>) => List<_FlatToken>} */
 const getTokensFromAstSequence = seq => {
     return flatMap(getTokensFromAstRuleOrCodePoint)(seq)
 }
@@ -496,7 +492,7 @@ const tagToToken = tag => {
     }
 }
 
-/** @type {(ast: Ast<CodePointMeta<TokenMetadata>>) => List<_FlatToken>} */
+/** @type {(ast: Ast<Meta<TokenMetadata, CodePoint>>) => List<_FlatToken>} */
 const getTokensFromAstRule = ast => {
     const token = tagToToken(ast.tag)
     if (ast.sequence.length === 0)

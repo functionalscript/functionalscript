@@ -14,20 +14,20 @@ export type Tag = 'terminal' | 'sequence' | 'variant' | 'repeat'
 
 // One
 
-export type TerminalInfo<MI, MO, RO extends Type> = {
+export type TerminalInfo<M, RO extends Type> = {
     readonly tag: 'terminal'
     readonly ri: Number
     readonly ro: RO
-    readonly map: TerminalMap<MI, MO, NoInfer<Ts<RO>>>
+    readonly map: TerminalMap<M, NoInfer<Ts<RO>>>
 }
 
 // Sequence
 
-export type SequenceInfo<MI, RI extends readonly Type[], MO, RO extends Type> = {
+export type SequenceInfo<M, RI extends readonly Type[], RO extends Type> = {
     readonly tag: 'sequence'
     readonly ri: RI
     readonly ro: RO
-    readonly map: SequenceMap<MI, NoInfer<TupleTs<RI>>, MO, NoInfer<Ts<RO>>>
+    readonly map: SequenceMap<M, NoInfer<TupleTs<RI>>, NoInfer<Ts<RO>>>
 }
 
 // Variant
@@ -36,20 +36,20 @@ type VariantTs<RI extends { readonly[K in keyof RI]: Type }> = {
     readonly[K in keyof RI as K extends string | number ? `${K}` : never]: Ts<RI[K]>
 }
 
-export type VariantInfo<MI, RI extends { readonly[K in keyof RI]: Type }, MO, RO extends Type> = {
+export type VariantInfo<M, RI extends { readonly[K in keyof RI]: Type }, RO extends Type> = {
     readonly tag: 'variant'
     readonly ri: RI
     readonly ro: RO
-    readonly map: VariantMap<MI, NoInfer<VariantTs<RI>>, MO, NoInfer<Ts<RO>>>
+    readonly map: VariantMap<M, NoInfer<VariantTs<RI>>, NoInfer<Ts<RO>>>
 }
 
 // Repeat
 
-export type RepeatInfo<MI, RI extends Type, S, MO, RO extends Type> = {
+export type RepeatInfo<M, RI extends Type, S, RO extends Type> = {
     readonly tag: 'repeat'
     readonly ri: RI
     readonly ro: RO
-    readonly map: RepeatMap<MI, NoInfer<Ts<RI>>, S, MO, NoInfer<Ts<RO>>>
+    readonly map: RepeatMap<M, NoInfer<Ts<RI>>, S, NoInfer<Ts<RO>>>
 }
 
 declare const mapped: unique symbol
@@ -86,21 +86,21 @@ export type Mapped =
         }
     }>
 
-export type Terminal = <MI, MO, RO extends Type>(
-    info: TerminalInfo<MI, MO, RO>,
-) => MappedInfo<TerminalInfo<MI, MO, RO>>
+export type Terminal = <M, RO extends Type>(
+    info: TerminalInfo<M, RO>,
+) => MappedInfo<TerminalInfo<M, RO>>
 
-export type Sequence = <MI, RI extends readonly Type[], MO, RO extends Type>(
-    info: SequenceInfo<MI, RI, MO, RO>,
-) => MappedInfo<SequenceInfo<MI, RI, MO, RO>>
+export type Sequence = <M, RI extends readonly Type[], RO extends Type>(
+    info: SequenceInfo<M, RI, RO>,
+) => MappedInfo<SequenceInfo<M, RI, RO>>
 
-export type Variant = <MI, RI extends { readonly[K in keyof RI]: Type }, MO, RO extends Type>(
-    info: VariantInfo<MI, RI, MO, RO>,
-) => MappedInfo<VariantInfo<MI, RI, MO, RO>>
+export type Variant = <M, RI extends { readonly[K in keyof RI]: Type }, RO extends Type>(
+    info: VariantInfo<M, RI, RO>,
+) => MappedInfo<VariantInfo<M, RI, RO>>
 
-export type Repeat = <MI, RI extends Type, S, MO, RO extends Type>(
-    info: RepeatInfo<MI, RI, S, MO, RO>,
-) => MappedInfo<RepeatInfo<MI, RI, S, MO, RO>>
+export type Repeat = <M, RI extends Type, S, RO extends Type>(
+    info: RepeatInfo<M, RI, S, RO>,
+) => MappedInfo<RepeatInfo<M, RI, S, RO>>
 
 export type Identity = {
     readonly tag: Tag

@@ -19,9 +19,14 @@
  * @module
  *
  * @import { Ast, AstResult, AstSequence, AstTag, Cursor } from './types.ts'
+ * @import { Monoid } from '../../common/monoid/types.ts'
+ * @import { Rule } from '../types.ts'
+ * @import { Entry, Meta, Out, RepeatTransformer, SequenceTransformer, TerminalTransformer, Transformer, TransformerMap, TransformerTools, VariantTransformer, _AstRepeatState } from './types.ts'
  */
 
 import { eofSymbol } from '../module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
+import { concat, toArray } from '../../types/list/module.f.mjs'
 
 /**
  * What consuming the symbol at a cursor contributes to the AST: the leaf
@@ -37,10 +42,8 @@ export const leafAt = (input, pos) => pos < input.length ? [input[pos]] : []
  * and the synthesized {@link eofSymbol} at its end. Only meaningful where the
  * cursor still has a symbol, `pos <= input.length`.
  *
- * `symbolOf` is the one place backends differ — it is how a leaf yields its
- * symbol, `identity` where the leaf *is* the code point and a destructuring
- * where it carries metadata alongside. Each backend binds its own partial
- * application once at module scope.
+ * `symbolOf` is how a backend's leaf yields its symbol. Each backend binds its
+ * partial application once at module scope.
  *
  * @type {<L>(symbolOf: (leaf: L) => number) => (input: readonly L[], pos: Cursor) => number}
  */
@@ -73,3 +76,76 @@ export const mrSuccess = mr(true)
  * @type {<L, P>(tag: AstTag, sequence: AstSequence<L>, pos: P) => AstResult<L, P>}
  */
 export const mrFail = mr(false)
+
+/**
+ * Default terminal transformer used when a rule has no explicit mapping.
+ *
+ * @type {(tag: AstTag) => <M>(value: Meta<M, number>) => Out<M, Ast<Meta<M, number>>>}
+ */
+export const astTerminal = tag => ([value, metadata]) => [
+    { tag, sequence: value === eofSymbol ? [] : [[value, metadata]] },
+    metadata,
+]
+
+/**
+ * Default sequence transformer used when a rule has no explicit mapping.
+ *
+ * @type {(tag: AstTag) => <M>(value: Meta<M, readonly unknown[]>) => Out<M, Ast<unknown>>}
+ */
+export const astSequence = tag => ([items, metadata]) => [
+    { tag, sequence: items },
+    metadata,
+]
+
+/**
+ * Default variant transformer. The selected branch node already carries the
+ * variant tag, so the variant contributes no additional node.
+ *
+ * @type {<M>(value: Meta<M, readonly[string, Ast<unknown>]>) => Out<M, Ast<unknown>>}
+ */
+export const astVariant = ([[, node], metadata]) => [node, metadata]
+
+/**
+ * Default repetition transformer used when a rule has no explicit mapping.
+ *
+ * @type {<M>(monoid: Monoid<M>) => (tag: AstTag) => RepeatTransformer<M, unknown, _AstRepeatState<M>, Ast<unknown>>}
+ */
+export const astRepeat = monoid => tag => ({
+    init: [null, monoid.identity],
+    update: ([items, metadata], [item, itemMetadata]) => [
+        concat(items)([item]),
+        monoid.operation(metadata)(itemMetadata),
+    ],
+    end: ([items, metadata]) => [{ tag, sequence: toArray(items) }, metadata],
+})
+
+/**
+ * Creates the metadata-bound transformer constructors shared by parser
+ * backends. The fresh token makes entries and maps from another factory fail
+ * before parsing even when their structural TypeScript types agree.
+ *
+ * @template M
+ * @param {Monoid<M>} monoid
+ * @returns {TransformerTools<M>}
+ */
+export const transformerTools = monoid => {
+    const factory = Symbol()
+    /** @type {Transformer<M, undefined>} */
+    const unit = ['unit']
+    return {
+        entry: (rule, transformer) => ({ factory, rule, transformer }),
+        map: (...entries) => {
+            assert(entries.every(entry => entry.factory === factory), 'transformer factory mismatch')
+            assert(entries.every((entry, i) => !entries.slice(0, i).some(previous => previous.rule === entry.rule)), 'duplicate rule transformer')
+            return {
+                factory,
+                entries: new Map(entries.map(({ rule, transformer }) => [rule, transformer])),
+            }
+        },
+        terminalOf: f => /** @type {any} */ (['terminal', f]),
+        sequenceOf: (arity, f) => /** @type {any} */ (['sequence', arity, f]),
+        variantOf: (branches, f) => /** @type {any} */ (['variant', branches, f]),
+        repeatOf: (item, fold) => /** @type {any} */ (['repeat', item, fold]),
+        unit,
+    }
+}

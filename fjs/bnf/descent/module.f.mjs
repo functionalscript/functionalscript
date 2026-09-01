@@ -4,13 +4,13 @@
  * Built from the serializable IR in `fjs/bnf/data`, this is a sibling of the
  * LL(1) dispatch builder (`fjs/bnf/ll1`). It walks the grammar by recursive
  * descent and preserves per-code-point metadata, producing a metadata-aware
- * AST over leaves that carry it — `Ast<CodePointMeta<T>>`, built with the
+ * AST over leaves that carry it — `Ast<Meta<T, CodePoint>>`, built with the
  * shared layer in `fjs/bnf/matcher`. Nullability (which rule can match empty
  * input) is computed once by {@link emptyTagMap} in `fjs/bnf/data`.
  *
- * The caller passes physical symbols only; the matcher synthesizes the one
- * logical EOF after them, so a grammar can require the end of input with the
- * `eof` terminal.
+ * The caller passes metadata-bearing physical symbols; the matcher synthesizes
+ * the one logical EOF after them, so a grammar can require the end of input
+ * with the `eof` terminal.
  *
  * A failed result also carries a {@link DescentFailure}: the furthest position a
  * terminal was rejected at, which — unlike the result's own index — never
@@ -29,8 +29,8 @@
  * @import { Rule as DataRule, RuleSet, Sequence } from '../data/types.ts'
  * @import { Rule as FRule } from '../types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Ast, AstSequence, AstTag, Cursor } from '../matcher/types.ts'
- * @import { CodePointMeta, DescentFailure, DescentMatch, DescentMatchResult, DescentMatchRule } from './types.ts'
+ * @import { Ast, AstSequence, AstTag, Cursor, Meta } from '../matcher/types.ts'
+ * @import { DescentFailure, DescentMatch, DescentMatchResult, DescentMatchRule } from './types.ts'
  * @import { _Failure, _Result } from './private.ts'
  */
 
@@ -45,7 +45,7 @@ import { leafAt, mrFail, mrSuccess, physicalIdx, symbolAt } from '../matcher/mod
  * A leaf here is a code point with its metadata, so its symbol is the first
  * half. This is the only thing {@link symbolAt} needs to know about a leaf.
  *
- * @type {<T>(leaf: CodePointMeta<T>) => number}
+ * @type {<T>(leaf: Meta<T, number>) => number}
  */
 const symbolOf = ([symbol]) => symbol
 
@@ -85,7 +85,7 @@ export const descentParserRuleSet = ruleSet => {
      *     readonly items: Sequence
      *     readonly itemIndex: number
      *     readonly startPos: Cursor
-     *     readonly seq: AstSequence<CodePointMeta<T>>
+     *     readonly seq: AstSequence<Meta<T, number>>
      * }} _SeqFrame
      */
 
@@ -118,7 +118,7 @@ export const descentParserRuleSet = ruleSet => {
      * }} _RepeatFrame
      */
 
-    /** @typedef {List<Ast<CodePointMeta<T>>>} _Items */
+    /** @typedef {List<Ast<Meta<T, number>>>} _Items */
 
     /** @typedef {_SeqFrame | _VariantFrame | _RepeatFrame} _Frame */
 

@@ -7,14 +7,9 @@
 import type { Ast } from './matcher/types.ts'
 
 /**
- * The leaf of either backend's AST: `bnf/ll1` keeps the code point alone and
- * `bnf/descent` pairs it with metadata, so a renderer that takes both is
- * generic over exactly this.
- *
- * `showAst`'s exported declaration writes this union inline so the public
- * declaration does not depend on this private module.
+ * The metadata-bearing leaf shared by both parser backends.
  */
-export type _Leaf = number | readonly [number, unknown]
+export type _Leaf = readonly [number, unknown]
 
 export type _AstNode = Ast<_Leaf>
 

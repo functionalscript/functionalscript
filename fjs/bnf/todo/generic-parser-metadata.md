@@ -5,10 +5,10 @@
 
 ### Problem
 
-`checkMap` currently fixes every implicit rule output to
-`Ast<CodePointMeta<unknown>>`. The LL(1) parser accepts bare code points while
-the descent parser accepts `CodePointMeta<M>`, so a checked mapping cannot be
-used by both parsers with one generic metadata type.
+`checkMap` currently fixes every implicit rule output to an AST with unknown
+leaf metadata. Both parser backends now accept `Meta<M, CodePoint>`; the
+remaining work is to carry that generic metadata contract through checked maps
+and the descent transformer engine.
 
 Composite rules introduce a second requirement. A sequence such as `[A, A]`
 and a repetition receive several child results but must produce one
@@ -85,12 +85,13 @@ identity.
 
 ### Tasks
 
-- [ ] Move the shared `Meta<M, T>`/code-point pair to the matcher layer.
-- [ ] Make LL(1) and descent accept the same metadata-carrying input.
-- [ ] Bind `Monoid<M>` in the parser/mapping factory.
-- [ ] Replace mapping `MI`/`MO` parameters with the factory's single `M`.
+- [x] Move the shared `Meta<M, T>`/code-point pair to the matcher layer.
+- [x] Make LL(1) and descent accept the same metadata-carrying input.
+- [ ] Bind `Monoid<M>` in each transforming parser factory. LL(1) is complete;
+      descent belongs to stage 3 of issue 207.
+- [x] Replace mapping `MI`/`MO` parameters with the factory's single `M`.
 - [ ] Derive metadata for terminal, sequence, string, variant, and repeat rules.
-- [ ] Keep metadata out of `checkMap`'s RTTI validation contract.
+- [x] Keep metadata out of `checkMap`'s RTTI validation contract.
 - [ ] Prove order, associativity-independent grouping, explicit overrides, and
       identity metadata for both empty sequence and zero repetition.
 
