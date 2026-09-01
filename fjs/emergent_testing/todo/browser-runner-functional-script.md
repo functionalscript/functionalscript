@@ -49,8 +49,9 @@ the orchestration the sharing plan moved. That is what took the file from 405
 lines to 330.
 
 **The proof file is the visible cost.** [`browser/proof.mjs`](../browser/proof.mjs)
-is 581 lines — the largest impure proof file in the repository, and more than a
-third of all the impure proof code there is (1,491 lines across six files; the
+is 628 lines — the largest impure proof file in the repository, and **nearly
+half** of all the impure proof code there is (1,376 lines across five files —
+one fewer since `website/browser-source.proof.mjs` became FunctionalScript; the
 next largest is `rtti/host.proof.mjs` at 379, which exists to build values
 FunctionalScript cannot express). It exists to test that logic from Node through
 a DOM stand-in. Logic in `.f.mjs`
@@ -109,4 +110,7 @@ asks for, and it names two things the sharing plan does not:
 - [Hostile thrown values](hostile-proof-values.md) — the `catch` operation
   `errorDetails` needs before it can be FunctionalScript.
 - [Move browser source analysis to FunctionalScript](../../website/todo/browser-source-functional-script.md)
-  — the same debt in `fjs/website`.
+  — the same debt in `fjs/website`, **paid**: the scanner moved without a
+  rewrite, which is the cheapest form this debt takes and the one worth
+  measuring against — nothing here will move that easily, because this file's
+  debt touches a host and that one did not.
