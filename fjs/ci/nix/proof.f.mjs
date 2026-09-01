@@ -16,7 +16,7 @@ import { nodeNixJobs } from '../node/module.f.mjs'
 import {
     flakePath,
     flakeText,
-    lockText,
+    lockUpdateText,
     generatedDirectory,
     nixDevelop,
     nixFlakes,
@@ -395,76 +395,27 @@ export const proof = {
                 assertEq(generatedFile(nixJobs, job.id, 'run'), runText(job.id))
             }
         },
-        // And so is the lock, which is the whole of why `--quiet` is back to
-        // one. A flake with no lock beside it makes every `nix develop` compute
-        // one, find it differs from nothing, and say so.
-        lock: () => {
-            for (const job of nixJobs) {
-                assertEq(
-                    generatedFile(nixJobs, job.id, 'flake.lock'),
-                    lockText(job))
-            }
+        // `nixFlakes` writes the lock-update script once, beside the shared
+        // shell, rather than a `flake.lock` per job: that file is left to
+        // whatever is already committed, refreshed only by running the script
+        // this generates.
+        lockUpdateScript: () => {
+            const written = ioStep(
+                nixFlakes(nixJobs),
+                () => readUtf8File(`${generatedDirectory}/lock-update.sh`))
+            const [, [tag, result]] = virtual(emptyState)(written)
+            assert(tag === 'ok', result)
+            assertEq(result, lockUpdateText(nixJobs))
         },
-        // What a lock has to say, pinned rather than described — for a flake
-        // with one input and for one with two.
-        //
-        // Every field is checked because every field is load-bearing to Nix:
-        // drop `narHash` or `lastModified` and the lock is incomplete, so Nix
-        // recomputes it and the warning this exists to remove comes back. The
-        // revision appears twice on purpose. `original` is what the flake asked
-        // for and `locked` is what that resolved to, and here they agree
-        // because `github:owner/repo/<rev>` is already exact.
-        lockText: () => {
-            assertEq(lockText(plain), `{
-  "nodes": {
-    "nixpkgs": {
-      "locked": {
-        "lastModified": ${nixpkgs.lastModified},
-        "narHash": "${nixpkgs.narHash}",
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "${commit}",
-        "type": "github"
-      },
-      "original": {
-        "owner": "NixOS",
-        "repo": "nixpkgs",
-        "rev": "${commit}",
-        "type": "github"
-      }
-    },
-    "root": {
-      "inputs": {
-        "nixpkgs": "nixpkgs"
-      }
-    }
-  },
-  "root": "root",
-  "version": 7
-}
+        // One `nix flake lock` per generated directory — Nix has no form that
+        // locks several flakes at once — under `set -e`, so a later directory
+        // is never silently skipped after an earlier one fails.
+        lockUpdateText: () => {
+            assertEq(lockUpdateText([plain, withRust]), `#!/bin/sh
+set -e
+nix flake lock ${flakePath(plain.id)}
+nix flake lock ${flakePath(withRust.id)}
 `)
-        },
-        // The second input, and the `follows` that keeps one Nixpkgs revision
-        // in the lock rather than two. Nix writes a redirected input as the
-        // path to the node it follows — `["nixpkgs"]` — where a resolved one
-        // gets `locked` and `original` of its own.
-        lockTextFollows: () => {
-            const text = lockText(withRust)
-            assert(
-                text.includes(`      "inputs": {
-        "nixpkgs": [
-          "nixpkgs"
-        ]
-      },`),
-                'expected rust-overlay to follow the root nixpkgs')
-            assert(
-                text.includes(`"rev": "${rustOverlay.commit}"`),
-                'expected the pinned rust-overlay revision')
-            assert(
-                text.includes(`"narHash": "${rustOverlay.narHash}"`),
-                'expected the pinned rust-overlay hash')
-            // One Nixpkgs, named once in each half of the one node that has it.
-            assertEq(text.split(`"repo": "nixpkgs"`).length - 1, 2)
         },
         // What that script must say, pinned rather than described, for the
         // shared shell and for a flake with a directory of its own. `exec`
@@ -481,10 +432,10 @@ export const proof = {
         // appearing in a comment.
         runText: () => {
             assertEq(runText(nixShell), `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet ./nix --command "$@"
+exec nix develop --no-update-lock-file --quiet ./nix --command "$@"
 `)
             assertEq(runText(plain.id), `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet ./nix/node24 --command "$@"
+exec nix develop --no-update-lock-file --quiet ./nix/node24 --command "$@"
 `)
         },
         // One, and the count is arithmetic rather than taste. Nix has a single

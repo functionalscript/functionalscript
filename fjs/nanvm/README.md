@@ -29,7 +29,7 @@ module.f.mjs ──> an EDAG exp ─┤     (evaluate)
 | [`module.f.mjs`](module.f.mjs) | **The single source of truth** — every operator case as data, plus the format's constructors, eliminators, and lowering. |
 | [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
 | [`rust/module.f.mjs`](rust/module.f.mjs) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
-| [`update/module.f.mjs`](update/module.f.mjs) | Writes the printer's output. Run by `npm run ci-update`. |
+| [`update/module.f.mjs`](update/module.f.mjs) | Writes the printer's output. Run by `npm run gen`. |
 
 Rust *literal* syntax — string escaping, `f64`/`i64` spelling, `snake_case`
 identifiers — is not specific to this generator and lives in
@@ -109,7 +109,7 @@ outcome and not the program, so it is never part of the case's expression.
 1. Add the case to `data` in [`module.f.mjs`](module.f.mjs).
 2. `npm test` — the JavaScript proof now covers it, which is what makes the
    expectation authoritative: it is JavaScript's answer, not a guess.
-3. `npm run ci-update` to regenerate, then `cargo test`.
+3. `npm run gen` to regenerate, then `cargo test`.
 4. If `nanvm-lib` does not implement it yet, give the case a `rust` reason. The
    generated file keeps it as a commented-out `TODO`, and the JavaScript proof
    keeps running it.

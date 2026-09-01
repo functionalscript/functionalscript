@@ -29,7 +29,7 @@ node --test
 
 It must complete with exit code 0 and an observed final pass/fail summary. A
 targeted suite, partial output, or interrupted run does not satisfy this check.
-After `npm run ci-update`, rerun `node --test` and every relevant check above
+After `npm run gen`, rerun `node --test` and every relevant check above
 before publishing. If `tsc` is unavailable, enter the documented Nix shell or
 report the PR as unready; do not treat an unavailable required check as passing.
 
@@ -70,7 +70,7 @@ anything non-trivial make sure it contains a concrete design before writing
 code. Deviating from that design later is fine; deviating silently is not, and
 a design that cannot be built as written is rewritten rather than forced
 through ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Write the
-code plus its proof, run `npm run update` after changing source, run the check
+code plus its proof, run `npm run gen` after changing source, run the check
 set above, and delete the `todo/` issue file in the same PR that fixes it.
 
 Format, priorities, where each issue file belongs, and how GitHub-reported bugs
@@ -189,5 +189,5 @@ development shell re-runs that shell's `shellHook`, so a job-local environment
 is re-established for every step instead of being exported across them.
 
 Both workflows are generated — `.github/workflows/ci.yml` and
-`.github/workflows/npm-publish.yml`. Change `fjs/ci`, run `npm run ci-update`,
+`.github/workflows/npm-publish.yml`. Change `fjs/ci`, run `npm run gen`,
 and commit the result. Never edit either by hand.

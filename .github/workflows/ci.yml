@@ -442,7 +442,7 @@
           "run": "./nix/run npm pack"
         },
         {
-          "run": "./nix/run npm run ci-update"
+          "run": "./nix/run npm run gen"
         },
         {
           "run": "git add -A && git diff --cached --exit-code"
