@@ -69,7 +69,7 @@ export const proof = {
         /** @type {Base} */
         const info = {
             tag: 'sequence',
-            ri: [number, number],
+            ri: [ast, ast],
             ro: string,
             map: /** @type {any} */ (() => ['hi', undefined]),
         }
@@ -120,12 +120,17 @@ export const proof = {
         })
         const result = checkMap([
             [lazyTerminal, info('terminal', number)],
-            [lazyString, info('sequence', [number])],
-            [lazySequence, info('sequence', [ast])],
-            [oneBranch, info('variant', { digit: ast })],
-            [noEmptyBranch, info('variant', { a: ast, b: ast })],
-            [badStep, info('variant', { none: ast, some: ast })],
-            [badTail, info('variant', { none: ast, some: ast })],
+            [lazyString, info('sequence', [ast])],
+            [lazySequence, info('sequence', [string])],
+            [oneBranch, info('variant', { digit: string })],
+            [noEmptyBranch, info('variant', { a: string, b: string })],
+            [badStep, info('variant', { none: string, some: string })],
+            [badTail, info('variant', { none: string, some: string })],
+            [branchA, info('sequence', [string])],
+            [branchB, info('sequence', [string])],
+            [none, info('sequence', [])],
+            [badTailStep, info('sequence', [string, string])],
+            [digit, terminalInfo],
         ])
         assertEq(result.get(lazyTerminal)?.tag, 'terminal')
         assertEq(result.get(lazyString)?.tag, 'sequence')
@@ -135,27 +140,29 @@ export const proof = {
         assertEq(result.get(badStep)?.tag, 'variant')
         assertEq(result.get(badTail)?.tag, 'variant')
     },
-    ambiguousNonRepeats: () => {
-        const nullable = repeat0Plus(option('a'))
-        const recursive = () => ({ none, some: [nested, recursive] })
-        const nested = () => ({ leaf: digit, group: ['(', recursive, ')'] })
-        /** @type {(ri: Type) => Base} */
-        const info = ri => ({
-            tag: 'variant',
-            ri,
-            ro: string,
-            map: /** @type {any} */ (() => ['mapped', undefined]),
-        })
-        const result = checkMap([
-            [nullable, info({ some: ast, none: ast })],
-            [recursive, info({ none: ast, some: ast })],
-        ])
-        assertEq(result.get(nullable)?.tag, 'variant')
-        assertEq(result.get(recursive)?.tag, 'variant')
-    },
     throw: {
         duplicate: () => checkMap([[digit, terminalInfo], [digit, terminalInfo]]),
         kind: () => checkMap([[digit, sequenceInfo]]),
         input: () => checkMap([[digit, { ...terminalInfo, ri: string }]]),
+        mappedVariantBranch: () => checkMap([[variant, variantInfo]]),
+        mappedBranchUnderVariant: () => checkMap([[[variant], {
+            ...sequenceInfo,
+            ri: [ast],
+        }], [digit, terminalInfo]]),
+        nullableRepeat: () => {
+            const nullable = repeat0Plus(option('a'))
+            return checkMap([[nullable, {
+                ...variantInfo,
+                ri: { some: ast, none: ast },
+            }]])
+        },
+        recursiveRepeat: () => {
+            const recursive = () => ({ none, some: [nested, recursive] })
+            const nested = () => ({ leaf: digit, group: ['(', recursive, ')'] })
+            return checkMap([[recursive, {
+                ...variantInfo,
+                ri: { none: ast, some: ast },
+            }]])
+        },
     },
 }

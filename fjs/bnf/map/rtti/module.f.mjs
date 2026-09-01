@@ -77,7 +77,7 @@ const inputOf = ri => rule => {
     const data = typeof rule === 'function' ? rule() : rule
     if (typeof data === 'number') { return number }
     if (typeof data === 'string') {
-        return toArray(stringToCodePointList(data)).map(() => number)
+        return toArray(stringToCodePointList(data)).map(() => ast)
     }
     if (data instanceof Array) { return data.map(output) }
     return Object.fromEntries(definedEntries(data).map(([k, v]) => [k, output(v)]))
@@ -93,19 +93,28 @@ const touch = (seen, rule) => {
 export const checkMap = ri => {
     for (let i = 0; i < ri.length; ++i) {
         const [rule, info] = ri[i]
-        assert(!ri.slice(0, i).some(([r]) => r === rule))
-        assert(info.tag === tagOf(rule))
+        assert(!ri.slice(0, i).some(([r]) => r === rule), 'duplicate rule mapping')
+        assert(info.tag === tagOf(rule), 'wrong rule mapping kind')
     }
     const touched = ri.reduce(
         (seen, [rule]) => touch(seen, rule),
         /** @type {readonly Rule[]} */ ([]),
     )
+    for (const rule of touched) {
+        if (tagOf(rule) === 'variant') {
+            const mapped = findInfo(ri, rule) !== null
+            assert(
+                children(rule).every(child => (findInfo(ri, child) !== null) === mapped),
+                'mixed mapped and unmapped variant boundary',
+            )
+        }
+    }
     const input = inputOf(ri)
     return new Map(touched.map(rule => {
         const declared = findInfo(ri, rule)
         const inferred = input(rule)
         if (declared !== null) {
-            assert(typeEqual(declared.ri, inferred))
+            assert(typeEqual(declared.ri, inferred), 'wrong rule mapping input type')
             return /** @type {const} */ ([rule, declared])
         }
         /** @type {Base} */
