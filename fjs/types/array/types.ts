@@ -28,6 +28,7 @@ type _X1 = Assert<Equal<KeyOf<readonly [true]>, 0>>
 type _X2 = Assert<Equal<KeyOf<readonly [true] | readonly [false, false]>, 0 | 1>>
 type _X3 = Assert<Equal<Tuple<number, true>, readonly true[]>>
 type _X4 = Assert<Equal<Tuple<2, true>, readonly [true, true]>>
+// type _X5 = Assert<Equal<Tuple<-1, true>, readonly [true, true]>>
 
 export type Array1_5<T> =
     Tuple<1, T> | Tuple<2, T> | Tuple<3, T> | Tuple<4, T> | Tuple<5, T>
