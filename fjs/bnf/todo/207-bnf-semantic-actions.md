@@ -45,11 +45,7 @@ type Out<M, T> = Meta<M, T>
 type TerminalTransformer<M, T> = (v: Meta<M, CodePoint>) => Out<M, T>
 type SequenceTransformer<M, C extends readonly unknown[], T> = (v: Meta<M, C>) => Out<M, T>
 type VariantTransformer<M, C, T> = (v: Meta<M, Branch<C>>) => Out<M, T>
-type RepeatTransformer<M, C, S, T> = {
-    readonly init: S
-    readonly update: (state: S, c: Meta<M, C>) => S
-    readonly end: (state: S) => Out<M, T>
-}
+type RepeatTransformer<M, C, S, T> = StateFold<Meta<M, C>, S, Out<M, T>>
 ```
 
 - **Terminal** gets the matched symbol with its metadata. `Meta<M, CodePoint>` is
