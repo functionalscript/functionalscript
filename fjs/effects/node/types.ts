@@ -84,11 +84,18 @@ export type ReadFile = readonly['readFile', (path: string) => IoResult<Vec>]
 /**
  * Represents a directory entry (file or directory) in the filesystem
  * @see https://nodejs.org/api/fs.html#class-fsdirent
+ *
+ * `isDirectory` is not `!isFile`, for the reason {@link FileStat} spells out
+ * about the same pair: a symbolic link, a FIFO, a device and a socket are all
+ * `isFile: false` without being directories. A walk that read `!isFile` as
+ * "descend into it" would call `readdir` on a symlink and fail with `ENOTDIR`,
+ * so the question it actually has to ask is asked directly.
  */
 export type Dirent = {
     readonly name: string
     readonly parentPath: string
     readonly isFile: boolean
+    readonly isDirectory: boolean
 }
 
 export type ReaddirOptions = {

@@ -1,21 +1,159 @@
 /**
- * @import { Dir } from '../effects/node/virtual/types.ts'
+ * @import { Dir, _Entity } from '../effects/node/virtual/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { main } from './module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
-import { assert, assertEq, assertNotNullish } from '../asserts/module.f.mjs'
-import { utf8ToString } from '../text/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
+import { utf8, utf8ToString } from '../text/module.f.mjs'
+
+/**
+ * A file in the virtual tree, from its text.
+ *
+ * @type {(text: string) => readonly Vec[]}
+ */
+const file = text => [utf8(text)]
+
+/** @type {(entity: _Entity | undefined, name: string) => string} */
+const textOf = (entity, name) => {
+    assert(entity instanceof Array, `expected ${name} to be a file`)
+    return entity.map(value => utf8ToString(/** @type {Vec} */ (value))).join('')
+}
+
+/**
+ * Runs the whole generator over an in-memory tree and answers the manifest it
+ * wrote — which is what moving discovery into FunctionalScript bought: a
+ * directory of fixtures in, a manifest out, no filesystem touched.
+ *
+ * @type {(tree: Dir) => { readonly manifest: string, readonly output: string }}
+ */
+const generate = tree => {
+    // The manifest is written beside the runner that loads it, so the fixture
+    // carries that directory: the generator writes a file, it does not create
+    // the tree the repository already has.
+    /** @type {Dir} */
+    const root = {
+        ...tree,
+        fjs: { emergent_testing: {}, .../** @type {Dir} */ (tree['fjs'] ?? {}) },
+    }
+    const [generated, result] = virtual({ ...emptyState, root })(main())
+    assertEq(exitCode(result), 0)
+    return {
+        manifest: textOf(
+            /** @type {Dir} */ (/** @type {Dir} */ (generated.root['fjs'])?.['emergent_testing'])
+                ?.['_browser-suite.mjs'],
+            'the manifest'),
+        output: generated.stdout,
+    }
+}
+
+/**
+ * The sources a manifest lists, in its own order.
+ *
+ * @type {(manifest: string) => readonly string[]} */
+const listed = manifest => manifest
+    .split('\n')
+    .flatMap(line => line.startsWith("    './") ? [line.slice(7, -2)] : [])
 
 export const proof = {
     main: () => {
         assertNotNullish(main(), 'expected a program effect')
     },
+    manifest: {
+        // Every `.f.mjs` that exports a `proof` and imports nothing a browser
+        // cannot resolve, in path order — and nothing else in the tree.
+        selectsProofModules: () => {
+            const { manifest, output } = generate({
+                a: {
+                    'module.f.mjs': file('export const x = 1'),
+                    'proof.f.mjs': file("export const proof = { t: () => {} }"),
+                },
+                'b.f.mjs': file('export const proof = []'),
+                'c.mjs': file('export const proof = []'),
+            })
+            assertStructurallySame(listed(manifest), ['a/proof.f.mjs', 'b.f.mjs'])
+            assert(output.includes('browser proof modules: 2 of 2'), output)
+        },
+        // A module a browser cannot link is dropped rather than emitted, with
+        // the reason said out loud: emitting it would fail the page *while it
+        // links*, before the runner can publish a report.
+        dropsWhatABrowserCannotLink: () => {
+            const { manifest, output } = generate({
+                'a.f.mjs': file("import 'node:fs'\nexport const proof = []"),
+                'b.f.mjs': file("import 'left-pad'\nexport const proof = []"),
+            })
+            assertStructurallySame(listed(manifest), [])
+            assert(output.includes('skipped a.f.mjs: not linkable in a browser (node:fs)'), output)
+            assert(output.includes('skipped b.f.mjs: not linkable in a browser (left-pad)'), output)
+            assert(output.includes('browser proof modules: 0 of 2'), output)
+        },
+        /**
+         * **A blocker is inherited through the whole import graph**, which is
+         * the reason the scan reads more than the proof modules themselves: a
+         * page links a module's imports too, so a proof that is clean on its
+         * own face and imports something that is not cannot be loaded either.
+         */
+        blockersReachThroughImports: () => {
+            const { manifest } = generate({
+                'a.f.mjs': file("import './dep.f.mjs'\nexport const proof = []"),
+                'dep.f.mjs': file("import 'node:fs'\nexport const x = 1"),
+            })
+            assertStructurallySame(listed(manifest), [])
+        },
+        // An import cycle terminates: a module already read is not read again,
+        // which is the same skip that keeps one module read once however many
+        // others import it.
+        importCycleTerminates: () => {
+            const { manifest } = generate({
+                'a.f.mjs': file("import './b.f.mjs'\nexport const proof = []"),
+                'b.f.mjs': file("import './a.f.mjs'\nexport const x = 1"),
+            })
+            assertStructurallySame(listed(manifest), ['a.f.mjs'])
+        },
+        /**
+         * **A relative specifier naming no file is not a blocker.** The scan is
+         * textual, so a module that emits source of its own — the website
+         * generator embeds the page's entry module — offers up import lines
+         * that were never its own. Nothing can be read at that path, and
+         * nothing is what it contributes.
+         */
+        aSpecifierNamingNoFileIsDropped: () => {
+            const { manifest } = generate({
+                'a.f.mjs': file("import './gone.f.mjs'\nexport const proof = []"),
+            })
+            assertStructurallySame(listed(manifest), ['a.f.mjs'])
+        },
+        // Where the sources are is the tree's business: a nested directory is
+        // walked, and its path is what the manifest carries.
+        walksNestedDirectories: () => {
+            const { manifest } = generate({
+                fjs: { types: { list: { 'proof.f.mjs': file('export const proof = []') } } },
+            })
+            assertStructurallySame(listed(manifest), ['fjs/types/list/proof.f.mjs'])
+        },
+        /**
+         * **Three directories are not this repository's source**, and the test
+         * is by segment rather than by prefix — so a `node_modules` nested
+         * anywhere is ignored too, which is exactly where one is found.
+         */
+        ignoresForeignDirectories: () => {
+            const { manifest } = generate({
+                node_modules: { 'a.f.mjs': file('export const proof = []') },
+                target: { 'b.f.mjs': file('export const proof = []') },
+                '.git': { 'c.f.mjs': file('export const proof = []') },
+                fjs: {
+                    node_modules: { 'd.f.mjs': file('export const proof = []') },
+                    'e.f.mjs': file('export const proof = []'),
+                },
+            })
+            assertStructurallySame(listed(manifest), ['fjs/e.f.mjs'])
+        },
+    },
     run: () => {
         /** @type {Dir} */
-        const root = { '.github': { workflows: {} } }
+        const root = { '.github': { workflows: {} }, fjs: { emergent_testing: {} } }
         const state = { ...emptyState, root }
         const [generated, result] = virtual(state)(main())
         assertEq(exitCode(result), 0)

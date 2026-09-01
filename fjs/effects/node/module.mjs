@@ -321,7 +321,8 @@ const runNodeEffect = asyncRun({
         .map(v => ({
             name: v.name,
             parentPath: normalize(v.parentPath),
-            isFile: v.isFile()
+            isFile: v.isFile(),
+            isDirectory: v.isDirectory()
         }))
     ),
     writeFile: (path, data) => io(() => writeFile(path, fromVec(data))),
