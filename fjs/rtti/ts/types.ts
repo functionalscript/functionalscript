@@ -78,7 +78,7 @@ export type _AdmitsAbsence<T> =
     true extends _AdmitsAbsence1<T> ? true : false
 
 type _AdmitsAbsence1<T> =
-    T extends { readonly [phantomKey]?: infer O } ? ([O] extends [{ readonly [absentKey]: unknown }] ? true : false) :
+    T extends { readonly [phantomKey]?: infer O } ? (readonly [O] extends readonly [{ readonly [absentKey]: unknown }] ? true : false) :
     T extends () => infer I
         ? I extends readonly['option'] ? true
         : I extends readonly['or', ...infer A extends readonly Type[]] ? _AdmitsAbsence1<A[number]>
@@ -109,7 +109,7 @@ type _IsAbsentOnly<T> =
 
 type _IsAbsentOnly1<T> =
     T extends { readonly [phantomKey]?: infer O }
-        ? ([O] extends [{ readonly [absentKey]: infer P }] ? ([Exclude<P, undefined>] extends [never] ? true : false) : false) :
+        ? (readonly [O] extends readonly [{ readonly [absentKey]: infer P }] ? (readonly [Exclude<P, undefined>] extends readonly [never] ? true : false) : false) :
     T extends () => infer I
         ? I extends readonly['option'] ? true
         : I extends readonly['or', ...infer A extends readonly Type[]] ? _IsAbsentOnly1<A[number]>
@@ -359,7 +359,7 @@ export type RestTs<C extends ConstObject, R extends Type> =
  * tail is a union.
  */
 type TupleRestTs<C extends Tuple, R extends Type> =
-    [R] extends [Or<readonly []>]
+    readonly [R] extends readonly [Or<readonly []>]
         ? TupleTs<C>
         : TupleTs<C> extends infer M extends readonly unknown[]
             ? readonly [...M, ...ReadonlyArray<Ts<R> | undefined>]
@@ -458,7 +458,7 @@ export type Ts<T extends Type> =
     // wrapper is unwrapped here; either way the optional-field `undefined`
     // artifact is stripped.
     T extends { readonly [phantomKey]?: infer O }
-        ? ([O] extends [{ readonly [absentKey]: infer P }] ? Exclude<P, undefined> : Exclude<O, undefined>) :
+        ? (readonly [O] extends readonly [{ readonly [absentKey]: infer P }] ? Exclude<P, undefined> : Exclude<O, undefined>) :
     T extends () => infer I ? (
         I extends readonly['const', infer C] ? ConstTs<C> :
         // Info0
@@ -499,7 +499,7 @@ export type Ts<T extends Type> =
 export type _TsRaw<T extends Type> =
     unknown extends T ? Unknown :
     T extends { readonly [phantomKey]?: infer O }
-        ? ([O] extends [{ readonly [absentKey]: infer P }] ? Absent | Exclude<P, undefined> : Exclude<O, undefined>) :
+        ? (readonly [O] extends readonly [{ readonly [absentKey]: infer P }] ? Absent | Exclude<P, undefined> : Exclude<O, undefined>) :
     T extends () => infer I ? (
         I extends readonly['option'] ? Absent :
         I extends readonly['or', ...infer A extends readonly Type[]] ? _TsRaw<A[number]> :
@@ -542,9 +542,9 @@ export type Check3<T, R0 extends Type, R1 extends Type> = And<Equal<T, Ts<R0>>, 
  * unwrapped, and this then agrees with {@link Check} on the raw thunk.
  */
 export type CheckRaw<A, B extends Type> = And<
-    Equal<[A] extends [{ readonly [absentKey]: unknown }] ? true : false, _AdmitsAbsence<B>>,
+    Equal<readonly [A] extends readonly [{ readonly [absentKey]: unknown }] ? true : false, _AdmitsAbsence<B>>,
     Equal<
-        [A] extends [{ readonly [absentKey]: infer P }] ? P : A,
+        readonly [A] extends readonly [{ readonly [absentKey]: infer P }] ? P : A,
         Exclude<_TsRaw<B>, Absent>
     >
 >

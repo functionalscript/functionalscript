@@ -84,7 +84,7 @@ export type NixJob = {
      * shell there would be one nothing enters. The developer environment is
      * the reason this is a list at all.
      */
-    readonly systems: readonly [string, ...string[]]
+    readonly systems: readonly [string, ...readonly string[]]
     /** Nixpkgs attribute names made available in the job's shell. */
     readonly packages: readonly string[]
     /** Job-local shell initialization, when the job needs one. */
