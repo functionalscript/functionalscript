@@ -18,6 +18,7 @@ type _Index<N extends number, R extends readonly unknown[]> =
 export type Index<N extends number> =
     number extends N ? number : N extends number ? _Index<N, readonly []> : never
 
+/** A tuple for a natural-number literal; non-natural literals intentionally fail to resolve. */
 export type Tuple<N extends number, T> =
     number extends N ? readonly T[] : _Tuple<N, T, readonly []>
 
