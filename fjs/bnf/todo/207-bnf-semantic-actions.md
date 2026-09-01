@@ -35,13 +35,12 @@ is needed.
 
 #### 1. The protocol
 
-One shape per data rule kind, each carrying a metadata channel `M` (§7) and a
-refusal channel (§6):
+One shape per data rule kind, each carrying a metadata channel `M` (§7):
 
 ```ts
 type Meta<M, T> = readonly[T, M]
 type Branch<C> = { readonly [K in keyof C]: readonly[K, C[K]] }[keyof C]
-type Out<M, T> = Result<Meta<M, T>, string>
+type Out<M, T> = Meta<M, T>
 
 type TerminalTransformer<M, T> = (v: Meta<M, CodePoint>) => Out<M, T>
 type SequenceTransformer<M, C extends readonly unknown[], T> = (v: Meta<M, C>) => Out<M, T>
@@ -87,9 +86,8 @@ empty map behaves bit for bit as it does now.
 Each child is its *transformed* value where it has a transformer, its AST node
 where it does not (§3).
 
-**The `Result` is the engine's, not the child channel's.** An `ok` is unwrapped
-before the parent sees it; an `error` never reaches the parent at all, because
-the parent is not called (§6). No transformer matches on a child's `Result`.
+`T` is unconstrained. A mapping that needs a recoverable semantic error uses a
+`Result` as its own `T`; the parser does not inspect or propagate it.
 
 A terminal that can match EOF must handle it — `String.fromCodePoint(-1)` is
 garbage — so such a rule is usually `unit`.
@@ -100,26 +98,26 @@ Its AST node, as today. The builders, as ordinary transformers:
 
 ```ts
 const terminal: TerminalTransformer<M, Ast<unknown>> =
-    v => ok([{ tag: undefined, sequence: v[0] === EOF ? [] : [v] }, v[1]])
+    v => [{ tag: undefined, sequence: v[0] === EOF ? [] : [v] }, v[1]]
 
 const sequence: SequenceTransformer<M, readonly unknown[], Ast<unknown>> =
-    ([items, m]) => ok([{ tag: undefined, sequence: items }, m])
+    ([items, m]) => [{ tag: undefined, sequence: items }, m]
 
 // identity: a variant contributes no node
 const variant = ([[, node], m]: Meta<M, readonly[string, Ast<unknown>]>): Out<M, Ast<unknown>> =>
-    ok([node, m])
+    [node, m]
 
 const repeat = (m: Monoid<M>): RepeatTransformer<M, unknown, _Rounds, Ast<unknown>> => ({
     init: [null, m.identity],
     update: ([items, acc], [item, im]) => [concat(items)([item]), m.operation(acc)(im)],
-    end: ([items, acc]) => ok([{ tag: undefined, sequence: toArray(items) }, acc]),
+    end: ([items, acc]) => [{ tag: undefined, sequence: toArray(items) }, acc],
 })
 type _Rounds = readonly[List<unknown>, M]
 ```
 
 Their leaf is the whole `Meta<M, CodePoint>` pair and their node is
 `Ast<unknown>`, since a child of an unmapped rule may itself be transformed.
-None ever refuses.
+None adds a semantic error type.
 
 **A node's tag is an *inherited* attribute and none of these can supply it.** A
 rule is entered *with* a tag and its node carries it; a variant contributes no
@@ -204,7 +202,6 @@ either: `toData` has already replaced the values a map is written against.
 type Leaf<M> = Meta<M, CodePoint>
 type TransformMatchResult<T, M> =
     | readonly['ok', Meta<M, T>, readonly Leaf<M>[]]
-    | readonly['refused', Refusal, readonly Leaf<M>[]]
     | readonly['no-match', Remainder<M>]     // rejected, or input ran out (`null`)
 type TransformMatch<T, M> = (s: readonly Leaf<M>[]) => TransformMatchResult<T, M>
 
@@ -250,7 +247,7 @@ expressible in a type, because the map's type does not know the grammar:
 6. no mapped branch under an unmapped variant (§3);
 7. every branch a mapped variant declares has an entry.
 
-Checks 5 and 7, plus `map`'s duplicate refusal (§9), are one invariant found from
+Checks 5 and 7, plus `map`'s duplicate rejection (§9), are one invariant found from
 several directions: **one rule value means one transformer.**
 
 **Entries, the map and `build` must come from the same factory.** Nothing else
@@ -264,10 +261,10 @@ conjure for an arbitrary `M`. Its leaf becomes `Meta<M, CodePoint>` like
 everything else (§7).
 
 `fjs/bnf/descent` returns `{ ast, success, idx, failure? }` rather than a
-remainder tuple; its transforming entry keeps that and replaces `ast` with the
-same three outcomes. Two backends, one input type, two result types.
+remainder tuple; its transforming entry keeps the backend's native parse result
+shape. Two backends, one input type, two result types.
 
-#### 6. Backtracking, purity, refusals
+#### 6. Backtracking, purity, and semantic results
 
 A transformer **must be pure and total**: same inputs, same outputs, no effects,
 no `throw`. `descent` speculates, and a branch it abandons may already have run
@@ -280,40 +277,20 @@ a declared branch does not compile, and a sequence transformer cannot destructur
 a position its rule does not have. What is left to the contract is that a
 truncated sequence never reaches a transformer at all.
 
-**Refusal is the engine's channel.** A rule that must reject a value it can parse
-but cannot represent — `1e999`, a duplicate `__proto__`, an unresolved `const` —
-returns an `error`. DataJS property processing is one concrete use: after the
-JSON string transformer resolves every escape, a string key whose decoded value
-is `__proto__` refuses. Only the separately tagged, exact source sequence
-`["__proto__"]` produces that property; whitespace and escape substitutions in
-the computed form do not match its grammar. The engine completes a refusal:
+**Semantic failure is a mapping value, not an engine channel.** A rule that must
+represent recoverable failure chooses `T = Result<V, E>`. The parser treats that
+`Result` like every other value: it neither unwraps it nor skips parent mappings.
+Each parent mapping therefore decides how to combine or propagate a child's
+semantic result. When propagation through the grammar would add noise, validate
+once in the root mapping or in a postprocess after parsing.
 
-```ts
-type Refusal = {
-    readonly rule: string     // the data-`RuleSet` name whose transformer refused
-    readonly at: number       // the physical index its invocation ended at
-    readonly message: string  // what the transformer said
-}
-```
+This keeps syntax and semantics separate. A semantic `error` does not change
+what the grammar accepts, does not acquire a parser cursor or rule name, and
+does not introduce a second control-flow protocol beside the mapping's `T`.
 
-The alternative — no channel, the error in the transformer's own `T` — was
-written out against §9's grammar and put a `Result` into six of the other eleven
-rules, with an `allOk` needing explicit type arguments. The channel costs a
-`Result` in four signatures the helpers write for you.
-
-**A refusal never changes what the grammar accepts.** A child can succeed inside
-a branch a later item then fails, so aborting at the refusing rule would make
-acceptance branch-order dependent under `descent`. `ll1` needs the same answer
-for its own reason: a later sibling can still fail syntactically, and then the
-honest result is a syntax failure with no value. So a refusal is a **value** — it
-replaces the refusing invocation's result, the enclosing rule is not called, and
-it travels up unchanged, so the first refusal is reported and an abandoned branch
-drops its refusal with everything else.
-
-**A parse that did not finish has no value.** No transformer on the spine runs
-when the grammar rejects or the input runs out mid-rule. Both are `no-match`,
-told apart by the remainder. `ok` and `refused` alike promise a non-`null`
-remainder, because both mean the grammar matched and finished.
+**A parse that did not finish has no transformed value.** No transformer on the
+spine runs when the grammar rejects or the input runs out mid-rule. Both are
+`no-match`, told apart by the remainder.
 
 #### 7. Metadata: both backends carry it
 
@@ -360,9 +337,8 @@ unital**, so not a monoid at all, and would make metadata depend on grammar
 shape. What stops a consumed payload propagating is the **transformer**, which
 chooses its own output `M`.
 
-Refusal positions do *not* need `M`: the engine attaches them from its own cursor
-(§6). For the [layered parser](./layered-parser.md), each layer is one grammar
-plus one transformer map, and a layer's payload is `M`.
+For the [layered parser](./layered-parser.md), each layer is one grammar plus one
+transformer map, and a layer's payload is `M`.
 
 #### 8. Helpers
 
@@ -384,12 +360,10 @@ type Transformers<M> = {
         branches: readonly (keyof C & string)[], f: VariantTransformer<M, C, T>) => Transformer<M, T>
     readonly repeatOf: <C, S, T>(item: FRule, r: RepeatTransformer<M, C, S, T>) => Transformer<M, T>
 
-    // sugar: the callback sees the value alone, `M` is forwarded, the result is `ok`
+    // sugar: the callback sees the value alone and `M` is forwarded
     readonly terminal: <T>(f: (symbol: CodePoint) => T) => Transformer<M, T>
     readonly seq: <C extends readonly unknown[], T>(
         arity: C['length'], f: (children: C) => T) => Transformer<M, T>
-    readonly seqR: <C extends readonly unknown[], T>(
-        arity: C['length'], f: (children: C) => Result<T, string>) => Transformer<M, T>
     readonly variant: <C, T>(
         branches: readonly (keyof C & string)[], f: (b: Branch<C>) => T) => Transformer<M, T>
     readonly list: <C>(item: FRule) => Transformer<M, readonly C[]>
@@ -419,7 +393,7 @@ type Transformers<M> = {
 #### 9. Worked example
 
 Twelve rules, written out so the map and the grammar cannot disagree, exercising
-all four kinds, both empty variant branches, and one refusal:
+all four kinds and both empty variant branches:
 
 ```ts
 //   list    = () => ['[', items, ']']        Sequence
@@ -434,7 +408,7 @@ all four kinds, both empty variant branches, and one refusal:
 //   noSign  = () => []                       Sequence, empty
 //   digits  = () => repeat(digit)            Repeat
 //   digit   = () => range('09')              TerminalRange
-const { entry, map, terminal, seq, seqR, variant, list, text, build } = transformers(m)
+const { entry, map, terminal, seq, variant, list, text, build } = transformers(m)
 
 const rest = map(
     entry(digit,   terminal(c => String.fromCodePoint(c))),
@@ -443,11 +417,8 @@ const rest = map(
     entry(noSign,  seq(0, () => '')),
     entry(sign,    variant(['minus', 'noSign'],
                        ([, x]: Branch<{ minus: string, noSign: string }>) => x)),
-    entry(item,    seqR(3, ([s, d0, ds]: readonly[string, string, string]) => {
-                       const n = Number(`${s}${d0}${ds}`)
-                       return Number.isSafeInteger(n) ? ok(n)
-                           : error(`${s}${d0}${ds} not a safe integer`)
-                   })),
+    entry(item,    seq(3, ([s, d0, ds]: readonly[string, string, string]) =>
+                       Number(`${s}${d0}${ds}`))),
     entry(next,    seq(2, ([, it]: readonly[unknown, number]) => it)),
     entry(more,    list<number>(next)),
     entry(some,    seq(2, ([first, rest]: readonly[number, readonly number[]]) =>
@@ -465,9 +436,9 @@ const match = build(rest)(
 zero rounds: with `[sign, digits]` alone, `item` matches nothing, `Number('')` is
 `0`, and `[,]` would be accepted. One-or-more is one plus zero-or-more.
 
-**Only `item` mentions refusal.** Everything else says plainly what it builds,
-because the engine eliminates a child's `Result` before its parent (§2). That is
-the engine channel earning its keep.
+If this grammar must reject a number it cannot represent, its mappings may make
+the relevant `T` a `Result`, or the completed number list may be validated once
+after parsing. The parser itself needs no semantic-error channel (§6).
 
 **`list` sees its own brackets** — every direct child occupies a slot, and `unit`
 contributes `undefined` rather than removing itself. Tolerable for a rule the
@@ -529,8 +500,8 @@ suspended parse's state (§4).
 [REVIEW.md](../../../REVIEW.md#designs): the implementer is not bound, but
 deviating silently is not allowed — the reason goes here.
 
-- **Settled** — the four kinds, `M` and its monoid, refusal as an engine channel,
-  the rule-value key. Changing one is a design change.
+- **Settled** — the four kinds, `M` and its monoid, semantic results as ordinary
+  `T` values, and the rule-value key. Changing one is a design change.
 - **Specified only because two implementers would otherwise differ** — the seven
   checks, the four default builders, the helper set. Deviate where the code
   disagrees, and say so here.
@@ -546,8 +517,8 @@ expect to find something wrong.
 
 **Stage 0 — decided**, each by writing §9's map both ways and compiling:
 
-- [x] **Refusal is the engine's channel** (§6). The alternative put a `Result`
-      into six of §9's other eleven rules.
+- [x] **Semantic failure is an ordinary `T`** (§6). A mapping may choose
+      `Result<V, E>` without adding a parser-wide failure channel.
 - [x] **The child shape is carried as data** (§5). `C['length']` and
       `keyof C & string` keep it from drifting; cost is one literal per entry.
 - [x] **Silent children are not a protocol change** (§9) — a combinator supplies
@@ -566,17 +537,15 @@ it is the smaller machine, it is the backend without metadata yet, and
 - [ ] Add `transformers`/`build` with the §8 primitives — `entry`, `map`, the
       four `…Of`, `unit` — since a bare shape is not installable and stage 1's
       own proofs need a map.
-- [ ] Run the seven construction checks (§5) and `map`'s duplicate refusal.
+- [ ] Run the seven construction checks (§5) and `map`'s duplicate rejection.
 - [ ] Add a variant frame to `ll1`, pushed only for a variant the map names.
-- [ ] Carry a refusal as a value, attaching `rule` and `at` from the cursor.
 - [ ] Skip the transformer when input runs out mid-rule, for the whole spine.
 - [ ] Keep `parserRuleSet` on its native path.
 - [ ] Proofs: `descentEquivalence` and existing AST expectations unchanged under
       the empty map; the default builders' *children* matching the native path;
       what each kind receives per §2, including EOF, an empty `Sequence` and a
-      zero-round `Repeat`; all seven checks and the duplicate refusal, each with
-      a passing and a failing case; a refusal discarded by a later syntactic
-      failure; and a deep-nesting case.
+      zero-round `Repeat`; all seven checks and duplicate rejection, each with a
+      passing and a failing case; and a deep-nesting case.
 
 **Stage 2 — helpers and the first consumer**, inside `fjs/bnf`, not
 `fjs/media/json`.
