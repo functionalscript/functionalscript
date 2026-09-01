@@ -112,12 +112,13 @@ adopting a `then`, and a proof tree refusing to — which are studied together i
 - [x] Read the *returned* sub-tree through it in `walk`, reporting an unreadable
       tree as that leaf's failure rather than a panic.
 - [x] Read the **exported** tree through it too, in `runModule`. The report
-      shape this was waiting on turned out to need no new vocabulary: the
-      module is named the way a leaf is, `import("./a.f.mjs").proof()` with an
-      empty path, and travels through the same `start` and `result` events with
-      the thrown value in its `SandboxResult` — so a host describes it exactly
-      as it describes a leaf's, and a filter that matches leaf names matches
-      this too. Measured before the change, two modules with only the first
+      shape this was waiting on was already decided, by the browser: the module
+      is its own `name`, because the leaf spelling with an empty path —
+      `import("./a.f.mjs").proof()` — is what a module exporting `proof` as a
+      bare function produces, so it would collide with a real leaf. It travels
+      through the same `start` and `result` events with the thrown value in its
+      `SandboxResult`, so a host describes it exactly as it describes a leaf's,
+      and both runners spell the record identically. Measured before the change, two modules with only the first
       hostile: `fjs t` exited on the throw with no summary and the second
       module's passing proofs were never reported. After: one failed record,
       the second module runs, `pass: 2, fail: 1`, exit 1.

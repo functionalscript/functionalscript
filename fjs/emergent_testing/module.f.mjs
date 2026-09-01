@@ -392,10 +392,13 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
  * A module whose `proof` export could not be read: one failed result, named
  * for the module, and the run goes on.
  *
- * **The module is named the way a leaf is**, `import("./a.f.mjs").proof()`,
- * with an empty path. Inventing a second spelling for "a module, not a leaf"
- * would be a second vocabulary for a reader to learn and for a filter to miss;
- * an empty path is what "no leaf inside it" already means here.
+ * **The module is its own name**, not `testId(k, [])`. The leaf spelling with
+ * an empty path is `import("./a.f.mjs").proof()`, which is exactly what a
+ * module exporting `proof` as a bare function produces — so it would collide
+ * with a real leaf, and a filter could not tell the two apart. The browser
+ * reached that conclusion first and recorded it on {@link moduleFailure};
+ * this is that decision, not a second one, which is the whole point of the
+ * read moving into the shared traversal.
  *
  * The duration is `0` and honestly so: nothing ran. What failed is the read of
  * the export, and the thrown value travels in the `SandboxResult`, so a host
@@ -411,7 +414,8 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
  * @returns {(k: string, thrown: unknown) => (state: RunState) => Effect<O, RunState, never>}
  */
 const unreadableModule = ({ start, result }) => (k, thrown) => state => {
-    const id = testId(k, [])
+    /** @type {TestId} */
+    const id = { module: k, path: '', name: k }
     /** @type {TestResult} */
     const t = { ...id, status: 'failed', duration: 0 }
     /** @type {SandboxResult<unknown>} */

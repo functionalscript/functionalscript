@@ -36,7 +36,7 @@ import { utf8ToString } from '../text/module.f.mjs'
 const runModules = moduleMap => {
     /** @type {Reporter<Sandbox | Write>} */
     const reporter = {
-        start: ({ path }) => log(`start:${path}`),
+        start: ({ name }) => log(`start:${name}`),
         result: (t, _r, _throws) => log(`${t.path}:${t.status}`),
         summary: ({ totals: { passed, failed } }) => log(`summary:${passed}:${failed}`),
         test: defaultTest,
@@ -127,9 +127,11 @@ const moduleExportThrows = () => {
         './h.proof.f.mjs': { proof: { get bad() { throw new Error('trap') } } },
         './g.proof.f.mjs': { proof: { good: () => 1 } },
     })
-    // The module is named with an empty path — it is not a leaf — so its two
-    // events carry nothing after the colon.
-    assert(written.includes('start:\n'), written)
+    // **The module is its own name**, which is what the browser reports for the
+    // same case: the leaf spelling with an empty path would be
+    // `import("./h.proof.f.mjs").proof()`, indistinguishable from a module
+    // whose `proof` is a bare function.
+    assert(written.includes('start:./h.proof.f.mjs\n'), written)
     assert(written.includes(':failed'), written)
     assert(written.includes('.good:passed'), written)
     assert(written.includes('summary:1:1'), written)
@@ -148,7 +150,7 @@ const moduleExportThrows = () => {
 const moduleFailureThatCannotBeReported = () => {
     /** @type {Reporter<Sandbox | Write>} */
     const reporter = {
-        start: ({ path }) => log(`start:${path}`),
+        start: ({ name }) => log(`start:${name}`),
         result: (t, _r, _throws) => log(`${t.path}:${t.status}`),
         summary: ({ totals: { passed, failed } }) => log(`summary:${passed}:${failed}`),
         test: defaultTest,

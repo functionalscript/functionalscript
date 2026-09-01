@@ -82,14 +82,15 @@ export type TestId = {
      * shape.
      *
      * **Both runners keep going, since functionalscript#1830.** A `proof`
-     * export that cannot be enumerated is one failed record named for the
-     * module — path empty, because there is no leaf inside it to name — and
-     * the modules after it still run and are still reported. `fjs t` used to
-     * panic on one and take the whole run with it; the shared traversal reads
-     * the export under `catch` now, so the answer is one runner's rather than
-     * one host's. What is still each host's own is *describing* the value that
-     * could not be read, which is the rest of
-     * `todo/hostile-proof-values.md`.
+     * export that cannot be enumerated is one failed record whose `name` is
+     * the module itself — an empty `path` would render as
+     * `import("./a.f.mjs").proof()`, which a module exporting `proof` as a
+     * bare function already produces — and the modules after it still run and
+     * are still reported. `fjs t` used to panic on one and take the whole run
+     * with it; the shared traversal reads the export under `catch` now, so the
+     * answer is one runner's rather than one host's. What is still each host's
+     * own is *describing* the value that could not be read, which is the rest
+     * of `todo/hostile-proof-values.md`.
      */
     readonly name: string
 }
