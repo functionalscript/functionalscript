@@ -39,7 +39,6 @@ const digits0 = repeat0Plus(digit)
 
 const digits = [digit, digits0]
 
-/** @type {Rule} */
 export const optionNeg = option('-')
 
 export const uint = /**@type {const}*/({
@@ -47,11 +46,10 @@ export const uint = /**@type {const}*/({
     onenine: [onenine, digits0],
 })
 
-/** @type {Sequence} */
-export const optionFloatSuffix = [
+export const optionFloatSuffix = /**@type {const}*/([
     option(['.', digits]),
     option([set('Ee'), option(set('+-')), digits])
-]
+])
 
 const number = [
     optionNeg,
