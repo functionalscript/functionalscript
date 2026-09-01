@@ -1,7 +1,11 @@
 ## Hostile thrown values and cross-realm promises kill a run
 
 **Priority:** P3
-**Status:** open
+**Status:** closed — both guarded reads landed (functionalscript#1809,
+functionalscript#1830, functionalscript#1832) and the cross-realm promise is a
+non-goal. The file survives only until its record of *why* `catch` exists moves
+to `catch` itself; deleting it means repointing thirteen references, which is
+its own change rather than a line in someone else's.
 
 ### Problem
 
@@ -44,22 +48,32 @@ totals, no exit code, from a run that completed. Measured before the change,
 one hostile leaf beside a passing one: both lines printed, then `Error: trap`
 and nothing else. After: `Unknown thrown value`, the summary, exit 1.
 
-What is left in this file is the cross-realm promise below.
+The cross-realm promise below is **not** what is left: it is a non-goal,
+recorded below rather than owed.
 
 **A promise from another realm is not awaited.** `fjs t`'s `sandbox` asks `p
 instanceof Promise`, which is false for a promise built in an iframe, a worker,
 or a `node:vm` context. Such a value is walked as an ordinary proof tree
-instead, so a *rejected* cross-realm promise is reported as a pass. **This half
-is no longer an asymmetry**: the browser carried `Symbol.species` machinery
-against it and no longer does — since functionalscript#1742 both runners ask the
-same question in `effects/common`'s `sandbox`, so the exposure is shared and
-tracked in [imports, promises and realms](imports-promises-realms.md) rather
-than covered on one side. It is kept here because closing it is still owed, and
-because the shared answer is the one to close. The obvious repair —
-brand-checking with `Object.prototype.toString` — is not one: the tag is
-settable through `Symbol.toStringTag`, and an object carrying a `then` proof
-would then be assimilated, breaking the rule that only actual promises are
-asynchronous values.
+instead, so a *rejected* cross-realm promise is reported as a pass.
+
+**This is out of scope, and not because it is hard.** FunctionalScript never
+handles objects from another realm — `fjs/AGENTS.md`'s "One realm, one
+prototype chain" — so a proof handing the runner a promise from an iframe, a
+worker or a `node:vm` context has already left the language the runner exists
+to run. Supporting it is not wanted: it would buy a value no conforming proof
+can produce, at the price of the rule that makes `instanceof` and the prototype
+chain reliable everywhere else.
+
+Two things stay true and are worth keeping. It is **not an asymmetry**: since
+functionalscript#1742 both runners ask the same `instanceof Promise` in
+`effects/common`'s `sandbox`, and the browser's `Symbol.species` machinery is
+gone. And the obvious repair would have been wrong anyway — brand-checking with
+`Object.prototype.toString` reads a tag that `Symbol.toStringTag` makes
+settable, so an object carrying a `then` proof would be assimilated, breaking
+the rule that only actual promises are asynchronous values.
+
+The exposure such a value represents is tracked, as exposure rather than as
+work, in [imports, promises and realms](imports-promises-realms.md).
 
 ### Design: a `catch` operation
 

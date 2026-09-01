@@ -556,8 +556,9 @@ and is reviewable without the next one.
       why. `runEntries` takes a module's **already-collected** leaves, so the
       page enumerates the export itself, once, under its own guard — items 5
       and 6 together. An unreadable export is that page's failed module, as
-      before, and the traversal keeps reading a module's own `proof` unguarded
-      (`hostile-proof-values.md`'s open task) for `fjs t`.
+      before; the traversal read a module's own `proof` unguarded for `fjs t`
+      until functionalscript#1830 guarded that one too, so both call sites are
+      guarded now and the seam is still two.
 
       **Skipping that seam is what a first attempt did, and review caught what
       it cost.** Calling `runModuleMap` once per module also preserves a
@@ -627,13 +628,22 @@ and is reviewable without the next one.
       `fjs t` already use. The port adopts the shared order for live progress
       too; prove it rather than inheriting it silently.
 
-      **What was the page's own, and is not any more:** reading a *module's*
-      exported tree. This said the shared walk guards a returned tree but
-      deliberately not the exported one, "because there is no leaf to attribute
-      that failure to" — and that reasoning did not survive being written down.
-      The module is the attribution: functionalscript#1830 reads the export
-      under `catch` in the shared walk, and names the record for the module
-      itself, which is what the page had been doing all along.
+      **Reading a *module's* exported tree stays the page's own, and is now
+      guarded on both sides.** This used to say the shared walk deliberately
+      leaves that read unguarded "because there is no leaf to attribute the
+      failure to". The second half did not survive being written down — the
+      module is the attribution — so functionalscript#1830 guarded
+      `runModule`'s read too and named the record for the module, which is what
+      the page had been doing all along.
+
+      What did *not* change is the seam: there are **two guarded call sites**,
+      and a step-8 implementer needs both. The page enumerates the export
+      itself, under its own `catch`, because it builds a `_BrowserTestResult`
+      with `message` and `stack` from the value — and because the export must
+      not be read twice, it then enters `runEntries` with the entries it
+      collected. `runModule` guards the read for a host that hands the *value*
+      over instead. Routing the page through `runModule` would read the export
+      a second time and lose the description its report carries.
 
 - [ ] **8. The layout move**, and the website preparation program.
 
