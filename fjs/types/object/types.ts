@@ -9,6 +9,8 @@
 /** A record over the keys of `K`, each value possibly missing at runtime. */
 export type OptionalMap<K extends string, T> = { readonly[k in K]?: T }
 
+export type RequiredMapBase<K extends string, T> = { readonly[k in K]: T }
+
 /**
  * A record over the keys of `K`, each value required.
  *
@@ -27,7 +29,7 @@ export type OptionalMap<K extends string, T> = { readonly[k in K]?: T }
 export type RequiredMap<K extends string, T> =
     string extends K
     ? never
-    : { readonly[k in K]: T }
+    : RequiredMapBase<K, T>
 
 /** A record with an open key set. Every value can be missing at runtime. */
 export type StringMap<T> = OptionalMap<string, T>
