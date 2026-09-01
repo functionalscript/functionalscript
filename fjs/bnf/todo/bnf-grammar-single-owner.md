@@ -92,6 +92,18 @@ structure while letting a caller supply its own property and value rules, which
 is how `fjs/bnf/lib/datajs` adds bigint, `NaN`, `Infinity`, `undefined`, and
 `$` references without restating the JSON value grammar.
 
+`string` needs the same treatment before a third caller can reuse it, and does
+not have it yet. It hard-codes its simple escapes as `set('"\\/bfnrt')`, so the
+branch tag for an escaped `/` is `/` — and `fjs/djs/tokenizer` deliberately
+spells that branch `solidus: '/'` instead, because `'/'` is already an operator
+tag there and `filterFunc` keeps every member of `operatorTags`. Handing that
+tokenizer JSON's `string` as-is would make `"\/"` flatten the slash into an
+operator token and split the string. So the shared piece is a
+`string(simpleEscapes)` taking the simple-escape variant as a parameter — it
+still owns the structure, including `\uXXXX` — and each caller names its own
+branches. That parameterization was this issue's original design; it is
+restated here because the shipped `string` does not have it.
+
 Only share what is actually common. DataJS's number grammar is materially
 different (bigint suffix, non-finite words), and it replaces the JSON number
 branch rather than parameterizing it. Keep such rules local rather than forcing
@@ -148,9 +160,14 @@ Before implementing this TODO after the blocking split:
       equivalent Unicode/text helpers in `fjs/bnf/lib/json` and
       `fjs/bnf/lib/datajs` with imports from `fjs/bnf/unicode/module.f.mjs`.
 - [ ] Replace every raw string used as a generic BNF `Rule` with the appropriate
-      Unicode helper construction. `fjs/bnf/lib/datajs` has one that must not be
-      split by the lowering: `'["__proto__"]'` is a single exact token, and the
-      spec forbids whitespace and escape substitutions inside it.
+      Unicode helper construction. For `fjs/bnf/lib/datajs`'s `'["__proto__"]'`
+      that means exactly the contiguous sequence `str` lowers it to: `str`
+      returns a sequence of terminal ranges for a multi-symbol string, and
+      adjacency in that sequence is already what makes the key one token — no
+      `ws` between elements, no escape substitution inside it. What the spec
+      forbids is a whitespace or escape-tolerant *rule*, not a multi-element
+      lowering; the key cannot stay a single terminal, since the parser's input
+      is code points.
 - [ ] Ensure generic combinators receive already-lowered rules/symbols and do not
       reintroduce hidden string interpretation into `fjs/bnf/module.f.mjs`.
 - [ ] Re-point the rule **values** any transformer map keys on
@@ -166,11 +183,14 @@ Before implementing this TODO after the blocking split:
       it back into generic BNF and do not move it into `fjs/media/json`.
 - [ ] Keep the exported readonly `Rule` / `Sequence` / `Variant` contracts on the
       shared pieces so a consumer cannot mutate a shared grammar singleton.
+- [ ] Parameterize `string` over its simple-escape variant, so a caller can name
+      those branches. Required before the next task: the tokenizer's `solidus`
+      tag is not cosmetic.
 - [ ] Point the `fsc` tokenizer (`fjs/djs/tokenizer` until stage 5 renames it)
       at the shared digit and string rules, keeping its DJS-specific number,
-      whitespace, and token rules local. It is grammar-based and stays so, so
-      this is sharing rules with a BNF consumer, not giving a media codec a BNF
-      dependency.
+      whitespace, and token rules local, and its own simple-escape branch names.
+      It is grammar-based and stays so, so this is sharing rules with a BNF
+      consumer, not giving a media codec a BNF dependency.
 - [ ] Handle `deno.json` registration according to the repository's exports-map
       state, if and when a map exists; do not create a one-entry restrictive
       exports map solely for these files.
