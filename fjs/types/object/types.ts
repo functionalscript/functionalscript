@@ -41,8 +41,8 @@ export type Entry<T> = readonly[string, T]
  * https://stackoverflow.com/questions/57571664/typescript-type-for-an-object-with-only-one-key-no-union-type-allowed-as-a-key
  */
 export type OneKey<K extends string, V> = {
-    [P in K]: (RequiredMap<P, V> & OptionalMap<Exclude<K, P>, never>) extends infer O
-        ? { [Q in keyof O]: O[Q] }
+    readonly [P in K]: (RequiredMap<P, V> & OptionalMap<Exclude<K, P>, never>) extends infer O
+        ? { readonly [Q in keyof O]: O[Q] }
         : never
 }[K];
 
@@ -51,7 +51,7 @@ export type OneKey<K extends string, V> = {
  */
 export type NotUnion<T, U = T> =
   T extends unknown ?
-    [U] extends [T] ? T
+    readonly [U] extends readonly [T] ? T
     : never
   : never;
 

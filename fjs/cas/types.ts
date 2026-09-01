@@ -52,5 +52,5 @@ export type Cas<O extends Operation> = {
 }
 
 export type FileCas = Cas<FileCasOperation> & {
-    url: (v: Vec) => string
+    readonly url: (v: Vec) => string
 }
