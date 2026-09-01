@@ -20,12 +20,12 @@ export type SequenceMap<MI, I extends readonly unknown[], MO, O> =
 
 // variant
 
-export type VariantMeta<M, T extends RequiredMap<string, unknown>> = {
+export type VariantMeta<M, K extends string, T extends RequiredMap<K, unknown>> = {
     readonly[K in keyof T]: readonly[K, Meta<M, T[K]>]
 }[keyof T]
 
-export type VariantMap<MI, I extends RequiredMap<string, unknown>, MO, O> =
-    (i: VariantMeta<MI, I>) => Meta<MO, O>
+export type VariantMap<MI, K extends string, I extends RequiredMap<K, unknown>, MO, O> =
+    (i: VariantMeta<MI, K, I>) => Meta<MO, O>
 
 // repeat 0+. if recognized as `T = () => { some: T, none: [] }`
 
