@@ -437,6 +437,11 @@ const writeJob = job => {
  * `nix/lock-update.sh` itself, and the generated `flake.nix`/`run` pair each
  * job takes, are this function's output.
  *
+ * `nix/lock-update.sh`'s executable bit is exactly as unmanaged as `run`'s —
+ * see {@link writeJob}'s docstring and `../todo/generated-run-script-mode.md`
+ * — so it needs the same one-time `git update-index --chmod=+x` if this file
+ * is ever deleted and regenerated from scratch.
+ *
  * @type {(jobs: readonly NixJob[]) => Effect<Mkdir | WriteFile, void, IoChannel>}
  */
 export const nixFlakes = jobs => {
