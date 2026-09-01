@@ -27,7 +27,7 @@ export type VariantMap<MI, I extends object, MO, O> =
 
 // repeat 0+. if recognized as `T = () => { some: T, none: [] }`
 
-export type Repeat<MI, I, S, MO, O> = {
+export type RepeatMap<MI, I, S, MO, O> = {
     readonly init: S
     readonly update: (state: S, i: Meta<MI, I>) => S
     readonly end: (state: S) => Meta<MO, O>
