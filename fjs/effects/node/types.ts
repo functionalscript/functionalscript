@@ -33,8 +33,8 @@ export type { IoChannel, IoError, IoErrorInfo, IoResult, OpResult }
 /**
  * The console family joins `Sandbox`, `Catch`, `Import` and `All` in
  * [`../common`](../common/types.ts), for two different reasons that the module
- * there keeps apart and counts out: `Sandbox`, `Catch` and `Import` have a
- * second implementer, and the rest are there because nothing about them is
+ * there keeps apart and counts out: `Sandbox`, `Catch`, `Import` and `All` have
+ * a second implementer, and the rest are there because nothing about them is
  * Node's —
  * fan-out belongs to whichever interpreter has concurrency, a path is resolved
  * against whatever a host resolves paths against, and a byte stream named by a

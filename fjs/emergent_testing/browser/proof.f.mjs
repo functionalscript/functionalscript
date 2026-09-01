@@ -52,10 +52,7 @@ const handlers = {
             }),
     ],
 
-    // Only the settled rows are collected: a proof that asserted on loading
-    // messages would be asserting the mock's own bookkeeping.
-    report: event => rows =>
-        [event[0] === 'result' ? [...rows, event[1]] : rows, ok(undefined)],
+    report: event => rows => [[...rows, event], ok(undefined)],
 }
 
 /**
@@ -155,6 +152,21 @@ const leaf = (status, duration) => ({
     module: 'a', path: '.x', name: 'import("a").proof.x()', status, duration,
 })
 
+/**
+ * The settled rows among what a run reported, which is what most proofs here
+ * are about. The announcements are asserted where they are the subject.
+ *
+ * @type {(events: _Rows) => readonly _BrowserTestResult[]}
+ */
+const settled = events => events.flatMap(e => e[0] === 'result' ? [e[1]] : [])
+
+/**
+ * The sources a run announced as loaded, in the order it announced them.
+ *
+ * @type {(events: _Rows) => readonly string[]}
+ */
+const announced = events => events.flatMap(e => e[0] === 'loading' ? [e[1]] : [])
+
 export const proof = {
     loadProofs: {
         // Every source loads: the walk answers the modules to run, paired with
@@ -209,12 +221,23 @@ export const proof = {
             assert(outcome[0] === 'ready', outcome)
             assertEq(outcome[1].length, 0)
         },
-        // Each module is announced as it lands, which is what a page counts to
-        // render `3/141`. The rows stay empty: a loading event is not a result.
+        /**
+         * **Each module is announced as it lands**, which is what a page counts
+         * to render `3/141`.
+         *
+         * The announcement is asserted rather than assumed: the page's counter
+         * increments on this event's tag, so a walk that announced under
+         * another name would leave a suite sitting at `Loading 0/N` for its
+         * whole run with every gate green. Nothing else here would notice — the
+         * outcome and the rows are the same either way.
+         *
+         * No result rows: a module arriving is not a test landing.
+         */
         announcesEachModule: () => {
-            const [rows, answered] = working([])(loadProofs(['a', 'b']))
+            const [events, answered] = working([])(loadProofs(['a', 'b']))
             assertEq(answered[0], 'ok')
-            assertEq(rows.length, 0)
+            assertStructurallySame(announced(events), ['a', 'b'])
+            assertEq(settled(events).length, 0)
         },
         /**
          * **A page that cannot be told stops the walk, and says so instead of
@@ -292,7 +315,8 @@ export const proof = {
     },
     // The ordinary run: one row per leaf, in order, and no runner failure.
     reportsEveryLeaf: () => {
-        const [rows, answered] = working([])(runProofs([['a', { x: pass, y: fail }]]))
+        const [events, answered] = working([])(runProofs([['a', { x: pass, y: fail }]]))
+        const rows = settled(events)
         assertEq(answered[0], 'ok')
         assertEq(answered[1], null)
         assertEq(rows.length, 2)
@@ -304,7 +328,7 @@ export const proof = {
     // Modules are a list, not a map: two entries sharing a label are two runs
     // (catalog item 6).
     repeatedModuleLabelIsTwoRuns: () => {
-        const [rows] = working([])(runProofs([['a', { x: pass }], ['a', { x: pass }]]))
+        const rows = settled(working([])(runProofs([['a', { x: pass }], ['a', { x: pass }]]))[0])
         assertEq(rows.length, 2)
         assertEq(rows[0]?.name, rows[1]?.name)
     },
@@ -312,7 +336,7 @@ export const proof = {
     // nothing thrown to describe, so the message says what happened instead of
     // printing the value.
     expectedThrowIsDescribed: () => {
-        const [rows] = working([])(runProofs([['a', { throw: { x: pass } }]]))
+        const rows = settled(working([])(runProofs([['a', { throw: { x: pass } }]]))[0])
         assertEq(rows[0]?.status, 'failed')
         assertEq(rows[0]?.message, 'Expected the proof to throw')
     },
@@ -327,8 +351,8 @@ export const proof = {
      * `infrastructure-error` rather than looking like an empty suite.
      */
     refusedReportEndsTheRun: () => {
-        const [rows, answered] = mute([])(runProofs([['a', { x: pass, y: pass }], ['b', { z: pass }]]))
-        assertEq(rows.length, 0)
+        const [events, answered] = mute([])(runProofs([['a', { x: pass, y: pass }], ['b', { z: pass }]]))
+        assertEq(settled(events).length, 0)
         assertEq(answered[0], 'ok')
         const ended = answered[1]
         assert(ended !== null, ended)
@@ -347,20 +371,20 @@ export const proof = {
     // names the failure and the stack is what a report crossing a wire exists
     // to carry.
     errorFieldsAreRead: () => {
-        const [rows] = working([])(runProofs([['a', { x: failWith({ message: 'm', stack: 's' }) }]]))
+        const rows = settled(working([])(runProofs([['a', { x: failWith({ message: 'm', stack: 's' }) }]]))[0])
         assertEq(rows[0]?.message, 'm')
         assertEq(rows[0]?.stack, 's')
     },
     // With no stack there is nothing better to say than the message, and a
     // consumer still gets both fields rather than a missing one.
     errorWithoutStack: () => {
-        const [rows] = working([])(runProofs([['a', { x: failWith({ message: 'm' }) }]]))
+        const rows = settled(working([])(runProofs([['a', { x: failWith({ message: 'm' }) }]]))[0])
         assertEq(rows[0]?.message, 'm')
         assertEq(rows[0]?.stack, 'm')
     },
     // A value that is not error-shaped is described by its own text.
     plainThrownValueIsPrinted: () => {
-        const [rows] = working([])(runProofs([['a', { x: failWith(42) }]]))
+        const rows = settled(working([])(runProofs([['a', { x: failWith(42) }]]))[0])
         assertEq(rows[0]?.message, '42')
         assertEq(rows[0]?.stack, '42')
     },
@@ -373,8 +397,9 @@ export const proof = {
      * refusal itself — which is what the fallback text is for.
      */
     withoutCatchAModuleFailsAndTheRunGoesOn: () => {
-        const [rows, answered] = blind([])(runProofs([['a', { x: pass }], ['b', { y: pass }]]))
+        const [events, answered] = blind([])(runProofs([['a', { x: pass }], ['b', { y: pass }]]))
         assertEq(answered[1], null)
+        const rows = settled(events)
         assertEq(rows.length, 2)
         assertEq(rows[0]?.module, 'a')
         assertEq(rows[0]?.status, 'failed')
@@ -385,16 +410,16 @@ export const proof = {
     // report ends the run there — with the failure answered rather than
     // announced, which is the only way it can travel at all.
     aModuleFailureThatCannotBeAnnouncedEndsTheRun: () => {
-        const [rows, answered] = deaf([])(runProofs([['a', { x: pass }], ['b', { y: pass }]]))
-        assertEq(rows.length, 0)
+        const [events, answered] = deaf([])(runProofs([['a', { x: pass }], ['b', { y: pass }]]))
+        assertEq(settled(events).length, 0)
         const ended = answered[1]
         assert(ended !== null, ended)
         assertEq(ended?.module, 'a')
     },
     // Nothing at all to run is not a failure.
     noModules: () => {
-        const [rows, answered] = working([])(runProofs([]))
-        assertEq(rows.length, 0)
+        const [events, answered] = working([])(runProofs([]))
+        assertEq(events.length, 0)
         assertEq(answered[1], null)
     },
 }

@@ -10,8 +10,7 @@
  * `all`/`allOk`/`both` fan-out are re-exported from
  * [`../common`](../common/module.f.mjs) rather than declared here: an operation
  * belongs to the layer of whoever implements it, and none of these is Node's by
- * nature. A browser dispatches `sandbox` and `catch` today, and supplies its
- * own `import`.
+ * nature. A browser page dispatches `sandbox`, `catch`, `import` and `all`.
  *
  * See `./types.ts` for the type-level API.
  *
@@ -55,10 +54,10 @@ export { errorMessage, ioError, toIoError }
 
 // `../common`'s, kept visible here because `NodeOp` unions them and dozens of
 // call sites name them through this module — a live coupling, not a shim. An
-// operation belongs to the layer of whoever implements it: a browser
-// dispatches `sandbox` and `catch` and supplies its own `import`, and the rest
-// are there because nothing about them is Node's. `../common/types.ts` keeps
-// the count, and says how it counts.
+// operation belongs to the layer of whoever implements it: a browser page
+// dispatches `sandbox`, `catch`, `import` and `all`, and the rest are there
+// because nothing about them is Node's. `../common/types.ts` keeps the count,
+// and says how it counts.
 export { all, allOk, both, catch_, error, errorExit, import_, log, read, readLine, sandbox, write }
 
 /**

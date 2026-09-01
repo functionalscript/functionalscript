@@ -7,22 +7,19 @@
  * FunctionalScript logic without importing a module named after a different
  * host.
  *
- * **Counted by capability, which is the measure the trap below argues for,
- * three have two implementers.** {@link Sandbox} and {@link Catch} are
- * dispatched by the browser page's interpreter as well as by Node's.
- * {@link Import} is supplied by the page rather than dispatched — it hands its
- * own `import()` in as an argument — and an injected function is an operation
- * nobody has named, so it counts. The line between the two cases is whether the
- * host supplies the capability *to shared logic*: the page's `Promise.all`
- * over its module loads is not injected anywhere, so it is that file's private
- * business rather than an implementation of {@link All}.
+ * **Four have two implementers**, all four now dispatched rather than counted
+ * by argument: {@link Sandbox}, {@link Catch}, {@link Import} and {@link All}
+ * are answered by the browser page's interpreter as well as by Node's. The last
+ * two arrived when the page's module loading moved into FunctionalScript — its
+ * `import()` had been an injected argument and its `Promise.all` its own
+ * private business, and naming both as operations is what let the walk over
+ * them be shared.
  *
- * **{@link All}, {@link Write} and {@link Read} have one implementer**, and are
- * here on the layering argument instead — nothing about them is Node's. Fan-out
- * belongs to whichever interpreter has concurrency; a byte stream named by a
- * string is not a filesystem fact. A page renders rows through an operation of
- * its own, which is a *different* operation rather than an implementation of
- * `Write`.
+ * **{@link Write} and {@link Read} have one implementer**, and are here on the
+ * layering argument instead — nothing about them is Node's: a byte stream named
+ * by a string is not a filesystem fact. A page renders rows through an
+ * operation of its own, which is a *different* operation rather than an
+ * implementation of `Write`.
  *
  * Both are good reasons to be in this module. They are not the same reason, and
  * the count is written out because "everything here has two implementers" is
@@ -37,8 +34,9 @@
  * `Import` is the case that showed how: a browser page was said to load its
  * modules "through its own importer rather than an `import` operation", which
  * described a callback it was handed. A callback is an operation nobody has
- * named, so counting by *dispatched commands* misses it. The honest question
- * is which capabilities a host needs supplied, not which commands it issues.
+ * named, so counting by *dispatched commands* missed it — and once it was
+ * named, the page dispatched it like any other. The honest question is which
+ * capabilities a host needs supplied, not which commands it issues today.
  *
  * @module
  */

@@ -20,7 +20,7 @@ import { error, ok } from '../../types/result/module.f.mjs'
  * element/document/view types can stay function-local.
  */
 const dom = () => {
-    /** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
+    /** @typedef {{ readonly tag: string, attributes: ReadonlyMap<string, string>, readonly ownerDocument: _Document, textContent: string, readonly texts: string[], children: readonly _Element[], readonly setAttribute: (name: string, value: string) => void, readonly removeAttribute: (name: string) => void, readonly querySelector: (selector: string) => _Element | null, readonly replaceChildren: (...nodes: readonly _Element[]) => void, readonly append: (node: _Element) => void }} _Element */
     /** @typedef {{ defaultView: _View | null, readonly baseURI: string, readonly createElement: (tag: string) => _Element }} _Document */
     /** @typedef {{ events: readonly CustomEvent[], readonly dispatchEvent: (event: Event) => boolean, fjsBrowserTestReport?: Promise<unknown> }} _View */
 
@@ -34,12 +34,21 @@ const dom = () => {
 
     /** @type {(document: _Document, tag: string, attributes: readonly string[], states: string[]) => _Element} */
     const element = (document, tag, attributes, states) => {
+        /** @type {string[]} */
+        const texts = []
         /** @type {_Element} */
         const self = {
             tag,
             attributes: new Map(attributes.map(name => [name, ''])),
             ownerDocument: document,
-            textContent: '',
+            // Every line the element was given, not only the last: a page that
+            // renders `Loading 3/141` and then a summary has said two things,
+            // and a proof that reads the property afterwards can only see the
+            // second. What the runner said *while running* is the subject of
+            // the progress proof below.
+            texts,
+            get textContent() { return texts.length === 0 ? '' : texts[texts.length - 1] },
+            set textContent(value) { texts.push(value) },
             children: [],
             setAttribute: (name, value) => {
                 if (name === 'data-state') { states.push(value) }
@@ -448,18 +457,23 @@ export const proof = {
         assertEq(p.summary.textContent, 'Loading 0/1')
     },
     sourcesProgress: async () => {
-        // The count is the *page's*: loads are fanned out, so no branch of the
-        // walk knows how many others have finished — it announces each module
-        // as it lands and this file counts what it has seen. Both sources here
-        // settle, so the assertion is where the count ends rather than an
-        // ordering between two concurrent imports.
+        // **The count is the page's**, and this is where it is proven. Loads are
+        // fanned out, so no branch of the walk knows how many others have
+        // finished: it announces each module as it lands, and this file counts
+        // what it has seen. A runner that announced under another name — or a
+        // page that counted the wrong event — would sit at `Loading 0/N` for a
+        // whole run, which reading the summary at the end cannot see.
+        //
+        // The *lines said while loading* are the subject, so the assertion is
+        // on what was rendered rather than on what is left showing. One source,
+        // because two concurrent imports have no guaranteed order between them.
         const p = page()
-        const report = await startBrowserTestSources(p.root, [
-            dataModule('export const proof = { a: () => undefined }'),
-            dataModule('export const proof = { b: () => undefined }'),
-        ])
+        const source = dataModule('export const proof = { a: () => undefined }')
+        const report = await startBrowserTestSources(p.root, [source])
         assertEq(report.status, 'passed')
-        assert((p.summary.textContent ?? '').startsWith('2 passed'), p.summary.textContent)
+        assertStructurallySame(
+            p.summary.texts.filter(t => t.startsWith('Loading')),
+            ['Loading 0/1', `Loading 1/1: ${source}`])
     },
     sourceThatCannotBeImported: async () => {
         // A source the page cannot import is a loader failure like any other:

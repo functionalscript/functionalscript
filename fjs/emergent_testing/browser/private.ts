@@ -14,7 +14,7 @@
  */
 
 import type { All, Catch, Import, Sandbox } from '../../effects/common/types.ts'
-import type { _BrowserReport, _BrowserTestResult } from '../types.ts'
+import type { _BrowserEvent, _BrowserReport } from '../types.ts'
 
 /**
  * Everything the orchestration asks of a runner: load a module, fan out, read
@@ -27,8 +27,15 @@ import type { _BrowserReport, _BrowserTestResult } from '../types.ts'
 export type _BrowserOp = All | Catch | Import | Sandbox | _BrowserReport
 
 /**
- * A mock runner's state: the rows it was asked to report, in order.
+ * A mock runner's state: every event it was asked to report, in order.
+ *
+ * *Every* one, including the loading announcements. Recording only the settled
+ * rows was a way of saying that asserting on announcements would be asserting
+ * the mock — but a mock that records what it was told is exactly how the
+ * settled rows are asserted too, and the assertion is about what the walk
+ * *sent*, not about the recording. Declining it left the page's `3/141` counter
+ * with no proof at all.
  *
  * @internal
  */
-export type _Rows = readonly _BrowserTestResult[]
+export type _Rows = readonly _BrowserEvent[]
