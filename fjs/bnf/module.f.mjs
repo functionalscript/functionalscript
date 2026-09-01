@@ -8,13 +8,13 @@
  * @module
  *
  * @import { Tuple } from '../types/array/types.ts'
- * @import { TerminalRange, Sequence, Rule, RangeVariant, None, Option, Repeat0Plus, Repeat1Plus, Join1Plus, Repeat } from './types.ts'
+ * @import { TerminalRange, Sequence, Rule, RangeVariant, None, Option, Repeat0Plus, Repeat1Plus, Join1Plus } from './types.ts'
  */
 
 import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.mjs'
 import { definedValues } from '../types/object/module.f.mjs'
 import { isTuple } from '../types/array/module.f.mjs'
-import { map, toArray, repeat as listRepeat } from '../types/list/module.f.mjs'
+import { map, toArray } from '../types/list/module.f.mjs'
 import { contains } from '../types/range/module.f.mjs'
 import { assert } from '../asserts/module.f.mjs'
 
@@ -317,14 +317,6 @@ export const join0Plus =
 export const commaJoin0Plus = ws =>
     ([open, close], item) =>
         [open, ws, join0Plus([item, ws], [',', ws]), close]
-
-/**
- * Repeats a rule a fixed number of times.
- *
- * @type {(n: number) => <T extends Rule>(some: T) => Repeat<T>}
- */
-export const repeat = n => some =>
-    toArray(listRepeat(some)(n))
 
 /**
  * Determines whether the rule is an empty rule.

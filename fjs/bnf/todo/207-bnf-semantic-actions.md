@@ -270,7 +270,11 @@ truncated sequence never reaches a transformer at all.
 
 **Refusal is the engine's channel.** A rule that must reject a value it can parse
 but cannot represent — `1e999`, a duplicate `__proto__`, an unresolved `const` —
-returns an `error`. The engine completes it:
+returns an `error`. DataJS property processing is one concrete use: after the
+JSON string transformer resolves every escape, a string key whose decoded value
+is `__proto__` refuses. Only the separately tagged, exact source sequence
+`["__proto__"]` produces that property; whitespace and escape substitutions in
+the computed form do not match its grammar. The engine completes a refusal:
 
 ```ts
 type Refusal = {
@@ -476,7 +480,10 @@ delete. Its one hard case is that `const` references resolve against *earlier*
 statements — an inherited attribute, which a transformer cannot see. Resolve it
 in a **second pass** over the built module: no protocol change, all state stays
 plain data, and "const not found" becomes a check on a value, which is where a
-name-resolution error belongs. A downward channel in the engine would change
+name-resolution error belongs. The pass rejects a duplicate declaration and
+fails the document when any reference does not resolve to an earlier `const`;
+it never leaves an unresolved name in the result. A downward channel in the
+engine would change
 every signature; a closure-returning transformer would put functions in a
 suspended parse's state (§4).
 

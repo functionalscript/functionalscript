@@ -41,7 +41,6 @@ import {
     option,
     range,
     remove,
-    repeat,
     repeat0Plus,
     set,
     unicodeMax,
@@ -52,7 +51,7 @@ import { escapeToCodePoint } from '../../js/string_escape/module.f.mjs'
 import { isKeywordToken, mergeTrivia } from '../../js/tokenizer/module.f.mjs'
 import {
     asterisk, lf,
-    solidus, reverseSolidus,
+    reverseSolidus,
     hexDigitValue,
     latinSmallLetterU,
 } from '../../text/ascii/module.f.mjs'
@@ -61,6 +60,7 @@ import { mapUnwrap } from '../../types/nullable/module.f.mjs'
 import { concat, empty, filter, flat, flatMap, fold, map, stateScan, toArray } from '../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
+import { repeat } from '../../types/array/module.f.mjs'
 
 // Builds the single-token grammar that jsGrammar's whole-file `tokens` rule repeats.
 /**

@@ -9,12 +9,13 @@
 
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
-import { commaJoin0Plus, eof, option, range, repeat, repeat0Plus, set } from '../module.f.mjs'
+import { commaJoin0Plus, eof, option, range, repeat0Plus, set } from '../module.f.mjs'
 import { toData } from '../data/module.f.mjs'
 import { descentParser } from '../descent/module.f.mjs'
 import { dispatchMap, parser, parserRuleSet } from './module.f.mjs'
 import { assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { deterministic, showAst } from '../testlib.f.mjs'
+import { repeat } from '../../types/array/module.f.mjs'
 
 /** @type {(cp: CodePoint) => CodePointMeta<unknown>} */
 const mapCodePoint = cp => [cp, undefined]
