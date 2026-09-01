@@ -515,6 +515,13 @@ unmeasured; design it from a measured bottleneck rather than in advance, and let
 design choose the builder, the image layout and the rest. Nothing here depends on the
 answer.
 
+Whatever that design turns out to be, an implementation must:
+
+- publish only immutable identities;
+- avoid exposing package-write credentials to pull-request code;
+- validate before publishing;
+- keep direct Nix as the fallback and reference path.
+
 A Dockerfile is not one of the options: a hand-written recipe is a second declaration of
 an environment these generated flakes already declare. The one this repository had was
 removed; `git log -- docker/` has it.
@@ -552,6 +559,9 @@ removed; `git log -- docker/` has it.
       widened by one input: Nixpkgs builds no `std` for three of its four targets,
       at any version.
 - [ ] Create independent follow-up TODOs only when experiments expose concrete needs.
+- [ ] Decide, from a measured bottleneck rather than in advance, whether CI produces an
+      OCI image — see *OCI images, and why no Dockerfile* above. Deferred, not
+      abandoned: nothing here waits on the answer.
 
 ### Related
 

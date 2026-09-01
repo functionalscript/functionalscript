@@ -187,8 +187,8 @@ and `lastModified` in `../config/module.f.mjs` — so a copy of `nix/` carries a
 locked flake, resolving to the same inputs wherever it is evaluated. It pins those
 inputs rather than vendoring them; what a build still has to fetch, and from where, is
 for whoever needs one to establish. Every CI invocation still passes
-`--no-write-lock-file`, now so that `nix develop` cannot write over the generated file. The `.gitignore` rule that used to hide these files
-is gone.
+`--no-write-lock-file`, now so that `nix develop` cannot write over the generated
+file. The `.gitignore` rule that used to hide these files is gone.
 
 ##### Shell hooks
 
