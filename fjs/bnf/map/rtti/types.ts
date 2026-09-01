@@ -6,7 +6,7 @@
 
 import type { Ts, TupleTs } from '../../../rtti/ts/types.ts'
 import type { Type, Number } from '../../../rtti/types.ts'
-import type { RequiredMap, RequiredMapBase } from '../../../types/object/types.ts'
+import type { RequiredMapBase } from '../../../types/object/types.ts'
 import type { Rule } from '../../types.ts'
 import type { RepeatMap, SequenceMap, TerminalMap, VariantMap } from '../types.ts'
 

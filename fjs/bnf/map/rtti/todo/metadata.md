@@ -35,16 +35,11 @@ names make parser call sites materially clearer.
 ### Proposal
 
 Use one metadata type `M` throughout one parser and checked map. Construct the
-parser/map from both its runtime metadata RTTI and its monoid; this binds the
-runtime schema, TypeScript type, and combining operation once instead of asking
-each rule mapping to repeat them.
-
-```ts
-type ParserMetadata<MT extends Type> = {
-    readonly type: MT
-    readonly monoid: Monoid<Ts<MT>>
-}
-```
+parser with `Monoid<M>` so its TypeScript type and combining operation are bound
+once instead of asking each rule mapping to repeat them. Neither the parser nor
+`checkMap` needs metadata RTTI: metadata is one unchanged channel, while RTTI
+exists in `checkMap` only to validate rule values whose types change at mapping
+boundaries.
 
 Input symbols are `Meta<M, CodePoint>`. The caller supplies their metadata; a
 parser must not invent source positions or otherwise interpret `M`.
@@ -70,11 +65,10 @@ Parameterize both parser backends over `M` and make both consume
 `readonly Meta<M, CodePoint>[]`. Move the shared pair type out of `descent`; the
 backend distinction must not appear in the AST or mapping contracts.
 
-Parameterize `checkMap` with `ParserMetadata<MT>`. Its implicit AST RTTI uses
-`MT` instead of `unknown`, and every touched but unmapped rule retains its AST
-value while receiving metadata according to the rules above. `checkMap` still
-checks rule value RTTI (`ri` and `ro`); the factory-bound `MT` supplies the one
-metadata RTTI shared by every entry.
+Keep `checkMap` independent of the metadata monoid and metadata RTTI. It checks
+only rule value RTTI (`ri` and `ro`). Its implicit AST RTTI may continue to use
+`unknown` for leaf metadata: that schema describes the AST value protocol and
+does not claim to validate the parser's generic `M`.
 
 The parser and all constructors used to create entries for its checked map must
 come from the same metadata-bound factory. Otherwise structurally compatible
@@ -85,10 +79,10 @@ that relationship with the existing mapping brand or a new factory brand.
 
 - [ ] Move the shared `Meta<M, T>`/code-point pair to the matcher layer.
 - [ ] Make LL(1) and descent accept the same metadata-carrying input.
-- [ ] Bind metadata RTTI and `Monoid<M>` in the parser/mapping factory.
+- [ ] Bind `Monoid<M>` in the parser/mapping factory.
 - [ ] Replace mapping `MI`/`MO` parameters with the factory's single `M`.
 - [ ] Derive metadata for terminal, sequence, string, variant, and repeat rules.
-- [ ] Generalize `checkMap`'s implicit AST RTTI from `unknown` to `MT`.
+- [ ] Keep metadata out of `checkMap`'s RTTI validation contract.
 - [ ] Prove order, associativity-independent grouping, explicit overrides, and
       identity metadata for both empty sequence and zero repetition.
 
