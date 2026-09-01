@@ -40,10 +40,13 @@ Everything host-specific is a **part** the skeleton calls at a place it names �
 where the leaf body is executed, where a result is reported — and a part is
 where a browser is allowed to be a browser. This paragraph originally listed
 "where a module is linked" among the parts, and building it settled the
-boundary the other way: **linking happens before the skeleton, in host code,
-and the skeleton accepts linked modules** — `fjs t` loads through its module
-map, the page through its own importer with its own loading UI, and neither
-shape fits a part the other host could supply. The tasks below record the
+boundary the other way: **linking happens before the skeleton, and the
+skeleton accepts linked modules** — `fjs t` loads through its module map, the
+page through the `import` operation, and neither shape fits a part the other
+host could supply. (The "in host code, through its own importer" this
+paragraph used to say was a mis-measurement, corrected below and in
+functionalscript#1818: a callback is an operation nobody has named, and the
+page dispatches `import` like any other host now.) The tasks below record the
 consequence: the runner exposes an entry point for a host that enumerates its
 own modules, and enumerating a module's export is that host's own guarded
 read.

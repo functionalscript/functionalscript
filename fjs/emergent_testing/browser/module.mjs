@@ -290,6 +290,15 @@ export const startBrowserTestSources = (root, sources) => {
             }
             return startBrowserTests(root, loadedModules[1])
         })
+        // The last guard: `loadProofs` answers every failure it can meet as a
+        // value, so reaching here means this file's own interpreter broke.
+        //
+        // No proof pins it either, for the same reason as the message guard
+        // above: a fixture would have to make an operation handler throw, and
+        // every value that does so is one engine's behaviour rather than this
+        // code's. It stays because the alternative — a page left in `loading`
+        // with no report and no completion event — is the one outcome an
+        // automated controller cannot act on.
         .catch(async cause => publish(root, Promise.resolve(reportOf(
             navigator.userAgent,
             performance.now() - start,

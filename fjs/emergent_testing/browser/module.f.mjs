@@ -263,8 +263,14 @@ const one = ([module, proof]) => ended => {
  */
 const loadOne = source => state => {
     // A walk that has been stopped loads nothing more. The only thing that
-    // stops it is the page refusing to be told, and a run whose reporting is
-    // broken has no way to describe what the rest of the loading did.
+    // stops it is the page refusing to be told, and once that has happened
+    // there is nothing to gain by *evaluating* the rest of the suite's
+    // modules — a module's top-level code runs when it links.
+    //
+    // No proof pins this: the outcome is the same either way (the run failed
+    // as the runner), so what it saves is user code that would have run for a
+    // report nobody can see. A mock that counted imports would be asserting
+    // its own bookkeeping.
     if (state.stopped !== null) { return pureOk(state) }
     return step(
         resultStep(import_(source), loaded => pureOk(loaded)),
