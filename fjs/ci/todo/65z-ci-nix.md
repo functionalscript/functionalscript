@@ -419,9 +419,11 @@ generated directory, and a maintainer runs it — through `npm run lock-update`,
 which needs Nix and is never run by ordinary contributors — only when a pin in
 `../config/module.f.mjs` moves.
 
-CI still passes `--no-write-lock-file`, now so that `nix develop` cannot write over
-the committed file and leave the checkout in a state a forgotten `lock-update`
-would fail loudly on instead of silently.
+CI passes `--no-update-lock-file`, not the more tempting `--no-write-lock-file`:
+the latter still resolves a mismatched input in memory and only skips the
+write, so it would warn and proceed on a stale lock rather than fail — exactly
+what let a forgotten `lock-update` merge silently. `--no-update-lock-file`
+refuses the resolve itself, so that same mismatch is a loud failure instead.
 
 Every invocation also passes `--quiet`, once, which is about the log rather than the
 checkout: it drops Nix's logging from `info` to `notice`, removing the `copying N

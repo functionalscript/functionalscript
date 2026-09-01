@@ -124,7 +124,7 @@ const suiteNixSteps = version => [
  * produces, so putting it at the end makes it the last word: any file an earlier
  * step wrote is in the comparison. Nothing those steps leave behind is tracked:
  * `npm pack`'s tarball and the declarations its `prepack` emits are ignored, and
- * `--no-write-lock-file` means Nix leaves nothing at all.
+ * `--no-update-lock-file` means Nix leaves nothing at all.
  *
  * The drift check itself is not a Nix command. `git` is the runner's tool, and a
  * step names the flake only when it needs something the flake pins.

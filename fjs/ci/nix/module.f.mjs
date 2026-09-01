@@ -295,9 +295,9 @@ export const flakeText = job =>
  * than leaving a later directory silently unlocked.
  *
  * A stale committed lock is not silent: `nix develop`'s
- * `--no-write-lock-file` (see {@link runText}) means it cannot repair itself,
- * so every command through a mismatched flake fails loudly until this script
- * is run and its result committed.
+ * `--no-update-lock-file` (see {@link runText}) refuses to resolve a mismatch
+ * on its own, so every command through a mismatched flake errors until this
+ * script is run and its result committed.
  *
  * @type {(jobs: readonly NixJob[]) => string}
  */
@@ -338,16 +338,23 @@ ${jobs.map(({ id }) => `nix flake lock ${flakePath(id)}`).join('\n')}
  *
  * The flags live here rather than in every step.
  *
- * **`--no-write-lock-file` is a guard, not a fix.** With a correct lock beside
- * the flake, Nix writes nothing whether or not the flag is passed — it compares
- * the lock it computes against the one on disk and only writes when they
- * differ, so the file comes through byte-identical with its mtime untouched.
- * What the flag buys is the case where they *do* differ: {@link lockUpdateText}
- * owns refreshing this file, deliberately by hand rather than on every run, so
- * without the flag every Nix step in every job would become a writer of a
- * tracked one that no generator run reverts. A stale lock therefore fails
- * loudly instead — every command through the mismatched flake errors — rather
- * than Nix quietly rewriting a file `git diff` was supposed to catch.
+ * **`--no-update-lock-file`, not `--no-write-lock-file`.** The two sound like
+ * one flag with an emphasis choice and are not, by Nix's own descriptions of
+ * them: `--no-write-lock-file` is "Do not write the flake's newly generated
+ * lock file" — Nix still *resolves* a mismatched input, computing what it
+ * would have written, and only skips the write. A stale committed lock then
+ * costs one `warning: not writing modified lock file` and nothing else; the
+ * command that should have caught the mismatch runs anyway and stays green,
+ * which is what let a stale lock merge silently. `--no-update-lock-file` is
+ * "Do not allow any updates to the flake's lock file" — it refuses the
+ * resolve itself, so the same mismatch is an error and every command through
+ * that flake stops. With a correct lock beside the flake — the state after
+ * {@link lockUpdateText}'s script runs — neither flag does anything: Nix
+ * compares the lock it would produce against the one on disk and only acts
+ * when they differ, so the committed file comes through byte-identical with
+ * its mtime untouched either way. What `--no-update-lock-file` buys is only
+ * the case where they *do* differ, which is exactly the case a forgotten
+ * `lock-update` leaves behind.
  *
  * **One `--quiet`, and it does one thing.** Nix has a single global verbosity
  * integer. The levels run `lvlError = 0, lvlWarn = 1, lvlNotice = 2,
@@ -391,7 +398,7 @@ ${jobs.map(({ id }) => `nix flake lock ${flakePath(id)}`).join('\n')}
  * @type {(id: string) => string}
  */
 export const runText = id => `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet ${flakePath(id)} --command "$@"
+exec nix develop --no-update-lock-file --quiet ${flakePath(id)} --command "$@"
 `
 
 /**
@@ -495,8 +502,9 @@ export const nixInstall = install(uses('cachix/install-nix-action'))
  * that spelling is and why.
  *
  * Every `flake.lock` is committed, not ignored: the script's
- * `--no-write-lock-file` keeps `nix develop` from touching it, so only
- * `nix/lock-update.sh` — never a Nix step in CI — ever writes one.
+ * `--no-update-lock-file` keeps `nix develop` from resolving, let alone
+ * writing, a mismatched one, so only `nix/lock-update.sh` — never a Nix step
+ * in CI — ever changes one.
  *
  * @type {(id: string, command: string) => string}
  */

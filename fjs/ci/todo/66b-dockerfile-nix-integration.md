@@ -30,7 +30,7 @@ than about Nix: `npm run gen` and the drift check it feeds run last, after
 against what the generator produces, so running it at the end makes it the last
 word — every earlier step has finished writing. Nothing those steps leave is
 tracked: `npm pack`'s tarball and the declarations its `prepack` emits are
-ignored, and `--no-write-lock-file` means Nix leaves nothing at all. The drift
+ignored, and `--no-update-lock-file` means Nix leaves nothing at all. The drift
 check is a plain step, since `git` is the runner's tool.
 
 Deno, `wasm` and Bun have since migrated the same way, under [65Z](65z-ci-nix.md),
@@ -182,13 +182,15 @@ The generator owns the job subdirectories of `nix/` and removes stale job output
 does not own `nix/` itself: `nix/README.md` is written by hand, so stale-output removal
 deletes directories it generated rather than everything it finds there.
 
-A `flake.lock` is generated beside every `flake.nix` and committed, from `narHash`
-and `lastModified` in `../config/module.f.mjs` — so a copy of `nix/` carries a fully
-locked flake, resolving to the same inputs wherever it is evaluated. It pins those
-inputs rather than vendoring them; what a build still has to fetch, and from where, is
-for whoever needs one to establish. Every CI invocation still passes
-`--no-write-lock-file`, now so that `nix develop` cannot write over the generated
-file. The `.gitignore` rule that used to hide these files is gone.
+A `flake.lock` is committed beside every `flake.nix` — so a copy of `nix/` carries
+a fully locked flake, resolving to the same inputs wherever it is evaluated — but
+`gen` never writes one: it is refreshed by a maintainer running `npm run lock-update`
+(real `nix flake lock`, one per generated directory) only when a pin moves. It pins
+those inputs rather than vendoring them; what a build still has to fetch, and from
+where, is for whoever needs one to establish. Every CI invocation still passes
+`--no-update-lock-file`, so `nix develop` cannot resolve, let alone write over, a
+lock that no longer matches its flake. The `.gitignore` rule that used to hide these
+files is gone.
 
 ##### Shell hooks
 

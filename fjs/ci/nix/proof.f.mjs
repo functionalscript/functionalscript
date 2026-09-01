@@ -432,10 +432,10 @@ nix flake lock ${flakePath(withRust.id)}
         // appearing in a comment.
         runText: () => {
             assertEq(runText(nixShell), `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet ./nix --command "$@"
+exec nix develop --no-update-lock-file --quiet ./nix --command "$@"
 `)
             assertEq(runText(plain.id), `#!/bin/sh
-exec nix develop --no-write-lock-file --quiet ./nix/node24 --command "$@"
+exec nix develop --no-update-lock-file --quiet ./nix/node24 --command "$@"
 `)
         },
         // One, and the count is arithmetic rather than taste. Nix has a single

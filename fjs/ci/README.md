@@ -135,9 +135,11 @@ constant, so the two cannot drift.
 
 A generated `run` script sits beside every flake, and a workflow step reads as
 the command it runs — `./nix/run npm run cov` — rather than as a `nix develop`
-invocation repeated fifteen times. The script carries `--no-write-lock-file`
-(leave the checkout untouched) and one `--quiet`, which drops the `copying N
-paths` substitution chatter and leaves every warning.
+invocation repeated fifteen times. The script carries `--no-update-lock-file`
+(error rather than silently resolve a mismatched input — a plain
+`--no-write-lock-file` would leave the checkout untouched but still resolve
+in memory and warn) and one `--quiet`, which drops the `copying N paths`
+substitution chatter and leaves every warning.
 
 `./dev.sh` at the repository root is the interactive counterpart — `nix develop
 ./nix`, with no flags and no arguments, for a person who wants the shell rather
