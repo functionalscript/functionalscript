@@ -224,10 +224,10 @@ export const registerModule = (ctx, k, v, star) => {
  * This is the seam a host enters when it must enumerate an export itself.
  * `runModule` below is this with the enumeration in front of it, and that
  * enumeration is the whole difference: reading a module's `proof` runs user
- * code, once per read, and a value that resists being read has no leaf to be
- * attributed to (`todo/hostile-proof-values.md`). A host that wants to report
- * such a module rather than panic on it therefore has to do the read, and must
- * not do it twice — so it hands the entries over rather than the value.
+ * code, once per read, and it must not be read twice — so a host that has
+ * already read it hands the entries over rather than the value. The browser
+ * page is that host: it reads the export to build its own module-failure row,
+ * and enters here with what it collected.
  *
  * It also keeps a host's modules a *list*: two modules may share a label, and
  * they are two runs. Nothing here is a map.
@@ -389,20 +389,71 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
 }
 
 /**
+ * A module whose `proof` export could not be read: one failed result, named
+ * for the module, and the run goes on.
+ *
+ * **The module is its own name**, not `testId(k, [])`. The leaf spelling with
+ * an empty path is `import("./a.f.mjs").proof()`, which is exactly what a
+ * module exporting `proof` as a bare function produces — so it would collide
+ * with a real leaf, and a filter could not tell the two apart. The browser
+ * reached that conclusion first and recorded it on {@link moduleFailure};
+ * this is that decision, not a second one, which is the whole point of the
+ * read moving into the shared traversal.
+ *
+ * The duration is `0` and honestly so: nothing ran. What failed is the read of
+ * the export, and the thrown value travels in the `SandboxResult`, so a host
+ * describes it exactly as it describes a leaf's — which is the point of
+ * routing this through the same two events rather than a message of its own.
+ *
+ * A report that fails still leaves the module counted: the failure *is* the
+ * outcome here, unlike a leaf's, where a failed `start` means there is nothing
+ * to keep.
+ *
+ * @template {Operation} O
+ * @param {LeafReporter<O>} reporter
+ * @returns {(k: string, thrown: unknown) => (state: RunState) => Effect<O, RunState, never>}
+ */
+const unreadableModule = ({ start, result }) => (k, thrown) => state => {
+    /** @type {TestId} */
+    const id = { module: k, path: '', name: k }
+    /** @type {TestResult} */
+    const t = { ...id, status: 'failed', duration: 0 }
+    /** @type {SandboxResult<unknown>} */
+    const sr = { result: ['error', thrown], duration: 0 }
+    return mapStep(
+        resultMapStep(step(start(id), () => result(t, sr, false)), ok),
+        reported => {
+            const landed = addLeaf(state, t, sr)
+            return reported[0] === 'ok' ? landed : { ...landed, aborted: reported[1] }
+        })
+}
+
+/**
  * One module: its `proof` export enumerated, then its leaves walked.
  *
- * The export is read **unguarded**, and that asymmetry is deliberate rather
- * than an oversight: there is no leaf to attribute a failure to, so an
- * unreadable `proof` export is whatever loaded the module's problem. `fjs t`
- * panics on one; the browser page reads it itself, through {@link runEntries},
- * so it can report one failed module. See `todo/hostile-proof-values.md`.
+ * **The export is read under `catch`, because reading it runs user code.** A
+ * `proof` built with a throwing getter or a revoked `Proxy` throws while it is
+ * being enumerated, and unguarded that unwound the whole traversal: `fjs t`
+ * exited on the throw with no summary and no exit code, taking with it every
+ * module that had already passed. Measured with two modules and only the first
+ * hostile, the second module's passing proofs were never reported.
+ *
+ * The browser page has read it this way since functionalscript#1809, through
+ * its own `attempt`, and reported one failed module. This is that answer moved
+ * into the shared core, which is where `todo/hostile-proof-values.md` says it
+ * belongs: `fjs t` is the reference runner, so the asymmetry was a gap in it
+ * rather than a defence the page had earned.
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
  * @returns {(k: string, v: unknown) => (state: RunState) => Effect<O | Catch, RunState, IoChannel>}
  */
-const runModule = reporter => (k, v) =>
-    runEntries(reporter)(k, collectTests([], false, v))
+const runModule = reporter => (k, v) => state => step(
+    /** @type {Effect<Catch, Result<readonly _TestAndPath[], unknown>, NotImplemented>} */ (
+        catch_(() => collectTests([], false, v))),
+    collected => collected[0] === 'ok'
+        ? runEntries(reporter)(k, collected[1])(state)
+        : unreadableModule(reporter)(k, collected[1])(state))
 
 /** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
 const proofEntries = moduleMap =>

@@ -5,9 +5,10 @@
 
 ### Problem
 
-The browser runner (`../browser/module.mjs`) defends against something `fjs t`
-does not, and it is not reachable from ordinary FunctionalScript. That asymmetry is
-the point of this file: when the two runners are unified
+The browser runner (`../browser/module.mjs`) defended against things `fjs t`
+did not, none of them reachable from ordinary FunctionalScript. That asymmetry
+is the point of this file — one of the three is closed and the other two are
+below: when the two runners are unified
 ([share the browser and console proof runners](share-browser-console-runner.md)),
 the shared core has to have *one* answer for each of them, decided rather than
 inherited twice. `fjs t` is the reference, so the honest reading is that these
@@ -15,22 +16,28 @@ are gaps in `fjs t` which the browser happened to cover — and closing them in
 the shared core is the way to keep that coverage instead of losing it to a port.
 
 **A value that resists being read is not attributed to the test that produced
-it.** Two functions in the shared core read user-supplied values without a
-guard: the `collectTests` traversal enumerates a returned proof tree, and
-`errorDetails` reads `message`/`stack` and calls `String` on a thrown value. A
-throwing accessor, a revoked `Proxy`, or a hostile `toString` panics through
-either, and there is no `try`/`catch` in FunctionalScript for the core to catch
-it with. `fjs t` ends with a stack trace and no summary; the browser runner
-today loses one test and carries on. Measured, with two modules in the tree and
-only the first hostile: `fjs t` exits on an uncaught `hostile` and the second
-module's passing proofs are never reported, while the browser records one failed
-result and runs the rest. That asymmetry is now noted on `TestResult` in
-`../types.ts`, because the type otherwise reads as though every runner tolerates
-a non-leaf failure. What is missing from the core is
-*attribution*: naming the leaf whose value could not be read, and continuing
-with the rest. Whichever runner ends up on top of it, a page left in `running`
-or a process that exits with no summary is the outcome an automated controller
-cannot act on.
+it.** Two functions in the shared core read user-supplied values, and a
+throwing accessor, a revoked `Proxy` or a hostile `toString` reaches both:
+`collectTests` enumerates a proof tree — a module's export, and whatever a leaf
+returned — and `errorDetails` reads `message`/`stack` and calls `String` on a
+thrown value. FunctionalScript has no `try`/`catch` for the core to catch
+either with, which is what the `catch` operation below exists for.
+
+**The `collectTests` half is closed.** Both reads go through `catch` now — the
+returned sub-tree in functionalscript#1809, the module's own export in
+functionalscript#1830 — in the shared traversal, so both runners answer one
+unreadable value with one failed record and keep going, and `TestResult` says
+so. What it cost is recorded in the task list below.
+
+**`errorDetails` is the half still open**, and it is the one where the two
+runners still differ: reading the *thrown* value is each host's own, because a
+serializable record cannot carry a raw one. `fjs t` prints it with `String(v)`,
+the page reads `message` and `stack` off it, and neither read is guarded in the
+core.
+
+Whichever runner ends up on top of it, the outcome to avoid is unchanged: a
+page left in `running`, or a process that exits with no summary, is what an
+automated controller cannot act on.
 
 **A promise from another realm is not awaited.** `fjs t`'s `sandbox` asks `p
 instanceof Promise`, which is false for a promise built in an iframe, a worker,
@@ -104,12 +111,19 @@ adopting a `then`, and a proof tree refusing to — which are studied together i
       which is where a browser runner will first dispatch one.
 - [x] Read the *returned* sub-tree through it in `walk`, reporting an unreadable
       tree as that leaf's failure rather than a panic.
-- [ ] The **exported** tree is still read unguarded, and deliberately: there is
-      no leaf to attribute it to, so an unreadable `proof` export belongs to
-      whatever loaded the module. `fjs t` still panics on one; the browser page
-      still catches it and reports one failed module. Closing *that* asymmetry
-      is a report-shape question (what a non-leaf failure is called) rather than
-      a missing operation, and it is the part of this issue still open.
+- [x] Read the **exported** tree through it too, in `runModule`. The report
+      shape this was waiting on was already decided, by the browser: the module
+      is its own `name`, because the leaf spelling with an empty path —
+      `import("./a.f.mjs").proof()` — is what a module exporting `proof` as a
+      bare function produces, so it would collide with a real leaf. It travels
+      through the same `start` and `result` events with the thrown value in its
+      `SandboxResult`, so a host describes it exactly as it describes a leaf's,
+      and both runners spell the record identically. Measured before the change, two modules with only the first
+      hostile: `fjs t` exited on the throw with no summary and the second
+      module's passing proofs were never reported. After: one failed record,
+      the second module runs, `pass: 2, fail: 1`, exit 1.
+      Pinned by `moduleExportThrows` and `moduleFailureThatCannotBeReported` in
+      `../catch.proof.mjs`, both mutation-checked.
 - [x] Prove an unreadable returned tree for `fjs t` — `returnedTreeThrows` in
       `../catch.proof.mjs`, beside `returnedTreeIsStillWalked`. The file is
       `.mjs` for the reason this whole issue rests on: a runner that reports a
