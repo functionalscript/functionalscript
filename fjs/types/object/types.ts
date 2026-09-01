@@ -1,7 +1,7 @@
 /**
  * Types for plain-object helpers: the `OptionalMap`/`RequiredMap`/`StringMap`
- * record shapes and `Entry<T>`, and the `OneKey`/`SingleProperty`/`NotUnion`
- * utility types.
+ * record shapes, the `AbstractRequiredMap` API constraint, `Entry<T>`, and the
+ * `OneKey`/`SingleProperty`/`NotUnion` utility types.
  *
  * @module
  */
@@ -9,7 +9,15 @@
 /** A record over the keys of `K`, each value possibly missing at runtime. */
 export type OptionalMap<K extends string, T> = { readonly[k in K]?: T }
 
-export type RequiredMapBase<K extends string, T> = { readonly[k in K]: T }
+/**
+ * An abstract required map used to describe APIs that accept every key in `K`.
+ *
+ * With an unrestricted key set such as `string`, this type is an abstraction,
+ * not a concrete object type: no ordinary object has every string property.
+ * Reading a missing property is typed as `T` but produces `undefined` at
+ * runtime. Use {@link RequiredMap} for concrete finite key sets.
+ */
+export type AbstractRequiredMap<K extends string, T> = { readonly[k in K]: T }
 
 /**
  * A record over the keys of `K`, each value required.
@@ -29,7 +37,7 @@ export type RequiredMapBase<K extends string, T> = { readonly[k in K]: T }
 export type RequiredMap<K extends string, T> =
     string extends K
     ? never
-    : RequiredMapBase<K, T>
+    : AbstractRequiredMap<K, T>
 
 /** A record with an open key set. Every value can be missing at runtime. */
 export type StringMap<T> = OptionalMap<string, T>

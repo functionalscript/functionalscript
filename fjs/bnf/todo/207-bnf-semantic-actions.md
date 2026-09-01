@@ -39,21 +39,21 @@ One shape per data rule kind, each carrying a metadata channel `M` (§7) and a
 refusal channel (§6):
 
 ```ts
-type Meta<T, M> = readonly[T, M]
+type Meta<M, T> = readonly[T, M]
 type Branch<C> = { readonly [K in keyof C]: readonly[K, C[K]] }[keyof C]
-type Out<T, M> = Result<Meta<T, M>, string>
+type Out<M, T> = Result<Meta<M, T>, string>
 
-type TerminalTransformer<M, T> = (v: Meta<CodePoint, M>) => Out<T, M>
-type SequenceTransformer<M, C extends readonly unknown[], T> = (v: Meta<C, M>) => Out<T, M>
-type VariantTransformer<M, C, T> = (v: Meta<Branch<C>, M>) => Out<T, M>
+type TerminalTransformer<M, T> = (v: Meta<M, CodePoint>) => Out<M, T>
+type SequenceTransformer<M, C extends readonly unknown[], T> = (v: Meta<M, C>) => Out<M, T>
+type VariantTransformer<M, C, T> = (v: Meta<M, Branch<C>>) => Out<M, T>
 type RepeatTransformer<M, C, S, T> = {
     readonly init: S
-    readonly update: (state: S, c: Meta<C, M>) => S
-    readonly end: (state: S) => Out<T, M>
+    readonly update: (state: S, c: Meta<M, C>) => S
+    readonly end: (state: S) => Out<M, T>
 }
 ```
 
-- **Terminal** gets the matched symbol with its metadata. `Meta<CodePoint, M>` is
+- **Terminal** gets the matched symbol with its metadata. `Meta<M, CodePoint>` is
   the leaf — `descent`'s shipped `CodePointMeta<M>` exactly (§7).
 - **Sequence** gets its children as a typed tuple. Fixed arity, so nothing to
   stream and no state.
@@ -106,7 +106,7 @@ const sequence: SequenceTransformer<M, readonly unknown[], Ast<unknown>> =
     ([items, m]) => ok([{ tag: undefined, sequence: items }, m])
 
 // identity: a variant contributes no node
-const variant = ([[, node], m]: Meta<readonly[string, Ast<unknown>], M>): Out<Ast<unknown>, M> =>
+const variant = ([[, node], m]: Meta<M, readonly[string, Ast<unknown>]>): Out<M, Ast<unknown>> =>
     ok([node, m])
 
 const repeat = (m: Monoid<M>): RepeatTransformer<M, unknown, _Rounds, Ast<unknown>> => ({
@@ -117,7 +117,7 @@ const repeat = (m: Monoid<M>): RepeatTransformer<M, unknown, _Rounds, Ast<unknow
 type _Rounds = readonly[List<unknown>, M]
 ```
 
-Their leaf is the whole `Meta<CodePoint, M>` pair and their node is
+Their leaf is the whole `Meta<M, CodePoint>` pair and their node is
 `Ast<unknown>`, since a child of an unmapped rule may itself be transformed.
 None ever refuses.
 
@@ -181,8 +181,8 @@ type Transformer<M, T> =
     | readonly['variant', readonly string[], VariantTransformer<M, never, T>]
     | readonly['repeat', FRule, {
         readonly init: unknown
-        readonly update: (state: never, c: Meta<never, M>) => unknown
-        readonly end: (state: never) => Out<T, M> }]
+        readonly update: (state: never, c: Meta<M, never>) => unknown
+        readonly end: (state: never) => Out<M, T> }]
     | readonly['unit']
 
 // keyed by the rule value — the `===` `toData` already dedups on
@@ -201,9 +201,9 @@ cannot name them cannot evaluate either grammar. The data `Rule` of
 either: `toData` has already replaced the values a map is written against.
 
 ```ts
-type Leaf<M> = Meta<CodePoint, M>
+type Leaf<M> = Meta<M, CodePoint>
 type TransformMatchResult<T, M> =
-    | readonly['ok', Meta<T, M>, readonly Leaf<M>[]]
+    | readonly['ok', Meta<M, T>, readonly Leaf<M>[]]
     | readonly['refused', Refusal, readonly Leaf<M>[]]
     | readonly['no-match', Remainder<M>]     // rejected, or input ran out (`null`)
 type TransformMatch<T, M> = (s: readonly Leaf<M>[]) => TransformMatchResult<T, M>
@@ -260,7 +260,7 @@ the implementer's.
 
 **`parserRuleSet` keeps its native path.** It is not this machine with an empty
 map: the machine needs a `Monoid<M>` the AST API has no use for and cannot
-conjure for an arbitrary `M`. Its leaf becomes `Meta<CodePoint, M>` like
+conjure for an arbitrary `M`. Its leaf becomes `Meta<M, CodePoint>` like
 everything else (§7).
 
 `fjs/bnf/descent` returns `{ ast, success, idx, failure? }` rather than a
@@ -321,10 +321,10 @@ remainder, because both mean the grammar matched and finished.
 instance. The motivating case is a layered parse: a tokenizer's symbol says only
 *that* a number is here, and *which* number rides in `M`.
 
-`descent` already has this — `CodePointMeta<M>` *is* `Meta<CodePoint, M>`.
+`descent` already has this — `CodePointMeta<M>` *is* `Meta<M, CodePoint>`.
 **`ll1` gains it**, which is the one part of this issue that reaches shipped
 types: `Match`, `MatchResult` and `Remainder` become generic in `M` over
-`readonly Meta<CodePoint, M>[]`, `ll1/private.ts`'s frame types follow, and
+`readonly Meta<M, CodePoint>[]`, `ll1/private.ts`'s frame types follow, and
 `CodePointMeta` moves to `fjs/bnf/matcher/types.ts` as `Meta`. `matcher` was
 written for it — `Ast<L>` already takes the leaf as a parameter — so the
 asymmetry was `ll1`'s hard-coded choice, not a contract. Nothing outside
