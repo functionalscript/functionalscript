@@ -501,37 +501,23 @@ Add other jobs only when useful:
 - a future browser runner may use Nix-provided browsers, but that should be designed after
   the shared HTML/JavaScript browser application exists and must not restore the deleted
   Node-only Playwright job;
-- an OCI image stays available as an optimization, and it would be built **from these
-  flakes** — see below.
+- an OCI image stays available as a later optimization, built from these flakes — see
+  below.
 
 A failure or unresolved design in one follow-up must not block unrelated flakes.
 
 ##### OCI images, and why no Dockerfile
 
-Direct Nix is the reference behavior and the fallback. An OCI image is an optional
-optimization on top of it, and the only version of it worth designing is one where a
-flake here is the single source of what the image contains — `nixpkgs.dockerTools`
-building an image from the same `devShells.<system>.default` a job enters, so that the
-image cannot describe an environment CI does not run. The committed `flake.lock` beside
-every flake already makes that possible offline: a copy of `nix/` resolves its inputs
-with no network.
+Direct Nix is the reference behavior. An OCI image stays available as a later
+optimization, and it would be built from these flakes, so that the image and the jobs
+cannot come to describe different environments. Whether it improves total CI behavior is
+unmeasured; design it from a measured bottleneck rather than in advance, and let the
+design choose the builder, the image layout and the rest. Nothing here depends on the
+answer.
 
-Whether such an image improves total CI behavior is **unmeasured**, and nothing here
-depends on the answer. Designing it means selecting a builder, image layout, runtime
-model, identity, caching and a publication workflow, and that is worth doing only from a
-measured bottleneck in the jobs as they now run — never before, and never as a
-precondition for a flake.
-
-A **Dockerfile is not one of the options.** This repository had one, in `docker/`, and
-deleted it: no workflow referenced it, it pinned nothing (`FROM debian` plus five
-`curl | sh` installers, against a flake pinning an exact Nixpkgs commit and a
-version-checked toolchain), and it cloned the repository from GitHub rather than using
-the working tree, so it could not build a contributor's changes. A hand-written recipe
-is a second declaration of the environment and drifts from the flake by construction,
-which is exactly what generating these files exists to prevent. So the question "should
-CI produce an OCI image?" stays open on the terms above; the question "should this
-repository carry a Dockerfile?" is settled — no — and reopening it needs a reason that
-this paragraph does not already answer.
+A Dockerfile is not one of the options: a hand-written recipe is a second declaration of
+an environment these generated flakes already declare. The one this repository had was
+removed; `git log -- docker/` has it.
 
 ### Tasks
 
