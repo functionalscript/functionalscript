@@ -44,47 +44,32 @@ work is tracked from then on.
 | Bun     | latest               | Updating dependencies; an alternative test runtime.               |
 
 TypeScript is the one row that is not simply "latest", and the only one that is
-**not** an npm dependency of this package. `npm ci` does not install it: it is a
-tool the environment provides, like the others in this table, so a runtime job
-that only runs the suite does not download a compiler it never opens.
-
-The version is pinned in
-[`fjs/ci/config/module.f.mjs`](./fjs/ci/config/module.f.mjs) — the same constant
-the generated CI uses, in the Nix shells and in the packed-package check — so
-install exactly that one:
-
-```bash
-npm install -g typescript@7.0.2   # or whatever that file pins today
-```
-
-Or take the Nix shell below and skip the question. Either way, do not reach for
-`npx tsc`: with nothing to resolve in `node_modules` it downloads whatever the
-registry calls latest, which is not the compiler CI runs.
+**not** an npm dependency of this package, so `npm ci` does not install it: it
+is a tool the environment provides, like the others in this table.
+[`fjs/ci/config/module.f.mjs`](./fjs/ci/config/module.f.mjs) pins the version CI
+uses — install exactly that one globally, or take the Nix shell below and skip
+the question. Either way, do not reach for `npx tsc`: with nothing to resolve in
+`node_modules` it downloads whatever the registry calls latest, which is not the
+compiler CI runs.
 
 ### Or one Nix shell
 
-If you have Nix, `nix/` is a generated development environment carrying every
-tool in that table at the exact versions CI uses — Node, Deno, Bun, TypeScript,
-a Rust toolchain with the WASM targets, Wasmtime, Wasmer and `git`. It is not a
-convenience built alongside CI: every job but the two older Node ones runs its
-commands inside this very shell, so what passes here is what passes there.
+If you have Nix, `nix/` is a development environment carrying every tool in that
+table at the versions CI uses. It is not a convenience built alongside CI: most
+jobs run their commands inside this very shell, so what passes here is what
+passes there.
 
 ```bash
 ./dev.sh                   # an interactive shell
 ./nix/run npm run cov      # or one command in it
 ```
 
-`./dev.sh` is `nix develop ./nix` and nothing else — no flags, so you see what it
-is fetching or building on a first entry. `./nix/run` is the same shell with a
-command handed to it, and is what a CI step names; it is generated, where
-`dev.sh` is two committed lines.
+`./dev.sh` opens the shell; `./nix/run` hands it a single command, and is what a
+CI step names. Nix does not run natively on Windows, so a Windows contributor
+either works through WSL2 or installs the table above — nothing in this
+repository requires Nix.
 
-It covers `aarch64-linux`, `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin`;
-`nix develop` picks the one for your machine. Nix does not run natively on
-Windows, so a Windows contributor either works through WSL2 or installs the
-table above — nothing in this repository requires Nix.
-
-`nix/README.md` explains what the shell contains and why.
+[`nix/README.md`](./nix/README.md) explains the shell and how it is generated.
 
 ### Node test-runner compatibility
 

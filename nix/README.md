@@ -1,330 +1,60 @@
 # Nix environments
 
-`flake.nix` here, and `<job>/` copies of it below, are **generated** by
-[`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs) — four self-contained flakes. Do not
-edit them by hand: run `npm run gen` and commit the result. The Node 26 CI
-job fails when the committed files no longer match the generator's output.
-`flake.lock` is committed beside each, but by a separate, maintainer-run
-`npm run lock-update` rather than by `gen` — see "`flake.lock`" below. This
-README is the one file here that is written by hand.
-
-The flake in *this* directory is the shell: the one a developer enters, and the
-one eight of the fourteen CI jobs run inside. It has no directory of its own
-because it belongs to no single job — `nix develop ./nix` is the whole of what
-there is to remember. Three jobs have a flake to themselves and a directory
-each: `node22` and `node24`, whose `node` is the thing under test, and
-`ubuntu-intel32`, whose 32-bit package set is marked broken on every system the
-shell serves but one. The sections below say why each has to be.
-
-Each flake pins the exact Nixpkgs commit from
-[`fjs/ci/config`](../fjs/ci/config/module.f.mjs) and exposes one development
-shell per system:
+One reproducible toolchain, shared by developers and CI, so that what passes on
+your machine is what passes on the runners.
 
 ```sh
-./nix/node24/run node --version
-```
-
-The pinned commit determines the package versions: `pkgs.nodejs_24` at that
-revision is one exact Node release, and the same number is recorded in
-`fjs/ci/config`. The flakes do not restate it — the job checks it from inside
-the shell instead (below), which also catches a shell that builds but provides
-the wrong binary. `pkgs.deno` and `pkgs.typescript-go` name no version at all,
-so for those the check is the only thing tying the recorded version to what the
-shell provides.
-
-The files stay static and readable on purpose — no job selection, no
-`flake-utils`, no shared Nix modules. A job that later needs a second system
-gets a second explicit `devShells.<system>.default` attribute rather than a
-loop.
-
-### `run`
-
-A generated `run` script sits beside every flake, and that is what CI invokes:
-
-```sh
-./nix/run npm run cov          # the shared shell
-./nix/node22/run node --test   # a flake of its own
-```
-
-Two lines, and the only thing that differs between copies is the path:
-
-```sh
-#!/bin/sh
-exec nix develop --no-update-lock-file --quiet ./nix --command "$@"
-```
-
-The path is written in because the generator knows it. Leaving it out would not
-work: `nix develop` with no installable defaults to `.`, and that is the
-*process* working directory — the repository root, where there is no
-`flake.nix` — rather than the script's own directory. So every caller runs from
-the repository root, which CI and a developer both do anyway.
-
-A generated script calls no external tool ([`AGENTS.md`](../AGENTS.md) §6), and
-this one has nothing that could: no `dirname`, and no shell logic doing its work
-either. `"$@"` passes the caller's argument vector through unsplit, which is what
-lets a step keep quoting of its own —
-`./nix/deno/run deno eval 'console.log(…)'` arrives as three arguments rather
-than as text to re-parse. `exec` replaces the shell, so the command's exit
-status is the script's.
-
-The two flags live there rather than in every step.
-
-**`--no-update-lock-file`, not the more tempting `--no-write-lock-file`.** Nix
-describes them itself: `--no-write-lock-file` is "do not write the flake's
-newly generated lock file" — it still *resolves* a mismatched input in memory
-and proceeds with that, only skipping the write, so a stale lock costs one
-`warning: not writing modified lock file` and the command runs anyway.
-`--no-update-lock-file` is "do not allow any updates to the flake's lock
-file" — it refuses the resolve itself, so the same mismatch is an error and
-the command stops. With a correct lock beside the flake, neither flag does
-anything: Nix compares the lock it would produce against the one on disk and
-only acts when they differ. What `--no-update-lock-file` buys is exactly that
-differing case — the one a forgotten `npm run lock-update` leaves behind, and
-`--no-write-lock-file` would have let through with a warning nobody's drift
-check reads.
-
-`--quiet` appears **once**, and it does one thing. Nix has a single global
-verbosity integer: the levels run `lvlError = 0, lvlWarn = 1, lvlNotice = 2,
-lvlInfo = 3`, a message prints when its own level is at most the current value,
-the default is `lvlInfo`, and each `--quiet` decrements by one. One reaches
-`notice`.
-
-What that removes: `this path will be fetched (N MiB download)` and one
-`copying path '…' from '…'` per store path, plus `this derivation will be built:`
-and `building '…'`. All `lvlInfo`, all progress rather than outcome.
-
-What it leaves is everything that reports a problem. A warning survives it — only
-the third `--quiet` reached below `lvlWarn` — and so does a failing build's log,
-which arrives inside the error as `last N log lines`. The one real cost is that a
-cache miss looks like a cache hit: Nix compiles from source in silence and the job
-is only slower. That is bounded, because the store persists across a job's steps,
-so substitution happens on the first `./nix/run` and no other.
-
-**There used to be three.** With no committed `flake.lock`,
-`--no-write-lock-file` made every step of every Nix job print `not writing
-modified lock file` and list every input, five lines at a time. Global verbosity
-is the only lever Nix offers — `--verbose`, `--quiet` and `--debug` are the whole
-logging category, and verbosity is not a `nix.conf` setting, so `--option` cannot
-reach it — so getting below `lvlWarn` to hide that one warning hid them all: a
-failing substituter, a dirty tree, a deprecation notice. The lock removed the
-cause, and the two flags came off with it.
-
-Nix has no shorter spelling: `--verbose` declares a `v` short name and `--quiet`
-declares none, so `-q` is not an option the `nix` CLI accepts, and the `-Q` that
-exists is `--no-build-output` on `nix-build`/`nix-shell` rather than on this
-command. No flag reaches the command being run — `--command` execs it with stdio
-inherited — so a job's own output is unchanged.
-
-### `../dev.sh`
-
-`./nix/run` hands the shell a command; `../dev.sh` opens one:
-
-```sh
-#!/bin/sh
-exec nix develop ./nix
-```
-
-It is **not** generated — the one Nix-related script that is not. There is
-nothing in it that varies with a job, a pin or a system, so generating it would
-buy a drift check over two lines that have no reason to move, and would cost the
-generator a write into the repository root, where a consuming project is quite
-likely to have a `dev.sh` of its own. It is committed once, like this README.
-
-It lives at the root because that is where a person types it, and it takes no
-arguments — a shell is what it opens, so there is nothing to pass through.
-
-**It carries neither of `run`'s flags, and both absences are deliberate.**
-`--quiet` hides `copying path` and `building '…'`, which is right for a CI log
-and wrong at a terminal: on a first entry those lines are the only thing telling
-you a two-gigabyte fetch is progressing rather than hung.
-`--no-update-lock-file` stops CI resolving, let alone writing, a tracked file;
-your working tree is not CI's, and if Nix disagrees with the committed lock
-then letting it resolve and rewrite is the quickest way to fix it by hand —
-`git diff` shows exactly what changed, and you commit the result exactly as
-`npm run lock-update` would have produced it.
-
-### `flake.lock`
-
-A lock is committed beside every flake, but `npm run gen` (`fjs ci`) never
-writes one — unlike `flake.nix`, which it regenerates on every run from
-[`fjs/ci/config`](../fjs/ci/config/module.f.mjs). `gen` has to run wherever
-the project is developed, including Windows, where Nix does not run at all,
-so it cannot shell out to `nix flake lock` — and a lock is exactly `narHash`
-and `lastModified` for the pinned revision, both facts only real Nix can
-establish.
-
-So `gen` instead writes `lock-update.sh` beside the flakes: one
-`nix flake lock <path>` per generated directory, run by a maintainer — with
-Nix, hence `npm run lock-update` rather than `gen` — only when a commit in
-`fjs/ci/config` moves. A forgotten `lock-update` is still not silent:
-`flake.nix`'s `inputs.nixpkgs.url` already names the new commit once `gen`
-has run, so a `flake.lock` still naming the old one no longer matches what
-`flake.nix` asks for, and `--no-update-lock-file` (below) turns the very first
-`nix develop` any CI job makes into a loud failure instead of Nix quietly
-recomputing it.
-
-The generator writes the script's **content**; its executable bit is committed
-once and preserved by every regeneration, because `fs.writeFile` keeps the mode
-of a file that already exists. A job generated for the first time needs
-`git update-index --chmod=+x <path>` by hand —
-[`fjs/ci/todo/generated-run-script-mode.md`](../fjs/ci/todo/generated-run-script-mode.md)
-is about removing that step.
-
-Every canonical job with a flake runs through it — the three Node jobs, `deno`,
-`wasm` and `bun`. Each installs Nix, asserts the versions of the tools it is
-about to use, and then runs its commands one `nix develop` step each, because a
-CI step runs one command. No separate job makes those checks: a flake is checked
-by the jobs that use it, and every generated flake has at least one.
-
-One canonical job has no flake: `package-check` runs with no checkout, which is
-the whole point of it, and a flake and its `run` script are files in a checkout.
-`fjs/ci/todo/65z-ci-nix.md` says so.
-
-### The developer environment
-
-`dev` carries everything the canonical jobs use at once — Node 26, Deno, the
-pinned Bun, TypeScript, a Rust toolchain with every WASM target, Wasmtime,
-Wasmer and `git` — so that one shell is enough to work in:
-
-```sh
-nix develop ./nix          # an interactive shell
+./dev.sh                   # an interactive shell
 ./nix/run npm run cov      # or one command in it
 ```
 
-It cannot drift from what the jobs run, because it *is* what they run. Each tool
-is declared beside the commands using it — the Bun override in `fjs/ci/bun`, the
-toolchain and its targets in `fjs/ci/rust` — and this shell takes those
-declarations rather than restating them. `git` is here for the developer alone:
-`nix develop` builds an environment from what the shell asks for rather than
-from what the machine has, so a shell without it is one you leave immediately.
+Everything the project builds and tests with lives in the shell this directory
+defines — the runtimes, the compilers, the WASM tooling. It is not a
+convenience assembled alongside CI: most CI jobs run their commands inside this
+very shell, so it cannot drift from them.
 
-TypeScript is here for a reason the others are not: it is no longer an npm
-dependency of this repository, so `npm ci` does not put a `tsc` in
-`node_modules` and `npm test` or `npm pack` outside this shell needs one
-installed globally. `fjs/ci/config/module.f.mjs` says which version, and why the
-attribute is `typescript-go` rather than `typescript`.
+A few jobs need something this shell deliberately cannot provide — an older
+`node` for the commands that resolve their runtime from `PATH`, or a package
+set that is broken everywhere else. Those get a subdirectory with a flake and
+a `run` script of their own.
 
-**Why sharing is safe, and where it is not.** The jobs used to have a flake
-each, on the reasoning that a shell with five runtimes would let a job pass on
-whichever `node` came first on `PATH`. That risk is real and it is narrower than
-the rule it produced: it applies only where a command resolves its runtime from
-`PATH`. `deno task cov`, `bun test`, `cargo test` and `tsc` all name theirs, so
-what else is installed cannot decide what runs them — those jobs share this
-shell, and CI therefore proves the environment people actually work in.
+## Generated, except this file
 
-`npm ci` and `node --test` name nothing. They run whichever `node` they find,
-and one shell has one `node` — so `node22` and `node24` keep a flake apiece
-holding the single release each exists to test. `node26` needs no such thing:
-the release it wants is this shell's.
+Every `flake.nix` and `run` here is generated by
+[`fjs/ci/nix`](../fjs/ci/nix/module.f.mjs) from
+[`fjs/ci/config`](../fjs/ci/config/module.f.mjs), which is also where tool
+versions and pinned commits are chosen. Don't edit them by hand — change the
+generator or the config, run `npm run gen`, and commit the result. CI fails when
+the committed files no longer match what the generator produces.
 
-It exposes four shells — `aarch64-linux`, `x86_64-linux`, `aarch64-darwin`,
-`x86_64-darwin` — one named `devShells.<system>.default` each, and
-`nix develop` picks the one matching the machine. The shell itself is written
-once, as a function those four entries call with the three things that differ:
-the system, and the archive and hash Bun publishes for it. The single-system
-flakes keep their shell inline, since a function called once would be
-indirection for nothing. Nix does not run natively on Windows, so a Windows
-developer reaches it through WSL2 or works the way this repository has always
-supported natively.
+`flake.lock` is the exception to the exception: `gen` runs on Windows, where Nix
+does not, so it cannot write a lock. It writes `lock-update.sh` instead, and a
+maintainer runs `npm run lock-update` when a pinned commit moves. Forgetting is
+not silent — the next CI job into the shell fails rather than quietly resolving
+a new lock.
 
-There is no `dev` CI job. There was one, for exactly one reason — nothing else
-evaluated this flake, so it would have rotted until a developer's shell failed
-to build — and four jobs entering it on every pull request is a stronger answer
-than one job asserting six versions. Between them they still assert all six:
-`node` and `tsc` from `node26`, `deno` from `deno`, `bun` from `bun`, both WASM
-runtimes from `wasm`.
+This README is written by hand, and `../dev.sh` is the one script here that is
+not generated: nothing in it varies with a job, a pin or a system, and
+generating it would mean writing into the repository root of every consuming
+project.
 
-Those jobs run on one runner, so one of the four shells is built for real; the
-other three are generated from the same declaration and pinned as text.
+## Why the shells look the way they do
 
-### The `bun` flake's overridden package
+The flakes stay flat and explicit — no job selection, no `flake-utils`, no
+shared modules. A reader should be able to see what a shell provides without
+evaluating anything, and a job that needs a second system gets a second
+attribute rather than a loop.
 
-Every package in every other flake comes from the pinned snapshot. Bun does not.
-Nixpkgs ships 1.3.13, and two of this repository's proofs fail on it — one a real
-difference in when JavaScriptCore reads `Symbol.species`, which no timeout
-setting reaches. So that flake keeps the snapshot's recipe and replaces the
-archive it unpacks:
+The flakes state pinned commits, not package versions. The version a pin
+resolves to is asserted by the jobs that enter the shell, which also catches a
+shell that builds but hands over the wrong binary — something a version restated
+in the flake could never catch.
 
-```nix
-pinned = pkgs.bun.overrideAttrs {
-    version = "1.4.0";
-    src = pkgs.fetchurl {
-        url = "https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-aarch64.zip";
-        hash = "sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=";
-    };
-};
-```
+A check earns its place only where the flake does not already give the answer,
+so a toolchain named by its exact version is not re-checked. The one check that
+carries different weight is Bun's: Nixpkgs ships a release two of this
+repository's proofs fail on, so its flake overrides the archive, and that check
+is what confirms the override took effect.
 
-Everything the snapshot does with that archive still happens — unzip,
-`autoPatchelfHook`, the wrapper — and the hash is checked before any of it. The
-shell takes the `let` binding rather than `pkgs.bun`, which is what keeps 1.3.13
-off `PATH` beside it.
-
-The binding is named `pinned` by the generator rather than after the package,
-like `rust` in the `wasm` flake. A Nix reference has to start with an
-identifier, while an attribute *selection* can be quoted — so naming it after
-the package would fail to serialize for any package name Nix would need to
-quote, in a flake where `pkgs."…"` is perfectly fine.
-
-This is possible only because Nixpkgs fetches Bun as a prebuilt archive; a
-package built from source would make this repository the maintainer of a package
-definition. The archive name carries the system, so a job on another runner needs
-another URL *and* another hash. Both constants in `fjs/ci/config` are deleted the
-day the snapshot carries a Bun this suite passes on.
-
-### The `wasm` flake's second input
-
-`wasm` is the only flake with two inputs, and the extra one is why that job could
-be migrated at all.
-
-Nixpkgs builds a single `rustc` and hard-codes the targets it builds `std` for —
-the host, `wasm32-unknown-unknown`, `wasm32v1-none` and two BPF targets. Three of
-this job's four are not among them, at any Nixpkgs version, because that list is
-compiled into the derivation rather than passed to it. So the flake takes its
-toolchain from `github:oxalica/rust-overlay`:
-
-```nix
-rust = pkgs.rust-bin.stable."1.98.0".minimal.override {
-    extensions = [ "clippy" "rustfmt" ];
-    targets = [ "wasm32-wasip1" "wasm32-wasip2" "wasm32-unknown-unknown" "wasm32-wasip1-threads" ];
-};
-```
-
-That overlay is not a different build of Rust; it is a different way of getting
-it. Rust publishes a manifest per release listing every component and target with
-a URL and a hash, and the overlay checks a generated Nix file per version into its
-own repository — so this expression selects among the same tarballs `rustup` would
-install, pinned by hashes inside an input `fjs/ci/config` pins. Nixpkgs ignores
-that manifest and compiles from source, which is the whole of the difference.
-
-`inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs"` keeps the flake resolving
-one snapshot rather than two. `minimal` plus the two components the job runs
-avoids `rust-docs`, which the `default` profile would download and nothing here
-opens. Wasmtime and Wasmer stay ordinary Nixpkgs packages.
-
-The check's shape follows the runtime rather than a convention: `node --version`
-prints a leading `v` the configured version does not carry, while
-`deno --version` prints three lines — the runtime, V8 and TypeScript — so Deno
-is asked for `Deno.version.deno` instead of pinning two versions nobody
-configured. `wasm` checks two runtimes rather than one, since its shell provides
-two, and neither `pkgs.wasmtime` nor `pkgs.wasmer` names a version. `bun` prints
-the bare version with no prefix at all.
-
-Bun's check is the one that carries a different weight. Every other confirms that
-a snapshot provides what the configuration claims; that one confirms an override
-took effect — a failed `overrideAttrs` would leave 1.3.13 in the shell, and two
-failing proofs would be how anyone found out.
-
-It checks no Rust. That is the same rule read the other way: a check earns its
-place where the flake does not already say the answer, and this one says
-`stable."1.98.0"` in full.
-
-Node 26's drift check is a plain step, not a `nix develop` one: `git` is the
-runner's tool, and a step names the flake only when it needs something the flake
-pins.
-
-Nix runs nowhere else in CI. What a generated flake declares is asserted without
-Nix by two proofs: `fjs/ci/proof.f.mjs` requires the written file to equal the
-generator's text for that job, and each Node job's package attribute to follow
-the configured version; `fjs/ci/nix/proof.f.mjs` pins that text character for
-character, the pinned commit and `devShells.<system>.default` included.
+Nix does not run natively on Windows; a Windows developer works through WSL2, or
+without Nix, which this repository has always supported.
