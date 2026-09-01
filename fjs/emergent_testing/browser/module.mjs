@@ -155,6 +155,14 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
  * document-relative URL is how a map gets broken invisibly. An absolute URL —
  * `https:`, `data:` — already carries its own base.
  *
+ * A bare specifier is resolved with *this module* as the referrer, so an import
+ * map's `scopes` are read for `emergent_testing/browser/` and not for the page
+ * entry that asked. Nothing here uses import maps, and the only way to change
+ * it is to hand the loading back to an injected callback in the page — the
+ * unnamed operation this change exists to remove. Recorded rather than
+ * designed around: a suite that needs a scoped map wants a page that resolves
+ * its own sources and passes URLs.
+ *
  * @type {(base: string, source: string) => string}
  */
 const specifier = (base, source) =>
