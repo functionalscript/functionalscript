@@ -1,7 +1,11 @@
 ## Share the browser and console proof runners
 
 **Priority:** P3
-**Status:** open
+**Status:** open — every step has landed. Two proofs are left: that the two
+runners answer identically from the same fixtures, and that the page reports an
+`infrastructure-error` when its *own interpreter* **rejects**, which 7b named
+and did not build. The other runner-failure route, an operation answering
+through its error channel, is proved by `refusedReportEndsTheRun`.
 
 ### Problem
 
@@ -105,8 +109,8 @@ both are properly issues rather than fixes inside a port:
   workaround. See [Browser timer precision](timer-precision.md).
 - Hostile values and cross-realm promises. The browser file today carries
   defenses `fjs t` has never had. Sharing the core means deciding what the rule
-  *is*, once — not quietly keeping two. See
-  [Hostile thrown values and cross-realm promises](hostile-proof-values.md) and
+  *is*, once — not quietly keeping two. See `Catch` in
+  [`fjs/effects/common/types.ts`](../../effects/common/types.ts) and
   [Imports, promises and realms](imports-promises-realms.md).
 
 The rule that follows: **a port changes only the behaviour its own argument
@@ -338,7 +342,7 @@ and is reviewable without the next one.
       in [imports, promises and realms](imports-promises-realms.md); the scope
       rule they rest on is in [browser testing](browser-testing.md).
 
-- [ ] **4. Common effects.** Move `sandbox` and `catch` out of `effects/node`
+- [x] **4. Common effects.** Move `sandbox` and `catch` out of `effects/node`
       into a shared module that `effects/node` re-exports unchanged, so
       node-side callers keep one import. The re-export is legitimate here by
       [node-module-layering](../../effects/todo/node-module-layering.md)'s own
@@ -414,11 +418,12 @@ and is reviewable without the next one.
       user code; the browser catches that today and the shared walk did not, so
       sharing the traversal would have *lost* a behaviour. `sandbox` could not
       hold the guard — the virtual runner's is a fixture pass-through — so
-      [hostile proof values](hostile-proof-values.md) named a second operation
-      and this took it. `fjs t` gained the behaviour in the process, which is
+      the guard needed a second operation and this took it; what each of its
+      three call sites is worth is written down under `Catch` in
+      [`fjs/effects/common/types.ts`](../../effects/common/types.ts). `fjs t` gained the behaviour in the process, which is
       what made that change worth landing on its own rather than inside the port.
 
-- [ ] **5. A browser interpreter** for `sandbox` and `catch`, plus whatever
+- [x] **5. A browser interpreter** for `sandbox` and `catch`, plus whatever
       operations the application adds — for the page, one `report`. Nothing
       else: a sequential traversal performs no `all`. `sandbox` is
       `effects/node`'s, copied rather than redesigned, because two runners
@@ -456,7 +461,7 @@ and is reviewable without the next one.
       keeps doing so.) Step 7b updates this reasoning where it is published,
       in `RunTotals`'s JSDoc (`types.ts`), which today still explains the gap
       by concurrency.
-- [ ] **7. One sequential skeleton.** Two PRs, in this order.
+- [x] **7. One sequential skeleton.** Two PRs, in this order.
 
       **7a. Make the shared traversal sequential**, in `module.f.mjs` alone.
       Replace the `all` fan-outs with a sequential fold: one leaf's whole
@@ -554,8 +559,9 @@ and is reviewable without the next one.
       why. `runEntries` takes a module's **already-collected** leaves, so the
       page enumerates the export itself, once, under its own guard — items 5
       and 6 together. An unreadable export is that page's failed module, as
-      before, and the traversal keeps reading a module's own `proof` unguarded
-      (`hostile-proof-values.md`'s open task) for `fjs t`.
+      before; the traversal read a module's own `proof` unguarded for `fjs t`
+      until functionalscript#1830 guarded that one too, so both call sites are
+      guarded now and the seam is still two.
 
       **Skipping that seam is what a first attempt did, and review caught what
       it cost.** Calling `runModuleMap` once per module also preserves a
@@ -625,13 +631,29 @@ and is reviewable without the next one.
       `fjs t` already use. The port adopts the shared order for live progress
       too; prove it rather than inheriting it silently.
 
-      **What stays the page's own, with the reason:** reading a *module's*
-      exported tree. The shared walk guards a returned tree through `catch`
-      (see [hostile proof values](hostile-proof-values.md)) but deliberately
-      not the exported one, because there is no leaf to attribute that failure
-      to. `fjs t` panics; the page catches it and reports one failed module.
+      **Reading a *module's* exported tree stays the page's own, and is now
+      guarded on both sides.** This used to say the shared walk deliberately
+      leaves that read unguarded "because there is no leaf to attribute the
+      failure to". The second half did not survive being written down — the
+      module is the attribution — so functionalscript#1830 guarded
+      `runModule`'s read too and named the record for the module, which is what
+      the page had been doing all along.
 
-- [ ] **8. The layout move**, and the website preparation program.
+      What did *not* change is the seam: there are **two guarded call sites**,
+      and a step-8 implementer needs both. The page enumerates the export
+      itself, under its own `catch`, because it builds a `_BrowserTestResult`
+      with `message` and `stack` from the value — and because the export must
+      not be read twice, it then enters `runEntries` with the entries it
+      collected. `runModule` guards the read for a host that hands the *value*
+      over instead. Routing the page through `runModule` would read the export
+      a second time and lose the description its report carries.
+
+- [x] **8. The layout move**, and the website preparation program. Every task
+      it names has landed: `emergent_testing/browser/module.f.mjs` holds the
+      pure half and `browser/module.mjs` the host, the generated website entry
+      and suite manifest regenerate to the new paths, and the preparation
+      program moved into `website/module.f.mjs` with `browser-prepare.mjs`
+      deleted (functionalscript#1827).
 
 Steps 3 and 7 are the ones that change behaviour, so they are the ones to keep
 smallest. Step 3 changed less than expected: with the scope written down, it was
@@ -673,14 +695,17 @@ there — 16 and 18 failures, exit 1. So a reporter defect shows up as `fjs t`
 disagreeing with the external runners, never as every gate lying together —
 and `fjs t`'s own exit code is trustworthy only in that company.
 
-### Why the remaining steps are worth taking
+### Why steps 4 through 7 were worth taking
 
-Steps 4 through 7 look like tidying — move some operations, add an interpreter,
-share a reporter, delete a traversal. They are not. They draw a boundary the
-browser runner does not have, and the promise episode is what its absence costs.
+They looked like tidying — move some operations, add an interpreter, share a
+reporter, delete a traversal. They were not. They drew a boundary the browser
+runner did not have, and the promise episode is what its absence cost. All four
+have landed; this section is why, kept because the reasoning outlives the
+steps.
 
-`browser.mjs` is impure `.mjs`, so a live host promise and a proof tree travel
-the same code path, and the code has to ask *which of these is a promise?* That
+`browser.mjs` was impure `.mjs`, so a live host promise and a proof tree
+travelled the same code path, and the code had to ask *which of these is a
+promise?* That
 is an identity-by-origin question — `instanceof` asks which copy of the
 constructor made the value, not what the value is — and asking it in a place
 that handles business logic is what produced ~150 lines of `Symbol.species`
@@ -705,17 +730,17 @@ That is recorded in
 [move the browser runner's business logic to FunctionalScript](browser-runner-functional-script.md),
 which is the same work seen from the purity side rather than the sharing side.
 
-So the remaining steps are that boundary, applied to the browser:
+So those steps were that boundary, applied to the browser:
 
-- **step 4** puts the host-independent operations somewhere both hosts can name;
-- **step 5** gives the browser an interpreter, which is where its host values
+- **step 4** put the host-independent operations somewhere both hosts can name;
+- **step 5** gave the browser an interpreter, which is where its host values
   belong;
-- **steps 6 and 7** move reporting and traversal into the pure core, which is
+- **steps 6 and 7** moved reporting and traversal into the pure core, which is
   where host values must never be.
 
-When they are done, `instanceof Promise` lives in exactly one interpreter, as
-glue, and no shared code asks the question. The asks have already left the
-browser file: the two that survive are in `effects/common`'s `sandbox` and
+With them done, `instanceof Promise` lives in interpreters, as glue, and no
+shared code asks the question. The asks have left the browser file: the two
+that survive are in `effects/common`'s `sandbox` and
 `effects/node`'s `await`, which are interpreters — though `effects/common` is
 shared by design, so this is not yet the "exactly one" the goal names. They are
 in the right *place* only because the boundary has not been drawn
@@ -878,10 +903,11 @@ are shared.
       stays outside the skeleton, which is why the reverted #1759 gave
       `runModuleMap` a sibling entry point taking already-collected leaves,
       and step 7b does again.
-- [ ] Make the existing `collectTests`/path behavior the single source of truth
+- [x] Make the existing `collectTests`/path behavior the single source of truth
       for console and browser execution. Done in the reverted #1759 — the
       page's walk was deleted, `collectTests` called once under the page's own
-      guard — and re-lands with step 7b.
+      guard — and re-landed with step 7b: `browser/module.f.mjs` imports
+      `collectTests` from `../module.f.mjs` and has no walk of its own.
 - [x] Share the test-name format, and prove both runners name the same leaf
       identically. The browser report carries a `name` built by `fmtImport`, and
       `nameMatchesTheConsoleRunner` pins it to that function rather than to a
@@ -960,6 +986,17 @@ are shared.
       regenerating them produces the new path rather than that a hand edit
       matched: `npm run website` rewrites the entry, and the browser suite
       manifest is derived the same way.
+- [ ] Prove the page's *rejection* runner-failure route: an operation the
+      interpreter cannot dispatch, which rejects rather than answering. The
+      other route landed in 7b — an operation answering through its error
+      channel is `refusedReportEndsTheRun` in `browser/proof.f.mjs`, which
+      pins that the run stops and that the failure is answered. What has no
+      proof is `runBrowserProofs`' `.catch(runnerFailure)` in
+      `browser/module.mjs`: the `infrastructure-error` cases in
+      `browser/proof.mjs` all come from the loading path's own `catch`, one
+      function away. The seam 7b specifies is the page's run core taking its
+      interpreter as an argument, exported for proofs from the page's own
+      module — a testing seam, not a public-API widening.
 - [ ] Prove both runners produce equivalent paths, throw outcomes, recursive
       test counts, and normalized failures from the same fixtures. The
       existing `nameMatchesTheConsoleRunner`,
@@ -971,10 +1008,24 @@ are shared.
       not keep, as an issue, before the sharing change merges. Two: the
       `batchSize = 25` yielding — whose *constant* was the mistake and whose
       *yielding* was load-bearing, see below — and the unguarded read of a
-      module's *exported* tree, which stays the page's own and is tracked by
-      [hostile-proof-values](./hostile-proof-values.md).
-- [ ] Close each of those issues for both runners at once, so the two stay in
-      sync rather than drifting from the day the core is shared.
+      module's *exported* tree, which stays the page's own — both are closed
+      below.
+- [x] Close each of those issues for both runners at once, so the two stay in
+      sync rather than drifting from the day the core is shared. Both are
+      closed, and *where* differs by which one it is.
+
+      The `batchSize` yielding is **host-local by design**: it became one
+      macrotask per report in the page's own `report` handler (step 7b), which
+      is where scheduling belongs — `fjs t` yields nothing, because a terminal
+      needs no paint.
+
+      The unguarded reads became `catch`, and the reads are shared while the
+      *call sites* are not all: a leaf's returned tree in the traversal
+      (functionalscript#1809), a module's export at two guarded sites — the
+      page's own, because it builds its report row from the value, and
+      `runModule`'s for a host that hands the value over
+      (functionalscript#1830) — and a thrown value through the core's `text`,
+      which both reporters call (functionalscript#1832).
 - [x] Decide where a browser run gives the thread back. **One macrotask per
       report, in the page's own `report` handler** — the sequential plan's
       answer, superseding the reverted #1759's frame budget. The full story
@@ -1007,19 +1058,27 @@ are shared.
       `module.f.mjs`/`module.mjs` split" — superseded, because that ships a
       branch known to be untested whose failure mode is a page stuck in
       `running` forever, exactly the class of hazard catalog item 11 exists
-      for. 7b instead carries the seam itself, at its smallest: the page's
-      run core takes its interpreter (or reporter) as an argument and is
-      exported for proofs from the page's own module, so proofs drive **each
-      failure route separately** — one case for an operation answering
-      through the error channel, one for an operation the interpreter cannot
-      dispatch, which rejects — and watch the `infrastructure-error` report
-      land from both. Two routes need two mutations: delete either half of
+      for. 7b was to carry the seam itself, at its smallest: the page's run core
+      taking its interpreter (or reporter) as an argument and exported for
+      proofs from the page's own module, so proofs could drive **each failure
+      route separately**.
+
+      **What landed is smaller, and covers one route.** Making the
+      orchestration an effect was enough for the error channel: a mock runner
+      that declares `report` and does not implement it answers `notImplemented`
+      through the ordinary continuation, which is `refusedReportEndsTheRun`
+      above — no seam needed. The rejection route did not follow.
+      `browser/module.mjs` still builds its interpreter internally, so
+      `.catch(runnerFailure)` has no way in and no proof. The seam described
+      here is therefore **still to be built**, by the open task above and for
+      that route alone; it is not something to go looking for in the code.
+
+      When it is built: two routes need two mutations — delete either half of
       the guard alone and its case fails while the other stays green, or the
       surviving half is masking an untested branch that can still leave the
-      page in `running` forever. This is a testing seam, not a public-API widening — the
-      page's published entry point is unchanged, which is what the rejected
-      "widen the API to reach the branch" alternative got wrong. Step 8's
-      full layout split then absorbs the seam rather than creating it.
+      page in `running` forever. It is a testing seam, not a public-API
+      widening — the page's published entry point is unchanged, which is what
+      the rejected "widen the API to reach the branch" alternative got wrong.
 
 ### Related
 
@@ -1032,9 +1091,9 @@ are shared.
   `all` sibling fan-out; that issue now requires the sibling combination to be
   the instantiation's parameter (sequential for the run path, fan-out for
   registration), so a later walker cannot undo step 7a's scheduling.
-- [Hostile thrown values and cross-realm promises](hostile-proof-values.md) —
-  a behaviour the browser has and `fjs t` does not; decide it, do not inherit
-  two answers.
+- `Catch` in [`fjs/effects/common/types.ts`](../../effects/common/types.ts) —
+  the answer that decision reached: the three reads of user values a run
+  guards, now shared rather than the browser's own.
 - [Imports, promises and realms](imports-promises-realms.md) — the same, for the
   loading and promise-detection machinery.
 - [Browser timer precision](timer-precision.md) — `sandbox` is shared, so its

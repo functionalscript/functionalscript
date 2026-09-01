@@ -77,8 +77,9 @@ asks for, and it names two things the sharing plan does not:
 - **`errorDetails` and `text` could not move as they stood, and now have.** Both
   are pure in substance and both need `try`/`catch`, which FunctionalScript does
   not have — reading `message`, `stack` or calling `String` on a hostile value
-  can throw. That is what the `catch` operation designed in
-  [hostile proof values](hostile-proof-values.md) is for, and with it they are
+  can throw. That is what the `catch` operation — documented under `Catch` in
+  [`fjs/effects/common/types.ts`](../../effects/common/types.ts) — is for, and
+  with it they are
   `../browser/module.f.mjs`'s `text` and `errorDetails`, written as effects over
   `catch` rather than as thunks in a `try`. The general shape is worth keeping in
   mind for whatever moves next: pure logic that reads a *user* value is not
@@ -107,8 +108,9 @@ asks for, and it names two things the sharing plan does not:
 
 - [Share the browser and console proof runners](share-browser-console-runner.md)
   — steps 4–7 are this work.
-- [Hostile thrown values](hostile-proof-values.md) — the `catch` operation
-  `errorDetails` needs before it can be FunctionalScript.
+- `Catch` in [`fjs/effects/common/types.ts`](../../effects/common/types.ts) —
+  the `catch` operation `errorDetails` needed before it could be
+  FunctionalScript.
 - The same debt in `fjs/website` was **paid** in functionalscript#1824, and what
   it cost is the useful comparison: nothing. `browser-source.mjs` moved to
   `.f.mjs` as a rename, because the rule about immutable *values* says nothing

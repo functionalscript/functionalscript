@@ -89,8 +89,9 @@ export type TestId = {
      * are still reported. `fjs t` used to panic on one and take the whole run
      * with it; the shared traversal reads the export under `catch` now, so the
      * answer is one runner's rather than one host's. What is still each host's
-     * own is *describing* the value that could not be read, which is the rest
-     * of `todo/hostile-proof-values.md`.
+     * own is *describing* the value that could not be read: a report crossing a
+     * wire carries `message` and `stack`, a terminal line carries the value's
+     * own text, and both read it through the core's `text`.
      */
     readonly name: string
 }
