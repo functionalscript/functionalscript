@@ -482,6 +482,17 @@ track exactly this kind of already-known, deliberately-deferred gap; a type
 left mutable for this reason needs a comment pointing to its tracking issue,
 same as any other approved exception.
 
+A third legitimate shape: the compiler itself rejects the `readonly` spelling.
+`fjs/media/html/types.ts`'s `Element1`/`Element2` rest tail stays a plain
+`Node[]` because `readonly Node[]` there makes `tsc` report TS2456
+("circularly references itself") on the mutually-recursive
+`Element1`/`Element2` → `Node` → `Element` cycle, which the identical
+structure with a mutable rest array does not trigger. Verify against the
+pinned compiler before claiming this exception — most recursive types in this
+repository (e.g. `fjs/rtti/ts/types.ts`'s `_SelfArray`) take `readonly` without
+issue, so this is a specific compiler limitation on that shape, not a general
+excuse for anything recursive.
+
 If a type must genuinely expose a mutable field for some other reason, it
 needs the same explicit reviewer sign-off on the PR that introduces it, with
 a comment on the field explaining why it is mutable. Do not add a
