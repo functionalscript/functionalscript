@@ -109,8 +109,10 @@ asks for, and it names two things the sharing plan does not:
   — steps 4–7 are this work.
 - [Hostile thrown values](hostile-proof-values.md) — the `catch` operation
   `errorDetails` needs before it can be FunctionalScript.
-- [Move browser source analysis to FunctionalScript](../../website/todo/browser-source-functional-script.md)
-  — the same debt in `fjs/website`, **paid**: the scanner moved without a
-  rewrite, which is the cheapest form this debt takes and the one worth
-  measuring against — nothing here will move that easily, because this file's
-  debt touches a host and that one did not.
+- The same debt in `fjs/website` was **paid** in functionalscript#1824, and what
+  it cost is the useful comparison: nothing. `browser-source.mjs` moved to
+  `.f.mjs` as a rename, because the rule about immutable *values* says nothing
+  about a local counter — a scanner written with `let` and `while` over
+  primitives was already FunctionalScript, as `types/list` and `types/bigint`
+  are. That is the cheap end of this class of migration, and this file is not
+  at it: the debt here is a *host* boundary, and no rename moves one.
