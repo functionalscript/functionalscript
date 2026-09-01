@@ -18,7 +18,7 @@ const file = text => [utf8(text)]
 
 /** @type {(entity: _Entity | undefined, name: string) => string} */
 const textOf = (entity, name) => {
-    assert(Array.isArray(entity), `expected ${name} to be a file`)
+    assert(entity instanceof Array, `expected ${name} to be a file`)
     return entity.map(value => utf8ToString(/** @type {Vec} */ (value))).join('')
 }
 

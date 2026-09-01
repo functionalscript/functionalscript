@@ -13,7 +13,7 @@
  *
  * @module
  *
- * @import { All, Dirent, ReadFile, Readdir, Write, WriteFile } from '../effects/node/types.ts'
+ * @import { All, ReadFile, Readdir, Write, WriteFile } from '../effects/node/types.ts'
  * @import { Effect, IoChannel } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { _Graph, _Imports } from './private.ts'
@@ -81,34 +81,42 @@ runButton.addEventListener('click', start)
 const manifestPath = 'fjs/emergent_testing/_browser-suite.mjs'
 
 /**
- * The path a directory entry names, relative to the walk's root.
+ * Whether a directory is this repository's source at all.
  *
- * `concat` and not a `/` between the two, because the parent of a root-level
- * entry is not a directory name: asked to walk `'.'`, node answers
- * `parentPath: ''` and the virtual runner answers `'.'`, and both of those
- * joined with a separator name something else — an absolute path and a
- * `./`-prefixed one. `concat` folds each to the same thing, which is what the
- * manifest carries.
+ * `node_modules` holds other people's, `target` holds build output, and a
+ * dot-directory holds tooling. They are skipped **before** the walk descends
+ * into them, which is the difference between reading this repository and
+ * reading a Rust build tree: `target` alone can hold more files than the
+ * repository has, and a directory in there that cannot be read would fail a
+ * build that never wanted to look at it.
  *
- * @type {(entry: Dirent) => string}
+ * @type {(name: string) => boolean}
  */
-const entryPath = ({ parentPath, name }) => pathConcat(parentPath)(name)
+const ignored = name =>
+    name.startsWith('.') || name === 'node_modules' || name === 'target'
+
+/** @type {(path: string) => boolean} */
+const authored = path => path.endsWith('.f.mjs')
 
 /**
- * Whether a path is authored source this generator should read at all.
+ * Every authored module under `dir`, walked one directory at a time.
  *
- * Authored FunctionalScript is `.f.mjs`, and the three ignored directories are
- * not this repository's source: `node_modules` holds other people's, `target`
- * holds build output, and a dot-directory holds tooling. Ignoring them by
- * *segment* rather than by prefix is what makes a nested `node_modules` ignored
- * too.
+ * A directory at a time rather than `readdir`'s own `recursive` option,
+ * because recursion there cannot be pruned: it descends into everything and
+ * hands back the whole listing to filter afterwards.
  *
- * @type {(path: string) => boolean}
+ * @type {(dir: string) => Effect<Readdir, readonly string[], IoChannel>}
  */
-const authored = path =>
-    path.endsWith('.f.mjs')
-    && !path.split('/').some(segment =>
-        segment.startsWith('.') || segment === 'node_modules' || segment === 'target')
+const walk = dir => step(readdir(dir, {}), entries => foldStep(
+    pureOk(entries),
+    /** @type {readonly string[]} */ ([]),
+    entry => found => {
+        const path = pathConcat(dir)(entry.name)
+        if (entry.isFile) { return pureOk(authored(path) ? [...found, path] : found) }
+        return ignored(entry.name)
+            ? pureOk(found)
+            : mapStep(walk(path), inner => [...found, ...inner])
+    }))
 
 /**
  * A specifier resolved against the module that wrote it: `./x.f.mjs` in
@@ -124,34 +132,42 @@ const resolve = from => specifier => pathConcat(`${from}/..`)(specifier)
 /**
  * Reads one module into the graph, and answers what it newly reaches.
  *
- * **A read that fails leaves the graph alone, and is not a failed run.** The
- * scan is textual, so a module that emits source of its own — this file embeds
- * the page's entry module — offers up import lines that were never its own,
- * and a relative specifier naming no file is one of them. A genuinely missing
- * import cannot survive anyway: the proof suite loads every one of these
- * modules in node.
+ * **A read that fails leaves the graph alone.** The scan is textual, so a
+ * module that emits source of its own — this file embeds the page's entry
+ * module — offers up import lines that were never its own, and a relative
+ * specifier naming no file is one of them. That is the failure this expects,
+ * and it is why the deleted script swallowed read errors too.
  *
- * Not recording it is what keeps {@link blockersOf}'s "never read" case a real
- * one rather than a defensive branch nothing can reach. It cannot loop: a
- * module that was not read reaches nothing, so it adds nothing to the frontier
- * it would have to come back through.
+ * It swallows *every* read failure, and one of them is not benign: `readFile`
+ * caps a file at 128 KiB, so a module over that size is read as importing
+ * nothing and could put a proof into the manifest on the strength of a file
+ * nobody read. No `.f.mjs` here is close to the cap, and refusing it is not
+ * written as a guard because nothing could pin one — the virtual interpreter
+ * answers every failed read with `ENOENT`, so the other branch would be
+ * unreachable under a 100% gate. Recorded in
+ * [`./todo/oversized-module-reads-as-empty.md`](./todo/oversized-module-reads-as-empty.md).
+ *
+ * Not recording the path is also what keeps {@link blockersOf}'s "never read"
+ * case a real one rather than a defensive branch nothing can reach. It cannot
+ * loop: a module that was not read reaches nothing, so it adds nothing to the
+ * frontier it would have to come back through.
  *
  * @type {(path: string) => (acc: readonly [_Graph, readonly string[]]) => Effect<ReadFile, readonly [_Graph, readonly string[]], never>}
  */
-const readModule = path => ([graph, reached]) => mapStep(
+const readModule = path => ([graph, reached]) => step(
     resultStep(readUtf8File(path), read => pureOk(read)),
     read => {
-        if (read[0] === 'error') { return /** @type {const} */ ([graph, reached]) }
+        if (read[0] === 'error') { return pureOk(/** @type {const} */ ([graph, reached])) }
         const found = specifiers(read[1])
         /** @type {_Imports} */
         const imports = {
             blockers: found.filter(specifier => !local(specifier)),
             local: found.filter(local).map(resolve(path)),
         }
-        return /** @type {const} */ ([
+        return pureOk(/** @type {const} */ ([
             setReplace(path)(imports)(graph),
             [...reached, ...imports.local],
-        ])
+        ]))
     })
 
 /**
@@ -246,16 +262,16 @@ const writeManifest = paths => step(
  * The proof modules to consider: every authored `.f.mjs` in the tree that
  * exports a `proof`, in path order.
  *
- * The order is the manifest's order, and it is the tree's rather than the
- * walk's: a directory listing is the filesystem's business, and a manifest
- * that reordered itself between runs would show up as a diff nobody made.
+ * The order is the manifest's, and it is the paths' rather than the walk's: a
+ * directory listing is the filesystem's business, and a manifest that
+ * reordered itself between runs would show up as a diff nobody made.
  *
  * @type {Effect<Readdir | ReadFile, readonly string[], IoChannel>}
  */
 const proofModules = step(
-    readdir('.', { recursive: true }),
-    entries => foldStep(
-        pureOk(entries.filter(entry => entry.isFile).map(entryPath).filter(authored).toSorted()),
+    walk('.'),
+    paths => foldStep(
+        pureOk(paths.toSorted()),
         /** @type {readonly string[]} */ ([]),
         path => found => step(
             readUtf8File(path),
