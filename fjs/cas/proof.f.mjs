@@ -336,7 +336,7 @@ export const proof = {
             // Only the first `now` is the sweep's, so every deadline after it
             // stays 0 and the staging file below reads as expired.
             now: [ok(1)],
-            readdir: [ok([{ name: stale, parentPath: '_stage', isFile: true }])],
+            readdir: [ok([{ name: stale, parentPath: '_stage', isFile: true, isDirectory: false }])],
             rm: [error(ioError({ message: 'busy' }))],
         })(c.write(payload))
         assert(result[0] === 'ok', ['expected write ok', result])

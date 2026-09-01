@@ -173,7 +173,7 @@ shadow in `runPromise` are for. They are not decoration.
 **FunctionalScript as specified has no promises, and nothing enforces that.** A
 conforming `.f.mjs` proof is pure: no `async`, no `await`, nothing that
 constructs a `Promise`. But selection is by filename —
-`website/browser-prepare.mjs` is a bare `name.endsWith('.f.mjs')` with no
+`website/module.f.mjs`'s `authored` is a bare `.endsWith('.f.mjs')` with no
 content check — so a module that does not conform is loaded anyway. Verified: a
 `.f.mjs` returning `Promise.resolve(...)` is selected (138 of 138) and awaited
 correctly. Treat what follows as a statement about the *convention*, which is
@@ -199,7 +199,7 @@ own fixtures**, and deleting both leaves nothing uncovered.
 
 **In the browser it is stronger than that: by convention a promise does not
 occur.** The browser suite runs authored FunctionalScript and nothing else —
-`website/browser-prepare.mjs` line 16 is `name => name.endsWith('.f.mjs')`, and
+`website/module.f.mjs`'s `authored` is `path.endsWith('.f.mjs')`, and
 the generated manifest carries 137 modules, none of them anything else. Impure
 `.mjs` proofs are excluded by construction, and rightly so: a browser has no
 business running Node tests, and a promise is only the first thing that would go
