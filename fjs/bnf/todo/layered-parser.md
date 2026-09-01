@@ -51,12 +51,16 @@ Two mechanics the layers need:
 Two questions this section used to carry are answered elsewhere and are kept
 here only as pointers:
 
-- **Meta info propagation** — settled by
+- **Meta info propagation** — mostly settled by
   [generic parser metadata](./generic-parser-metadata.md), which gives the
   combining rule per rule kind: a sequence folds child metadata left to right, a
-  variant preserves the selected branch's, a repetition folds its rounds, and an
-  empty match takes the monoid identity. A layer's payload is its `M`
-  ([207 §7](./207-bnf-semantic-actions.md)).
+  variant preserves the selected branch's, a repetition folds its rounds. A
+  layer's payload is its metadata ([207 §7](./207-bnf-semantic-actions.md)),
+  and a layer *transforms* it, so the fold is `translate: (mi: MI) => MO` plus
+  `reduce: Reduce<MO>` rather than one monoid — folded strictly left to right,
+  `reduce` being under no obligation to be associative. What an **empty** match
+  contributes is still open, since the monoid identity used to answer it and
+  `reduce` has none: [43](./043-stateful-parser.md)'s.
 - **Error reporting** — there is no unified error representation to design,
   because no layer has an error channel to unify. Each layer is a total fold
   whose failure is ordinary data in its own output type

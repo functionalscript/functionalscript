@@ -35,10 +35,9 @@ StateFold<Meta<MI, CodePoint>, S, Meta<MO, T>>
 ```
 
 This issue's original sketch took a whole string in `append`. One symbol is the
-smaller contract and the one a layered pipeline needs; a string-at-a-time
-convenience is derivable from it, not the other way round. The record itself is
-what `fjs/crypto/sha2` already exposes as `init`/`append`/`end`, and what
-`RepeatTransformer` already is.
+smaller contract, and a string-at-a-time convenience is derivable from it, not
+the other way round. The record itself is what `fjs/crypto/sha2` already exposes
+as `init`/`append`/`end`, and what `RepeatTransformer` already is.
 
 **`StateFold`, not [`todo/flow.md`](../../../todo/flow.md)'s `Transducer`.** The
 `Transducer` is design-stage — it appears in no module under `fjs/`, while
@@ -48,6 +47,22 @@ through a state the driver interrogates. That is worth having eventually, and it
 is not worth inventing a second fold shape ahead of the graph engine that would
 consume it. If `Transducer` ships, this parser becomes one; until then it is the
 same shape as everything else.
+
+**This is the value-producing top layer, and only that.** A `StateFold` emits
+nothing until `end`, so it is the right shape for the stage that answers with
+one AST or one domain value, and the wrong shape for a stage whose output is a
+*stream* the next stage consumes. [layered-parser](./layered-parser.md)'s
+`bytes → code-points → tokens → AST` needs its lower stages to emit as they go —
+maximal munch cuts a token and restarts — and already names the shape for that:
+`StateScan<I, S, O>`, which exists today. Nothing here is a streaming decoder or
+tokenizer.
+
+That leaves one thing unresolved rather than solved, since layered-parser also
+says *"every layer reuses the same BNF engine"*: a BNF grammar used as an
+emitting layer needs a shape this issue does not give it. Either the engine
+grows an emitting entry point beside this one, or the lower layers are not BNF
+grammars after all. Deciding that is layered-parser's, not this issue's — but
+this issue is the reason it now has to be decided.
 
 **Metadata is the outermost wrapper.** `Meta<…>` outside rather than a result
 type outside, because metadata is orthogonal to whether the parse succeeded — it
@@ -85,9 +100,10 @@ fold without unwrapping and re-wrapping at every stage.
 
 What replaces it:
 
-- `O` means whatever the grammar's author declares. A grammar that must report
-  "not in this language" says so in `O`, where — being RTTI-described — it is
-  validated like every other branch. A built-in `Result<_, string>` never was.
+- `T` means whatever the grammar's author declares. A grammar that must report
+  "not in this language" says so in `T`, and a built-in `Result<_, string>`
+  would have imposed one spelling of that on every grammar. (`T` is not
+  RTTI-described here — that is `checkMap`'s layer, above.)
 - `S` may hold an error state and keep accepting symbols without leaving it, so
   `update` stays total.
 - A driver feeding symbols may inspect the state and stop early. Inspection is
@@ -101,12 +117,13 @@ case — a `try*` returning `Nullable<T>`. §10 governs operations at a boundary
 and a fold is not one; the boundary is the function a caller invokes ("parse
 this document"). Both hold at once because they are different layers.
 
-The obligation §10 does place here: `O` must be able to say the input was not in
+The obligation §10 does place here: `T` must be able to say the input was not in
 the language, and the state must be observable enough at `end` to say it.
-Otherwise `end` maps a failed parse to a well-typed, RTTI-valid, structurally
-fine value — §10's one unacceptable outcome, *"plausible and wrong … it passes
-every test that only checks for the absence of a failure"*. That is a
-requirement on whoever declares `O`, not a channel the parser supplies.
+Otherwise `end` maps a failed parse to a well-typed, structurally fine value —
+§10's one unacceptable outcome, *"plausible and wrong … it passes every test
+that only checks for the absence of a failure"*. That is a requirement on
+whoever declares `T`, not a channel the parser supplies — and **who hands the
+engine that value is not yet decided**; see the open questions.
 
 ### Tasks
 
@@ -136,6 +153,29 @@ requirement on whoever declares `O`, not a channel the parser supplies.
 
 ### Open questions
 
+- **Who hands `end` the value for a rejected parse?** The machine having no
+  error channel settles what a failure *is* — an ordinary `T` the author
+  declared — and not who constructs it. `T` is unconstrained, so the engine has
+  no constructor for it, and [207 §6](./207-bnf-semantic-actions.md) says no
+  transformer on the rejected spine runs: the root's transformer is exactly what
+  did not get to produce a value. An error state in `S` records *that* the parse
+  failed and still leaves `end` with nothing to return, so as written the
+  contract is completable only by an unchecked cast or by inventing a plausible
+  success value — which is the outcome DESIGN.md §10 forbids.
+
+  Three ways to close it, none of which is a parser-wide error channel:
+
+  - the root entry supplies a rejection value alongside its transformer, the way
+    `Monoid` supplies an identity — one value, declared by the author, in the
+    author's own `T`;
+  - the root transformer is required to be a fold, whose `end` is total over its
+    state by construction, so the author's own `end` covers the failed state;
+  - `T` is constrained to admit absence at the root only — `Nullable<T>` in
+    `end`'s return, nowhere else.
+
+  The first looks smallest. Whichever it is, it belongs in this section rather
+  than in an implementer's head, because all three are visible in the public
+  type.
 - **What supplies the metadata of a match with no children?** Two metadata types
   replace the single `Monoid<M>` with two operations, given to the parser at
   construction beside the map:
