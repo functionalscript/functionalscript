@@ -142,10 +142,10 @@ export const transformerTools = monoid => {
                 entries: new Map(entries.map(({ rule, transformer }) => [rule, transformer])),
             }
         },
-        terminalOf: f => /** @type {any} */ (['terminal', f]),
-        sequenceOf: (arity, f) => /** @type {any} */ (['sequence', arity, f]),
-        variantOf: (branches, f) => /** @type {any} */ (['variant', branches, f]),
-        repeatOf: (item, fold) => /** @type {any} */ (['repeat', item, fold]),
+        terminalOf: f => ['terminal', f],
+        sequenceOf: (arity, f) => ['sequence', arity, f],
+        variantOf: (branches, f) => ['variant', branches, f],
+        repeatOf: (item, fold) => ['repeat', item, fold],
         unit,
     }
 }

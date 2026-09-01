@@ -8,6 +8,7 @@ import type { Ast, Meta } from '../../bnf/matcher/types.ts'
 import type { TokenMetadata } from '../../js/tokenizer/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
+import type { CodePoint } from '../../text/utf16/types.ts'
 import type { AstConst, AstModuleRef } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 import type { ParseError } from './types.ts'
@@ -22,7 +23,7 @@ export type _TokenStream = {
 }
 
 /** A node of the matched module's AST, its leaves carrying the tokens. */
-export type _Node = Ast<Meta<DjsTokenWithMetadata, number>>
+export type _Node = Ast<Meta<DjsTokenWithMetadata, CodePoint>>
 
 /**
  * A fold in progress: the names bound so far, the module specifiers and the

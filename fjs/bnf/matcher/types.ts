@@ -39,7 +39,12 @@ export type Transformer<M, T> =
     | readonly['terminal', TerminalTransformer<M, T>]
     | readonly['sequence', number, SequenceTransformer<M, never, T>]
     | readonly['variant', readonly string[], VariantTransformer<M, never, T>]
-    | readonly['repeat', Rule, RepeatTransformer<M, never, unknown, T>]
+    /** A repeat fold with its concrete child and state types erased. */
+    | readonly['repeat', Rule, {
+        readonly init: unknown
+        readonly update: (state: never, input: Meta<M, never>) => unknown
+        readonly end: (state: never) => Out<M, T>
+    }]
     | readonly['unit']
 
 /** A transformer tied to the metadata factory that created it. */
