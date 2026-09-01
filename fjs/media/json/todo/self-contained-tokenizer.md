@@ -1350,7 +1350,7 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
   *unchanged* — the bigint is a separate production reusing JSON's integer
   part, and `NaN`/`Infinity` are words rather than number syntax. Stage 4
   reuses JSON's scanners; it does not widen JSON's grammar.
-- [bnf-grammar-single-owner](./bnf-grammar-single-owner.md) — the BNF copy of
+- [bnf-grammar-single-owner](../../../bnf/todo/bnf-grammar-single-owner.md) — the BNF copy of
   this grammar; spec text and proof-covered example, never a runtime
   dependency of this scanner.
 - [number-edge-cases](./number-edge-cases.md),

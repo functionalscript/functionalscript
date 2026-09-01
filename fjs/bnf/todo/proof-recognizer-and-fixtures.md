@@ -174,7 +174,7 @@ explicit named override list for the rows where token-stream acceptance differs.
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — **blocks this
   task**; shared text fixtures must consume `bnf/unicode`, not the removed core
   text/range API.
-- [bnf-grammar-single-owner](../../media/json/todo/bnf-grammar-single-owner.md) —
+- [bnf-grammar-single-owner](./bnf-grammar-single-owner.md) —
   owns the grammars themselves, now shipped under `fjs/bnf/lib`; this issue moves
   the proof harness/fixtures.
 - [65Y-proof-assertEq-adoption](../../emergent_testing/todo/65y-proof-asserteq-adoption.md)

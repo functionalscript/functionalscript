@@ -76,7 +76,7 @@ symbol alphabet without importing or depending on Unicode or byte-stream support
 
 This split changes the public design assumptions used by older open TODOs:
 
-- [`fjs/media/json/todo/bnf-grammar-single-owner.md`](../../media/json/todo/bnf-grammar-single-owner.md)
+- [`fjs/bnf/todo/bnf-grammar-single-owner.md`](./bnf-grammar-single-owner.md)
   is blocked by this task. The grammars it now owns — `fjs/bnf/lib/json` and
   `fjs/bnf/lib/datajs` — must import Unicode-specific construction from
   `fjs/bnf/unicode/module.f.mjs` and lower text literals to generic rules before
@@ -96,7 +96,7 @@ This split changes the public design assumptions used by older open TODOs:
   rejects. Whoever ports a grammar re-points its entries at the adapter's rules,
   or takes them from a fragment the adapter supplies. That is the grammar's
   business (JSON's is tracked in
-  [`bnf-grammar-single-owner`](../../media/json/todo/bnf-grammar-single-owner.md)),
+  [`bnf-grammar-single-owner`](./bnf-grammar-single-owner.md)),
   not the transformer protocol's.
 - The `Repeat` rule kind has shipped, and this split **helps** it. A `Repeat` is
   a bare rule name, so `bnf/data`'s `Rule` now has a string case — but that is
@@ -153,7 +153,7 @@ new module boundary and final rule discriminants before implementation starts.
       all alphabet adapters restricted to ordinary non-negative symbols without
       reserving the maximal value.
 - [ ] Port `fjs/bnf/lib/json` and `fjs/bnf/lib/datajs` (tracked by
-      [`bnf-grammar-single-owner`](../../media/json/todo/bnf-grammar-single-owner.md))
+      [`bnf-grammar-single-owner`](./bnf-grammar-single-owner.md))
       onto the Unicode helpers, so they no longer depend on raw string rules in
       core BNF.
 - [ ] Re-point the rule **values** `fjs/bnf/todo/207-bnf-semantic-actions.md`
@@ -192,7 +192,7 @@ new module boundary and final rule discriminants before implementation starts.
   machinery with a different symbol alphabet.
 - [UTF-8 token symbols](./utf8-token-symbols.md) — tokenizer-output symbols are
   another non-Unicode alphabet consumed by the generic BNF core.
-- [JSON BNF grammar owner](../../media/json/todo/bnf-grammar-single-owner.md) —
+- [JSON BNF grammar owner](./bnf-grammar-single-owner.md) —
   blocked on this split; the grammars it owns (`fjs/bnf/lib/json`,
   `fjs/bnf/lib/datajs`) must target `bnf/unicode` for text terminals.
 - [BNF rule transformers](./207-bnf-semantic-actions.md) — not blocked on this

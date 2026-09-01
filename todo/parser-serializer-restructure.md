@@ -574,7 +574,7 @@ throughout.
   the JSON tokenizer. Rebase the issue on this plan or fold it in.
 - [663-json-djs-tree-type](../fjs/djs/todo/663-json-djs-tree-type.md) — the
   shared `Tree<P>` instantiation targets `fjs/media/datajs`; rename paths.
-- [bnf-grammar-single-owner](../fjs/media/json/todo/bnf-grammar-single-owner.md)
+- [bnf-grammar-single-owner](../fjs/bnf/todo/bnf-grammar-single-owner.md)
   — **re-scoped**: the canonical JSON grammar's owner is the spec (text) plus a
   proof-covered `fjs/bnf` example, not a runtime module, so its
   `fjs/media/json/grammar` proposal is withdrawn and the grammar ships at

@@ -2,14 +2,14 @@
 
 **Priority:** P4
 **Status:** blocked
-**Blocked by:** [Separate alphabet-specific BNF helpers](../../../bnf/todo/unicode-rules.md)
+**Blocked by:** [Separate alphabet-specific BNF helpers](./unicode-rules.md)
 
 ### Problem
 
 The ownership question this issue opened with — *the JSON lexical grammar exists
 in two places and neither copy is owned* — is answered. The canonical
 deterministic grammar now lives at
-[`fjs/bnf/lib/json/module.f.mjs`](../../../bnf/lib/json/module.f.mjs) with a
+[`fjs/bnf/lib/json/module.f.mjs`](../lib/json/module.f.mjs) with a
 co-located `proof.f.mjs`, and `fjs/bnf/testlib.f.mjs`'s `deterministic()` is a
 one-line delegation to it rather than a second copy.
 
@@ -23,22 +23,28 @@ going away.
 
 **Do not create `fjs/media/json/grammar/module.f.mjs`.** That was this issue's
 original proposal and it is withdrawn.
-[parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)
+[parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
 settles that the media codecs take **no runtime dependency** on `fjs/bnf`: the
 canonical JSON grammar's owner is the spec text plus a proof-covered `fjs/bnf`
 example, not a runtime module under `fjs/media/json`. A module there would
 recreate exactly the duplication this issue existed to remove.
 
+That is also why this file moved here from `fjs/media/json/todo/`. Everything it
+still describes — the two `fjs/bnf/lib` grammars and the `bnf/unicode` API they
+must move onto — lives under `fjs/bnf`, and it now rules out adding any code at
+all under `fjs/media/json`, so a reader of the media codec's `todo/` would find
+nothing here to act on.
+
 For the same reason `fjs/djs/tokenizer` — which moves to the `fsc` tokenizer in
 the restructure's stage 5 — is **not** re-pointed at the shared rules. It stays
 hand-written by decision
-([self-contained-tokenizer](./self-contained-tokenizer.md)), and the spec, not
+([self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md)), and the spec, not
 a shared runtime module, is what keeps it and the BNF example in agreement.
 
 ### Proposal
 
-Rebase [`fjs/bnf/lib/json`](../../../bnf/lib/json/module.f.mjs) and
-[`fjs/bnf/lib/datajs`](../../../bnf/lib/datajs/module.f.mjs) on the API the
+Rebase [`fjs/bnf/lib/json`](../lib/json/module.f.mjs) and
+[`fjs/bnf/lib/datajs`](../lib/datajs/module.f.mjs) on the API the
 alphabet split produces, keeping the boundary visible:
 
 - generic grammar structure and combinators come from `fjs/bnf/module.f.mjs`;
@@ -94,13 +100,13 @@ Before implementing this TODO after the blocking split:
 - [ ] Ensure generic combinators receive already-lowered rules/symbols and do not
       reintroduce hidden string interpretation into `fjs/bnf/module.f.mjs`.
 - [ ] Re-point the rule **values** any transformer map keys on
-      ([207](../../../bnf/todo/207-bnf-semantic-actions.md) keys by value, and
+      ([207](./207-bnf-semantic-actions.md) keys by value, and
       lowering replaces rule values).
 - [ ] Update proofs to make the generic-vs-Unicode boundary visible.
 
 ### Tasks
 
-- [ ] Wait for [Separate alphabet-specific BNF helpers](../../../bnf/todo/unicode-rules.md)
+- [ ] Wait for [Separate alphabet-specific BNF helpers](./unicode-rules.md)
       and rebase the two `fjs/bnf/lib` grammars on the resulting `bnf/unicode` API.
 - [ ] Keep JSON-specific Unicode construction in `fjs/bnf/lib/json`; do not move
       it back into generic BNF and do not move it into `fjs/media/json`.
@@ -113,19 +119,19 @@ Before implementing this TODO after the blocking split:
 
 ### Related
 
-- [Separate alphabet-specific BNF helpers](../../../bnf/todo/unicode-rules.md) —
+- [Separate alphabet-specific BNF helpers](./unicode-rules.md) —
   **blocks this task** and defines where string/code-point constructors live.
-- [`fjs/bnf/lib/json`](../../../bnf/lib/json/module.f.mjs),
-  [`fjs/bnf/lib/datajs`](../../../bnf/lib/datajs/module.f.mjs) — the canonical
+- [`fjs/bnf/lib/json`](../lib/json/module.f.mjs),
+  [`fjs/bnf/lib/datajs`](../lib/datajs/module.f.mjs) — the canonical
   grammars this task migrates.
-- [self-contained-tokenizer](./self-contained-tokenizer.md) — why the JSON
+- [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md) — why the JSON
   scanner stays hand-written and takes no runtime dependency on these grammars.
-- [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — shares JSON/DJS
+- [157](../../djs/todo/157-json-djs-shared-value-machine.md) — shares JSON/DJS
   value machinery; orthogonal to the lexical BNF grammar.
-- [group-fs-subdirectories-by-concern](../../../todo/group-fs-subdirectories-by-concern.md)
+- [group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
   — media-directory ownership convention; the withdrawn `fjs/media/json/grammar`
   placement is no longer one of its exports-map dependents.
-- [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)
+- [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
   — the plan this task sits inside; its stage 2 deleted a third copy, and its BNF
   rule (grammars are spec text plus proof-covered `fjs/bnf` examples, never a
   runtime dependency of the codecs) is what withdrew this issue's original
