@@ -96,14 +96,17 @@ pull request number. Three cautions, each of which has cost a release note:
 - **`--reverse`, or read bottom-to-top.** `git log` prints newest first, and
   step 4 depends on reading in the order things happened: without it a
   superseded state is read as the release's final effect.
-- **A line with no `(#NNN)` did not arrive through a pull request.** It still
-  shipped, and it carries no reviewed description, so there is no declaration to
-  collect and nobody else to make one: **read its diff and declare for it**. A
-  break you find there enters step 5's set exactly as an author's would. Until
-  the repository settings in
+- **A line with no `(#NNN)` gives you no pull request to open.** It still
+  shipped, and the line names nothing to read, so **read its diff and declare
+  for it**. A break you find there enters step 5's set exactly as an author's
+  would. Two things produce such a line, and they differ in what exists behind
+  it: a direct push never had a pull request, so no reviewed description exists
+  anywhere; a rebase merge had one whose description the line does not name — if
+  you can find it, read it, but the diff is what you are guaranteed. Until the
+  repository settings in
   [commit-message-enforcement](../todo/commit-message-enforcement.md) forbid
-  direct pushes and rebase merges, this is the one input to the version decision
-  with no author behind it — release `0.41.0` itself landed this way.
+  both, this is the one input to the version decision with no author's
+  declaration behind it — release `0.41.0` (`7b979e74`) landed this way.
 
 Merge order is not pull-request-number order — a pull request opened earlier can
 merge later — and merge order is the one to use.
