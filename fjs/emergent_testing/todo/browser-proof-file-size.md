@@ -6,9 +6,10 @@
 ### Problem
 
 `browser/proof.mjs` is 741 lines — the largest impure proof file in the
-repository, and nearly half of all the impure proof code there is. It exists
-because a DOM adapter can only be proven against a DOM stand-in. But most of
-what it proves is not the adapter.
+repository by a wide margin (the next is `rtti/host.proof.mjs` at 379) and
+**42% of all impure proof code**: 741 of 1,779 lines across six files. It
+exists because a DOM adapter can only be proven against a DOM stand-in. But
+most of what it proves is not the adapter.
 
 Measured at the head of functionalscript#1841, by whether a proof touches the
 stand-in (`page()`, `startBrowserTests`, `renderBrowserReport`, or a node from
