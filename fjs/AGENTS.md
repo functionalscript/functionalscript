@@ -221,8 +221,10 @@ import type ... from '../other/types.ts'
 import type ... from './module.f.mjs'
 ```
 
-There are no exceptions left: `types.ts` is the only authored TypeScript in
-the repository. The former exception — the `fjs/emergent_testing/scenarios`
+There are no exceptions left: `types.ts`, plus the optional sibling
+`private.ts` for implementation-private types outside the public declaration
+closure, is the only authored TypeScript in the repository. The former
+exception — the `fjs/emergent_testing/scenarios`
 fixtures and the `all.test.ts` entry, whose `.ts` extension proved that Node,
 Bun and Deno execute a TypeScript proof natively — was retired in
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520): the

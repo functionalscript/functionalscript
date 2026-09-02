@@ -119,14 +119,24 @@ The repository source-language migration is independent of compiler feature
 coverage and is tracked in
 [`todo/migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md):
 
-1. Stage 1 migrates authored `.f.ts` to `.f.mjs` dependency-first, moving types
-   to JSDoc. `.f.mjs` means FunctionalScript-intent JavaScript and may contain
+1. **Stage 1 is done.** It migrated authored `.f.ts` to `.f.mjs`
+   dependency-first, moving types to JSDoc or to an authored `types.ts` beside
+   the implementation. No authored implementation or proof `.f.ts` remains;
+   `types.ts` (and an optional `private.ts`) is the only authored TypeScript in
+   the tree. `.f.mjs` means FunctionalScript-intent JavaScript and may contain
    syntax the current compiler does not support.
-2. The compiler may validate any migrated `.f.mjs` module it already supports,
-   and synthetic compiler fixtures may land earlier, but compiler readiness does
-   not decide whether Stage-1 source or proof files migrate.
-3. After all authored TypeScript is gone, Stage 2 migrates compiler-supported
-   dependency-closed groups from `.f.mjs` to `.f.js`.
+2. The compiler may validate any `.f.mjs` module it already supports, and
+   synthetic compiler fixtures may land earlier, but compiler readiness never
+   decided whether a Stage-1 source or proof file migrated.
+3. Stage 2 migrates compiler-supported dependency-closed groups from `.f.mjs` to
+   `.f.js`. Two things gate the first rename, and
+   [`fjs-nanvm-integration.md`](../fjs-nanvm-integration.md) — which performs it
+   — lists both: the stage-2 boundary in
+   [`migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md), and
+   [authored `.f.js` package support](../../fjs/ci/todo/f-js-package-support.md),
+   so that a standalone `.f.js` is directly type-checked, gets a `.d.ts`, is
+   packed, and resolves for a clean consumer. Package support is itself no
+   longer blocked — its stage-1 precondition is met — so it can proceed now.
 4. An authored `.f.js` is the compiler-compatibility marker: the parser/compiler
    in the same repository revision must accept it. Unsupported modules remain
    `.f.mjs` until their compiler features land.
@@ -174,7 +184,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
 | Compiler (parsing) | `fjs/djs/` data pipeline ✓, `fjs/bnf/` framework ✓ | Function support, FS grammar |
 | Compiler (codegen) | — | Rust code generator (FJS), `Function` constructor + interpreter in `nanvm-lib` |
-| Compiler (repository coverage) | Stage-1 `.f.mjs` source migration is compiler-independent | Validate supported `.f.mjs` as coverage grows; after Stage 1, rename supported groups `.f.mjs` → `.f.js` |
+| Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓ | Validate supported `.f.mjs` as coverage grows; then authored-`.f.js` package support, then rename supported groups `.f.mjs` → `.f.js` |
 | CA FunctionalScript | — | Depends on VM + EDAG canonicalization |
 | Sandboxed execution | — | Depends on CA FS |
 | Hybrid intelligence | — | Depends on all above |
