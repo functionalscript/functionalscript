@@ -53,27 +53,44 @@ Then **confirm the candidate rather than trusting its title** — a text match i
 a search, not an analysis ([AGENTS.md §6](../AGENTS.md#6-external-tools)):
 
 ```sh
-git show <candidate> -- package.json
+git show --first-parent <candidate> -- package.json
 ```
 
 It is the boundary only if that diff is the bump to the version you searched
-for. `--first-parent` matters: the release branch's own commit carries the same
-title and is not the boundary.
+for.
+
+**`--first-parent` is required on both commands, for two different reasons.**
+On the search, the release branch's own commit carries the same title as the
+merge that landed it and is not the boundary. On `git show`, every commit this
+procedure walks is a merge, and `git show` prints no diff for a merge by
+default — without the flag it emits nothing at all, on the right commit and the
+wrong one alike, which reads exactly like "not the boundary".
 
 ### 2. List the pull requests in the window
 
 ```sh
-git log --first-parent --format='%H %s' <boundary>..HEAD
+git fetch origin main
+git log --first-parent --reverse --format='%H %s' <boundary>..origin/main
 ```
 
-Each line is one thing that landed on `main`, in merge order, and the trailing
-`(#NNN)` is its pull request number. Two cautions:
+Each line is one thing that landed on `main`, and the trailing `(#NNN)` is its
+pull request number. Three cautions, each of which has cost a release note:
 
-- **Merge order is not pull-request-number order.** A pull request opened
-  earlier can merge later. Merge order is the order things actually happened
-  and the order to read them in.
+- **List `origin/main`, never the release branch's `HEAD`.** Once `main` is
+  merged into an open release branch, the pull requests that arrived on `main`
+  are reachable only through that merge's *second* parent, so a first-parent
+  walk from the branch tip does not list them — they are in the release's code
+  and absent from its window. This is not hypothetical: the pull request that
+  wrote this paragraph merged `main` in and three pull requests, #1841 through
+  #1843, vanished from its own listing.
+- **`--reverse`, or read bottom-to-top.** `git log` prints newest first, and
+  step 4 depends on reading in the order things happened: without it a
+  superseded state is read as the release's final effect.
 - **A line with no `(#NNN)` did not arrive through a pull request.** It still
   shipped, so read it like any other; nothing else will report it.
+
+Merge order is not pull-request-number order — a pull request opened earlier can
+merge later — and merge order is the one to use.
 
 Nothing but this command defines the window, so a mistake here drops a release
 note silently. Cross-check the count against the repository's merged pull
@@ -93,10 +110,19 @@ would notice:
 1. the `Changelog:` section, where the author wrote one — their own note, with
    full context. It is raw material, not final text.
 2. the rest of the description — motivation and design.
-3. the diff (`git show <commit>`), when the description does not settle it.
+3. the diff (`git show --first-parent <commit>`), when the description does not
+   settle it — the flag for the same reason as in step 1.
 
 Collect every `**BREAKING CHANGES:**` declaration as you go; step 5 needs all of
 them.
+
+**For the first release under this procedure only, `changelog/unreleased/` is a
+fourth source, and it is not optional.** Thirteen of its files declare a break
+and four of those — 1811, 1817, 1824 and 1825 — declare it *nowhere else*: their
+merge bodies carry no `Changelog:` section at all. Reading only the merge
+commits would undercount the breaks by four and pick a patch version for a
+release that breaks the API. Read every file in that directory alongside the
+merge bodies. See "Transition" below for what happens to the directory.
 
 Most pull requests produce no entry. Internal refactors, test-only changes,
 coverage, CI, `todo/` and documentation are invisible to a user of the package,
@@ -140,10 +166,14 @@ triggers the `npm publish` workflow. Before merging:
 - [ ] the version in `package.json` matches the changelog file name
 - [ ] every pull request in the window was read, and the count was cross-checked
 - [ ] every `**BREAKING CHANGES:**` declaration is either in an entry or
-      explicitly accounted for as undone
-- [ ] **after every update from `main`, re-run step 2 against the new tip.** A
+      explicitly accounted for as undone — including, for the transitional
+      release, the ones that exist only in `changelog/unreleased/` (step 3)
+- [ ] **after every update from `main`, re-run step 2 against `origin/main`.** A
       pull request merged while the release pull request is open belongs to this
-      release, and nothing else will notice that it is missing.
+      release; re-running against the release branch's own tip will not list it,
+      and nothing else will notice that it is missing.
+- [ ] **transitional release only:** `changelog/unreleased/` is deleted in this
+      same pull request, after its content has been read into the entries.
 
 ## What this replaced, and what was rejected
 
