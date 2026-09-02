@@ -1137,7 +1137,7 @@ person can re-check rather than re-derive. Counts are as of
       records the sources verbatim and how to recreate them. `all.test.ts` is
       renamed to authored `all.test.mjs` (which the package also ships as the
       external-runner entry), and the repository's only authored TypeScript is
-      now `types.ts`. The obsolete rename issue
+      now `types.ts` and its optional sibling `private.ts`. The obsolete rename issue
       `fjs/emergent_testing/todo/205.md` is deleted with the suite.
 - [x] **Sweep the remaining stale prose.** Done. The measured set was 88
       mentions across 42 `.md` files naming an `X.f.ts` whose `X.f.mjs` now
