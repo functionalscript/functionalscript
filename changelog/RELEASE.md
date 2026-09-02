@@ -132,8 +132,24 @@ bodies at all, while 1811 and 1817 carry one that does not mention the break.
 The second is the worse failure, because a section that is present reads as
 complete — which is the argument for reading the files rather than trusting a
 section to be exhaustive. Reading only the merge commits would undercount the
-breaks by four and pick a patch version for a release that breaks the API. Read every file in that directory alongside the
-merge bodies. See "Transition" below for what happens to the directory.
+breaks by four and pick a patch version for a release that breaks the API.
+
+Read those files **from `origin/main`, not from the working tree**, for the same
+reason step 2 lists `origin/main`: a pull request opened under the old policy can
+still land its entry file on `main` after this branch was cut, and `git fetch`
+updates remote-tracking refs without touching a checked-out directory, so `ls
+changelog/unreleased/` here answers for the branch rather than for the release.
+
+```sh
+git ls-tree --name-only origin/main -- changelog/unreleased/
+git show origin/main:changelog/unreleased/<PR>.md
+```
+
+If that listing holds a file this branch does not, update the branch from `main`
+and repeat both the read *and* the deletion below — a file added on `main` after
+the branch deleted the directory survives the release merge, because the two
+sides touched different paths, and it would otherwise carry an undeclared break
+into a patch release. See "Transition" below for what happens to the directory.
 
 Most pull requests produce no entry. Internal refactors, test-only changes,
 coverage, CI, `todo/` and documentation are invisible to a user of the package,
@@ -192,7 +208,10 @@ triggers the `npm publish` workflow. Before merging:
       the version number against any break it brings — a late arrival can turn a
       patch into a minor.
 - [ ] **transitional release only:** `changelog/unreleased/` is deleted in this
-      same pull request, after its content has been read into the entries.
+      same pull request, after its content has been read into the entries — and
+      the final scan enumerated it from `origin/main` (step 3), not from this
+      working tree, so a file that landed after the branch was cut is read and
+      deleted rather than left behind.
 
 ## What this replaced, and what was rejected
 
