@@ -195,6 +195,11 @@ and a new one alike.
 For each such line, update the branch from `main`, read that file into the
 entries, delete it with the rest, and **replace its line in the record** — a
 correction supersedes the entry already accounted for rather than adding to it.
+What it supersedes is the raw notes. A declaration the amendment *drops* — the
+rewrite that follows the new policy and takes the only `**BREAKING CHANGES:**`
+marker with it — is governed by the withdrawal rule below, because an edit that
+removes a declaration is a deletion of that declaration and nothing more. An
+amendment can always add or sharpen; it cannot withdraw on its own.
 
 **Compare in both directions.** A recorded path that is *absent* from the new
 listing was deleted on `main`, and that needs reading rather than obeying:
@@ -205,11 +210,13 @@ shipped. Dropping its declaration then turns a minor into a patch while the
 break is still in the release, which is the failure this whole section exists to
 prevent.
 
-So a disappeared path removes **raw notes only**. Its declaration stands unless
-one of two things is true: the deleting pull request says it is retracting the
-declaration, or step 4's reading of the window shows the break itself was undone.
-Either way the reason is stated in the release pull request, because a
-disappearing file is not evidence of anything on its own.
+So content that disappears removes **raw notes only** — a whole path gone from
+the listing, or the declaration alone gone from a path that is still there. The
+declaration stands unless one of two things is true: the pull request that
+deleted or amended the file says it is retracting it, or step 4's reading of the
+window shows the break itself was undone. Either way the reason is stated in the
+release pull request, because a file or a marker going missing is not evidence
+of anything on its own.
 
 **An empty new listing is not an exemption from this.** It means every recorded
 path was deleted, which is this rule at full stretch rather than a case where it
