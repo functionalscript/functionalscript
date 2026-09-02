@@ -365,13 +365,19 @@ export const proof = {
         assertIoMessage(result[1], "'mydir' is a directory")
     },
     readFileTooLarge: () => {
-        // a file stored as two max-size chunks exceeds the limit; readFile must return an error
+        // A file stored as two max-size chunks exceeds the limit; readFile must
+        // return an error, and the message must name the entry it refused —
+        // without it a caller that stops on the failure reports a build broken
+        // by no file in particular.
         const chunk0 = vec(maxLengthBytes * 8n)(0n)
         const chunk1 = vec(1n)(1n)
         /** @type {Dir} */
         const root = { 'big': [chunk0, chunk1] }
         const [, result] = virtual({ ...emptyState, root })(readFile('big'))
         assert(result[0] === 'error')
+        assertIoMessage(
+            result[1],
+            `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big'`)
     },
     readBytesNegativeSize: () => {
         // readBytes with negative size should fail

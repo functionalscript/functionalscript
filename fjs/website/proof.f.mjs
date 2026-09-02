@@ -156,9 +156,11 @@ export const proof = {
                 'big.mjs': [vec(maxLengthBytes * 8n)(0n), vec(1n)(1n)],
             })
             assertEq(code, 1)
-            assert(
-                generated.stderr.includes('File size exceeds maximum allowed size'),
-                generated.stderr)
+            // The operator is told which file broke the build, not merely that
+            // one did: the message is the host's own and names the entry.
+            assertEq(
+                generated.stderr,
+                `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big.mjs'\n`)
         },
         // Where the sources are is the tree's business: a nested directory is
         // walked, and its path is what the manifest carries.

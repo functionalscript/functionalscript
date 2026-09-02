@@ -172,7 +172,7 @@ const readFile = readOperation((dir, path) => {
         const chunkLen = length(chunk)
         if (chunkLen === 0n) { continue }
         if (length(result) + chunkLen > capBits) {
-            return fail(`File size exceeds maximum allowed size of ${maxLengthBytes} bytes`)
+            return fail(`File size exceeds maximum allowed size of ${maxLengthBytes} bytes: '${path[0]}'`)
         }
         result = msb.concat(result)(chunk)
     }
