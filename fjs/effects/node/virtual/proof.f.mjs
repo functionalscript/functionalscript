@@ -379,6 +379,20 @@ export const proof = {
             result[1],
             `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big'`)
     },
+    readFileTooLargeNested: () => {
+        // The path the caller asked for, not the entry `operation`'s descent
+        // left behind: told only `'big'`, a caller cannot tell which of several
+        // same-named files failed, and the Node runner names the whole path.
+        const chunk0 = vec(maxLengthBytes * 8n)(0n)
+        const chunk1 = vec(1n)(1n)
+        /** @type {Dir} */
+        const root = { a: { b: { 'big': [chunk0, chunk1] } } }
+        const [, result] = virtual({ ...emptyState, root })(readFile('a/b/big'))
+        assert(result[0] === 'error')
+        assertIoMessage(
+            result[1],
+            `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'a/b/big'`)
+    },
     readBytesNegativeSize: () => {
         // readBytes with negative size should fail
         /** @type {Dir} */
