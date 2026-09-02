@@ -58,10 +58,21 @@ narrow the hole, and neither closes it:
 2. **An API-surface diff.** The package emits `.d.ts`/`.d.mts` declarations, so
    a job could build them for base and head and report removed or narrowed
    declarations. That flags the `readonly`-added-to-a-tuple case a human misses.
-   It is a much larger tool than a PR linter, it reports candidates rather than
-   verdicts (a removed declaration nobody imported is not a break worth a bump,
-   and a behavior break shows up in no declaration at all), and it should be its
-   own issue before anyone starts it.
+   A removed or narrowed public declaration is a break whether or not anything
+   in this repository imported it: the consumers the version number exists for
+   are not visible to a repository search, and
+   [rtti-type-system](./rtti-type-system.md) already settles the point — "no
+   internal importer" is a necessary condition, not the whole one. Every such
+   declaration is therefore accounted for explicitly, never dismissed by
+   in-repo usage.
+
+   What keeps such a tool a reporter of candidates rather than a source of
+   verdicts is the other direction: a behavior break shows up in no declaration
+   at all, and a changed `_` alias may leave the expanded public contract
+   unchanged
+   ([migrate-typescript-to-mjs](./migrate-typescript-to-mjs.md)). It is a much
+   larger tool than a PR linter and should be its own issue before anyone
+   starts it.
 
 One hole no pre-merge check covers: GitHub lets whoever clicks the merge button
 edit the commit message in the merge dialog. Backstops: don't touch the merge
