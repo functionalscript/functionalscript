@@ -152,6 +152,27 @@ export const proof = {
         const [, result] = virtual({ ...emptyState, root })(readFile('a/b'))
         assert(result[0] === 'error')
     },
+    // `a/b` where `a` is a *file*, for each read. `readFileIntoDir` and the
+    // size-cap fixture both descend through real directories, so neither
+    // reaches the case `operation` hands the op with two segments left; these
+    // do. Without the one-segment guard — or with the call site collapsing `p`
+    // to its head — both return `a`'s own bytes for a path that names no file,
+    // which is a wrong answer rather than a different error, so the assertion
+    // is that the read failed at all.
+    readFileNestedThroughFile: () => {
+        /** @type {Dir} */
+        const root = { 'a': [vec8(0x42n)] }
+        const [, result] = virtual({ ...emptyState, root })(readFile('a/b'))
+        assert(result[0] === 'error')
+        assertIoCode(result[1], 'ENOENT')
+    },
+    readBytesNestedThroughFile: () => {
+        /** @type {Dir} */
+        const root = { 'a': [vec8(0x42n)] }
+        const [, result] = virtual({ ...emptyState, root })(readBytes('a/b', 0, 1))
+        assert(result[0] === 'error')
+        assertIoCode(result[1], 'ENOENT')
+    },
     awaitNonPromise: () => {
         // a non-promise value passes through the virtual `await` handler as-is
         const [, result] = virtual(emptyState)(awaitIfPromise(42))
