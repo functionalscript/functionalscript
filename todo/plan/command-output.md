@@ -20,7 +20,9 @@ proposing its own mode:
   ([tty-and-line-consumers](../../fjs/emergent_testing/todo/tty-and-line-consumers.md));
 - a reader who wants **brief progress and the failures**, not a line per test
   ([test-framework-silent-mode](../../fjs/emergent_testing/todo/test-framework-silent-mode.md));
-- and the **mode system** those two would each need
+- a **GitHub CI log**, which wants colour on a stream that is not a TTY
+  ([github-color-modes](../../fjs/emergent_testing/todo/github-color-modes.md));
+- and the **mode system** those would each need
   ([211-reporter-modes](../../fjs/emergent_testing/todo/211-reporter-modes.md)).
 
 Answering them one at a time gives the proof runner a mode system that no other
@@ -29,23 +31,33 @@ enumeration below is the whole space; the design is what covers it.
 
 ## The space to enumerate
 
-Each is an axis, and the axes are **not** one flag. TTY-ness and CI-ness are
-already known to be independent — a CI log collector is a non-TTY destination
-that also wants GitHub annotations — and collapsing them was the first mistake
-this document exists to prevent.
+Each is an axis, and **the axes compose** — a destination is a point in the
+product, not a value on one list. TTY-ness and CI-ness are already known to be
+independent, and collapsing them is the first mistake this document exists to
+prevent, so they are two rows here rather than two values in one:
 
 | axis | values |
 | --- | --- |
-| destination | TTY · pipe or file · CI (GitHub annotations) · browser page · in-memory (a proof reading a run back) |
+| transport | TTY · pipe or file · browser page · in-memory (a proof reading a run back) |
+| annotation | plain · GitHub workflow commands (`::error …`) |
+| colour | on · off |
 | verbosity | a record per event · a record per outcome · compact progress · failures only · silent |
 | progress | static (append-only) · dynamic (cursor movement, a line rewritten in place) |
 | scheduling | sequential · parallel — a parallel run's records interleave, so what identifies a record is part of the format rather than an afterthought |
 | surface | one stream · a browser document · several windows or elements at once |
 
-Two things that look like axes and are not, and the design should say so rather
-than leave them to be rediscovered: **colour** is a property of the TTY
-destination that `csiWrite` already strips elsewhere, and **exit code** is not
-output at all.
+**A GitHub CI log is the cell that proves the axes have to compose**: transport
+*pipe*, annotation *GitHub*, colour *on*. Today it cannot be expressed —
+`csiWrite` strips colour on any non-TTY stream, which is why
+[github-color-modes](../../fjs/emergent_testing/todo/github-color-modes.md)
+exists and asks for exactly this cell. Colour is therefore a **decision per
+cell, not a property of the TTY transport**; writing it off as the latter is
+how that requirement would have been silently dropped.
+
+One thing that looks like an axis and is not, and the design should say so
+rather than leave it to be rediscovered: **an exit code is not output**. It is
+one value per run, it is not written to a stream, and no destination renders
+it.
 
 ## What a good answer looks like
 
@@ -93,7 +105,10 @@ These are settled and are inputs, not questions:
 ### Related
 
 - [tty-and-line-consumers](../../fjs/emergent_testing/todo/tty-and-line-consumers.md)
-  — the pipe destination, blocked on this.
+  — the pipe transport, blocked on this.
+- [github-color-modes](../../fjs/emergent_testing/todo/github-color-modes.md)
+  — three cells of the product named as three modes, and the reason colour is
+  an axis.
 - [211-reporter-modes](../../fjs/emergent_testing/todo/211-reporter-modes.md)
   — the proof runner's own mode system, which this generalises.
 - [test-framework-silent-mode](../../fjs/emergent_testing/todo/test-framework-silent-mode.md)
