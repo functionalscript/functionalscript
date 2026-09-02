@@ -28,11 +28,9 @@ import { fold } from '../../common/monoid/module.f.mjs'
 /**
  * Adds two `bigint` values.
  *
- * @param {bigint} a - The first bigint value.
- * @returns {Unary} A function that takes the second bigint value and returns the sum.
+ * @type {Reduce} 
  */
-/** @type {(a: bigint) => (b: bigint) => bigint} */
-export const addition = a => additionOp(a)
+export const addition = additionOp
 
 /**
  * Calculates the sum of a list of `bigint` values.

@@ -18,9 +18,6 @@ import {
     reduceToScan,
 } from '../function/operator/module.f.mjs'
 
-/** @type {Reduce<number>} */
-const numberAddition = addition
-
 export const fromArrayLike =
     /**
      * @template T
@@ -267,7 +264,7 @@ const lengthList = list => () => {
     return { head: lengthList(notLazy.head), tail }
 }
 
-const sum = reduce(numberAddition)(0)
+const sum = reduce(addition)(0)
 
 /** @type {<T>(input: List<T>) => number} */
 export const length = input => sum(lengthList(input))

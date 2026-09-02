@@ -29,8 +29,8 @@ export type Equal<T> = Binary<T, T, boolean>
 
 export type Addition =
     Binary<string, string, string> &
-    Binary<number, number, number> &
-    Binary<bigint, bigint, bigint>
+    Binary<bigint, bigint, bigint> &
+    Binary<number, number, number>
 
 export type Scan<I, O> = (input: I) => readonly [O, Scan<I, O>]
 
