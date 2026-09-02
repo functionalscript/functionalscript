@@ -179,10 +179,18 @@ triggers the `npm publish` workflow. Before merging:
 - [ ] every `**BREAKING CHANGES:**` declaration is either in an entry or
       explicitly accounted for as undone — including, for the transitional
       release, the ones that exist only in `changelog/unreleased/` (step 3)
-- [ ] **after every update from `main`, re-run step 2 against `origin/main`.** A
-      pull request merged while the release pull request is open belongs to this
-      release; re-running against the release branch's own tip will not list it,
-      and nothing else will notice that it is missing.
+- [ ] **immediately before merging, fetch and re-run step 2 against
+      `origin/main` one last time** — and again after any update from `main`,
+      which is *a* reason to re-list rather than the only one. A pull request
+      that lands on `main` while the release pull request sits there ships with
+      this release whether or not the release branch ever merged it, because the
+      release lands by merging *into* `main` and `main`'s tip at that moment is
+      what publishes. Tying the re-list to updates of the branch misses exactly
+      that case: the branch never moved, so nothing prompts a rescan, and the
+      note is absent from a release that carries the code. Extend
+      `changelog/X.Y.Z.md` with whatever the final listing adds, and re-check
+      the version number against any break it brings — a late arrival can turn a
+      patch into a minor.
 - [ ] **transitional release only:** `changelog/unreleased/` is deleted in this
       same pull request, after its content has been read into the entries.
 
