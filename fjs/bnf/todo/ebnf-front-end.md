@@ -3,9 +3,12 @@
 **Priority:** P3
 **Status:** blocked
 **Blocked by:**
-- [grammar-bucket](../../todo/grammar-bucket.md), step 0 only: the neutral
-  modules must stop importing the classical front end before a second one can
-  share them. The directory moves are not a prerequisite.
+- [grammar-bucket](../../todo/grammar-bucket.md) stages 1-4 — the dependency
+  inversion: the neutral modules must stop importing the classical front end,
+  in type as well as at runtime, before a second front end can share them.
+  The later moves of the already-neutral modules are not a prerequisite.
+- [unicode-rules](./unicode-rules.md), for the `fjs/grammar/unicode/` adapter
+  this front end takes every text terminal from.
 
 ### Problem
 
@@ -52,7 +55,9 @@ shared unchanged — a repetition already reaches them as the data `Repeat`.
 #### The rule union
 
 The functional string literal never enters `ebnf`; text terminals come from
-the alphabet helper that [unicode-rules](./unicode-rules.md) introduces. With
+the alphabet adapter that [unicode-rules](./unicode-rules.md) introduces,
+which lives at `fjs/grammar/unicode/` as a sibling of both front ends rather
+than inside either ([grammar-bucket](../../todo/grammar-bucket.md)). With
 no string `Rule`, an array whose first element is a string cannot be a
 sequence, and the tagged array is a rule kind of its own:
 
@@ -136,8 +141,9 @@ beyond `'*'`, `'?'`, and `'+'`, so the two do not drift while both exist.
       `repeat0Plus`, `repeat1Plus`, `join0Plus`, `join1Plus`) and `toData` /
       `toDataWithRules` transcribing `'*'`, desugaring `'?'` and `'+'`,
       rejecting a nullable item and a self-item. The text-interpreting
-      helpers — `range`, `set`, `str`, `notSet` — are the alphabet adapter's,
-      not this module's ([unicode-rules](./unicode-rules.md)).
+      helpers — `range`, `set`, `str`, `notSet` — belong to the alphabet
+      adapter at `fjs/grammar/unicode/`, which this module depends on and does
+      not contain ([unicode-rules](./unicode-rules.md)).
 - [ ] `fjs/grammar/ebnf/rtti/`: the rule-info map without `repeatItem`.
 - [ ] Proofs: every constructor, every `toData` case — including a grammar
       that writes `'?'` and `'+'` directly rather than through a constructor —

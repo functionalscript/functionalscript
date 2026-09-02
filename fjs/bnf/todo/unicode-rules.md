@@ -231,7 +231,12 @@ new module boundary and final rule discriminants before implementation starts.
 - [`fjs/bnf/data/module.f.mjs`](../data/module.f.mjs) — currently expands string
   rules into Unicode code-point terminals.
 - [ebnf-front-end](./ebnf-front-end.md) — the second front end never has the
-  functional string literal and takes text terminals from the helper this
-  split introduces; [grammar-bucket](../../todo/grammar-bucket.md) step 0.1
-  moves the terminal codec out of the front end and leaves `unicodeRange`'s
-  home to this issue.
+  functional string literal and takes **all** its text terminals from the
+  adapter this split introduces, so that adapter is a dependency of both front
+  ends rather than a part of either.
+- [grammar-bucket](../../todo/grammar-bucket.md) — its stage 1 moves the
+  alphabet-neutral codec out of the front end and leaves every
+  text-interpreting helper to this issue. The adapter's final home there is
+  `fjs/grammar/unicode/` (with `byte/` beside it), a bucket sibling: it
+  outlives the classical front end, and this issue does not close when that
+  front end is deleted.
