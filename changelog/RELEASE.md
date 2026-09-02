@@ -105,8 +105,9 @@ pull request number. Three cautions, each of which has cost a release note:
   you can find it, read it, but the diff is what you are guaranteed. Until the
   repository settings in
   [commit-message-enforcement](../todo/commit-message-enforcement.md) forbid
-  both, this is the one input to the version decision with no author's
-  declaration behind it — release `0.41.0` (`7b979e74`) landed this way.
+  both, this is the one input to the version decision whose declaration — if one
+  was ever written — is not reachable from the line, which is what makes the
+  diff the thing you read. Release `0.41.0` (`7b979e74`) landed this way.
 
 Merge order is not pull-request-number order — a pull request opened earlier can
 merge later — and merge order is the one to use.
@@ -176,12 +177,16 @@ git show origin/main:changelog/unreleased/<PR>.md
 ```
 
 **Record that listing**, because the final scan in step 7 compares against it
-and not against the branch. Once this branch deletes `changelog/unreleased/`,
-every file it consumed is still on `origin/main` — the deletion does not reach
-`main` until the release merges — so "`origin/main` holds a file this branch does
-not" becomes true of all of them and separates nothing. A late arrival is a
-**line** in the new listing that is not in the recorded one; that comparison is
-the whole signal.
+and not against the branch. Record it **even when it is empty**: an empty record
+is what makes a legacy file that lands after this step register as a line that is
+not in it, and that late arrival is the whole reason this fourth source exists.
+Recording nothing because there was nothing to record leaves the final scan with
+no baseline and silently retires it. Once this branch deletes
+`changelog/unreleased/`, every file it consumed is still on `origin/main` — the
+deletion does not reach `main` until the release merges — so "`origin/main` holds
+a file this branch does not" becomes true of all of them and separates nothing.
+A late arrival is a **line** in the new listing that is not in the recorded one;
+that comparison is the whole signal.
 
 Compare whole `ls-tree` lines, not path names — which is why the command above
 drops `--name-only`. A late pull request can *correct* an entry that is already
@@ -221,8 +226,8 @@ of anything on its own.
 **An empty new listing is not an exemption from this.** It means every recorded
 path was deleted, which is this rule at full stretch rather than a case where it
 does not apply — and it is the shape the deletion takes when the window tidied
-away the last legacy file. What decides whether the comparison runs is that step
-3 recorded a listing, never what the new snapshot happens to contain.
+away the last legacy file. Nothing about what either side holds decides whether
+the comparison runs; it always runs.
 
 The record is what the release has accounted for, not a snapshot of when it
 started: a processed file stays on `origin/main` until the release merges, so
@@ -282,8 +287,8 @@ triggers the `npm publish` workflow. Before merging:
 - [ ] the version in `package.json` matches the changelog file name
 - [ ] every pull request in the window was read, and the count was cross-checked
 - [ ] every `**BREAKING CHANGES:**` declaration is either in an entry or
-      explicitly accounted for as undone — including, whenever step 3 recorded a
-      listing, the ones that exist only there (step 3)
+      explicitly accounted for as undone — including the ones that exist only in
+      `changelog/unreleased/` (step 3)
 - [ ] **immediately before merging, fetch and re-run step 2 against
       `origin/main` one last time** — and again after any update from `main`,
       which is *a* reason to re-list rather than the only one. A pull request
@@ -322,16 +327,17 @@ triggers the `npm publish` workflow. Before merging:
       ([commit-message-enforcement](../todo/commit-message-enforcement.md));
       until it is on, the fetch-to-merge interval is an accepted exposure, and
       it is smallest when the two happen back to back.
-- [ ] **whenever step 3 recorded a listing:** the final scan compared the new
-      `ls-tree` against that record — **including when the new listing is
-      empty**, which is not "nothing to do" but the deleted-path case — and
-      `changelog/unreleased/` is deleted in this same pull request, if it still
-      exists, after its content has been read into the entries. The condition is
-      what step 3 recorded, never what the directory holds now: gating on a
-      non-empty directory skips the scan in exactly the case step 3 calls
-      dangerous. The comparison's own form lives there and is deliberately not
-      restated here, because this document has twice drifted by fixing a rule
-      and leaving its paraphrase behind.
+- [ ] the final scan compared the new `ls-tree` against step 3's record —
+      **unconditionally, whatever either side holds**. Neither emptiness is an
+      exemption; each is a case. Nothing recorded and a line now is the late
+      arrival. Something recorded and nothing now is the deletion. Every guard
+      this item has carried — a non-empty directory, then a non-empty record —
+      turned off the scan in one of those two, which is why it has none.
+- [ ] `changelog/unreleased/` is deleted in this same pull request, if it exists,
+      after its content has been read into the entries. The reading and the
+      comparison are step 3's, deliberately not restated here, because this
+      document has twice drifted by fixing a rule and leaving its paraphrase
+      behind.
 
 ## What this replaced, and what was rejected
 
