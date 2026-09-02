@@ -196,12 +196,13 @@ const jsModuleNotAFile = name => fail(`'${name}' is not a file`)
  * `p` means one of those rather than specifically the second; an empty `p`
  * means the path named a directory.
  *
- * **All three answer `ENOENT` here, and a host answers three different
- * things**: `ENOENT` only for the absent name, `ENOTDIR` for a path through a
- * non-directory, `EISDIR` for a read of a directory. `stat` models the second
- * — see {@link statPath}, which asks presence *before* length for exactly this
- * reason — so the reads disagree with `stat` in this same file as well as with
- * a host. That is
+ * **All three answer `ENOENT` here, and a host does not.** An absent name is
+ * `ENOENT` everywhere, but a path *through* a non-directory is `ENOTDIR` on
+ * POSIX, and a read of a directory is `EISDIR` on Linux, macOS and Windows —
+ * FreeBSD does not fail at all there, so that last one is not one answer to
+ * copy. `stat` models the `ENOTDIR` case, and asks presence *before* length so
+ * an absent name keeps `ENOENT`; see {@link statPath}. So the reads disagree
+ * with `stat` in this same file as well as with a host. That is
  * [reads-enotdir-through-a-file](./todo/reads-enotdir-through-a-file.md); until
  * it is settled, this says what the runner does rather than what a host would.
  *

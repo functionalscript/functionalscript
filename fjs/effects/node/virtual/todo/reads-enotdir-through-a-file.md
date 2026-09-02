@@ -9,11 +9,19 @@
 remaining path that is not exactly one segment. Two different situations reach
 that guard, and a host distinguishes them:
 
-| `readFile(p)` where… | this runner | POSIX host |
+| `readFile(p)` where… | this runner | a host |
 | --- | --- | --- |
-| `a` is a file, `p = 'a/b'` | `ENOENT` | `ENOTDIR` |
-| `a` is a directory, `p = 'a'` | `ENOENT` | `EISDIR` |
-| `a` is absent, `p = 'a'` | `ENOENT` | `ENOENT` |
+| `a` is absent, `p = 'a'` or `'a/child'` | `ENOENT` | `ENOENT` everywhere |
+| `a` is a file, `p = 'a/b'` | `ENOENT` | `ENOTDIR` on POSIX, `ENOENT` on Windows |
+| `a` is a directory, `p = 'a'` | `ENOENT` | `EISDIR` on Linux, macOS and Windows; **no error at all on FreeBSD** |
+
+The third row is the one that is not a single host answer. Node documents
+`readFile` of a directory as platform-specific: an error on macOS, Linux and
+Windows, and *a representation of the directory's contents* on FreeBSD
+(`fs.readFile` in `@types/node`, and the same note in Node's own docs). So
+`EISDIR` is what the three platforms this repository's CI runs report, not a
+contract every host honours — and the second row's `ENOTDIR` carries the Windows
+caveat `statPath` already records.
 
 `stat` already models the first row. `statPath`'s JSDoc argues the case at
 length — "a path that descends through a non-directory is `ENOTDIR`, not
@@ -58,9 +66,13 @@ if (p.length !== 1) { return enotdir }      // it exists and is not a directory
   ordering above, `resolveFile` answers `enotdir` only where `statPath` does.
   Small, and it makes the two operations agree.
 - **`EISDIR` for an empty path.** `p.length === 0` means `operation` descended
-  all the way, so the path named a directory and a host says `EISDIR`. This
-  needs a new error value and a decision about `writeBytes`, which reaches the
-  same guard and whose host answer is also `EISDIR`.
+  all the way, so the path named a directory. This needs a new error value and a
+  decision about `writeBytes`, which reaches the same guard. It is also the row
+  where "match the host" does not settle anything: FreeBSD does not fail at all,
+  so choosing `EISDIR` is a deliberate policy — model the platforms the CI runs
+  and the ones callers are on — rather than the answer a host gives. Say that in
+  the code if it is chosen, or a later reader will take it for parity the way
+  the docstring this issue came from did.
 - **Leave it, and say so.** Answering one code for every non-file is simpler,
   and a caller that treats all three alike is right on every host. If that is
   the choice, `statPath`'s argument for the opposite has to be reconciled with
