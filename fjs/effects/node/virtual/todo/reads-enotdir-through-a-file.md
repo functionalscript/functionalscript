@@ -77,19 +77,39 @@ if (p.length !== 1) { return enotdir }      // it exists and is not a directory
   and the ones callers are on — rather than the answer a host gives. Say that in
   the code if it is chosen, or a later reader will take it for parity the way
   the docstring this issue came from did.
-- **Leave it, and say so.** Answering one code for every non-file is simpler,
-  and a caller that treats all three alike is right on every host. If that is
-  the choice, `statPath`'s argument for the opposite has to be reconciled with
-  it rather than left standing next to it.
+- **Leave it, and say so.** Answering one code for every non-file is simpler.
+  What this option cannot claim is host parity — an earlier draft of this
+  bullet said a caller treating all three alike is right everywhere, and
+  **on-a-directory** is not an error on FreeBSD at all, so it is not. If this is
+  the choice it is a decision to model less than a host does, and `statPath`'s
+  argument for the opposite has to be reconciled with it rather than left
+  standing next to it.
 
-Whichever is chosen, `readFile('missing/child')` wants a fixture of its own:
-nothing today pins that an absent first name answers `ENOENT` rather than
-whatever the new longer-path branch returns, which is exactly the case a length
-test would have broken.
+### Who would notice
 
-Whichever is chosen, the three `*NestedThroughFile` fixtures in
-[`../proof.f.mjs`](../proof.f.mjs) pin the current codes, so they are the ones
-that have to change, deliberately, with it.
+`ENOTDIR` is already load-bearing one module away. `fjs/web` answers `404` for
+it and documents why — `/README.md/` and `/nope.md/` must be indistinguishable,
+or a trailing slash becomes a way to enumerate files — and `throughFile` in
+[`../../../web/proof.f.mjs`](../../../web/proof.f.mjs) proves it *against this
+runner*, deliberately, because the status differs by platform on a real host.
+
+That works today only because `respond` gets its `ENOTDIR` from `stat`, which
+models it, rather than from the read, which does not. So the gap here is not
+hypothetical, it is one refactor away:
+[stat-then-read](../../../web/todo/stat-then-read.md) contemplates collapsing
+those two calls into one, and a single read would answer `ENOENT` for the shape
+`fjs/web` currently distinguishes — turning a documented `404` into a `500`
+with no test to catch it, since the fixtures here pin `ENOENT` as correct.
+
+Whichever option is chosen, then:
+
+- `readFile('missing/child')` wants a fixture of its own. Nothing today pins
+  that an absent first name answers `ENOENT` rather than whatever a new
+  longer-path branch returns, which is exactly the case a length test would
+  have broken.
+- The three `*NestedThroughFile` fixtures in
+  [`../proof.f.mjs`](../proof.f.mjs) pin the current codes, so they are the ones
+  that have to change, deliberately, with it.
 
 ### Tasks
 
@@ -111,6 +131,9 @@ that have to change, deliberately, with it.
   the descent side rather than the leaf side — "fail with `ENOENT` when a
   component is missing, and with `ENOTDIR` when one is a file" — so the two
   want deciding together, or the second will contradict the first.
+- [stat-then-read](../../../web/todo/stat-then-read.md) — the refactor that
+  would make this issue load-bearing, by moving `fjs/web`'s `ENOTDIR` from
+  `stat` to the read.
 - [dirent-kinds](./dirent-kinds.md) and
   [jsmodule-read-policy](./jsmodule-read-policy.md) — two more places this
   runner answers something a host would not, both about entry *kind* rather
