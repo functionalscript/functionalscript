@@ -1,11 +1,9 @@
 ## Share the browser and console proof runners
 
 **Priority:** P3
-**Status:** open — every step has landed. Two proofs are left: that the two
-runners answer identically from the same fixtures, and that the page reports an
-`infrastructure-error` when its *own interpreter* **rejects**, which 7b named
-and did not build. The other runner-failure route, an operation answering
-through its error channel, is proved by `refusedReportEndsTheRun`.
+**Status:** open — every step has landed and both runner-failure routes are
+proved. One proof is left: that the two runners answer identically from the
+same fixtures.
 
 ### Problem
 
@@ -986,17 +984,26 @@ are shared.
       regenerating them produces the new path rather than that a hand edit
       matched: `npm run website` rewrites the entry, and the browser suite
       manifest is derived the same way.
-- [ ] Prove the page's *rejection* runner-failure route: an operation the
-      interpreter cannot dispatch, which rejects rather than answering. The
-      other route landed in 7b — an operation answering through its error
-      channel is `refusedReportEndsTheRun` in `browser/proof.f.mjs`, which
-      pins that the run stops and that the failure is answered. What has no
-      proof is `runBrowserProofs`' `.catch(runnerFailure)` in
-      `browser/module.mjs`: the `infrastructure-error` cases in
-      `browser/proof.mjs` all come from the loading path's own `catch`, one
-      function away. The seam 7b specifies is the page's run core taking its
-      interpreter as an argument, exported for proofs from the page's own
-      module — a testing seam, not a public-API widening.
+- [x] Prove the page's *rejection* runner-failure route. **Landed**, with the
+      seam 7b specified: `_runBrowserProofsWith` hands the page's own operation
+      map to a function before interpreting it, so a proof can replace one
+      handler. The published `runBrowserProofs` is that core applied to the
+      identity, so the page's entry point is unchanged — a testing seam, not
+      the API widening this file rejected.
+
+      Two proofs, because the rejection has two depths and only one of them
+      reaches a handler: `aThrowingHandlerIsTheRunnersOwnFailure` (a `sandbox`
+      handler throws) and `anUndispatchableCommandIsTheSameFailure` (no
+      `sandbox` handler at all, which `match` panics on inside the same awaited
+      loop). Both assert what the page actually depends on — the report still
+      *resolves*, says `infrastructure-error`, and names the runner rather than
+      a module. Mutation-checked: delete `.catch(runnerFailure)` and they
+      reject instead of reporting, which is the page-stuck-in-`running`
+      failure itself.
+
+      The other route landed in 7b without a seam: an operation answering
+      through its error channel is `refusedReportEndsTheRun` in
+      `browser/proof.f.mjs`.
 - [ ] Prove both runners produce equivalent paths, throw outcomes, recursive
       test counts, and normalized failures from the same fixtures. The
       existing `nameMatchesTheConsoleRunner`,
@@ -1063,22 +1070,22 @@ are shared.
       proofs from the page's own module, so proofs could drive **each failure
       route separately**.
 
-      **What landed is smaller, and covers one route.** Making the
-      orchestration an effect was enough for the error channel: a mock runner
-      that declares `report` and does not implement it answers `notImplemented`
-      through the ordinary continuation, which is `refusedReportEndsTheRun`
-      above — no seam needed. The rejection route did not follow.
-      `browser/module.mjs` still builds its interpreter internally, so
-      `.catch(runnerFailure)` has no way in and no proof. The seam described
-      here is therefore **still to be built**, by the open task above and for
-      that route alone; it is not something to go looking for in the code.
+      **7b landed one route without the seam, and the seam came after.**
+      Making the orchestration an effect was enough for the error channel: a
+      mock runner that declares `report` and does not implement it answers
+      `notImplemented` through the ordinary continuation, which is
+      `refusedReportEndsTheRun`. The rejection route could not follow, because
+      `browser/module.mjs` built its interpreter internally and
+      `.catch(runnerFailure)` had no way in. `_runBrowserProofsWith` is that
+      seam, at its smallest: the page's own operation map passes through a
+      function before it is interpreted, and the published
+      `runBrowserProofs` is the core applied to the identity, so the entry
+      point is unchanged — a testing seam, not the API widening the
+      "widen the API to reach the branch" alternative proposed.
 
-      When it is built: two routes need two mutations — delete either half of
-      the guard alone and its case fails while the other stays green, or the
-      surviving half is masking an untested branch that can still leave the
-      page in `running` forever. It is a testing seam, not a public-API
-      widening — the page's published entry point is unchanged, which is what
-      the rejected "widen the API to reach the branch" alternative got wrong.
+      What it made provable is the failure mode this was about: with the guard
+      deleted, both cases reject instead of reporting, which is the page left
+      in `running` forever.
 
 ### Related
 
