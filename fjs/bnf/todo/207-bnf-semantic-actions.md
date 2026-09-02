@@ -50,7 +50,7 @@ type RepeatTransformer<M, C, S, T> = StateFold<Meta<M, C>, S, Out<M, T>>
 
 - **Terminal** gets the matched symbol with its metadata. `Meta<M, CodePoint>` is
   the shared parser leaf (§7). *(With `MI`/`MO` this is where the two meet:
-  `(v: Meta<MI, CodePoint>) => Out<MO, T>`, the one place the boundary is
+  `(v: Meta<MI, Symbol>) => Out<MO, T>`, the one place the boundary is
   crossed — see [43](./043-stateful-parser.md).)*
 - **Sequence** gets its children as a typed tuple. Fixed arity, so nothing to
   stream and no state.
@@ -74,7 +74,7 @@ empty map behaves bit for bit as it does now.
 | Data rule kind  | The transformer receives                                    |
 |-----------------|-------------------------------------------------------------|
 | `TerminalRange` | `[symbol, M]`                                                |
-| at EOF          | `[EOF, identity]` — no leaf exists ([contract](../README.md#logical-eof-in-parser-input)) |
+| at EOF          | `[EOF, its own metadata]` — a caller-supplied symbol, contributing no leaf ([eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)) |
 | `Sequence`      | `[[c₀, …, cₙ], merged M]`, one slot per item                 |
 | empty `Sequence`| `[[], identity]`                                             |
 | `Variant`       | `[[branchName, value], that branch's M]`                     |
@@ -324,13 +324,15 @@ the empty sequence and the zero-round repetition.
 > What 43 changes, when it is implemented: one `M` becomes `MI` and `MO`; the
 > monoid becomes `translate: (mi: MI) => MO` and `reduce: Reduce<MO>`, folded
 > strictly left to right with no associativity required; and the terminal
-> becomes the boundary, so `TerminalTransformer` takes `Meta<MI, CodePoint>` and
+> becomes the boundary, so `TerminalTransformer` takes `Meta<MI, Symbol>` and
 > returns `Out<MO, T>` while every composite callback stays `MO → MO`. That is a
 > breaking change to stage 1's public types, made deliberately. Everything about
 > *which* metadata each rule kind contributes survives it; only the algebra and
 > the type count change. The identity does not survive at all — what an empty
-> sequence, a zero-round repetition and an EOF terminal contribute is 43's open
-> question.
+> sequence and a zero-round repetition contribute is 43's open question. An EOF
+> terminal was a third such case until
+> [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md); it now has the caller's
+> metadata like any other symbol.
 
 Repetition is the stateful exception to engine-level composition. Each round's
 complete child `Meta` reaches `update`, so the transformer keeps whatever
