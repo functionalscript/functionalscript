@@ -28,4 +28,4 @@
 - [ ] Replace CHANGELOG with a generated from a Website.
   - [ ] Proposal: Create changelog during release.
 - [ ] Reformulate "grab and implement" task. It should focus on priorities.
-- [ ] EBNF: I think, the idea to use `string` as raw value is still attractive. Also, if we use the first item of an array as discriminant together with a sequence, it became inconsistent with all other eDSL we have.
+- [ ] EBNF: I think, the idea to use `string` as raw value is still attractive. Also, if we use the first item of an array as discriminant together with a sequence, it became inconsistent with all other eDSL we have. https://github.com/functionalscript/functionalscript/pull/1847
