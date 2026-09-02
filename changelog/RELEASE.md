@@ -234,16 +234,26 @@ triggers the `npm publish` workflow. Before merging:
       the release and still publishes:
 
       ```sh
-      git rev-parse origin/main        # note it; re-check just before merging
+      git fetch origin main && git rev-parse origin/main   # note it
+      git fetch origin main && git rev-parse origin/main   # again, before merging
       ```
 
+      **The fetch is the check.** `origin/main` is a local remote-tracking ref
+      that moves only when you fetch, so re-reading it without one compares the
+      recorded value against itself and reports "unchanged" however far the
+      remote has actually advanced — a test that cannot fail.
+
       If `main` has moved, the scan is stale: re-list, extend the entries, and
-      re-check the version before merging. The mechanical form of this is
-      GitHub's **"Require branches to be up to date before merging"**, which
+      re-check the version before merging.
+
+      Even fetched, this narrows the race rather than closing it: `main` can
+      advance between that last fetch and the merge itself. Closing it needs the
+      platform — GitHub's **"Require branches to be up to date before merging"**
       blocks the merge button whenever `main` has advanced past the release
-      branch — with it on, the race is closed by the platform rather than by
-      whoever is watching the clock
-      ([commit-message-enforcement](../todo/commit-message-enforcement.md)).
+      branch, which turns the residual window into a forced re-scan. Enable it
+      ([commit-message-enforcement](../todo/commit-message-enforcement.md));
+      until it is on, the fetch-to-merge interval is an accepted exposure, and
+      it is smallest when the two happen back to back.
 - [ ] **transitional release only:** `changelog/unreleased/` is deleted in this
       same pull request, after its content has been read into the entries — and
       the final scan re-listed it from `origin/main` and compared against the set
