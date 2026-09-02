@@ -104,13 +104,16 @@ than designed around.
   - *Environment-derived* — annotation, colour, and which **stream** transport
     a stream run got — come from `options.std[stream].isTTY` and `options.env`,
     which are there.
-  - *Host-selected* — the **browser page** and the **bridge** — are chosen by
-    calling their entry point, not by detection: `startBrowserTests(root,
-    modules)` is the page's, `register` is the framework's, and neither reads
-    `isTTY` or `env` nor should be made to. Their cell is fixed at that API
+  - *Caller-selected* — the **browser page**, the **bridge** and **in-memory** —
+    are chosen by calling their entry point, not by detection:
+    `startBrowserTests(root, modules)` is the page's, `register` is the
+    framework's, and in-memory is whatever a proof calls to read a run back.
+    None reads `isTTY` or `env`, nor should be made to. Their cell is fixed at that API
     boundary, and a rule that derives every transport from the environment
     would either leave those cells unselectable or push Node's options across
-    a boundary the architecture keeps.
+    a boundary the architecture keeps. Three of the five transport values sit
+    here, so *environment-derived* covers the choice **between the stream
+    values** and not the transport row as a whole.
   - *User-chosen* — verbosity above all — comes from `options.args`, which is
     also there, and a CLI option is a **first-class selector** for those rather
     than a last resort: `test-framework-silent-mode` promises `--verbose`, and
@@ -206,7 +209,7 @@ postponed, not missed.
   waits for the enumeration that says which granularities have a producer.
 - **Who chooses `progress`, `scheduling` and `surface`?** Per the omission
   noted above. `scheduling` may not survive at all, and `surface` is plausibly
-  host-selected like the transport it is constrained by, but both are guesses
+  caller-selected like the transport it is constrained by, but both are guesses
   and neither is worth fixing in the table before the enumeration.
 - **What each stream means per command.** functionalscript#1790 settled it for a
   run's *records* and deliberately not further; `cas` and `mcp` put
@@ -222,8 +225,16 @@ postponed, not missed.
       bridge emits calls. For each, which cell of the table above it occupies.
 - [ ] Enumerate the report contracts **already designed but not yet emitted**,
       so the shape is not invalidated by an issue that is already open. The
-      rule: *every open issue that specifies a field, a status or a tally in a
-      report is an input to the shape*. **Read it as a sweep of
+      rule: *every open issue that specifies anything a destination must emit
+      — a field, a status, a tally, an annotation on a record, a record that is
+      not a result, or an ordering between records — is an input to the shape*.
+      Deliberately not a list of three kinds:
+      [throw-payload-assertions](../emergent_testing/todo/throw-payload-assertions.md)
+      wants `# EXPECTED TO THROW (checked)` distinguishable from the plain
+      annotation in both the CLI and the browser report, and
+      [spidermonkey-test-runner](../emergent_testing/todo/spidermonkey-test-runner.md)
+      wants rejected roots reported — neither is a field, a status or a tally,
+      and both are contracts a renderer has to satisfy. **Read it as a sweep of
       `fjs/emergent_testing/todo/` — 29 files — and not as a list here.** An
       inline inventory was tried and grew in three consecutive review rounds —
       cancellation
@@ -233,12 +244,13 @@ postponed, not missed.
       [subset selector](../emergent_testing/todo/run-subset-of-tests.md), then
       the [property-test seed](../emergent_testing/todo/665-proof-property-tests.md)
       and the [timer resolution](../emergent_testing/todo/timer-precision.md) —
-      which is what a hand-maintained list of a directory does. Those six are a
-      **lower bound found by review, not the inventory**; the design produces the
+      which is what a hand-maintained list of a directory does. Every issue named
+      on this task is a **lower bound found by review, not the inventory**; the
+      design produces the
       inventory by running the rule over the directory at the time it is
       written.
 
-      Two of the six say something about the *shape* rather than adding to it,
+      Two of them say something about the *shape* rather than adding to it,
       and are worth carrying across:
       [todo-property](../emergent_testing/todo/todo-property.md) scopes its
       tally to `fjs t` because the `register` path has nowhere to accumulate a
