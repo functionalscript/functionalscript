@@ -38,7 +38,7 @@ prevent, so they are two rows here rather than two values in one:
 
 | axis | values |
 | --- | --- |
-| transport | TTY · pipe or file · browser page · another framework's API (a *bridge*: `node:test`/Bun `ctx.test` calls rather than text) · in-memory (a proof reading a run back) |
+| transport | TTY · pipe or file · browser page · another framework's API (a *bridge*: `node:test`/Bun `ctx.test` calls rather than text) |
 | annotation | plain · GitHub workflow commands (`::error …`) |
 | colour | on · off |
 | verbosity | a record per event · a record per outcome · compact progress · failures only · silent |
@@ -104,14 +104,13 @@ than designed around.
   - *Environment-derived* — annotation, colour, and which **stream** transport
     a stream run got — come from `options.std[stream].isTTY` and `options.env`,
     which are there.
-  - *Caller-selected* — the **browser page**, the **bridge** and **in-memory** —
-    are chosen by calling their entry point, not by detection:
-    `startBrowserTests(root, modules)` is the page's, `register` is the
-    framework's, and in-memory is whatever a proof calls to read a run back.
-    None reads `isTTY` or `env`, nor should be made to. Their cell is fixed at that API
+  - *Caller-selected* — the **browser page** and the **bridge** — are chosen by
+    calling their entry point, not by detection: `startBrowserTests(root,
+    modules)` is the page's and `register` is the framework's. Neither reads
+    `isTTY` or `env`, nor should be made to. Their cell is fixed at that API
     boundary, and a rule that derives every transport from the environment
     would either leave those cells unselectable or push Node's options across
-    a boundary the architecture keeps. Three of the five transport values sit
+    a boundary the architecture keeps. Two of the four transport values sit
     here, so *environment-derived* covers the choice **between the stream
     values** and not the transport row as a whole.
   - *User-chosen* — verbosity above all — comes from `options.args`, which is
@@ -142,6 +141,13 @@ than designed around.
   `emergent_testing/browser/proof.mjs`, which the Node virtual runner cannot
   observe at all and must not be asked to. What every cell shares is the
   *value* being rendered, and that is provable without any destination.
+
+  This is also why **capture is not a transport**, and why an earlier draft
+  listing `in-memory` beside `TTY` and `pipe` was wrong. Proving the TTY
+  renderer means a run with `std.stdout.isTTY` true whose writes land in
+  `State.stdout` as a string — TTY *and* captured at once, which mutually
+  exclusive values on one row cannot express, and which this very bullet
+  requires. Capture is how a run is **observed**, orthogonal to where it goes.
 - **It applies to more than one command — and the first task is what
   establishes that, not an assumption here.** Sharing a terminal is not sharing
   a structure: `fjs cas add` emits a hash and `fjs mcp` emits JSON-RPC, and
@@ -205,6 +211,13 @@ postponed, not missed.
   *designing* the shape, and tasks 1 and 2 reach no flag. If the design's own
   answer turns out to need an option to express a cell, that judgement flips
   and this becomes a blocker. Revisit when the shape exists.
+- **How is capture modelled, if not as a transport?** Striking `in-memory`
+  from the transport row fixes the contradiction with the proof rule but does
+  not say what replaces it: an observation dimension crossing every cell, or
+  nothing in this table at all because it belongs to the proof harness. Every
+  stream cell is captured when proved and unwrapped when run, so whichever it
+  is applies uniformly — which is the argument for leaving it out of the
+  product, and exactly what the enumeration should confirm rather than assume.
 - **Is event granularity a separate axis from verbosity?** `verbosity` above
   lists `a record per event`, `a record per outcome` and `compact progress` as
   mutually exclusive, which conflates *how many events a renderer consumes*
