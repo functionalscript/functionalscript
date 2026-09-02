@@ -321,9 +321,9 @@ tracked backend and alphabet work that has nothing to do with the front end.
 
 A new module the migration creates carries its issues to its final path
 directly, never to `fjs/bnf/` first: [recognizer-backend](../bnf/todo/recognizer-backend.md)
-names `fjs/bnf/recognizer` and `fjs/bnf/dfa` today, and both execute grammars,
-so they are `fjs/grammar/recognizer` and `fjs/grammar/dfa` under the
-membership rule. That issue is blocked only until the stage-2 alphabet split,
+named `fjs/bnf/recognizer` and `fjs/bnf/dfa` until this plan corrected it;
+both execute grammars, so under the membership rule they are
+`fjs/grammar/recognizer` and `fjs/grammar/dfa`, which that issue now says. That issue is blocked only until the stage-2 alphabet split,
 so it can land *before* stage 6 — which is exactly why its paths must be
 corrected now rather than caught by a later move list.
 
@@ -363,9 +363,9 @@ corrected now rather than caught by a later move list.
       deletion. Its adapters should take a `RuleSet`, which both backends
       already accept through `parserRuleSet` / `descentParserRuleSet`.
 - [ ] Before stage 5: give every issue in `fjs/bnf/todo/` the destination named
-      above, and correct
-      [recognizer-backend](../bnf/todo/recognizer-backend.md)'s `fjs/bnf/recognizer`
-      and `fjs/bnf/dfa` to `fjs/grammar/`.
+      above. (Correcting
+      [recognizer-backend](../bnf/todo/recognizer-backend.md)'s paths is
+      already done, in this plan's own change.)
 - [ ] Stage 5: split `fjs/bnf/README.md` to the owners named above, creating
       `fjs/grammar/README.md`, and repoint every inbound link — including the
       ones in these two issues.

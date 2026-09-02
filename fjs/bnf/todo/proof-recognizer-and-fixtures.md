@@ -18,7 +18,7 @@ constructs Unicode terminals with core `range('--')` / `range('09')`, and its
 import analysis assumes `fjs/bnf/testlib.f.mjs` obtains text helpers from
 `./module.f.mjs`. After the split, text/range construction belongs to
 `fjs/grammar/unicode/module.f.mjs`. Do not implement the fixture extraction against
-the old core API: rebase the fixture imports on `bnf/unicode` first while keeping
+the old core API: rebase the fixture imports on `fjs/grammar/unicode` first while keeping
 the recognizer backends themselves generic.
 
 #### 1. The "recognizes the whole input" helper — 8 copies
@@ -136,8 +136,14 @@ recognizer adapter. The alphabet-specific conversion should be imported from the
 Unicode boundary after `unicode-rules.md` lands; generic parser modules should
 not regain text dependencies.
 
-**2. `export const number: Rule`** — the optional-minus-then-digit grammar,
-constructed through `bnf/unicode` and exported by name. Eight duplicate sites use
+**2. `export const number`** — the optional-minus-then-digit grammar. Exported
+as a **`RuleSet` plus its entry name**, not as a functional `Rule`: the
+adapters take a rule set, so a functional fixture would put `toData` back at
+every call site and restore in the fixture the front-end dependency the
+adapters just dropped
+([grammar-bucket](../../todo/grammar-bucket.md) requires it gone before its
+stage 5). Build it with `fjs/grammar/unicode` and convert once, in the fixture,
+or write the rule set directly. Eight duplicate sites use
 it; the optional-space variant stays local because it is genuinely a different
 case.
 
@@ -171,8 +177,8 @@ explicit named override list for the rows where token-stream acceptance differs.
       the first task removes) and no `''` default.
 - [ ] Fold the proof-local `descentParserCpOnly` / code-point adapter into
       `descentRecognizer`; leave the DJS tokenizer's public export alone.
-- [ ] Add `number` using the Unicode adapter's text/range construction, and add
-      `jsonCases`.
+- [ ] Add `number` as a `RuleSet` and entry name — not a functional `Rule` —
+      using the Unicode adapter's text/range construction, and add `jsonCases`.
 - [ ] Convert descent and LL1 proofs; keep the optional-space grammar variant
       local and document why it is distinct.
 - [ ] Convert the DJS tokenizer proof to `jsonCases` plus a named override list
@@ -183,7 +189,7 @@ explicit named override list for the rows where token-stream acceptance differs.
 ### Related
 
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — **blocks this
-  task**; shared text fixtures must consume `bnf/unicode`, not the removed core
+  task**; shared text fixtures must consume `fjs/grammar/unicode`, not the removed core
   text/range API.
 - [bnf-grammar-single-owner](./bnf-grammar-single-owner.md) —
   owns the grammars themselves, now shipped under `fjs/bnf/lib`; this issue moves

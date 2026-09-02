@@ -215,7 +215,8 @@ new module boundary and final rule discriminants before implementation starts.
       sequences/ranges.
 - [ ] Move/add proof coverage so generic BNF proofs exercise abstract symbols and
       Unicode proofs cover string/code-point conversion and boundaries.
-- [ ] Document the boundary: `bnf` is generic; `bnf/unicode` and `bnf/byte` adapt
+- [ ] Document the boundary: the core is generic; `fjs/grammar/unicode` and
+      `fjs/grammar/byte` adapt
       concrete alphabets to generic BNF symbols.
 - [ ] `tsc`, `fjs test`.
 
@@ -245,9 +246,10 @@ new module boundary and final rule discriminants before implementation starts.
   discriminants; its visitor must not encode the pre-migration string/number
   dispatch assumptions.
 - [Recognizer backend](./recognizer-backend.md) — blocked on this split and must
-  consume `bnf/byte` helpers instead of owning a duplicate binary authoring API.
+  consume `fjs/grammar/byte` helpers instead of owning a duplicate binary
+  authoring API.
 - [Shared recognizer/proof fixtures](./proof-recognizer-and-fixtures.md) — blocked
-  on this split; text fixture construction moves to `bnf/unicode` while parser
+  on this split; text fixture construction moves to `fjs/grammar/unicode` while parser
   backends stay alphabet-agnostic.
 - data-tosequence-reuse (retired; superseded by this split) — reusing core
   `toSequence` in `bnf/data`; generic BNF data no longer performs Unicode

@@ -39,7 +39,7 @@ example, not a runtime module under `fjs/media/json`. A module there would
 recreate exactly the duplication this issue existed to remove.
 
 That is also why this file moved here from `fjs/media/json/todo/`. Everything it
-still describes — the two `fjs/bnf/lib` grammars and the `bnf/unicode` API they
+still describes — the two `fjs/bnf/lib` grammars and the `fjs/grammar/unicode` API they
 must move onto — lives under `fjs/bnf`, and it now rules out adding any code at
 all under `fjs/media/json`, so a reader of the media codec's `todo/` would find
 nothing here to act on.
@@ -218,7 +218,7 @@ read them first:
 ### Tasks
 
 - [ ] Wait for [Separate alphabet-specific BNF helpers](./unicode-rules.md),
-      which ports both `fjs/bnf/lib` grammars onto `bnf/unicode` as part of its
+      which ports both `fjs/bnf/lib` grammars onto `fjs/grammar/unicode` as part of its
       own change, and check the result against the requirements above. What
       follows below is the design work that port does not settle.
 - [ ] Keep JSON-specific Unicode construction in `fjs/bnf/lib/json`; do not move
