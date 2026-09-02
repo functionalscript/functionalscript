@@ -165,9 +165,15 @@ not" becomes true of all of them and separates nothing. A late arrival is a path
 in the new listing and **not** in the recorded one; that comparison is the whole
 signal.
 
-For each such path, update the branch from `main`, read it into the entries, and
-delete it with the rest. A file added on `main` after the branch deleted the
-directory survives the release merge — the two sides touched different paths — so
+For each such path, update the branch from `main`, read it into the entries,
+delete it with the rest, and **add it to the record**. The record is the set this
+release has accounted for, not a snapshot of when it started: a processed path
+stays on `origin/main` until the release merges, so leaving it out means the next
+scan calls it new again and it is read and deleted on every pass. Advance the
+record and each scan reports only what arrived since the last one.
+
+A file added on `main` after the branch deleted the directory survives the
+release merge — the two sides touched different paths — so
 without this it is both missing from the notes and left behind in a directory
 that is supposed to be gone. See "Transition" below for what happens to the
 directory.
