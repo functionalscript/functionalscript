@@ -36,31 +36,53 @@ The repository source migration is split into two stages; see
 and the authoritative FunctionalScript extension contract in
 [`fjs/fsc/README.md`](../../fsc/README.md).
 
-During stage 1, use different extensions for authored JavaScript and generated
-TypeScript output:
+Stage 1 used different extensions for authored JavaScript and generated
+TypeScript output. Only the `.mjs` line survives it — no TypeScript pass emits
+`source.js` any more, and the authored `.ts` that is left is `types.ts` and its optional
+sibling `private.ts`, each contributing a declaration and no runtime file. Both
+are emitted; only the first is packed:
 
 ```text
-source.ts  -> source.js + source.d.ts
 source.mjs -> source.mjs + source.d.mts
+types.ts   -> types.d.ts
+private.ts -> private.d.ts   # emitted, then excluded by `files`
 ```
 
-The stage-1 invariant is:
+The stage-1 invariant, as it stands now that stage 1's source conversion is
+complete:
 
-- `.ts` is authored TypeScript still awaiting migration;
-- `.mjs` is authored ESM JavaScript with JSDoc types;
-- `.js` is generated from `.ts` and is not authored;
+- `.mjs` is authored ESM JavaScript with JSDoc types, and `.f.mjs` is its
+  FunctionalScript-intent form;
+- `types.ts` is authored TypeScript for a type-level API — permanent, not a
+  migration leftover — and an optional sibling `private.ts` holds the
+  implementation-private types outside the public declaration closure. Both are
+  ordinary checked source; only `types.d.ts` ships, because `package.json`'s
+  `files` negates `**/private.d.ts`;
+- `.ts` is otherwise gone: no authored implementation or proof `.ts` / `.f.ts`
+  remains;
+- `.js` is neither authored nor emitted by a build or packaging step — the pass
+  that produced it was removed in
+  [#1520](https://github.com/functionalscript/functionalscript/pull/1520).
+  `fjs compile` still writes one to a caller-named output path; that is the
+  compiler's output for a user, not repository source. A publish does not carry
+  it, because package and publish jobs run from a clean CI checkout — but that
+  is the only reason: `files` still selects `**/*.js`, so `npm pack` in a dirty
+  working tree *does* include such a file (measured with `npm pack --dry-run`);
 - `.d.ts` and `.d.mts` are generated declarations.
 
-For FunctionalScript specifically, `.f.mjs` means authored
-FunctionalScript-intent JavaScript during stage 1; it does **not** promise that
-the current FunctionalScript parser/compiler accepts the whole module. The
-focused P1 prerequisite before the first package-owned migration is
-[`f-mjs-package-support.md`](./f-mjs-package-support.md).
+`.f.mjs` does **not** promise that the current FunctionalScript
+parser/compiler accepts the whole module.
+[`f-mjs-package-support.md`](./f-mjs-package-support.md) was written as the
+prerequisite for the first package-owned migration; it was de-scoped as a gate,
+and what the migration needed from it was performed one-time and recorded in
+[`packed-consumer-validation.md`](../packed-consumer-validation.md).
 
-After all authored TypeScript is removed, the TypeScript-to-JavaScript emit path
-is removed and the blanket `**/*.js` ignore is removed. Stage 2 can then use
-`.f.js` as authored compiler-compatible FunctionalScript. Before the first
-`.f.mjs` -> `.f.js` rename, complete
+The two end-of-stage-1 cleanups are done: the TypeScript-to-JavaScript emit path
+is gone (#1520) and the blanket `**/*.js` ignore is gone from `.gitignore`
+([#1545](https://github.com/functionalscript/functionalscript/pull/1545)),
+though `**/*.js` deliberately stays in `package.json`'s `files`. Stage 2 can
+therefore use `.f.js` as authored compiler-compatible FunctionalScript. Before
+the first `.f.mjs` -> `.f.js` rename, complete
 [`f-js-package-support.md`](./f-js-package-support.md) so standalone authored
 `.f.js` source is directly checked, gets `.d.ts`, is packed, and resolves for a
 clean consumer.
@@ -142,10 +164,12 @@ to `source.mjs`, an ignored `source.js` / `source.d.ts` from a developer's older
 working tree cannot appear in the CI package job.
 
 Authored `.mjs` is copied without rewriting runtime imports, and emitted
-`.d.mts` specifiers are not rewritten. Stage-1 migration is therefore
-asymmetric and dependency-first: authored `.ts` may import already migrated
-`.mjs`, while authored `.mjs` must not retain relative runtime or declaration
-references to remaining `.ts` or generated `.js`.
+`.d.mts` specifiers are not rewritten. Stage-1 migration was therefore
+asymmetric and dependency-first: authored `.ts` could import already migrated
+`.mjs`, while authored `.mjs` could not retain relative runtime or declaration
+references to a remaining implementation `.ts` or a generated `.js`. Neither
+kind of file exists now; a `.mjs` referencing `./types.ts` is the intended form,
+not a leftover edge.
 
 With the last authored implementation `.ts` / `.f.ts` source removed, the
 runtime JavaScript *emission* lost its purpose and was retired in

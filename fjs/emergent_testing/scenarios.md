@@ -22,7 +22,7 @@ TypeScript, running them proved two things at once:
    throw-tests, and intentional failures failing.
 
 Since the deletion, the only authored TypeScript in the repository is
-`types.ts`; the test entry `fjs/emergent_testing/all.test.mjs` is JavaScript.
+`types.ts` and its optional sibling `private.ts`; the test entry `fjs/emergent_testing/all.test.mjs` is JavaScript.
 A recreated `all.ts` therefore imports `../all.test.mjs` (the original
 imported `../all.test.ts`) — the natively-executed TypeScript surface is then
 the scenario files and the hard-linked entry itself.

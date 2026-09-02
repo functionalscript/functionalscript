@@ -27,6 +27,11 @@ export type Unary<T, R> = (value: T) => R
 
 export type Equal<T> = Binary<T, T, boolean>
 
+export type Addition =
+    Binary<string, string, string> &
+    Binary<bigint, bigint, bigint> &
+    Binary<number, number, number>
+
 export type Scan<I, O> = (input: I) => readonly [O, Scan<I, O>]
 
 /**
