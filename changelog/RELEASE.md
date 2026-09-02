@@ -206,14 +206,15 @@ leaving its line out means the next scan calls it new again and it is read and
 deleted on every pass. Keep the record current and each scan reports only what
 changed since the last one.
 
-The two cases reach the merge differently, and only one is silent. A file
-**added** on `main` after the branch deleted the directory touches a path the
-branch never touched, so it merges cleanly and survives — missing from the notes
-and left behind in a directory that is supposed to be gone. An **amended** entry
-is a modify on `main` against a delete on the branch, which git reports as
-`CONFLICT (modify/delete)`: loud, and therefore not the dangerous one. The
-scan exists for the first. See "Transition" below for what happens to the
-directory.
+The scan is what protects both cases; the merge is only a backstop, and an
+unreliable one. A file **added** on `main` after the branch deleted the directory
+touches a path the branch never touched, so it merges cleanly, survives, and is
+missing from the notes with nothing to announce it. An **amended** entry is a
+modify against a delete, which git reports as `CONFLICT (modify/delete)` — but
+loud is not the same as safe: resolved the obvious way, keeping the delete
+because the branch meant to remove the directory, it discards the correction and
+lands in the same place. Neither case is caught by the merge. See "Transition"
+below for what happens to the directory.
 
 Most pull requests produce no entry. Internal refactors, test-only changes,
 coverage, CI, `todo/` and documentation are invisible to a user of the package,
@@ -342,6 +343,6 @@ After that release nothing *adds* to `changelog/unreleased/`: the policy that
 created those files is gone. It can still **reappear**, and that is not a
 contradiction — a pull request opened under the old policy carries its entry
 file on its branch and recreates the directory whenever it merges, however long
-after. That is why step 3 is scoped to "whenever the directory is non-empty"
-rather than to this release, and why the check costs one `git ls-tree` in the
-releases where it finds nothing.
+after. That is why step 3 scopes its fourth source the way it does rather than
+to this release — its wording is that step's, not repeated here — and why the
+check costs one `git ls-tree` in the releases where it finds nothing.

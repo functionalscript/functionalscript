@@ -21,8 +21,8 @@ changelog/
   <version>/
     <PR>.md        one directory per release, 0.45.0 through 0.48.0
   unreleased/
-    <PR>.md        left over from the per-pull-request scheme; the next
-                   release consumes it (RELEASE.md, "Transition")
+    <PR>.md        left over from the per-pull-request scheme; a release
+                   consumes it whenever it is non-empty (RELEASE.md)
 ```
 
 A renderer of the changelog reads three forms, and only the first is written
