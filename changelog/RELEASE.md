@@ -126,10 +126,18 @@ would notice:
 Collect every `**BREAKING CHANGES:**` declaration as you go; step 5 needs all of
 them.
 
-**For the first release under this procedure only, `changelog/unreleased/` is a
-fourth source, and it is not optional.** Thirteen of its files declare a break,
-and four of those — 1811, 1817, 1824 and 1825 — declare it *nowhere else*, in
-two different ways: 1824 and 1825 carry no `Changelog:` section in their merge
+**While `changelog/unreleased/` can still receive files, it is a fourth source,
+and it is not optional.** That is the transitional release and any release after
+it in which the directory reappears: a pull request opened under the old policy
+can merge long after the transition, recreating the directory with an entry
+whose declaration exists nowhere else. Scope this to "the first release" and
+such a file is ignored by every later one. Read the directory whenever
+`git ls-tree origin/main -- changelog/unreleased/` returns anything; when it
+returns nothing there is no work, so the rule costs one command per release and
+retires itself.
+
+Its files as they stand: thirteen declare a break, and four of those — 1811,
+1817, 1824 and 1825 — declare it *nowhere else*, in two different ways: 1824 and 1825 carry no `Changelog:` section in their merge
 bodies at all, while 1811 and 1817 carry one that does not mention the break.
 The second is the worse failure, because a section that is present reads as
 complete — which is the argument for reading the files rather than trusting a
@@ -272,12 +280,13 @@ triggers the `npm publish` workflow. Before merging:
       ([commit-message-enforcement](../todo/commit-message-enforcement.md));
       until it is on, the fetch-to-merge interval is an accepted exposure, and
       it is smallest when the two happen back to back.
-- [ ] **transitional release only:** `changelog/unreleased/` is deleted in this
+- [ ] **whenever `changelog/unreleased/` is non-empty:** it is deleted in this
       same pull request, after its content has been read into the entries — and
-      the final scan re-listed it from `origin/main` and compared against the set
-      step 3 recorded, not against this working tree. Comparing against the tree
-      answers "true" for every file already consumed, so only a path absent from
-      the recorded set is a late arrival to read and delete.
+      the final scan re-listed it from `origin/main` and compared **whole
+      `ls-tree` lines** against the record step 3 keeps, not paths and not this
+      working tree. The tree answers "true" for every file already consumed, and
+      paths alone miss an entry corrected in place; a line absent from the record
+      is a late arrival or a late correction, and both are read and deleted.
 
 ## What this replaced, and what was rejected
 
