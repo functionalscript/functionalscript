@@ -1,4 +1,4 @@
-# Command output: one design for every destination
+## Command output: one design for every destination
 
 **Priority:** P2
 **Status:** open
@@ -9,7 +9,7 @@
 > writes to the same destinations, and a structure invented per command is one
 > more structure a reader has to learn.
 
-## Problem
+### Problem
 
 `fjs t` picked one output shape, for one audience: a terminal reader watching a
 suite go by. That was the right first answer and it is now the only one. Each
@@ -29,7 +29,7 @@ Answering them one at a time gives the proof runner a mode system that no other
 command shares, invented from whichever audience was asked about first. The
 enumeration below is the whole space; the design is what covers it.
 
-## The space to enumerate
+### The space to enumerate
 
 Each is an axis, and **the axes compose** — a destination is a point in the
 product, not a value on one list. TTY-ness and CI-ness are already known to be
@@ -38,7 +38,7 @@ prevent, so they are two rows here rather than two values in one:
 
 | axis | values |
 | --- | --- |
-| transport | TTY · pipe or file · browser page · another framework's API (a *bridge*: `node:test`/Bun `subTest` calls rather than text) · in-memory (a proof reading a run back) |
+| transport | TTY · pipe or file · browser page · another framework's API (a *bridge*: `node:test`/Bun `ctx.test` calls rather than text) · in-memory (a proof reading a run back) |
 | annotation | plain · GitHub workflow commands (`::error …`) |
 | colour | on · off |
 | verbosity | a record per event · a record per outcome · compact progress · failures only · silent |
@@ -61,10 +61,10 @@ it.
 
 **Not every cell is meaningful, and the design has to say which are excluded
 and why.** `transport` and `surface` are independent in principle — a page can
-render into several elements, a stream cannot — so a combination like *TTY ×
-several documents* has no meaning and must be ruled out in the design rather
-than left for a renderer to discover. An enumeration whose product contains
-cells nobody can implement is not an enumeration.
+render into several elements, a stream cannot — so a combination like
+*transport = TTY × surface = several at once* has no meaning and must be ruled
+out in the design rather than left for a renderer to discover. An enumeration
+whose product contains cells nobody can implement is not an enumeration.
 
 **A bridge is a renderer whose output is calls rather than characters**, and it
 is in the transport row for that reason:
@@ -91,7 +91,7 @@ a framework that may run them concurrently, and a record's identity is what lets
 that framework attribute one. An axis with no producer should be struck rather
 than designed around.
 
-## What a good answer looks like
+### What a good answer looks like
 
 - **One structure, named once.** What a command emits is a value with a shape,
   and each destination is a renderer of it. `emergent_testing`'s `Reporter` is
@@ -100,13 +100,29 @@ than designed around.
   per command is a matrix nobody maintains. The axes above want a small product,
   not an enumeration of combinations.
 - **Selectable from what a program already holds**, and the axes divide by who
-  chooses. *Environment-derived* — transport, annotation, colour — come from
-  `options.std[stream].isTTY` and `options.env`, which are there. *User-chosen* —
-  verbosity above all — come from `options.args`, which is also there, and a CLI
-  option is a **first-class selector** for those rather than a last resort:
-  `test-framework-silent-mode` promises `--verbose`, and no amount of `isTTY`
-  can express whether a person wants it. What is a last resort is a *new
-  mechanism*, which is a redesign.
+  chooses — in three groups, not two.
+  - *Environment-derived* — annotation, colour, and which **stream** transport
+    a stream run got — come from `options.std[stream].isTTY` and `options.env`,
+    which are there.
+  - *Host-selected* — the **browser page** and the **bridge** — are chosen by
+    calling their entry point, not by detection: `startBrowserTests(root,
+    modules)` is the page's, `register` is the framework's, and neither reads
+    `isTTY` or `env` nor should be made to. Their cell is fixed at that API
+    boundary, and a rule that derives every transport from the environment
+    would either leave those cells unselectable or push Node's options across
+    a boundary the architecture keeps.
+  - *User-chosen* — verbosity above all — comes from `options.args`, which is
+    also there, and a CLI option is a **first-class selector** for those rather
+    than a last resort: `test-framework-silent-mode` promises `--verbose`, and
+    no amount of `isTTY` can express whether a person wants it. That flag is
+    not a licence to hand-parse one:
+    [options-edsl](../cli/todo/options-edsl.md) records what happens when a
+    command does — invisible to the help table, an unknown flag silently
+    becoming a positional — so a user-chosen axis is declared through the CLI
+    eDSL, and a design that ships `--verbose` before that lands has built the
+    parser that issue exists to remove.
+
+  What is a last resort is a *new mechanism*, which is a redesign.
 - **Provable without the destination.** A format that can only be checked by
   looking at a real terminal has no proof. For the **stream** transports the
   prover is `effects/node/virtual`, which is neither a TTY nor a pipe and
@@ -123,7 +139,7 @@ than designed around.
   it finds none, this is the proof runner's mode system after all, the four
   issues unblock, and this document says so rather than generalising anyway.
 
-## Constraints inherited from what has landed
+### Constraints inherited from what has landed
 
 These are settled and are inputs, not questions:
 
@@ -145,10 +161,18 @@ These are settled and are inputs, not questions:
   TTY from pipe must not make it harder to add — see
   [the emergent_testing README](../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost).
 
-## Tasks
+### Tasks
 
-- [ ] Enumerate what every `fjs` command emits today, not only `fjs t`, and
-      which cell of the table above each output already occupies.
+- [ ] Enumerate every output **producer**, not only what a CLI command prints:
+      the browser page publishes `_BrowserEvent` and `BrowserTestReport`
+      (`fjs/emergent_testing/types.ts`) outside the command list entirely, and a
+      bridge emits calls. For each, which cell of the table above it occupies.
+- [ ] Enumerate the report contracts **already designed but not yet emitted**,
+      so the shape is not invalidated by an issue that is already open: the
+      cancelled report and its completion-event behaviour
+      ([browser-test-controls](../emergent_testing/todo/browser-test-controls.md)),
+      and the `skip` status, field and counter
+      ([skip-property](../emergent_testing/todo/skip-property.md)).
 - [ ] Design the shape and its renderers, against that enumeration.
 - [ ] Say which existing issues the design subsumes, and retire them in the
       change that implements it rather than leaving both.
@@ -164,3 +188,6 @@ These are settled and are inputs, not questions:
   — the proof runner's own mode system, which this generalises.
 - [test-framework-silent-mode](../emergent_testing/todo/test-framework-silent-mode.md)
   — a verbosity, on the axis above.
+- [options-edsl](../cli/todo/options-edsl.md)
+  — how a user-chosen axis is declared. Not a blocker of this design, but a
+  blocker of shipping the `--verbose` it promises.
