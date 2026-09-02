@@ -240,8 +240,13 @@ character, and overloads nothing, since the star would always carry bounds.
 **`'quant'`** is the standard term for this family in regex and EBNF theory
 and so the most precise, at the cost of being jargon where `'repeat'` is not.
 
-**Degenerate bounds.** The form admits bounds that say nothing, and they
-divide into one error and two discouragements — the division is by whether a
+**Bounds.** `min` is a non-negative integer; `max` is a non-negative integer
+or `'Infinity'`; and `min <= max`, with `'Infinity'` above every integer. A
+negative or fractional bound is an error rather than a rounding — half a copy
+is not a cardinality.
+
+Within that domain the form still admits bounds that say nothing, and they
+divide into one error and two discouragements. The division is by whether a
 *computed* bound could ever legitimately produce them:
 
 - `min > max` is an **error**. It admits no cardinality at all, so the rule
@@ -260,14 +265,10 @@ divide into one error and two discouragements — the division is by whether a
   discouraged — it is what `times(4, hex)` is for, and the `\uXXXX` rule wants
   it.
 
-The enforcement is the same split as the old `[1, r]` wart: the error is
+The enforcement is the same split as the old `[1, r]` wart: the errors are
 checked, the discouragements live in the docs and the constructors, because a
 lowering cannot tell a hand-written `1` from one computed at
 grammar-construction time and must stay total either way.
-
-*Open within this:* whether `n >= 2` should also be discouraged. The guidance
-above assumes not, since the exact count is the form's main use, but the
-question was raised as "discourage `min >= max`", which would include it.
 
 One thing to be deliberate about: today's data-layer `Repeat` means
 0-or-more specifically, so the same word would mean something wider at the
