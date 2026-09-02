@@ -156,9 +156,10 @@ export const proof = {
     // size-cap fixture both descend through real directories, so neither
     // reaches the case `operation` hands the op with two segments left; these
     // do. Without the one-segment guard — or with the call site collapsing `p`
-    // to its head — both return `a`'s own bytes for a path that names no file,
-    // which is a wrong answer rather than a different error, so the assertion
-    // is that the read failed at all.
+    // to its head — both return `a`'s own bytes for a path that names no file.
+    // The failure being guarded against is therefore a wrong *success*, not a
+    // different error, which is why these pin `ENOENT` — the answer a host
+    // gives — rather than settling for the read having failed somehow.
     readFileNestedThroughFile: () => {
         /** @type {Dir} */
         const root = { 'a': [vec8(0x42n)] }
