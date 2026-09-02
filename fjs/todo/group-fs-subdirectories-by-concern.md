@@ -30,8 +30,10 @@ Create `fjs/common/` for cross-cutting reusable algorithms, starting by moving `
 
 ### Later candidates
 
-- Tooling bucket for `bnf`, `fsc`, and possibly `js` (grammar/compiler tooling;
-  the content-facing formats go to `fjs/media/`, see below).
+- `fjs/grammar/` for `bnf` and the second grammar front end — designed in
+  [grammar-bucket](./grammar-bucket.md), which also settles that `fsc` and
+  `js` stay out as consumers (the content-facing formats go to `fjs/media/`,
+  see below).
 - Storage bucket for `cas` + `sul`; testing bucket for `asserts` + `emergent_testing`.
 
 ### 4. `fjs/media/` — content formats and media-type detection
@@ -145,7 +147,8 @@ it — see [fjs/media/revision/README.md](../media/revision/README.md) and
   `code_point`, `sgr`) with ~39 importers across the tree; the layer *below*
   media formats, not an implementation of `text/plain`. Remains top-level.
 - `js/` — `identifier` + `tokenizer` only, i.e. language tooling consumed by
-  `djs`/`fsc`, closer in kind to `bnf`; decide with the tooling bucket, not here.
+  `djs`/`fsc`; a hand-written scanner, so it is a *consumer* of grammars and
+  stays out of `fjs/grammar/` too ([grammar-bucket](./grammar-bucket.md)).
 - `base64`/`basen`/`cbase32`/`base128` — transfer encodings, not media types
   (they move under `fjs/basen/`, item 1 above).
 

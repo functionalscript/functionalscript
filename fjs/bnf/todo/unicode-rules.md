@@ -230,3 +230,8 @@ new module boundary and final rule discriminants before implementation starts.
   rule construction.
 - [`fjs/bnf/data/module.f.mjs`](../data/module.f.mjs) — currently expands string
   rules into Unicode code-point terminals.
+- [ebnf-front-end](./ebnf-front-end.md) — the second front end never has the
+  functional string literal and takes text terminals from the helper this
+  split introduces; [grammar-bucket](../../todo/grammar-bucket.md) step 0.1
+  moves the terminal codec out of the front end and leaves `unicodeRange`'s
+  home to this issue.
