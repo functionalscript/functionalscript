@@ -132,7 +132,15 @@ bodies at all, while 1811 and 1817 carry one that does not mention the break.
 The second is the worse failure, because a section that is present reads as
 complete — which is the argument for reading the files rather than trusting a
 section to be exhaustive. Reading only the merge commits would undercount the
-breaks by four and pick a patch version for a release that breaks the API.
+breaks by four — four breaking changes a reader of the release notes never
+learns about.
+
+It would not get *this* window's version wrong: the other nine declarations do
+appear in their merge bodies, and one surviving break already forces a minor.
+That is an accident of this window rather than a property of the procedure — a
+window whose declarations were all of the invisible kind would take a patch for
+a release that breaks the API — and it is why the directory is read in full
+rather than sampled.
 
 Read those files **from `origin/main`, not from the working tree**, for the same
 reason step 2 lists `origin/main`: a pull request opened under the old policy can

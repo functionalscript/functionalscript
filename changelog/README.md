@@ -124,12 +124,12 @@ to order them: [RELEASE.md](./RELEASE.md).
   [RELEASE.md](./RELEASE.md). Releases `0.45.0` through `0.48.0` are directories
   of per-pull-request files and releases through `0.44.0` are single files
   written under the older entry rules; leave both as they are.
-- **After every update of the release pull request from `main`, re-derive the
-  window** — the listing step and the exact form it takes are
-  [RELEASE.md](./RELEASE.md#2-list-the-pull-requests-in-the-window). A pull
-  request merged after the release pull request opened belongs to the release,
-  and an update from `main` brings its code in without bringing it into the
-  entries.
+- **The release window is re-derived rather than assumed**, and when it is
+  re-derived, from which ref, and in what form are
+  [RELEASE.md](./RELEASE.md#7-open-the-release-pull-request)'s to state — this
+  file does not repeat them. What holds regardless: a pull request that merges
+  to `main` while the release pull request is open belongs to the release, and
+  nothing on the release branch notices on its own.
 - **The repository has no Git tags and is not going to get any.** A tag would be
   a second copy of a fact the tree already carries — the release boundary is the
   release commit itself, and what shipped in a release is its changelog file —
