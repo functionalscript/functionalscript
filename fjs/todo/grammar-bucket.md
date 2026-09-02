@@ -91,8 +91,9 @@ The alphabet adapters are grammar-bucket siblings, **not** front-end
 components. [unicode-rules](../bnf/todo/unicode-rules.md) creates
 `unicode/` (and reserves `byte/` for
 [recognizer-backend](../bnf/todo/recognizer-backend.md)), and both front ends
-take their text terminals from `unicode/` — `ebnf` most of all, since it has
-no string literal of its own
+take their text terminals from `unicode/`: whether `ebnf` keeps a `string`
+in its rule union is an open question there, but the *lowering* of text to
+symbols is the adapter's either way
 ([ebnf-front-end](../bnf/todo/ebnf-front-end.md)). So `unicode/` outlives the
 classical front end, and that issue is not `bnf`-only.
 

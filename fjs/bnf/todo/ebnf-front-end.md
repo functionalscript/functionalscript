@@ -52,105 +52,186 @@ gets the final union from day one.
 backends, the matcher, `emptyTagMap`, and the `descentEquivalence` proofs are
 shared unchanged — a repetition already reaches them as the data `Repeat`.
 
-#### The rule union
+#### The rule union follows RTTI
 
-The functional string literal never enters `ebnf`; text terminals come from
-the alphabet adapter that [unicode-rules](./unicode-rules.md) introduces,
-which lives at `fjs/grammar/unicode/` as a sibling of both front ends rather
-than inside either ([grammar-bucket](../../todo/grammar-bucket.md)). With
-no string `Rule`, an array whose first element is a string cannot be a
-sequence, and the tagged array is a rule kind of its own:
+The shape is the one every other eDSL here uses, `fjs/rtti` most visibly: as
+many forms as possible are **plain values used directly**, and a thunk
+**always returns a tagged tuple**. Tagged tuples never appear in the `Rule`
+union itself, so a plain array is always a sequence and never has to be told
+apart from an operator by inspecting its first element.
 
 ```ts
-type Rule = Variant | Sequence | TerminalRange | Tagged | Thunk
-type Op = '*' | '?' | '+'
-type Tagged = readonly [Op, Rule]
-type Sequence = readonly Rule[]      // Rule has no string case, so disjoint
-type Thunk = () => DataRule          // as today; may now return Tagged
+type Rule     = Const | Thunk
+type Const    = number | string | Sequence | Variant
+type Sequence = readonly Rule[]
+type Variant  = { readonly [k in string]?: Rule }
+type Thunk    = () => Info
+type Info     =
+    | readonly ['...', number, number]   // the inclusive range of symbols a..b
+    | readonly [number, Rule]            // n copies of the rule
+    | readonly ['*', Rule]               // zero or more
+    | readonly ['?', Rule]               // optional
+    | readonly ['+', Rule]               // one or more
 ```
 
-`Tagged` admits every operator a grammar may **write**, not just the one that
-survives to the data form: `'?'` and `'+'` are desugared by `toData` (below),
-but a grammar spells them directly, so leaving them out of the union would make
-`tsc` reject the accepted syntax and force a cast at every use.
+Discrimination is by JavaScript type at every level, as elsewhere: a function
+is a thunk and is called; the first element of what it returns is a `number`
+(a count) or a string (an operator glyph); a plain `number` is a symbol, a
+string is text, an array a sequence, an object a variant. The tag slot holding
+`string | number` is a step away from RTTI's all-string tags, accepted for this
+one case because `[4, hex]` reads as what it is and `['#', 4, hex]` does not.
 
-Runtime discrimination is `typeof rule[0] === 'string'`. `LazyRule` is renamed
-`Thunk`: laziness breaks recursion and nothing else, and repetition is
-orthogonal to it — `[minus, ['*', digit]]` is an inline repetition with no
-thunk, and a thunk that returns a plain sequence stays a plain recursive rule.
-Tagging the thunk's return instead would make the common case the tagged one
-and rule out inline repetition.
+The thunk still names its rule — `toData` reads `fr.name` as today — so
+nearly every named rule is a thunk, and the uniform wrapper is paid on every
+one of them. That is deliberate: an earlier draft let a thunk return a bare
+sequence and put a tagged array directly in `Rule`, which is shorter to write
+and ambiguous the moment `string` is a rule (`['*', x]` is then either the
+repeat or the literal asterisk followed by `x`). The uniform return is what
+lets the string question below stay open without deciding this one.
 
-#### Which operators are primitive
+**Terminals.** A plain `number` in a rule is **one symbol**, not a packed
+range: `0x61` is the letter, `-1` is EOF. A range is the `'...'` form, `'...'`
+rather than `'..'` because both ends are inclusive and that is the closed-range
+glyph where the distinction exists. The packed `TerminalRange` stays the
+*data-layer* terminal, since that is what serializes and what the backends
+dispatch on; it simply stops being something an author writes. `toData` lowers
+`n` with `oneEncode` and `['...', a, b]` with `rangeEncode`, and the
+`0x000030_000039` literal never appears in a grammar again. This is the same
+"one meaning per layer" the data README already accepts for `string`: a
+functional `number` is a symbol, a data `number` is a packed range.
 
-One reaches the data form: `'*'`. It is the only operator that changes the AST
-contract — one flat node instead of a cons chain
+**Counts.** `[n, r]` is `n` copies of `r`, lowered as concatenation in the
+monoid sense: `[0, r]` is `[]`, `[1, r]` is **`r` itself**, and `[n, r]` for
+larger `n` is a sequence of `n` references. The `1` case is what makes this
+form double as RTTI's `['const', c]` escape — `() => [1, [digit, digits]]` is
+"this sequence, once", which is exactly what a const wrapper says — so there
+is no separate const tag. It has to be lowered as `r` and not as the
+one-element sequence `[r]`: the latter would wrap `r` in an anonymous rule and
+add a level to the AST, at which point it is no longer an escape. The JSON
+grammar already wants this form for `\uXXXX`, which it spells today as
+`...repeat(4)({ digit, AF, af })`, a list-level `repeat` spread into a
+sequence; `() => [4, hex]` is that as a grammar form.
+
+**Operators.** One reaches the data form: `'*'`. It is the only operator that
+changes the AST contract — one flat node instead of a cons chain
 ([Repetition is flat](../descent/README.md#repetition-is-flat)) — and the data
-`Repeat` already encodes it. `toData` transcribes `['*', r]` to the data
-`Repeat` of `r`'s name.
+`Repeat` already encodes it. `'?'` and `'+'` are **desugared** by `toData`:
+`['?', r]` to `{ some: r, none: [] }`, the node shapes `option` produces
+today, and `['+', r]` to `[r, () => ['*', r]]`. So the backends grow no case,
+and a grammar still reads like EBNF.
 
-`'?'` and `'+'` are `Tagged` in the rule union like `'*'`, so a grammar spells
-them, but `toData` **desugars** them rather than passing them down, so the
-backends grow no case:
+**Constructors** hide the thunks, the way RTTI's `array(t)` does:
+`repeat0Plus(r)` is `() => ['*', r]`, `range('09')` is
+`() => ['...', 0x30, 0x39]`, `times(4, r)` is `() => [4, r]`, `set('abc')` is
+the plain variant `{ a: 0x61, b: 0x62, c: 0x63 }`, and `option`, `repeat1Plus`,
+`join0Plus`, `join1Plus` compose on them. An author writes
+`[minus, repeat0Plus(digit)]` and never types a tagged tuple by hand.
 
-- `['?', r]` becomes `{ some: r, none: [] }` — the node shapes `option`
-  produces today.
-- `['+', r]` becomes `[r, ['*', r]]`.
-- `repeat0Plus`, `repeat1Plus`, `option`, `join0Plus`, `join1Plus` stay as
-  constructors over those shapes.
+#### Two questions left open, and the trade between them
 
-Two checks the fold used to sidestep by declining to fold become errors in
-`toData`: an item that can match empty (infinitely many parses of the same
-input), and a rule that is its own item with nothing in between. An item that
-reaches its own repeat is allowed.
+**Whether `string` stays in `Const`, and what it means.** A string may lower
+to a sequence of code points, as `str` does today for more than one, or to one
+symbol, or to one when it has one code point and a sequence otherwise. The
+union above lists it provisionally; the type shape does not depend on the
+answer, only what `toData` emits and what AST shape a grammar gets, and the
+lowering is the alphabet adapter's job either way
+([unicode-rules](./unicode-rules.md)). So it can stay open without blocking
+the front end.
+
+**Whether bare `number` and `string` belong in `Const` at all.** They buy
+readability: `0x61`, `-1`, and `set('abc')` as a plain variant of plain
+numbers. The cost is that a tagged tuple written *without* its thunk is then a
+legal rule with a different meaning — `[3, digit]` is "symbol 3, then a digit",
+`['*', r]` is "a literal asterisk, then `r`" — and `tsc` accepts both, so a
+forgotten `() =>` is a silent wrong parse rather than a compile error. If
+`Const` were only `Sequence | Variant`, both forms would fail to type-check
+outside a thunk and the mistake would be caught, at the price of `sym(0x61)`
+and `() => ['...', 0x61, 0x61]` for every lone symbol. Constructors make the
+first choice much safer, since a hand-written tagged tuple is rare, but a
+tagged tuple in a `Const` position is a smell only proofs can pin. Whichever
+way this goes, the choice is recorded here because it is the kind that shows
+up as a wrong parse months later.
+
+#### `toData`
+
+- `['*', r]` becomes the data `Repeat` of `r`'s name. Two checks the fold used
+  to sidestep by declining to fold become errors: an item that can match
+  empty (infinitely many parses of the same input), and a rule that is its
+  own item with nothing in between. An item that *reaches* its own repeat is
+  allowed — `R = repeat(['(', R, ')'])` is a fine grammar, and both backends
+  already match a `RuleSet` that spells it.
+- `[n, r]`: `n` must be a non-negative integer; anything else is an error.
+- `['...', a, b]`: `a <= b`, both in the terminal domain; anything else is an
+  error.
+- A `number` lowers with `oneEncode`; a `string` per the open decision above.
+
+#### The range-set helpers split
+
+`not`, `remove`, and `notSet` today return a `RangeVariant` — an object whose
+values are packed ranges — straight into a rule position. Once a bare number
+in a rule means a symbol, that object is misread: every branch is taken as a
+single symbol, silently, with no type error. So they cannot hand packed
+numbers to this front end. The alphabet-neutral set arithmetic on packed
+ranges stays in `terminal/` unchanged, used by `toData` and the backends; the
+EBNF-facing `not(v)` wraps each surviving range as `() => ['...', a, b]`.
+Small, but it fails quietly if forgotten, so it is a named task.
 
 #### What it changes downstream
 
 - The rtti map tests the shape directly; `repeatItem` and its per-call
   conversion go away.
-- `Repeat0Plus<T>` is `Tagged`; `Repeat1Plus` and the `Join*` types compose on
-  it. The "if recognized as" caveat on `RepeatMap` goes.
+- `Repeat0Plus<T>` is `() => readonly ['*', T]`; `Repeat1Plus` and the
+  `Join*` types compose on it. The "if recognized as" caveat on `RepeatMap`
+  goes.
 - `detectRepeat` stays in `data/` as an opt-in `RuleSet → RuleSet`
   normalization for deserialized and hand-written sets. The `ebnf` `toData`
   never calls it. The one hand-written repeat in the tree, `characters` in
-  `classic()` of `testlib.f.mjs`, either moves to `['*', character]` or keeps
-  `detectRepeat` as an explicit step in its proof.
-- The data `Repeat` and the AST contract do not change, so a grammar ported
-  from `bnf` to `ebnf` produces the same `RuleSet` and the same AST. That is
-  what makes the port one grammar per PR.
+  `classic()` of `testlib.f.mjs`, either moves to `repeat0Plus(character)` or
+  keeps `detectRepeat` as an explicit step in its proof.
+- The data `Repeat`, the data `TerminalRange`, and the AST contract do not
+  change, so a grammar ported from `bnf` to `ebnf` produces the same
+  `RuleSet` and the same AST. That is what makes the port one grammar per PR.
 
 #### Left for later, deliberately
 
-A minimum count (`'+'` as a core kind with a flat node of at least one item)
-and a separator (`['*', item, sep]` with a flat item list) are both worth
-having — comma lists are the dominant repetition in the JSON and DJS grammars
-— but each changes the serialized `Repeat` and every backend. Land `'*'`
-first; the data `Repeat` can grow from a name to a record when one of them
-is designed.
+A minimum count *at the data layer* (a flat node of at least one item, rather
+than the `[r, () => ['*', r]]` desugaring) and a separator (`['*', item, sep]`
+with a flat item list) are both worth having — comma lists are the dominant
+repetition in the JSON and DJS grammars — but each changes the serialized
+`Repeat` and every backend. Land `'*'` first; the data `Repeat` can grow from
+a name to a record when one of them is designed.
 
 Until the classical front end is deleted, `ebnf` gets no feature `bnf` lacks
-beyond `'*'`, `'?'`, and `'+'`, so the two do not drift while both exist.
+beyond the `Info` forms above, so the two do not drift while both exist.
 
 ### Tasks
 
-- [ ] `fjs/grammar/ebnf/types.ts`: the `Rule` union above, `Op`, `Tagged`,
-      `Thunk`, and the `Repeat0Plus` / `Repeat1Plus` / `Join*` types over it.
-      Every operator `toData` accepts is in `Op`, so the accepted syntax
+- [ ] `fjs/grammar/ebnf/types.ts`: the `Rule` / `Const` / `Thunk` / `Info`
+      union above, and the `Repeat0Plus` / `Repeat1Plus` / `Join*` types over
+      it. Every form `toData` accepts is in `Info`, so the accepted syntax
       type-checks without a cast.
-- [ ] `fjs/grammar/ebnf/module.f.mjs`: the rule constructors (`not`, `option`,
-      `repeat0Plus`, `repeat1Plus`, `join0Plus`, `join1Plus`) and `toData` /
-      `toDataWithRules` transcribing `'*'`, desugaring `'?'` and `'+'`,
-      rejecting a nullable item and a self-item. The text-interpreting
-      helpers — `range`, `set`, `str`, `notSet` — belong to the alphabet
-      adapter at `fjs/grammar/unicode/`, which this module depends on and does
-      not contain ([unicode-rules](./unicode-rules.md)).
+- [ ] Decide, and record here, whether bare `number` and `string` stay in
+      `Const`, and how a `string` lowers.
+- [ ] `fjs/grammar/ebnf/module.f.mjs`: the constructors (`option`,
+      `repeat0Plus`, `repeat1Plus`, `times`, `join0Plus`, `join1Plus`, and the
+      EBNF-facing `not`) and `toData` / `toDataWithRules`: `'*'` transcribed,
+      `'?'` and `'+'` desugared, `[n, r]` lowered as concatenation with
+      `[1, r]` as `r`, `'...'` and `number` lowered through `terminal/`, and
+      the four errors above. The text-interpreting helpers — `range`, `set`,
+      `str`, `notSet` — belong to the alphabet adapter at
+      `fjs/grammar/unicode/`, which this module depends on and does not
+      contain ([unicode-rules](./unicode-rules.md)).
+- [ ] Split the range-set helpers: packed-range set arithmetic stays in
+      `terminal/`; the EBNF `not` wraps each range as `() => ['...', a, b]`.
 - [ ] `fjs/grammar/ebnf/rtti/`: the rule-info map without `repeatItem`.
-- [ ] Proofs: every constructor, every `toData` case — including a grammar
-      that writes `'?'` and `'+'` directly rather than through a constructor —
-      both errors, and the `descentEquivalence` cases re-expressed in `ebnf`,
-      producing the same `RuleSet` as their `bnf` originals.
-- [ ] Port `fjs/grammar/lib/json`, then `lib/datajs`, then the `djs` tokenizer
-      and parser, then `fjs/rtti/common`, one PR each.
+- [ ] Proofs: every constructor, every `Info` form written directly rather than
+      through a constructor, `[0, r]` / `[1, r]` / `[n, r]` producing `[]` /
+      `r` / a sequence, every `toData` error, and the `descentEquivalence`
+      cases re-expressed in `ebnf`, producing the same `RuleSet` as their
+      `bnf` originals.
+- [ ] Port `fjs/grammar/lib/json` (its `\uXXXX` rule becomes `times(4, hex)`),
+      then `lib/datajs`, then the `djs` tokenizer and parser, then
+      `fjs/rtti/common`, one PR each.
 - [ ] Update `data/README.md` and `descent/README.md`, which describe `Repeat`
       as "the one rule kind `toData` derives".
 - [ ] `tsc`, `fjs t`, changelog.
@@ -159,11 +240,19 @@ beyond `'*'`, `'?'`, and `'+'`, so the two do not drift while both exist.
 
 - [grammar-bucket](../../todo/grammar-bucket.md) — the layout this module
   lands in and the dependency inversion it needs.
+- [`fjs/rtti/types.ts`](../../rtti/types.ts) — the eDSL shape this union
+  copies: `Type = Const | Thunk`, plain values used directly, a thunk always
+  returning a tagged tuple, `['const', c]` as the escape that `[1, r]` plays
+  here.
 - [the `repeat` rule](../data/README.md#the-repeat-rule) — the recognition
   this front end makes unnecessary; `detectRepeat` survives as opt-in.
-- [unicode-rules](./unicode-rules.md) — removes the string literal from the
-  classical front end; `ebnf` starts without it and takes text terminals from
-  the helper that issue adds.
+- [unicode-rules](./unicode-rules.md) — owns the text lowering; whether
+  `ebnf` keeps a `string` in `Const` at all is one of the two open questions
+  above, and that issue's "remove `string` from the functional `Rule`" task is
+  the classical front end's, not necessarily this one's.
+- [terminal-range-shared-type](./terminal-range-shared-type.md) — the packed
+  `TerminalRange` becomes data-layer only under this design; its owner is
+  `terminal/` either way.
 - [rule-visitor](./rule-visitor.md) — the data `Rule` visitor; unaffected,
   since the data union does not change.
 - [207-bnf-semantic-actions](./207-bnf-semantic-actions.md) — rule maps keyed

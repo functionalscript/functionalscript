@@ -250,10 +250,12 @@ new module boundary and final rule discriminants before implementation starts.
   rule construction.
 - [`fjs/bnf/data/module.f.mjs`](../data/module.f.mjs) — currently expands string
   rules into Unicode code-point terminals.
-- [ebnf-front-end](./ebnf-front-end.md) — the second front end never has the
-  functional string literal and takes **all** its text terminals from the
-  adapter this split introduces, so that adapter is a dependency of both front
-  ends rather than a part of either.
+- [ebnf-front-end](./ebnf-front-end.md) — the second front end. Whether it
+  keeps a `string` in its rule union, and whether that string means one symbol
+  or a sequence of code points, is open there; either way the lowering of text
+  to symbols is this adapter's, so it is a dependency of both front ends rather
+  than a part of either. The "remove `string` from the functional `Rule`" task
+  below is the classical front end's and does not pre-decide `ebnf`'s.
 - [grammar-bucket](../../todo/grammar-bucket.md) — its stage 1 moves the
   alphabet-neutral codec out of the front end and leaves every
   text-interpreting helper to this issue. The adapter's final home there is
