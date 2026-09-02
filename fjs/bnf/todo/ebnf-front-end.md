@@ -92,8 +92,10 @@ nearly every named rule is a thunk, and the uniform wrapper is paid on every
 one of them. That is deliberate: an earlier draft let a thunk return a bare
 sequence and put a tagged array directly in `Rule`, which is shorter to write
 and ambiguous the moment `string` is a rule (`['range', a, b]` is then either
-the range or the literal text `range` followed by two symbols). The uniform return is what
-lets the string question below stay open without deciding this one.
+the range or the literal text `range` followed by two symbols) — and a string
+*is* a rule, meaning the text it spells, as decided below. The uniform return
+is what keeps the two questions independent: the union's shape does not rest on
+what a string means, and the string's meaning does not rest on the union.
 
 **Terminals.** A plain `number` in a rule is **one symbol**, not a packed
 range: `0x61` is the letter, `-1` is EOF. A span of symbols is `'range'`,
@@ -191,7 +193,7 @@ far more often:
 | form | AST |
 |---|---|
 | `number` | `number` — the symbol itself |
-| `string` | **pending**, per the open question above |
+| `string` | a tuple of `number`, one per code point — see the caveat above |
 | `Sequence` | one entry per element, `AST` of each |
 | `Variant` | the branch taken, tagged by its key |
 
@@ -348,29 +350,50 @@ linter is where it belongs: the check is the same one the in-repo proof makes,
 generalized. **That is out of scope here** — this issue neither proposes nor
 owes one, and it is not a reason to change the representation.
 
-#### The one question left open
+#### Decided: a `string` is the text it spells
 
-**What a `string` means.** Two candidates:
+A string means **exactly the characters it contains**, lowered to one terminal
+per code point — the same meaning `toData` gives a bare string today. So
+`const a: Rule = 'Hello, world!'` matches that text and nothing else.
 
-- **A sequence of symbols**, as the classical front end does today — `'abc'`
-  is three code points, and `str` lowers it to a sequence of terminals.
-- **One symbol, decoded** — the string names a single symbol in the
-  alphabet's encoding, which is one terminal however many characters the name
-  has.
+The reason is the one the whole union is built on: *what you see is what you
+get*. A bare `number` is the symbol it is, a `Sequence` is the sequence it
+looks like, and RTTI's `Const` is the value it is — a string schema there
+matches that string. A rule spelling `'Hello, world!'` matching anything other
+than `Hello, world!` would be the odd one out.
 
-The type shape does not depend on the answer; the AST shape does, so the
-`AST<string>` row below cannot be written until it is settled.
+It also settles the alphabet question that hung off this one. A bare string is
+Unicode code points **whatever alphabet the grammar is over**; an alphabet
+whose symbols are not code points names them with a constructor instead, which
+is what `fjs/djs/parser` already does with
+`sym(name) = tokenEncoding.encode(name)`. So the meaning is global, and
+`unicode/` owns the lowering without the front end having to ask which
+alphabet is in play.
 
-Worth weighing: the answer may not be global, because the alphabet decides
-what a string can mean. Over Unicode code points `'abc'` is naturally three
-symbols. Over [token symbols](../token_symbol/) it is naturally one — that is
-exactly what `fjs/djs/parser`'s `sym` does today,
-`tokenEncoding.encode(name)`, turning a multi-character token name into a
-single symbol. If both readings are wanted, the choice belongs to the alphabet
-adapter rather than to `Const`, and then the open question becomes whether
-`AST<string>` can be written at all without knowing which adapter is in play —
-which would weaken the type-level mapping exactly where
-[Problem 7](#problems-to-resolve-before-implementing) is already uncertain.
+**Two precisions, both from what the classical front end actually does.**
+
+A one-character string is still a **sequence of one**, not a bare terminal:
+`data()`'s string case builds a sequence unconditionally
+(`data/module.f.mjs`), so `'a'` is a one-element sequence node while `0x61` is
+a terminal leaf. They match the same input and produce different trees. That
+is not a wart to fix — it is what "a string is a sequence of its code points"
+means when the string has one — but it does mean `'a'` and `0x61` are not
+interchangeable, and a grammar should use the number when it wants a terminal.
+
+The author-facing `str()` helper is the one that *does* collapse length one to
+a bare range (`module.f.mjs:138`). That asymmetry exists today and this design
+does not inherit it: `str` belongs to `unicode/`, and whether it keeps the
+collapse is that adapter's business, but a bare string in a `Rule` follows the
+rule above.
+
+**The AST row this fills in.** `AST<S>` for a string literal `S` is a tuple of
+`number`, one per code point. A caveat for whoever writes it: TypeScript's
+template-literal recursion splits a string by **UTF-16 code unit**, not by code
+point, so a naive `AST<'😀'>` computes a 2-tuple where the grammar produces a
+1-element sequence. Astral characters need explicit surrogate-pair handling, or
+the row is wrong exactly where text is hardest to test. That belongs with
+[Problem 7](#problems-to-resolve-before-implementing), which is already about
+how far the type-level mapping can actually be taken.
 
 #### What this requires of a lowering
 
@@ -625,6 +648,11 @@ It has to be answered before any grammar is ported, since the port is exactly
 the moment both front ends need the same helper. It also decides where the
 EBNF-facing `notOf` / `remove` from the section above live.
 
+What it no longer has to settle is the meaning of a string: that is decided
+above and is global, so the adapter owes the two front ends the *same* code
+points from the same text and differs only in how it wraps them — a packed
+`TerminalRange` for the classical front end, a bare symbol here.
+
 #### Left for later, deliberately
 
 A separated repeat (a flat item list with the separators dropped) is worth
@@ -646,8 +674,10 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       and the type-level `AST<Rule>` mapping from the table, with a proof per
       row that the parser's result has that type. Every form `toData` accepts
       is in `Info`, so the accepted syntax type-checks without a cast.
-- [ ] Answer the open question above: what a `string` means, and whether the
-      answer is global or the alphabet adapter's.
+- [ ] Implement the string lowering: one terminal per code point,
+      unconditionally a sequence, matching `data()`'s string case. Include a
+      proof for a one-code-point string (a sequence of one, not a terminal)
+      and for an astral character (one element, not two).
 - [ ] Answer the nine problems above, in the issue, before writing code.
       8 comes first — the AST tables cannot be finished without it, and 4 and
       7 both depend on its answer. Then 1, 3 and 6 gate the lowering; 2 is
