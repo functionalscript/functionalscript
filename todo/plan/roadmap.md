@@ -129,10 +129,14 @@ coverage and is tracked in
    synthetic compiler fixtures may land earlier, but compiler readiness never
    decided whether a Stage-1 source or proof file migrated.
 3. Stage 2 migrates compiler-supported dependency-closed groups from `.f.mjs` to
-   `.f.js`. Its one remaining gate is
+   `.f.js`. Two things gate the first rename, and
+   [`fjs-nanvm-integration.md`](../fjs-nanvm-integration.md) — which performs it
+   — lists both: the stage-2 boundary in
+   [`migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md), and
    [authored `.f.js` package support](../../fjs/ci/todo/f-js-package-support.md),
    so that a standalone `.f.js` is directly type-checked, gets a `.d.ts`, is
-   packed, and resolves for a clean consumer before the first rename.
+   packed, and resolves for a clean consumer. Package support is itself no
+   longer blocked — its stage-1 precondition is met — so it can proceed now.
 4. An authored `.f.js` is the compiler-compatibility marker: the parser/compiler
    in the same repository revision must accept it. Unsupported modules remain
    `.f.mjs` until their compiler features land.

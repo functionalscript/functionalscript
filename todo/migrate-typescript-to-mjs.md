@@ -738,11 +738,16 @@ Keep `**/*.js` ignored while TypeScript implementations can still generate
 `.js`. After the last authored implementation/proof `.ts` / `.f.ts` source file
 is removed:
 
-1. authored `types.ts` may remain permanently;
+1. authored `types.ts` may remain permanently — it does;
 2. remove obsolete generated implementation `.js` output when performing that
-   transition;
+   transition — done with the emission pass in
+   [#1520](https://github.com/functionalscript/functionalscript/pull/1520);
 3. remove the blanket `**/*.js` rule from `.gitignore` when generated
-   implementation output no longer conflicts with authored `.js`.
+   implementation output no longer conflicts with authored `.js` — done in
+   [#1545](https://github.com/functionalscript/functionalscript/pull/1545).
+
+All three have happened; the list is kept as the record of what the boundary
+required, not as work outstanding.
 
 Do **not** assume the second TypeScript runtime-emission pass can be removed just
 because only `types.ts` source remains. The package-support experiment must first
