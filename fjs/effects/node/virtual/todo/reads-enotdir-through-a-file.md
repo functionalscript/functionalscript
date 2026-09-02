@@ -77,7 +77,13 @@ if (p.length !== 1) { return enotdir }      // it exists and is not a directory
   | --- | --- | --- |
   | `.` | `[]` | `EISDIR` — it really is a directory |
   | `''` | `[]` | `ENOENT` — names nothing |
-  | `missing/..`, `a/b/../..` | `[]` | `ENOENT` — `..` erased a name that was not there |
+  | `missing/..` | `[]` | `ENOENT` — `missing` is not there to descend into |
+  | `a/b/../..` | `[]` | **it depends**: `EISDIR` if `a/b` are directories, `ENOENT` or `ENOTDIR` if not |
+
+  That last row is the sharpest form of the problem. One path text, one `parse`
+  output, and two different host answers selected by what is on disk — so no
+  amount of inspecting the *string* can decide it, which is exactly what a
+  lexical collapse does.
 
   So an empty `p` cannot carry the decision on its own. `statOp`'s guard
   (`path === '' ? enoent : statPath(path)`) separates the second, and
