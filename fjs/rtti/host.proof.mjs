@@ -325,7 +325,7 @@ export const proof = {
     // hands-back readers return the value, still a faithful member of the
     // set. `parse` builds plain containers, and every plain container now
     // *inherits* the omitted key, so nothing it could build denotes the
-    // value it checked: it refuses (`omittedStillAbsent`), per DESIGN.md
+    // value it checked: it refuses (`omittedStillAbsent`), per doc/DESIGN.md
     // §10. Each reader honest to its own contract — return what was given,
     // or build only what the schema still accepts.
     nullPrototypePollutionSplitsByContract: () => {
