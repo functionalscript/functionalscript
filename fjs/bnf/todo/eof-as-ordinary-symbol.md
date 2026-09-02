@@ -43,8 +43,8 @@ is what the synthesized symbol already amounts to today.
 
 ### Tasks
 
-- [ ] Settle whether EOF contributes an AST leaf (see the open question) — the
-      answer decides how much of the proof tree moves, so settle it first.
+- [ ] Settle whether EOF contributes an AST leaf — the prototype below shows
+      this decides the size of everything after it, so settle it first.
 - [ ] Rewrite [the contract](../README.md#logical-eof-in-parser-input) and
       `Cursor`'s docstring. They stay true as written until the code changes, so
       they change *with* it, not before.
@@ -53,22 +53,52 @@ is what the synthesized symbol already amounts to today.
       including both `private.ts` frame types.
 - [ ] Update the callers: ~34 sites construct parser input across `fjs/bnf`'s
       proofs and `fjs/djs`'s parser and tokenizer, and each now appends EOF.
+      `fjs/djs/tokenizer`'s two entry points also compute EOF's metadata — the
+      position just past the input — and its `len !== cp.length` checks compare
+      against the extended length.
 - [ ] Prove a caller that omits EOF, and one that sends it early or twice. The
       contract used to make all three unrepresentable; now they are ordinary
       input a grammar rejects, and that should be pinned rather than assumed.
 
-### Open questions
+### What a prototype found
 
-- **Does EOF contribute an AST leaf?** Today it cannot — `leafAt` in
-  [`../matcher/module.f.mjs`](../matcher/module.f.mjs) is
-  `value === eofSymbol ? [] : [[value, metadata]]` — because a synthesized
-  symbol has no source element and no metadata to put in a leaf. A
-  caller-supplied EOF has both, and "a parser does not treat it specially" reads
-  as *yes, a leaf*. But that changes the AST of every grammar matching `eof`,
-  so `descentEquivalence` and the AST expectations in
-  [`../ll1/proof.f.mjs`](../ll1/proof.f.mjs) move with it. Answering "no leaf"
-  keeps the AST fixed at the cost of one special case surviving in the design
-  that removes the rest.
+Tried once and reverted; this does not bind the implementation.
+
+**The backend half is small and it works.** `pos <= cp.length` becomes
+`pos < cp.length` and `pos > cp.length` becomes `pos >= cp.length`; `symbolAt`
+and `leafAt` lose their conditionals; `physicalIdx` and the extended cursor
+delete. Both backends and the matcher typecheck clean, and the 3,600-odd tests
+that do not involve `eof` keep passing untouched.
+
+**The cost is not there. It is the AST leaf**, which turns out to decide the
+whole size of the change. Taking "a parser does not treat it specially" to mean
+EOF contributes a leaf like any other symbol left 118 failures — 62 in
+`fjs/djs/parser`, 27 in `fjs/djs`, 12 in `fjs/bnf/ll1`, 10 in
+`fjs/djs/transpiler`, 6 in `fjs/bnf/descent`, 1 in `fjs/bnf/matcher`.
+
+**Supplying EOF at `fjs/djs`'s entry points made it worse, 118 → 227.** That is
+the finding worth keeping. `fjs/djs/tokenizer` walks the AST to recover tokens,
+so an extra leaf is not a new value at the end of a list — it is a node its
+walk meets and has no case for. Every AST consumer pays, and `fjs/djs` is the
+one with the most walking.
+
+So the leaf question is not a detail to settle while implementing; it is what
+the issue is about:
+
+- **A leaf** is the uniform answer, and it changes the AST of every grammar
+  matching `eof`. `descentEquivalence`, `fjs/bnf`'s AST expectations, and
+  `fjs/djs`'s token extraction all move. Doing it means reworking DJS's walk,
+  not just its call sites.
+- **No leaf** keeps every AST byte-identical and confines the change to cursor
+  arithmetic — the four deletions above, and callers appending a symbol whose
+  only visible effect is that `eof` now matches it. One special case survives in
+  the design that removes the rest, and it is the cheap one: `leafAt` returning
+  `[]` for the last symbol is a line, while the extended cursor was a concept.
+
+Worth noting the second is not merely cheaper. A leaf carries a *source
+element*, and EOF still has none: the caller supplies its metadata, not a
+character it stands for. Contributing nothing to the AST may be the honest
+answer rather than the special case.
 
 ### Related
 
