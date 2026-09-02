@@ -87,19 +87,32 @@ if (p.length !== 1) { return enotdir }      // it exists and is not a directory
 
 ### Who would notice
 
-`ENOTDIR` is already load-bearing one module away. `fjs/web` answers `404` for
-it and documents why — `/README.md/` and `/nope.md/` must be indistinguishable,
-or a trailing slash becomes a way to enumerate files — and `throughFile` in
-[`../../../web/proof.f.mjs`](../../../web/proof.f.mjs) proves it *against this
-runner*, deliberately, because the status differs by platform on a real host.
+`ENOTDIR` is already load-bearing one module away, and in a way that turns on
+exactly this issue. `fjs/web`'s `answer` re-checks the served root **only** when
+the code is `ENOTDIR`, and that one branch is what separates two answers the
+module insists on keeping apart:
 
-That works today only because `respond` gets its `ENOTDIR` from `stat`, which
-models it, rather than from the read, which does not. So the gap here is not
-hypothetical, it is one refactor away:
-[stat-then-read](../../../web/todo/stat-then-read.md) contemplates collapsing
-those two calls into one, and a single read would answer `ENOENT` for the shape
-`fjs/web` currently distinguishes — turning a documented `404` into a `500`
-with no test to catch it, since the fixtures here pin `ENOENT` as correct.
+- a request whose path descends through a file, under a valid root — `404`,
+  identical to a missing name, so a trailing slash cannot be used to ask
+  whether a file exists;
+- every request, when the served **root** has itself been replaced by a file —
+  `500`, because answering `404` would report the operator's mistake as the
+  client's, "a lie told to every visitor for the life of the process".
+
+`ENOENT` cannot reach that branch: `isNotFound` is `code === 'ENOENT'` and
+`fileResponse` maps it straight to `404`. So if
+[stat-then-read](../../../../web/todo/stat-then-read.md) collapses `respond`'s
+`stat` and read into one read, the first case is unaffected — `404` either way —
+and the second silently becomes the lie the re-check exists to prevent.
+
+What stops that today is not luck: `rootNotDirectory` in
+[`../../../../web/proof.f.mjs`](../../../../web/proof.f.mjs) pins the `500`, so
+a refactor dropping the `stat` goes red rather than quiet. The consequence for
+*this* issue is the ordering it implies — while the reads answer `ENOENT` for
+the shape `stat` calls `ENOTDIR`, the read is not a substitute for the `stat`,
+and this issue has to be settled before that refactor can be. `throughFile` in
+the same file proves the `404` half against this runner deliberately, because
+the status differs by platform on a real host.
 
 Whichever option is chosen, then:
 
@@ -131,9 +144,10 @@ Whichever option is chosen, then:
   the descent side rather than the leaf side — "fail with `ENOENT` when a
   component is missing, and with `ENOTDIR` when one is a file" — so the two
   want deciding together, or the second will contradict the first.
-- [stat-then-read](../../../web/todo/stat-then-read.md) — the refactor that
-  would make this issue load-bearing, by moving `fjs/web`'s `ENOTDIR` from
-  `stat` to the read.
+- [stat-then-read](../../../../web/todo/stat-then-read.md) — the refactor this
+  issue gates: while the reads answer `ENOENT` where `stat` answers `ENOTDIR`,
+  a single read cannot replace `respond`'s `stat` without losing the root
+  re-check.
 - [dirent-kinds](./dirent-kinds.md) and
   [jsmodule-read-policy](./jsmodule-read-policy.md) — two more places this
   runner answers something a host would not, both about entry *kind* rather
