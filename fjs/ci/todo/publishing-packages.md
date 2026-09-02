@@ -58,9 +58,11 @@ complete:
   `files` negates `**/private.d.ts`;
 - `.ts` is otherwise gone: no authored implementation or proof `.ts` / `.f.ts`
   remains;
-- `.js` is neither generated nor authored — the emit pass that produced it was
-  removed in
-  [#1520](https://github.com/functionalscript/functionalscript/pull/1520);
+- `.js` is neither authored nor emitted by a build or packaging step — the pass
+  that produced it was removed in
+  [#1520](https://github.com/functionalscript/functionalscript/pull/1520).
+  `fjs compile` still writes one to a caller-named output path; that is the
+  compiler's output for a user, not repository source, and nothing packs it;
 - `.d.ts` and `.d.mts` are generated declarations.
 
 `.f.mjs` does **not** promise that the current FunctionalScript

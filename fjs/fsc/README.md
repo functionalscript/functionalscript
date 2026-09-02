@@ -26,7 +26,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | Neither generated nor authored today. Stage 1's TypeScript runtime emission produced it; that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)), so no repository command writes a `.f.js`. The extension is reserved for stage 2, where it becomes authored FunctionalScript that the current parser/compiler must accept. |
+| `.f.js` | Not authored, and not produced by any build or packaging step. Stage 1's TypeScript runtime emission produced it; that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)), so nothing generates tracked `.f.js` source. `fjs compile <input> <output>.f.js` does still write one, to a path the caller names — that is the compiler's output for a user, not repository source. The extension is reserved for stage 2, where it becomes authored FunctionalScript that the current parser/compiler must accept. |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
