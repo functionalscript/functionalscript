@@ -5,13 +5,18 @@
  * the DOM stand-in below is enough to drive every rendering branch from Node —
  * no headless browser, and no global `window`/`document` for these proofs to
  * install and unset.
+ *
+ * @import { _BrowserReport } from '../types.ts'
+ * @import { Catch, Sandbox } from '../../effects/common/types.ts'
+ * @import { ToAsyncOperationMap } from '../../effects/types.ts'
  */
 
 import { runInNewContext } from 'node:vm'
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from './module.mjs'
+import { _runBrowserProofsWith, renderBrowserReport, runBrowserProofs, startBrowserTests, startBrowserTestSources } from './module.mjs'
 import { fmtImport, testResult } from '../module.f.mjs'
+import { runnerSource } from './module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 
 /**
@@ -333,6 +338,51 @@ export const proof = {
         assertEq(report.results[0]?.message, 'getter')
         assertStructurallySame([...p.states], ['running', 'failed'])
         assertEq(p.view.events.length, 1)
+    },
+
+    /**
+     * **The run's own failure, not any proof's.** A handler of the page's
+     * interpreter throws, so the whole run rejects — the one route
+     * `runProofs` cannot decide, because its error channel is `never` and a
+     * rejection is not a value it was handed.
+     *
+     * What the page depends on is that the rejection still *resolves* the
+     * published report: a run that rejected without this guard leaves the page
+     * in `running` forever, waiting on a promise that will not settle. So the
+     * assertions are the report's, not the promise's — it arrives, it says
+     * `infrastructure-error`, and its one row is named after the runner rather
+     * than after a module, because the walk is one effect and a rejection is
+     * not attributable to the module it happened under.
+     *
+     * Mutation-checked: delete `.catch(runnerFailure)` and this rejects
+     * instead of reporting, which is the failure mode itself.
+     */
+    aThrowingHandlerIsTheRunnersOwnFailure: async () => {
+        const report = await _runBrowserProofsWith(map => ({
+            ...map,
+            sandbox: () => { throw new Error('interpreter') },
+        }))([['m', { t: () => undefined }]])
+        assertEq(report.status, 'infrastructure-error')
+        assertStructurallySame({ ...report.totals }, { tests: 1, passed: 0, failed: 1 })
+        assertEq(report.results[0]?.module, runnerSource)
+        assertEq(report.results[0]?.message, 'interpreter')
+    },
+    /**
+     * The same route reached one level deeper: a command the interpreter
+     * cannot dispatch at all. `match` panics on a missing handler — an omitted
+     * operation is a malformed program, not a capability answer — and that
+     * panic is inside the awaited loop, so it arrives as the same rejection.
+     *
+     * Worth its own case because the two are indistinguishable *after* the
+     * `catch` and not before it: this one never reaches a handler, so a fix
+     * that only guarded handler bodies would leave it hanging the page.
+     */
+    anUndispatchableCommandIsTheSameFailure: async () => {
+        const report = await _runBrowserProofsWith(({ sandbox, ...rest }) =>
+            /** @type {ToAsyncOperationMap<Catch | _BrowserReport | Sandbox>} */ (rest))(
+            [['m', { t: () => undefined }]])
+        assertEq(report.status, 'infrastructure-error')
+        assertEq(report.results[0]?.module, runnerSource)
     },
 
     reportingThrows: async () => {

@@ -21,7 +21,7 @@
  * } from '../types.ts'
  * @import { Catch, Import, Sandbox, SandboxResult } from '../../effects/common/types.ts'
  * @import { IoChannel } from '../../effects/node/types.ts'
- * @import { Effect, Func } from '../../effects/types.ts'
+ * @import { Effect, Func, ToAsyncOperationMap } from '../../effects/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
  */
@@ -66,16 +66,26 @@ const failureOf = async (source, duration, cause) => {
 }
 
 /**
- * Runs named proof exports and returns the serializable browser report.
+ * {@link runBrowserProofs} with the page's own operation map handed to
+ * `operations` before it is interpreted.
  *
- * `result` is the page's subscription to the leaf-landed event — the same
- * event `fjs t`'s `Reporter.result` carries, a shared `TestResult` plus the
- * browser's own `message`/`stack` part — and the resolved report is its
- * run-ended event, with totals folded by the shared `addResult`.
+ * **A testing seam, not a public-API widening.** The page's published entry
+ * point is {@link runBrowserProofs} and is unchanged; this export exists
+ * because one branch below is otherwise unreachable. `runProofs` has no error
+ * channel, so every failure a *proof* can produce arrives as a value — the one
+ * thing that can reject the run is this file's own interpreter, and a caller
+ * that cannot replace it cannot produce that. The alternative rejected in
+ * `todo/share-browser-console-runner.md` was widening the published entry
+ * point to reach the branch, which pays for a proof in API surface every page
+ * then carries.
  *
- * @type {(modules: readonly (readonly [string, unknown])[], result?: (result: _BrowserTestResult) => void) => Promise<BrowserTestReport>}
+ * Two rejections reach `runnerFailure` through it, and they are the same
+ * failure at different depths: a handler that throws, and a command with no
+ * handler at all — `match` panics on the second, inside the same awaited loop.
+ *
+ * @type {(operations: (map: ToAsyncOperationMap<Catch | _BrowserReport | Sandbox>) => ToAsyncOperationMap<Catch | _BrowserReport | Sandbox>) => (modules: readonly (readonly [string, unknown])[], result?: (result: _BrowserTestResult) => void) => Promise<BrowserTestReport>}
  */
-export const runBrowserProofs = (modules, result = () => undefined) => {
+export const _runBrowserProofsWith = operations => (modules, result = () => undefined) => {
     const start = performance.now()
     // Reporting each result as it lands is the page's own code. A renderer that
     // throws must not take the run down with it: the report it fails to show is
@@ -96,7 +106,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
         }
     }
     /** @type {<T, E>(e: Effect<Catch | _BrowserReport | Sandbox, T, E>) => Promise<Result<T, E>>} */
-    const run = asyncRun({
+    const run = asyncRun(operations({
         ...commonOperationMap,
         // **The page's only operation, and the port's only scheduling.** The
         // await is a real macrotask boundary: a run is otherwise one
@@ -109,7 +119,7 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             await macrotask()
             return ok(undefined)
         },
-    })
+    }))
     /**
      * The failure of a *runner* that did not even answer through its error
      * channel: a handler of this interpreter threw, so the whole run rejected.
@@ -144,6 +154,18 @@ export const runBrowserProofs = (modules, result = () => undefined) => {
             toArray(ended === null ? landed : concat(landed)([ended])),
             ended === null ? null : 'infrastructure-error'))
 }
+
+/**
+ * Runs named proof exports and returns the serializable browser report.
+ *
+ * `result` is the page's subscription to the leaf-landed event — the same
+ * event `fjs t`'s `Reporter.result` carries, a shared `TestResult` plus the
+ * browser's own `message`/`stack` part — and the resolved report is its
+ * run-ended event, with totals folded by the shared `addResult`.
+ *
+ * @type {(modules: readonly (readonly [string, unknown])[], result?: (result: _BrowserTestResult) => void) => Promise<BrowserTestReport>}
+ */
+export const runBrowserProofs = _runBrowserProofsWith(map => map)
 
 /**
  * What a page hands `import()` for one of its sources.
