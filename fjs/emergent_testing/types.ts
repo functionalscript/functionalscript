@@ -77,9 +77,7 @@ export type TestId = {
      *
      * So this is "what ran", not "which leaf ran". Whether a runner should
      * report a non-leaf outcome through this type at all, or through a separate
-     * variant with its own fields, is open — see
-     * `todo/share-browser-console-runner.md`, with the rest of the report
-     * shape.
+     * variant with its own fields, is open.
      *
      * **Both runners keep going, since functionalscript#1830.** A `proof`
      * export that cannot be enumerated is one failed record whose `name` is
@@ -265,8 +263,8 @@ export type TestFailure = {
  * The failures are a {@link List} rather than an array because the traversal
  * threads this record through every leaf and joins it at every module boundary:
  * appending to an array copies it, so a suite's *n*th failure would cost *n*
- * again — the linear-join rule in
- * `todo/share-browser-console-runner.md`'s catalog. `concat` is O(1) and keeps
+ * again — item 9, the linear-join rule, in `./README.md`'s pitfall catalog.
+ * `concat` is O(1) and keeps
  * the order the leaves landed in, which is the order the report is asked to be
  * in.
  *

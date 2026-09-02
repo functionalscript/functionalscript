@@ -74,10 +74,9 @@ const failureOf = async (source, duration, cause) => {
  * because one branch below is otherwise unreachable. `runProofs` has no error
  * channel, so every failure a *proof* can produce arrives as a value — the one
  * thing that can reject the run is this file's own interpreter, and a caller
- * that cannot replace it cannot produce that. The alternative rejected in
- * `todo/share-browser-console-runner.md` was widening the published entry
- * point to reach the branch, which pays for a proof in API surface every page
- * then carries.
+ * that cannot replace it cannot produce that. The rejected alternative was
+ * widening the published entry point to reach the branch, which pays for a
+ * proof in API surface every page then carries.
  *
  * Two rejections reach `runnerFailure` through it, and they are the same
  * failure at different depths: a handler that throws, and a command with no

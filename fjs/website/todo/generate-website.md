@@ -13,6 +13,7 @@
       subdirectories, `todo/` issues and local proofs — see
       [directory-index-pages](directory-index-pages.md)
 - [x] Browser test runner and proof-result UI
-- [ ] Move browser-manifest preparation into the website `NodeProgram` through
-      Node effects, as designed in
-      [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
+- [x] Move browser-manifest preparation into the website `NodeProgram` through
+      Node effects. Landed in functionalscript#1827: `browser-prepare.mjs` is
+      gone and `website/module.f.mjs` writes the suite manifest as part of the
+      build

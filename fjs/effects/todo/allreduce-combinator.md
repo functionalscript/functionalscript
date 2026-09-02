@@ -51,8 +51,8 @@ this issue wrote it — would not compile.
 `op` must be **commutative** — results may arrive in any order when the runner schedules sub-effects in parallel.
 
 **`runModuleMap` is no longer a consumer.** An earlier draft of this issue
-rewrote it with `allReduce`, and the sequential plan in
-[share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
+rewrote it with `allReduce`, and the sequential proof run
+([why](../../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost))
 decides the opposite: the proof traversal runs one leaf's whole chain before
 the next, deliberately, and fanning its modules back out would undo that
 decision. The combinator's consumers are the sites that *want* fan-out — the
