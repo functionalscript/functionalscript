@@ -5,11 +5,24 @@
 
 ### Problem
 
-The repository-wide
-[TypeScript-to-`.mjs` migration](../../../todo/migrate-typescript-to-mjs.md)
-cannot convert its first package-owned `.ts` / `.f.ts` implementation source
-until the TypeScript and NPM pipeline treats authored `.mjs` as first-class
-source.
+This task was written as the gate on the repository-wide
+[TypeScript-to-`.mjs` migration](../../../todo/migrate-typescript-to-mjs.md):
+that migration could not convert its first package-owned `.ts` / `.f.ts`
+implementation source until the TypeScript and NPM pipeline treated authored
+`.mjs` as first-class source. It no longer gates that migration. Stage 1's
+source conversion is complete — every conversion happened, and what the
+migration needed from this task was performed one-time in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520) and
+recorded in [`packed-consumer-validation.md`](../packed-consumer-validation.md).
+What remains here is regression infrastructure on its own schedule, described
+below.
+
+One downstream dependency does survive, and deliberately:
+[`f-mjs-test-and-coverage.md`](../../emergent_testing/todo/f-mjs-test-and-coverage.md)
+is still **blocked by** this task, because its fixture needs package emission to
+preserve authored `.mjs` rather than treat it as generated JavaScript. Both are
+regression work now, so neither holds up the migration or stage 2 — but that
+ordering between them is real.
 
 The package configuration originally validated only authored TypeScript and
 published its generated `.js` / `.d.ts`, with no checked authored `.mjs` plus
@@ -21,11 +34,12 @@ What remains is the validation half — a fixture and proofs that the mixed-sour
 package actually builds and type-checks correctly for consumers and all supported
 runtimes.
 
-Stage 1 is dependency-first for runtime implementations. Remaining `.ts` /
-`.f.ts` may import already migrated `.mjs` / `.f.mjs`, while migrated JavaScript
-must not depend on remaining implementation TypeScript. Type-only APIs are
-separate: a directory may contain a real authored `types.ts` source module that
-is stable before, during, and after the implementation migration.
+Stage 1 was dependency-first for runtime implementations: remaining `.ts` /
+`.f.ts` could import already migrated `.mjs` / `.f.mjs`, while migrated
+JavaScript could not depend on remaining implementation TypeScript. None of
+either remains. Type-only APIs were always separate, and that part still holds:
+a directory may contain a real authored `types.ts` source module, stable before,
+during, and after the implementation migration.
 
 Using a real `types.ts` is intentional. Both TypeScript and JSDoc can reference
 the exact same source path, and Deno can resolve the file directly instead of
@@ -143,9 +157,10 @@ A declaration-only `module.f.ts` should therefore normally become `types.ts`
 instead of `module.f.mjs`. Do not invent `Symbol()` values or other runtime
 representations merely to keep type-system-only constructs in JavaScript.
 
-For FunctionalScript modules during stage 1:
+For FunctionalScript modules during stage 1 (stage 1 is complete, so the
+`.f.ts` rules below are the record of that period, not current state):
 
-- `.f.ts` is remaining authored TypeScript implementation/proof source;
+- `.f.ts` was remaining authored TypeScript implementation/proof source;
 - `.f.mjs` is authored FunctionalScript-intent JavaScript, whether or not the
   current FunctionalScript compiler accepts all of its syntax;
 - `types.ts` is authored type-only TypeScript source and is outside the runtime

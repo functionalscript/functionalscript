@@ -46,8 +46,7 @@ use super::harness::*;
 fn eq<A: IVm>() {
     let empty_array: Any<A> = Array::default().to_any();
     check_eq::<A>("itself", empty_array.clone(), empty_array.clone(), true);
-    // TODO: not yet
-    // check_eq::<A>("skipped", Nullish::Null.to_any(), Nullish::Null.to_any(), true);
+    // TODO: not yet: check_eq::<A>("skipped", Nullish::Null.to_any(), Nullish::Null.to_any(), true);
 }
 
 #[rustfmt::skip]
