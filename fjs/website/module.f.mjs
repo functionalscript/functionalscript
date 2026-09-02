@@ -29,8 +29,8 @@
 
 import { htmlUtf8 } from '../media/html/module.f.mjs'
 import { utf8 } from '../text/module.f.mjs'
-import { allOk, exitStep, readdir, readUtf8File, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
-import { foldStep, forEachStep, mapStep, pureOk, resultStep, step } from '../effects/module.f.mjs'
+import { allOk, exitStep, isNotFound, readdir, readUtf8File, writeFile, writeUtf8File } from '../effects/node/module.f.mjs'
+import { foldStep, forEachStep, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
 import { at, empty as noModules, setReplace } from '../types/ordered_map/module.f.mjs'
@@ -143,32 +143,40 @@ const resolve = from => specifier => pathConcat(`${from}/..`)(specifier)
 /**
  * Reads one module into the graph, and answers what it newly reaches.
  *
- * **A read that fails leaves the graph alone.** The scan is textual, so a
- * module that emits source of its own — this file embeds the page's entry
- * module — offers up import lines that were never its own, and a relative
- * specifier naming no file is one of them. That is the failure this expects,
- * and it is why the deleted script swallowed read errors too.
+ * **A missing path leaves the graph alone.** The scan is textual, so a module
+ * that emits source of its own — this file embeds the page's entry module —
+ * offers up import lines that were never its own, and a relative specifier
+ * naming no file is the ordinary result. That is the failure this expects, and
+ * it is why the deleted `browser-prepare.mjs` swallowed read errors too.
  *
- * It swallows *every* read failure, and one of them is not benign: `readFile`
- * caps a file at 128 KiB, so a module over that size is read as importing
- * nothing and could put a proof into the manifest on the strength of a file
- * nobody read. No `.f.mjs` here is close to the cap, and refusing it is not
- * written as a guard because nothing could pin one — the virtual interpreter
- * answers every failed read with `ENOENT`, so the other branch would be
- * unreachable under a 100% gate. Recorded in
- * [`./todo/oversized-module-reads-as-empty.md`](./todo/oversized-module-reads-as-empty.md).
+ * **Every other read failure is refused**, because the one that matters is not
+ * benign: `readFile` caps a file at 128 KiB, so a module over that size would
+ * otherwise read as importing nothing, and a proof reaching it would be
+ * selected on the strength of a file nobody read — putting the page's failure
+ * *while it links*, before the runner can publish a report, which is the
+ * outcome this whole selection exists to prevent. So the generator refuses the
+ * input it cannot handle rather than answering with a plausible manifest
+ * ([DESIGN.md §10](../../DESIGN.md#10-refuse-what-you-cannot-handle)), and its
+ * message is the host's own, naming the file. Dropping such a module as a
+ * *blocker* instead would keep the run going, but it costs a `stat` per module
+ * and calls a host failure a property of the source. Nothing in the repository
+ * is near the cap today, which is why this is a guard and not a chunked read.
  *
- * Not recording the path is also what keeps {@link blockersOf}'s "never read"
- * case a real one rather than a defensive branch nothing can reach. It cannot
- * loop: a module that was not read reaches nothing, so it adds nothing to the
- * frontier it would have to come back through.
+ * Not recording an absent path is also what keeps {@link blockersOf}'s "never
+ * read" case a real one rather than a defensive branch nothing can reach. It
+ * cannot loop: a module that was not read reaches nothing, so it adds nothing
+ * to the frontier it would have to come back through.
  *
- * @type {(path: string) => (acc: readonly [_Graph, readonly string[]]) => Effect<ReadFile, readonly [_Graph, readonly string[]], never>}
+ * @type {(path: string) => (acc: readonly [_Graph, readonly string[]]) => Effect<ReadFile, readonly [_Graph, readonly string[]], IoChannel>}
  */
 const readModule = path => ([graph, reached]) => step(
     resultStep(readUtf8File(path), read => pureOk(read)),
     read => {
-        if (read[0] === 'error') { return pureOk(/** @type {const} */ ([graph, reached])) }
+        if (read[0] === 'error') {
+            return isNotFound(read[1])
+                ? pureOk(/** @type {const} */ ([graph, reached]))
+                : pureError(read[1])
+        }
         const found = specifiers(read[1])
         /** @type {_Imports} */
         const imports = {
@@ -191,7 +199,7 @@ const readModule = path => ([graph, reached]) => step(
  * walking each proof module's closure separately, re-reads the shared half of
  * this repository once per proof.
  *
- * @type {(frontier: readonly string[]) => (graph: _Graph) => Effect<ReadFile, _Graph, never>}
+ * @type {(frontier: readonly string[]) => (graph: _Graph) => Effect<ReadFile, _Graph, IoChannel>}
  */
 const readGraph = frontier => graph => {
     const next = frontier.filter(path => at(path)(graph) === null)
