@@ -320,6 +320,32 @@ form, and
 [`todo/imports-promises-realms.md`](./todo/imports-promises-realms.md) for what
 a promise from another realm would cost, which is a non-goal.
 
+**The question that moved each definition** was not *"does this touch a host
+object"* but *"which values does it need from one"*. `reportOf` needed two, so
+they are passed in and it is pure. The loading walk needed a module loader, so
+that became an *operation* — and naming it is what turned an injected `importer`
+parameter into an interpreter's handler. It appeared to need a fan-out as well;
+it needed sequencing, which an effect already is.
+
+**Pure logic that reads a *user* value is not impure, it is effectful.**
+`errorDetails` and `text` are pure in substance and both need `try`/`catch`,
+which FunctionalScript does not have — reading `message` or `stack`, or calling
+`String`, runs the value's own code. They are effects over `catch` rather than
+thunks in a `try`, which is what let them move.
+
+**The measure, and where it stands.** Count host touches per *definition*, not
+definitions per file. In `browser/module.mjs` today, 13 of 14 definitions touch
+a host object — a clock, `navigator`, `import()`, a DOM node, `setTimeout`, or
+the interpreter loop — and the fourteenth is `runBrowserProofs`, a partial
+application of the one above it. Nothing left there is logic that could be
+pure. A definition that fails this measure is migration debt: move it, or say
+in its JSDoc which host values it needs and why they cannot be passed in.
+
+The size of `browser/proof.mjs` is the standing measurement of how thick the
+glue is. It is the largest impure proof file in the repository, and it exists
+because a DOM adapter can only be proven against a DOM stand-in; logic proven
+there rather than in a co-located `proof.f.mjs` is logic in the wrong file.
+
 ### Rules the shared core keeps
 
 These are constraints on future work, not history. They were the terms the two

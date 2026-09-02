@@ -155,16 +155,28 @@ const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directo
  * not a directory — see {@link statPath}, its only source here. */
 const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
 
-/** @type {(path: string) => (state: State) => readonly [State, IoResult<Vec>]} */
-const readFile = readOperation((dir, path) => {
-    if (path.length !== 1) { return enoent }
-    const file = entryOf(dir, path[0])
+/**
+ * **The requested path is captured, not reconstructed from what the op sees.**
+ * `operation`'s wrapper descends before the op runs, so `p` holds only the
+ * entry name — `readFile('dir/big.mjs')` reaches this with `p = ['big.mjs']`.
+ * That is enough for the failures whose subject is the entry itself, but not
+ * for the size cap: `ReadFile` in [`../types.ts`](../types.ts) states that the
+ * failure names the file, and a caller told `'big.mjs'` cannot tell which of
+ * several same-named files it was. So `path` is what the message carries, and
+ * it is the same string the Node runner reports. {@link readBytesOp} takes its
+ * own path the same way.
+ *
+ * @type {(path: string) => (state: State) => readonly [State, IoResult<Vec>]}
+ */
+const readFile = path => readOperation((dir, p) => {
+    if (p.length !== 1) { return enoent }
+    const file = entryOf(dir, p[0])
     if (file === undefined) { return enoent }
-    if (isJsModule(file)) { throw new Error(`'${path[0]}' is a JsModule; readFile not supported`) }
+    if (isJsModule(file)) { throw new Error(`'${p[0]}' is a JsModule; readFile not supported`) }
     // `operation`'s wrapper descends into every plain-object (`Dir`) entry
     // before this op ever runs, and the `JsModule` case already threw above,
     // so `file` here is always a `Vec[]` — never a bare `Dir`.
-    assert(isBinFile(file), `'${path[0]}' is not a file`)
+    assert(isBinFile(file), `'${p[0]}' is not a file`)
     const chunks = file
     const capBits = maxLengthBytes * 8n
     let result = empty
@@ -172,12 +184,12 @@ const readFile = readOperation((dir, path) => {
         const chunkLen = length(chunk)
         if (chunkLen === 0n) { continue }
         if (length(result) + chunkLen > capBits) {
-            return fail(`File size exceeds maximum allowed size of ${maxLengthBytes} bytes`)
+            return fail(`File size exceeds maximum allowed size of ${maxLengthBytes} bytes: '${path}'`)
         }
         result = msb.concat(result)(chunk)
     }
     return ok(result)
-})
+})(path)
 
 /** @type {(path: string) => (state: State) => readonly [State, IoResult<Module>]} */
 const import_ = readOperation((dir, path) => {
