@@ -172,11 +172,27 @@ computed at grammar-construction time and must stay total either way.
 mapping implements, one row per `Info` form, each a function of the form alone
 — and the rule for adding a form is that its row must be, too:
 
+`Info` forms:
+
 | form | AST |
 |---|---|
 | `['const', c]` | `AST<c>` |
 | `['range', a, b]` | `number` — one symbol leaf |
 | `['repeat', min, max, r]` | `readonly AST<r>[]`, refined to a fixed-length tuple when `min` and `max` are equal literals |
+
+`Const` forms, which the table above delegates to and which an author writes
+far more often:
+
+| form | AST |
+|---|---|
+| `number` | `number` — the symbol itself |
+| `string` | **pending**, per the open question above |
+| `Sequence` | one entry per element, `AST` of each |
+| `Variant` | the branch taken, tagged by its key |
+
+The last two rows are written loosely on purpose: they are the ones that
+depend on how a node is *represented*, which this issue has not stated. See
+[Problem 8](#problems-to-resolve-before-implementing).
 
 One row now covers what four did. Every repetition is a flat array of
 `AST<r>` whatever its bounds, `.length` is the discriminator in every case
@@ -208,34 +224,45 @@ set('abc')       // { a: 0x61, b: 0x62, c: 0x63 }  — a plain Variant
 verbosity of the uniform form falls on the constructor definitions rather than
 on grammars.
 
-#### Questions left open
+#### Decided: `Const` holds bare numbers and strings
 
-**Whether `string` stays in `Const`, and what it means.** A string may lower
-to a sequence of code points, as `str` does today for more than one, or to one
-symbol, or to one when it has one code point and a sequence otherwise. The
-union above lists it provisionally; the type shape does not depend on the
-answer, only what a lowering emits and what AST shape a grammar gets, and the
-lowering is the alphabet adapter's job either way
-([unicode-rules](./unicode-rules.md)). So it can stay open without blocking
-the front end.
+A plain `number` and a plain `string` are rules. **A number is one input
+symbol and becomes a number in the AST** — `0x61` is the letter, `-1` is EOF,
+and nothing decodes or wraps it on the way through.
 
-**Whether bare `number` and `string` belong in `Const` at all.** They buy
-readability: `0x61`, `-1`, and `set('abc')` as a plain variant of plain
-numbers. The cost is that a tagged tuple written *without* its thunk is then a
-legal rule with a different meaning — `['const', c]` is "the string `const`,
-then `c`" — and `tsc` accepts both, so a forgotten `() =>` is a silent wrong
-parse rather than a compile error. If `Const` were only `Sequence | Variant`,
-that would fail to type-check outside a thunk and the mistake would be caught,
-at the price of `sym(0x61)` and `() => ['range', 0x61, 0x61]` for every lone
-symbol. Constructors make the first choice much safer, since a hand-written
-tagged tuple is rare, but a tagged tuple in a `Const` position is a smell only
-proofs can pin. Whichever way this goes, the choice is recorded here because it
-is the kind that shows up as a wrong parse months later.
+The cost is accepted rather than absent: a tagged tuple written *without* its
+thunk is a legal rule with a different meaning — `['const', c]` as a bare
+value is the string `const` followed by `c` — and `tsc` accepts both, so a
+forgotten `() =>` is a silent wrong parse rather than a compile error.
+Collapsing the sugar narrowed the exposure to three words: a grammar has to
+use `'const'`, `'range'` or `'repeat'` as a literal text terminal, in a
+thunk's return position, to be caught by it. Constructors keep hand-written
+tagged tuples rare. The mitigation is a proof, not a type: a check that no
+`Const` in a grammar is an array whose head is one of the three tags.
 
-Collapsing the sugar shrank this question without settling it: with `'const'`,
-`'range'` and `'repeat'` the only tags, a bare `string` in `Const` collides
-with exactly three words rather than with `'*'`, `'?'`, `'+'` and every
-number.
+#### The one question left open
+
+**What a `string` means.** Two candidates:
+
+- **A sequence of symbols**, as the classical front end does today — `'abc'`
+  is three code points, and `str` lowers it to a sequence of terminals.
+- **One symbol, decoded** — the string names a single symbol in the
+  alphabet's encoding, which is one terminal however many characters the name
+  has.
+
+The type shape does not depend on the answer; the AST shape does, so the
+`AST<string>` row below cannot be written until it is settled.
+
+Worth weighing: the answer may not be global, because the alphabet decides
+what a string can mean. Over Unicode code points `'abc'` is naturally three
+symbols. Over [token symbols](../token_symbol/) it is naturally one — that is
+exactly what `fjs/djs/parser`'s `sym` does today,
+`tokenEncoding.encode(name)`, turning a multi-character token name into a
+single symbol. If both readings are wanted, the choice belongs to the alphabet
+adapter rather than to `Const`, and then the open question becomes whether
+`AST<string>` can be written at all without knowing which adapter is in play —
+which would weaken the type-level mapping exactly where
+[Problem 7](#problems-to-resolve-before-implementing) is already uncertain.
 
 #### What this requires of a lowering
 
@@ -397,6 +424,30 @@ worth recording: `sym` in `fjs/djs/parser` is
 parser stops importing the terminal codec altogether, shrinking what
 grammar-bucket's stage 1 has to touch there.
 
+**8. The AST table never says how a node is represented.** Every row is
+written as a structural value — a symbol is `number`, a repetition is
+`readonly AST<r>[]` — but today's AST is `{ tag, sequence }` nodes, where the
+tag names the variant branch and the sequence holds consumed symbols and child
+nodes in order ([`../README.md`](../README.md#ast)). Those are two different
+things, and the issue has been using the structural spelling throughout
+without saying whether it is the real target or shorthand for the node shape.
+
+It matters in three places. `AST<Sequence>` and `AST<Variant>` cannot be
+written until it is settled — they are the rows left loose above, and they are
+the two an author hits most. The repetition row's promise that
+`['repeat', 0, 1, r]` is a length-0-or-1 *list* is a claim about node
+representation, not just about types, and
+[Problem 4](#problems-to-resolve-before-implementing) is what it costs against
+the existing proofs. And it decides whether "the same AST" in the port claim
+means structurally identical trees or identical `{ tag, sequence }` values.
+
+Two readings, and they are not equivalent: the structural one is a genuine
+change to what a backend emits, on top of everything else here; the shorthand
+one means the tables describe the *shape* a `{ tag, sequence }` tree has, and
+`AST<T>` is a type over nodes rather than over plain values. The second is the
+smaller change and probably what was meant, but nothing in this issue says so,
+which is how it went eight revisions without being noticed.
+
 #### Left for later, deliberately
 
 A separated repeat (a flat item list with the separators dropped) is worth
@@ -418,13 +469,15 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       and the type-level `AST<Rule>` mapping from the table, with a proof per
       row that the parser's result has that type. Every form `toData` accepts
       is in `Info`, so the accepted syntax type-checks without a cast.
-- [ ] Answer the two open questions above; both only affect `Const`.
-- [ ] Answer the seven problems above, in the issue, before writing code.
-      1, 3 and 6 gate the lowering; 2 is grammar-bucket's and gates the
-      proofs; 4 sizes the port; 7 gates whether the AST table is a checked
-      contract or only a documented one.
-- [ ] Decide, and record here, whether bare `number` and `string` stay in
-      `Const`, and how a `string` lowers.
+- [ ] Answer the open question above: what a `string` means, and whether the
+      answer is global or the alphabet adapter's.
+- [ ] Answer the eight problems above, in the issue, before writing code.
+      8 comes first — the AST tables cannot be finished without it, and 4 and
+      7 both depend on its answer. Then 1, 3 and 6 gate the lowering; 2 is
+      grammar-bucket's and gates the proofs; 4 sizes the port.
+- [ ] Add a proof that no `Const` in a grammar is an array whose head is
+      `'const'`, `'range'` or `'repeat'` — the forgotten-thunk case the type
+      system cannot catch now that bare strings are `Const`.
 - [ ] `fjs/grammar/ebnf/module.f.mjs`: the constructors (`option`,
       `repeat0Plus`, `repeat1Plus`, `times`, `join0Plus`, `join1Plus`, and the
       EBNF-facing `not`) and the lowering: `['const', c]` unwrapped,
