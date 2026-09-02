@@ -53,6 +53,12 @@ not a digit — so a number finishes without any terminal consuming EOF, and
 nothing about EOF reaches its AST either way. The leaf question is confined to
 grammars written like `document = [value, eof]`.
 
+`fjs/djs/parser` is the evidence that synthesis costs its callers rather than
+saving them: it strips the tokenizer's real `eof` to avoid a second end marker
+and then keeps that token's metadata in a side channel, because the synthesized
+symbol has none to report a failure at end-of-input from. Both halves of that
+workaround exist only because the backend invents the symbol.
+
 **And EOF now carries metadata like any other symbol**, which is the point of
 the change for [43](./043-stateful-parser.md): a mapped `eof` terminal receives
 a real `Meta<MI, CodePoint>` from the caller, so nothing has to invent one.
@@ -73,10 +79,26 @@ is at stake.
 - [ ] Delete `physicalIdx` and the extended-position handling in
       [`../matcher/`](../matcher/module.f.mjs), `../ll1/` and `../descent/`,
       including both `private.ts` frame types.
-- [ ] Update the callers to append EOF. Under no-leaf every AST is unchanged,
-      so this is `fjs/bnf`'s own proofs and the two `fjs/djs/tokenizer` entry
-      points, which also compute EOF's metadata — the position just past the
-      input. `fjs/djs`'s AST walks are untouched.
+- [ ] Update the callers to supply EOF. Under no-leaf every AST is unchanged,
+      so no AST *walk* moves — but three callers do:
+      - `fjs/bnf`'s own proofs, which append a symbol;
+      - `fjs/djs/tokenizer`'s two entry points, which also compute EOF's
+        metadata, the position just past the input;
+      - `fjs/djs/parser`, which is the opposite problem and is described below.
+- [ ] Delete `splitEof`'s reason for existing, and probably most of `splitEof`.
+      [`../../djs/parser/module.f.mjs`](../../djs/parser/module.f.mjs) strips the
+      tokenizer's final `eof` token before matching, because "a BNF parser
+      backend synthesizes its own logical end-of-input, so passing the
+      tokenizer's physical `eof` through as an ordinary symbol would create a
+      second end marker", and stashes its metadata as `eofMetadata` because
+      "dropping it outright would instead lose the source position that a failure
+      *at* physical end has to be reported from". Both sentences describe this
+      issue's problem, solved by hand in production code. With no synthesis there
+      is no second marker to avoid: the tokenizer's `eof` token is the symbol the
+      grammar's `eof` terminal matches, its metadata rides along, and
+      `eofMetadata` — threaded to `parseFromTokens`' `atEnd` branch — has nothing
+      left to carry. `djsModule` requires `eof`, so this caller is not optional:
+      leaving it stripped fails every valid module at its final terminal.
 - [ ] Say what a caller's completeness check compares against (see the open
       question), since the two entry points above each have one.
 - [ ] Prove a caller that omits EOF, and one that sends it early or twice. The
