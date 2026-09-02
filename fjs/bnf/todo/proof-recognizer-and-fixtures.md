@@ -92,7 +92,8 @@ That divergence should be an explicit override table rather than a copied corpus
 
 ### Proposal
 
-Move the shared harness and fixtures into `fjs/bnf/testlib.f.mjs`, next to
+Move the shared harness and fixtures into a neutral testlib (**not**
+`fjs/bnf/testlib.f.mjs` — see the tasks), next to
 `classic()` and `deterministic()`, after rebasing text construction on the Unicode
 adapter.
 
@@ -106,8 +107,8 @@ export type Recognition = {
 
 export type Recognizer = (input: string) => Recognition
 
-export const descentRecognizer = (rule: FRule): Recognizer => …
-export const ll1Recognizer = (rule: FRule): Recognizer => …
+export const descentRecognizer = (ruleSet: RuleSet, entry: string): Recognizer => …
+export const ll1Recognizer = (ruleSet: RuleSet, entry: string): Recognizer => …
 
 export const assertRecognizes = (r: Recognizer) =>
     (cases: readonly Case[]): void => …
@@ -119,13 +120,14 @@ the backend match result as their diagnostic. `assertRecognizes` should report
 `[input, diagnostic]` so failures identify both the corpus row and the parser
 state.
 
-Take no start-rule parameter. Derive the root from `toData(rule)[1]`; the one lazy
-rule whose root is `'value'` proves that a hard-coded/default `''` is wrong.
-`ll1Recognizer` can destructure `[ruleSet, root]` once and build via
-`parserRuleSet(ruleSet)` (`fjs/bnf/ll1/module.f.mjs`), and `descentRecognizer` via
-`descentParserRuleSet(ruleSet)` (`fjs/bnf/descent/module.f.mjs`). Both backends now
-expose a ruleSet-level entry point, so neither adapter needs an extra `toData`; do
-not expand this issue merely to add production API.
+The adapters take a `RuleSet` and its entry name, and call **no `toData`** —
+that would reintroduce the front-end dependency
+[grammar-bucket](../../todo/grammar-bucket.md) removes before its stage 5. The
+entry is a parameter rather than derived or defaulted: the one grammar whose
+root is `'value'` proves a hard-coded `''` is wrong, and a `RuleSet` does not
+carry its own entry. `ll1Recognizer` builds via `parserRuleSet(ruleSet)` and
+`descentRecognizer` via `descentParserRuleSet(ruleSet)`; both backends already
+expose those, so no production API is added here.
 
 The adapter also absorbs the file-local proof copy of `descentParserCpOnly`.
 Keep the DJS tokenizer export: its proof has typed-result consumers beyond the
@@ -156,22 +158,22 @@ explicit named override list for the rows where token-stream acceptance differs.
 
 ### Tasks
 
-- [ ] **First: make the adapters neutral.** As designed above they take an
-      `FRule`, derive the root from `toData(rule)[1]`, and live in
-      `fjs/bnf/testlib.f.mjs` — front-end coupling in exactly the backend
-      proofs that [grammar-bucket](../../todo/grammar-bucket.md) must decouple
-      before its stage 5, and which its stage 8 deletes the other side of.
-      This issue is unblocked at that plan's stage 2, so it would otherwise
-      build that coupling first and have it undone immediately. Take a
-      `RuleSet` instead: both backends already accept one through
-      `parserRuleSet` and `descentParserRuleSet`, so the adapters need no
-      `toData` and the entry name comes from the caller.
-- [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase
-      `fjs/bnf/testlib.f.mjs` text/range imports on `fjs/grammar/unicode/module.f.mjs`;
+- [ ] Keep everything here neutral, per the proposal above: adapters over
+      `RuleSet` plus entry, fixtures authored as rule sets, and a testlib that
+      survives. This issue is unblocked at
+      [grammar-bucket](../../todo/grammar-bucket.md)'s stage 2, before that
+      plan decouples the backend proofs for its stage 5, so anything
+      front-end-coupled built here would be undone immediately or would block
+      the stage-8 deletion.
+- [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase the
+      testlib's text/range imports on `fjs/grammar/unicode/module.f.mjs`;
       do not import Unicode `range` from core `./module.f.mjs`.
 - [ ] Add `Case`, `Recognition`, `assertRecognizes`, and the two recognizer
-      adapters to `fjs/bnf/testlib.f.mjs` (or per-backend testlibs if the import
-      direction argues for it); confirm no import cycle.
+      adapters to a testlib that **survives the migration** — not
+      `fjs/bnf/testlib.f.mjs`, which imports `./lib/json` and `./module.f.mjs`
+      and which grammar-bucket stage 5 moves with the classical front end and
+      stage 8 deletes. A neutral shared testlib beside the backends, or
+      per-backend ones; confirm no import cycle.
 - [ ] Carry each backend's `MatchResult` through as `Recognition.diagnostic` and
       report `[input, diagnostic]` from `assertRecognizes`.
 - [ ] Take the entry name **alongside** the `RuleSet`, since a `RuleSet` holds

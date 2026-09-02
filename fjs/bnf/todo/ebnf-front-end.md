@@ -101,14 +101,15 @@ row that is a function of the form alone.
 
 ```ts
 type Repeat<Min, Max, T> =
-    // A widened bound says nothing and must be caught before any branch that
-    // reads a literal: `2 extends number` is true.
-      number extends Min            ? readonly T[]
+    // A widened bound says nothing, and a bound past the cap cannot be
+    // expanded. Both must be caught before any branch that instantiates a
+    // tuple: `2 extends number` is true, and `Tuple<1000, T>` is TS2589.
+      number extends Min or number extends Max or Min > Cap ? readonly T[]
     : Max extends 'Infinity'        ? (Min extends 0 ? readonly T[]
                                                      : readonly [...Tuple<Min, T>, ...readonly T[]])
-    : number extends Max            ? readonly T[]
     : [Min, Max] extends [Max, Min] ? Tuple<Min, T>   // both literal and equal
-    : Union of Tuple<n, T> for Min <= n <= Max        // capped; see below
+    : Max - Min <= Cap              ? Union of Tuple<n, T> for Min <= n <= Max
+    : readonly T[]
 ```
 
 Every repetition is a flat array whatever its bounds, `.length` discriminates,
@@ -118,11 +119,14 @@ rather than four. An optional is a 0-or-1 list rather than a tagged
 family from the rest; an author wanting named branches writes the plain
 `Variant`.
 
-Two caveats for the implementation. The last `Repeat` line is exact for a
-narrow span and explodes for a wide one, so cap it and fall back to
-`readonly T[]`. And TypeScript's template-literal recursion splits by UTF-16
-code unit, so a naive `AST<'😀'>` is a 2-tuple where the grammar produces one
-element.
+Two caveats for the implementation. **The cap is on absolute tuple length, not
+on the span**, and it gates every branch that builds one: `Tuple` in
+`fjs/types/array/types.ts:22` recurses linearly, so `Tuple<1000, T>` is TS2589
+whether it comes from `repeat(1000, 1000)`, from the prefix of
+`repeat(1000, 'Infinity')`, or from a union member. A bound past the cap
+degrades to `readonly T[]`. And TypeScript's template-literal recursion splits
+by UTF-16 code unit, so a naive `AST<'😀'>` is a 2-tuple where the grammar
+produces one element.
 
 #### Constructors are the API
 
