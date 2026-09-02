@@ -41,28 +41,51 @@ into, and EOF's metadata arrives with the symbol.
 A grammar that never mentions `eof` leaves it unconsumed. That is success, which
 is what the synthesized symbol already amounts to today.
 
+**A consumed `eof` still contributes no AST leaf.** That is not the parser
+treating the symbol specially — it is that there is nothing to put in a leaf.
+Every other leaf stands for a source character; EOF stands for the absence of
+one, and the caller supplies its metadata rather than a character it denotes.
+The alternative was tried and is recorded below.
+
+Only a rule that *names* `eof` reaches this at all. A repetition ends by
+lookahead — `digits = repeat(digit)` stops because the symbol at the cursor is
+not a digit — so a number finishes without any terminal consuming EOF, and
+nothing about EOF reaches its AST either way. The leaf question is confined to
+grammars written like `document = [value, eof]`.
+
+**And EOF now carries metadata like any other symbol**, which is the point of
+the change for [43](./043-stateful-parser.md): a mapped `eof` terminal receives
+a real `Meta<MI, CodePoint>` from the caller, so nothing has to invent one.
+That also retires [207 §2](./207-bnf-semantic-actions.md)'s `[EOF, identity]`
+row — one of the three places the metadata identity was being spent, and the
+one that was only pretending to have no metadata. The empty `Sequence` and the
+zero-round `Repeat` genuinely have no children; EOF never did.
+
+The leaf decision and the metadata are independent, being the two halves of one
+pair: `astTerminal` returns `[{ tag, sequence }, metadata]`, and only `sequence`
+is at stake.
+
 ### Tasks
 
-- [ ] Settle whether EOF contributes an AST leaf — the prototype below shows
-      this decides the size of everything after it, so settle it first.
 - [ ] Rewrite [the contract](../README.md#logical-eof-in-parser-input) and
       `Cursor`'s docstring. They stay true as written until the code changes, so
       they change *with* it, not before.
 - [ ] Delete `physicalIdx` and the extended-position handling in
       [`../matcher/`](../matcher/module.f.mjs), `../ll1/` and `../descent/`,
       including both `private.ts` frame types.
-- [ ] Update the callers: ~34 sites construct parser input across `fjs/bnf`'s
-      proofs and `fjs/djs`'s parser and tokenizer, and each now appends EOF.
-      `fjs/djs/tokenizer`'s two entry points also compute EOF's metadata — the
-      position just past the input — and its `len !== cp.length` checks compare
-      against the extended length.
+- [ ] Update the callers to append EOF. Under no-leaf every AST is unchanged,
+      so this is `fjs/bnf`'s own proofs and the two `fjs/djs/tokenizer` entry
+      points, which also compute EOF's metadata — the position just past the
+      input — and compare their `len !== cp.length` checks against the extended
+      length. `fjs/djs`'s AST walks are untouched.
 - [ ] Prove a caller that omits EOF, and one that sends it early or twice. The
       contract used to make all three unrepresentable; now they are ordinary
       input a grammar rejects, and that should be pinned rather than assumed.
 
 ### What a prototype found
 
-Tried once and reverted; this does not bind the implementation.
+Tried once and reverted. It settled the leaf question above; the rest does not
+bind the implementation.
 
 **The backend half is small and it works.** `pos <= cp.length` becomes
 `pos < cp.length` and `pos > cp.length` becomes `pos >= cp.length`; `symbolAt`
@@ -82,23 +105,12 @@ so an extra leaf is not a new value at the end of a list — it is a node its
 walk meets and has no case for. Every AST consumer pays, and `fjs/djs` is the
 one with the most walking.
 
-So the leaf question is not a detail to settle while implementing; it is what
-the issue is about:
-
-- **A leaf** is the uniform answer, and it changes the AST of every grammar
-  matching `eof`. `descentEquivalence`, `fjs/bnf`'s AST expectations, and
-  `fjs/djs`'s token extraction all move. Doing it means reworking DJS's walk,
-  not just its call sites.
-- **No leaf** keeps every AST byte-identical and confines the change to cursor
-  arithmetic — the four deletions above, and callers appending a symbol whose
-  only visible effect is that `eof` now matches it. One special case survives in
-  the design that removes the rest, and it is the cheap one: `leafAt` returning
-  `[]` for the last symbol is a line, while the extended cursor was a concept.
-
-Worth noting the second is not merely cheaper. A leaf carries a *source
-element*, and EOF still has none: the caller supplies its metadata, not a
-character it stands for. Contributing nothing to the AST may be the honest
-answer rather than the special case.
+That is what decided the Proposal against it. A leaf is the uniform-looking
+answer and costs a rework of DJS's walk; no leaf keeps every AST
+byte-identical and confines the change to cursor arithmetic. The deciding
+argument was not the cost, though: a leaf carries a source element and EOF has
+none, so contributing nothing to the AST is the honest answer rather than a
+special case retained for convenience.
 
 ### Related
 

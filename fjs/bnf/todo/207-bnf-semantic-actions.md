@@ -74,7 +74,7 @@ empty map behaves bit for bit as it does now.
 | Data rule kind  | The transformer receives                                    |
 |-----------------|-------------------------------------------------------------|
 | `TerminalRange` | `[symbol, M]`                                                |
-| at EOF          | `[EOF, identity]` — no leaf exists ([contract](../README.md#logical-eof-in-parser-input)) |
+| at EOF          | `[EOF, its own metadata]` — a caller-supplied symbol, contributing no leaf ([eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)) |
 | `Sequence`      | `[[c₀, …, cₙ], merged M]`, one slot per item                 |
 | empty `Sequence`| `[[], identity]`                                             |
 | `Variant`       | `[[branchName, value], that branch's M]`                     |

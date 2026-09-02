@@ -210,7 +210,10 @@ is small enough to answer in a pull request that implements nothing.
   be a fold whose `end` is total by construction, or `end` returns
   `Nullable<T>`.
 - **`reduce` has no identity**, and [207 §2](./207-bnf-semantic-actions.md)
-  spends one on an empty `Sequence`, a zero-round `Repeat`, and an EOF terminal.
+  spends one on an empty `Sequence` and a zero-round `Repeat`. (It spent a third
+  on an EOF terminal until
+  [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md) gave that symbol the
+  caller's metadata — the one case of the three that only looked childless.)
   Candidates: a third field `empty: MO`, or `MO | undefined` with `reduce`
   skipping absence. Not `Monoid<MO>` — its identity comes with an associativity
   law this `reduce` does not promise. One constant also cannot say *where* an
