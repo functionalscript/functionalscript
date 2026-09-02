@@ -126,18 +126,28 @@ branch separates two answers the module insists on keeping apart: a path
 descending through a file under a valid root is `404`, identical to a missing
 name so a trailing slash cannot be used to ask whether a file exists; while a
 served **root** that has itself been replaced by a file is `500`, because `404`
-there would report the operator's mistake as the client's. `throughFile` and
-`rootNotDirectory` in
-[`../../../../web/proof.f.mjs`](../../../../web/proof.f.mjs) pin both, against
-this runner deliberately, because the status differs by platform on a real
-host.
+there would report the operator's mistake as the client's.
 
-That works because `respond` takes its `ENOTDIR` from `stat`, which models it,
-and not from a read, which does not. So the gap is narrow and worth stating
-exactly: **a caller that needs `ENOTDIR` from a read has no fixture here**, and
-`ENOENT` will not substitute — `isNotFound` is `code === 'ENOENT'` and
-`fileResponse` maps it to `404`, so the distinction is simply lost rather than
-reported differently.
+`throughFile` and `rootNotDirectory` in
+[`../../../../web/proof.f.mjs`](../../../../web/proof.f.mjs) pin both against
+this runner rather than a host, for two *different* reasons. Only
+`rootNotDirectory`'s status differs by platform — `500` where a host says
+`ENOTDIR`, `404` where Windows says `ENOENT`. `throughFile`'s does not: it is
+`404` either way, because Windows' `ENOENT` reaches the same answer through
+`isNotFound`. What varies there is whether the `ENOTDIR` branch is exercised at
+all, so a proof reading a real `stat` would cover it on one host and not the
+other.
+
+Against this runner, `respond`'s `ENOTDIR` comes from `stat`, which models it,
+and never from the read, which does not. On a real host the *read* can produce
+it too — `stat` succeeds, a component is replaced by a file, and the separate
+`readFile` fails `ENOTDIR`, which is exactly the race
+[stat-then-read](../../../../web/todo/stat-then-read.md) documents; that error
+reaches `answer` and takes the same root re-check. So the gap is narrower than
+"callers never see this from a read": **no fixture here can produce `ENOTDIR`
+from a read**, and `ENOENT` will not stand in for it — `isNotFound` is
+`code === 'ENOENT'` and `fileResponse` maps it to `404`, so the distinction is
+lost rather than reported differently.
 
 No current plan needs that.
 [stat-then-read](../../../../web/todo/stat-then-read.md) replaces the
@@ -166,7 +176,7 @@ Whichever option is chosen, then:
       [lexical-path-resolution](./lexical-path-resolution.md) first, since
       `readFile('missing/..')` is indistinguishable from `readFile('.')` until
       the walk is physical; give the reads and `writeBytes` `statOp`'s
-      `path === ''` carve-out in the same change; and pin all three of
+      `path === ''` carve-out in the same change; and pin all four of
       `readFile('realdir')` and `readFile('.')` as `EISDIR`, `readFile('')` and
       `readFile('missing/..')` as `ENOENT`. `realdir` is the one that arrives
       by descent rather than through `parse`, so it is the row a fixture built
