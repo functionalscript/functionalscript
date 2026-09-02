@@ -232,8 +232,11 @@ measured that package resolution does not require a generated `types.js`), while
 `tsc --noEmit false --emitDeclarationOnly && tsc`. The blanket `**/*.js` rule is
 gone from `.gitignore`
 ([#1545](https://github.com/functionalscript/functionalscript/pull/1545)) — no
-repository command generates `.js` any more, so it guarded only stale artifacts
-in pre-existing working trees. `**/*.js` deliberately stays in `package.json`'s
+build or packaging command generates repository `.js` any more, so it guarded
+only stale artifacts in pre-existing working trees. `fjs compile` writing a `.js`
+or `.f.js` to a path inside the checkout is now visible as an untracked file
+rather than silently ignored, which is the intended behavior for output a caller
+asked for. `**/*.js` deliberately stays in `package.json`'s
 `files`, because the extension may be used again later; a publish must come from
 a clean checkout either way. Authored `types.ts` files remain.
 

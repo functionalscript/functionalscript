@@ -790,12 +790,12 @@ the three verification items whose last known instances are fixed and measure
 clean. None of those is a pending change to make, so do not read this list as
 the reason the file survives. The file survives because the **stage-2 boundary
 is still ahead**: [End of stage 1](#end-of-stage-1) is what permits
-`module.f.mjs -> module.f.js`, no rename has happened,
-[`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md) is
-**blocked by** this file, and
-[`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) still carries
-"Complete migrate authored TypeScript to `.mjs`" unchecked. Deleting it now
-would orphan both. When stage 2 begins, move the standing conventions into
+`module.f.mjs -> module.f.js`, no rename has happened, that rename waits on
+[`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md) — open, not
+blocked by this file; the reverse dependency was circular and is gone — and
+[`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md), which performs the
+rename, still carries "Complete migrate authored TypeScript to `.mjs`"
+unchecked. Deleting it now would orphan the boundary and that task. When stage 2 begins, move the standing conventions into
 [`fjs/AGENTS.md`](../fjs/AGENTS.md) and
 [`fjs/fsc/README.md`](../fjs/fsc/README.md), re-point the 30 inbound references
 across 16 other files, and delete the file in that change.
@@ -1126,8 +1126,10 @@ person can re-check rather than re-derive. Counts are as of
 - [x] **Then drop the blanket `.gitignore` rule** for generated JavaScript
       (`.gitignore` line 131). Unblocked by
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
-      no repository command generates `.js` any more, so the rule guarded
-      only stale artifacts in pre-existing working trees. Dropped in
+      no build or packaging command generates repository `.js` any more, so the
+      rule guarded only stale artifacts in pre-existing working trees. (`fjs
+      compile` still writes one where a caller asks for it; that output is now
+      untracked rather than ignored.) Dropped in
       [#1545](https://github.com/functionalscript/functionalscript/pull/1545);
       `**/*.js` deliberately stays in `package.json` `files` because the
       extension may be used for other purposes later, so a publish must keep
