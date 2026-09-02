@@ -769,6 +769,14 @@ export const defaultReporter = options => {
         // line stays open. Both are visible rather than silent, the name is on
         // the stream either way, and `summary` closes a line left open by a run
         // that was abandoned.
+        //
+        // **Two complete records was the first form, and was reverted.** A
+        // start naming the test and a result naming it again defends the
+        // splice above, at the price of doubling every line of every run to
+        // keep a case tidy that announces itself when it happens. A non-TTY
+        // consumer does want a record per event, and that is a second format
+        // for a second audience — `todo/tty-and-line-consumers.md` — not a
+        // reason to reinstate it here.
         start: ({ name }) => out(`${name}: `),
         result: (t, _r, throws) =>
             t.status === 'passed'

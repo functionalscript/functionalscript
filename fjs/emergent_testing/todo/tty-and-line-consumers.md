@@ -7,8 +7,8 @@
 
 `fjs t` opens a leaf's line before the leaf runs — `name: ` with no newline —
 and closes it when the leaf lands: `ok, 1.2345 ms`. That is the right shape for
-someone watching a terminal, and it is what
-[report a test's name before running it](report-before-running.md) landed.
+someone watching a terminal, and it is what the start event landed — see
+`defaultReporter`'s `start` in [`../module.f.mjs`](../module.f.mjs).
 
 It is not a record until the newline arrives, and two of the reasons the
 announcement exists are reasons a *consumer* needs it, not a reader:
@@ -55,17 +55,16 @@ into one flag.
 ### Constraints
 
 - **Not two records on a TTY.** Doubling every line to keep a rare splice tidy
-  is the trade [report-before-running](report-before-running.md) reversed
-  deliberately; a non-TTY requirement is not a reason to reinstate it where it
-  was rejected.
+  is a trade that was made once and reverted deliberately — the reason is on
+  `defaultReporter`'s `start` — and a non-TTY requirement is not a reason to
+  reinstate it where it was rejected.
 - **One stream.** Whatever each mode emits still goes to `stdout`, for the
   ordering reason in [reporter modes](211-reporter-modes.md). `stderr` stays
   for a runner crash.
 - **The browser is a third destination**, not a variant of these two: it
-  renders rows, and its pending-row half of
-  [report-before-running](report-before-running.md) is still open. A mode
-  system that only distinguishes TTY from pipe should not make that harder to
-  add.
+  renders a pending row on the same start event and settles it in place. A mode
+  system that only distinguishes TTY from pipe should not make a third
+  destination harder to add.
 - **Whatever a mode emits has to be provable through `effects/node/virtual`**,
   which is neither a TTY nor a pipe but answers `isTTY` either way. A format
   that can only be observed by looking at a real terminal is a format with no
@@ -82,8 +81,8 @@ into one flag.
 
 ### Related
 
-- [report a test's name before running it](report-before-running.md) — where
-  the open-line format came from, and the trade it made
+- `defaultReporter`'s `start` in [`../module.f.mjs`](../module.f.mjs) — where
+  the open-line format is, and the trade it made
 - [reporter modes](211-reporter-modes.md) — the mode system this belongs in,
   including the dynamic-progress reporter a TTY mode overlaps with
 - [test framework silent mode](test-framework-silent-mode.md) — brief progress

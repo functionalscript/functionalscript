@@ -16,7 +16,7 @@
  * @module
  *
  * @import {
- *     BrowserTestReport, Reporter, RunState, TestResult, _BrowserEvent, _BrowserReport,
+ *     BrowserTestReport, Reporter, RunState, TestId, TestResult, _BrowserEvent, _BrowserReport,
  *     _BrowserTestResult, _TestAndPath,
  * } from '../types.ts'
  * @import { Catch, Import, Sandbox, SandboxResult } from '../../effects/common/types.ts'
@@ -82,10 +82,14 @@ const failureOf = async (source, duration, cause) => {
  * failure at different depths: a handler that throws, and a command with no
  * handler at all — `match` panics on the second, inside the same awaited loop.
  *
- * @type {(operations: (map: ToAsyncOperationMap<Catch | _BrowserReport | Sandbox>) => ToAsyncOperationMap<Catch | _BrowserReport | Sandbox>) => (modules: readonly (readonly [string, unknown])[], result?: (result: _BrowserTestResult) => void) => Promise<BrowserTestReport>}
+ * @type {(operations: (map: ToAsyncOperationMap<Catch | _BrowserReport | Sandbox>) => ToAsyncOperationMap<Catch | _BrowserReport | Sandbox>) => (modules: readonly (readonly [string, unknown])[], result?: (result: _BrowserTestResult) => void, start?: (id: TestId) => void) => Promise<BrowserTestReport>}
  */
-export const _runBrowserProofsWith = operations => (modules, result = () => undefined) => {
-    const start = performance.now()
+export const _runBrowserProofsWith = operations => (
+    modules,
+    result = () => undefined,
+    start = () => undefined,
+) => {
+    const began = performance.now()
     // Reporting each result as it lands is the page's own code. A renderer that
     // throws must not take the run down with it: the report it fails to show is
     // the one thing the page is still waiting for.
@@ -104,6 +108,17 @@ export const _runBrowserProofsWith = operations => (modules, result = () => unde
             // The result stays in the report the run resolves with.
         }
     }
+    // The same bargain one event earlier: a renderer that throws while showing
+    // a leaf is *about* to run must not take the run down either, and there is
+    // even less to lose — nothing is recorded from a start.
+    /** @type {(id: TestId) => void} */
+    const announceStart = id => {
+        try {
+            start(id)
+        } catch {
+            // A pending row the page failed to draw changes no outcome.
+        }
+    }
     /** @type {<T, E>(e: Effect<Catch | _BrowserReport | Sandbox, T, E>) => Promise<Result<T, E>>} */
     const run = asyncRun(operations({
         ...commonOperationMap,
@@ -115,6 +130,12 @@ export const _runBrowserProofsWith = operations => (modules, result = () => unde
         // test finishes.
         report: async (/** @type {_BrowserEvent} */ event) => {
             if (event[0] === 'result') { announce(event[1]) }
+            // **The yield after a start is the whole point of the start.** A
+            // row appended inside this handler is in the document either way;
+            // it is on *screen* only if the thread goes back to the browser
+            // before the leaf's body takes it, which is what the await below
+            // — shared with the result event — does.
+            if (event[0] === 'start') { announceStart(event[1]) }
             await macrotask()
             return ok(undefined)
         },
@@ -149,7 +170,7 @@ export const _runBrowserProofsWith = operations => (modules, result = () => unde
         .catch(runnerFailure)
         .then(ended => reportOf(
             navigator.userAgent,
-            performance.now() - start,
+            performance.now() - began,
             toArray(ended === null ? landed : concat(landed)([ended])),
             ended === null ? null : 'infrastructure-error'))
 }
@@ -162,7 +183,12 @@ export const _runBrowserProofsWith = operations => (modules, result = () => unde
  * browser's own `message`/`stack` part — and the resolved report is its
  * run-ended event, with totals folded by the shared `addResult`.
  *
- * @type {(modules: readonly (readonly [string, unknown])[], result?: (result: _BrowserTestResult) => void) => Promise<BrowserTestReport>}
+ * `start` is the same subscription one event earlier, carrying the leaf's
+ * identity before it is sandboxed. A caller that wants only outcomes omits it;
+ * a caller that renders progress uses it, and gets the paint, because the run
+ * yields after announcing.
+ *
+ * @type {(modules: readonly (readonly [string, unknown])[], result?: (result: _BrowserTestResult) => void, start?: (id: TestId) => void) => Promise<BrowserTestReport>}
  */
 export const runBrowserProofs = _runBrowserProofsWith(map => map)
 
@@ -374,12 +400,43 @@ export const renderBrowserReport = (root, report) => {
     }
 }
 
-/** @type {(document: Document, result: _BrowserTestResult) => HTMLLIElement} */
-const renderResult = (document, result) => {
-    const item = document.createElement('li')
+/**
+ * Writes a settled leaf onto a row — the one it has been running in, or a new
+ * one.
+ *
+ * Settling **in place** rather than replacing the node is what keeps a pending
+ * row and its result one row: the element a reader is already looking at is
+ * the element that gains the verdict.
+ *
+ * @type {(item: Element, result: _BrowserTestResult) => void}
+ */
+const settleResult = (item, result) => {
     item.setAttribute('data-status', result.status)
     const detail = result.status === 'failed' ? `: ${result.message}\n${result.stack}` : ''
     item.textContent = `${result.status === 'passed' ? 'PASS' : 'FAIL'} ${result.name} (${result.duration.toFixed(1)} ms)${detail}`
+}
+
+/** @type {(document: Document, result: _BrowserTestResult) => HTMLLIElement} */
+const renderResult = (document, result) => {
+    const item = document.createElement('li')
+    settleResult(item, result)
+    return item
+}
+
+/**
+ * The row a leaf gets while it is running: its name, and no verdict, because
+ * there is none yet.
+ *
+ * `data-status="running"` rather than a missing attribute, so a stylesheet and
+ * a proof can both name the state, and so a row left in it after a run ends is
+ * visibly the test that did not finish.
+ *
+ * @type {(document: Document, id: TestId) => HTMLLIElement}
+ */
+const renderPending = (document, id) => {
+    const item = document.createElement('li')
+    item.setAttribute('data-status', 'running')
+    item.textContent = `RUN  ${id.name}`
     return item
 }
 
@@ -394,10 +451,34 @@ export const startBrowserTests = (root, modules) => {
     const output = root.querySelector('[data-test-results]')
     if (output !== null) { output.replaceChildren() }
     let completed = 0
-    return publish(root, runBrowserProofs(modules, result => {
-        completed += 1
-        const summary = root.querySelector('[data-test-summary]')
-        if (summary !== null) { summary.textContent = `${completed} tests completed…` }
-        if (output !== null) { output.append(renderResult(root.ownerDocument, result)) }
-    }))
+    // The row the running leaf is showing in, so its result can settle **in
+    // place** rather than appending a second row for the same test. One
+    // variable is enough because the run is sequential: a leaf's whole chain
+    // finishes before the next leaf's start event, so there is never more than
+    // one pending row. A concurrent runner would need a row per leaf, and that
+    // is one more thing the sequential run does not have to carry.
+    /** @type {HTMLLIElement | null} */
+    let pending = null
+    return publish(root, runBrowserProofs(
+        modules,
+        result => {
+            completed += 1
+            const summary = root.querySelector('[data-test-summary]')
+            if (summary !== null) { summary.textContent = `${completed} tests completed…` }
+            if (output === null) { return }
+            // A result with no pending row is a leaf that was never announced —
+            // a module that could not be read, or the runner's own failure.
+            // Those are rows too, and appending is right for them.
+            if (pending === null) {
+                output.append(renderResult(root.ownerDocument, result))
+            } else {
+                settleResult(pending, result)
+            }
+            pending = null
+        },
+        id => {
+            if (output === null) { return }
+            pending = renderPending(root.ownerDocument, id)
+            output.append(pending)
+        }))
 }
