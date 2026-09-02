@@ -155,17 +155,39 @@ costs.
 mapping implements, one row per `Info` form, each a function of the form alone
 — and the rule for adding a form is that its row must be, too:
 
-| form | AST |
-|---|---|
-| `['const', c]` | `AST<c>` |
-| `['...', a, b]` | `number` — one symbol leaf |
-| `[n, r]` | `readonly AST<r>[]`, a tuple of length `n` when `n` is a literal |
-| `['*', r]` | `readonly AST<r>[]` — one flat node |
-| `['?', r]` | `['some', AST<r>] \| ['none', []]` |
-| `['+', r]` | `[AST<r>, readonly AST<r>[]]` |
+| form | AST | cardinality |
+|---|---|---|
+| `['const', c]` | `AST<c>` | — |
+| `['...', a, b]` | `number` — one symbol leaf | — |
+| `[n, r]` | `readonly [AST<r>, … ]`, length `n` when `n` is a literal | exactly `n` |
+| `['?', r]` | `readonly [] \| readonly [AST<r>]` | 0 or 1 |
+| `['*', r]` | `readonly AST<r>[]` | 0 or more |
+| `['+', r]` | `readonly [AST<r>, ...AST<r>[]]` | 1 or more |
 
-`[n, r]` and `['*', r]` share a row on purpose: a count is a repetition whose
-length is known, and a consumer that folds one can fold the other.
+**The last four rows are one family.** Every one of them is a flat array of
+`AST<r>`; they differ only in the cardinality they admit, and each is a
+bounded repetition — `[n, r]` is min `n` max `n`, `'?'` is 0..1, `'*'` is
+0..∞, `'+'` is 1..∞. A consumer that folds any of them folds all of them, and
+`.length` is the discriminator in every case, including `'?'`.
+
+This is why `'?'` is `[] | [AST<r>]` rather than a tagged
+`['some', …] | ['none', []]`. The tagged form made an optional a *choice*,
+which put it in a different family from the other three and invented two tag
+names the grammar never asked for; as a length-0-or-1 list it is the same
+thing as the rest, one row shorter, and nothing is lost — an author who wants
+named branches writes the plain `Variant` `{ some: r, none: [] }`, which is
+still an ordinary `Const`. `'+'` follows for the same reason: a flat non-empty
+list, not an item beside a nested repetition.
+
+The consequence for a data layer is worth stating plainly, and it is a
+consequence rather than a decision: **a lowering satisfies this table only if
+it has a form that yields a flat node for each cardinality.** Today's `RuleSet`
+does not — reducing `'?'` to `{ some: r, none: [] }` produces a tagged variant
+node, not a 0-or-1 list. So either the data layer grows a bounded repeat, or
+`'?'` and `'+'` cannot keep these rows. The upside is that one data-layer form
+covers all four: a repeat carrying `min` and `max` subsumes the count, the
+option, the star and the plus, so this table asks for *fewer* data-layer forms
+than the tagged version did, not more.
 
 **Constructors** hide the thunks, the way RTTI's `array(t)` does:
 `repeat0Plus(r)` is `() => ['*', r]`, `range('09')` is
@@ -213,9 +235,10 @@ Stated as requirements on any data layer, since the target is open:
     ([Terminals and EOF](../README.md#terminals-and-eof)); the front end has to
     guarantee it on the authoring side.
   - A bare `number`: an integer in the terminal domain, EOF included.
-  - `['*', r]`: `r` must not match empty — a body that can consume nothing
-    gives the same input infinitely many parses. A body that *reaches* its own
-    repeat is fine: `R = repeat(['(', R, ')'])` is a good grammar, and the
+  - `['*', r]`, and see [Problem 3](#problems-to-resolve-before-implementing)
+    for the rest of the family: `r` must not match empty — a body that can
+    consume nothing gives the same input infinitely many parses. A body that
+    *reaches* its own repeat is fine: `R = repeat(['(', R, ')'])` is a good grammar, and the
     only reason the classical fold refused it is that recognition could not
     tell it apart from a tree.
 - **The AST a rule implies is fixed by the table above**, so a lowering is
@@ -270,8 +293,9 @@ answered, and the last one is the reason the rest are worth answering first.
 keyed by functional rule identity, and `ll1/module.f.mjs:397` asserts that
 every child of a mapped variant is itself mapped ("mixed mapped and unmapped
 variant boundary"). If `['?', r]` is reduced to a two-branch variant whose
-empty branch is a **fresh** `[]`, nobody holds that rule, so mapping a
-`?`-rule cannot satisfy the assertion — there is no reference to attach a
+empty branch is a **fresh** `[]` — which is what today's data layer would
+force, and which the table above no longer describes — nobody holds that rule,
+so mapping a `?`-rule cannot satisfy the assertion — there is no reference to attach a
 transformer to. Today this works only because `none` is a *shared* export
 (`module.f.mjs:230`) that authors can name, and it has not bitten yet only
 because nothing outside proofs uses the transformer path. Options: reduce to
@@ -280,6 +304,12 @@ attach to the `Info` thunk rather than to what it reduces to; or represent the
 form natively in the data layer so nothing is synthesized; or keep `'?'` and
 `'+'` out of `Info` and make `option` / `repeat1Plus` ordinary constructors.
 The choice interacts with the data layer, which is why it is open.
+
+The unified AST family above narrows this a good deal: if a data layer carries
+one bounded-repeat form, `'?'` and `'+'` map onto it directly and **nothing is
+synthesized**, so the unnameable-rule problem does not arise for them at all.
+That is an argument about which data layer to build, not a fix available
+today.
 
 **2. The backend proofs are built with the front end.** `ll1/proof.f.mjs:14`,
 `descent/proof.f.mjs:10`, `data/proof.f.mjs:7` and `matcher/proof.f.mjs:8`
@@ -294,14 +324,28 @@ front end separately proves it produces them, which would make the equivalence
 claim front-end neutral for the first time. It is grammar-bucket's work, not
 this issue's, but this issue cannot be finished without it.
 
-**3. `['?', r]` with a nullable `r` is ambiguous and currently unchecked.** Two
-nullable branches means two parses of empty input, and `emptyTagOf` silently
-takes the last. `'*'` gets a nullable-item error above; the same question
-applies here and to any form that introduces a branch. Reject, or accept and
-document — but silently picking one parse is what this front end exists to
-stop.
+**3. The nullable-item rule belongs to the whole repetition family, not just
+`'*'`.** A nullable `r` makes the cardinality unrecoverable in every one of
+the four forms, not only the star: empty input matches `['?', r]` as both zero
+copies and one empty copy, and matches `[3, r]` as three empty copies
+indistinguishably. Today an optional's version of this resolves silently —
+two nullable variant branches, and `emptyTagOf` takes the last. The validation
+above states the rule for `'*'` alone; it should either cover the family or
+say why a form is exempt. Whichever way, silently picking one parse is what
+this front end exists to stop.
 
-**4. The range-set helpers have an input side too.** The split below covers
+**4. Untagging `'?'` changes the AST of every optional, and the proofs pin
+it.** Under the table above an optional is a 0-or-1 list, where today it is a
+`some`/`none` variant node. Production consumers do not appear to switch on
+those tag names, but `descent/proof.f.mjs` and `ll1/proof.f.mjs` pin them
+throughout their expected-AST strings — the JSON cases at
+`descent/proof.f.mjs:288-296` are dense with `"some"(…)` and `"none"()`. So
+every ported grammar that uses `option` changes shape, and the affected proof
+expectations are rewritten with it. That is the intended improvement rather
+than a regression, but it is a bulk edit that has to be planned, and it is a
+second reason the port is not uniformly shape-preserving.
+
+**5. The range-set helpers have an input side too.** The split below covers
 what `not` returns. But `remove(range(' ' + unicodeMax), set('"\\'))` in the
 JSON grammar now *takes* a `'...'` thunk and a variant of bare numbers, so the
 EBNF-facing helpers have to accept EBNF forms as well as produce them, with
@@ -309,13 +353,13 @@ the packed arithmetic kept behind them. A helper that quietly reads a bare
 number as a packed range is the same silent-misread bug in the other
 direction.
 
-**5. Reduction at the wrong level defeats memoization.** Writing a reduction as
+**6. Reduction at the wrong level defeats memoization.** Writing a reduction as
 functional rules — `['+', r]` as `[r, () => ['*', r]]` — creates a thunk during
 conversion that has no `.name` and no identity an author shares, so it is
 re-converted rather than memoized. A reduction that emits data-layer names
 directly avoids this. Which is available depends on the data layer.
 
-**6. Recursive rules need explicit annotations for `AST<T>` to work.**
+**7. Recursive rules need explicit annotations for `AST<T>` to work.**
 TypeScript will not infer the type of a recursive thunk, so the type-level
 mapping only pays off where the author annotates. Today's `Repeat0Plus<T>` is
 annotated for exactly this reason. Worth confirming on a real recursive
@@ -353,9 +397,10 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       and the type-level `AST<Rule>` mapping from the table, with a proof per
       row that the parser's result has that type. Every form `toData` accepts
       is in `Info`, so the accepted syntax type-checks without a cast.
-- [ ] Answer the six problems above, in the issue, before writing code. 1, 3
-      and 5 gate `toData`; 2 is grammar-bucket's and gates the proofs; 6 gates
-      whether the AST table is checked or merely documented.
+- [ ] Answer the seven problems above, in the issue, before writing code.
+      1, 3 and 6 gate the lowering; 2 is grammar-bucket's and gates the
+      proofs; 4 sizes the port; 7 gates whether the AST table is a checked
+      contract or only a documented one.
 - [ ] Decide, and record here, whether bare `number` and `string` stay in
       `Const`, and how a `string` lowers.
 - [ ] `fjs/grammar/ebnf/module.f.mjs`: the constructors (`option`,
