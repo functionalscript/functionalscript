@@ -28,7 +28,7 @@ import { fold } from '../../common/monoid/module.f.mjs'
 /**
  * Adds two `bigint` values.
  *
- * @type {Reduce} 
+ * @type {Reduce}
  */
 export const addition = additionOp
 
