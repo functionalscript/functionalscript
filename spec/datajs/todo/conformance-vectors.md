@@ -1876,7 +1876,7 @@ document can carry. So the corpus does not store values. It stores a
     that guards with `if (descriptor.get)` passes it straight through and emits
     `{"x":undefined}` — a **valid DataJS document**, since `undefined` is one of
     this format's values, denoting something the input never was. That is
-    [DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle) exactly:
+    [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) exactly:
     an unsupported input answered with a plausible wrong value rather than
     refused. `JSON.stringify` shows the same shape of loss from the other end,
     dropping the property and emitting `{}`. `setter` therefore takes no
