@@ -27,3 +27,4 @@
 - [ ] Investigate using Git Commits instead of Evo
 - [ ] Replace CHANGELOG with a generated from a Website.
   - [ ] Proposal: Create changelog during release.
+- [ ] Reformulate "grab and implement" task. It should focus on priorities.
