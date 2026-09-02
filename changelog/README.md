@@ -38,8 +38,10 @@ today:
   request, `0.45.0` through `0.48.0`. Entries carry no pull-request reference at
   all: the file name is the number. Render a release by joining its files in
   descending pull-request-number order.
-- **`unreleased/<PR>.md`** — the same, for work not yet released. It exists only
-  until the next release consumes it, and is not recreated.
+- **`unreleased/<PR>.md`** — the same, for work not yet released. Nothing adds to
+  it any more, but a pull request opened under the old policy recreates it
+  whenever it merges, so a release consumes it whenever it is non-empty
+  ([RELEASE.md](./RELEASE.md)).
 
 Released files are published history. A `<version>.md` file that is empty
 records a release that shipped no notable change.

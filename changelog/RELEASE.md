@@ -143,8 +143,9 @@ returns nothing there is no work, so the rule costs one command per release and
 retires itself.
 
 Its files as they stand: thirteen declare a break, and four of those — 1811,
-1817, 1824 and 1825 — declare it *nowhere else*, in two different ways: 1824 and 1825 carry no `Changelog:` section in their merge
-bodies at all, while 1811 and 1817 carry one that does not mention the break.
+1817, 1824 and 1825 — declare it *nowhere else*, in two different ways: 1824
+and 1825 carry no `Changelog:` section in their merge bodies at all, while 1811
+and 1817 carry one that does not mention the break.
 The second is the worse failure, because a section that is present reads as
 complete — which is the argument for reading the files rather than trusting a
 section to be exhaustive. Reading only the merge commits would undercount the
@@ -205,10 +206,13 @@ leaving its line out means the next scan calls it new again and it is read and
 deleted on every pass. Keep the record current and each scan reports only what
 changed since the last one.
 
-A file added on `main` after the branch deleted the directory survives the
-release merge — the two sides touched different paths — so
-without this it is both missing from the notes and left behind in a directory
-that is supposed to be gone. See "Transition" below for what happens to the
+The two cases reach the merge differently, and only one is silent. A file
+**added** on `main` after the branch deleted the directory touches a path the
+branch never touched, so it merges cleanly and survives — missing from the notes
+and left behind in a directory that is supposed to be gone. An **amended** entry
+is a modify on `main` against a delete on the branch, which git reports as
+`CONFLICT (modify/delete)`: loud, and therefore not the dangerous one. The
+scan exists for the first. See "Transition" below for what happens to the
 directory.
 
 Most pull requests produce no entry. Internal refactors, test-only changes,
@@ -253,8 +257,9 @@ triggers the `npm publish` workflow. Before merging:
 - [ ] the version in `package.json` matches the changelog file name
 - [ ] every pull request in the window was read, and the count was cross-checked
 - [ ] every `**BREAKING CHANGES:**` declaration is either in an entry or
-      explicitly accounted for as undone — including, for the transitional
-      release, the ones that exist only in `changelog/unreleased/` (step 3)
+      explicitly accounted for as undone — including, whenever
+      `changelog/unreleased/` is non-empty, the ones that exist only there
+      (step 3)
 - [ ] **immediately before merging, fetch and re-run step 2 against
       `origin/main` one last time** — and again after any update from `main`,
       which is *a* reason to re-list rather than the only one. A pull request
@@ -333,4 +338,10 @@ request**. They do not survive as published entries: `changelog/X.Y.Z.md` is
 written by the procedure above, over the whole window, including the pull
 requests that left no file.
 
-After that release, `changelog/unreleased/` does not come back.
+After that release nothing *adds* to `changelog/unreleased/`: the policy that
+created those files is gone. It can still **reappear**, and that is not a
+contradiction — a pull request opened under the old policy carries its entry
+file on its branch and recreates the directory whenever it merges, however long
+after. That is why step 3 is scoped to "whenever the directory is non-empty"
+rather than to this release, and why the check costs one `git ls-tree` in the
+releases where it finds nothing.
