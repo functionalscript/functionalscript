@@ -63,9 +63,16 @@ mixed Stage-1 layout and the type-only source companion:
 
 ```text
 types.ts
+private.ts
 module.f.mjs
 proof.f.mjs
 ```
+
+`private.ts` is what keeps a TypeScript `import type` consumer of `./types.ts`
+in the fixture. Before the proof became `proof.f.mjs` that role belonged to the
+proof itself; the sibling `private.ts` is the permitted authored-TypeScript form
+that can still play it ([`fjs/AGENTS.md`](../../AGENTS.md) §2), and it is the
+shape the repository's own modules use.
 
 The fixture should be outside the published runtime API and should exercise the
 normal test discovery and coverage commands. It was meant to prove the tooling
@@ -89,7 +96,9 @@ dependency on migrating assertion helpers first.
       that imports and tests it through the normal test command.
 - [ ] Add an authored sibling `types.ts` used from JavaScript with JSDoc
       `@import` and from TypeScript with `import type`, both through the same
-      `./types.ts` source path.
+      `./types.ts` source path. The TypeScript side is a sibling `private.ts`,
+      since the proof is `proof.f.mjs` and no other authored TypeScript form is
+      permitted.
 - [ ] Verify the fixture type-checks under `tsc` with the Stage-1
       `allowJs` / `checkJs` configuration.
 - [ ] Verify the same fixture type-checks and runs under Deno, so the convention

@@ -19,8 +19,10 @@ today. Note what `.f.mjs` does and does not mean, per
 JavaScript and does **not** promise that the compiler in the same repository
 revision accepts the module. That promise is what the stage-2 `.f.js` marker
 will carry, so the extension this command accepts becomes `.f.js` for renamed
-modules once stage 2 begins. `.f.js` is not generated output — nothing in the
-repository emits it — so it is not excluded on that basis.
+modules once stage 2 begins. `.f.js` is not generated output either — no build
+or packaging step produces repository `.f.js` source — so it is not excluded on
+that basis. (`fjs compile` does write one wherever a caller names it as the
+output path; that is the compiler's output for a user, not repository source.)
 
 The generated compiler source is **committed to git** and packaged by cargo
 like any other source file, so consumers build pure Rust with no build
