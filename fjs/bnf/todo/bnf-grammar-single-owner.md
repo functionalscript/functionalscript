@@ -64,9 +64,12 @@ When the split rebases [`fjs/bnf/lib/json`](../lib/json/module.f.mjs) and
 [`fjs/bnf/lib/datajs`](../lib/datajs/module.f.mjs) onto the API it produces, the
 boundary it must leave visible is:
 
-- generic grammar structure and combinators come from `fjs/bnf/module.f.mjs`;
+- generic grammar structure and combinators come from the front end —
+  `fjs/bnf/module.f.mjs` while it lives there, `fjs/grammar/bnf/module.f.mjs`
+  after [grammar-bucket](../../todo/grammar-bucket.md) stage 5 moves it;
 - all JavaScript-string / Unicode-code-point interpretation comes from
-  `fjs/grammar/unicode/module.f.mjs`;
+  `fjs/grammar/unicode/module.f.mjs`, which that plan's stage 2 creates at
+  that path directly;
 - raw strings are not generic BNF rules. Text literals such as `"`, `\`, `/`,
   punctuation, keywords, and character sets are lowered through Unicode helpers
   before they enter the generic grammar.

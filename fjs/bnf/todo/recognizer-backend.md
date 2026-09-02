@@ -283,8 +283,13 @@ Bigger automata are built from BNF pieces in two complementary ways:
 - [x] Move the parsers out of `fjs/bnf/data` into their own modules
       (`fjs/bnf/ll1` for the current dispatch/matcher, `fjs/bnf/descent` for the
       recursive descent matcher), leaving `fjs/bnf/data` as the pure serializable
-      IR; new backends land as sibling modules (`fjs/bnf/recognizer`,
-      `fjs/bnf/dfa`)
+      IR; new backends land as sibling modules — **`fjs/grammar/recognizer` and
+      `fjs/grammar/dfa`**, at those paths directly. Both execute grammars, so
+      they belong to the bucket
+      ([grammar-bucket](../../todo/grammar-bucket.md)); this issue is blocked
+      only until that plan's stage 2, so it can land before the other modules
+      move, and creating them under `fjs/bnf/` first would cost a second
+      breaking path change
 - [ ] Use the existing `Scan` family as the streaming contract (no new type):
       `Fold<I, S>` for the physical-symbol recognizer step and
       `StateScan<I, S, O>` for a transducer; drivers `foldScan` / `stateScan` /

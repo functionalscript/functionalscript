@@ -3,10 +3,15 @@
 **Priority:** P3
 **Status:** blocked
 **Blocked by:**
-- [grammar-bucket](../../todo/grammar-bucket.md) stages 1-4 — the dependency
-  inversion: the neutral modules must stop importing the classical front end,
-  in type as well as at runtime, before a second front end can share them.
-  The later moves of the already-neutral modules are not a prerequisite.
+- [grammar-bucket](../../todo/grammar-bucket.md) stages 1-**5** — the
+  dependency inversion: the neutral modules must stop importing the classical
+  front end, in type as well as at runtime, before a second front end can
+  share them. Stage 5 is included because `data/` is not neutral until it
+  runs: `toData`, `RuleNameMap` and `GrammarData` name the classical `FRule`
+  and only leave `data/` when the front end moves, so an `ebnf` that imported
+  the shared data utilities before that would take on exactly the dependency
+  this blocker exists to remove. Stage 6's moves of the already-neutral
+  modules are not a prerequisite.
 - [unicode-rules](./unicode-rules.md), for the `fjs/grammar/unicode/` adapter
   this front end takes every text terminal from.
 
@@ -178,7 +183,7 @@ mapping implements, one row per `Info` form, each a function of the form alone
 |---|---|
 | `['const', c]` | `AST<c>` |
 | `['range', a, b]` | `number` — one symbol leaf |
-| `['repeat', min, max, r]` | `readonly AST<r>[]`, refined to a fixed-length tuple when `min` and `max` are equal literals |
+| `['repeat', min, max, r]` | `Repeat<min, max, AST<r>>`, below |
 
 `Const` forms, which the table above delegates to and which an author writes
 far more often:
@@ -199,6 +204,32 @@ One row now covers what four did. Every repetition is a flat array of
 including the optional, and a consumer that folds one folds all of them. That
 is the substance of collapsing the sugar: not fewer characters, but one shape
 where there were four.
+
+**One form does not mean one type.** Collapsing to `readonly AST<r>[]` for
+every unequal bound would throw away what the bounds state — an optional would
+admit an array of any length, and a one-or-more would admit an empty one —
+which is the type-level contract this design exists to keep. The row is a
+conditional that reads the bounds it is given:
+
+```ts
+type Repeat<Min, Max, T> =
+      [Min, Max] extends [0, 'Infinity'] ? readonly T[]
+    : Max extends 'Infinity'             ? readonly [T, ...readonly T[]]  // Min >= 1
+    : Min extends Max                    ? Tuple<Min, T>                  // exactly Min
+    : Union of Tuple<n, T> for Min <= n <= Max
+```
+
+so `option(r)` is `readonly [] | readonly [AST<r>]`, `repeat1Plus(r)` is a
+non-empty tuple, `times(4)(r)` is a 4-tuple, and only a non-literal bound
+degrades to `readonly AST<r>[]`. A lower bound above one is expressible too —
+`Min` copies followed by a rest element — and whether to spell that precisely
+or stop at "non-empty" is a detail for the implementation.
+
+The last line is the one to watch: a union of tuples is exact for a narrow
+span like `0..1` or `2..3` and explodes for a wide one. Cap it, and fall back
+to `readonly T[]` beyond the cap — a cap of a handful is enough for every
+bounded span a real grammar writes. Confirm the cap when `Repeat` is written;
+it is the only part of this row that trades precision for practicality.
 
 It is also why an optional is a length-0-or-1 list rather than a tagged
 `['some', …] | ['none', []]`. The tagged form made an optional a *choice*,
@@ -366,9 +397,21 @@ Stated as requirements on any data layer, since the target is open:
 values are packed ranges — straight into a rule position. Once a bare number
 in a rule means a symbol, that object is misread: every branch is taken as a
 single symbol, silently, with no type error. So they cannot hand packed
-numbers to this front end. The alphabet-neutral set arithmetic on packed
-ranges stays in `terminal/` unchanged, used by `toData` and the backends; the
-EBNF-facing `not(v)` wraps each surviving range as `() => ['range', a, b]`.
+numbers to this front end.
+
+The split is by *layer*, and the two halves must not share a name. `terminal/`
+owns the set arithmetic over packed ranges — `remove`, and a complement over
+`RangeVariant` — used by lowerings and backends. The front end needs
+complementation over **rules**, which is a different signature: it takes and
+returns EBNF forms, and is built on the `terminal/` arithmetic rather than
+duplicating it. Give it a name of its own (`notOf`, say) rather than a second
+public `not`; two exports with one name in one bucket is what the reviewer of
+this section is right to reject, and a re-export is barred by the
+no-compatibility-re-export rule. The same applies to `remove`: the front-end
+one takes a `'range'` form and a variant of bare symbols and returns rules.
+
+Whether the EBNF-facing helpers live in `ebnf/` or in `unicode/` is not
+settled here — see [Problem 9](#problems-to-resolve-before-implementing).
 Small, but it fails quietly if forgotten, so it is a named task.
 
 #### What it changes downstream
@@ -436,17 +479,28 @@ front end separately proves it produces them, which would make the equivalence
 claim front-end neutral for the first time. It is grammar-bucket's work, not
 this issue's, but this issue cannot be finished without it.
 
-**3. The nullable-body rule is stated but not yet justified per bound.** A
-nullable `r` makes the cardinality unrecoverable at every bound, not only at
-`0..Infinity`: empty input matches `['repeat', 0, 1, r]` as both zero copies
-and one empty copy, and `['repeat', 3, 3, r]` as three empty copies
-indistinguishably. The validation above rejects a nullable body outright,
-which is the strong reading and the one collapsing to a single form makes
-natural. What is unconfirmed is whether any bound deserves an exemption — the
-classical front end resolves the optional's version of this silently, two
-nullable variant branches with `emptyTagOf` taking the last, so there is no
-precedent to copy. Confirm or carve out, but do not leave it to resolve
-silently.
+**3. A nullable body is two different problems, and only one of them is
+fatal.** The validation above rejects a nullable `r` at every bound, and that
+conflates two cases:
+
+- **Unbounded max.** A body that can consume nothing loops forever, or is
+  stopped only by a matcher's zero-consumption guard
+  ([`../descent/README.md`](../descent/README.md#repetition-is-flat)). This is
+  non-termination and must stay rejected.
+- **Bounded max.** The count is fixed, so nothing loops: `['repeat', 3, 3, r]`
+  invokes `r` exactly three times whatever it matches. What remains is
+  *ambiguity*, and only when `r` can match both empty and non-empty — for
+  input `x` with a body matching `""` or `"x"`, `['repeat', 2, 2, r]` parses as
+  `(x, "")` or `("", x)`. If `r` matches *only* empty, even that is
+  unambiguous.
+
+So rejecting a nullable body at a bounded max forbids grammars that are
+perfectly well defined, `times(3)(option(x))` among them. The choices are to
+reject only at unbounded max, to reject the genuinely ambiguous case (a body
+that is nullable *and* can consume), or to keep the blanket rule for
+simplicity and document what it costs. What must not survive is the current
+text's stated reason — "makes the cardinality unrecoverable" — which is simply
+false at a bounded max, where the cardinality is the bound.
 
 **4. The optional's AST changes, and the proofs pin the old one.** Under the
 table above an optional is a 0-or-1 list, where today it is a `some`/`none`
@@ -515,6 +569,26 @@ one means the tables describe the *shape* a `{ tag, sequence }` tree has, and
 smaller change and probably what was meant, but nothing in this issue says so,
 which is how it went eight revisions without being noticed.
 
+**9. One alphabet adapter cannot return both representations.** The
+adapters serve *both* front ends while they coexist, and the two want
+different values from the same call. `range('09')` is a packed `TerminalRange`
+to the classical front end and `() => ['range', 0x30, 0x39]` to this one;
+`set('abc')` is a variant of packed singletons there and a variant of bare
+symbols here. Whichever it returns, the other front end double-encodes or
+rejects it.
+
+That is a real conflict, not a naming one, and the plan does not currently
+say how it is resolved. The shapes available: an alphabet module that exposes
+only *decoding* (text to code points) with each front end building its own
+rules on top; or one adapter with a per-front-end constructor layer over a
+shared core; or duplicated adapters for the coexistence window, which
+contradicts the single-owner rule that
+[unicode-rules](./unicode-rules.md) exists to enforce.
+
+It has to be answered before any grammar is ported, since the port is exactly
+the moment both front ends need the same helper. It also decides where the
+EBNF-facing `notOf` / `remove` from the section above live.
+
 #### Left for later, deliberately
 
 A separated repeat (a flat item list with the separators dropped) is worth
@@ -538,10 +612,11 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       is in `Info`, so the accepted syntax type-checks without a cast.
 - [ ] Answer the open question above: what a `string` means, and whether the
       answer is global or the alphabet adapter's.
-- [ ] Answer the eight problems above, in the issue, before writing code.
+- [ ] Answer the nine problems above, in the issue, before writing code.
       8 comes first — the AST tables cannot be finished without it, and 4 and
       7 both depend on its answer. Then 1, 3 and 6 gate the lowering; 2 is
-      grammar-bucket's and gates the proofs; 4 sizes the port.
+      grammar-bucket's and gates the proofs; 4 sizes the port; 9 gates the
+      first grammar port and the helper split below.
 - [ ] Add a proof that no `Const` in a grammar is an array whose head is
       `'const'`, `'range'` or `'repeat'` — the forgotten-thunk case the type
       system cannot catch now that bare strings are `Const`.
@@ -555,15 +630,19 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       `str`, `notSet` — belong to the alphabet adapter at
       `fjs/grammar/unicode/`, which this module depends on and does not
       contain ([unicode-rules](./unicode-rules.md)).
-- [ ] Split the range-set helpers: packed-range set arithmetic stays in
-      `terminal/`; the EBNF `not` wraps each range as `() => ['range', a, b]`.
+- [ ] Split the range-set helpers by layer: packed-range arithmetic stays in
+      `terminal/`; the rule-level complement is a distinctly *named* front-end
+      helper built on it, never a second `not` or a re-export.
 - [ ] `fjs/grammar/ebnf/rtti/`: the rule-info map without `repeatItem`.
 - [ ] Proofs: every constructor, every `Info` form written directly rather than
       through a constructor, each bound shape — `0..1`, `0..Infinity`,
       `1..Infinity`, `n..n`, `n..m` — and the degenerate `0..0` and `1..1`,
-      every lowering error, and the `descentEquivalence`
-      cases re-expressed in `ebnf`, producing the same `RuleSet` as their
-      `bnf` originals.
+      every lowering error, and the `descentEquivalence` cases re-expressed in
+      `ebnf`. Those compare **backend results**, not rule sets: requiring an
+      identical `RuleSet` would be requiring the port to reproduce shapes this
+      design deliberately changes — every optional, which is now a 0-or-1 list
+      rather than a `some`/`none` variant. Each case states whether its AST is
+      expected to match the `bnf` original or to differ, and how.
 - [ ] Port `fjs/grammar/lib/json` (its `\uXXXX` rule becomes `times(4)(hex)`,
       i.e. `['repeat', 4, 4, hex]`),
       then `lib/datajs`, then the `djs` tokenizer and parser, then

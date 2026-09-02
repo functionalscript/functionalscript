@@ -1,7 +1,13 @@
 ## Separate alphabet-specific BNF helpers
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:**
+- [grammar-bucket](../../todo/grammar-bucket.md) stage 1, which creates
+  `fjs/grammar/terminal/` and moves `TerminalRange`, `rangeEncode` and
+  `rangeDecode` into it. The adapters this issue creates are built on those,
+  and their final paths (`fjs/grammar/unicode/`, `fjs/grammar/byte/`) only
+  exist once the bucket does. This issue is that plan's stage 2.
 
 ### Problem
 
