@@ -88,7 +88,14 @@ that have to change, deliberately, with it.
 
 - `statPath` in [`../module.f.mjs`](../module.f.mjs) — the `ENOTDIR` argument
   this diverges from, made for `stat` and not carried to the reads.
+- [lexical-path-resolution](./lexical-path-resolution.md) — the closest
+  relative, and traversal rather than kind: `..` collapses lexically here where
+  a host walks the path, so `readFile('missing/../real.txt')` answers where a
+  host says `ENOENT`. Its proposal already carries this issue's ordering, from
+  the descent side rather than the leaf side — "fail with `ENOENT` when a
+  component is missing, and with `ENOTDIR` when one is a file" — so the two
+  want deciding together, or the second will contradict the first.
 - [dirent-kinds](./dirent-kinds.md) and
-  [jsmodule-read-policy](./jsmodule-read-policy.md) — the other two places this
+  [jsmodule-read-policy](./jsmodule-read-policy.md) — two more places this
   runner answers something a host would not, both about entry *kind* rather
   than traversal.

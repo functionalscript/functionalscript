@@ -191,10 +191,19 @@ const jsModuleNotAFile = name => fail(`'${name}' is not a file`)
  *
  * **`p` is what is left after `operation` descended**, so one segment is the
  * entry itself and anything else is a path this file system cannot hold a file
- * at: `operation` stops at the first name that is not a directory, so a longer
- * `p` means the name before it was not one, and an empty `p` means the whole
- * path was a directory. Both answer `ENOENT`, which is what a host says for
- * `readFile` of a name it has no file at.
+ * at. `operation` hands the op the whole remaining path in *two* situations —
+ * the first name is absent, or it exists and is not a directory — so a longer
+ * `p` means one of those rather than specifically the second; an empty `p`
+ * means the path named a directory.
+ *
+ * **All three answer `ENOENT` here, and a host answers three different
+ * things**: `ENOENT` only for the absent name, `ENOTDIR` for a path through a
+ * non-directory, `EISDIR` for a read of a directory. `stat` models the second
+ * — see {@link statPath}, which asks presence *before* length for exactly this
+ * reason — so the reads disagree with `stat` in this same file as well as with
+ * a host. That is
+ * [reads-enotdir-through-a-file](./todo/reads-enotdir-through-a-file.md); until
+ * it is settled, this says what the runner does rather than what a host would.
  *
  * `stat` is not a caller. It *reports* what a name holds rather than reading
  * it, so all three failures here are successes there — `directory`,
