@@ -67,8 +67,9 @@ type Sequence = readonly Rule[]
 type Variant  = { readonly [k in string]?: Rule }
 type Thunk    = () => Info
 type Info     =
+    | readonly ['const', Const]          // the escape: a plain rule behind a thunk
     | readonly ['...', number, number]   // the inclusive range of symbols a..b
-    | readonly [number, Rule]            // n copies of the rule
+    | readonly [number, Rule]            // n copies of the rule, always a sequence
     | readonly ['*', Rule]               // zero or more
     | readonly ['?', Rule]               // optional
     | readonly ['+', Rule]               // one or more
@@ -100,15 +101,22 @@ dispatch on; it simply stops being something an author writes. `toData` lowers
 "one meaning per layer" the data README already accepts for `string`: a
 functional `number` is a symbol, a data `number` is a packed range.
 
-**Counts.** `[n, r]` is `n` copies of `r`, lowered as concatenation in the
-monoid sense: `[0, r]` is `[]`, `[1, r]` is **`r` itself**, and `[n, r]` for
-larger `n` is a sequence of `n` references. The `1` case is what makes this
-form double as RTTI's `['const', c]` escape — `() => [1, [digit, digits]]` is
-"this sequence, once", which is exactly what a const wrapper says — so there
-is no separate const tag. It has to be lowered as `r` and not as the
-one-element sequence `[r]`: the latter would wrap `r` in an anonymous rule and
-add a level to the AST, at which point it is no longer an escape. The JSON
-grammar already wants this form for `\uXXXX`, which it spells today as
+**The escape.** `['const', c]` is RTTI's escape under RTTI's name: a plain
+rule behind a thunk, so a recursive sequence or variant is
+`() => ['const', [digit, digits]]`. Every plain recursive rule pays it, and
+nearly every named rule is a thunk, so it is paid a lot. That is the price of
+the uniform return, and RTTI pays exactly the same one.
+
+**Counts.** `[n, r]` is `n` copies of `r`, and it is a sequence for **every**
+`n`: `[0, r]` is `[]`, `[1, r]` is the one-element sequence `[r]`, `[n, r]` is
+`n` references. An earlier draft lowered `[1, r]` to `r` itself so the count
+form could double as the escape and save the `'const'` tag. That was wrong for
+the reason ebnf exists: the AST has to be a *function of the rule's type*, and
+under that lowering `() => [number, Rule]` mapped to `AST<r> | AST<r>[]`, two
+shapes decided by a value — the repeat-recognition ambiguity again, moved into
+the count. No numeric tag can be the escape for the same reason; `0` has the
+identical defect at a different value. The JSON grammar already wants the
+count form for `\uXXXX`, which it spells today as
 `...repeat(4)({ digit, AF, af })`, a list-level `repeat` spread into a
 sequence; `() => [4, hex]` is that as a grammar form.
 
@@ -119,6 +127,22 @@ changes the AST contract — one flat node instead of a cons chain
 `['?', r]` to `{ some: r, none: [] }`, the node shapes `option` produces
 today, and `['+', r]` to `[r, () => ['*', r]]`. So the backends grow no case,
 and a grammar still reads like EBNF.
+
+**The AST is a function of the form.** This is the contract the type-level
+mapping implements, one row per `Info` form, each a function of the form alone
+— and the rule for adding a form is that its row must be, too:
+
+| form | AST |
+|---|---|
+| `['const', c]` | `AST<c>` |
+| `['...', a, b]` | `number` — one symbol leaf |
+| `[n, r]` | `readonly AST<r>[]`, a tuple of length `n` when `n` is a literal |
+| `['*', r]` | `readonly AST<r>[]` — one flat node |
+| `['?', r]` | `['some', AST<r>] \| ['none', []]` |
+| `['+', r]` | `[AST<r>, readonly AST<r>[]]` |
+
+`[n, r]` and `['*', r]` share a row on purpose: a count is a repetition whose
+length is known, and a consumer that folds one can fold the other.
 
 **Constructors** hide the thunks, the way RTTI's `array(t)` does:
 `repeat0Plus(r)` is `() => ['*', r]`, `range('09')` is
@@ -207,16 +231,18 @@ beyond the `Info` forms above, so the two do not drift while both exist.
 ### Tasks
 
 - [ ] `fjs/grammar/ebnf/types.ts`: the `Rule` / `Const` / `Thunk` / `Info`
-      union above, and the `Repeat0Plus` / `Repeat1Plus` / `Join*` types over
-      it. Every form `toData` accepts is in `Info`, so the accepted syntax
-      type-checks without a cast.
+      union above, the `Repeat0Plus` / `Repeat1Plus` / `Join*` types over it,
+      and the type-level `AST<Rule>` mapping from the table, with a proof per
+      row that the parser's result has that type. Every form `toData` accepts
+      is in `Info`, so the accepted syntax type-checks without a cast.
 - [ ] Decide, and record here, whether bare `number` and `string` stay in
       `Const`, and how a `string` lowers.
 - [ ] `fjs/grammar/ebnf/module.f.mjs`: the constructors (`option`,
       `repeat0Plus`, `repeat1Plus`, `times`, `join0Plus`, `join1Plus`, and the
       EBNF-facing `not`) and `toData` / `toDataWithRules`: `'*'` transcribed,
-      `'?'` and `'+'` desugared, `[n, r]` lowered as concatenation with
-      `[1, r]` as `r`, `'...'` and `number` lowered through `terminal/`, and
+      `'?'` and `'+'` desugared, `['const', c]` unwrapped, `[n, r]` lowered
+      to a sequence of `n` for every `n`, `'...'` and `number` lowered through
+      `terminal/`, and
       the four errors above. The text-interpreting helpers — `range`, `set`,
       `str`, `notSet` — belong to the alphabet adapter at
       `fjs/grammar/unicode/`, which this module depends on and does not
@@ -226,7 +252,8 @@ beyond the `Info` forms above, so the two do not drift while both exist.
 - [ ] `fjs/grammar/ebnf/rtti/`: the rule-info map without `repeatItem`.
 - [ ] Proofs: every constructor, every `Info` form written directly rather than
       through a constructor, `[0, r]` / `[1, r]` / `[n, r]` producing `[]` /
-      `r` / a sequence, every `toData` error, and the `descentEquivalence`
+      `[r]` / a sequence of `n`, every `toData` error, and the
+      `descentEquivalence`
       cases re-expressed in `ebnf`, producing the same `RuleSet` as their
       `bnf` originals.
 - [ ] Port `fjs/grammar/lib/json` (its `\uXXXX` rule becomes `times(4, hex)`),
@@ -242,8 +269,8 @@ beyond the `Info` forms above, so the two do not drift while both exist.
   lands in and the dependency inversion it needs.
 - [`fjs/rtti/types.ts`](../../rtti/types.ts) — the eDSL shape this union
   copies: `Type = Const | Thunk`, plain values used directly, a thunk always
-  returning a tagged tuple, `['const', c]` as the escape that `[1, r]` plays
-  here.
+  returning a tagged tuple, and `['const', c]` as the escape, kept under the
+  same name here.
 - [the `repeat` rule](../data/README.md#the-repeat-rule) — the recognition
   this front end makes unnecessary; `detectRepeat` survives as opt-in.
 - [unicode-rules](./unicode-rules.md) — owns the text lowering; whether
