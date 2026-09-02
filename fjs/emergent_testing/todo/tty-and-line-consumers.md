@@ -74,10 +74,12 @@ into one flag.
   renders a pending row on the same start event and settles it in place. A mode
   system that only distinguishes TTY from pipe should not make a third
   destination harder to add.
-- **Whatever a mode emits has to be provable through `effects/node/virtual`**,
-  which is neither a TTY nor a pipe but answers `isTTY` either way. A format
-  that can only be observed by looking at a real terminal is a format with no
-  proof.
+- **A format that can only be observed by looking at a real terminal has no
+  proof.** For the **stream** modes this issue is about, the prover is
+  `effects/node/virtual`, which is neither a TTY nor a pipe but answers
+  `isTTY` either way. Scoped to those deliberately: the browser destination
+  above is proven by its own DOM stand-in, which the Node runner cannot observe
+  at all.
 
 ### Tasks
 
