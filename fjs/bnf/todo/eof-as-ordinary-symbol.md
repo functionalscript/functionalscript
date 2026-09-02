@@ -119,24 +119,41 @@ is at stake.
       tidy-up.
 - [ ] Say what a caller's completeness check compares against (see the open
       question), since the two entry points above each have one.
-- [ ] Prove a caller that omits EOF, and one that sends it early or twice. The
-      contract used to make all three unrepresentable; now they are ordinary
-      input a grammar rejects, and that should be pinned rather than assumed.
+- [ ] Prove a caller that omits EOF, and one that sends it early or twice —
+      once the open question below says what those *should* do. The contract
+      used to make all three unrepresentable; whether they are now failures or
+      merely unconsumed input depends on that answer, so this proof cannot be
+      written before it.
 
 ### Open question
 
-**What does a caller's completeness check compare against?** `fjs/djs/tokenizer`
-asks `len !== cp.length` to mean "the match consumed everything". With EOF
-appended the answer depends on the grammar, and the Proposal above makes both
-readings legal: a grammar naming `eof` consumes it and ends at the extended
-length, while one that does not leaves EOF unconsumed — which the Proposal calls
-success, one short of the extended length. So there is no single comparison that
-is right for every caller.
+**Must a grammar that parses a whole input name `eof`?** One unmade decision,
+showing up in three places, which is why it is worth deciding once rather than
+patching each.
 
-Either the check is stated per grammar, or grammars parsing a whole input are
-required to name `eof` so that "consumed everything" has one meaning. The second
-is tempting and is a real constraint on grammar authors, so it should be decided
-rather than absorbed into whichever comparison the first caller happens to need.
+The Proposal says a grammar that never mentions `eof` leaves it unconsumed and
+that this is success. That is free for a parser backend and costs machinery
+everywhere else:
+
+- **The completeness check.** `fjs/djs/tokenizer` asks `len !== cp.length` to
+  mean "consumed everything". A grammar naming `eof` ends at the extended
+  length; one that does not ends one short. No single comparison is right for
+  both.
+- **Malformed streams.** An omitted EOF parses identically for such a grammar,
+  and an early one can be left unconsumed under prefix matching — so "a grammar
+  rejects them" is not true, and a proof asserting it would fail.
+- **The recognizer.** A `Fold<Symbol, State>` consumes every symbol, so folding
+  a trailing EOF a grammar does not name drives an accepting state into the
+  sink (see [recognizer-backend](./recognizer-backend.md)).
+
+Requiring `eof` gives "consumed everything" one meaning, makes an omitted or
+misplaced marker a real parse failure, and removes the recognizer's special
+case. The cost is a genuine constraint on grammar authors and a rule that must
+be stated, not discovered. The alternative is an exactly-one-final-EOF check at
+the driver boundary, which every caller then owes.
+
+Deciding this closes all three; leaving it open means each caller invents its
+own answer, which is how `splitEof` came to exist.
 
 ### What a prototype found
 
@@ -145,9 +162,20 @@ bind the implementation.
 
 **The backend half is small and it works.** `pos <= cp.length` becomes
 `pos < cp.length` and `pos > cp.length` becomes `pos >= cp.length`; `symbolAt`
-and `leafAt` lose their conditionals; `physicalIdx` and the extended cursor
-delete. Both backends and the matcher typecheck clean, and the 3,600-odd tests
-that do not involve `eof` keep passing untouched.
+loses its conditional; `physicalIdx` and the extended cursor delete. Both
+backends and the matcher typecheck clean, and the 3,600-odd tests that do not
+involve `eof` keep passing untouched.
+
+**`leafAt` is the exception, and this prototype got it wrong** — it dropped the
+conditional too, which is what a *leaf* answer wants and the Proposal rejects.
+`leafAt` today is `pos < input.length ? [input[pos]] : []`, excluding EOF by
+*position*, and once EOF is a real element that position test admits it. Under
+no-leaf the condition does not go away, it changes shape: EOF is excluded by
+*symbol*, so `leafAt` needs the `symbolOf` reader `symbolAt` already takes. Both
+native terminal paths — [`../ll1/module.f.mjs`](../ll1/module.f.mjs) and
+[`../descent/module.f.mjs`](../descent/module.f.mjs), each
+`mrSuccess(tag, leafAt(cp, pos), pos + 1)` — go straight through it, so getting
+this wrong is exactly the unchanged-AST guarantee failing.
 
 **The cost is not there. It is the AST leaf**, which turns out to decide the
 whole size of the change. Taking "a parser does not treat it specially" to mean
