@@ -17,7 +17,7 @@ This design predates the alphabet split. Its shared `number` fixture currently
 constructs Unicode terminals with core `range('--')` / `range('09')`, and its
 import analysis assumes `fjs/bnf/testlib.f.mjs` obtains text helpers from
 `./module.f.mjs`. After the split, text/range construction belongs to
-`fjs/bnf/unicode/module.f.mjs`. Do not implement the fixture extraction against
+`fjs/grammar/unicode/module.f.mjs`. Do not implement the fixture extraction against
 the old core API: rebase the fixture imports on `bnf/unicode` first while keeping
 the recognizer backends themselves generic.
 
@@ -74,7 +74,7 @@ const numberRule = [optionalMinusRule, digitRule]
 ```
 
 The fixture remains a Unicode/text fixture, so after the alphabet split the
-`range` used here must come from `fjs/bnf/unicode/module.f.mjs` (or the equivalent
+`range` used here must come from `fjs/grammar/unicode/module.f.mjs` (or the equivalent
 final Unicode adapter API), **not** from core `fjs/bnf/module.f.mjs`. The produced
 rules are still ordinary generic BNF rules consumed by descent/LL1.
 
@@ -148,7 +148,7 @@ explicit named override list for the rows where token-stream acceptance differs.
 ### Tasks
 
 - [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase
-      `fjs/bnf/testlib.f.mjs` text/range imports on `fjs/bnf/unicode/module.f.mjs`;
+      `fjs/bnf/testlib.f.mjs` text/range imports on `fjs/grammar/unicode/module.f.mjs`;
       do not import Unicode `range` from core `./module.f.mjs`.
 - [ ] Add `Case`, `Recognition`, `assertRecognizes`, and the two recognizer
       adapters to `fjs/bnf/testlib.f.mjs` (or per-backend testlibs if the import

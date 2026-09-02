@@ -137,43 +137,67 @@ backwards import standing:
    once that issue is repointed at this owner. The text-interpreting helpers
    are untouched — they are `unicode/`'s, and
    [unicode-rules](../bnf/todo/unicode-rules.md) moves them.
-2. **Genericize the transformer protocol** over the rule identity.
+2. **`fjs/grammar/unicode/`** — the text alphabet split that
+   [unicode-rules](../bnf/todo/unicode-rules.md) designs, landed **directly at
+   its final path** (with `byte/` beside it if
+   [recognizer-backend](../bnf/todo/recognizer-backend.md) needs it by then).
+   It has to be here, not late: `token_symbol/module.f.mjs` uses
+   `unicodeRange` to place token symbols above Unicode, so until `unicode/`
+   exists `token_symbol` cannot be pointed away from the front end, and stage
+   5 would leave it importing `fjs/grammar/bnf/` — the one backwards import
+   this order exists to avoid. The front end keeps its combinators and simply
+   depends on `unicode/` from here on.
+3. **Genericize the transformer protocol** over the rule identity.
    `matcher/types.ts` types `Entry.rule`, `TransformerMap.entries`, the
    `repeat` arm of `Transformer`, and `TransformerTools.entry` / `repeatOf`
    with the classical `Rule`. The matcher never inspects a rule it is keyed
    by — the identity is an opaque map key — so these become generic over `R`,
    and each front end instantiates them at its own `Rule`. Types only: no
    path moves, no runtime change.
-3. **Backends over `RuleSet` only.** Drop `parser(fr)` and
+4. **Backends over `RuleSet` only.** Drop `parser(fr)` and
    `descentParser(fr)` or re-home them in the front end; `parserRuleSet` and
    `descentParserRuleSet` stay. The LL(1) `transformers` builder takes the
    grammar data as an argument instead of converting. Signatures only, and
-   sound only after 2 has removed the type-level dependency.
-4. **`fjs/grammar/bnf/`** — move the classical front end (`module.f.mjs`,
+   sound only after 3 has removed the type-level dependency.
+5. **`fjs/grammar/bnf/`** — move the classical front end (`module.f.mjs`,
    `types.ts`, `map/rtti/`, `testlib.f.mjs`) to its final path **and** carry
    `toData`, `toDataWithRules`, `data/private.ts`, `RuleNameMap`,
    `GrammarData`, and `repeatItem` into it from `data/` in the same change.
    One change for both, because splitting them is exactly what would move
    `toData` twice. After it, `data/types.ts` has no front-end import and the
    remaining `fjs/bnf/*` modules are neutral.
-5. **The neutral modules** — `data/`, `matcher/`, `ll1/`, `descent/`,
+6. **The neutral modules** — `data/`, `matcher/`, `ll1/`, `descent/`,
    `token_symbol/`, and `map/types.ts` (as `fjs/grammar/map/`) — move to
-   `fjs/grammar/`, one per PR. Order among them is free: after stage 4 none
-   imports a front end, and stage 1 already gave them `terminal/`.
-6. **`fjs/grammar/lib/`**, then `fjs/grammar/unicode/` when
-   [unicode-rules](../bnf/todo/unicode-rules.md) lands, then
-   `fjs/grammar/ebnf/` as new code
+   `fjs/grammar/`, one per PR. Order among them is free: after stage 5 none
+   imports a front end, and stages 1-2 already gave them `terminal/` and
+   `unicode/`.
+7. **`fjs/grammar/lib/`**, then `fjs/grammar/ebnf/` as new code
    ([ebnf-front-end](../bnf/todo/ebnf-front-end.md)).
-7. The consumers migrate to `ebnf` one grammar per PR; then
+8. The consumers migrate to `ebnf` one grammar per PR; then
    `fjs/grammar/bnf/` is deleted. `detectRepeat` stays in `data/` as the
    opt-in normalization for deserialized or hand-written rule sets, and
    `unicode/` stays as both front ends' text alphabet.
 
-Stages 2 and 3 are the only ones that could be reordered freely; everything
-else is fixed by what it depends on. The consumers outside the bucket — the
-`djs` tokenizer and parser with their `private.ts` files, and
-`fjs/rtti/common` — see exactly two path changes across the whole migration:
-stage 4, and their own port in stage 7.
+Stages 3 and 4 are the only ones that could be reordered freely; everything
+else is fixed by what it depends on.
+
+**What one hop does and does not promise.** The rule is that each *API* moves
+once — no export lands at an intermediate public path on its way to its final
+one. It is not a promise that each consumer is edited once: a module importing
+APIs that end up in several different destinations is updated once per
+destination, and that is the minimum, not churn. `fjs/djs/parser` is the
+extreme case, and worth reading before planning a stage, because today it
+takes `eof`, `oneEncode`, `option`, `rangeDecode`, `repeat0Plus`, and
+`unicodeRange` from the *single* module `fjs/bnf/module.f.mjs` — three
+destinations in one import line — plus `toData` from `bnf/data`,
+`descentParserRuleSet` from `bnf/descent`, `encoding` from `bnf/token_symbol`,
+and types from `bnf/types.ts`, `bnf/matcher`, and `bnf/descent`. So it is
+touched at stages 1, 2, 5, 6, and again at its own port in stage 8. Each of
+those edits is a different API arriving at its final home; none of them is the
+same API moving twice. Every such importer is updated in the same PR as the
+move, as [AGENTS.md §5](../../AGENTS.md) requires — there are no compatibility
+re-exports anywhere in this plan, and adding them would create exactly the
+intermediate paths the one-hop rule forbids.
 
 Each `todo/` directory moves with its module, as the `basen` move did.
 [rule-visitor](../bnf/todo/rule-visitor.md) is about the data `Rule` and moves
@@ -187,23 +211,28 @@ genuinely about the classical `Rule` union close with `bnf/`.
       directly, with `TerminalRange` as its type; drop the redeclaration in
       `data/types.ts` and the front-end import in `descent/types.ts`; point
       `data`, `matcher`, `ll1`, `descent`, and `token_symbol` at it.
+- [ ] Rewrite [unicode-rules](../bnf/todo/unicode-rules.md)'s proposal, tasks,
+      and import examples to name `fjs/grammar/unicode/` and
+      `fjs/grammar/byte/` rather than `fjs/bnf/*`, and record that it depends
+      on stage 1 for `terminal/`.
 - [ ] Rewrite [terminal-range-shared-type](../bnf/todo/terminal-range-shared-type.md)
       to name `terminal/` as the owner instead of the classical front end, and
       delete it in the stage-1 PR that implements it.
-- [ ] Stage 2: genericize the transformer protocol over the rule identity in
+- [ ] Stage 2: land [unicode-rules](../bnf/todo/unicode-rules.md)'s split at
+      `fjs/grammar/unicode/` directly, and point `token_symbol` there for
+      `unicodeRange` so it no longer reads from the front end.
+- [ ] Stage 3: genericize the transformer protocol over the rule identity in
       `matcher/types.ts`. Types only.
-- [ ] Stage 3: backends over `RuleSet` only; `transformers` takes the grammar
+- [ ] Stage 4: backends over `RuleSet` only; `transformers` takes the grammar
       data. Re-home the functional convenience entries.
-- [ ] Stage 4: move the front end to `fjs/grammar/bnf/` and carry `toData` /
+- [ ] Stage 5: move the front end to `fjs/grammar/bnf/` and carry `toData` /
       `toDataWithRules` / `data/private.ts` / `RuleNameMap` / `GrammarData` /
       `repeatItem` into it in the same PR; update the `djs` and
       `fjs/rtti/common` importers and every README / `todo/` link.
-- [ ] Stage 5: move `data/`, `matcher/`, `ll1/`, `descent/`, `token_symbol/`,
+- [ ] Stage 6: move `data/`, `matcher/`, `ll1/`, `descent/`, `token_symbol/`,
       and `map/types.ts` to `fjs/grammar/`, one PR each, `rule-visitor.md`
       travelling with `data/`.
-- [ ] Stage 6: move `lib/` → `fjs/grammar/lib/`; land `fjs/grammar/unicode/`
-      with [unicode-rules](../bnf/todo/unicode-rules.md); add
-      `fjs/grammar/ebnf/`.
+- [ ] Stage 7: move `lib/` → `fjs/grammar/lib/`; add `fjs/grammar/ebnf/`.
 - [ ] `tsc`, `fjs t` at every stage; changelog entries marked
       **BREAKING CHANGES** for each path change and for the removed backend
       entries.
@@ -219,8 +248,8 @@ genuinely about the classical `Rule` union close with `bnf/`.
   — the regrouping plan this bucket belongs to; it set the one-move-per-PR
   rule and left the tooling bucket undecided.
 - [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — the second front end;
-  blocked on stages 1-4 here — the inversion — not on the later moves, and it
-  depends on `unicode/` from stage 6 for its text terminals.
+  blocked on stages 1-4 here — the terminal and text alphabets plus the
+  inversion — not on the later moves.
 - [rule-visitor](../bnf/todo/rule-visitor.md) — the data `Rule` visitor; the
   moved `data/` module is where it lands.
 - [terminal-range-shared-type](../bnf/todo/terminal-range-shared-type.md) —

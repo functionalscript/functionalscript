@@ -29,7 +29,7 @@ AST, which is the wrong shape (and wrong cost) for these.
 This TODO previously also assigned ownership of binary BNF authoring helpers to
 the recognizer work. That responsibility now belongs to
 [Separate alphabet-specific BNF helpers](./unicode-rules.md), which establishes
-`fjs/bnf/byte/module.f.mjs` alongside `fjs/bnf/unicode/module.f.mjs`. Implement the
+`fjs/grammar/byte/module.f.mjs` alongside `fjs/grammar/unicode/module.f.mjs`. Implement the
 alphabet split first so the recognizer can consume those helpers instead of
 creating a second byte-helper API or restoring alphabet-specific syntax in core
 BNF.
@@ -242,8 +242,8 @@ but generic `Rule` / `TerminalRange` semantics do not assign Unicode or byte
 meaning to it.
 
 After the alphabet split, text constructors such as `str` / `set` / `range` live
-in `fjs/bnf/unicode/module.f.mjs`, while byte / hex literals, byte sequences, and
-byte-range helpers live in `fjs/bnf/byte/module.f.mjs`. They are authoring adapters
+in `fjs/grammar/unicode/module.f.mjs`, while byte / hex literals, byte sequences, and
+byte-range helpers live in `fjs/grammar/byte/module.f.mjs`. They are authoring adapters
 that lower to ordinary generic BNF rules before automaton construction. The
 recognizer/DFA backends consume the resulting `RuleSet`; they do not define a
 second family of binary helpers.
@@ -310,7 +310,7 @@ Bigger automata are built from BNF pieces in two complementary ways:
       (no DFA exists) — do not fall back to another engine
 - [ ] AST-less LL(1) recognizer: derive from the existing `fjs/bnf/data` matcher
       by dropping `AstRule` accumulation; return accept/reject + final config
-- [ ] Consume binary terminal helpers from `fjs/bnf/byte/module.f.mjs` after the
+- [ ] Consume binary terminal helpers from `fjs/grammar/byte/module.f.mjs` after the
       alphabet split for byte/hex literals, byte sequences, and byte ranges used
       by grammars such as magic-byte and UTF-8 recognizers; do **not** create a
       recognizer-local or second binary-helper family.

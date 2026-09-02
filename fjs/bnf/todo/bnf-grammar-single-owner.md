@@ -18,7 +18,7 @@ Two things are still owed, and they belong to different changes.
 The module was written against the current API — `range`, `set`, `unicodeMax`
 imported from generic `fjs/bnf/module.f.mjs`, and raw JavaScript strings
 (`'"'`, `'\\'`, `'true'`) used directly as `Rule` values. The blocking split
-removes both: text interpretation moves to `fjs/bnf/unicode`, and `string`
+removes both: text interpretation moves to `fjs/grammar/unicode`, and `string`
 leaves the functional `DataRule`. That **port is the split's own**, not this
 issue's — it breaks these grammars, so it fixes them in the same change. This
 issue records what the port has to preserve.
@@ -66,7 +66,7 @@ boundary it must leave visible is:
 
 - generic grammar structure and combinators come from `fjs/bnf/module.f.mjs`;
 - all JavaScript-string / Unicode-code-point interpretation comes from
-  `fjs/bnf/unicode/module.f.mjs`;
+  `fjs/grammar/unicode/module.f.mjs`;
 - raw strings are not generic BNF rules. Text literals such as `"`, `\`, `/`,
   punctuation, keywords, and character sets are lowered through Unicode helpers
   before they enter the generic grammar.
@@ -177,7 +177,7 @@ read them first:
 
 - [ ] Replace every core import of `range`, `set`, `unicodeMax`, `str`, or
       equivalent Unicode/text helpers in `fjs/bnf/lib/json` and
-      `fjs/bnf/lib/datajs` with imports from `fjs/bnf/unicode/module.f.mjs`.
+      `fjs/bnf/lib/datajs` with imports from `fjs/grammar/unicode/module.f.mjs`.
 - [ ] Replace every raw string used as a generic BNF `Rule` with the appropriate
       Unicode helper construction. For `fjs/bnf/lib/datajs`'s `'["__proto__"]'`
       that means exactly the contiguous sequence `str` lowers it to: `str`
