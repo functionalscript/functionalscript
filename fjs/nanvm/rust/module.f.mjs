@@ -85,6 +85,7 @@ export const rustName = {
     '*': 'mul',
     '-': 'sub',
     '+': 'add',
+    '%': 'rem',
     String: 'string_coercion',
 }
 
@@ -99,11 +100,20 @@ const op1Rust = {
     String: a => `${a}.to_string().map(|v| v.to_any())`,
 }
 
-/** The same, for the binary operations. @type {{ readonly [k in OpId]?: (a: string, b: string) => string }} */
+/**
+ * The same, for the binary operations.
+ *
+ * `%` has no `nanvm-lib` implementation yet, so every `%` case carries a
+ * `rust` reason and `emit` prints this text as a comment rather than a
+ * statement — this entry only has to read as the operation, not compile.
+ *
+ * @type {{ readonly [k in OpId]?: (a: string, b: string) => string }}
+ */
 const op2Rust = {
     '*': (a, b) => `${a} * ${b}`,
     '-': (a, b) => `${a} - ${b}`,
     '+': (a, b) => `${a} + ${b}`,
+    '%': (a, b) => `${a} % ${b}`,
 }
 
 /**
@@ -244,11 +254,17 @@ export const valueExpr = v => isFunctionValue(v) ? 'function_any()' : nodeExpr(v
  * Comments out a statement `nanvm-lib` cannot pass yet, keeping the case
  * visible in the generated file as the work still to do.
  *
+ * One line per case, reason and statement together: a group where every case
+ * carries the same `rust` reason (an operator with no `nanvm-lib`
+ * implementation at all, such as `%`) would otherwise repeat that reason on
+ * its own line before each one, doubling the line count for no new
+ * information.
+ *
  * @type {(reason: string|undefined) => (statement: string) => readonly string[]}
  */
 const emit = reason => statement => reason === undefined
     ? [`${indent}${statement}`]
-    : [`${indent}// TODO: ${reason}`, `${indent}// ${statement}`]
+    : [`${indent}// TODO: ${reason}: ${statement}`]
 
 /** @type {(expected: Expectation) => (name: string) => (result: string) => string} */
 const assertion = expected => name => result => isThrows(expected)

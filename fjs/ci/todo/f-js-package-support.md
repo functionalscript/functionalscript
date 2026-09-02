@@ -1,8 +1,7 @@
 ## Package support for authored `.f.js`
 
 **Priority:** P1
-**Status:** blocked
-**Blocked by:** [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
+**Status:** open — the stage-1 precondition below is met; this work can start now.
 
 ### Problem
 
@@ -18,10 +17,22 @@ Compiler compatibility alone is therefore not enough to rename `.f.mjs` to
 ship without the declaration and validation guarantees expected from the rest of
 the package.
 
-This work cannot begin until
+This work was gated on
 [`migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
-finishes: while `.f.ts` exists, TypeScript can generate `.f.js`, and the
-repository intentionally ignores `**/*.js`.
+for two stated reasons: while `.f.ts` existed, TypeScript could generate
+`.f.js`, and the repository ignored `**/*.js`. Both are now false — stage 1
+removed the last `.f.ts` and the emission pass with it
+([#1520](https://github.com/functionalscript/functionalscript/pull/1520)), and
+the blanket ignore is gone
+([#1545](https://github.com/functionalscript/functionalscript/pull/1545)) — so
+the gate is satisfied and this task is open.
+
+What stays gated is the *rename*, not this work: the first `.f.mjs` -> `.f.js`
+is blocked by **this** task completing, per the acceptance criteria below, and
+by the stage-2 boundary in `migrate-typescript-to-mjs.md`. Reading the
+dependency the other way makes it circular — that issue stays open until stage 2
+starts, stage 2 needs this task done, and this task would wait on that issue —
+which is why the block is recorded here as met rather than pending.
 
 ### Proposal
 

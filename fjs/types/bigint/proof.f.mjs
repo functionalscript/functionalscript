@@ -8,6 +8,7 @@ import {
     combination,
     factorial,
     xor,
+    addition,
     multiple,
     product,
     divUp,
@@ -223,6 +224,10 @@ export const proof = {
     sum: () => {
         const result = sum([2n, 3n, 4n, 5n])
         assertEq(result, 14n)
+    },
+    addition: () => {
+        const result = addition(3n)(4n)
+        assertEq(result, 7n)
     },
     abs: [
         () => {
