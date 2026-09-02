@@ -240,6 +240,35 @@ character, and overloads nothing, since the star would always carry bounds.
 **`'quant'`** is the standard term for this family in regex and EBNF theory
 and so the most precise, at the cost of being jargon where `'repeat'` is not.
 
+**Degenerate bounds.** The form admits bounds that say nothing, and they
+divide into one error and two discouragements — the division is by whether a
+*computed* bound could ever legitimately produce them:
+
+- `min > max` is an **error**. It admits no cardinality at all, so the rule
+  matches nothing and the grammar is dead there. No provenance makes it
+  meaningful, so it is rejected like `['range', 5, 3]` is.
+- `min = max = 0` is legal and **discouraged**: it always matches empty, which
+  the empty sequence `[]` says directly and more plainly.
+- `min = max = 1` is legal and **discouraged**: an author almost always means
+  the rule itself, or `['const', r]` where a thunk is needed for recursion.
+  Note these are not equal, which is the reason the guidance is worth writing
+  down rather than the reason it can be automated away: `['repeat', 1, 1, r]`
+  has AST `readonly [AST<r>]`, a one-element list, where `r` on its own has
+  AST `AST<r>`. Writing the repeat gets a pointless wrapper node, and a
+  transformer attached to `r` does not see it.
+- `min = max = n` for `n >= 2` is the ordinary exact count and is **not**
+  discouraged — it is what `times(4, hex)` is for, and the `\uXXXX` rule wants
+  it.
+
+The enforcement is the same split as the old `[1, r]` wart: the error is
+checked, the discouragements live in the docs and the constructors, because a
+lowering cannot tell a hand-written `1` from one computed at
+grammar-construction time and must stay total either way.
+
+*Open within this:* whether `n >= 2` should also be discouraged. The guidance
+above assumes not, since the exact count is the form's main use, but the
+question was raised as "discourage `min >= max`", which would include it.
+
 One thing to be deliberate about: today's data-layer `Repeat` means
 0-or-more specifically, so the same word would mean something wider at the
 front end. That reads as alignment rather than collision — if a data layer
