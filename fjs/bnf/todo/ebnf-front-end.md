@@ -280,19 +280,12 @@ introduces. Paying a structural cost to close it in `ebnf` alone would make
 `ebnf` the odd module out, which is the opposite of why its shape was copied
 from RTTI in the first place.
 
-The precedent is not only structural but empirical: **RTTI has shipped with
-this shape and the mistake has not come up.** That is the maintainer's
-standing observation of the project's history. What is checkable from the
-repository agrees with it — `fjs/rtti/todo/` holds fourteen open issues and
-none describes a forgotten-thunk misreading, and no file in the tree mentions
-the failure mode at all except this one. (How *long* RTTI has run cannot be
-confirmed from a shallow clone, so the duration rests on that observation
-rather than on anything measured here.)
-
-Two things make the theoretical risk stay theoretical, and they compound: the
-constructors above mean the API never asks anyone to write a tagged tuple, and
-the mistake additionally requires one of exactly three words as a literal text
-terminal in a thunk's return position.
+The precedent is also empirical: we are happy with the RTTI shape, and an
+`Info` has never escaped into a `Type` there. The same escape is what this
+would be — an `Info` reaching a `Rule` position without its thunk — and two
+things keep it from happening: the constructors above mean the API never asks
+anyone to write a tagged tuple, and the mistake further requires one of
+exactly three words as a literal text terminal in a thunk's return position.
 
 The residual risk is real and accepted: a proof covers this repository's
 grammars and cannot cover a grammar written elsewhere. That is the price of
