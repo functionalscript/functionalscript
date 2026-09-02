@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 5
+ * data.groups.length // 6
  * ```
  */
 
@@ -406,6 +406,265 @@ const addCases = [
 ]
 
 /**
+ * `<` is not implemented in `nanvm-lib` yet (see the operator table in
+ * `nanvm-lib/README.md`) — `BigInt` has `PartialOrd`, but nothing dispatches
+ * it from `Any` — so every case below carries this as its `rust` reason: the
+ * generated Rust keeps each as a commented-out `TODO`, while the JavaScript
+ * proof still runs it. Removing the reason per case is what turns it on for
+ * Rust once `<` lands there.
+ *
+ * @type {string}
+ */
+const lessThanNotImplemented = '`<` is not implemented in nanvm-lib yet'
+
+/**
+ * `<` never throws, unlike the arithmetic operators: it `ToPrimitive`s both
+ * operands (never `ToNumeric` directly), and if *both* results are strings
+ * compares them lexicographically by UTF-16 code unit rather than
+ * numerically — `'10' < '9'` is `true`. Otherwise each side is `ToNumeric`d
+ * on its own, so a `Number` and a `BigInt` compare against each other
+ * directly instead of throwing the `TypeError` `*`, `-`, `+`, `/`, `%` and
+ * `**` all give mixed operands; a `String` compares against a `BigInt` the
+ * same way, via `StringToBigInt`. Any comparison touching `NaN` — directly,
+ * or a string that fails `StringToBigInt` against a `BigInt` — is `false` in
+ * *both* directions, the one asymmetry the corpus's fixed left/right cases
+ * exist to cover since `<` is not commutative the way `*` is.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const lessThanCases = [
+    { name: 'nullLessThanFive', args: [null, 5], expected: true, rust: lessThanNotImplemented },
+    {
+        name: 'undefinedLessThanFive',
+        args: [undefined, 5],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    { name: 'trueLessThanFive', args: [true, 5], expected: true, rust: lessThanNotImplemented },
+    { name: 'falseLessThanFive', args: [false, 5], expected: true, rust: lessThanNotImplemented },
+    {
+        name: 'stringThreeLessThanFive',
+        args: ['3', 5],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'stringLetterLessThanFive',
+        args: ['a', 5],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    { name: 'emptyArrayLessThanFive', args: [[], 5], expected: true, rust: lessThanNotImplemented },
+    { name: 'arrayThreeLessThanFive', args: [[3], 5], expected: true, rust: lessThanNotImplemented },
+    {
+        name: 'arrayStringThreeLessThanFive',
+        args: [['3'], 5],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'arrayPairLessThanFive',
+        args: [[0, 0], 5],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'emptyObjectLessThanFive',
+        args: [{}, 5],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    {
+        name: 'functionLessThanFive',
+        args: [functionValue, 5],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    { name: 'threeLessThanFive', args: [3, 5], expected: true, rust: lessThanNotImplemented },
+    { name: 'fiveLessThanThree', args: [5, 3], expected: false, rust: lessThanNotImplemented },
+    { name: 'fiveLessThanFive', args: [5, 5], expected: false, rust: lessThanNotImplemented },
+    {
+        name: 'zeroLessThanNegativeZero',
+        args: [0, -0],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'negativeZeroLessThanZero',
+        args: [-0, 0],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    { name: 'nanLessThanOne', args: [NaN, 1], expected: false, rust: lessThanNotImplemented },
+    { name: 'oneLessThanNan', args: [1, NaN], expected: false, rust: lessThanNotImplemented },
+    { name: 'nanLessThanNan', args: [NaN, NaN], expected: false, rust: lessThanNotImplemented },
+    {
+        name: 'infinityLessThanOne',
+        args: [Infinity, 1],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'oneLessThanInfinity',
+        args: [1, Infinity],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'negativeInfinityLessThanInfinity',
+        args: [-Infinity, Infinity],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'infinityLessThanInfinity',
+        args: [Infinity, Infinity],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'stringTenLessThanStringNine',
+        args: ['10', '9'],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'stringNineLessThanStringTen',
+        args: ['9', '10'],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'stringALessThanStringB',
+        args: ['a', 'b'],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'emptyStringLessThanStringA',
+        args: ['', 'a'],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'stringAbLessThanStringAbc',
+        args: ['ab', 'abc'],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'stringAbcLessThanStringAb',
+        args: ['abc', 'ab'],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'stringUppercaseBLessThanStringA',
+        args: ['B', 'a'],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'stringTenLessThanNine',
+        args: ['10', 9],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'nineLessThanStringTen',
+        args: [9, '10'],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'stringAbcLessThanFive',
+        args: ['abc', 5],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'fiveLessThanStringAbc',
+        args: [5, 'abc'],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'negativeFiveBigLessThanThreeBig',
+        args: [-5n, 3n],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'threeBigLessThanThreeBig',
+        args: [3n, 3n],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'threeBigLessThanNegativeFiveBig',
+        args: [3n, -5n],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    // `<` compares a `Number` and a `BigInt` directly rather than throwing —
+    // the opposite of `numberByBigint` in every arithmetic group above.
+    {
+        name: 'fiveBigLessThanFiveHalf',
+        args: [5n, 5.5],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    { name: 'fiveBigLessThanFive', args: [5n, 5], expected: false, rust: lessThanNotImplemented },
+    { name: 'fiveLessThanFiveBig', args: [5, 5n], expected: false, rust: lessThanNotImplemented },
+    { name: 'fiveBigLessThanNan', args: [5n, NaN], expected: false, rust: lessThanNotImplemented },
+    { name: 'nanLessThanFiveBig', args: [NaN, 5n], expected: false, rust: lessThanNotImplemented },
+    {
+        name: 'fiveBigLessThanInfinity',
+        args: [5n, Infinity],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'negativeInfinityLessThanFiveBig',
+        args: [-Infinity, 5n],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'infinityLessThanFiveBig',
+        args: [Infinity, 5n],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'stringTenLessThanTwentyBig',
+        args: ['10', 20n],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'twentyBigLessThanStringThirty',
+        args: [20n, '30'],
+        expected: true,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'stringAbcLessThanTwentyBig',
+        args: ['abc', 20n],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+    {
+        name: 'twentyBigLessThanStringAbc',
+        args: [20n, 'abc'],
+        expected: false,
+        rust: lessThanNotImplemented,
+    },
+]
+
+/**
  * `String(x)`.
  *
  * A function's string form is its source text, which no two engines have to
@@ -505,6 +764,7 @@ export const data = {
         { op: '*', commutative: true, cases: mulCases },
         { op: '-', cases: subCases },
         { op: '+', cases: addCases },
+        { op: '<', cases: lessThanCases },
         { op: 'String', cases: stringCoercionCases },
     ],
 }
