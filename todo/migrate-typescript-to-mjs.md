@@ -117,7 +117,8 @@ proof.f.ts  -> proof.f.mjs
 ```
 
 - `.ts` / `.f.ts` are authored TypeScript **implementation/proof** source that
-  still remains to migrate, except for intentional `types.ts` type modules;
+  still remains to migrate, except for intentional `types.ts` type modules —
+  none remains; this list defines what the extensions meant during the task;
 - `.mjs` is authored ESM JavaScript with JSDoc types;
 - `.f.mjs` is authored FunctionalScript-intent JavaScript with JSDoc types;
 - `.f.mjs` does **not** promise that the current FunctionalScript compiler can

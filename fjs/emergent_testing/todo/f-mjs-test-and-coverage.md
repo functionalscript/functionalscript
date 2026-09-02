@@ -24,10 +24,12 @@ fixture. No repository fixture currently proves that a migrated
 `module.f.mjs` is loaded through its proof and retained in both Node and Deno
 coverage output.
 
-The fixture depends on authored `.mjs` package support because a TypeScript proof
-must be able to import `module.f.mjs` while `allowJs` / `checkJs` remain enabled,
-and package emission must preserve that authored `.mjs` rather than treating it
-as generated JavaScript.
+The fixture depends on authored `.mjs` package support because package emission
+must preserve authored `.mjs` rather than treating it as generated JavaScript.
+The original rationale also cited a *TypeScript* proof importing `module.f.mjs`
+under `allowJs` / `checkJs`; that half is spent, since the fixture's proof is
+`proof.f.mjs` and no `.f.ts` may be authored. `allowJs` / `checkJs` are enabled
+and are not something this task waits on.
 
 This task does **not** require a compiler-ready proof. Stage 1 was independent
 of FunctionalScript compiler coverage, and the fixture only has to prove the

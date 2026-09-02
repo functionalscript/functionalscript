@@ -143,9 +143,10 @@ A declaration-only `module.f.ts` should therefore normally become `types.ts`
 instead of `module.f.mjs`. Do not invent `Symbol()` values or other runtime
 representations merely to keep type-system-only constructs in JavaScript.
 
-For FunctionalScript modules during stage 1:
+For FunctionalScript modules during stage 1 (stage 1 is complete, so the
+`.f.ts` rules below are the record of that period, not current state):
 
-- `.f.ts` is remaining authored TypeScript implementation/proof source;
+- `.f.ts` was remaining authored TypeScript implementation/proof source;
 - `.f.mjs` is authored FunctionalScript-intent JavaScript, whether or not the
   current FunctionalScript compiler accepts all of its syntax;
 - `types.ts` is authored type-only TypeScript source and is outside the runtime

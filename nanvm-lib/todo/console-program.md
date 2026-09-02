@@ -13,10 +13,14 @@ single native executable that parses and runs authored `.f.mjs` directly — no
 Node/Deno, no rustc at the user's run time — executing code via the
 interpreter behind the `Function` constructor.
 
-`.f.mjs` is the native CLI source contract because it marks authored
-FunctionalScript accepted by the compiler in the same repository revision.
-`.f.js` remains generated JavaScript for JavaScript runtimes and is not the
-source extension accepted by this self-hosted command.
+The native CLI's source contract is authored FunctionalScript, which is `.f.mjs`
+today. Note what `.f.mjs` does and does not mean, per
+[`fjs/fsc/README.md`](../../fjs/fsc/README.md): it marks FunctionalScript-intent
+JavaScript and does **not** promise that the compiler in the same repository
+revision accepts the module. That promise is what the stage-2 `.f.js` marker
+will carry, so the extension this command accepts becomes `.f.js` for renamed
+modules once stage 2 begins. `.f.js` is not generated output — nothing in the
+repository emits it — so it is not excluded on that basis.
 
 The generated compiler source is **committed to git** and packaged by cargo
 like any other source file, so consumers build pure Rust with no build
