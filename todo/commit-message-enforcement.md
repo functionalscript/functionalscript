@@ -130,8 +130,8 @@ it outright but require an Enterprise plan.
       section, never as matches anywhere in the body — or the description says
       which break the window undid. The window is derived against `origin/main`,
       never against the release branch. Over pull requests that predate the lint
-      the check reports rather than blocks: measured on the 0.48.0 window, the
-      documented shape covers three of nine declarations
+      the check reports rather than blocks: measured on the window since the
+      `0.48.0` release, the documented shape covers three of nine declarations
 - [ ] Repository settings, which need a maintainer with admin rights and cannot
       land in a pull request:
   - [ ] disable "Squash and merge" and "Rebase and merge" — the repository
