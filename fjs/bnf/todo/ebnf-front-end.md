@@ -161,7 +161,7 @@ whether a *computed* bound could ever legitimately produce them:
   gets a pointless wrapper node, and a transformer attached to `r` does not
   see it.
 - `min = max = n` for `n >= 2` is the ordinary exact count and is **not**
-  discouraged — it is what `times(4, hex)` is for, and the `\uXXXX` rule wants
+  discouraged — it is what `times(4)` is for, and the `\uXXXX` rule wants
   it.
 
 The errors are checked; the discouragements live in the docs and the
@@ -207,22 +207,45 @@ the grammar never asked for. Nothing is lost — an author who wants named
 branches writes the plain `Variant` `{ some: r, none: [] }`, which is an
 ordinary `Const`.
 
-**Constructors** hide the thunks, the way RTTI's `array(t)` does, and are
-where the familiar EBNF names live:
+**Constructors are the API. A grammar does not write `Info` tuples.** They are
+the representation a lowering reads, not the interface an author writes
+against — the same relationship RTTI has with its `Info`, where `array(t)` is
+what you call and `['array', t]` is what it makes.
 
-```ts
-option(r)        // () => ['repeat', 0, 1, r]
-repeat0Plus(r)   // () => ['repeat', 0, 'Infinity', r]
-repeat1Plus(r)   // () => ['repeat', 1, 'Infinity', r]
-times(n, r)      // () => ['repeat', n, n, r]
-range('09')      // () => ['range', 0x30, 0x39]
-set('abc')       // { a: 0x61, b: 0x62, c: 0x63 }  — a plain Variant
+One constructor is primitive; the familiar EBNF names are partial
+applications of it:
+
+```js
+export const repeat = (min, max) => rule => () => ['repeat', min, max, rule]
+
+export const option      = repeat(0, 1)
+export const repeat0Plus = repeat(0, 'Infinity')
+export const repeat1Plus = repeat(1, 'Infinity')
+export const times       = n => repeat(n, n)
 ```
 
-`join0Plus` and `join1Plus` compose on them. An author writes
-`[minus, repeat0Plus(digit)]` and never types a tagged tuple by hand, so the
-verbosity of the uniform form falls on the constructor definitions rather than
-on grammars.
+Currying `(min, max)` first is what makes the derived names fall out as
+partial applications rather than as four separate definitions, and it leaves
+their call sites at exactly the arity they have today — `option(x)` and
+`repeat0Plus(x)` are unchanged, so a ported grammar keeps its spelling even
+though the representation underneath is new. `times(4)(hex)` is the one that
+gains a level, being the only derived form that still takes a bound.
+
+The terminal side is the same idea:
+
+```js
+range('09')   // () => ['range', 0x30, 0x39]
+set('abc')    // { a: 0x61, b: 0x62, c: 0x63 }  — a plain Variant, no thunk
+```
+
+`join0Plus` and `join1Plus` compose on these. An author writes
+`[minus, repeat0Plus(digit)]` and never types a tagged tuple, so the verbosity
+of the uniform form is paid once, in the constructor definitions, rather than
+in every grammar.
+
+This is also what makes the forgotten-thunk exposure below narrow in practice
+rather than only in principle: the mistake requires hand-writing a tuple the
+API never asks anyone to write.
 
 #### Decided: `Const` holds bare numbers and strings
 
@@ -343,7 +366,7 @@ Small, but it fails quietly if forgotten, so it is a named task.
   `RuleSet` and the same AST, which is what makes the port one grammar per PR
   and lets each port be checked against the `bnf` original. Two caveats. A
   grammar that adopts a new form is not shape-preserving — `\uXXXX` as
-  `times(4, hex)` is a 4-element sequence node where the old spelling spread
+  `times(4)(hex)` is a 4-element sequence node where the old spelling spread
   four references into the parent, so its AST and its proof expectations
   change with it, deliberately. And the equality is a property of this
   lowering, not a promise about a future one: what is fixed across data layers
@@ -500,9 +523,10 @@ beyond the `Info` forms above, so the two do not drift while both exist.
 - [ ] Add a proof that no `Const` in a grammar is an array whose head is
       `'const'`, `'range'` or `'repeat'` — the forgotten-thunk case the type
       system cannot catch now that bare strings are `Const`.
-- [ ] `fjs/grammar/ebnf/module.f.mjs`: the constructors (`option`,
-      `repeat0Plus`, `repeat1Plus`, `times`, `join0Plus`, `join1Plus`, and the
-      EBNF-facing `not`) and the lowering: `['const', c]` unwrapped,
+- [ ] `fjs/grammar/ebnf/module.f.mjs`: the primitive `repeat(min, max)`
+      constructor with `option` / `repeat0Plus` / `repeat1Plus` / `times` as
+      partial applications of it, plus `join0Plus`, `join1Plus` and the
+      EBNF-facing `not`; and the lowering: `['const', c]` unwrapped,
       `['repeat', min, max, r]` mapped or reduced per Problem 1, terminals
       lowered to whatever the data layer stores, and the validation listed
       above. The text-interpreting helpers — `range`, `set`,
@@ -518,7 +542,7 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       every lowering error, and the `descentEquivalence`
       cases re-expressed in `ebnf`, producing the same `RuleSet` as their
       `bnf` originals.
-- [ ] Port `fjs/grammar/lib/json` (its `\uXXXX` rule becomes `times(4, hex)`,
+- [ ] Port `fjs/grammar/lib/json` (its `\uXXXX` rule becomes `times(4)(hex)`,
       i.e. `['repeat', 4, 4, hex]`),
       then `lib/datajs`, then the `djs` tokenizer and parser, then
       `fjs/rtti/common`, one PR each.
