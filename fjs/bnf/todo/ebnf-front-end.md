@@ -302,6 +302,11 @@ mistake shows up there the same way. The residual cost is a confusing failure
 for someone who has not read this section — cheaper than a marker on every
 operator in every grammar.
 
+If catching it statically for external grammars ever becomes worth doing, a
+linter is where it belongs: the check is the same one the in-repo proof makes,
+generalized. **That is out of scope here** — this issue neither proposes nor
+owes one, and it is not a reason to change the representation.
+
 #### The one question left open
 
 **What a `string` means.** Two candidates:
