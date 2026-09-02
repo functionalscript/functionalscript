@@ -226,6 +226,22 @@ triggers the `npm publish` workflow. Before merging:
       `changelog/X.Y.Z.md` with whatever the final listing adds, and re-check
       the version number against any break it brings — a late arrival can turn a
       patch into a minor.
+- [ ] **record the tip you scanned, and merge only that tip.** "Immediately
+      before" narrows the race between the scan and the merge; it does not close
+      it, and a pull request that lands in between still becomes an ancestor of
+      the release and still publishes:
+
+      ```sh
+      git rev-parse origin/main        # note it; re-check just before merging
+      ```
+
+      If `main` has moved, the scan is stale: re-list, extend the entries, and
+      re-check the version before merging. The mechanical form of this is
+      GitHub's **"Require branches to be up to date before merging"**, which
+      blocks the merge button whenever `main` has advanced past the release
+      branch — with it on, the race is closed by the platform rather than by
+      whoever is watching the clock
+      ([commit-message-enforcement](../todo/commit-message-enforcement.md)).
 - [ ] **transitional release only:** `changelog/unreleased/` is deleted in this
       same pull request, after its content has been read into the entries — and
       the final scan re-listed it from `origin/main` and compared against the set

@@ -144,6 +144,13 @@ it outright but require an Enterprise plan.
         and the "every commit is one reviewed pull request" property the release
         listing depends on comes from this rule alone
   - [ ] mark the lint a required status check
+  - [ ] **require branches to be up to date before merging.** This is what
+        closes the release's time-of-check/time-of-merge gap: a release pull
+        request scans `origin/main`, and anything merging between that scan and
+        the release merge ships unrecorded
+        ([changelog/RELEASE.md](../changelog/RELEASE.md#7-open-the-release-pull-request)).
+        The setting blocks the merge button once `main` advances, turning a race
+        into a forced re-scan
 - [ ] Post-merge audit: on `push` to `main`, verify the landed commit message
       matches the pull request title `(#NNN)` and description
 - [ ] File the API-surface diff separately if it is wanted; do not fold it into
