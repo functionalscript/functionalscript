@@ -76,11 +76,27 @@ is at stake.
 - [ ] Update the callers to append EOF. Under no-leaf every AST is unchanged,
       so this is `fjs/bnf`'s own proofs and the two `fjs/djs/tokenizer` entry
       points, which also compute EOF's metadata — the position just past the
-      input — and compare their `len !== cp.length` checks against the extended
-      length. `fjs/djs`'s AST walks are untouched.
+      input. `fjs/djs`'s AST walks are untouched.
+- [ ] Say what a caller's completeness check compares against (see the open
+      question), since the two entry points above each have one.
 - [ ] Prove a caller that omits EOF, and one that sends it early or twice. The
       contract used to make all three unrepresentable; now they are ordinary
       input a grammar rejects, and that should be pinned rather than assumed.
+
+### Open question
+
+**What does a caller's completeness check compare against?** `fjs/djs/tokenizer`
+asks `len !== cp.length` to mean "the match consumed everything". With EOF
+appended the answer depends on the grammar, and the Proposal above makes both
+readings legal: a grammar naming `eof` consumes it and ends at the extended
+length, while one that does not leaves EOF unconsumed — which the Proposal calls
+success, one short of the extended length. So there is no single comparison that
+is right for every caller.
+
+Either the check is stated per grammar, or grammars parsing a whole input are
+required to name `eof` so that "consumed everything" has one meaning. The second
+is tempting and is a real constraint on grammar authors, so it should be decided
+rather than absorbed into whichever comparison the first caller happens to need.
 
 ### What a prototype found
 

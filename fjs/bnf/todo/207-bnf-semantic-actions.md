@@ -329,8 +329,10 @@ the empty sequence and the zero-round repetition.
 > breaking change to stage 1's public types, made deliberately. Everything about
 > *which* metadata each rule kind contributes survives it; only the algebra and
 > the type count change. The identity does not survive at all — what an empty
-> sequence, a zero-round repetition and an EOF terminal contribute is 43's open
-> question.
+> sequence and a zero-round repetition contribute is 43's open question. An EOF
+> terminal was a third such case until
+> [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md); it now has the caller's
+> metadata like any other symbol.
 
 Repetition is the stateful exception to engine-level composition. Each round's
 complete child `Meta` reaches `update`, so the transformer keeps whatever

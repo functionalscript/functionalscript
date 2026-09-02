@@ -126,6 +126,15 @@ recognizer. It preserves the existing "recognized and consumed the complete
 physical input" contract while also making the EOF terminal available to grammars
 that use it explicitly.
 
+**Written against the synthesis contract, which
+[eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md) replaces.** If EOF becomes
+a symbol the caller supplies as the last one, most of the list above stops being
+a rule and becomes a consequence: there is no synthesized transition to provide,
+no "callers do not append" to enforce, and no separate finalization step to keep
+chunk-invariant — EOF is simply the last symbol of the last chunk. What survives
+is the requirement itself, that chunking must not change the verdict. Revisit
+this section when that issue lands rather than implementing both.
+
 #### Build from the data representation, not the functional one
 
 BNF has two representations and the automata builders consume the **second**:

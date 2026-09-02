@@ -173,11 +173,12 @@ engine that value is not yet decided**; see the open questions.
       [`../ll1/module.f.mjs`](../ll1/module.f.mjs) with a state that suspends
       when it needs the next symbol. `symbolAtCp`, `leafAt` and the
       `pos <= cp.length` comparisons are the sites.
-- [ ] Move end-of-input into `end`. The machine currently tells "ran out of
-      input" from "rejected" by comparing against a known `cp.length`; a
-      streaming parser learns the length only at `end`, which must feed the
-      synthesized EOF symbol and finalize
-      ([the contract](../README.md#logical-eof-in-parser-input)).
+- [ ] Replace the "ran out of input" test. The machine tells that from
+      "rejected" by comparing against a known `cp.length`, which a streaming
+      parser does not have. It no longer needs one: the caller's EOF symbol says
+      the input ended ([eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)),
+      so `end` finalizes rather than synthesizing anything, and a parse still
+      waiting for symbols when `end` arrives is the case to define.
 - [ ] Decide what happens to `Remainder<M>`. A fold that reports only at `end`
       cannot return the unconsumed tail, so prefix parsing — which `Match` has
       today — either goes away deliberately or needs a different reporting

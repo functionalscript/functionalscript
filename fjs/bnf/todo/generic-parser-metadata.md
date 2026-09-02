@@ -110,8 +110,10 @@ terminal read a token payload the split keeps out of `MO`
 ([43](./043-stateful-parser.md)). Read every
 "folds child metadata" above as `reduce`, and every "uses the monoid identity"
 as [43](./043-stateful-parser.md)'s open question — a semigroup has no identity,
-and the empty sequence, the zero-round repetition and the EOF terminal are
-exactly the cases that were spending it.
+and the empty sequence and the zero-round repetition are the cases that were
+spending it. The EOF terminal was a third until
+[eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md) gave that symbol the
+caller's metadata; it was the one of the three that only looked childless.
 
 The single-`M` change to the RTTI mapping API shipped in PR #1828 and is not
 reversed by this: a mapping's callback may stay `M → M` inside one layer while
@@ -150,8 +152,7 @@ entries nor establishes factory identity.
       LL(1) is complete; descent belongs to stage 3 of issue 207.
 - [x] Keep metadata out of `checkMap`'s RTTI validation contract.
 - [ ] Prove order, explicit overrides, and whatever 43 settles on for the
-      no-children cases — the empty sequence, the zero repetition and the EOF
-      terminal. The grouping proof is now the *opposite* of the one first
+      no-children cases — the empty sequence and the zero repetition. The grouping proof is now the *opposite* of the one first
       written here: `reduce` is not required to be associative, so the exact
       left-to-right grouping is pinned rather than shown not to matter. LL(1) is
       complete; descent belongs to stage 3 of issue 207.
