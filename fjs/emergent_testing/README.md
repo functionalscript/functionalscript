@@ -292,9 +292,10 @@ fought traces to the traversal fanning out with `all`, and the machinery each
 fix added — a frame budget, a guessed 8 ms constant, `scheduler.yield`
 selection — is infrastructure a proof runner should not need. The run is
 sequential: one leaf's whole chain — test, report, children — completes before
-the next leaf starts. The page yields in its own `report` handler, one
-macrotask per row, which is the browser's spelling of what a terminal's `write`
-already is. Speed is not a goal.
+the next leaf starts. The page yields in its own `report` handler, on every
+event it reports — so twice per leaf, once so the pending row paints before the
+body runs and once so the settled one paints after. That is the browser's
+spelling of what a terminal's `write` already is. Speed is not a goal.
 
 ### Why the browser runner is `.f.mjs` with a thin host
 

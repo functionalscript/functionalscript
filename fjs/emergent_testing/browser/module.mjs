@@ -126,8 +126,9 @@ export const _runBrowserProofsWith = operations => (
         // await is a real macrotask boundary: a run is otherwise one
         // uninterruptible task, and a browser paints nothing until it ends. It
         // replaces what `batchSize = 25` was doing without being asked to, and
-        // yields per leaf rather than per twenty-five, so a row appears as its
-        // test finishes.
+        // yields on every event rather than per twenty-five leaves — twice per
+        // leaf now, so its row appears when it starts and settles when it
+        // finishes.
         report: async (/** @type {_BrowserEvent} */ event) => {
             if (event[0] === 'result') { announce(event[1]) }
             // **The yield after a start is the whole point of the start.** A
