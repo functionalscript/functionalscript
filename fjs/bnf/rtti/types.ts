@@ -6,19 +6,17 @@ import type { Join1Plus, Repeat0Plus, Repeat1Plus, Rule, TerminalRange } from ".
 export type Ast =
     // terminal
     number |
-    // sequence
+    // sequence | repeat
     readonly Ast[] |
-    // repeat
-    (() => Ast) |
     // variant
     { readonly[k in string]: Ast}
 
 type _FromAny<R> = R extends Rule ? AstRule<R> : never
 
 export type AstRule<R extends Rule> =
-    R extends Repeat0Plus<infer I> ? (() => _FromAny<I>) :
+    R extends Repeat0Plus<infer I extends Rule> ? readonly AstRule<I>[] :
     R extends () => (infer U extends Rule) ? AstRule<U> :
-    R extends TerminalRange ? number :
+    R extends TerminalRange ? number : // this is something that would be good to change
     R extends readonly Rule[] ? { readonly [K in keyof R]: _FromAny<R[K]> } :
     R extends string ? readonly number[] :
     R extends { readonly [K in string]: Rule } ? { readonly [K in keyof R]: _FromAny<R[K]> } :
@@ -36,7 +34,7 @@ type _3 = Assert<Equal<
     { readonly a: number, readonly b: number }>>
 
 type _X = Repeat0Plus<0>
-type _4 = Assert<Equal<AstRule<_X>, () => number>>
+type _4 = Assert<Equal<AstRule<_X>, readonly number[]>>
 
 // The same shape written out by hand, not through the alias: structural, so it
 // must match too.
@@ -44,12 +42,12 @@ type _Inline = () => {
     readonly some: readonly[0, _Inline],
     readonly none: readonly[]
 }
-type _5 = Assert<Equal<AstRule<_Inline>, () => number>>
+type _5 = Assert<Equal<AstRule<_Inline>, readonly number[]>>
 
 // A repeat over a composite item.
 type _6 = Assert<Equal<
     AstRule<Repeat0Plus<readonly[0, 1]>>,
-    () => readonly[number, number]>>
+    readonly (readonly[number, number])[]>>
 
 // A lazy rule that is an ordinary variant must NOT be read as a repeat.
 type _Lazy = () => { readonly a: 0, readonly b: 1 }
@@ -70,10 +68,10 @@ type _8 = Assert<Equal<
 // The derived combinators, which are `Repeat0Plus` in a larger shape.
 type _9 = Assert<Equal<
     AstRule<Repeat1Plus<0>>,
-    readonly[number, () => number]>>
+    readonly[number, readonly number[]]>>
 type _10 = Assert<Equal<
     AstRule<Join1Plus<0, 1>>,
-    readonly[number, () => readonly[number, number]]>>
+    readonly[number, readonly (readonly[number, number])[]]>>
 
 // A repeat over a real grammar rule: `digit = range('09')` in `../lib/json`.
-type _11 = Assert<Equal<AstRule<Repeat0Plus<typeof digit>>, () => number>>
+type _11 = Assert<Equal<AstRule<Repeat0Plus<typeof digit>>, readonly number[]>>
