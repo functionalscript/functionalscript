@@ -1,7 +1,16 @@
 ## One line per test serves a terminal, not a line-oriented consumer
 
 **Priority:** P2
-**Status:** open
+**Status:** blocked
+**Blocked by:** [Command output: one design for every destination](../../../todo/plan/command-output.md)
+
+> **Why blocked.** Nothing demands a non-TTY format now, and answering this one
+> alone would give the proof runner a mode system no other command shares —
+> invented from whichever audience happened to be asked about first. The
+> destinations, verbosities and scheduling shapes are enumerated and designed
+> together in the epic above; this issue is the pipe destination in that table.
+> What is *below* stays as the input it is: the two reasons a consumer needs
+> the announcement, and the constraints any answer must satisfy.
 
 ### Problem
 
