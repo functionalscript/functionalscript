@@ -205,7 +205,8 @@ the tokenizer's error contract, so a consumer can exhaustively switch on it, and
 a message JSON cannot produce should not typecheck.
 
 This is a public API change, additive in one direction and narrowing in the
-other, and it belongs in the changelog entry alongside the error shapes.
+other, and it belongs in the `Changelog:` declaration alongside the error
+shapes.
 
 There is a second edge to repoint, easy to miss because it does not go through
 the tokenizer at all: `fjs/media/json/parser/types.ts` imports `NumberToken`
@@ -1101,9 +1102,10 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
 - [ ] Prove the three cases and the boundary: `"\x"` and `"\u{41}"` and a raw
       NUL are each one error with no value token, while `"\x" "ok"` keeps
       `"ok"` — the last is what makes the rule a rule rather than a heuristic.
-- [ ] `changelog/unreleased/<PR>.md`, `**BREAKING CHANGES:**` — a consumer
-      relying on a value token after a malformed literal stops receiving one.
-      Valid JSON is unaffected, and the entry should say so.
+- [ ] Declare the break in the PR description's `Changelog:` section,
+      `**BREAKING CHANGES:**` — a consumer relying on a value token after a
+      malformed literal stops receiving one. Valid JSON is unaffected, and the
+      declaration should say so.
 - [ ] `npm run gen`, then `tsc`, `fjs test`, `cargo clippy` and
       `cargo fmt -- --check`.
 
@@ -1172,9 +1174,9 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
 - [ ] Repoint `streaming-recognizer`'s scanner citations at JSON's own string
       and number scanners. (666's edit is **already done** — it was rewritten in
       the PR that filed this design, so nothing is owed there.)
-- [ ] Add `changelog/unreleased/<PR>.md` and the matching `Changelog:` section
-      in the PR description. The implementation changes observable behavior of
-      the public `tokenize` — the error tokens it emits — so the entry is
+- [ ] Add the `Changelog:` section to the PR description. The implementation
+      changes observable behavior of the public `tokenize` — the error tokens it
+      emits — so the declaration is
       required, with an additive half for the newly exported `scanString`,
       `scanNumber`, their initial states `stringStart` and `numberStart`, and
       their state types, and a note that `JsonToken`'s error

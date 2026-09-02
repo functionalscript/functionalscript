@@ -11,19 +11,26 @@ a page per release.
 
 ### Proposal
 
-Extend the website generator (`fjs/website`) to read the `changelog/`
-directory and emit an index page plus one page per release. The repository
-remains the source of truth; the website is presentation.
+Extend the website generator (`fjs/website`) to read the `changelog/` directory
+and emit an index page plus one page per release. The repository remains the
+source of truth; the website is presentation.
 
-The generator must recognize both release forms:
+The generator must recognize three release forms
+([changelog/README.md](../changelog/README.md#layout)). Only the first is
+written today; the other two are closed ranges that will not grow:
 
-- `<version>.md` — releases through `0.44.0`, one file per release with
-  entries already concatenated; entries carry inline `[#NNN](url)` PR links
-  (the oldest have none).
-- `<version>/` — releases from `0.45.0` on, one directory per release holding
-  one `<PR>.md` file per pull request. Render a release page by joining its
-  files in descending PR-number order; the entries contain no links, so the
-  generator derives each PR link from the file name.
+- `<version>.md` — one file per release, the current form and also the form used
+  through `0.44.0`. The two eras differ in how an entry names its pull requests:
+  a current entry ends with a plain `(#NNN, #NNN)` reference the generator turns
+  into links, while a file through `0.44.0` ends with an inline `[#NNN](url)`
+  link already (the oldest have none). Both must render.
+- `<version>/<PR>.md` — one directory per release holding one file per pull
+  request, `0.45.0` through `0.48.0` only. Entries carry no reference at all;
+  the generator derives each pull-request link from the file name, joining a
+  release's files in descending pull-request-number order.
+- `unreleased/<PR>.md` — the same shape, and gone once the next release consumes
+  it ([changelog/RELEASE.md](../changelog/RELEASE.md)). Either render it as a
+  pending section or skip it; do not build anything that assumes it exists.
 
 The main cost is rendering: the repo has no Markdown parser. Either write a
 small self-hosted parser for the entry subset (paragraphs, list items, inline
@@ -33,12 +40,15 @@ format. The BNF machinery is a natural fit for the parser.
 ### Tasks
 
 - [ ] Parser for the changelog Markdown subset
-- [ ] Read both release forms: `<version>.md` files and `<version>/`
-      directories (PR link derived from the entry file name)
+- [ ] Read all three release forms, with the two pull-request reference styles
+      (plain `(#NNN)`, inline link) and the file-name derivation for the
+      directory form
 - [ ] Release index page and per-release pages in `fjs/website`
 - [ ] Link the changelog from the landing page
 
 ### Related
 
-- [changelog/README.md](../changelog/README.md) — defines the structure and the
-  Markdown subset this consumes
+- [changelog/README.md](../changelog/README.md) — the layout and the Markdown
+  subset this consumes
+- [commit-message-enforcement.md](./commit-message-enforcement.md) — reuses this
+  parser to validate a pull request's `Changelog:` section

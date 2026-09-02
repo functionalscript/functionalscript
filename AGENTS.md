@@ -121,14 +121,15 @@ Commands and Rust coding style: [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md).
 A PR implements only one feature or improvement, with minimal code changes, and
 every check above passing. Its title and description become the merge commit
 on `main`, so write them as one: a `<topic>: <short description>` title and a
-description. A PR that changes behavior or the public API adds
-`changelog/unreleased/<PR>.md`, named by the real PR number once the PR exists,
-and repeats it in a matching `Changelog:` section — the last section of the
-description before any trailer block; a PR that doesn't — internal refactors,
-test-only changes, and PRs that only touch `todo/`, `AGENTS.md`, or other
-documentation — needs neither. Breaking changes are welcome when they improve
-the API — prefix the entry with `**BREAKING CHANGES:**` and update every
-importer in the same PR.
+description. **A PR adds no changelog file** — the changelog is written once per
+release, from the PRs that shipped in it. What a PR owes is one declaration:
+when it **breaks the public API**, a `Changelog:` section — the last section of
+the description before any trailer block — with an item prefixed
+`**BREAKING CHANGES:**`. That is required, because nothing derives a break from
+a diff and the release reads it to pick the version number. For a non-breaking
+change the section is optional raw material for the release author, and a PR
+that changes no observable behavior omits it. Breaking changes are welcome when
+they improve the API — declare it and update every importer in the same PR.
 
 **Merge the knowledge.** A small step merged with what was learned written down
 beats two hundred iterations of a PR that never lands. Answer a review, don't
@@ -144,6 +145,7 @@ Commit-message format and the PR checklist:
 [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
 Changelog entry rules, breaking changes, and versioning:
 [changelog/README.md](./changelog/README.md).
+How a release collects its entries: [changelog/RELEASE.md](./changelog/RELEASE.md).
 
 ## 6. External tools
 

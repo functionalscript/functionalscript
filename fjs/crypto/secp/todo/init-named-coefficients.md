@@ -95,9 +95,9 @@ AGENTS.md; `curve`'s behavior and all curve constants are unchanged.
 - [ ] Update the five active curve literals, the commented-out `secp224r1`
       block, and the proof's `example`; keep the per-slot comments as
       `//< c0 = b` / `//< c1 = a` (adding them where missing).
-- [ ] `tsc` clean; `fjs t` passes (secp/sign proofs); CHANGELOG entry
-      marked **BREAKING CHANGES** if `Init`'s shape is consumed outside the
-      repo.
+- [ ] `tsc` clean; `fjs t` passes (secp/sign proofs); a `**BREAKING CHANGES:**`
+      declaration in the PR description if `Init`'s shape is consumed outside
+      the repo.
 
 ### Related
 

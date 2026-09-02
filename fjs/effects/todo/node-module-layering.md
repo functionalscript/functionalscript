@@ -252,8 +252,9 @@ Judgement calls worth deciding explicitly rather than by accident:
 ### Caveats
 
 - **Every move is a breaking change** to an import path. Per `AGENTS.md`, do one
-  concern per PR, update every importer in the same PR, and prefix the CHANGELOG
-  entry with `**BREAKING CHANGES:**`. Do not leave re-export shims behind.
+  concern per PR, update every importer in the same PR, and declare the break
+  with `**BREAKING CHANGES:**` in the description. Do not leave re-export shims
+  behind.
 
   **The exception is decided by a test, not by a list.** A re-export is a shim
   when it keeps a *dead* coupling alive; it is legitimate where the
@@ -326,7 +327,7 @@ functionalscript#1822 (which added the repo-wide `readonly`-types rule in
 deliberately deferred them here instead, even though that PR's own other
 changes already forced a version bump: each of the six now carries an inline
 comment pointing back at this section, and folding them in without giving the
-rename its own changelog entry and its own look at every call site would have
+rename its own declaration and its own look at every call site would have
 been exactly the kind of smuggled break this section exists to avoid.
 
 ### Tasks
