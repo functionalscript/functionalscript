@@ -27,10 +27,11 @@ A renderer reads **one released form**, and one transient directory that may
 reappear:
 
 - **`<version>.md`** — one file per release, holding that release's entries in
-  order of importance. Every release has one. Entries differ in how they name a
-  pull request: releases through `0.44.0` end an entry with an inline
-  `[#NNN](url)` link (the oldest have none), and every release after that writes
-  a plain `(#NNN)` reference the renderer turns into a link.
+  order of importance. Every release has one. **A renderer must handle two
+  reference styles, and both can appear in one file**: an inline
+  `[#NNN](url)` link, and a plain `(#NNN)` reference it turns into a link
+  itself. New entries use the plain form; the link survives where an entry was
+  published with one, and the oldest releases have neither.
 - **`unreleased/<PR>.md`** — one file per pull request, for work not yet
   released. Nothing adds to it any more, but a pull request opened under the old
   policy recreates it whenever it merges, so a release consumes it whenever it
@@ -38,9 +39,12 @@ reappear:
 
 `0.45.0` through `0.48.0` were directories of per-pull-request files, rendered
 by joining them in descending pull-request-number order. They are single files
-now, joined in that order with each entry carrying the `(#NNN)` its file name
-used to be. That is a change of storage, not of text: the entries read exactly
-as published, and the prior layout is in git history.
+now, joined in that order. Most of those entries named no pull request — the
+file name was the number — so each gained the `(#NNN)` it used to be named. The
+29 that already ended with a `[#NNN](url)` link kept it instead of gaining a
+second reference, which is why those two files mix the styles. That is a change
+of storage, not of text: every entry reads exactly as published, and the prior
+layout is in git history.
 
 Released files are published history. A `<version>.md` file that is empty
 records a release that shipped no notable change.

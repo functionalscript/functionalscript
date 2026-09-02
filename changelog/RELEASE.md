@@ -28,7 +28,7 @@ declaring the window's breaks.
 A pull request author knows their own change and not the release. Several pull
 requests routinely move the same thing, and entries written one at a time record
 the moves instead of the destination. The window since the `0.48.0` release —
-the one this convention arrives in, not the one `changelog/0.48.0/` records — is
+the one this convention arrives in, not the one `changelog/0.48.0.md` records — is
 the worked example:
 [#1807](https://github.com/functionalscript/functionalscript/pull/1807) made the
 generated `run` scripts pass `--quiet` three times,

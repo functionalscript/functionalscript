@@ -19,11 +19,11 @@ The generator must recognize **one released form**, plus a transient directory
 that may reappear
 ([changelog/README.md](../changelog/README.md#layout)):
 
-- `<version>.md` — one file per release, every release. Entries differ in how
-  they name a pull request: a release after `0.44.0` ends an entry with a plain
-  `(#NNN, #NNN)` reference the generator turns into links, or a short commit SHA
-  where the commit carries no `(#NNN)`; a release through `0.44.0` ends it with
-  an inline `[#NNN](url)` link already (the oldest have none). All must render.
+- `<version>.md` — one file per release, every release. **Two reference styles,
+  and both can appear in one file**: a plain `(#NNN, #NNN)` the generator turns
+  into links, or a short commit SHA where the commit carries no `(#NNN)`; and an
+  inline `[#NNN](url)` link already written out. `0.45.0` and `0.46.0` mix them,
+  and the oldest releases have neither. All must render.
 - `unreleased/<PR>.md` — one file per pull request, **transient rather than
   closed**: a release empties it, and a pull request opened under the old policy
   recreates it whenever it merges, however long after the transition
@@ -44,9 +44,9 @@ format. The BNF machinery is a natural fit for the parser.
 ### Tasks
 
 - [ ] Parser for the changelog Markdown subset
-- [ ] Read `<version>.md`, with the three reference styles the entries carry
-      between them — a plain `(#NNN)` or a short commit SHA in a release after
-      `0.44.0`, and an inline `[#NNN](url)` in one through `0.44.0`
+- [ ] Read `<version>.md`, with the three reference styles its entries carry —
+      a plain `(#NNN)`, a short commit SHA where a commit had no pull request,
+      and an inline `[#NNN](url)` link — any of which can appear in one file
       ([changelog/README.md](../changelog/README.md#entries)) — and decide what
       to do with `unreleased/` when it exists
 - [ ] Release index page and per-release pages in `fjs/website`
