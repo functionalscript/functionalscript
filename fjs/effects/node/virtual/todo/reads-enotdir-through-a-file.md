@@ -9,21 +9,24 @@
 remaining path that is not exactly one segment. Two different situations reach
 that guard, and a host distinguishes them:
 
-| `readFile(p)` where… | this runner | a host |
-| --- | --- | --- |
-| `a` is absent, `p = 'a'` or `'a/child'` | `ENOENT` | `ENOENT` everywhere |
-| `a` is a file, `p = 'a/b'` | `ENOENT` | `ENOTDIR` on POSIX, `ENOENT` on Windows |
-| `a` is a directory, `p = 'a'` | `ENOENT` | `EISDIR` on Linux, macOS and Windows; **no error at all on FreeBSD** |
+| case | `readFile(p)` where… | this runner | a host |
+| --- | --- | --- | --- |
+| **absent** | `a` is absent, `p = 'a'` or `'a/child'` | `ENOENT` | `ENOENT` everywhere |
+| **through-a-file** | `a` is a file, `p = 'a/b'` | `ENOENT` | `ENOTDIR` on POSIX, `ENOENT` on Windows |
+| **on-a-directory** | `a` is a directory, `p = 'a'` | `ENOENT` | `EISDIR` on Linux, macOS and Windows; **no error at all on FreeBSD** |
 
-The third row is the one that is not a single host answer. Node documents
+The cases are named because this table has already been reordered once and the
+prose below it did not follow; refer to them by name, never by position.
+
+**on-a-directory** is the one that is not a single host answer. Node documents
 `readFile` of a directory as platform-specific: an error on macOS, Linux and
 Windows, and *a representation of the directory's contents* on FreeBSD
 (`fs.readFile` in `@types/node`, and the same note in Node's own docs). So
 `EISDIR` is what the three platforms this repository's CI runs report, not a
-contract every host honours — and the second row's `ENOTDIR` carries the Windows
-caveat `statPath` already records.
+contract every host honours — and **through-a-file**'s `ENOTDIR` carries the
+Windows caveat `statPath` already records.
 
-`stat` already models the first row. `statPath`'s JSDoc argues the case at
+`stat` already models **through-a-file**. `statPath`'s JSDoc argues the case at
 length — "a path that descends through a non-directory is `ENOTDIR`, not
 `ENOENT`" — and answers `enotdir` so that a caller's `ENOTDIR` branch can be
 reached and proven here. The reads and `writeBytes` do not, so **one runner
@@ -43,15 +46,16 @@ comment now says so, and the fixtures pin what is actually returned.
 
 ### Proposal
 
-Not decided. `enotdir` already exists in the module, so the first row is nearly
-free; the second is the one that needs a decision.
+Not decided. `enotdir` already exists in the module, so **through-a-file** is
+nearly free; **on-a-directory** is the one that needs a decision, and
+**absent** is already right.
 
 **The order of the guards is the whole difficulty, and `p.length` alone cannot
 carry it.** `operation` hands the op the *full* remaining path in two different
 situations — the first name is absent, or it exists and is not a directory —
 so `readFile('missing/child')` and `readFile('a/child')` with `a` a file both
 arrive with `p.length === 2`. A length test alone would answer `ENOTDIR` for
-the first, where a host says `ENOENT`. `statPath` gets this right by asking
+the **absent** one, where a host says `ENOENT`. `statPath` gets this right by asking
 `entryOf(dir, path[0]) === undefined` **before** its length guard, and any
 change here has to copy that ordering rather than merely cite it:
 
@@ -62,12 +66,12 @@ if (file === undefined) { return enoent }   // absent first name, any length
 if (p.length !== 1) { return enotdir }      // it exists and is not a directory
 ```
 
-- **`ENOTDIR` for a longer path, once presence is checked first.** With the
+- **`ENOTDIR` for through-a-file, once presence is checked first.** With the
   ordering above, `resolveFile` answers `enotdir` only where `statPath` does.
   Small, and it makes the two operations agree.
-- **`EISDIR` for an empty path.** `p.length === 0` means `operation` descended
+- **`EISDIR` for on-a-directory.** `p.length === 0` means `operation` descended
   all the way, so the path named a directory. This needs a new error value and a
-  decision about `writeBytes`, which reaches the same guard. It is also the row
+  decision about `writeBytes`, which reaches the same guard. It is also the case
   where "match the host" does not settle anything: FreeBSD does not fail at all,
   so choosing `EISDIR` is a deliberate policy — model the platforms the CI runs
   and the ones callers are on — rather than the answer a host gives. Say that in
