@@ -96,8 +96,10 @@ AGENTS.md; `curve`'s behavior and all curve constants are unchanged.
       block, and the proof's `example`; keep the per-slot comments as
       `//< c0 = b` / `//< c1 = a` (adding them where missing).
 - [ ] `tsc` clean; `fjs t` passes (secp/sign proofs); a `**BREAKING CHANGES:**`
-      declaration in the PR description if `Init`'s shape is consumed outside
-      the repo.
+      declaration in the PR description — unconditionally. `Init` is exported
+      from `types.ts` and the package publishes its `.d.ts`, so renaming its
+      fields breaks the published API whether or not this repository imports it;
+      consumers outside it are not visible to a search here.
 
 ### Related
 
