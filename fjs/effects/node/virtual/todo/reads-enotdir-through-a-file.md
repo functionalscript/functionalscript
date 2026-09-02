@@ -38,9 +38,25 @@ comment now says so, and the fixtures pin what is actually returned.
 Not decided. `enotdir` already exists in the module, so the first row is nearly
 free; the second is the one that needs a decision.
 
-- **`ENOTDIR` for a longer path.** `resolveFile` distinguishes `p.length > 1`
-  from `p.length === 0` and answers `enotdir` for the former, matching
-  `statPath` exactly. Small, and it makes the two operations agree.
+**The order of the guards is the whole difficulty, and `p.length` alone cannot
+carry it.** `operation` hands the op the *full* remaining path in two different
+situations — the first name is absent, or it exists and is not a directory —
+so `readFile('missing/child')` and `readFile('a/child')` with `a` a file both
+arrive with `p.length === 2`. A length test alone would answer `ENOTDIR` for
+the first, where a host says `ENOENT`. `statPath` gets this right by asking
+`entryOf(dir, path[0]) === undefined` **before** its length guard, and any
+change here has to copy that ordering rather than merely cite it:
+
+```js
+if (p.length === 0) { /* the path was a directory */ }
+const file = entryOf(dir, p[0])
+if (file === undefined) { return enoent }   // absent first name, any length
+if (p.length !== 1) { return enotdir }      // it exists and is not a directory
+```
+
+- **`ENOTDIR` for a longer path, once presence is checked first.** With the
+  ordering above, `resolveFile` answers `enotdir` only where `statPath` does.
+  Small, and it makes the two operations agree.
 - **`EISDIR` for an empty path.** `p.length === 0` means `operation` descended
   all the way, so the path named a directory and a host says `EISDIR`. This
   needs a new error value and a decision about `writeBytes`, which reaches the
@@ -50,6 +66,11 @@ free; the second is the one that needs a decision.
   the choice, `statPath`'s argument for the opposite has to be reconciled with
   it rather than left standing next to it.
 
+Whichever is chosen, `readFile('missing/child')` wants a fixture of its own:
+nothing today pins that an absent first name answers `ENOENT` rather than
+whatever the new longer-path branch returns, which is exactly the case a length
+test would have broken.
+
 Whichever is chosen, the three `*NestedThroughFile` fixtures in
 [`../proof.f.mjs`](../proof.f.mjs) pin the current codes, so they are the ones
 that have to change, deliberately, with it.
@@ -57,6 +78,9 @@ that have to change, deliberately, with it.
 ### Tasks
 
 - [ ] Decide, reconciling with `statPath`'s JSDoc either way.
+- [ ] Whatever is chosen, pin `readFile('missing/child')` — an absent first
+      name at `p.length > 1` — so the presence-before-length ordering cannot
+      be lost.
 - [ ] If the codes change, update the `*NestedThroughFile` fixtures and the
       comment above them in the same commit.
 
