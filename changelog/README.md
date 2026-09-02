@@ -39,12 +39,12 @@ reappear:
 
 `0.45.0` through `0.48.0` were directories of per-pull-request files, rendered
 by joining them in descending pull-request-number order. They are single files
-now, joined in that order. Most of those entries named no pull request — the
+now, joined in that order. 247 of those entries named no pull request — the
 file name was the number — so each gained the `(#NNN)` it used to be named. The
-29 that already ended with a `[#NNN](url)` link kept it instead of gaining a
-second reference, which is why those two files mix the styles. That is a change
-of storage, not of text: every entry reads exactly as published, and the prior
-layout is in git history.
+other 35 already ended with a `[#NNN](url)` link and kept it instead of gaining
+a second reference: all 31 entries in `0.45.0`, and 4 in `0.46.0`, which is why
+`0.46.0` mixes the styles. That is a change of storage, not of text: every entry
+reads exactly as published, and the prior layout is in git history.
 
 Released files are published history. A `<version>.md` file that is empty
 records a release that shipped no notable change.

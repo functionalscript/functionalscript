@@ -22,8 +22,9 @@ that may reappear
 - `<version>.md` — one file per release, every release. **Two reference styles,
   and both can appear in one file**: a plain `(#NNN, #NNN)` the generator turns
   into links, or a short commit SHA where the commit carries no `(#NNN)`; and an
-  inline `[#NNN](url)` link already written out. `0.45.0` and `0.46.0` mix them,
-  and the oldest releases have neither. All must render.
+  inline `[#NNN](url)` link already written out, which may close with a period.
+  `0.46.0` mixes them, `0.45.0` is entirely links, and the oldest releases have
+  neither. All must render.
 - `unreleased/<PR>.md` — one file per pull request, **transient rather than
   closed**: a release empties it, and a pull request opened under the old policy
   recreates it whenever it merges, however long after the transition
