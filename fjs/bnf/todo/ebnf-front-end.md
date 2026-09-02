@@ -70,35 +70,29 @@ type Sequence = readonly Rule[]
 type Variant  = { readonly [k in string]?: Rule }
 type Thunk    = () => Info
 type Info     =
-    | readonly ['const', Const]          // the escape: a plain rule behind a thunk
-    | readonly ['...', number, number]   // the inclusive range of symbols a..b
-    | readonly [number, Rule]            // n copies of the rule, always a sequence
-    | readonly ['*', Rule]               // zero or more
-    | readonly ['?', Rule]               // optional
-    | readonly ['+', Rule]               // one or more
+    | readonly ['const', Const]                            // a plain rule behind a thunk
+    | readonly ['range', number, number]                   // symbols a..b, inclusive
+    | readonly ['repeat', number, Max, Rule]               // min..max copies
+type Max      = number | 'Infinity'
 ```
 
-Discrimination is by JavaScript type at every level, as elsewhere: a function
-is a thunk and is called; the first element of what it returns is a `number`
-(a count) or a string (an operator glyph); a plain `number` is a symbol, a
-string is text, an array a sequence, an object a variant. The tag slot holding
-`string | number` is a step away from RTTI's all-string tags, accepted for this
-one case because `[4, hex]` reads as what it is and `['#', 4, hex]` does not.
-The `'repeat'` question below would remove the compromise entirely by
-removing the numeric tag.
+Three forms, three word tags — the same vocabulary RTTI uses, with no glyphs
+and no numeric tag. Discrimination is by JavaScript type at every level: a
+function is a thunk and is called; what it returns is discriminated by its
+first element; a plain `number` is a symbol, a string is text, an array a
+sequence, an object a variant.
 
-The thunk still names its rule — `toData` reads `fr.name` as today — so
+The thunk still names its rule — a lowering reads `fr.name` as today — so
 nearly every named rule is a thunk, and the uniform wrapper is paid on every
 one of them. That is deliberate: an earlier draft let a thunk return a bare
 sequence and put a tagged array directly in `Rule`, which is shorter to write
-and ambiguous the moment `string` is a rule (`['*', x]` is then either the
-repeat or the literal asterisk followed by `x`). The uniform return is what
+and ambiguous the moment `string` is a rule (`['range', a, b]` is then either
+the range or the literal text `range` followed by two symbols). The uniform return is what
 lets the string question below stay open without deciding this one.
 
 **Terminals.** A plain `number` in a rule is **one symbol**, not a packed
-range: `0x61` is the letter, `-1` is EOF. A range is the `'...'` form, `'...'`
-rather than `'..'` because both ends are inclusive and that is the closed-range
-glyph where the distinction exists.
+range: `0x61` is the letter, `-1` is EOF. A span of symbols is `'range'`,
+inclusive at both ends.
 
 How a terminal is *stored* is the data layer's business, not this front end's.
 Today's `RuleSet` packs two endpoint codes into one number; a future data layer
@@ -112,225 +106,115 @@ rule behind a thunk, so a recursive sequence or variant is
 nearly every named rule is a thunk, so it is paid a lot. That is the price of
 the uniform return, and RTTI pays exactly the same one.
 
-**Counts.** `[n, r]` is `n` copies of `r`, and it is a sequence for **every**
-`n`: `[0, r]` is `[]`, `[1, r]` is the one-element sequence `[r]`, `[n, r]` is
-`n` references. An earlier draft lowered `[1, r]` to `r` itself so the count
-form could double as the escape and save the `'const'` tag. That was wrong for
-the reason ebnf exists: the AST has to be a *function of the rule's type*, and
-under that lowering `() => [number, Rule]` mapped to `AST<r> | AST<r>[]`, two
-shapes decided by a value — the repeat-recognition ambiguity again, moved into
-the count. No numeric tag can be the escape for the same reason; `0` has the
-identical defect at a different value.
+**Repetition is one form, not four.** `'repeat'` carries its bounds, so the
+optional, the star, the plus and the exact count are **not** separate `Info`
+forms and not sugar in the union — they are values of `min` and `max`:
 
-`[1, r]` stays **legal, and discouraged**. It is a real count and lowers to
-the one-element sequence `[r]`, exactly as the table says, so `toData` must
-not reject it — a count read off a value at grammar-construction time may well
-be `1`, and the form has to be total. But an author who *writes* `[1, r]` by
-hand almost always means `['const', r]`, and the two differ: the const escape
-is `r`'s own node, the count is a sequence node with `r` inside it, and a
-transformer attached to one does not see the other. The discouragement is in
-the docs and the constructors — `times(n, r)` is the way to write a count, and
-`['const', r]` the way to write "just `r`" — not in `toData`, which has no way
-to tell a hand-written `1` from a computed one.
+| meaning | form |
+|---|---|
+| `?` optional | `['repeat', 0, 1, r]` |
+| `*` zero or more | `['repeat', 0, 'Infinity', r]` |
+| `+` one or more | `['repeat', 1, 'Infinity', r]` |
+| exactly *n* | `['repeat', n, n, r]` |
+| *n* to *m* | `['repeat', n, m, r]` |
 
-The JSON grammar already wants the count form for `\uXXXX`, which it spells
-today as
-`...repeat(4)({ digit, AF, af })`, a list-level `repeat` spread into a
-sequence; `() => [4, hex]` is that as a grammar form.
-
-**Operators.** `'*'` is the one form whose AST is not the shape its spelling
-suggests: a flat node rather than a cons chain
-([Repetition is flat](../descent/README.md#repetition-is-flat)). `'?'` and
-`'+'` are expressible in terms of the others — an optional is a two-branch
-variant, a one-or-more is an item followed by a repetition — so a lowering may
-either pass them through or reduce them.
-
-**Which of these a data layer represents natively, and which are reduced on the
-way down, is deliberately not settled here.** Today's `RuleSet` has a `Repeat`
-and nothing else, so `'*'` maps across and the rest reduce; a future data layer
-with a count or a bounded repeat would map more of them. The front end is the
-same either way, which is the property worth protecting — but the reduction is
-not free, and [Problem 1](#problems-to-resolve-before-implementing) is what it
-costs.
-
-**The AST is a function of the form.** This is the contract the type-level
-mapping implements, one row per `Info` form, each a function of the form alone
-— and the rule for adding a form is that its row must be, too:
-
-| form | AST | cardinality |
-|---|---|---|
-| `['const', c]` | `AST<c>` | — |
-| `['...', a, b]` | `number` — one symbol leaf | — |
-| `[n, r]` | `readonly [AST<r>, … ]`, length `n` when `n` is a literal | exactly `n` |
-| `['?', r]` | `readonly [] \| readonly [AST<r>]` | 0 or 1 |
-| `['*', r]` | `readonly AST<r>[]` | 0 or more |
-| `['+', r]` | `readonly [AST<r>, ...AST<r>[]]` | 1 or more |
-
-**The last four rows are one family.** Every one of them is a flat array of
-`AST<r>`; they differ only in the cardinality they admit, and each is a
-bounded repetition — `[n, r]` is min `n` max `n`, `'?'` is 0..1, `'*'` is
-0..∞, `'+'` is 1..∞. A consumer that folds any of them folds all of them, and
-`.length` is the discriminator in every case, including `'?'`.
-
-This is why `'?'` is `[] | [AST<r>]` rather than a tagged
-`['some', …] | ['none', []]`. The tagged form made an optional a *choice*,
-which put it in a different family from the other three and invented two tag
-names the grammar never asked for; as a length-0-or-1 list it is the same
-thing as the rest, one row shorter, and nothing is lost — an author who wants
-named branches writes the plain `Variant` `{ some: r, none: [] }`, which is
-still an ordinary `Const`. `'+'` follows for the same reason: a flat non-empty
-list, not an item beside a nested repetition.
-
-The consequence for a data layer is worth stating plainly, and it is a
-consequence rather than a decision: **a lowering satisfies this table only if
-it has a form that yields a flat node for each cardinality.** Today's `RuleSet`
-does not — reducing `'?'` to `{ some: r, none: [] }` produces a tagged variant
-node, not a 0-or-1 list. So either the data layer grows a bounded repeat, or
-`'?'` and `'+'` cannot keep these rows. The upside is that one data-layer form
-covers all four: a repeat carrying `min` and `max` subsumes the count, the
-option, the star and the plus, so this table asks for *fewer* data-layer forms
-than the tagged version did, not more.
-
-**Constructors** hide the thunks, the way RTTI's `array(t)` does:
-`repeat0Plus(r)` is `() => ['*', r]`, `range('09')` is
-`() => ['...', 0x30, 0x39]`, `times(4, r)` is `() => [4, r]`, `set('abc')` is
-the plain variant `{ a: 0x61, b: 0x62, c: 0x63 }`, and `option`, `repeat1Plus`,
-`join0Plus`, `join1Plus` compose on them. An author writes
-`[minus, repeat0Plus(digit)]` and never types a tagged tuple by hand.
-
-#### Questions left open
-
-**Whether one bounded-repetition form replaces the four cardinality forms.**
-The table above says the count, the option, the star and the plus are one
-family differing only in admitted cardinality. If that is true, the honest
-spelling is one form —
-
-```ts
-readonly ['repeat', number, number | 'Infinity', Rule]   // min, max, body
-```
-
-— of which `[n, r]` is `min = max = n`, `'?'` is `0..1`, `'*'` is
-`0..Infinity`, and `'+'` is `1..Infinity`, with the four glyphs demoted from
-primitives to constructors (`repeat0Plus(r)` returning
-`['repeat', 0, 'Infinity', r]`, and so on). Authors write constructors either
-way, so the readability cost falls only on hand-written tuples, which are
-rare.
-
-**The name.** `'repeat'` names what the form is; an earlier draft called it
-`'minmax'`, which names its parameter list — as naming a range `'fromto'`
-would. It also restores RTTI parity, which the glyphs departed from: RTTI's
-tags are *all* words (`'const'`, `'array'`, `'record'`, `'or'`, `'rest'`), and
-collapsing the four glyphs removes most of the reason to have any. Renaming
-`'...'` to `'range'` in the same move leaves `Info` as three words that read
-like RTTI:
-
-```ts
-Info = ['const', Const]
-     | ['range', number, number]                       // over symbol values
-     | ['repeat', number, number | 'Infinity', Rule]    // over counts
-```
-
-That rename is contingent on this question, not independent: if the glyphs
-stay, `'...'` belongs to their family and should stay too.
-
-Two alternatives, if `'repeat'` is not the choice. **`'*'`** generalizes the
-star with bounds — `['*', 1, 'Infinity', r]` is `+`, `['*', 0, 1, r]` is `?` —
-which keeps grammars looking like EBNF rather than like RTTI, costs one
-character, and overloads nothing, since the star would always carry bounds.
-**`'quant'`** is the standard term for this family in regex and EBNF theory
-and so the most precise, at the cost of being jargon where `'repeat'` is not.
+An earlier draft had `'*'`, `'?'`, `'+'` and a bare `[n, r]` count as four
+`Info` forms with `'repeat'` proposed beside them. Keeping both would have been
+two spellings for one concept, four extra rows that must agree, and — because
+the count's tag was a number — a `string | number` tag slot that broke RTTI
+parity. Dropping the sugar removes all of it. The glyphs survive where they
+belong, as **constructors**, which is where an author meets them anyway.
 
 **Bounds.** `min` is a non-negative integer; `max` is a non-negative integer
 or `'Infinity'`; and `min <= max`, with `'Infinity'` above every integer. A
 negative or fractional bound is an error rather than a rounding — half a copy
 is not a cardinality.
 
-Within that domain the form still admits bounds that say nothing, and they
-divide into one error and two discouragements. The division is by whether a
-*computed* bound could ever legitimately produce them:
+`'Infinity'` is a **string**, not the JS `Infinity`, and the reason is
+type-level rather than cosmetic. TypeScript has numeric literal types only for
+finite literals, so `Infinity` is typed plain `number` with no literal type to
+match against; a conditional type could not ask whether a max is unbounded, and
+the tuple refinement the AST row depends on would be foreclosed. `'Infinity'`
+is a string literal type, so `Max extends 'Infinity'` is a question the checker
+can answer. It costs the arithmetic — `n <= max` needs `max` narrowed first —
+which is a feature, since JS would otherwise coerce the string to a number and
+compare correctly by accident.
+
+Serialization does not enter into it: an `Info` tuple is JavaScript inside a
+grammar module and is never serialized. Only what a lowering *produces* is, and
+how that layer spells its own unbounded bound is its choice, independent of
+this one.
+
+**Degenerate bounds** divide into one error and two discouragements, split by
+whether a *computed* bound could ever legitimately produce them:
 
 - `min > max` is an **error**. It admits no cardinality at all, so the rule
   matches nothing and the grammar is dead there. No provenance makes it
-  meaningful, so it is rejected like `['range', 5, 3]` is.
+  meaningful, so it is rejected like an inverted `'range'` is.
 - `min = max = 0` is legal and **discouraged**: it always matches empty, which
   the empty sequence `[]` says directly and more plainly.
 - `min = max = 1` is legal and **discouraged**: an author almost always means
   the rule itself, or `['const', r]` where a thunk is needed for recursion.
-  Note these are not equal, which is the reason the guidance is worth writing
-  down rather than the reason it can be automated away: `['repeat', 1, 1, r]`
-  has AST `readonly [AST<r>]`, a one-element list, where `r` on its own has
-  AST `AST<r>`. Writing the repeat gets a pointless wrapper node, and a
-  transformer attached to `r` does not see it.
+  These are not equal, which is why the guidance is worth writing down rather
+  than automating away: `['repeat', 1, 1, r]` has AST `readonly [AST<r>]`, a
+  one-element list, where `r` on its own has AST `AST<r>`. Writing the repeat
+  gets a pointless wrapper node, and a transformer attached to `r` does not
+  see it.
 - `min = max = n` for `n >= 2` is the ordinary exact count and is **not**
   discouraged — it is what `times(4, hex)` is for, and the `\uXXXX` rule wants
   it.
 
-The enforcement is the same split as the old `[1, r]` wart: the errors are
-checked, the discouragements live in the docs and the constructors, because a
-lowering cannot tell a hand-written `1` from one computed at
-grammar-construction time and must stay total either way.
+The errors are checked; the discouragements live in the docs and the
+constructors, because a lowering cannot tell a hand-written `1` from one
+computed at grammar-construction time and must stay total either way.
 
-One thing to be deliberate about: today's data-layer `Repeat` means
-0-or-more specifically, so the same word would mean something wider at the
-front end. That reads as alignment rather than collision — if a data layer
-ever grows bounds the two converge — but a reader moving between layers will
-assume they already match.
+**The AST is a function of the form.** This is the contract the type-level
+mapping implements, one row per `Info` form, each a function of the form alone
+— and the rule for adding a form is that its row must be, too:
 
-What it would buy, beyond one row instead of four:
+| form | AST |
+|---|---|
+| `['const', c]` | `AST<c>` |
+| `['range', a, b]` | `number` — one symbol leaf |
+| `['repeat', min, max, r]` | `readonly AST<r>[]`, refined to a fixed-length tuple when `min` and `max` are equal literals |
 
-- `Info` drops from six forms to three — `'const'`, `'range'`, `'repeat'` — so
-  a lowering has three cases and a *second data layer* has three things to
-  represent. That is the strongest argument, given that the data layer is
-  deliberately open.
-- Every tag becomes a string again, which removes the `string | number` tag
-  slot noted above as a deliberate step away from RTTI parity.
-- The `[1, r]` legal-but-discouraged wart disappears: nobody writes
-  `['repeat', 1, 1, r]` meaning "just `r`", so the form that had to be
-  accepted-but-discouraged stops being confusable with the escape.
-- It is symmetric with the terminal range — a range over counts beside a
-  range over
-  symbol values — and it closes the bounded-repeat item under "left for
-  later" by making it the primitive rather than a future addition.
+One row now covers what four did. Every repetition is a flat array of
+`AST<r>` whatever its bounds, `.length` is the discriminator in every case
+including the optional, and a consumer that folds one folds all of them. That
+is the substance of collapsing the sugar: not fewer characters, but one shape
+where there were four.
 
-The AST row stays a function of the type, so this does not reintroduce the
-ambiguity that killed `[1, r] → r`: `['repeat', a, b, r]` is a flat
-`readonly AST<r>[]`, refined to a fixed-length tuple when `a` and `b` are
-equal literals. That refinement is the only place the type checker can tell
-the cardinalities apart, which is worth confirming against
-[Problem 7](#problems-to-resolve-before-implementing) before committing.
+It is also why an optional is a length-0-or-1 list rather than a tagged
+`['some', …] | ['none', []]`. The tagged form made an optional a *choice*,
+which put it in a different family from the rest and invented two tag names
+the grammar never asked for. Nothing is lost — an author who wants named
+branches writes the plain `Variant` `{ some: r, none: [] }`, which is an
+ordinary `Const`.
 
-The sub-question it opens is how to spell an unbounded max, and the answer
-looks like the **string `"Infinity"`**, giving
-`['repeat', number, number | "Infinity", Rule]`.
+**Constructors** hide the thunks, the way RTTI's `array(t)` does, and are
+where the familiar EBNF names live:
 
-The reason is type-level, not serialization. TypeScript has numeric literal
-types only for finite literals: `Infinity` is typed `number` and there is no
-literal type to match it against. So a conditional type cannot ask "is this
-max unbounded?" — `['repeat', 0, Infinity, r]` and `['repeat', 0, n, r]` are
-the same type. It happens to degrade the right way, since an unrefinable max
-yields the unbounded array, but only by accident, and it forecloses the tuple
-refinement the row depends on. `"Infinity"` is a string literal type, so
-`Max extends "Infinity"` is a question the checker can answer, and the row can
-say precisely: unbounded max gives `readonly AST<r>[]`, equal literal bounds
-give a fixed-length tuple, anything else gives the array. Given
-[Problem 7](#problems-to-resolve-before-implementing), a form the type system
-can actually see is worth more than one that reads naturally.
+```ts
+option(r)        // () => ['repeat', 0, 1, r]
+repeat0Plus(r)   // () => ['repeat', 0, 'Infinity', r]
+repeat1Plus(r)   // () => ['repeat', 1, 'Infinity', r]
+times(n, r)      // () => ['repeat', n, n, r]
+range('09')      // () => ['range', 0x30, 0x39]
+set('abc')       // { a: 0x61, b: 0x62, c: 0x63 }  — a plain Variant
+```
 
-It costs the arithmetic: `n <= max` no longer type-checks without narrowing
-`max` first. That is a feature here — a lowering that compares a count against
-an unbounded max should say what it means rather than lean on JS coercing
-`"Infinity"` to a number, which it silently would.
+`join0Plus` and `join1Plus` compose on them. An author writes
+`[minus, repeat0Plus(digit)]` and never types a tagged tuple by hand, so the
+verbosity of the uniform form falls on the constructor definitions rather than
+on grammars.
 
-Serialization does not decide this, contrary to what an earlier draft of this
-issue said: an `Info` tuple is JavaScript inside a grammar module and is never
-serialized. Only what a lowering *produces* is, and how that layer spells its
-own unbounded bound is its choice, independent of this one.
+#### Questions left open
 
 **Whether `string` stays in `Const`, and what it means.** A string may lower
 to a sequence of code points, as `str` does today for more than one, or to one
 symbol, or to one when it has one code point and a sequence otherwise. The
 union above lists it provisionally; the type shape does not depend on the
-answer, only what `toData` emits and what AST shape a grammar gets, and the
+answer, only what a lowering emits and what AST shape a grammar gets, and the
 lowering is the alphabet adapter's job either way
 ([unicode-rules](./unicode-rules.md)). So it can stay open without blocking
 the front end.
@@ -338,16 +222,20 @@ the front end.
 **Whether bare `number` and `string` belong in `Const` at all.** They buy
 readability: `0x61`, `-1`, and `set('abc')` as a plain variant of plain
 numbers. The cost is that a tagged tuple written *without* its thunk is then a
-legal rule with a different meaning — `[3, digit]` is "symbol 3, then a digit",
-`['*', r]` is "a literal asterisk, then `r`" — and `tsc` accepts both, so a
-forgotten `() =>` is a silent wrong parse rather than a compile error. If
-`Const` were only `Sequence | Variant`, both forms would fail to type-check
-outside a thunk and the mistake would be caught, at the price of `sym(0x61)`
-and `() => ['...', 0x61, 0x61]` for every lone symbol. Constructors make the
-first choice much safer, since a hand-written tagged tuple is rare, but a
-tagged tuple in a `Const` position is a smell only proofs can pin. Whichever
-way this goes, the choice is recorded here because it is the kind that shows
-up as a wrong parse months later.
+legal rule with a different meaning — `['const', c]` is "the string `const`,
+then `c`" — and `tsc` accepts both, so a forgotten `() =>` is a silent wrong
+parse rather than a compile error. If `Const` were only `Sequence | Variant`,
+that would fail to type-check outside a thunk and the mistake would be caught,
+at the price of `sym(0x61)` and `() => ['range', 0x61, 0x61]` for every lone
+symbol. Constructors make the first choice much safer, since a hand-written
+tagged tuple is rare, but a tagged tuple in a `Const` position is a smell only
+proofs can pin. Whichever way this goes, the choice is recorded here because it
+is the kind that shows up as a wrong parse months later.
+
+Collapsing the sugar shrank this question without settling it: with `'const'`,
+`'range'` and `'repeat'` the only tags, a bare `string` in `Const` collides
+with exactly three words rather than with `'*'`, `'?'`, `'+'` and every
+number.
 
 #### What this requires of a lowering
 
@@ -356,19 +244,19 @@ Stated as requirements on any data layer, since the target is open:
 - **Validation belongs here, at the front end**, not in whatever the rules
   lower to. A form that cannot be given a meaning is rejected while the author
   still has a rule to point at:
-  - `[n, r]`: `n` is a non-negative integer.
-  - `['...', a, b]`: `a <= b` as decoded, and both are **ordinary** symbols —
+  - `['repeat', min, max, r]`: the bounds are in the domain above and
+    `min <= max`; and `r` must not match empty — a body that can consume
+    nothing makes the cardinality unrecoverable, whatever the bounds
+    ([Problem 3](#problems-to-resolve-before-implementing)). A body that
+    *reaches* its own repeat is fine: `R = repeat0Plus(['(', R, ')'])` is a
+    good grammar, and the only reason the classical fold refused it is that
+    recognition could not tell it apart from a tree.
+  - `['range', a, b]`: `a <= b` as decoded, and both are **ordinary** symbols —
     a range must not span or contain EOF, which is only ever the lone `-1`.
     Today's `not` / `fullRange` already guarantee this on their side
     ([Terminals and EOF](../README.md#terminals-and-eof)); the front end has to
     guarantee it on the authoring side.
   - A bare `number`: an integer in the terminal domain, EOF included.
-  - `['*', r]`, and see [Problem 3](#problems-to-resolve-before-implementing)
-    for the rest of the family: `r` must not match empty — a body that can
-    consume nothing gives the same input infinitely many parses. A body that
-    *reaches* its own repeat is fine: `R = repeat(['(', R, ')'])` is a good grammar, and the
-    only reason the classical fold refused it is that recognition could not
-    tell it apart from a tree.
 - **The AST a rule implies is fixed by the table above**, so a lowering is
   correct only if the tree it produces matches. That is the invariant a second
   data layer would have to satisfy too, and it is why the table is written
@@ -386,14 +274,15 @@ in a rule means a symbol, that object is misread: every branch is taken as a
 single symbol, silently, with no type error. So they cannot hand packed
 numbers to this front end. The alphabet-neutral set arithmetic on packed
 ranges stays in `terminal/` unchanged, used by `toData` and the backends; the
-EBNF-facing `not(v)` wraps each surviving range as `() => ['...', a, b]`.
+EBNF-facing `not(v)` wraps each surviving range as `() => ['range', a, b]`.
 Small, but it fails quietly if forgotten, so it is a named task.
 
 #### What it changes downstream
 
 - The rtti map tests the shape directly; `repeatItem` and its per-call
   conversion go away.
-- `Repeat0Plus<T>` is `() => readonly ['*', T]`; `Repeat1Plus` and the
+- `Repeat0Plus<T>` is `() => readonly ['repeat', 0, 'Infinity', T]`;
+  `Repeat1Plus` and the
   `Join*` types compose on it. The "if recognized as" caveat on `RepeatMap`
   goes.
 - `detectRepeat` stays in `data/` as an opt-in `RuleSet → RuleSet`
@@ -417,27 +306,28 @@ Found reviewing this design against the backends, the transformer layer, and
 the existing proofs. None is decided here; each is a thing that has to be
 answered, and the last one is the reason the rest are worth answering first.
 
-**1. A reduced form synthesizes rules no author can name.** Transformers are
-keyed by functional rule identity, and `ll1/module.f.mjs:397` asserts that
-every child of a mapped variant is itself mapped ("mixed mapped and unmapped
-variant boundary"). If `['?', r]` is reduced to a two-branch variant whose
-empty branch is a **fresh** `[]` — which is what today's data layer would
-force, and which the table above no longer describes — nobody holds that rule,
-so mapping a `?`-rule cannot satisfy the assertion — there is no reference to attach a
-transformer to. Today this works only because `none` is a *shared* export
-(`module.f.mjs:230`) that authors can name, and it has not bitten yet only
-because nothing outside proofs uses the transformer path. Options: reduce to
-shared singletons that the front end exports, and state that transformers
-attach to the `Info` thunk rather than to what it reduces to; or represent the
-form natively in the data layer so nothing is synthesized; or keep `'?'` and
-`'+'` out of `Info` and make `option` / `repeat1Plus` ordinary constructors.
-The choice interacts with the data layer, which is why it is open.
+**1. A cardinality the data layer cannot represent must be reduced, and a
+reduction synthesizes rules no author can name.** Transformers are keyed by
+functional rule identity, and `ll1/module.f.mjs:397` asserts that every child
+of a mapped variant is itself mapped ("mixed mapped and unmapped variant
+boundary"). Today's `RuleSet` has one repetition, 0-or-more, so every other
+bound has to be reduced: `['repeat', 0, 1, r]` becomes a two-branch variant
+whose empty branch is a **fresh** `[]`, and nobody holds that rule, so mapping
+an optional cannot satisfy the assertion — there is no reference to attach a
+transformer to. It works in the classical front end only because `none` is a
+*shared* export (`module.f.mjs:230`) that authors can name, and it has not
+bitten yet only because nothing outside proofs uses the transformer path.
 
-The unified AST family above narrows this a good deal: if a data layer carries
-one bounded-repeat form, `'?'` and `'+'` map onto it directly and **nothing is
-synthesized**, so the unnameable-rule problem does not arise for them at all.
-That is an argument about which data layer to build, not a fix available
-today.
+Collapsing to one `'repeat'` form sharpened this rather than solving it: the
+front end now says every cardinality in one shape, so the question is exactly
+*which bounds a data layer represents natively and which it reduces*. A data
+layer carrying bounds natively synthesizes nothing and the problem disappears;
+today's synthesizes for every bound except `0..Infinity`. Options meanwhile:
+reduce to shared singletons the front end exports, and state that transformers
+attach to the `Info` thunk rather than to what it reduces to; or narrow what
+the front end accepts to what the data layer can carry, which would put the
+sugar back and is the option this design rejects. The choice belongs with the
+data layer, which is why it is open.
 
 **2. The backend proofs are built with the front end.** `ll1/proof.f.mjs:14`,
 `descent/proof.f.mjs:10`, `data/proof.f.mjs:7` and `matcher/proof.f.mjs:8`
@@ -452,19 +342,21 @@ front end separately proves it produces them, which would make the equivalence
 claim front-end neutral for the first time. It is grammar-bucket's work, not
 this issue's, but this issue cannot be finished without it.
 
-**3. The nullable-item rule belongs to the whole repetition family, not just
-`'*'`.** A nullable `r` makes the cardinality unrecoverable in every one of
-the four forms, not only the star: empty input matches `['?', r]` as both zero
-copies and one empty copy, and matches `[3, r]` as three empty copies
-indistinguishably. Today an optional's version of this resolves silently —
-two nullable variant branches, and `emptyTagOf` takes the last. The validation
-above states the rule for `'*'` alone; it should either cover the family or
-say why a form is exempt. Whichever way, silently picking one parse is what
-this front end exists to stop.
+**3. The nullable-body rule is stated but not yet justified per bound.** A
+nullable `r` makes the cardinality unrecoverable at every bound, not only at
+`0..Infinity`: empty input matches `['repeat', 0, 1, r]` as both zero copies
+and one empty copy, and `['repeat', 3, 3, r]` as three empty copies
+indistinguishably. The validation above rejects a nullable body outright,
+which is the strong reading and the one collapsing to a single form makes
+natural. What is unconfirmed is whether any bound deserves an exemption — the
+classical front end resolves the optional's version of this silently, two
+nullable variant branches with `emptyTagOf` taking the last, so there is no
+precedent to copy. Confirm or carve out, but do not leave it to resolve
+silently.
 
-**4. Untagging `'?'` changes the AST of every optional, and the proofs pin
-it.** Under the table above an optional is a 0-or-1 list, where today it is a
-`some`/`none` variant node. Production consumers do not appear to switch on
+**4. The optional's AST changes, and the proofs pin the old one.** Under the
+table above an optional is a 0-or-1 list, where today it is a `some`/`none`
+variant node. Production consumers do not appear to switch on
 those tag names, but `descent/proof.f.mjs` and `ll1/proof.f.mjs` pin them
 throughout their expected-AST strings — the JSON cases at
 `descent/proof.f.mjs:288-296` are dense with `"some"(…)` and `"none"()`. So
@@ -475,14 +367,15 @@ second reason the port is not uniformly shape-preserving.
 
 **5. The range-set helpers have an input side too.** The split below covers
 what `not` returns. But `remove(range(' ' + unicodeMax), set('"\\'))` in the
-JSON grammar now *takes* a `'...'` thunk and a variant of bare numbers, so the
+JSON grammar now *takes* a `'range'` thunk and a variant of bare numbers, so the
 EBNF-facing helpers have to accept EBNF forms as well as produce them, with
 the packed arithmetic kept behind them. A helper that quietly reads a bare
 number as a packed range is the same silent-misread bug in the other
 direction.
 
 **6. Reduction at the wrong level defeats memoization.** Writing a reduction as
-functional rules — `['+', r]` as `[r, () => ['*', r]]` — creates a thunk during
+functional rules — a `1..Infinity` repeat as an item beside a `0..Infinity`
+one — creates a thunk during
 conversion that has no `.name` and no identity an author shares, so it is
 re-converted rather than memoized. A reduction that emits data-layer names
 directly avoids this. Which is available depends on the data layer.
@@ -507,14 +400,12 @@ grammar-bucket's stage 1 has to touch there.
 #### Left for later, deliberately
 
 A separated repeat (a flat item list with the separators dropped) is worth
-having — comma lists are the
-dominant repetition in the JSON and DJS grammars, and it would make Problem 1
-smaller by removing a reduction. It needs a data layer that can represent it,
-so it belongs to whatever data-layer work comes next rather than here. What
-this issue owes it is that adding it is a new `Info` form and a new row in
-the table, not a change to the existing rows. (A *bounded* repeat is no longer
-listed here: it is the `'repeat'` question above, which would make it the
-primitive rather than an addition.)
+having — comma lists are the dominant repetition in the JSON and DJS grammars,
+and it would remove a reduction. The natural spelling is a fourth element on
+`'repeat'` rather than a fourth form, which would keep `Info` at three; either
+way it needs a data layer that can represent it, so it belongs to whatever
+data-layer work comes next. What this issue owes it is that adding it changes
+one row of the table and none of the others.
 
 Until the classical front end is deleted, `ebnf` gets no feature `bnf` lacks
 beyond the `Info` forms above, so the two do not drift while both exist.
@@ -522,14 +413,12 @@ beyond the `Info` forms above, so the two do not drift while both exist.
 ### Tasks
 
 - [ ] `fjs/grammar/ebnf/types.ts`: the `Rule` / `Const` / `Thunk` / `Info`
-      union above, the `Repeat0Plus` / `Repeat1Plus` / `Join*` types over it,
+      union above, the `Max` type, the `Repeat0Plus` / `Repeat1Plus` /
+      `Join*` types over it,
       and the type-level `AST<Rule>` mapping from the table, with a proof per
       row that the parser's result has that type. Every form `toData` accepts
       is in `Info`, so the accepted syntax type-checks without a cast.
-- [ ] Answer the three open questions above. The `'repeat'` one is the
-      load-bearing one — it decides how many forms `Info` has and therefore
-      how much a second data layer has to represent — so answer it first, and
-      the other two only affect `Const`.
+- [ ] Answer the two open questions above; both only affect `Const`.
 - [ ] Answer the seven problems above, in the issue, before writing code.
       1, 3 and 6 gate the lowering; 2 is grammar-bucket's and gates the
       proofs; 4 sizes the port; 7 gates whether the AST table is a checked
@@ -538,23 +427,24 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       `Const`, and how a `string` lowers.
 - [ ] `fjs/grammar/ebnf/module.f.mjs`: the constructors (`option`,
       `repeat0Plus`, `repeat1Plus`, `times`, `join0Plus`, `join1Plus`, and the
-      EBNF-facing `not`) and the lowering: `['const', c]` unwrapped, `[n, r]`
-      lowered to a sequence of `n` for every `n`, `'*'` mapped, `'?'` and
-      `'+'` per Problem 1, terminals lowered to whatever the data layer
-      stores, and the validation listed above. The text-interpreting helpers — `range`, `set`,
+      EBNF-facing `not`) and the lowering: `['const', c]` unwrapped,
+      `['repeat', min, max, r]` mapped or reduced per Problem 1, terminals
+      lowered to whatever the data layer stores, and the validation listed
+      above. The text-interpreting helpers — `range`, `set`,
       `str`, `notSet` — belong to the alphabet adapter at
       `fjs/grammar/unicode/`, which this module depends on and does not
       contain ([unicode-rules](./unicode-rules.md)).
 - [ ] Split the range-set helpers: packed-range set arithmetic stays in
-      `terminal/`; the EBNF `not` wraps each range as `() => ['...', a, b]`.
+      `terminal/`; the EBNF `not` wraps each range as `() => ['range', a, b]`.
 - [ ] `fjs/grammar/ebnf/rtti/`: the rule-info map without `repeatItem`.
 - [ ] Proofs: every constructor, every `Info` form written directly rather than
-      through a constructor, `[0, r]` / `[1, r]` / `[n, r]` producing `[]` /
-      `[r]` / a sequence of `n`, every `toData` error, and the
-      `descentEquivalence`
+      through a constructor, each bound shape — `0..1`, `0..Infinity`,
+      `1..Infinity`, `n..n`, `n..m` — and the degenerate `0..0` and `1..1`,
+      every lowering error, and the `descentEquivalence`
       cases re-expressed in `ebnf`, producing the same `RuleSet` as their
       `bnf` originals.
-- [ ] Port `fjs/grammar/lib/json` (its `\uXXXX` rule becomes `times(4, hex)`),
+- [ ] Port `fjs/grammar/lib/json` (its `\uXXXX` rule becomes `times(4, hex)`,
+      i.e. `['repeat', 4, 4, hex]`),
       then `lib/datajs`, then the `djs` tokenizer and parser, then
       `fjs/rtti/common`, one PR each.
 - [ ] Update `data/README.md` and `descent/README.md`, which describe `Repeat`
