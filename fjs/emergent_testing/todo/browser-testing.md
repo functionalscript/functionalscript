@@ -196,8 +196,8 @@ workers, or visual regression testing.
 - [ ] Create the JavaScript-only application root with a generated entry
       module covering every accepted module.
 - [x] Implement the first browser-compatible emergent-test runner and report
-      API; follow up by sharing its pure semantics with `fjs t` in
-      [share-browser-console-runner](share-browser-console-runner.md).
+      API; its pure semantics are now `fjs t`'s too — see
+      [the two runners](../README.md#the-two-runners-and-what-sharing-them-cost).
 - [x] Implement the HTML UI and integrate it into the FunctionalScript
       website.
 - [ ] Add shared controller code for preparation, serving, report validation,
@@ -212,7 +212,7 @@ workers, or visual regression testing.
 ### Related
 
 - [`.f.mjs` proof discovery and coverage](f-mjs-test-and-coverage.md)
-- [Shared browser/console runner core](share-browser-console-runner.md)
+- [The two runners, and what sharing them cost](../README.md#the-two-runners-and-what-sharing-them-cost)
 - [Explicit browser test controls](browser-test-controls.md)
 - [authored `.f.mjs` package support](../../ci/todo/f-mjs-package-support.md)
 - [project roadmap](../../../todo/plan/roadmap.md)

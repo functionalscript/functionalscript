@@ -49,8 +49,8 @@ The browser runner was immune for a reason that had nothing to do with its batch
 `Promise.all(batch.map(…))` passes one iterable argument, so no spread existed there at any
 batch size — the ceiling is the *variadic operation's*, not fan-out's in general. (An
 earlier version of this paragraph credited `batchSize = 25` with staying under the limit;
-that was a misattribution, corrected in the pitfall catalog in
-[share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md).)
+that was a misattribution, corrected as item 4 of the pitfall catalog in
+[the emergent_testing README](../../emergent_testing/README.md#the-pitfall-catalog).)
 Both of the *traversal's* `Promise.all`s are gone now that the page runs the shared
 sequential traversal, and so is the page's last fan-out. The loading walk did dispatch
 `all` briefly (functionalscript#1818), which put the browser inside this ceiling for the
@@ -100,9 +100,9 @@ variadic in the first place.)
 ### Alternatives considered
 
 - **Chunk the traversal.** Fan out in groups below the limit. This puts a constant back
-  into the shared walk, which is the mistake
-  [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
-  spends several pages on, and it changes the concurrency of every run to work around an
+  into the shared walk, which is the mistake the
+  [pitfall catalog](../../emergent_testing/README.md#the-pitfall-catalog) records at
+  length, and it changes the concurrency of every run to work around an
   argument-passing detail. No.
 - **Leave it.** Defensible today, and what this issue does for now. It stops being
   defensible the first time a generated suite puts tens of thousands of leaves in one
@@ -132,5 +132,6 @@ variadic in the first place.)
 
 ### Related
 
-- [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
-  — where the browser's accidental protection was removed, and why.
+- [The two runners, and what sharing them cost](../../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost)
+  — where the browser's accidental protection was removed, and why. Item 3 of its
+  catalog is this ceiling.

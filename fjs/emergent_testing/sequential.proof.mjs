@@ -8,8 +8,8 @@
  * runs each child to completion in turn, so a fanned-out traversal and a
  * sequential one record exactly the same order of events there — a proof
  * written against it would pass whichever the traversal does, which is the
- * coincidence `todo/share-browser-console-runner.md` names as worse than no
- * proof at all. Only a runner with real suspension points shows the
+ * coincidence `./README.md`'s pitfall catalog calls worse than no proof at
+ * all (item 11). Only a runner with real suspension points shows the
  * difference, and that runner is `../effects/module.mjs`'s `asyncRun`, which
  * belongs in a host file.
  *

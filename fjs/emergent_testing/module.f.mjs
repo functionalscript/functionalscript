@@ -360,8 +360,8 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
      * its test finishes, in structural order, and a leaf's reported duration
      * is its own time rather than a share of a group's.
      *
-     * This replaced `allOk(...entries.map(one))`, and the reasons are in
-     * `todo/share-browser-console-runner.md`: fanning out made the whole suite
+     * This replaced `allOk(...entries.map(one))`, and the reasons are items
+     * 1-3 of `./README.md`'s pitfall catalog: fanning out made the whole suite
      * one uninterruptible task in a browser, queued every report behind the
      * last leaf, and put each fan-out under the engine's argument limit
      * (`../effects/todo/all-argument-limit.md`). None of those were paid for

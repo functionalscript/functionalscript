@@ -76,5 +76,5 @@ module or a default query parameter.
 
 - [Browser testing](browser-testing.md) — the shared browser application and
   report contract.
-- [Shared browser/console runner core](share-browser-console-runner.md) — future
-  separation of pure runner state from DOM controls.
+- [The two runners, and what sharing them cost](../README.md#the-two-runners-and-what-sharing-them-cost) — the
+  separation of pure runner state from DOM controls this builds on.
