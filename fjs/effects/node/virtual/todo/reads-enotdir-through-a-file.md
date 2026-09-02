@@ -70,42 +70,46 @@ if (p.length !== 1) { return enotdir }      // it exists and is not a directory
   ordering above, `resolveFile` answers `enotdir` only where `statPath` does.
   Small, and it makes the two operations agree.
 - **`EISDIR` for on-a-directory — but `p.length === 0` does not mean "a
-  directory".** It is what `parse` produces for at least three different
-  inputs, and a host answers two different things:
+  directory".** An empty `p` has *two* sources, and the document that only
+  counts one of them will get this wrong:
 
-  | input | `parse` | a host |
-  | --- | --- | --- |
-  | `.` | `[]` | `EISDIR` — it really is a directory |
-  | `''` | `[]` | `ENOENT` — names nothing |
-  | `missing/..` | `[]` | `ENOENT` — `missing` is not there to descend into |
-  | `a/b/../..` | `[]` | **it depends**: `EISDIR` if `a/b` are directories, `ENOENT` or `ENOTDIR` if not |
+  1. **`parse` returned `[]`** — `.`, `''`, and anything a `..` collapses to
+     nothing, since `parse` applies `..` lexically before any operation looks
+     at the file system.
+  2. **`operation` descended all the way** — every segment named an existing
+     directory, so the op is called with nothing left. `readFile('realdir')`
+     arrives this way even though `parse('realdir')` is `['realdir']`.
 
-  That last row is the sharpest form of the problem. One path text, one `parse`
-  output, and two different host answers selected by what is on disk — so no
-  amount of inspecting the *string* can decide it, which is exactly what a
-  lexical collapse does.
+  The second is the ordinary case, and the one the `EISDIR` option is *for*.
+  Measured against this runner and a Linux host:
 
-  So an empty `p` cannot carry the decision on its own. `statOp`'s guard
-  (`path === '' ? enoent : statPath(path)`) separates the second, and
-  `readFile`, `readBytes` and `writeBytes` do not even have that — but nothing
-  separates the third, because `parse` collapses `..` lexically before any
-  operation looks at the file system. That is
-  [lexical-path-resolution](./lexical-path-resolution.md), which makes it a
-  **precondition of this option rather than a sibling of it**: until the walk
-  is physical, `readFile('missing/..')` cannot be told from `readFile('.')`,
-  and answering `EISDIR` would be wrong for it on every host.
+  | input | reaches `resolveFile` with `[]` via | here | a host | |
+  | --- | --- | --- | --- | --- |
+  | `realdir` | descent | `ENOENT` | `EISDIR` | wrong today |
+  | `.` | `parse` | `ENOENT` | `EISDIR` | wrong today |
+  | `realdir/..` | `parse` | `ENOENT` | `EISDIR` | wrong today |
+  | `''` | `parse` | `ENOENT` | `ENOENT` | right today |
+  | `missing/..` | `parse` | `ENOENT` | `ENOENT` | right today |
+  | `a/b/../..` | `parse` | `ENOENT` | `EISDIR` if `a/b` are directories, else `ENOENT`/`ENOTDIR` | depends |
 
-  The runner is accidentally right about all three today, because one length
-  guard answers `ENOENT` for the lot and only `.` is thereby wrong. Splitting
-  that guard without the two above is how the accident becomes a defect.
+  So the single length guard is not accidentally right — it is right for the
+  two inputs that name nothing and wrong for every input that reaches a real
+  directory, which is the whole point of the option. What it cannot do is
+  separate the rows: `statOp`'s `path === ''` guard rescues one of them, and
+  the rest need the walk to be physical, because `realdir/..` and `missing/..`
+  are the same string shape and the same `parse` output with different host
+  answers. That is
+  [lexical-path-resolution](./lexical-path-resolution.md), a **precondition**
+  of this option rather than a sibling of it.
 
-  Beyond that, this needs a new error value and a
-  decision about `writeBytes`, which reaches the same guard. It is also the case
-  where "match the host" does not settle anything: FreeBSD does not fail at all,
-  so choosing `EISDIR` is a deliberate policy — model the platforms the CI runs
-  and the ones callers are on — rather than the answer a host gives. Say that in
-  the code if it is chosen, or a later reader will take it for parity the way
-  the docstring this issue came from did.
+  Beyond that, this needs a new error value and a decision about `writeBytes`,
+  which reaches the same guard. It is also the case where "match the host" does
+  not settle anything: FreeBSD does not fail at all, so choosing `EISDIR` is a
+  deliberate policy — model the platforms the CI runs and the ones callers are
+  on — rather than the answer a host gives. Say that in the code if it is
+  chosen, or a later reader will take it for parity the way the docstring this
+  issue came from did.
+
 - **Leave it, and say so.** Answering one code for every non-file is simpler.
   What this option cannot claim is host parity — an earlier draft of this
   bullet said a caller treating all three alike is right everywhere, and
@@ -163,8 +167,10 @@ Whichever option is chosen, then:
       `readFile('missing/..')` is indistinguishable from `readFile('.')` until
       the walk is physical; give the reads and `writeBytes` `statOp`'s
       `path === ''` carve-out in the same change; and pin all three of
-      `readFile('.')` as `EISDIR`, `readFile('')` and `readFile('missing/..')`
-      as `ENOENT`.
+      `readFile('realdir')` and `readFile('.')` as `EISDIR`, `readFile('')` and
+      `readFile('missing/..')` as `ENOENT`. `realdir` is the one that arrives
+      by descent rather than through `parse`, so it is the row a fixture built
+      only from odd path strings would miss.
 - [ ] If the codes change, update the `*NestedThroughFile` fixtures and the
       comment above them in the same commit.
 
