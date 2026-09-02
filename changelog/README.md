@@ -91,7 +91,7 @@ its description too.
 - Make breaking changes whenever they are the right design — don't preserve a
   worse API (e.g. a stale re-export or a non-canonical export location) just to
   avoid churn, and don't treat "it's already published" as a reason to keep a
-  shape (see [DESIGN.md §2](../DESIGN.md#2-the-api-is-the-most-important-part-of-quality)).
+  shape (see [DESIGN.md §2](../doc/DESIGN.md#2-the-api-is-the-most-important-part-of-quality)).
   The version number is what lets consumers stay on the old API; a released
   version is immutable, so nothing is taken away from anyone by improving the
   next one. When a change breaks the public API, prefix its CHANGELOG entry with
