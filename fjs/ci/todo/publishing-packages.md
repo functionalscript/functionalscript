@@ -64,7 +64,10 @@ complete:
   that produced it was removed in
   [#1520](https://github.com/functionalscript/functionalscript/pull/1520).
   `fjs compile` still writes one to a caller-named output path; that is the
-  compiler's output for a user, not repository source, and nothing packs it;
+  compiler's output for a user, not repository source. A publish does not carry
+  it, because package and publish jobs run from a clean CI checkout — but that
+  is the only reason: `files` still selects `**/*.js`, so `npm pack` in a dirty
+  working tree *does* include such a file (measured with `npm pack --dry-run`);
 - `.d.ts` and `.d.mts` are generated declarations.
 
 `.f.mjs` does **not** promise that the current FunctionalScript
