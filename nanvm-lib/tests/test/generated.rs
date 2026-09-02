@@ -228,6 +228,110 @@ fn add<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn le<A: IVm>() {
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("nullLessOrEqualFive", Any::le(Nullish::Null.to_any(), (5f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("undefinedLessOrEqualFive", Any::le(Nullish::Undefined.to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("trueLessOrEqualFive", Any::le(true.to_any(), (5f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("falseLessOrEqualFive", Any::le(false.to_any(), (5f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringThreeLessOrEqualFive", Any::le(string_any("3"), (5f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringLetterLessOrEqualFive", Any::le(string_any("a"), (5f64).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("emptyArrayLessOrEqualFive", Any::le(Array::default().to_any(), (5f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("arrayThreeLessOrEqualFive", Any::le([(3f64).to_any()].to_array().to_any(), (5f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("arrayStringThreeLessOrEqualFive", Any::le([string_any("3")].to_array().to_any(), (5f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("arrayPairLessOrEqualFive", Any::le([(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("emptyObjectLessOrEqualFive", Any::le(Object::default().to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("functionLessOrEqualFive", Any::le(function_any(), (5f64).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("threeLessOrEqualFive", Any::le((3f64).to_any(), (5f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveLessOrEqualThree", Any::le((5f64).to_any(), (3f64).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveLessOrEqualFive", Any::le((5f64).to_any(), (5f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("zeroLessOrEqualNegativeZero", Any::le((0f64).to_any(), (-0f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("negativeZeroLessOrEqualZero", Any::le((-0f64).to_any(), (0f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("nanLessOrEqualOne", Any::le((f64::NAN).to_any(), (1f64).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("oneLessOrEqualNan", Any::le((1f64).to_any(), (f64::NAN).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("nanLessOrEqualNan", Any::le((f64::NAN).to_any(), (f64::NAN).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("infinityLessOrEqualOne", Any::le((f64::INFINITY).to_any(), (1f64).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("oneLessOrEqualInfinity", Any::le((1f64).to_any(), (f64::INFINITY).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("negativeInfinityLessOrEqualInfinity", Any::le((f64::NEG_INFINITY).to_any(), (f64::INFINITY).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("infinityLessOrEqualInfinity", Any::le((f64::INFINITY).to_any(), (f64::INFINITY).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringTenLessOrEqualStringNine", Any::le(string_any("10"), string_any("9")), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringNineLessOrEqualStringTen", Any::le(string_any("9"), string_any("10")), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringALessOrEqualStringB", Any::le(string_any("a"), string_any("b")), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("emptyStringLessOrEqualStringA", Any::le(string_any(""), string_any("a")), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringAbLessOrEqualStringAbc", Any::le(string_any("ab"), string_any("abc")), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringAbcLessOrEqualStringAb", Any::le(string_any("abc"), string_any("ab")), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringUppercaseBLessOrEqualStringA", Any::le(string_any("B"), string_any("a")), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringTenLessOrEqualNine", Any::le(string_any("10"), (9f64).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("nineLessOrEqualStringTen", Any::le((9f64).to_any(), string_any("10")), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringAbcLessOrEqualFive", Any::le(string_any("abc"), (5f64).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveLessOrEqualStringAbc", Any::le((5f64).to_any(), string_any("abc")), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("negativeFiveBigLessOrEqualThreeBig", Any::le(bigint_any(-5), bigint_any(3)), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("threeBigLessOrEqualThreeBig", Any::le(bigint_any(3), bigint_any(3)), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("threeBigLessOrEqualNegativeFiveBig", Any::le(bigint_any(3), bigint_any(-5)), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveBigLessOrEqualFiveHalf", Any::le(bigint_any(5), (5.5f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveBigLessOrEqualFive", Any::le(bigint_any(5), (5f64).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveLessOrEqualFiveBig", Any::le((5f64).to_any(), bigint_any(5)), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveBigLessOrEqualNan", Any::le(bigint_any(5), (f64::NAN).to_any()), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("nanLessOrEqualFiveBig", Any::le((f64::NAN).to_any(), bigint_any(5)), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveBigLessOrEqualInfinity", Any::le(bigint_any(5), (f64::INFINITY).to_any()), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("negativeInfinityLessOrEqualFiveBig", Any::le((f64::NEG_INFINITY).to_any(), bigint_any(5)), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("infinityLessOrEqualFiveBig", Any::le((f64::INFINITY).to_any(), bigint_any(5)), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringTenLessOrEqualTwentyBig", Any::le(string_any("10"), bigint_any(20)), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("twentyBigLessOrEqualStringThirty", Any::le(bigint_any(20), string_any("30")), true.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("stringAbcLessOrEqualTwentyBig", Any::le(string_any("abc"), bigint_any(20)), false.to_any());
+    // TODO: `<=` is not implemented in nanvm-lib yet
+    // check::<A>("twentyBigLessOrEqualStringAbc", Any::le(bigint_any(20), string_any("abc")), false.to_any());
+}
+
+#[rustfmt::skip]
 fn string_coercion<A: IVm>() {
     check::<A>("number", (123f64).to_any().to_string().map(|v| v.to_any()), string_any("123"));
     check::<A>("negativeNumber", (-456f64).to_any().to_string().map(|v| v.to_any()), string_any("-456"));
@@ -259,5 +363,6 @@ pub fn all<A: IVm>() {
     mul::<A>();
     sub::<A>();
     add::<A>();
+    le::<A>();
     string_coercion::<A>();
 }
