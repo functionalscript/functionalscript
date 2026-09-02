@@ -2,11 +2,13 @@
 
 **Priority:** P1
 **Status:** open — stage 1 is done, the issue is not. It still owns the stage-2
-boundary below (`module.f.mjs -> module.f.js` may not start before it), and two
-open issues name it as their gate:
-[`fjs/ci/todo/f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md)
-carries it as **Blocked by**, and
-[`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) as an unchecked task.
+boundary below (`module.f.mjs -> module.f.js` may not start before it), and
+[`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md), which performs that
+rename, carries "Complete migrate authored TypeScript to `.mjs`" as an unchecked
+task. [`fjs/ci/todo/f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md)
+used to carry this file as **Blocked by** as well; that made the dependency
+circular and it no longer does — its stated precondition is met, so it can
+start now, while the rename it enables stays gated on it.
 This is not the `todo/README.md` "kept as the record" exception — it is an open
 task whose first stage is complete. Delete it when stage 2 starts, together with
 those references and the conventions below.
@@ -1055,9 +1057,16 @@ person can re-check rather than re-derive. Counts are as of
       So every Node version CI actually runs (`22.23.2`, `24.18.1`, `26.7.0` in
       the `node22` / `node24` / `node26` jobs) already reported real coverage;
       v23 — released, EOL, not in CI — is the version that reports nothing. The
-      fix removes the dependency on default discovery altogether: naming the
-      entrypoint yields the same counts and the same `99.93` report on 22, 24
-      and 26, and turns v23's `tests 0` into `tests 2431` with a full report.
+      Naming the entrypoint explicitly was measured as the candidate fix, and
+      it works — the same counts and the same `99.93` report on 22, 24 and 26,
+      with v23's `tests 0` becoming `tests 2431`. It is **not** what shipped, so
+      read it as the counterfactual it is: `cov` still passes no path. What
+      shipped is the entry file becoming authored `all.test.mjs`, which matches
+      `*.test.?(c|m)js` on every Node version and so removes the
+      TypeScript-support dependency that made v23 differ, plus dropping the dead
+      `**/module.f.ts` glob and adding the three 100% thresholds. A future
+      rename of the test entry is therefore still assessed against default
+      discovery — keep the new name matching those patterns.
 
       The 2431-vs-2495 gap is **not** a second defect. It is exactly the 64
       sub-tests — those reachable only through a test function's *return value*.
