@@ -49,7 +49,9 @@ type RepeatTransformer<M, C, S, T> = StateFold<Meta<M, C>, S, Out<M, T>>
 ```
 
 - **Terminal** gets the matched symbol with its metadata. `Meta<M, CodePoint>` is
-  the shared parser leaf (§7).
+  the shared parser leaf (§7). *(With `MI`/`MO` this is where the two meet:
+  `(v: Meta<MI, CodePoint>) => Out<MO, T>`, the one place the boundary is
+  crossed — see [43](./043-stateful-parser.md).)*
 - **Sequence** gets its children as a typed tuple. Fixed arity, so nothing to
   stream and no state.
 - **Variant** gets the branch name paired with its value, in *one* parameter:
@@ -141,7 +143,10 @@ bounds one invocation, not how many the input causes: right-recurse a list and
 Accumulate with `List` and flatten in `end`. Where the grammar has the choice,
 prefer `Repeat` — the helpers get its accumulation right.
 
-**Input-level** is [43](./043-stateful-parser.md)'s. It composes because the
+**Input-level** is [43](./043-stateful-parser.md)'s, which now carries that
+design: a `StateFold` over one symbol at a time, RTTI-free, keeping §10's
+separation — a validatable root output stays `checkMap`'s and this map's
+callbacks stay bare. It composes because the
 parser state is a value: the frame stack, each frame's `(rule name, state)`, and
 the cursor. The engine's half holds no closures — a frame carries a rule *name*.
 `T` and `S` are unconstrained, so **a suspended parse is serializable exactly
@@ -310,13 +315,30 @@ combines children's with a `Monoid<M>` given to the factory
 ([`fjs/common/monoid`](../../common/monoid/module.f.mjs)), whose identity covers
 the empty sequence and the zero-round repetition.
 
+> **This is the shipped API, and [43](./043-stateful-parser.md) replaces it.**
+> Stage 1 below is complete: `transformers(monoid)` exists in
+> [`../ll1/module.f.mjs`](../ll1/module.f.mjs), taking one `Monoid<M>`, and this
+> issue's signatures describe that working code rather than a proposal. Do not
+> read them as the new pair — they are what is there today.
+>
+> What 43 changes, when it is implemented: one `M` becomes `MI` and `MO`; the
+> monoid becomes `translate: (mi: MI) => MO` and `reduce: Reduce<MO>`, folded
+> strictly left to right with no associativity required; and the terminal
+> becomes the boundary, so `TerminalTransformer` takes `Meta<MI, CodePoint>` and
+> returns `Out<MO, T>` while every composite callback stays `MO → MO`. That is a
+> breaking change to stage 1's public types, made deliberately. Everything about
+> *which* metadata each rule kind contributes survives it; only the algebra and
+> the type count change. The identity does not survive at all — what an empty
+> sequence, a zero-round repetition and an EOF terminal contribute is 43's open
+> question.
+
 Repetition is the stateful exception to engine-level composition. Each round's
 complete child `Meta` reaches `update`, so the transformer keeps whatever
 metadata it needs in `S`; `end` then forms the final value and metadata together
 as `Out<M, T>`. The default AST transformer uses the monoid in its state, but an
 explicit transformer may derive its output metadata differently.
 
-One `M` suffices, because a monoid on a product is componentwise:
+~~One `M` suffices, because a monoid on a product is componentwise:~~
 
 ```ts
 type M = readonly[Pos, Payload]
@@ -327,18 +349,30 @@ const monoid: Monoid<M> = {
 }
 ```
 
-Every component must be a lawful monoid. Making the payload component constantly
-the identity — so no parent inherits a token's value — is associative but **not
-unital**, so not a monoid at all, and would make metadata depend on grammar
-shape. What stops a consumed payload propagating is the **transformer**, which
-chooses its own output `M`.
+~~Every component must be a lawful monoid. Making the payload component
+constantly the identity — so no parent inherits a token's value — is associative
+but **not unital**, so not a monoid at all, and would make metadata depend on
+grammar shape. What stops a consumed payload propagating is the
+**transformer**, which chooses its own output `M`.~~
+
+**This argument did not survive its own example.** The product was how one `M`
+was meant to carry a tokenizer's position *and* its payload, and the case that
+motivated it is the case that broke it: a layer transforms metadata, so the
+payload a tokenizer produces is not of the same type as the metadata it
+consumed. [43](./043-stateful-parser.md) takes `MI` and `MO` instead, and the
+componentwise product is no longer the mechanism. The paragraph above about
+lawfulness is kept because it says something true and easy to get wrong: a
+"component that is constantly the identity" is not a monoid, which is why
+suppressing propagation was never the algebra's job.
 
 For the [layered parser](./layered-parser.md), each layer is one grammar plus one
-transformer map, and a layer's payload is `M`.
+transformer map, and a layer's payload is its output metadata `MO`.
 
 #### 8. Helpers
 
 Everything comes from one factory, `transformers(monoid)`, which binds `M` once.
+*(Shipped as written; [43](./043-stateful-parser.md) replaces the `monoid`
+argument with `translate`/`reduce` and splits `M` — see §7's note.)*
 `M` is invariant in `Transformer<M, T>` and a call like `terminal(c => …)`
 mentions no metadata, so free helpers would infer `M = unknown` — survivable
 inside a contextually typed map, fatal for the standalone start entry.
@@ -505,8 +539,12 @@ suspended parse's state (§4).
 [REVIEW.md](../../../REVIEW.md#designs): the implementer is not bound, but
 deviating silently is not allowed — the reason goes here.
 
-- **Settled** — the four kinds, `M` and its monoid, semantic results as ordinary
-  `T` values, and the rule-value key. Changing one is a design change.
+- **Settled** — the four kinds, a metadata channel and its algebra, semantic
+  results as ordinary `T` values, and the rule-value key. Changing one is a
+  design change. *(The algebra itself already changed once, deliberately: one
+  `M` and its monoid became `MI`/`MO` with `translate` and `reduce` in
+  [43](./043-stateful-parser.md). That is the design change this bullet asks
+  for, made rather than drifted into.)*
 - **Specified only because two implementers would otherwise differ** — the seven
   checks, the four default builders, the helper set. Deviate where the code
   disagrees, and say so here.
@@ -580,11 +618,17 @@ it is the smaller machine, it is the backend without metadata yet, and
 
 ### Open questions
 
-None can change stage 1's public types.
+None of the questions *in this section* can change stage 1's public types.
+[43](./043-stateful-parser.md) does change them — `MI`/`MO` and
+`translate`/`reduce` replace the single `M` and its monoid — but that is a
+design decision taken after this issue shipped, not one of these questions
+resolving itself into a breaking change.
 
-- **Does the product monoid read well on a real tokenizer (§7)?** The design is
-  committed to one `M`; what the layered-parser port should report is only
-  whether the product is pleasant to write.
+- ~~**Does the product monoid read well on a real tokenizer (§7)?**~~ Answered
+  by the tokenizer case itself, and not in the product's favour: a layer
+  transforms metadata, so [43](./043-stateful-parser.md) takes `MI` and `MO`
+  rather than one `M` carrying both components. The remaining question is 43's —
+  what a match with no children contributes, now that the identity is gone.
 - **Output-level streaming (§4)** — deferred until a consumer names its cost.
 - **Helper sugar (§8)** — let the JSON and DJS ports pick the final set.
 - **What a combinator's map fragment looks like (§9)** — a second return value, a
@@ -602,8 +646,12 @@ None can change stage 1's public types.
   `RepeatTransformer` follows; composition and stage fusion belong there.
 - [`fjs/types/list/types.ts`](../../types/list/types.ts) — `Accumulator`, which
   `RepeatTransformer` is.
-- [`fjs/common/monoid`](../../common/monoid/module.f.mjs) — the `Monoid<T>` a
-  parser takes at construction.
+- [`fjs/common/monoid`](../../common/monoid/module.f.mjs) — the `Monoid<T>` this
+  issue's factory took at construction, superseded by
+  [43](./043-stateful-parser.md)'s `translate`/`reduce` pair. Note its `fold` is
+  *balanced*, so it must not be reused for a `reduce` that is not associative.
+- [43. Stateful parser](./043-stateful-parser.md) — the metadata algebra and the
+  streaming input contract that supersede §7's monoid.
 - [`fjs/bnf/matcher/types.ts`](../matcher/types.ts) — `Ast<L>` is already
   parameterized by the leaf.
 - [`fjs/bnf/descent/types.ts`](../descent/types.ts) — the recursive-descent

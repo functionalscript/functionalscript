@@ -47,5 +47,40 @@ Two mechanics the layers need:
 ### Open Questions
 
 - **Keyword disambiguation**: identifiers and keywords may share the same symbol. Options: separate token type per keyword, or grammar rules that inspect meta info.
-- **Meta info propagation**: when the upper parser reduces a sequence of tokens, how does meta info (e.g. source span) combine into the parent node?
-- **Error reporting**: lower-layer errors (bad token) and upper-layer errors (bad structure) need a unified error representation that carries the right meta info.
+
+Two questions this section used to carry are answered elsewhere and are kept
+here only as pointers:
+
+- **Meta info propagation** — mostly settled by
+  [generic parser metadata](./generic-parser-metadata.md), which gives the
+  combining rule per rule kind: a sequence folds child metadata left to right, a
+  variant preserves the selected branch's, a repetition folds its rounds. A
+  layer's payload is its metadata ([207 §7](./207-bnf-semantic-actions.md)),
+  and a layer *transforms* it, so the fold is `translate: (mi: MI) => MO` plus
+  `reduce: Reduce<MO>` rather than one monoid — folded strictly left to right,
+  `reduce` being under no obligation to be associative. What an **empty** match
+  contributes is still open, since the monoid identity used to answer it and
+  `reduce` has none: [43](./043-stateful-parser.md)'s.
+- **Error reporting** — there is no unified error *representation* to design,
+  because no layer has an error channel to unify. Each layer is a total fold
+  whose failure is ordinary data in its own output type
+  ([43](./043-stateful-parser.md), [`todo/flow.md`](../../../todo/flow.md)), so
+  a bad token and a bad structure are values of the layer that produced them,
+  carrying that layer's metadata by construction.
+
+  **What is still open is where in the output that data goes**, and it is a
+  protocol question for the pipeline rather than a matter of taste.
+  [`todo/flow.md`](../../../todo/flow.md) offers two conventions: *in-band*,
+  emitting `O = Result<T, Err>` so the next stage confronts failure per item, or
+  *in the summary*, reporting through `A = Result<…, Err>` — and it is explicit
+  that the summary form is only sound when "the final program result is
+  assembled by combining the `result` flows of the stages that matter".
+
+  A stack that mixes them silently loses failures. If a decoder reports a
+  truncated encoding in its summary and the tokenizer above it reads only the
+  emitted stream, the parser accepts the successfully decoded prefix and nothing
+  ever reads the summary — which is exactly the silent truncation
+  [43](./043-stateful-parser.md)'s end-of-input note and
+  [DESIGN.md §10](../../../DESIGN.md) both warn about. So this pipeline has to
+  say which convention each layer uses, and where a summary is checked if any
+  layer uses one.
