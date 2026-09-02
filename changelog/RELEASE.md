@@ -211,6 +211,12 @@ declaration, or step 4's reading of the window shows the break itself was undone
 Either way the reason is stated in the release pull request, because a
 disappearing file is not evidence of anything on its own.
 
+**An empty new listing is not an exemption from this.** It means every recorded
+path was deleted, which is this rule at full stretch rather than a case where it
+does not apply — and it is the shape the deletion takes when the window tidied
+away the last legacy file. What decides whether the comparison runs is that step
+3 recorded a listing, never what the new snapshot happens to contain.
+
 The record is what the release has accounted for, not a snapshot of when it
 started: a processed file stays on `origin/main` until the release merges, so
 leaving its line out means the next scan calls it new again and it is read and
@@ -269,9 +275,8 @@ triggers the `npm publish` workflow. Before merging:
 - [ ] the version in `package.json` matches the changelog file name
 - [ ] every pull request in the window was read, and the count was cross-checked
 - [ ] every `**BREAKING CHANGES:**` declaration is either in an entry or
-      explicitly accounted for as undone — including, whenever
-      `changelog/unreleased/` is non-empty, the ones that exist only there
-      (step 3)
+      explicitly accounted for as undone — including, whenever step 3 recorded a
+      listing, the ones that exist only there (step 3)
 - [ ] **immediately before merging, fetch and re-run step 2 against
       `origin/main` one last time** — and again after any update from `main`,
       which is *a* reason to re-list rather than the only one. A pull request
@@ -310,11 +315,16 @@ triggers the `npm publish` workflow. Before merging:
       ([commit-message-enforcement](../todo/commit-message-enforcement.md));
       until it is on, the fetch-to-merge interval is an accepted exposure, and
       it is smallest when the two happen back to back.
-- [ ] **whenever `changelog/unreleased/` is non-empty:** it is deleted in this
-      same pull request, after its content has been read into the entries — and
-      the final scan applied step 3's comparison — its exact form lives there
-      and is deliberately not restated here, because this document has twice
-      drifted by fixing a rule and leaving its paraphrase behind.
+- [ ] **whenever step 3 recorded a listing:** the final scan compared the new
+      `ls-tree` against that record — **including when the new listing is
+      empty**, which is not "nothing to do" but the deleted-path case — and
+      `changelog/unreleased/` is deleted in this same pull request, if it still
+      exists, after its content has been read into the entries. The condition is
+      what step 3 recorded, never what the directory holds now: gating on a
+      non-empty directory skips the scan in exactly the case step 3 calls
+      dangerous. The comparison's own form lives there and is deliberately not
+      restated here, because this document has twice drifted by fixing a rule
+      and leaving its paraphrase behind.
 
 ## What this replaced, and what was rejected
 
