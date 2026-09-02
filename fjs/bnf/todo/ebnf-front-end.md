@@ -213,15 +213,25 @@ conditional that reads the bounds it is given:
 
 ```ts
 type Repeat<Min, Max, T> =
-      [Min, Max] extends [0, 'Infinity'] ? readonly T[]
-    : Max extends 'Infinity'             ? readonly [T, ...readonly T[]]  // Min >= 1
-    : Min extends Max                    ? Tuple<Min, T>                  // exactly Min
+    // A widened bound says nothing, so it must be caught before any branch
+    // that reads a literal — `2 extends number` is true, and would otherwise
+    // pick a fixed-length tuple for `repeat(2, max)`.
+      number extends Min                 ? readonly T[]
+    : Max extends 'Infinity'             ? (Min extends 0 ? readonly T[]
+                                                          : readonly [T, ...readonly T[]])
+    : number extends Max                 ? readonly T[]
+    // Both literal by now, so equality has to hold in both directions.
+    : [Min, Max] extends [Max, Min]      ? Tuple<Min, T>
     : Union of Tuple<n, T> for Min <= n <= Max
 ```
 
 so `option(r)` is `readonly [] | readonly [AST<r>]`, `repeat1Plus(r)` is a
 non-empty tuple, `times(4)(r)` is a 4-tuple, and only a non-literal bound
-degrades to `readonly AST<r>[]`. A lower bound above one is expressible too —
+degrades to `readonly AST<r>[]`. The two `number extends` guards are what make
+that last clause true rather than aspirational: a one-directional
+`Min extends Max` would match a literal `Min` against a widened `Max` and hand
+back a fixed-length tuple for a repetition whose length is not known, which is
+unsound rather than merely imprecise. A lower bound above one is expressible too —
 `Min` copies followed by a rest element — and whether to spell that precisely
 or stop at "non-empty" is a detail for the implementation.
 

@@ -172,6 +172,18 @@ backwards import standing:
    by — the identity is an opaque map key — so these become generic over `R`,
    and each front end instantiates them at its own `Rule`. Types only: no
    path moves, no runtime change.
+
+   The **builder's input** has to be genericized in the same stage, not just
+   the transformer protocol. `data/types.ts:58` fixes `RuleNameMap` to the
+   classical `FRule`, and `GrammarData` embeds it, so a stage-4 builder taking
+   "the grammar data" would take a classical type — leaving the supposedly
+   neutral LL(1) builder importing `grammar/bnf`, or forcing a second public
+   signature change in stage 5. Instead `data/` keeps both, parameterized:
+   `RuleNames<R> = ReadonlyMap<R, string>` and
+   `GrammarData<R> = [RuleSet, string, RuleNames<R>]`. Generic over `R` they
+   name no front end, so `data/` stays neutral and each front end supplies its
+   own instantiation. Stage 5 then moves only the classical alias
+   (`GrammarData<FRule>`), not the type.
 4. **Backends over `RuleSet` only.** `parserRuleSet` and
    `descentParserRuleSet` stay where they are. `parser(fr)` and
    `descentParser(fr)` take a *functional* rule, so they are front-end
@@ -187,7 +199,9 @@ backwards import standing:
 5. **`fjs/grammar/bnf/`** — move the classical front end to its final path
    **and** carry `toData`, `toDataWithRules`, `data/private.ts`,
    `RuleNameMap`, `GrammarData`, and `repeatItem` into it from `data/` in the
-   same change, plus the two convenience wrappers from stage 4. The front end
+   same change, plus the two convenience wrappers from stage 4. `toData`'s
+   return type goes with it as the classical instantiation of the generic
+   `GrammarData<R>` that stage 3 leaves behind in `data/`. The front end
    is `module.f.mjs`, `types.ts`, the root `private.ts` (`testlib.f.mjs`
    imports it), `proof.f.mjs` (it imports `./module.f.mjs` and
    `./testlib.f.mjs`, so it is front-end-specific and stays co-located with
@@ -330,12 +344,24 @@ corrected now rather than caught by a later move list.
       `fjs/grammar/unicode/` directly, and point `token_symbol` there for
       `unicodeRange` so it no longer reads from the front end.
 - [ ] Stage 3: genericize the transformer protocol over the rule identity in
-      `matcher/types.ts`. Types only.
+      `matcher/types.ts`, **and** `RuleNames<R>` / `GrammarData<R>` in
+      `data/types.ts`, so the stage-4 builder has a neutral input. Types only.
 - [ ] Stage 4: backends over `RuleSet` only; `transformers` takes the grammar
       data. The convenience wrappers stay put here — they move once, in
       stage 5.
 - [ ] Before stage 5: rewrite the backend proofs against `RuleSet` literals so
       they stop importing front-end constructors and `testlib.f.mjs`.
+- [ ] Before implementing it, revise
+      [proof-recognizer-and-fixtures](../bnf/todo/proof-recognizer-and-fixtures.md)
+      to build neutral fixtures. It is blocked only until stage 2, so it
+      becomes actionable *before* that rewrite — and as written it goes the
+      opposite way: its recognizer adapters take an `FRule`, derive the root
+      from `toData(rule)[1]`, and live in `fjs/bnf/testlib.f.mjs`, which is
+      exactly the front-end coupling in the backend proofs that the rewrite
+      exists to remove. Implementing it first would build that coupling
+      deliberately, then require undoing it, or would block the stage-8
+      deletion. Its adapters should take a `RuleSet`, which both backends
+      already accept through `parserRuleSet` / `descentParserRuleSet`.
 - [ ] Before stage 5: give every issue in `fjs/bnf/todo/` the destination named
       above, and correct
       [recognizer-backend](../bnf/todo/recognizer-backend.md)'s `fjs/bnf/recognizer`

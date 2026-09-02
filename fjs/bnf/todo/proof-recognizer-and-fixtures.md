@@ -147,6 +147,16 @@ explicit named override list for the rows where token-stream acceptance differs.
 
 ### Tasks
 
+- [ ] **First: make the adapters neutral.** As designed above they take an
+      `FRule`, derive the root from `toData(rule)[1]`, and live in
+      `fjs/bnf/testlib.f.mjs` — front-end coupling in exactly the backend
+      proofs that [grammar-bucket](../../todo/grammar-bucket.md) must decouple
+      before its stage 5, and which its stage 8 deletes the other side of.
+      This issue is unblocked at that plan's stage 2, so it would otherwise
+      build that coupling first and have it undone immediately. Take a
+      `RuleSet` instead: both backends already accept one through
+      `parserRuleSet` and `descentParserRuleSet`, so the adapters need no
+      `toData` and the entry name comes from the caller.
 - [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase
       `fjs/bnf/testlib.f.mjs` text/range imports on `fjs/grammar/unicode/module.f.mjs`;
       do not import Unicode `range` from core `./module.f.mjs`.
