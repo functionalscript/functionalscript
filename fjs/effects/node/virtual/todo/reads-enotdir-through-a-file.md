@@ -110,32 +110,31 @@ if (p.length !== 1) { return enotdir }      // it exists and is not a directory
 
 ### Who would notice
 
-`ENOTDIR` is already load-bearing one module away, and in a way that turns on
-exactly this issue. `fjs/web`'s `answer` re-checks the served root **only** when
-the code is `ENOTDIR`, and that one branch is what separates two answers the
-module insists on keeping apart:
+`ENOTDIR` is already load-bearing one module away. `fjs/web`'s `answer`
+re-checks the served root **only** when the code is `ENOTDIR`, and that one
+branch separates two answers the module insists on keeping apart: a path
+descending through a file under a valid root is `404`, identical to a missing
+name so a trailing slash cannot be used to ask whether a file exists; while a
+served **root** that has itself been replaced by a file is `500`, because `404`
+there would report the operator's mistake as the client's. `throughFile` and
+`rootNotDirectory` in
+[`../../../../web/proof.f.mjs`](../../../../web/proof.f.mjs) pin both, against
+this runner deliberately, because the status differs by platform on a real
+host.
 
-- a request whose path descends through a file, under a valid root — `404`,
-  identical to a missing name, so a trailing slash cannot be used to ask
-  whether a file exists;
-- every request, when the served **root** has itself been replaced by a file —
-  `500`, because answering `404` would report the operator's mistake as the
-  client's, "a lie told to every visitor for the life of the process".
+That works because `respond` takes its `ENOTDIR` from `stat`, which models it,
+and not from a read, which does not. So the gap is narrow and worth stating
+exactly: **a caller that needs `ENOTDIR` from a read has no fixture here**, and
+`ENOENT` will not substitute — `isNotFound` is `code === 'ENOENT'` and
+`fileResponse` maps it to `404`, so the distinction is simply lost rather than
+reported differently.
 
-`ENOENT` cannot reach that branch: `isNotFound` is `code === 'ENOENT'` and
-`fileResponse` maps it straight to `404`. So if
-[stat-then-read](../../../../web/todo/stat-then-read.md) collapses `respond`'s
-`stat` and read into one read, the first case is unaffected — `404` either way —
-and the second silently becomes the lie the re-check exists to prevent.
-
-What stops that today is not luck: `rootNotDirectory` in
-[`../../../../web/proof.f.mjs`](../../../../web/proof.f.mjs) pins the `500`, so
-a refactor dropping the `stat` goes red rather than quiet. The consequence for
-*this* issue is the ordering it implies — while the reads answer `ENOENT` for
-the shape `stat` calls `ENOTDIR`, the read is not a substitute for the `stat`,
-and this issue has to be settled before that refactor can be. `throughFile` in
-the same file proves the `404` half against this runner deliberately, because
-the status differs by platform on a real host.
+No current plan needs that.
+[stat-then-read](../../../../web/todo/stat-then-read.md) replaces the
+`stat`-then-`readFile` pair with an `open`/`fstat`/bounded-read handle, not
+with a bare read, and a root held open would drop the re-check rather than
+depend on it. So this issue does not gate that one; it bounds what a future
+caller can ask a read for.
 
 Whichever option is chosen, then:
 
@@ -175,10 +174,10 @@ Whichever option is chosen, then:
   descent side — "fail with `ENOENT` when a component is missing, and with
   `ENOTDIR` when one is a file" — so whichever lands second must not contradict
   the first.
-- [stat-then-read](../../../../web/todo/stat-then-read.md) — the refactor this
-  issue gates: while the reads answer `ENOENT` where `stat` answers `ENOTDIR`,
-  a single read cannot replace `respond`'s `stat` without losing the root
-  re-check.
+- [stat-then-read](../../../../web/todo/stat-then-read.md) — where `fjs/web`'s
+  `stat`-then-`readFile` pair goes. It does **not** depend on this issue: its
+  proposal is an `open`/`fstat`/bounded-read handle, and a root held open needs
+  no `ENOTDIR` re-check at all.
 - [dirent-kinds](./dirent-kinds.md) and
   [jsmodule-read-policy](./jsmodule-read-policy.md) — two more places this
   runner answers something a host would not, both about entry *kind* rather
