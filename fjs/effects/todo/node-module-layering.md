@@ -100,7 +100,7 @@ Judgement calls worth deciding explicitly rather than by accident:
   traversal performed those three. A page loads its modules through its own
   importer rather than an `import` operation, measures its own wall clock
   rather than dispatching `now`, and performs no `fetch` at all. So none of
-  the three gained a second implementer, and DESIGN.md §4 keeps them here
+  the three gained a second implementer, and doc/DESIGN.md §4 keeps them here
   until one does.
 
   **`Import` since gained one, and the measurement had been reading it wrong.**
