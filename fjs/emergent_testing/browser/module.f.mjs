@@ -178,10 +178,11 @@ export const browserResult = (t, r, throws) => {
  * @type {LeafReporter<Catch | Sandbox | _BrowserReport>}
  */
 const reporter = {
-    // No pending row yet: the page renders a leaf once it has settled. The
-    // start event is where that changes, and it is
-    // `../todo/report-before-running.md`'s remaining task.
-    start: () => pureOk(undefined),
+    // The leaf is announced before it is sandboxed, exactly as `fjs t`
+    // announces it: the page renders a pending row and — because the handler
+    // yields — the browser paints it before the leaf's body takes the thread.
+    // A leaf that blocks now blocks with its own name on screen.
+    start: id => report(['start', id]),
     result: (t, r, throws) =>
         step(browserResult(t, r, throws), row => report(['result', row])),
     test: defaultTest,

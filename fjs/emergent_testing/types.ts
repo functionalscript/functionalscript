@@ -146,10 +146,16 @@ export type _BrowserTestResult = TestResult & {
  * decides what to render from the sequence it has seen, which is the same
  * bargain the leaf-landed half makes.
  *
+ * The `start` half carries a {@link TestId} and nothing else, because nothing
+ * else exists yet — it is `Reporter.start` reaching the page. What it buys a
+ * *browser* is the paint: the handler yields after rendering the pending row,
+ * so a leaf that blocks for ten seconds blocks with its own name on screen.
+ *
  * @internal
  */
 export type _BrowserEvent =
     | readonly['loading', string]
+    | readonly['start', TestId]
     | readonly['result', _BrowserTestResult]
 
 /**
