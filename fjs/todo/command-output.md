@@ -3,11 +3,11 @@
 **Priority:** P2
 **Status:** open
 
-> A design document, not a task list for one command. It exists because three
+> A design document, not a task list for one command. It exists because four
 > `fjs/emergent_testing/todo/` issues each proposed a *mode* for the proof
 > runner's output, and the modes are not the runner's — every `fjs` command
-> writes to the same destinations, and a structure invented per command is
-> three structures a reader has to learn.
+> writes to the same destinations, and a structure invented per command is one
+> more structure a reader has to learn.
 
 ## Problem
 
@@ -38,13 +38,13 @@ prevent, so they are two rows here rather than two values in one:
 
 | axis | values |
 | --- | --- |
-| transport | TTY · pipe or file · browser page · in-memory (a proof reading a run back) |
+| transport | TTY · pipe or file · browser page · another framework's API (a *bridge*: `node:test`/Bun `subTest` calls rather than text) · in-memory (a proof reading a run back) |
 | annotation | plain · GitHub workflow commands (`::error …`) |
 | colour | on · off |
 | verbosity | a record per event · a record per outcome · compact progress · failures only · silent |
 | progress | static (append-only) · dynamic (cursor movement, a line rewritten in place) |
 | scheduling | sequential · parallel — interleaved records make identity part of the format rather than an afterthought |
-| surface | one stream · a browser document · several windows or elements at once |
+| surface | one · several at once (windows, elements, files) |
 
 **A GitHub CI log is the cell that proves the axes have to compose**: transport
 *pipe*, annotation *GitHub*, colour *on*. Today it cannot be expressed —
@@ -58,6 +58,22 @@ One thing that looks like an axis and is not, and the design should say so
 rather than leave it to be rediscovered: **an exit code is not output**. It is
 one value per run, it is not written to a stream, and no destination renders
 it.
+
+**Not every cell is meaningful, and the design has to say which are excluded
+and why.** `transport` and `surface` are independent in principle — a page can
+render into several elements, a stream cannot — so a combination like *TTY ×
+several documents* has no meaning and must be ruled out in the design rather
+than left for a renderer to discover. An enumeration whose product contains
+cells nobody can implement is not an enumeration.
+
+**A bridge is a renderer whose output is calls rather than characters**, and it
+is in the transport row for that reason:
+[211-reporter-modes](../emergent_testing/todo/211-reporter-modes.md) specifies
+one that turns walker events into another framework's `subTest` calls, and
+keeps Playwright reporting in the browser adapter consuming the page's
+serializable report. If the shape below cannot be rendered as API calls, the
+claim that each destination is a renderer of one structure is false, and that
+issue is blocked on a design that does not cover it.
 
 **Scheduling is the one axis with a producer on each side, and the enumeration
 below decides whether it survives.** The proof *traversal* is sequential by
