@@ -171,10 +171,11 @@ These are settled and are inputs, not questions:
 
 ### Left open on purpose
 
-Four questions this document deliberately does **not** answer. They came up in
-review, none has an answer that follows from what has landed, and each is
-cheaper to settle against the enumeration than to argue about in advance. They
-are recorded so a later reader knows they were seen and postponed, not missed.
+Questions this document deliberately does **not** answer — no count, because
+the list grows as review finds them. None has an answer that follows from what
+has landed, and each is cheaper to settle against the enumeration than to argue
+about in advance. They are recorded so a later reader knows they were seen and
+postponed, not missed.
 
 - **Is a bridge a `transport` value or its own axis?** It is placed on the
   transport row above because a renderer whose output is calls is still a
@@ -221,25 +222,38 @@ are recorded so a later reader knows they were seen and postponed, not missed.
       bridge emits calls. For each, which cell of the table above it occupies.
 - [ ] Enumerate the report contracts **already designed but not yet emitted**,
       so the shape is not invalidated by an issue that is already open. The
-      rule, since listing them one at a time is how the list goes stale: *every
-      open issue that specifies a field, a status or a tally in a report is an
-      input to the shape*. Open today —
-      [browser-test-controls](../emergent_testing/todo/browser-test-controls.md)
-      (a cancelled status distinct from `failed` and `infrastructure-error`,
-      and whether cancellation is its own event),
-      [skip-property](../emergent_testing/todo/skip-property.md) (a `skip`
-      status, field and counter),
-      [todo-property](../emergent_testing/todo/todo-property.md) (a `# TODO`
-      annotation on a result and a `todo` tally in `RunTotals`, `fjs t` only —
-      so a *per-renderer* field, which the shape has no notion of yet), and
-      [run-subset-of-tests](../emergent_testing/todo/run-subset-of-tests.md)
-      (the active selector and matched/total counts in **every** report,
-      including the page's). Re-run the rule when the design is written rather
-      than trusting this list.
+      rule: *every open issue that specifies a field, a status or a tally in a
+      report is an input to the shape*. **Read it as a sweep of
+      `fjs/emergent_testing/todo/` — 29 files — and not as a list here.** An
+      inline inventory was tried and grew in three consecutive review rounds —
+      cancellation
+      ([browser-test-controls](../emergent_testing/todo/browser-test-controls.md))
+      and [skip](../emergent_testing/todo/skip-property.md), then
+      [todo](../emergent_testing/todo/todo-property.md) and the
+      [subset selector](../emergent_testing/todo/run-subset-of-tests.md), then
+      the [property-test seed](../emergent_testing/todo/665-proof-property-tests.md)
+      and the [timer resolution](../emergent_testing/todo/timer-precision.md) —
+      which is what a hand-maintained list of a directory does. Those six are a
+      **lower bound found by review, not the inventory**; the design produces the
+      inventory by running the rule over the directory at the time it is
+      written.
+
+      Two of the six say something about the *shape* rather than adding to it,
+      and are worth carrying across:
+      [todo-property](../emergent_testing/todo/todo-property.md) scopes its
+      tally to `fjs t` because the `register` path has nowhere to accumulate a
+      cross-test count — a field one renderer has and another cannot, which the
+      shape has no notion of; and
+      [665-proof-property-tests](../emergent_testing/todo/665-proof-property-tests.md)
+      needs its seed **before any result**, rendered three different ways —
+      a plain line on `fjs t`, a synthetic first test through a bridge, and a
+      field of `BrowserTestReport` — which is a per-run record that is not a
+      result, and a renderer's freedom to express it differently.
 - [ ] Design the shape and its renderers, against that enumeration.
-- [ ] Answer the four questions under *Left open on purpose* — or record why
+- [ ] Answer **every** question under *Left open on purpose* — or record why
       each still has no answer — as part of the design, rather than leaving
-      them to be rediscovered.
+      them to be rediscovered. Not a fixed count: whatever that section holds
+      when the design is written.
 - [ ] Say which existing issues the design subsumes, and retire them in the
       change that implements it rather than leaving both.
 
