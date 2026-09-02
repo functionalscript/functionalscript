@@ -312,7 +312,7 @@ const runNodeEffect = asyncRun({
         const fileStats = await stat(path)
         // if the file is too big, toVec should fail anyway but in this case we don't want to load the file.
         if (fileStats.size > maxFileSizeBytes) {
-            throw new Error(`File size ${fileStats.size} exceeds maximum allowed size of ${Number(maxFileSizeBytes)} bytes`)
+            throw new Error(`File size ${fileStats.size} exceeds maximum allowed size of ${Number(maxFileSizeBytes)} bytes: '${path}'`)
         }
         return toVec(await readFile(path))
     }),
