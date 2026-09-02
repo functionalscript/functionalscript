@@ -125,11 +125,14 @@ Collect every `**BREAKING CHANGES:**` declaration as you go; step 5 needs all of
 them.
 
 **For the first release under this procedure only, `changelog/unreleased/` is a
-fourth source, and it is not optional.** Thirteen of its files declare a break
-and four of those — 1811, 1817, 1824 and 1825 — declare it *nowhere else*: their
-merge bodies carry no `Changelog:` section at all. Reading only the merge
-commits would undercount the breaks by four and pick a patch version for a
-release that breaks the API. Read every file in that directory alongside the
+fourth source, and it is not optional.** Thirteen of its files declare a break,
+and four of those — 1811, 1817, 1824 and 1825 — declare it *nowhere else*, in
+two different ways: 1824 and 1825 carry no `Changelog:` section in their merge
+bodies at all, while 1811 and 1817 carry one that does not mention the break.
+The second is the worse failure, because a section that is present reads as
+complete — which is the argument for reading the files rather than trusting a
+section to be exhaustive. Reading only the merge commits would undercount the
+breaks by four and pick a patch version for a release that breaks the API. Read every file in that directory alongside the
 merge bodies. See "Transition" below for what happens to the directory.
 
 Most pull requests produce no entry. Internal refactors, test-only changes,
