@@ -191,7 +191,25 @@ backwards import standing:
    is `module.f.mjs`, `types.ts`, the root `private.ts` (`testlib.f.mjs`
    imports it), `proof.f.mjs` (it imports `./module.f.mjs` and
    `./testlib.f.mjs`, so it is front-end-specific and stays co-located with
-   what it proves), `testlib.f.mjs`, and `map/rtti/`. Leaving any of them
+   what it proves), `testlib.f.mjs`, and `map/rtti/`.
+
+   **`fjs/bnf/README.md` is split, not moved.** It is the one file in the
+   directory that is mostly *not* about the front end, and stage 8 would
+   delete the only copy of several normative decisions. Its sections go to
+   their owners: "The AST is one contract" and "AST" state what every backend
+   must produce, so they belong to `fjs/grammar/README.md` — the bucket's own
+   overview, which this stage creates; "Terminals and EOF" is `terminal/`'s;
+   "Dispatch" is `ll1/`'s; "Serializable Data Representation" is already
+   covered by `data/README.md` and collapses into a link. Only "Functional
+   Representation" and "Common Patterns" describe the classical front end and
+   travel with it, the latter to be deleted with it, since the repeat pattern
+   it documents is exactly what `ebnf` replaces.
+
+   Three inbound links have to be repointed in the same change, and they are
+   in these very issues: `grammar-bucket.md` and `ebnf-front-end.md` both
+   link `../bnf/README.md#terminals-and-eof`, and `ebnf-front-end.md` links
+   `#ast`. A README that survives only as a dangling anchor is the failure
+   this bullet exists to prevent. Leaving any of them
    behind either strands a proof at a path whose module has gone or leaves a
    dependency pointing back into the emptied bucket.
 
@@ -314,13 +332,17 @@ corrected now rather than caught by a later move list.
 - [ ] Stage 3: genericize the transformer protocol over the rule identity in
       `matcher/types.ts`. Types only.
 - [ ] Stage 4: backends over `RuleSet` only; `transformers` takes the grammar
-      data. Re-home the functional convenience entries.
+      data. The convenience wrappers stay put here — they move once, in
+      stage 5.
 - [ ] Before stage 5: rewrite the backend proofs against `RuleSet` literals so
       they stop importing front-end constructors and `testlib.f.mjs`.
 - [ ] Before stage 5: give every issue in `fjs/bnf/todo/` the destination named
       above, and correct
       [recognizer-backend](../bnf/todo/recognizer-backend.md)'s `fjs/bnf/recognizer`
       and `fjs/bnf/dfa` to `fjs/grammar/`.
+- [ ] Stage 5: split `fjs/bnf/README.md` to the owners named above, creating
+      `fjs/grammar/README.md`, and repoint every inbound link — including the
+      ones in these two issues.
 - [ ] Stage 5: move the front end to `fjs/grammar/bnf/` and carry `toData` /
       `toDataWithRules` / `data/private.ts` / `RuleNameMap` / `GrammarData` /
       `repeatItem` into it in the same PR; update the `djs` and
@@ -346,8 +368,9 @@ corrected now rather than caught by a later move list.
   — the regrouping plan this bucket belongs to; it set the one-move-per-PR
   rule and left the tooling bucket undecided.
 - [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — the second front end;
-  blocked on stages 1-4 here — the terminal and text alphabets plus the
-  inversion — not on the later moves.
+  blocked on stages 1-**5** here — the terminal and text alphabets, the
+  inversion, and the front-end extraction that finally makes `data/` neutral —
+  not on stage 6's moves of the already-neutral modules.
 - [rule-visitor](../bnf/todo/rule-visitor.md) — the data `Rule` visitor; the
   moved `data/` module is where it lands.
 - [terminal-range-shared-type](../bnf/todo/terminal-range-shared-type.md) —

@@ -51,8 +51,14 @@ one's stage 1 rather than a separate change.
 - [ ] Move `TerminalRange` to `fjs/grammar/terminal/types.ts` with the codec
       ([grammar-bucket](../../todo/grammar-bucket.md) stage 1).
 - [ ] Remove the redeclaration in `bnf/data/types.ts` and the front-end import
-      in `bnf/descent/types.ts`; import from `terminal/` in both (re-export
-      from `data` if external consumers of `bnf/data.TerminalRange` exist).
+      in `bnf/descent/types.ts`; import from `terminal/` in both. **No
+      re-export from `data`**, even if external consumers of
+      `bnf/data.TerminalRange` exist: an alias kept there is a public API at a
+      path that stage 6 moves again, which is the second breaking change the
+      one-hop rule forbids, and
+      [grammar-bucket](../../todo/grammar-bucket.md) allows no compatibility
+      re-exports anywhere in the migration. Those consumers are updated in the
+      same breaking change, as AGENTS.md §5 requires.
 - [ ] Run `tsc` and `fjs t`; confirm the `bnf`, `bnf/data`, and `bnf/descent`
       proofs still pass.
 

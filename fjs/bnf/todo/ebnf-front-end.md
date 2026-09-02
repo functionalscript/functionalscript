@@ -623,7 +623,8 @@ beyond the `Info` forms above, so the two do not drift while both exist.
 - [ ] `fjs/grammar/ebnf/module.f.mjs`: the primitive `repeat(min, max)`
       constructor with `option` / `repeat0Plus` / `repeat1Plus` / `times` as
       partial applications of it, plus `join0Plus`, `join1Plus` and the
-      EBNF-facing `not`; and the lowering: `['const', c]` unwrapped,
+      rule-level complement under its own name (`notOf`, never a second
+      `not`); and the lowering: `['const', c]` unwrapped,
       `['repeat', min, max, r]` mapped or reduced per Problem 1, terminals
       lowered to whatever the data layer stores, and the validation listed
       above. The text-interpreting helpers — `range`, `set`,
