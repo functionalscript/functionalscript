@@ -117,7 +117,7 @@ variadic in the first place.)
       `all`/`allOk` call shape, which reaches every fixed-arity caller
       (`both`, hand-written fan-outs in proofs) and any external importer —
       so the PR migrates every in-repo caller in the same change and carries
-      a `**BREAKING CHANGES:**` changelog entry naming what moved. Keeping
+      a `**BREAKING CHANGES:**` declaration naming what moved. Keeping
       the wrapper narrows the break to the handlers, which is the argument
       for keeping it.
 - [ ] Move every interpreter and fixture to it in one change, and every spread site in the
