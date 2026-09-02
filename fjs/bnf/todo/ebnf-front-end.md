@@ -237,12 +237,32 @@ equal literals. That refinement is the only place the type checker can tell
 the cardinalities apart, which is worth confirming against
 [Problem 7](#problems-to-resolve-before-implementing) before committing.
 
-The sub-question it opens is how to spell an unbounded max. `Infinity` reads
-correctly and compares correctly (`n <= Infinity`), at the cost of not being
-an integer and not surviving JSON; `undefined` or a missing element is
-JSON-safe but makes the tuple ragged. Since the front end is JS rather than
-JSON, `Infinity` is probably fine — but it is a data-layer-facing choice, so
-it belongs with the rest of the open ones.
+The sub-question it opens is how to spell an unbounded max, and the answer
+looks like the **string `"Infinity"`**, giving
+`['minmax', number, number | "Infinity", Rule]`.
+
+The reason is type-level, not serialization. TypeScript has numeric literal
+types only for finite literals: `Infinity` is typed `number` and there is no
+literal type to match it against. So a conditional type cannot ask "is this
+max unbounded?" — `['minmax', 0, Infinity, r]` and `['minmax', 0, n, r]` are
+the same type. It happens to degrade the right way, since an unrefinable max
+yields the unbounded array, but only by accident, and it forecloses the tuple
+refinement the row depends on. `"Infinity"` is a string literal type, so
+`Max extends "Infinity"` is a question the checker can answer, and the row can
+say precisely: unbounded max gives `readonly AST<r>[]`, equal literal bounds
+give a fixed-length tuple, anything else gives the array. Given
+[Problem 7](#problems-to-resolve-before-implementing), a form the type system
+can actually see is worth more than one that reads naturally.
+
+It costs the arithmetic: `n <= max` no longer type-checks without narrowing
+`max` first. That is a feature here — a lowering that compares a count against
+an unbounded max should say what it means rather than lean on JS coercing
+`"Infinity"` to a number, which it silently would.
+
+Serialization does not decide this, contrary to what an earlier draft of this
+issue said: an `Info` tuple is JavaScript inside a grammar module and is never
+serialized. Only what a lowering *produces* is, and how that layer spells its
+own unbounded bound is its choice, independent of this one.
 
 **Whether `string` stays in `Const`, and what it means.** A string may lower
 to a sequence of code points, as `str` does today for more than one, or to one
