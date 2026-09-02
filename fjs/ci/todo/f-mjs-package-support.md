@@ -9,13 +9,20 @@ This task was written as the gate on the repository-wide
 [TypeScript-to-`.mjs` migration](../../../todo/migrate-typescript-to-mjs.md):
 that migration could not convert its first package-owned `.ts` / `.f.ts`
 implementation source until the TypeScript and NPM pipeline treated authored
-`.mjs` as first-class source. It is no longer a gate on anything. Stage 1's
+`.mjs` as first-class source. It no longer gates that migration. Stage 1's
 source conversion is complete — every conversion happened, and what the
 migration needed from this task was performed one-time in
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520) and
 recorded in [`packed-consumer-validation.md`](../packed-consumer-validation.md).
 What remains here is regression infrastructure on its own schedule, described
 below.
+
+One downstream dependency does survive, and deliberately:
+[`f-mjs-test-and-coverage.md`](../../emergent_testing/todo/f-mjs-test-and-coverage.md)
+is still **blocked by** this task, because its fixture needs package emission to
+preserve authored `.mjs` rather than treat it as generated JavaScript. Both are
+regression work now, so neither holds up the migration or stage 2 — but that
+ordering between them is real.
 
 The package configuration originally validated only authored TypeScript and
 published its generated `.js` / `.d.ts`, with no checked authored `.mjs` plus
