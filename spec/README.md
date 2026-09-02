@@ -143,6 +143,14 @@ input — names the file being compiled instead.
 The extension is what separates the two languages, and it is the only thing
 that does: a text is read as whichever language its name declares.
 
+This table is about the *language* — what `fjs compile` reads and writes. The
+repository's own authored FunctionalScript is spelled `.f.mjs` instead, and its
+type-level APIs live in authored `types.ts`; `.f.js` is reserved there for the
+stage-2 marker, meaning a module the parser/compiler in the same revision
+accepts. Neither spelling changes what the language is: a `.f.mjs` is the same
+graph of values a `.f.js` is. The repository extension contract is
+[`fjs/fsc/README.md`](../fjs/fsc/README.md).
+
 ### JSON Input
 
 A `.json` input is a JSON document, read by the JSON reader. Anything else is

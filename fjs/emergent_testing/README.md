@@ -154,6 +154,15 @@ when source is published and copied as text. The filename gate exists only for
 vanilla JS/TS, which — unlike FunctionalScript — may run side effects at import
 time and so cannot be loaded indiscriminately.
 
+Authored `types.ts` (and an optional `private.ts`) is neither tier. It holds a
+type-level API with no runtime representation, so nothing loads it, it exports no
+`proof`, and it carries no proof-coverage obligation — its correctness is what
+`tsc` checks, plus whatever `Assert<…>` pins a neighbouring `proof.f.mjs` states
+about it. The `proof.ts` row above is the framework's standing support for
+vanilla TypeScript, not a repository path: no authored implementation or proof
+`.ts` remains after stage 1 of
+[`todo/migrate-typescript-to-mjs.md`](../../todo/migrate-typescript-to-mjs.md).
+
 ## Writing proofs
 
 The `proof` export is the proof tree. It is a plain value — no framework import
