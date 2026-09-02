@@ -69,20 +69,31 @@ if (p.length !== 1) { return enotdir }      // it exists and is not a directory
 - **`ENOTDIR` for through-a-file, once presence is checked first.** With the
   ordering above, `resolveFile` answers `enotdir` only where `statPath` does.
   Small, and it makes the two operations agree.
-- **`EISDIR` for on-a-directory — but `p.length === 0` has two inhabitants.**
-  `parse('')` and `parse('.')` both give `[]`, so by the time `resolveFile`
-  sees an empty `p` the two are indistinguishable: one named the root, the
-  other named nothing. A host separates them — `readFile('.')` is `EISDIR`,
-  `readFile('')` is `ENOENT` — and only a guard *before* `parse` can, which is
-  what `statOp` already carries (`path === '' ? enoent : statPath(path)`) and
-  what `readFile`, `readBytes` and `writeBytes` do not. Answering `EISDIR` on
-  `p.length === 0` without copying that carve-out would answer `EISDIR` for
-  `readFile('')`, where every host says `ENOENT`. The runner is right there
-  today only because the length guard catches both cases with one answer that
-  happens to suit the empty path.
+- **`EISDIR` for on-a-directory — but `p.length === 0` does not mean "a
+  directory".** It is what `parse` produces for at least three different
+  inputs, and a host answers two different things:
 
-  Beyond that, `p.length === 0` means `operation` descended all the way, so the
-  path named a directory. This needs a new error value and a
+  | input | `parse` | a host |
+  | --- | --- | --- |
+  | `.` | `[]` | `EISDIR` — it really is a directory |
+  | `''` | `[]` | `ENOENT` — names nothing |
+  | `missing/..`, `a/b/../..` | `[]` | `ENOENT` — `..` erased a name that was not there |
+
+  So an empty `p` cannot carry the decision on its own. `statOp`'s guard
+  (`path === '' ? enoent : statPath(path)`) separates the second, and
+  `readFile`, `readBytes` and `writeBytes` do not even have that — but nothing
+  separates the third, because `parse` collapses `..` lexically before any
+  operation looks at the file system. That is
+  [lexical-path-resolution](./lexical-path-resolution.md), which makes it a
+  **precondition of this option rather than a sibling of it**: until the walk
+  is physical, `readFile('missing/..')` cannot be told from `readFile('.')`,
+  and answering `EISDIR` would be wrong for it on every host.
+
+  The runner is accidentally right about all three today, because one length
+  guard answers `ENOENT` for the lot and only `.` is thereby wrong. Splitting
+  that guard without the two above is how the accident becomes a defect.
+
+  Beyond that, this needs a new error value and a
   decision about `writeBytes`, which reaches the same guard. It is also the case
   where "match the host" does not settle anything: FreeBSD does not fail at all,
   so choosing `EISDIR` is a deliberate policy — model the platforms the CI runs
@@ -142,10 +153,13 @@ Whichever option is chosen, then:
 - [ ] Whatever is chosen, pin `readFile('missing/child')` — an absent first
       name at `p.length > 1` — so the presence-before-length ordering cannot
       be lost.
-- [ ] If `EISDIR` is chosen, give the reads and `writeBytes` `statOp`'s
-      `path === ''` carve-out in the same change, and pin `readFile('')` as
-      `ENOENT` beside `readFile('.')` as `EISDIR`. Nothing distinguishes them
-      after `parse`.
+- [ ] If `EISDIR` is chosen: settle
+      [lexical-path-resolution](./lexical-path-resolution.md) first, since
+      `readFile('missing/..')` is indistinguishable from `readFile('.')` until
+      the walk is physical; give the reads and `writeBytes` `statOp`'s
+      `path === ''` carve-out in the same change; and pin all three of
+      `readFile('.')` as `EISDIR`, `readFile('')` and `readFile('missing/..')`
+      as `ENOENT`.
 - [ ] If the codes change, update the `*NestedThroughFile` fixtures and the
       comment above them in the same commit.
 
@@ -153,13 +167,14 @@ Whichever option is chosen, then:
 
 - `statPath` in [`../module.f.mjs`](../module.f.mjs) — the `ENOTDIR` argument
   this diverges from, made for `stat` and not carried to the reads.
-- [lexical-path-resolution](./lexical-path-resolution.md) — the closest
-  relative, and traversal rather than kind: `..` collapses lexically here where
-  a host walks the path, so `readFile('missing/../real.txt')` answers where a
-  host says `ENOENT`. Its proposal already carries this issue's ordering, from
-  the descent side rather than the leaf side — "fail with `ENOENT` when a
-  component is missing, and with `ENOTDIR` when one is a file" — so the two
-  want deciding together, or the second will contradict the first.
+- [lexical-path-resolution](./lexical-path-resolution.md) — traversal rather
+  than kind, and a **precondition** of this issue's `EISDIR` option rather than
+  a sibling: `parse` collapses `missing/..` to the same empty list `.` gives,
+  so `EISDIR` cannot be assigned to an empty `p` until the walk is physical.
+  Its proposal also already carries this issue's guard ordering from the
+  descent side — "fail with `ENOENT` when a component is missing, and with
+  `ENOTDIR` when one is a file" — so whichever lands second must not contradict
+  the first.
 - [stat-then-read](../../../../web/todo/stat-then-read.md) — the refactor this
   issue gates: while the reads answer `ENOENT` where `stat` answers `ENOTDIR`,
   a single read cannot replace `respond`'s `stat` without losing the root
