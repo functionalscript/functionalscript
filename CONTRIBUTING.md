@@ -149,9 +149,9 @@ FunctionalScript is JavaScript with JSDoc: a `module.f.mjs` is accompanied by a
 `types.ts`. Current FunctionalScript compiler support is not required for either
 file.
 
-`types.ts` is the only authored TypeScript in the repository, and it is
-permanent rather than migration debt — authored implementation and proof `.f.ts`
-is gone. No authored `.mjs` carries a file-scope JSDoc `@typedef`, so a named
+`types.ts` and an optional sibling `private.ts` are the only authored
+TypeScript in the repository, and both are permanent rather than migration debt
+— authored implementation and proof `.f.ts` is gone. No authored `.mjs` carries a file-scope JSDoc `@typedef`, so a named
 type lives in `types.ts` when it belongs to the module's public declaration
 closure, in an optional sibling `private.ts` when it does not, inline in the
 annotation that uses it, or function-local in a proof. Only `types.d.ts` ships:

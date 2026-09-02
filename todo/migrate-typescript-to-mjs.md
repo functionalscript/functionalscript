@@ -822,9 +822,12 @@ across 16 other files, and delete the file in that change.
       *paths*; this one fixed the *guidance*, which still read as a live gate on
       completed work. Contributor: [`CONTRIBUTING.md`](../CONTRIBUTING.md) gained
       the `types.ts` / `private.ts` placement rule, the `!**/private.d.ts`
-      packaging consequence, and the fact that `.f.js` is not authored today
-      (`AGENTS.md` §3 and [`fjs/AGENTS.md`](../fjs/AGENTS.md) §§0–4 already
-      carried it). Compiler: [`fjs/fsc/README.md`](../fjs/fsc/README.md), the
+      packaging consequence, and the fact that `.f.js` is not authored today.
+      The placement rule restates `AGENTS.md` §3 and
+      [`fjs/AGENTS.md`](../fjs/AGENTS.md) §3.2 for a human contributor; the
+      `.f.js` half is new here, since §3.5 says only that compiler support does
+      not gate the eventual `.f.mjs` -> `.f.js` rename, and the root `AGENTS.md`
+      does not mention `.f.js` at all. Compiler: [`fjs/fsc/README.md`](../fjs/fsc/README.md), the
       authoritative contract — its `.f.js` row claimed the extension is
       generated from `.f.ts`, which no command has done since
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520);
@@ -979,10 +982,14 @@ across 16 other files, and delete the file in that change.
 - [x] Continue upward through the runtime dependency graph in reviewable groups
       until no authored TypeScript implementation/proof source remains. Done for
       every module in the migration group: no `.f.ts` is left anywhere. The
-      `fjs/emergent_testing/scenarios/*.pass.ts` fixtures are still authored
-      TypeScript that `run.sh` hard-links to `_scenario.proof.ts`, but their
-      extension is the thing under test rather than an unmigrated module — see
-      the scenario item under [Remaining after stage 1](#remaining-after-stage-1).
+      `fjs/emergent_testing/scenarios/*.pass.ts` fixtures were the one exception
+      while they existed — authored TypeScript that `run.sh` hard-linked to
+      `_scenario.proof.ts`, whose extension was the thing under test rather than
+      an unmigrated module. The suite was deleted in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520),
+      so the exception is gone with it: no `*.pass.ts` is tracked and neither
+      the directory nor `run.sh` exists. See the scenario item under
+      [Remaining after stage 1](#remaining-after-stage-1).
 - [x] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
       information either to JSDoc or to an intentionally separate `types.ts`
       without weakening public type semantics.

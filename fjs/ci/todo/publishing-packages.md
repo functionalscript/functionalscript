@@ -37,13 +37,15 @@ and the authoritative FunctionalScript extension contract in
 [`fjs/fsc/README.md`](../../fsc/README.md).
 
 Stage 1 used different extensions for authored JavaScript and generated
-TypeScript output. Only the second line survives it — nothing emits `source.js`
-any more, and the authored `.ts` that is left is `types.ts`, which contributes a
-declaration and no runtime file:
+TypeScript output. Only the `.mjs` line survives it — nothing emits `source.js`
+any more, and the authored `.ts` that is left is `types.ts` and its optional
+sibling `private.ts`, each contributing a declaration and no runtime file. Both
+are emitted; only the first is packed:
 
 ```text
 source.mjs -> source.mjs + source.d.mts
 types.ts   -> types.d.ts
+private.ts -> private.d.ts   # emitted, then excluded by `files`
 ```
 
 The stage-1 invariant, as it stands now that stage 1's source conversion is
