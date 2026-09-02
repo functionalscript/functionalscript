@@ -161,11 +161,13 @@ are already *one* family built from `RuleSet`; the recognizer and DFA backends
 are **new builders over the same `RuleSet`**, siblings of `dispatchMap` — not a
 separate front end. So: author `magic | utf8` functionally, `toData` it, compile.
 
-Module layout follows from this: `fjs/bnf/data` should hold only the
+Module layout follows from this: the data module should hold only the
 serializable IR (`RuleSet` + `toData`), and each parser/automaton builder lives
-in its own sibling module — `fjs/bnf/ll1` for the current LL(1) dispatch/matcher,
-then `fjs/bnf/recognizer` and `fjs/bnf/dfa` for the new backends. The IR stays
-free of any one parser's machinery.
+in its own sibling module — the existing LL(1) dispatch/matcher, then
+**`fjs/grammar/recognizer` and `fjs/grammar/dfa`** for the new backends, at
+those paths directly rather than under `fjs/bnf`
+([grammar-bucket](../../todo/grammar-bucket.md); see the first task). The IR
+stays free of any one parser's machinery.
 
 `toData` is itself a special case of a more general mechanism. The functional
 grammar embeds *functions* (lazy rules `() => DataRule`; `rtti` schemas are

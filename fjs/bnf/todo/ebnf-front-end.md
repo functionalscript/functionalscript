@@ -682,8 +682,11 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       expected to match the `bnf` original or to differ, and how.
 - [ ] Port `fjs/grammar/lib/json` (its `\uXXXX` rule becomes `times(4)(hex)`,
       i.e. `['repeat', 4, 4, hex]`),
-      then `lib/datajs`, then the `djs` tokenizer and parser, then
-      `fjs/rtti/common`, one PR each.
+      then `lib/datajs`, then the `djs` tokenizer and parser, one PR each.
+      Those are the only consumers: outside `fjs/bnf` itself, the whole
+      repository imports it from five files, all under `fjs/djs`
+      (`parser/module.f.mjs`, `parser/private.ts`, `tokenizer/module.f.mjs`,
+      `tokenizer/private.ts`, `tokenizer/proof.f.mjs`).
 - [ ] Update `data/README.md` and `descent/README.md`, which describe `Repeat`
       as "the one rule kind `toData` derives".
 - [ ] `tsc`, `fjs t`. Each PR that breaks the public API declares it with a

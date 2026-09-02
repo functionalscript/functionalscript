@@ -372,7 +372,8 @@ corrected now rather than caught by a later move list.
 - [ ] Stage 5: move the front end to `fjs/grammar/bnf/` and carry `toData` /
       `toDataWithRules` / `data/private.ts` / `RuleNameMap` / `GrammarData` /
       `repeatItem` into it in the same PR; update the `djs` and
-      `fjs/rtti/common` importers and every README / `todo/` link.
+      importers — the five files under `fjs/djs` that are the module's only
+      consumers outside itself — and every README / `todo/` link.
 - [ ] Stage 6: move `data/`, `matcher/`, `ll1/`, `descent/`, `token_symbol/`,
       and `map/types.ts` to `fjs/grammar/`, one PR each, `rule-visitor.md`
       travelling with `data/`.
