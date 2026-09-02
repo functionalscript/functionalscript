@@ -196,7 +196,7 @@ const u8ToUnpacked = b => ({ length: 8n, uint: BigInt(b) })
  * result because the result is what must not be built: `maxLength` is the
  * smallest `bigint` size supported across FunctionalScript's runtimes. The two
  * lengths are exact and additive — this is the length, not an estimate of it
- * (`DESIGN.md` §6).
+ * (`doc/DESIGN.md` §6).
  *
  * Being absorbing is also what keeps the fold's walk bounded: `foldAbsorbing`
  * stops at the first merge that overflows instead of reading the rest of a list

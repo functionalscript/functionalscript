@@ -94,7 +94,7 @@ cost-of-typing argument answering a correctness question.
 So the signature is `(maxDepth: number) => Nullable<JsonRecognizerState>`,
 `null` for a cap outside the finite non-negative integers — **and the name
 carries the refusal**, which review had to point out after the first version of
-this paragraph kept the plain one. `REVIEW.md` splits the two cases: an
+this paragraph kept the plain one. `doc/REVIEW.md` splits the two cases: an
 unsupported input a caller may legitimately supply is rejected by a `try*`
 returning `Nullable<T>`, and one that violates a precondition is panicked on. A
 runtime-computed cap is the first case, so this is `tryRecognizerInitCapped`.
