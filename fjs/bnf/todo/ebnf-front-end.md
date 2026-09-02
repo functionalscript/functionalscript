@@ -84,6 +84,8 @@ is a thunk and is called; the first element of what it returns is a `number`
 string is text, an array a sequence, an object a variant. The tag slot holding
 `string | number` is a step away from RTTI's all-string tags, accepted for this
 one case because `[4, hex]` reads as what it is and `['#', 4, hex]` does not.
+The `minmax` question below would remove the compromise entirely by removing
+the numeric tag.
 
 The thunk still names its rule — `toData` reads `fr.name` as today — so
 nearly every named rule is a thunk, and the uniform wrapper is paid on every
@@ -196,7 +198,51 @@ the plain variant `{ a: 0x61, b: 0x62, c: 0x63 }`, and `option`, `repeat1Plus`,
 `join0Plus`, `join1Plus` compose on them. An author writes
 `[minus, repeat0Plus(digit)]` and never types a tagged tuple by hand.
 
-#### Two questions left open, and the trade between them
+#### Questions left open
+
+**Whether one `minmax` form replaces the four cardinality forms.** The table
+above says the count, the option, the star and the plus are one family
+differing only in admitted cardinality. If that is true, the honest spelling
+is one form —
+
+```ts
+readonly ['minmax', number, number, Rule]   // min, max, body
+```
+
+— of which `[n, r]` is `min = max = n`, `'?'` is `0..1`, `'*'` is `0..∞`, and
+`'+'` is `1..∞`, with the four glyphs demoted from primitives to constructors
+(`repeat0Plus(r)` returning `['minmax', 0, ∞, r]`, and so on). Authors write
+constructors either way, so the readability cost falls only on hand-written
+tuples, which are rare.
+
+What it would buy, beyond one row instead of four:
+
+- `Info` drops from six forms to three — `'const'`, `'...'`, `'minmax'` — so
+  a lowering has three cases and a *second data layer* has three things to
+  represent. That is the strongest argument, given that the data layer is
+  deliberately open.
+- Every tag becomes a string again, which removes the `string | number` tag
+  slot noted above as a deliberate step away from RTTI parity.
+- The `[1, r]` legal-but-discouraged wart disappears: nobody writes
+  `['minmax', 1, 1, r]` meaning "just `r`", so the form that had to be
+  accepted-but-discouraged stops being confusable with the escape.
+- It is symmetric with `'...'` — a range over counts beside a range over
+  symbol values — and it closes the bounded-repeat item under "left for
+  later" by making it the primitive rather than a future addition.
+
+The AST row stays a function of the type, so this does not reintroduce the
+ambiguity that killed `[1, r] → r`: `['minmax', a, b, r]` is a flat
+`readonly AST<r>[]`, refined to a fixed-length tuple when `a` and `b` are
+equal literals. That refinement is the only place the type checker can tell
+the cardinalities apart, which is worth confirming against
+[Problem 7](#problems-to-resolve-before-implementing) before committing.
+
+The sub-question it opens is how to spell an unbounded max. `Infinity` reads
+correctly and compares correctly (`n <= Infinity`), at the cost of not being
+an integer and not surviving JSON; `undefined` or a missing element is
+JSON-safe but makes the tuple ragged. Since the front end is JS rather than
+JSON, `Infinity` is probably fine — but it is a data-layer-facing choice, so
+it belongs with the rest of the open ones.
 
 **Whether `string` stays in `Const`, and what it means.** A string may lower
 to a sequence of code points, as `str` does today for more than one, or to one
@@ -378,14 +424,15 @@ grammar-bucket's stage 1 has to touch there.
 
 #### Left for later, deliberately
 
-A bounded repeat (a flat node of at least *n* items, rather than reducing
-`'+'` to an item plus a repetition) and a separated repeat (a flat item list
-with the separators dropped) are both worth having — comma lists are the
-dominant repetition in the JSON and DJS grammars, and both would make
-Problem 1 smaller by removing a reduction. Each needs a data layer that can
-represent it, so they belong to whatever data-layer work comes next rather
-than here. What this issue owes them is that adding either is a new `Info`
-form and a new row in the table, not a change to the existing rows.
+A separated repeat (a flat item list with the separators dropped) is worth
+having — comma lists are the
+dominant repetition in the JSON and DJS grammars, and it would make Problem 1
+smaller by removing a reduction. It needs a data layer that can represent it,
+so it belongs to whatever data-layer work comes next rather than here. What
+this issue owes it is that adding it is a new `Info` form and a new row in
+the table, not a change to the existing rows. (A *bounded* repeat is no longer
+listed here: it is the `minmax` question above, which would make it the
+primitive rather than an addition.)
 
 Until the classical front end is deleted, `ebnf` gets no feature `bnf` lacks
 beyond the `Info` forms above, so the two do not drift while both exist.
@@ -397,6 +444,10 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       and the type-level `AST<Rule>` mapping from the table, with a proof per
       row that the parser's result has that type. Every form `toData` accepts
       is in `Info`, so the accepted syntax type-checks without a cast.
+- [ ] Answer the three open questions above. The `minmax` one is the
+      load-bearing one — it decides how many forms `Info` has and therefore
+      how much a second data layer has to represent — so answer it first, and
+      the other two only affect `Const`.
 - [ ] Answer the seven problems above, in the issue, before writing code.
       1, 3 and 6 gate the lowering; 2 is grammar-bucket's and gates the
       proofs; 4 sizes the port; 7 gates whether the AST table is a checked
