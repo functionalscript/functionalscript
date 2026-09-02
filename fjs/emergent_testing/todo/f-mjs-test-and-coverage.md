@@ -135,7 +135,10 @@ enter the published runtime graph remains unblocked by this issue.
 - [`fjs/fsc/README.md`](../../fsc/README.md) — source-extension convention and
   two-stage repository migration.
 - [`../../../todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
-  — repository-wide Stage-1 migration that is blocked by this fixture task.
+  — repository-wide Stage-1 migration. It was once **blocked by** this fixture
+  task; that gate was de-scoped rather than met, since every conversion happened
+  first and the repository itself became the evidence the fixture was to supply
+  in advance. This task is independent regression work now and blocks nothing.
 - [`664-emergent-testing-module-files.md`](./664-emergent-testing-module-files.md)
   — separate proposal to bulk-load ordinary `module.*` files for white-box
   testing. Ordinary `.mjs` files stay opt-in through the `proof.mjs` convention

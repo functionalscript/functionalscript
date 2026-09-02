@@ -15,8 +15,11 @@ those references and the conventions below.
 
 ### Problem
 
-FunctionalScript currently uses authored `.ts` / `.f.ts` implementation source
-and generated `.js` output. The compiler migration also used `.f.mjs` as a marker
+This is the problem as it stood when the issue was filed; stage 1 has since
+resolved it, and what remains is the stage-2 boundary described below.
+
+FunctionalScript used authored `.ts` / `.f.ts` implementation source and
+generated `.js` output. The compiler migration also used `.f.mjs` as a marker
 for modules accepted by the current FunctionalScript compiler. Those two
 migrations should not be coupled: removing TypeScript from runtime
 implementations is a repository-wide source-language migration, while compiler
