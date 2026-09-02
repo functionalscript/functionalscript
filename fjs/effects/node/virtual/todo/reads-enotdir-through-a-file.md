@@ -69,8 +69,20 @@ if (p.length !== 1) { return enotdir }      // it exists and is not a directory
 - **`ENOTDIR` for through-a-file, once presence is checked first.** With the
   ordering above, `resolveFile` answers `enotdir` only where `statPath` does.
   Small, and it makes the two operations agree.
-- **`EISDIR` for on-a-directory.** `p.length === 0` means `operation` descended
-  all the way, so the path named a directory. This needs a new error value and a
+- **`EISDIR` for on-a-directory — but `p.length === 0` has two inhabitants.**
+  `parse('')` and `parse('.')` both give `[]`, so by the time `resolveFile`
+  sees an empty `p` the two are indistinguishable: one named the root, the
+  other named nothing. A host separates them — `readFile('.')` is `EISDIR`,
+  `readFile('')` is `ENOENT` — and only a guard *before* `parse` can, which is
+  what `statOp` already carries (`path === '' ? enoent : statPath(path)`) and
+  what `readFile`, `readBytes` and `writeBytes` do not. Answering `EISDIR` on
+  `p.length === 0` without copying that carve-out would answer `EISDIR` for
+  `readFile('')`, where every host says `ENOENT`. The runner is right there
+  today only because the length guard catches both cases with one answer that
+  happens to suit the empty path.
+
+  Beyond that, `p.length === 0` means `operation` descended all the way, so the
+  path named a directory. This needs a new error value and a
   decision about `writeBytes`, which reaches the same guard. It is also the case
   where "match the host" does not settle anything: FreeBSD does not fail at all,
   so choosing `EISDIR` is a deliberate policy — model the platforms the CI runs
@@ -130,6 +142,10 @@ Whichever option is chosen, then:
 - [ ] Whatever is chosen, pin `readFile('missing/child')` — an absent first
       name at `p.length > 1` — so the presence-before-length ordering cannot
       be lost.
+- [ ] If `EISDIR` is chosen, give the reads and `writeBytes` `statOp`'s
+      `path === ''` carve-out in the same change, and pin `readFile('')` as
+      `ENOENT` beside `readFile('.')` as `EISDIR`. Nothing distinguishes them
+      after `parse`.
 - [ ] If the codes change, update the `*NestedThroughFile` fixtures and the
       comment above them in the same commit.
 
