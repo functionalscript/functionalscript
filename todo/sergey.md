@@ -1,6 +1,6 @@
 # Current Priority Tasks
 
-> Keep this file in the repository.
+> Keep this file in the repository. It's personal notes.
 
 - [ ] Browser Test
 - [ ] FunctionalScript
@@ -23,4 +23,4 @@
         open questions:
         [43. Stateful parser](../fjs/bnf/todo/043-stateful-parser.md).
 - [ ] Website Module Browsing
-- [ ] NiX. Should `run.sh` have `--extra-experimental-features 'nix-command flakes'`? I think yes.
+- [ ] Investigate using Git Commits instead of Evo

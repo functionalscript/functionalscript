@@ -28,11 +28,16 @@ Expose the parser as a machine over one input symbol at a time — a
 already folds with:
 
 ```ts
-StateFold<Meta<MI, CodePoint>, S, Meta<MO, T>>
+StateFold<Meta<MI, Symbol>, S, Meta<MO, T>>
 // init: S
-// update: (state: S, symbol: Meta<MI, CodePoint>) => S
+// update: (state: S, symbol: Meta<MI, Symbol>) => S
 // end: (state: S) => Meta<MO, T>
 ```
+
+`Symbol` here is the input alphabet, not `CodePoint`: end-of-input is one of its
+members and sits outside the documented `0x0000 to 0x10_FFFF`
+([eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)), and a layered parse
+feeds token symbols through the same machinery anyway.
 
 This issue's original sketch took a whole string in `append`. One symbol is the
 smaller contract, and a string-at-a-time convenience is derivable from it, not
@@ -76,6 +81,24 @@ its output metadata. With one `M` that value either rides along uselessly
 through every later rule, or has to be recovered in a postprocessing pass — both
 of which describe the pipeline worse than two types do.
 
+**EOF is an ordinary symbol in an extended input range**, sent by the caller as
+the last one, and the parser does not treat it specially. That is a change to
+[the contract](../README.md#logical-eof-in-parser-input), which has the backend
+synthesize EOF after the physical input — knowable for an array, not for a
+stream, where the caller telling the parser input ended *is* the last symbol.
+
+It removes rather than adds: EOF's metadata arrives with the symbol like any
+other, so nothing has to supply it; `Cursor`'s extended position and its
+`(idx, eofConsumed)` pair exist only to give a synthesized symbol a position it
+does not have, and a real symbol advances `idx` normally; `physicalIdx` converts
+that back and goes with it; and the trap `Cursor` documents — a backend treating
+EOF as no progress "would loop forever on a repetition over a rule that can match
+EOF" — cannot be fallen into. A grammar that never mentions `eof` leaves it
+unconsumed, which `end` treats as success, matching what the synthesized symbol
+does today.
+
+The contract and both backends are [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)'s.
+
 **The metadata algebra is two operations, given at construction.** One monoid
 needs one type, so with two it becomes:
 
@@ -85,7 +108,7 @@ readonly reduce: Reduce<MO>             // two siblings, combined
 ```
 
 The **terminal is the boundary**: a terminal transformer takes
-`Meta<MI, CodePoint>` and returns `Out<MO, T>`, and `translate` supplies the
+`Meta<MI, Symbol>` and returns `Out<MO, T>`, and `translate` supplies the
 metadata only where a terminal has no transformer — parallel to
 [207 §3](./207-bnf-semantic-actions.md)'s default builders supplying the value
 for an unmapped rule. Translating on entry instead would put it in front of the
@@ -155,11 +178,12 @@ engine that value is not yet decided**; see the open questions.
       [`../ll1/module.f.mjs`](../ll1/module.f.mjs) with a state that suspends
       when it needs the next symbol. `symbolAtCp`, `leafAt` and the
       `pos <= cp.length` comparisons are the sites.
-- [ ] Move end-of-input into `end`. The machine currently tells "ran out of
-      input" from "rejected" by comparing against a known `cp.length`; a
-      streaming parser learns the length only at `end`, which must feed the
-      synthesized EOF symbol and finalize
-      ([the contract](../README.md#logical-eof-in-parser-input)).
+- [ ] Replace the "ran out of input" test. The machine tells that from
+      "rejected" by comparing against a known `cp.length`, which a streaming
+      parser does not have. It no longer needs one: the caller's EOF symbol says
+      the input ended ([eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)),
+      so `end` finalizes rather than synthesizing anything, and a parse still
+      waiting for symbols when `end` arrives is the case to define.
 - [ ] Decide what happens to `Remainder<M>`. A fold that reports only at `end`
       cannot return the unconsumed tail, so prefix parsing — which `Match` has
       today — either goes away deliberately or needs a different reporting
@@ -192,16 +216,14 @@ is small enough to answer in a pull request that implements nothing.
   be a fold whose `end` is total by construction, or `end` returns
   `Nullable<T>`.
 - **`reduce` has no identity**, and [207 §2](./207-bnf-semantic-actions.md)
-  spends one on an empty `Sequence`, a zero-round `Repeat`, and an EOF terminal.
+  spends one on an empty `Sequence` and a zero-round `Repeat`. (It spent a third
+  on an EOF terminal until
+  [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md) gave that symbol the
+  caller's metadata — the one case of the three that only looked childless.)
   Candidates: a third field `empty: MO`, or `MO | undefined` with `reduce`
   skipping absence. Not `Monoid<MO>` — its identity comes with an associativity
   law this `reduce` does not promise. One constant also cannot say *where* an
   empty match matched, which the second candidate can.
-- **The synthesized EOF has no `MI`** to hand a mapped terminal. The caller may
-  not supply it ([the contract](../README.md#logical-eof-in-parser-input): never
-  append EOF) and the engine may not invent it
-  ([generic-parser-metadata](./generic-parser-metadata.md)), so it reaches the
-  parser at construction — an `eof: MI` constant is the cheapest shape.
 - **How far `MI ≠ MO` reaches.** Re-splitting at the parser does not by itself
   un-ship PR #1828's single-`M` map and RTTI types: a callback may stay `M → M`
   inside one layer while the layer is `MI → MO`. One answer is a code change to
