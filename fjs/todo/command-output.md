@@ -245,7 +245,8 @@ postponed, not missed.
       bridge emits calls. For each, which cell of the table above it occupies.
 - [ ] Enumerate the report contracts **already designed but not yet emitted**,
       so the shape is not invalidated by an issue that is already open. The
-      rule: *every open issue that specifies anything a destination must emit
+      rule: *every **unresolved** issue that specifies anything a destination
+      must emit
       — a field, a status, a tally, an annotation on a record, a record that is
       not a result, or an ordering between records — is an input to the shape*.
       Deliberately not a list of three kinds:
@@ -254,7 +255,16 @@ postponed, not missed.
       annotation in both the CLI and the browser report, and
       [spidermonkey-test-runner](../emergent_testing/todo/spidermonkey-test-runner.md)
       wants rejected roots reported — neither is a field, a status or a tally,
-      and both are contracts a renderer has to satisfy. **Read it as a sweep, not as a list
+      and both are contracts a renderer has to satisfy. **Unresolved, not
+      `open`** — `open` is one status among several
+      ([todo/README.md](../../todo/README.md#status-values)), and reading the
+      word literally would drop `wip`, `blocked` and `on-hold`: 8 of the 29
+      files in `fjs/emergent_testing/todo/` alone, including
+      [browser-testing](../emergent_testing/todo/browser-testing.md) (`wip`,
+      and it specifies the unsupported-dependency report) and every issue this
+      very document blocks — `211-reporter-modes` among them, which is an
+      output contract and the reason the epic exists. Only `irrelevant` and
+      `won't fix` are out. **Read it as a sweep, not as a list
       here** — and across the `todo/` directory of **every producer task 1
       found**, not only `fjs/emergent_testing/todo/`. A test-only sweep would
       contradict this document's own claim to cover every command:
