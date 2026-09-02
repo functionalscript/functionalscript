@@ -287,7 +287,7 @@ it one that never did. `fjs/cas/evo` does exactly that in production:
 `encodeText(canonicalRevision)` (`../../cas/evo/module.f.mjs:521`), on a
 revision that module builds itself. Left unchecked, a `NaN` `generation`
 there produces well-formed JSON containing `null` — a plausible wrong
-answer to an unsupported input, which `DESIGN.md §10` refuses outright.
+answer to an unsupported input, which `doc/DESIGN.md §10` refuses outright.
 
 **The two boundaries check different things, because they are handed
 different things.** `validate` receives a value parsed from JSON text: every
@@ -315,7 +315,7 @@ const jsonLeaf = x =>
 Reject rather than strip. Rebuilding the value through the schema before
 serializing would also stop the bad output, but by *silently dropping* the
 member the caller passed — and between refusing an input and answering it
-with a quietly different one, `DESIGN.md §10` is unambiguous. Stripping
+with a quietly different one, `doc/DESIGN.md §10` is unambiguous. Stripping
 would also make `encodeText` a second validator, doubling what `validate`
 already owns.
 
@@ -495,7 +495,7 @@ factory-built dialect that supplies no refinement, `detect` would classify a
 blob carrying `-0` as `application/vnd.fjs.x+json` (`:165`) while that
 dialect's own `decodeText` rejects it — detection labelling a blob its
 decoder will not read, which is the plausible-wrong-answer failure
-`DESIGN.md §10` refuses.
+`doc/DESIGN.md §10` refuses.
 
 So the kit builds its `entry` from its **own** `validate`, not from the
 schema a second time:
