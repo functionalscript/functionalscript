@@ -142,8 +142,11 @@ adapters take a rule set, so a functional fixture would put `toData` back at
 every call site and restore in the fixture the front-end dependency the
 adapters just dropped
 ([grammar-bucket](../../todo/grammar-bucket.md) requires it gone before its
-stage 5). Build it with `fjs/grammar/unicode` and convert once, in the fixture,
-or write the rule set directly. Eight duplicate sites use
+stage 5). Author the rule set **directly** — converting a functional rule
+"once, in the fixture" would make the shared testlib import `toData`, so every
+backend proof using the fixture keeps a transitive front-end dependency. If a
+functional spelling is wanted for readability, it belongs in a separate
+front-end fixture that neutral backend proofs never import. Eight duplicate sites use
 it; the optional-space variant stays local because it is genuinely a different
 case.
 
@@ -177,8 +180,9 @@ explicit named override list for the rows where token-stream acceptance differs.
       the first task removes) and no `''` default.
 - [ ] Fold the proof-local `descentParserCpOnly` / code-point adapter into
       `descentRecognizer`; leave the DJS tokenizer's public export alone.
-- [ ] Add `number` as a `RuleSet` and entry name — not a functional `Rule` —
-      using the Unicode adapter's text/range construction, and add `jsonCases`.
+- [ ] Add `number` as a directly authored `RuleSet` and entry name — no
+      functional `Rule`, no `toData` in the shared testlib — and add
+      `jsonCases`.
 - [ ] Convert descent and LL1 proofs; keep the optional-space grammar variant
       local and document why it is distinct.
 - [ ] Convert the DJS tokenizer proof to `jsonCases` plus a named override list
