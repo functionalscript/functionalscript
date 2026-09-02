@@ -27,7 +27,7 @@ import { addition as additionOp, join as joinOp } from '../function/operator/mod
 import { fold } from '../../common/monoid/module.f.mjs'
 
 /** @type {Reduce<string>} */
-const stringAddition = additionOp
+const _stringAddition = additionOp
 
 /**
  * `join`'s per-separator reduction is seeded at `''` but is *not* a monoid fold:
@@ -49,7 +49,7 @@ export const join = compose(joinOp)(reduce)
  *
  * @type {(input: List<string>) => string}
  */
-export const concat = fold({ identity: '', operation: stringAddition })
+export const concat = fold({ identity: '', operation: _stringAddition })
 
 /** @type {(n: string) => (v: number) => string} */
 export const repeat = v => compose(listRepeat(v))(concat)

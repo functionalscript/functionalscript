@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Fold, Reduce, Scan, StateScan, Unary } from './types.ts'
+ * @import { Addition, Fold, Reduce, Scan, StateScan, Unary } from './types.ts'
  */
 
 /** @type {(separator: string) => Reduce<string>} */
@@ -39,10 +39,6 @@ export const foldToScan = fold => prior => i => {
 /** @type {<T>(op: Reduce<T>) => Scan<T, T>} */
 export const reduceToScan = op => init =>
     [init, foldToScan(op)(init)]
-
-/**
- * @import { Addition } from './types.ts'
- */
 
 /** @type {Addition} */
 export const addition = a => b => /** @type {any} */ (a) + b
