@@ -132,6 +132,16 @@ it outright but require an Enterprise plan.
       never against the release branch. Over pull requests that predate the lint
       the check reports rather than blocks: measured on the window since the
       `0.48.0` release, the documented shape covers three of nine declarations
+- [ ] Decide how that check treats a commit with no `(#NNN)`. It has no merge
+      body to parse, so the check sees no declaration where
+      [changelog/RELEASE.md](../changelog/RELEASE.md#2-list-the-pull-requests-in-the-window)
+      requires the release author to read its diff and declare for it — the check
+      would then approve a patch for a declared break, or contradict a minor the
+      author chose deliberately. Two ways out: make the no-direct-push and
+      no-rebase settings below a prerequisite, so the case cannot arise, or give
+      the release pull request a place to record the audit and read it as an
+      input alongside the parsed sections. The first is cleaner and the second is
+      what holds until the settings land
 - [ ] Repository settings, which need a maintainer with admin rights and cannot
       land in a pull request:
   - [ ] disable "Squash and merge" and "Rebase and merge" — the repository

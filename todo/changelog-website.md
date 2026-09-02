@@ -22,8 +22,9 @@ written today; the other two are closed ranges that will not grow:
 - `<version>.md` — one file per release, the current form and also the form used
   through `0.44.0`. The two eras differ in how an entry names its pull requests:
   a current entry ends with a plain `(#NNN, #NNN)` reference the generator turns
-  into links, while a file through `0.44.0` ends with an inline `[#NNN](url)`
-  link already (the oldest have none). Both must render.
+  into links, or a short commit SHA where the change arrived without a pull
+  request, while a file through `0.44.0` ends with an inline `[#NNN](url)` link
+  already (the oldest have none). All must render.
 - `<version>/<PR>.md` — one directory per release holding one file per pull
   request, `0.45.0` through `0.48.0` only. Entries carry no reference at all;
   the generator derives each pull-request link from the file name, joining a
@@ -40,9 +41,11 @@ format. The BNF machinery is a natural fit for the parser.
 ### Tasks
 
 - [ ] Parser for the changelog Markdown subset
-- [ ] Read all three release forms, with the two pull-request reference styles
-      (plain `(#NNN)`, inline link) and the file-name derivation for the
-      directory form
+- [ ] Read all three release forms, with the three reference styles a current
+      entry can end in — plain `(#NNN)`, an inline `[#NNN](url)` in files through
+      `0.44.0`, and a short commit SHA for a change that arrived without a pull
+      request ([changelog/README.md](../changelog/README.md#entries)) — and the
+      file-name derivation for the directory form
 - [ ] Release index page and per-release pages in `fjs/website`
 - [ ] Link the changelog from the landing page
 

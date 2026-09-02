@@ -62,9 +62,13 @@ to order them: [RELEASE.md](./RELEASE.md).
   affected exports.
 - **Reference pull requests, don't link them.** An entry ends with the numbers
   it came from in parentheses — `(#1807, #1813, #1825, #1831)` — and the
-  renderer derives each link. Do not link to, or name in plain text, an issue or
-  a `todo/` file: issue files are deleted when the work is done, so those
-  references rot and mean nothing to a reader of the published package.
+  renderer derives each link. A change that arrived **without** a pull request
+  cites the commit instead, by short SHA in the same parentheses —
+  `(841c101b)` — and the renderer links that to the commit; `RELEASE.md` step 2
+  says why such commits exist and that the release author declares for them.
+  Mixing the two in one entry is fine. Do not link to, or name in plain text, an
+  issue or a `todo/` file: issue files are deleted when the work is done, so
+  those references rot and mean nothing to a reader of the published package.
 - **List items only.** No heading — the version is the file name — and no
   Markdown beyond paragraphs, list items, inline code, and bold, so the website
   can render entries with a small self-hosted parser. That subset is a
