@@ -84,8 +84,8 @@ is a thunk and is called; the first element of what it returns is a `number`
 string is text, an array a sequence, an object a variant. The tag slot holding
 `string | number` is a step away from RTTI's all-string tags, accepted for this
 one case because `[4, hex]` reads as what it is and `['#', 4, hex]` does not.
-The `minmax` question below would remove the compromise entirely by removing
-the numeric tag.
+The `'repeat'` question below would remove the compromise entirely by
+removing the numeric tag.
 
 The thunk still names its rule — `toData` reads `fr.name` as today — so
 nearly every named rule is a thunk, and the uniform wrapper is paid on every
@@ -200,38 +200,70 @@ the plain variant `{ a: 0x61, b: 0x62, c: 0x63 }`, and `option`, `repeat1Plus`,
 
 #### Questions left open
 
-**Whether one `minmax` form replaces the four cardinality forms.** The table
-above says the count, the option, the star and the plus are one family
-differing only in admitted cardinality. If that is true, the honest spelling
-is one form —
+**Whether one bounded-repetition form replaces the four cardinality forms.**
+The table above says the count, the option, the star and the plus are one
+family differing only in admitted cardinality. If that is true, the honest
+spelling is one form —
 
 ```ts
-readonly ['minmax', number, number, Rule]   // min, max, body
+readonly ['repeat', number, number | 'Infinity', Rule]   // min, max, body
 ```
 
-— of which `[n, r]` is `min = max = n`, `'?'` is `0..1`, `'*'` is `0..∞`, and
-`'+'` is `1..∞`, with the four glyphs demoted from primitives to constructors
-(`repeat0Plus(r)` returning `['minmax', 0, ∞, r]`, and so on). Authors write
-constructors either way, so the readability cost falls only on hand-written
-tuples, which are rare.
+— of which `[n, r]` is `min = max = n`, `'?'` is `0..1`, `'*'` is
+`0..Infinity`, and `'+'` is `1..Infinity`, with the four glyphs demoted from
+primitives to constructors (`repeat0Plus(r)` returning
+`['repeat', 0, 'Infinity', r]`, and so on). Authors write constructors either
+way, so the readability cost falls only on hand-written tuples, which are
+rare.
+
+**The name.** `'repeat'` names what the form is; an earlier draft called it
+`'minmax'`, which names its parameter list — as naming a range `'fromto'`
+would. It also restores RTTI parity, which the glyphs departed from: RTTI's
+tags are *all* words (`'const'`, `'array'`, `'record'`, `'or'`, `'rest'`), and
+collapsing the four glyphs removes most of the reason to have any. Renaming
+`'...'` to `'range'` in the same move leaves `Info` as three words that read
+like RTTI:
+
+```ts
+Info = ['const', Const]
+     | ['range', number, number]                       // over symbol values
+     | ['repeat', number, number | 'Infinity', Rule]    // over counts
+```
+
+That rename is contingent on this question, not independent: if the glyphs
+stay, `'...'` belongs to their family and should stay too.
+
+Two alternatives, if `'repeat'` is not the choice. **`'*'`** generalizes the
+star with bounds — `['*', 1, 'Infinity', r]` is `+`, `['*', 0, 1, r]` is `?` —
+which keeps grammars looking like EBNF rather than like RTTI, costs one
+character, and overloads nothing, since the star would always carry bounds.
+**`'quant'`** is the standard term for this family in regex and EBNF theory
+and so the most precise, at the cost of being jargon where `'repeat'` is not.
+
+One thing to be deliberate about: today's data-layer `Repeat` means
+0-or-more specifically, so the same word would mean something wider at the
+front end. That reads as alignment rather than collision — if a data layer
+ever grows bounds the two converge — but a reader moving between layers will
+assume they already match.
 
 What it would buy, beyond one row instead of four:
 
-- `Info` drops from six forms to three — `'const'`, `'...'`, `'minmax'` — so
+- `Info` drops from six forms to three — `'const'`, `'range'`, `'repeat'` — so
   a lowering has three cases and a *second data layer* has three things to
   represent. That is the strongest argument, given that the data layer is
   deliberately open.
 - Every tag becomes a string again, which removes the `string | number` tag
   slot noted above as a deliberate step away from RTTI parity.
 - The `[1, r]` legal-but-discouraged wart disappears: nobody writes
-  `['minmax', 1, 1, r]` meaning "just `r`", so the form that had to be
+  `['repeat', 1, 1, r]` meaning "just `r`", so the form that had to be
   accepted-but-discouraged stops being confusable with the escape.
-- It is symmetric with `'...'` — a range over counts beside a range over
+- It is symmetric with the terminal range — a range over counts beside a
+  range over
   symbol values — and it closes the bounded-repeat item under "left for
   later" by making it the primitive rather than a future addition.
 
 The AST row stays a function of the type, so this does not reintroduce the
-ambiguity that killed `[1, r] → r`: `['minmax', a, b, r]` is a flat
+ambiguity that killed `[1, r] → r`: `['repeat', a, b, r]` is a flat
 `readonly AST<r>[]`, refined to a fixed-length tuple when `a` and `b` are
 equal literals. That refinement is the only place the type checker can tell
 the cardinalities apart, which is worth confirming against
@@ -239,12 +271,12 @@ the cardinalities apart, which is worth confirming against
 
 The sub-question it opens is how to spell an unbounded max, and the answer
 looks like the **string `"Infinity"`**, giving
-`['minmax', number, number | "Infinity", Rule]`.
+`['repeat', number, number | "Infinity", Rule]`.
 
 The reason is type-level, not serialization. TypeScript has numeric literal
 types only for finite literals: `Infinity` is typed `number` and there is no
 literal type to match it against. So a conditional type cannot ask "is this
-max unbounded?" — `['minmax', 0, Infinity, r]` and `['minmax', 0, n, r]` are
+max unbounded?" — `['repeat', 0, Infinity, r]` and `['repeat', 0, n, r]` are
 the same type. It happens to degrade the right way, since an unrefinable max
 yields the unbounded array, but only by accident, and it forecloses the tuple
 refinement the row depends on. `"Infinity"` is a string literal type, so
@@ -451,7 +483,7 @@ smaller by removing a reduction. It needs a data layer that can represent it,
 so it belongs to whatever data-layer work comes next rather than here. What
 this issue owes it is that adding it is a new `Info` form and a new row in
 the table, not a change to the existing rows. (A *bounded* repeat is no longer
-listed here: it is the `minmax` question above, which would make it the
+listed here: it is the `'repeat'` question above, which would make it the
 primitive rather than an addition.)
 
 Until the classical front end is deleted, `ebnf` gets no feature `bnf` lacks
@@ -464,7 +496,7 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       and the type-level `AST<Rule>` mapping from the table, with a proof per
       row that the parser's result has that type. Every form `toData` accepts
       is in `Info`, so the accepted syntax type-checks without a cast.
-- [ ] Answer the three open questions above. The `minmax` one is the
+- [ ] Answer the three open questions above. The `'repeat'` one is the
       load-bearing one — it decides how many forms `Info` has and therefore
       how much a second data layer has to represent — so answer it first, and
       the other two only affect `Const`.
