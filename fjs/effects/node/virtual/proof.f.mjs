@@ -189,16 +189,19 @@ export const proof = {
             const root = { 'a.f.ts': () => ({}) }
             virtual({ ...emptyState, root })(readBytes('a.f.ts', 0, 1))
         },
-        writeBytesOnJsModule: () => {
-            // writeBytes shares `resolveFile` with the two reads, so a fixture
-            // that appends to a module is the same mistake and is told so the
-            // same way. It used to answer `'a.f.ts' is not a file` instead —
-            // the only entry that could reach that branch was a `JsModule`, so
-            // the message named the one thing it was not.
-            /** @type {Dir} */
-            const root = { 'a.f.ts': () => ({}) }
-            virtual({ ...emptyState, root })(writeBytes('a.f.ts', 0, vec8(0x1n)))
-        },
+    },
+    writeBytesOnJsModule: () => {
+        // writeBytes shares `resolveFile` with the two reads but not their
+        // `JsModule` policy: a module stands in for a host's FIFO or device,
+        // writing to one fails with an ordinary IO error there, and this is
+        // the proof that a caller's branch for that failure is reachable here.
+        // A panic — which is what the reads answer, and what nothing in
+        // FunctionalScript can catch — would delete it.
+        /** @type {Dir} */
+        const root = { 'a.f.ts': () => ({}) }
+        const [, result] = virtual({ ...emptyState, root })(writeBytes('a.f.ts', 0, vec8(0x1n)))
+        assert(result[0] === 'error')
+        assertIoMessage(result[1], `'a.f.ts' is not a file`)
     },
     readFileSkipsEmptyChunk: () => {
         // A file stored with a zero-length chunk ahead of real data: readFile's
