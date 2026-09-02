@@ -81,7 +81,9 @@ as-is.
 
 ### Related
 
-- [resolve-file-helper](./resolve-file-helper.md) — leaf-level counterpart.
+- resolve-file-helper (shipped as `resolveFile` in [`../module.f.mjs`](../module.f.mjs))
+  — the leaf-level counterpart: `readFile`, `readBytes` and `writeBytes` now
+  resolve their single-segment file through one function.
 - name-entity-kind-discrimination-once (retired; shipped as `isBinFile`,
   `isJsModule`, and `isDir` in [`../module.f.mjs`](../module.f.mjs)) — the
   guards above should use those predicates.
