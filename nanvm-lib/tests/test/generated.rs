@@ -228,6 +228,86 @@ fn add<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn rem<A: IVm>() {
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("nullModThree", Nullish::Null.to_any() % (3f64).to_any(), (0f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("undefinedModThree", Nullish::Undefined.to_any() % (3f64).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("trueModThree", true.to_any() % (3f64).to_any(), (1f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("falseModThree", false.to_any() % (3f64).to_any(), (0f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("stringTenModThree", string_any("10") % (3f64).to_any(), (1f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("stringLetterModThree", string_any("a") % (3f64).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("emptyArrayModThree", Array::default().to_any() % (3f64).to_any(), (0f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("arrayTenModThree", [(10f64).to_any()].to_array().to_any() % (3f64).to_any(), (1f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("arrayStringTenModThree", [string_any("10")].to_array().to_any() % (3f64).to_any(), (1f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("arrayPairModThree", [(0f64).to_any(), (0f64).to_any()].to_array().to_any() % (3f64).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("emptyObjectModThree", Object::default().to_any() % (3f64).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("functionModThree", function_any() % (3f64).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("zeroModOne", (0f64).to_any() % (1f64).to_any(), (0f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("negativeZeroModOne", (-0f64).to_any() % (1f64).to_any(), (-0f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("oneModOne", (1f64).to_any() % (1f64).to_any(), (0f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("tenModThree", (10f64).to_any() % (3f64).to_any(), (1f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("negativeTenModThree", (-10f64).to_any() % (3f64).to_any(), (-1f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("tenModNegativeThree", (10f64).to_any() % (-3f64).to_any(), (1f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("negativeTenModNegativeThree", (-10f64).to_any() % (-3f64).to_any(), (-1f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("fiveModZero", (5f64).to_any() % (0f64).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("zeroModZero", (0f64).to_any() % (0f64).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("negativeZeroModZero", (-0f64).to_any() % (0f64).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("fiveModInfinity", (5f64).to_any() % (f64::INFINITY).to_any(), (5f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("negativeFiveModInfinity", (-5f64).to_any() % (f64::INFINITY).to_any(), (-5f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("infinityModFive", (f64::INFINITY).to_any() % (5f64).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("infinityModInfinity", (f64::INFINITY).to_any() % (f64::INFINITY).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("nanModOne", (f64::NAN).to_any() % (1f64).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("oneModNan", (1f64).to_any() % (f64::NAN).to_any(), (f64::NAN).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("fractionModTwo", (5.5f64).to_any() % (2f64).to_any(), (1.5f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("negativeFractionModTwo", (-5.5f64).to_any() % (2f64).to_any(), (-1.5f64).to_any());
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("bigTenModThree", bigint_any(10) % bigint_any(3), bigint_any(1));
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("bigNegativeTenModThree", bigint_any(-10) % bigint_any(3), bigint_any(-1));
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("bigTenModNegativeThree", bigint_any(10) % bigint_any(-3), bigint_any(1));
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("bigNegativeTenModNegativeThree", bigint_any(-10) % bigint_any(-3), bigint_any(-1));
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check::<A>("bigZeroModOne", bigint_any(0) % bigint_any(1), bigint_any(0));
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check_throws::<A>("bigTenModZero", bigint_any(10) % bigint_any(0));
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check_throws::<A>("numberModBigint", (1f64).to_any() % bigint_any(1));
+    // TODO: `%` is not implemented in nanvm-lib yet
+    // check_throws::<A>("bigintModNumber", bigint_any(1) % (1f64).to_any());
+}
+
+#[rustfmt::skip]
 fn string_coercion<A: IVm>() {
     check::<A>("number", (123f64).to_any().to_string().map(|v| v.to_any()), string_any("123"));
     check::<A>("negativeNumber", (-456f64).to_any().to_string().map(|v| v.to_any()), string_any("-456"));
@@ -259,5 +339,6 @@ pub fn all<A: IVm>() {
     mul::<A>();
     sub::<A>();
     add::<A>();
+    rem::<A>();
     string_coercion::<A>();
 }

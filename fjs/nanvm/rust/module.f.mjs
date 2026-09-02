@@ -85,6 +85,7 @@ export const rustName = {
     '*': 'mul',
     '-': 'sub',
     '+': 'add',
+    '%': 'rem',
     String: 'string_coercion',
 }
 
@@ -99,11 +100,20 @@ const op1Rust = {
     String: a => `${a}.to_string().map(|v| v.to_any())`,
 }
 
-/** The same, for the binary operations. @type {{ readonly [k in OpId]?: (a: string, b: string) => string }} */
+/**
+ * The same, for the binary operations.
+ *
+ * `%` has no `nanvm-lib` implementation yet, so every `%` case carries a
+ * `rust` reason and `emit` prints this text as a comment rather than a
+ * statement — this entry only has to read as the operation, not compile.
+ *
+ * @type {{ readonly [k in OpId]?: (a: string, b: string) => string }}
+ */
 const op2Rust = {
     '*': (a, b) => `${a} * ${b}`,
     '-': (a, b) => `${a} - ${b}`,
     '+': (a, b) => `${a} + ${b}`,
+    '%': (a, b) => `${a} % ${b}`,
 }
 
 /**
