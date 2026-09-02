@@ -213,20 +213,20 @@ For tool details and package-consumer setup for Claude and Codex, see
 ## Opening a pull request
 
 A pull request implements only one feature or improvement, with minimal code
-changes. Before submitting, ensure every check above passes, delete the `todo/`
-issue file in the same pull request, and — when the change affects behavior or
-the public API — add a changelog entry as `changelog/unreleased/<PR>.md`, named
-by the real pull request number once the pull request exists (see
-[changelog/README.md](./changelog/README.md)). The everyday workflow around
+changes. Before submitting, ensure every check above passes and delete the
+`todo/` issue file in the same pull request. It adds **no changelog file**: the
+changelog is written once per release from the pull requests that shipped in it
+([changelog/RELEASE.md](./changelog/RELEASE.md)). What a pull request owes
+instead is a declaration in its description, below. The everyday workflow around
 this is [AGENTS.md §1](./AGENTS.md#1-workflow).
 
 ### Commit messages
 
 A pull request lands on `main` as a merge commit titled `<PR title> (#NNN)`,
 with the pull request description as its body. Both halves are reviewed text
-that outlives the pull request page, and a changelog generated from Git history
-reads them, so write the title and the description as the commit message they
-become.
+that outlives the pull request page, and the release that collects the changelog
+reads them ([changelog/RELEASE.md](./changelog/RELEASE.md)), so write the title
+and the description as the commit message they become.
 
 The branch's own commits land with it, reachable through the merge's second
 parent and printed by an ordinary `git log`. They are not discarded, so their
@@ -239,9 +239,9 @@ messages are not working notes: write each one for a reader who meets it on
   description is imperative, lower-case after the colon, and has no trailing
   period. Keep it within 72 characters **including** the ` (#NNN)` GitHub
   appends, and never write a `(#NNN)` of your own. A release pull request's
-  title is the bare version: `0.45.0`.
+  title is `Release X.Y.Z`.
 - **Description.** Free prose — motivation, design, measurements, alternatives
-  considered — then, when the change affects behavior or the public API, a
+  considered — then, when the pull request **breaks the public API**, a
   `Changelog:` section, the last section before an optional trailer block
   (`Co-Authored-By:`, generated-with lines, session links):
 
@@ -249,25 +249,35 @@ messages are not working notes: write each one for a reader who meets it on
   <free prose>
 
   Changelog:
-  - `types/bit_vec`: `tryListToVec` reuses the shared balanced fold, at the
-    same cost as the accumulator it replaces
+  - **BREAKING CHANGES:** `bnf`: `repeat` moved to `types/array` and returns a
+    fixed-length tuple; the `Repeat` type is gone
   ```
 
-  The section holds exactly the list items of `changelog/unreleased/<PR>.md` —
-  same Markdown subset, same `**BREAKING CHANGES:**` prefix where it applies,
-  no PR link ([changelog/README.md](./changelog/README.md#entries)). A pull
-  request that doesn't change behavior or the public API needs no entry and
-  omits the section entirely.
+  A `**BREAKING CHANGES:**` declaration is **required**, and is the reason the
+  section exists. Nothing derives it from a diff — a `readonly` added to an
+  exported tuple breaks consumers and looks like noise in a patch — and the
+  release reads it to decide which version number moves
+  ([changelog/README.md](./changelog/README.md#breaking-changes-and-versioning)).
+  Getting it wrong ships a break as a patch release, which is the one mistake
+  here that reaches users.
 
-  It duplicates the entry file on purpose: the file is what today's release
-  process reads, the section is what a generator reading Git history would
-  read. Neither is derived from the other, so keep them identical.
-- **How it lands.** Create a merge commit, always. The merge box offers the
-  reviewed title and description as the default message — don't edit it there,
-  where nobody reviews the result. The branch's commits come along with it: a
-  squash would drop them, and a rebase would replay them onto `main` with no
-  `(#NNN)` and no commit carrying the description. Nothing lands on `main`
-  outside a pull request.
+  For everything else the section is **optional**, and useful: a non-breaking
+  change worth a release note can leave one, in the same
+  [entry style](./changelog/README.md#entries), and the release author starts
+  from it instead of from the diff. It is raw material, not published text — the
+  release rewrites entries over the whole window, so several pull requests that
+  moved one thing become one entry
+  ([changelog/RELEASE.md](./changelog/RELEASE.md)). A pull request that changes
+  no observable behavior omits the section entirely.
+- **How it lands.** Create a merge commit, always — **squash and rebase are not
+  used in this repository**, because the branch's real history is worth keeping.
+  The merge box offers the reviewed title and description as the default
+  message; don't edit it there, where nobody reviews the result. The branch's
+  commits come along through the merge's second parent: a squash would drop
+  them, and a rebase would replay them onto `main` with no `(#NNN)` and no commit
+  carrying the description, which is also what the release's
+  `git log --first-parent` listing relies on. Nothing lands on `main` outside a
+  pull request.
 
 ### Addressing review comments
 

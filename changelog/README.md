@@ -5,86 +5,86 @@ All notable changes to this project are documented in this directory.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Entries are written **once per release**, from the pull requests that shipped in
+it. A pull request adds no changelog file; what it owes instead — a
+`**BREAKING CHANGES:**` declaration when it breaks the public API — is in
+[CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages). The release procedure that
+reads those pull requests and writes the file is [RELEASE.md](./RELEASE.md).
+
 ## Layout
 
 ```
 changelog/
   README.md        this file
-  unreleased/
-    <PR>.md        entries not released yet, one file per pull request
+  RELEASE.md       how a release collects its entries
+  <version>.md     one file per release — the current form
   <version>/
-    <PR>.md        one directory per released version, entry files kept as-is
-  <version>.md     one file per released version (releases through 0.44.0)
+    <PR>.md        one directory per release, 0.45.0 through 0.48.0
+  unreleased/
+    <PR>.md        left over from the per-pull-request scheme; a release
+                   consumes it (RELEASE.md)
 ```
 
-A pull request adds `changelog/unreleased/<PR>.md` named by its own number, so
-two pull requests can never conflict on the same lines. A pull request with
-several entries puts them all in its one file.
+A renderer of the changelog reads three forms, and only the first is written
+today:
 
-**Its own number, which means the one it was given** — not the next one free
-when the work started. A guessed number is the one way this scheme fails
-silently: writing `<PR>.md` for a number another pull request already took
-replaces that file wholesale, deleting an entry that was going to ship, and no
-merge conflict reports it because there was nothing to conflict with. If the
-file has to exist before the number does, rename it once the number is known
-and check that nothing was there. Releasing renames
-`changelog/unreleased/` to `changelog/<version>/`, keeping the entry files
-exactly as they are. Git does not track empty directories, so `unreleased/`
-simply does not exist between a release and the next pull request that adds an
-entry — that pull request recreates it by adding its file.
+- **`<version>.md`** — one file per release, holding that release's entries in
+  order of importance. Releases through `0.44.0` and every release from the one
+  that follows this convention. The two eras differ in one detail: the older
+  files end an entry with an inline `[#NNN](url)` pull-request link (the oldest
+  have none), while a current file writes a plain `(#NNN)` reference the
+  renderer turns into a link.
+- **`<version>/<PR>.md`** — one directory per release holding one file per pull
+  request, `0.45.0` through `0.48.0`. Entries carry no pull-request reference at
+  all: the file name is the number. Render a release by joining its files in
+  descending pull-request-number order.
+- **`unreleased/<PR>.md`** — the same, for work not yet released. Nothing adds to
+  it any more, but a pull request opened under the old policy recreates it
+  whenever it merges, so a release consumes it whenever it is non-empty
+  ([RELEASE.md](./RELEASE.md)).
 
-Releases through `0.44.0` predate the directory-per-version layout: each is a
-single `<version>.md` file whose entries were concatenated in descending
-pull-request-number order. They stay as they are; a renderer of the changelog
-reads both forms.
-
-Entries are therefore ordered by pull-request number, not by merge order — a
-pull request opened earlier can merge after one opened later. The deviation is
-accepted: pull-request order is deterministic and conflict-free.
+Released files are published history. A `<version>.md` file that is empty
+records a release that shipped no notable change.
 
 ## Entries
 
-To add an entry, first open the pull request to obtain its number, then create
-`changelog/unreleased/<PR>.md` named by that number — recreating
-`changelog/unreleased/` if a release just consumed it. Entries are created after
-the pull request exists precisely because the file is named by its number. Write
-them in the `Topic: short description` style, with no pull-request number or link
-inside the file — the file name already carries the number, and a renderer
-derives the link from it. A pull request with several entries puts them all in
-its one file, most important first.
+An entry is one Markdown list item, written in the `Topic: short description`
+style — the topic is the module path (`types/bit_vec`, `djs/tokenizer`) or an
+area (`ci`, `docs`), the same topic the pull request title starts with. How to
+decide what gets an entry, how to group several pull requests into one, and how
+to order them: [RELEASE.md](./RELEASE.md).
 
-Only add entries for changes that affect behavior or the public API — a pull
-request that doesn't (internal refactors, test-only changes, coverage
-improvements, and pull requests that only touch `todo/`, `AGENTS.md`, or other
-documentation files) does not need one, and omits the `Changelog:` section from
-its description too.
-
-- **Keep it short.** An entry is **at most a few lines** (about three wrapped
-  lines, ~250 characters) — what changed and, when it isn't obvious, why. It is a
+- **Keep it short.** At most a few lines — about three wrapped lines, ~250
+  characters — saying what changed and, when it isn't obvious, why. It is a
   release note for users of the package, not a design document. Rationale,
-  migration walkthroughs, measurements, and alternatives-considered belong in the
-  pull request description, the relevant `README.md`, or JSDoc on the affected
-  exports; the entry's file name identifies the pull request, so a reader can go
-  there for the full story.
-- **No links.** The file name is the pull-request number, so an entry neither
-  repeats it nor links to the pull request. Do not link to — or name in plain
-  text — an issue or `todo/` file either: issue files are deleted when the work
-  is done, so those references rot and mean nothing to a reader of the published
-  package.
-- **A file holds list items only.** No heading — the version or pull-request
-  number is the file name — and no Markdown beyond paragraphs, list items,
-  inline code, and bold, so the website can render entries with a small
-  self-hosted parser. That subset is a convention rather than an accident. A
-  `<version>.md` file that is empty retrofits a released section that recorded
-  no entries.
+  migration walkthroughs, measurements, and alternatives considered belong in
+  the pull request description, the relevant `README.md`, or JSDoc on the
+  affected exports.
+- **Reference pull requests, don't link them.** An entry ends with the numbers
+  it came from in parentheses — `(#1807, #1813, #1825, #1831)` — and the
+  renderer derives each link. A change whose commit carries **no `(#NNN)`**
+  cites that commit instead, by short SHA in the same parentheses —
+  `(7b979e74)`, the `0.41.0` release — and the renderer links it to the commit.
+  What is missing is the number, not necessarily the pull request: a direct push
+  never had one, and a rebase merge drops the reference from a pull request that
+  did exist. Either way the SHA is the reference the entry can carry.
+  `RELEASE.md` step 2 says why such commits exist and that the release author
+  declares for them. Mixing the two in one entry is fine. Do not link to, or
+  name in plain text, an issue or a `todo/` file: issue files are deleted when
+  the work is done, so those references rot and mean nothing to a reader of the
+  published package.
+- **List items only.** No heading — the version is the file name — and no
+  Markdown beyond paragraphs, list items, inline code, and bold, so the website
+  can render entries with a small self-hosted parser. That subset is a
+  convention rather than an accident.
+- **A breaking entry starts with `**BREAKING CHANGES:**`** and states the old
+  shape, the new one, and the one-line migration.
 - These rules govern **new** entries. Don't rewrite a released entry as a side
-  effect of an unrelated pull request — a feature pull request touches its own
-  file and nothing else. Entries written before this convention end with an
-  inline `[#NNN](url)` pull-request link (and the oldest have none); they are
-  published history, so leave them as they are. A deliberate cleanup pass over
-  past releases is a legitimate pull request of its own (this convention arrived
-  as one), and no released text is lost when it happens: the full prior wording
-  stays in the pull request and in git history.
+  effect of an unrelated pull request. Entries written before a convention
+  arrived are published history; leave them as they are. A deliberate cleanup
+  pass over past releases is a legitimate pull request of its own (both
+  conventions arrived as one), and no released text is lost when it happens: the
+  full prior wording stays in the pull request and in git history.
 
 ## Breaking changes and versioning
 
@@ -94,18 +94,21 @@ its description too.
   shape (see [DESIGN.md §2](../doc/DESIGN.md#2-the-api-is-the-most-important-part-of-quality)).
   The version number is what lets consumers stay on the old API; a released
   version is immutable, so nothing is taken away from anyone by improving the
-  next one. When a change breaks the public API, prefix its CHANGELOG entry with
-  `**BREAKING CHANGES:**` and update every importer in the same pull request
-  rather than keeping a compatibility shim.
+  next one. When a change breaks the public API, declare it with
+  `**BREAKING CHANGES:**` in the pull request description and update every
+  importer in the same pull request rather than keeping a compatibility shim.
 - **The project follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html),
-  and the CHANGELOG decides which number moves.** A `**BREAKING CHANGES:**` entry
-  anywhere in `changelog/unreleased/` means the release shipping it cannot be a
-  patch. The package is still pre-1.0, where the leading `0.` is pinned and the
-  *minor* position plays the role the major one plays after 1.0:
+  and the CHANGELOG decides which number moves.** A `**BREAKING CHANGES:**`
+  declaration on any pull request in the release window means the release
+  shipping it cannot be a patch — unless the window itself undid the break, which
+  the release pull request says in as many words
+  ([RELEASE.md](./RELEASE.md#4-group-by-net-effect)). The package is still
+  pre-1.0, where the leading `0.` is pinned and the *minor* position plays the
+  role the major one plays after 1.0:
 
-  | `changelog/unreleased/` contains            | Pre-1.0 — `0.Y.Z` | 1.0 and later — `X.Y.Z` |
+  | the release window contains                 | Pre-1.0 — `0.Y.Z` | 1.0 and later — `X.Y.Z` |
   | ------------------------------------------- | ----------------- | ----------------------- |
-  | at least one `**BREAKING CHANGES:**` entry  | `0.(Y+1).0`       | `(X+1).0.0`             |
+  | at least one surviving breaking change      | `0.(Y+1).0`       | `(X+1).0.0`             |
   | new features, nothing breaking              | `0.Y.(Z+1)`       | `X.(Y+1).0`             |
   | fixes only                                  | `0.Y.(Z+1)`       | `X.Y.(Z+1)`             |
 
@@ -125,19 +128,19 @@ its description too.
   breaking change, it only records that one happened. Releases through `0.41.0`
   predate this convention and took a minor bump for feature-only releases too
   (`0.35.0`, `0.33.0`); they are published, so leave their numbers alone.
-- Releasing is its own commit: the version lives in `package.json` (`"version"`)
-  — `deno.json` holds tasks and formatting only. When it's bumped, rename
-  `changelog/unreleased/` to `changelog/X.Y.Z/`, keeping the entry files
-  exactly as they are. The next pull request that adds an entry recreates
-  `changelog/unreleased/`. Releases through `0.44.0` are single
-  `changelog/X.Y.Z.md` files; leave them as they are.
-- **After every update of the release pull request from `main`, check that
-  `changelog/unreleased/` is empty.** A pull request merged after the rename puts
-  its entry file back into `changelog/unreleased/`, and an update from `main`
-  carries it into the release branch — outside the renamed directory. Move any
-  such file into `changelog/X.Y.Z/` before merging the release, or its change
-  ships unrecorded in the changelog. Check again right before merging.
-- **The repository has no Git tags and is not going to get any.** "Which
-  entries shipped in this release" is answered by `changelog/X.Y.Z/`, which
-  holds one file per pull request that shipped in it; a tag would be a second
-  copy of that fact, kept in step by hand.
+- Releasing is its own pull request, titled `Release X.Y.Z`: the version lives in
+  `package.json` (`"version"`) — `deno.json` holds tasks and formatting only —
+  and the entries are collected into `changelog/X.Y.Z.md` by
+  [RELEASE.md](./RELEASE.md). Releases `0.45.0` through `0.48.0` are directories
+  of per-pull-request files and releases through `0.44.0` are single files
+  written under the older entry rules; leave both as they are.
+- **The release window is re-derived rather than assumed**, and when it is
+  re-derived, from which ref, and in what form are
+  [RELEASE.md](./RELEASE.md#7-open-the-release-pull-request)'s to state — this
+  file does not repeat them. What holds regardless: a pull request that merges
+  to `main` while the release pull request is open belongs to the release, and
+  nothing on the release branch notices on its own.
+- **The repository has no Git tags and is not going to get any.** A tag would be
+  a second copy of a fact the tree already carries — the release boundary is the
+  release commit itself, and what shipped in a release is its changelog file —
+  and one a release could forget to write.

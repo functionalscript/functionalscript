@@ -46,7 +46,7 @@ hides.
       [`../proof.f.mjs`](../proof.f.mjs).
 - [ ] State the identity-filling in the JSDoc and in
       [`../README.md`](../README.md), which is currently one heading.
-- [ ] Changelog entry — this is a public API rename.
+- [ ] Declare the break in the PR description — this is a public API rename.
 
 ### Related
 
