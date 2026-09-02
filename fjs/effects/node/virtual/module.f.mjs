@@ -156,6 +156,41 @@ const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directo
 const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
 
 /**
+ * The chunk list the entry `p` names holds, or the `IoResult` error that says
+ * why there is none. Every operation whose subject is a *file* — `readFile`,
+ * `readBytes`, `writeBytes` — starts here, so the three answer one question
+ * once instead of open-coding it three times and drifting apart.
+ *
+ * **`p` is what is left after `operation` descended**, so one segment is the
+ * entry itself and anything else is a path this file system cannot hold a file
+ * at: `operation` stops at the first name that is not a directory, so a longer
+ * `p` means the name before it was not one, and an empty `p` means the whole
+ * path was a directory. Both answer `ENOENT`, which is what a host says for
+ * `readFile` of a name it has no file at.
+ *
+ * **A `JsModule` throws rather than failing.** It is this file system's
+ * stand-in for a name that exists and is not a regular file, and there are no
+ * bytes to read from or append to one — a fixture that points a file operation
+ * at a module is wrong, not exercising an error path a host can produce. The
+ * `op` name rides in the message so the fixture is told which call it was.
+ * `stat` is the operation that *reports* such an entry rather than using it,
+ * which is why it answers `notRegular` instead of coming through here.
+ *
+ * @type {(op: string) => (dir: Dir, p: readonly string[]) => IoResult<readonly Vec[]>}
+ */
+const resolveFile = op => (dir, p) => {
+    if (p.length !== 1) { return enoent }
+    const file = entryOf(dir, p[0])
+    if (file === undefined) { return enoent }
+    if (isJsModule(file)) { throw new Error(`'${p[0]}' is a JsModule; ${op} not supported`) }
+    // `operation`'s wrapper descends into every plain-object (`Dir`) entry
+    // before this op ever runs, and the `JsModule` case already threw above,
+    // so `file` here is always a `Vec[]` — never a bare `Dir`.
+    assert(isBinFile(file), `'${p[0]}' is not a file`)
+    return ok(file)
+}
+
+/**
  * **The requested path is captured, not reconstructed from what the op sees.**
  * `operation`'s wrapper descends before the op runs, so `p` holds only the
  * entry name — `readFile('dir/big.mjs')` reaches this with `p = ['big.mjs']`.
@@ -169,15 +204,9 @@ const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
  * @type {(path: string) => (state: State) => readonly [State, IoResult<Vec>]}
  */
 const readFile = path => readOperation((dir, p) => {
-    if (p.length !== 1) { return enoent }
-    const file = entryOf(dir, p[0])
-    if (file === undefined) { return enoent }
-    if (isJsModule(file)) { throw new Error(`'${p[0]}' is a JsModule; readFile not supported`) }
-    // `operation`'s wrapper descends into every plain-object (`Dir`) entry
-    // before this op ever runs, and the `JsModule` case already threw above,
-    // so `file` here is always a `Vec[]` — never a bare `Dir`.
-    assert(isBinFile(file), `'${p[0]}' is not a file`)
-    const chunks = file
+    const resolved = resolveFile('readFile')(dir, p)
+    if (resolved[0] === 'error') { return resolved }
+    const chunks = resolved[1]
     const capBits = maxLengthBytes * 8n
     let result = empty
     for (const chunk of chunks) {
@@ -340,20 +369,14 @@ const rename = (src, dst) => state => {
 
 /** @type {(path: string, offset: number, size: number) => (state: State) => readonly [State, IoResult<Vec>]} */
 const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
-    if (p.length !== 1) { return enoent }
-    const file = entryOf(dir, p[0])
-    if (file === undefined) { return enoent }
-    if (isJsModule(file)) { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
-    // `operation`'s wrapper descends into every plain-object (`Dir`) entry
-    // before this op ever runs, and the `JsModule` case already threw above,
-    // so `file` here is always a `Vec[]` — never a bare `Dir`.
-    assert(isBinFile(file), `'${p[0]}' is not a file`)
+    const resolved = resolveFile('readBytes')(dir, p)
+    if (resolved[0] === 'error') { return resolved }
     if (!Number.isInteger(offset)) { return fail(`Offset ${offset} is not an integer`) }
     if (!Number.isInteger(size)) { return fail(`Chunk size ${size} is not an integer`) }
     if (offset < 0) { return fail(`Offset ${offset} is negative`) }
     if (size < 0) { return fail(`Chunk size ${size} is negative`) }
     if (BigInt(size) > maxLengthBytes) { return fail(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }
-    const chunks = file
+    const chunks = resolved[1]
     let toSkip = BigInt(offset) * 8n
     let toRead = BigInt(size) * 8n
     let result = empty
@@ -415,17 +438,16 @@ const createExclusive = operation(createExclusiveOp)
 // the one access pattern its callers use.
 /** @type {(offset: number, data: Vec) => (dir: Dir, p: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const writeBytesRawOp = (offset, data) => (dir, p) => {
-    if (p.length !== 1) { return [dir, enoent] }
-    const [name] = p
-    const file = entryOf(dir, name)
-    if (file === undefined) { return [dir, enoent] }              // writeBytes never creates
-    if (!isBinFile(file)) { return [dir, fail(`'${name}' is not a file`)] }
+    // `resolveFile`'s `ENOENT` is also the answer for a name that is not there:
+    // writeBytes never creates.
+    const resolved = resolveFile('writeBytes')(dir, p)
+    if (resolved[0] === 'error') { return [dir, resolved] }
     if (!Number.isInteger(offset) || offset < 0) { return [dir, fail(`Offset ${offset} is invalid`)] }
-    const chunks = file
+    const chunks = resolved[1]
     if (offset !== fileSizeBytes(chunks)) {
         return [dir, fail(`writeBytes offset ${offset} must equal the file size (append-only)`)]
     }
-    return [{ ...dir, [name]: [...chunks, data] }, okVoid]
+    return [{ ...dir, [p[0]]: [...chunks, data] }, okVoid]
 }
 
 /** @type {(path: string, offset: number, data: Vec) => (state: State) => readonly [State, IoResult<void>]} */

@@ -189,6 +189,16 @@ export const proof = {
             const root = { 'a.f.ts': () => ({}) }
             virtual({ ...emptyState, root })(readBytes('a.f.ts', 0, 1))
         },
+        writeBytesOnJsModule: () => {
+            // writeBytes shares `resolveFile` with the two reads, so a fixture
+            // that appends to a module is the same mistake and is told so the
+            // same way. It used to answer `'a.f.ts' is not a file` instead —
+            // the only entry that could reach that branch was a `JsModule`, so
+            // the message named the one thing it was not.
+            /** @type {Dir} */
+            const root = { 'a.f.ts': () => ({}) }
+            virtual({ ...emptyState, root })(writeBytes('a.f.ts', 0, vec8(0x1n)))
+        },
     },
     readFileSkipsEmptyChunk: () => {
         // A file stored with a zero-length chunk ahead of real data: readFile's
@@ -284,15 +294,6 @@ export const proof = {
         const [state, result] = virtual({ ...emptyState, root })(writeBytes('missing', 0, vec8(0x1n)))
         assert(result[0] === 'error')
         assertEq(Object.keys(state.root).length, 1)
-    },
-    writeBytesOnJsModule: () => {
-        // writeBytes on a JsModule entry covers the `!Array.isArray(file)`
-        // branch (unlike readFile/readBytes, writeBytes has no separate throw
-        // for JsModule, so this is the reachable way to hit "not a file").
-        /** @type {Dir} */
-        const root = { 'a.f.ts': () => ({}) }
-        const [, result] = virtual({ ...emptyState, root })(writeBytes('a.f.ts', 0, vec8(0x1n)))
-        assert(result[0] === 'error')
     },
     writeBytesNegativeOffset: () => {
         /** @type {Dir} */
