@@ -2,7 +2,7 @@
 
 These principles are repository-wide: they govern both code bases — `fjs/`
 (FunctionalScript / TypeScript) and `nanvm-lib/` (Rust). Three are restated in
-brief at the top of [AGENTS.md](../AGENTS.md); everything here is their full text.
+brief at the top of [AGENTS.md](./AGENTS.md); everything here is their full text.
 
 ## Contents
 
@@ -50,7 +50,7 @@ API.
 
 When the existing design is the obstacle, **fix the design**: rewrite the API and
 make a breaking change, updating every importer in the same PR (see
-[changelog/README.md](../changelog/README.md#breaking-changes-and-versioning)).
+[changelog/README.md](./changelog/README.md#breaking-changes-and-versioning)).
 Every consumer inside this repository is visible and updatable, so a hard cutover
 is nearly always available — take it. Adjusting a call site to work around a poor
 API, instead of improving the API, is the wrong trade-off here.
@@ -66,7 +66,7 @@ same change; the work isn't done until that issue is deleted.
 **If you see a way to improve an API — or a new API that would make consuming
 modules simpler and more readable — propose it as soon as you notice it.** Don't
 defer or silently work around it. File a `todo/` issue with a concrete design
-(see [todo/README.md](../todo/README.md)) so it can be reviewed promptly; if the
+(see [todo/README.md](./todo/README.md)) so it can be reviewed promptly; if the
 improvement is in scope for what you're already doing, raise it before building
 on top of the weaker design.
 
@@ -190,7 +190,7 @@ on its own — the same separation runs the other way: land the idea first, in
 the context that can prove it, then the port, which then carries no idea of its
 own beyond what the shared code already does. (An earlier version of this rule
 said "with behaviour unchanged... afterwards", prescribing the order; the
-[sequential proof runner](../fjs/emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost)
+[sequential proof runner](fjs/emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost)
 is the case that showed the order is the consequence, not the rule — porting
 first would have moved a context onto semantics about to change under it.)
 
@@ -323,7 +323,7 @@ to be discovered.
 
 There are two ways to refuse, and the choice between them is the one drawn in
 [fjs/AGENTS.md
-§1.5](../fjs/AGENTS.md#15-never-use-trycatch-test-throwing-with-the-throw-key):
+§1.5](./fjs/AGENTS.md#15-never-use-trycatch-test-throwing-with-the-throw-key):
 
 - **Reject** when the input is one a caller may legitimately hand over and is
   expected to handle — an oversized buffer, a malformed document, a name that

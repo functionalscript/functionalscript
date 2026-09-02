@@ -72,7 +72,7 @@ This is the design's own defect class in its worst form. `"\x"` at least emits
 an error beside its fabricated string; this emits **a value token for text the
 input never contained and no error at all** — and `0n1` produces `number(01)`,
 which is not even a valid JSON number. `parse` returns `["ok", …]`. It is
-precisely what [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+precisely what [DESIGN.md §10](../../../../DESIGN.md#10-refuse-what-you-cannot-handle)
 forbids.
 
 The class is **larger than one `n`, and does not have a tidy shape.** A search
@@ -139,7 +139,7 @@ since rule 1 below covers all of them at once.
 
 A caller that filters errors out — or a parser that resynchronizes on the next
 value — sees a string `"x"` that no document contained. That is
-[DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle): an
+[DESIGN.md §10](../../../../DESIGN.md#10-refuse-what-you-cannot-handle): an
 unsupported input is refused, never answered with a plausible wrong value. The
 malformed literal has to be one error token and nothing else.
 
@@ -968,7 +968,7 @@ changed error recovery — and that a PR should do one. Earlier drafts argued th
 split was unavailable. **That was wrong**, on the repo's own rule and on the
 facts, and the design now splits.
 
-[`DESIGN.md`](../../../../doc/DESIGN.md) settles the question and even settles the
+[`DESIGN.md`](../../../../DESIGN.md) settles the question and even settles the
 order. It forbids *the combination*, not a fixed order, and it names this exact
 case: when the idea is the **premise** — decided before any port and provable in
 the existing context — the separation runs idea first, then the port, "which
@@ -976,7 +976,7 @@ then carries no idea of its own beyond what the shared code already does".
 
 #### Stage 3a — the fabricated token, fixed where it lives
 
-The fabricated `string` after `"\x"` is a doc/DESIGN.md §10 violation that exists
+The fabricated `string` after `"\x"` is a DESIGN.md §10 violation that exists
 **today**, was found before any port was designed, and is provable against the
 current wrapper. It is the premise, so it lands first, on its own, with no
 dependency change.

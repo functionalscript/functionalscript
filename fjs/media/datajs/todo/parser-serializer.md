@@ -330,7 +330,7 @@ Stage 4 is the consumer 157 §2 was waiting for.
 
 **Rejection is a `try*`, not a panic.** A serializer's input is caller-supplied
 and may legitimately be outside the data model, which is
-[`REVIEW.md`](../../../../doc/REVIEW.md)'s first case — refused as a `try*`, never
+[`REVIEW.md`](../../../../REVIEW.md)'s first case — refused as a `try*`, never
 asserted on. Which refusal type is a choice to make rather than blur: the
 convention names `Nullable<T>`, while `fjs/media/json/parser` next door returns
 `Result<_, string>` and carries a message. Prefer `Result` here, since the

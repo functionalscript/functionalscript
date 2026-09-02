@@ -3,7 +3,7 @@
 Rules for everything under `fjs/` — authored FunctionalScript (`.f.mjs`) and the
 type-only TypeScript (`types.ts`) beside it. Repository-wide rules live in the
 root [AGENTS.md](../AGENTS.md), and the design principles both code bases follow
-live in [DESIGN.md](../doc/DESIGN.md).
+live in [DESIGN.md](../DESIGN.md).
 
 ## Contents
 

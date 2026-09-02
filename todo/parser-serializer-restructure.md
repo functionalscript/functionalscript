@@ -25,7 +25,7 @@ Read in this order; each line says what to do and why it comes when it does.
    reading anything else here. It lands as **two PRs**: 3a drops the fabricated
    string token in the existing wrapper, and 3b is the port, which then carries
    only what removing the dependency forces — the order
-   [`DESIGN.md`](../doc/DESIGN.md) prescribes when the idea is the premise.
+   [`DESIGN.md`](../DESIGN.md) prescribes when the idea is the premise.
    *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
    scanner unchanged and its number core extended, so JSON has to own those
    scanners before DataJS can borrow them.

@@ -173,7 +173,7 @@ Two consequences worth stating plainly:
 
 Agreed points (not under discussion):
 
-- Host-value reuse follows [DESIGN.md §8](../doc/DESIGN.md): constants describe
+- Host-value reuse follows [DESIGN.md §8](../DESIGN.md): constants describe
   themselves; tags only where the host value is ambiguous. `["[]", ...]`
   is a complete escape hatch — any constant array is expressible.
 - A call that keeps its `this` binding is semantically required, not an
@@ -252,7 +252,7 @@ meaning yet.
 
 Tags are **JS syntax wherever JS has syntax for the operation** — hence
 `"."`, `"()"`, `"?."`, `"?.()"`, `"{}"`, `":"` and `","` above, and the
-operator symbols below. This is [DESIGN.md §8](../doc/DESIGN.md) again: the host
+operator symbols below. This is [DESIGN.md §8](../DESIGN.md) again: the host
 language already spells these, so the EDAG reuses the spelling instead of
 inventing a vocabulary to be memorized and translated. A chain step is the
 same spelling behind a `"|"`, which marks it as a step rather than a node —
@@ -662,7 +662,7 @@ History: this subject was first decided as "flat sequence with
 `["local", index]` references plus nesting, mirroring the source". The
 reference model replaces the index space entirely — the host language
 already has references, so the EDAG should not invent an index scheme on
-top of them ([DESIGN.md §8](../doc/DESIGN.md) taken to its logical end). The
+top of them ([DESIGN.md §8](../DESIGN.md) taken to its logical end). The
 `["local", i]` command is removed.
 
 Kept from the original decision, unchanged:
@@ -1216,7 +1216,7 @@ self-reference is a primitive, and everything else arrives through the
 frame. A later redesign (a group mechanism for mutual recursion, or a
 different binding scheme entirely) is expected and welcome: breaking
 changes that improve the design are the repository's norm
-([DESIGN.md §2](../doc/DESIGN.md)), and nothing here is load-bearing for
+([DESIGN.md §2](../DESIGN.md)), and nothing here is load-bearing for
 compatibility yet.
 
 Mutual recursion stays excluded even under the relaxation (`b` would

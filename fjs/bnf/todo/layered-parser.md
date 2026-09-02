@@ -81,6 +81,6 @@ here only as pointers:
   emitted stream, the parser accepts the successfully decoded prefix and nothing
   ever reads the summary — which is exactly the silent truncation
   [43](./043-stateful-parser.md)'s end-of-input note and
-  [DESIGN.md §10](../../../doc/DESIGN.md) both warn about. So this pipeline has to
+  [DESIGN.md §10](../../../DESIGN.md) both warn about. So this pipeline has to
   say which convention each layer uses, and where a summary is checked if any
   layer uses one.

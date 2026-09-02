@@ -157,7 +157,7 @@ What replaces it:
   unbounded or expensive input.
 
 **Refusal belongs to the driver, not the machine.**
-[DESIGN.md §10](../../../doc/DESIGN.md) names a malformed document as a *reject*
+[DESIGN.md §10](../../../DESIGN.md) names a malformed document as a *reject*
 case — a `try*` returning `Nullable<T>`. §10 governs operations at a boundary,
 and a fold is not one; the boundary is the function a caller invokes ("parse
 this document"). Both hold at once because they are different layers.
@@ -205,7 +205,7 @@ engine that value is not yet decided**; see the open questions.
 ### Open questions
 
 Undecided, deliberately. Each is visible in the public type, so none is an
-implementer's to settle quietly ([REVIEW.md](../../../doc/REVIEW.md#designs)); each
+implementer's to settle quietly ([REVIEW.md](../../../REVIEW.md#designs)); each
 is small enough to answer in a pull request that implements nothing.
 
 - **Nothing constructs the value for a rejected parse.** `T` is unconstrained
@@ -241,5 +241,5 @@ is small enough to answer in a pull request that implements nothing.
   `Transducer` this operator is or is not.
 - [`fjs/effects/types.ts`](../../effects/types.ts) — why an effect's `Result` is
   a rule there and not here: a runner may decline a command.
-- [DESIGN.md §10](../../../doc/DESIGN.md) — refuse what you cannot handle; the
+- [DESIGN.md §10](../../../DESIGN.md) — refuse what you cannot handle; the
   driver is where that lands.

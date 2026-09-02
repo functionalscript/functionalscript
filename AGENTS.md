@@ -45,7 +45,7 @@ simplicity. **Maximize signal-to-noise** — make the high-level structure obvio
 put details and edge cases at the leaves, not in the main flow. **The API is the
 most important part of quality** — if a new version can have a better, simpler
 API, change it; breaking changes are the right call whenever they improve the
-API. The full set, which governs both code bases, is [DESIGN.md](./doc/DESIGN.md).
+API. The full set, which governs both code bases, is [DESIGN.md](./DESIGN.md).
 
 This file is a map: each section below holds the facts you must not violate and
 links to the document that holds the rest. Read a linked document when the task
@@ -69,7 +69,7 @@ Find or file the issue in `todo/` first, next to the code it describes; for
 anything non-trivial make sure it contains a concrete design before writing
 code. Deviating from that design later is fine; deviating silently is not, and
 a design that cannot be built as written is rewritten rather than forced
-through ([DESIGN.md §3](./doc/DESIGN.md#3-design-before-implementation)). Write the
+through ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Write the
 code plus its proof, run `npm run gen` after changing source, run the check
 set above, and delete the `todo/` issue file in the same PR that fixes it.
 
@@ -137,10 +137,10 @@ absorb it — and never only in the thread, which is the one place the answer
 will not survive. A crash may be deferred behind a `todo/` naming the input
 that breaks it; a **regression** may not, and neither may **silence** — an
 unsupported input is refused, never answered with a plausible wrong value
-([DESIGN.md §10](./doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)).
 
 Which comments to fix, which to push back on, and what a push-back leaves
-behind: [REVIEW.md](./doc/REVIEW.md).
+behind: [REVIEW.md](./REVIEW.md).
 Commit-message format and the PR checklist:
 [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
 Changelog entry rules, breaking changes, and versioning:

@@ -2,7 +2,7 @@
 
 Rules for the Rust crate — NaNVM, the native FunctionalScript VM.
 Repository-wide rules live in the root [AGENTS.md](../AGENTS.md), and the design
-principles both code bases follow live in [DESIGN.md](../doc/DESIGN.md).
+principles both code bases follow live in [DESIGN.md](../DESIGN.md).
 
 ## Contents
 
