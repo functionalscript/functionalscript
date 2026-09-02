@@ -200,7 +200,7 @@ constant, the detector would quietly run **uncapped** and report
 `application/json` for a 65-deep blob, hiding the exact boundary this design
 promises. That is a plausible wrong verdict standing in for a refusal: the
 defect this whole change exists to remove, reintroduced one level up, inside
-the commit removing it. `REVIEW.md` draws the line — a caller who may
+the commit removing it. `doc/REVIEW.md` draws the line — a caller who may
 legitimately supply the input gets a `try*` and a `Nullable`, a broken
 **precondition** gets a panic — and `64` is a literal, so this call site is the
 precondition case. `unwrap` from `fjs/types/nullable` asserts and returns the
