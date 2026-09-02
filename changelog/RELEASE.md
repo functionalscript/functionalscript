@@ -136,7 +136,9 @@ breaks by four — four breaking changes a reader of the release notes never
 learns about.
 
 It would not get *this* window's version wrong: the other nine declarations do
-appear in their merge bodies, and one surviving break already forces a minor.
+appear in their merge bodies — somewhere in them, which is the instrument that
+matters here, since step 3 is a person reading a description rather than a
+parser keyed on one shape — and one surviving break already forces a minor.
 That is an accident of this window rather than a property of the procedure — a
 window whose declarations were all of the invisible kind would take a patch for
 a release that breaks the API — and it is why the directory is read in full
