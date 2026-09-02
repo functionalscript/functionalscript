@@ -277,6 +277,206 @@ forbidden**: the module namespace object would become a thenable, corrupting
 dynamic `import()` resolution. See
 [spec/todo/3240-export.md](../../spec/todo/3240-export.md).
 
+## The two runners, and what sharing them cost
+
+`fjs t` and the browser page run the same proofs through the same core:
+`collectTests` walks a tree, `testResult` decides a leaf's identity and status,
+and each host supplies only an interpreter and a reporter. That
+`equivalence.proof.mjs` compares the two transcripts of one fixture as a single
+string is the property the arrangement exists for.
+
+It took three attempts, and the second was reverted with every gate green —
+`tsc`, 3,547 proofs, 100% coverage, a real Chromium run — for a reason worth
+keeping: **the concurrency was the complexity.** Every hard problem that review
+fought traces to the traversal fanning out with `all`, and the machinery each
+fix added — a frame budget, a guessed 8 ms constant, `scheduler.yield`
+selection — is infrastructure a proof runner should not need. The run is
+sequential: one leaf's whole chain — test, report, children — completes before
+the next leaf starts. The page yields in its own `report` handler, one
+macrotask per row, which is the browser's spelling of what a terminal's `write`
+already is. Speed is not a goal.
+
+### Why the browser runner is `.f.mjs` with a thin host
+
+The browser runner was one impure `.mjs`, so a live host promise and a proof
+tree travelled the same code path and the code had to ask *which of these is a
+promise?* That is an identity-by-origin question — `instanceof` asks which copy
+of the constructor made a value, not what the value is — and asking it where
+business logic lives produced ~150 lines of `Symbol.species` machinery, several
+rounds of review, two measured ways to hang the suite, and a reversal. The
+answer was that the question did not belong there: the runner executes authored
+FunctionalScript, which by convention has no promises.
+
+`fjs t` escaped it structurally rather than by being careful. `sandbox` is an
+*operation*: the promise is awaited inside the interpreter and the pure core
+receives a `SandboxResult`, so the host value never reaches the logic. That is
+the discipline `fjs/effects` applies to a live HTTP server, which pure code
+holds as a content-hashed handle while the interpreter keeps the object. The
+browser now works the same way — `browser/module.f.mjs` is the logic,
+`browser/module.mjs` the host — and `instanceof Promise` lives only in
+interpreters. See [`todo/plan/capl.md`](../../todo/plan/capl.md) for the general
+form, and
+[`todo/imports-promises-realms.md`](./todo/imports-promises-realms.md) for what
+a promise from another realm would cost, which is a non-goal.
+
+### Rules the shared core keeps
+
+These are constraints on future work, not history. They were the terms the two
+runners were unified under, and each one is a way the unification can be undone
+by accident.
+
+- **The core never asks which host it is running on.** Anything host-specific
+  is a part it calls; anything it cannot express through a part is a missing
+  extension point, not a special case.
+- **Every remaining difference between the runners lives in a part, is
+  documented there, and is traceable to something the host forced.** Host APIs
+  and wrappers may differ freely; behaviour may differ only for a written
+  reason.
+- **A fix for a problem either runner has lands in the shared core, or in every
+  part at once — in the same change.**
+- **Browser modules must not import Node built-ins, the Node effect
+  interpreter, `node:test`, or Playwright.** The browser host runner must stay
+  usable as native JavaScript, with no bundling or transpilation.
+- **Terminal formatting and DOM presentation must not move into the shared
+  semantic core.** They are the two hosts' own ends of the same reporter.
+- **Both runners produce the same test name for the same leaf.** Nothing about
+  a browser prevents it, so a divergence here is the visible sign that the
+  semantics underneath were never unified. `equivalence.proof.mjs` is what
+  holds this.
+
+### Open questions about the report shape
+
+Three, and they want settling together rather than one at a time — each is
+small alone, and answering one without the others is how a report shape ends up
+carrying three half-decisions.
+
+1. **Does `path` survive now that `name` exists?**
+2. **Should a report declare the root its module keys are relative to?** A name
+   embeds a module key, and a module key is relative to the root a run was
+   given: `fjs t` invoked in `fjs/types/list` names a leaf
+   `import("./proof.f.mjs")…` where the same leaf from the repository root is
+   `import("./fjs/types/list/proof.f.mjs")…`. That is `fjs t` differing from
+   itself across roots rather than the two runners differing, and it is
+   deliberate — a subtree run reports a subtree. But two reports are comparable
+   only when their roots agree, and once the browser suite is a gate the
+   question is worth settling.
+3. **Does a module-level failure belong in a variant of its own?** One that will
+   not link is reported as a `TestResult` named by its source, so its totals
+   cannot read as "no tests" — which works, and is not obviously the right
+   shape.
+
+### The pitfall catalog
+
+Thirteen measured ways this was got wrong, kept because other issues and
+several modules cite them by number. The first group is dissolved by the
+sequential run; the second applies to **any** implementation and the next
+implementer must not rediscover them; the third is about method. Each entry is
+a problem the second attempt met, its cause, and the solution that worked.
+
+**Dissolved by sequential:**
+
+1. **The single-task freeze.** Leaves resolve through microtasks, and a
+   microtask drain never returns to the event loop, so the whole suite ran as
+   one task — measured in Chromium: **54.7 s**, zero paints, the browser
+   offering to kill the page. functionalscript#1759's fix was a frame budget in the
+   interpreter, which worked (longest task 97–104 ms) and is exactly the
+   machinery the sequential plan deletes: one macrotask per report gives a
+   task per test with no budget at all.
+2. **The reporting burst.** Under `all`, every child starts before any is
+   awaited, so each leaf's `report` — a *continuation*, a microtask — queues
+   behind the entire suite's execution. Measured: first row in the DOM at
+   **44.3 s of a 50 s run**, 90% of 3,461 rows within ~30 ms of each other.
+   No budget can fix this — the ordering is the traversal's, and disabling the
+   budget left the burst unchanged. `fjs t` has it by construction too.
+3. **The variadic `all` ceiling.** Every fan-out is a spread, a spread is a
+   call, and a call has an argument limit: 50,000 siblings build, 100,000
+   throw `RangeError` **while building the effect**, before any interpreter
+   can catch it. Sequential removes every traversal site;
+   [all-argument-limit](../effects/todo/all-argument-limit.md) keeps the
+   rest.
+4. **`batchSize = 25` was doing two unnamed jobs**: its `setTimeout` between
+   waves was the page's only macrotask boundary, and awaiting each batch
+   bounded how far reporting lagged execution. Nobody chose it for either. (A
+   third was claimed during review — staying under the argument ceiling — and
+   was a misattribution: `Promise.all(batch.map(…))` passes one iterable, so
+   the old runner had no spread at any batch size; the ceiling is item 3's,
+   the variadic operation's.) The lesson is not that the constant was right —
+   it was indefensible — but that **before deleting unmotivated code,
+   enumerate what it does, not what it was for.**
+
+**These survive into any implementation:**
+
+5. **Enumerating is user code; read once.** A getter runs on every read. A
+   preflight `collectTests` that only *checked* the tree ran every getter a
+   second time, and one that succeeded then threw escaped as a synchronous
+   throw — page stuck in `running`, no report, no completion event. The same
+   bug recurred one layer down in the same PR: a collision check enumerated
+   the interpreter's `extra` map and the construction enumerated it again, so
+   a proxy could hide a key from the check and reveal it to the build. The
+   rule both times: **read a user value once, and derive everything from that
+   one reading.**
+6. **The page's modules are a list, not a map.** Routing them through a
+   record-shaped `ModuleMap` let `Object.fromEntries` keep only the last of
+   two same-labelled modules and report it twice. Two entries with one label
+   are two runs, in the order passed.
+7. **A run must not start before its promise is published.** A leaf executes
+   synchronously inside its handler, so without a deferral the first proofs
+   run while `runBrowserProofs` is still building what it returns — a proof
+   reading `fjsBrowserTestReport` sees the previous run's promise. Defer
+   everything that runs user code (enumeration included) behind one
+   `Promise.resolve().then(...)`.
+8. **Both ways a run fails as a runner must end in a report.** The error
+   channel carries what an operation reported; a *rejection* carries what the
+   interpreter could not dispatch at all, and an unhandled one is a page stuck
+   in `running` forever. Handle both into the `infrastructure-error` report.
+9. **Joins must be linear, and sequential does not grant that for free.**
+   Pairwise immutable concatenation was Θ(N²) twice — across siblings, then
+   again down a parent/child chain, where "flatten once at the end" recopies
+   each subtree once per ancestor and is the same Θ(N²) moved. The fix that
+   worked was a rope: joining is one node naming both sides, `toArray` walks
+   it once where the run ends. A sequential fold changes execution order, not
+   concatenation cost — an immutable `[...acc, r]` append copies the prefix
+   every iteration and is the same Θ(N²) — so the port keeps the rope, or
+   another accumulator that is demonstrably linear. The rule has since caught
+   a third case that had nothing to do with the walk's shape:
+   functionalscript#1790 collects each failing leaf so the run can describe
+   them all at the end, and that list is threaded through every leaf and joined
+   at every module boundary like the totals are. It is a `List` joined with
+   `concat` for that reason. Anything a run *accumulates* is subject to this,
+   not only the results it walks.
+10. **A new exported boundary that its own consumers cast past is not typed.**
+    `browserRun` began as `(effect: unknown) => Promise<unknown>` with `any`
+    casts at both call sites, and its `extra` was `Partial` — advertising a
+    recovery the dispatcher does not perform (it panics on an unclaimed
+    command, by design). Make it generic over the effect and its `Result`,
+    take a complete map, panic on a handler that claims a core operation
+    (silently letting either side win makes the type or the caller a liar),
+    and carry handlers by property *descriptor* — `match` looks handlers up
+    with `getOwnPropertyDescriptor`, so a spread-merge silently drops a
+    non-enumerable handler the layer's dispatch would have accepted.
+
+**Method:**
+
+11. **A proof that observes a coincidence is worse than no proof, because it
+    is counted as cover.** A proof that the budget yielded watched for *a*
+    macrotask turn during a run; under the full suite a neighbouring proof
+    supplies one anyway, so it stayed green with the defect present — sound in
+    isolation, inert where the project runs it. Assert by *ordering* (a
+    macrotask cannot run until every pending microtask has) or by structure,
+    never by observing that the loop turned. And mutation-check under the full
+    `npm test`, which is the only run that counts — the inert proof passed its
+    own isolated mutation check.
+12. **Measure what the user sees, not a proxy for it.** "392 frames served and
+    194 progress updates" was reported as "rows painting as they land"; the
+    frames were real and dominated by the loading phase, and row count over
+    time — the thing a person watches — was never sampled. It read 0 until the
+    end. Sample the artifact itself.
+13. **When a decision changes, grep the markdown for the old one.** Seven
+    review findings on one branch were the same shape: the new answer written
+    down with the superseded instruction left standing beside it, handing a
+    future implementer two designs. This file is long precisely so it can be
+    wrong in one place; keep it saying one thing.
+
 ## Proof location and scope
 
 A proof's *location* determines what it can see. Three tiers exist:

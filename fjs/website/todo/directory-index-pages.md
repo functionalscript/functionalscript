@@ -43,9 +43,9 @@ Each page is a catalog of that directory:
 Generation belongs in `fjs/website/module.f.mjs` as part of the same
 `NodeProgram` that owns the rest of the build — the walk that discovers proof
 sources today already visits every directory this needs, so this is a second
-consumer of one traversal rather than a second traversal. See
-[share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
-for the preparation-program boundary this must respect: no npm script running an
+consumer of one traversal rather than a second traversal. The
+preparation-program boundary this must respect is the one `fjs/website`'s own
+`NodeProgram` already keeps: no npm script running an
 impure helper as a second entry point, and any new filesystem capability
 expressed as a Node effect with both interpretations proven.
 
@@ -93,8 +93,9 @@ expressed as a Node effect with both interpretations proven.
 
 - [Generate website](generate-website.md) — README conversion, source
   highlighting and `main.css`, all of which this page consumes.
-- [Share the browser and console proof runners](../../emergent_testing/todo/share-browser-console-runner.md)
-  — the preparation-program boundary and the shared test name.
+- [The two runners, and what sharing them cost](../../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost)
+  — the shared test name, and why the browser suite is generated rather than
+  prepared by a script of its own.
 - [Browser testing](../../emergent_testing/todo/browser-testing.md) — the
   application root and what it may serve.
 - [Explicit browser test controls](../../emergent_testing/todo/browser-test-controls.md)

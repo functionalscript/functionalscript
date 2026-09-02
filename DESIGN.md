@@ -190,8 +190,7 @@ on its own — the same separation runs the other way: land the idea first, in
 the context that can prove it, then the port, which then carries no idea of its
 own beyond what the shared code already does. (An earlier version of this rule
 said "with behaviour unchanged... afterwards", prescribing the order; the
-sequential-runner plan in
-[share-browser-console-runner](fjs/emergent_testing/todo/share-browser-console-runner.md)
+[sequential proof runner](fjs/emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost)
 is the case that showed the order is the consequence, not the rule — porting
 first would have moved a context onto semantics about to change under it.)
 

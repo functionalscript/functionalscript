@@ -11,8 +11,8 @@
  * That split is not tidiness. The run's own failure — an operation answering
  * through the error channel — was unreachable while this lived inside an
  * `async` function that built its own interpreter: the two attempts to reach
- * it are recorded in `../todo/share-browser-console-runner.md`, and both
- * reached outside the proof's own values. Behind `report`, a runner that simply
+ * it are recorded in `../README.md`'s pitfall catalog, and both reached
+ * outside the proof's own values. Behind `report`, a runner that simply
  * refuses the operation produces it, with nothing injected and nothing global
  * touched.
  *

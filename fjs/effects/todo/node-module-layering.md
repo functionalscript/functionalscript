@@ -66,7 +66,7 @@ Proposed destinations:
 | Moves to | Contents |
 |---|---|
 | `fjs/effects/common` (was `effects/all`) | `All`, `all`, `allOk`, `both` — **moved** on the layering argument alone; `allVoid`/`allReduce` when they land. Still no second implementer: the browser's loading walk fanned out through `all` briefly (functionalscript#1818) and is a sequential fold again |
-| `fjs/effects/common` (was `effects/sandbox`) | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise`, and `Catch`/`catch_` (landed after this table was written) — the "run foreign code and observe what happened" family. This row is what [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md) step 4's "shared module" resolves to: a browser gives `Sandbox` and `Catch` their second implementer; `Await` moves on this issue's layering argument alone, since it belongs to the registration path no browser runs |
+| `fjs/effects/common` (was `effects/sandbox`) | `Sandbox`, `SandboxResult`, `sandbox`, `Await`, `awaitIfPromise`, and `Catch`/`catch_` (landed after this table was written) — the "run foreign code and observe what happened" family. This row is what the browser runner's "shared module" resolved to: a browser gives `Sandbox` and `Catch` their second implementer; `Await` moves on this issue's layering argument alone, since it belongs to the registration path no browser runs |
 | `fjs/effects/common` (was `effects/console`) | `Read`, `Write`, `ReadConsoles`, `WriteConsoles`, `Console`, `log`, `error`, `readLine`, `errorExit`, and a **new named `Std`** (see below) |
 | `fjs/effects/common` (was `effects/test`) | `Test`, `TestFn`, `TestContext`, `test` — registration with an external framework, not I/O |
 | stays in `fjs/effects/node` | `Fs` and its members, `Http`, `Forever`, `RandomInt`, `isNotFound`, `Env`, `Engine`, `NodeOp`, `NodeProgramOptions`, `Program`, `NodeProgram`, `NodeOperationMap` |
@@ -87,9 +87,9 @@ Judgement calls worth deciding explicitly rather than by accident:
   Moving it would be motion without a reader benefit.
 - **`Now` and `Fetch` stay; `Import` moved, and both halves were settled by
   building the browser interpreter rather than by arguing.** This issue and
-  [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
-  step 4 disagreed: this file put all three in "stays" on the reader-benefit
-  argument, that one listed them among the operations to move. Neither was
+  the browser-runner sharing plan disagreed: this file put all three in "stays"
+  on the reader-benefit argument, that plan listed them among the operations to
+  move. Neither was
   written knowing the fact that decides it — which operations a browser
   interpreter actually implements — so both recorded the disagreement and left
   it to step 5.
@@ -115,8 +115,8 @@ Judgement calls worth deciding explicitly rather than by accident:
   interpreter's business and not the operation's. The lesson generalises: an
   injected function is an unnamed operation, so the honest question is not
   "which operations does this host dispatch" but "which capabilities does it
-  need supplied". The sequential plan that replaced that attempt (see
-  share-browser-console-runner) shrinks the measured set once more: a
+  need supplied". The sequential run that replaced that attempt shrinks the
+  measured set once more: a
   sequential traversal performs no `all`, so the operations a browser gives a
   second implementer are `sandbox` and `catch` alone. That takes `all` out of
   *step 4's* motivation, not out of this issue's: its move to `effects/all`
@@ -289,9 +289,8 @@ Judgement calls worth deciding explicitly rather than by accident:
   declarations *and function bodies* reference — and note
   that the decoupling each move exists for is enforced by its own step's
   check (`fjs/text/sgr` no longer importing `effects/node`), which a type
-  re-export for node-side callers does not weaken.
-  [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
-  step 4 states the same policy from its side.
+  re-export for node-side callers does not weaken. The browser runner's move
+  into `effects/common` was made under the same policy.
 - **The obsolete Playwright adapter is already gone.** This task must preserve
   only the process-side `TestContext` fields that still have consumers. It must
   not use relocation as a reason to revive the Playwright engine, context,
@@ -357,9 +356,9 @@ been exactly the kind of smuggled break this section exists to avoid.
       obvious implementation would leave the JavaScript where it was; a browser
       interpreter spreads the same object.
 - [ ] `fjs/effects/browser`: **still nothing to put in it, and now that is a
-      measurement rather than a guess.** Step 7b of
-      [share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
-      has landed — the page runs the shared traversal — and its interpreter is
+      measurement rather than a guess.** The page runs the shared traversal
+      ([how](../../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost))
+      and its interpreter is
       `asyncRun` over `commonOperationMap` plus the page's own `report`
       operation, which belongs to `emergent_testing` because rendering a result
       into a document is that host's, not an effect layer's. So what the second

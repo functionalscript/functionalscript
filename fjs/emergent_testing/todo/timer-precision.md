@@ -57,8 +57,8 @@ before changing the measurement.
   across many proofs instead of applied to each. This is speculation — it
   trades a per-test number for an average and cannot attribute a slow proof.
   When this was filed the objection was concurrency: `all` interleaved
-  launches, so a group's wall time included siblings' work. The sequential
-  plan in [share-browser-console-runner](share-browser-console-runner.md)
+  launches, so a group's wall time included siblings' work. The
+  [sequential run](../README.md#the-two-runners-and-what-sharing-them-cost)
   retires that objection — one leaf's whole chain finishes before the next
   starts — but replaces it with a smaller one: a group's span now also
   carries the between-leaves overhead (the per-report yield, enumeration),
@@ -107,6 +107,6 @@ before changing the measurement.
   report contract these durations belong to.
 - [Report a test's name before running it](report-before-running.md) — the
   other thing wrong with what a row shows.
-- [Share the browser and console proof runners](share-browser-console-runner.md)
+- [The two runners, and what sharing them cost](../README.md#the-two-runners-and-what-sharing-them-cost)
   — `sandbox` is the operation that executes a proof body in both hosts, so its
   measurement is one decision, not two.
