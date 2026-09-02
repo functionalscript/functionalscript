@@ -5,11 +5,17 @@
 
 ### Problem
 
-The repository-wide
-[TypeScript-to-`.mjs` migration](../../../todo/migrate-typescript-to-mjs.md)
-cannot convert its first package-owned `.ts` / `.f.ts` implementation source
-until the TypeScript and NPM pipeline treats authored `.mjs` as first-class
-source.
+This task was written as the gate on the repository-wide
+[TypeScript-to-`.mjs` migration](../../../todo/migrate-typescript-to-mjs.md):
+that migration could not convert its first package-owned `.ts` / `.f.ts`
+implementation source until the TypeScript and NPM pipeline treated authored
+`.mjs` as first-class source. It is no longer a gate on anything. Stage 1's
+source conversion is complete — every conversion happened, and what the
+migration needed from this task was performed one-time in
+[#1520](https://github.com/functionalscript/functionalscript/pull/1520) and
+recorded in [`packed-consumer-validation.md`](../packed-consumer-validation.md).
+What remains here is regression infrastructure on its own schedule, described
+below.
 
 The package configuration originally validated only authored TypeScript and
 published its generated `.js` / `.d.ts`, with no checked authored `.mjs` plus
@@ -21,11 +27,12 @@ What remains is the validation half — a fixture and proofs that the mixed-sour
 package actually builds and type-checks correctly for consumers and all supported
 runtimes.
 
-Stage 1 is dependency-first for runtime implementations. Remaining `.ts` /
-`.f.ts` may import already migrated `.mjs` / `.f.mjs`, while migrated JavaScript
-must not depend on remaining implementation TypeScript. Type-only APIs are
-separate: a directory may contain a real authored `types.ts` source module that
-is stable before, during, and after the implementation migration.
+Stage 1 was dependency-first for runtime implementations: remaining `.ts` /
+`.f.ts` could import already migrated `.mjs` / `.f.mjs`, while migrated
+JavaScript could not depend on remaining implementation TypeScript. None of
+either remains. Type-only APIs were always separate, and that part still holds:
+a directory may contain a real authored `types.ts` source module, stable before,
+during, and after the implementation migration.
 
 Using a real `types.ts` is intentional. Both TypeScript and JSDoc can reference
 the exact same source path, and Deno can resolve the file directly instead of
