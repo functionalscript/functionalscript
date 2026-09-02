@@ -46,6 +46,10 @@ directory, and settle `JsModule` at the same time:
 
 ### Related
 
+- [jsmodule-read-policy](./jsmodule-read-policy.md) — the same missing entry
+  kind, from the read side: a read of a non-regular entry panics here where a
+  host fails with a value, for want of an entry that is neither file nor
+  directory. One decision, not two.
 - functionalscript#1827 — where `Dirent` gained `isDirectory`, and where the
   guard is pinned only by the directory case.
 - `changelog/0.48.0/1751.md` — `FileStat` gaining `isDirectory`, the same

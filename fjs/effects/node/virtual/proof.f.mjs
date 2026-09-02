@@ -5,7 +5,7 @@
  * @import { IoChannel } from '../types.ts'
  */
 
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { access, awaitIfPromise, exec, fetch, log, rm, writeFile, readFile, readdir, import_, rename, readBytes, writeBytes, stat, createExclusive, createServer, forever, listen } from '../module.f.mjs'
 import { empty, length, maxLengthBytes, vec, vec8 } from '../../../types/bit_vec/module.f.mjs'
 import { history, historyStep, pureOk, step } from '../../module.f.mjs'
@@ -190,6 +190,19 @@ export const proof = {
             virtual({ ...emptyState, root })(readBytes('a.f.ts', 0, 1))
         },
     },
+    writeBytesOnJsModule: () => {
+        // writeBytes shares `resolveFile` with the two reads but not their
+        // `JsModule` policy: a module stands in for a host's FIFO or device,
+        // writing to one fails with an ordinary IO error there, and this is
+        // the proof that a caller's branch for that failure is reachable here.
+        // A panic — which is what the reads answer, and what nothing in
+        // FunctionalScript can catch — would delete it.
+        /** @type {Dir} */
+        const root = { 'a.f.ts': () => ({}) }
+        const [, result] = virtual({ ...emptyState, root })(writeBytes('a.f.ts', 0, vec8(0x1n)))
+        assert(result[0] === 'error')
+        assertIoMessage(result[1], `'a.f.ts' is not a file`)
+    },
     readFileSkipsEmptyChunk: () => {
         // A file stored with a zero-length chunk ahead of real data: readFile's
         // loop must skip it (`chunkLen === 0n`) rather than concatenating it.
@@ -276,6 +289,21 @@ export const proof = {
         assert(result[0] === 'error')
         assertEq(Object.keys(state.root).length, 1)
     },
+    writeBytesNestedThroughFile: () => {
+        // `a/b` where `a` is a *file*. `operation` stops descending at the first
+        // name that is not a directory, so the op is handed both segments and
+        // `resolveFile`'s one-segment guard is all that stands between this and
+        // an append to `a` itself. The offset is `a`'s size deliberately: that
+        // is what the append-only check accepts, so without the guard this
+        // write *succeeds* rather than failing for a different reason — which
+        // is why the assertion is on the state, not only on the error.
+        /** @type {Dir} */
+        const root = { 'a': [vec8(0x42n)] }
+        const [state, result] = virtual({ ...emptyState, root })(writeBytes('a/b', 1, vec8(0x1n)))
+        assert(result[0] === 'error')
+        assertIoCode(result[1], 'ENOENT')
+        assertStructurallySame(state.root, root)
+    },
     writeBytesMissingFile: () => {
         // writeBytes on a path that doesn't exist at all: writeBytes never
         // creates. Non-empty root, as above.
@@ -284,15 +312,6 @@ export const proof = {
         const [state, result] = virtual({ ...emptyState, root })(writeBytes('missing', 0, vec8(0x1n)))
         assert(result[0] === 'error')
         assertEq(Object.keys(state.root).length, 1)
-    },
-    writeBytesOnJsModule: () => {
-        // writeBytes on a JsModule entry covers the `!Array.isArray(file)`
-        // branch (unlike readFile/readBytes, writeBytes has no separate throw
-        // for JsModule, so this is the reachable way to hit "not a file").
-        /** @type {Dir} */
-        const root = { 'a.f.ts': () => ({}) }
-        const [, result] = virtual({ ...emptyState, root })(writeBytes('a.f.ts', 0, vec8(0x1n)))
-        assert(result[0] === 'error')
     },
     writeBytesNegativeOffset: () => {
         /** @type {Dir} */
