@@ -32,11 +32,19 @@ type Metadata<M> = {
 `join` is associative. Use the existing `Monoid<M>` API unless metadata-specific
 names make parser call sites materially clearer.
 
+*(Superseded below: a parser transforms metadata, so one type became two and the
+monoid became `translate` plus `reduce`. `empty` is the part that did not
+survive, and where it went is [43](./043-stateful-parser.md)'s open question.)*
+
 ### Proposal
 
 Use one metadata type `M` throughout one parser and its transformer map.
 Construct the parser with `Monoid<M>` so its TypeScript type and combining
 operation are bound once instead of asking each rule transformer to repeat them.
+*(Both halves of that sentence are revised at the end of this section: the type
+became `MI` and `MO`, and the monoid became `translate` plus a non-associative
+`reduce`. What survives is binding them once at construction rather than per
+transformer.)*
 Neither the parser nor `checkMap` needs metadata RTTI: metadata is one unchanged
 channel, while RTTI exists in `checkMap` only to validate rule values whose
 types change at mapping boundaries.
@@ -75,6 +83,40 @@ supported; different metadata *types* inside one parser are not. A caller that
 needs several channels can use a product metadata type whose monoid combines
 the components.
 
+**That last rule is narrower than it reads, and it stops at the parser's
+boundary.** A layer *transforms* metadata, so a parser as a whole is
+`MI → MO`: a tokenizer reads a number, emits the token symbol for the next layer
+and carries the numeric value in its output metadata. Forcing one type there
+makes that value ride uselessly through every later rule, or pushes its recovery
+into a postprocessing pass. So [43](./043-stateful-parser.md) takes two
+parameters, which `StateFold`'s independent `I` and `O` already provide.
+
+What stays true is the rule-by-rule derivation above — the order metadata is
+combined in, and which rule kind contributes what. What changes is the algebra
+it is written against. `Monoid<M>` needs one type, so with two it becomes two
+operations supplied at construction:
+
+```ts
+readonly translate: (mi: MI) => MO      // an unmapped terminal's metadata
+readonly reduce: Reduce<MO>             // two siblings, combined
+```
+
+Everything above a terminal is `MO`, and `reduce` never sees `MI`. The terminal
+is the boundary: a terminal transformer takes `Meta<MI, CodePoint>` and returns
+`Out<MO, T>`, and `translate` supplies the metadata only where a terminal has no
+transformer — so "a terminal preserves its input symbol's metadata" above now
+means it preserves `MI` *into* the transformer, which is what lets a mapped
+terminal read a token payload the split keeps out of `MO`
+([43](./043-stateful-parser.md)). Read every
+"folds child metadata" above as `reduce`, and every "uses the monoid identity"
+as [43](./043-stateful-parser.md)'s open question — a semigroup has no identity,
+and the empty sequence, the zero-round repetition and the EOF terminal are
+exactly the cases that were spending it.
+
+The single-`M` change to the RTTI mapping API shipped in PR #1828 and is not
+reversed by this: a mapping's callback may stay `M → M` inside one layer while
+the layer as a whole is `MI → MO`.
+
 Parameterize both parser backends over `M` and make both consume
 `readonly Meta<M, CodePoint>[]`. Move the shared pair type out of `descent`; the
 backend distinction must not appear in the AST or mapping contracts.
@@ -97,16 +139,21 @@ entries nor establishes factory identity.
 
 - [x] Move the shared `Meta<M, T>`/code-point pair to the matcher layer.
 - [x] Make LL(1) and descent accept the same metadata-carrying input.
-- [ ] Bind `Monoid<M>` in each transforming parser factory. LL(1) is complete;
-      descent belongs to stage 3 of issue 207.
+- [ ] Bind the metadata operations in each transforming parser factory —
+      `Monoid<M>` as shipped, `translate`/`reduce` once 43 settles the
+      no-children case. LL(1) is complete; descent belongs to stage 3 of
+      issue 207.
 - [x] Use the factory's single `M` in the parser transformer protocol.
 - [x] Replace the RTTI mapping API's `MI`/`MO` parameters with one `M`, without
       changing its separate `Result<Meta<M, T>, string>` contract.
 - [ ] Derive metadata for terminal, sequence, string, variant, and repeat rules.
       LL(1) is complete; descent belongs to stage 3 of issue 207.
 - [x] Keep metadata out of `checkMap`'s RTTI validation contract.
-- [ ] Prove order, associativity-independent grouping, explicit overrides, and
-      identity metadata for both empty sequence and zero repetition. LL(1) is
+- [ ] Prove order, explicit overrides, and whatever 43 settles on for the
+      no-children cases — the empty sequence, the zero repetition and the EOF
+      terminal. The grouping proof is now the *opposite* of the one first
+      written here: `reduce` is not required to be associative, so the exact
+      left-to-right grouping is pinned rather than shown not to matter. LL(1) is
       complete; descent belongs to stage 3 of issue 207.
 
 ### Related
