@@ -153,7 +153,7 @@ updates remote-tracking refs without touching a checked-out directory, so `ls
 changelog/unreleased/` here answers for the branch rather than for the release.
 
 ```sh
-git ls-tree --name-only origin/main -- changelog/unreleased/
+git ls-tree origin/main -- changelog/unreleased/     # blob id per path
 git show origin/main:changelog/unreleased/<PR>.md
 ```
 
@@ -161,16 +161,28 @@ git show origin/main:changelog/unreleased/<PR>.md
 and not against the branch. Once this branch deletes `changelog/unreleased/`,
 every file it consumed is still on `origin/main` — the deletion does not reach
 `main` until the release merges — so "`origin/main` holds a file this branch does
-not" becomes true of all of them and separates nothing. A late arrival is a path
-in the new listing and **not** in the recorded one; that comparison is the whole
-signal.
+not" becomes true of all of them and separates nothing. A late arrival is a
+**line** in the new listing that is not in the recorded one; that comparison is
+the whole signal.
 
-For each such path, update the branch from `main`, read it into the entries,
-delete it with the rest, and **add it to the record**. The record is the set this
-release has accounted for, not a snapshot of when it started: a processed path
-stays on `origin/main` until the release merges, so leaving it out means the next
-scan calls it new again and it is read and deleted on every pass. Advance the
-record and each scan reports only what arrived since the last one.
+Compare whole `ls-tree` lines, not path names — which is why the command above
+drops `--name-only`. A late pull request can *correct* an entry that is already
+recorded, adding the `**BREAKING CHANGES:**` its author first left out, and the
+path is then identical in both listings while the content is not. Paths alone
+call that unchanged and never re-read it, and the branch has already deleted its
+copy, so the correction reaches neither the notes nor the version. The blob id
+moves whenever the content does, so the line comparison catches an amended entry
+and a new one alike.
+
+For each such line, update the branch from `main`, read that file into the
+entries, delete it with the rest, and **replace its line in the record** — a
+correction supersedes the entry already accounted for rather than adding to it.
+
+The record is what the release has accounted for, not a snapshot of when it
+started: a processed file stays on `origin/main` until the release merges, so
+leaving its line out means the next scan calls it new again and it is read and
+deleted on every pass. Keep the record current and each scan reports only what
+changed since the last one.
 
 A file added on `main` after the branch deleted the directory survives the
 release merge — the two sides touched different paths — so
