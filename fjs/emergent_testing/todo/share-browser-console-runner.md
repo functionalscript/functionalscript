@@ -1,9 +1,16 @@
 ## Share the browser and console proof runners
 
 **Priority:** P3
-**Status:** open — every step has landed and both runner-failure routes are
-proved. One proof is left: that the two runners answer identically from the
-same fixtures.
+**Status:** open — the work is finished: every step has landed, both
+runner-failure routes are proved, and the two runners are proved to answer
+identically from the same fixtures. What is left is this file's own retirement,
+the last task below. It is retained under `todo/README.md`'s exception rather
+than as a tombstone: twenty files cite its pitfall catalog and its
+boundary argument, and neither exists anywhere else yet — among them
+`browser-testing.md`, `browser-runner-functional-script.md`,
+`report-before-running.md`, `65z-tf-test-tree-walker.md`,
+`../../effects/todo/all-argument-limit.md`, `../../website/todo/generate-website.md`
+and `DESIGN.md`.
 
 ### Problem
 
@@ -1004,13 +1011,39 @@ are shared.
       The other route landed in 7b without a seam: an operation answering
       through its error channel is `refusedReportEndsTheRun` in
       `browser/proof.f.mjs`.
-- [ ] Prove both runners produce equivalent paths, throw outcomes, recursive
-      test counts, and normalized failures from the same fixtures. The
-      existing `nameMatchesTheConsoleRunner`,
+- [x] Prove both runners produce equivalent paths, throw outcomes, recursive
+      test counts, and normalized failures from the same fixtures. **Landed**
+      as `equivalence.proof.mjs`: one fixture module — a plain leaf, a leaf
+      whose returned tree is walked, a leaf that throws, a name that needs
+      quoting, and a `throw` group where throwing is the pass — run through
+      `runBrowserProofs` and through `runModuleMap` on a runner that can really
+      `catch`, with the two transcripts of name, status and totals compared as
+      one string.
+
+      **Comparing the whole transcript rather than a field is the point.** A
+      disagreement about *which* leaves ran — a walk that stops early, a
+      returned tree one runner recurses into and the other does not — fails it
+      too, and that is the class of divergence the per-runner proofs cannot
+      see: `nameMatchesTheConsoleRunner`,
       `expectedThrowStatusMatchesTheSharedOne` and
-      `normalizedResultMatchesTheSharedOne` already assert against the console
-      runner's own functions; step 7b makes the four properties shared code
-      rather than agreeing implementations.
+      `normalizedResultMatchesTheSharedOne` assert a runner against a shared
+      function, so a runner that calls the shared function differently agrees
+      with it and still disagrees with the other runner. Mutation-checked on
+      exactly that: give the page's `collectTests` a root `throws` of `true`
+      and every one of those three still passes while this fails.
+
+      A second proof pins the transcript itself, because two runners that both
+      walked nothing would otherwise agree.
+- [ ] **Retire this file.** Every task above is done, so `todo/README.md` says
+      it goes — but not by deletion alone: the pitfall catalog (twelve measured
+      ways this was got wrong, cited by item number from other issues and from
+      `browser/module.mjs`) and the boundary argument (why `instanceof Promise`
+      in business logic cost ~150 lines and a reversal) are the parts other
+      documents reach for, and they have no home yet. Move them —
+      `emergent_testing/README.md` for the catalog, `Catch`'s and the browser
+      host module's JSDoc for what belongs next to code — repoint the
+      thirty-six citations across twenty files, then delete this file. It is
+      its own change: the move is larger than any step it records.
 - [x] Record every behaviour the browser file has today and the shared core will
       not keep, as an issue, before the sharing change merges. Two: the
       `batchSize = 25` yielding — whose *constant* was the mistake and whose
