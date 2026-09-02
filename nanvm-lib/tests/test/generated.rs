@@ -177,6 +177,106 @@ fn mul<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn div<A: IVm>() {
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("nullDividedByFour", Nullish::Null.to_any() / (4f64).to_any(), (0f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("undefinedDividedByFour", Nullish::Undefined.to_any() / (4f64).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("trueDividedByFour", true.to_any() / (4f64).to_any(), (0.25f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("falseDividedByFour", false.to_any() / (4f64).to_any(), (0f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("stringTenDividedByFour", string_any("10") / (4f64).to_any(), (2.5f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("stringLetterDividedByFour", string_any("a") / (4f64).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("emptyArrayDividedByFour", Array::default().to_any() / (4f64).to_any(), (0f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("arrayTenDividedByFour", [(10f64).to_any()].to_array().to_any() / (4f64).to_any(), (2.5f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("arrayStringTenDividedByFour", [string_any("10")].to_array().to_any() / (4f64).to_any(), (2.5f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("arrayPairDividedByFour", [(0f64).to_any(), (0f64).to_any()].to_array().to_any() / (4f64).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("emptyObjectDividedByFour", Object::default().to_any() / (4f64).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("functionDividedByFour", function_any() / (4f64).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("zeroDividedByOne", (0f64).to_any() / (1f64).to_any(), (0f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("negativeZeroDividedByOne", (-0f64).to_any() / (1f64).to_any(), (-0f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("tenDividedByFour", (10f64).to_any() / (4f64).to_any(), (2.5f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("negativeTenDividedByFour", (-10f64).to_any() / (4f64).to_any(), (-2.5f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("tenDividedByNegativeFour", (10f64).to_any() / (-4f64).to_any(), (-2.5f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("negativeTenDividedByNegativeFour", (-10f64).to_any() / (-4f64).to_any(), (2.5f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("fiveDividedByZero", (5f64).to_any() / (0f64).to_any(), (f64::INFINITY).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("negativeFiveDividedByZero", (-5f64).to_any() / (0f64).to_any(), (f64::NEG_INFINITY).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("fiveDividedByNegativeZero", (5f64).to_any() / (-0f64).to_any(), (f64::NEG_INFINITY).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("negativeFiveDividedByNegativeZero", (-5f64).to_any() / (-0f64).to_any(), (f64::INFINITY).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("zeroDividedByZero", (0f64).to_any() / (0f64).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("negativeZeroDividedByZero", (-0f64).to_any() / (0f64).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("zeroDividedByNegativeZero", (0f64).to_any() / (-0f64).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("negativeZeroDividedByNegativeZero", (-0f64).to_any() / (-0f64).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("infinityDividedByFive", (f64::INFINITY).to_any() / (5f64).to_any(), (f64::INFINITY).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("infinityDividedByNegativeFive", (f64::INFINITY).to_any() / (-5f64).to_any(), (f64::NEG_INFINITY).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("negativeInfinityDividedByFive", (f64::NEG_INFINITY).to_any() / (5f64).to_any(), (f64::NEG_INFINITY).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("fiveDividedByInfinity", (5f64).to_any() / (f64::INFINITY).to_any(), (0f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("negativeFiveDividedByInfinity", (-5f64).to_any() / (f64::INFINITY).to_any(), (-0f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("fiveDividedByNegativeInfinity", (5f64).to_any() / (f64::NEG_INFINITY).to_any(), (-0f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("infinityDividedByInfinity", (f64::INFINITY).to_any() / (f64::INFINITY).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("infinityDividedByNegativeInfinity", (f64::INFINITY).to_any() / (f64::NEG_INFINITY).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("nanDividedByOne", (f64::NAN).to_any() / (1f64).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("oneDividedByNan", (1f64).to_any() / (f64::NAN).to_any(), (f64::NAN).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("sevenDividedByTwo", (7f64).to_any() / (2f64).to_any(), (3.5f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("oneDividedByThree", (1f64).to_any() / (3f64).to_any(), (0.3333333333333333f64).to_any());
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("bigTenDividedByThree", bigint_any(10) / bigint_any(3), bigint_any(3));
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("bigNegativeTenDividedByThree", bigint_any(-10) / bigint_any(3), bigint_any(-3));
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("bigTenDividedByNegativeThree", bigint_any(10) / bigint_any(-3), bigint_any(-3));
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("bigNegativeTenDividedByNegativeThree", bigint_any(-10) / bigint_any(-3), bigint_any(3));
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("bigSevenDividedByTwo", bigint_any(7) / bigint_any(2), bigint_any(3));
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("bigNegativeSevenDividedByTwo", bigint_any(-7) / bigint_any(2), bigint_any(-3));
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check::<A>("bigZeroDividedByFive", bigint_any(0) / bigint_any(5), bigint_any(0));
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check_throws::<A>("bigTenDividedByZero", bigint_any(10) / bigint_any(0));
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check_throws::<A>("numberDividedByBigint", (1f64).to_any() / bigint_any(1));
+    // TODO: `/` is not implemented in nanvm-lib yet
+    // check_throws::<A>("bigintDividedByNumber", bigint_any(1) / (1f64).to_any());
+}
+
+#[rustfmt::skip]
 fn sub<A: IVm>() {
     check::<A>("nullMinusNull", Nullish::Null.to_any() - Nullish::Null.to_any(), (0f64).to_any());
     check::<A>("nullMinusZero", Nullish::Null.to_any() - (0f64).to_any(), (0f64).to_any());
@@ -257,6 +357,7 @@ pub fn all<A: IVm>() {
     unary_plus::<A>();
     neg::<A>();
     mul::<A>();
+    div::<A>();
     sub::<A>();
     add::<A>();
     string_coercion::<A>();

@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 5
+ * data.groups.length // 6
  * ```
  */
 
@@ -345,6 +345,142 @@ const mulCases = [
 ]
 
 /**
+ * `/` is not implemented in `nanvm-lib` yet (see the operator table in
+ * `nanvm-lib/README.md`), so every case below carries this as its `rust`
+ * reason: the generated Rust keeps each as a commented-out `TODO`, while the
+ * JavaScript proof still runs it. Removing the reason per case is what turns
+ * it on for Rust once `/` lands there.
+ *
+ * @type {string}
+ */
+const divNotImplemented = '`/` is not implemented in nanvm-lib yet'
+
+/**
+ * `/` coerces both operands with `ToNumeric` like `*`, and like `%` is
+ * neither commutative nor symmetric between mixed sign operands. Number `/`
+ * never throws: dividing by `0` or `-0` produces a signed `Infinity` (unless
+ * the dividend is also zero, giving `NaN`), and dividing by an infinite
+ * divisor produces a signed zero for a finite dividend. BigInt `/` truncates
+ * toward zero and throws — instead of producing `Infinity` — on a zero
+ * divisor; mixed number/bigint operands throw too, the same as every other
+ * arithmetic operator here.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const divCases = [
+    { name: 'nullDividedByFour', args: [null, 4], expected: 0, rust: divNotImplemented },
+    { name: 'undefinedDividedByFour', args: [undefined, 4], expected: NaN, rust: divNotImplemented },
+    { name: 'trueDividedByFour', args: [true, 4], expected: 0.25, rust: divNotImplemented },
+    { name: 'falseDividedByFour', args: [false, 4], expected: 0, rust: divNotImplemented },
+    { name: 'stringTenDividedByFour', args: ['10', 4], expected: 2.5, rust: divNotImplemented },
+    { name: 'stringLetterDividedByFour', args: ['a', 4], expected: NaN, rust: divNotImplemented },
+    { name: 'emptyArrayDividedByFour', args: [[], 4], expected: 0, rust: divNotImplemented },
+    { name: 'arrayTenDividedByFour', args: [[10], 4], expected: 2.5, rust: divNotImplemented },
+    {
+        name: 'arrayStringTenDividedByFour',
+        args: [['10'], 4],
+        expected: 2.5,
+        rust: divNotImplemented,
+    },
+    { name: 'arrayPairDividedByFour', args: [[0, 0], 4], expected: NaN, rust: divNotImplemented },
+    { name: 'emptyObjectDividedByFour', args: [{}, 4], expected: NaN, rust: divNotImplemented },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    { name: 'functionDividedByFour', args: [functionValue, 4], expected: NaN, rust: divNotImplemented },
+    { name: 'zeroDividedByOne', args: [0, 1], expected: 0, rust: divNotImplemented },
+    { name: 'negativeZeroDividedByOne', args: [-0, 1], expected: -0, rust: divNotImplemented },
+    { name: 'tenDividedByFour', args: [10, 4], expected: 2.5, rust: divNotImplemented },
+    { name: 'negativeTenDividedByFour', args: [-10, 4], expected: -2.5, rust: divNotImplemented },
+    { name: 'tenDividedByNegativeFour', args: [10, -4], expected: -2.5, rust: divNotImplemented },
+    {
+        name: 'negativeTenDividedByNegativeFour',
+        args: [-10, -4],
+        expected: 2.5,
+        rust: divNotImplemented,
+    },
+    { name: 'fiveDividedByZero', args: [5, 0], expected: Infinity, rust: divNotImplemented },
+    { name: 'negativeFiveDividedByZero', args: [-5, 0], expected: -Infinity, rust: divNotImplemented },
+    { name: 'fiveDividedByNegativeZero', args: [5, -0], expected: -Infinity, rust: divNotImplemented },
+    {
+        name: 'negativeFiveDividedByNegativeZero',
+        args: [-5, -0],
+        expected: Infinity,
+        rust: divNotImplemented,
+    },
+    { name: 'zeroDividedByZero', args: [0, 0], expected: NaN, rust: divNotImplemented },
+    { name: 'negativeZeroDividedByZero', args: [-0, 0], expected: NaN, rust: divNotImplemented },
+    { name: 'zeroDividedByNegativeZero', args: [0, -0], expected: NaN, rust: divNotImplemented },
+    {
+        name: 'negativeZeroDividedByNegativeZero',
+        args: [-0, -0],
+        expected: NaN,
+        rust: divNotImplemented,
+    },
+    { name: 'infinityDividedByFive', args: [Infinity, 5], expected: Infinity, rust: divNotImplemented },
+    {
+        name: 'infinityDividedByNegativeFive',
+        args: [Infinity, -5],
+        expected: -Infinity,
+        rust: divNotImplemented,
+    },
+    {
+        name: 'negativeInfinityDividedByFive',
+        args: [-Infinity, 5],
+        expected: -Infinity,
+        rust: divNotImplemented,
+    },
+    { name: 'fiveDividedByInfinity', args: [5, Infinity], expected: 0, rust: divNotImplemented },
+    { name: 'negativeFiveDividedByInfinity', args: [-5, Infinity], expected: -0, rust: divNotImplemented },
+    {
+        name: 'fiveDividedByNegativeInfinity',
+        args: [5, -Infinity],
+        expected: -0,
+        rust: divNotImplemented,
+    },
+    {
+        name: 'infinityDividedByInfinity',
+        args: [Infinity, Infinity],
+        expected: NaN,
+        rust: divNotImplemented,
+    },
+    {
+        name: 'infinityDividedByNegativeInfinity',
+        args: [Infinity, -Infinity],
+        expected: NaN,
+        rust: divNotImplemented,
+    },
+    { name: 'nanDividedByOne', args: [NaN, 1], expected: NaN, rust: divNotImplemented },
+    { name: 'oneDividedByNan', args: [1, NaN], expected: NaN, rust: divNotImplemented },
+    { name: 'sevenDividedByTwo', args: [7, 2], expected: 3.5, rust: divNotImplemented },
+    { name: 'oneDividedByThree', args: [1, 3], expected: 1 / 3, rust: divNotImplemented },
+    { name: 'bigTenDividedByThree', args: [10n, 3n], expected: 3n, rust: divNotImplemented },
+    {
+        name: 'bigNegativeTenDividedByThree',
+        args: [-10n, 3n],
+        expected: -3n,
+        rust: divNotImplemented,
+    },
+    {
+        name: 'bigTenDividedByNegativeThree',
+        args: [10n, -3n],
+        expected: -3n,
+        rust: divNotImplemented,
+    },
+    {
+        name: 'bigNegativeTenDividedByNegativeThree',
+        args: [-10n, -3n],
+        expected: 3n,
+        rust: divNotImplemented,
+    },
+    { name: 'bigSevenDividedByTwo', args: [7n, 2n], expected: 3n, rust: divNotImplemented },
+    { name: 'bigNegativeSevenDividedByTwo', args: [-7n, 2n], expected: -3n, rust: divNotImplemented },
+    { name: 'bigZeroDividedByFive', args: [0n, 5n], expected: 0n, rust: divNotImplemented },
+    { name: 'bigTenDividedByZero', args: [10n, 0n], expected: throws, rust: divNotImplemented },
+    { name: 'numberDividedByBigint', args: [1, 1n], expected: throws, rust: divNotImplemented },
+    { name: 'bigintDividedByNumber', args: [1n, 1], expected: throws, rust: divNotImplemented },
+]
+
+/**
  * Subtraction has the same numeric coercion and mixed-number-kind rejection
  * as multiplication, but its operand order is observable.
  *
@@ -503,6 +639,7 @@ export const data = {
             ],
         },
         { op: '*', commutative: true, cases: mulCases },
+        { op: '/', cases: divCases },
         { op: '-', cases: subCases },
         { op: '+', cases: addCases },
         { op: 'String', cases: stringCoercionCases },
