@@ -26,7 +26,7 @@ FunctionalScript compiler.
 |---|---|
 | `.f.ts` | Authored FunctionalScript-intent TypeScript implementation/proof source. **No longer used**: stage 1 removed the last one, and new source must not use this extension. It appears below only to describe that completed migration. |
 | `.f.mjs` | Authored FunctionalScript-intent ESM JavaScript with JSDoc types. It may use FunctionalScript features the current parser/compiler does not support yet. |
-| `.f.js` | During stage 1, generated JavaScript emitted from `.f.ts` and never authored. After stage 1 and authored-`.f.js` package support are complete, authored FunctionalScript that the current parser/compiler must accept. |
+| `.f.js` | Neither generated nor authored today. Stage 1's TypeScript runtime emission produced it; that pass is gone ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)), so no repository command writes a `.f.js`. The extension is reserved for stage 2, where it becomes authored FunctionalScript that the current parser/compiler must accept. |
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
@@ -43,23 +43,26 @@ and the package conventions are documented in
 It is kept as the record of what the extensions mean and why; write new source as
 `.f.mjs` plus, where a type-level API is separately useful, `types.ts`.
 
-Before the first real repository implementation conversion, complete both
-prerequisites in order:
+Two prerequisites were written to gate the first real conversion. Neither was
+met as written; both were de-scoped, and what replaced them is the record:
 
-1. [authored `.mjs` package support](../ci/todo/f-mjs-package-support.md),
-   including `allowJs` / `checkJs`, authored `types.ts`, split
-   declaration/runtime emission, Deno validation, package inclusion, and
-   clean-consumer tests;
-2. [`.f.mjs` test and coverage fixtures](../emergent_testing/todo/f-mjs-test-and-coverage.md),
-   which are **blocked by** package support and prove with an actual `.f.mjs`
-   runtime fixture that proofs execute and Node/Deno coverage retains the
-   migrated module.
+1. [authored `.mjs` package support](../ci/todo/f-mjs-package-support.md) —
+   `allowJs` / `checkJs`, authored `types.ts`, declaration emission, Deno
+   validation, package inclusion, and clean-consumer tests. What the migration
+   needed from it was the validation itself, performed once and recorded in
+   [`packed-consumer-validation.md`](../ci/packed-consumer-validation.md); the
+   committed CI fixture stays open as regression work in that issue, not as a
+   migration gate.
+2. [`.f.mjs` test and coverage fixtures](../emergent_testing/todo/f-mjs-test-and-coverage.md)
+   — moot once every conversion had happened. The repository itself now supplies
+   the evidence the synthetic fixture was designed to give in advance: every
+   `module.f.mjs` is loaded through its proof under Node and Deno coverage.
 
-Package and publish jobs run from a clean CI checkout, so the package prerequisite
-does not require developer-worktree cleanup or tracking ignored outputs from
-earlier revisions.
+Package and publish jobs run from a clean CI checkout, so neither prerequisite
+required developer-worktree cleanup or tracking ignored outputs from earlier
+revisions.
 
-Then migrate runtime dependency leaves first:
+The renames went runtime dependency leaves first:
 
 ```text
 module.ts   -> module.mjs
@@ -82,16 +85,17 @@ types.ts + module.f.mjs
 types.ts + module.f.js
 ```
 
-This stage is independent of FunctionalScript parser coverage. `.f.mjs` means
-FunctionalScript-intent JavaScript; it is not a compiler-compatibility promise.
-A `.f.ts` implementation should move once its authored runtime dependencies can
-move, even if the current compiler cannot parse every feature it uses.
+This stage was independent of FunctionalScript parser coverage, and the meaning
+survives it: `.f.mjs` means FunctionalScript-intent JavaScript, not a
+compiler-compatibility promise. A `.f.ts` implementation moved once its authored
+runtime dependencies could, even where the current compiler cannot parse every
+feature it uses.
 
-The transition is asymmetric for runtime dependencies: remaining `.f.ts` may
-depend on already migrated `.f.mjs`, while migrated `.f.mjs` must not runtime
-import remaining implementation `.f.ts`. Cycles may migrate as a coherent group.
-Type-only APIs may remain in authored `types.ts` and do not participate in
-runtime migration ordering.
+The transition was asymmetric for runtime dependencies: a remaining `.f.ts` could
+depend on already migrated `.f.mjs`, while migrated `.f.mjs` could not runtime
+import a remaining implementation `.f.ts`. Cycles migrated as coherent groups.
+Type-only APIs stayed in authored `types.ts` and did not participate in that
+runtime ordering.
 
 Both TypeScript and JavaScript source reference the same real `types.ts` file.
 TypeScript source uses `import type`:
@@ -111,27 +115,34 @@ does not depend on TypeScript resolving a nonexistent `.ts` or `.js` specifier
 to a declaration file: `types.ts` exists as authored source, so Deno can resolve
 the same path directly.
 
-Migrated JavaScript must not retain a type-only source edge to a remaining
-**implementation** `.ts` / `.f.ts`. If that type should survive independently of
-the implementation, split it into `types.ts` first; if it is naturally local to
-the implementation and expressible in JSDoc, migrate it with the implementation.
+Migrated JavaScript could not retain a type-only source edge to a remaining
+**implementation** `.ts` / `.f.ts` either, and no such file is left to point at.
+The placement rule it enforced is the part that outlives stage 1: a type that
+should survive independently of one implementation belongs in `types.ts`; one
+that is naturally local to the implementation and expressible in JSDoc stays with
+it.
 
-A declaration-only file should normally become `types.ts` rather than `.f.mjs`.
-`fjs/types/phantom/module.f.ts`, whose `Phantom` type uses a type-only
-`declare const phantomKey: unique symbol`, is the canonical example: it can
-become `fjs/types/phantom/types.ts` without inventing a runtime `Symbol()` value.
+A declaration-only file is `types.ts` rather than `.f.mjs`, and an existing
+`.f.mjs` that turns out to be runtime-empty should move the same way.
+`fjs/types/phantom`, whose `Phantom` type uses a type-only `declare const
+phantomKey: unique symbol`, is the worked example: `module.f.ts` became
+[`types.ts`](../types/phantom/types.ts) with no runtime `Symbol()` value
+invented for it. The repository has no runtime-empty `.mjs` left — the three
+files with no `export` are executables (`fjs/module.mjs`,
+`fjs/emergent_testing/all.test.mjs`, `fjs/types/bigint/benchmark.mjs`), not
+declaration modules — so the rule now applies to new source only.
 
 `types.ts` is ordinary TypeScript source, so the normal TypeScript check validates
 it even while `skipLibCheck` remains enabled for `.d.ts` dependencies. No
 `.gitignore` exception or declaration-file checking policy is needed for authored
 type source.
 
-The package behavior of permanent `types.ts` must be validated before the first
-real migration. In particular, with `rewriteRelativeImportExtensions: true`, the
-package fixture must verify how references to `./types.ts` from both `.ts` and
-`.mjs` appear in emitted declarations, which generated `types.js` / `types.d.ts`
-files are required, and that TypeScript, Node, Deno, and Bun can consume the
-packed result. That experiment ran in
+The package behavior of permanent `types.ts` was validated before the first real
+migration. With `rewriteRelativeImportExtensions: true`, the package fixture had
+to establish how references to `./types.ts` from both `.ts` and `.mjs` appear in
+emitted declarations, which generated `types.js` / `types.d.ts` files are
+required, and that TypeScript, Node, Deno, and Bun can consume the packed result.
+That experiment ran in
 [#1520](https://github.com/functionalscript/functionalscript/pull/1520): only
 `types.d.ts` is required, generated `types.js` is not, and the runtime-emission
 pass is gone — `prepack` emits declarations and then re-checks the tree with
@@ -214,13 +225,17 @@ The `_` contract is permanent and independent of that. `_` helpers retained in
 `types.ts` by the public declaration closure, and exported `_` constants, keep
 shipping in emitted declarations; they are still not API.
 
-When the last authored implementation/proof `.ts` / `.f.ts` file is gone,
-authored `types.ts` files may remain. The TypeScript runtime-emission pass is
+Both end-of-stage-1 cleanups are done. The TypeScript runtime-emission pass is
 removed ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)
 measured that package resolution does not require a generated `types.js`), while
-`prepack` keeps a no-emit re-check with declarations present. Remove the blanket
-`**/*.js` rule from `.gitignore` only when generated implementation `.js` no
-longer conflicts with authored `.js`.
+`prepack` keeps a no-emit re-check with declarations present:
+`tsc --noEmit false --emitDeclarationOnly && tsc`. The blanket `**/*.js` rule is
+gone from `.gitignore`
+([#1545](https://github.com/functionalscript/functionalscript/pull/1545)) — no
+repository command generates `.js` any more, so it guarded only stale artifacts
+in pre-existing working trees. `**/*.js` deliberately stays in `package.json`'s
+`files`, because the extension may be used again later; a publish must come from
+a clean checkout either way. Authored `types.ts` files remain.
 
 ### Stage 2: mark compiler-compatible FunctionalScript
 

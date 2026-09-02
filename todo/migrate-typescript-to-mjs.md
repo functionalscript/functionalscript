@@ -768,9 +768,16 @@ this rename.
 **Stage 1 source migration is complete.** No authored `.f.ts` remains
 (`find . -name '*.f.ts'` returns 0 outside `node_modules`); the last twelve
 migrated in [#1505](https://github.com/functionalscript/functionalscript/pull/1505).
-What is left is the packaging and cleanup work the source migration was
-blocking, plus the prose sweep. The remaining items are listed under
-[Remaining after stage 1](#remaining-after-stage-1) below.
+The packaging work, the cleanup, the prose sweep and the documentation sweep
+that followed it are all done too, and every item under
+[Remaining after stage 1](#remaining-after-stage-1) is closed. What is left in
+the list below is entirely standing convention — rules that constrain future
+edits (`@type {const}` placement, `@satisfies`, `_`-prefix visibility and its
+breaking-change consequences, keeping the runtimes and the changelog honest) and
+the three verification items whose last known instances are fixed and measure
+clean. None of them is a pending change to make; stage 2's gate is
+[`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md), not this
+list.
 
 - [x] Complete
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
@@ -790,11 +797,47 @@ blocking, plus the prose sweep. The remaining items are listed under
       Node and Deno coverage — now provides the evidence the synthetic fixture
       was designed to give in advance. The fixture file remains as future
       regression work, not a blocker for this task.
-- [ ] Update contributor, compiler, language, package, test, and roadmap
+- [x] Update contributor, compiler, language, package, test, and roadmap
       documentation to the stage-1 extension meanings and `types.ts` convention.
-- [ ] Identify type-only `.ts` / `.f.ts` files and convert them directly to
+      Distinct from the prose sweep two items below, which fixed stale `.f.ts`
+      *paths*; this one fixed the *guidance*, which still read as a live gate on
+      completed work. Contributor: [`CONTRIBUTING.md`](../CONTRIBUTING.md) gained
+      the `types.ts` / `private.ts` placement rule, the `!**/private.d.ts`
+      packaging consequence, and the fact that `.f.js` is not authored today
+      (`AGENTS.md` §3 and [`fjs/AGENTS.md`](../fjs/AGENTS.md) §§0–4 already
+      carried it). Compiler: [`fjs/fsc/README.md`](../fjs/fsc/README.md), the
+      authoritative contract — its `.f.js` row claimed the extension is
+      generated from `.f.ts`, which no command has done since
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520);
+      its two stage-1 prerequisites still read as gates rather than as the
+      de-scoped record; and it still instructed a reader to remove the
+      `**/*.js` `.gitignore` rule that
+      [#1545](https://github.com/functionalscript/functionalscript/pull/1545)
+      removed. Language: [`spec/README.md`](../spec/README.md)'s File Types table
+      now says the `.f.js` in it is the *language's* extension and names the
+      repository's `.f.mjs` / `types.ts` spelling beside it. Package:
+      [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md)'s
+      stage-1 invariant listed `.ts` as "awaiting migration" and `.js` as
+      generated, and omitted `types.ts` entirely. Test:
+      [`fjs/emergent_testing/README.md`](../fjs/emergent_testing/README.md) now
+      states that `types.ts` is neither load tier and carries no proof-coverage
+      obligation. Roadmap: [`plan/roadmap.md`](./plan/roadmap.md) described
+      stage 1 in the present tense as ongoing.
+- [x] Identify type-only `.ts` / `.f.ts` files and convert them directly to
       `types.ts`; identify truly runtime-empty declaration-only `.f.mjs` files
       that should become `types.ts` as well when that is the cleaner design.
+      Both halves are empty sets, measured rather than assumed. The first is
+      moot: `find . -name '*.ts' -not -path './node_modules/*'` returns exactly
+      101 `types.ts` and 19 `private.ts` and nothing else, so no `.ts` /
+      `.f.ts` is left to reclassify. For the second, no authored `.mjs` in the
+      tree lacks a runtime export except three executables — `fjs/module.mjs`
+      (the CLI entry point), `fjs/emergent_testing/all.test.mjs` (the
+      external-runner entry) and `fjs/types/bigint/benchmark.mjs` — none of
+      which is a declaration module. Zero `.mjs` carries a file-scope
+      `@typedef` either, which is the other shape a runtime-empty type module
+      would take, so the rule in
+      [`fjs/fsc/README.md`](../fjs/fsc/README.md) now applies to new source
+      only. Re-measure both before reopening this.
 - [x] Rename `fjs/types/phantom/module.f.ts` to
       `fjs/types/phantom/types.ts` and update its type-only consumers to use the
       real `types.ts` source path; do not introduce a runtime phantom value.
@@ -954,12 +997,15 @@ Each item below is stated with the measurement that produced it, so the next
 person can re-check rather than re-derive. Counts are as of
 [#1505](https://github.com/functionalscript/functionalscript/pull/1505).
 
-- [x] **Make `npm run cov` report real coverage.** Done: `cov` now names its
-      entrypoint (`fjs/emergent_testing/all.test.ts`; authored `all.test.mjs`
-      since [#1520](https://github.com/functionalscript/functionalscript/pull/1520))
-      instead of relying on
-      `node --test` default discovery, and the dead `**/module.f.ts` glob is
-      gone.
+- [x] **Make `npm run cov` report real coverage.** Done, though not the way an
+      earlier revision of this line claimed: `cov` still passes no path and so
+      still uses `node --test` default discovery. What fixed it is that the one
+      file discovery finds is now authored `fjs/emergent_testing/all.test.mjs`
+      rather than `all.test.ts`
+      ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)),
+      so it matches `*.test.?(c|m)js` on every Node version instead of
+      depending on that version's TypeScript support. The dead
+      `**/module.f.ts` glob is gone and the three 100% thresholds were added.
 
       The diagnosis above was right and the "vacuous for several PRs" framing
       was wrong, so both are recorded here rather than deleted. The cause was
