@@ -524,7 +524,10 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       `fjs/rtti/common`, one PR each.
 - [ ] Update `data/README.md` and `descent/README.md`, which describe `Repeat`
       as "the one rule kind `toData` derives".
-- [ ] `tsc`, `fjs t`, changelog.
+- [ ] `tsc`, `fjs t`. Each PR that breaks the public API declares it with a
+      `**BREAKING CHANGES:**` item in its `Changelog:` section; there are no
+      per-PR changelog files any more
+      ([changelog/RELEASE.md](../../../changelog/RELEASE.md)).
 
 ### Related
 

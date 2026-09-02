@@ -234,9 +234,11 @@ genuinely about the classical `Rule` union close with `bnf/`.
       and `map/types.ts` to `fjs/grammar/`, one PR each, `rule-visitor.md`
       travelling with `data/`.
 - [ ] Stage 7: move `lib/` → `fjs/grammar/lib/`; add `fjs/grammar/ebnf/`.
-- [ ] `tsc`, `fjs t` at every stage; changelog entries marked
-      **BREAKING CHANGES** for each path change and for the removed backend
-      entries.
+- [ ] `tsc`, `fjs t` at every stage. Every stage moves a public path, so each
+      PR declares `**BREAKING CHANGES:**` in its `Changelog:` section — that
+      declaration is the version-bump signal and nothing derives it from the
+      diff ([changelog/RELEASE.md](../../changelog/RELEASE.md)). The removed
+      backend convenience entries are a break too.
 - [ ] Rewrite the "Later candidates" bullet of
       [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)
       once the bucket exists, and record that `fsc` and `js` stay out.
