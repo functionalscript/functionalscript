@@ -166,7 +166,6 @@ explicit named override list for the rows where token-stream acceptance differs.
 - [ ] Convert the DJS tokenizer proof to `jsonCases` plus a named override list
       and its DJS-only inputs.
 - [ ] Confirm coverage is unchanged — this must move test text, not test cases.
-- [ ] Add a normal CHANGELOG entry because proof/testlib source files change.
 - [ ] Run `tsc` and `fjs t`.
 
 ### Related
