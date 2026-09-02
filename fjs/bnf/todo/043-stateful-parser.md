@@ -76,6 +76,24 @@ its output metadata. With one `M` that value either rides along uselessly
 through every later rule, or has to be recovered in a postprocessing pass — both
 of which describe the pipeline worse than two types do.
 
+**EOF is an ordinary symbol in an extended input range**, sent by the caller as
+the last one, and the parser does not treat it specially. That is a change to
+[the contract](../README.md#logical-eof-in-parser-input), which has the backend
+synthesize EOF after the physical input — knowable for an array, not for a
+stream, where the caller telling the parser input ended *is* the last symbol.
+
+It removes rather than adds: EOF's metadata arrives with the symbol like any
+other, so nothing has to supply it; `Cursor`'s extended position and its
+`(idx, eofConsumed)` pair exist only to give a synthesized symbol a position it
+does not have, and a real symbol advances `idx` normally; `physicalIdx` converts
+that back and goes with it; and the trap `Cursor` documents — a backend treating
+EOF as no progress "would loop forever on a repetition over a rule that can match
+EOF" — cannot be fallen into. A grammar that never mentions `eof` leaves it
+unconsumed, which `end` treats as success, matching what the synthesized symbol
+does today.
+
+The contract and both backends are [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)'s.
+
 **The metadata algebra is two operations, given at construction.** One monoid
 needs one type, so with two it becomes:
 
@@ -197,11 +215,6 @@ is small enough to answer in a pull request that implements nothing.
   skipping absence. Not `Monoid<MO>` — its identity comes with an associativity
   law this `reduce` does not promise. One constant also cannot say *where* an
   empty match matched, which the second candidate can.
-- **The synthesized EOF has no `MI`** to hand a mapped terminal. The caller may
-  not supply it ([the contract](../README.md#logical-eof-in-parser-input): never
-  append EOF) and the engine may not invent it
-  ([generic-parser-metadata](./generic-parser-metadata.md)), so it reaches the
-  parser at construction — an `eof: MI` constant is the cheapest shape.
 - **How far `MI ≠ MO` reaches.** Re-splitting at the parser does not by itself
   un-ship PR #1828's single-`M` map and RTTI types: a callback may stay `M → M`
   inside one layer while the layer is `MI → MO`. One answer is a code change to
