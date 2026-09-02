@@ -287,10 +287,20 @@ things keep it from happening: the constructors above mean the API never asks
 anyone to write a tagged tuple, and the mistake further requires one of
 exactly three words as a literal text terminal in a thunk's return position.
 
-The residual risk is real and accepted: a proof covers this repository's
-grammars and cannot cover a grammar written elsewhere. That is the price of
-plain data, and it is cheaper than a marker on every operator in every
-grammar.
+And in the worst case it is found immediately. A rule that lost its thunk does
+not misbehave subtly — it stops matching the grammar's own inputs, because the
+tag becomes text the parser expects to consume. The first proof that exercises
+that branch fails, in the change that introduced it. So what is actually
+missing is a *type* error where there is already a *test* failure, which is a
+worse diagnostic rather than an undetected defect; the concern that this ships
+a plausible wrong parser does not survive that, since the wrong parser
+disagrees with its own grammar's expectations on the first input.
+
+That also answers the part a proof over this repository cannot reach. An
+external grammar is not unprotected, it is protected by its own tests, and the
+mistake shows up there the same way. The residual cost is a confusing failure
+for someone who has not read this section — cheaper than a marker on every
+operator in every grammar.
 
 #### The one question left open
 
