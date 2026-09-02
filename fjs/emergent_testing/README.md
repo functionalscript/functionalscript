@@ -319,6 +319,52 @@ form, and
 [`todo/imports-promises-realms.md`](./todo/imports-promises-realms.md) for what
 a promise from another realm would cost, which is a non-goal.
 
+### Rules the shared core keeps
+
+These are constraints on future work, not history. They were the terms the two
+runners were unified under, and each one is a way the unification can be undone
+by accident.
+
+- **The core never asks which host it is running on.** Anything host-specific
+  is a part it calls; anything it cannot express through a part is a missing
+  extension point, not a special case.
+- **Every remaining difference between the runners lives in a part, is
+  documented there, and is traceable to something the host forced.** Host APIs
+  and wrappers may differ freely; behaviour may differ only for a written
+  reason.
+- **A fix for a problem either runner has lands in the shared core, or in every
+  part at once — in the same change.**
+- **Browser modules must not import Node built-ins, the Node effect
+  interpreter, `node:test`, or Playwright.** The browser host runner must stay
+  usable as native JavaScript, with no bundling or transpilation.
+- **Terminal formatting and DOM presentation must not move into the shared
+  semantic core.** They are the two hosts' own ends of the same reporter.
+- **Both runners produce the same test name for the same leaf.** Nothing about
+  a browser prevents it, so a divergence here is the visible sign that the
+  semantics underneath were never unified. `equivalence.proof.mjs` is what
+  holds this.
+
+### Open questions about the report shape
+
+Three, and they want settling together rather than one at a time — each is
+small alone, and answering one without the others is how a report shape ends up
+carrying three half-decisions.
+
+1. **Does `path` survive now that `name` exists?**
+2. **Should a report declare the root its module keys are relative to?** A name
+   embeds a module key, and a module key is relative to the root a run was
+   given: `fjs t` invoked in `fjs/types/list` names a leaf
+   `import("./proof.f.mjs")…` where the same leaf from the repository root is
+   `import("./fjs/types/list/proof.f.mjs")…`. That is `fjs t` differing from
+   itself across roots rather than the two runners differing, and it is
+   deliberate — a subtree run reports a subtree. But two reports are comparable
+   only when their roots agree, and once the browser suite is a gate the
+   question is worth settling.
+3. **Does a module-level failure belong in a variant of its own?** One that will
+   not link is reported as a `TestResult` named by its source, so its totals
+   cannot read as "no tests" — which works, and is not obviously the right
+   shape.
+
 ### The pitfall catalog
 
 Thirteen measured ways this was got wrong, kept because other issues and

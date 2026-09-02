@@ -77,7 +77,8 @@ export type TestId = {
      *
      * So this is "what ran", not "which leaf ran". Whether a runner should
      * report a non-leaf outcome through this type at all, or through a separate
-     * variant with its own fields, is open.
+     * variant with its own fields, is open — see the report-shape questions in
+     * `./README.md`, which want settling together.
      *
      * **Both runners keep going, since functionalscript#1830.** A `proof`
      * export that cannot be enumerated is one failed record whose `name` is
