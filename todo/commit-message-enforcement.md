@@ -50,11 +50,28 @@ CONTRIBUTING.md states the consequence rather than promising a guard. Two things
 narrow the hole, and neither closes it:
 
 1. **A release-side check, which *is* decidable.** Given a release pull request,
-   the window is a `git log --first-parent` range, the declarations are
-   `**BREAKING CHANGES:**` occurrences in those merge-commit bodies, and the
-   bump is the `package.json` diff. Comparing the three is mechanical, and it
-   catches the release that undercounts — a real failure mode, since one person
-   reads a whole window by hand. It cannot see a break nobody declared.
+   the window is a `git log --first-parent` range against `origin/main`, the
+   declarations are the marker-prefixed **items of the parsed `Changelog:`
+   section** of each merge body, and the bump is the `package.json` diff.
+   Comparing the three is mechanical, and it catches the release that
+   undercounts — a real failure mode, since one person reads a whole window by
+   hand. It cannot see a break nobody declared.
+
+   **Parse the section; do not scan the body.** A merge body may name
+   `**BREAKING CHANGES:**` in ordinary prose — this issue's own file does, and so
+   did three commits of the pull request that wrote this paragraph, none of which
+   declared anything or touched the public API. A body-wide match would read
+   those as declarations and force a minor release out of a documentation
+   change. This is [AGENTS.md §6](../AGENTS.md#6-external-tools) exactly: a
+   pattern over text cannot tell a declaration from the same characters quoted in
+   a sentence about declarations, and a check built on one returns confident
+   answers it has no basis for. The section parser
+   [changelog-website.md](./changelog-website.md) plans is what makes this check
+   honest rather than a `grep`.
+
+   Two directions, and the check needs both: a declaration inside the section
+   that the release did not account for, and — the reverse — nothing outside the
+   section counting as one.
 2. **An API-surface diff.** The package emits `.d.ts`/`.d.mts` declarations, so
    a job could build them for base and head and report removed or narrowed
    declarations. That flags the `readonly`-added-to-a-tuple case a human misses.
@@ -86,8 +103,10 @@ it outright but require an Enterprise plan.
 - [ ] PR-lint workflow (title format; `Changelog:` section well-formed when
       present) as a self-hosted `fjs/ci` module
 - [ ] Release-side check: the version bump in a release pull request agrees with
-      the `**BREAKING CHANGES:**` declarations in its window, or the description
-      says which break the window undid
+      the `**BREAKING CHANGES:**` declarations in its window — read as items of
+      each merge body's parsed `Changelog:` section, never as matches anywhere in
+      the body — or the description says which break the window undid. The window
+      is derived against `origin/main`, never against the release branch
 - [ ] Repository settings, which need a maintainer with admin rights and cannot
       land in a pull request:
   - [ ] disable "Squash and merge" and "Rebase and merge" — the repository
