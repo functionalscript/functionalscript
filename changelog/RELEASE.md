@@ -83,6 +83,14 @@ pull request number. Three cautions, each of which has cost a release note:
   and absent from its window. This is not hypothetical: the pull request that
   wrote this paragraph merged `main` in and three pull requests, #1841 through
   #1843, vanished from its own listing.
+
+  `main` is the authority, not the release branch, and the asymmetry is worth
+  stating: the release lands *by merging into* `main`, and `npm publish` runs on
+  a push to `main` and packs that tree, so whatever sits on `main` when the
+  release merges is in the released package. A commit on `main` is therefore
+  never a change that "will not ship", and this listing cannot err by including
+  one — it can only err by missing one, which is the whole reason the range ends
+  at `origin/main` and step 7 re-derives it immediately before merging.
 - **`--reverse`, or read bottom-to-top.** `git log` prints newest first, and
   step 4 depends on reading in the order things happened: without it a
   superseded state is read as the release's final effect.
