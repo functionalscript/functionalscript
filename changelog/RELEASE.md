@@ -97,7 +97,13 @@ pull request number. Three cautions, each of which has cost a release note:
   step 4 depends on reading in the order things happened: without it a
   superseded state is read as the release's final effect.
 - **A line with no `(#NNN)` did not arrive through a pull request.** It still
-  shipped, so read it like any other; nothing else will report it.
+  shipped, and it carries no reviewed description, so there is no declaration to
+  collect and nobody else to make one: **read its diff and declare for it**. A
+  break you find there enters step 5's set exactly as an author's would. Until
+  the repository settings in
+  [commit-message-enforcement](../todo/commit-message-enforcement.md) forbid
+  direct pushes and rebase merges, this is the one input to the version decision
+  with no author behind it — release `0.41.0` itself landed this way.
 
 Merge order is not pull-request-number order — a pull request opened earlier can
 merge later — and merge order is the one to use.
@@ -185,6 +191,13 @@ and a new one alike.
 For each such line, update the branch from `main`, read that file into the
 entries, delete it with the rest, and **replace its line in the record** — a
 correction supersedes the entry already accounted for rather than adding to it.
+
+**Compare in both directions.** A recorded path that is *absent* from the new
+listing was withdrawn on `main` — a pull request retracting an entry it should
+not have written, which is the mirror of the correcting case and just as
+capable of moving the version, since the declaration it retracts may be the only
+one. Drop it from the record and from the entries, and re-check the version:
+removing the sole surviving break turns a minor back into a patch.
 
 The record is what the release has accounted for, not a snapshot of when it
 started: a processed file stays on `origin/main` until the release merges, so
@@ -282,11 +295,9 @@ triggers the `npm publish` workflow. Before merging:
       it is smallest when the two happen back to back.
 - [ ] **whenever `changelog/unreleased/` is non-empty:** it is deleted in this
       same pull request, after its content has been read into the entries — and
-      the final scan re-listed it from `origin/main` and compared **whole
-      `ls-tree` lines** against the record step 3 keeps, not paths and not this
-      working tree. The tree answers "true" for every file already consumed, and
-      paths alone miss an entry corrected in place; a line absent from the record
-      is a late arrival or a late correction, and both are read and deleted.
+      the final scan applied step 3's comparison — its exact form lives there
+      and is deliberately not restated here, because this document has twice
+      drifted by fixing a rule and leaving its paraphrase behind.
 
 ## What this replaced, and what was rejected
 
