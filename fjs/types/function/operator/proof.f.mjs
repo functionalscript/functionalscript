@@ -33,8 +33,14 @@ const strictEqualTest = () => {
 }
 
 const additionTest = () => {
-    const result = addition(3)(4)
-    assertEq(result, 7)
+    const numberResult = addition(3)(4)
+    assertEq(numberResult, 7)
+
+    const bigintResult = addition(3n)(4n)
+    assertEq(bigintResult, 7n)
+
+    const stringResult = addition('a')('b')
+    assertEq(stringResult, 'ab')
 }
 
 const incrementTest = () => {

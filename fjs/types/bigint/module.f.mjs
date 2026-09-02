@@ -22,16 +22,15 @@
  */
 
 import { cmp } from '../function/compare/module.f.mjs'
+import { addition as additionOp } from '../function/operator/module.f.mjs'
 import { fold } from '../../common/monoid/module.f.mjs'
 
 /**
  * Adds two `bigint` values.
- * TODO: should be combined with `addition` for `number`.
  *
- * @param {bigint} a - The first bigint value.
- * @returns {Unary} A function that takes the second bigint value and returns the sum.
+ * @type {Reduce}
  */
-export const addition = a => b => a + b
+export const addition = additionOp
 
 /**
  * Calculates the sum of a list of `bigint` values.
