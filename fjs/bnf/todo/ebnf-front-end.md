@@ -2,13 +2,14 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:**
+**Blocked by:** *implementation only* — the design work below, and Problem 9
+above all, is actionable now and grammar-bucket stage 2 waits on it.
+
 - [grammar-bucket](../../todo/grammar-bucket.md) stages 1-5 — the dependency
   inversion. `data/` is not neutral until stage 5, because `toData`,
   `RuleNameMap` and `GrammarData` name the classical `FRule` until then.
 - [unicode-rules](./unicode-rules.md), for the `fjs/grammar/unicode/` adapter
-  this front end takes its text terminals from. **Problem 9 must be answered
-  before that adapter is built**, not after: it decides the adapter's shape.
+  this front end takes its text terminals from.
 
 ### Problem
 
@@ -104,7 +105,7 @@ type Repeat<Min, Max, T> =
     // reads a literal: `2 extends number` is true.
       number extends Min            ? readonly T[]
     : Max extends 'Infinity'        ? (Min extends 0 ? readonly T[]
-                                                     : readonly [T, ...readonly T[]])
+                                                     : readonly [...Tuple<Min, T>, ...readonly T[]])
     : number extends Max            ? readonly T[]
     : [Min, Max] extends [Max, Min] ? Tuple<Min, T>   // both literal and equal
     : Union of Tuple<n, T> for Min <= n <= Max        // capped; see below
@@ -215,10 +216,12 @@ and is also what first makes `descentEquivalence` front-end neutral.
 **3. A nullable body is two problems.** Unbounded max is non-termination and
 stays rejected. Bounded max is *ambiguity*, and only when the body can match
 both empty and non-empty: `['repeat', 2, 2, r]` over a body matching `""` or
-`"x"` parses `x` two ways. A body matching only empty is unambiguous, so
-`times(3)(option(x))` is well defined. Reject only the ambiguous case, or keep
-a blanket rule and document its cost — but "cardinality unrecoverable" is
-false at a bounded max, where the cardinality is the bound.
+`"x"` parses `x` two ways, and `times(3)(option(x))` places one `x` in any of
+its three slots. A body that can match **only** empty — `['repeat', 3, 3, []]`
+— is unambiguous, since every copy matches the same nothing. Reject the
+ambiguous case (nullable *and* able to consume), or keep a blanket rule and
+document its cost — but "cardinality unrecoverable" is false at a bounded max,
+where the cardinality is the bound.
 
 **4. The optional's AST change is a bulk proof rewrite.** Production consumers
 do not read the `some`/`none` tags, but `descent/proof.f.mjs:288-296` and

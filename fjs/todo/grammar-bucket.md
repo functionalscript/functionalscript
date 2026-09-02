@@ -91,7 +91,9 @@ stages that relocate an API go straight to the final path.
    pointed away from the front end. **Its public shape depends on
    [ebnf-front-end](../bnf/todo/ebnf-front-end.md)'s Problem 9** — one adapter
    must serve both front ends, which want different representations — so
-   answer that before building this.
+   answer that before building this. That is a design answer, not an
+   implementation: `ebnf-front-end` is blocked on stages 1-5 for its *code*,
+   and its open questions can be settled at any time.
 3. **Genericize** the transformer protocol over the rule identity in
    `matcher/types.ts`, and `RuleNames<R>` / `GrammarData<R>` in
    `data/types.ts`. Generic over `R` they name no front end, so `data/` stays
@@ -196,8 +198,9 @@ A module the migration creates goes to its final path immediately, never to
 
 - [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)
   — the regrouping plan this belongs to; it set the one-move-per-PR rule.
-- [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — the second front end,
-  blocked on stages 1-5; its Problem 9 gates stage 2.
+- [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — the second front end. Its
+  *implementation* is blocked on stages 1-5; its Problem 9 is design work that
+  gates stage 2, so the two are ordered rather than circular.
 - [terminal-range-shared-type](../bnf/todo/terminal-range-shared-type.md) —
   repointed at `terminal/` and implemented by stage 1.
 - [unicode-rules](../bnf/todo/unicode-rules.md) — stage 2; its adapters are
