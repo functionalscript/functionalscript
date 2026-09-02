@@ -2,7 +2,7 @@
 
 **Priority:** P2
 **Status:** blocked
-**Blocked by:** [Command output: one design for every destination](../../../todo/plan/command-output.md)
+**Blocked by:** [Command output: one design for every destination](../../todo/command-output.md)
 
 > **Why blocked.** Nothing demands a non-TTY format now, and answering this one
 > alone would give the proof runner a mode system no other command shares —

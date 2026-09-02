@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [Command output: one design for every destination](../../../todo/plan/command-output.md)
+**Blocked by:** [Command output: one design for every destination](../../todo/command-output.md)
 
 > **Why blocked.** Silent and verbose are two values on the verbosity axis the
 > epic above enumerates, and picking them for `fjs t` alone is how a command

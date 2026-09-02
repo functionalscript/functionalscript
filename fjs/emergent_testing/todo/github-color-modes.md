@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [Command output: one design for every destination](../../../todo/plan/command-output.md)
+**Blocked by:** [Command output: one design for every destination](../../todo/command-output.md)
 
 > **Why blocked.** These are three cells of one product — transport, annotation
 > style and colour — named as three modes. The first of them, a *coloured* log

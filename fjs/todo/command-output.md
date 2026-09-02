@@ -17,13 +17,13 @@ of the other audiences has been noticed separately, and each got its own issue
 proposing its own mode:
 
 - a **pipe or log collector**, which sees nothing until a line is closed
-  ([tty-and-line-consumers](../../fjs/emergent_testing/todo/tty-and-line-consumers.md));
+  ([tty-and-line-consumers](../emergent_testing/todo/tty-and-line-consumers.md));
 - a reader who wants **brief progress and the failures**, not a line per test
-  ([test-framework-silent-mode](../../fjs/emergent_testing/todo/test-framework-silent-mode.md));
+  ([test-framework-silent-mode](../emergent_testing/todo/test-framework-silent-mode.md));
 - a **GitHub CI log**, which wants colour on a stream that is not a TTY
-  ([github-color-modes](../../fjs/emergent_testing/todo/github-color-modes.md));
+  ([github-color-modes](../emergent_testing/todo/github-color-modes.md));
 - and the **mode system** those would each need
-  ([211-reporter-modes](../../fjs/emergent_testing/todo/211-reporter-modes.md)).
+  ([211-reporter-modes](../emergent_testing/todo/211-reporter-modes.md)).
 
 Answering them one at a time gives the proof runner a mode system that no other
 command shares, invented from whichever audience was asked about first. The
@@ -43,13 +43,13 @@ prevent, so they are two rows here rather than two values in one:
 | colour | on · off |
 | verbosity | a record per event · a record per outcome · compact progress · failures only · silent |
 | progress | static (append-only) · dynamic (cursor movement, a line rewritten in place) |
-| scheduling | sequential · parallel — a parallel run's records interleave, so what identifies a record is part of the format rather than an afterthought |
+| scheduling | sequential · parallel — interleaved records make identity part of the format rather than an afterthought |
 | surface | one stream · a browser document · several windows or elements at once |
 
 **A GitHub CI log is the cell that proves the axes have to compose**: transport
 *pipe*, annotation *GitHub*, colour *on*. Today it cannot be expressed —
 `csiWrite` strips colour on any non-TTY stream, which is why
-[github-color-modes](../../fjs/emergent_testing/todo/github-color-modes.md)
+[github-color-modes](../emergent_testing/todo/github-color-modes.md)
 exists and asks for exactly this cell. Colour is therefore a **decision per
 cell, not a property of the TTY transport**; writing it off as the latter is
 how that requirement would have been silently dropped.
@@ -58,6 +58,17 @@ One thing that looks like an axis and is not, and the design should say so
 rather than leave it to be rediscovered: **an exit code is not output**. It is
 one value per run, it is not written to a stream, and no destination renders
 it.
+
+**Scheduling is the one axis with a producer on each side, and the enumeration
+below decides whether it survives.** The proof *traversal* is sequential by
+decision — concurrency was the complexity, and speed is not a goal
+([why](../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost))
+— so it is not the evidence for this row. The registration path is:
+`registerModule` fans out with `allOk` because an external framework owns that
+scheduling, and its records interleave. An axis with one producer is a real
+axis; an axis with none should be struck rather than designed around, and this
+one is listed so the first task settles it with the enumeration rather than an
+argument.
 
 ## What a good answer looks like
 
@@ -70,10 +81,14 @@ it.
 - **Selectable from what a program already holds.** `options.std[stream].isTTY`
   and `options.env` are there; a new flag is a last resort and a *new mechanism*
   is a redesign.
-- **Provable without the destination.** `effects/node/virtual` is neither a TTY
-  nor a pipe and answers `isTTY` either way, so every mode has to be observable
-  through it. A format that can only be checked by looking at a real terminal
-  has no proof.
+- **Provable without the destination.** A format that can only be checked by
+  looking at a real terminal has no proof. For the **stream** transports the
+  prover is `effects/node/virtual`, which is neither a TTY nor a pipe and
+  answers `isTTY` either way. A **host** renderer is proven by its host's own
+  proof against a stand-in — the browser page by the DOM stand-in in
+  `emergent_testing/browser/proof.mjs`, which the Node virtual runner cannot
+  observe at all and must not be asked to. What every cell shares is the
+  *value* being rendered, and that is provable without any destination.
 - **It applies to more than one command.** If the answer only makes sense for
   `fjs t`, it is the proof runner's mode system again under a new name.
 
@@ -87,12 +102,12 @@ These are settled and are inputs, not questions:
 - **Not two records per leaf on a TTY.** Tried and reverted: it doubles every
   line of every run to guard a case that announces itself. The reason is on
   `defaultReporter`'s `start` in
-  [`../../fjs/emergent_testing/module.f.mjs`](../../fjs/emergent_testing/module.f.mjs).
+  [`../../fjs/emergent_testing/module.f.mjs`](../emergent_testing/module.f.mjs).
   A *non-TTY* format may still choose it; that is the point of having two.
 - **The browser is a destination, not a variant.** It renders a pending row on
   the start event and settles it in place, and a design that only distinguishes
   TTY from pipe must not make it harder to add — see
-  [the emergent_testing README](../../fjs/emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost).
+  [the emergent_testing README](../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost).
 
 ## Tasks
 
@@ -104,12 +119,12 @@ These are settled and are inputs, not questions:
 
 ### Related
 
-- [tty-and-line-consumers](../../fjs/emergent_testing/todo/tty-and-line-consumers.md)
+- [tty-and-line-consumers](../emergent_testing/todo/tty-and-line-consumers.md)
   — the pipe transport, blocked on this.
-- [github-color-modes](../../fjs/emergent_testing/todo/github-color-modes.md)
+- [github-color-modes](../emergent_testing/todo/github-color-modes.md)
   — three cells of the product named as three modes, and the reason colour is
   an axis.
-- [211-reporter-modes](../../fjs/emergent_testing/todo/211-reporter-modes.md)
+- [211-reporter-modes](../emergent_testing/todo/211-reporter-modes.md)
   — the proof runner's own mode system, which this generalises.
-- [test-framework-silent-mode](../../fjs/emergent_testing/todo/test-framework-silent-mode.md)
+- [test-framework-silent-mode](../emergent_testing/todo/test-framework-silent-mode.md)
   — a verbosity, on the axis above.

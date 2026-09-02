@@ -2,7 +2,7 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [Command output: one design for every destination](../../../todo/plan/command-output.md)
+**Blocked by:** [Command output: one design for every destination](../../todo/command-output.md)
 
 > **Why blocked.** This proposes a mode system for the proof runner. The modes
 > are not the runner's — every `fjs` command writes to the same destinations —
