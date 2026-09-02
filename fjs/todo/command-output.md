@@ -161,6 +161,37 @@ These are settled and are inputs, not questions:
   TTY from pipe must not make it harder to add — see
   [the emergent_testing README](../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost).
 
+### Left open on purpose
+
+Four questions this document deliberately does **not** answer. They came up in
+review, none has an answer that follows from what has landed, and each is
+cheaper to settle against the enumeration than to argue about in advance. They
+are recorded so a later reader knows they were seen and postponed, not missed.
+
+- **Is a bridge a `transport` value or its own axis?** It is placed on the
+  transport row above because a renderer whose output is calls is still a
+  renderer. But it is the one value that does not write characters, and it is
+  also the only reason the `scheduling` row survives — so if the enumeration
+  finds it interacts with the other axes differently from the stream values
+  (a bridge with a *verbosity*? with *colour*?), it is a second dimension and
+  the table is wrong. Needs the enumeration.
+- **Is the exclusion set complete?** Only one exclusion is named — *transport =
+  TTY × surface = several at once*. Whether `progress = dynamic` is meaningful
+  on a bridge, or `annotation = GitHub` on a browser page, is unanswered.
+  Naming exclusions one at a time as they are noticed is how the product
+  acquires cells nobody can implement, so the design owes a rule rather than a
+  list; what that rule is needs the enumeration first.
+- **Where does `options-edsl` sit?** It is listed under Related rather than as
+  a `**Blocked by:**`, because it blocks *shipping* `--verbose` and not
+  *designing* the shape, and tasks 1 and 2 reach no flag. If the design's own
+  answer turns out to need an option to express a cell, that judgement flips
+  and this becomes a blocker. Revisit when the shape exists.
+- **What each stream means per command.** functionalscript#1790 settled it for a
+  run's *records* and deliberately not further; `cas` and `mcp` put
+  machine-readable output on `stdout`, and whether a diagnostic from those has
+  anywhere to go is a question about them, not about this table. Task 1 is what
+  surfaces it.
+
 ### Tasks
 
 - [ ] Enumerate every output **producer**, not only what a CLI command prints:
@@ -174,6 +205,9 @@ These are settled and are inputs, not questions:
       and the `skip` status, field and counter
       ([skip-property](../emergent_testing/todo/skip-property.md)).
 - [ ] Design the shape and its renderers, against that enumeration.
+- [ ] Answer the four questions under *Left open on purpose* — or record why
+      each still has no answer — as part of the design, rather than leaving
+      them to be rediscovered.
 - [ ] Say which existing issues the design subsumes, and retire them in the
       change that implements it rather than leaving both.
 
