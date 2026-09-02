@@ -51,5 +51,5 @@ Not decided; the two answers are not equally cheap.
 
 - [dirent-kinds](./dirent-kinds.md) — `readdir` has two entry kinds where a host
   has three; a link entry there is the non-regular entry this wants.
-- [`../../../AGENTS.md`](../../../AGENTS.md) — a throw is a panic, and
+- [`fjs/AGENTS.md`](../../../../AGENTS.md) — a throw is a panic, and
   recoverable failure belongs in `Result`; the rule both halves of this turn on.
