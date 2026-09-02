@@ -123,6 +123,14 @@ than designed around.
     parser that issue exists to remove.
 
   What is a last resort is a *new mechanism*, which is a redesign.
+
+  **Three axes have no group yet** — `progress`, `scheduling`, `surface`. That
+  is an omission and not a decision: detecting a TTY selects the transport and
+  says nothing about static versus dynamic progress, so an implementation
+  reading only the three groups above would have to invent a per-command
+  default, which is the outcome this document exists to prevent. Each must end
+  up classified, derived from an axis that is, or struck — see *Left open on
+  purpose*.
 - **Provable without the destination.** A format that can only be checked by
   looking at a real terminal has no proof. For the **stream** transports the
   prover is `effects/node/virtual`, which is neither a TTY nor a pipe and
@@ -186,6 +194,19 @@ are recorded so a later reader knows they were seen and postponed, not missed.
   *designing* the shape, and tasks 1 and 2 reach no flag. If the design's own
   answer turns out to need an option to express a cell, that judgement flips
   and this becomes a blocker. Revisit when the shape exists.
+- **Is event granularity a separate axis from verbosity?** `verbosity` above
+  lists `a record per event`, `a record per outcome` and `compact progress` as
+  mutually exclusive, which conflates *how many events a renderer consumes*
+  with *how much it emits per event*. `211-reporter-modes` has both a dot per
+  outcome and a dynamic display of the current test, and the latter consumes
+  the start event while emitting nothing lasting for it — a combination the
+  row as written cannot express, and one that decides whether a renderer may
+  discard start events at all. Splitting it is a change to the table, so it
+  waits for the enumeration that says which granularities have a producer.
+- **Who chooses `progress`, `scheduling` and `surface`?** Per the omission
+  noted above. `scheduling` may not survive at all, and `surface` is plausibly
+  host-selected like the transport it is constrained by, but both are guesses
+  and neither is worth fixing in the table before the enumeration.
 - **What each stream means per command.** functionalscript#1790 settled it for a
   run's *records* and deliberately not further; `cas` and `mcp` put
   machine-readable output on `stdout`, and whether a diagnostic from those has
@@ -199,11 +220,22 @@ are recorded so a later reader knows they were seen and postponed, not missed.
       (`fjs/emergent_testing/types.ts`) outside the command list entirely, and a
       bridge emits calls. For each, which cell of the table above it occupies.
 - [ ] Enumerate the report contracts **already designed but not yet emitted**,
-      so the shape is not invalidated by an issue that is already open: the
-      cancelled report and its completion-event behaviour
-      ([browser-test-controls](../emergent_testing/todo/browser-test-controls.md)),
-      and the `skip` status, field and counter
-      ([skip-property](../emergent_testing/todo/skip-property.md)).
+      so the shape is not invalidated by an issue that is already open. The
+      rule, since listing them one at a time is how the list goes stale: *every
+      open issue that specifies a field, a status or a tally in a report is an
+      input to the shape*. Open today —
+      [browser-test-controls](../emergent_testing/todo/browser-test-controls.md)
+      (a cancelled status distinct from `failed` and `infrastructure-error`,
+      and whether cancellation is its own event),
+      [skip-property](../emergent_testing/todo/skip-property.md) (a `skip`
+      status, field and counter),
+      [todo-property](../emergent_testing/todo/todo-property.md) (a `# TODO`
+      annotation on a result and a `todo` tally in `RunTotals`, `fjs t` only —
+      so a *per-renderer* field, which the shape has no notion of yet), and
+      [run-subset-of-tests](../emergent_testing/todo/run-subset-of-tests.md)
+      (the active selector and matched/total counts in **every** report,
+      including the page's). Re-run the rule when the design is written rather
+      than trusting this list.
 - [ ] Design the shape and its renderers, against that enumeration.
 - [ ] Answer the four questions under *Left open on purpose* — or record why
       each still has no answer — as part of the design, rather than leaving
