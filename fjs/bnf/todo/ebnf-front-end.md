@@ -115,8 +115,21 @@ the reason ebnf exists: the AST has to be a *function of the rule's type*, and
 under that lowering `() => [number, Rule]` mapped to `AST<r> | AST<r>[]`, two
 shapes decided by a value — the repeat-recognition ambiguity again, moved into
 the count. No numeric tag can be the escape for the same reason; `0` has the
-identical defect at a different value. The JSON grammar already wants the
-count form for `\uXXXX`, which it spells today as
+identical defect at a different value.
+
+`[1, r]` stays **legal, and discouraged**. It is a real count and lowers to
+the one-element sequence `[r]`, exactly as the table says, so `toData` must
+not reject it — a count read off a value at grammar-construction time may well
+be `1`, and the form has to be total. But an author who *writes* `[1, r]` by
+hand almost always means `['const', r]`, and the two differ: the const escape
+is `r`'s own node, the count is a sequence node with `r` inside it, and a
+transformer attached to one does not see the other. The discouragement is in
+the docs and the constructors — `times(n, r)` is the way to write a count, and
+`['const', r]` the way to write "just `r`" — not in `toData`, which has no way
+to tell a hand-written `1` from a computed one.
+
+The JSON grammar already wants the count form for `\uXXXX`, which it spells
+today as
 `...repeat(4)({ digit, AF, af })`, a list-level `repeat` spread into a
 sequence; `() => [4, hex]` is that as a grammar form.
 
