@@ -1,7 +1,7 @@
 # Addressing review comments
 
 For the author of a pull request under review. Opening one is
-[CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request); the principles are
+[CONTRIBUTING.md](../CONTRIBUTING.md#opening-a-pull-request); the principles are
 [DESIGN.md](./DESIGN.md).
 
 **Merge the knowledge.** A small step merged with what was learned written down
