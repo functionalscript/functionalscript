@@ -194,11 +194,19 @@ entries, delete it with the rest, and **replace its line in the record** — a
 correction supersedes the entry already accounted for rather than adding to it.
 
 **Compare in both directions.** A recorded path that is *absent* from the new
-listing was withdrawn on `main` — a pull request retracting an entry it should
-not have written, which is the mirror of the correcting case and just as
-capable of moving the version, since the declaration it retracts may be the only
-one. Drop it from the record and from the entries, and re-check the version:
-removing the sole surviving break turns a minor back into a patch.
+listing was deleted on `main`, and that needs reading rather than obeying:
+**deleting the note is not retracting the change.** The likeliest reason for a
+legacy entry file to disappear is housekeeping — the new policy adds no such
+files, so someone tidied one away — and the API change it described still
+shipped. Dropping its declaration then turns a minor into a patch while the
+break is still in the release, which is the failure this whole section exists to
+prevent.
+
+So a disappeared path removes **raw notes only**. Its declaration stands unless
+one of two things is true: the deleting pull request says it is retracting the
+declaration, or step 4's reading of the window shows the break itself was undone.
+Either way the reason is stated in the release pull request, because a
+disappearing file is not evidence of anything on its own.
 
 The record is what the release has accounted for, not a snapshot of when it
 started: a processed file stays on `origin/main` until the release merges, so

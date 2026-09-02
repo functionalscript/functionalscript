@@ -16,8 +16,8 @@ and emit an index page plus one page per release. The repository remains the
 source of truth; the website is presentation.
 
 The generator must recognize three release forms
-([changelog/README.md](../changelog/README.md#layout)). Only the first is
-written today; the other two are closed ranges that will not grow:
+([changelog/README.md](../changelog/README.md#layout)). One is written today,
+one is a closed range, and one is transient:
 
 - `<version>.md` — one file per release, the current form and also the form used
   through `0.44.0`. The two eras differ in how an entry names its pull requests:
@@ -29,9 +29,12 @@ written today; the other two are closed ranges that will not grow:
   request, `0.45.0` through `0.48.0` only. Entries carry no reference at all;
   the generator derives each pull-request link from the file name, joining a
   release's files in descending pull-request-number order.
-- `unreleased/<PR>.md` — the same shape, and gone once the next release consumes
-  it ([changelog/RELEASE.md](../changelog/RELEASE.md)). Either render it as a
-  pending section or skip it; do not build anything that assumes it exists.
+- `unreleased/<PR>.md` — the same shape, and **transient rather than closed**: a
+  release empties it, and a pull request opened under the old policy recreates it
+  whenever it merges, however long after the transition
+  ([changelog/RELEASE.md](../changelog/RELEASE.md)). Either render it as a
+  pending section or skip it, but do not build anything that assumes it exists —
+  nor anything that assumes it is gone for good.
 
 The main cost is rendering: the repo has no Markdown parser. Either write a
 small self-hosted parser for the entry subset (paragraphs, list items, inline
