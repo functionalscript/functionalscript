@@ -1,5 +1,5 @@
 /**
- * @import { Dir, _Entity } from '../effects/node/virtual/types.ts'
+ * @import { Dir, State, _Entity } from '../effects/node/virtual/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  */
 
@@ -8,6 +8,7 @@ import { main } from './module.f.mjs'
 import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
+import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
 
 /**
  * A file in the virtual tree, from its text.
@@ -23,13 +24,13 @@ const textOf = (entity, name) => {
 }
 
 /**
- * Runs the whole generator over an in-memory tree and answers the manifest it
- * wrote — which is what moving discovery into FunctionalScript bought: a
- * directory of fixtures in, a manifest out, no filesystem touched.
+ * Runs the whole generator over an in-memory tree — which is what moving
+ * discovery into FunctionalScript bought: a directory of fixtures in, a
+ * manifest out, no filesystem touched.
  *
- * @type {(tree: Dir) => { readonly manifest: string, readonly output: string }}
+ * @type {(tree: Dir) => readonly [State, number]}
  */
-const generate = tree => {
+const run = tree => {
     // The manifest is written beside the runner that loads it, so the fixture
     // carries that directory: the generator writes a file, it does not create
     // the tree the repository already has.
@@ -39,7 +40,17 @@ const generate = tree => {
         fjs: { emergent_testing: {}, .../** @type {Dir} */ (tree['fjs'] ?? {}) },
     }
     const [generated, result] = virtual({ ...emptyState, root })(main())
-    assertEq(exitCode(result), 0)
+    return [generated, exitCode(result)]
+}
+
+/**
+ * The manifest a successful run wrote, and what it said while writing it.
+ *
+ * @type {(tree: Dir) => { readonly manifest: string, readonly output: string }}
+ */
+const generate = tree => {
+    const [generated, code] = run(tree)
+    assertEq(code, 0)
     return {
         manifest: textOf(
             /** @type {Dir} */ (/** @type {Dir} */ (generated.root['fjs'])?.['emergent_testing'])
@@ -124,6 +135,32 @@ export const proof = {
                 'a.f.mjs': file("import './gone.f.mjs'\nexport const proof = []"),
             })
             assertStructurallySame(listed(manifest), ['a.f.mjs'])
+        },
+        /**
+         * **A read that failed for any other reason stops the generator.** A
+         * file over `readFile`'s 128 KiB cap is the one that matters: swallowed,
+         * it reads as a module importing nothing, so its own blockers are
+         * invisible and a proof reaching it is selected on the strength of a
+         * file nobody read — and the page then fails while it links, which is
+         * the outcome the selection exists to prevent.
+         *
+         * The oversized file here is a `.mjs`, because that is the case only
+         * this guard catches: an oversized `.f.mjs` is walked, so
+         * `proofModules` reads it and fails first.
+         */
+        anUnreadableModuleIsRefused: () => {
+            const [generated, code] = run({
+                'a.f.mjs': file("import './big.mjs'\nexport const proof = []"),
+                // One chunk at the cap plus one bit over it: `readFile` refuses
+                // the file rather than answering with part of it.
+                'big.mjs': [vec(maxLengthBytes * 8n)(0n), vec(1n)(1n)],
+            })
+            assertEq(code, 1)
+            // The operator is told which file broke the build, not merely that
+            // one did: the message is the host's own and names the entry.
+            assertEq(
+                generated.stderr,
+                `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big.mjs'\n`)
         },
         // Where the sources are is the tree's business: a nested directory is
         // walked, and its path is what the manifest carries.

@@ -76,6 +76,12 @@ export type Mkdir = readonly['mkdir', (path: string, options?: MakeDirectoryOpti
  * to respect Bun's `bigint` size constraint (1,048,575 bits), which is the
  * minimal limit across all runtime environments supported by FunctionalScript.
  * Files exceeding this limit will fail with a validation error.
+ *
+ * **The failure names the file.** A caller that stops on it — `website`'s
+ * manifest scan is the one that does — can only report a build broken by no
+ * file in particular otherwise. The path goes in `message`, which is where a
+ * host already puts the path it could not read, and is why `errorSummary`
+ * rather than `errorMessage` is what a protocol client is answered with.
  */
 export type ReadFile = readonly['readFile', (path: string) => IoResult<Vec>]
 

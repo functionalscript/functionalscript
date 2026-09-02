@@ -105,8 +105,9 @@ before changing the measurement.
 
 - [Run FunctionalScript proofs inside real browsers](browser-testing.md) — the
   report contract these durations belong to.
-- [Report a test's name before running it](report-before-running.md) — the
-  other thing wrong with what a row shows.
+- The page's pending row, in [`../browser/module.mjs`](../browser/module.mjs) —
+  a row now shows a leaf's name while it runs, which is the part of "what a row
+  shows" that a duration cannot fix.
 - [The two runners, and what sharing them cost](../README.md#the-two-runners-and-what-sharing-them-cost)
   — `sandbox` is the operation that executes a proof body in both hosts, so its
   measurement is one decision, not two.

@@ -439,6 +439,69 @@ export const proof = {
         }]])
         assertStructurallySame(events, ['a', 'sentinel', 'b'])
     },
+    /**
+     * **A leaf is announced, and the thread goes back to the browser before
+     * its body takes it.** Appending the pending row is not the property — the
+     * row is in the document either way, and a body that blocks cannot see
+     * from inside its own task whether anything was painted. Catalog item 11
+     * is exactly this shape of proof, so the assertion is an *ordering
+     * sentinel*: a macrotask queued before the run must be observed to fire
+     * before the first proof body runs, which only a real yield between the
+     * announcement and the body can produce.
+     *
+     * Mutation-checked: delete the `await macrotask()` in the page's `report`
+     * handler and the order becomes `a sentinel` — the body ran first, because
+     * nothing returned to the event loop after the leaf was announced.
+     */
+    startYieldsBeforeTheBody: async () => {
+        /** @type {readonly string[]} */
+        let events = []
+        /** @type {(name: string) => void} */
+        const record = name => { events = [...events, name] }
+        setTimeout(() => record('sentinel'), 0)
+        await runBrowserProofs([['m', { a: () => { record('a') } }]])
+        assertStructurallySame(events, ['sentinel', 'a'])
+    },
+    /**
+     * **The row exists, says `running`, and names the leaf — while the leaf is
+     * running.** Read from inside the proof body, because that is the only
+     * moment the claim is about: afterwards every row is settled, and a run
+     * that never announced anything would look identical.
+     */
+    aRunningLeafHasItsOwnRow: async () => {
+        const p = page()
+        /** @type {readonly (string | undefined)[]} */
+        let seen = []
+        /** @type {readonly (string | undefined)[]} */
+        let text = []
+        await startBrowserTests(p.root, [['m', {
+            a: () => {
+                seen = [...statuses(p.results)]
+                text = [p.results.children[0]?.textContent]
+            },
+        }]])
+        assertStructurallySame(seen, ['running'])
+        assertStructurallySame(text, ['RUN  import("m").proof.a()'])
+    },
+    /**
+     * **The result settles that row rather than adding a second one.** One
+     * leaf, one row, from announcement to verdict — checked before
+     * `renderBrowserReport` rewrites the list at the end, which would hide a
+     * duplicate.
+     */
+    aResultSettlesThePendingRow: async () => {
+        const p = page()
+        /** @type {number[]} */
+        let counts = []
+        await startBrowserTests(p.root, [['m', {
+            a: () => { counts = [...counts, p.results.children.length] },
+            b: () => { counts = [...counts, p.results.children.length] },
+        }]])
+        // One row while `a` runs, two while `b` does: `a`'s verdict landed in
+        // the row `a` was already in.
+        assertStructurallySame(counts, [1, 2])
+        assertStructurallySame([...statuses(p.results)], ['passed', 'passed'])
+    },
     render: async () => {
         const p = page()
         const report = await startBrowserTests(p.root,
