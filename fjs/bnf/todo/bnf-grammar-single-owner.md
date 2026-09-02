@@ -74,15 +74,33 @@ boundary it must leave visible is:
   punctuation, keywords, and character sets are lowered through Unicode helpers
   before they enter the generic grammar.
 
-Conceptually the imports should follow this boundary:
+Conceptually the imports should follow this boundary. The relative paths
+differ by stage, so both are spelled out — a single block mixing them resolves
+to nothing at either point.
+
+**At stage 2**, from `fjs/bnf/lib/json/`, while the front end is still
+`fjs/bnf` and `unicode/` already exists at its final path:
 
 ```ts
 import {
     commaJoin0Plus, option, remove, repeat0Plus,
-} from '../../module.f.mjs'
+} from '../../module.f.mjs'                        // fjs/bnf
 import {
     range, set, str, unicodeMax,
-} from '../../unicode/module.f.mjs'
+} from '../../../grammar/unicode/module.f.mjs'     // fjs/grammar/unicode
+import { repeat } from '../../../types/array/module.f.mjs'
+```
+
+**After the library moves** to `fjs/grammar/lib/json/` and the front end to
+`fjs/grammar/bnf/`:
+
+```ts
+import {
+    commaJoin0Plus, option, remove, repeat0Plus,
+} from '../../bnf/module.f.mjs'                    // fjs/grammar/bnf
+import {
+    range, set, str, unicodeMax,
+} from '../../unicode/module.f.mjs'                // fjs/grammar/unicode
 import { repeat } from '../../../types/array/module.f.mjs'
 ```
 

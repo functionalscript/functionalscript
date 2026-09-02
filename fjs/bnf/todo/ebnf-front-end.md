@@ -448,9 +448,14 @@ Small, but it fails quietly if forgotten, so it is a named task.
   | `option` | `some`/`none` variant node | `[] \| [T]` — **changes** |
   | `repeat1Plus` | `readonly [T, Repeat0Plus<T>]` (`types.ts:81`), a 2-tuple of item and nested repetition | one flat non-empty list — **changes** |
   | `join0Plus` | `Option<…>` (`types.ts:85`) | **changes**, because `option` does |
+  | `commaJoin0Plus` | a sequence containing `join0Plus` (`module.f.mjs:317`) | **changes**, transitively |
 
-  So two primitives change and one composite inherits it; `join1Plus` is
+  So two primitives change and two composites inherit it; `join1Plus` is
   untouched because it is built from `repeat0Plus`, not from `repeat1Plus`.
+  `commaJoin0Plus` matters out of proportion to its size: `fjs/bnf/lib/json`
+  binds `cj = commaJoin0Plus(ws)` and uses it for both bracket pairs, so the
+  array and object productions of the JSON grammar change shape, and their
+  proof expectations with them.
   A grammar that additionally *adopts* a new form is not shape-preserving
   either — `\uXXXX` as `times(4)(hex)` is a 4-element sequence node where the
   old spelling spread four references into the parent.

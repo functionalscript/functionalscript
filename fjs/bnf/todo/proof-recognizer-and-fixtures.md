@@ -165,8 +165,10 @@ explicit named override list for the rows where token-stream acceptance differs.
       direction argues for it); confirm no import cycle.
 - [ ] Carry each backend's `MatchResult` through as `Recognition.diagnostic` and
       report `[input, diagnostic]` from `assertRecognizes`.
-- [ ] Derive the root name inside each adapter from `toData(rule)[1]` — no `start`
-      parameter and no `''` default.
+- [ ] Take the entry name **alongside** the `RuleSet`, since a `RuleSet` holds
+      neither the functional rule nor its entry — the caller that built it has
+      both. No `toData` inside an adapter (that would reintroduce the `FRule`
+      the first task removes) and no `''` default.
 - [ ] Fold the proof-local `descentParserCpOnly` / code-point adapter into
       `descentRecognizer`; leave the DJS tokenizer's public export alone.
 - [ ] Add `number` using the Unicode adapter's text/range construction, and add
