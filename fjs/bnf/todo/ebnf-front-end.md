@@ -49,8 +49,11 @@ gets the final union from day one.
 
 `fjs/grammar/ebnf/` is a second front end over the same `RuleSet`. It is
 **only** a `Rule` union, its constructors, its `toData`, and its rtti map. The
-backends, the matcher, `emptyTagMap`, and the `descentEquivalence` proofs are
-shared unchanged — a repetition already reaches them as the data `Repeat`.
+backends, the matcher and `emptyTagMap` are shared: they consume a `RuleSet`
+and never see a functional rule. (The *proofs* are a different matter — see
+[Problem 2](#problems-to-resolve-before-implementing).) Against today's data
+layer a repetition reaches them as the existing `Repeat`; the front end does
+not depend on that staying the only representation.
 
 #### The rule union follows RTTI
 
@@ -93,13 +96,13 @@ lets the string question below stay open without deciding this one.
 **Terminals.** A plain `number` in a rule is **one symbol**, not a packed
 range: `0x61` is the letter, `-1` is EOF. A range is the `'...'` form, `'...'`
 rather than `'..'` because both ends are inclusive and that is the closed-range
-glyph where the distinction exists. The packed `TerminalRange` stays the
-*data-layer* terminal, since that is what serializes and what the backends
-dispatch on; it simply stops being something an author writes. `toData` lowers
-`n` with `oneEncode` and `['...', a, b]` with `rangeEncode`, and the
-`0x000030_000039` literal never appears in a grammar again. This is the same
-"one meaning per layer" the data README already accepts for `string`: a
-functional `number` is a symbol, a data `number` is a packed range.
+glyph where the distinction exists.
+
+How a terminal is *stored* is the data layer's business, not this front end's.
+Today's `RuleSet` packs two endpoint codes into one number; a future data layer
+may not. Either way the authored form is the same and the packed literal
+`0x000030_000039` stops appearing in a grammar — that is the point of the split,
+and it is what keeps this union from being tied to one encoding.
 
 **The escape.** `['const', c]` is RTTI's escape under RTTI's name: a plain
 rule behind a thunk, so a recursive sequence or variant is
@@ -133,13 +136,20 @@ today as
 `...repeat(4)({ digit, AF, af })`, a list-level `repeat` spread into a
 sequence; `() => [4, hex]` is that as a grammar form.
 
-**Operators.** One reaches the data form: `'*'`. It is the only operator that
-changes the AST contract — one flat node instead of a cons chain
-([Repetition is flat](../descent/README.md#repetition-is-flat)) — and the data
-`Repeat` already encodes it. `'?'` and `'+'` are **desugared** by `toData`:
-`['?', r]` to `{ some: r, none: [] }`, the node shapes `option` produces
-today, and `['+', r]` to `[r, () => ['*', r]]`. So the backends grow no case,
-and a grammar still reads like EBNF.
+**Operators.** `'*'` is the one form whose AST is not the shape its spelling
+suggests: a flat node rather than a cons chain
+([Repetition is flat](../descent/README.md#repetition-is-flat)). `'?'` and
+`'+'` are expressible in terms of the others — an optional is a two-branch
+variant, a one-or-more is an item followed by a repetition — so a lowering may
+either pass them through or reduce them.
+
+**Which of these a data layer represents natively, and which are reduced on the
+way down, is deliberately not settled here.** Today's `RuleSet` has a `Repeat`
+and nothing else, so `'*'` maps across and the rest reduce; a future data layer
+with a count or a bounded repeat would map more of them. The front end is the
+same either way, which is the property worth protecting — but the reduction is
+not free, and [Problem 1](#problems-to-resolve-before-implementing) is what it
+costs.
 
 **The AST is a function of the form.** This is the contract the type-level
 mapping implements, one row per `Info` form, each a function of the form alone
@@ -189,18 +199,33 @@ tagged tuple in a `Const` position is a smell only proofs can pin. Whichever
 way this goes, the choice is recorded here because it is the kind that shows
 up as a wrong parse months later.
 
-#### `toData`
+#### What this requires of a lowering
 
-- `['*', r]` becomes the data `Repeat` of `r`'s name. Two checks the fold used
-  to sidestep by declining to fold become errors: an item that can match
-  empty (infinitely many parses of the same input), and a rule that is its
-  own item with nothing in between. An item that *reaches* its own repeat is
-  allowed — `R = repeat(['(', R, ')'])` is a fine grammar, and both backends
-  already match a `RuleSet` that spells it.
-- `[n, r]`: `n` must be a non-negative integer; anything else is an error.
-- `['...', a, b]`: `a <= b`, both in the terminal domain; anything else is an
-  error.
-- A `number` lowers with `oneEncode`; a `string` per the open decision above.
+Stated as requirements on any data layer, since the target is open:
+
+- **Validation belongs here, at the front end**, not in whatever the rules
+  lower to. A form that cannot be given a meaning is rejected while the author
+  still has a rule to point at:
+  - `[n, r]`: `n` is a non-negative integer.
+  - `['...', a, b]`: `a <= b` as decoded, and both are **ordinary** symbols —
+    a range must not span or contain EOF, which is only ever the lone `-1`.
+    Today's `not` / `fullRange` already guarantee this on their side
+    ([Terminals and EOF](../README.md#terminals-and-eof)); the front end has to
+    guarantee it on the authoring side.
+  - A bare `number`: an integer in the terminal domain, EOF included.
+  - `['*', r]`: `r` must not match empty — a body that can consume nothing
+    gives the same input infinitely many parses. A body that *reaches* its own
+    repeat is fine: `R = repeat(['(', R, ')'])` is a good grammar, and the
+    only reason the classical fold refused it is that recognition could not
+    tell it apart from a tree.
+- **The AST a rule implies is fixed by the table above**, so a lowering is
+  correct only if the tree it produces matches. That is the invariant a second
+  data layer would have to satisfy too, and it is why the table is written
+  against `Info` rather than against any `RuleSet`.
+- **Rule identity has to survive.** Transformers are keyed by the functional
+  rule ([207-bnf-semantic-actions](./207-bnf-semantic-actions.md)), so any rule
+  a lowering *synthesizes* is one an author cannot name. See
+  [Problem 1](#problems-to-resolve-before-implementing).
 
 #### The range-set helpers split
 
@@ -225,18 +250,98 @@ Small, but it fails quietly if forgotten, so it is a named task.
   never calls it. The one hand-written repeat in the tree, `characters` in
   `classic()` of `testlib.f.mjs`, either moves to `repeat0Plus(character)` or
   keeps `detectRepeat` as an explicit step in its proof.
-- The data `Repeat`, the data `TerminalRange`, and the AST contract do not
-  change, so a grammar ported from `bnf` to `ebnf` produces the same
-  `RuleSet` and the same AST. That is what makes the port one grammar per PR.
+- Against **today's** data layer a ported grammar can produce the same
+  `RuleSet` and the same AST, which is what makes the port one grammar per PR
+  and lets each port be checked against the `bnf` original. Two caveats. A
+  grammar that adopts a new form is not shape-preserving — `\uXXXX` as
+  `times(4, hex)` is a 4-element sequence node where the old spelling spread
+  four references into the parent, so its AST and its proof expectations
+  change with it, deliberately. And the equality is a property of this
+  lowering, not a promise about a future one: what is fixed across data layers
+  is the Rule → AST table, not the `RuleSet`.
+
+#### Problems to resolve before implementing
+
+Found reviewing this design against the backends, the transformer layer, and
+the existing proofs. None is decided here; each is a thing that has to be
+answered, and the last one is the reason the rest are worth answering first.
+
+**1. A reduced form synthesizes rules no author can name.** Transformers are
+keyed by functional rule identity, and `ll1/module.f.mjs:397` asserts that
+every child of a mapped variant is itself mapped ("mixed mapped and unmapped
+variant boundary"). If `['?', r]` is reduced to a two-branch variant whose
+empty branch is a **fresh** `[]`, nobody holds that rule, so mapping a
+`?`-rule cannot satisfy the assertion — there is no reference to attach a
+transformer to. Today this works only because `none` is a *shared* export
+(`module.f.mjs:230`) that authors can name, and it has not bitten yet only
+because nothing outside proofs uses the transformer path. Options: reduce to
+shared singletons that the front end exports, and state that transformers
+attach to the `Info` thunk rather than to what it reduces to; or represent the
+form natively in the data layer so nothing is synthesized; or keep `'?'` and
+`'+'` out of `Info` and make `option` / `repeat1Plus` ordinary constructors.
+The choice interacts with the data layer, which is why it is open.
+
+**2. The backend proofs are built with the front end.** `ll1/proof.f.mjs:14`,
+`descent/proof.f.mjs:10`, `data/proof.f.mjs:7` and `matcher/proof.f.mjs:8`
+import `../module.f.mjs`, and the first two also import `../testlib.f.mjs`.
+So "the backends are shared unchanged" holds for the modules and **not** for
+their proofs: they break grammar-bucket's rule that nothing below a front end
+imports one, and deleting `grammar/bnf` breaks every one of them. This also
+undercuts `descentEquivalence` as a neutral guard — it currently proves the
+two backends agree on grammars written in *one* front end's spelling. The
+shape of a fix is that the backend proofs take `RuleSet` literals and each
+front end separately proves it produces them, which would make the equivalence
+claim front-end neutral for the first time. It is grammar-bucket's work, not
+this issue's, but this issue cannot be finished without it.
+
+**3. `['?', r]` with a nullable `r` is ambiguous and currently unchecked.** Two
+nullable branches means two parses of empty input, and `emptyTagOf` silently
+takes the last. `'*'` gets a nullable-item error above; the same question
+applies here and to any form that introduces a branch. Reject, or accept and
+document — but silently picking one parse is what this front end exists to
+stop.
+
+**4. The range-set helpers have an input side too.** The split below covers
+what `not` returns. But `remove(range(' ' + unicodeMax), set('"\\'))` in the
+JSON grammar now *takes* a `'...'` thunk and a variant of bare numbers, so the
+EBNF-facing helpers have to accept EBNF forms as well as produce them, with
+the packed arithmetic kept behind them. A helper that quietly reads a bare
+number as a packed range is the same silent-misread bug in the other
+direction.
+
+**5. Reduction at the wrong level defeats memoization.** Writing a reduction as
+functional rules — `['+', r]` as `[r, () => ['*', r]]` — creates a thunk during
+conversion that has no `.name` and no identity an author shares, so it is
+re-converted rather than memoized. A reduction that emits data-layer names
+directly avoids this. Which is available depends on the data layer.
+
+**6. Recursive rules need explicit annotations for `AST<T>` to work.**
+TypeScript will not infer the type of a recursive thunk, so the type-level
+mapping only pays off where the author annotates. Today's `Repeat0Plus<T>` is
+annotated for exactly this reason. Worth confirming on a real recursive
+grammar early, because if the annotations are onerous the table is a
+documentation contract rather than a checked one — which would be a much
+weaker version of this proposal.
+
+**Smaller.** Every constructor returns an anonymous thunk, so
+`const digit = range('09')` contributes no name to a serialized `RuleSet`;
+generated names have never been contract, but readability drops. And one win
+worth recording: `sym` in `fjs/djs/parser` is
+`name => oneEncode(tokenEncoding.encode(name))`, which becomes just
+`tokenEncoding.encode(name)`, and `eof` becomes the bare `-1` — so the DJS
+parser stops importing the terminal codec altogether, shrinking what
+grammar-bucket's stage 1 has to touch there.
 
 #### Left for later, deliberately
 
-A minimum count *at the data layer* (a flat node of at least one item, rather
-than the `[r, () => ['*', r]]` desugaring) and a separator (`['*', item, sep]`
-with a flat item list) are both worth having — comma lists are the dominant
-repetition in the JSON and DJS grammars — but each changes the serialized
-`Repeat` and every backend. Land `'*'` first; the data `Repeat` can grow from
-a name to a record when one of them is designed.
+A bounded repeat (a flat node of at least *n* items, rather than reducing
+`'+'` to an item plus a repetition) and a separated repeat (a flat item list
+with the separators dropped) are both worth having — comma lists are the
+dominant repetition in the JSON and DJS grammars, and both would make
+Problem 1 smaller by removing a reduction. Each needs a data layer that can
+represent it, so they belong to whatever data-layer work comes next rather
+than here. What this issue owes them is that adding either is a new `Info`
+form and a new row in the table, not a change to the existing rows.
 
 Until the classical front end is deleted, `ebnf` gets no feature `bnf` lacks
 beyond the `Info` forms above, so the two do not drift while both exist.
@@ -248,15 +353,17 @@ beyond the `Info` forms above, so the two do not drift while both exist.
       and the type-level `AST<Rule>` mapping from the table, with a proof per
       row that the parser's result has that type. Every form `toData` accepts
       is in `Info`, so the accepted syntax type-checks without a cast.
+- [ ] Answer the six problems above, in the issue, before writing code. 1, 3
+      and 5 gate `toData`; 2 is grammar-bucket's and gates the proofs; 6 gates
+      whether the AST table is checked or merely documented.
 - [ ] Decide, and record here, whether bare `number` and `string` stay in
       `Const`, and how a `string` lowers.
 - [ ] `fjs/grammar/ebnf/module.f.mjs`: the constructors (`option`,
       `repeat0Plus`, `repeat1Plus`, `times`, `join0Plus`, `join1Plus`, and the
-      EBNF-facing `not`) and `toData` / `toDataWithRules`: `'*'` transcribed,
-      `'?'` and `'+'` desugared, `['const', c]` unwrapped, `[n, r]` lowered
-      to a sequence of `n` for every `n`, `'...'` and `number` lowered through
-      `terminal/`, and
-      the four errors above. The text-interpreting helpers — `range`, `set`,
+      EBNF-facing `not`) and the lowering: `['const', c]` unwrapped, `[n, r]`
+      lowered to a sequence of `n` for every `n`, `'*'` mapped, `'?'` and
+      `'+'` per Problem 1, terminals lowered to whatever the data layer
+      stores, and the validation listed above. The text-interpreting helpers — `range`, `set`,
       `str`, `notSet` — belong to the alphabet adapter at
       `fjs/grammar/unicode/`, which this module depends on and does not
       contain ([unicode-rules](./unicode-rules.md)).
