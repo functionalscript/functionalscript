@@ -150,6 +150,13 @@ than designed around.
   it finds none, this is the proof runner's mode system after all, the four
   issues unblock, and this document says so rather than generalising anyway.
 
+  One candidate is already visible, and it is named here as a lead for task 1
+  rather than as a finding: `fjs/cas/todo/` wants an output format that is
+  "scriptable in CI and cron" and a transport matrix over CLI, MCP and a Web
+  API. If that survives inspection it is the second consumer; if it turns out
+  to be an *exit code* and a *payload schema* rather than a rendering, it is
+  not, and the falsifier fires. Task 1 decides which, on the evidence.
+
 ### Constraints inherited from what has landed
 
 These are settled and are inputs, not questions:
@@ -234,8 +241,19 @@ postponed, not missed.
       annotation in both the CLI and the browser report, and
       [spidermonkey-test-runner](../emergent_testing/todo/spidermonkey-test-runner.md)
       wants rejected roots reported — neither is a field, a status or a tally,
-      and both are contracts a renderer has to satisfy. **Read it as a sweep of
-      `fjs/emergent_testing/todo/` — 29 files — and not as a list here.** An
+      and both are contracts a renderer has to satisfy. **Read it as a sweep, not as a list
+      here** — and across the `todo/` directory of **every producer task 1
+      found**, not only `fjs/emergent_testing/todo/`. A test-only sweep would
+      contradict this document's own claim to cover every command:
+      `fjs/cas/todo/` alone has
+      [command-architecture](../cas/todo/command-architecture.md) asking which
+      transports expose which commands,
+      [66g-cas-verify-command](../cas/todo/66g-cas-verify-command.md) asking
+      for an "exit code / output format so it is scriptable in CI and cron",
+      and [66j-cas-add-directory](../cas/todo/66j-cas-add-directory.md) making
+      *printing nothing* the contract on partial failure. Bounded by task 1
+      rather than by the whole tree — 274 `todo/` files under `fjs/` is not a
+      sweep anyone runs — which is why the two tasks are in this order. An
       inline inventory was tried and grew in three consecutive review rounds —
       cancellation
       ([browser-test-controls](../emergent_testing/todo/browser-test-controls.md))
