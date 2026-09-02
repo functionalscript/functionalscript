@@ -156,7 +156,7 @@ const resolve = from => specifier => pathConcat(`${from}/..`)(specifier)
  * *while it links*, before the runner can publish a report, which is the
  * outcome this whole selection exists to prevent. So the generator refuses the
  * input it cannot handle rather than answering with a plausible manifest
- * ([DESIGN.md §10](../../DESIGN.md#10-refuse-what-you-cannot-handle)), and its
+ * ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)), and its
  * message is the host's own, naming the file. Dropping such a module as a
  * *blocker* instead would keep the run going, but it costs a `stat` per module
  * and calls a host failure a property of the source. Nothing in the repository

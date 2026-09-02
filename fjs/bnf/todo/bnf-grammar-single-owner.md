@@ -162,7 +162,7 @@ implementation belongs — it owns refusal as an engine channel, names the
 `__proto__` key as a concrete use, and puts reference resolution in a second
 pass over the built module. Whoever builds a DataJS parser on these grammars
 implements the pass with it; shipping one that skips it would be
-[DESIGN.md §10](../../../DESIGN.md#10-refuse-what-you-cannot-handle)'s silence.
+[DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)'s silence.
 
 ### Unicode migration requirements
 

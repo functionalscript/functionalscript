@@ -538,7 +538,7 @@ suspended parse's state (§4).
 
 ### How binding this is
 
-[REVIEW.md](../../../REVIEW.md#designs): the implementer is not bound, but
+[REVIEW.md](../../../doc/REVIEW.md#designs): the implementer is not bound, but
 deviating silently is not allowed — the reason goes here.
 
 - **Settled** — the four kinds, a metadata channel and its algebra, semantic
