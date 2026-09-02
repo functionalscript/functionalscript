@@ -28,11 +28,16 @@ Expose the parser as a machine over one input symbol at a time — a
 already folds with:
 
 ```ts
-StateFold<Meta<MI, CodePoint>, S, Meta<MO, T>>
+StateFold<Meta<MI, Symbol>, S, Meta<MO, T>>
 // init: S
-// update: (state: S, symbol: Meta<MI, CodePoint>) => S
+// update: (state: S, symbol: Meta<MI, Symbol>) => S
 // end: (state: S) => Meta<MO, T>
 ```
+
+`Symbol` here is the input alphabet, not `CodePoint`: end-of-input is one of its
+members and sits outside the documented `0x0000 to 0x10_FFFF`
+([eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)), and a layered parse
+feeds token symbols through the same machinery anyway.
 
 This issue's original sketch took a whole string in `append`. One symbol is the
 smaller contract, and a string-at-a-time convenience is derivable from it, not
@@ -103,7 +108,7 @@ readonly reduce: Reduce<MO>             // two siblings, combined
 ```
 
 The **terminal is the boundary**: a terminal transformer takes
-`Meta<MI, CodePoint>` and returns `Out<MO, T>`, and `translate` supplies the
+`Meta<MI, Symbol>` and returns `Out<MO, T>`, and `translate` supplies the
 metadata only where a terminal has no transformer — parallel to
 [207 §3](./207-bnf-semantic-actions.md)'s default builders supplying the value
 for an unmapped rule. Translating on entry instead would put it in front of the

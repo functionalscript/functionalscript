@@ -41,6 +41,16 @@ into, and EOF's metadata arrives with the symbol.
 A grammar that never mentions `eof` leaves it unconsumed. That is success, which
 is what the synthesized symbol already amounts to today.
 
+**The input symbol type widens, and it is a public one.** `CodePoint` is
+documented as `0x0000 to 0x10_FFFF`
+([`../../text/utf16/types.ts`](../../text/utf16/types.ts)) and `eofSymbol` is
+`-1`, so `Meta<M, CodePoint>` stops being true the moment a caller must supply
+EOF. A BNF input symbol was already wider than a code point in practice —
+`fjs/djs/parser` feeds token symbols through the same matcher — so this names
+something that exists rather than adding a concept. Every signature carrying the
+input alphabet moves with it: the matcher's input, terminal transformers, AST
+leaf types, and [43](./043-stateful-parser.md)'s fold.
+
 **A consumed `eof` still contributes no AST leaf.** That is not the parser
 treating the symbol specially — it is that there is nothing to put in a leaf.
 Every other leaf stands for a source character; EOF stands for the absence of
@@ -61,7 +71,7 @@ workaround exist only because the backend invents the symbol.
 
 **And EOF now carries metadata like any other symbol**, which is the point of
 the change for [43](./043-stateful-parser.md): a mapped `eof` terminal receives
-a real `Meta<MI, CodePoint>` from the caller, so nothing has to invent one.
+a real `Meta<MI, Symbol>` from the caller, so nothing has to invent one.
 That also retires [207 §2](./207-bnf-semantic-actions.md)'s `[EOF, identity]`
 row — one of the three places the metadata identity was being spent, and the
 one that was only pretending to have no metadata. The empty `Sequence` and the
@@ -99,6 +109,14 @@ is at stake.
       `eofMetadata` — threaded to `parseFromTokens`' `atEnd` branch — has nothing
       left to carry. `djsModule` requires `eof`, so this caller is not optional:
       leaving it stripped fails every valid module at its final terminal.
+- [ ] Keep `splitEof`'s *validation* even where its stripping goes. It rejects a
+      stream whose `eof` is not the single final token, and the grammar does not
+      replace that check: `descent` matches prefixes, and `parseFromTokens`
+      destructures `{ ast, success, failure }` without `idx`, so `value, eof,
+      eof` would succeed on the first marker and the second would go unread.
+      Either verify complete consumption there or keep an explicit
+      exactly-one-final-EOF check; this is the documented public contract, not a
+      tidy-up.
 - [ ] Say what a caller's completeness check compares against (see the open
       question), since the two entry points above each have one.
 - [ ] Prove a caller that omits EOF, and one that sends it early or twice. The

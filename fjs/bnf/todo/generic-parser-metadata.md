@@ -102,7 +102,7 @@ readonly reduce: Reduce<MO>             // two siblings, combined
 ```
 
 Everything above a terminal is `MO`, and `reduce` never sees `MI`. The terminal
-is the boundary: a terminal transformer takes `Meta<MI, CodePoint>` and returns
+is the boundary: a terminal transformer takes `Meta<MI, Symbol>` and returns
 `Out<MO, T>`, and `translate` supplies the metadata only where a terminal has no
 transformer — so "a terminal preserves its input symbol's metadata" above now
 means it preserves `MI` *into* the transformer, which is what lets a mapped

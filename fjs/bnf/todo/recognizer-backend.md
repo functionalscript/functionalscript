@@ -132,8 +132,18 @@ a symbol the caller supplies as the last one, most of the list above stops being
 a rule and becomes a consequence: there is no synthesized transition to provide,
 no "callers do not append" to enforce, and no separate finalization step to keep
 chunk-invariant — EOF is simply the last symbol of the last chunk. What survives
-is the requirement itself, that chunking must not change the verdict. Revisit
-this section when that issue lands rather than implementing both.
+is the requirement itself, that chunking must not change the verdict.
+
+**One rule above does not become a consequence, though, and it is the one to
+carry over.** "Acceptance at the physical end is preserved even if the EOF
+transition would reject" is machinery, not bookkeeping: a `Fold<Symbol, State>`
+consumes every symbol it is given, so for a grammar that never mentions `eof`,
+folding the final EOF drives an accepting state into the rejecting sink and the
+input is refused. The parser backends have no equivalent problem — an unconsumed
+trailing symbol is just an unconsumed symbol — so this is the recognizer's own,
+and it needs either an acceptance check taken before the last symbol or an EOF
+self-loop compiled in for grammars that do not name `eof`. Revisit this section
+when that issue lands rather than implementing both.
 
 #### Build from the data representation, not the functional one
 
