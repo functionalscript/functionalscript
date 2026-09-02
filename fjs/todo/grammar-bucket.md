@@ -35,6 +35,16 @@ cannot, because every neutral module imports the front end:
   and the LL(1) `transformers` builder calls `toDataWithRules` itself.
 - `token_symbol/module.f.mjs` imports `fullRange`, `rangeDecode`, and
   `unicodeRange` from `../module.f.mjs`.
+- `matcher/types.ts` imports the functional `Rule` and *spreads it through the
+  transformer protocol*: the `repeat` arm of `Transformer`, `Entry.rule`,
+  `TransformerMap.entries`, and `TransformerTools.entry` / `repeatOf` are all
+  typed by it. `data/types.ts` does the same in `RuleNameMap` and the
+  `GrammarData` triple built on it.
+
+That last one is the deepest: it is a *type-level* dependency, so moving the
+conversion alone would leave a second front end unable to type-check against
+the supposedly neutral matcher and LL(1) transformer APIs even though no
+runtime code is shared.
 
 Everything those imports need is the terminal codec — how a range packs two
 stored endpoint codes and where EOF lives
@@ -47,8 +57,9 @@ front-end business at all.
 
 ```text
 fjs/grammar/
-  terminal/      range and EOF codec: rangeEncode, rangeDecode, oneEncode,
-                 eofSymbol, eof, fullRange, and the range/set/not helpers
+  terminal/      packed-range and EOF codec, alphabet-neutral only:
+                 rangeEncode, rangeDecode, oneEncode, eofSymbol, eof,
+                 fullRange, maxSymbol, remove, not
   data/          RuleSet IR, emptyTagMap, detectRepeat        → terminal
   matcher/       shared cursor, EOF, AST, transformer tools   → data, terminal
   ll1/           backend over RuleSet only                    → matcher
@@ -88,10 +99,20 @@ one refactor inside `fjs/bnf/`, importers unaffected:
    the front end. `data/` keeps the IR, `isRepeat`, `emptyTagMap`, and
    `detectRepeat`. `repeatItem` goes with the front end's rtti map, the only
    caller.
-3. Backends take a `RuleSet` only. Drop `parser(fr)` and `descentParser(fr)`
+3. Make the rule **identity** a type parameter of the transformer protocol.
+   The matcher never inspects a rule it is keyed by — it uses the identity as
+   an opaque map key — so `Transformer`, `Entry`, `TransformerMap`, and
+   `TransformerTools` become generic over an identity type `R`, and each front
+   end instantiates them at its own `Rule`. `RuleNameMap` and `GrammarData`
+   name a functional rule outright, so they move to the front end in step 0.2
+   with the conversion that returns them; `data/types.ts` then has no import
+   from a front end at all.
+4. Backends take a `RuleSet` only. Drop `parser(fr)` and `descentParser(fr)`
    or re-home them in the front end; `parserRuleSet` and
    `descentParserRuleSet` stay. The LL(1) `transformers` builder takes the
-   `GrammarData` triple as an argument instead of converting.
+   grammar data as an argument instead of converting — which removes its
+   *runtime* dependency on the front end, and is only sound once item 3 has
+   removed the type-level one.
 
 After step 0 every move is mechanical.
 
@@ -127,12 +148,18 @@ and moves to `data/todo/`.
 
 ### Tasks
 
-- [ ] Step 0.1: extract the terminal codec from `fjs/bnf/module.f.mjs`; point
-      `data`, `matcher`, `ll1`, `descent`, and `token_symbol` at it.
+- [ ] Step 0.1: extract the alphabet-neutral terminal codec from
+      `fjs/bnf/module.f.mjs`; point `data`, `matcher`, `ll1`, `descent`, and
+      `token_symbol` at it. The text-interpreting helpers stay put for
+      [unicode-rules](../bnf/todo/unicode-rules.md) to move.
 - [ ] Step 0.2: move `toData` / `toDataWithRules` / `data/private.ts` into the
-      front end; `repeatItem` into `map/rtti`.
-- [ ] Step 0.3: backends over `RuleSet` only; `transformers` takes
-      `GrammarData`. Re-home the functional convenience entries.
+      front end, with `RuleNameMap` and `GrammarData`; `repeatItem` into
+      `map/rtti`.
+- [ ] Step 0.3: genericize the transformer protocol over the rule identity in
+      `matcher/types.ts`; check that `data/` and `matcher/` no longer import a
+      front end.
+- [ ] Step 0.4: backends over `RuleSet` only; `transformers` takes the grammar
+      data. Re-home the functional convenience entries.
 - [ ] `tsc`, `fjs t`; changelog entry marked **BREAKING CHANGES** for the
       removed backend entries.
 - [ ] Move `terminal/` → `fjs/grammar/terminal/` (establishes the bucket).
@@ -159,8 +186,11 @@ and moves to `data/todo/`.
   blocked on step 0 here, not on the moves.
 - [rule-visitor](../bnf/todo/rule-visitor.md) — the data `Rule` visitor; the
   moved `data/` module is where it lands.
-- [unicode-rules](../bnf/todo/unicode-rules.md) — decides where
-  `unicodeRange` and the string literal go; step 0.1 only moves the codec.
+- [unicode-rules](../bnf/todo/unicode-rules.md) — already assigns
+  `unicodeRange`, `unicodeMax`, `toSequence`, `str`, `set`, `range`, and
+  `notSet` to the alphabet adapter, by the rule that an API interpreting text
+  as code points is not core. `terminal/` is the other side of that same
+  boundary and takes only what is left, so neither set of helpers moves twice.
 - [parser-serializer-restructure](../../todo/parser-serializer-restructure.md)
   — the media codecs take no runtime dependency on the grammar modules, and
   the `djs` front end moves to `fjs/fsc` as a consumer.

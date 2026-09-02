@@ -58,10 +58,16 @@ sequence, and the tagged array is a rule kind of its own:
 
 ```ts
 type Rule = Variant | Sequence | TerminalRange | Tagged | Thunk
-type Tagged = readonly ['*', Rule]
+type Op = '*' | '?' | '+'
+type Tagged = readonly [Op, Rule]
 type Sequence = readonly Rule[]      // Rule has no string case, so disjoint
 type Thunk = () => DataRule          // as today; may now return Tagged
 ```
+
+`Tagged` admits every operator a grammar may **write**, not just the one that
+survives to the data form: `'?'` and `'+'` are desugared by `toData` (below),
+but a grammar spells them directly, so leaving them out of the union would make
+`tsc` reject the accepted syntax and force a cast at every use.
 
 Runtime discrimination is `typeof rule[0] === 'string'`. `LazyRule` is renamed
 `Thunk`: laziness breaks recursion and nothing else, and repetition is
@@ -72,14 +78,15 @@ and rule out inline repetition.
 
 #### Which operators are primitive
 
-One: `'*'`. It is the only operator that changes the AST contract — one flat
-node instead of a cons chain
-([Repetition is flat](../descent/README.md#repetition-is-flat)) — and the
-data `Repeat` already encodes it. `toData` transcribes `['*', r]` to the data
+One reaches the data form: `'*'`. It is the only operator that changes the AST
+contract — one flat node instead of a cons chain
+([Repetition is flat](../descent/README.md#repetition-is-flat)) — and the data
+`Repeat` already encodes it. `toData` transcribes `['*', r]` to the data
 `Repeat` of `r`'s name.
 
-`'?'` and `'+'` are accepted as syntax and **desugared** by `toData`, so a
-grammar reads like EBNF without the backends growing a case:
+`'?'` and `'+'` are `Tagged` in the rule union like `'*'`, so a grammar spells
+them, but `toData` **desugars** them rather than passing them down, so the
+backends grow no case:
 
 - `['?', r]` becomes `{ some: r, none: [] }` — the node shapes `option`
   produces today.
@@ -121,16 +128,21 @@ beyond `'*'`, `'?'`, and `'+'`, so the two do not drift while both exist.
 
 ### Tasks
 
-- [ ] `fjs/grammar/ebnf/types.ts`: the `Rule` union above, `Tagged`, `Thunk`,
-      and the `Repeat0Plus` / `Repeat1Plus` / `Join*` types over it.
-- [ ] `fjs/grammar/ebnf/module.f.mjs`: constructors (`range`, `set`, `not`,
-      `option`, `repeat0Plus`, `repeat1Plus`, `join0Plus`, `join1Plus`) and
-      `toData` / `toDataWithRules` transcribing `'*'`, desugaring `'?'` and
-      `'+'`, rejecting a nullable item and a self-item.
+- [ ] `fjs/grammar/ebnf/types.ts`: the `Rule` union above, `Op`, `Tagged`,
+      `Thunk`, and the `Repeat0Plus` / `Repeat1Plus` / `Join*` types over it.
+      Every operator `toData` accepts is in `Op`, so the accepted syntax
+      type-checks without a cast.
+- [ ] `fjs/grammar/ebnf/module.f.mjs`: the rule constructors (`not`, `option`,
+      `repeat0Plus`, `repeat1Plus`, `join0Plus`, `join1Plus`) and `toData` /
+      `toDataWithRules` transcribing `'*'`, desugaring `'?'` and `'+'`,
+      rejecting a nullable item and a self-item. The text-interpreting
+      helpers — `range`, `set`, `str`, `notSet` — are the alphabet adapter's,
+      not this module's ([unicode-rules](./unicode-rules.md)).
 - [ ] `fjs/grammar/ebnf/rtti/`: the rule-info map without `repeatItem`.
-- [ ] Proofs: every constructor, every `toData` case, both errors, and the
-      `descentEquivalence` cases re-expressed in `ebnf` producing the same
-      `RuleSet` as their `bnf` originals.
+- [ ] Proofs: every constructor, every `toData` case — including a grammar
+      that writes `'?'` and `'+'` directly rather than through a constructor —
+      both errors, and the `descentEquivalence` cases re-expressed in `ebnf`,
+      producing the same `RuleSet` as their `bnf` originals.
 - [ ] Port `fjs/grammar/lib/json`, then `lib/datajs`, then the `djs` tokenizer
       and parser, then `fjs/rtti/common`, one PR each.
 - [ ] Update `data/README.md` and `descent/README.md`, which describe `Repeat`
