@@ -92,10 +92,13 @@ That divergence should be an explicit override table rather than a copied corpus
 
 ### Proposal
 
-Move the shared harness and fixtures into a neutral testlib (**not**
-`fjs/bnf/testlib.f.mjs` — see the tasks), next to
-`classic()` and `deterministic()`, after rebasing text construction on the Unicode
-adapter.
+Move the shared harness and fixtures into a neutral testlib, after rebasing
+text construction on the Unicode adapter. It is a **separate home** from
+`classic()` and `deterministic()`: those stay in `fjs/bnf/testlib.f.mjs`, which
+depends on the classical front end and which grammar-bucket moves in stage 5
+and deletes in stage 8. Putting the neutral harness beside them would sink it
+with that file; moving them into the neutral layer would drag the front end
+along.
 
 **1. One recognizer adapter per backend, one assertion helper over both.**
 

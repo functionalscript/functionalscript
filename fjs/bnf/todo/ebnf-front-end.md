@@ -101,15 +101,17 @@ row that is a function of the form alone.
 
 ```ts
 type Repeat<Min, Max, T> =
-    // A widened bound says nothing, and a bound past the cap cannot be
-    // expanded. Both must be caught before any branch that instantiates a
-    // tuple: `2 extends number` is true, and `Tuple<1000, T>` is TS2589.
-      number extends Min or number extends Max or Min > Cap ? readonly T[]
+    // A widened bound says nothing, and no branch may build a tuple longer
+    // than the cap: `2 extends number` is true, and `Tuple<1000, T>` is
+    // TS2589. The longest tuple a branch builds is `Max` when finite, `Min`
+    // when unbounded, so guard on that — not on the span, and not on `Min`
+    // alone.
+      number extends Min or number extends Max              ? readonly T[]
+    : (Max extends 'Infinity' ? Min : Max) > Cap            ? readonly T[]
     : Max extends 'Infinity'        ? (Min extends 0 ? readonly T[]
                                                      : readonly [...Tuple<Min, T>, ...readonly T[]])
     : [Min, Max] extends [Max, Min] ? Tuple<Min, T>   // both literal and equal
-    : Max - Min <= Cap              ? Union of Tuple<n, T> for Min <= n <= Max
-    : readonly T[]
+    : Union of Tuple<n, T> for Min <= n <= Max
 ```
 
 Every repetition is a flat array whatever its bounds, `.length` discriminates,
@@ -119,12 +121,11 @@ rather than four. An optional is a 0-or-1 list rather than a tagged
 family from the rest; an author wanting named branches writes the plain
 `Variant`.
 
-Two caveats for the implementation. **The cap is on absolute tuple length, not
-on the span**, and it gates every branch that builds one: `Tuple` in
-`fjs/types/array/types.ts:22` recurses linearly, so `Tuple<1000, T>` is TS2589
-whether it comes from `repeat(1000, 1000)`, from the prefix of
-`repeat(1000, 'Infinity')`, or from a union member. A bound past the cap
-degrades to `readonly T[]`. And TypeScript's template-literal recursion splits
+Two caveats for the implementation. **The cap is on the longest tuple a branch would build**, which is the finite
+`Max`, or `Min` when the max is unbounded — not the span and not `Min` alone,
+either of which lets `repeat(Cap, Cap + 1)` through to a union that builds
+`Tuple<Cap + 1, T>`. `Tuple` in `fjs/types/array/types.ts:22` recurses
+linearly, so anything past the cap is TS2589 and degrades to `readonly T[]`. And TypeScript's template-literal recursion splits
 by UTF-16 code unit, so a naive `AST<'😀'>` is a 2-tuple where the grammar
 produces one element.
 
@@ -274,8 +275,9 @@ three forms. It needs a data layer that can represent it.
       `Join*` types, and `AST<Rule>` from the tables, with a proof per row.
 - [ ] `module.f.mjs`: the `repeat(min, max)` constructor with `option` /
       `repeat0Plus` / `repeat1Plus` / `times` as partial applications, plus
-      `join0Plus`, `join1Plus` and `notOf`; and the lowering per "What a
-      lowering must do".
+      `join0Plus`, `join1Plus`, `commaJoin0Plus` and `notOf`; and the lowering
+      per "What a lowering must do". `commaJoin0Plus` is needed by the first
+      grammar ported, so it is not optional.
 - [ ] Split the range-set helpers by layer: packed arithmetic in `terminal/`,
       the rule-level complement a distinctly named front-end helper built on
       it, never a re-export.
@@ -286,8 +288,11 @@ three forms. It needs a data layer that can represent it.
       lowering error; and the `descentEquivalence` cases re-expressed here,
       comparing **backend results** and stating per case whether the AST is
       expected to match the `bnf` original or to differ.
-- [ ] Add a proof that no `Const` is an array headed by `'const'`, `'range'`
-      or `'repeat'` — the forgotten-thunk case the type system cannot catch.
+- [ ] Add a proof over **this repository's grammars** that none contains a
+      `Const` array headed by `'const'`, `'range'` or `'repeat'` — the
+      forgotten-thunk case. It is a corpus check, not a type assertion: such
+      an array *is* a valid `Const` by design, so the property is that no
+      grammar here writes one by accident.
 - [ ] Port `fjs/grammar/lib/json` (`\uXXXX` becomes `times(4)(hex)`), then
       `lib/datajs`, then the `djs` tokenizer and parser, one PR each. Those
       are the only consumers: outside `fjs/bnf` the repository imports it from
