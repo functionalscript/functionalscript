@@ -211,15 +211,27 @@ remains the repository type checker during this migration; JSDoc replaces
 implementation TypeScript syntax without creating an unchecked intermediate
 source set.
 
-Stage 1 is **blocked by** both of these prerequisites before the first real
-repository `.f.ts` -> `.f.mjs` implementation conversion:
+Stage 1 was written as **blocked by** both of these prerequisites before the
+first real repository `.f.ts` -> `.f.mjs` implementation conversion. Neither
+gate held in the end — both were de-scoped rather than met, as the matching
+`[x]` items under [Tasks](#tasks) record:
 
 - [`../fjs/ci/todo/f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md)
   makes authored `.mjs` and real `types.ts` checked, packable source and validates
-  the emitted package layout;
+  the emitted package layout. What the migration needed from it — the validation
+  — was performed one-time in
+  [#1520](https://github.com/functionalscript/functionalscript/pull/1520) and
+  recorded in
+  [`packed-consumer-validation.md`](../fjs/ci/packed-consumer-validation.md);
 - [`../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
   is **blocked by** that package-support task and adds an actual `.f.mjs`
-  runtime fixture proving proof execution plus Node and Deno coverage.
+  runtime fixture proving proof execution plus Node and Deno coverage. It became
+  moot as advance evidence once every conversion had happened: the repository
+  itself now supplies it, with every `module.f.mjs` loaded through its proof
+  under Node and Deno coverage.
+
+Both files remain open as regression work on their own schedule. Neither gates
+anything in this issue any more, and neither holds stage 2.
 
 Package and publish jobs run only in CI from a clean checkout. The migration does
 not need to preserve packability of arbitrary developer working trees or track
@@ -1265,8 +1277,12 @@ person can re-check rather than re-derive. Counts are as of
   `import type` plus JSDoc `@import` both use the same real source path.
 - Deno resolves source `types.ts` without `@ts-types`, `@ts-self-types`, a dummy
   authored `types.js`, or missing-file declaration substitution.
-- The `.f.mjs` runtime test/coverage fixture is complete before the first real
-  repository `.f.ts` -> `.f.mjs` implementation conversion.
+- ~~The `.f.mjs` runtime test/coverage fixture is complete before the first real
+  repository `.f.ts` -> `.f.mjs` implementation conversion.~~ **De-scoped, not
+  met:** every conversion happened first, and the repository became the evidence
+  the fixture was to supply in advance. The fixture stays future regression work
+  in
+  [`f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md).
 - No authored implementation/proof `.ts` or `.f.ts` source files remain at the
   end of Stage 1; authored `types.ts` files may remain permanently.
 - Migration proceeds incrementally from runtime dependency leaves toward
