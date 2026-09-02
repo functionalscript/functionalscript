@@ -372,7 +372,8 @@ triggers the `npm publish` workflow. Before merging:
 
 Through the release made under the previous scheme, every behavior-changing pull
 request added `changelog/unreleased/<PR>.md` and repeated it in a `Changelog:`
-section, and releasing renamed the directory. It was dropped because it charged
+section, and releasing renamed the directory to `changelog/<version>/` — those
+directories are single files now. It was dropped because it charged
 every pull request for an entry no one had the context to write well, and
 because the duplication rule did not hold in practice — in the last full window,
 17 of 29 entry files had no matching section in the merge commit.

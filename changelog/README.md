@@ -17,31 +17,30 @@ reads those pull requests and writes the file is [RELEASE.md](./RELEASE.md).
 changelog/
   README.md        this file
   RELEASE.md       how a release collects its entries
-  <version>.md     one file per release — the current form
-  <version>/
-    <PR>.md        one directory per release, 0.45.0 through 0.48.0
+  <version>.md     one file per release — every release has one
   unreleased/
     <PR>.md        left over from the per-pull-request scheme; a release
                    consumes it (RELEASE.md)
 ```
 
-A renderer of the changelog reads three forms, and only the first is written
-today:
+A renderer reads **one released form**, and one transient directory that may
+reappear:
 
 - **`<version>.md`** — one file per release, holding that release's entries in
-  order of importance. Releases through `0.44.0` and every release from the one
-  that follows this convention. The two eras differ in one detail: the older
-  files end an entry with an inline `[#NNN](url)` pull-request link (the oldest
-  have none), while a current file writes a plain `(#NNN)` reference the
-  renderer turns into a link.
-- **`<version>/<PR>.md`** — one directory per release holding one file per pull
-  request, `0.45.0` through `0.48.0`. Entries carry no pull-request reference at
-  all: the file name is the number. Render a release by joining its files in
-  descending pull-request-number order.
-- **`unreleased/<PR>.md`** — the same, for work not yet released. Nothing adds to
-  it any more, but a pull request opened under the old policy recreates it
-  whenever it merges, so a release consumes it whenever it is non-empty
-  ([RELEASE.md](./RELEASE.md)).
+  order of importance. Every release has one. Entries differ in how they name a
+  pull request: releases through `0.44.0` end an entry with an inline
+  `[#NNN](url)` link (the oldest have none), and every release after that writes
+  a plain `(#NNN)` reference the renderer turns into a link.
+- **`unreleased/<PR>.md`** — one file per pull request, for work not yet
+  released. Nothing adds to it any more, but a pull request opened under the old
+  policy recreates it whenever it merges, so a release consumes it whenever it
+  is non-empty ([RELEASE.md](./RELEASE.md)).
+
+`0.45.0` through `0.48.0` were directories of per-pull-request files, rendered
+by joining them in descending pull-request-number order. They are single files
+now, joined in that order with each entry carrying the `(#NNN)` its file name
+used to be. That is a change of storage, not of text: the entries read exactly
+as published, and the prior layout is in git history.
 
 Released files are published history. A `<version>.md` file that is empty
 records a release that shipped no notable change.
@@ -140,9 +139,8 @@ to order them: [RELEASE.md](./RELEASE.md).
 - Releasing is its own pull request, titled `Release X.Y.Z`: the version lives in
   `package.json` (`"version"`) — `deno.json` holds tasks and formatting only —
   and the entries are collected into `changelog/X.Y.Z.md` by
-  [RELEASE.md](./RELEASE.md). Releases `0.45.0` through `0.48.0` are directories
-  of per-pull-request files and releases through `0.44.0` are single files
-  written under the older entry rules; leave both as they are.
+  [RELEASE.md](./RELEASE.md). Releases through `0.44.0` were written under the
+  older entry rules; leave them as they are.
 - **The release window is re-derived rather than assumed**, and when it is
   re-derived, from which ref, and in what form are
   [RELEASE.md](./RELEASE.md#7-open-the-release-pull-request)'s to state — this

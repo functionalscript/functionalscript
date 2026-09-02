@@ -15,26 +15,26 @@ Extend the website generator (`fjs/website`) to read the `changelog/` directory
 and emit an index page plus one page per release. The repository remains the
 source of truth; the website is presentation.
 
-The generator must recognize three release forms
-([changelog/README.md](../changelog/README.md#layout)). One is written today,
-one is a closed range, and one is transient:
+The generator must recognize **one released form**, plus a transient directory
+that may reappear
+([changelog/README.md](../changelog/README.md#layout)):
 
-- `<version>.md` — one file per release, the current form and also the form used
-  through `0.44.0`. The two eras differ in how an entry names its pull requests:
-  a current entry ends with a plain `(#NNN, #NNN)` reference the generator turns
-  into links, or a short commit SHA where the commit carries no `(#NNN)`,
-  while a file through `0.44.0` ends with an inline `[#NNN](url)` link
-  already (the oldest have none). All must render.
-- `<version>/<PR>.md` — one directory per release holding one file per pull
-  request, `0.45.0` through `0.48.0` only. Entries carry no reference at all;
-  the generator derives each pull-request link from the file name, joining a
-  release's files in descending pull-request-number order.
-- `unreleased/<PR>.md` — the same shape, and **transient rather than closed**: a
-  release empties it, and a pull request opened under the old policy recreates it
-  whenever it merges, however long after the transition
+- `<version>.md` — one file per release, every release. Entries differ in how
+  they name a pull request: a release after `0.44.0` ends an entry with a plain
+  `(#NNN, #NNN)` reference the generator turns into links, or a short commit SHA
+  where the commit carries no `(#NNN)`; a release through `0.44.0` ends it with
+  an inline `[#NNN](url)` link already (the oldest have none). All must render.
+- `unreleased/<PR>.md` — one file per pull request, **transient rather than
+  closed**: a release empties it, and a pull request opened under the old policy
+  recreates it whenever it merges, however long after the transition
   ([changelog/RELEASE.md](../changelog/RELEASE.md)). Either render it as a
   pending section or skip it, but do not build anything that assumes it exists —
   nor anything that assumes it is gone for good.
+
+`0.45.0` through `0.48.0` were once directories of per-pull-request files, and a
+generator had to join them in descending pull-request-number order and derive
+each link from a file name. They are ordinary `<version>.md` files now, so that
+third form is gone and no generator needs to learn it.
 
 The main cost is rendering: the repo has no Markdown parser. Either write a
 small self-hosted parser for the entry subset (paragraphs, list items, inline
@@ -44,11 +44,11 @@ format. The BNF machinery is a natural fit for the parser.
 ### Tasks
 
 - [ ] Parser for the changelog Markdown subset
-- [ ] Read all three release forms, with the three reference styles the entries
-      carry between them — a plain `(#NNN)` or a short commit SHA in a current
-      entry, and an inline `[#NNN](url)` in a file through `0.44.0`
-      ([changelog/README.md](../changelog/README.md#entries)) — and the
-      file-name derivation for the directory form
+- [ ] Read `<version>.md`, with the three reference styles the entries carry
+      between them — a plain `(#NNN)` or a short commit SHA in a release after
+      `0.44.0`, and an inline `[#NNN](url)` in one through `0.44.0`
+      ([changelog/README.md](../changelog/README.md#entries)) — and decide what
+      to do with `unreleased/` when it exists
 - [ ] Release index page and per-release pages in `fjs/website`
 - [ ] Link the changelog from the landing page
 
