@@ -437,15 +437,27 @@ Small, but it fails quietly if forgotten, so it is a named task.
   never calls it. The one hand-written repeat in the tree, `characters` in
   `classic()` of `testlib.f.mjs`, either moves to `repeat0Plus(character)` or
   keeps `detectRepeat` as an explicit step in its proof.
-- Against **today's** data layer a ported grammar can produce the same
-  `RuleSet` and the same AST, which is what makes the port one grammar per PR
-  and lets each port be checked against the `bnf` original. Two caveats. A
-  grammar that adopts a new form is not shape-preserving — `\uXXXX` as
-  `times(4)(hex)` is a 4-element sequence node where the old spelling spread
-  four references into the parent, so its AST and its proof expectations
-  change with it, deliberately. And the equality is a property of this
-  lowering, not a promise about a future one: what is fixed across data layers
-  is the Rule → AST table, not the `RuleSet`.
+- **Which constructors keep their AST, and which do not.** The port is
+  checked against the `bnf` original where the shape is meant to survive, so
+  the list has to be exact rather than "mostly the same":
+
+  | constructor | classical AST | under this design |
+  |---|---|---|
+  | `repeat0Plus` | flat list (the fold already produces one) | unchanged |
+  | `join1Plus` | `[T, flat list]` — a sequence whose tail is a repetition | unchanged |
+  | `option` | `some`/`none` variant node | `[] \| [T]` — **changes** |
+  | `repeat1Plus` | `readonly [T, Repeat0Plus<T>]` (`types.ts:81`), a 2-tuple of item and nested repetition | one flat non-empty list — **changes** |
+  | `join0Plus` | `Option<…>` (`types.ts:85`) | **changes**, because `option` does |
+
+  So two primitives change and one composite inherits it; `join1Plus` is
+  untouched because it is built from `repeat0Plus`, not from `repeat1Plus`.
+  A grammar that additionally *adopts* a new form is not shape-preserving
+  either — `\uXXXX` as `times(4)(hex)` is a 4-element sequence node where the
+  old spelling spread four references into the parent.
+
+- The equality is a property of this lowering, not a promise about a future
+  one: what is fixed across data layers is the Rule → AST table, not the
+  `RuleSet`.
 
 #### Problems to resolve before implementing
 
@@ -464,6 +476,15 @@ an optional cannot satisfy the assertion — there is no reference to attach a
 transformer to. It works in the classical front end only because `none` is a
 *shared* export (`module.f.mjs:230`) that authors can name, and it has not
 bitten yet only because nothing outside proofs uses the transformer path.
+
+It is worse than unnameable rules: **on today's IR several AST rows are not
+reachable at all.** `['repeat', 1, 'Infinity', r]` must reduce to an item
+beside a `0..Infinity` repetition, whose AST is the 2-tuple
+`[AST<r>, readonly AST<r>[]]` — not the flat non-empty list the table
+specifies. Same for every bounded max. So on today's data layer the table
+holds only for `0..Infinity`, and a lowering cannot be judged correct against
+it. That is the strongest argument for a bounded-repeat representation, and
+the reason this problem gates the lowering rather than merely complicating it.
 
 Collapsing to one `'repeat'` form sharpened this rather than solving it: the
 front end now says every cardinality in one shape, so the question is exactly
