@@ -155,11 +155,20 @@ git ls-tree --name-only origin/main -- changelog/unreleased/
 git show origin/main:changelog/unreleased/<PR>.md
 ```
 
-If that listing holds a file this branch does not, update the branch from `main`
-and repeat both the read *and* the deletion below — a file added on `main` after
-the branch deleted the directory survives the release merge, because the two
-sides touched different paths, and it would otherwise carry an undeclared break
-into a patch release. See "Transition" below for what happens to the directory.
+**Record that listing**, because the final scan in step 7 compares against it
+and not against the branch. Once this branch deletes `changelog/unreleased/`,
+every file it consumed is still on `origin/main` — the deletion does not reach
+`main` until the release merges — so "`origin/main` holds a file this branch does
+not" becomes true of all of them and separates nothing. A late arrival is a path
+in the new listing and **not** in the recorded one; that comparison is the whole
+signal.
+
+For each such path, update the branch from `main`, read it into the entries, and
+delete it with the rest. A file added on `main` after the branch deleted the
+directory survives the release merge — the two sides touched different paths — so
+without this it is both missing from the notes and left behind in a directory
+that is supposed to be gone. See "Transition" below for what happens to the
+directory.
 
 Most pull requests produce no entry. Internal refactors, test-only changes,
 coverage, CI, `todo/` and documentation are invisible to a user of the package,
@@ -219,9 +228,10 @@ triggers the `npm publish` workflow. Before merging:
       patch into a minor.
 - [ ] **transitional release only:** `changelog/unreleased/` is deleted in this
       same pull request, after its content has been read into the entries — and
-      the final scan enumerated it from `origin/main` (step 3), not from this
-      working tree, so a file that landed after the branch was cut is read and
-      deleted rather than left behind.
+      the final scan re-listed it from `origin/main` and compared against the set
+      step 3 recorded, not against this working tree. Comparing against the tree
+      answers "true" for every file already consumed, so only a path absent from
+      the recorded set is a late arrival to read and delete.
 
 ## What this replaced, and what was rejected
 
