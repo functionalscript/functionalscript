@@ -14,8 +14,11 @@ import { addition } from '../function/operator/module.f.mjs'
 import { cmp as uCmp, min as uMin, max as uMax } from '../function/compare/module.f.mjs'
 import { fold } from '../../common/monoid/module.f.mjs'
 
+/** @type {Reduce<number>} */
+const numberAddition = addition
+
 /** @type {(input: List<number>) => number} */
-export const sum = fold({ identity: 0, operation: addition })
+export const sum = fold({ identity: 0, operation: numberAddition })
 
 /** @type {Reduce<number>} */
 const minReduce = uMin

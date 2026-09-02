@@ -33,9 +33,18 @@ const strictEqualTest = () => {
 }
 
 const additionTest = () => {
-    const result = addition(3)(4)
-    assertEq(result, 7)
+    const numberResult = addition(3)(4)
+    assertEq(numberResult, 7)
+
+    const bigintResult = addition(3n)(4n)
+    assertEq(bigintResult, 7n)
+
+    const stringResult = addition('a')('b')
+    assertEq(stringResult, 'ab')
 }
+
+/** @type {import('./types.ts').Reduce<number>} */
+const numberAddition = addition
 
 const incrementTest = () => {
     assertEq(increment(4), 5, 'increment(4)')
@@ -43,7 +52,7 @@ const incrementTest = () => {
 }
 
 const foldToScanTest = () => {
-    const scan = foldToScan(addition)(0)
+    const scan = foldToScan(numberAddition)(0)
     const [v1, scan2] = scan(3)
     assertEq(v1, 3)
     const [v2] = scan2(4)
@@ -51,7 +60,7 @@ const foldToScanTest = () => {
 }
 
 const reduceToScanTest = () => {
-    const scan = reduceToScan(addition)
+    const scan = reduceToScan(numberAddition)
     const [v0, scan2] = scan(10)
     assertEq(v0, 10)
     const [v1] = scan2(5)

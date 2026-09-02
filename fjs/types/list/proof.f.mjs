@@ -1,6 +1,7 @@
 /**
  * @import { Unknown } from '../../media/json/types.ts'
  * @import { List } from './types.ts'
+ * @import { Reduce } from '../function/operator/types.ts'
  */
 
 import { length, concat, countdown, cycle, drop, dropWhile, entries, every, filter, find, flat, flatMap, map, next, reduce, reverse, scan, some, take, takeWhile, toArray, zip, first, filterMap, isEmpty, equal, tryFold } from './module.f.mjs'
@@ -8,6 +9,9 @@ import { stringify } from '../../media/json/module.f.mjs'
 import { sort } from '../object/module.f.mjs'
 import { addition, strictEqual, reduceToScan } from '../function/operator/module.f.mjs'
 import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+
+/** @type {Reduce<number>} */
+const numberAddition = addition
 
 /** @type {(sequence: List<Unknown>) => string} */
 const str = sequence => stringify(sort)(toArray(sequence))
@@ -108,16 +112,16 @@ const dropTest = [
 
 const additionTests = [
     () => {
-        const op = reduceToScan(addition)
+        const op = reduceToScan(numberAddition)
         const result = str(scan(op)([2, 3, 4, 5]))
         assertEq(result, '[2,5,9,14]')
     },
     () => {
-        const result = reduce(addition)(null)([2, 3, 4, 5])
+        const result = reduce(numberAddition)(null)([2, 3, 4, 5])
         assertEq(result, 14)
     },
     () => {
-        const result = reduce(addition)(null)([])
+        const result = reduce(numberAddition)(null)([])
         assertEq(result, null)
     }
 ]

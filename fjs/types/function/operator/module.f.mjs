@@ -41,13 +41,11 @@ export const reduceToScan = op => init =>
     [init, foldToScan(op)(init)]
 
 /**
- * TODO: We should have one function for `number` | `bigint` and `string`.
- *       We can use the same approach as we use for comparing items,
- *       see `Cmp1` and `Cmp2` types.
- *
- * @type {Reduce<number>}
+ * @import { Addition } from './types.ts'
  */
-export const addition = a => b => a + b
+
+/** @type {Addition} */
+export const addition = a => b => /** @type {any} */ (a) + b
 
 /** @type {Unary<number, number>} */
 export const increment = addition(1)
