@@ -213,10 +213,6 @@ are.
       `reduceValue0` branch-merge path specifically: `test3` is its only
       exercise, and a corpus swap there would keep the proof green while
       silently dropping it.
-- [ ] Add a CHANGELOG entry (`changelog/README.md`). The documentation-only
-      exemption does not apply: this adds `testlib.f.mjs` and rewrites four
-      `proof.f.mjs` files, which are code changes even though nothing in
-      production moves.
 - [ ] Run `tsc` and `fjs t`.
 
 ### Related

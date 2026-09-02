@@ -157,8 +157,17 @@ export const proof = {
     // reaches the case `operation` hands the op with two segments left; these
     // do. Without the one-segment guard — or with the call site collapsing `p`
     // to its head — both return `a`'s own bytes for a path that names no file,
-    // which is a wrong answer rather than a different error, so the assertion
-    // is that the read failed at all.
+    // and `result[0] === 'error'` is what catches that on its own: the mutant's
+    // failure mode is a wrong *success*, so any error kills it.
+    //
+    // The code is pinned for a different reason, and it is worth being exact
+    // about which: `ENOENT` is what this runner answers, **not** what a host
+    // would. POSIX says `ENOTDIR` when a path descends through a non-directory,
+    // which {@link statPath} models deliberately — so `stat('a/b')` and
+    // `readFile('a/b')` disagree here for one fixture. These pin what is
+    // actually returned, so that settling the disagreement has to come past
+    // them; [reads-enotdir-through-a-file](./todo/reads-enotdir-through-a-file.md)
+    // is where it gets settled.
     readFileNestedThroughFile: () => {
         /** @type {Dir} */
         const root = { 'a': [vec8(0x42n)] }

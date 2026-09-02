@@ -117,7 +117,8 @@ cases takes the corpus's escape path rather than deriving an expression — movi
 - [ ] `nanvm-lib/tests/test/main.rs`: remove or repoint `unary_plus_bigint_message`.
 - [ ] `tsc`, `fjs test`, `npm run gen` (no diff), `cargo test`,
       `cargo clippy -- -D warnings`, and `cargo fmt -- --check`.
-- [ ] Changelog: `nanvm-lib` drops the public `unary_plus` method (BREAKING CHANGES).
+- [ ] Declare in the PR description: `nanvm-lib` drops the public `unary_plus`
+      method (`**BREAKING CHANGES:**`).
 
 ### Related
 

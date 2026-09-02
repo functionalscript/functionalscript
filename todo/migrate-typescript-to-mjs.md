@@ -911,8 +911,9 @@ blocking, plus the prose sweep. The remaining items are listed under
       emit them as exports, but still require `**BREAKING CHANGES:**` whenever a
       change to one alters the assignability of a public declaration.
 - [ ] Once a module is `.mjs`, treat any later move of a public JSDoc typedef to
-      a `_` name as an ordinary breaking API change with its own changelog entry
-      and importer updates, not as a visibility cleanup.
+      a `_` name as an ordinary breaking API change with its own
+      `**BREAKING CHANGES:**` declaration and importer updates, not as a
+      visibility cleanup.
 - [x] Continue upward through the runtime dependency graph in reviewable groups
       until no authored TypeScript implementation/proof source remains. Done for
       every module in the migration group: no `.f.ts` is left anywhere. The
@@ -933,7 +934,7 @@ blocking, plus the prose sweep. The remaining items are listed under
       [Remaining after stage 1](#remaining-after-stage-1).
 - [ ] Preserve Node, Deno, Bun, proof, coverage, type-checking, declaration, and
       CI package behavior throughout the migration.
-- [ ] Add required `**BREAKING CHANGES:**` changelog entries for every public
+- [ ] Add required `**BREAKING CHANGES:**` declarations for every public
       runtime or type-contract change; direct changes to an emitted `_` alias
       are exempt only when the expanded public contract is unchanged.
 - [x] After the last authored TypeScript implementation/proof file is gone,
