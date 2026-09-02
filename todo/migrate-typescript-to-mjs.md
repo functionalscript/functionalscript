@@ -1,7 +1,15 @@
 ## Migrate authored TypeScript implementations to `.mjs`
 
 **Priority:** P1
-**Status:** open
+**Status:** open — stage 1 is done, the issue is not. It still owns the stage-2
+boundary below (`module.f.mjs -> module.f.js` may not start before it), and two
+open issues name it as their gate:
+[`fjs/ci/todo/f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md)
+carries it as **Blocked by**, and
+[`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) as an unchecked task.
+This is not the `todo/README.md` "kept as the record" exception — it is an open
+task whose first stage is complete. Delete it when stage 2 starts, together with
+those references and the conventions below.
 
 ### Problem
 
@@ -770,14 +778,25 @@ this rename.
 migrated in [#1505](https://github.com/functionalscript/functionalscript/pull/1505).
 The packaging work, the cleanup, the prose sweep and the documentation sweep
 that followed it are all done too, and every item under
-[Remaining after stage 1](#remaining-after-stage-1) is closed. What is left in
-the list below is entirely standing convention — rules that constrain future
-edits (`@type {const}` placement, `@satisfies`, `_`-prefix visibility and its
-breaking-change consequences, keeping the runtimes and the changelog honest) and
+[Remaining after stage 1](#remaining-after-stage-1) is closed.
+
+That closes stage 1, not this issue. What is left in the list below is standing
+convention — rules that constrain future edits (`@type {const}` placement,
+`@satisfies`, `_`-prefix visibility and its breaking-change consequences,
+keeping the runtimes and the `**BREAKING CHANGES:**` declarations honest) plus
 the three verification items whose last known instances are fixed and measure
-clean. None of them is a pending change to make; stage 2's gate is
-[`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md), not this
-list.
+clean. None of those is a pending change to make, so do not read this list as
+the reason the file survives. The file survives because the **stage-2 boundary
+is still ahead**: [End of stage 1](#end-of-stage-1) is what permits
+`module.f.mjs -> module.f.js`, no rename has happened,
+[`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md) is
+**blocked by** this file, and
+[`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md) still carries
+"Complete migrate authored TypeScript to `.mjs`" unchecked. Deleting it now
+would orphan both. When stage 2 begins, move the standing conventions into
+[`fjs/AGENTS.md`](../fjs/AGENTS.md) and
+[`fjs/fsc/README.md`](../fjs/fsc/README.md), re-point the 30 inbound references
+across 16 other files, and delete the file in that change.
 
 - [x] Complete
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
