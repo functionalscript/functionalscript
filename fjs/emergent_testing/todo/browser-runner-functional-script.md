@@ -61,9 +61,9 @@ size of this one is a measurement of how thick the glue has become.
 
 ### This is mostly already planned
 
-[Share the browser and console proof runners](share-browser-console-runner.md)
-steps 4–7 are this extraction, arrived at from the sharing side rather than the
-purity side:
+The runner-sharing work was this extraction, arrived at from the sharing side
+rather than the purity side — see
+[why the browser runner is `.f.mjs` with a thin host](../README.md#why-the-browser-runner-is-fmjs-with-a-thin-host):
 
 - **step 4** moves the host-independent operations to a shared module;
 - **step 5** gives the browser an interpreter — where its host touches belong;
@@ -106,8 +106,8 @@ asks for, and it names two things the sharing plan does not:
 
 ### Related
 
-- [Share the browser and console proof runners](share-browser-console-runner.md)
-  — steps 4–7 are this work.
+- [Why the browser runner is `.f.mjs` with a thin host](../README.md#why-the-browser-runner-is-fmjs-with-a-thin-host)
+  — the same boundary, argued from the sharing side.
 - `Catch` in [`fjs/effects/common/types.ts`](../../effects/common/types.ts) —
   the `catch` operation `errorDetails` needed before it could be
   FunctionalScript.

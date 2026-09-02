@@ -23,9 +23,8 @@ that. Nothing else in the program is close.
 **Concurrency is not the answer, and that is worth stating because it is the
 first thing suggested.** The cost is CPU inside one decoder, not waiting on a
 disk: fanning the reads out with `allOk` recovers approximately nothing, and it
-would put back the concurrency
-[share-browser-console-runner](../../emergent_testing/todo/share-browser-console-runner.md)
-spent several PRs removing.
+would put back the concurrency the proof runners
+[spent several PRs removing](../../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost).
 
 ### Where it goes
 

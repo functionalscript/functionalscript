@@ -417,8 +417,8 @@ export const proof = {
      * The assertion is an *ordering sentinel* rather than anything read off the
      * DOM, and that is the point. A row is appended synchronously inside the
      * report handler, so the document looks identical with the await deleted —
-     * the trap `todo/share-browser-console-runner.md` catalogs as item 11, a
-     * proof that observes a coincidence. What only a real yield can produce is
+     * the trap `../README.md`'s pitfall catalog names as item 11, a proof
+     * that observes a coincidence. What only a real yield can produce is
      * a *macrotask enqueued by one leaf running before the next leaf does*.
      *
      * Mutation-checked: delete the `await` in the report handler and the

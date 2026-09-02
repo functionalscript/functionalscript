@@ -92,9 +92,9 @@ export const walkTests = <O extends Operation, S>(w: Walker<O | All, S>) => {
 }
 ```
 
-**The sketch above predates the sequential plan and hard-codes the one thing
-the two consumers no longer agree on.** The sequential plan in
-[share-browser-console-runner](share-browser-console-runner.md) makes
+**The sketch above predates the sequential run and hard-codes the one thing
+the two consumers no longer agree on.** The
+[sequential run](../README.md#the-two-runners-and-what-sharing-them-cost) makes
 `runModule`'s traversal sequential — one leaf's whole chain finishes before
 the next starts — while `registerModule` keeps its `all` fan-out (its
 recursion drives an external framework's own scheduling, and it is a site in
@@ -168,10 +168,10 @@ shares the semantics rather than the obsolete Playwright registration path.
 ### Tasks
 
 - [ ] Spike a `walkTests` shape against `runModule` and the surviving
-      process-adapter `registerModule` — after the sequential traversal from
-      [share-browser-console-runner](share-browser-console-runner.md) lands,
-      with the sibling combination as a parameter, per the note under the
-      sketch.
+      process-adapter `registerModule`, with the sibling combination as a
+      parameter, per the note under the sketch. The
+      [sequential traversal](../README.md#the-two-runners-and-what-sharing-them-cost)
+      it must take as given has landed.
 - [ ] Keep Playwright out of `TestContext`, `registerModule`, and the process-side walker.
 - [ ] Define runner-independent fixtures for recursive return-value subtrees, `throws`
       reset, path construction, and sibling scheduling — proving the run path
@@ -184,9 +184,9 @@ shares the semantics rather than the obsolete Playwright registration path.
 
 ### Related
 
-- [Share the browser and console proof runners](share-browser-console-runner.md)
-  — the sequential plan that settled `runModule`'s scheduling, which this
-  issue's walker must take as a parameter rather than decide.
+- [The two runners, and what sharing them cost](../README.md#the-two-runners-and-what-sharing-them-cost)
+  — what settled `runModule`'s scheduling, which this issue's walker must take
+  as a parameter rather than decide.
 - i183 — broader work on the `tf`
   framework; this is a structural cleanup that lands cleanly alongside it.
 - [i157](../../djs/todo/157-json-djs-shared-value-machine.md) — same flavour: two parallel

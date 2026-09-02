@@ -43,8 +43,8 @@ walked as a proof tree and a *rejected* one is reported as a pass. The browser
 runner used to defend against this with `Symbol.species` shadowing and an
 intrinsic `then` — about 150 lines that read as a magic mess and were, at the
 time, the only place the exposure was covered — and
-[sharing the runners](share-browser-console-runner.md) forced the single answer
-this section was written to demand. **It was answered knowingly**, in
+[sharing the runners](../README.md#the-two-runners-and-what-sharing-them-cost)
+forced the single answer this section was written to demand. **It was answered knowingly**, in
 functionalscript#1742: the machinery and its `species.proof.mjs` are gone, both
 runners ask `instanceof Promise` in `effects/common`'s `sandbox`, and the
 exposure below is now one exposure rather than a difference between two hosts.
@@ -346,9 +346,8 @@ Three ways it could have been paid, with what each costs:
   is now a reason not to do it rather than open work.
 
 Whichever is chosen, it is a change to the rule both runners share, so it lands
-in the shared `sandbox` — step 4 and after in
-[share the browser and console proof runners](share-browser-console-runner.md) —
-and never in one host alone.
+in the shared `sandbox`, which both hosts already dispatch, and never in one
+host alone.
 
 ### `fjs t` still hangs on a promise whose `constructor` was replaced
 
@@ -368,8 +367,7 @@ still gone, because those *recover* a hostile species rather than subscribe.
 `promiseWithReplacedConstructorStillSettles` pins it.
 
 **`fjs t` owes the same fix**, and it is one line in `effects/node/module.mjs`'s
-`sandbox` once the settlement path is shared — step 4 and after in
-[share the browser and console proof runners](share-browser-console-runner.md).
+`sandbox` once the settlement path is shared.
 Until then the two differ, which is a difference with a written reason: the
 browser had this behaviour before the deletion, losing it was a regression, and
 a regression is not deferrable. `fjs t`'s hang is older than this work and is

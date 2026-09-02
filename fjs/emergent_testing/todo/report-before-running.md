@@ -80,9 +80,9 @@ still the argument for settling it in the shared core rather than twice.
   macrotask yield (above) is compatible: it lands before the sandbox's
   adjacent clock reads, so it delays the start, not the measurement.
 - The runner's scheduling is not this issue's to change, in either direction.
-  When this was written that meant "concurrency stays"; the sequential plan in
-  [share-browser-console-runner](share-browser-console-runner.md) has since
-  made the traversal sequential, which this issue simply inherits — and
+  When this was written that meant "concurrency stays"; the traversal
+  [has since become sequential](../README.md#the-two-runners-and-what-sharing-them-cost),
+  which this issue simply inherits — and
   benefits from: one leaf's events no longer interleave with another's, so a
   start is followed by its own result, in both hosts. What sequential does
   *not* buy is an empty gap between them — the leaf itself runs there, and
@@ -162,9 +162,9 @@ call. The browser's cost is not the event, it is the yield and proving it.
   goes to `stdout` is written down. It is what makes the pair of records above
   a *pair*: with failures on `stderr`, a failing leaf's two lines landed on two
   streams that are not ordered against each other.
-- [Share the browser and console proof runners](share-browser-console-runner.md)
-  — reporting is one of the things each host still does its own way, and this
-  is the same question twice until they share a reporter.
+- [The two runners, and what sharing them cost](../README.md#the-two-runners-and-what-sharing-them-cost)
+  — reporting is the last thing each host still does its own way, so this is
+  the same question twice until they share a reporter.
 - `Catch` in [`fjs/effects/common/types.ts`](../../effects/common/types.ts) —
   the three reads of user values a run guards. A leaf that ends the run is no
   longer the crash this issue was written against, but a leaf that hangs still
