@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 5
+ * data.groups.length // 6
  * ```
  */
 
@@ -345,6 +345,227 @@ const mulCases = [
 ]
 
 /**
+ * `**` is not implemented in `nanvm-lib` yet (see the operator table in
+ * `nanvm-lib/README.md`), so every case below carries this as its `rust`
+ * reason: the generated Rust keeps each as a commented-out `TODO`, while the
+ * JavaScript proof still runs it. Removing the reason per case is what turns
+ * it on for Rust once `**` lands there.
+ *
+ * @type {string}
+ */
+const expNotImplemented = '`**` is not implemented in nanvm-lib yet'
+
+/**
+ * `**` coerces both operands with `ToNumeric` like `*`, but Number
+ * exponentiation (`Number::exponentiate`) is its own algorithm and not `pow`
+ * applied naively: the exponent's sign and parity decide the result at every
+ * infinity and zero, independently of the base's magnitude, and a few cases
+ * override what the magnitude rule would otherwise give — `NaN ** 0` and
+ * `x ** NaN` are governed by the exponent alone (`1`/`NaN`) regardless of the
+ * base, and `1 ** Infinity` is `NaN` even though `1` is decisive nowhere
+ * else. A finite negative base with a finite non-integer exponent has no
+ * real result and is `NaN`, unlike `Math.pow`, which agrees here. BigInt `**`
+ * throws — instead of coercing to a fraction — on a negative exponent, and
+ * mixed number/bigint operands throw too, the same as every other arithmetic
+ * operator here.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const expCases = [
+    { name: 'nullToThePowerOfTwo', args: [null, 2], expected: 0, rust: expNotImplemented },
+    { name: 'undefinedToThePowerOfTwo', args: [undefined, 2], expected: NaN, rust: expNotImplemented },
+    { name: 'trueToThePowerOfTwo', args: [true, 2], expected: 1, rust: expNotImplemented },
+    { name: 'falseToThePowerOfTwo', args: [false, 2], expected: 0, rust: expNotImplemented },
+    { name: 'stringThreeToThePowerOfTwo', args: ['3', 2], expected: 9, rust: expNotImplemented },
+    { name: 'stringLetterToThePowerOfTwo', args: ['a', 2], expected: NaN, rust: expNotImplemented },
+    { name: 'emptyArrayToThePowerOfTwo', args: [[], 2], expected: 0, rust: expNotImplemented },
+    { name: 'arrayThreeToThePowerOfTwo', args: [[3], 2], expected: 9, rust: expNotImplemented },
+    {
+        name: 'arrayStringThreeToThePowerOfTwo',
+        args: [['3'], 2],
+        expected: 9,
+        rust: expNotImplemented,
+    },
+    { name: 'arrayPairToThePowerOfTwo', args: [[0, 0], 2], expected: NaN, rust: expNotImplemented },
+    { name: 'emptyObjectToThePowerOfTwo', args: [{}, 2], expected: NaN, rust: expNotImplemented },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    {
+        name: 'functionToThePowerOfTwo',
+        args: [functionValue, 2],
+        expected: NaN,
+        rust: expNotImplemented,
+    },
+    { name: 'twoToThePowerOfTen', args: [2, 10], expected: 1024, rust: expNotImplemented },
+    { name: 'twoToThePowerOfHalf', args: [2, 0.5], expected: 2 ** 0.5, rust: expNotImplemented },
+    { name: 'twoToThePowerOfNegativeOne', args: [2, -1], expected: 0.5, rust: expNotImplemented },
+    {
+        name: 'negativeTwoToThePowerOfThree',
+        args: [-2, 3],
+        expected: -8,
+        rust: expNotImplemented,
+    },
+    { name: 'negativeTwoToThePowerOfTwo', args: [-2, 2], expected: 4, rust: expNotImplemented },
+    { name: 'zeroToThePowerOfZero', args: [0, 0], expected: 1, rust: expNotImplemented },
+    {
+        name: 'negativeZeroToThePowerOfZero',
+        args: [-0, 0],
+        expected: 1,
+        rust: expNotImplemented,
+    },
+    { name: 'nanToThePowerOfZero', args: [NaN, 0], expected: 1, rust: expNotImplemented },
+    { name: 'twoToThePowerOfNan', args: [2, NaN], expected: NaN, rust: expNotImplemented },
+    { name: 'nanToThePowerOfNan', args: [NaN, NaN], expected: NaN, rust: expNotImplemented },
+    {
+        name: 'oneToThePowerOfInfinity',
+        args: [1, Infinity],
+        expected: NaN,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'negativeOneToThePowerOfInfinity',
+        args: [-1, Infinity],
+        expected: NaN,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'oneToThePowerOfNegativeInfinity',
+        args: [1, -Infinity],
+        expected: NaN,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'twoToThePowerOfInfinity',
+        args: [2, Infinity],
+        expected: Infinity,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'negativeTwoToThePowerOfInfinity',
+        args: [-2, Infinity],
+        expected: Infinity,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'halfToThePowerOfInfinity',
+        args: [0.5, Infinity],
+        expected: 0,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'twoToThePowerOfNegativeInfinity',
+        args: [2, -Infinity],
+        expected: 0,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'halfToThePowerOfNegativeInfinity',
+        args: [0.5, -Infinity],
+        expected: Infinity,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'infinityToThePowerOfTwo',
+        args: [Infinity, 2],
+        expected: Infinity,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'infinityToThePowerOfNegativeTwo',
+        args: [Infinity, -2],
+        expected: 0,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'negativeInfinityToThePowerOfThree',
+        args: [-Infinity, 3],
+        expected: -Infinity,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'negativeInfinityToThePowerOfTwo',
+        args: [-Infinity, 2],
+        expected: Infinity,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'negativeInfinityToThePowerOfNegativeThree',
+        args: [-Infinity, -3],
+        expected: -0,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'negativeInfinityToThePowerOfNegativeTwo',
+        args: [-Infinity, -2],
+        expected: 0,
+        rust: expNotImplemented,
+    },
+    { name: 'zeroToThePowerOfTwo', args: [0, 2], expected: 0, rust: expNotImplemented },
+    {
+        name: 'zeroToThePowerOfNegativeTwo',
+        args: [0, -2],
+        expected: Infinity,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'negativeZeroToThePowerOfThree',
+        args: [-0, 3],
+        expected: -0,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'negativeZeroToThePowerOfTwo',
+        args: [-0, 2],
+        expected: 0,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'negativeZeroToThePowerOfNegativeThree',
+        args: [-0, -3],
+        expected: -Infinity,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'negativeZeroToThePowerOfNegativeTwo',
+        args: [-0, -2],
+        expected: Infinity,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'negativeTwoToThePowerOfHalf',
+        args: [-2, 0.5],
+        expected: NaN,
+        rust: expNotImplemented,
+    },
+    { name: 'bigTwoToThePowerOfTen', args: [2n, 10n], expected: 1024n, rust: expNotImplemented },
+    { name: 'bigZeroToThePowerOfZero', args: [0n, 0n], expected: 1n, rust: expNotImplemented },
+    {
+        name: 'bigNegativeTwoToThePowerOfThree',
+        args: [-2n, 3n],
+        expected: -8n,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'bigTwoToThePowerOfNegativeOne',
+        args: [2n, -1n],
+        expected: throws,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'numberToThePowerOfBigint',
+        args: [1, 1n],
+        expected: throws,
+        rust: expNotImplemented,
+    },
+    {
+        name: 'bigintToThePowerOfNumber',
+        args: [1n, 1],
+        expected: throws,
+        rust: expNotImplemented,
+    },
+]
+
+/**
  * Subtraction has the same numeric coercion and mixed-number-kind rejection
  * as multiplication, but its operand order is observable.
  *
@@ -503,6 +724,7 @@ export const data = {
             ],
         },
         { op: '*', commutative: true, cases: mulCases },
+        { op: '**', cases: expCases },
         { op: '-', cases: subCases },
         { op: '+', cases: addCases },
         { op: 'String', cases: stringCoercionCases },
