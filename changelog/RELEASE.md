@@ -13,6 +13,16 @@ version-bump signal and nothing derives it from a diff. Everything else — what
 the release notes say, how entries are grouped, how long they are — is decided
 here, at release time, by one author with the whole window in view.
 
+**The release author's job is to identify what broke, and nothing else.** Read
+every pull request in the window, collect the declarations, group by net effect,
+choose the number, write the file. A release pull request carries the version
+bump, the changelog file, and the deletion of `changelog/unreleased/` when it
+still exists — **no unrelated work**. Something worth fixing that the window
+turns up is a `todo/` file or its own pull request, never a commit here: a
+release that also changes behaviour cannot be reviewed as a release, and a break
+the release itself introduces is invisible to the procedure that just finished
+declaring the window's breaks.
+
 ## Why the collection happens here
 
 A pull request author knows their own change and not the release. Several pull
@@ -278,6 +288,24 @@ One file, list items only, most important first. Format and the Markdown subset:
 [README.md](./README.md#entries). Keep an entry to about three wrapped lines —
 it is a release note, not a design document, and the pull request references
 carry a reader to the full story.
+
+**Do not write a migration of your own.** A breaking entry carries the migration
+its declaring pull request gave, and where that pull request gave none the entry
+says what changed and stops. The release author has the whole window in view,
+which is what step 4 needs, but not the change — inventing a migration from a
+diff at release time publishes untested advice under the authority of the
+release notes, and the reader cannot tell it from the author's. That is the
+division of labour this file opens with: the declaration is the pull request's,
+the notes are the release's. If a break plainly needs a migration and has none,
+say so in the release pull request and ask the author, rather than supplying
+one.
+
+**CI generation is not stable for third-party consumption**, so its breaking
+entries owe no migration at all
+([README.md](./README.md#entries)). `fjs/ci` and the `NixJob`, `MetaStep` and
+Nix-expression shapes it generates from are this repository's build machinery;
+they are recorded because contributors read the notes, not because anyone is
+invited to build against them.
 
 ### 7. Open the release pull request
 

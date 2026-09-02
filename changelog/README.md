@@ -78,7 +78,16 @@ to order them: [RELEASE.md](./RELEASE.md).
   can render entries with a small self-hosted parser. That subset is a
   convention rather than an accident.
 - **A breaking entry starts with `**BREAKING CHANGES:**`** and states the old
-  shape, the new one, and the one-line migration.
+  shape, the new one, and the one-line migration **its declaring pull request
+  gave**. Where that pull request gave none, the entry says what changed and
+  stops: a release author writes a migration down, never invents one
+  ([RELEASE.md](./RELEASE.md#6-write-changelogxyzmd)).
+- **CI generation is not stable for third-party consumption.** `fjs/ci` and the
+  `NixJob`, `MetaStep` and Nix-expression shapes it generates from are this
+  repository's own build machinery, not published API anyone is invited to
+  depend on. A breaking entry for them records what changed and **owes no
+  migration** — the rule above governs the API a consumer can reasonably build
+  against.
 - These rules govern **new** entries. Don't rewrite a released entry as a side
   effect of an unrelated pull request. Entries written before a convention
   arrived are published history; leave them as they are. A deliberate cleanup
