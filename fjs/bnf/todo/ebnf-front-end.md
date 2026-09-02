@@ -240,6 +240,28 @@ thunk's return position, to be caught by it. Constructors keep hand-written
 tagged tuples rare. The mitigation is a proof, not a type: a check that no
 `Const` in a grammar is an array whose head is one of the three tags.
 
+**Making the two representations disjoint is rejected.** The obvious way to
+turn this into a compile error is to give operator tuples a marker a sequence
+cannot have — a `Symbol` tag, a wrapper object, a class — so the type checker
+separates them. We will not do that. It buys a narrow diagnostic and costs the
+property the whole design rests on: that a rule is plain data, readable and
+writable as an ordinary JavaScript value, with discrimination by JavaScript
+type and nothing else.
+
+The decisive argument is that **`fjs/rtti` has exactly this exposure and lives
+with it**. Its `Const` admits `readonly Type[]`, its `Info` is tagged tuples
+returned from thunks, and `['const', x]` written without its `() =>` is a
+two-element tuple schema there just as it is a two-symbol sequence here. That
+is the accepted trade of this eDSL family, not a new risk this front end
+introduces. Paying a structural cost to close it in `ebnf` alone would make
+`ebnf` the odd module out, which is the opposite of why its shape was copied
+from RTTI in the first place.
+
+The residual risk is real and accepted: a proof covers this repository's
+grammars and cannot cover a grammar written elsewhere. That is the price of
+plain data, and it is cheaper than a marker on every operator in every
+grammar.
+
 #### The one question left open
 
 **What a `string` means.** Two candidates:
