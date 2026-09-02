@@ -75,3 +75,4 @@ type _10 = Assert<Equal<
 
 // A repeat over a real grammar rule: `digit = range('09')` in `../lib/json`.
 type _11 = Assert<Equal<AstRule<Repeat0Plus<typeof digit>>, readonly number[]>>
+
