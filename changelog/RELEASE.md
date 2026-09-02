@@ -146,21 +146,22 @@ such a file is ignored by every later one. Read the directory whenever
 returns nothing there is no work, so the rule costs one command per release and
 retires itself.
 
-Its files as they stand: thirteen declare a break, and four of those — 1811,
-1817, 1824 and 1825 — declare it *nowhere else*, in two different ways: 1824
-and 1825 carry no `Changelog:` section in their merge bodies at all, while 1811
-and 1817 carry one that does not mention the break.
+`0.49.0` consumed the thirty files the transition left, and they are the worked
+example: thirteen declared a break, and four of those — 1811, 1817, 1824 and
+1825 — declared it *nowhere else*, in two different ways: 1824 and 1825 carried
+no `Changelog:` section in their merge bodies at all, while 1811 and 1817
+carried one that did not mention the break.
 The second is the worse failure, because a section that is present reads as
 complete — which is the argument for reading the files rather than trusting a
 section to be exhaustive. Reading only the merge commits would undercount the
 breaks by four — four breaking changes a reader of the release notes never
 learns about.
 
-It would not get *this* window's version wrong: the other nine declarations do
+It did not get that window's version wrong: the other nine declarations do
 appear in their merge bodies — somewhere in them, which is the instrument that
 matters here, since step 3 is a person reading a description rather than a
 parser keyed on one shape — and one surviving break already forces a minor.
-That is an accident of this window rather than a property of the procedure — a
+That was an accident of that window rather than a property of the procedure — a
 window whose declarations were all of the invisible kind would take a patch for
 a release that breaks the API — and it is why the directory is read in full
 rather than sampled.
@@ -365,16 +366,15 @@ every released file exactly as it was published.
 
 ## Transition
 
-`changelog/unreleased/` still holds entry files written under the previous
-scheme. They are the authors' own notes for pull requests in the current window
-— exactly what a `Changelog:` section is — so the next release reads them as
-step 3 raw material and **deletes the directory in the same release pull
-request**. They do not survive as published entries: `changelog/X.Y.Z.md` is
-written by the procedure above, over the whole window, including the pull
-requests that left no file.
+`changelog/unreleased/` held entry files written under the previous scheme.
+They were the authors' own notes for pull requests in that window — exactly what
+a `Changelog:` section is — so `0.49.0` read them as step 3 raw material and
+**deleted the directory in the release pull request**. They did not survive as
+published entries: `changelog/0.49.0.md` is written by the procedure above, over
+the whole window, including the pull requests that left no file.
 
-After that release nothing *adds* to `changelog/unreleased/`: the policy that
-created those files is gone. It can still **reappear**, and that is not a
+Nothing *adds* to `changelog/unreleased/` any more: the policy that created
+those files is gone. It can still **reappear**, and that is not a
 contradiction — a pull request opened under the old policy carries its entry
 file on its branch and recreates the directory whenever it merges, however long
 after. That is why step 3 scopes its fourth source the way it does rather than
