@@ -392,9 +392,12 @@ const remNotImplemented = '`%` is not implemented in nanvm-lib yet'
  * `%` coerces both operands with `ToNumeric` like `*`, but is neither
  * commutative nor symmetric between mixed sign operands: the result's sign
  * follows the dividend (left operand), not the divisor. Number `%` never
- * throws — division by zero, and either operand infinite or `NaN`, all
- * produce `NaN` — while BigInt `%` throws on a zero divisor the same way
- * `nanvm-lib` throws on mixed number/bigint operands.
+ * throws: the result is `NaN` when the divisor is zero, when the dividend is
+ * infinite, or when either operand is `NaN` — but a *finite* dividend by an
+ * *infinite* divisor returns the dividend unchanged, e.g. `5 % Infinity` is
+ * `5`. BigInt `%` throws instead of producing `NaN`, and only on a zero
+ * divisor — mixed number/bigint operands throw too, the same as every other
+ * arithmetic operator here.
  *
  * @type {readonly Case<2>[]}
  */
