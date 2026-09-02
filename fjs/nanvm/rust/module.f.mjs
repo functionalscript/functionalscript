@@ -85,6 +85,7 @@ export const rustName = {
     '*': 'mul',
     '-': 'sub',
     '+': 'add',
+    '>': 'gt',
     String: 'string_coercion',
 }
 
@@ -99,11 +100,24 @@ const op1Rust = {
     String: a => `${a}.to_string().map(|v| v.to_any())`,
 }
 
-/** The same, for the binary operations. @type {{ readonly [k in OpId]?: (a: string, b: string) => string }} */
+/**
+ * The same, for the binary operations.
+ *
+ * `>` has no `nanvm-lib` implementation yet, so every `>` case carries a
+ * `rust` reason and `emit` prints this text as a comment rather than a
+ * statement — this entry only has to read as the operation, not compile. It
+ * is printed as a call rather than Rust's own `>`: `check` takes a
+ * `Result<Any<A>, Any<A>>` against an `Any<A>` expectation, which a
+ * `PartialOrd`-derived `>` on `Any<A>` would not give back, so it follows the
+ * `Any::unary_plus` precedent instead.
+ *
+ * @type {{ readonly [k in OpId]?: (a: string, b: string) => string }}
+ */
 const op2Rust = {
     '*': (a, b) => `${a} * ${b}`,
     '-': (a, b) => `${a} - ${b}`,
     '+': (a, b) => `${a} + ${b}`,
+    '>': (a, b) => `Any::gt(${a}, ${b})`,
 }
 
 /**
