@@ -75,16 +75,21 @@ serializable report. If the shape below cannot be rendered as API calls, the
 claim that each destination is a renderer of one structure is false, and that
 issue is blocked on a design that does not cover it.
 
-**Scheduling is the one axis with a producer on each side, and the enumeration
-below decides whether it survives.** The proof *traversal* is sequential by
-decision — concurrency was the complexity, and speed is not a goal
-([why](../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost))
-— so it is not the evidence for this row. The registration path is:
-`registerModule` fans out with `allOk` because an external framework owns that
-scheduling, and its records interleave. An axis with one producer is a real
-axis; an axis with none should be struck rather than designed around, and this
-one is listed so the first task settles it with the enumeration rather than an
-argument.
+**Scheduling is the axis with no producer yet, and the enumeration below
+decides whether it survives.** The proof *traversal* is sequential by decision —
+concurrency was the complexity, and speed is not a goal
+([why](../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost)).
+`registerModule` does fan out with `allOk`, but its records are **not this
+design's**: it builds `Test` effects with no reporter and no `Write`, and
+`effects/node`'s handler hands each to `ctx.test`, so the interleaving belongs
+to Node's or Bun's renderer. **No renderer in this table produces interleaved
+records today.**
+
+It is listed rather than struck for one reason, and if that reason does not
+survive the enumeration then neither should the row: a *bridge* emits calls into
+a framework that may run them concurrently, and a record's identity is what lets
+that framework attribute one. An axis with no producer should be struck rather
+than designed around.
 
 ## What a good answer looks like
 
@@ -94,9 +99,14 @@ argument.
 - **Compact.** The reason to design rather than accumulate: a mode per audience
   per command is a matrix nobody maintains. The axes above want a small product,
   not an enumeration of combinations.
-- **Selectable from what a program already holds.** `options.std[stream].isTTY`
-  and `options.env` are there; a new flag is a last resort and a *new mechanism*
-  is a redesign.
+- **Selectable from what a program already holds**, and the axes divide by who
+  chooses. *Environment-derived* — transport, annotation, colour — come from
+  `options.std[stream].isTTY` and `options.env`, which are there. *User-chosen* —
+  verbosity above all — come from `options.args`, which is also there, and a CLI
+  option is a **first-class selector** for those rather than a last resort:
+  `test-framework-silent-mode` promises `--verbose`, and no amount of `isTTY`
+  can express whether a person wants it. What is a last resort is a *new
+  mechanism*, which is a redesign.
 - **Provable without the destination.** A format that can only be checked by
   looking at a real terminal has no proof. For the **stream** transports the
   prover is `effects/node/virtual`, which is neither a TTY nor a pipe and
@@ -105,16 +115,26 @@ argument.
   `emergent_testing/browser/proof.mjs`, which the Node virtual runner cannot
   observe at all and must not be asked to. What every cell shares is the
   *value* being rendered, and that is provable without any destination.
-- **It applies to more than one command.** If the answer only makes sense for
-  `fjs t`, it is the proof runner's mode system again under a new name.
+- **It applies to more than one command — and the first task is what
+  establishes that, not an assumption here.** Sharing a terminal is not sharing
+  a structure: `fjs cas add` emits a hash and `fjs mcp` emits JSON-RPC, and
+  neither obviously wants a verbosity. So the enumeration looks for a second
+  command with the same needs, and **the falsifier is admitted in advance**: if
+  it finds none, this is the proof runner's mode system after all, the four
+  issues unblock, and this document says so rather than generalising anyway.
 
 ## Constraints inherited from what has landed
 
 These are settled and are inputs, not questions:
 
-- **One stream per run.** Every record goes to `stdout`; `stderr` is for a
-  runner crash, after there is no longer a run to correlate with
-  (functionalscript#1790).
+- **One stream per run — for a run's *records*.** Every record of a run goes to
+  `stdout`, and `stderr` is for a runner crash, after there is no longer a run
+  to correlate with (functionalscript#1790). This is scoped deliberately: it is
+  not a rule about every command's streams. `errorExit` writes an ordinary
+  program failure to `stderr` and exits `1`, and `fjs cas` and `fjs mcp` put
+  machine-readable output on `stdout` that a diagnostic must not contaminate. What
+  each stream means per command is part of the design rather than settled by this
+  line.
 - **Not two records per leaf on a TTY.** Tried and reverted: it doubles every
   line of every run to guard a case that announces itself. The reason is on
   `defaultReporter`'s `start` in
