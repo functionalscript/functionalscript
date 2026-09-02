@@ -130,8 +130,8 @@ it's by far the most common and the lowest-judgement case.
 - **Land in small PRs.** AGENTS.md asks for "one feature/improvement
   with minimal code changes" per PR; a single PR rewriting hundreds of
   lines is not in the spirit of that rule even if each diff is
-  trivial. Folder-by-folder keeps reviews proportionate. No CHANGELOG
-  entry per PR — these are test-only changes.
+  trivial. Folder-by-folder keeps reviews proportionate. Nothing to
+  declare — these are test-only changes.
 - **Coverage delta = zero.** The helper does not change what is
   asserted, only how. Tests must continue to pass without any
   expected-result edits; if they don't, the rewrite caught a
