@@ -1,6 +1,7 @@
 mod any;
 mod array;
 mod bigint;
+mod boolean_coercion;
 mod container_fmt;
 mod dispatch;
 mod ecma_whitespace;

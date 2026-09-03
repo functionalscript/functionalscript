@@ -166,15 +166,19 @@ export type Group2 = {
  * The visible exception: an operation with no canonical EDAG id yet.
  *
  * The field is deliberately not `op`, so a NaNVM-only name can never mix into
- * the canonical id unions. Today its one inhabitant is `unaryPlus` — the EDAG
- * has no unary `+` — and the type is deleted when
- * [replace-unary-plus-with-number](../../nanvm-lib/todo/replace-unary-plus-with-number.md)
- * moves that group to `Number`.
+ * the canonical id unions.
+ *
+ * - `unaryPlus` — the EDAG has no unary `+` — and this arm is deleted when
+ *   [replace-unary-plus-with-number](../../nanvm-lib/todo/replace-unary-plus-with-number.md)
+ *   moves that group to `Number`; the type itself stays, since the other
+ *   arms have no such migration.
+ * - `ternary` (`?:`) — the EDAG has no conditional-expression node at all
+ *   yet, so this is the corpus's one ternary group; every other `Group`
+ *   variant is unary or binary because the EDAG vocabulary it draws from is.
  */
-export type NonEdagGroup = {
-    readonly nanvmOp: 'unaryPlus'
-    readonly cases: readonly Case<1>[]
-}
+export type NonEdagGroup =
+    | { readonly nanvmOp: 'unaryPlus'; readonly cases: readonly Case<1>[] }
+    | { readonly nanvmOp: 'ternary'; readonly cases: readonly Case<3>[] }
 
 export type Group = Group1 | Group2 | NonEdagGroup
 
@@ -189,6 +193,7 @@ export type Group = Group1 | Group2 | NonEdagGroup
 
 type _Unary = Assert<Equal<Case<1>['args'], readonly [Operand]>>
 type _Binary = Assert<Equal<Case<2>['args'], readonly [Operand, Operand]>>
+type _Ternary = Assert<Equal<Case<3>['args'], readonly [Operand, Operand, Operand]>>
 type _NotWidened = Assert<Equal<Case<2> extends Case<1> ? true : false, false>>
 type _NotNarrowed = Assert<Equal<Case<1> extends Case<2> ? true : false, false>>
 type _Op1Groups = Assert<Equal<Group1['cases'], readonly Case<1>[]>>
