@@ -25,6 +25,14 @@ for more, and none of it can be answered from the rule:
   branch refers back to it: attempting it makes the self-referential
   three-branch variant of `_20` report `TS2589`. It is the nullability
   obstruction again, reached from the other side.
+- An *optional* branch may be omitted by a value the type admits, and then the
+  rule has fewer branches than it declares. `{ none?: [], some?: [0, R] }`
+  describes four grammars — both branches, either alone, neither — and only the
+  first is a repetition: `repeatItem` returns the item for it and `null` for
+  `{ none: [] }` on its own. `_29` picks the both-present reading, which is a
+  choice among the four rather than the answer, and the same choice `_12` makes
+  for variants. Deciding it properly needs the value, or a rule set built from
+  one.
 - A branch whose declared type is a *union of rules* is not distributed over
   during recognition. `{ none: readonly [] | 1, some: [0, R] }` describes both a
   repetition (when `none` is the empty sequence) and an ordinary variant (when
@@ -53,7 +61,7 @@ parse.
 
 ### Why none of them is a guard
 
-All five are questions about a rule *set*, not about a rule. `reachable` walks
+All six are questions about a rule *set*, not about a rule. `reachable` walks
 a set of named rules; there is no set here to walk, and a structural type has
 no name to be reached.
 

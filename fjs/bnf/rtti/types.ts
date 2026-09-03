@@ -358,7 +358,10 @@ type _28 = Assert<Equal<AstRule<_SymbolBeside>, readonly number[]>>
 
 // `Variant` declares every key optional, so a repetition may be written with
 // `?` on both branches; `repeatItem` returns `0` for the value that shape
-// describes.
+// describes. It describes others too — a value may omit either branch, leaving
+// a one-branch variant that is no repetition — so this is the both-present
+// reading rather than the only one the type admits:
+// [nullable-repeat-item](./todo/nullable-repeat-item.md).
 type _OptionalBranches = () => {
     readonly none?: readonly[],
     readonly some?: readonly[0, _OptionalBranches],
