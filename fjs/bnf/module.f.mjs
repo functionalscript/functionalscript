@@ -13,7 +13,7 @@
 
 import { codePointListToString, stringToCodePointList } from '../text/utf16/module.f.mjs'
 import { definedValues } from '../types/object/module.f.mjs'
-import { isTuple } from '../types/array/module.f.mjs'
+import { isFixedArray } from '../types/array/module.f.mjs'
 import { map, toArray } from '../types/list/module.f.mjs'
 import { contains } from '../types/range/module.f.mjs'
 import { assert } from '../asserts/module.f.mjs'
@@ -150,7 +150,7 @@ const mapEntry = map((/** @type {number} */ v) => [fromCodePoint(v), oneEncode(v
 export const set = s =>
     fromEntries(toArray(mapEntry(stringToCodePointList(s))))
 
-const isTuple2 = isTuple(2)
+const isPair = isFixedArray(2)
 
 /**
  * Encodes a two-symbol string into a terminal range.
@@ -161,7 +161,7 @@ const isTuple2 = isTuple(2)
  */
 export const range = ab => {
     const a = toArray(stringToCodePointList(ab))
-    if (!isTuple2(a)) {
+    if (!isPair(a)) {
         throw `Invalid range ${ab}.`
     }
     return rangeEncode(...a)
