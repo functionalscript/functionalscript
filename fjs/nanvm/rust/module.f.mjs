@@ -84,6 +84,7 @@ export const rustName = {
     neg: 'neg',
     '*': 'mul',
     '/': 'div',
+    '**': 'pow',
     '-': 'sub',
     '+': 'add',
     '%': 'rem',
@@ -104,16 +105,22 @@ const op1Rust = {
 /**
  * The same, for the binary operations.
  *
- * An operator not yet implemented in `nanvm-lib` (such as `**`) has every one
+ * An operator not yet implemented in `nanvm-lib` (such as `<`) has every one
  * of its cases carry a `rust` reason, and `emit` prints this text as a
  * comment rather than a statement — this entry only has to read as the
  * operation, not compile.
+ *
+ * Rust has no exponentiation operator, so `**` is printed as a call
+ * (`Any::pow`) rather than an infix expression, following the
+ * `Any::unary_plus` precedent for an operation with no Rust operator to
+ * spell.
  *
  * @type {{ readonly [k in OpId]?: (a: string, b: string) => string }}
  */
 const op2Rust = {
     '*': (a, b) => `${a} * ${b}`,
     '/': (a, b) => `${a} / ${b}`,
+    '**': (a, b) => `Any::pow(${a}, ${b})`,
     '-': (a, b) => `${a} - ${b}`,
     '+': (a, b) => `${a} + ${b}`,
     '%': (a, b) => `${a} % ${b}`,
@@ -259,7 +266,7 @@ export const valueExpr = v => isFunctionValue(v) ? 'function_any()' : nodeExpr(v
  *
  * One line per case, reason and statement together: a group where every case
  * carries the same `rust` reason (an operator with no `nanvm-lib`
- * implementation at all, such as `**`) would otherwise repeat that reason on
+ * implementation at all, such as `<`) would otherwise repeat that reason on
  * its own line before each one, doubling the line count for no new
  * information.
  *

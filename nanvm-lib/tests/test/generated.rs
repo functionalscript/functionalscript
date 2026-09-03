@@ -229,6 +229,59 @@ fn div<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn pow<A: IVm>() {
+    check::<A>("nullToThePowerOfTwo", Any::pow(Nullish::Null.to_any(), (2f64).to_any()), (0f64).to_any());
+    check::<A>("undefinedToThePowerOfTwo", Any::pow(Nullish::Undefined.to_any(), (2f64).to_any()), (f64::NAN).to_any());
+    check::<A>("trueToThePowerOfTwo", Any::pow(true.to_any(), (2f64).to_any()), (1f64).to_any());
+    check::<A>("falseToThePowerOfTwo", Any::pow(false.to_any(), (2f64).to_any()), (0f64).to_any());
+    check::<A>("stringThreeToThePowerOfTwo", Any::pow(string_any("3"), (2f64).to_any()), (9f64).to_any());
+    check::<A>("stringLetterToThePowerOfTwo", Any::pow(string_any("a"), (2f64).to_any()), (f64::NAN).to_any());
+    check::<A>("emptyArrayToThePowerOfTwo", Any::pow(Array::default().to_any(), (2f64).to_any()), (0f64).to_any());
+    check::<A>("arrayThreeToThePowerOfTwo", Any::pow([(3f64).to_any()].to_array().to_any(), (2f64).to_any()), (9f64).to_any());
+    check::<A>("arrayStringThreeToThePowerOfTwo", Any::pow([string_any("3")].to_array().to_any(), (2f64).to_any()), (9f64).to_any());
+    check::<A>("arrayPairToThePowerOfTwo", Any::pow([(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (2f64).to_any()), (f64::NAN).to_any());
+    check::<A>("emptyObjectToThePowerOfTwo", Any::pow(Object::default().to_any(), (2f64).to_any()), (f64::NAN).to_any());
+    check::<A>("functionToThePowerOfTwo", Any::pow(function_any(), (2f64).to_any()), (f64::NAN).to_any());
+    check::<A>("twoToThePowerOfTen", Any::pow((2f64).to_any(), (10f64).to_any()), (1024f64).to_any());
+    check::<A>("twoToThePowerOfHalf", Any::pow((2f64).to_any(), (0.5f64).to_any()), (1.4142135623730951f64).to_any());
+    check::<A>("twoToThePowerOfNegativeOne", Any::pow((2f64).to_any(), (-1f64).to_any()), (0.5f64).to_any());
+    check::<A>("negativeTwoToThePowerOfThree", Any::pow((-2f64).to_any(), (3f64).to_any()), (-8f64).to_any());
+    check::<A>("negativeTwoToThePowerOfTwo", Any::pow((-2f64).to_any(), (2f64).to_any()), (4f64).to_any());
+    check::<A>("zeroToThePowerOfZero", Any::pow((0f64).to_any(), (0f64).to_any()), (1f64).to_any());
+    check::<A>("negativeZeroToThePowerOfZero", Any::pow((-0f64).to_any(), (0f64).to_any()), (1f64).to_any());
+    check::<A>("nanToThePowerOfZero", Any::pow((f64::NAN).to_any(), (0f64).to_any()), (1f64).to_any());
+    check::<A>("twoToThePowerOfNan", Any::pow((2f64).to_any(), (f64::NAN).to_any()), (f64::NAN).to_any());
+    check::<A>("nanToThePowerOfNan", Any::pow((f64::NAN).to_any(), (f64::NAN).to_any()), (f64::NAN).to_any());
+    check::<A>("oneToThePowerOfInfinity", Any::pow((1f64).to_any(), (f64::INFINITY).to_any()), (f64::NAN).to_any());
+    check::<A>("negativeOneToThePowerOfInfinity", Any::pow((-1f64).to_any(), (f64::INFINITY).to_any()), (f64::NAN).to_any());
+    check::<A>("oneToThePowerOfNegativeInfinity", Any::pow((1f64).to_any(), (f64::NEG_INFINITY).to_any()), (f64::NAN).to_any());
+    check::<A>("twoToThePowerOfInfinity", Any::pow((2f64).to_any(), (f64::INFINITY).to_any()), (f64::INFINITY).to_any());
+    check::<A>("negativeTwoToThePowerOfInfinity", Any::pow((-2f64).to_any(), (f64::INFINITY).to_any()), (f64::INFINITY).to_any());
+    check::<A>("halfToThePowerOfInfinity", Any::pow((0.5f64).to_any(), (f64::INFINITY).to_any()), (0f64).to_any());
+    check::<A>("twoToThePowerOfNegativeInfinity", Any::pow((2f64).to_any(), (f64::NEG_INFINITY).to_any()), (0f64).to_any());
+    check::<A>("halfToThePowerOfNegativeInfinity", Any::pow((0.5f64).to_any(), (f64::NEG_INFINITY).to_any()), (f64::INFINITY).to_any());
+    check::<A>("infinityToThePowerOfTwo", Any::pow((f64::INFINITY).to_any(), (2f64).to_any()), (f64::INFINITY).to_any());
+    check::<A>("infinityToThePowerOfNegativeTwo", Any::pow((f64::INFINITY).to_any(), (-2f64).to_any()), (0f64).to_any());
+    check::<A>("negativeInfinityToThePowerOfThree", Any::pow((f64::NEG_INFINITY).to_any(), (3f64).to_any()), (f64::NEG_INFINITY).to_any());
+    check::<A>("negativeInfinityToThePowerOfTwo", Any::pow((f64::NEG_INFINITY).to_any(), (2f64).to_any()), (f64::INFINITY).to_any());
+    check::<A>("negativeInfinityToThePowerOfNegativeThree", Any::pow((f64::NEG_INFINITY).to_any(), (-3f64).to_any()), (-0f64).to_any());
+    check::<A>("negativeInfinityToThePowerOfNegativeTwo", Any::pow((f64::NEG_INFINITY).to_any(), (-2f64).to_any()), (0f64).to_any());
+    check::<A>("zeroToThePowerOfTwo", Any::pow((0f64).to_any(), (2f64).to_any()), (0f64).to_any());
+    check::<A>("zeroToThePowerOfNegativeTwo", Any::pow((0f64).to_any(), (-2f64).to_any()), (f64::INFINITY).to_any());
+    check::<A>("negativeZeroToThePowerOfThree", Any::pow((-0f64).to_any(), (3f64).to_any()), (-0f64).to_any());
+    check::<A>("negativeZeroToThePowerOfTwo", Any::pow((-0f64).to_any(), (2f64).to_any()), (0f64).to_any());
+    check::<A>("negativeZeroToThePowerOfNegativeThree", Any::pow((-0f64).to_any(), (-3f64).to_any()), (f64::NEG_INFINITY).to_any());
+    check::<A>("negativeZeroToThePowerOfNegativeTwo", Any::pow((-0f64).to_any(), (-2f64).to_any()), (f64::INFINITY).to_any());
+    check::<A>("negativeTwoToThePowerOfHalf", Any::pow((-2f64).to_any(), (0.5f64).to_any()), (f64::NAN).to_any());
+    check::<A>("bigTwoToThePowerOfTen", Any::pow(bigint_any(2), bigint_any(10)), bigint_any(1024));
+    check::<A>("bigZeroToThePowerOfZero", Any::pow(bigint_any(0), bigint_any(0)), bigint_any(1));
+    check::<A>("bigNegativeTwoToThePowerOfThree", Any::pow(bigint_any(-2), bigint_any(3)), bigint_any(-8));
+    check_throws::<A>("bigTwoToThePowerOfNegativeOne", Any::pow(bigint_any(2), bigint_any(-1)));
+    check_throws::<A>("numberToThePowerOfBigint", Any::pow((1f64).to_any(), bigint_any(1)));
+    check_throws::<A>("bigintToThePowerOfNumber", Any::pow(bigint_any(1), (1f64).to_any()));
+}
+
+#[rustfmt::skip]
 fn sub<A: IVm>() {
     check::<A>("nullMinusNull", Nullish::Null.to_any() - Nullish::Null.to_any(), (0f64).to_any());
     check::<A>("nullMinusZero", Nullish::Null.to_any() - (0f64).to_any(), (0f64).to_any());
@@ -352,6 +405,7 @@ pub fn all<A: IVm>() {
     neg::<A>();
     mul::<A>();
     div::<A>();
+    pow::<A>();
     sub::<A>();
     add::<A>();
     rem::<A>();

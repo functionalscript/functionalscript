@@ -15,7 +15,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | `*`      | Multiplication      | [x]      | [`impls/mul.rs`](src/vm/impls/mul.rs) → `Numeric * Numeric` |
 | `/`      | Division            | [x]      | [`bigint/div.rs`](src/vm/bigint/div.rs) — magnitude quotient via schoolbook binary long division (shared with `%`'s `abs_divmod_vec`), truncates toward zero; `Number` uses Rust's own `/`; `Any`-level dispatch in [`any/div.rs`](src/vm/any/div.rs) |
 | `%`      | Remainder           | [x]      | [`bigint/rem.rs`](src/vm/bigint/rem.rs) — magnitude remainder via schoolbook binary long division, sign follows the dividend; `Number` uses Rust's own `%`; `Any`-level dispatch in [`any/rem.rs`](src/vm/any/rem.rs) |
-| `**`     | Exponentiation      | [ ]      | |
+| `**`     | Exponentiation      | [x]      | [`bigint/pow.rs`](src/vm/bigint/pow.rs) — exponentiation by squaring, throws on a negative exponent; [`numeric.rs`](src/vm/numeric.rs) implements `Number::exponentiate`'s two departures from `f64::powf`/C99 `pow` (a `NaN` exponent, and an infinite exponent against a base of magnitude 1, are both `NaN`); not a `core::ops` trait (Rust has no exponentiation operator), so it's `Any::pow`/`Numeric::pow`, methods rather than operators |
 
 ### Unary
 

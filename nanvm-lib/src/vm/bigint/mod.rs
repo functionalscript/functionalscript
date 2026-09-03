@@ -9,6 +9,7 @@ mod index;
 mod mul;
 mod neg;
 mod partial_eq;
+mod pow;
 mod rem;
 mod shl;
 mod shr;

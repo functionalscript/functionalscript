@@ -65,6 +65,7 @@ const op1Js = {
 const op2Js = {
     '*': (a, b) => a * b,
     '/': (a, b) => a / b,
+    '**': (a, b) => a ** b,
     '-': (a, b) => a - b,
     '+': (a, b) => a + b,
     '%': (a, b) => a % b,

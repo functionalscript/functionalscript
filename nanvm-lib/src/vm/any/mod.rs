@@ -54,6 +54,12 @@ impl<A: IVm> Any<A> {
         self.to_number().map(ToAny::to_any)
     }
 
+    /// `**`. Not a `core::ops` trait — Rust has no operator for
+    /// exponentiation, so this is a plain method, the same as `unary_plus`.
+    pub fn pow(self, rhs: Self) -> Result<Self, Self> {
+        Ok(Unpacked::from(self.to_numeric()?.pow(rhs.to_numeric()?)?).into())
+    }
+
     /// Same as `Number.isNaN` in ECMAScript.
     /// TODO: check and test.
     pub fn is_nan(self) -> bool {
