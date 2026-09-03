@@ -162,7 +162,9 @@ are **new builders over the same `RuleSet`**, siblings of `dispatchMap` — not 
 separate front end. So: author `magic | utf8` functionally, `toData` it, compile.
 
 Module layout follows from this: the data module should hold only the
-serializable IR (`RuleSet` + `toData`), and each parser/automaton builder lives
+serializable IR (`RuleSet` alone — `toData` moves to the classical front end
+in [grammar-bucket](../../todo/grammar-bucket.md) stage 5, since it takes a
+functional rule), and each parser/automaton builder lives
 in its own sibling module — the existing LL(1) dispatch/matcher, then
 **`fjs/grammar/recognizer` and `fjs/grammar/dfa`** for the new backends, at
 those paths directly rather than under `fjs/bnf`

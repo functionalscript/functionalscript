@@ -4,6 +4,10 @@
 **Status:** blocked
 **Blocked by:**
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md)
+- [ebnf-front-end](./ebnf-front-end.md)'s Problem 1 — which bounds the data
+  layer represents natively. If it grows a bounded repeat, the data `Rule`
+  union this visitor discriminates changes, and a visitor written against
+  today's string-only `Repeat` needs a second rewrite.
 
 ### Problem
 

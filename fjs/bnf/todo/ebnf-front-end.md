@@ -139,7 +139,13 @@ Two caveats for the implementation. **The cap is on the longest tuple a branch w
 `Max`, or `Min` when `Max` is `null` — not the span and not `Min` alone,
 either of which lets `repeat(Cap, Cap + 1)` through to a union that builds
 `Tuple<Cap + 1, T>`. `Tuple` in `fjs/types/array/types.ts:22` recurses
-linearly, so anything past the cap is TS2589 and degrades to `readonly T[]`. And TypeScript's template-literal recursion splits
+linearly, so anything past the cap is TS2589 and degrades to `readonly T[]`.
+`Cap` is a named constant in `ebnf/types.ts`, not a value each call site
+picks — it decides whether a public AST type is a tuple union or an array, so
+implementers must agree on it. Start at **8**: it covers every bounded span a
+real grammar writes (`times(4)(hex)` is the largest in the tree) and leaves
+ample headroom under the instantiation limit. The proofs pin `Cap` and
+`Cap + 1`. And TypeScript's template-literal recursion splits
 by UTF-16 code unit, so a naive `AST<'😀'>` is a 2-tuple where the grammar
 produces one element.
 
@@ -171,8 +177,14 @@ never escaped into a `Type` there, and a lost thunk fails loudly — the tag
 becomes text the parser expects to consume, so the first proof over that
 branch fails. **Making the representations disjoint with a marker is
 rejected**: it costs the property the design rests on, that a rule is plain
-data. A linter could catch it statically for external grammars; that is out
-of scope here and not a reason to change the representation.
+data. No static check separates the two, and the corpus check an earlier
+draft proposed here does not either: `fjs/bnf/lib/datajs` builds
+`statement('const', …)`, a legitimate sequence headed by the literal
+`'const'`, so a rule "no `Const` array starts with a tag" would reject correct
+grammars. The protection is behavioural, not static, and it is the same one:
+the grammar stops matching its own inputs. A linter with more context could do
+better for external grammars; that is out of scope here and not a reason to
+change the representation.
 
 #### What a lowering must do
 
@@ -236,10 +248,12 @@ and is also what first makes `descentEquivalence` front-end neutral.
 stays rejected. Bounded max is *ambiguity*, and only when the body can match
 both empty and non-empty: `['repeat', 2, 2, r]` over a body matching `""` or
 `"x"` parses `x` two ways, and `times(3)(option(x))` places one `x` in any of
-its three slots. A body that can match **only** empty — `['repeat', 3, 3, []]`
-— is unambiguous, since every copy matches the same nothing. Reject the
-ambiguous case (nullable *and* able to consume), or keep a blanket rule and
-document its cost — but "cardinality unrecoverable" is false at a bounded max,
+its three slots. A nullable body is safe in exactly one case: **the count is fixed and the body
+matches only empty**, as in `['repeat', 3, 3, []]`, where every copy matches
+the same nothing. Both halves are needed — `['repeat', 0, 1, []]` accepts
+empty input as zero copies or as one, so a varying count is ambiguous even
+with an empty-only body. Reject anything outside that exemption, or keep a
+blanket rule and document its cost — but "cardinality unrecoverable" is false at a bounded max,
 where the cardinality is the bound.
 
 **4. The optional's AST change is a bulk proof rewrite.** Production consumers
@@ -302,11 +316,6 @@ three forms. It needs a data layer that can represent it.
       lowering error; and the `descentEquivalence` cases re-expressed here,
       comparing **backend results** and stating per case whether the AST is
       expected to match the `bnf` original or to differ.
-- [ ] Add a proof over **this repository's grammars** that none contains a
-      `Const` array headed by `'const'`, `'range'` or `'repeat'` — the
-      forgotten-thunk case. It is a corpus check, not a type assertion: such
-      an array *is* a valid `Const` by design, so the property is that no
-      grammar here writes one by accident.
 - [ ] Port `fjs/grammar/lib/json` (`\uXXXX` becomes `times(4)(hex)`), then
       `lib/datajs`, then the `djs` tokenizer and parser, one PR each. Those
       are the only consumers: outside `fjs/bnf` the repository imports it from
@@ -328,7 +337,10 @@ three forms. It needs a data layer that can represent it.
   adapter Problem 9 constrains.
 - [terminal-range-shared-type](./terminal-range-shared-type.md) — the packed
   `TerminalRange` becomes data-layer only here.
-- [rule-visitor](./rule-visitor.md) — unaffected; the data union does not
-  change.
+- [rule-visitor](./rule-visitor.md) — **depends on Problem 1's answer.** The
+  visitor discriminates the data `Rule`, and if the data layer grows a
+  bounded repeat that union changes, so implementing the visitor against
+  today's string-only `Repeat` would need a second rewrite. It is blocked on
+  the IR decision, not merely on the alphabet split.
 - [207-bnf-semantic-actions](./207-bnf-semantic-actions.md) — rule maps keyed
   by identity; Problem 1 is its sharpest edge.

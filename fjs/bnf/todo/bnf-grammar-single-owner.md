@@ -91,6 +91,12 @@ import {
 import { repeat } from '../../../types/array/module.f.mjs'
 ```
 
+**Between stage 5 and stage 7** the front end has moved and the library has
+not, so from `fjs/bnf/lib/json/` the front end is
+`../../../grammar/bnf/module.f.mjs`. The rule, rather than a third block: the
+Unicode path is fixed from stage 2, and the front-end path tracks wherever the
+front end currently lives.
+
 **After the library moves** to `fjs/grammar/lib/json/` and the front end to
 `fjs/grammar/bnf/`:
 

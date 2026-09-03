@@ -124,6 +124,16 @@ stages that relocate an API go straight to the final path.
 so stage 8's deletion could not pass the suite. It also makes
 `descentEquivalence` front-end neutral for the first time.
 
+**A proof travels with what it proves**, so the rewrite is a split, not a
+wholesale conversion. Only the cases covering neutral behaviour become
+`RuleSet` literals. The cases covering something that *moves* in stage 5 go
+with it: `data/proof.f.mjs`'s `toData` / `toDataWithRules` sections are the
+co-located coverage for the conversion, and `ll1/proof.f.mjs` and
+`descent/proof.f.mjs` cover the `parser(fr)` / `descentParser(fr)` wrappers.
+Converting those to rule sets would delete the only coverage of exports that
+still exist; leaving them behind would strand it. They move to
+`fjs/grammar/bnf/proof.f.mjs` in the same PR as the code they cover.
+
 **What one hop promises.** Each *API* moves once, never landing at an
 intermediate public path. Not that each consumer is edited once: a module
 importing APIs bound for several destinations is edited once per destination.
@@ -181,7 +191,9 @@ A module the migration creates goes to its final path immediately, never to
 - [ ] Stage 5: split `fjs/bnf/README.md` to its owners, creating
       `fjs/grammar/README.md`, and repoint every inbound link.
 - [ ] Stage 5: move the front end to `fjs/grammar/bnf/` with the conversion
-      and the wrappers; update the five `fjs/djs` importers and every README
+      and the wrappers, and the proof cases that cover them; update the five
+      `fjs/djs` importers, the `lib/` grammars (which do not move until stage
+      7, so their front-end imports repoint without moving), and every README
       and `todo/` link.
 - [ ] Stage 6: move `data/`, `matcher/`, `ll1/`, `descent/`, `token_symbol/`
       and `map/types.ts`, one PR each.
