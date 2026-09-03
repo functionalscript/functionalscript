@@ -86,8 +86,14 @@ to `readonly T[]` — losing `repeat1Plus`'s non-empty type. `null` is a literal
 type, so the conditional can ask. It also makes `n <= max` a compile error
 until `max` is narrowed, where a `-1` sentinel would compile and be silently
 wrong — and `-1` is already EOF in the terminal domain, which is a collision
-worth avoiding. `undefined` would work identically; `null` is preferred because
-a hole in the middle of an array always reads as a mistake. `min > max` is an error. `0..0` and `1..1` are legal
+worth avoiding. `undefined` is equivalent on the type
+question and rejected anyway: with it in the type, a dropped argument is
+*plausible* rather than invalid. Runtime arity is not enforced here, so
+`repeat(2)` would silently mean two-or-more while reading as "exactly two" —
+which already has a spelling, `times(2)`. With `null` required, `repeat(2)`
+leaves `max` as `undefined`, which is not a `Max`, so the omission is caught
+instead of quietly meaning something else. A hole in the middle of an array
+reads as a mistake for the same reason. `min > max` is an error. `0..0` and `1..1` are legal
 and discouraged — `[]` and the rule itself say those directly, and
 `['repeat', 1, 1, r]` wraps `r` in a one-element list a transformer on `r`
 will not see. Exact counts of two or more are the ordinary case.
