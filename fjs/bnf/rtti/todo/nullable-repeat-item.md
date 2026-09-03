@@ -1,6 +1,6 @@
 ## nullable-repeat-item. `AstRule` and `repeatOf` disagree where a rule set is needed
 
-*(The slug names the first case found; the issue grew to six.)*
+*(The slug names the first case found; the issue grew to seven.)*
 
 **Priority:** P3
 **Status:** open
@@ -53,7 +53,27 @@ of defect as the repeat-detection ones fixed in the same pull request — extra
 branches, and branch names other than `some`/`none` — rather than the bounded
 kind, and it is the strongest argument for deriving from the rule set.
 
-### Two more, from different causes
+### Three more, from different causes
+
+An *open* key set whose value type admits `undefined` —
+`{ readonly [k: string]: 0 | undefined }` — is answered with the widened variant
+rather than refused, though `toData(() => ({ a: undefined }))` throws with
+`Cannot convert undefined or null to object`. `_Branches` reaches the open-key
+arm before `_Malformed`, and reordering the two is not available: `Variant`
+itself is `{ readonly[k in string]?: Rule }`, and `Required` does not take the
+`?` off a *mapped* index signature the way it does off a literal key, so
+`Required<Variant>[string]` is `Rule | undefined` and `_Malformed<Variant>` is
+`string`. Refusing first would make `AstRule<Variant>` — and with it the whole of
+`json`, whose `value` is annotated `Variant` — resolve to `never`.
+
+Separating the two needs a test for "this index signature is optional" that does
+not also fire on "this value type includes `undefined`", and there is none:
+`Required<U>[K]`, `U[K]` and a `Pick`-based optionality probe all give the two
+declarations the same answer. `{} extends Pick<{ readonly [k: string]: 0 |
+undefined }, string>` holds, because an index signature demands no property.
+
+The rule-set derivation closes this like the rest: normalization has the value,
+and either throws on it or does not.
 
 An object-literal `__proto__` branch — `const r = { __proto__: 0 } as const` —
 is accepted as a `Rule`, and `AstRule<typeof r>` gives
@@ -72,8 +92,6 @@ branch away. Between the two errors the present one is the better: it gives a
 wrong type to a rule that does not work, where the exclusion would give a wrong
 type to one that does. The rule-set derivation settles this too, since a rule
 set carries the keys `Object.entries` actually produced.
-
-### One more, from a different cause
 
 A variant keyed by a *pattern* — `{ [k in `x-${string}`]: 0 }` — is an open key
 set like an index signature over `string` or `number`, and is not recognized as
@@ -95,7 +113,7 @@ many a type admits.
 
 ### Why none of them is a guard
 
-All four in the list above are questions about a rule *set*, not about a rule.
+All four in the first list are questions about a rule *set*, not about a rule.
 `reachable` walks a set of named rules; there is no set here to walk, and a
 structural type has no name to be reached.
 
@@ -140,8 +158,9 @@ Until then the limit is stated in
 - [ ] Decide between deriving from the rule set and documenting the restriction.
 - [ ] If the analysis is written, pin `Repeat0Plus<readonly []>`, a repetition
       over a variant with an empty branch, a repetition whose item reaches the
-      repetition, a rule whose tail is a structurally identical other rule, and
-      a malformed rule nested under a variant with a valid alternative, with
+      repetition, a rule whose tail is a structurally identical other rule, a
+      malformed rule nested under a variant with a valid alternative, and an
+      open key set whose value type admits `undefined`, with
       `Assert<Equal<…>>`.
 - [ ] `tsc`, `fjs t`.
 
