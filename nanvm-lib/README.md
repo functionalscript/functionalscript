@@ -24,7 +24,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | `-`      | Unary minus         | [x]      | [`any/neg.rs`](src/vm/any/neg.rs) — `Neg for Any<A>` |
 | `+`      | Unary plus          | [x]      | `Any::unary_plus()` method (coerces to number) |
 | `!`      | Logical NOT         | [x]      | [`any/not.rs`](src/vm/any/not.rs) — `Not for Any<A>`, via the new `ToBoolean` coercion ([`boolean_coercion.rs`](src/vm/boolean_coercion.rs)) |
-| `~`      | Bitwise NOT         | [ ]      | |
+| `~`      | Bitwise NOT         | [x]      | `Numeric::bitwise_not()`/`Any::bitwise_not()` methods (no Rust operator to spell it with — `Not` is already `!`'s); `Number`: `ToInt32` then bitwise-negate; `BigInt`: `-x - 1`, the exact spec identity, reusing `Neg`/`Sub` rather than a new algorithm |
 | `typeof` | Type of             | [x]      | [`any/typeof_.rs`](src/vm/any/typeof_.rs) — `Any::typeof_()` method (no Rust operator to spell it with; the trailing underscore resolves the collision with Rust's own reserved `typeof`, the same convention FJS and JS use); returns `"undefined"`, `"object"` (`null` and both container types), `"boolean"`, `"number"`, `"bigint"`, `"string"`, or `"function"` |
 
 ### Comparison
@@ -42,9 +42,9 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 
 | Operator | Description         | `Any<A>` | Notes |
 |----------|---------------------|----------|-------|
-| `&`      | AND                 | [ ]      | |
-| `\|`     | OR                  | [ ]      | |
-| `^`      | XOR                 | [ ]      | |
+| `&`      | AND                 | [x]      | [`any/bitand.rs`](src/vm/any/bitand.rs) — `BitAnd for Any<A>`; `Number`: `ToInt32` each side, then native `&`; `BigInt`: [`bigint/bitand.rs`](src/vm/bigint/bitand.rs) — infinite-precision two's-complement `AND` over words (see [`bigint/mod.rs`](src/vm/bigint/mod.rs)'s `bitwise_op`); rejects mixed `number`/`bigint` |
+| `\|`     | OR                  | [x]      | [`any/bitor.rs`](src/vm/any/bitor.rs) — `BitOr for Any<A>`; same coercion as `&`; `BigInt`: [`bigint/bitor.rs`](src/vm/bigint/bitor.rs) |
+| `^`      | XOR                 | [x]      | [`any/bitxor.rs`](src/vm/any/bitxor.rs) — `BitXor for Any<A>`; same coercion as `&`; `BigInt`: [`bigint/bitxor.rs`](src/vm/bigint/bitxor.rs) |
 | `<<`     | Left shift          | [ ]      | `Shl for BigInt` exists; no `Any`-level impl |
 | `>>`     | Signed right shift  | [ ]      | `Shr for BigInt` exists; no `Any`-level impl |
 | `>>>`    | Unsigned right shift| [ ]      | |
@@ -75,3 +75,4 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | To boolean     | [x]    | [`boolean_coercion.rs`](src/vm/boolean_coercion.rs) — never throws, unlike the others |
 | To primitive   | [x]    | [`primitive_coercion.rs`](src/vm/primitive_coercion.rs) |
 | To numeric     | [x]    | `Any::to_numeric()` |
+| To int32       | [x]    | [`int32_coercion.rs`](src/vm/int32_coercion.rs) — `ToInt32`, operating on the already-coerced `f64` a `Number::` bitwise op needs (`ToUint32` not yet needed — only `>>>` uses it) |
