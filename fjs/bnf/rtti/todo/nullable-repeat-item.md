@@ -1,6 +1,6 @@
 ## nullable-repeat-item. `AstRule` and `repeatOf` disagree where a rule set is needed
 
-*(The slug names the first case found; the issue grew to seven.)*
+*(The slug names the first case found; the issue grew to eight.)*
 
 **Priority:** P3
 **Status:** open
@@ -53,7 +53,7 @@ of defect as the repeat-detection ones fixed in the same pull request — extra
 branches, and branch names other than `some`/`none` — rather than the bounded
 kind, and it is the strongest argument for deriving from the rule set.
 
-### Three more, from different causes
+### Four more, from different causes
 
 An *open* key set whose value type admits `undefined` —
 `{ readonly [k: string]: 0 | undefined }` — is answered with the widened variant
@@ -84,8 +84,10 @@ prototype setter rather than an own property, so `Object.entries` in
 
 Excluding `__proto__` from `_Keys` looks like a cheap and exact fix, and is not
 one. The computed spelling `{ ['__proto__']: 0 }` is an ordinary own property:
-`Object.entries` yields it, `toData` builds `{ __proto__: '' }` as a branch, and
-the grammar parses. TypeScript gives both spellings the same `keyof` —
+`Object.entries` yields it, `toData` builds a variant with a `__proto__` branch
+pointing at the rule for `0` — `toData(() => ({ ['__proto__']: 0 }))` is
+`[{ '0': 0, '': { __proto__: '0' } }, '']`, where `'0'` names the branch's rule
+and `''` the variant's own — and the grammar parses. TypeScript gives both spellings the same `keyof` —
 `Assert<Equal<keyof typeof r, '__proto__'>>` holds for either — so no test can
 tell them apart, and excluding the key would take a working grammar's only
 branch away. Between the two errors the present one is the better: it gives a
@@ -110,6 +112,24 @@ exactly the shapes that deserve it.
 Deriving from a rule set closes this too, for a different reason than the
 others: a rule set has actual keys, so nothing has to be inferred about how
 many a type admits.
+
+An *overloaded* rule function is read at the wrong overload. `infer` takes the
+last call signature, and the parser calls the rule with no arguments, so for
+
+```ts
+declare function r(): 0
+declare function r(x?: string): { readonly a: 1 }
+```
+
+`AstRule<typeof r>` is `{ readonly a: number }` where `r()` produces a terminal.
+`Assert<Equal<typeof r extends () => infer V ? V : never, { readonly a: 1 }>>`
+holds, checked with `tsc`.
+
+This one is not a rule-set question either; it is that a conditional type cannot
+pick an overload by argument count. Selecting one needs the overload list
+written out — `typeof r extends { (): infer V, (x?: string): unknown } ? V`
+— which is the declaration itself, not something derivable from it. The rule-set
+derivation closes it by calling the rule rather than reading its type.
 
 ### Why none of them is a guard
 
