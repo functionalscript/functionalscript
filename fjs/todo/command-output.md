@@ -184,9 +184,14 @@ postponed rather than missed.
       or a command's diagnostics.
 - [ ] Enumerate the report contracts **already designed but not yet emitted**,
       by sweeping the `todo/` directory of every producer task 1 found. The
-      rule: *every unresolved issue specifying anything a destination must emit
-      — a field, a status, a tally, an annotation, a record that is not a
-      result, an ordering between records — is an input to the shape.*
+      rule: *every unresolved issue constraining what a destination emits — a
+      field, a status, a tally, an annotation, a record that is not a result,
+      an ordering between records, or a requirement to emit **nothing** — is an
+      input to the shape.* Suppression is a contract like any other:
+      [66j-cas-add-directory](../cas/todo/66j-cas-add-directory.md) requires a
+      partial failure to print no manifest hash, "a manifest referencing blobs
+      that never landed would be a lie", and a predicate about what must be
+      emitted cannot see it.
       **Unresolved**, not `open`: that is one
       [status](../../todo/README.md#status-values) among several, and every
       issue this document blocks is `blocked`. A sweep, deliberately not a list
