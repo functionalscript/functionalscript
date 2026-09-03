@@ -34,3 +34,4 @@
 - [ ] remove copilot MCP and copying the MCP to VSCode.
 - [ ] we may try to use `BoundedArray<2, 4, T>` instead of `OptionTailArray<2, 4, T>` in EDAG and RTTI for `[t, t, option(t), option(t)]`
 - [ ] remove useless crappy tests like fjs/rtti/host.proof.mjs. Nobody asks for them, nobody need them, nobody prioritizes them. They come from infinite reviewer speculation about "what if".
+- [ ] NiX and Rust eDSL should follow the same conventions as RTTI, new EBNF, HTML and EDAG. Use plain objects to define normal objects.
