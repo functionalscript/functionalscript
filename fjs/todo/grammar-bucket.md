@@ -186,8 +186,10 @@ A module the migration creates goes to its final path immediately, never to
       the `descent/types.ts` front-end import. Repoint **every** consumer in
       the same PR, since there are no re-exports: `data`, `matcher`, `ll1`,
       `descent`, `token_symbol`, the front-end module itself (it calls the
-      codec internally), and `fjs/djs/parser`, which imports `eof`,
-      `oneEncode` and `rangeDecode` today.
+      codec internally), and both `fjs/djs` roots: `parser/module.f.mjs`
+      takes `eof`, `oneEncode` and `rangeDecode`, `tokenizer/module.f.mjs`
+      takes `eof`. Each splits its import here and keeps its Unicode helpers
+      pointed at the front end until stage 2.
 - [ ] Stage 1: give `terminal/` a co-located `proof.f.mjs`, carrying the codec
       cases out of `fjs/bnf/proof.f.mjs` — `rangeEncode`, `rangeDecode`,
       `oneEncode`, `eofSymbol` / `eof`, `fullRange` and its boundary case
