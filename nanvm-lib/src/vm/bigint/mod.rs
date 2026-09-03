@@ -3,6 +3,7 @@ mod cmp;
 mod debug;
 mod default;
 mod display;
+mod div;
 mod from;
 mod index;
 mod mul;
@@ -21,6 +22,10 @@ use crate::{
     sign::Sign,
     vm::{IContainer, IVm},
 };
+
+/// The exact V8 message for dividing (`/`) or taking the remainder (`%`) of
+/// a `BigInt` by zero.
+pub(super) const DIVISION_BY_ZERO: &str = "RangeError: Division by zero";
 
 // TODO: change it to Iterator/SizedIndex-based implementation.
 fn normalize(vec: &[u64]) -> &[u64] {
@@ -253,20 +258,20 @@ impl<A: IVm> BigInt<A> {
         normalize(&out).to_vec()
     }
 
-    /// `|self| % |rhs|`, via schoolbook binary long division: one bit of the
-    /// dividend at a time, shifted into a running remainder that is reduced
-    /// by the divisor whenever it grows large enough. There is no quotient to
-    /// track, which is what makes this simpler than a full division and unfit
-    /// to serve `/` as well.
+    /// `(|self| / |rhs|, |self| % |rhs|)`, via schoolbook binary long
+    /// division: one bit of the dividend at a time, shifted into a running
+    /// remainder that is reduced by the divisor whenever it grows large
+    /// enough, recording a quotient bit each time it is.
     ///
     /// Precondition: both operands are normalized, and `rhs` is non-zero.
-    fn abs_rem_vec(self, rhs: Self) -> Vec<u64> {
+    fn abs_divmod_vec(self, rhs: Self) -> (Vec<u64>, Vec<u64>) {
         self.assert_normalized();
         rhs.assert_normalized();
 
         let denom: Vec<u64> = rhs.index_iter().collect();
         let numer: Vec<u64> = self.index_iter().collect();
 
+        let mut quotient: Vec<u64> = vec![0; numer.len()];
         let mut remainder: Vec<u64> = Vec::new();
         for bit in (0..numer.len() as u32 * 64).rev() {
             let numer_bit = (numer[(bit / 64) as usize] >> (bit % 64)) & 1;
@@ -283,10 +288,11 @@ impl<A: IVm> BigInt<A> {
 
             if cmp_words(&remainder, &denom) != Ordering::Less {
                 sub_words_assign(&mut remainder, &denom);
+                quotient[(bit / 64) as usize] |= 1u64 << (bit % 64);
             }
         }
 
-        remainder
+        (normalize(&quotient).to_vec(), remainder)
     }
 }
 

@@ -1,8 +1,7 @@
 use core::ops::Rem;
 
+use super::DIVISION_BY_ZERO;
 use crate::vm::{Any, BigInt, IVm};
-
-const DIVISION_BY_ZERO: &str = "RangeError: Division by zero";
 
 impl<A: IVm> Rem for BigInt<A> {
     type Output = Result<Self, Any<A>>;
@@ -15,7 +14,7 @@ impl<A: IVm> Rem for BigInt<A> {
             return Err(DIVISION_BY_ZERO.into());
         }
         let sign = self.sign();
-        let remainder = self.abs_rem_vec(rhs);
+        let (_, remainder) = self.abs_divmod_vec(rhs);
         Ok(if remainder.is_empty() {
             Self::default()
         } else {

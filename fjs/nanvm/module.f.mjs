@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 7
+ * data.groups.length // 8
  * ```
  */
 
@@ -345,6 +345,71 @@ const mulCases = [
 ]
 
 /**
+ * `/` coerces both operands with `ToNumeric` like `*`, and like `%` is
+ * neither commutative nor symmetric between mixed sign operands. Number `/`
+ * never throws: dividing by `0` or `-0` produces a signed `Infinity` (unless
+ * the dividend is also zero, giving `NaN`), and dividing by an infinite
+ * divisor produces a signed zero for a finite dividend. BigInt `/` truncates
+ * toward zero and throws — instead of producing `Infinity` — on a zero
+ * divisor; mixed number/bigint operands throw too, the same as every other
+ * arithmetic operator here.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const divCases = [
+    { name: 'nullDividedByFour', args: [null, 4], expected: 0 },
+    { name: 'undefinedDividedByFour', args: [undefined, 4], expected: NaN },
+    { name: 'trueDividedByFour', args: [true, 4], expected: 0.25 },
+    { name: 'falseDividedByFour', args: [false, 4], expected: 0 },
+    { name: 'stringTenDividedByFour', args: ['10', 4], expected: 2.5 },
+    { name: 'stringLetterDividedByFour', args: ['a', 4], expected: NaN },
+    { name: 'emptyArrayDividedByFour', args: [[], 4], expected: 0 },
+    { name: 'arrayTenDividedByFour', args: [[10], 4], expected: 2.5 },
+    { name: 'arrayStringTenDividedByFour', args: [['10'], 4], expected: 2.5 },
+    { name: 'arrayPairDividedByFour', args: [[0, 0], 4], expected: NaN },
+    { name: 'emptyObjectDividedByFour', args: [{}, 4], expected: NaN },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    { name: 'functionDividedByFour', args: [functionValue, 4], expected: NaN },
+    { name: 'zeroDividedByOne', args: [0, 1], expected: 0 },
+    { name: 'negativeZeroDividedByOne', args: [-0, 1], expected: -0 },
+    { name: 'tenDividedByFour', args: [10, 4], expected: 2.5 },
+    { name: 'negativeTenDividedByFour', args: [-10, 4], expected: -2.5 },
+    { name: 'tenDividedByNegativeFour', args: [10, -4], expected: -2.5 },
+    { name: 'negativeTenDividedByNegativeFour', args: [-10, -4], expected: 2.5 },
+    { name: 'fiveDividedByZero', args: [5, 0], expected: Infinity },
+    { name: 'negativeFiveDividedByZero', args: [-5, 0], expected: -Infinity },
+    { name: 'fiveDividedByNegativeZero', args: [5, -0], expected: -Infinity },
+    { name: 'negativeFiveDividedByNegativeZero', args: [-5, -0], expected: Infinity },
+    { name: 'zeroDividedByZero', args: [0, 0], expected: NaN },
+    { name: 'negativeZeroDividedByZero', args: [-0, 0], expected: NaN },
+    { name: 'zeroDividedByNegativeZero', args: [0, -0], expected: NaN },
+    { name: 'negativeZeroDividedByNegativeZero', args: [-0, -0], expected: NaN },
+    { name: 'infinityDividedByFive', args: [Infinity, 5], expected: Infinity },
+    { name: 'infinityDividedByNegativeFive', args: [Infinity, -5], expected: -Infinity },
+    { name: 'negativeInfinityDividedByFive', args: [-Infinity, 5], expected: -Infinity },
+    { name: 'fiveDividedByInfinity', args: [5, Infinity], expected: 0 },
+    { name: 'negativeFiveDividedByInfinity', args: [-5, Infinity], expected: -0 },
+    { name: 'fiveDividedByNegativeInfinity', args: [5, -Infinity], expected: -0 },
+    { name: 'infinityDividedByInfinity', args: [Infinity, Infinity], expected: NaN },
+    { name: 'infinityDividedByNegativeInfinity', args: [Infinity, -Infinity], expected: NaN },
+    { name: 'nanDividedByOne', args: [NaN, 1], expected: NaN },
+    { name: 'oneDividedByNan', args: [1, NaN], expected: NaN },
+    { name: 'sevenDividedByTwo', args: [7, 2], expected: 3.5 },
+    { name: 'oneDividedByThree', args: [1, 3], expected: 1 / 3 },
+    { name: 'bigTenDividedByThree', args: [10n, 3n], expected: 3n },
+    { name: 'bigNegativeTenDividedByThree', args: [-10n, 3n], expected: -3n },
+    { name: 'bigTenDividedByNegativeThree', args: [10n, -3n], expected: -3n },
+    { name: 'bigNegativeTenDividedByNegativeThree', args: [-10n, -3n], expected: 3n },
+    { name: 'bigSevenDividedByTwo', args: [7n, 2n], expected: 3n },
+    { name: 'bigNegativeSevenDividedByTwo', args: [-7n, 2n], expected: -3n },
+    { name: 'bigZeroDividedByFive', args: [0n, 5n], expected: 0n },
+    { name: 'bigTenDividedByZero', args: [10n, 0n], expected: throws },
+    { name: 'numberDividedByBigint', args: [1, 1n], expected: throws },
+    { name: 'bigintDividedByNumber', args: [1n, 1], expected: throws },
+]
+
+/**
  * Subtraction has the same numeric coercion and mixed-number-kind rejection
  * as multiplication, but its operand order is observable.
  *
@@ -559,6 +624,7 @@ export const data = {
             ],
         },
         { op: '*', commutative: true, cases: mulCases },
+        { op: '/', cases: divCases },
         { op: '-', cases: subCases },
         { op: '+', cases: addCases },
         { op: '%', cases: remCases },

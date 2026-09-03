@@ -177,6 +177,58 @@ fn mul<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn div<A: IVm>() {
+    check::<A>("nullDividedByFour", Nullish::Null.to_any() / (4f64).to_any(), (0f64).to_any());
+    check::<A>("undefinedDividedByFour", Nullish::Undefined.to_any() / (4f64).to_any(), (f64::NAN).to_any());
+    check::<A>("trueDividedByFour", true.to_any() / (4f64).to_any(), (0.25f64).to_any());
+    check::<A>("falseDividedByFour", false.to_any() / (4f64).to_any(), (0f64).to_any());
+    check::<A>("stringTenDividedByFour", string_any("10") / (4f64).to_any(), (2.5f64).to_any());
+    check::<A>("stringLetterDividedByFour", string_any("a") / (4f64).to_any(), (f64::NAN).to_any());
+    check::<A>("emptyArrayDividedByFour", Array::default().to_any() / (4f64).to_any(), (0f64).to_any());
+    check::<A>("arrayTenDividedByFour", [(10f64).to_any()].to_array().to_any() / (4f64).to_any(), (2.5f64).to_any());
+    check::<A>("arrayStringTenDividedByFour", [string_any("10")].to_array().to_any() / (4f64).to_any(), (2.5f64).to_any());
+    check::<A>("arrayPairDividedByFour", [(0f64).to_any(), (0f64).to_any()].to_array().to_any() / (4f64).to_any(), (f64::NAN).to_any());
+    check::<A>("emptyObjectDividedByFour", Object::default().to_any() / (4f64).to_any(), (f64::NAN).to_any());
+    check::<A>("functionDividedByFour", function_any() / (4f64).to_any(), (f64::NAN).to_any());
+    check::<A>("zeroDividedByOne", (0f64).to_any() / (1f64).to_any(), (0f64).to_any());
+    check::<A>("negativeZeroDividedByOne", (-0f64).to_any() / (1f64).to_any(), (-0f64).to_any());
+    check::<A>("tenDividedByFour", (10f64).to_any() / (4f64).to_any(), (2.5f64).to_any());
+    check::<A>("negativeTenDividedByFour", (-10f64).to_any() / (4f64).to_any(), (-2.5f64).to_any());
+    check::<A>("tenDividedByNegativeFour", (10f64).to_any() / (-4f64).to_any(), (-2.5f64).to_any());
+    check::<A>("negativeTenDividedByNegativeFour", (-10f64).to_any() / (-4f64).to_any(), (2.5f64).to_any());
+    check::<A>("fiveDividedByZero", (5f64).to_any() / (0f64).to_any(), (f64::INFINITY).to_any());
+    check::<A>("negativeFiveDividedByZero", (-5f64).to_any() / (0f64).to_any(), (f64::NEG_INFINITY).to_any());
+    check::<A>("fiveDividedByNegativeZero", (5f64).to_any() / (-0f64).to_any(), (f64::NEG_INFINITY).to_any());
+    check::<A>("negativeFiveDividedByNegativeZero", (-5f64).to_any() / (-0f64).to_any(), (f64::INFINITY).to_any());
+    check::<A>("zeroDividedByZero", (0f64).to_any() / (0f64).to_any(), (f64::NAN).to_any());
+    check::<A>("negativeZeroDividedByZero", (-0f64).to_any() / (0f64).to_any(), (f64::NAN).to_any());
+    check::<A>("zeroDividedByNegativeZero", (0f64).to_any() / (-0f64).to_any(), (f64::NAN).to_any());
+    check::<A>("negativeZeroDividedByNegativeZero", (-0f64).to_any() / (-0f64).to_any(), (f64::NAN).to_any());
+    check::<A>("infinityDividedByFive", (f64::INFINITY).to_any() / (5f64).to_any(), (f64::INFINITY).to_any());
+    check::<A>("infinityDividedByNegativeFive", (f64::INFINITY).to_any() / (-5f64).to_any(), (f64::NEG_INFINITY).to_any());
+    check::<A>("negativeInfinityDividedByFive", (f64::NEG_INFINITY).to_any() / (5f64).to_any(), (f64::NEG_INFINITY).to_any());
+    check::<A>("fiveDividedByInfinity", (5f64).to_any() / (f64::INFINITY).to_any(), (0f64).to_any());
+    check::<A>("negativeFiveDividedByInfinity", (-5f64).to_any() / (f64::INFINITY).to_any(), (-0f64).to_any());
+    check::<A>("fiveDividedByNegativeInfinity", (5f64).to_any() / (f64::NEG_INFINITY).to_any(), (-0f64).to_any());
+    check::<A>("infinityDividedByInfinity", (f64::INFINITY).to_any() / (f64::INFINITY).to_any(), (f64::NAN).to_any());
+    check::<A>("infinityDividedByNegativeInfinity", (f64::INFINITY).to_any() / (f64::NEG_INFINITY).to_any(), (f64::NAN).to_any());
+    check::<A>("nanDividedByOne", (f64::NAN).to_any() / (1f64).to_any(), (f64::NAN).to_any());
+    check::<A>("oneDividedByNan", (1f64).to_any() / (f64::NAN).to_any(), (f64::NAN).to_any());
+    check::<A>("sevenDividedByTwo", (7f64).to_any() / (2f64).to_any(), (3.5f64).to_any());
+    check::<A>("oneDividedByThree", (1f64).to_any() / (3f64).to_any(), (0.3333333333333333f64).to_any());
+    check::<A>("bigTenDividedByThree", bigint_any(10) / bigint_any(3), bigint_any(3));
+    check::<A>("bigNegativeTenDividedByThree", bigint_any(-10) / bigint_any(3), bigint_any(-3));
+    check::<A>("bigTenDividedByNegativeThree", bigint_any(10) / bigint_any(-3), bigint_any(-3));
+    check::<A>("bigNegativeTenDividedByNegativeThree", bigint_any(-10) / bigint_any(-3), bigint_any(3));
+    check::<A>("bigSevenDividedByTwo", bigint_any(7) / bigint_any(2), bigint_any(3));
+    check::<A>("bigNegativeSevenDividedByTwo", bigint_any(-7) / bigint_any(2), bigint_any(-3));
+    check::<A>("bigZeroDividedByFive", bigint_any(0) / bigint_any(5), bigint_any(0));
+    check_throws::<A>("bigTenDividedByZero", bigint_any(10) / bigint_any(0));
+    check_throws::<A>("numberDividedByBigint", (1f64).to_any() / bigint_any(1));
+    check_throws::<A>("bigintDividedByNumber", bigint_any(1) / (1f64).to_any());
+}
+
+#[rustfmt::skip]
 fn sub<A: IVm>() {
     check::<A>("nullMinusNull", Nullish::Null.to_any() - Nullish::Null.to_any(), (0f64).to_any());
     check::<A>("nullMinusZero", Nullish::Null.to_any() - (0f64).to_any(), (0f64).to_any());
@@ -299,6 +351,7 @@ pub fn all<A: IVm>() {
     unary_plus::<A>();
     neg::<A>();
     mul::<A>();
+    div::<A>();
     sub::<A>();
     add::<A>();
     rem::<A>();

@@ -83,6 +83,7 @@ export const rustName = {
     unaryPlus: 'unary_plus',
     neg: 'neg',
     '*': 'mul',
+    '/': 'div',
     '-': 'sub',
     '+': 'add',
     '%': 'rem',
@@ -103,7 +104,7 @@ const op1Rust = {
 /**
  * The same, for the binary operations.
  *
- * An operator not yet implemented in `nanvm-lib` (such as `/`) has every one
+ * An operator not yet implemented in `nanvm-lib` (such as `**`) has every one
  * of its cases carry a `rust` reason, and `emit` prints this text as a
  * comment rather than a statement — this entry only has to read as the
  * operation, not compile.
@@ -112,6 +113,7 @@ const op1Rust = {
  */
 const op2Rust = {
     '*': (a, b) => `${a} * ${b}`,
+    '/': (a, b) => `${a} / ${b}`,
     '-': (a, b) => `${a} - ${b}`,
     '+': (a, b) => `${a} + ${b}`,
     '%': (a, b) => `${a} % ${b}`,
@@ -257,7 +259,7 @@ export const valueExpr = v => isFunctionValue(v) ? 'function_any()' : nodeExpr(v
  *
  * One line per case, reason and statement together: a group where every case
  * carries the same `rust` reason (an operator with no `nanvm-lib`
- * implementation at all, such as `/`) would otherwise repeat that reason on
+ * implementation at all, such as `**`) would otherwise repeat that reason on
  * its own line before each one, doubling the line count for no new
  * information.
  *
