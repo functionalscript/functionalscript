@@ -3,11 +3,14 @@ mod cmp;
 mod debug;
 mod default;
 mod display;
+mod div;
 mod from;
 mod index;
 mod mul;
 mod neg;
 mod partial_eq;
+mod pow;
+mod rem;
 mod shl;
 mod shr;
 mod sized_index;
@@ -21,12 +24,58 @@ use crate::{
     vm::{IContainer, IVm},
 };
 
+/// The exact V8 message for dividing (`/`) or taking the remainder (`%`) of
+/// a `BigInt` by zero.
+pub(super) const DIVISION_BY_ZERO: &str = "RangeError: Division by zero";
+
 // TODO: change it to Iterator/SizedIndex-based implementation.
 fn normalize(vec: &[u64]) -> &[u64] {
     let last_nonzero_index = vec.iter().rposition(|&x| x != 0);
     match last_nonzero_index {
         Some(index) => &vec[..=index],
         None => &[], // All elements are zero, return an empty slice
+    }
+}
+
+/// Compares two magnitudes with no leading (most-significant) zero words, by
+/// length first and then from the most-significant word down — the same rule
+/// [`BigInt::abs_cmp_vec`] uses, but over plain words instead of `BigInt`s, so
+/// [`abs_divmod_vec`](BigInt::abs_divmod_vec) can compare its running
+/// remainder against the divisor on every bit without rebuilding a `BigInt`
+/// each time.
+fn cmp_words(a: &[u64], b: &[u64]) -> Ordering {
+    let len_cmp = a.len().cmp(&b.len());
+    if len_cmp != Ordering::Equal {
+        return len_cmp;
+    }
+    for i in (0..a.len()).rev() {
+        let word_cmp = a[i].cmp(&b[i]);
+        if word_cmp != Ordering::Equal {
+            return word_cmp;
+        }
+    }
+    Ordering::Equal
+}
+
+/// `a -= b`, in place, trimming any leading zero words the subtraction
+/// produces so `a` stays normalized.
+///
+/// Precondition: `cmp_words(a, b)` is not `Ordering::Less`.
+fn sub_words_assign(a: &mut Vec<u64>, b: &[u64]) {
+    let mut borrow = 0u64;
+    for (i, word) in a.iter_mut().enumerate() {
+        let subtrahend = b.get(i).copied().unwrap_or(0) as u128 + borrow as u128;
+        let minuend = *word as u128;
+        if minuend >= subtrahend {
+            *word = (minuend - subtrahend) as u64;
+            borrow = 0;
+        } else {
+            *word = (minuend + (1u128 << 64) - subtrahend) as u64;
+            borrow = 1;
+        }
+    }
+    while a.last() == Some(&0) {
+        a.pop();
     }
 }
 
@@ -209,6 +258,43 @@ impl<A: IVm> BigInt<A> {
         }
 
         normalize(&out).to_vec()
+    }
+
+    /// `(|self| / |rhs|, |self| % |rhs|)`, via schoolbook binary long
+    /// division: one bit of the dividend at a time, shifted into a running
+    /// remainder that is reduced by the divisor whenever it grows large
+    /// enough, recording a quotient bit each time it is.
+    ///
+    /// Precondition: both operands are normalized, and `rhs` is non-zero.
+    fn abs_divmod_vec(self, rhs: Self) -> (Vec<u64>, Vec<u64>) {
+        self.assert_normalized();
+        rhs.assert_normalized();
+
+        let denom: Vec<u64> = rhs.index_iter().collect();
+        let numer: Vec<u64> = self.index_iter().collect();
+
+        let mut quotient: Vec<u64> = vec![0; numer.len()];
+        let mut remainder: Vec<u64> = Vec::new();
+        for bit in (0..numer.len() as u32 * 64).rev() {
+            let numer_bit = (numer[(bit / 64) as usize] >> (bit % 64)) & 1;
+
+            let mut carry = numer_bit;
+            for word in remainder.iter_mut() {
+                let next_carry = *word >> 63;
+                *word = (*word << 1) | carry;
+                carry = next_carry;
+            }
+            if carry != 0 {
+                remainder.push(carry);
+            }
+
+            if cmp_words(&remainder, &denom) != Ordering::Less {
+                sub_words_assign(&mut remainder, &denom);
+                quotient[(bit / 64) as usize] |= 1u64 << (bit % 64);
+            }
+        }
+
+        (normalize(&quotient).to_vec(), remainder)
     }
 }
 

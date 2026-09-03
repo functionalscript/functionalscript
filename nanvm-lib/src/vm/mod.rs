@@ -3,6 +3,7 @@ mod array;
 mod bigint;
 mod container_fmt;
 mod dispatch;
+mod ecma_whitespace;
 mod function;
 mod impls;
 mod internal;

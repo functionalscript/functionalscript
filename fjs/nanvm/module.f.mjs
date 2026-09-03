@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 7
+ * data.groups.length // 13
  * ```
  */
 
@@ -345,6 +345,141 @@ const mulCases = [
 ]
 
 /**
+ * `/` coerces both operands with `ToNumeric` like `*`, and like `%` is
+ * neither commutative nor symmetric between mixed sign operands. Number `/`
+ * never throws: dividing by `0` or `-0` produces a signed `Infinity` (unless
+ * the dividend is also zero, giving `NaN`), and dividing by an infinite
+ * divisor produces a signed zero for a finite dividend. BigInt `/` truncates
+ * toward zero and throws — instead of producing `Infinity` — on a zero
+ * divisor; mixed number/bigint operands throw too, the same as every other
+ * arithmetic operator here.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const divCases = [
+    { name: 'nullDividedByFour', args: [null, 4], expected: 0 },
+    { name: 'undefinedDividedByFour', args: [undefined, 4], expected: NaN },
+    { name: 'trueDividedByFour', args: [true, 4], expected: 0.25 },
+    { name: 'falseDividedByFour', args: [false, 4], expected: 0 },
+    { name: 'stringTenDividedByFour', args: ['10', 4], expected: 2.5 },
+    { name: 'stringLetterDividedByFour', args: ['a', 4], expected: NaN },
+    { name: 'emptyArrayDividedByFour', args: [[], 4], expected: 0 },
+    { name: 'arrayTenDividedByFour', args: [[10], 4], expected: 2.5 },
+    { name: 'arrayStringTenDividedByFour', args: [['10'], 4], expected: 2.5 },
+    { name: 'arrayPairDividedByFour', args: [[0, 0], 4], expected: NaN },
+    { name: 'emptyObjectDividedByFour', args: [{}, 4], expected: NaN },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    { name: 'functionDividedByFour', args: [functionValue, 4], expected: NaN },
+    { name: 'zeroDividedByOne', args: [0, 1], expected: 0 },
+    { name: 'negativeZeroDividedByOne', args: [-0, 1], expected: -0 },
+    { name: 'tenDividedByFour', args: [10, 4], expected: 2.5 },
+    { name: 'negativeTenDividedByFour', args: [-10, 4], expected: -2.5 },
+    { name: 'tenDividedByNegativeFour', args: [10, -4], expected: -2.5 },
+    { name: 'negativeTenDividedByNegativeFour', args: [-10, -4], expected: 2.5 },
+    { name: 'fiveDividedByZero', args: [5, 0], expected: Infinity },
+    { name: 'negativeFiveDividedByZero', args: [-5, 0], expected: -Infinity },
+    { name: 'fiveDividedByNegativeZero', args: [5, -0], expected: -Infinity },
+    { name: 'negativeFiveDividedByNegativeZero', args: [-5, -0], expected: Infinity },
+    { name: 'zeroDividedByZero', args: [0, 0], expected: NaN },
+    { name: 'negativeZeroDividedByZero', args: [-0, 0], expected: NaN },
+    { name: 'zeroDividedByNegativeZero', args: [0, -0], expected: NaN },
+    { name: 'negativeZeroDividedByNegativeZero', args: [-0, -0], expected: NaN },
+    { name: 'infinityDividedByFive', args: [Infinity, 5], expected: Infinity },
+    { name: 'infinityDividedByNegativeFive', args: [Infinity, -5], expected: -Infinity },
+    { name: 'negativeInfinityDividedByFive', args: [-Infinity, 5], expected: -Infinity },
+    { name: 'fiveDividedByInfinity', args: [5, Infinity], expected: 0 },
+    { name: 'negativeFiveDividedByInfinity', args: [-5, Infinity], expected: -0 },
+    { name: 'fiveDividedByNegativeInfinity', args: [5, -Infinity], expected: -0 },
+    { name: 'infinityDividedByInfinity', args: [Infinity, Infinity], expected: NaN },
+    { name: 'infinityDividedByNegativeInfinity', args: [Infinity, -Infinity], expected: NaN },
+    { name: 'nanDividedByOne', args: [NaN, 1], expected: NaN },
+    { name: 'oneDividedByNan', args: [1, NaN], expected: NaN },
+    { name: 'sevenDividedByTwo', args: [7, 2], expected: 3.5 },
+    { name: 'oneDividedByThree', args: [1, 3], expected: 1 / 3 },
+    { name: 'bigTenDividedByThree', args: [10n, 3n], expected: 3n },
+    { name: 'bigNegativeTenDividedByThree', args: [-10n, 3n], expected: -3n },
+    { name: 'bigTenDividedByNegativeThree', args: [10n, -3n], expected: -3n },
+    { name: 'bigNegativeTenDividedByNegativeThree', args: [-10n, -3n], expected: 3n },
+    { name: 'bigSevenDividedByTwo', args: [7n, 2n], expected: 3n },
+    { name: 'bigNegativeSevenDividedByTwo', args: [-7n, 2n], expected: -3n },
+    { name: 'bigZeroDividedByFive', args: [0n, 5n], expected: 0n },
+    { name: 'bigTenDividedByZero', args: [10n, 0n], expected: throws },
+    { name: 'numberDividedByBigint', args: [1, 1n], expected: throws },
+    { name: 'bigintDividedByNumber', args: [1n, 1], expected: throws },
+]
+
+/**
+ * `**` coerces both operands with `ToNumeric` like `*`, but Number
+ * exponentiation (`Number::exponentiate`) is its own algorithm and not `pow`
+ * applied naively: the exponent's sign and parity decide the result at every
+ * infinity and zero, independently of the base's magnitude, and a few cases
+ * override what the magnitude rule would otherwise give — `NaN ** 0` and
+ * `x ** NaN` are governed by the exponent alone (`1`/`NaN`) regardless of the
+ * base, and `1 ** Infinity` is `NaN` even though `1` is decisive nowhere
+ * else. A finite negative base with a finite non-integer exponent has no
+ * real result and is `NaN`, unlike `Math.pow`, which agrees here. BigInt `**`
+ * throws — instead of coercing to a fraction — on a negative exponent, and
+ * mixed number/bigint operands throw too, the same as every other arithmetic
+ * operator here.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const expCases = [
+    { name: 'nullToThePowerOfTwo', args: [null, 2], expected: 0 },
+    { name: 'undefinedToThePowerOfTwo', args: [undefined, 2], expected: NaN },
+    { name: 'trueToThePowerOfTwo', args: [true, 2], expected: 1 },
+    { name: 'falseToThePowerOfTwo', args: [false, 2], expected: 0 },
+    { name: 'stringThreeToThePowerOfTwo', args: ['3', 2], expected: 9 },
+    { name: 'stringLetterToThePowerOfTwo', args: ['a', 2], expected: NaN },
+    { name: 'emptyArrayToThePowerOfTwo', args: [[], 2], expected: 0 },
+    { name: 'arrayThreeToThePowerOfTwo', args: [[3], 2], expected: 9 },
+    { name: 'arrayStringThreeToThePowerOfTwo', args: [['3'], 2], expected: 9 },
+    { name: 'arrayPairToThePowerOfTwo', args: [[0, 0], 2], expected: NaN },
+    { name: 'emptyObjectToThePowerOfTwo', args: [{}, 2], expected: NaN },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    { name: 'functionToThePowerOfTwo', args: [functionValue, 2], expected: NaN },
+    { name: 'twoToThePowerOfTen', args: [2, 10], expected: 1024 },
+    { name: 'twoToThePowerOfHalf', args: [2, 0.5], expected: 2 ** 0.5 },
+    { name: 'twoToThePowerOfNegativeOne', args: [2, -1], expected: 0.5 },
+    { name: 'negativeTwoToThePowerOfThree', args: [-2, 3], expected: -8 },
+    { name: 'negativeTwoToThePowerOfTwo', args: [-2, 2], expected: 4 },
+    { name: 'zeroToThePowerOfZero', args: [0, 0], expected: 1 },
+    { name: 'negativeZeroToThePowerOfZero', args: [-0, 0], expected: 1 },
+    { name: 'nanToThePowerOfZero', args: [NaN, 0], expected: 1 },
+    { name: 'twoToThePowerOfNan', args: [2, NaN], expected: NaN },
+    { name: 'nanToThePowerOfNan', args: [NaN, NaN], expected: NaN },
+    { name: 'oneToThePowerOfInfinity', args: [1, Infinity], expected: NaN },
+    { name: 'negativeOneToThePowerOfInfinity', args: [-1, Infinity], expected: NaN },
+    { name: 'oneToThePowerOfNegativeInfinity', args: [1, -Infinity], expected: NaN },
+    { name: 'twoToThePowerOfInfinity', args: [2, Infinity], expected: Infinity },
+    { name: 'negativeTwoToThePowerOfInfinity', args: [-2, Infinity], expected: Infinity },
+    { name: 'halfToThePowerOfInfinity', args: [0.5, Infinity], expected: 0 },
+    { name: 'twoToThePowerOfNegativeInfinity', args: [2, -Infinity], expected: 0 },
+    { name: 'halfToThePowerOfNegativeInfinity', args: [0.5, -Infinity], expected: Infinity },
+    { name: 'infinityToThePowerOfTwo', args: [Infinity, 2], expected: Infinity },
+    { name: 'infinityToThePowerOfNegativeTwo', args: [Infinity, -2], expected: 0 },
+    { name: 'negativeInfinityToThePowerOfThree', args: [-Infinity, 3], expected: -Infinity },
+    { name: 'negativeInfinityToThePowerOfTwo', args: [-Infinity, 2], expected: Infinity },
+    { name: 'negativeInfinityToThePowerOfNegativeThree', args: [-Infinity, -3], expected: -0 },
+    { name: 'negativeInfinityToThePowerOfNegativeTwo', args: [-Infinity, -2], expected: 0 },
+    { name: 'zeroToThePowerOfTwo', args: [0, 2], expected: 0 },
+    { name: 'zeroToThePowerOfNegativeTwo', args: [0, -2], expected: Infinity },
+    { name: 'negativeZeroToThePowerOfThree', args: [-0, 3], expected: -0 },
+    { name: 'negativeZeroToThePowerOfTwo', args: [-0, 2], expected: 0 },
+    { name: 'negativeZeroToThePowerOfNegativeThree', args: [-0, -3], expected: -Infinity },
+    { name: 'negativeZeroToThePowerOfNegativeTwo', args: [-0, -2], expected: Infinity },
+    { name: 'negativeTwoToThePowerOfHalf', args: [-2, 0.5], expected: NaN },
+    { name: 'bigTwoToThePowerOfTen', args: [2n, 10n], expected: 1024n },
+    { name: 'bigZeroToThePowerOfZero', args: [0n, 0n], expected: 1n },
+    { name: 'bigNegativeTwoToThePowerOfThree', args: [-2n, 3n], expected: -8n },
+    { name: 'bigTwoToThePowerOfNegativeOne', args: [2n, -1n], expected: throws },
+    { name: 'numberToThePowerOfBigint', args: [1, 1n], expected: throws },
+    { name: 'bigintToThePowerOfNumber', args: [1n, 1], expected: throws },
+]
+
+/**
  * Subtraction has the same numeric coercion and mixed-number-kind rejection
  * as multiplication, but its operand order is observable.
  *
@@ -378,17 +513,6 @@ const subCases = [
 ]
 
 /**
- * `%` is not implemented in `nanvm-lib` yet (see the operator table in
- * `nanvm-lib/README.md`), so every case below carries this as its `rust`
- * reason: the generated Rust keeps each as a commented-out `TODO`, while the
- * JavaScript proof still runs it. Removing the reason per case is what turns
- * it on for Rust once `%` lands there.
- *
- * @type {string}
- */
-const remNotImplemented = '`%` is not implemented in nanvm-lib yet'
-
-/**
  * `%` coerces both operands with `ToNumeric` like `*`, but is neither
  * commutative nor symmetric between mixed sign operands: the result's sign
  * follows the dividend (left operand), not the divisor. Number `%` never
@@ -402,56 +526,46 @@ const remNotImplemented = '`%` is not implemented in nanvm-lib yet'
  * @type {readonly Case<2>[]}
  */
 const remCases = [
-    { name: 'nullModThree', args: [null, 3], expected: 0, rust: remNotImplemented },
-    { name: 'undefinedModThree', args: [undefined, 3], expected: NaN, rust: remNotImplemented },
-    { name: 'trueModThree', args: [true, 3], expected: 1, rust: remNotImplemented },
-    { name: 'falseModThree', args: [false, 3], expected: 0, rust: remNotImplemented },
-    { name: 'stringTenModThree', args: ['10', 3], expected: 1, rust: remNotImplemented },
-    { name: 'stringLetterModThree', args: ['a', 3], expected: NaN, rust: remNotImplemented },
-    { name: 'emptyArrayModThree', args: [[], 3], expected: 0, rust: remNotImplemented },
-    { name: 'arrayTenModThree', args: [[10], 3], expected: 1, rust: remNotImplemented },
-    { name: 'arrayStringTenModThree', args: [['10'], 3], expected: 1, rust: remNotImplemented },
-    { name: 'arrayPairModThree', args: [[0, 0], 3], expected: NaN, rust: remNotImplemented },
-    { name: 'emptyObjectModThree', args: [{}, 3], expected: NaN, rust: remNotImplemented },
+    { name: 'nullModThree', args: [null, 3], expected: 0 },
+    { name: 'undefinedModThree', args: [undefined, 3], expected: NaN },
+    { name: 'trueModThree', args: [true, 3], expected: 1 },
+    { name: 'falseModThree', args: [false, 3], expected: 0 },
+    { name: 'stringTenModThree', args: ['10', 3], expected: 1 },
+    { name: 'stringLetterModThree', args: ['a', 3], expected: NaN },
+    { name: 'emptyArrayModThree', args: [[], 3], expected: 0 },
+    { name: 'arrayTenModThree', args: [[10], 3], expected: 1 },
+    { name: 'arrayStringTenModThree', args: [['10'], 3], expected: 1 },
+    { name: 'arrayPairModThree', args: [[0, 0], 3], expected: NaN },
+    { name: 'emptyObjectModThree', args: [{}, 3], expected: NaN },
     // The one binary case that escapes: `functionValue` has no expression, so
     // both consumers take the direct path with two operands rather than one.
-    { name: 'functionModThree', args: [functionValue, 3], expected: NaN, rust: remNotImplemented },
-    { name: 'zeroModOne', args: [0, 1], expected: 0, rust: remNotImplemented },
-    { name: 'negativeZeroModOne', args: [-0, 1], expected: -0, rust: remNotImplemented },
-    { name: 'oneModOne', args: [1, 1], expected: 0, rust: remNotImplemented },
-    { name: 'tenModThree', args: [10, 3], expected: 1, rust: remNotImplemented },
-    { name: 'negativeTenModThree', args: [-10, 3], expected: -1, rust: remNotImplemented },
-    { name: 'tenModNegativeThree', args: [10, -3], expected: 1, rust: remNotImplemented },
-    {
-        name: 'negativeTenModNegativeThree',
-        args: [-10, -3],
-        expected: -1,
-        rust: remNotImplemented,
-    },
-    { name: 'fiveModZero', args: [5, 0], expected: NaN, rust: remNotImplemented },
-    { name: 'zeroModZero', args: [0, 0], expected: NaN, rust: remNotImplemented },
-    { name: 'negativeZeroModZero', args: [-0, 0], expected: NaN, rust: remNotImplemented },
-    { name: 'fiveModInfinity', args: [5, Infinity], expected: 5, rust: remNotImplemented },
-    { name: 'negativeFiveModInfinity', args: [-5, Infinity], expected: -5, rust: remNotImplemented },
-    { name: 'infinityModFive', args: [Infinity, 5], expected: NaN, rust: remNotImplemented },
-    { name: 'infinityModInfinity', args: [Infinity, Infinity], expected: NaN, rust: remNotImplemented },
-    { name: 'nanModOne', args: [NaN, 1], expected: NaN, rust: remNotImplemented },
-    { name: 'oneModNan', args: [1, NaN], expected: NaN, rust: remNotImplemented },
-    { name: 'fractionModTwo', args: [5.5, 2], expected: 1.5, rust: remNotImplemented },
-    { name: 'negativeFractionModTwo', args: [-5.5, 2], expected: -1.5, rust: remNotImplemented },
-    { name: 'bigTenModThree', args: [10n, 3n], expected: 1n, rust: remNotImplemented },
-    { name: 'bigNegativeTenModThree', args: [-10n, 3n], expected: -1n, rust: remNotImplemented },
-    { name: 'bigTenModNegativeThree', args: [10n, -3n], expected: 1n, rust: remNotImplemented },
-    {
-        name: 'bigNegativeTenModNegativeThree',
-        args: [-10n, -3n],
-        expected: -1n,
-        rust: remNotImplemented,
-    },
-    { name: 'bigZeroModOne', args: [0n, 1n], expected: 0n, rust: remNotImplemented },
-    { name: 'bigTenModZero', args: [10n, 0n], expected: throws, rust: remNotImplemented },
-    { name: 'numberModBigint', args: [1, 1n], expected: throws, rust: remNotImplemented },
-    { name: 'bigintModNumber', args: [1n, 1], expected: throws, rust: remNotImplemented },
+    { name: 'functionModThree', args: [functionValue, 3], expected: NaN },
+    { name: 'zeroModOne', args: [0, 1], expected: 0 },
+    { name: 'negativeZeroModOne', args: [-0, 1], expected: -0 },
+    { name: 'oneModOne', args: [1, 1], expected: 0 },
+    { name: 'tenModThree', args: [10, 3], expected: 1 },
+    { name: 'negativeTenModThree', args: [-10, 3], expected: -1 },
+    { name: 'tenModNegativeThree', args: [10, -3], expected: 1 },
+    { name: 'negativeTenModNegativeThree', args: [-10, -3], expected: -1 },
+    { name: 'fiveModZero', args: [5, 0], expected: NaN },
+    { name: 'zeroModZero', args: [0, 0], expected: NaN },
+    { name: 'negativeZeroModZero', args: [-0, 0], expected: NaN },
+    { name: 'fiveModInfinity', args: [5, Infinity], expected: 5 },
+    { name: 'negativeFiveModInfinity', args: [-5, Infinity], expected: -5 },
+    { name: 'infinityModFive', args: [Infinity, 5], expected: NaN },
+    { name: 'infinityModInfinity', args: [Infinity, Infinity], expected: NaN },
+    { name: 'nanModOne', args: [NaN, 1], expected: NaN },
+    { name: 'oneModNan', args: [1, NaN], expected: NaN },
+    { name: 'fractionModTwo', args: [5.5, 2], expected: 1.5 },
+    { name: 'negativeFractionModTwo', args: [-5.5, 2], expected: -1.5 },
+    { name: 'bigTenModThree', args: [10n, 3n], expected: 1n },
+    { name: 'bigNegativeTenModThree', args: [-10n, 3n], expected: -1n },
+    { name: 'bigTenModNegativeThree', args: [10n, -3n], expected: 1n },
+    { name: 'bigNegativeTenModNegativeThree', args: [-10n, -3n], expected: -1n },
+    { name: 'bigZeroModOne', args: [0n, 1n], expected: 0n },
+    { name: 'bigTenModZero', args: [10n, 0n], expected: throws },
+    { name: 'numberModBigint', args: [1, 1n], expected: throws },
+    { name: 'bigintModNumber', args: [1n, 1], expected: throws },
 ]
 
 /**
@@ -480,6 +594,297 @@ const addCases = [
     { name: 'emptyObjectPlusOne', args: [{}, 1], expected: '[object Object]1' },
     { name: 'numberPlusBigint', args: [1, 1n], expected: throws },
     { name: 'bigintPlusNumber', args: [1n, 1], expected: throws },
+]
+
+/**
+ * `<` never throws, unlike the arithmetic operators: it `ToPrimitive`s both
+ * operands (never `ToNumeric` directly), and if *both* results are strings
+ * compares them lexicographically by UTF-16 code unit rather than
+ * numerically — `'10' < '9'` is `true`. Otherwise each side is `ToNumeric`d
+ * on its own, so a `Number` and a `BigInt` compare against each other
+ * directly instead of throwing the `TypeError` `*`, `-`, `+`, `/`, `%` and
+ * `**` all give mixed operands; a `String` compares against a `BigInt` the
+ * same way, via `StringToBigInt`. Any comparison touching `NaN` — directly,
+ * or a string that fails `StringToBigInt` against a `BigInt` — is `false` in
+ * *both* directions, the one asymmetry the corpus's fixed left/right cases
+ * exist to cover since `<` is not commutative the way `*` is.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const lessThanCases = [
+    { name: 'nullLessThanFive', args: [null, 5], expected: true },
+    { name: 'undefinedLessThanFive', args: [undefined, 5], expected: false },
+    { name: 'trueLessThanFive', args: [true, 5], expected: true },
+    { name: 'falseLessThanFive', args: [false, 5], expected: true },
+    { name: 'stringThreeLessThanFive', args: ['3', 5], expected: true },
+    { name: 'stringLetterLessThanFive', args: ['a', 5], expected: false },
+    { name: 'emptyArrayLessThanFive', args: [[], 5], expected: true },
+    { name: 'arrayThreeLessThanFive', args: [[3], 5], expected: true },
+    { name: 'arrayStringThreeLessThanFive', args: [['3'], 5], expected: true },
+    { name: 'arrayPairLessThanFive', args: [[0, 0], 5], expected: false },
+    { name: 'emptyObjectLessThanFive', args: [{}, 5], expected: false },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    { name: 'functionLessThanFive', args: [functionValue, 5], expected: false },
+    { name: 'threeLessThanFive', args: [3, 5], expected: true },
+    { name: 'fiveLessThanThree', args: [5, 3], expected: false },
+    { name: 'fiveLessThanFive', args: [5, 5], expected: false },
+    { name: 'zeroLessThanNegativeZero', args: [0, -0], expected: false },
+    { name: 'negativeZeroLessThanZero', args: [-0, 0], expected: false },
+    { name: 'nanLessThanOne', args: [NaN, 1], expected: false },
+    { name: 'oneLessThanNan', args: [1, NaN], expected: false },
+    { name: 'nanLessThanNan', args: [NaN, NaN], expected: false },
+    { name: 'infinityLessThanOne', args: [Infinity, 1], expected: false },
+    { name: 'oneLessThanInfinity', args: [1, Infinity], expected: true },
+    { name: 'negativeInfinityLessThanInfinity', args: [-Infinity, Infinity], expected: true },
+    { name: 'infinityLessThanInfinity', args: [Infinity, Infinity], expected: false },
+    { name: 'stringTenLessThanStringNine', args: ['10', '9'], expected: true },
+    { name: 'stringNineLessThanStringTen', args: ['9', '10'], expected: false },
+    { name: 'stringALessThanStringB', args: ['a', 'b'], expected: true },
+    { name: 'emptyStringLessThanStringA', args: ['', 'a'], expected: true },
+    { name: 'stringAbLessThanStringAbc', args: ['ab', 'abc'], expected: true },
+    { name: 'stringAbcLessThanStringAb', args: ['abc', 'ab'], expected: false },
+    { name: 'stringUppercaseBLessThanStringA', args: ['B', 'a'], expected: true },
+    { name: 'stringTenLessThanNine', args: ['10', 9], expected: false },
+    { name: 'nineLessThanStringTen', args: [9, '10'], expected: true },
+    { name: 'stringAbcLessThanFive', args: ['abc', 5], expected: false },
+    { name: 'fiveLessThanStringAbc', args: [5, 'abc'], expected: false },
+    { name: 'negativeFiveBigLessThanThreeBig', args: [-5n, 3n], expected: true },
+    { name: 'threeBigLessThanThreeBig', args: [3n, 3n], expected: false },
+    { name: 'threeBigLessThanNegativeFiveBig', args: [3n, -5n], expected: false },
+    // `<` compares a `Number` and a `BigInt` directly rather than throwing —
+    // the opposite of `numberByBigint` in every arithmetic group above.
+    { name: 'fiveBigLessThanFiveHalf', args: [5n, 5.5], expected: true },
+    { name: 'fiveBigLessThanFive', args: [5n, 5], expected: false },
+    { name: 'fiveLessThanFiveBig', args: [5, 5n], expected: false },
+    { name: 'fiveBigLessThanNan', args: [5n, NaN], expected: false },
+    { name: 'nanLessThanFiveBig', args: [NaN, 5n], expected: false },
+    { name: 'fiveBigLessThanInfinity', args: [5n, Infinity], expected: true },
+    { name: 'negativeInfinityLessThanFiveBig', args: [-Infinity, 5n], expected: true },
+    { name: 'infinityLessThanFiveBig', args: [Infinity, 5n], expected: false },
+    { name: 'stringTenLessThanTwentyBig', args: ['10', 20n], expected: true },
+    { name: 'twentyBigLessThanStringThirty', args: [20n, '30'], expected: true },
+    { name: 'stringAbcLessThanTwentyBig', args: ['abc', 20n], expected: false },
+    { name: 'twentyBigLessThanStringAbc', args: [20n, 'abc'], expected: false },
+]
+
+/**
+ * `<=` shares `<`'s coercion (`ToPrimitive`, then lexicographic string
+ * comparison or per-side `ToNumeric`) and never throws either. It is defined
+ * as the negation of the reversed `<` (`x <= y` is `!(y < x)`), *except* that
+ * `NaN` involved anywhere still gives `false`, not the `true` a plain
+ * negation of `<`'s `false` would: `y < x` being `false` because one side is
+ * `NaN` does not make `x <= y` `true`. That is why `1 <= NaN`, `NaN <= 1`,
+ * and `5n <= NaN` are all `false` below, alongside the cases that *do* flip
+ * from `<` — equal operands, equal-valued mixed number/bigint pairs, and
+ * `Infinity <= Infinity` — which are exactly where `<` was `false` for a
+ * reason other than `NaN`.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const lessOrEqualCases = [
+    { name: 'nullLessOrEqualFive', args: [null, 5], expected: true },
+    { name: 'undefinedLessOrEqualFive', args: [undefined, 5], expected: false },
+    { name: 'trueLessOrEqualFive', args: [true, 5], expected: true },
+    { name: 'falseLessOrEqualFive', args: [false, 5], expected: true },
+    { name: 'stringThreeLessOrEqualFive', args: ['3', 5], expected: true },
+    { name: 'stringLetterLessOrEqualFive', args: ['a', 5], expected: false },
+    { name: 'emptyArrayLessOrEqualFive', args: [[], 5], expected: true },
+    { name: 'arrayThreeLessOrEqualFive', args: [[3], 5], expected: true },
+    { name: 'arrayStringThreeLessOrEqualFive', args: [['3'], 5], expected: true },
+    { name: 'arrayPairLessOrEqualFive', args: [[0, 0], 5], expected: false },
+    { name: 'emptyObjectLessOrEqualFive', args: [{}, 5], expected: false },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    { name: 'functionLessOrEqualFive', args: [functionValue, 5], expected: false },
+    { name: 'threeLessOrEqualFive', args: [3, 5], expected: true },
+    { name: 'fiveLessOrEqualThree', args: [5, 3], expected: false },
+    // Equal operands: where `<` was `false`, `<=` flips to `true`.
+    { name: 'fiveLessOrEqualFive', args: [5, 5], expected: true },
+    { name: 'zeroLessOrEqualNegativeZero', args: [0, -0], expected: true },
+    { name: 'negativeZeroLessOrEqualZero', args: [-0, 0], expected: true },
+    // `NaN` involved anywhere stays `false` — the one case negating `<`
+    // would get wrong.
+    { name: 'nanLessOrEqualOne', args: [NaN, 1], expected: false },
+    { name: 'oneLessOrEqualNan', args: [1, NaN], expected: false },
+    { name: 'nanLessOrEqualNan', args: [NaN, NaN], expected: false },
+    { name: 'infinityLessOrEqualOne', args: [Infinity, 1], expected: false },
+    { name: 'oneLessOrEqualInfinity', args: [1, Infinity], expected: true },
+    { name: 'negativeInfinityLessOrEqualInfinity', args: [-Infinity, Infinity], expected: true },
+    // Equal infinities: another `<`-`false` case that flips to `true`.
+    { name: 'infinityLessOrEqualInfinity', args: [Infinity, Infinity], expected: true },
+    { name: 'stringTenLessOrEqualStringNine', args: ['10', '9'], expected: true },
+    { name: 'stringNineLessOrEqualStringTen', args: ['9', '10'], expected: false },
+    { name: 'stringALessOrEqualStringB', args: ['a', 'b'], expected: true },
+    { name: 'emptyStringLessOrEqualStringA', args: ['', 'a'], expected: true },
+    { name: 'stringAbLessOrEqualStringAbc', args: ['ab', 'abc'], expected: true },
+    { name: 'stringAbcLessOrEqualStringAb', args: ['abc', 'ab'], expected: false },
+    { name: 'stringUppercaseBLessOrEqualStringA', args: ['B', 'a'], expected: true },
+    { name: 'stringTenLessOrEqualNine', args: ['10', 9], expected: false },
+    { name: 'nineLessOrEqualStringTen', args: [9, '10'], expected: true },
+    { name: 'stringAbcLessOrEqualFive', args: ['abc', 5], expected: false },
+    { name: 'fiveLessOrEqualStringAbc', args: [5, 'abc'], expected: false },
+    { name: 'negativeFiveBigLessOrEqualThreeBig', args: [-5n, 3n], expected: true },
+    // Equal bigints: a third `<`-`false` case that flips to `true`.
+    { name: 'threeBigLessOrEqualThreeBig', args: [3n, 3n], expected: true },
+    { name: 'threeBigLessOrEqualNegativeFiveBig', args: [3n, -5n], expected: false },
+    // `<=` compares a `Number` and a `BigInt` directly rather than throwing —
+    // the opposite of `numberByBigint` in every arithmetic group above.
+    { name: 'fiveBigLessOrEqualFiveHalf', args: [5n, 5.5], expected: true },
+    // Equal-valued mixed number/bigint pair: another flip from `<`'s `false`.
+    { name: 'fiveBigLessOrEqualFive', args: [5n, 5], expected: true },
+    { name: 'fiveLessOrEqualFiveBig', args: [5, 5n], expected: true },
+    { name: 'fiveBigLessOrEqualNan', args: [5n, NaN], expected: false },
+    { name: 'nanLessOrEqualFiveBig', args: [NaN, 5n], expected: false },
+    { name: 'fiveBigLessOrEqualInfinity', args: [5n, Infinity], expected: true },
+    { name: 'negativeInfinityLessOrEqualFiveBig', args: [-Infinity, 5n], expected: true },
+    { name: 'infinityLessOrEqualFiveBig', args: [Infinity, 5n], expected: false },
+    { name: 'stringTenLessOrEqualTwentyBig', args: ['10', 20n], expected: true },
+    { name: 'twentyBigLessOrEqualStringThirty', args: [20n, '30'], expected: true },
+    { name: 'stringAbcLessOrEqualTwentyBig', args: ['abc', 20n], expected: false },
+    { name: 'twentyBigLessOrEqualStringAbc', args: [20n, 'abc'], expected: false },
+]
+
+/**
+ * `>` never throws, the same as `<`, and is defined as the reversed `<`:
+ * `x > y` is `y < x`. So every case here is a `<` case with its operands
+ * swapped and its same boolean kept — including the coercion family, where
+ * the left operand still carries the coercion under test and `5` moves to
+ * the right so `x > 5` reads the same way `x < 5` did — and the *NaN* rule
+ * carries over unchanged: `NaN` anywhere is `false` in both directions, so
+ * reversing never turns a `<`-`false` into a `>`-`true` the way it does for
+ * an ordinary (non-`NaN`) unequal pair.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const greaterThanCases = [
+    { name: 'nullGreaterThanFive', args: [null, 5], expected: false },
+    { name: 'undefinedGreaterThanFive', args: [undefined, 5], expected: false },
+    { name: 'trueGreaterThanFive', args: [true, 5], expected: false },
+    { name: 'falseGreaterThanFive', args: [false, 5], expected: false },
+    { name: 'stringThreeGreaterThanFive', args: ['3', 5], expected: false },
+    { name: 'stringLetterGreaterThanFive', args: ['a', 5], expected: false },
+    { name: 'emptyArrayGreaterThanFive', args: [[], 5], expected: false },
+    { name: 'arrayThreeGreaterThanFive', args: [[3], 5], expected: false },
+    { name: 'arrayStringThreeGreaterThanFive', args: [['3'], 5], expected: false },
+    { name: 'arrayPairGreaterThanFive', args: [[0, 0], 5], expected: false },
+    { name: 'emptyObjectGreaterThanFive', args: [{}, 5], expected: false },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    { name: 'functionGreaterThanFive', args: [functionValue, 5], expected: false },
+    { name: 'threeGreaterThanFive', args: [3, 5], expected: false },
+    { name: 'fiveGreaterThanThree', args: [5, 3], expected: true },
+    { name: 'fiveGreaterThanFive', args: [5, 5], expected: false },
+    { name: 'zeroGreaterThanNegativeZero', args: [0, -0], expected: false },
+    { name: 'negativeZeroGreaterThanZero', args: [-0, 0], expected: false },
+    { name: 'nanGreaterThanOne', args: [NaN, 1], expected: false },
+    { name: 'oneGreaterThanNan', args: [1, NaN], expected: false },
+    { name: 'nanGreaterThanNan', args: [NaN, NaN], expected: false },
+    { name: 'infinityGreaterThanOne', args: [Infinity, 1], expected: true },
+    { name: 'oneGreaterThanInfinity', args: [1, Infinity], expected: false },
+    { name: 'negativeInfinityGreaterThanInfinity', args: [-Infinity, Infinity], expected: false },
+    { name: 'infinityGreaterThanInfinity', args: [Infinity, Infinity], expected: false },
+    { name: 'stringTenGreaterThanStringNine', args: ['10', '9'], expected: false },
+    { name: 'stringNineGreaterThanStringTen', args: ['9', '10'], expected: true },
+    { name: 'stringAGreaterThanStringB', args: ['a', 'b'], expected: false },
+    { name: 'emptyStringGreaterThanStringA', args: ['', 'a'], expected: false },
+    { name: 'stringAbGreaterThanStringAbc', args: ['ab', 'abc'], expected: false },
+    { name: 'stringAbcGreaterThanStringAb', args: ['abc', 'ab'], expected: true },
+    { name: 'stringUppercaseBGreaterThanStringA', args: ['B', 'a'], expected: false },
+    { name: 'stringTenGreaterThanNine', args: ['10', 9], expected: true },
+    { name: 'nineGreaterThanStringTen', args: [9, '10'], expected: false },
+    { name: 'stringAbcGreaterThanFive', args: ['abc', 5], expected: false },
+    { name: 'fiveGreaterThanStringAbc', args: [5, 'abc'], expected: false },
+    { name: 'negativeFiveBigGreaterThanThreeBig', args: [-5n, 3n], expected: false },
+    { name: 'threeBigGreaterThanThreeBig', args: [3n, 3n], expected: false },
+    { name: 'threeBigGreaterThanNegativeFiveBig', args: [3n, -5n], expected: true },
+    // `>` compares a `Number` and a `BigInt` directly rather than throwing —
+    // the opposite of `numberByBigint` in every arithmetic group above.
+    { name: 'fiveBigGreaterThanFiveHalf', args: [5n, 5.5], expected: false },
+    { name: 'fiveBigGreaterThanFive', args: [5n, 5], expected: false },
+    { name: 'fiveGreaterThanFiveBig', args: [5, 5n], expected: false },
+    { name: 'fiveBigGreaterThanNan', args: [5n, NaN], expected: false },
+    { name: 'nanGreaterThanFiveBig', args: [NaN, 5n], expected: false },
+    { name: 'fiveBigGreaterThanInfinity', args: [5n, Infinity], expected: false },
+    { name: 'negativeInfinityGreaterThanFiveBig', args: [-Infinity, 5n], expected: false },
+    { name: 'infinityGreaterThanFiveBig', args: [Infinity, 5n], expected: true },
+    { name: 'stringTenGreaterThanTwentyBig', args: ['10', 20n], expected: false },
+    { name: 'twentyBigGreaterThanStringThirty', args: [20n, '30'], expected: false },
+    { name: 'stringAbcGreaterThanTwentyBig', args: ['abc', 20n], expected: false },
+    { name: 'twentyBigGreaterThanStringAbc', args: [20n, 'abc'], expected: false },
+]
+
+/**
+ * `>=` is the reversed `<=`: `x >= y` is `y <= x`. So every case here is a
+ * `<=` case with its operands swapped and its same boolean kept, the same
+ * relationship `>` has to `<` — including which cases flip relative to `>`
+ * (equal operands, equal-valued mixed number/bigint pairs, equal infinities,
+ * now giving `true`) and which stay `false` throughout because `NaN` is
+ * involved, exactly as for `<=`.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const greaterOrEqualCases = [
+    { name: 'nullGreaterOrEqualFive', args: [null, 5], expected: false },
+    { name: 'undefinedGreaterOrEqualFive', args: [undefined, 5], expected: false },
+    { name: 'trueGreaterOrEqualFive', args: [true, 5], expected: false },
+    { name: 'falseGreaterOrEqualFive', args: [false, 5], expected: false },
+    { name: 'stringThreeGreaterOrEqualFive', args: ['3', 5], expected: false },
+    { name: 'stringLetterGreaterOrEqualFive', args: ['a', 5], expected: false },
+    { name: 'emptyArrayGreaterOrEqualFive', args: [[], 5], expected: false },
+    { name: 'arrayThreeGreaterOrEqualFive', args: [[3], 5], expected: false },
+    { name: 'arrayStringThreeGreaterOrEqualFive', args: [['3'], 5], expected: false },
+    { name: 'arrayPairGreaterOrEqualFive', args: [[0, 0], 5], expected: false },
+    { name: 'emptyObjectGreaterOrEqualFive', args: [{}, 5], expected: false },
+    // The one binary case that escapes: `functionValue` has no expression, so
+    // both consumers take the direct path with two operands rather than one.
+    { name: 'functionGreaterOrEqualFive', args: [functionValue, 5], expected: false },
+    { name: 'threeGreaterOrEqualFive', args: [3, 5], expected: false },
+    { name: 'fiveGreaterOrEqualThree', args: [5, 3], expected: true },
+    // Equal operands: where `>` was `false`, `>=` flips to `true`.
+    { name: 'fiveGreaterOrEqualFive', args: [5, 5], expected: true },
+    { name: 'zeroGreaterOrEqualNegativeZero', args: [0, -0], expected: true },
+    { name: 'negativeZeroGreaterOrEqualZero', args: [-0, 0], expected: true },
+    // `NaN` involved anywhere stays `false` — the one case negating `>`
+    // would get wrong.
+    { name: 'nanGreaterOrEqualOne', args: [NaN, 1], expected: false },
+    { name: 'oneGreaterOrEqualNan', args: [1, NaN], expected: false },
+    { name: 'nanGreaterOrEqualNan', args: [NaN, NaN], expected: false },
+    { name: 'infinityGreaterOrEqualOne', args: [Infinity, 1], expected: true },
+    { name: 'oneGreaterOrEqualInfinity', args: [1, Infinity], expected: false },
+    { name: 'negativeInfinityGreaterOrEqualInfinity', args: [-Infinity, Infinity], expected: false },
+    // Equal infinities: another `>`-`false` case that flips to `true`.
+    { name: 'infinityGreaterOrEqualInfinity', args: [Infinity, Infinity], expected: true },
+    { name: 'stringTenGreaterOrEqualStringNine', args: ['10', '9'], expected: false },
+    { name: 'stringNineGreaterOrEqualStringTen', args: ['9', '10'], expected: true },
+    { name: 'stringAGreaterOrEqualStringB', args: ['a', 'b'], expected: false },
+    { name: 'emptyStringGreaterOrEqualStringA', args: ['', 'a'], expected: false },
+    { name: 'stringAbGreaterOrEqualStringAbc', args: ['ab', 'abc'], expected: false },
+    { name: 'stringAbcGreaterOrEqualStringAb', args: ['abc', 'ab'], expected: true },
+    { name: 'stringUppercaseBGreaterOrEqualStringA', args: ['B', 'a'], expected: false },
+    { name: 'stringTenGreaterOrEqualNine', args: ['10', 9], expected: true },
+    { name: 'nineGreaterOrEqualStringTen', args: [9, '10'], expected: false },
+    { name: 'stringAbcGreaterOrEqualFive', args: ['abc', 5], expected: false },
+    { name: 'fiveGreaterOrEqualStringAbc', args: [5, 'abc'], expected: false },
+    { name: 'negativeFiveBigGreaterOrEqualThreeBig', args: [-5n, 3n], expected: false },
+    // Equal bigints: a third `>`-`false` case that flips to `true`.
+    { name: 'threeBigGreaterOrEqualThreeBig', args: [3n, 3n], expected: true },
+    { name: 'threeBigGreaterOrEqualNegativeFiveBig', args: [3n, -5n], expected: true },
+    // `>=` compares a `Number` and a `BigInt` directly rather than throwing —
+    // the opposite of `numberByBigint` in every arithmetic group above.
+    { name: 'fiveBigGreaterOrEqualFiveHalf', args: [5n, 5.5], expected: false },
+    // Equal-valued mixed number/bigint pair: another flip from `>`'s `false`.
+    { name: 'fiveBigGreaterOrEqualFive', args: [5n, 5], expected: true },
+    { name: 'fiveGreaterOrEqualFiveBig', args: [5, 5n], expected: true },
+    { name: 'fiveBigGreaterOrEqualNan', args: [5n, NaN], expected: false },
+    { name: 'nanGreaterOrEqualFiveBig', args: [NaN, 5n], expected: false },
+    { name: 'fiveBigGreaterOrEqualInfinity', args: [5n, Infinity], expected: false },
+    { name: 'negativeInfinityGreaterOrEqualFiveBig', args: [-Infinity, 5n], expected: false },
+    { name: 'infinityGreaterOrEqualFiveBig', args: [Infinity, 5n], expected: true },
+    { name: 'stringTenGreaterOrEqualTwentyBig', args: ['10', 20n], expected: false },
+    { name: 'twentyBigGreaterOrEqualStringThirty', args: [20n, '30'], expected: false },
+    { name: 'stringAbcGreaterOrEqualTwentyBig', args: ['abc', 20n], expected: false },
+    { name: 'twentyBigGreaterOrEqualStringAbc', args: [20n, 'abc'], expected: false },
 ]
 
 /**
@@ -580,9 +985,15 @@ export const data = {
             ],
         },
         { op: '*', commutative: true, cases: mulCases },
+        { op: '/', cases: divCases },
+        { op: '**', cases: expCases },
         { op: '-', cases: subCases },
         { op: '+', cases: addCases },
         { op: '%', cases: remCases },
+        { op: '<', cases: lessThanCases },
+        { op: '<=', cases: lessOrEqualCases },
+        { op: '>', cases: greaterThanCases },
+        { op: '>=', cases: greaterOrEqualCases },
         { op: 'String', cases: stringCoercionCases },
     ],
 }
