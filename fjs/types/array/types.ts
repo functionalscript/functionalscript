@@ -30,6 +30,7 @@ type _X2 = Assert<Equal<KeyOf<readonly [true] | readonly [false, false]>, 0 | 1>
 type _X3 = Assert<Equal<FixedArray<number, true>, readonly true[]>>
 type _X4 = Assert<Equal<FixedArray<2, true>, readonly [true, true]>>
 // type _X5 = Assert<Equal<Tuple<-1, true>, readonly [true, true]>>
+type _XMax = FixedArray<998, true>
 
 type _Option<X extends readonly unknown[]> = { readonly [K in keyof X]?: X[K] }
 

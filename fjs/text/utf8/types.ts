@@ -22,8 +22,13 @@ export type ByteOrEof = U8 | null
 /**
  * Represents the state of a UTF-8 decoding operation that contains at least one
  * byte.
+ *
+ * BoundedArray<1, 3, number>
  */
-export type Utf8NonEmptyState = BoundedArray<1, 3, number>
+export type Utf8NonEmptyState =
+    FixedArray<1, number> |
+    FixedArray<2, number> |
+    FixedArray<3, number>
 
 /**
  * Represents the state of a UTF-8 decoding operation, which can be either
