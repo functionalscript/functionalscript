@@ -82,8 +82,9 @@ stages that relocate an API go straight to the final path.
 
 1. **`fjs/grammar/terminal/`** — extract the alphabet-neutral codec directly to
    its final path, with `TerminalRange`, `RangeVariant`, the backends' symbol
-   type, and `eofSymbol` / `eof`: `matcher` and `ll1` read those from the
-   front-end root today, which stage 8 deletes. Point `data`, `matcher`,
+   type, `eofSymbol` / `eof`, and `fullRange`: `matcher`, `ll1` and
+   `token_symbol` read those from the front-end root today, which stage 8
+   deletes. Point `data`, `matcher`,
    `ll1`, `descent` and `token_symbol` at it. Closes
    `terminal-range-shared-type`.
 2. **`fjs/grammar/unicode/`** — the alphabet split
@@ -107,8 +108,12 @@ stages that relocate an API go straight to the final path.
 5. **`fjs/grammar/bnf/`** — move the front end and carry `toData`,
    `toDataWithRules`, `data/private.ts`, the classical `GrammarData`
    instantiation and `repeatItem` into it in the same change, plus the two
-   wrappers. The front end is `module.f.mjs`, `types.ts`, the root
-   `private.ts`, `proof.f.mjs`, `testlib.f.mjs` and `map/rtti/`.
+   wrappers. The front end is `module.f.mjs`, `types.ts`, `proof.f.mjs`,
+   `testlib.f.mjs` and `map/rtti/` — but **not** the AST renderer inside
+   `testlib.f.mjs`. `showAst` and the root `private.ts` that types it are
+   backend-neutral and are what `ll1/proof.f.mjs` and `descent/proof.f.mjs`
+   assert with, so they go to the surviving neutral testlib instead; only the
+   grammar-bearing `classic` / `deterministic` travel with the front end.
    `fjs/bnf/README.md` is **split**, not moved: the AST contract and node
    shape go to a new `fjs/grammar/README.md`, "Terminals and EOF" to
    `terminal/`, "Dispatch" to `ll1/`, and only the functional representation
@@ -185,7 +190,8 @@ A module the migration creates goes to its final path immediately, never to
       `oneEncode` and `rangeDecode` today.
 - [ ] Stage 1: give `terminal/` a co-located `proof.f.mjs`, carrying the codec
       cases out of `fjs/bnf/proof.f.mjs` — `rangeEncode`, `rangeDecode`,
-      `oneEncode`, `eofSymbol` / `eof`, and their invalid-input cases. A new
+      `oneEncode`, `eofSymbol` / `eof`, `fullRange` and its boundary case
+      (`fjs/bnf/proof.f.mjs:66`), and their invalid-input cases. A new
       `.f.mjs` module ships 100% co-located coverage
       ([fjs/AGENTS.md](../AGENTS.md)), so rerunning the BNF proofs is not
       enough.
@@ -204,12 +210,15 @@ A module the migration creates goes to its final path immediately, never to
 - [ ] Stage 5: split `fjs/bnf/README.md` to its owners, creating
       `fjs/grammar/README.md`, and repoint every inbound link.
 - [ ] Stage 5: move the front end to `fjs/grammar/bnf/` with the conversion
-      and the wrappers, and the proof cases that cover them; update the two
-      `fjs/djs` front-end importers — `parser/module.f.mjs` and
-      `tokenizer/module.f.mjs`; the other three import `matcher` or `data` and
-      repoint at stage 6 — the `lib/` grammars (which do not move until stage
-      7, so their front-end imports repoint without moving), and every README
-      and `todo/` link.
+      and the wrappers, and the proof cases that cover them; repoint the
+      `lib/` grammars (which do not move until stage 7, so their front-end
+      imports repoint without moving) and every README and `todo/` link.
+- [ ] Stage 5, `fjs/djs`: `parser/module.f.mjs` and `tokenizer/module.f.mjs`
+      import the front-end root and repoint here. The two `private.ts` files
+      import `matcher` and wait for stage 6. `tokenizer/proof.f.mjs` takes
+      both `isRepeat` and `toData` from `data` on one line: `toData` moves
+      with the conversion now, so split the import here and leave `isRepeat`
+      for stage 6.
 - [ ] Stage 6: move `data/`, `matcher/`, `ll1/`, `descent/`, `token_symbol/`
       and `map/types.ts`, one PR each.
 - [ ] Stage 7: move `lib/`; add `fjs/grammar/ebnf/`.

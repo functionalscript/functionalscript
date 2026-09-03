@@ -82,7 +82,8 @@ every level.
 no sentinel. TypeScript has no literal type for `Infinity`, so an unbounded
 `max` arrives widened; that is the whole mechanism rather than a problem,
 because a widened `max` and an unbounded one deserve the same answer, and
-`fjs/types/array`'s `Array<Min, Max, T>` already gives it (below). The
+`fjs/types/array`'s `BoundedArray<Min, Max, T>` already gives it (below).
+The
 comparisons also just work — `min <= Infinity` is true — where a `null`
 sentinel coerces to `0` and needs a guard at every site, and
 a `-1` sentinel would compile and be silently wrong — `-1` is EOF in the
@@ -103,16 +104,18 @@ row that is a function of the form alone.
 |---|---|
 | `['const', c]` | `AST<c>` |
 | `['range', a, b]` | `number` — one symbol leaf |
-| `['repeat', min, max, r]` | `Array<min, max, AST<r>>`, below |
+| `['repeat', min, max, r]` | `BoundedArray<min, max, AST<r>>`, below |
 | `number` | `number` — the symbol itself |
 | `string` | `readonly number[]` — see below |
 | `Sequence` | one entry per element |
 | `Variant` | the branch taken, tagged by its key |
 
-**This type is not ebnf's to write.** It is `Array<Min, Max, T>` in
-`fjs/types/array/types.ts`: `Tuple<Min, T>` followed by an optional-element
-tail up to `Max`, with `number extends Max ? readonly T[]` as the tail. A
-required prefix and an optional remainder — one tuple, not a union of them:
+**This type is not ebnf's to write.** It is `BoundedArray<Min, Max, T>` in
+`fjs/types/array/types.ts`, landing in
+[#1865](https://github.com/functionalscript/functionalscript/pull/1865):
+`FixedArray<Min, T>` followed by an optional-element tail up to `Max`, with
+`number extends Max ? readonly T[]` as the tail. A required prefix and an
+optional remainder — one tuple, not a union of them:
 
 | bounds | AST |
 |---|---|
@@ -136,10 +139,10 @@ family from the rest; an author wanting named branches writes the plain
 `Variant`.
 
 The tail recurses linearly in `Max`, so a large finite `Max` is TS2589 —
-measured at `1000`, clean at `900`. No grammar approaches that (`times(4)(hex)`
-is the largest in the tree), so a `Cap` is a guard against absurdity, not a
-design constraint. Fix one in `fjs/types/array` with the type, and pin it and
-`Cap + 1` in that module's proof.
+measured at `1000`, clean at `900`. `BoundedArray` sets no cap, and ebnf does
+not ask for one: `times(4)(hex)` is the largest bounded span in the tree, so
+the ceiling is two orders of magnitude away. If a graceful fallback is ever
+wanted it belongs to `fjs/types/array` with the type, not here.
 
 **A string's AST is `readonly number[]`, not a tuple.** The lowering emits one
 terminal per code point, but TypeScript's template-literal recursion splits by
@@ -247,10 +250,13 @@ and is also what first makes `descentEquivalence` front-end neutral.
 **3. A nullable body is two problems.** Unbounded max is non-termination and
 stays rejected. Bounded max is *ambiguity*: `['repeat', 2, 2, r]` over a body
 matching `""` or `"x"` parses `x` two ways. One case is safe — **a fixed count
-and an empty-only body**, `['repeat', 3, 3, []]`, where every copy matches the
-same nothing; `['repeat', 0, 1, []]` is not, since empty input is zero copies
-or one. Reject anything outside that exemption, or keep the blanket rule and
-document its cost — but "cardinality unrecoverable" is false at a bounded max,
+over the literal `[]`**, `['repeat', 3, 3, []]`, where every copy matches the
+same nothing exactly one way. Neither half can be relaxed:
+`['repeat', 0, 1, []]` reads empty input as zero copies or one, and an
+empty-only body that is not `[]` can still derive empty more than one way —
+`{ a: [], b: [] }` gives `['repeat', 2, 2, …]` four derivations with distinct
+tagged ASTs. Reject anything outside that exemption, or keep the blanket rule
+and document its cost — but "cardinality unrecoverable" is false at a bounded max,
 where the cardinality is the bound.
 
 This is a *nullability* check, not an ambiguity check. A non-nullable body can
@@ -301,12 +307,10 @@ three forms. It needs a data layer that can represent it.
       first — the tables cannot be finished without it, and 4 and 7 depend on
       it. Then 1, 3 and 6 gate the lowering; 2 is grammar-bucket's; 9 gates
       the alphabet adapter and so the whole port.
-- [ ] `fjs/types/array/types.ts` **first**, and separately: `Array<Min, Max,
-      T>` — `Tuple<Min, T>` plus an optional-element tail — with its own
-      proof, including the widened-`Max` row and the cap. It is a general
-      type, not a grammar one, and ebnf only instantiates it.
 - [ ] `types.ts`: the union, the `Join*` types, and `AST<Rule>` from the
-      tables, with a proof per row.
+      tables, with a proof per row. `BoundedArray` is instantiated, not
+      redefined — it arrives with
+      [#1865](https://github.com/functionalscript/functionalscript/pull/1865).
 - [ ] `module.f.mjs`: the `repeat(min, max)` constructor with `option` /
       `repeat0Plus` / `repeat1Plus` / `times` as partial applications, plus
       `join0Plus`, `join1Plus`, `commaJoin0Plus` and `notOf`; and the lowering

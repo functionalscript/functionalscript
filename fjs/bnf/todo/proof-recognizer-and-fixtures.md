@@ -171,8 +171,11 @@ explicit named override list for the rows where token-stream acceptance differs.
 - [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase the
       testlib's text/range imports on `fjs/grammar/unicode/module.f.mjs`;
       do not import Unicode `range` from core `./module.f.mjs`.
-- [ ] Add `Case`, `Recognition`, `assertRecognizes`, and the two recognizer
-      adapters to a testlib that **survives the migration** — not
+- [ ] Add `Case`, `Recognition`, `assertRecognizes`, the two recognizer
+      adapters, **and the AST renderer** — `showAst` plus the root
+      `private.ts` that types it, which the LL1 and descent proofs assert
+      with and which is backend-neutral — to a testlib that **survives the
+      migration** — not
       `fjs/bnf/testlib.f.mjs`, which imports `./lib/json` and `./module.f.mjs`
       and which grammar-bucket stage 5 moves with the classical front end and
       stage 8 deletes. A neutral shared testlib beside the backends, or
