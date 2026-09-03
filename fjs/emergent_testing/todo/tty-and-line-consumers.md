@@ -88,8 +88,10 @@ into one flag.
 
 ### Tasks
 
-- [ ] Decide what a non-TTY run emits per leaf, and whether the announcement is
-      a record of its own there.
+- [ ] Decide what a run emits per leaf **for a line-oriented reader**, and
+      whether the announcement is a record of its own there. Not "a non-TTY
+      run": that is the transport, and it includes readers this format is not
+      for.
 - [ ] Decide what a TTY run may do with the cursor, and whether the current
       open-line format is already that answer or a step towards it.
 - [ ] Settle the selector with the epic rather than here. `isTTY` separates a
