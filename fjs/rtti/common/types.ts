@@ -85,13 +85,5 @@ export type Container<K extends Tag1> = K extends 'array'
 /** `Result` with the payload type erased; avoids instantiating `Ts<Type>`. */
 export type ResultE = CommonResult<Unknown, ValidationError>
 
-/**
- * The presence bits a declared-member walk saw — one boolean per declared
- * member, consed newest-first by `consPresence` in `module.f.mjs`, so the
- * list is the walk's answers in reverse declared order. `presenceUnchanged`
- * is the consumer.
- */
-export type Presence = null | { readonly first: boolean, readonly tail: Presence }
-
 /** A `Validate`-shaped function with the payload type erased. */
 export type ValidateE = (value: Unknown) => ResultE

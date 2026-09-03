@@ -30,7 +30,7 @@ scale: a struct's `declared` list is its key list, rarely large.
       closure and the data reader can derive it from `p.prefix`/`p.props`
       the same way.
 - [ ] Keep the observable behavior bit-identical: `undeclaredMembers`' member
-      *order* and the non-index/beyond-`length` rules are pinned by
-      `../host.proof.mjs` and the three-reader tables, and must not move.
+      *order* and the non-index/beyond-`length` rules are pinned by the
+      three-reader tables, and must not move.
 - [ ] Pin the complexity the way `readIndices`' doc pins its own linear walk:
       a measurement in the JSDoc, not a timing assert in a proof.

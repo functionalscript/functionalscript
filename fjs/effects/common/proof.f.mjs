@@ -33,8 +33,7 @@ import { pureError, pureOk } from '../module.f.mjs'
  * has no `try`/`catch`, which is the same bargain `../node/virtual` makes and
  * the reason {@link Catch} exists as an operation rather than as a function.
  * Proving what a *real* handler does with a thrower belongs to the hosts that
- * can write one — `../node/proof.f.mjs` for the node runner,
- * `../../emergent_testing/catch.proof.mjs` for a caught throw.
+ * can write one — `../node/proof.f.mjs` for the node runner.
  *
  * @type {RunInstance<Catch | Sandbox, null>}
  */

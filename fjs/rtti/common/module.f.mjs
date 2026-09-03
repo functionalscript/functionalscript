@@ -36,7 +36,7 @@
  * @import { Const, Info0, Primitive0, Struct, Tag1, Tuple, Type } from '../types.ts'
  * @import { Error, Result as CommonResult } from '../../types/result/types.ts'
  * @import { StringMap } from '../../types/object/types.ts'
- * @import { Validate, Visitor, IsContainer, Container, Presence, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
+ * @import { Validate, Visitor, IsContainer, Container, ResultE, SchemaEntries, ValidateE, ValidationError } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
@@ -111,13 +111,8 @@ export const isObject =
  * question is "did every entry succeed?" passes `undefined`/`acc => acc`
  * instead and pays no allocation per entry.
  *
- * The walk is by index rather than `for..of`: `item` reads the value, and a
- * read can run an accessor that replaces `Array.prototype`'s iterator —
- * which `for..of` and destructuring dispatch on every step, so a later
- * step's `[k, v]` was the accessor's to choose. Index and `length` reads
- * consult nothing overridable on these plain entry arrays — the same rule
- * `parse`'s rebuilds state in full (see `defineProperty` in
- * `../parse/module.f.mjs`).
+ * The walk is by index rather than `for..of` so it can `return` out of the
+ * fold at the first error without building the rest.
  */
 export const eachEntry =
     /**
@@ -142,46 +137,6 @@ export const eachEntry =
         }
         return ok(acc)
     }
-
-/** {@link consPresence}'s seed and {@link presenceUnchanged}'s empty walk. */
-/** @type {Presence} */
-export const emptyPresence = null
-
-/**
- * `eachEntry`'s accumulate step recording each declared member's
- * **presence** — the item's `ok` payload, `true` for a member the walk saw
- * present — one cons per member, newest first.
- */
-/** @type {(acc: Presence, k: string, present: boolean) => Presence} */
-export const consPresence = (acc, _k, present) =>
-    ({ first: present, tail: acc })
-
-/**
- * Whether each declared member's presence is still what the walk saw — the
- * postcondition every absence decision was made under. A member's read can
- * run an accessor, and a later member's accessor can flip an *earlier*,
- * already decided member: install the omitted key on `Object.prototype`
- * (or an omitted position on `Array.prototype`) and the member is present
- * by the same HasProperty rule the walk dispatched on; delete an own key
- * and a checked member is gone. Either way the verdict is stale — a
- * hands-back reader would return a value that no longer denotes what was
- * checked, and a constructing one built from decisions that no longer hold
- * — so every reader re-asks the one question last, after everything that
- * reads the value, and refuses on any flip. `reversed` is the walk's
- * answers newest-first and exactly one per declared member, so the
- * comparison walks `entries` from its end in lockstep; `in` runs no
- * accessor, so the recheck itself reads nothing of the value's.
- *
- * @type {(entries: ReadonlyArray<readonly [string, unknown]>, reversed: Presence, value: ReadonlyArray<Unknown> | StringMap<Unknown>) => boolean}
- */
-export const presenceUnchanged = (entries, reversed, value) => {
-    let i = entries.length
-    for (let n = reversed; n !== null; n = n.tail) {
-        i -= 1
-        if ((entries[i][0] in value) !== n.first) { return false }
-    }
-    return true
-}
 
 /**
  * What a `Tuple` schema declares, read by **length**.
@@ -250,45 +205,29 @@ const arrayIndex = k => {
 /**
  * Every index below `length` at which `value` reads something, ascending.
  *
- * Bounded by what the value and its prototypes **carry** rather than by
- * `length`: an index that reads a value is an own property of the array or of
- * something on its prototype chain, so enumerating those names finds every one
- * without materializing the range. Walking `0 … length - 1` instead turned a
- * `new Array(2 ** 32 - 1)` — which carries one own property, `length` — into
- * billions of iterations before any check could reject it.
+ * Bounded by what the value **carries** rather than by `length`: an index that
+ * reads a value is an own property of the array, so enumerating its own names
+ * finds every one without materializing the range. Walking `0 … length - 1`
+ * instead turned a `new Array(2 ** 32 - 1)` — which carries one own property,
+ * `length` — into billions of iterations before any check could reject it.
  *
- * The own names are **already the answer** for all but a pathological value:
+ * The own names **are** the answer, already in the order wanted:
  * `[[OwnPropertyKeys]]` yields integer indices ascending and without repeats,
- * so an ordinary array pays one linear pass and no sort. Only an index the
- * chain supplies and the value does not is merged in, and that set is empty
- * unless someone has put an index on a prototype — which is why the dedup it
- * needs may be quadratic without costing an ordinary array anything. Deduping
- * the whole list instead made every `array(t)` read quadratic in its length:
- * 829 ms at 40 000 elements against 3 ms at 1 000.
+ * so the walk is one linear pass and needs neither a dedup nor a sort. Adding
+ * either made every `array(t)` read quadratic in its length: 829 ms at 40 000
+ * elements against 3 ms at 1 000.
  *
- * No `in` test: a name reached this way is a property of the value or of
- * something it inherits from, so the array reads at it by construction.
+ * No `in` test: a name reached this way is an own property of the value, so
+ * the array reads at it by construction.
  *
  * @type {(value: ReadonlyArray<Unknown>) => readonly number[]}
  */
 const readIndices = value => {
     const { length } = value
-    /** @type {(names: readonly string[]) => readonly number[]} */
-    const indices = names => names.flatMap(k => {
+    return Object.getOwnPropertyNames(value).flatMap(k => {
         const i = arrayIndex(k)
         return i !== undefined && i < length ? [i] : []
     })
-    const own = indices(Object.getOwnPropertyNames(value))
-    /** @type {readonly number[]} */
-    let chain = []
-    for (let o = Object.getPrototypeOf(value); o !== null; o = Object.getPrototypeOf(o)) {
-        chain = [...chain, ...indices(Object.getOwnPropertyNames(o))]
-    }
-    if (chain.length === 0) { return own }
-    const inherited = chain
-        .filter(i => !Object.hasOwn(value, i))
-        .filter((i, at, a) => a.indexOf(i) === at)
-    return inherited.length === 0 ? own : [...own, ...inherited].toSorted((a, b) => a - b)
 }
 
 /**
@@ -300,18 +239,13 @@ const readIndices = value => {
  * prefix together with every own key that is no position at all.
  *
  * **A tuple's positions are read, not enumerated.** `length` is what says how
- * far an array reaches, and every index below it that *reads* a value is a
- * member the `rest` must answer for — including one supplied by the prototype,
- * which no own-entry walk sees ({@link readIndices} is the walk). Filtering
- * `Object.entries` alone accepted `[42, , ]` carrying an inherited `1: 99`
- * against `rest([42], string)`, handing back an array whose index 1 reads a
- * number the rendered tail types as `string`. A genuinely absent index is
- * skipped instead: a hole is no member, so it meets no `rest` — the same rule
- * the struct kind states by walking own keys.
+ * far an array reaches, and every own index below it is a member the `rest`
+ * must answer for ({@link readIndices} is the walk). A genuinely absent index
+ * is skipped: a hole is no member, so it meets no `rest` — the same rule the
+ * struct kind states by walking own keys.
  *
- * An index at or above `length` is a different matter and is not answered
- * here: it is readable through the prototype and no walk bounded by the value
- * reaches it. See "Beyond `length`" in `../README.md`.
+ * An index at or above `length` is not answered here. See "Beyond `length`" in
+ * `../README.md`.
  *
  * Passing an empty `declared` asks for every member, which is what the uniform
  * `array`/`record` readers want — so they share this walk rather than reaching
