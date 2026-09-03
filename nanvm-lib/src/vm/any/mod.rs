@@ -1,5 +1,8 @@
 mod add;
 mod and;
+mod bitand;
+mod bitor;
+mod bitxor;
 mod conditional;
 mod div;
 mod from;
@@ -68,6 +71,14 @@ impl<A: IVm> Any<A> {
         Ok(Unpacked::from(self.to_numeric()?.pow(rhs.to_numeric()?)?).into())
     }
 
+    /// `~`. Not a `core::ops` trait — `Not` is already claimed by this
+    /// type's own logical `!` (`any/not.rs`) — so this is a plain method,
+    /// the same as `unary_plus`/`pow`.
+    /// <https://tc39.es/ecma262/#sec-bitwise-not-operator>
+    pub fn bitwise_not(self) -> Result<Self, Self> {
+        Ok(Unpacked::from(self.to_numeric()?.bitwise_not()).into())
+    }
+
     /// Same as `Number.isNaN` in ECMAScript.
     /// TODO: check and test.
     pub fn is_nan(self) -> bool {
@@ -116,6 +127,4 @@ impl<A: IVm> Any<A> {
     }
 }
 
-// TODO implement other operators like &, |, ^, <<, >>, >>>, ~, etc using Rust standard traits -
-// similarly to Neg above. Implement operators that do not have corresponding Rust standard traits
-// via adding methods to Any<A> - similarly to unary_plus.
+// TODO implement <<, >>, >>> using Rust standard traits - similarly to Neg above.
