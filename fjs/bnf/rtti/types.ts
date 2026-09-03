@@ -174,7 +174,9 @@ type _Branches<R extends Variant, K> =
     // wrote — so the answer is the widened variant, as it is for every other
     // rule left at one of the API's own types. An index signature over `number`
     // is as open as one over `string`; `_Keys` keeps both, and a parse selects
-    // one branch under either.
+    // one branch under either. A *pattern* key set is open too and is not
+    // caught here, because nothing distinguishes it from a finite union of
+    // literals: [nullable-repeat-item](./todo/nullable-repeat-item.md).
     string extends _Keys<R> ? { readonly[k in string]?: Ast } :
     number extends _Keys<R> ? { readonly[k in string]?: Ast } :
     // A rule the parser throws on is refused rather than given the AST of one

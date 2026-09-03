@@ -59,6 +59,26 @@ fixed in the same pull request — extra branches, and branch names other than
 `some`/`none` — each of which gave a wrong shape to a grammar that *does*
 parse.
 
+### One more, from a different cause
+
+A variant keyed by a *pattern* — `{ [k in `x-${string}`]: 0 }` — is an open key
+set like an index signature over `string` or `number`, and is not recognized as
+one. It is enumerated instead, so `AstRule` gives a required pattern index
+signature and an arbitrary key such as `ast['x-missing']` types as present,
+where a parse selects one branch.
+
+This one is not a rule-set question; it is that TypeScript does not distinguish
+a finite union of string literals from an infinite pattern type. `string
+extends K` catches only `string` itself, and the obvious alternatives —
+`` K extends `${infer _}` `` and `[K] extends [string]` — are true of `'x-a' |
+'x-b'` and of `` `x-${string}` `` alike. There is no sound test to add a third
+arm to the open-key check with, so the widened answer cannot be given to
+exactly the shapes that deserve it.
+
+Deriving from a rule set closes this too, for a different reason than the
+others: a rule set has actual keys, so nothing has to be inferred about how
+many a type admits.
+
 ### Why none of them is a guard
 
 All six are questions about a rule *set*, not about a rule. `reachable` walks
