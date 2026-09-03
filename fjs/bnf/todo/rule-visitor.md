@@ -4,6 +4,10 @@
 **Status:** blocked
 **Blocked by:**
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md)
+- [ebnf-front-end](./ebnf-front-end.md)'s Problem 1 — which bounds the data
+  layer represents natively. If it grows a bounded repeat, the data `Rule`
+  union this visitor discriminates changes, and a visitor written against
+  today's string-only `Repeat` needs a second rewrite.
 
 ### Problem
 
@@ -92,3 +96,8 @@ scheme. Each call site keeps its own recursion/accumulator structure.
   consumer of this visitor: `emptyTagMap` walks the rule tree itself, so it is
   one of the traversals a `Rule` visitor would absorb.
 - `fjs/rtti/common/module.f.mjs` — existing `visit` precedent.
+- [ebnf-front-end](./ebnf-front-end.md) — a second functional front end.
+  Whether it changes the data `Rule` union this visitor discriminates is its
+  Problem 1, which is why that is a blocker above.
+  [grammar-bucket](../../todo/grammar-bucket.md) moves this issue to
+  `data/todo/` with the module.

@@ -17,8 +17,8 @@ This design predates the alphabet split. Its shared `number` fixture currently
 constructs Unicode terminals with core `range('--')` / `range('09')`, and its
 import analysis assumes `fjs/bnf/testlib.f.mjs` obtains text helpers from
 `./module.f.mjs`. After the split, text/range construction belongs to
-`fjs/bnf/unicode/module.f.mjs`. Do not implement the fixture extraction against
-the old core API: rebase the fixture imports on `bnf/unicode` first while keeping
+`fjs/grammar/unicode/module.f.mjs`. Do not implement the fixture extraction against
+the old core API: rebase the fixture imports on `fjs/grammar/unicode` first while keeping
 the recognizer backends themselves generic.
 
 #### 1. The "recognizes the whole input" helper — 8 copies
@@ -74,7 +74,7 @@ const numberRule = [optionalMinusRule, digitRule]
 ```
 
 The fixture remains a Unicode/text fixture, so after the alphabet split the
-`range` used here must come from `fjs/bnf/unicode/module.f.mjs` (or the equivalent
+`range` used here must come from `fjs/grammar/unicode/module.f.mjs` (or the equivalent
 final Unicode adapter API), **not** from core `fjs/bnf/module.f.mjs`. The produced
 rules are still ordinary generic BNF rules consumed by descent/LL1.
 
@@ -92,9 +92,13 @@ That divergence should be an explicit override table rather than a copied corpus
 
 ### Proposal
 
-Move the shared harness and fixtures into `fjs/bnf/testlib.f.mjs`, next to
-`classic()` and `deterministic()`, after rebasing text construction on the Unicode
-adapter.
+Move the shared harness and fixtures into a neutral testlib, after rebasing
+text construction on the Unicode adapter. It is a **separate home** from
+`classic()` and `deterministic()`: those stay in `fjs/bnf/testlib.f.mjs`, which
+depends on the classical front end and which grammar-bucket moves in stage 5
+and deletes in stage 8. Putting the neutral harness beside them would sink it
+with that file; moving them into the neutral layer would drag the front end
+along.
 
 **1. One recognizer adapter per backend, one assertion helper over both.**
 
@@ -106,8 +110,8 @@ export type Recognition = {
 
 export type Recognizer = (input: string) => Recognition
 
-export const descentRecognizer = (rule: FRule): Recognizer => …
-export const ll1Recognizer = (rule: FRule): Recognizer => …
+export const descentRecognizer = (ruleSet: RuleSet, entry: string): Recognizer => …
+export const ll1Recognizer = (ruleSet: RuleSet, entry: string): Recognizer => …
 
 export const assertRecognizes = (r: Recognizer) =>
     (cases: readonly Case[]): void => …
@@ -119,13 +123,14 @@ the backend match result as their diagnostic. `assertRecognizes` should report
 `[input, diagnostic]` so failures identify both the corpus row and the parser
 state.
 
-Take no start-rule parameter. Derive the root from `toData(rule)[1]`; the one lazy
-rule whose root is `'value'` proves that a hard-coded/default `''` is wrong.
-`ll1Recognizer` can destructure `[ruleSet, root]` once and build via
-`parserRuleSet(ruleSet)` (`fjs/bnf/ll1/module.f.mjs`), and `descentRecognizer` via
-`descentParserRuleSet(ruleSet)` (`fjs/bnf/descent/module.f.mjs`). Both backends now
-expose a ruleSet-level entry point, so neither adapter needs an extra `toData`; do
-not expand this issue merely to add production API.
+The adapters take a `RuleSet` and its entry name, and call **no `toData`** —
+that would reintroduce the front-end dependency
+[grammar-bucket](../../todo/grammar-bucket.md) removes before its stage 5. The
+entry is a parameter rather than derived or defaulted: the one grammar whose
+root is `'value'` proves a hard-coded `''` is wrong, and a `RuleSet` does not
+carry its own entry. `ll1Recognizer` builds via `parserRuleSet(ruleSet)` and
+`descentRecognizer` via `descentParserRuleSet(ruleSet)`; both backends already
+expose those, so no production API is added here.
 
 The adapter also absorbs the file-local proof copy of `descentParserCpOnly`.
 Keep the DJS tokenizer export: its proof has typed-result consumers beyond the
@@ -136,8 +141,17 @@ recognizer adapter. The alphabet-specific conversion should be imported from the
 Unicode boundary after `unicode-rules.md` lands; generic parser modules should
 not regain text dependencies.
 
-**2. `export const number: Rule`** — the optional-minus-then-digit grammar,
-constructed through `bnf/unicode` and exported by name. Eight duplicate sites use
+**2. `export const number`** — the optional-minus-then-digit grammar. Exported
+as a **`RuleSet` plus its entry name**, not as a functional `Rule`: the
+adapters take a rule set, so a functional fixture would put `toData` back at
+every call site and restore in the fixture the front-end dependency the
+adapters just dropped
+([grammar-bucket](../../todo/grammar-bucket.md) requires it gone before its
+stage 5). Author the rule set **directly** — converting a functional rule
+"once, in the fixture" would make the shared testlib import `toData`, so every
+backend proof using the fixture keeps a transitive front-end dependency. If a
+functional spelling is wanted for readability, it belongs in a separate
+front-end fixture that neutral backend proofs never import. Eight duplicate sites use
 it; the optional-space variant stays local because it is genuinely a different
 case.
 
@@ -147,31 +161,50 @@ explicit named override list for the rows where token-stream acceptance differs.
 
 ### Tasks
 
-- [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase
-      `fjs/bnf/testlib.f.mjs` text/range imports on `fjs/bnf/unicode/module.f.mjs`;
+- [ ] Keep everything here neutral, per the proposal above: adapters over
+      `RuleSet` plus entry, fixtures authored as rule sets, and a testlib that
+      survives. This issue is unblocked at
+      [grammar-bucket](../../todo/grammar-bucket.md)'s stage 2, before that
+      plan decouples the backend proofs for its stage 5, so anything
+      front-end-coupled built here would be undone immediately or would block
+      the stage-8 deletion.
+- [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase the
+      testlib's text/range imports on `fjs/grammar/unicode/module.f.mjs`;
       do not import Unicode `range` from core `./module.f.mjs`.
-- [ ] Add `Case`, `Recognition`, `assertRecognizes`, and the two recognizer
-      adapters to `fjs/bnf/testlib.f.mjs` (or per-backend testlibs if the import
-      direction argues for it); confirm no import cycle.
+- [ ] Add `Case`, `Recognition`, `assertRecognizes`, the two recognizer
+      adapters, **and the AST renderer** — `showAst` plus the root
+      `private.ts` that types it, which the LL1 and descent proofs assert
+      with and which is backend-neutral — to a testlib that **survives the
+      migration** — not
+      `fjs/bnf/testlib.f.mjs`, which imports `./lib/json` and `./module.f.mjs`
+      and which grammar-bucket stage 5 moves with the classical front end and
+      stage 8 deletes. A neutral shared testlib beside the backends, or
+      per-backend ones; confirm no import cycle.
 - [ ] Carry each backend's `MatchResult` through as `Recognition.diagnostic` and
       report `[input, diagnostic]` from `assertRecognizes`.
-- [ ] Derive the root name inside each adapter from `toData(rule)[1]` — no `start`
-      parameter and no `''` default.
+- [ ] Take the entry name **alongside** the `RuleSet`, since a `RuleSet` holds
+      neither the functional rule nor its entry — the caller that built it has
+      both. No `toData` inside an adapter (that would reintroduce the `FRule`
+      the first task removes) and no `''` default.
 - [ ] Fold the proof-local `descentParserCpOnly` / code-point adapter into
       `descentRecognizer`; leave the DJS tokenizer's public export alone.
-- [ ] Add `number` using the Unicode adapter's text/range construction, and add
+- [ ] Add `number` as a directly authored `RuleSet` and entry name — no
+      functional `Rule`, no `toData` in the shared testlib — and add
       `jsonCases`.
 - [ ] Convert descent and LL1 proofs; keep the optional-space grammar variant
       local and document why it is distinct.
 - [ ] Convert the DJS tokenizer proof to `jsonCases` plus a named override list
       and its DJS-only inputs.
+- [ ] Give the new testlib its own co-located `proof.f.mjs` covering every
+      export, as any new `.f.mjs` owes. Downstream proofs happening to call it
+      is not that coverage.
 - [ ] Confirm coverage is unchanged — this must move test text, not test cases.
 - [ ] Run `tsc` and `fjs t`.
 
 ### Related
 
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — **blocks this
-  task**; shared text fixtures must consume `bnf/unicode`, not the removed core
+  task**; shared text fixtures must consume `fjs/grammar/unicode`, not the removed core
   text/range API.
 - [bnf-grammar-single-owner](./bnf-grammar-single-owner.md) —
   owns the grammars themselves, now shipped under `fjs/bnf/lib`; this issue moves

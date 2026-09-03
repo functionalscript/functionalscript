@@ -578,7 +578,7 @@ throughout.
   — **re-scoped**: the canonical JSON grammar's owner is the spec (text) plus a
   proof-covered `fjs/bnf` example, not a runtime module, so its
   `fjs/media/json/grammar` proposal is withdrawn and the grammar ships at
-  `fjs/bnf/lib/json`. Lowering that example onto `bnf/unicode` is **not** open
+  `fjs/bnf/lib/json`. Lowering that example onto `fjs/grammar/unicode/` is **not** open
   there: it belongs to the alphabet split, which breaks these grammars and so
   ports them in the same change. What remains open is the shared lexical API
   #1817 shipped only partly — parameterizing `string` over its simple escapes,
