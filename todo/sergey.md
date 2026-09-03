@@ -49,6 +49,15 @@
   // FJS. v3 (+generators)
   type Value = Primitive|Object|Array|Function|Map|Set|Iterable
   ```
+  Map and Set
+  ```js
+  // declaration
+  new Map(...)
+  new Set(...)
+  // detection
+  value instanceof Map
+  value instanceof Set
+  ```
   Generators:
   ```js
   // declaration
