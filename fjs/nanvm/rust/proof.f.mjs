@@ -192,7 +192,7 @@ export const proof = {
          * generated file would otherwise carry a statement that does not
          * compile, or worse, one that does and means something else.
          */
-        unknownOperation: () => nodeExpr(['/', 1, 2]),
+        unknownOperation: () => nodeExpr(['&', 1, 2]),
         /** An object key the corpus cannot produce and Rust cannot spell. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**

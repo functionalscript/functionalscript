@@ -1,7 +1,10 @@
 mod add;
+mod div;
 mod from;
 mod neg;
 mod partial_eq;
+mod relational;
+mod rem;
 mod sub;
 
 pub mod to_any;
@@ -50,6 +53,12 @@ impl<A: IVm> Any<A> {
     /// <https://tc39.es/ecma262/#sec-unary-plus-operator>
     pub fn unary_plus(self) -> Result<Any<A>, Any<A>> {
         self.to_number().map(ToAny::to_any)
+    }
+
+    /// `**`. Not a `core::ops` trait — Rust has no operator for
+    /// exponentiation, so this is a plain method, the same as `unary_plus`.
+    pub fn pow(self, rhs: Self) -> Result<Self, Self> {
+        Ok(Unpacked::from(self.to_numeric()?.pow(rhs.to_numeric()?)?).into())
     }
 
     /// Same as `Number.isNaN` in ECMAScript.
