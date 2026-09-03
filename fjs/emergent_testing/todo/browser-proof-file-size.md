@@ -6,8 +6,8 @@
 ### Problem
 
 `browser/proof.mjs` is 741 lines — the largest impure proof file in the
-repository by a wide margin (the next is `rtti/host.proof.mjs` at 379) and
-**42% of all impure proof code**: 741 of 1,779 lines across six files. It
+repository by a wide margin (the next is `effects/node/memory/proof.mjs` at 78)
+and **90% of all impure proof code**: 741 of 819 lines across two files. It
 exists because a DOM adapter can only be proven against a DOM stand-in. But
 most of what it proves is not the adapter.
 

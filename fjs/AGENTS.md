@@ -131,6 +131,39 @@ only by a human or external tooling after something has already gone wrong, so
 don't over-invest proof effort in checking its exact value — whether it threw is
 normally the part of the contract that matters.
 
+### 1.6 Do not prove a `.f.mjs` API from plain JavaScript
+
+A `proof.mjs` exists to prove its **sibling `module.mjs`** — host code that
+FunctionalScript cannot express, such as the DOM adapter in
+`emergent_testing/browser` or the `node:` bindings in `effects/node/memory`.
+That is its whole purpose.
+
+It is **not** a back door for proving a `.f.mjs` API against inputs or control
+flow the subset forbids: values built by `Object.setPrototypeOf`,
+`Object.assign`, `defineProperty` or an accessor; a `try`/`catch` runner; a real
+async scheduler. Do not add such a file, and do not add such cases to an
+existing `proof.mjs`.
+
+These scenarios are speculation about what an *arbitrary JavaScript caller*
+might hand a FunctionalScript function, and nobody has asked for them. A module
+is proven against the values FunctionalScript can build, by `proof.f.mjs`
+tables, and that is the contract the module promises. Mixed
+JavaScript/FunctionalScript interop is a separate concern for a separate
+repository; it does not belong in this one's proofs.
+
+**Recommended: judge a `proof.mjs` by a native runner.** `fjs t` is the
+FunctionalScript runner — it walks a proof tree where a leaf is a pure thunk and
+suspension, timers and real I/O belong to the interpreter. A host proof is none
+of those: it awaits, it opens a `node:vm` context, it drives a DOM stand-in. The
+runner its host already has fits it better, and `emergent_testing` is built for
+that — `registerModule` hands each leaf to an external framework so the
+framework owns scheduling, and `all.test.mjs` is the entry point `node --test`,
+`bun test` and `deno test` discover. Prefer `node --test` when a `proof.mjs`
+fails or behaves differently under the two.
+
+This one is a recommendation, not a rule. Both runners see every proof today,
+and `fjs t` stays the reference runner for everything `.f.mjs`.
+
 ---
 
 ## 2. Documentation

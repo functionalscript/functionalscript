@@ -14,8 +14,7 @@ are copy-pasted across proof files:
   plus a hand-rolled `unwrap` (`:30-33`) that duplicates `unwrap` from
   `fjs/types/result/module.f.mjs` — which the sibling
   `../validate/proof.f.mjs:14` already imports.
-- `../host.proof.mjs:43-46` — `assertOk`, `assertError` a third time.
-- `../../edag/proof.f.mjs:75-92` — `assertOk` a fourth time, and
+- `../../edag/proof.f.mjs:75-92` — `assertOk` a third time, and
   `assertNoMatch`, which is `assertErrorPath([])` plus one message check.
 - `../../effects/proof.f.mjs:136-139` and
   `../../effects/node/proof.f.mjs:47-50` — a differently-shaped
@@ -26,7 +25,7 @@ moot — "`validate` was deleted and `parse` is the only schema-form reader, so
 there is one proof file and nothing to share it with" — and instructed *not*
 to hoist. That recorded a deletion that never landed: `fjs/rtti/validate/`
 exists and is actively developed, so by the repo's own rule — hoist when a
-second consumer exists — the hoist is due, with four consumers of the exact
+second consumer exists — the hoist is due, with three consumers of the exact
 shape and two more of a variant.
 
 ### Proposal
@@ -62,7 +61,7 @@ replaced by `unwrap` from `fjs/types/result/module.f.mjs`.
       the repo's rule is that a new export carries its own proof, and a
       hoisted assertion is exactly the kind whose failure path nothing else
       checks.
-- [ ] Rewrite the six proof files through them; express `edag`'s
+- [ ] Rewrite the five proof files through them; express `edag`'s
       `assertNoMatch` via `assertErrorPath([])`. In `effects`, keep the
       payload comparison at every site — the count of `assertEq` calls in
       `fjs/effects/proof.f.mjs` and `fjs/effects/node/proof.f.mjs` must not

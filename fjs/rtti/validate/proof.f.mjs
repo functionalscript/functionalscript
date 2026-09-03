@@ -180,9 +180,6 @@ const rows = () => {
         // a hole past the prefix is no member, so it meets no rest — which is what
         // the `| undefined` in the rendered tail says
         [rest([number], string), [1, ,]],
-        // An index the prototype supplies, and a key past the index range, are
-        // members too — both need in-place mutation to build, so their rows run
-        // through the same three readers in `../host.proof.mjs`.
         [rest({ a: number }, string), { a: 1, b: 'x' }],
         [rest({ a: number }, string), { a: 1, b: 2 }],
         // a stated rest with nothing to answer for: the struct kind has no length,

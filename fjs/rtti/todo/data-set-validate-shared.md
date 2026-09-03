@@ -52,19 +52,13 @@ Object.entries(value).filter(([k]) => at(k)(p.props) === null),
 "`undeclaredMembers` is what the schema-form readers walk too, so 'what is
 left over' is one rule rather than two that happen to coincide."
 
-The two spellings are equivalent today, and the equivalence is a coincidence
-of two separate facts: `undeclaredMembers` falls through to
-`Object.entries(value).filter(…)` for a non-array
-(`../common/module.f.mjs:326-328`), so neither walk sees an inherited key;
-and `at` returns `null` both for an absent key and for one whose value is
+The two spellings are equivalent today, and the equivalence is a coincidence:
+`at` returns `null` both for an absent key and for one whose value is
 `undefined` (`../../types/object/module.f.mjs:31-34`), which is exactly what
 `definedEntries` drops when it builds `propEntries`. So the object arm is not
 currently *wrong* — it is a second definition of a rule the file names as
-single. The array kind is where the two constructions genuinely differ
-(`undeclaredMembers` walks `readIndices`, which reads an inherited index that
-`Object.entries` misses — see its `[42, , ]` example at
-`../common/module.f.mjs:305-310`), and that is the divergence a future
-`props`-side change would reintroduce silently on the object kind too.
+single, and that is the divergence a future `props`-side change would
+reintroduce silently.
 
 ### Proposal
 

@@ -293,9 +293,9 @@ dynamic `import()` resolution. See
 
 `fjs t` and the browser page run the same proofs through the same core:
 `collectTests` walks a tree, `testResult` decides a leaf's identity and status,
-and each host supplies only an interpreter and a reporter. That
-`equivalence.proof.mjs` compares the two transcripts of one fixture as a single
-string is the property the arrangement exists for.
+and each host supplies only an interpreter and a reporter. That one suite
+produces one answer, whichever host runs it, is the property the arrangement
+exists for.
 
 It took three attempts, and the second was reverted with every gate green —
 `tsc`, 3,547 proofs, 100% coverage, a real Chromium run — for a reason worth
@@ -380,8 +380,7 @@ by accident.
   semantic core.** They are the two hosts' own ends of the same reporter.
 - **Both runners produce the same test name for the same leaf.** Nothing about
   a browser prevents it, so a divergence here is the visible sign that the
-  semantics underneath were never unified. `equivalence.proof.mjs` is what
-  holds this.
+  semantics underneath were never unified.
 
 ### Open questions about the report shape
 

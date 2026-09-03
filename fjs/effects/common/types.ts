@@ -117,14 +117,16 @@ export type Sandbox = readonly['sandbox', <T>(f: () => T) => OpResult<SandboxRes
  * proof traversal enumerates values a test returned, and an enumerable getter or
  * a proxy trap in one of them is a failure of that test rather than of the run.
  *
- * **What it is worth, measured.** `emergent_testing` reads user values in three
- * places and every one of them used to be able to end a run: a leaf's returned
- * tree (functionalscript#1809), a module's `proof` export (functionalscript#1830)
- * and a thrown value being described (functionalscript#1832). Unguarded, the
- * last was the worst — `fjs t` describes its failures *after* the last leaf, so
- * a value whose `toString` threw killed the report when every test had already
- * run and been announced: no totals, no exit code, from a run that completed.
- * Each is now one failed record and the run goes on.
+ * **What it is worth, measured.** `emergent_testing` reads user values in two
+ * places and both used to be able to end a run: a leaf's returned tree
+ * (functionalscript#1809) and a thrown value being described
+ * (functionalscript#1832). The second was the worse — `fjs t` describes its
+ * failures *after* the last leaf, so a value whose `toString` threw killed the
+ * report when every test had already run and been announced: no totals, no exit
+ * code, from a run that completed. Each is now one failed record and the run
+ * goes on. Both read a value a *failing* test produced, which is why they are
+ * guarded at all; a module's `proof` export is ordinary FunctionalScript data
+ * and is read directly.
  *
  * A value from *another realm* is not what this defends against, and is not
  * supported: `fjs/AGENTS.md`'s "One realm, one prototype chain" puts a promise
