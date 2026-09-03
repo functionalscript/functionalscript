@@ -8,9 +8,13 @@
 > alone would give the proof runner a mode system no other command shares —
 > invented from whichever audience happened to be asked about first. The
 > destinations, verbosities and scheduling shapes are enumerated and designed
-> together in the epic above; this issue is the pipe destination in that table.
-> What is *below* stays as the input it is: the two reasons a consumer needs
-> the announcement, and the constraints any answer must satisfy.
+> together in the epic above. This issue is the **line-framing** concern there,
+> not "the pipe destination": a redirected `stdout` read bytewise sees the open
+> `name: ` write, and only a line-oriented consumer of that same pipe does not,
+> so the audience is a property of the reader rather than of the transport.
+> What names that audience is an open question in the epic. What is *below*
+> stays as the input it is: the two reasons a consumer needs the announcement,
+> and the constraints any answer must satisfy.
 
 ### Problem
 
@@ -87,7 +91,10 @@ into one flag.
       a record of its own there.
 - [ ] Decide what a TTY run may do with the cursor, and whether the current
       open-line format is already that answer or a step towards it.
-- [ ] Select on `options.std['stdout'].isTTY`, keeping CI-ness a separate axis.
+- [ ] Settle the selector with the epic rather than here. `isTTY` separates a
+      terminal from a redirected stream and **cannot** identify a line-oriented
+      consumer of that stream, which is the audience above; CI-ness stays a
+      separate axis either way.
 - [ ] Prove both modes through the virtual runner.
 
 ### Related
