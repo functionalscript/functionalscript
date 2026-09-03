@@ -39,8 +39,9 @@ fn normalize(vec: &[u64]) -> &[u64] {
 /// Compares two magnitudes with no leading (most-significant) zero words, by
 /// length first and then from the most-significant word down — the same rule
 /// [`BigInt::abs_cmp_vec`] uses, but over plain words instead of `BigInt`s, so
-/// [`abs_rem_vec`](BigInt::abs_rem_vec) can compare its running remainder
-/// against the divisor on every bit without rebuilding a `BigInt` each time.
+/// [`abs_divmod_vec`](BigInt::abs_divmod_vec) can compare its running
+/// remainder against the divisor on every bit without rebuilding a `BigInt`
+/// each time.
 fn cmp_words(a: &[u64], b: &[u64]) -> Ordering {
     let len_cmp = a.len().cmp(&b.len());
     if len_cmp != Ordering::Equal {
