@@ -68,7 +68,7 @@ terminal layer's: the closed range `a..b` and the singleton `x`, which need
 `b + 1` and `x + 1`; `toRangeMap`, because `range_map` entries carry an
 *inclusive* upper bound, so `[a, b)` becomes `b - 1`; and the domain, whose
 lowering demands integer boundaries. Those are three helpers in
-`fjs/grammar/terminal/`, not a second range-set module: EBNF is the only
+`fjs/ebnf/terminal/`, not a second range-set module: EBNF is the only
 consumer that cares, and `fjs/media/nix` builds its sets from `[a, b + 1]`
 directly.
 
@@ -167,9 +167,9 @@ that is what every grammar in the tree uses today.
 #### Two complements, two names
 
 The generic `complement` is over the whole number line, which no grammar ever
-means. The terminal domain is a set value, `[0]`, owned by the neutral
-terminal module ([grammar-bucket](../../todo/grammar-bucket.md) stage 1), and
-the lowering intersects every set with it: that clips a `-Infinity` a generic
+means. The terminal domain is a set value, `[0]`, owned by `fjs/ebnf/terminal/`
+([ebnf-migration](../../todo/ebnf-migration.md), the `ebnf/terminal/` piece),
+and the lowering intersects every set with it: that clips a `-Infinity` a generic
 complement produced back to `0`, drops EOF and anything below it, and so
 restores canonicity before the IR. It also requires every boundary to be an
 integer: `[0.5, 1.5]` and `[1, 2]` are the same set of symbols, and only one
@@ -187,7 +187,7 @@ rejects anything beyond it. So the IR never spells the maximum, and
 The alphabet adapter's `not` is *difference against its universe*: Unicode's
 is `[0, 0x110000]`, bytes' is `[0, 256]`, and a token-symbol alphabet's is its
 own. The generic toggle lives in `range_set`; the alphabet-scoped one in
-`fjs/grammar/unicode/` and its siblings ([unicode-rules](./unicode-rules.md)).
+`fjs/ebnf/unicode/` and its siblings ([unicode-rules](./unicode-rules.md)).
 This answers ebnf-front-end's Problem 5 — the helpers take and return sets,
 and `notOf` is unnecessary — and most of its Problem 9: the adapter returns
 set *values*, and each front end has one injection from a set to a rule.
@@ -219,7 +219,7 @@ halves; `[0x30, 0x3A]` reads at least as well.
 #### What it is not
 
 Not a performance change. Real sets are tiny — three ranges in the JSON string
-rule — and the descent backend's per-branch attempts were never measured. The
+rule — and the classical variant's per-branch dispatch was never measured. The
 justification is the API and the AST, which is where
 [DESIGN.md](../../../doc/DESIGN.md) says quality lives; do not sell it as speed.
 
@@ -231,8 +231,8 @@ justification is the API and the AST, which is where
       `difference`, the half-open `fromRange`, validation on construction;
       proofs for each, for `[]`, `[-Infinity]`, `[-1, 0]`, `[0.5, 1.5]`, an
       open tail, and every rejected input (`NaN`, `Infinity`, `-0`, a
-      repeat, a descent). Port `fjs/media/nix/module.f.mjs` to `[a, b + 1]`.
-- [ ] `fjs/grammar/terminal/`: the integer helpers — `range(a, b)` and
+      repeat, a decrease). Port `fjs/media/nix/module.f.mjs` to `[a, b + 1]`.
+- [ ] `fjs/ebnf/terminal/`: the integer helpers — `range(a, b)` and
       `one(x)` as `[a, b + 1]` and `[x, x + 1]`, `eof` as `[-1, 0]`, the
       domain `[0]`, and `toRangeMap` (inclusive upper bound `b - 1`; an open
       tail is `Infinity`). No integer range-set module: these arithmetic
@@ -244,23 +244,23 @@ justification is the API and the AST, which is where
       (intersect with the domain `[0]`; require integer boundaries; drop a
       trailing `maxSymbol + 1` and reject anything beyond it; reject the
       empty set), and the constructor list.
-- [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/grammar/unicode/`
+- [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/ebnf/unicode/`
       produce sets; `not` is difference against the Unicode universe. `str`
       is not one of them: `str('true')` is an ordered `Sequence` of
       one-symbol terminals, one per code point, exactly as a bare `string`
       lowers today. Same for `byte/` when it exists.
-- [ ] Backends: LL(1) builds its dispatch map from `toRangeMap`; descent tests
-      membership with `contains`; the failure record at
-      `fjs/bnf/descent/module.f.mjs:60` holds a set, so "expected" diagnostics
-      render one.
-- [ ] Port `fjs/bnf/lib/json`, `lib/datajs` and the `djs` tokenizer; the
-      per-character variant nodes disappear from their ASTs, which is a
-      breaking AST change for any consumer that reads rather than flattens
-      them. Delete `remove`, `not`, `notSet`, `RangeVariant` and `removeOne`
-      from the classical front end only if it is still alive; otherwise they
-      go with it in grammar-bucket stage 8.
-- [ ] Rewrite the note at `fjs/djs/tokenizer/module.f.mjs:249` as
-      `difference(unicode)(newLine)`, which is what it was reaching for.
+- [ ] `fjs/ebnf/ll1/`, the one backend the migration keeps: the dispatch map
+      is built from `toRangeMap`, and the first/first conflict error names
+      the rule, so it renders a set rather than a packed range.
+- [ ] The ports ebnf-migration schedules — `ebnf/lib/json`, `ebnf/lib/datajs`,
+      then the `djs` tokenizer and parser — spell their character classes as
+      sets; the per-character variant nodes disappear from their ASTs, which
+      the cross-front-end comparison proofs pin as an expected difference.
+      `remove`, `not`, `notSet`, `RangeVariant` and `removeOne` stay in
+      `bnf/` untouched and go with it at the migration's stage 7.
+- [ ] The `djs` tokenizer port spells the note at
+      `fjs/djs/tokenizer/module.f.mjs:249` as `difference(unicode)(newLine)`,
+      which is what it was reaching for.
 - [ ] `tsc`, `fjs test`. Each breaking PR declares `**BREAKING CHANGES:**`
       in the `Changelog:` section of its description
       ([changelog/RELEASE.md](../../../changelog/RELEASE.md)) — the
@@ -278,9 +278,10 @@ justification is the API and the AST, which is where
   alphabet-scoped `not`.
 - [terminal-range-representation](./terminal-range-representation.md) — the
   bigint domain; the toggle list is the representation it was looking for.
-- [grammar-bucket](../../todo/grammar-bucket.md) — `terminal/` owns the
-  domain set `[0]`, `eof` and the integer helpers; `RangeVariant` no longer
-  moves there.
+- [ebnf-migration](../../todo/ebnf-migration.md) — the module this lands in.
+  `ebnf/terminal/` owns the domain set `[0]`, `eof` and the integer helpers;
+  `ebnf/unicode/` is rewritten in set values rather than `RangeVariant`, and
+  `notOf` leaves its triage row.
 - [rule-visitor](./rule-visitor.md) — discriminates the data `Rule`, so it
   waits on the same IR carrier decision.
 - [`fjs/types/range_set/module.f.mjs`](../../types/range_set/module.f.mjs) —
