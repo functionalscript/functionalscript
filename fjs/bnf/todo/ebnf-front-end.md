@@ -252,16 +252,18 @@ Rewriting them against `RuleSet` literals is grammar-bucket's pre-stage-5 work
 and is also what first makes `descentEquivalence` front-end neutral.
 
 **3. A nullable body is two problems.** Unbounded max is non-termination and
-stays rejected. Bounded max is *ambiguity*, and only when the body can match
-both empty and non-empty: `['repeat', 2, 2, r]` over a body matching `""` or
-`"x"` parses `x` two ways, and `times(3)(option(x))` places one `x` in any of
-its three slots. A nullable body is safe in exactly one case: **the count is fixed and the body
-matches only empty**, as in `['repeat', 3, 3, []]`, where every copy matches
-the same nothing. Both halves are needed — `['repeat', 0, 1, []]` accepts
-empty input as zero copies or as one, so a varying count is ambiguous even
-with an empty-only body. Reject anything outside that exemption, or keep a
-blanket rule and document its cost — but "cardinality unrecoverable" is false at a bounded max,
+stays rejected. Bounded max is *ambiguity*: `['repeat', 2, 2, r]` over a body
+matching `""` or `"x"` parses `x` two ways. One case is safe — **a fixed count
+and an empty-only body**, `['repeat', 3, 3, []]`, where every copy matches the
+same nothing; `['repeat', 0, 1, []]` is not, since empty input is zero copies
+or one. Reject anything outside that exemption, or keep the blanket rule and
+document its cost — but "cardinality unrecoverable" is false at a bounded max,
 where the cardinality is the bound.
+
+This is a *nullability* check, not an ambiguity check. A non-nullable body can
+be ambiguous too — `repeat(1, 2)({ short: 'a', long: 'aa' })` reads `aa` as one
+`long` or two `short` — and deciding that in general is not the front end's
+job.
 
 **4. The optional's AST change is a bulk proof rewrite.** Production consumers
 do not read the `some`/`none` tags, but `descent/proof.f.mjs:288-296` and

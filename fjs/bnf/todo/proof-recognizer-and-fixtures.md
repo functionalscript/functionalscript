@@ -192,6 +192,9 @@ explicit named override list for the rows where token-stream acceptance differs.
       local and document why it is distinct.
 - [ ] Convert the DJS tokenizer proof to `jsonCases` plus a named override list
       and its DJS-only inputs.
+- [ ] Give the new testlib its own co-located `proof.f.mjs` covering every
+      export, as any new `.f.mjs` owes. Downstream proofs happening to call it
+      is not that coverage.
 - [ ] Confirm coverage is unchanged — this must move test text, not test cases.
 - [ ] Run `tsc` and `fjs t`.
 
