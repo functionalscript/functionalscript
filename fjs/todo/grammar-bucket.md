@@ -245,6 +245,9 @@ A module the migration creates goes to its final path immediately, never to
 
 ### Related
 
+- [ebnf-migration](./ebnf-migration.md) — the alternative: build `fjs/ebnf/`
+  beside `fjs/bnf/` with a one-way dependency, triage rather than move, and
+  retire `bnf/` at the end. Only one of the two plans is to be followed.
 - [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)
   — the regrouping plan this belongs to; it set the one-move-per-PR rule.
 - [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — the second front end. Its
