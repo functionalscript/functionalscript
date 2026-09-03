@@ -772,7 +772,7 @@ type-checking against the published declaration does. Same failure as the
 When a generic function composes other independently-generic functions in its
 body, annotate each arrow with its own `@template` / `@param` / `@returns`
 instead of writing one `@type {<T, S>(...) => ...}` over the whole chain.
-[`fjs/types/array`](./types/array/module.f.mjs)'s `isTuple` is the worked
+[`fjs/types/array`](./types/array/module.f.mjs)'s `isFixedArray` is the worked
 example; `types/sorted_list`, `types/range_map` and `fsc` use the same shape. A
 single top-level signature has to restate every type variable of every stage,
 which is where the inference it replaced goes wrong again.

@@ -1,4 +1,6 @@
-## nullable-repeat-item. `AstRule` flattens repetitions the runtime refuses
+## nullable-repeat-item. `AstRule` and `repeatOf` disagree where a rule set is needed
+
+*(The slug names the first case found; the issue grew to three.)*
 
 **Priority:** P3
 **Status:** open
@@ -8,16 +10,22 @@
 `AstRule` classifies a repetition from the rule alone: a lazy two-branch
 variant, one branch the empty sequence, the other the item paired with the rule
 itself. `repeatOf` in [`../../data/module.f.mjs`](../../data/module.f.mjs) asks
-for two things more, and neither can be answered from the rule:
+for more, and none of it can be answered from the rule:
 
 - `emptyTags[item] !== undefined` rejects an item that can match empty, since a
   body consuming nothing has infinitely many parses of the same input.
 - `contains(name)(reachable(ruleSet)(item))` rejects an item that can reach the
   rule again, so that the rule's only self-reference is the tail one.
+- `stepRule[1] !== name` asks whether the tail *is this rule*, by name. The
+  type-level test asks whether the tail has this rule's shape, and those differ:
+  given two separate declarations both spelled
+  `() => { none: [], some: [0, B] }`, the tail of the first is `B` rather than
+  itself, so `repeatOf` leaves it a variant while `AstRule` reads a repetition.
 
-So `Repeat0Plus<readonly []>` and a repetition whose item refers back to the
-repetition both get an array from `AstRule`, while `repeatItem` returns `null`
-for each. The type describes an AST the parser will not build.
+So `Repeat0Plus<readonly []>`, a repetition whose item refers back to the
+repetition, and a rule whose tail is a structurally identical *other* rule all
+get an array from `AstRule` while the parser builds a variant. The type
+describes an AST the parser will not build.
 
 The consequence is bounded, and is what makes this a `todo/` rather than a fix:
 both are grammars the runtime refuses outright, so the wrong type belongs to a
@@ -26,11 +34,17 @@ fixed in the same pull request — extra branches, and branch names other than
 `some`/`none` — each of which gave a wrong shape to a grammar that *does*
 parse.
 
-### Why neither is a guard
+### Why none of them is a guard
 
-Both conditions are questions about a rule *set*, not about a rule.
-`reachable` walks a set of named rules; there is no set here to walk, and a
-structural type has no name to be reached.
+All three are questions about a rule *set*, not about a rule. `reachable` walks
+a set of named rules; there is no set here to walk, and a structural type has
+no name to be reached.
+
+The identity condition puts it beyond reach rather than merely inconvenient.
+TypeScript is structurally typed, so two rules with the same shape are not
+"hard to tell apart" — they are the *same type*, and `Assert<Equal<A, B>>`
+holds for the pair above. No test written against the type can separate them,
+whatever it asks.
 
 Nullability is the one that shows the shape of the problem concretely.
 Mirroring it needs a type-level answer to "can this rule match empty?", and the
@@ -66,13 +80,16 @@ Until then the limit is stated in
 
 - [ ] Decide between deriving from the rule set and documenting the restriction.
 - [ ] If the analysis is written, pin `Repeat0Plus<readonly []>`, a repetition
-      over a variant with an empty branch, and a repetition whose item reaches
-      the repetition, with `Assert<Equal<…>>`.
+      over a variant with an empty branch, a repetition whose item reaches the
+      repetition, and a rule whose tail is a structurally identical other rule,
+      with `Assert<Equal<…>>`.
 - [ ] `tsc`, `fjs t`.
 
 ### Related
 
 - [`../../data/module.f.mjs`](../../data/module.f.mjs) — `repeatOf`,
   `emptyTagMap` and `reachable`, the conditions this issue is measured against.
+  Deriving from the rule set would settle all three at once, since a rule set is
+  exactly what supplies the names they are phrased in.
 - [`../types.ts`](../types.ts) — `AstRule` and the module documentation stating
   the limit.

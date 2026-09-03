@@ -170,13 +170,19 @@ type _Walk<
  * what that type distributes each of its two bounds over.
  */
 type _Range<Min extends number, Max extends number, T> =
-    // An unknown `Min` bounds nothing, and a rest element cannot follow another
-    // rest element, so `FixedArray<number, T>` could not open a tuple.
-    number extends Min ? readonly T[] :
     // An open `Max` has to be answered before the walk, which would otherwise
-    // read its very first `0 extends number` as having arrived.
-    number extends Max ? readonly [...FixedArray<Min, T>, ...T[]] :
-    _Walk<Min, Max, T>
+    // read its very first `0 extends number` as having arrived. With no bound
+    // at either end nothing is left to describe but the array; with only `Min`
+    // known, `FixedArray<number, T>` could not open a tuple anyway, since a
+    // rest element cannot follow another rest element.
+    number extends Max
+        ? number extends Min
+            ? readonly T[]
+            : readonly [...FixedArray<Min, T>, ...T[]]
+        // An unknown `Min` is no lower bound — but it does not release the
+        // upper one, so the walk starts from zero rather than the whole of
+        // `Max` being dropped.
+        : _Walk<number extends Min ? 0 : Min, Max, T>
 
 /**
  * `Min` required elements followed by optional ones up to `Max`, as one tuple
@@ -225,7 +231,11 @@ type _YU_Min = Assert<Equal<
 // A `Min` above `Max` describes no array at all.
 type _Y32 = Assert<Equal<OptionalTailArray<3, 2, true>, never>>
 
-// An unknown `Min` bounds nothing.
-type _Y_3 = Assert<Equal<OptionalTailArray<number, 3, true>, readonly true[]>>
+// An unknown `Min` is no lower bound, and does not release the upper one.
+type _Y_3 = Assert<Equal<
+    OptionalTailArray<number, 3, true>,
+    readonly [true?, true?, true?]>
+>
+type _Y__ = Assert<Equal<OptionalTailArray<number, number, true>, readonly true[]>>
 
 export type Includes<I, T extends readonly I[]> = (v: I) => v is T[number]

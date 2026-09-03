@@ -6,13 +6,16 @@
  * the union of its branches, and a repetition becomes an array. Everything here
  * is types and `Assert`s, so `tsc` is this module's test.
  *
- * A repetition is recognized from the rule alone, which is two conditions short
- * of what `repeatOf` in `../data/module.f.mjs` asks: that module also refuses
- * an item that can match empty, and one that can reach the repetition again.
- * Such a repetition is therefore given an array here and refused there — in
- * both cases a grammar the runtime rejects either way, and the only place this
- * module and the parser disagree. Both are questions about a rule *set* rather
- * than a rule: [nullable-repeat-item](./todo/nullable-repeat-item.md).
+ * A repetition is recognized from the rule alone, which is short of what
+ * `repeatOf` in `../data/module.f.mjs` asks: that module also refuses an item
+ * that can match empty or that can reach the repetition again, and it asks
+ * whether the tail *is* this rule by name where the test below can only ask
+ * whether it has this rule's shape. Each is a question about a rule *set*
+ * rather than a rule, and the last is beyond reach rather than merely
+ * unasked — two rules of the same shape are the same type here, so nothing
+ * written against the type can separate them. These are the only places this
+ * module and the parser disagree:
+ * [nullable-repeat-item](./todo/nullable-repeat-item.md).
  *
  * @module
  */
