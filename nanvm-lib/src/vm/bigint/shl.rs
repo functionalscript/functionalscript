@@ -49,16 +49,30 @@ impl<A: IVm> Shl for BigInt<A> {
 
         let (word_shift, bit_shift) = shift.div_mod(64);
 
-        // Result can have at most word_shift + n_len + 1 words (carry).
-        if word_shift + n_len as u64 + 1 > MAX_WORDS {
+        // A carry word is only produced when `bit_shift` actually pushes a
+        // set bit out of the current top word — not on every shift, so this
+        // is computed exactly rather than conservatively reserved for every
+        // call: `1n << 1073741823n` needs exactly `MAX_WORDS` words (no
+        // carry) and must succeed, the same as it does in Node.
+        let top_word = self[n_len - 1];
+        let carries_new_word = bit_shift > 0 && top_word >> (64 - bit_shift) != 0;
+        let result_len = word_shift + n_len as u64 + if carries_new_word { 1 } else { 0 };
+        if result_len > MAX_WORDS {
             return too_large();
         }
         let word_shift = word_shift as usize;
 
-        // TODO: implement as an iterator without additional allocations.
-        let mut value: Vec<u64> = core::iter::repeat_n(0u64, word_shift)
-            .chain((0..n_len).map(|i| self[i]))
-            .collect();
+        // `result_len` is already policy-bounded to `MAX_WORDS` (128 MiB) by
+        // the check above, but the allocator can still fail below that —
+        // the real memory available to an embedder can be smaller — so this
+        // reserves fallibly rather than through `Vec`'s ordinary growth,
+        // whose failure aborts the process instead of returning an `Err`.
+        let mut value: Vec<u64> = Vec::new();
+        if value.try_reserve_exact(result_len as usize).is_err() {
+            return too_large();
+        }
+        value.extend(core::iter::repeat_n(0u64, word_shift));
+        value.extend((0..n_len).map(|i| self[i]));
 
         if bit_shift > 0 {
             let mut carry = 0u64;
@@ -364,15 +378,34 @@ mod tests {
 
     #[test]
     fn shl_just_over_max_words_returns_err_without_allocating() {
-        // One word past MAX_WORDS: rejected by the guard before any
-        // allocation is attempted, so this stays cheap even though the
-        // *value* it describes (2^30 bits) would not.
+        // Shifting by exactly `MAX_WORDS * 64` bits (2^30) needs
+        // MAX_WORDS + 1 words (word_shift = MAX_WORDS, plus the existing
+        // word of `1`, no carry since bit_shift is 0) — one word past the
+        // limit, matching the exact boundary Node itself rejects at
+        // (`1n << 1073741823n` succeeds, `1n << 1073741824n` throws).
+        // Rejected by the guard before any allocation is attempted, so this
+        // stays cheap even though the *value* it describes would not.
         let a: T = 1u64.into();
         let b: T = (super::MAX_WORDS * 64).into();
         assert_eq!(
             a << b,
             Err("RangeError: Maximum BigInt size exceeded".into())
         );
+    }
+
+    #[test]
+    fn shl_carry_word_only_counted_when_actually_needed() {
+        // A shift landing the single set bit on the top word's own MSB
+        // (bit_shift = 63, and that bit was 0 before the shift) produces no
+        // carry — word_shift + n_len alone is the exact result length, so
+        // the guard must not conservatively add one for every call. Here
+        // the shift is chosen so the guard's word-count arithmetic is
+        // exercised directly (word_shift = 2, matching a hypothetically
+        // tiny `MAX_WORDS`), without needing an allocation anywhere near
+        // the real 128 MiB limit to prove it.
+        let a: T = 1u64.into();
+        let b: T = 191u64.into(); // word_shift = 2, bit_shift = 63
+        assert_eq!((a << b).unwrap(), pos(vec![0, 0, 1u64 << 63]));
     }
 
     #[test]
