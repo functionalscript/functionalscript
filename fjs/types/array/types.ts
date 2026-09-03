@@ -68,5 +68,6 @@ type _X2_ = Assert<Equal<
     BoundedArray<2, number, true>,
     readonly [true, true, ...readonly true[]]>
 >
+type _XXMax = BoundedArray<0, 48, true>
 
 export type Includes<I, T extends readonly I[]> = (v: I) => v is T[number]
