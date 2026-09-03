@@ -4,11 +4,11 @@
  * @module
  */
 
-import type { Tuple } from '../../array/types.ts'
+import type { FixedArray } from '../../array/types.ts'
 
-export type Leaf1<T> = Tuple<1, T>
+export type Leaf1<T> = FixedArray<1, T>
 
-export type Leaf2<T> = Tuple<2, T>
+export type Leaf2<T> = FixedArray<2, T>
 
 export type Branch3<T> = readonly [TNode<T>, T, TNode<T>]
 
