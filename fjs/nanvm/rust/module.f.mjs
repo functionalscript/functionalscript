@@ -97,6 +97,7 @@ export const rustName = {
     '||': 'logical_or',
     '??': 'nullish_coalescing',
     ternary: 'conditional',
+    typeof: 'type_of',
     String: 'string_coercion',
 }
 
@@ -109,6 +110,7 @@ const op1Rust = {
     unaryPlus: a => `Any::unary_plus(${a})`,
     neg: a => `-(${a})`,
     '!': a => `!(${a})`,
+    typeof: a => `Any::type_of(${a})`,
     String: a => `${a}.to_string().map(|v| v.to_any())`,
 }
 

@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 18
+ * data.groups.length // 19
  * ```
  */
 
@@ -1038,6 +1038,32 @@ const ternaryCases = [
 ]
 
 /**
+ * `typeof`, the corpus's other group with no canonical EDAG id (see
+ * `NonEdagGroup` in `types.ts`) — it returns a tag naming the operand's own
+ * kind, so unlike `!`/`&&`/`||`/`??`/`?:` there is no identity concern here:
+ * the result is always a fresh string, never the operand itself.
+ *
+ * @type {readonly Case<1>[]}
+ */
+const typeofCases = [
+    { name: 'undefined', args: [undefined], expected: 'undefined' },
+    { name: 'null', args: [null], expected: 'object' },
+    { name: 'booleanTrue', args: [true], expected: 'boolean' },
+    { name: 'booleanFalse', args: [false], expected: 'boolean' },
+    { name: 'number', args: [2.3], expected: 'number' },
+    { name: 'numberNan', args: [NaN], expected: 'number' },
+    { name: 'string', args: ['a'], expected: 'string' },
+    { name: 'stringEmpty', args: [''], expected: 'string' },
+    { name: 'bigint', args: [5n], expected: 'bigint' },
+    { name: 'bigintZero', args: [0n], expected: 'bigint' },
+    { name: 'emptyArray', args: [[]], expected: 'object' },
+    { name: 'array', args: [[1, 2]], expected: 'object' },
+    { name: 'emptyObject', args: [{}], expected: 'object' },
+    { name: 'object', args: [{ a: 1 }], expected: 'object' },
+    { name: 'function', args: [functionValue], expected: 'function' },
+]
+
+/**
  * `String(x)`.
  *
  * A function's string form is its source text, which no two engines have to
@@ -1149,6 +1175,7 @@ export const data = {
         { op: '||', cases: orCases },
         { op: '??', cases: nullishCases },
         { nanvmOp: 'ternary', cases: ternaryCases },
+        { nanvmOp: 'typeof', cases: typeofCases },
         { op: 'String', cases: stringCoercionCases },
     ],
 }

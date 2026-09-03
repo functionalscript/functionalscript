@@ -11,6 +11,7 @@ mod partial_eq;
 mod relational;
 mod rem;
 mod sub;
+mod type_of;
 
 pub mod to_any;
 
@@ -115,6 +116,6 @@ impl<A: IVm> Any<A> {
     }
 }
 
-// TODO implement other operators like &, |, ^, <<, >>, >>>, ~, typeof, etc using Rust standard
-// traits - similarly to Neg above. Implement operators that do not have corresponding Rust standard
-// traits via adding methods to Any<A> - similarly to unary_plus.
+// TODO implement other operators like &, |, ^, <<, >>, >>>, ~, etc using Rust standard traits -
+// similarly to Neg above. Implement operators that do not have corresponding Rust standard traits
+// via adding methods to Any<A> - similarly to unary_plus.

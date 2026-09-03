@@ -25,7 +25,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | `+`      | Unary plus          | [x]      | `Any::unary_plus()` method (coerces to number) |
 | `!`      | Logical NOT         | [x]      | [`any/not.rs`](src/vm/any/not.rs) — `Not for Any<A>`, via the new `ToBoolean` coercion ([`boolean_coercion.rs`](src/vm/boolean_coercion.rs)) |
 | `~`      | Bitwise NOT         | [ ]      | |
-| `typeof` | Type of             | [ ]      | |
+| `typeof` | Type of             | [x]      | [`any/type_of.rs`](src/vm/any/type_of.rs) — `Any::type_of()` method (no Rust operator to spell it with, and `typeof` itself is a reserved word); returns `"undefined"`, `"object"` (`null` and both container types), `"boolean"`, `"number"`, `"bigint"`, `"string"`, or `"function"` |
 
 ### Comparison
 

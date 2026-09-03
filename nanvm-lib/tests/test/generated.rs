@@ -687,6 +687,25 @@ fn conditional<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn type_of<A: IVm>() {
+    check::<A>("undefined", Any::type_of(Nullish::Undefined.to_any()), string_any("undefined"));
+    check::<A>("null", Any::type_of(Nullish::Null.to_any()), string_any("object"));
+    check::<A>("booleanTrue", Any::type_of(true.to_any()), string_any("boolean"));
+    check::<A>("booleanFalse", Any::type_of(false.to_any()), string_any("boolean"));
+    check::<A>("number", Any::type_of((2.3f64).to_any()), string_any("number"));
+    check::<A>("numberNan", Any::type_of((f64::NAN).to_any()), string_any("number"));
+    check::<A>("string", Any::type_of(string_any("a")), string_any("string"));
+    check::<A>("stringEmpty", Any::type_of(string_any("")), string_any("string"));
+    check::<A>("bigint", Any::type_of(bigint_any(5)), string_any("bigint"));
+    check::<A>("bigintZero", Any::type_of(bigint_any(0)), string_any("bigint"));
+    check::<A>("emptyArray", Any::type_of(Array::default().to_any()), string_any("object"));
+    check::<A>("array", Any::type_of([(1f64).to_any(), (2f64).to_any()].to_array().to_any()), string_any("object"));
+    check::<A>("emptyObject", Any::type_of(Object::default().to_any()), string_any("object"));
+    check::<A>("object", Any::type_of([(string_key("a"), (1f64).to_any())].to_object().to_any()), string_any("object"));
+    check::<A>("function", Any::type_of(function_any()), string_any("function"));
+}
+
+#[rustfmt::skip]
 fn string_coercion<A: IVm>() {
     check::<A>("number", (123f64).to_any().to_string().map(|v| v.to_any()), string_any("123"));
     check::<A>("negativeNumber", (-456f64).to_any().to_string().map(|v| v.to_any()), string_any("-456"));
@@ -730,5 +749,6 @@ pub fn all<A: IVm>() {
     logical_or::<A>();
     nullish_coalescing::<A>();
     conditional::<A>();
+    type_of::<A>();
     string_coercion::<A>();
 }
