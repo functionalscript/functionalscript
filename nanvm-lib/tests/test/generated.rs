@@ -591,6 +591,102 @@ fn ge<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn not<A: IVm>() {
+    check::<A>("null", !(Nullish::Null.to_any()), true.to_any());
+    check::<A>("undefined", !(Nullish::Undefined.to_any()), true.to_any());
+    check::<A>("booleanFalse", !(false.to_any()), true.to_any());
+    check::<A>("booleanTrue", !(true.to_any()), false.to_any());
+    check::<A>("numberZero", !((0f64).to_any()), true.to_any());
+    check::<A>("numberNegativeZero", !((-0f64).to_any()), true.to_any());
+    check::<A>("numberNan", !((f64::NAN).to_any()), true.to_any());
+    check::<A>("numberPositive", !((2.3f64).to_any()), false.to_any());
+    check::<A>("numberNegative", !((-2.3f64).to_any()), false.to_any());
+    check::<A>("stringEmpty", !(string_any("")), true.to_any());
+    check::<A>("stringNonEmpty", !(string_any("a")), false.to_any());
+    check::<A>("bigintZero", !(bigint_any(0)), true.to_any());
+    check::<A>("bigintPositive", !(bigint_any(5)), false.to_any());
+    check::<A>("bigintNegative", !(bigint_any(-5)), false.to_any());
+    check::<A>("emptyArray", !(Array::default().to_any()), false.to_any());
+    check::<A>("emptyObject", !(Object::default().to_any()), false.to_any());
+    check::<A>("function", !(function_any()), false.to_any());
+}
+
+#[rustfmt::skip]
+fn logical_and<A: IVm>() {
+    check::<A>("falseAndTrue", Any::logical_and(false.to_any(), true.to_any()), false.to_any());
+    check::<A>("trueAndFalse", Any::logical_and(true.to_any(), false.to_any()), false.to_any());
+    check::<A>("trueAndTrue", Any::logical_and(true.to_any(), true.to_any()), true.to_any());
+    check::<A>("nullAndOne", Any::logical_and(Nullish::Null.to_any(), (1f64).to_any()), Nullish::Null.to_any());
+    check::<A>("undefinedAndOne", Any::logical_and(Nullish::Undefined.to_any(), (1f64).to_any()), Nullish::Undefined.to_any());
+    check::<A>("zeroAndOne", Any::logical_and((0f64).to_any(), (1f64).to_any()), (0f64).to_any());
+    check::<A>("nanAndOne", Any::logical_and((f64::NAN).to_any(), (1f64).to_any()), (f64::NAN).to_any());
+    check::<A>("oneAndZero", Any::logical_and((1f64).to_any(), (0f64).to_any()), (0f64).to_any());
+    check::<A>("oneAndTwo", Any::logical_and((1f64).to_any(), (2f64).to_any()), (2f64).to_any());
+    check::<A>("emptyStringAndOne", Any::logical_and(string_any(""), (1f64).to_any()), string_any(""));
+    check::<A>("nonEmptyStringAndOne", Any::logical_and(string_any("a"), (1f64).to_any()), (1f64).to_any());
+    check::<A>("bigZeroAndOne", Any::logical_and(bigint_any(0), (1f64).to_any()), bigint_any(0));
+    check::<A>("bigOneAndTwo", Any::logical_and(bigint_any(1), (2f64).to_any()), (2f64).to_any());
+    check::<A>("emptyArrayAndOne", Any::logical_and(Array::default().to_any(), (1f64).to_any()), (1f64).to_any());
+    check::<A>("emptyObjectAndOne", Any::logical_and(Object::default().to_any(), (1f64).to_any()), (1f64).to_any());
+    check::<A>("functionAndOne", Any::logical_and(function_any(), (1f64).to_any()), (1f64).to_any());
+}
+
+#[rustfmt::skip]
+fn logical_or<A: IVm>() {
+    check::<A>("falseOrTrue", Any::logical_or(false.to_any(), true.to_any()), true.to_any());
+    check::<A>("trueOrFalse", Any::logical_or(true.to_any(), false.to_any()), true.to_any());
+    check::<A>("falseOrFalse", Any::logical_or(false.to_any(), false.to_any()), false.to_any());
+    check::<A>("nullOrOne", Any::logical_or(Nullish::Null.to_any(), (1f64).to_any()), (1f64).to_any());
+    check::<A>("undefinedOrOne", Any::logical_or(Nullish::Undefined.to_any(), (1f64).to_any()), (1f64).to_any());
+    check::<A>("zeroOrOne", Any::logical_or((0f64).to_any(), (1f64).to_any()), (1f64).to_any());
+    check::<A>("nanOrOne", Any::logical_or((f64::NAN).to_any(), (1f64).to_any()), (1f64).to_any());
+    check::<A>("oneOrZero", Any::logical_or((1f64).to_any(), (0f64).to_any()), (1f64).to_any());
+    check::<A>("oneOrTwo", Any::logical_or((1f64).to_any(), (2f64).to_any()), (1f64).to_any());
+    check::<A>("emptyStringOrOne", Any::logical_or(string_any(""), (1f64).to_any()), (1f64).to_any());
+    check::<A>("nonEmptyStringOrOne", Any::logical_or(string_any("a"), (1f64).to_any()), string_any("a"));
+    check::<A>("bigZeroOrOne", Any::logical_or(bigint_any(0), (1f64).to_any()), (1f64).to_any());
+    check::<A>("bigOneOrTwo", Any::logical_or(bigint_any(1), (2f64).to_any()), bigint_any(1));
+    check::<A>("oneOrEmptyArray", Any::logical_or((1f64).to_any(), Array::default().to_any()), (1f64).to_any());
+    check::<A>("oneOrEmptyObject", Any::logical_or((1f64).to_any(), Object::default().to_any()), (1f64).to_any());
+    check::<A>("oneOrFunction", Any::logical_or((1f64).to_any(), function_any()), (1f64).to_any());
+}
+
+#[rustfmt::skip]
+fn nullish_coalescing<A: IVm>() {
+    check::<A>("nullCoalesceOne", Any::nullish_coalescing(Nullish::Null.to_any(), (1f64).to_any()), (1f64).to_any());
+    check::<A>("undefinedCoalesceOne", Any::nullish_coalescing(Nullish::Undefined.to_any(), (1f64).to_any()), (1f64).to_any());
+    check::<A>("zeroCoalesceOne", Any::nullish_coalescing((0f64).to_any(), (1f64).to_any()), (0f64).to_any());
+    check::<A>("falseCoalesceOne", Any::nullish_coalescing(false.to_any(), (1f64).to_any()), false.to_any());
+    check::<A>("nanCoalesceOne", Any::nullish_coalescing((f64::NAN).to_any(), (1f64).to_any()), (f64::NAN).to_any());
+    check::<A>("emptyStringCoalesceOne", Any::nullish_coalescing(string_any(""), (1f64).to_any()), string_any(""));
+    check::<A>("bigZeroCoalesceOne", Any::nullish_coalescing(bigint_any(0), (1f64).to_any()), bigint_any(0));
+    check::<A>("oneCoalesceTwo", Any::nullish_coalescing((1f64).to_any(), (2f64).to_any()), (1f64).to_any());
+    check::<A>("oneCoalesceNull", Any::nullish_coalescing((1f64).to_any(), Nullish::Null.to_any()), (1f64).to_any());
+    check::<A>("oneCoalesceEmptyArray", Any::nullish_coalescing((1f64).to_any(), Array::default().to_any()), (1f64).to_any());
+    check::<A>("oneCoalesceEmptyObject", Any::nullish_coalescing((1f64).to_any(), Object::default().to_any()), (1f64).to_any());
+    check::<A>("oneCoalesceFunction", Any::nullish_coalescing((1f64).to_any(), function_any()), (1f64).to_any());
+}
+
+#[rustfmt::skip]
+fn conditional<A: IVm>() {
+    check::<A>("truePicksConsequent", Any::conditional(true.to_any(), (1f64).to_any(), (2f64).to_any()), (1f64).to_any());
+    check::<A>("falsePicksAlternate", Any::conditional(false.to_any(), (1f64).to_any(), (2f64).to_any()), (2f64).to_any());
+    check::<A>("nullPicksAlternate", Any::conditional(Nullish::Null.to_any(), (1f64).to_any(), (2f64).to_any()), (2f64).to_any());
+    check::<A>("undefinedPicksAlternate", Any::conditional(Nullish::Undefined.to_any(), (1f64).to_any(), (2f64).to_any()), (2f64).to_any());
+    check::<A>("zeroPicksAlternate", Any::conditional((0f64).to_any(), (1f64).to_any(), (2f64).to_any()), (2f64).to_any());
+    check::<A>("nanPicksAlternate", Any::conditional((f64::NAN).to_any(), (1f64).to_any(), (2f64).to_any()), (2f64).to_any());
+    check::<A>("emptyStringPicksAlternate", Any::conditional(string_any(""), (1f64).to_any(), (2f64).to_any()), (2f64).to_any());
+    check::<A>("nonEmptyStringPicksConsequent", Any::conditional(string_any("a"), (1f64).to_any(), (2f64).to_any()), (1f64).to_any());
+    check::<A>("bigZeroPicksAlternate", Any::conditional(bigint_any(0), (1f64).to_any(), (2f64).to_any()), (2f64).to_any());
+    check::<A>("bigNonZeroPicksConsequent", Any::conditional(bigint_any(5), (1f64).to_any(), (2f64).to_any()), (1f64).to_any());
+    check::<A>("emptyArrayPicksConsequent", Any::conditional(Array::default().to_any(), (1f64).to_any(), (2f64).to_any()), (1f64).to_any());
+    check::<A>("emptyObjectPicksConsequent", Any::conditional(Object::default().to_any(), (1f64).to_any(), (2f64).to_any()), (1f64).to_any());
+    check::<A>("functionPicksConsequent", Any::conditional(function_any(), (1f64).to_any(), (2f64).to_any()), (1f64).to_any());
+    check::<A>("truePicksStringConsequent", Any::conditional(true.to_any(), string_any("yes"), string_any("no")), string_any("yes"));
+    check::<A>("falsePicksBigAlternate", Any::conditional(false.to_any(), bigint_any(1), bigint_any(2)), bigint_any(2));
+}
+
+#[rustfmt::skip]
 fn string_coercion<A: IVm>() {
     check::<A>("number", (123f64).to_any().to_string().map(|v| v.to_any()), string_any("123"));
     check::<A>("negativeNumber", (-456f64).to_any().to_string().map(|v| v.to_any()), string_any("-456"));
@@ -629,5 +725,10 @@ pub fn all<A: IVm>() {
     le::<A>();
     gt::<A>();
     ge::<A>();
+    not::<A>();
+    logical_and::<A>();
+    logical_or::<A>();
+    nullish_coalescing::<A>();
+    conditional::<A>();
     string_coercion::<A>();
 }

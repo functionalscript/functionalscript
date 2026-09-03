@@ -4,7 +4,11 @@
 //! `fjs/nanvm/module.f.mjs`, and reaches this crate as `generated.rs`
 //! (see `nanvm-lib/tests/README.md`). What stays hand-written is everything
 //! that has nothing to compare against in a JS engine: conversions out of
-//! `Any`, `Debug` formatting, and bigint limb arithmetic.
+//! `Any`, `Debug` formatting, bigint limb arithmetic, and the
+//! reference-identity guarantee `&&`/`||`/`??`/`?:` make — the shared corpus
+//! can prove *which* operand a case selects but not that the selected
+//! array/object/function comes back as the very same object, since it lowers
+//! every operand to a node of its own and compares by value, not identity.
 
 mod generated;
 mod harness;
@@ -227,6 +231,58 @@ fn bigint_negative_zero<A: IVm>() {
     assert_eq!(mn0, n0);
 }
 
+/// `&&`/`||`/`??`/`?:` select an operand rather than deriving a new value —
+/// see the module doc comment for why the shared corpus cannot pin this.
+/// `Array`/`Object`/`Function` equality is `ptr_eq` (their `partial_eq.rs`),
+/// so comparing the result against the very `Any` handed in — not a fresh,
+/// equal-content one — is what actually proves the selected operand comes
+/// back unchanged rather than reconstructed.
+fn reference_identity_selection<A: IVm>() {
+    let array: Any<A> = Array::default().to_any();
+    let object: Any<A> = Object::default().to_any();
+    let function: Any<A> = Function::<A>(A::InternalFunction::new_ok(("".into(), 0), [0])).to_any();
+
+    // `&&`: a reference-typed value is always truthy, so it can only ever be
+    // the discarded left or the selected right — never returned via the
+    // "falsy self" branch, which no reference type can take.
+    assert_eq!(
+        Any::logical_and(true.to_any(), array.clone()).unwrap(),
+        array
+    );
+
+    // `||`: always-truthy on the left selects itself; on the right it is
+    // selected whenever the left is falsy.
+    assert_eq!(
+        Any::logical_or(object.clone(), 0.0.to_any()).unwrap(),
+        object
+    );
+    assert_eq!(
+        Any::logical_or(false.to_any(), function.clone()).unwrap(),
+        function
+    );
+
+    // `??`: never-nullish on the left selects itself; on the right it is
+    // selected whenever the left is nullish.
+    assert_eq!(
+        Any::nullish_coalescing(array.clone(), 0.0.to_any()).unwrap(),
+        array
+    );
+    assert_eq!(
+        Any::nullish_coalescing(Nullish::Null.to_any(), object.clone()).unwrap(),
+        object
+    );
+
+    // `?:`: both branches.
+    assert_eq!(
+        Any::conditional(true.to_any(), function.clone(), array.clone()).unwrap(),
+        function
+    );
+    assert_eq!(
+        Any::conditional(false.to_any(), array.clone(), object.clone()).unwrap(),
+        object
+    );
+}
+
 fn gen_test<A: IVm>() {
     generated::all::<A>();
     //
@@ -241,6 +297,7 @@ fn gen_test<A: IVm>() {
     bigint_mul::<A>();
     bigint_negative_zero::<A>();
     format_fn::<A>();
+    reference_identity_selection::<A>();
 }
 
 #[test]
