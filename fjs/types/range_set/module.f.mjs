@@ -43,11 +43,19 @@ const isBoundary = v => (Number.isFinite(v) || v === -Infinity) && !Object.is(v,
 /**
  * Whether `s` is a valid set: boundaries, strictly increasing. Being strictly
  * increasing is also what keeps `-Infinity` in the first position, and what
- * rejects a repeated or descending boundary.
+ * rejects a repeat or a decrease.
+ *
+ * The list is spread first because `Array#every` skips the holes of a sparse
+ * array: `new Array(1)` would pass as a one-boundary set and then read as the
+ * whole universe, since membership counts boundaries by length. Spreading
+ * makes each hole the `undefined` it is, which is no boundary at all.
  *
  * @type {(s: readonly number[]) => boolean}
  */
-export const isRangeSet = s => s.every((v, i) => isBoundary(v) && (i === 0 || v > s[i - 1]))
+export const isRangeSet = s => {
+    const dense = [...s]
+    return dense.every((v, i) => isBoundary(v) && (i === 0 || v > dense[i - 1]))
+}
 
 /** @type {(s: readonly number[]) => RangeSet} */
 const validated = s => {
@@ -85,11 +93,21 @@ export const fromRange = validated
  * Membership: the parity of the number of boundaries at or below `v`, found by
  * binary search.
  *
+ * `NaN` panics rather than being answered. It has no place in the order, so
+ * every comparison against it is false and the search would walk past every
+ * boundary and report membership. Answering `false` would be no better than a
+ * panic here: it would put `NaN` in neither a set nor its complement, and
+ * `contains(complement(s))(v) === !contains(s)(v)` is the one law a consumer
+ * reads off this module without checking.
+ *
  * @type {(s: RangeSet) => (v: number) => boolean}
  */
 export const contains = s => {
     const search = bsearch(s.length)
-    return v => search(mid => v < s[mid] ? -1 : 1) % 2 === 1
+    return v => {
+        assert(!Number.isNaN(v), v)
+        return search(mid => v < s[mid] ? -1 : 1) % 2 === 1
+    }
 }
 
 /**
