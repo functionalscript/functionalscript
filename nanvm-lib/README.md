@@ -14,7 +14,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | `-`      | Subtraction         | [x]      | [`any/sub.rs`](src/vm/any/sub.rs) — `ToNumeric` coercion; rejects mixed `number`/`bigint` |
 | `*`      | Multiplication      | [x]      | [`impls/mul.rs`](src/vm/impls/mul.rs) → `Numeric * Numeric` |
 | `/`      | Division            | [ ]      | |
-| `%`      | Remainder           | [ ]      | |
+| `%`      | Remainder           | [x]      | [`bigint/rem.rs`](src/vm/bigint/rem.rs) — magnitude remainder via schoolbook binary long division, sign follows the dividend; `Number` uses Rust's own `%`; `Any`-level dispatch in [`any/rem.rs`](src/vm/any/rem.rs) |
 | `**`     | Exponentiation      | [ ]      | |
 
 ### Unary

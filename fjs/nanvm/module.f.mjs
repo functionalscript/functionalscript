@@ -378,17 +378,6 @@ const subCases = [
 ]
 
 /**
- * `%` is not implemented in `nanvm-lib` yet (see the operator table in
- * `nanvm-lib/README.md`), so every case below carries this as its `rust`
- * reason: the generated Rust keeps each as a commented-out `TODO`, while the
- * JavaScript proof still runs it. Removing the reason per case is what turns
- * it on for Rust once `%` lands there.
- *
- * @type {string}
- */
-const remNotImplemented = '`%` is not implemented in nanvm-lib yet'
-
-/**
  * `%` coerces both operands with `ToNumeric` like `*`, but is neither
  * commutative nor symmetric between mixed sign operands: the result's sign
  * follows the dividend (left operand), not the divisor. Number `%` never
@@ -402,56 +391,46 @@ const remNotImplemented = '`%` is not implemented in nanvm-lib yet'
  * @type {readonly Case<2>[]}
  */
 const remCases = [
-    { name: 'nullModThree', args: [null, 3], expected: 0, rust: remNotImplemented },
-    { name: 'undefinedModThree', args: [undefined, 3], expected: NaN, rust: remNotImplemented },
-    { name: 'trueModThree', args: [true, 3], expected: 1, rust: remNotImplemented },
-    { name: 'falseModThree', args: [false, 3], expected: 0, rust: remNotImplemented },
-    { name: 'stringTenModThree', args: ['10', 3], expected: 1, rust: remNotImplemented },
-    { name: 'stringLetterModThree', args: ['a', 3], expected: NaN, rust: remNotImplemented },
-    { name: 'emptyArrayModThree', args: [[], 3], expected: 0, rust: remNotImplemented },
-    { name: 'arrayTenModThree', args: [[10], 3], expected: 1, rust: remNotImplemented },
-    { name: 'arrayStringTenModThree', args: [['10'], 3], expected: 1, rust: remNotImplemented },
-    { name: 'arrayPairModThree', args: [[0, 0], 3], expected: NaN, rust: remNotImplemented },
-    { name: 'emptyObjectModThree', args: [{}, 3], expected: NaN, rust: remNotImplemented },
+    { name: 'nullModThree', args: [null, 3], expected: 0 },
+    { name: 'undefinedModThree', args: [undefined, 3], expected: NaN },
+    { name: 'trueModThree', args: [true, 3], expected: 1 },
+    { name: 'falseModThree', args: [false, 3], expected: 0 },
+    { name: 'stringTenModThree', args: ['10', 3], expected: 1 },
+    { name: 'stringLetterModThree', args: ['a', 3], expected: NaN },
+    { name: 'emptyArrayModThree', args: [[], 3], expected: 0 },
+    { name: 'arrayTenModThree', args: [[10], 3], expected: 1 },
+    { name: 'arrayStringTenModThree', args: [['10'], 3], expected: 1 },
+    { name: 'arrayPairModThree', args: [[0, 0], 3], expected: NaN },
+    { name: 'emptyObjectModThree', args: [{}, 3], expected: NaN },
     // The one binary case that escapes: `functionValue` has no expression, so
     // both consumers take the direct path with two operands rather than one.
-    { name: 'functionModThree', args: [functionValue, 3], expected: NaN, rust: remNotImplemented },
-    { name: 'zeroModOne', args: [0, 1], expected: 0, rust: remNotImplemented },
-    { name: 'negativeZeroModOne', args: [-0, 1], expected: -0, rust: remNotImplemented },
-    { name: 'oneModOne', args: [1, 1], expected: 0, rust: remNotImplemented },
-    { name: 'tenModThree', args: [10, 3], expected: 1, rust: remNotImplemented },
-    { name: 'negativeTenModThree', args: [-10, 3], expected: -1, rust: remNotImplemented },
-    { name: 'tenModNegativeThree', args: [10, -3], expected: 1, rust: remNotImplemented },
-    {
-        name: 'negativeTenModNegativeThree',
-        args: [-10, -3],
-        expected: -1,
-        rust: remNotImplemented,
-    },
-    { name: 'fiveModZero', args: [5, 0], expected: NaN, rust: remNotImplemented },
-    { name: 'zeroModZero', args: [0, 0], expected: NaN, rust: remNotImplemented },
-    { name: 'negativeZeroModZero', args: [-0, 0], expected: NaN, rust: remNotImplemented },
-    { name: 'fiveModInfinity', args: [5, Infinity], expected: 5, rust: remNotImplemented },
-    { name: 'negativeFiveModInfinity', args: [-5, Infinity], expected: -5, rust: remNotImplemented },
-    { name: 'infinityModFive', args: [Infinity, 5], expected: NaN, rust: remNotImplemented },
-    { name: 'infinityModInfinity', args: [Infinity, Infinity], expected: NaN, rust: remNotImplemented },
-    { name: 'nanModOne', args: [NaN, 1], expected: NaN, rust: remNotImplemented },
-    { name: 'oneModNan', args: [1, NaN], expected: NaN, rust: remNotImplemented },
-    { name: 'fractionModTwo', args: [5.5, 2], expected: 1.5, rust: remNotImplemented },
-    { name: 'negativeFractionModTwo', args: [-5.5, 2], expected: -1.5, rust: remNotImplemented },
-    { name: 'bigTenModThree', args: [10n, 3n], expected: 1n, rust: remNotImplemented },
-    { name: 'bigNegativeTenModThree', args: [-10n, 3n], expected: -1n, rust: remNotImplemented },
-    { name: 'bigTenModNegativeThree', args: [10n, -3n], expected: 1n, rust: remNotImplemented },
-    {
-        name: 'bigNegativeTenModNegativeThree',
-        args: [-10n, -3n],
-        expected: -1n,
-        rust: remNotImplemented,
-    },
-    { name: 'bigZeroModOne', args: [0n, 1n], expected: 0n, rust: remNotImplemented },
-    { name: 'bigTenModZero', args: [10n, 0n], expected: throws, rust: remNotImplemented },
-    { name: 'numberModBigint', args: [1, 1n], expected: throws, rust: remNotImplemented },
-    { name: 'bigintModNumber', args: [1n, 1], expected: throws, rust: remNotImplemented },
+    { name: 'functionModThree', args: [functionValue, 3], expected: NaN },
+    { name: 'zeroModOne', args: [0, 1], expected: 0 },
+    { name: 'negativeZeroModOne', args: [-0, 1], expected: -0 },
+    { name: 'oneModOne', args: [1, 1], expected: 0 },
+    { name: 'tenModThree', args: [10, 3], expected: 1 },
+    { name: 'negativeTenModThree', args: [-10, 3], expected: -1 },
+    { name: 'tenModNegativeThree', args: [10, -3], expected: 1 },
+    { name: 'negativeTenModNegativeThree', args: [-10, -3], expected: -1 },
+    { name: 'fiveModZero', args: [5, 0], expected: NaN },
+    { name: 'zeroModZero', args: [0, 0], expected: NaN },
+    { name: 'negativeZeroModZero', args: [-0, 0], expected: NaN },
+    { name: 'fiveModInfinity', args: [5, Infinity], expected: 5 },
+    { name: 'negativeFiveModInfinity', args: [-5, Infinity], expected: -5 },
+    { name: 'infinityModFive', args: [Infinity, 5], expected: NaN },
+    { name: 'infinityModInfinity', args: [Infinity, Infinity], expected: NaN },
+    { name: 'nanModOne', args: [NaN, 1], expected: NaN },
+    { name: 'oneModNan', args: [1, NaN], expected: NaN },
+    { name: 'fractionModTwo', args: [5.5, 2], expected: 1.5 },
+    { name: 'negativeFractionModTwo', args: [-5.5, 2], expected: -1.5 },
+    { name: 'bigTenModThree', args: [10n, 3n], expected: 1n },
+    { name: 'bigNegativeTenModThree', args: [-10n, 3n], expected: -1n },
+    { name: 'bigTenModNegativeThree', args: [10n, -3n], expected: 1n },
+    { name: 'bigNegativeTenModNegativeThree', args: [-10n, -3n], expected: -1n },
+    { name: 'bigZeroModOne', args: [0n, 1n], expected: 0n },
+    { name: 'bigTenModZero', args: [10n, 0n], expected: throws },
+    { name: 'numberModBigint', args: [1, 1n], expected: throws },
+    { name: 'bigintModNumber', args: [1n, 1], expected: throws },
 ]
 
 /**

@@ -1,4 +1,4 @@
-use std::ops::{Add, Mul, Neg, Sub};
+use std::ops::{Add, Mul, Neg, Rem, Sub};
 
 use crate::vm::{Any, BigInt, IVm, Unpacked};
 
@@ -67,5 +67,17 @@ impl<A: IVm> Sub for Numeric<A> {
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a - b),
             _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
         })
+    }
+}
+
+impl<A: IVm> Rem for Numeric<A> {
+    type Output = Result<Self, Any<A>>;
+
+    fn rem(self, rhs: Self) -> Self::Output {
+        match (self, rhs) {
+            (Numeric::Number(a), Numeric::Number(b)) => Ok(Numeric::Number(a % b)),
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok(Numeric::BigInt((a % b)?)),
+            _ => Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+        }
     }
 }
