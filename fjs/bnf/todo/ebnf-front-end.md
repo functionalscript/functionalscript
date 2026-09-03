@@ -14,9 +14,6 @@ now.
   the ported grammars take their text terminals from — stage 4 there, so it
   gates the port, not the front end, whose own proofs spell terminals as
   numbers and strings.
-- [#1865](https://github.com/functionalscript/functionalscript/pull/1865), for
-  `BoundedArray` — `fjs/types/array` exports no such type yet, and the AST
-  types below are instantiations of it.
 
 ### Problem
 
@@ -117,7 +114,7 @@ row that is a function of the form alone.
 | `Variant` | the branch taken, tagged by its key |
 
 **This type is not ebnf's to write.** It is `BoundedArray<Min, Max, T>` in
-`fjs/types/array/types.ts`, landing in
+[`fjs/types/array/types.ts`](../../types/array/types.ts), shipped by
 [#1865](https://github.com/functionalscript/functionalscript/pull/1865):
 `FixedArray<Min, T>` followed by an optional-element tail up to `Max`, with
 `number extends Max ? readonly T[]` as the tail. A required prefix and an
@@ -311,13 +308,15 @@ three forms. It needs a data layer that can represent it.
 
 ### Tasks
 
-- [ ] Answer the nine problems above, in the issue, before writing code. 8
-      first — the tables cannot be finished without it, and 4 and 7 depend on
-      it. Then 1, 3 and 6 gate the lowering; 2 and 9 are dissolved.
+- [ ] Answer the open problems above — 1, 3, 4, 5, 6, 7 and 8; 2 and 9 are
+      dissolved — as the code that depends on each is written, in the issue
+      or in `fjs/ebnf/README.md`, and revise an answer when the code shows
+      it wrong. What depends on what: 8 decides the AST tables, and 4 and 7
+      follow it; 1, 3 and 6 shape the lowering. That is a dependency map for
+      whoever picks an order, not an order.
 - [ ] `types.ts`: the union, the `Join*` types, and `AST<Rule>` from the
-      tables, with a proof per row. `BoundedArray` is instantiated, not
-      redefined — it arrives with
-      [#1865](https://github.com/functionalscript/functionalscript/pull/1865).
+      tables, with a proof per row. `BoundedArray` is instantiated from
+      `fjs/types/array`, not redefined.
 - [ ] `module.f.mjs`: the `repeat(min, max)` constructor with `option` /
       `repeat0Plus` / `repeat1Plus` / `times` as partial applications, plus
       `join0Plus`, `join1Plus`, `commaJoin0Plus` and `notOf`; and the lowering

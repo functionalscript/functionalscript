@@ -175,10 +175,12 @@ explicit named override list for the rows where token-stream acceptance differs.
 
 - [ ] Keep everything here neutral, per the proposal above: adapters over
       `RuleSet` plus entry, fixtures authored as rule sets, and a testlib that
-      survives. This issue is unblocked at
-      [ebnf-migration](../../todo/ebnf-migration.md)'s stage 3, when
-      `fjs/ebnf/ll1/` and its neutral testlib exist; anything
-      front-end-coupled built here would violate that plan's dependency rule.
+      survives. This issue is unblocked once `fjs/ebnf/ll1/` exists,
+      whichever [ebnf-migration](../../todo/ebnf-migration.md) stage that
+      turns out to be, since `ll1Recognizer` is built over it; the harness
+      may be written earlier against `bnf/ll1` inside `bnf/` and moved when
+      it can, if that is more convenient. Anything front-end-coupled built
+      under `fjs/ebnf/` would violate that plan's dependency rule.
 - [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase the
       testlib's text/range imports on `fjs/ebnf/unicode/module.f.mjs`;
       do not import Unicode `range` from core `./module.f.mjs`.

@@ -50,15 +50,14 @@ rather than a separate change.
 
 - [ ] Move `TerminalRange` to `fjs/ebnf/terminal/types.ts` with the codec
       ([ebnf-migration](../../todo/ebnf-migration.md) stage 1).
-- [ ] Remove the redeclaration in `bnf/data/types.ts` and the front-end import
-      in `bnf/descent/types.ts`; import from `terminal/` in both. **No
-      re-export from `data`**, even if external consumers of
-      `bnf/data.TerminalRange` exist: `bnf/data` is deleted with `bnf/`, and
-      [ebnf-migration](../../todo/ebnf-migration.md) allows no compatibility
-      re-exports. Those consumers are updated in the same breaking change, as
-      AGENTS.md §5 requires.
-- [ ] Run `tsc` and `fjs t`; confirm the `bnf`, `bnf/data`, and `bnf/descent`
-      proofs still pass.
+- [ ] On the `bnf/` side, nothing is required. `bnf/types.ts` and
+      `bnf/data/types.ts` may keep their declarations until `bnf/` is
+      deleted, or either may become an alias of `ebnf/terminal/`'s — the
+      `bnf → ebnf` direction allows it — whenever someone touching them
+      prefers one declaration to two. Both spellings keep every public path
+      exporting what it exports today, so no consumer changes and nothing is
+      breaking before `bnf/` goes ([ebnf-migration](../../todo/ebnf-migration.md)).
+- [ ] Run `tsc` and `fjs t`.
 
 ### Related
 

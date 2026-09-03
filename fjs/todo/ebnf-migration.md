@@ -276,7 +276,7 @@ rewritten against the surviving backend as they move.
 | issue | bin | destination |
 |---|---|---|
 | [ebnf-front-end](../bnf/todo/ebnf-front-end.md) | absorb | its design becomes `fjs/ebnf/README.md` as stage 1 ships; its open Problems 1, 3, 6, 7, 8 move to `ebnf/todo/` if still open then |
-| [terminal-range-shared-type](../bnf/todo/terminal-range-shared-type.md) | close | implemented by `terminal/` (stage 1) |
+| [terminal-range-shared-type](../bnf/todo/terminal-range-shared-type.md) | close | `ebnf/terminal/` declares the type once for `ebnf/`; `bnf/`'s two declarations stay, or alias it, at the discretion of whoever touches them, and go with `bnf/` |
 | [unicode-rules](../bnf/todo/unicode-rules.md) | move | `ebnf/unicode/todo/` until stage 3 implements it |
 | [rule-visitor](../bnf/todo/rule-visitor.md), [665-bnf-data-fold-children](../bnf/todo/665-bnf-data-fold-children.md) | absorb | inputs to the `data/` rewrite (stage 2) |
 | [042-mixing-serializable-bnfs](../bnf/todo/042-mixing-serializable-bnfs.md) | move | `ebnf/data/todo/` |
@@ -292,11 +292,16 @@ rewritten against the surviving backend as they move.
 #### Stages
 
 Every stage is additive, `bnf/` loses nothing until stage 7, and `tsc` and
-`fjs t` pass at each. Stages 1 to 4 are numbered for reference, not for
-order: the only constraint among them is the dependency each module names
-in the layout — `token_symbol/` needs `unicode/`, `ll1/` needs `data/` and
-`matcher/`, `lib/` needs all of them — and any order or overlap that keeps
-`ebnf/` free of `bnf/` imports is fine. 5 waits on 1 to 4; 6 on 5; 7 on 6.
+`fjs t` pass at each. **The stages are numbered for reference, not for
+order, and they prescribe no method.** The only constraints are the
+dependencies each module names in the layout — `token_symbol/` needs
+`unicode/`, `ll1/` needs `data/` and `matcher/`, a ported grammar needs
+whatever it imports, a deleted `bnf/` needs no consumer left on it — and
+the direction rule. Any order, overlap, split or merge of the stages that
+respects those is the developer's choice, and so is how each piece is
+built: whether a "move" is a copy, a re-export or a rewrite, whether an
+issue is absorbed or moved, whether a stage is one PR or five. Where the
+text below says "stage N" it names a piece of work, not a point in time.
 
 0. **Adopt.** Retire grammar-bucket — done in the PR that filed this issue:
    the file is deleted and every citation of its stages repointed here. Add
@@ -306,9 +311,14 @@ in the layout — `token_symbol/` needs `unicode/`, `ll1/` needs `data/` and
 1. **`ebnf/terminal/` and the front end.** Copy the codec with its proof
    cases into `ebnf/terminal/`; `bnf/` keeps its own, and its consumers are
    untouched. Land `ebnf/types.ts` and `ebnf/module.f.mjs` per
-   ebnf-front-end, recording the answers to Problems 1, 3, 6, 7 and 8 in
-   `ebnf/README.md` as they are made. `BoundedArray` comes from
-   [#1865](https://github.com/functionalscript/functionalscript/pull/1865).
+   ebnf-front-end. Its open Problems 1, 3, 6, 7 and 8 are answered by
+   whoever needs the answer, when they need it, in `ebnf/README.md` or in
+   the issue: a design settled on paper before any code exists is the
+   grammar-bucket way, and this plan prefers a recorded answer that the
+   next stage may revise over a prerequisite that blocks the first. What
+   is required is only that an answer, once relied on, is written down
+   where the code that relies on it can point to it. `BoundedArray` is in
+   `fjs/types/array` already.
 2. **`ebnf/data/`.** The IR with a bounded `Repeat`, `emptyTagMap`, and the
    lowering from the EBNF front end. `bnf/data` may repoint its IR types and
    `emptyTagMap` here — that would be the first `bnf → ebnf` edge — and keeps
@@ -343,8 +353,9 @@ in the layout — `token_symbol/` needs `unicode/`, `ll1/` needs `data/` and
 - [ ] Stage 0: the boundary check in CI; the direction sentence in
       `fjs/AGENTS.md`.
 - [ ] Stage 1: `ebnf/terminal/` with proof; `ebnf/types.ts` and
-      `ebnf/module.f.mjs` with proof; answers to ebnf-front-end Problems 1, 3,
-      6, 7, 8 in `ebnf/README.md`; close terminal-range-shared-type.
+      `ebnf/module.f.mjs` with proof; ebnf-front-end's open problems
+      answered as they are needed, in `ebnf/README.md`; close
+      terminal-range-shared-type.
 - [ ] Stage 2: `ebnf/data/` with bounded `Repeat` and proof; rule-visitor and
       665 absorbed or moved.
 - [ ] Stage 3: `ebnf/matcher/` and `ebnf/unicode/` with proofs; `showAst` in
