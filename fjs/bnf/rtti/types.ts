@@ -6,6 +6,14 @@
  * the union of its branches, and a repetition becomes an array. Everything here
  * is types and `Assert`s, so `tsc` is this module's test.
  *
+ * A repetition is recognized by shape, which is one condition short of what
+ * `repeatOf` in `../data/module.f.mjs` asks: that module also refuses an item
+ * that can match empty. A repetition over such an item is therefore given an
+ * array here and refused there — a grammar the runtime rejects either way, and
+ * the one case where this module and the parser disagree. Deriving the answer
+ * needs the normalized rule set `emptyTagMap` works over:
+ * [nullable-repeat-item](./todo/nullable-repeat-item.md).
+ *
  * @module
  */
 
@@ -73,9 +81,17 @@ export type AstRule<R extends Rule> =
     // carries no shape to derive an AST from, so the answer is the widened
     // {@link Ast}. It is also what stops the recursion: `Sequence`'s element
     // type is `Rule`, whose own `Sequence` member would otherwise send the
-    // mapping below back through itself forever.
+    // mapping below back through itself forever. Both are asked of the whole of
+    // `R`, before it is taken apart.
     Rule extends R ? Ast :
     DataRule extends R ? Ast :
+    // Then one member at a time. `R` may be a union of rules, and each is
+    // classified on its own: `_RepeatItem` of a union answers for the union,
+    // and a `readonly [I] | false` mixture would fail the tuple test below and
+    // drop a repetition into the lazy-rule branch.
+    R extends Rule ? _AstOne<R> : never
+
+type _AstOne<R extends Rule> =
     _RepeatItem<R> extends readonly [infer I extends Rule] ? readonly AstRule<I>[] :
     R extends () => (infer U extends Rule) ? AstRule<U> :
     R extends TerminalRange ? number : // this is something that would be good to change
@@ -194,3 +210,7 @@ type _22 = Assert<Equal<
 type _23 = Assert<Equal<
     Extract<AstRule<_Extra>, { readonly some: unknown }>,
     { readonly some: readonly[number, AstRule<_Extra>] }>>
+
+// A union of rules is classified member by member, so a repetition beside an
+// ordinary rule stays a repetition.
+type _24 = Assert<Equal<AstRule<Repeat0Plus<0> | 1>, readonly number[] | number>>
