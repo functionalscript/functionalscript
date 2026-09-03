@@ -241,12 +241,13 @@ a clean checkout either way. Authored `types.ts` files remain.
 
 ### Stage 2: mark compiler-compatible FunctionalScript
 
-The repository compiler-compatibility migration in
-[`todo/fjs-nanvm-integration.md`](../../todo/fjs-nanvm-integration.md) is
-**blocked by** stage 1. Before its first rename, also complete
-[authored `.f.js` package support](../ci/todo/f-js-package-support.md), so a
+The repository compiler-compatibility migration is
+[`todo/fjs-nanvm-integration.md`](../../todo/fjs-nanvm-integration.md). Stage 1
+was its first blocker and is complete, so what remains before its first rename
+is [authored `.f.js` package support](../ci/todo/f-js-package-support.md), so a
 standalone `.f.js` is directly type-checked, receives a `.d.ts`, is packed in
-the clean CI package build, and resolves for a clean consumer.
+the clean CI package build, and resolves for a clean consumer. That is the one
+gate now, and it matches the `**Blocked by:**` list in the integration issue.
 
 Then migrate compiler-supported dependency-closed groups incrementally:
 
