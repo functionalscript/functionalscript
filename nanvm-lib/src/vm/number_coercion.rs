@@ -122,15 +122,70 @@ fn string_to_number(trimmed: &str) -> f64 {
 }
 
 /// An unsigned integer literal in `radix` (16, 8, or 2 — whatever the
-/// caller's prefix implied); `NaN` if `digits` is empty or any character is
-/// out of range for the radix.
+/// caller's prefix implied, all powers of two); `NaN` if `digits` is empty
+/// or any character is out of range for the radix.
+///
+/// The mathematical value is rounded to the nearest `f64` exactly once, at
+/// the very end — not, as a naive `fold(0.0, |acc, d| acc * radix + d)`
+/// would, once per digit. Folding in `f64` rounds after every digit, and
+/// those roundings compound: `0b1111111101110111011101101101011011010110110100010000011`,
+/// a 59-bit literal, folds to `35953735677732992.0`, but its correctly
+/// rounded value (and JS's) is `35953735677732996.0`.
+///
+/// Because the radix is a power of two, every digit contributes a fixed
+/// number of bits, so the digits are accumulated as one big integer (a
+/// `u128` window over the leading bits, plus a `sticky` flag for whether
+/// any bit beyond that window is set) and only that integer is rounded to
+/// `f64` — round-to-nearest-even from the top 53 significant bits, the
+/// next bit, and whether anything below that is nonzero.
 fn parse_non_decimal(digits: &str, radix: u32) -> f64 {
     if digits.is_empty() || !digits.chars().all(|c| c.is_digit(radix)) {
         return f64::NAN;
     }
-    digits.chars().fold(0.0, |acc, c| {
-        acc * radix as f64 + c.to_digit(radix).unwrap() as f64
-    })
+    let bits_per_digit = radix.trailing_zeros();
+    let significant = digits.trim_start_matches('0');
+    if significant.is_empty() {
+        return 0.0;
+    }
+    let mut acc: u128 = 0;
+    let mut filled_bits = 0u32;
+    let mut extra_bits = 0u64;
+    let mut sticky = false;
+    for c in significant.chars() {
+        let d = c.to_digit(radix).unwrap();
+        if filled_bits + bits_per_digit <= 128 {
+            acc = (acc << bits_per_digit) | d as u128;
+            filled_bits += bits_per_digit;
+        } else {
+            extra_bits += bits_per_digit as u64;
+            sticky |= d != 0;
+        }
+    }
+    let true_bits = 128 - acc.leading_zeros();
+    if true_bits <= 53 && extra_bits == 0 {
+        // Fewer than a `f64` mantissa's worth of significant bits: exact,
+        // no rounding needed at all.
+        return acc as f64;
+    }
+    // The bits of `acc` below position `true_bits - 1` (its own top bit)
+    // down to `shift` become the 53-bit mantissa; `round_bit` and
+    // `sticky`/`sticky_low` are everything below that, which round-to-
+    // nearest-even needs and nothing else.
+    let shift = true_bits - 53;
+    let mut mantissa = (acc >> shift) as u64;
+    let round_bit = (acc >> (shift - 1)) & 1 != 0;
+    let sticky_low = (acc & ((1u128 << (shift - 1)) - 1)) != 0;
+    let mut exponent = shift as u64 + extra_bits;
+    if round_bit && (sticky_low || sticky || mantissa & 1 != 0) {
+        mantissa += 1;
+        if mantissa == 1u64 << 53 {
+            // The round-up carried out of the 53-bit mantissa (all-ones
+            // rounding up to a power of two): renormalize.
+            mantissa >>= 1;
+            exponent += 1;
+        }
+    }
+    (mantissa as f64) * 2f64.powi(i32::try_from(exponent).unwrap_or(i32::MAX))
 }
 
 /// `StrUnsignedDecimalLiteral` minus the `Infinity` alternative (handled by
@@ -207,6 +262,48 @@ mod test {
         // No `Sign` production for the non-decimal forms.
         assert!(string_to_number("-0x10").is_nan());
         assert!(string_to_number("0x").is_nan());
+    }
+
+    #[test]
+    fn non_decimal_rounds_once() {
+        // A 59-bit literal beyond `f64`'s 53-bit mantissa: rounding after
+        // every digit (`acc * radix + digit` folded in `f64`) gives
+        // 35953735677732992, but the correctly-rounded value — rounding
+        // the exact mathematical value exactly once — is 35953735677732996,
+        // matching real JS's `Number("0b111...011")`.
+        assert_eq!(
+            string_to_number("0b1111111101110111011101101101011011010110110100010000011"),
+            35953735677732996.0
+        );
+        // Exactness at and around the 53-bit boundary, and well beyond it.
+        assert_eq!(
+            string_to_number("0xFFFFFFFFFFFFF"),
+            0xF_FFFF_FFFF_FFFFu64 as f64
+        );
+        assert_eq!(
+            string_to_number("0x10000000000000"),
+            0x10_0000_0000_0000u64 as f64
+        );
+        // Ties to even: `2^53 + 1` sits exactly halfway between the two
+        // representable neighbors `2^53` and `2^53 + 2`; the lower one has
+        // an even mantissa (`2^52`), so the tie rounds down.
+        assert_eq!(
+            string_to_number(&format!("0b1{}1", "0".repeat(52))),
+            9007199254740992.0 // 2^53
+        );
+        // `2^53 + 3` is also a tie (between `2^53 + 2` and `2^53 + 4`), but
+        // the lower neighbor's mantissa (`2^52 + 1`) is now odd, so this
+        // one rounds up instead.
+        assert_eq!(
+            string_to_number(&format!("0b1{}11", "0".repeat(51))),
+            9007199254740996.0 // 2^53 + 4
+        );
+        // All trailing zero digits past a 128-bit window: still exact
+        // (`sticky` stays `false`), not merely "close".
+        assert_eq!(
+            string_to_number(&format!("0x1{}", "0".repeat(40))),
+            (16f64).powi(40)
+        );
     }
 
     #[test]
