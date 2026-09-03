@@ -60,8 +60,8 @@
   ```
   Generators:
   ```js
-  // declaration
+  // declaration. operation `{*[Symbol.iterator]() { ${exp} }}
   {*[Symbol.iterator](){ ... }}
-  // detection.
+  // detection. operation `typeof ${exp}?.[Symbol.iterator]`
   typeof value?.[Symbol.iterator] === 'function'
   ```
