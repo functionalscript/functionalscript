@@ -64,9 +64,15 @@ const op1Js = {
 /** The same, for the binary operations. @type {{ readonly [k in OpId]?: (a: any, b: any) => unknown }} */
 const op2Js = {
     '*': (a, b) => a * b,
+    '/': (a, b) => a / b,
+    '**': (a, b) => a ** b,
     '-': (a, b) => a - b,
     '+': (a, b) => a + b,
     '%': (a, b) => a % b,
+    '<': (a, b) => a < b,
+    '<=': (a, b) => a <= b,
+    '>': (a, b) => a > b,
+    '>=': (a, b) => a >= b,
     '===': (a, b) => a === b,
 }
 
