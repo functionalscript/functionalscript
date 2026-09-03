@@ -116,11 +116,17 @@ type _XXMax1 = BoundedArray<1, 49, true>
 // A union bound is every length it names, not the first one matched.
 type _XU_Max = Assert<Equal<
     BoundedArray<1, 2 | 3, true>,
-    readonly [true] | readonly [true, true] | readonly [true, true, true]>
+    FixedArray<1 | 2 | 3, true>>
 >
+
 type _XU_Min = Assert<Equal<
     BoundedArray<1 | 2, 3, true>,
-    readonly [true] | readonly [true, true] | readonly [true, true, true]>
+    FixedArray<1 | 2 | 3, true>>
+>
+
+type _XU_MinMax = Assert<Equal<
+    BoundedArray<1 | 2, 4 | 5, true>,
+    FixedArray<1 | 2 | 3 | 4 | 5, true>>
 >
 
 // A `Min` above `Max` describes no array at all.
