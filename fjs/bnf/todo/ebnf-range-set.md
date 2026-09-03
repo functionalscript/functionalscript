@@ -42,8 +42,12 @@ A range set is a strictly increasing list of boundaries over the universe
 boundary toggles it.
 
 ```ts
-type RangeSet = readonly number[]   // strictly increasing
+type RangeSet<Eof extends boolean = boolean> = readonly number[]   // strictly increasing
 ```
+
+`Eof` is a phantom: it does not exist at runtime, and it records whether the
+set contains the domain bottom, `-1`. See
+[EOF membership is a type](#eof-membership-is-a-type).
 
 | set | meaning |
 |---|---|
@@ -78,8 +82,9 @@ Properties, each one a reason to prefer this over a list of ranges:
   needs to know the domain maximum: an open tail converts to a `range_map`
   entry whose upper bound is `Infinity`, which `get` already handles.
 - **EOF membership is the first element.** Within the terminal domain a set
-  contains EOF iff its first boundary is `-1`. That is decidable at the type
-  level, which the AST row below relies on.
+  contains EOF iff its first boundary is at most `-1`. The runtime never has
+  to search for it, and the type level carries it as the phantom `Eof`,
+  which the AST row below relies on.
 - **The cost.** `-Infinity` is not JSON and has no bigint. It never reaches
   the IR — lowering intersects with the domain, below — but a bigint range
   set later cannot toggle at a bottom it cannot spell, so it takes its own
@@ -119,11 +124,46 @@ and has the same AST row. `string` is unchanged.
 already decided.** [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)
 records that a consumed EOF contributes no leaf, and
 `fjs/bnf/matcher/module.f.mjs:86` implements it for every terminal. So a set
-whose first boundary is `-1` has the row `readonly [number?]`, and every other
-set has `number`. Both are written from the form alone, which is the contract
-that issue's AST table demands. Sets containing EOF are worth having —
-"newline or end of input" is the natural terminator of a line comment — so
-this allows them rather than forbidding them.
+that contains EOF has the row `readonly [number?]`, and every other set has
+`number`. Sets containing EOF are worth having — "newline or end of input" is
+the natural terminator of a line comment — so this allows them rather than
+forbidding them. Which row a set gets is the next section.
+
+#### EOF membership is a type
+
+The row cannot be read off a set's first *authored* boundary. `complement([0])`
+is `[-Infinity, 0]` before the lowering clips it to `[-1, 0]`, and anything the
+algebra or an adapter returns is a widened `readonly number[]` whose first
+element TypeScript does not know. Reading `number` for every set that is not
+literally `[-1, …]` would make `AST<Rule>` unsound.
+
+So EOF membership is carried by the value's type, as the phantom `Eof`, and
+the algebra computes it alongside the boundaries — a shadow of the same parity
+arithmetic, one conditional type per operation:
+
+| operation | `Eof` of the result |
+|---|---|
+| `fromRange([a, b])` | `false` — the adapters only build ordinary ranges |
+| `eof` | `true` |
+| `complement(a)` | `not A` |
+| `union(a)(b)` | `A or B` |
+| `intersection(a)(b)` | `A and B` |
+| `difference(a)(b)` | `A and not B` |
+
+A mixed `true | false` collapses to `boolean`, which is "unknown". The AST row
+reads the flag: `false` is `number`, and `true` or `boolean` is
+`readonly [number?]` — conservative where membership cannot be proven, exact
+where it can, and the adapters' results are exact because their universes
+exclude EOF. A `['set', …]` literal written by hand takes its flag from its
+first element: the literal `-1` is `true`, any other literal is `false`, and a
+widened `number` is `boolean`. The lowering's intersection with the domain
+`[-1]` is `A and true`, so clipping never changes the flag; that is what makes
+the type sound across the `-Infinity` case above.
+
+This is a type-level mechanism only. If [ebnf-front-end](./ebnf-front-end.md)'s
+Problem 7 ends with the AST table as documentation rather than a checked
+contract, the phantom goes with it and the runtime rule — no leaf for a
+consumed EOF — is the whole story.
 
 #### Two complements, two names
 
@@ -132,8 +172,15 @@ means. The terminal domain is a set value, `[-1]`, owned by the neutral
 terminal module ([grammar-bucket](../../todo/grammar-bucket.md) stage 1), and
 the lowering intersects every set with it: that clips a `-Infinity` a generic
 complement produced back to `-1`, drops anything below EOF, and so restores
-canonicity before the IR. Boundaries above the last ordinary symbol are
-rejected there rather than clipped, so the IR never spells the maximum and
+canonicity before the IR.
+
+The top end is `maxSymbol + 1`, the exclusive boundary after the last
+ordinary symbol, and it must be accepted: the half-open API spells the closed
+range `maxSymbol..maxSymbol` as `[maxSymbol, maxSymbol + 1]`, which is the
+last terminal `rangeEncode` accepts today. The lowering canonicalizes it
+rather than rejecting it — a trailing boundary equal to `maxSymbol + 1` is
+dropped, giving the open tail that means the same thing in the domain — and
+rejects anything beyond it. So the IR never spells the maximum, and
 "everything" stays `[-1]`.
 
 The alphabet adapter's `not` is *difference against its universe*: Unicode's
@@ -173,16 +220,18 @@ justification is the API and the AST, which is where
 - [ ] `fjs/types/range_set`: replace the `RangeMap<boolean>` representation
       with the toggle list over `-Infinity..Infinity`; `contains`, `union`,
       `intersection`, `complement`, `difference`, `fromRange`, `toRangeMap`,
-      validation on construction; proofs for each, for `[]`, `[-Infinity]`,
-      `[-1, 0]`, an open tail, and every rejected input. Port
+      validation on construction, and the phantom `Eof` computed by each
+      operation's type; proofs for each, for `[]`, `[-Infinity]`, `[-1, 0]`,
+      an open tail, and every rejected input, plus type-level proofs that
+      `Eof` is `false`, `true` and `boolean` where the table says. Port
       `fjs/media/nix/module.f.mjs`.
 - [ ] Settle the IR carrier together with ebnf-front-end's Problem 1, in that
       issue, before any backend touches a set.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
-      the union, the AST table (`number`, or `readonly [number?]` when the
-      first boundary is `-1`), the lowering requirements (intersect with the
-      domain `[-1]`; reject a boundary above the last ordinary symbol; reject
-      the empty set), and the constructor list.
+      the union, the AST table (`number` when `Eof` is `false`, otherwise
+      `readonly [number?]`), the lowering requirements (intersect with the
+      domain `[-1]`; drop a trailing `maxSymbol + 1` and reject anything
+      beyond it; reject the empty set), and the constructor list.
 - [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/grammar/unicode/`
       produce sets; `not` is difference against the Unicode universe. `str`
       is not one of them: `str('true')` is an ordered `Sequence` of
