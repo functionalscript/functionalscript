@@ -1,5 +1,5 @@
 /**
- * @import { Info, RangeInfo, Rule, Infinity, RepeatInfo } from './types.ts'
+ * @import { SetInfo, Rule, Infinity, RepeatInfo } from './types.ts'
  */
 
 import { assert } from "../asserts/module.f.mjs"
@@ -16,7 +16,7 @@ const isTuple2 =
  * @throws If `ab` does not contain exactly two unicode code points.
  *
  * @type {(ab: string) =>
- *  RangeInfo<number, number>}
+ *  SetInfo<readonly[number, number]>}
  */
 export const range = ab => {
     const a = toArray(stringToCodePointList(ab))
@@ -26,11 +26,11 @@ export const range = ab => {
 
 /**
  * @type {<const A extends number, const B extends number>(a: A, b: B) =>
- *  RangeInfo<A, B>}
+ *  SetInfo<readonly[number, number]>}
  */
 export const rangeEncode = (a, b) => (
     assert(a <= b),
-    () => ['range', a, b]
+    () => ['set', a, b + 1]
 )
 
 /**

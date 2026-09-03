@@ -17,7 +17,7 @@ export type Rule =
 
 export type Thunk =
     | ConstInfo<DataRule>
-    | RangeInfo<number, number>
+    | SetInfo<readonly number[]>
     | Info<['repeat', number, number, Rule]>
 
 export type Info<T extends readonly[string, ...readonly unknown[]]> =
@@ -26,8 +26,8 @@ export type Info<T extends readonly[string, ...readonly unknown[]]> =
 export type ConstInfo<R extends DataRule> =
     Info<['const', R]>
 
-export type RangeInfo<Min extends number, Max extends number> =
-    Info<['range', Min, Max]>
+export type SetInfo<S extends readonly number[]> =
+    Info<['set', ...S]>
 
 export type RepeatInfo<Min extends number, Max extends number, R extends Rule> =
     Info<['repeat', Min, Max, R]>
