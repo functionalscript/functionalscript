@@ -10,9 +10,14 @@
  */
 
 import type { Assert } from "../../asserts/types.ts"
-import type { digit, optionNeg, uint } from "../lib/json/module.f.mjs"
+import type {
+    array as jsonArray, digit, optionNeg, string as jsonString, uint,
+} from "../lib/json/module.f.mjs"
 import type { Equal } from "../../types/ts/types.ts"
-import type { Join1Plus, Repeat0Plus, Repeat1Plus, Rule, TerminalRange, Variant } from "../types.ts"
+import type {
+    DataRule, Join1Plus, Repeat0Plus, Repeat1Plus, Rule, Sequence, TerminalRange,
+    Variant,
+} from "../types.ts"
 
 export type Ast =
     // terminal
@@ -43,10 +48,22 @@ type _Branches<R extends Variant, K> =
     K extends keyof R ? { readonly [_ in K & PropertyKey]: _FromAny<R[K]> } : never
 
 export type AstRule<R extends Rule> =
+    // A rule left at one of the BNF API's own types — `@type {Rule}` and
+    // `@type {Sequence}` are how `../lib/json` annotates most of its exports —
+    // carries no shape to derive an AST from, so the answer is the widened
+    // {@link Ast}. It is also what stops the recursion: `Sequence`'s element
+    // type is `Rule`, whose own `Sequence` member would otherwise send the
+    // mapping below back through itself forever.
+    Rule extends R ? Ast :
+    DataRule extends R ? Ast :
     R extends Repeat0Plus<infer I extends Rule> ? readonly AstRule<I>[] :
     R extends () => (infer U extends Rule) ? AstRule<U> :
     R extends TerminalRange ? number : // this is something that would be good to change
-    R extends readonly Rule[] ? { readonly [K in keyof R]: _FromAny<R[K]> } :
+    R extends readonly Rule[]
+        // Reached with `R` an array, so `Sequence extends R` holds only for the
+        // widened `Sequence` itself, never for a tuple.
+        ? Sequence extends R ? readonly Ast[] : { readonly [K in keyof R]: _FromAny<R[K]> }
+        :
     R extends string ? readonly number[] :
     // A variant is a choice, so its AST is the union of what each branch
     // produces, never the product of all of them: a match selects exactly one,
@@ -126,3 +143,12 @@ type _13 = Assert<Equal<
 type _14 = Assert<Equal<
     AstRule<typeof optionNeg>,
     { readonly some: readonly number[] } | { readonly none: readonly[] }>>
+
+// A rule widened to one of the BNF API's own types derives no shape, and must
+// resolve rather than recurse: `../lib/json` annotates `string` as `Rule` and
+// `array`/`object` as returning `Sequence`, so these are the everyday case.
+type _15 = Assert<Equal<AstRule<Rule>, Ast>>
+type _16 = Assert<Equal<AstRule<DataRule>, Ast>>
+type _17 = Assert<Equal<AstRule<Sequence>, readonly Ast[]>>
+type _18 = Assert<Equal<AstRule<typeof jsonString>, Ast>>
+type _19 = Assert<Equal<AstRule<ReturnType<typeof jsonArray>>, readonly Ast[]>>
