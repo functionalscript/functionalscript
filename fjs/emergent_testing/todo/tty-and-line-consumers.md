@@ -4,7 +4,7 @@
 **Status:** blocked
 **Blocked by:** [Command output: one design for every destination](../../todo/command-output.md)
 
-> **Why blocked.** Nothing demands a non-TTY format now, and answering this one
+> **Why blocked.** Nothing demands this second format now, and answering this one
 > alone would give the proof runner a mode system no other command shares —
 > invented from whichever audience happened to be asked about first. The
 > destinations, verbosities and scheduling shapes are enumerated and designed
@@ -39,8 +39,8 @@ want different output**, and that `fjs t` currently picks one.
 
 ### The design question
 
-A TTY and a pipe are not the same destination, and the difference is bigger
-than a newline:
+A terminal reader and a line-oriented reader do not want the same thing, and
+the difference is bigger than a newline:
 
 - **On a TTY** the runner may move the cursor. Rewriting a line in place,
   overwriting a running test's name with its result, a counter that stays on
@@ -70,8 +70,8 @@ into one flag.
 
 - **Not two records on a TTY.** Doubling every line to keep a rare splice tidy
   is a trade that was made once and reverted deliberately — the reason is on
-  `defaultReporter`'s `start` — and a non-TTY requirement is not a reason to
-  reinstate it where it was rejected.
+  `defaultReporter`'s `start` — and another reader's requirement is not a
+  reason to reinstate it where it was rejected.
 - **One stream.** Whatever each mode emits still goes to `stdout`, for the
   ordering reason in [reporter modes](211-reporter-modes.md). `stderr` stays
   for a runner crash.
