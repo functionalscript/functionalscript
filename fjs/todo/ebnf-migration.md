@@ -100,15 +100,17 @@ exists) are dependencies of the front end, not parts of it.
    turns a move into a rewrite, update the table rather than the other way
    round. The design questions ebnf-front-end leaves open are the first such
    opportunity, not the last.
-4. **`bnf/` stays live.** Minor additions to the front end, the `lib/`
-   grammars, helpers and proofs may land in `bnf/`, in `ebnf/`, or in both
-   while EBNF is built — writing the same thing twice is how EBNF's advantages
-   and pitfalls surface. The one restriction is by layer: a change to machinery
-   that `ebnf/` has already taken over (the IR, `matcher/`, `ll1/`,
-   `token_symbol/`) lands in `ebnf/` first and is back-ported only when a
-   `bnf/` consumer needs it. Otherwise every backend fix is paid twice for the
-   whole fork, and the copy that survives is the one it should have been paid
-   for.
+4. **`bnf/` stays live, and nobody is blocked.** Using BNF, extending it and
+   improving it all continue while EBNF is built; this plan puts no freeze,
+   review gate or "land it in `ebnf/` first" rule on `bnf/`. The two modules
+   are not kept in sync: a feature added to BNF creates no obligation to add
+   it to EBNF. **It is ported when a consumer that needs it transitions**, as
+   part of that consumer's port — so the porting cost is paid once, by the
+   port that proves the feature is still wanted, and a feature no surviving
+   consumer needs is never ported at all. Writing something in both front
+   ends is still welcome where it is cheap, because that is how EBNF's
+   advantages and pitfalls surface (principle 5), but it is an option, never
+   a requirement.
 5. **Compare, in proofs.** `descentEquivalence` in `bnf/ll1/proof.f.mjs` pins
    one grammar and one expected AST, matched by two backends. The same shape
    across front ends — one grammar spelled in `bnf` and in `ebnf`, lowered to
@@ -133,8 +135,11 @@ they hold:
    keeping and rethinking the rest.
 3. Let the old module depend on the new one, never the other way round, so
    the old one can be removed without consequences.
-4. Move the consumers one by one.
-5. Retire the old module.
+4. Keep the old module open for use and improvement; do not block anyone. A
+   feature added to the old module is ported to the new one when a consumer
+   that needs it moves, not before.
+5. Move the consumers one by one, porting with each the features it needs.
+6. Retire the old module.
 
 If the migration succeeds, stage 7 records the pattern in
 [doc/DESIGN.md](../../doc/DESIGN.md) as a section of its own, with this
@@ -195,7 +200,8 @@ consumer outside `fjs/bnf` and `fjs/djs` imports those paths.
 #### Consumer port
 
 Outside `fjs/bnf` the front end has exactly five consumers, all under
-`fjs/djs`. In dependency order:
+`fjs/djs`. Each port carries with it whatever BNF gained since `ebnf/` was
+started that the consumer relies on (principle 4). In dependency order:
 
 1. `bnf/lib/json` and `bnf/lib/datajs` — atomically, since `testlib`'s
    `deterministic()` delegates to `lib/json`.
