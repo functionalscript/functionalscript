@@ -30,6 +30,26 @@ export type Ast =
 type _FromAny<R> = R extends Rule ? AstRule<R> : never
 
 /**
+ * The item of `R` when `R` is a repetition, wrapped in a one-tuple, and `false`
+ * when it is not one. The miss has to be `false` rather than `never`: `never`
+ * is assignable to every type, so a `never` miss would match the one-tuple test
+ * below and read every rule as a repetition over `never`.
+ *
+ * `R extends Repeat0Plus<infer I>` alone is not the question. It asks whether
+ * the `some`/`none` pair is *present*, and structural assignability allows a
+ * variant to carry further branches alongside it — under which a three-branch
+ * rule would flatten to an array and lose the branches it can also match.
+ * `repeatOf` in `../data/module.f.mjs` rewrites a variant only when it has
+ * exactly two branches, so the keys have to match exactly here too.
+ */
+type _RepeatItem<R> =
+    R extends Repeat0Plus<infer I extends Rule>
+        ? R extends () => infer U
+            ? Equal<keyof U, 'some' | 'none'> extends true ? readonly [I] : false
+            : false
+        : false
+
+/**
  * The AST of a variant `R`: one branch per key of `K`, each naming only the
  * branch that matched. Called as `_Branches<R, keyof R>`.
  *
@@ -56,7 +76,7 @@ export type AstRule<R extends Rule> =
     // mapping below back through itself forever.
     Rule extends R ? Ast :
     DataRule extends R ? Ast :
-    R extends Repeat0Plus<infer I extends Rule> ? readonly AstRule<I>[] :
+    _RepeatItem<R> extends readonly [infer I extends Rule] ? readonly AstRule<I>[] :
     R extends () => (infer U extends Rule) ? AstRule<U> :
     R extends TerminalRange ? number : // this is something that would be good to change
     R extends readonly Rule[]
@@ -152,3 +172,25 @@ type _16 = Assert<Equal<AstRule<DataRule>, Ast>>
 type _17 = Assert<Equal<AstRule<Sequence>, readonly Ast[]>>
 type _18 = Assert<Equal<AstRule<typeof jsonString>, Ast>>
 type _19 = Assert<Equal<AstRule<ReturnType<typeof jsonArray>>, readonly Ast[]>>
+
+// `some`/`none` shaped like a repetition, but with a third branch beside them.
+// `repeatOf` in `../data/module.f.mjs` rewrites only a two-branch variant, and
+// `repeatItem` returns `null` for this rule, so the parser keeps `other` as an
+// ordinary alternative and the AST has to keep all three.
+type _Extra = () => {
+    readonly some: readonly[0, _Extra],
+    readonly none: readonly[],
+    readonly other: 1,
+}
+// The `some` branch refers back to the whole union, so the three branches are
+// pinned one at a time rather than written out.
+type _20 = Assert<Equal<AstRule<_Extra> extends readonly unknown[] ? true : false, false>>
+type _21 = Assert<Equal<
+    Extract<AstRule<_Extra>, { readonly other: unknown }>,
+    { readonly other: number }>>
+type _22 = Assert<Equal<
+    Extract<AstRule<_Extra>, { readonly none: unknown }>,
+    { readonly none: readonly[] }>>
+type _23 = Assert<Equal<
+    Extract<AstRule<_Extra>, { readonly some: unknown }>,
+    { readonly some: readonly[number, AstRule<_Extra>] }>>
