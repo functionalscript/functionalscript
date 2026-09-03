@@ -228,6 +228,110 @@ fn add<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn ge<A: IVm>() {
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("nullGreaterOrEqualFive", Any::ge(Nullish::Null.to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("undefinedGreaterOrEqualFive", Any::ge(Nullish::Undefined.to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("trueGreaterOrEqualFive", Any::ge(true.to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("falseGreaterOrEqualFive", Any::ge(false.to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringThreeGreaterOrEqualFive", Any::ge(string_any("3"), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringLetterGreaterOrEqualFive", Any::ge(string_any("a"), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("emptyArrayGreaterOrEqualFive", Any::ge(Array::default().to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("arrayThreeGreaterOrEqualFive", Any::ge([(3f64).to_any()].to_array().to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("arrayStringThreeGreaterOrEqualFive", Any::ge([string_any("3")].to_array().to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("arrayPairGreaterOrEqualFive", Any::ge([(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("emptyObjectGreaterOrEqualFive", Any::ge(Object::default().to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("functionGreaterOrEqualFive", Any::ge(function_any(), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("threeGreaterOrEqualFive", Any::ge((3f64).to_any(), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveGreaterOrEqualThree", Any::ge((5f64).to_any(), (3f64).to_any()), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveGreaterOrEqualFive", Any::ge((5f64).to_any(), (5f64).to_any()), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("zeroGreaterOrEqualNegativeZero", Any::ge((0f64).to_any(), (-0f64).to_any()), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("negativeZeroGreaterOrEqualZero", Any::ge((-0f64).to_any(), (0f64).to_any()), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("nanGreaterOrEqualOne", Any::ge((f64::NAN).to_any(), (1f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("oneGreaterOrEqualNan", Any::ge((1f64).to_any(), (f64::NAN).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("nanGreaterOrEqualNan", Any::ge((f64::NAN).to_any(), (f64::NAN).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("infinityGreaterOrEqualOne", Any::ge((f64::INFINITY).to_any(), (1f64).to_any()), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("oneGreaterOrEqualInfinity", Any::ge((1f64).to_any(), (f64::INFINITY).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("negativeInfinityGreaterOrEqualInfinity", Any::ge((f64::NEG_INFINITY).to_any(), (f64::INFINITY).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("infinityGreaterOrEqualInfinity", Any::ge((f64::INFINITY).to_any(), (f64::INFINITY).to_any()), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringTenGreaterOrEqualStringNine", Any::ge(string_any("10"), string_any("9")), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringNineGreaterOrEqualStringTen", Any::ge(string_any("9"), string_any("10")), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringAGreaterOrEqualStringB", Any::ge(string_any("a"), string_any("b")), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("emptyStringGreaterOrEqualStringA", Any::ge(string_any(""), string_any("a")), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringAbGreaterOrEqualStringAbc", Any::ge(string_any("ab"), string_any("abc")), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringAbcGreaterOrEqualStringAb", Any::ge(string_any("abc"), string_any("ab")), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringUppercaseBGreaterOrEqualStringA", Any::ge(string_any("B"), string_any("a")), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringTenGreaterOrEqualNine", Any::ge(string_any("10"), (9f64).to_any()), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("nineGreaterOrEqualStringTen", Any::ge((9f64).to_any(), string_any("10")), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringAbcGreaterOrEqualFive", Any::ge(string_any("abc"), (5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveGreaterOrEqualStringAbc", Any::ge((5f64).to_any(), string_any("abc")), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("negativeFiveBigGreaterOrEqualThreeBig", Any::ge(bigint_any(-5), bigint_any(3)), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("threeBigGreaterOrEqualThreeBig", Any::ge(bigint_any(3), bigint_any(3)), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("threeBigGreaterOrEqualNegativeFiveBig", Any::ge(bigint_any(3), bigint_any(-5)), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveBigGreaterOrEqualFiveHalf", Any::ge(bigint_any(5), (5.5f64).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveBigGreaterOrEqualFive", Any::ge(bigint_any(5), (5f64).to_any()), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveGreaterOrEqualFiveBig", Any::ge((5f64).to_any(), bigint_any(5)), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveBigGreaterOrEqualNan", Any::ge(bigint_any(5), (f64::NAN).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("nanGreaterOrEqualFiveBig", Any::ge((f64::NAN).to_any(), bigint_any(5)), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("fiveBigGreaterOrEqualInfinity", Any::ge(bigint_any(5), (f64::INFINITY).to_any()), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("negativeInfinityGreaterOrEqualFiveBig", Any::ge((f64::NEG_INFINITY).to_any(), bigint_any(5)), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("infinityGreaterOrEqualFiveBig", Any::ge((f64::INFINITY).to_any(), bigint_any(5)), true.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringTenGreaterOrEqualTwentyBig", Any::ge(string_any("10"), bigint_any(20)), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("twentyBigGreaterOrEqualStringThirty", Any::ge(bigint_any(20), string_any("30")), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("stringAbcGreaterOrEqualTwentyBig", Any::ge(string_any("abc"), bigint_any(20)), false.to_any());
+    // TODO: `>=` is not implemented in nanvm-lib yet
+    // check::<A>("twentyBigGreaterOrEqualStringAbc", Any::ge(bigint_any(20), string_any("abc")), false.to_any());
+}
+
+#[rustfmt::skip]
 fn string_coercion<A: IVm>() {
     check::<A>("number", (123f64).to_any().to_string().map(|v| v.to_any()), string_any("123"));
     check::<A>("negativeNumber", (-456f64).to_any().to_string().map(|v| v.to_any()), string_any("-456"));
@@ -259,5 +363,6 @@ pub fn all<A: IVm>() {
     mul::<A>();
     sub::<A>();
     add::<A>();
+    ge::<A>();
     string_coercion::<A>();
 }
