@@ -30,10 +30,9 @@ FunctionalScript compiler.
 | `types.ts` | Authored TypeScript source for a type-level API. It may coexist with `.f.mjs` or later `.f.js` and holds no runtime implementation. |
 | `.d.ts`, `.d.mts` | Generated TypeScript declarations. |
 
-The migration is deliberately split into two implementation stages. The
-repository-wide plan is
-[`todo/migrate-typescript-to-mjs.md`](../../todo/migrate-typescript-to-mjs.md),
-and the package conventions are documented in
+The migration is deliberately split into two implementation stages, both
+described below; this file is the repository-wide plan now that stage 1 is done
+and its issue deleted. The package conventions are documented in
 [`fjs/ci/todo/publishing-packages.md`](../ci/todo/publishing-packages.md).
 
 ### Stage 1: remove authored TypeScript implementations

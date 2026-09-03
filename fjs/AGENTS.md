@@ -742,6 +742,25 @@ merely claimed — `fjs/media/json/types.ts` holds
 whose type the compiler would otherwise infer is only as trustworthy as what
 verifies it.
 
+#### Curried generic exports need an explicit `@returns`
+
+Give every exported function an explicit `@returns` — or a top-level `@type`
+covering the whole signature — rather than leaning on an inferred return type,
+and check the emitted `.d.mts` for new `any` or `/*elided*/` after changing a
+module with generics or recursive data. An inferred return type on a curried
+generic export can collapse to `any` in declaration emit while `tsc` and `fjs t`
+both stay green, so nothing inside the repository notices; only a consumer
+type-checking against the published declaration does. Same failure as the
+`@type {const}` case above, reached from the other direction.
+
+When a generic function composes other independently-generic functions in its
+body, annotate each arrow with its own `@template` / `@param` / `@returns`
+instead of writing one `@type {<T, S>(...) => ...}` over the whole chain.
+[`fjs/types/array`](./types/array/module.f.mjs)'s `isTuple` is the worked
+example; `types/sorted_list`, `types/range_map` and `fsc` use the same shape. A
+single top-level signature has to restate every type variable of every stage,
+which is where the inference it replaced goes wrong again.
+
 #### Avoid type predicates
 
 Avoid TypeScript type predicates (`(x: T): x is U`). They are error-prone: the

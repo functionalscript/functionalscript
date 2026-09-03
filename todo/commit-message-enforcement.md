@@ -108,8 +108,8 @@ narrow the hole, and neither closes it:
    What keeps such a tool a reporter of candidates rather than a source of
    verdicts is the other direction: a behavior break shows up in no declaration
    at all, and a changed `_` alias may leave the expanded public contract
-   unchanged
-   ([migrate-typescript-to-mjs](./migrate-typescript-to-mjs.md)). It is a much
+   unchanged (the `_` contract in
+   [`fjs/fsc/README.md`](../fjs/fsc/README.md#private-types)). It is a much
    larger tool than a PR linter and should be its own issue before anyone
    starts it.
 

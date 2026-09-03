@@ -160,8 +160,8 @@ type-level API with no runtime representation, so nothing loads it, it exports n
 `tsc` checks, plus whatever `Assert<…>` pins a neighbouring `proof.f.mjs` states
 about it. The `proof.ts` row above is the framework's standing support for
 vanilla TypeScript, not a repository path: no authored implementation or proof
-`.ts` remains after stage 1 of
-[`todo/migrate-typescript-to-mjs.md`](../../todo/migrate-typescript-to-mjs.md).
+`.ts` remains after stage 1 of the source migration
+([`fjs/fsc/README.md`](../fsc/README.md)).
 
 ## Writing proofs
 

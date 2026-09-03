@@ -116,8 +116,8 @@ See [architecture.md §Human-readable paths](./architecture.md).
 **Repository source migration and compiler coverage:**
 
 The repository source-language migration is independent of compiler feature
-coverage and is tracked in
-[`todo/migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md):
+coverage. Its stage-1 issue is complete and deleted; the contract it left is
+[`fjs/fsc/README.md`](../../fjs/fsc/README.md):
 
 1. **Stage 1 is done.** It migrated authored `.f.ts` to `.f.mjs`
    dependency-first, moving types to JSDoc or to an authored `types.ts` beside
@@ -132,7 +132,7 @@ coverage and is tracked in
    `.f.js`. Two things gate the first rename, and
    [`fjs-nanvm-integration.md`](../fjs-nanvm-integration.md) — which performs it
    — lists both: the stage-2 boundary in
-   [`migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md), and
+   [`fjs/fsc/README.md`](../../fjs/fsc/README.md), and
    [authored `.f.js` package support](../../fjs/ci/todo/f-js-package-support.md),
    so that a standalone `.f.js` is directly type-checked, gets a `.d.ts`, is
    packed, and resolves for a clean consumer. Package support is itself no

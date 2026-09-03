@@ -611,5 +611,6 @@ throughout.
   entries.
 - [`fjs/fsc/README.md`](../fjs/fsc/README.md) — the `.f.mjs` → `.f.js`
   migration where the `;` requirement lands.
-- [`todo/migrate-typescript-to-mjs.md`](./migrate-typescript-to-mjs.md) — the
-  repository-wide source migration this plan slots into.
+- [`fjs/fsc/README.md`](../fjs/fsc/README.md) — the repository-wide source
+  migration this plan slots into. (Its stage-1 issue,
+  `todo/migrate-typescript-to-mjs.md`, was deleted when stage 1 finished.)
