@@ -1,6 +1,6 @@
 # Current Priority Tasks
 
-> Keep this file in the repository. It's personal notes.
+> Keep this file in the repository. It's personal notes. Don't review the file.
 
 - [ ] Browser Test
 - [ ] FunctionalScript
