@@ -327,8 +327,10 @@ three forms. It needs a data layer that can represent it.
       cases re-expressed here, comparing **backend results** and stating per
       case whether the AST is expected to match the `bnf` original or to
       differ.
-- [ ] Port `fjs/grammar/lib/json` (`\uXXXX` becomes `times(4)(hex)`), then
-      `lib/datajs`, then the `djs` tokenizer and parser, one PR each. Those
+- [ ] Port `fjs/grammar/lib/json` and `lib/datajs` **in one PR** — datajs
+      imports eight rule values from json (`lib/datajs/module.f.mjs:17`), so a
+      json-only PR hands classical combinators ebnf thunks. `\uXXXX` becomes
+      `times(4)(hex)`. Then the `djs` tokenizer and parser, one PR each. Those
       are the only consumers: outside `fjs/bnf` the repository imports it from
       five files, all under `fjs/djs`.
 - [ ] Update what describes the derived `Repeat`: `data/types.ts:29` carries

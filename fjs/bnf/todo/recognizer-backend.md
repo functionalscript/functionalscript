@@ -2,7 +2,11 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [Separate alphabet-specific BNF helpers](./unicode-rules.md)
+**Blocked by:**
+- [Separate alphabet-specific BNF helpers](./unicode-rules.md)
+- [ebnf-front-end](./ebnf-front-end.md)'s Problem 1 — which bounds the data
+  `Rule` union carries. Both builders discriminate that union, so a bounded
+  repeat added later is a second backend rewrite.
 
 ### Problem
 
@@ -290,10 +294,11 @@ Bigger automata are built from BNF pieces in two complementary ways:
       IR; new backends land as sibling modules — **`fjs/grammar/recognizer` and
       `fjs/grammar/dfa`**, at those paths directly. Both execute grammars, so
       they belong to the bucket
-      ([grammar-bucket](../../todo/grammar-bucket.md)); this issue is blocked
-      only until that plan's stage 2, so it can land before the other modules
-      move, and creating them under `fjs/bnf/` first would cost a second
-      breaking path change
+      ([grammar-bucket](../../todo/grammar-bucket.md)); on that plan this
+      issue waits only for stage 2, so it can land before the other modules
+      move — but not before Problem 1 settles the `Rule` union it
+      discriminates, and creating them under `fjs/bnf/` first would cost a
+      second breaking path change
 - [ ] Use the existing `Scan` family as the streaming contract (no new type):
       `Fold<I, S>` for the physical-symbol recognizer step and
       `StateScan<I, S, O>` for a transducer; drivers `foldScan` / `stateScan` /

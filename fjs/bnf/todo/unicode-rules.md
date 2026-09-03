@@ -79,12 +79,12 @@ Unicode syntax in its API (for example `commaJoin0Plus` accepting `'[]'` and
 constructing `','` as a string rule), change its core form to accept rules or
 symbols. A Unicode convenience wrapper may live in `fjs/grammar/unicode` if useful.
 
-EOF remains a generic BNF symbol convention rather than an alphabet-specific
-helper. Core BNF defines `EOF = -1`, outside the
-non-negative physical-symbol domain. Unicode, byte, token, and future alphabet
-adapters therefore produce only ordinary non-negative symbols and never need to
-reserve one value from their own alphabet. After the bigint migration the full
-uint256 range `0 .. 2^256 - 1` remains available for ordinary symbols.
+EOF is a generic symbol convention rather than an alphabet-specific helper, so
+`fjs/grammar/terminal/` owns it — `EOF = -1`, outside the non-negative
+physical-symbol domain — not the front end stage 1 moves it out of. Unicode,
+byte, token, and future alphabet adapters therefore produce only ordinary
+non-negative symbols and never need to reserve one value from their own
+alphabet. After the bigint migration the full uint256 range `0 .. 2^256 - 1` remains available for ordinary symbols.
 
 The result should allow the same core BNF API to describe grammars over any
 symbol alphabet without importing or depending on Unicode or byte-stream support.

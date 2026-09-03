@@ -81,9 +81,11 @@ inversions that are type- or signature-only move no path and go first; the two
 stages that relocate an API go straight to the final path.
 
 1. **`fjs/grammar/terminal/`** — extract the alphabet-neutral codec directly to
-   its final path, with `TerminalRange`, `RangeVariant` and the backends'
-   symbol type. Point `data`, `matcher`, `ll1`, `descent` and `token_symbol`
-   at it. Closes `terminal-range-shared-type`.
+   its final path, with `TerminalRange`, `RangeVariant`, the backends' symbol
+   type, and `eofSymbol` / `eof`: `matcher` and `ll1` read those from the
+   front-end root today, which stage 8 deletes. Point `data`, `matcher`,
+   `ll1`, `descent` and `token_symbol` at it. Closes
+   `terminal-range-shared-type`.
 2. **`fjs/grammar/unicode/`** — the alphabet split
    ([unicode-rules](../bnf/todo/unicode-rules.md)), at its final path, with
    `byte/` beside it if needed by then. It has to be here, not late:
@@ -182,8 +184,8 @@ A module the migration creates goes to its final path immediately, never to
       `oneEncode` and `rangeDecode` today.
 - [ ] Stage 1: give `terminal/` a co-located `proof.f.mjs`, carrying the codec
       cases out of `fjs/bnf/proof.f.mjs` — `rangeEncode`, `rangeDecode`,
-      `oneEncode` and their invalid-input cases. A new `.f.mjs` module ships
-      100% co-located coverage
+      `oneEncode`, `eofSymbol` / `eof`, and their invalid-input cases. A new
+      `.f.mjs` module ships 100% co-located coverage
       ([fjs/AGENTS.md](../AGENTS.md)), so rerunning the BNF proofs is not
       enough.
 - [ ] Rewrite `terminal-range-shared-type` to name `terminal/` as owner, and
