@@ -23,7 +23,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 |----------|---------------------|----------|-------|
 | `-`      | Unary minus         | [x]      | [`any/neg.rs`](src/vm/any/neg.rs) — `Neg for Any<A>` |
 | `+`      | Unary plus          | [x]      | `Any::unary_plus()` method (coerces to number) |
-| `!`      | Logical NOT         | [ ]      | |
+| `!`      | Logical NOT         | [x]      | [`any/not.rs`](src/vm/any/not.rs) — `Not for Any<A>`, via the new `ToBoolean` coercion ([`boolean_coercion.rs`](src/vm/boolean_coercion.rs)) |
 | `~`      | Bitwise NOT         | [ ]      | |
 | `typeof` | Type of             | [ ]      | |
 
@@ -53,15 +53,15 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 
 | Operator | Description         | `Any<A>` | Notes |
 |----------|---------------------|----------|-------|
-| `&&`     | Logical AND         | [ ]      | |
-| `\|\|`   | Logical OR          | [ ]      | |
-| `??`     | Nullish coalescing  | [ ]      | `Nullish` type exists |
+| `&&`     | Logical AND         | [x]      | [`any/and.rs`](src/vm/any/and.rs) — `Any::logical_and()` method (no `core::ops` trait fits: Rust's own `&&` takes `bool` and short-circuits evaluation) |
+| `\|\|`   | Logical OR          | [x]      | [`any/or.rs`](src/vm/any/or.rs) — `Any::logical_or()` method, same reason |
+| `??`     | Nullish coalescing  | [x]      | [`any/nullish_coalescing.rs`](src/vm/any/nullish_coalescing.rs) — `Any::nullish_coalescing()` method, checked by matching on `Unpacked::Nullish` directly (allocation-free), not `ToBoolean` |
 
 ### Other
 
 | Operator   | Description         | `Any<A>` | Notes |
 |------------|---------------------|----------|-------|
-| `?:`       | Conditional         | [ ]      | |
+| `?:`       | Conditional         | [x]      | [`any/conditional.rs`](src/vm/any/conditional.rs) — `Any::conditional()` method; the corpus's one ternary group (`fjs/nanvm/types.ts`'s `NonEdagGroup`, since the EDAG has no conditional-expression node) |
 | `.` / `[]` | Member access       | [ ]      | |
 | `in`       | Property check      | [ ]      | |
 | `instanceof` | Instance check    | [ ]      | |
@@ -72,5 +72,6 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 |----------------|--------|----------|
 | To number      | [x]    | [`number_coercion.rs`](src/vm/number_coercion.rs) |
 | To string      | [x]    | [`string_coercion.rs`](src/vm/string_coercion.rs) |
+| To boolean     | [x]    | [`boolean_coercion.rs`](src/vm/boolean_coercion.rs) — never throws, unlike the others |
 | To primitive   | [x]    | [`primitive_coercion.rs`](src/vm/primitive_coercion.rs) |
 | To numeric     | [x]    | `Any::to_numeric()` |

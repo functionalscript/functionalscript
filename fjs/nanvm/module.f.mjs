@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 13
+ * data.groups.length // 18
  * ```
  */
 
@@ -117,7 +117,7 @@ const isCommutative = g => g.commutative === true
  * owner — spelled differently in the two consumers, the JavaScript and Rust
  * names for one case would silently diverge.
  *
- * @type {(g: Group) => (c: Case<1> | Case<2>) => readonly (readonly[string, readonly Operand[]])[]}
+ * @type {(g: Group) => (c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, readonly Operand[]])[]}
  */
 export const orders = g => c => isCommutative(g)
     ? [[c.name, c.args], [`${c.name}Swapped`, c.args.toReversed()]]
@@ -137,7 +137,7 @@ export const opId = g => 'op' in g ? g.op : g.nanvmOp
  * The operand count is the point of the three group types, and it is fixed
  * before a consumer gets here; walking the cases does not need it back.
  *
- * @type {(g: Group) => readonly (Case<1> | Case<2>)[]}
+ * @type {(g: Group) => readonly (Case<1> | Case<2> | Case<3>)[]}
  */
 export const casesOf = g => g.cases
 
@@ -146,14 +146,20 @@ export const casesOf = g => g.cases
  *
  * Which vocabulary the id belongs to is what fixes the count — the same rule
  * the group types carry — so this asks the schema rather than a second copy
- * of the vocabulary, and a group with no canonical id is unary because its
- * one inhabitant is. It is the runtime half of what `Group1`/`Group2` say
- * statically, for the consumers that walk `data.groups` and so hold a
- * `Group` whose arm is no longer known.
+ * of the vocabulary. A group with no canonical id is unary unless it names
+ * `ternary`, the corpus's one three-operand group — the EDAG has no
+ * conditional-expression node to be unary or binary *in*, so nothing there
+ * fixes its count the way it fixes every other group's. It is the runtime
+ * half of what `Group1`/`Group2`/`NonEdagGroup` say statically, for the
+ * consumers that walk `data.groups` and so hold a `Group` whose arm is no
+ * longer known.
  *
- * @type {(g: Group) => 1 | 2}
+ * @type {(g: Group) => 1 | 2 | 3}
  */
-export const arityOf = g => !('op' in g) || isOp1Id(g.op)[0] === 'ok' ? 1 : 2
+export const arityOf = g => {
+    if (!('op' in g)) { return g.nanvmOp === 'ternary' ? 3 : 1 }
+    return isOp1Id(g.op)[0] === 'ok' ? 1 : 2
+}
 
 // Lowering — a case as the EDAG expression it denotes.
 
@@ -888,6 +894,162 @@ const greaterOrEqualCases = [
 ]
 
 /**
+ * `!` coerces its operand with `ToBoolean` and negates — the value never
+ * reaches `ToPrimitive`/`ToNumeric` the way the arithmetic and comparison
+ * groups' operands do, so array and object operands go straight to `true`
+ * (every object is truthy) rather than through a coercion chain that could
+ * fail or produce something else first.
+ *
+ * @type {readonly Case<1>[]}
+ */
+const notCases = [
+    { name: 'null', args: [null], expected: true },
+    { name: 'undefined', args: [undefined], expected: true },
+    { name: 'booleanFalse', args: [false], expected: true },
+    { name: 'booleanTrue', args: [true], expected: false },
+    { name: 'numberZero', args: [0], expected: true },
+    { name: 'numberNegativeZero', args: [-0], expected: true },
+    { name: 'numberNan', args: [NaN], expected: true },
+    { name: 'numberPositive', args: [2.3], expected: false },
+    { name: 'numberNegative', args: [-2.3], expected: false },
+    { name: 'stringEmpty', args: [''], expected: true },
+    { name: 'stringNonEmpty', args: ['a'], expected: false },
+    { name: 'bigintZero', args: [0n], expected: true },
+    { name: 'bigintPositive', args: [5n], expected: false },
+    { name: 'bigintNegative', args: [-5n], expected: false },
+    { name: 'emptyArray', args: [[]], expected: false },
+    { name: 'emptyObject', args: [{}], expected: false },
+    { name: 'function', args: [functionValue], expected: false },
+]
+
+/**
+ * `&&`/`||`/`??` all *select* one operand rather than coercing either one, so
+ * — unlike every group above — the value a case returns is the operand
+ * itself, not a derived primitive. That is observable only for a reference
+ * type (array, object, function): `Object.is`/`===` compare those by
+ * identity, and the corpus lowers each operand to a node of its own (nothing
+ * outside the `eq` section's `ref`s aliases two nodes), so a case whose
+ * `expected` needs to be *the same* array, object, or function the operand
+ * built would compare unequal to a freshly-lowered copy. Every case below is
+ * chosen so a reference-typed operand is only ever on the *discarded* side —
+ * proving these operators are truthy/nullish-aware for those types without
+ * needing their identity preserved across the corpus's operand/expected
+ * split.
+ *
+ * `&&`/`||` key off `ToBoolean` — the same coercion `!` uses above, so a
+ * falsy-but-not-nullish value (`0`, `NaN`, `''`) behaves like `null` here,
+ * unlike `??`, which keys off nullishness alone.
+ *
+ * What these cases do *not* prove: that the discarded operand's evaluation
+ * is actually skipped. `&&`/`||`/`??`/`?:` are the one place in JavaScript
+ * where that is these operators' defining behaviour — but every `Operand` in
+ * this corpus is `Value | FunctionValue` (see `types.ts`), and `Value` admits
+ * no expression whose evaluation is observable (no side effect, no throw:
+ * `Throws` is legal only as an `expected`, never an operand). Both consumers
+ * build every argument before dispatch — `run` in `proof.f.mjs`, `result` in
+ * `rust/module.f.mjs` — so there is nothing an unevaluated operand could do
+ * differently from an evaluated one for this corpus to catch. What these
+ * cases prove is the other half: *which* operand comes back.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const andCases = [
+    { name: 'falseAndTrue', args: [false, true], expected: false },
+    { name: 'trueAndFalse', args: [true, false], expected: false },
+    { name: 'trueAndTrue', args: [true, true], expected: true },
+    { name: 'nullAndOne', args: [null, 1], expected: null },
+    { name: 'undefinedAndOne', args: [undefined, 1], expected: undefined },
+    { name: 'zeroAndOne', args: [0, 1], expected: 0 },
+    { name: 'nanAndOne', args: [NaN, 1], expected: NaN },
+    { name: 'oneAndZero', args: [1, 0], expected: 0 },
+    { name: 'oneAndTwo', args: [1, 2], expected: 2 },
+    { name: 'emptyStringAndOne', args: ['', 1], expected: '' },
+    { name: 'nonEmptyStringAndOne', args: ['a', 1], expected: 1 },
+    { name: 'bigZeroAndOne', args: [0n, 1], expected: 0n },
+    { name: 'bigOneAndTwo', args: [1n, 2], expected: 2 },
+    // Every object is truthy, so an array/object/function on the left is
+    // always discarded in favor of the right — never the operand `&&` has to
+    // hand back, which is what keeps these identity-safe (see the group
+    // comment above).
+    { name: 'emptyArrayAndOne', args: [[], 1], expected: 1 },
+    { name: 'emptyObjectAndOne', args: [{}, 1], expected: 1 },
+    { name: 'functionAndOne', args: [functionValue, 1], expected: 1 },
+]
+
+/** @type {readonly Case<2>[]} */
+const orCases = [
+    { name: 'falseOrTrue', args: [false, true], expected: true },
+    { name: 'trueOrFalse', args: [true, false], expected: true },
+    { name: 'falseOrFalse', args: [false, false], expected: false },
+    { name: 'nullOrOne', args: [null, 1], expected: 1 },
+    { name: 'undefinedOrOne', args: [undefined, 1], expected: 1 },
+    { name: 'zeroOrOne', args: [0, 1], expected: 1 },
+    { name: 'nanOrOne', args: [NaN, 1], expected: 1 },
+    { name: 'oneOrZero', args: [1, 0], expected: 1 },
+    { name: 'oneOrTwo', args: [1, 2], expected: 1 },
+    { name: 'emptyStringOrOne', args: ['', 1], expected: 1 },
+    { name: 'nonEmptyStringOrOne', args: ['a', 1], expected: 'a' },
+    { name: 'bigZeroOrOne', args: [0n, 1], expected: 1 },
+    { name: 'bigOneOrTwo', args: [1n, 2], expected: 1n },
+    // Every object is truthy, so an array/object/function is always picked
+    // when it is the *left* operand — the identity-unsafe side for `||` —
+    // so each is placed on the right instead, where a truthy left discards
+    // it.
+    { name: 'oneOrEmptyArray', args: [1, []], expected: 1 },
+    { name: 'oneOrEmptyObject', args: [1, {}], expected: 1 },
+    { name: 'oneOrFunction', args: [1, functionValue], expected: 1 },
+]
+
+/** @type {readonly Case<2>[]} */
+const nullishCases = [
+    { name: 'nullCoalesceOne', args: [null, 1], expected: 1 },
+    { name: 'undefinedCoalesceOne', args: [undefined, 1], expected: 1 },
+    // Falsy but not nullish: stays on the left, unlike `andCases`/`orCases`.
+    { name: 'zeroCoalesceOne', args: [0, 1], expected: 0 },
+    { name: 'falseCoalesceOne', args: [false, 1], expected: false },
+    { name: 'nanCoalesceOne', args: [NaN, 1], expected: NaN },
+    { name: 'emptyStringCoalesceOne', args: ['', 1], expected: '' },
+    { name: 'bigZeroCoalesceOne', args: [0n, 1], expected: 0n },
+    { name: 'oneCoalesceTwo', args: [1, 2], expected: 1 },
+    { name: 'oneCoalesceNull', args: [1, null], expected: 1 },
+    // No object is ever nullish, so each is placed on the right, where a
+    // non-nullish left discards it — the identity-safe side.
+    { name: 'oneCoalesceEmptyArray', args: [1, []], expected: 1 },
+    { name: 'oneCoalesceEmptyObject', args: [1, {}], expected: 1 },
+    { name: 'oneCoalesceFunction', args: [1, functionValue], expected: 1 },
+]
+
+/**
+ * `?:`, the corpus's one ternary group (see `NonEdagGroup` in `types.ts`):
+ * `args` is `[condition, consequent, alternate]`, and `expected` is whichever
+ * branch `ToBoolean(condition)` selects — the same coercion `!`/`&&`/`||`
+ * use. Like those, this selects an operand rather than coercing it, so a
+ * reference-typed value only ever appears as the *condition*, the one
+ * position that is always discarded (see the `&&`/`||`/`??` group comment
+ * above for why that matters, and for why — the same as those three — these
+ * cases cannot prove the *unselected* branch goes unevaluated).
+ *
+ * @type {readonly Case<3>[]}
+ */
+const ternaryCases = [
+    { name: 'truePicksConsequent', args: [true, 1, 2], expected: 1 },
+    { name: 'falsePicksAlternate', args: [false, 1, 2], expected: 2 },
+    { name: 'nullPicksAlternate', args: [null, 1, 2], expected: 2 },
+    { name: 'undefinedPicksAlternate', args: [undefined, 1, 2], expected: 2 },
+    { name: 'zeroPicksAlternate', args: [0, 1, 2], expected: 2 },
+    { name: 'nanPicksAlternate', args: [NaN, 1, 2], expected: 2 },
+    { name: 'emptyStringPicksAlternate', args: ['', 1, 2], expected: 2 },
+    { name: 'nonEmptyStringPicksConsequent', args: ['a', 1, 2], expected: 1 },
+    { name: 'bigZeroPicksAlternate', args: [0n, 1, 2], expected: 2 },
+    { name: 'bigNonZeroPicksConsequent', args: [5n, 1, 2], expected: 1 },
+    { name: 'emptyArrayPicksConsequent', args: [[], 1, 2], expected: 1 },
+    { name: 'emptyObjectPicksConsequent', args: [{}, 1, 2], expected: 1 },
+    { name: 'functionPicksConsequent', args: [functionValue, 1, 2], expected: 1 },
+    { name: 'truePicksStringConsequent', args: [true, 'yes', 'no'], expected: 'yes' },
+    { name: 'falsePicksBigAlternate', args: [false, 1n, 2n], expected: 2n },
+]
+
+/**
  * `String(x)`.
  *
  * A function's string form is its source text, which no two engines have to
@@ -994,6 +1156,11 @@ export const data = {
         { op: '<=', cases: lessOrEqualCases },
         { op: '>', cases: greaterThanCases },
         { op: '>=', cases: greaterOrEqualCases },
+        { op: '!', cases: notCases },
+        { op: '&&', cases: andCases },
+        { op: '||', cases: orCases },
+        { op: '??', cases: nullishCases },
+        { nanvmOp: 'ternary', cases: ternaryCases },
         { op: 'String', cases: stringCoercionCases },
     ],
 }
