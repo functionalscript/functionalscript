@@ -389,71 +389,21 @@ export const runEntries = ({ result, start, test }) => (k, entries) => state => 
 }
 
 /**
- * A module whose `proof` export could not be read: one failed result, named
- * for the module, and the run goes on.
- *
- * **The module is its own name**, not `testId(k, [])`. The leaf spelling with
- * an empty path is `import("./a.f.mjs").proof()`, which is exactly what a
- * module exporting `proof` as a bare function produces — so it would collide
- * with a real leaf, and a filter could not tell the two apart. The browser
- * reached that conclusion first and recorded it on {@link moduleFailure};
- * this is that decision, not a second one, which is the whole point of the
- * read moving into the shared traversal.
- *
- * The duration is `0` and honestly so: nothing ran. What failed is the read of
- * the export, and the thrown value travels in the `SandboxResult`, so a host
- * describes it exactly as it describes a leaf's — which is the point of
- * routing this through the same two events rather than a message of its own.
- *
- * A report that fails still leaves the module counted: the failure *is* the
- * outcome here, unlike a leaf's, where a failed `start` means there is nothing
- * to keep.
- *
- * @template {Operation} O
- * @param {LeafReporter<O>} reporter
- * @returns {(k: string, thrown: unknown) => (state: RunState) => Effect<O, RunState, never>}
- */
-const unreadableModule = ({ start, result }) => (k, thrown) => state => {
-    /** @type {TestId} */
-    const id = { module: k, path: '', name: k }
-    /** @type {TestResult} */
-    const t = { ...id, status: 'failed', duration: 0 }
-    /** @type {SandboxResult<unknown>} */
-    const sr = { result: ['error', thrown], duration: 0 }
-    return mapStep(
-        resultMapStep(step(start(id), () => result(t, sr, false)), ok),
-        reported => {
-            const landed = addLeaf(state, t, sr)
-            return reported[0] === 'ok' ? landed : { ...landed, aborted: reported[1] }
-        })
-}
-
-/**
  * One module: its `proof` export enumerated, then its leaves walked.
  *
- * **The export is read under `catch`, because reading it runs user code.** A
- * `proof` built with a throwing getter or a revoked `Proxy` throws while it is
- * being enumerated, and unguarded that unwound the whole traversal: `fjs t`
- * exited on the throw with no summary and no exit code, taking with it every
- * module that had already passed. Measured with two modules and only the first
- * hostile, the second module's passing proofs were never reported.
- *
- * The browser page has read it this way since functionalscript#1809, through
- * its own `attempt`, and reported one failed module. This is that answer in the
- * shared core: `fjs t` is the reference runner, so the asymmetry was a gap in
- * it rather than a defence the page had earned. `Catch`'s own documentation in
- * `../effects/common/types.ts` records what the three guarded reads are worth.
+ * Enumerating the export reads nothing but plain FunctionalScript data — a
+ * `proof` is a function or a tree of them — so the read itself cannot fail and
+ * is not guarded. `fjs/AGENTS.md` §1.6 is why: a value carrying a getter or a
+ * proxy trap is not a value FunctionalScript builds, and the effect system's
+ * job is to keep such a value from reaching one, not to have every walk defend
+ * against it.
  *
  * @template {Operation} O
  * @param {Reporter<O>} reporter
  * @returns {(k: string, v: unknown) => (state: RunState) => Effect<O | Catch, RunState, IoChannel>}
  */
-const runModule = reporter => (k, v) => state => step(
-    /** @type {Effect<Catch, Result<readonly _TestAndPath[], unknown>, NotImplemented>} */ (
-        catch_(() => collectTests([], false, v))),
-    collected => collected[0] === 'ok'
-        ? runEntries(reporter)(k, collected[1])(state)
-        : unreadableModule(reporter)(k, collected[1])(state))
+const runModule = reporter => (k, v) => state =>
+    runEntries(reporter)(k, collectTests([], false, v))(state)
 
 /** @type {(moduleMap: ModuleMap) => readonly (readonly [string, unknown])[]} */
 const proofEntries = moduleMap =>

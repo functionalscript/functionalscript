@@ -39,21 +39,18 @@ are **two** orders, one per shape, and they are not interchangeable:
 
 - the *const-container* pair (`:200` / `:325`) settles the shape first —
   `fits` bound, absence pass, `hasUndeclaredMember` — and only then reads the
-  members, re-asking presence last;
+  members;
 - the *rest-container* pair (`:328` / `:420`) reads the declared members
   **first** (deciding absence inline as it goes), then computes
-  `undeclaredMembers`, then applies `fits` or the `rest` check, then re-asks.
+  `undeclaredMembers`, then applies `fits` or the `rest` check.
 
-That difference is observable, not incidental. Because the rest readers
-compute the leftovers *after* running the declared members' accessors, a
-getter for declared index 0 that installs an invalid index 1 is caught by a
-numeric `rest`; computing leftovers before the reads would accept it. So the
+The difference is which error a value failing both ways reports first, so the
 skeleton must be per shape, preserving each order exactly — the goal is one
 copy of each order, not one order for both.
 
-Both orders are currently pinned by proof tables (`../host.proof.mjs`,
-`../validate/proof.f.mjs`) rather than by construction, so any change must
-land identically in two files, and the design commentary already shows the
+Both orders are currently pinned by the proof tables in
+`../validate/proof.f.mjs` rather than by construction, so any change must land
+identically in both readers, and the design commentary already shows the
 drift: `../parse/module.f.mjs:347-358` is a stub pointing at
 `../validate/module.f.mjs`'s 50-line rationale, `../common/module.f.mjs:5-8`
 names `parse` and `data` as the consumers while `../common/types.ts:2` says
@@ -134,7 +131,7 @@ of this issue.
       `../common/types.ts:2` vs `../common/module.f.mjs:5-8` to name the same
       consumer set.
 - [ ] `tsc`, `fjs t`; the acceptance tables in `../validate/proof.f.mjs`
-      and `../host.proof.mjs` pass unchanged.
+      pass unchanged.
 
 ### Related
 

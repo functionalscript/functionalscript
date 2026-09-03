@@ -85,16 +85,13 @@
 import { ok } from '../../types/result/module.f.mjs'
 import {
     absentMember,
-    consPresence,
     constPrimitiveValidate,
     declaredTest,
     eachEntry,
-    emptyPresence,
     hasUndeclaredMember,
     isArray,
     isObject,
     orVisit,
-    presenceUnchanged,
     primitive0Validate,
     structSchemaEntries,
     tupleSchemaEntries,
@@ -189,13 +186,6 @@ const recordValidate = containerValidate(isObject, () => () => true)
  * `{ a: undefined }`. An absent member is legal exactly when its schema
  * admits absence (`admitsAbsence` in `../common/module.f.mjs`); a present
  * one is dispatched as before.
- *
- * The decisions are **re-asked last** (`presenceUnchanged`): a member's
- * read can run an accessor that flips an earlier, already decided member —
- * prototype pollution makes an omitted key present, a delete makes a
- * checked one absent — and the value handed back would no longer denote
- * what was checked. The three readers refuse the flip identically — see
- * `../host.proof.mjs`.
  */
 const constContainerValidate =
     /**
@@ -281,21 +271,16 @@ const constContainerValidate =
                 rttiEntries,
                 (k, v) => {
                     // Absence is settled above, so this one is legal.
-                    if (!(k in value)) { return ok(false) }
-                    const m = /** @type {any} */ (validate(v))(getItem(value, k))
-                    return m[0] === 'error' ? m : ok(true)
+                    if (!(k in value)) { return ok(undefined) }
+                    return /** @type {any} */ (validate(v))(getItem(value, k))
                 },
-                emptyPresence,
-                consPresence,
+                undefined,
+                noAccumulate,
             )
             if (r[0] === 'error') { return r }
             // `value` is C (Unknown container), but Ts<T> for T extends Tuple|Struct is not
             // structurally equivalent to C — TypeScript can't narrow element types through the loop.
-            // The walk recorded the decisions it was given, so this asks
-            // the pre-bound snapshot against the final state.
-            return presenceUnchanged(rttiEntries, r[1], value)
-                ? /** @type {any} */ (ok(value))
-                : verror('unexpected value')
+            return /** @type {any} */ (ok(value))
         }
     }
 
@@ -350,13 +335,12 @@ const restContainerValidate =
                 (k, v) => {
                     if (!(k in value)) {
                         const a = absentMember(v)
-                        return a[0] === 'error' ? a : ok(false)
+                        return a[0] === 'error' ? a : ok(undefined)
                     }
-                    const m = /** @type {any} */ (validate(v))(getItem(value, k))
-                    return m[0] === 'error' ? m : ok(true)
+                    return /** @type {any} */ (validate(v))(getItem(value, k))
                 },
-                emptyPresence,
-                consPresence,
+                undefined,
+                noAccumulate,
             )
             if (d[0] === 'error') { return d }
             const extra = undeclaredMembers(declared, value)
@@ -369,9 +353,7 @@ const restContainerValidate =
                 const e = eachEntry(extra, (_k, v) => restValidate(v), undefined, noAccumulate)
                 if (e[0] === 'error') { return e }
             }
-            return presenceUnchanged(rttiEntries, d[1], value)
-                ? ok(value)
-                : verror('unexpected value')
+            return ok(value)
         }
     }
 
