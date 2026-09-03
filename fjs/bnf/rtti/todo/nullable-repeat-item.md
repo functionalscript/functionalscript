@@ -59,6 +59,21 @@ fixed in the same pull request — extra branches, and branch names other than
 `some`/`none` — each of which gave a wrong shape to a grammar that *does*
 parse.
 
+### Two more, from different causes
+
+An object-literal `__proto__` branch — `const r = { __proto__: 0 } as const` —
+is accepted as a `Rule`, and `AstRule<typeof r>` gives
+`{ readonly __proto__: number }`. JavaScript treats that literal key as the
+prototype setter rather than an own property, so `Object.entries` in
+[`../../data/module.f.mjs`](../../data/module.f.mjs) sees no branches at all and
+`toData(r)` produces an empty variant. The advertised branch can never exist.
+
+This one is *not* a rule-set question, and is the only limit here with a cheap
+and exact fix: the key is gone before a rule set is built, and `__proto__` is a
+single known name, so excluding it from `_Keys` is precise rather than a guess.
+A variant declaring only `__proto__` would then correctly refuse. Worth doing on
+its own rather than waiting for the larger change.
+
 ### One more, from a different cause
 
 A variant keyed by a *pattern* — `{ [k in `x-${string}`]: 0 }` — is an open key
