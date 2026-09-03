@@ -83,11 +83,16 @@ every level.
 types only for finite literals: `Infinity` is typed plain `number`, so
 `Max extends …` could not detect it and every unbounded repeat would degrade
 to `readonly T[]` — losing `repeat1Plus`'s non-empty type. `null` is a literal
-type, so the conditional can ask. It also makes `n <= max` a compile error
-until `max` is narrowed, where a `-1` sentinel would compile and be silently
-wrong — and `-1` is already EOF in the terminal domain, which is a collision
-worth avoiding. `undefined` is equivalent on the type
-question and rejected anyway: with it in the type, a dropped argument is
+type, so the conditional can ask. The string `"Infinity"` passes that test —
+it is a literal type — but puts a string in a numeric field, so every
+arithmetic site needs a guard that reads as a conversion, and the obvious
+`max === 'Infinity' ? Infinity : max` restores the widened `number` one line
+later. Its one advantage, a self-describing serialization, is the data
+layer's to take ([Problem 1](#problems)); the front end need not pre-pay for
+it. `null` also makes `n <= max` a compile error until `max` is narrowed,
+where a `-1` sentinel would compile and be silently wrong — and `-1` is
+already EOF in the terminal domain, which is a collision worth avoiding.
+`undefined` is equivalent on the type question and rejected anyway: with it in the type, a dropped argument is
 *plausible* rather than invalid. Runtime arity is not enforced here, so
 `repeat(2)` would silently mean two-or-more while reading as "exactly two" —
 which already has a spelling, `times(2)`. With `null` required, `repeat(2)`
