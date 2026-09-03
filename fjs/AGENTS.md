@@ -321,6 +321,22 @@ renaming or removing a `_`-prefixed name is not by itself a breaking change.
 The public contract still governs transitive effects. See
 [Private types](./fsc/README.md#private-types) for the full rule.
 
+That rule runs in one direction only. Moving a *published public* typedef to a
+`_` name is an ordinary breaking API change: it needs its own
+`**BREAKING CHANGES:**` declaration and importer updates, exactly like removing
+any other public declaration. The `.f.ts` -> `.f.mjs` rename was the one moment
+a module's visibility contract could be corrected for free — that rename already
+broke importers, so a correction rode along with it — and stage 1 is over, so
+that moment has passed for every module in the tree.
+
+A pending refactor is not a reason to pre-privatize. Visibility follows what the
+module should offer consumers today, not what a future task plans to delete:
+`Concat` and `NotLazy` in `fjs/types/list` stay public even though
+[`simplify-list-type.md`](./types/list/todo/simplify-list-type.md) plans to
+remove both. Hiding a type behind `_` to make its eventual removal cheaper gives
+up a real present-day API for a discount on a breaking change that should simply
+be declared when it happens.
+
 The intra-directory dependency direction is
 `types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`
 (dependency to dependent; a layering guide, not a requirement that every file
@@ -741,6 +757,25 @@ merely claimed — `fjs/media/json/types.ts` holds
 `Assert<Equal<Unknown, Ts<typeof unknown>>>`. An explicit `@type` on a constant
 whose type the compiler would otherwise infer is only as trustworthy as what
 verifies it.
+
+#### Curried generic exports need an explicit `@returns`
+
+Give every exported function an explicit `@returns` — or a top-level `@type`
+covering the whole signature — rather than leaning on an inferred return type,
+and check the emitted `.d.mts` for new `any` or `/*elided*/` after changing a
+module with generics or recursive data. An inferred return type on a curried
+generic export can collapse to `any` in declaration emit while `tsc` and `fjs t`
+both stay green, so nothing inside the repository notices; only a consumer
+type-checking against the published declaration does. Same failure as the
+`@type {const}` case above, reached from the other direction.
+
+When a generic function composes other independently-generic functions in its
+body, annotate each arrow with its own `@template` / `@param` / `@returns`
+instead of writing one `@type {<T, S>(...) => ...}` over the whole chain.
+[`fjs/types/array`](./types/array/module.f.mjs)'s `isTuple` is the worked
+example; `types/sorted_list`, `types/range_map` and `fsc` use the same shape. A
+single top-level signature has to restate every type variable of every stage,
+which is where the inference it replaced goes wrong again.
 
 #### Avoid type predicates
 

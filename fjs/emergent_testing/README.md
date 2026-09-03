@@ -68,13 +68,13 @@ Pin a specific package version by adding it after the package name, for example
 `bunx functionalscript@0.29.0 test`.
 
 This only applies to the built-in runner. External runners still need
-FunctionalScript installed so `all.test.ts` can import
+FunctionalScript installed so the entry file can import
 `functionalscript/fjs/emergent_testing/all.test.mjs`.
 
 ## Installation
 
 Install FunctionalScript when your repository imports the package, for example
-to use external runners through `all.test.ts`:
+to use external runners through an `all.test.mjs` entry:
 
 ```sh
 npm install functionalscript
@@ -103,13 +103,16 @@ External runners need an entry file that, when loaded, discovers every proof
 module and registers each test case with the active runner. The package ships a
 ready-made one — re-export it with a bare side-effect import:
 
-```ts
-// all.test.ts
+```js
+// all.test.mjs
 import 'functionalscript/fjs/emergent_testing/all.test.mjs'
 ```
 
-`all.test.ts` is the recommended name, but any name works as long as the runner
-loads it — most pick up `*.test.ts` / `*.test.js` by default.
+`all.test.mjs` is the recommended name, but any name works as long as the runner
+loads it — most pick up `*.test.ts` / `*.test.js` / `*.test.mjs` by default.
+Prefer the `.mjs` spelling for `node --test`: whether it discovers a `.ts` entry
+depends on that Node version's TypeScript support, which is how this repository's
+own coverage run silently reported nothing on Node 23.
 
 Then invoke the runner:
 
@@ -160,8 +163,8 @@ type-level API with no runtime representation, so nothing loads it, it exports n
 `tsc` checks, plus whatever `Assert<…>` pins a neighbouring `proof.f.mjs` states
 about it. The `proof.ts` row above is the framework's standing support for
 vanilla TypeScript, not a repository path: no authored implementation or proof
-`.ts` remains after stage 1 of
-[`todo/migrate-typescript-to-mjs.md`](../../todo/migrate-typescript-to-mjs.md).
+`.ts` remains after stage 1 of the source migration
+([`fjs/fsc/README.md`](../fsc/README.md)).
 
 ## Writing proofs
 
