@@ -8,7 +8,7 @@ use crate::{
 /// never calls `ToPrimitive`, so there is nothing here that can throw.
 /// <https://tc39.es/ecma262/#sec-toboolean>
 ///
-/// It equals to `!!self` in JavaScript.
+/// It equals to `!!x` in JavaScript.
 pub struct BooleanCoercion;
 
 impl<A: IVm> Dispatch<A> for BooleanCoercion {
