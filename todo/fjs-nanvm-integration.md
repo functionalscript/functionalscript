@@ -26,8 +26,12 @@ as JSON.
 
 **Blocked by:**
 
-- [migrate authored TypeScript to `.mjs`](./migrate-typescript-to-mjs.md)
 - [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md)
+
+Stage 1 — removing authored TypeScript — is complete and is no longer a
+blocker. It was tracked in `todo/migrate-typescript-to-mjs.md`, deleted once
+finished; the extension contract it established lives in
+[`fjs/fsc/README.md`](../fjs/fsc/README.md).
 
 The initial compiler walking skeleton does not require repository source
 migration and may use a small synthetic JavaScript fixture. The extension-based
@@ -109,9 +113,6 @@ via the `Function` constructor — no rustc at the user's run time.
 - [ ] Prove the pipeline with a minimal synthetic JavaScript FunctionalScript
       subset: a constant default export compiled by `fjs` to `.rs`, built and
       run by cargo, with the result printed to stdout as JSON.
-- [ ] Complete [migrate authored TypeScript to `.mjs`](./migrate-typescript-to-mjs.md),
-      including removal of TypeScript JavaScript emission and the blanket
-      `**/*.js` `.gitignore` rule.
 - [ ] Complete
       [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md),
       including direct type-checking, declaration emission, packing, and
@@ -126,10 +127,10 @@ via the `Function` constructor — no rustc at the user's run time.
 
 ### Related
 
-- [migrate authored TypeScript to `.mjs`](./migrate-typescript-to-mjs.md) —
-  **blocked-by prerequisite** for repository compiler-compatibility migration.
 - [package support for authored `.f.js`](../fjs/ci/todo/f-js-package-support.md)
   — **blocked-by prerequisite** before the first stage-2 rename.
+- [`fjs/fsc/README.md`](../fjs/fsc/README.md) — the extension contract, and the
+  stage-1/stage-2 boundary this migration starts from.
 - [nanvm-lib/todo/mvp-roadmap.md](../nanvm-lib/todo/mvp-roadmap.md) — MVP
   definition and task list.
 - [nanvm-lib/todo/console-program.md](../nanvm-lib/todo/console-program.md) —

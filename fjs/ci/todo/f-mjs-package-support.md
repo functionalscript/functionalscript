@@ -5,9 +5,10 @@
 
 ### Problem
 
-This task was written as the gate on the repository-wide
-[TypeScript-to-`.mjs` migration](../../../todo/migrate-typescript-to-mjs.md):
-that migration could not convert its first package-owned `.ts` / `.f.ts`
+This task was written as the gate on the repository-wide TypeScript-to-`.mjs`
+migration — stage 1, tracked in `todo/migrate-typescript-to-mjs.md` and deleted
+when it finished, its contract now in
+[`fjs/fsc/README.md`](../../fsc/README.md). That migration could not convert its first package-owned `.ts` / `.f.ts`
 implementation source until the TypeScript and NPM pipeline treated authored
 `.mjs` as first-class source. It no longer gates that migration. Stage 1's
 source conversion is complete — every conversion happened, and what the
@@ -210,7 +211,7 @@ re-check (plain `tsc`; `noEmit` is set in `tsconfig.json`), keeping its
 declaration-emit round-trip property. That PR
 also performed the clean packed-consumer validation manually (tsc 5.9.3/7.0.2,
 Node v22, Deno 2.9.5, Bun 1.3.11 — measurements recorded in
-[`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)).
+[`packed-consumer-validation.md`](../packed-consumer-validation.md)).
 What remains open is a committed, CI-run fixture exercising a real authored
 `types.ts` from both TypeScript and JSDoc, Deno source checking, declaration
 emission, `npm pack`, and a clean consumer.
@@ -404,9 +405,8 @@ sufficient for it. What remains here — the committed, CI-run fixture — is
 future regression infrastructure on its own schedule.
 
 The original ordering, kept for history: complete this task before the first
-package-owned implementation `.ts` / `.f.ts` -> `.mjs` / `.f.mjs` conversion in
-[`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md).
-The migration then proceeds gradually from runtime dependency leaves, with
+package-owned implementation `.ts` / `.f.ts` -> `.mjs` / `.f.mjs` conversion of
+the stage-1 migration. The migration then proceeded gradually from runtime dependency leaves, with
 `types.ts` companions split out where useful before their JavaScript consumers
 migrate.
 
@@ -422,8 +422,8 @@ not, and the pipeline is simplified accordingly.
 - [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451) —
   initial implementation and CI validation of `allowJs` / `checkJs` plus the
   two-pass `prepack`.
-- [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
-  — repository-wide stage-1 implementation source migration.
+- [`fjs/fsc/README.md`](../../fsc/README.md) — the extension contract left by
+  the repository-wide stage-1 implementation source migration.
 - [`fjs/AGENTS.md`](../../AGENTS.md) §3.2 — private-type placement rules;
   [`fjs/fsc/README.md`](../../fsc/README.md) — the `_` contract and why
   generated private declarations are not packaged.

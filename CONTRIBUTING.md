@@ -166,10 +166,9 @@ npm run gen
 ```
 
 Run this after changing anything a generator reads — `fjs/ci`'s workflows and
-Nix flakes, `fjs/nanvm`'s Rust test data, `.copilot/mcp.json`. It needs
-nothing beyond Node, runs on Windows, and never touches a lockfile of any
-kind — CI's drift check runs the same command and fails if the committed
-tree no longer matches its output.
+Nix flakes, `fjs/nanvm`'s Rust test data. It needs nothing beyond Node, runs on
+Windows, and never touches a lockfile of any kind — CI's drift check runs the
+same command and fails if the committed tree no longer matches its output.
 
 ### Updating dependencies
 
@@ -187,28 +186,6 @@ all installed (so it does not run on Windows): it runs `gen` first, then
 refreshes `package-lock.json`, `deno.lock`, `bun.lock`, and `Cargo.lock`, and
 runs the generated `nix/lock-update.sh` to refresh every `flake.lock` through
 real Nix — see [`nix/README.md`](./nix/README.md).
-
-## Using MCP with VS Code
-
-This repository keeps `.copilot/mcp.json` as the source of truth. VS Code
-auto-discovers `.vscode/mcp.json`; that file is **not committed** — generate it
-in your local clone with:
-
-```bash
-npm run gen
-```
-
-After editing `.copilot/mcp.json`, run `npm run gen` again.
-
-To use the MCP tools in Copilot Chat, open it (`Ctrl+Alt+I` on Windows/Linux,
-`Cmd+Option+I` on macOS), select **Agent**, then use **Configure Tools** to
-enable them. For example:
-
-> "Add a short text blob to CAS: 'Hello from FunctionalScript'"
-
-The `cas_add`, `cas_get`, and `cas_list` tools appear in the agent's tool panel.
-For tool details and package-consumer setup for Claude and Codex, see
-[`fjs/mcp/README.md`](fjs/mcp/README.md).
 
 ## Opening a pull request
 

@@ -16,8 +16,7 @@ An earlier revision of this plan was built around transpiling authored `.f.ts`
 to browser-loadable `.f.js`. That premise is gone: authored source is `.f.mjs`
 — JavaScript that browsers load natively as ES modules — so no transpile,
 type-erasure, or import-rewriting step exists anywhere in this design. (After
-stage 2 of
-[`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md),
+[stage 2](../../fsc/README.md#stage-2-mark-compiler-compatible-functionalscript),
 compiler-compatible modules rename to authored `.f.js`; that changes
 extensions below, nothing else.)
 

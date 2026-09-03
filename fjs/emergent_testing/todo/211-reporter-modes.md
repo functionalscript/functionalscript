@@ -1,7 +1,15 @@
 ## 211. Reporter modes for the test framework
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked
+**Blocked by:** [Command output: one design for every destination](../../todo/command-output.md)
+
+> **Why blocked.** This proposes a mode system for the proof runner. The modes
+> are not the runner's — every `fjs` command writes to the same destinations —
+> so the epic above generalises it. The stream rule below is settled for the
+> **stream** reporters and is an input to that design rather than a question
+> for it — not for the bridge this issue also proposes, which emits a
+> framework's calls rather than characters and so has no stream to own.
 
 The `Reporter<O>` interface (`moduleStart` / `enter` / `pass` / `fail` / `summary`,
 each an `Effect<NodeOp, void>`) makes the walker reporter-agnostic. Several concrete
