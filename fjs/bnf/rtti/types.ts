@@ -47,12 +47,22 @@ type _Single<T> =
         : Equal<(T extends unknown ? (x: T) => void : never) extends
             (x: infer I) => void ? I : never, T>
 
+/**
+ * A rule with any lazy wrapper taken off, which is the form the branch tests
+ * below ask about. Recognition in `../data/module.f.mjs` runs over the
+ * *normalized* rules, where a lazy alias in either branch means what its direct
+ * form means, so a branch written `() => readonly []` has to be read as the
+ * empty sequence it stands for.
+ */
+type _Data<R> = R extends () => infer U ? _Data<U> : R
+
 /** The keys of `U` whose branch is the empty sequence. */
-type _NoneKeys<U> = { [K in keyof U]: U[K] extends readonly [] ? K : never }[keyof U]
+type _NoneKeys<U> =
+    { [K in keyof U]: _Data<U[K]> extends readonly [] ? K : never }[keyof U]
 
 /** The keys of `U` whose branch is an item followed by `R` itself. */
 type _StepKeys<U, R> =
-    { [K in keyof U]: U[K] extends readonly [Rule, R] ? K : never }[keyof U]
+    { [K in keyof U]: _Data<U[K]> extends readonly [Rule, R] ? K : never }[keyof U]
 
 /**
  * The item of `R` when `R` is a repetition, wrapped in a one-tuple, and `false`
@@ -83,7 +93,7 @@ type _RepeatItem<R> =
         ? _Single<_NoneKeys<U>> extends true
             ? _Single<_StepKeys<U, R>> extends true
                 ? Equal<keyof U, _NoneKeys<U> | _StepKeys<U, R>> extends true
-                    ? U[_StepKeys<U, R>] extends readonly [infer I extends Rule, R]
+                    ? _Data<U[_StepKeys<U, R>]> extends readonly [infer I extends Rule, R]
                         ? readonly [I]
                         : false
                     : false
@@ -256,3 +266,12 @@ type _Custom = () => {
     readonly next: readonly[0, _Custom],
 }
 type _25 = Assert<Equal<AstRule<_Custom>, readonly number[]>>
+
+// A lazy alias in a branch means what its direct form means, since recognition
+// runs over the normalized rules; `repeatItem` returns `0` for this one.
+type _Empty = () => readonly []
+type _LazyBranch = () => {
+    readonly none: _Empty,
+    readonly some: readonly[0, _LazyBranch],
+}
+type _26 = Assert<Equal<AstRule<_LazyBranch>, readonly number[]>>
