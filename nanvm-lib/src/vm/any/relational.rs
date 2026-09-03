@@ -1,8 +1,8 @@
 use core::cmp::Ordering;
 
 use crate::vm::{
-    Any, BigInt, IVm, ToAny, Unpacked, numeric::Numeric, primitive::Primitive,
-    primitive_coercion::ToPrimitivePreferredType,
+    Any, BigInt, IVm, ToAny, Unpacked, ecma_whitespace::is_ecma_whitespace, numeric::Numeric,
+    primitive::Primitive, primitive_coercion::ToPrimitivePreferredType,
 };
 
 impl<A: IVm> Any<A> {
@@ -95,7 +95,7 @@ fn numeric_less_than<A: IVm>(nx: Numeric<A>, ny: Numeric<A>) -> Option<bool> {
 /// trimmed; `""` (or all whitespace) is `0n`, matching
 /// `StringToBigInt("")`.
 fn string_to_bigint<A: IVm>(s: &str) -> Option<BigInt<A>> {
-    let trimmed = s.trim();
+    let trimmed = s.trim_matches(is_ecma_whitespace);
     if trimmed.is_empty() {
         return Some(BigInt::default());
     }
@@ -301,5 +301,16 @@ mod tests {
         assert!(!bool_of(big(-100).lt(s("-0x10"))));
         // An empty digit run after the prefix is invalid too.
         assert!(!bool_of(s("0x").lt(big(1))));
+    }
+
+    #[test]
+    fn string_to_bigint_ecma_whitespace() {
+        let s = |v: &str| -> Any<A> { v.into() };
+        // U+FEFF (BOM) is ECMA-262 `WhiteSpace` and gets trimmed; U+0085
+        // (NEL) is not, even though Rust's `str::trim()` disagrees both
+        // ways (it misses the former and trims the latter).
+        assert!(bool_of(s("\u{FEFF}1").lt(big(2))));
+        assert!(!bool_of(s("\u{0085}1").lt(big(2))));
+        assert!(!bool_of(big(0).lt(s("\u{0085}1"))));
     }
 }
