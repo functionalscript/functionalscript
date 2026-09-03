@@ -126,10 +126,12 @@ stages that relocate an API go straight to the final path.
    `fjs/grammar/bnf/`. `detectRepeat` and `unicode/` stay.
 
 **Before stage 5**, rewrite the backend proofs against `RuleSet` literals:
-`ll1/proof.f.mjs:14`, `descent/proof.f.mjs:10`, `data/proof.f.mjs:7` and
-`matcher/proof.f.mjs:8` import the front end, and all but `matcher` import
-`testlib.f.mjs`, so stage 8's deletion could not pass the suite. It also makes
-`descentEquivalence` front-end neutral for the first time.
+`ll1/proof.f.mjs:14`, `descent/proof.f.mjs:10` and `data/proof.f.mjs:7` import
+the front end and `testlib.f.mjs`, so stage 8's deletion could not pass the
+suite. It also makes `descentEquivalence`
+front-end neutral for the first time. `matcher/proof.f.mjs` is not in this
+rewrite: its one front-end import is `eofSymbol`, which stage 1 repoints, and
+it builds no grammar.
 
 **A proof travels with what it proves**, so the rewrite is a split, not a
 wholesale conversion. Only the cases covering neutral behaviour become
@@ -170,8 +172,10 @@ An issue goes where the code it describes goes:
   describe backends that do not exist yet; the cross-cutting proof issues
   (`proof-recognizer-and-fixtures`, `serialized-proof-expectations`); and
   `207-bnf-semantic-actions`, about the protocol stage 3 genericizes.
-- **`bnf/todo/`, closing in stage 8** — only `bnf-grammar-single-owner` and
-  `ebnf-front-end`.
+- **`bnf/todo/`, closing in stage 8** — only `ebnf-front-end`.
+  `bnf-grammar-single-owner` goes to `fjs/grammar/todo/` with the rest: its
+  open work is about the surviving `grammar/lib` grammars and the `fsc`
+  tokenizer, so deleting the classical front end settles none of it.
 
 A module the migration creates goes to its final path immediately, never to
 `fjs/bnf/` first.

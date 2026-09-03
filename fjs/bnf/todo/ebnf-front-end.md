@@ -10,6 +10,9 @@ above all, is actionable now and grammar-bucket stage 2 waits on it.
   `RuleNameMap` and `GrammarData` name the classical `FRule` until then.
 - [unicode-rules](./unicode-rules.md), for the `fjs/grammar/unicode/` adapter
   this front end takes its text terminals from.
+- [#1865](https://github.com/functionalscript/functionalscript/pull/1865), for
+  `BoundedArray` — `fjs/types/array` exports no such type yet, and the AST
+  types below are instantiations of it.
 
 ### Problem
 

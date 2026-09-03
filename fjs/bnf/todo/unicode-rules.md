@@ -8,6 +8,9 @@
   `rangeDecode` into it. The adapters this issue creates are built on those,
   and their final paths (`fjs/grammar/unicode/`, `fjs/grammar/byte/`) only
   exist once the bucket does. This issue is that plan's stage 2.
+- [ebnf-front-end](./ebnf-front-end.md)'s Problem 9 — one adapter must serve
+  both front ends, which want different representations. It is a design
+  answer, actionable now, but the adapter's public shape follows from it.
 
 ### Problem
 
@@ -84,7 +87,8 @@ EOF is a generic symbol convention rather than an alphabet-specific helper, so
 physical-symbol domain — not the front end stage 1 moves it out of. Unicode,
 byte, token, and future alphabet adapters therefore produce only ordinary
 non-negative symbols and never need to reserve one value from their own
-alphabet. After the bigint migration the full uint256 range `0 .. 2^256 - 1` remains available for ordinary symbols.
+alphabet. After the bigint migration the full uint256 range `0 .. 2^256 - 1`
+remains available for ordinary symbols.
 
 The result should allow the same core BNF API to describe grammars over any
 symbol alphabet without importing or depending on Unicode or byte-stream support.
@@ -185,9 +189,10 @@ new module boundary and final rule discriminants before implementation starts.
       are importers too — the parser takes `unicodeRange` from the same import
       line as its terminal and combinator exports — so they are ported here as
       well.
-- [ ] Keep EOF generic and width-independent: use core BNF's `EOF = -1`, and keep
-      all alphabet adapters restricted to ordinary non-negative symbols without
-      reserving the maximal value.
+- [ ] Keep EOF generic and width-independent: use `fjs/grammar/terminal/`'s
+      `EOF = -1` — stage 1 moves it out of the front end and adds no
+      re-export — and keep all alphabet adapters restricted to ordinary
+      non-negative symbols without reserving the maximal value.
 - [ ] Restate the helper set and import boundary in
       [`bnf-grammar-single-owner`](./bnf-grammar-single-owner.md) against the
       names this split actually ships, rather than the proposed ones it is
