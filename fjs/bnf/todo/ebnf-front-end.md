@@ -321,7 +321,10 @@ three forms. It needs a data layer that can represent it.
 - [ ] Split the range-set helpers by layer: packed arithmetic in `terminal/`,
       the rule-level complement a distinctly named front-end helper built on
       it, never a re-export.
-- [ ] `rtti/`: the rule-info map, without `repeatItem`.
+- [ ] `rtti/`: the rule-info map, without `repeatItem`, with its own
+      co-located `proof.f.mjs` covering every export and branch — a new
+      `.f.mjs` owes that ([fjs/AGENTS.md](../../AGENTS.md)), and the classical
+      `map/rtti/` already ships one.
 - [ ] Proofs: every constructor; every `Info` form written directly; each
       bound shape, `Infinity` among them, and the degenerate `0..0` and
       `1..1`; string lowering,
