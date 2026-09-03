@@ -51,5 +51,8 @@
   ```
   Generators:
   ```js
+  // declaration
   {*[Symbol.iterator](){ ... }}
+  // detection.
+  typeof value?.[Symbol.iterator] === 'function'
   ```
