@@ -157,10 +157,14 @@ postponed rather than missed.
   The table selects the stream transports by `isTTY`, which cannot tell the two
   apart, so either framing is its own axis or the two are one cell whose
   renderer must satisfy the stricter reader.
-- **Is a service response output?** `fjs web` answers HTTP requests, and the
-  transport row has no cell for that. Dismissing it as an internal effect is
-  hard to hold while `fjs mcp`'s JSON-RPC counts, so either the row gains a
-  response transport or the design excludes service responses and says why.
+- **What counts as this design's output?** Three producers emit something the
+  transport row cannot express: `fjs web` answers HTTP; `fjs compile` writes a
+  user-named path; `fjs ci` writes fixed files (`.github/workflows/ci.yml` and
+  others). None is a stream, so none has an `isTTY` to be selected by. Calling
+  them internal effects is hard to hold while `fjs mcp`'s JSON-RPC counts as
+  output, so the design owes a **boundary** — a rule for what is in, not a
+  transport value per case — and then either the row grows or those producers
+  are excluded with a reason.
 - **Is event granularity separate from verbosity?** The row conflates how many
   events a renderer *consumes* with how much it *emits* per event: a dynamic
   current-test display consumes the start event while emitting nothing lasting
