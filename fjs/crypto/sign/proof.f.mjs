@@ -1,5 +1,5 @@
 /**
- * @import { Tuple } from '../../types/array/types.ts'
+ * @import { FixedArray } from '../../types/array/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Curve } from '../secp/types.ts'
  * @import { Sha2 } from '../sha2/types.ts'
@@ -125,7 +125,7 @@ export const proof = {
         assertEq(kk, 0x4381526B3FC1E7128F202E194505592F01D5FF4C5AF015D8n)
     },
     a2: () =>{
-        /** @typedef {Tuple<4, bigint>} _H */
+        /** @typedef {FixedArray<4, bigint>} _H */
         /**
          * @typedef {object} _P
          * @property {bigint} q
@@ -373,7 +373,7 @@ export const proof = {
          * @property {bigint} r
          * @property {bigint} s
          */
-        /** @typedef {Tuple<4, _Result>} _H */
+        /** @typedef {FixedArray<4, _Result>} _H */
         /**
          * @typedef {object} _P
          * @property {Curve} q

@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Tuple } from '../../types/array/types.ts'
+import type { FixedArray } from '../../types/array/types.ts'
 import type { Vec } from '../../types/bit_vec/types.ts'
 
 export type All = {
@@ -16,4 +16,4 @@ export type All = {
 }
 
 /** An ECDSA signature: the `(r, s)` pair. */
-export type _Signature = Tuple<2, bigint>
+export type _Signature = FixedArray<2, bigint>

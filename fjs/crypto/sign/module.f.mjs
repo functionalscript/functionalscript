@@ -4,7 +4,7 @@
  *
  * @module
  *
- * @import { Tuple } from '../../types/array/types.ts'
+ * @import { FixedArray } from '../../types/array/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Curve } from '../secp/types.ts'
  * @import { Sha2 } from '../sha2/types.ts'

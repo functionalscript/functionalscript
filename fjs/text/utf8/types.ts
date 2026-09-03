@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Tuple } from '../../types/array/types.ts'
+import type { FixedArray } from '../../types/array/types.ts'
 
 /** An unsigned 8-bit integer, represents a single byte. */
 export type U8 = number
@@ -24,7 +24,7 @@ export type ByteOrEof = U8 | null
  * byte.
  */
 export type Utf8NonEmptyState =
-    Tuple<1, number> | Tuple<2, number> | Tuple<3, number>
+    FixedArray<1, number> | FixedArray<2, number> | FixedArray<3, number>
 
 /**
  * Represents the state of a UTF-8 decoding operation, which can be either

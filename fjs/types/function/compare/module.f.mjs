@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Index, Tuple } from '../../array/types.ts'
+ * @import { Index, FixedArray } from '../../array/types.ts'
  * @import { Cmp1, Cmp2, Compare, Sign } from './types.ts'
  */
 
@@ -16,7 +16,7 @@ export const index3 = cmp => value => {
     return i
 }
 
-/** @type {<T>(cmp: Compare<T>) => (v2: Tuple<2, T>) => Index<5>} */
+/** @type {<T>(cmp: Compare<T>) => (v2: FixedArray<2, T>) => Index<5>} */
 export const index5 = cmp => ([v0, v1]) => {
     const _0 = cmp(v0)
     const i = _0 <= 0 ? _0 + 1 : cmp(v1) + 3

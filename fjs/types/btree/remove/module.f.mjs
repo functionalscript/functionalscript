@@ -6,7 +6,7 @@
  * @import { Leaf1, TNode, Branch1, Branch3, Branch5, Tree } from '../types/types.ts'
  * @import { Compare } from '../../function/compare/types.ts'
  * @import { Path, PathItem } from '../find/types.ts'
- * @import { Tuple } from '../../array/types.ts'
+ * @import { FixedArray } from '../../array/types.ts'
  * @import { _Branch, _Leaf01, _Merge, _RemovePath } from './private.ts'
  */
 
@@ -79,7 +79,7 @@ const initValue1 = a => n => {
     } else { return [n0, v1, a] }
 }
 
-/** @type {<A, T>(ms: Tuple<2, _Merge<A, T>>) => (item: PathItem<T>) => (a: A) => _Branch<T>} */
+/** @type {<A, T>(ms: FixedArray<2, _Merge<A, T>>) => (item: PathItem<T>) => (a: A) => _Branch<T>} */
 const reduceX = ms => ([i, n]) => a => {
     /** @typedef {(typeof n)[1]} T */
     const [m0, m2] = ms

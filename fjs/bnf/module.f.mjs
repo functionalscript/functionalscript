@@ -7,7 +7,7 @@
  *
  * @module
  *
- * @import { Tuple } from '../types/array/types.ts'
+ * @import { FixedArray } from '../types/array/types.ts'
  * @import { TerminalRange, Sequence, Rule, RangeVariant, None, Option, Repeat0Plus, Repeat1Plus, Join1Plus } from './types.ts'
  */
 
@@ -117,7 +117,7 @@ export const unicodeMax = codePointListToString([0x10FFFF])
 /**
  * Decodes a packed range into `[start, end]` semantic symbols.
  *
- * @type {(r: number) => Tuple<2, number>}
+ * @type {(r: number) => FixedArray<2, number>}
  */
 export const rangeDecode = r =>
     [decodeTerminal(Number(BigInt(r) >> BigInt(offset))), decodeTerminal(r & mask)]
