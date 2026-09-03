@@ -30,10 +30,10 @@ Create `fjs/common/` for cross-cutting reusable algorithms, starting by moving `
 
 ### Later candidates
 
-- `fjs/grammar/` for `bnf` and the second grammar front end — designed in
-  [grammar-bucket](./grammar-bucket.md), which also settles that `fsc` and
-  `js` stay out as consumers (the content-facing formats go to `fjs/media/`,
-  see below).
+- No `fjs/grammar/` bucket. [ebnf-migration](./ebnf-migration.md) builds
+  `fjs/ebnf/` beside `fjs/bnf/`, with the grammar machinery inside it, and
+  retires `bnf/`; it also settles that `fsc` and `js` stay out as consumers
+  (the content-facing formats go to `fjs/media/`, see below).
 - Storage bucket for `cas` + `sul`; testing bucket for `asserts` + `emergent_testing`.
 
 ### 4. `fjs/media/` — content formats and media-type detection
@@ -148,7 +148,7 @@ it — see [fjs/media/revision/README.md](../media/revision/README.md) and
   media formats, not an implementation of `text/plain`. Remains top-level.
 - `js/` — `identifier` + `tokenizer` only, i.e. language tooling consumed by
   `djs`/`fsc`; a hand-written scanner, so it is a *consumer* of grammars and
-  stays out of `fjs/grammar/` too ([grammar-bucket](./grammar-bucket.md)).
+  stays out of `fjs/ebnf/` too ([ebnf-migration](./ebnf-migration.md)).
 - `base64`/`basen`/`cbase32`/`base128` — transfer encodings, not media types
   (they move under `fjs/basen/`, item 1 above).
 

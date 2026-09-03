@@ -99,5 +99,5 @@ scheme. Each call site keeps its own recursion/accumulator structure.
 - [ebnf-front-end](./ebnf-front-end.md) — a second functional front end.
   Whether it changes the data `Rule` union this visitor discriminates is its
   Problem 1, which is why that is a blocker above.
-  [grammar-bucket](../../todo/grammar-bucket.md) moves this issue to
-  `data/todo/` with the module.
+  [ebnf-migration](../../todo/ebnf-migration.md) absorbs this issue into the
+  `fjs/ebnf/data/` rewrite, its stage 2.

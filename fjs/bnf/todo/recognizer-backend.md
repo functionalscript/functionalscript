@@ -37,7 +37,7 @@ AST, which is the wrong shape (and wrong cost) for these.
 This TODO previously also assigned ownership of binary BNF authoring helpers to
 the recognizer work. That responsibility now belongs to
 [Separate alphabet-specific BNF helpers](./unicode-rules.md), which establishes
-`fjs/grammar/byte/module.f.mjs` alongside `fjs/grammar/unicode/module.f.mjs`. Implement the
+`fjs/ebnf/byte/module.f.mjs` alongside `fjs/ebnf/unicode/module.f.mjs`. Implement the
 alphabet split first so the recognizer can consume those helpers instead of
 creating a second byte-helper API or restoring alphabet-specific syntax in core
 BNF.
@@ -174,14 +174,14 @@ are **new builders over the same `RuleSet`**, siblings of `dispatchMap` — not 
 separate front end. So: author `magic | utf8` functionally, `toData` it, compile.
 
 Module layout follows from this: the data module should hold only the
-serializable IR (`RuleSet` alone — `toData` moves to the classical front end
-in [grammar-bucket](../../todo/grammar-bucket.md) stage 5, since it takes a
-functional rule), and each parser/automaton builder lives
-in its own sibling module — the existing LL(1) dispatch/matcher, then
-**`fjs/grammar/recognizer` and `fjs/grammar/dfa`** for the new backends, at
-those paths directly rather than under `fjs/bnf`
-([grammar-bucket](../../todo/grammar-bucket.md); see the first task). The IR
-stays free of any one parser's machinery.
+serializable IR (`RuleSet` alone — under
+[ebnf-migration](../../todo/ebnf-migration.md) `toData` retires with the
+classical front end, and `fjs/ebnf/data/` holds the IR and the EBNF
+lowering), and each parser/automaton builder lives in its own sibling
+module — the LL(1) dispatch/matcher, then **`fjs/ebnf/recognizer` and
+`fjs/ebnf/dfa`** for the new backends, at those paths directly rather than
+under `fjs/bnf` (see the first task). The IR stays free of any one parser's
+machinery.
 
 `toData` is itself a special case of a more general mechanism. The functional
 grammar embeds *functions* (lazy rules `() => DataRule`; `rtti` schemas are
@@ -258,8 +258,8 @@ but generic `Rule` / `TerminalRange` semantics do not assign Unicode or byte
 meaning to it.
 
 After the alphabet split, text constructors such as `str` / `set` / `range` live
-in `fjs/grammar/unicode/module.f.mjs`, while byte / hex literals, byte sequences, and
-byte-range helpers live in `fjs/grammar/byte/module.f.mjs`. They are authoring adapters
+in `fjs/ebnf/unicode/module.f.mjs`, while byte / hex literals, byte sequences, and
+byte-range helpers live in `fjs/ebnf/byte/module.f.mjs`. They are authoring adapters
 that lower to ordinary generic BNF rules before automaton construction. The
 recognizer/DFA backends consume the resulting `RuleSet`; they do not define a
 second family of binary helpers.
@@ -299,14 +299,13 @@ Bigger automata are built from BNF pieces in two complementary ways:
 - [x] Move the parsers out of `fjs/bnf/data` into their own modules
       (`fjs/bnf/ll1` for the current dispatch/matcher, `fjs/bnf/descent` for the
       recursive descent matcher), leaving `fjs/bnf/data` as the pure serializable
-      IR; new backends land as sibling modules — **`fjs/grammar/recognizer` and
-      `fjs/grammar/dfa`**, at those paths directly. Both execute grammars, so
-      they belong to the bucket
-      ([grammar-bucket](../../todo/grammar-bucket.md)); on that plan this
-      issue waits only for stage 2, so it can land before the other modules
-      move — but not before Problem 1 settles the `Rule` union it
-      discriminates, and creating them under `fjs/bnf/` first would cost a
-      second breaking path change
+      IR; new backends land as sibling modules — **`fjs/ebnf/recognizer` and
+      `fjs/ebnf/dfa`**, at those paths directly. Both execute grammars, so
+      they belong in `fjs/ebnf/`
+      ([ebnf-migration](../../todo/ebnf-migration.md)); on that plan this
+      issue waits for stage 2's IR — Problem 1 settling the `Rule` union it
+      discriminates — and creating them under `fjs/bnf/` would only leave
+      them to be deleted with it
 - [ ] Use the existing `Scan` family as the streaming contract (no new type):
       `Fold<I, S>` for the physical-symbol recognizer step and
       `StateScan<I, S, O>` for a transducer; drivers `foldScan` / `stateScan` /
@@ -332,7 +331,7 @@ Bigger automata are built from BNF pieces in two complementary ways:
       (no DFA exists) — do not fall back to another engine
 - [ ] AST-less LL(1) recognizer: derive from the existing `fjs/bnf/data` matcher
       by dropping `AstRule` accumulation; return accept/reject + final config
-- [ ] Consume binary terminal helpers from `fjs/grammar/byte/module.f.mjs` after the
+- [ ] Consume binary terminal helpers from `fjs/ebnf/byte/module.f.mjs` after the
       alphabet split for byte/hex literals, byte sequences, and byte ranges used
       by grammars such as magic-byte and UTF-8 recognizers; do **not** create a
       recognizer-local or second binary-helper family.

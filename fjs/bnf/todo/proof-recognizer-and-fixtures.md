@@ -17,8 +17,8 @@ This design predates the alphabet split. Its shared `number` fixture currently
 constructs Unicode terminals with core `range('--')` / `range('09')`, and its
 import analysis assumes `fjs/bnf/testlib.f.mjs` obtains text helpers from
 `./module.f.mjs`. After the split, text/range construction belongs to
-`fjs/grammar/unicode/module.f.mjs`. Do not implement the fixture extraction against
-the old core API: rebase the fixture imports on `fjs/grammar/unicode` first while keeping
+`fjs/ebnf/unicode/module.f.mjs`. Do not implement the fixture extraction against
+the old core API: rebase the fixture imports on `fjs/ebnf/unicode` first while keeping
 the recognizer backends themselves generic.
 
 #### 1. The "recognizes the whole input" helper — 8 copies
@@ -74,7 +74,7 @@ const numberRule = [optionalMinusRule, digitRule]
 ```
 
 The fixture remains a Unicode/text fixture, so after the alphabet split the
-`range` used here must come from `fjs/grammar/unicode/module.f.mjs` (or the equivalent
+`range` used here must come from `fjs/ebnf/unicode/module.f.mjs` (or the equivalent
 final Unicode adapter API), **not** from core `fjs/bnf/module.f.mjs`. The produced
 rules are still ordinary generic BNF rules consumed by descent/LL1.
 
@@ -95,8 +95,9 @@ That divergence should be an explicit override table rather than a copied corpus
 Move the shared harness and fixtures into a neutral testlib, after rebasing
 text construction on the Unicode adapter. It is a **separate home** from
 `classic()` and `deterministic()`: those stay in `fjs/bnf/testlib.f.mjs`, which
-depends on the classical front end and which grammar-bucket moves in stage 5
-and deletes in stage 8. Putting the neutral harness beside them would sink it
+depends on the classical front end and which
+[ebnf-migration](../../todo/ebnf-migration.md) retires with `bnf/` (its stage
+7). Putting the neutral harness beside them would sink it
 with that file; moving them into the neutral layer would drag the front end
 along.
 
@@ -124,8 +125,9 @@ the backend match result as their diagnostic. `assertRecognizes` should report
 state.
 
 The adapters take a `RuleSet` and its entry name, and call **no `toData`** —
-that would reintroduce the front-end dependency
-[grammar-bucket](../../todo/grammar-bucket.md) removes before its stage 5. The
+that would reintroduce a front-end dependency; the neutral harness lives in
+`fjs/ebnf/`, which [ebnf-migration](../../todo/ebnf-migration.md) forbids from
+importing `bnf/` at all. The
 entry is a parameter rather than derived or defaulted: the one grammar whose
 root is `'value'` proves a hard-coded `''` is wrong, and a `RuleSet` does not
 carry its own entry. `ll1Recognizer` builds via `parserRuleSet(ruleSet)` and
@@ -146,8 +148,8 @@ as a **`RuleSet` plus its entry name**, not as a functional `Rule`: the
 adapters take a rule set, so a functional fixture would put `toData` back at
 every call site and restore in the fixture the front-end dependency the
 adapters just dropped
-([grammar-bucket](../../todo/grammar-bucket.md) requires it gone before its
-stage 5). Author the rule set **directly** — converting a functional rule
+([ebnf-migration](../../todo/ebnf-migration.md)'s dependency rule forbids it
+in `fjs/ebnf/`). Author the rule set **directly** — converting a functional rule
 "once, in the fixture" would make the shared testlib import `toData`, so every
 backend proof using the fixture keeps a transitive front-end dependency. If a
 functional spelling is wanted for readability, it belongs in a separate
@@ -164,12 +166,11 @@ explicit named override list for the rows where token-stream acceptance differs.
 - [ ] Keep everything here neutral, per the proposal above: adapters over
       `RuleSet` plus entry, fixtures authored as rule sets, and a testlib that
       survives. This issue is unblocked at
-      [grammar-bucket](../../todo/grammar-bucket.md)'s stage 2, before that
-      plan decouples the backend proofs for its stage 5, so anything
-      front-end-coupled built here would be undone immediately or would block
-      the stage-8 deletion.
+      [ebnf-migration](../../todo/ebnf-migration.md)'s stage 3, when
+      `fjs/ebnf/ll1/` and its neutral testlib exist; anything
+      front-end-coupled built here would violate that plan's dependency rule.
 - [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase the
-      testlib's text/range imports on `fjs/grammar/unicode/module.f.mjs`;
+      testlib's text/range imports on `fjs/ebnf/unicode/module.f.mjs`;
       do not import Unicode `range` from core `./module.f.mjs`.
 - [ ] Add `Case`, `Recognition`, `assertRecognizes`, the two recognizer
       adapters, **and the AST renderer** — `showAst` plus the root
@@ -177,9 +178,9 @@ explicit named override list for the rows where token-stream acceptance differs.
       with and which is backend-neutral — to a testlib that **survives the
       migration** — not
       `fjs/bnf/testlib.f.mjs`, which imports `./lib/json` and `./module.f.mjs`
-      and which grammar-bucket stage 5 moves with the classical front end and
-      stage 8 deletes. A neutral shared testlib beside the backends, or
-      per-backend ones; confirm no import cycle.
+      and which [ebnf-migration](../../todo/ebnf-migration.md) retires with
+      `bnf/`. The neutral testlib is `fjs/ebnf/`'s, where that plan's stage 3
+      moves `showAst`; confirm no import cycle.
 - [ ] Carry each backend's `MatchResult` through as `Recognition.diagnostic` and
       report `[input, diagnostic]` from `assertRecognizes`.
 - [ ] Take the entry name **alongside** the `RuleSet`, since a `RuleSet` holds
@@ -204,7 +205,7 @@ explicit named override list for the rows where token-stream acceptance differs.
 ### Related
 
 - [Separate alphabet-specific BNF helpers](./unicode-rules.md) — **blocks this
-  task**; shared text fixtures must consume `fjs/grammar/unicode`, not the removed core
+  task**; shared text fixtures must consume `fjs/ebnf/unicode`, not the removed core
   text/range API.
 - [bnf-grammar-single-owner](./bnf-grammar-single-owner.md) —
   owns the grammars themselves, now shipped under `fjs/bnf/lib`; this issue moves

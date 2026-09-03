@@ -3,17 +3,19 @@
 **Priority:** P3
 **Status:** open
 
-An alternative to [grammar-bucket](./grammar-bucket.md). The two plans reach
-the same end state — one front end with a repetition primitive, one reference
-backend, no classical `bnf/` — by different routes, and only one of them is to
-be followed. This one is proposed as the replacement; adopting it marks
-grammar-bucket `irrelevant` (stage 0 below).
+This replaces the retired grammar-bucket plan, which grouped the grammar
+modules under a new `fjs/grammar/` and moved the live `fjs/bnf/` into it in
+eight stages. There is no `fjs/grammar/`. Both plans reach the same end
+state — one front end with a repetition primitive, one reference backend, no
+classical `bnf/` — and this is the route. What grammar-bucket established
+and no surviving file says is kept below, under "What the retired plan
+established".
 
 ### Problem
 
-[grammar-bucket](./grammar-bucket.md) moves the live `fjs/bnf/` module in eight
-stages so that a second front end can share its machinery, and only then builds
-the second front end. Read against
+The retired grammar-bucket plan moved the live `fjs/bnf/` module in eight
+stages so that a second front end could share its machinery, and only then
+built the second front end. Read against
 [ebnf-front-end](../bnf/todo/ebnf-front-end.md), most of that work exists to let
 two front ends coexist over one set of shared modules:
 
@@ -37,6 +39,39 @@ the first one may depend on. And the plan also assumes that everything under
 rethought, and some retires without an EBNF counterpart.
 
 ### Proposal
+
+#### What the retired plan established
+
+Two things from grammar-bucket survive it, because the triage below rests on
+them.
+
+**The coupling inventory.** The machinery that only ever sees a `RuleSet`
+still imports the classical front end today, and this is where:
+
+- `data/` takes `oneEncode` from it, and hosts `toData` — the conversion
+  *from* the functional layer — beside the IR.
+- `matcher/` takes `eofSymbol`; `ll1/` and `descent/` take `rangeDecode` and
+  `toData`, and each exports a convenience entry taking a functional rule.
+- `token_symbol/` takes `fullRange`, `rangeDecode` and `unicodeRange`.
+- Type-level, and deepest: `matcher/types.ts` spreads the functional `Rule`
+  through the transformer protocol (`Entry.rule`, `TransformerMap.entries`,
+  `Transformer`'s repeat arm, `TransformerTools.entry` / `repeatOf`), and
+  `data/types.ts` does the same via `RuleNameMap` and `GrammarData`.
+- A second coupling, to the alphabet rather than the front end:
+  `matcher/types.ts`, `ll1/types.ts` and `descent/types.ts` import
+  `CodePoint` and spell their public surfaces `Meta<M, CodePoint>`, so a
+  backend over token symbols already contradicts its own types.
+
+Every **move** below cuts these edges on the way in: `ebnf/` may not import
+`bnf/`, so a moved module takes the codec from `ebnf/terminal/`, the rule
+identity from the EBNF `Rule`, and its symbol type from `terminal/` rather
+than from `fjs/text`.
+
+**Membership.** A module belongs in `fjs/ebnf/` iff it defines, transforms or
+executes grammars over a symbol alphabet. `fsc` is a compiler, `js/tokenizer`
+a hand-written scanner and `djs` a language front end: all three are
+consumers and stay out. The alphabet adapters (`unicode/`, `byte/` when it
+exists) are dependencies of the front end, not parts of it.
 
 #### Principles
 
@@ -86,6 +121,27 @@ rethought, and some retires without an EBNF counterpart.
    [layered-parser](../bnf/todo/layered-parser.md) describes, with AST mapping
    through the transformer protocol. Where a consumer's grammar depends on
    backtracking today, the port changes the grammar.
+
+#### The pattern, if it works
+
+This plan is one instance of a general way to evolve a module without
+freezing it, and the point of writing the steps down is to find out whether
+they hold:
+
+1. Create a new module beside the old one.
+2. Write the code there, cherry-picking from the old module what is worth
+   keeping and rethinking the rest.
+3. Let the old module depend on the new one, never the other way round, so
+   the old one can be removed without consequences.
+4. Move the consumers one by one.
+5. Retire the old module.
+
+If the migration succeeds, stage 7 records the pattern in
+[doc/DESIGN.md](../../doc/DESIGN.md) as a section of its own, with this
+migration as the worked example and whatever the stages above taught about
+it — where the direction rule had to be enforced, which moves became
+rewrites, what the side-by-side proofs caught. If it fails, the same section
+records why.
 
 #### Layout
 
@@ -185,7 +241,7 @@ rewritten against the surviving backend as they move.
 | [proof-recognizer-and-fixtures](../bnf/todo/proof-recognizer-and-fixtures.md), [serialized-proof-expectations](../bnf/todo/serialized-proof-expectations.md) | move | `ebnf/todo/`, rewritten for one backend |
 | [bnf-grammar-single-owner](../bnf/todo/bnf-grammar-single-owner.md) | move | `ebnf/lib/todo/` at stage 5 |
 | [rename-check-map](../bnf/map/rtti/todo/rename-check-map.md) | absorb | the `map/rtti` rewrite |
-| [grammar-bucket](./grammar-bucket.md) | supersede | `irrelevant` at stage 0, deleted at stage 7; the "Later candidates" bullet of [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md) is rewritten to name this plan and `fjs/ebnf/` |
+| grammar-bucket | retired | deleted by the PR that filed this issue; every issue that cited its stages now cites the stages here, and the "Later candidates" bullet of [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md) names this plan and `fjs/ebnf/` |
 
 #### Stages
 
@@ -193,8 +249,9 @@ Every stage is additive except the moves it names and the last one, and
 `tsc` and `fjs t` pass at each. Stages 1 to 4 can overlap; 5 waits on 1 to 4;
 6 on 5; 7 on 6.
 
-0. **Adopt.** Mark grammar-bucket `irrelevant` with a pointer here. Add the
-   boundary check: a CI step that fails when anything under `fjs/ebnf/` names
+0. **Adopt.** Retire grammar-bucket — done in the PR that filed this issue:
+   the file is deleted and every citation of its stages repointed here. Add
+   the boundary check: a CI step that fails when anything under `fjs/ebnf/` names
    `bnf/` in an import, an `@import`, an `import type`, or a link. Add one
    sentence to [fjs/AGENTS.md](../AGENTS.md) stating the direction.
 1. **`ebnf/terminal/` and the front end.** Move the codec with its proof cases;
@@ -225,13 +282,14 @@ Every stage is additive except the moves it names and the last one, and
    this stage is where the plan is revised, not forced.
 7. **Delete `fjs/bnf/`.** With it: the retired issues, `descentEquivalence` in
    its two-backend form, and the classical half of the README split. Finish
-   the issue moves, rewrite the group-fs bullet, delete grammar-bucket. One
-   `**BREAKING CHANGES:**` declaration.
+   the issue moves. One `**BREAKING CHANGES:**` declaration.
 
 ### Tasks
 
-- [ ] Stage 0: grammar-bucket to `irrelevant`; the boundary check in CI; the
-      direction sentence in `fjs/AGENTS.md`.
+- [x] Stage 0: grammar-bucket retired; its citations repointed; the group-fs
+      bullet rewritten.
+- [ ] Stage 0: the boundary check in CI; the direction sentence in
+      `fjs/AGENTS.md`.
 - [ ] Stage 1: `ebnf/terminal/` with proof; `ebnf/types.ts` and
       `ebnf/module.f.mjs` with proof; answers to ebnf-front-end Problems 1, 3,
       6, 7, 8 in `ebnf/README.md`; close terminal-range-shared-type.
@@ -245,16 +303,15 @@ Every stage is additive except the moves it names and the last one, and
       cross-front-end comparison proof group; bnf-grammar-single-owner moved.
 - [ ] Stage 6: the token layer; the djs tokenizer and parser grammars made
       LL(1); both ported; the descent backend without consumers.
-- [ ] Stage 7: delete `fjs/bnf/`; move the remaining issues; split the README;
-      rewrite the group-fs bullet; delete grammar-bucket. `**BREAKING
-      CHANGES:**`.
+- [ ] Stage 7: delete `fjs/bnf/`; move the remaining issues; split the README.
+      `**BREAKING CHANGES:**`.
+- [ ] Stage 7: record the pattern above in `doc/DESIGN.md`, with this
+      migration as the worked example and what it taught.
 - [ ] `tsc`, `fjs t` at every stage; every new `.f.mjs` ships 100% co-located
       proof coverage ([fjs/AGENTS.md](../AGENTS.md)).
 
 ### Related
 
-- [grammar-bucket](./grammar-bucket.md) — the plan this replaces; kept until
-  stage 7 for its rationale on what is neutral and what is not.
 - [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — the front-end design this
   plan builds at stage 1; its Problems 2 and 9 dissolve here.
 - [layered-parser](../bnf/todo/layered-parser.md),
@@ -264,5 +321,5 @@ Every stage is additive except the moves it names and the last one, and
 - [unicode-rules](../bnf/todo/unicode-rules.md) — stage 4, EBNF representation
   only.
 - [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)
-  — its "Later candidates" bullet names `fjs/grammar/`, which this plan does
-  not create.
+  — the regrouping plan this belongs to; its "Later candidates" bullet names
+  this plan.
