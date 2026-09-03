@@ -183,9 +183,11 @@ justification is the API and the AST, which is where
       first boundary is `-1`), the lowering requirements (intersect with the
       domain `[-1]`; reject a boundary above the last ordinary symbol; reject
       the empty set), and the constructor list.
-- [ ] Alphabet adapters: `range`, `set`, `not`, `str` in
-      `fjs/grammar/unicode/` produce sets; `not` is difference against the
-      Unicode universe. Same for `byte/` when it exists.
+- [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/grammar/unicode/`
+      produce sets; `not` is difference against the Unicode universe. `str`
+      is not one of them: `str('true')` is an ordered `Sequence` of
+      one-symbol terminals, one per code point, exactly as a bare `string`
+      lowers today. Same for `byte/` when it exists.
 - [ ] Backends: LL(1) builds its dispatch map from `toRangeMap`; descent tests
       membership with `contains`; the failure record at
       `fjs/bnf/descent/module.f.mjs:60` holds a set, so "expected" diagnostics
@@ -198,8 +200,11 @@ justification is the API and the AST, which is where
       go with it in grammar-bucket stage 8.
 - [ ] Rewrite the note at `fjs/djs/tokenizer/module.f.mjs:249` as
       `difference(unicode)(newLine)`, which is what it was reaching for.
-- [ ] `tsc`, `fjs test`; `**BREAKING CHANGES:**` in the changelog for the
-      `range_set` representation and the AST shape.
+- [ ] `tsc`, `fjs test`. Each breaking PR declares `**BREAKING CHANGES:**`
+      in the `Changelog:` section of its description
+      ([changelog/RELEASE.md](../../../changelog/RELEASE.md)) — the
+      `range_set` representation and the AST shape both are. A PR adds no
+      changelog file.
 
 ### Related
 
