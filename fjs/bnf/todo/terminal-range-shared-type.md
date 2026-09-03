@@ -43,13 +43,13 @@ already true of `fjs/bnf/descent/types.ts`, which imports the type from
 
 [ebnf-migration](../../todo/ebnf-migration.md) extracts the codec into
 `fjs/ebnf/terminal/`, which is what the principle actually points at. **The
-owner is `terminal/`**, and this issue is a step of that plan's stage 1
-rather than a separate change.
+owner is `terminal/`**, and this issue is a step of that plan's
+`ebnf/terminal/` piece rather than a separate change.
 
 ### Tasks
 
-- [ ] Move `TerminalRange` to `fjs/ebnf/terminal/types.ts` with the codec
-      ([ebnf-migration](../../todo/ebnf-migration.md) stage 1).
+- [ ] Declare `TerminalRange` in `fjs/ebnf/terminal/types.ts` with the codec
+      ([ebnf-migration](../../todo/ebnf-migration.md)).
 - [ ] On the `bnf/` side, nothing is required. `bnf/types.ts` and
       `bnf/data/types.ts` may keep their declarations until `bnf/` is
       deleted, or either may become an alias of `ebnf/terminal/`'s — the
@@ -62,7 +62,7 @@ rather than a separate change.
 ### Related
 
 - [ebnf-migration](../../todo/ebnf-migration.md) — settles the owner as
-  `fjs/ebnf/terminal/` and implements this in its stage 1; its dependency
+  `fjs/ebnf/terminal/` and implements this with that module; its dependency
   direction cannot hold while the front end owns this type.
 - [`fjs/bnf/matcher`](../matcher) — the same one-owner move, done, for the
   matcher backends' cursor, AST, and result constructors. It covers different

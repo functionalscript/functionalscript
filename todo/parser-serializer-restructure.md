@@ -580,7 +580,7 @@ throughout.
   `fjs/media/json/grammar` proposal is withdrawn and the grammar ships at
   `fjs/bnf/lib/json`. Lowering that example onto `fjs/ebnf/unicode/` is **not** open
   there: it happens when the grammar is ported to `fjs/ebnf/lib`
-  ([ebnf-migration](../fjs/todo/ebnf-migration.md) stage 5), and the
+  ([ebnf-migration](../fjs/todo/ebnf-migration.md)'s consumer port), and the
   classical original stays as it is until `bnf/` is deleted. What remains
   open is the shared lexical API
   #1817 shipped only partly — parameterizing `string` over its simple escapes,

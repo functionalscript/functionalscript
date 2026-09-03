@@ -303,7 +303,7 @@ Bigger automata are built from BNF pieces in two complementary ways:
       `fjs/ebnf/dfa`**, at those paths directly. Both execute grammars, so
       they belong in `fjs/ebnf/`
       ([ebnf-migration](../../todo/ebnf-migration.md)); on that plan this
-      issue waits for stage 2's IR — Problem 1 settling the `Rule` union it
+      issue waits for `fjs/ebnf/data/`'s IR — Problem 1 settling the `Rule` union it
       discriminates — and creating them under `fjs/bnf/` would only leave
       them to be deleted with it
 - [ ] Use the existing `Scan` family as the streaming contract (no new type):

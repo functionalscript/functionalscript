@@ -83,8 +83,14 @@ exists) are dependencies of the front end, not parts of it.
    from `bnf`.** In any form — a runtime `import`, a JSDoc `@import`, an
    `import type` in `types.ts`, or a relative link in a README or `todo/`. A
    type-only dependency is exactly what would make `tsc` fail when `bnf/` is
-   deleted, so it counts. The rule is enforced mechanically (stage 0), not by
-   review.
+   deleted, so it counts. The rule is written down in
+   [fjs/AGENTS.md](../AGENTS.md) and held by review; no new tool is added
+   for it, because none the repository has can express it and a text scan
+   is not analysis ([AGENTS.md §6](../../AGENTS.md#6-external-tools)). Its
+   mechanical check is stage 7 itself: deleting `bnf/` fails `tsc` and the
+   suite on any `ebnf → bnf` import, JSDoc `@import` included. Anyone who
+   wants the check earlier may propose a parser-backed lint; that is an
+   option, not a task of this plan.
 3. **Triage, not copy.** Every piece of `bnf/` is assigned one of three bins
    before it is touched: **move** (taken into `ebnf/` as is or nearly so),
    **rewrite** (a new implementation in `ebnf/`, designed rather than copied),
@@ -275,7 +281,7 @@ rewritten against the surviving backend as they move.
 
 | issue | bin | destination |
 |---|---|---|
-| [ebnf-front-end](../bnf/todo/ebnf-front-end.md) | absorb | its design becomes `fjs/ebnf/README.md` as stage 1 ships; its open Problems 1, 3, 6, 7, 8 move to `ebnf/todo/` if still open then |
+| [ebnf-front-end](../bnf/todo/ebnf-front-end.md) | absorb | its design becomes `fjs/ebnf/README.md` as stage 1 ships; every problem still open then — 1, 3, 4, 5, 6, 7 and 8 at the time of writing — moves to `ebnf/todo/` as one issue each, or is answered in the README |
 | [terminal-range-shared-type](../bnf/todo/terminal-range-shared-type.md) | close | `ebnf/terminal/` declares the type once for `ebnf/`; `bnf/`'s two declarations stay, or alias it, at the discretion of whoever touches them, and go with `bnf/` |
 | [unicode-rules](../bnf/todo/unicode-rules.md) | move | `ebnf/unicode/todo/` until stage 3 implements it |
 | [rule-visitor](../bnf/todo/rule-visitor.md), [665-bnf-data-fold-children](../bnf/todo/665-bnf-data-fold-children.md) | absorb | inputs to the `data/` rewrite (stage 2) |
@@ -302,16 +308,17 @@ respects those is the developer's choice, and so is how each piece is
 built: whether a "move" is a copy, a re-export or a rewrite, whether an
 issue is absorbed or moved, whether a stage is one PR or five. Where the
 text below says "stage N" it names a piece of work, not a point in time.
+Issues outside this file cite the piece by name (`ebnf/terminal/`, "the
+consumer port"), never by number, so a renumbering here cannot strand them.
 
 0. **Adopt.** Retire grammar-bucket — done in the PR that filed this issue:
    the file is deleted and every citation of its stages repointed here. Add
-   the boundary check: a CI step that fails when anything under `fjs/ebnf/` names
-   `bnf/` in an import, an `@import`, an `import type`, or a link. Add one
-   sentence to [fjs/AGENTS.md](../AGENTS.md) stating the direction.
+   one sentence to [fjs/AGENTS.md](../AGENTS.md) stating the direction
+   (principle 2), which is all the enforcement this plan asks for.
 1. **`ebnf/terminal/` and the front end.** Copy the codec with its proof
    cases into `ebnf/terminal/`; `bnf/` keeps its own, and its consumers are
    untouched. Land `ebnf/types.ts` and `ebnf/module.f.mjs` per
-   ebnf-front-end. Its open Problems 1, 3, 6, 7 and 8 are answered by
+   ebnf-front-end. Its open problems are answered by
    whoever needs the answer, when they need it, in `ebnf/README.md` or in
    the issue: a design settled on paper before any code exists is the
    grammar-bucket way, and this plan prefers a recorded answer that the
@@ -350,8 +357,7 @@ text below says "stage N" it names a piece of work, not a point in time.
 
 - [x] Stage 0: grammar-bucket retired; its citations repointed; the group-fs
       bullet rewritten.
-- [ ] Stage 0: the boundary check in CI; the direction sentence in
-      `fjs/AGENTS.md`.
+- [ ] Stage 0: the direction sentence in `fjs/AGENTS.md`.
 - [ ] Stage 1: `ebnf/terminal/` with proof; `ebnf/types.ts` and
       `ebnf/module.f.mjs` with proof; ebnf-front-end's open problems
       answered as they are needed, in `ebnf/README.md`; close
@@ -380,8 +386,9 @@ text below says "stage N" it names a piece of work, not a point in time.
 - [layered-parser](../bnf/todo/layered-parser.md),
   [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md),
   [207-bnf-semantic-actions](../bnf/todo/207-bnf-semantic-actions.md) — what
-  the reference backend grows into at stages 3 and 6.
-- [unicode-rules](../bnf/todo/unicode-rules.md) — stage 4, EBNF representation
+  the reference backend grows into, in `ebnf/ll1/` (stage 4) and the
+  layered port (stage 6).
+- [unicode-rules](../bnf/todo/unicode-rules.md) — stage 3, EBNF representation
   only.
 - [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)
   — the regrouping plan this belongs to; its "Later candidates" bullet names

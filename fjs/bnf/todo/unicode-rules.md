@@ -3,11 +3,11 @@
 **Priority:** P3
 **Status:** blocked
 **Blocked by:**
-- [ebnf-migration](../../todo/ebnf-migration.md) stage 1, which creates
-  `fjs/ebnf/terminal/` and moves `TerminalRange`, `rangeEncode` and
-  `rangeDecode` into it. The adapters this issue creates are built on those,
-  and their final paths (`fjs/ebnf/unicode/`, `fjs/ebnf/byte/`) only exist
-  once `fjs/ebnf/` does. This issue is that plan's stage 3.
+- [ebnf-migration](../../todo/ebnf-migration.md)'s `fjs/ebnf/terminal/`,
+  which carries `TerminalRange`, `rangeEncode` and `rangeDecode`. The
+  adapters this issue creates are built on those, and their final paths
+  (`fjs/ebnf/unicode/`, `fjs/ebnf/byte/`) only exist once `fjs/ebnf/` does.
+  This issue is that plan's `unicode/` piece.
 
 ### Problem
 
@@ -53,7 +53,7 @@ rather than parts of it, and they serve that front end only, in its
 representation ([ebnf-migration](../../todo/ebnf-migration.md)). Creating
 them under `fjs/bnf/` would break that plan's dependency direction — `ebnf`
 never imports `bnf` — the moment `fjs/ebnf/` used them. This issue is its
-stage 3, and depends on stage 1 having extracted the neutral codec into
+`unicode/` piece, and depends on the neutral codec having been copied into
 `fjs/ebnf/terminal/`, which is where these adapters get `rangeEncode` /
 `rangeDecode` and the `TerminalRange` type. The classical front end keeps its
 own text helpers until it is deleted.
@@ -89,7 +89,7 @@ symbols. A Unicode convenience wrapper may live in `fjs/ebnf/unicode` if useful.
 
 EOF is a generic symbol convention rather than an alphabet-specific helper, so
 `fjs/ebnf/terminal/` owns it — `EOF = -1`, outside the non-negative
-physical-symbol domain — not the front end stage 1 moves it out of. Unicode,
+physical-symbol domain — not the front end it is copied out of. Unicode,
 byte, token, and future alphabet adapters therefore produce only ordinary
 non-negative symbols and never need to reserve one value from their own
 alphabet. After the bigint migration the full uint256 range `0 .. 2^256 - 1`
@@ -168,16 +168,16 @@ Everything here is additive in `fjs/ebnf/`. No task removes anything from
 `fjs/bnf/`: the classical helpers, the classical `string` rule case and the
 grammars that use them stay until `bnf/` is deleted, and the two
 `fjs/bnf/lib` grammars and the `fjs/djs` grammars adopt this adapter when
-they are ported ([ebnf-migration](../../todo/ebnf-migration.md) stages 5 and
-6), not here.
+they are ported ([ebnf-migration](../../todo/ebnf-migration.md)'s consumer
+port), not here.
 
 - [ ] Add `fjs/ebnf/unicode/module.f.mjs` for Unicode code-point rule
       helpers, at that final path — not under `fjs/bnf/`.
 - [ ] Add `fjs/ebnf/byte/module.f.mjs` for binary byte-stream rule helpers,
       likewise at its final path.
 - [ ] Have `fjs/ebnf/token_symbol` take `unicodeRange` from `fjs/ebnf/unicode`
-      when it lands ([ebnf-migration](../../todo/ebnf-migration.md) stage 4),
-      so no `ebnf/` module reads text constants from a front end.
+      when it lands, so no `ebnf/` module reads text constants from a front
+      end.
 - [ ] Keep `fjs/ebnf/module.f.mjs` free of Unicode/text imports, and keep
       byte-container interpretation out of it and out of
       `fjs/ebnf/data/module.f.mjs`; the one text meaning those two carry is
@@ -191,7 +191,7 @@ they are ported ([ebnf-migration](../../todo/ebnf-migration.md) stages 5 and
       written on. That issue is blocked on this one for the design work the
       port does not settle — parameterizing `string`, which digit rules are
       exported, and sharing them with the `fsc` tokenizer.
-- [ ] When a grammar is ported onto this adapter (stages 5 and 6), re-point
+- [ ] When a grammar is ported onto this adapter, re-point
       the rule **values** its `207-bnf-semantic-actions` transformer maps are
       keyed on: lowering text literals through the adapter replaces rule
       values, and an entry for a replaced rule is one the grammar no longer
@@ -253,8 +253,8 @@ they are ported ([ebnf-migration](../../todo/ebnf-migration.md) stages 5 and
   Its Problem 9 — how one adapter serves both front ends — is dissolved by
   ebnf-migration: this adapter serves the EBNF front end only and returns its
   representation.
-- [ebnf-migration](../../todo/ebnf-migration.md) — its stage 1 copies the
+- [ebnf-migration](../../todo/ebnf-migration.md) — it copies the
   alphabet-neutral codec into `fjs/ebnf/terminal/` and leaves every
-  text-interpreting helper to this issue, its stage 3. The
+  text-interpreting helper to this issue, its `unicode/` piece. The
   adapter's final home is `fjs/ebnf/unicode/` (with `byte/` beside it), and
   this issue moves to `fjs/ebnf/unicode/todo/` with it.

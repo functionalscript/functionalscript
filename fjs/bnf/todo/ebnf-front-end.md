@@ -5,15 +5,13 @@
 **Blocked by:** *implementation only* — the design work below is actionable
 now.
 
-- [ebnf-migration](../../todo/ebnf-migration.md) stage 0 — the `fjs/ebnf/`
-  module and its boundary check. This front end is that plan's stage 1, and
-  its Problems 2 and 9 below dissolve there: nothing is shared with the
-  classical front end, and `fjs/ebnf/data/` is that plan's stage 2 rather
-  than a neutralized `bnf/data`.
+- [ebnf-migration](../../todo/ebnf-migration.md) — the `fjs/ebnf/` module.
+  This front end is its first piece, and Problems 2 and 9 below dissolve
+  there: nothing is shared with the classical front end, and `fjs/ebnf/data/`
+  is a new IR rather than a neutralized `bnf/data`.
 - [unicode-rules](./unicode-rules.md), for the `fjs/ebnf/unicode/` adapter
-  the ported grammars take their text terminals from — stage 4 there, so it
-  gates the port, not the front end, whose own proofs spell terminals as
-  numbers and strings.
+  the ported grammars take their text terminals from. It gates the port, not
+  the front end, whose own proofs spell terminals as numbers and strings.
 
 ### Problem
 
@@ -354,7 +352,7 @@ three forms. It needs a data layer that can represent it.
 ### Related
 
 - [ebnf-migration](../../todo/ebnf-migration.md) — the module this lands in,
-  as its stage 1, and the dependency rule it lives under.
+  as its first piece, and the dependency rule it lives under.
 - [`fjs/rtti/types.ts`](../../rtti/types.ts) — the eDSL shape this copies.
 - [the `repeat` rule](../data/README.md#the-repeat-rule) — the recognition
   this makes unnecessary.

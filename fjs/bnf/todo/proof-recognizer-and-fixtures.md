@@ -191,8 +191,8 @@ explicit named override list for the rows where token-stream acceptance differs.
       migration** — not
       `fjs/bnf/testlib.f.mjs`, which imports `./lib/json` and `./module.f.mjs`
       and which [ebnf-migration](../../todo/ebnf-migration.md) retires with
-      `bnf/`. The neutral testlib is `fjs/ebnf/`'s, where that plan's stage 3
-      moves `showAst`; confirm no import cycle.
+      `bnf/`. The neutral testlib is `fjs/ebnf/`'s, where that plan moves
+      `showAst`; confirm no import cycle.
 - [ ] Carry each backend's `MatchResult` through as `Recognition.diagnostic` and
       report `[input, diagnostic]` from `assertRecognizes`.
 - [ ] Take the entry name **alongside** the `RuleSet`, since a `RuleSet` holds

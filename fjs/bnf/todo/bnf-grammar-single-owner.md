@@ -66,20 +66,21 @@ boundary it must leave visible is:
 
 - generic grammar structure and combinators come from the front end —
   `fjs/bnf/module.f.mjs` for the classical grammars, `fjs/ebnf/module.f.mjs`
-  once [ebnf-migration](../../todo/ebnf-migration.md) stage 5 ports them;
+  once [ebnf-migration](../../todo/ebnf-migration.md) ports them;
 - all JavaScript-string / Unicode-code-point interpretation comes from
-  `fjs/ebnf/unicode/module.f.mjs`, which that plan's stage 4 creates at that
-  path directly;
+  `fjs/ebnf/unicode/module.f.mjs`, which that plan creates at that path
+  directly;
 - raw strings are not generic BNF rules. Text literals such as `"`, `\`, `/`,
   punctuation, keywords, and character sets are lowered through Unicode helpers
   before they enter the generic grammar.
 
 Conceptually the imports should follow this boundary. The relative paths
-differ by stage, so both are spelled out — a single block mixing them resolves
-to nothing at either point.
+differ before and after the port, so both are spelled out — a single block
+mixing them resolves to nothing at either point.
 
-**At stage 2**, from `fjs/bnf/lib/json/`, while the front end is still
-`fjs/bnf` and `unicode/` already exists at its final path:
+**Before the port**, from `fjs/bnf/lib/json/`, if a classical grammar
+chooses to take its text helpers from `fjs/ebnf/unicode/` once that exists
+(allowed, never required):
 
 ```ts
 import {
@@ -93,9 +94,10 @@ import { repeat } from '../../../types/array/module.f.mjs'
 
 The classical library never moves: under
 [ebnf-migration](../../todo/ebnf-migration.md) it is ported to
-`fjs/ebnf/lib/json/` at that plan's stage 5 and deleted with `bnf/`. The
-rule, rather than a third block: the Unicode path is fixed from stage 4, and
-the front-end path is that of the front end the grammar is written against.
+`fjs/ebnf/lib/json/` when its consumers move, and deleted with `bnf/`. The
+rule, rather than a third block: the Unicode path is fixed once
+`fjs/ebnf/unicode/` exists, and the front-end path is that of the front end
+the grammar is written against.
 
 **After the port** to `fjs/ebnf/lib/json/`, against the EBNF front end:
 
