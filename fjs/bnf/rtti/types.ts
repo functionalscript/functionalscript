@@ -26,7 +26,7 @@
 
 import type { Assert } from "../../asserts/types.ts"
 import type {
-    array as jsonArray, digit, optionNeg, string as jsonString, uint,
+    array as jsonArray, digit, json, optionNeg, string as jsonString, uint,
 } from "../lib/json/module.f.mjs"
 import type { Equal } from "../../types/ts/types.ts"
 import type {
@@ -39,8 +39,10 @@ export type Ast =
     number |
     // sequence | repeat
     readonly Ast[] |
-    // variant: the one branch that matched, under its own name
-    { readonly[k in string]: Ast}
+    // variant: the one branch that matched, under its own name. The others are
+    // absent, not present-and-empty, so the values are optional — a reader that
+    // reaches for a branch it did not match must be made to check.
+    { readonly[k in string]?: Ast}
 
 type _FromAny<R> = R extends Rule ? AstRule<R> : never
 
@@ -163,6 +165,12 @@ type _RepeatItem<R> =
  * that reason, the line `Branch` also draws in `../matcher/types.ts`.
  */
 type _Branches<R extends Variant, K> =
+    // An open key set names no branches in particular. There is nothing to
+    // enumerate and nothing to validate — `Required<R>[string]` admits
+    // `undefined` for the index signature itself, not for any branch an author
+    // wrote — so the answer is the widened variant, as it is for every other
+    // rule left at one of the API's own types.
+    string extends _Keys<R> ? { readonly[k in string]?: Ast } :
     // A rule the parser throws on is refused rather than given the AST of one
     // that works — `_FromAny` would otherwise drop the `undefined` and hand
     // back a plausible branch. See {@link _Malformed}.
@@ -374,3 +382,16 @@ type _32 = Assert<Equal<AstRule<{ readonly a?: 0 }>, { readonly a: number }>>
 // but not `?: 0 | undefined` — which is the declared rule admitting it, and so
 // the same malformed rule as the required spelling.
 type _33 = Assert<Equal<AstRule<{ readonly a?: 0 | undefined }>, never>>
+
+// The widened `Variant` names no branches, so it is not a malformed rule — it
+// is one carrying no shape, like `Rule` and `Sequence` above. `lib/json`'s
+// `createValue` is annotated with it, so `json` itself depends on this.
+type _WideVariant = { readonly[k in string]?: Ast }
+type _34 = Assert<Equal<AstRule<Variant>, _WideVariant>>
+
+// `json` is `[ws, value, ws]`. `value` is `createValue`'s `Variant`, and `ws`
+// repeats `wsSymbol`, which `set` gives the same open key set — so the whole
+// grammar rests on the widened answer, and read `never` before it existed.
+type _35 = Assert<Equal<
+    AstRule<typeof json>,
+    readonly[readonly _WideVariant[], _WideVariant, readonly _WideVariant[]]>>
