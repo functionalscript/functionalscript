@@ -20,16 +20,18 @@
  * | `[0x30, 0x3A]` | `0..9` |
  * | `[0, 0x110000]` | Unicode |
  *
- * The universe is every integer — the set knows no smallest and no largest
- * symbol, so an alphabet's own bounds stay the alphabet's business. That is why
- * an odd-length set simply runs to `Infinity`, why `-Infinity` is a boundary a
- * set may open with, and why only {@link ./module.f.mjs | `toRangeMap`}, whose
- * entries are bounded above, asks for a maximum.
+ * The universe is `-Infinity..Infinity`: the set knows no smallest and no
+ * largest symbol, so an alphabet's own bounds stay the alphabet's business —
+ * imposed by intersecting with the set that spells them. That is why an
+ * odd-length set simply runs to `Infinity`, and why `-Infinity`, the one
+ * boundary that is not a symbol, is what a set opens with when it has no
+ * bottom.
  *
  * A valid set is strictly increasing, and every boundary is a safe integer
- * except the first, which may also be `-Infinity`. That makes the spelling
- * canonical — one list per set, so structural equality is set equality — and
- * every operation both assumes and preserves it.
- * {@link ./module.f.mjs | `rangeSet`} is where it is checked.
+ * except the first, which may also be `-Infinity`. Both halves are what make
+ * the spelling canonical — one list per set, so structural equality is set
+ * equality: `[5, 5]`, `[0.5]` and a trailing `Infinity` would each be a second
+ * spelling of a set that already has one. Every operation assumes that and
+ * preserves it; {@link ./module.f.mjs | `rangeSet`} is where it is checked.
  */
 export type RangeSet = readonly number[]

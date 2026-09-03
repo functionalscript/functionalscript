@@ -2,7 +2,7 @@
  * @import { RangeSet } from './types.ts'
  */
 
-import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertStructurallySame } from '../../asserts/module.f.mjs'
 import {
     complement,
     contains,
@@ -29,6 +29,9 @@ const negative = rangeSet([-Infinity, 0])
 
 /** Every integer from zero up, an open tail. @type {RangeSet} */
 const nonNegative = rangeSet([0])
+
+/** One symbol below the ordinary ones, the shape a grammar spends on EOF. @type {RangeSet} */
+const minusOne = rangeSet([-1, 0])
 
 export const proof = {
     isRangeSet: () => {
@@ -85,6 +88,12 @@ export const proof = {
             assert(has(-1))
             assert(!has(0))
         },
+        one: () => {
+            const has = contains(minusOne)
+            assert(!has(-2))
+            assert(has(-1))
+            assert(!has(0))
+        },
     },
     complement: {
         // one toggle at the bottom of the universe, in both directions
@@ -129,9 +138,9 @@ export const proof = {
         whole: () => assertStructurallySame(difference(digit)(full), empty),
     },
     toRangeMap: {
-        empty: () => assertStructurallySame(toRangeMap(0x10FFFF)(empty), []),
+        empty: () => assertStructurallySame(toRangeMap(empty), []),
         closed: () => {
-            const rm = toRangeMap(0x10FFFF)(digit)
+            const rm = toRangeMap(digit)
             assertStructurallySame(rm, [[false, c('0') - 1], [true, c('9')]])
             const has = get(false)(rm)
             assert(!has(c('0') - 1))
@@ -140,19 +149,32 @@ export const proof = {
             assert(!has(c('9') + 1))
         },
         openTail: () => {
-            // the alphabet's maximum is what a set running to `Infinity` is
-            // closed with
-            const rm = toRangeMap(0x10FFFF)(full)
-            assertStructurallySame(rm, [[false, -Infinity], [true, 0x10FFFF]])
+            // `Infinity` is an upper bound like any other, so no alphabet
+            // maximum closes the tail
+            const rm = toRangeMap(nonNegative)
+            assertStructurallySame(rm, [[false, -1], [true, Infinity]])
+            const has = get(false)(rm)
+            assert(!has(-1))
+            assert(has(0x110000))
+        },
+        openBottom: () => {
+            // a set with no bottom has no run below its first boundary
+            const rm = toRangeMap(negative)
+            assertStructurallySame(rm, [[true, -1]])
+            const has = get(false)(rm)
+            assert(has(-0x110000))
+            assert(!has(0))
+        },
+        universe: () => {
+            const rm = toRangeMap(full)
+            assertStructurallySame(rm, [[true, Infinity]])
             assert(get(false)(rm)(0))
         },
-        // `max + 1` is a boundary, not a member: it closes the alphabet
-        top: () => assertEq(toRangeMap(0x10FFFF)(rangeSet([0, 0x110000])).length, 2),
     },
     throw: {
         rangeSetRejectsUnsorted: () => rangeSet([5, 5]),
         rangeSetRejectsNonInteger: () => rangeSet([0.5]),
+        rangeSetRejectsInfiniteTail: () => rangeSet([0, Infinity]),
         fromRangeRejectsReversed: () => fromRange([9, 0]),
-        toRangeMapRejectsAboveMaximum: () => toRangeMap(0x10FFFF)(rangeSet([0, 0x110001])),
     },
 }

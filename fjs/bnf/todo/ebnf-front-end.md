@@ -317,12 +317,15 @@ three forms. It needs a data layer that can represent it.
       [#1865](https://github.com/functionalscript/functionalscript/pull/1865).
 - [ ] `module.f.mjs`: the `repeat(min, max)` constructor with `option` /
       `repeat0Plus` / `repeat1Plus` / `times` as partial applications, plus
-      `join0Plus`, `join1Plus`, `commaJoin0Plus` and `notOf`; and the lowering
-      per "What a lowering must do". `commaJoin0Plus` is needed by the first
-      grammar ported, so it is not optional.
-- [ ] Split the range-set helpers by layer: packed arithmetic in `terminal/`,
-      the rule-level complement a distinctly named front-end helper built on
-      it, never a re-export.
+      `join0Plus`, `join1Plus` and `commaJoin0Plus`; and the lowering per
+      "What a lowering must do". `commaJoin0Plus` is needed by the first
+      grammar ported, so it is not optional. There is no `notOf`: complement
+      is a `range_set` value operation, and the adapter's `not` is difference
+      against its universe ([ebnf-range-set](./ebnf-range-set.md)).
+- [ ] The range-set helpers are value operations in `fjs/types/range_set`,
+      never rule combinators: this front end has one injection from a set to
+      a rule, the `['set', …]` thunk, and no rule-level complement
+      ([ebnf-range-set](./ebnf-range-set.md)).
 - [ ] `rtti/`: the rule-info map, without `repeatItem`, with its own
       co-located `proof.f.mjs` covering every export and branch — a new
       `.f.mjs` owes that ([fjs/AGENTS.md](../../AGENTS.md)), and the classical

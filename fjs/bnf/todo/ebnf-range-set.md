@@ -37,27 +37,28 @@ The packed `TerminalRange` also does not survive the bigint domain
 
 #### The value: a toggle list
 
-A range set is a strictly increasing list of integer boundaries. Reading from
-the bottom of the universe the set starts *off*; each boundary toggles it.
+A range set is a strictly increasing list of boundaries over the universe
+`-Infinity..Infinity`. Reading from `-Infinity` the set starts *off*; each
+boundary toggles it.
 
 ```ts
-type RangeSet = readonly number[]   // strictly increasing integers
+type RangeSet = readonly number[]   // strictly increasing
 ```
-
-The universe is every integer, `-Infinity..Infinity`: the value type knows no
-smallest and no largest symbol, so where EOF sits and where the alphabet stops
-stay the grammar's business. `-Infinity` is the one boundary that is not a
-symbol — it opens a set at the bottom, which is what a complement needs.
 
 | set | meaning |
 |---|---|
 | `[]` | empty |
-| `[-Infinity]` | every integer |
-| `[-1]` | everything a grammar can see, EOF included |
+| `[-Infinity]` | the universe |
+| `[-1]` | everything in the terminal domain, EOF included |
 | `[0]` | every ordinary symbol; today's `fullRange` |
 | `[-1, 0]` | EOF only; today's `eof` |
 | `[0x30, 0x3A]` | `0..9`; today's `range('09')` |
 | `[0, 0x110000]` | Unicode; today's `unicodeRange` |
+
+**No operation takes a universe.** The generic module is over the whole number
+line, so `complement` is the toggle at `-Infinity`, and union, intersection,
+difference and `contains` never needed one. A *domain* is just a set value the
+consumer intersects with — see [Two complements](#two-complements-two-names).
 
 **Boundaries are half-open**: a boundary starts the next run, so a closed
 range `a..b` is `[a, b + 1]`, and every packed literal in the tree today reads
@@ -68,31 +69,32 @@ Properties, each one a reason to prefer this over a list of ranges:
 - **Canonical by construction.** One spelling per set, so structural equality
   is set equality and content addressing works without a normalization pass.
   Validation is the whole guarantee: strictly increasing safe integers, save
-  for a leading `-Infinity`. `[5, 5]` is rejected, not normalized. The
-  alphabet's own bounds are checked where the alphabet is known — the
-  conversion to `range_map` takes the maximum and refuses a set that runs past
-  it.
-- **Complement is one toggle.** Complement against every integer adds or
-  removes a leading `-Infinity`. Union, intersection and difference are one
-  sweep over the boundaries of both sets. Membership is a binary search plus
-  the parity of the position.
+  for a leading `-Infinity`. `[5, 5]` is rejected, not normalized, and so are
+  `[0.5]` and a trailing `Infinity` — symbols are integers, so each of those
+  is a second spelling of a set that already has one.
+- **Complement is one toggle.** Adding or removing a leading `-Infinity`.
+  Union, intersection and difference are one parity merge over two sorted
+  lists. Membership is a binary search plus the parity of the position.
 - **Open above for free.** An odd-length set runs to `Infinity`, so
-  `fullRange`, `unicodeMax` and the 24-bit codec leave grammars. Nothing in
-  the form knows how wide the alphabet is; the form is unchanged when the
-  boundaries become bigints.
-- **EOF membership is the first element.** A set an alphabet built contains
-  EOF iff its first boundary is `-1`, since `-1` is where that alphabet
-  starts. That is decidable at the type level, which the AST row below relies
-  on.
+  `fullRange`, `unicodeMax` and the 24-bit codec leave grammars, and no module
+  needs to know the domain maximum: an open tail converts to a `range_map`
+  entry whose upper bound is `Infinity`, which `get` already handles.
+- **EOF membership is the first element.** Within the terminal domain a set
+  contains EOF iff its first boundary is `-1`. That is decidable at the type
+  level, which the AST row below relies on.
+- **The cost.** `-Infinity` is not JSON and has no bigint. It never reaches
+  the IR — lowering intersects with the domain, below — but a bigint range
+  set later cannot toggle at a bottom it cannot spell, so it takes its own
+  bottom or ships without a generic complement. That is that module's
+  problem, not this one's.
 
 `fjs/types/range_set` **is** this type — the `RangeMap<boolean>` that used to
-be there is gone, and there are not two. It exports the algebra (`contains`,
-`union`, `intersection`, `complement`, `difference`), the constructors
-(`rangeSet`, `fromRange`, `empty`, `full`) with `isRangeSet` for the validation
-they panic on, and `toRangeMap`, which is what the LL(1) dispatch map is built
-from; `range_map`'s entries carry *inclusive* upper bounds, so a set running to
-`Infinity` needs the alphabet maximum, which the neutral terminal module
-supplies.
+be there is gone, along with its one consumer's use of it
+(`fjs/media/nix/module.f.mjs`), and there are not two. The module exports the
+algebra (`contains`, `union`, `intersection`, `complement`, `difference`), the
+constructors (`rangeSet`, `fromRange`, `empty`, `full`) with `isRangeSet` for
+the validation they panic on, and `toRangeMap`, which is what the LL(1)
+dispatch map is built from.
 
 **The empty set is a value, not a rule.** As a value it is the identity for
 union and belongs in the algebra. As a terminal it is a rule that can never
@@ -128,12 +130,20 @@ this allows them rather than forbidding them.
 
 #### Two complements, two names
 
-Toggling `-1` complements over the whole domain, EOF included, which is almost
-never what a grammar means. The alphabet adapter's `not` is *difference against
-its universe*: Unicode's is `[0, 0x110000]`, bytes' is `[0, 256]`, and a
-token-symbol alphabet's is its own. The generic toggle lives in `range_set`;
-the alphabet-scoped one in `fjs/grammar/unicode/` and its siblings
-([unicode-rules](./unicode-rules.md)). This answers ebnf-front-end's Problem 5
+The generic `complement` is over the whole number line, which no grammar ever
+means. The terminal domain is a set value, `[-1]`, owned by the neutral
+terminal module ([grammar-bucket](../../todo/grammar-bucket.md) stage 1), and
+the lowering intersects every set with it: that clips a `-Infinity` a generic
+complement produced back to `-1`, drops anything below EOF, and so restores
+canonicity before the IR. Boundaries above the last ordinary symbol are
+rejected there rather than clipped, so the IR never spells the maximum and
+"everything" stays `[-1]`.
+
+The alphabet adapter's `not` is *difference against its universe*: Unicode's
+is `[0, 0x110000]`, bytes' is `[0, 256]`, and a token-symbol alphabet's is its
+own. The generic toggle lives in `range_set`; the alphabet-scoped one in
+`fjs/grammar/unicode/` and its siblings ([unicode-rules](./unicode-rules.md)).
+This answers ebnf-front-end's Problem 5
 — the helpers take and return sets, and `notOf` is unnecessary — and most of
 its Problem 9: the adapter returns set *values*, and each front end has one
 injection from a set to a rule.
@@ -164,20 +174,23 @@ justification is the API and the AST, which is where
 ### Tasks
 
 - [x] `fjs/types/range_set`: replace the `RangeMap<boolean>` representation
-      with the toggle list; `contains`, `union`, `intersection`, `complement`,
-      `difference`, `fromRange`, `toRangeMap(max)`, validation on
-      construction; proofs for each, for `[]`, `[-Infinity]`, an open tail,
-      an open bottom, and every rejected input. Port
+      with the toggle list over `-Infinity..Infinity`; `contains`, `union`,
+      `intersection`, `complement`, `difference`, `fromRange`, `toRangeMap`,
+      validation on construction; proofs for each, for `[]`, `[-Infinity]`,
+      `[-1, 0]`, an open tail, and every rejected input. Port
       `fjs/media/nix/module.f.mjs`.
 - [ ] Settle the IR carrier together with ebnf-front-end's Problem 1, in that
       issue, before any backend touches a set.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
       the union, the AST table (`number`, or `readonly [number?]` when the
-      first boundary is `-1`), the lowering requirements (reject the empty
-      set; validate the list), and the constructor list.
-- [ ] Alphabet adapters: `range`, `set`, `not`, `str` in
-      `fjs/grammar/unicode/` produce sets; `not` is difference against the
-      Unicode universe. Same for `byte/` when it exists.
+      first boundary is `-1`), the lowering requirements (intersect with the
+      domain `[-1]`; reject a boundary above the last ordinary symbol; reject
+      the empty set), and the constructor list.
+- [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/grammar/unicode/`
+      produce sets; `not` is difference against the Unicode universe. `str`
+      is not one of them: `str('true')` is an ordered `Sequence` of
+      one-symbol terminals, one per code point, exactly as a bare `string`
+      lowers today. Same for `byte/` when it exists.
 - [ ] Backends: LL(1) builds its dispatch map from `toRangeMap`; descent tests
       membership with `contains`; the failure record at
       `fjs/bnf/descent/module.f.mjs:60` holds a set, so "expected" diagnostics
@@ -190,8 +203,11 @@ justification is the API and the AST, which is where
       go with it in grammar-bucket stage 8.
 - [ ] Rewrite the note at `fjs/djs/tokenizer/module.f.mjs:249` as
       `difference(unicode)(newLine)`, which is what it was reaching for.
-- [ ] `tsc`, `fjs test`; `**BREAKING CHANGES:**` in the changelog for the
-      `range_set` representation and the AST shape.
+- [ ] `tsc`, `fjs test`. Each breaking PR declares `**BREAKING CHANGES:**`
+      in the `Changelog:` section of its description
+      ([changelog/RELEASE.md](../../../changelog/RELEASE.md)) — the
+      `range_set` representation and the AST shape both are. A PR adds no
+      changelog file.
 
 ### Related
 
@@ -203,8 +219,9 @@ justification is the API and the AST, which is where
   alphabet-scoped `not`.
 - [terminal-range-representation](./terminal-range-representation.md) — the
   bigint domain; the toggle list is the representation it was looking for.
-- [grammar-bucket](../../todo/grammar-bucket.md) — `terminal/` supplies the
-  domain maximum an open tail needs; `RangeVariant` no longer moves there.
+- [grammar-bucket](../../todo/grammar-bucket.md) — `terminal/` owns the
+  domain set `[-1]` the lowering intersects with; `RangeVariant` no longer
+  moves there.
 - [rule-visitor](./rule-visitor.md) — discriminates the data `Rule`, so it
   waits on the same IR carrier decision.
 - [`fjs/types/range_set/module.f.mjs`](../../types/range_set/module.f.mjs) —

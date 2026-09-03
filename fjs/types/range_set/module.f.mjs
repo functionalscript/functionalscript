@@ -35,6 +35,10 @@ export const full = [-Infinity]
  * Whether `s` is a valid set: strictly increasing safe integers, save for a
  * leading `-Infinity`, which is the universe's own bottom rather than a symbol.
  *
+ * Canonicity is what asks for the integers, not tidiness: symbols are
+ * integers, so `[0.5]` and `[1]` are the same set, and a trailing `Infinity`
+ * is a second spelling of the set without it.
+ *
  * @type {(s: readonly number[]) => boolean}
  */
 export const isRangeSet = s => s.every((v, i) =>
@@ -129,19 +133,21 @@ export const difference = mergeWith(a => b => a && !b)
 
 /**
  * The same set as a `range_map` of `boolean`, which is what a dispatch map is
- * built from.
+ * built from. One entry per boundary, carrying whether the run below it is in
+ * the set.
  *
- * A `range_map` entry carries an *inclusive* upper bound, so a set that runs to
- * `Infinity` needs `max`, the largest symbol of the alphabet it is read over.
- * The universe has no such bound of its own, which is also what makes `max` the
- * place to check the set against the alphabet: a boundary above `max + 1` is
- * outside it, and panics.
+ * A `range_map` entry carries an *inclusive* upper bound, and both ends of the
+ * universe are one: a set that runs to `Infinity` closes with that bound, which
+ * `get` compares against like any other, and a set that opens at `-Infinity`
+ * has no run below its first boundary to write an entry for. So no alphabet
+ * maximum is needed here — an alphabet's bounds are its consumer's to impose,
+ * by intersecting with the set that spells them.
  *
- * @type {(max: number) => (s: RangeSet) => RangeMapArray<boolean>}
+ * @type {(s: RangeSet) => RangeMapArray<boolean>}
  */
-export const toRangeMap = max => s => {
-    assert(s.length === 0 || s[s.length - 1] <= max + 1, [max, s])
+export const toRangeMap = s => {
     /** @type {RangeMapArray<boolean>} */
     const entries = s.map((v, i) => [i % 2 === 1, v - 1])
-    return s.length % 2 === 0 ? entries : [...entries, [true, max]]
+    const runs = s[0] === -Infinity ? entries.slice(1) : entries
+    return s.length % 2 === 0 ? runs : [...runs, [true, Infinity]]
 }
