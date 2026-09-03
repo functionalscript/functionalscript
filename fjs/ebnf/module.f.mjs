@@ -34,12 +34,12 @@ export const rangeEncode = (a, b) => (
 )
 
 /**
- * @type {<const Min extends number, const Max extends number>(min: Min, max: Max) =>
+ * @type {<const A extends number, const B extends number>(a: A, b: B) =>
  *  <const R extends Rule>(rule: R) =>
- *  RepeatInfo<Min, Max, R>}
+ *  RepeatInfo<A, B, R>}
  */
 export const repeat =
-    (min, max) => rule => () => ['repeat', min, max, rule]
+    (a, b) => rule => () => ['repeat', a, b, rule]
 
 /** @type {<const R extends Rule>(rule: R) => RepeatInfo<0, Infinity, R>} */
 export const repeat0Plus =
