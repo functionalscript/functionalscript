@@ -43,18 +43,18 @@ neutral machinery today, because that machinery imports the front end:
 ```text
 fjs/grammar/
   terminal/      TerminalRange, RangeVariant, the symbol type, and the codec
-  data/          RuleSet IR, emptyTagMap, detectRepeat        → terminal
-  matcher/       cursor, EOF, AST, transformer tools          → data, terminal
-  ll1/           backend over RuleSet only                    → matcher, terminal
-  descent/       backend over RuleSet only                    → matcher, terminal
-  token_symbol/  multi-character token alphabet               → terminal
-  map/           AST-level mapping types                      → matcher
-  unicode/       str, set, range, notSet, toSequence, …       → terminal
-  byte/          binary alphabet, when it exists              → terminal
-  bnf/           classical front end                          → data, unicode
-  ebnf/          front end with a repetition primitive        → data, unicode
-  lib/           example grammars                             → a front end
-  recognizer/, dfa/  new backends, when they land             → data
+  data/          RuleSet IR, emptyTagMap, detectRepeat   → terminal
+  matcher/       cursor, EOF, AST, transformer tools     → data, terminal
+  ll1/           backend over RuleSet only               → matcher, data, terminal
+  descent/       backend over RuleSet only               → matcher, data, terminal
+  token_symbol/  multi-character token alphabet          → terminal
+  map/           AST-level mapping types                 → matcher
+  unicode/       str, set, range, notSet, toSequence, …  → terminal
+  byte/          binary alphabet, when it exists         → terminal
+  bnf/           classical front end                     → data, unicode
+  ebnf/          front end with a repetition primitive   → data, unicode
+  lib/           example grammars                        → a front end
+  recognizer/, dfa/  new backends, when they land        → data
 ```
 
 **Membership:** a module belongs here iff it defines, transforms or executes
@@ -95,7 +95,7 @@ stages that relocate an API go straight to the final path.
    implementation: `ebnf-front-end` is blocked on stages 1-5 for its *code*,
    and its open questions can be settled at any time.
 3. **Genericize** the transformer protocol over the rule identity in
-   `matcher/types.ts`, and `RuleNames<R>` / `GrammarData<R>` in
+   `matcher/types.ts`, and `RuleNameMap<R>` / `GrammarData<R>` in
    `data/types.ts`. Generic over `R` they name no front end, so `data/` stays
    neutral and the stage-4 builder has a neutral input. Types only.
 4. **Backends over `RuleSet` only.** `parserRuleSet` and
@@ -120,8 +120,8 @@ stages that relocate an API go straight to the final path.
 
 **Before stage 5**, rewrite the backend proofs against `RuleSet` literals:
 `ll1/proof.f.mjs:14`, `descent/proof.f.mjs:10`, `data/proof.f.mjs:7` and
-`matcher/proof.f.mjs:8` import the front end, and two import `testlib.f.mjs`,
-so stage 8's deletion could not pass the suite. It also makes
+`matcher/proof.f.mjs:8` import the front end, and all but `matcher` import
+`testlib.f.mjs`, so stage 8's deletion could not pass the suite. It also makes
 `descentEquivalence` front-end neutral for the first time.
 
 **A proof travels with what it proves**, so the rewrite is a split, not a
@@ -191,7 +191,7 @@ A module the migration creates goes to its final path immediately, never to
 - [ ] Stage 2: land `unicode-rules` at `fjs/grammar/unicode/` and point
       `token_symbol` there — after `ebnf-front-end`'s Problem 9 settles the
       adapter's shape.
-- [ ] Stage 3: genericize the transformer protocol and `RuleNames<R>` /
+- [ ] Stage 3: genericize the transformer protocol and `RuleNameMap<R>` /
       `GrammarData<R>`. Types only.
 - [ ] Stage 4: backends over `RuleSet` only; `transformers` takes the grammar
       data. The wrappers stay put — they move in stage 5.

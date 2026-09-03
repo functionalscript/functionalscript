@@ -321,16 +321,17 @@ three forms. It needs a data layer that can represent it.
       bound shape and the degenerate `0..0` and `1..1`; string lowering,
       where a one-code-point string and an astral character each emit exactly
       one terminal — a lowering proof, since the AST *type* of a string is
-      `readonly number[]`; every
-      lowering error; and the `descentEquivalence` cases re-expressed here,
-      comparing **backend results** and stating per case whether the AST is
-      expected to match the `bnf` original or to differ.
+      `readonly number[]`; every lowering error; and the `descentEquivalence`
+      cases re-expressed here, comparing **backend results** and stating per
+      case whether the AST is expected to match the `bnf` original or to
+      differ.
 - [ ] Port `fjs/grammar/lib/json` (`\uXXXX` becomes `times(4)(hex)`), then
       `lib/datajs`, then the `djs` tokenizer and parser, one PR each. Those
       are the only consumers: outside `fjs/bnf` the repository imports it from
       five files, all under `fjs/djs`.
-- [ ] Update `data/README.md` and `descent/README.md`, which describe `Repeat`
-      as "the one rule kind `toData` derives".
+- [ ] Update what describes the derived `Repeat`: `data/types.ts:29` carries
+      the phrase "the one rule kind `toData` derives"; `data/README.md` and
+      `descent/README.md` describe the same thing in their own words.
 - [ ] `tsc`, `fjs t`. Each breaking PR declares `**BREAKING CHANGES:**` in its
       `Changelog:` section
       ([changelog/RELEASE.md](../../../changelog/RELEASE.md)).

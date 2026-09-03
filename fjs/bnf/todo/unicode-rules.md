@@ -127,10 +127,11 @@ This split changes the public design assumptions used by older open TODOs:
   `fjs/bnf/data/module.f.mjs` is the single discriminator to re-point if the
   rule model moves again.
 - [`fjs/bnf/todo/rule-visitor.md`](./rule-visitor.md) is blocked by this task
-  alone, now that the bigint symbol/range migration is
-  [on hold](./bigint-symbols.md). Its visitor must not preserve a generic string
-  branch after this split removes one; the terminal discriminant, by contrast, is
-  the shipped `number` one, and centralizing it in the visitor is that task's
+  and by [ebnf-front-end](./ebnf-front-end.md)'s Problem 1; the bigint
+  symbol/range migration is [on hold](./bigint-symbols.md) and no longer one
+  of its blockers. Its visitor must not preserve a generic string branch
+  after this split removes one; the terminal discriminant, by contrast, is the
+  shipped `number` one, and centralizing it in the visitor is that task's
   point.
 - [`fjs/bnf/todo/recognizer-backend.md`](./recognizer-backend.md) is blocked by
   this task. It previously assigned byte/hex/byte-range helper creation to the
