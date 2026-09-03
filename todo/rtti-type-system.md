@@ -390,8 +390,8 @@ FunctionalScript features the current parser/compiler does not support yet",
 while `.f.js` is "authored FunctionalScript that the current parser/compiler
 **must** accept". So `.f.js` is where this regime is finally at home, and
 `.f.mjs` is where it arrives file by file as the compiler catches up
-([migrate-typescript-to-mjs](./migrate-typescript-to-mjs.md) stage 3 is the
-rename).
+([stage 2](../fjs/fsc/README.md#stage-2-mark-compiler-compatible-functionalscript)
+is the rename).
 
 Naming only `.f.mjs` — as an earlier draft did — got this backwards twice: it
 claimed the checker for files the compiler may not be able to read, and dropped
@@ -428,9 +428,9 @@ all — [`fjs/types/array/types.ts`](../fjs/types/array/types.ts) exports
 and no schema, printer, or reification produces those. Stage 11 states the
 rule and the known exceptions.
 
-That is not a contradiction of
-[migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md), which says four
-times that authored `types.ts` "may remain permanently" — but it is a narrower
+That is not a contradiction of the stage-1 migration, which said four times
+that authored `types.ts` "may remain permanently" (the surviving statement is in
+[`fjs/fsc/README.md`](../fjs/fsc/README.md)) — but it is a narrower
 reading of that word, and worth stating plainly. There, permanence is with
 respect to *that* migration: a `types.ts` is not an implementation-migration
 target and must not be forced through JSDoc translation. It says nothing about
@@ -1403,9 +1403,8 @@ are stated instead:
       **"Once the parser accepts it" is the wrong test, and an earlier draft of
       this heading used it.** It disagreed with this file's own readability rule
       above — "the rename to `.f.js` is exactly the event that says it can" —
-      and with
-      [migrate-typescript-to-mjs](./migrate-typescript-to-mjs.md), which makes
-      that migration's step 3 a prerequisite rather than a parallel track. The
+      and with the source migration, which makes its `.f.mjs` -> `.f.js` stage
+      a prerequisite rather than a parallel track. The
       difference is not pedantic: an authored `.f.js` is a **compatibility
       commitment** the parser must keep
       ([`fjs/fsc/README.md`](../fjs/fsc/README.md)), while a `.f.mjs` that the
@@ -1781,10 +1780,10 @@ splits around inference, so the runnable order is 668's representation half
   an annotation *is*. **Stage 4 onward** needs it — stage 3 is comment
   recognition plus resolving one identifier against the module's bindings, which
   needs neither the expression parser nor compile-time evaluation.
-- [migrate-typescript-to-mjs.md](./migrate-typescript-to-mjs.md) — establishes
-  the `.f.mjs` / `.mjs` / `types.ts` / `.d.ts` split that commitment 4 assigns
-  type systems to. Its "`types.ts` may remain permanently" is permanence with
-  respect to *that* migration; stage 11 here is what eventually retires them.
+- [`fjs/fsc/README.md`](../fjs/fsc/README.md) — establishes the `.f.mjs` /
+  `.mjs` / `types.ts` / `.d.ts` split that commitment 4 assigns type systems to.
+  Its "`types.ts` may remain permanently" is permanence with respect to *that*
+  migration; stage 11 here is what eventually retires them.
 - [fjs-nanvm-integration.md](./fjs-nanvm-integration.md) — the path to a
   compiler that parses authored FunctionalScript.
 - [`fjs/bnf/todo/layered-parser.md`](../fjs/bnf/todo/layered-parser.md) — the
