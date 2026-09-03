@@ -48,22 +48,31 @@ type _Single<T> =
             (x: infer I) => void ? I : never, T>
 
 /**
- * The rule a branch stands for: any lazy wrapper taken off, and the `undefined`
- * an optional key carries dropped.
- *
- * Recognition in `../data/module.f.mjs` runs over the *normalized* rules, where
- * a lazy alias in either branch means what its direct form means, so a branch
- * written `() => readonly []` has to be read as the empty sequence it stands
- * for.
- *
- * The `undefined` is the optional marker rather than part of the rule, and
- * `Variant` declares every key optional, so leaving it in would make a
- * two-branch repetition written with `?` fail the shape tests below and read as
- * a variant. That optionality names which branches an author wrote down rather
- * than which a match may leave out is the same reading the branch derivation
- * already takes.
+ * A rule with any lazy wrapper taken off. Recognition in
+ * `../data/module.f.mjs` runs over the *normalized* rules, where a lazy alias
+ * in either branch means what its direct form means, so a branch written
+ * `() => readonly []` has to be read as the empty sequence it stands for.
  */
-type _Data<R> = R extends () => infer U ? _Data<U> : R extends undefined ? never : R
+type _Data<R> = R extends () => infer U ? _Data<U> : R
+
+/**
+ * The rule the branch at `K` stands for.
+ *
+ * An *optional* key's indexed type carries `undefined` for the absence itself,
+ * which is not part of the rule: `Variant` declares every key optional, so
+ * leaving it in would make a two-branch repetition written with `?` fail the
+ * shape tests and read as a variant. Optionality names which branches an author
+ * wrote down rather than which a match may leave out, the same reading the
+ * branch derivation takes.
+ *
+ * A *required* key whose declared type happens to include `undefined` is a
+ * different thing and keeps it, so the shape tests reject it. Such a rule is
+ * not one the parser can handle at all — `repeatItem` throws on the value it
+ * describes, since normalization reads the present-but-`undefined` property —
+ * and it must not be handed the shape of a repetition that works.
+ */
+type _BranchOf<U, K extends keyof U> =
+    _Data<{} extends Pick<U, K> ? Exclude<U[K], undefined> : U[K]>
 
 /**
  * The keys of `U` that name a branch at all. `variant` in
@@ -76,11 +85,11 @@ type _Keys<U> = Extract<keyof U, string | number>
 
 /** The keys of `U` whose branch is the empty sequence. */
 type _NoneKeys<U> =
-    { [K in _Keys<U>]: _Data<U[K]> extends readonly [] ? K : never }[_Keys<U>]
+    { [K in _Keys<U>]: _BranchOf<U, K> extends readonly [] ? K : never }[_Keys<U>]
 
 /** The keys of `U` whose branch is an item followed by `R` itself. */
 type _StepKeys<U, R> =
-    { [K in _Keys<U>]: _Data<U[K]> extends readonly [Rule, R] ? K : never }[_Keys<U>]
+    { [K in _Keys<U>]: _BranchOf<U, K> extends readonly [Rule, R] ? K : never }[_Keys<U>]
 
 /**
  * The item of `R` when `R` is a repetition, wrapped in a one-tuple, and `false`
@@ -111,7 +120,7 @@ type _RepeatItem<R> =
         ? _Single<_NoneKeys<U>> extends true
             ? _Single<_StepKeys<U, R>> extends true
                 ? Equal<_Keys<U>, _NoneKeys<U> | _StepKeys<U, R>> extends true
-                    ? _Data<U[_StepKeys<U, R>]> extends readonly [infer I extends Rule, R]
+                    ? _BranchOf<U, _StepKeys<U, R>> extends readonly [infer I extends Rule, R]
                         ? readonly [I]
                         : false
                     : false
@@ -319,3 +328,15 @@ type _OptionalBranches = () => {
     readonly some?: readonly[0, _OptionalBranches],
 }
 type _29 = Assert<Equal<AstRule<_OptionalBranches>, readonly number[]>>
+
+// A *required* branch whose declared type includes `undefined` is not the same
+// as an optional one. `repeatItem` throws on the value it describes, because
+// normalization reads the present-but-`undefined` property, so this is not a
+// repetition and must not be given one's shape.
+type _RequiredUndefined = () => {
+    readonly none: readonly[] | undefined,
+    readonly some: readonly[0, _RequiredUndefined],
+}
+type _30 = Assert<Equal<
+    AstRule<_RequiredUndefined> extends readonly unknown[] ? true : false,
+    false>>
