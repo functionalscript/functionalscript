@@ -940,6 +940,17 @@ const notCases = [
  * falsy-but-not-nullish value (`0`, `NaN`, `''`) behaves like `null` here,
  * unlike `??`, which keys off nullishness alone.
  *
+ * What these cases do *not* prove: that the discarded operand's evaluation
+ * is actually skipped. `&&`/`||`/`??`/`?:` are the one place in JavaScript
+ * where that is these operators' defining behaviour — but every `Operand` in
+ * this corpus is `Value | FunctionValue` (see `types.ts`), and `Value` admits
+ * no expression whose evaluation is observable (no side effect, no throw:
+ * `Throws` is legal only as an `expected`, never an operand). Both consumers
+ * build every argument before dispatch — `run` here, `result` in
+ * `rust/module.f.mjs` — so there is nothing an unevaluated operand could do
+ * differently from an evaluated one for this corpus to catch. What these
+ * cases prove is the other half: *which* operand comes back.
+ *
  * @type {readonly Case<2>[]}
  */
 const andCases = [
@@ -1015,7 +1026,8 @@ const nullishCases = [
  * use. Like those, this selects an operand rather than coercing it, so a
  * reference-typed value only ever appears as the *condition*, the one
  * position that is always discarded (see the `&&`/`||`/`??` group comment
- * above for why that matters).
+ * above for why that matters, and for why — the same as those three — these
+ * cases cannot prove the *unselected* branch goes unevaluated).
  *
  * @type {readonly Case<3>[]}
  */

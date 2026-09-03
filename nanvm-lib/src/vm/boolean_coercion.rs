@@ -8,7 +8,7 @@ use crate::{
 /// never calls `ToPrimitive`, so there is nothing here that can throw.
 /// <https://tc39.es/ecma262/#sec-toboolean>
 ///
-/// It equals to `!!x` in JavaScript.
+/// This is equivalent to `!!x` in JavaScript.
 pub struct BooleanCoercion;
 
 impl<A: IVm> Dispatch<A> for BooleanCoercion {
@@ -31,7 +31,7 @@ impl<A: IVm> Dispatch<A> for BooleanCoercion {
     }
 
     fn bigint(self, v: BigInt<A>) -> Self::Result {
-        v != BigInt::default()
+        !v.is_zero()
     }
 
     fn object(self, _: Object<A>) -> Self::Result {

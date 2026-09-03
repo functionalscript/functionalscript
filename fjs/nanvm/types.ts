@@ -168,9 +168,10 @@ export type Group2 = {
  * The field is deliberately not `op`, so a NaNVM-only name can never mix into
  * the canonical id unions.
  *
- * - `unaryPlus` — the EDAG has no unary `+` — and the type is deleted when
+ * - `unaryPlus` — the EDAG has no unary `+` — and this arm is deleted when
  *   [replace-unary-plus-with-number](../../nanvm-lib/todo/replace-unary-plus-with-number.md)
- *   moves that group to `Number`.
+ *   moves that group to `Number`; the type itself stays, since the other
+ *   arms have no such migration.
  * - `ternary` (`?:`) — the EDAG has no conditional-expression node at all
  *   yet, so this is the corpus's one ternary group; every other `Group`
  *   variant is unary or binary because the EDAG vocabulary it draws from is.
