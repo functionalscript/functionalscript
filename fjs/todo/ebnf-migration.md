@@ -190,7 +190,7 @@ records why.
 fjs/ebnf/
   module.f.mjs, types.ts   the front end: Rule union with a repetition primitive
   terminal/                TerminalRange, EOF, the codec            (move)
-  unicode/                 text adapter: str, set, range, notOf, …   (rewrite)
+  unicode/                 text adapter: str, set, range, not, …     (rewrite)
   data/                    RuleSet IR with bounded Repeat, emptyTagMap (rewrite)
   matcher/                 cursor, EOF, AST, transformer tools       (move)
   ll1/                     the reference backend                     (rewrite)
