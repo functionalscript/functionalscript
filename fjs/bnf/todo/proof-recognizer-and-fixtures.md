@@ -101,7 +101,8 @@ depends on the classical front end and which
 with that file; moving them into the neutral layer would drag the front end
 along.
 
-**1. One recognizer adapter per backend, one assertion helper over both.**
+**1. One recognizer adapter for the surviving backend, one assertion helper
+that any recognizer can use.**
 
 ```ts
 export type Recognition = {
@@ -111,13 +112,22 @@ export type Recognition = {
 
 export type Recognizer = (input: string) => Recognition
 
-export const descentRecognizer = (ruleSet: RuleSet, entry: string): Recognizer => …
 export const ll1Recognizer = (ruleSet: RuleSet, entry: string): Recognizer => …
 
 export const assertRecognizes = (r: Recognizer) =>
     (cases: readonly Case[]): void => …
 export type Case = readonly [string, boolean]
 ```
+
+The harness lives in `fjs/ebnf/` and may not import `bnf/`, and the descent
+backend retires there without a counterpart
+([ebnf-migration](../../todo/ebnf-migration.md)), so the shared testlib ships
+`ll1Recognizer` only. `Recognizer` is just a function type, though, and
+`bnf → ebnf` is the allowed direction: while `bnf/descent` lives, its proof
+may keep a **local** `descentRecognizer` over `descentParserRuleSet` and feed
+it to the shared `assertRecognizes` and `jsonCases`, so the two-backend
+comparison survives for as long as there are two backends, at no cost to the
+neutral harness.
 
 The recognizer must not collapse to a bare `boolean`: current assertions include
 the backend match result as their diagnostic. `assertRecognizes` should report
@@ -130,11 +140,11 @@ that would reintroduce a front-end dependency; the neutral harness lives in
 importing `bnf/` at all. The
 entry is a parameter rather than derived or defaulted: the one grammar whose
 root is `'value'` proves a hard-coded `''` is wrong, and a `RuleSet` does not
-carry its own entry. `ll1Recognizer` builds via `parserRuleSet(ruleSet)` and
-`descentRecognizer` via `descentParserRuleSet(ruleSet)`; both backends already
-expose those, so no production API is added here.
+carry its own entry. `ll1Recognizer` builds via `parserRuleSet(ruleSet)`, which the backend
+already exposes, so no production API is added here; a `bnf`-local descent
+adapter builds via `descentParserRuleSet(ruleSet)` the same way.
 
-The adapter also absorbs the file-local proof copy of `descentParserCpOnly`.
+That local adapter also absorbs the proof-local copy of `descentParserCpOnly`.
 Keep the DJS tokenizer export: its proof has typed-result consumers beyond the
 recognition corpus, so removing it would be a separate public-API change.
 
@@ -187,13 +197,16 @@ explicit named override list for the rows where token-stream acceptance differs.
       neither the functional rule nor its entry — the caller that built it has
       both. No `toData` inside an adapter (that would reintroduce the `FRule`
       the first task removes) and no `''` default.
-- [ ] Fold the proof-local `descentParserCpOnly` / code-point adapter into
-      `descentRecognizer`; leave the DJS tokenizer's public export alone.
+- [ ] Fold the proof-local `descentParserCpOnly` / code-point adapter into a
+      `bnf/descent`-local `descentRecognizer` that reuses the shared
+      `Recognizer` type and `assertRecognizes`; leave the DJS tokenizer's
+      public export alone.
 - [ ] Add `number` as a directly authored `RuleSet` and entry name — no
       functional `Rule`, no `toData` in the shared testlib — and add
       `jsonCases`.
-- [ ] Convert descent and LL1 proofs; keep the optional-space grammar variant
-      local and document why it is distinct.
+- [ ] Convert the LL1 proof, and the descent proof through its local
+      adapter; keep the optional-space grammar variant local and document why
+      it is distinct.
 - [ ] Convert the DJS tokenizer proof to `jsonCases` plus a named override list
       and its DJS-only inputs.
 - [ ] Give the new testlib its own co-located `proof.f.mjs` covering every
@@ -217,4 +230,6 @@ explicit named override list for the rows where token-stream acceptance differs.
 - [the DJS parser](../../djs/parser/README.md) — token-symbol alphabet needs its own recognizer
   adapter, but can share `Case` / `assertRecognizes`.
 - `fjs/bnf/descent/types.ts` `DescentFailure` — failure diagnostics compose
-  through `Recognition.diagnostic`; do not collapse them to boolean.
+  through `Recognition.diagnostic`; do not collapse them to boolean. They
+  reach the shared helper only through the `bnf`-local adapter, since the
+  harness itself never names the descent backend.

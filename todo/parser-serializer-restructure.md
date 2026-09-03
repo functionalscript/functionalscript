@@ -578,9 +578,11 @@ throughout.
   — **re-scoped**: the canonical JSON grammar's owner is the spec (text) plus a
   proof-covered `fjs/bnf` example, not a runtime module, so its
   `fjs/media/json/grammar` proposal is withdrawn and the grammar ships at
-  `fjs/bnf/lib/json`. Lowering that example onto `fjs/grammar/unicode/` is **not** open
-  there: it belongs to the alphabet split, which breaks these grammars and so
-  ports them in the same change. What remains open is the shared lexical API
+  `fjs/bnf/lib/json`. Lowering that example onto `fjs/ebnf/unicode/` is **not** open
+  there: it happens when the grammar is ported to `fjs/ebnf/lib`
+  ([ebnf-migration](../fjs/todo/ebnf-migration.md) stage 5), and the
+  classical original stays as it is until `bnf/` is deleted. What remains
+  open is the shared lexical API
   #1817 shipped only partly — parameterizing `string` over its simple escapes,
   exporting the digit rules, and pointing the tokenizer at them. The
   `fjs/djs/tokenizer` pointer becomes the `fsc` tokenizer,
