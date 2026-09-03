@@ -15,7 +15,9 @@
 suite go by. The other audiences were each noticed separately, and each got its
 own issue proposing its own mode:
 
-- a **pipe or log collector**, which sees nothing until a line is closed
+- a **line-oriented consumer** — a log collector, a `readline` reader — which
+  sees an open line only once it is closed, unlike a bytewise reader of the
+  same pipe
   ([tty-and-line-consumers](../emergent_testing/todo/tty-and-line-consumers.md));
 - a reader who wants **brief progress and the failures**
   ([test-framework-silent-mode](../emergent_testing/todo/test-framework-silent-mode.md));
@@ -145,6 +147,12 @@ postponed rather than missed.
   harness. Every stream cell is captured when proved and unwrapped when run, so
   it applies uniformly either way — an argument for leaving it out of the
   product entirely.
+- **What names the audience that needs line framing?** It is not the
+  transport: a redirected `stdout` read bytewise sees the open `name: ` write
+  immediately, and only a line-oriented consumer of that same pipe does not.
+  The table selects the stream transports by `isTTY`, which cannot tell the two
+  apart, so either framing is its own axis or the two are one cell whose
+  renderer must satisfy the stricter reader.
 - **Is event granularity separate from verbosity?** The row conflates how many
   events a renderer *consumes* with how much it *emits* per event: a dynamic
   current-test display consumes the start event while emitting nothing lasting
@@ -163,8 +171,11 @@ postponed rather than missed.
 
 - [ ] Enumerate every output **producer**, not only what a CLI command prints —
       the browser page publishes `_BrowserEvent` and `BrowserTestReport`
-      outside the command list, and a bridge emits calls. For each, which cell
-      of the table it occupies.
+      outside the command list, and a bridge emits calls. For each, **every
+      cell it can occupy and the selector that picks between them** — not one
+      configuration. `fjs t` alone already varies two axes independently:
+      `defaultReporter` reads `options.env['GITHUB_ACTIONS']` for annotation,
+      `csiWrite` reads `isTTY` for colour.
 - [ ] Enumerate the report contracts **already designed but not yet emitted**,
       by sweeping the `todo/` directory of every producer task 1 found. The
       rule: *every unresolved issue specifying anything a destination must emit
