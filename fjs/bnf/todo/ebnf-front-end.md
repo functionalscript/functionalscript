@@ -55,7 +55,7 @@ type Info     =
     | readonly ['const', Const]              // a plain rule behind a thunk
     | readonly ['range', number, number]     // symbols a..b, inclusive
     | readonly ['repeat', number, Max, Rule] // min..max copies
-type Max      = number | 'Infinity'
+type Max      = number | null
 ```
 
 Three word tags, the RTTI vocabulary. Discrimination is by JavaScript type at
@@ -73,13 +73,21 @@ every level.
   behind a thunk. Every recursive rule pays it; RTTI pays the same.
 - **`['repeat', …]`** carries its bounds, so the optional, star, plus and
   exact count are values of `min`/`max`, not separate forms:
-  `['repeat', 0, 1, r]`, `['repeat', 0, 'Infinity', r]`,
-  `['repeat', 1, 'Infinity', r]`, `['repeat', n, n, r]`.
+  `['repeat', 0, 1, r]`, `['repeat', 0, null, r]`,
+  `['repeat', 1, null, r]`, `['repeat', n, n, r]`.
 
-`min` is a non-negative integer; `max` is one or `'Infinity'`; `min <= max`.
-`'Infinity'` is a **string** because TypeScript has numeric literal types only
-for finite literals, so numeric `Infinity` is typed `number` and a conditional
-type could not detect it. `min > max` is an error. `0..0` and `1..1` are legal
+`min` is a non-negative integer; `max` is one or `null`, which means
+unbounded; `min <= max`.
+
+`null` rather than numeric `Infinity` because TypeScript has numeric literal
+types only for finite literals: `Infinity` is typed plain `number`, so
+`Max extends …` could not detect it and every unbounded repeat would degrade
+to `readonly T[]` — losing `repeat1Plus`'s non-empty type. `null` is a literal
+type, so the conditional can ask. It also makes `n <= max` a compile error
+until `max` is narrowed, where a `-1` sentinel would compile and be silently
+wrong — and `-1` is already EOF in the terminal domain, which is a collision
+worth avoiding. `undefined` would work identically; `null` is preferred because
+a hole in the middle of an array always reads as a mistake. `min > max` is an error. `0..0` and `1..1` are legal
 and discouraged — `[]` and the rule itself say those directly, and
 `['repeat', 1, 1, r]` wraps `r` in a one-element list a transformer on `r`
 will not see. Exact counts of two or more are the ordinary case.
@@ -107,8 +115,8 @@ type Repeat<Min, Max, T> =
     // when unbounded, so guard on that — not on the span, and not on `Min`
     // alone.
       number extends Min or number extends Max              ? readonly T[]
-    : (Max extends 'Infinity' ? Min : Max) > Cap            ? readonly T[]
-    : Max extends 'Infinity'        ? (Min extends 0 ? readonly T[]
+    : (Max extends null ? Min : Max) > Cap                  ? readonly T[]
+    : Max extends null              ? (Min extends 0 ? readonly T[]
                                                      : readonly [...Tuple<Min, T>, ...readonly T[]])
     : [Min, Max] extends [Max, Min] ? Tuple<Min, T>   // both literal and equal
     : Union of Tuple<n, T> for Min <= n <= Max
@@ -122,7 +130,7 @@ family from the rest; an author wanting named branches writes the plain
 `Variant`.
 
 Two caveats for the implementation. **The cap is on the longest tuple a branch would build**, which is the finite
-`Max`, or `Min` when the max is unbounded — not the span and not `Min` alone,
+`Max`, or `Min` when `Max` is `null` — not the span and not `Min` alone,
 either of which lets `repeat(Cap, Cap + 1)` through to a union that builds
 `Tuple<Cap + 1, T>`. `Tuple` in `fjs/types/array/types.ts:22` recurses
 linearly, so anything past the cap is TS2589 and degrades to `readonly T[]`. And TypeScript's template-literal recursion splits
@@ -139,8 +147,8 @@ primitive:
 export const repeat = (min, max) => rule => () => ['repeat', min, max, rule]
 
 export const option      = repeat(0, 1)
-export const repeat0Plus = repeat(0, 'Infinity')
-export const repeat1Plus = repeat(1, 'Infinity')
+export const repeat0Plus = repeat(0, null)
+export const repeat1Plus = repeat(1, null)
 export const times       = n => repeat(n, n)
 ```
 
@@ -206,9 +214,9 @@ decided.
 **1. Reduction synthesizes unnameable rules, and today's IR cannot express the
 AST.** Transformers are keyed by rule identity and `ll1/module.f.mjs:397`
 requires every child of a mapped variant to be mapped; a reduced `0..1` gets a
-fresh `[]` nobody holds. Worse: on today's IR `1..Infinity` reduces to an item
+fresh `[]` nobody holds. Worse: on today's IR an unbounded `1..` reduces to an item
 beside a repetition, whose AST is a 2-tuple, not the flat list the table
-specifies. So the table holds only for `0..Infinity`, and a lowering cannot be
+specifies. So the table holds only for the unbounded `0..`, and a lowering cannot be
 judged correct against it. The question is which bounds a data layer carries
 natively. Narrowing the front end to match today's IR is the option this
 design rejects.
