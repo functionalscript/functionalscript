@@ -54,8 +54,7 @@ type Thunk    = () => Info
 type Info     =
     | readonly ['const', Const]              // a plain rule behind a thunk
     | readonly ['range', number, number]     // symbols a..b, inclusive
-    | readonly ['repeat', number, Max, Rule] // min..max copies
-type Max      = number | null
+    | readonly ['repeat', number, number, Rule] // min..max copies
 ```
 
 Three word tags, the RTTI vocabulary. Discrimination is by JavaScript type at
@@ -73,32 +72,24 @@ every level.
   behind a thunk. Every recursive rule pays it; RTTI pays the same.
 - **`['repeat', …]`** carries its bounds, so the optional, star, plus and
   exact count are values of `min`/`max`, not separate forms:
-  `['repeat', 0, 1, r]`, `['repeat', 0, null, r]`,
-  `['repeat', 1, null, r]`, `['repeat', n, n, r]`.
+  `['repeat', 0, 1, r]`, `['repeat', 0, Infinity, r]`,
+  `['repeat', 1, Infinity, r]`, `['repeat', n, n, r]`.
 
-`min` is a non-negative integer; `max` is either a non-negative integer or
-`null`, which means unbounded; and `min <= max` whenever `max` is finite.
+`min` is a non-negative integer; `max` is a non-negative integer or
+`Infinity`; and `min <= max`.
 
-`null` rather than numeric `Infinity` because TypeScript has numeric literal
-types only for finite literals: `Infinity` is typed plain `number`, so
-`Max extends …` could not detect it and every unbounded repeat would degrade
-to `readonly T[]` — losing `repeat1Plus`'s non-empty type. `null` is a literal
-type, so the conditional can ask. The string `"Infinity"` passes that test —
-it is a literal type — but puts a string in a numeric field, so every
-arithmetic site needs a guard that reads as a conversion, and the obvious
-`max === 'Infinity' ? Infinity : max` restores the widened `number` one line
-later. Its one advantage, a self-describing serialization, is the data
-layer's to take ([Problem 1](#problems)); the front end need not pre-pay for
-it. `null` also makes `n <= max` a compile error until `max` is narrowed,
-where a `-1` sentinel would compile and be silently wrong — and `-1` is
-already EOF in the terminal domain, which is a collision worth avoiding.
-`undefined` is equivalent on the type question and rejected anyway: with it in the type, a dropped argument is
-*plausible* rather than invalid. Runtime arity is not enforced here, so
-`repeat(2)` would silently mean two-or-more while reading as "exactly two" —
-which already has a spelling, `times(2)`. With `null` required, `repeat(2)`
-leaves `max` as `undefined`, which is not a `Max`, so the omission is caught
-instead of quietly meaning something else. A hole in the middle of an array
-reads as a mistake for the same reason. `min > max` is an error. `0..0` and `1..1` are legal
+**Both bounds are plain `number`, and `Infinity` is the unbounded value** —
+no sentinel. TypeScript has no literal type for `Infinity`, so an unbounded
+`max` arrives widened; that is the whole mechanism rather than a problem,
+because a widened `max` and an unbounded one deserve the same answer, and
+`fjs/types/array`'s `Array<Min, Max, T>` already gives it (below). The
+comparisons also just work — `min <= Infinity` is true — where a `null`
+sentinel coerces to `0` and needs a guard at every site, and
+a `-1` sentinel would compile and be silently wrong — `-1` is EOF in the
+terminal domain besides. `undefined` is rejected for a different reason: a
+dropped argument would read as *plausible*, so `repeat(2)` would silently
+mean two-or-more while reading as "exactly two", which already has a
+spelling in `times(2)`. `min > max` is an error. `0..0` and `1..1` are legal
 and discouraged — `[]` and the rule itself say those directly, and
 `['repeat', 1, 1, r]` wraps `r` in a one-element list a transformer on `r`
 will not see. Exact counts of two or more are the ordinary case.
@@ -112,53 +103,50 @@ row that is a function of the form alone.
 |---|---|
 | `['const', c]` | `AST<c>` |
 | `['range', a, b]` | `number` — one symbol leaf |
-| `['repeat', min, max, r]` | `Repeat<min, max, AST<r>>`, below |
+| `['repeat', min, max, r]` | `Array<min, max, AST<r>>`, below |
 | `number` | `number` — the symbol itself |
 | `string` | `readonly number[]` — see below |
 | `Sequence` | one entry per element |
 | `Variant` | the branch taken, tagged by its key |
 
-```ts
-type Repeat<Min, Max, T> =
-    // A widened bound says nothing, and no branch may build a tuple longer
-    // than the cap: `2 extends number` is true, and `Tuple<1000, T>` is
-    // TS2589. The longest tuple a branch builds is `Max` when finite, `Min`
-    // when unbounded, so guard on that — not on the span, and not on `Min`
-    // alone.
-      number extends Min or number extends Max              ? readonly T[]
-    : (Max extends null ? Min : Max) > Cap                  ? readonly T[]
-    : Max extends null              ? (Min extends 0 ? readonly T[]
-                                                     : readonly [...Tuple<Min, T>, ...readonly T[]])
-    : [Min, Max] extends [Max, Min] ? Tuple<Min, T>   // both literal and equal
-    : Union of Tuple<n, T> for Min <= n <= Max
-```
+**This type is not ebnf's to write.** It is `Array<Min, Max, T>` in
+`fjs/types/array/types.ts`: `Tuple<Min, T>` followed by an optional-element
+tail up to `Max`, with `number extends Max ? readonly T[]` as the tail. A
+required prefix and an optional remainder — one tuple, not a union of them:
+
+| bounds | AST |
+|---|---|
+| `0, 1` | `readonly [T?]` |
+| `1, 3` | `readonly [T, T?, T?]` |
+| `4, 4` | `readonly [T, T, T, T]` |
+| `1, Infinity` | `readonly [T, ...readonly T[]]` |
+| `0, Infinity` | `readonly T[]` |
+| `2, n` (widened) | `readonly [T, T, ...readonly T[]]` |
+
+The last row is the point of using plain `number`: an unbounded `max` and one
+TypeScript merely cannot see are the same case, and both are answered
+soundly, because the *minimum* is carried by `Min` alone. There is nothing to
+detect, so nothing to spell.
 
 Every repetition is a flat array whatever its bounds, `.length` discriminates,
 and a consumer that folds one folds all. That is the substance of one form
-rather than four. An optional is a 0-or-1 list rather than a tagged
+rather than four. An optional is `readonly [T?]` rather than a tagged
 `some`/`none` because the tagged form made it a *choice*, in a different
 family from the rest; an author wanting named branches writes the plain
 `Variant`.
 
-One caveat for the implementation. **The cap is on the longest tuple a
-branch would build**, which is the finite `Max`, or `Min` when `Max` is
-`null` — not the span and not `Min` alone, either of which lets
-`repeat(Cap, Cap + 1)` through to a union that builds `Tuple<Cap + 1, T>`.
-`Tuple` in `fjs/types/array/types.ts:22` recurses linearly, so anything past
-the cap is TS2589 and degrades to `readonly T[]`. `Cap` is a named constant
-in `ebnf/types.ts`, not a value each call site picks — it decides whether a
-public AST type is a tuple union or an array, so implementers must agree on
-it. Start at **8**: it covers every bounded span a
-real grammar writes (`times(4)(hex)` is the largest in the tree) and leaves
-ample headroom under the instantiation limit. The proofs pin `Cap` and
-`Cap + 1`.
+The tail recurses linearly in `Max`, so a large finite `Max` is TS2589 —
+measured at `1000`, clean at `900`. No grammar approaches that (`times(4)(hex)`
+is the largest in the tree), so a `Cap` is a guard against absurdity, not a
+design constraint. Fix one in `fjs/types/array` with the type, and pin it and
+`Cap + 1` in that module's proof.
 
 **A string's AST is `readonly number[]`, not a tuple.** The lowering emits one
 terminal per code point, but TypeScript's template-literal recursion splits by
 UTF-16 code unit, so a length-accurate `AST<'😀'>` would need a
 surrogate-aware type algorithm. This design declines to write one: the array
-is sound over every string — each element is a symbol — and loses only arity,
-the same trade the `Cap` fallback already makes. A grammar that wants the
+is sound over every string — each element is a symbol — and loses only
+arity. A grammar that wants the
 arity in its type spells the symbols as a `Sequence` of numbers.
 
 #### Constructors are the API
@@ -171,8 +159,8 @@ primitive:
 export const repeat = (min, max) => rule => () => ['repeat', min, max, rule]
 
 export const option      = repeat(0, 1)
-export const repeat0Plus = repeat(0, null)
-export const repeat1Plus = repeat(1, null)
+export const repeat0Plus = repeat(0, Infinity)
+export const repeat1Plus = repeat(1, Infinity)
 export const times       = n => repeat(n, n)
 ```
 
@@ -313,8 +301,12 @@ three forms. It needs a data layer that can represent it.
       first — the tables cannot be finished without it, and 4 and 7 depend on
       it. Then 1, 3 and 6 gate the lowering; 2 is grammar-bucket's; 9 gates
       the alphabet adapter and so the whole port.
-- [ ] `types.ts`: the union, `Max`, the `Repeat0Plus` / `Repeat1Plus` /
-      `Join*` types, and `AST<Rule>` from the tables, with a proof per row.
+- [ ] `fjs/types/array/types.ts` **first**, and separately: `Array<Min, Max,
+      T>` — `Tuple<Min, T>` plus an optional-element tail — with its own
+      proof, including the widened-`Max` row and the cap. It is a general
+      type, not a grammar one, and ebnf only instantiates it.
+- [ ] `types.ts`: the union, the `Join*` types, and `AST<Rule>` from the
+      tables, with a proof per row.
 - [ ] `module.f.mjs`: the `repeat(min, max)` constructor with `option` /
       `repeat0Plus` / `repeat1Plus` / `times` as partial applications, plus
       `join0Plus`, `join1Plus`, `commaJoin0Plus` and `notOf`; and the lowering
@@ -325,7 +317,8 @@ three forms. It needs a data layer that can represent it.
       it, never a re-export.
 - [ ] `rtti/`: the rule-info map, without `repeatItem`.
 - [ ] Proofs: every constructor; every `Info` form written directly; each
-      bound shape and the degenerate `0..0` and `1..1`; string lowering,
+      bound shape, `Infinity` among them, and the degenerate `0..0` and
+      `1..1`; string lowering,
       where a one-code-point string and an astral character each emit exactly
       one terminal — a lowering proof, since the AST *type* of a string is
       `readonly number[]`; every lowering error; and the `descentEquivalence`
