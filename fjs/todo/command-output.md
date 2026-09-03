@@ -157,6 +157,10 @@ postponed rather than missed.
   The table selects the stream transports by `isTTY`, which cannot tell the two
   apart, so either framing is its own axis or the two are one cell whose
   renderer must satisfy the stricter reader.
+- **Is a service response output?** `fjs web` answers HTTP requests, and the
+  transport row has no cell for that. Dismissing it as an internal effect is
+  hard to hold while `fjs mcp`'s JSON-RPC counts, so either the row gains a
+  response transport or the design excludes service responses and says why.
 - **Is event granularity separate from verbosity?** The row conflates how many
   events a renderer *consumes* with how much it *emits* per event: a dynamic
   current-test display consumes the start event while emitting nothing lasting
@@ -186,9 +190,17 @@ postponed rather than missed.
       today** — its fields, records, ordering and stream behaviour. Task 2
       covers only what is designed and not yet emitted, so without this the
       shape could be designed complete and still regress `BrowserTestReport`
-      or a command's diagnostics.
-- [ ] Sweep the `todo/` directory of every producer task 1 found — a sweep
-      rather than a list here, which goes stale by construction. The rule:
+      or a command's diagnostics. Bounded at a **delegation boundary**: `fjs
+      run` imports a caller-named module and calls its `main`, so what that
+      program writes is unknowable here and is not this design's. What is, is
+      the dispatcher's own output — the two `errorExit` diagnostics it owns.
+- [ ] Sweep the `todo/` directory of every producer task 1 found, **and the
+      cross-cutting `todo/` above them** — a producer's issue need not sit in
+      its directory, and an issue that creates a *new* producer cannot:
+      [fjs-nanvm-integration](../../todo/fjs-nanvm-integration.md) adds a `.rs`
+      target to `fjs compile` and a harness printing JSON, from the root.
+      A sweep rather than a list here, which goes stale by construction. The
+      rule:
       *every unresolved issue that **constrains or leaves open** what a
       destination emits is an input to the shape.*
       - *Constrains* covers a field, a status, a tally, an annotation, a record
