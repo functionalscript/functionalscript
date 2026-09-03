@@ -273,7 +273,9 @@ do not read the `some`/`none` tags, but `descent/proof.f.mjs:288-296` and
 **5. The range-set helpers have an input side.** `remove(range(…), set(…))` in
 the JSON grammar now takes EBNF forms, so the front-end helpers accept them as
 well as produce them. The rule-level complement needs its own name (`notOf`),
-never a second `not`.
+never a second `not`. **Answered by [ebnf-range-set](./ebnf-range-set.md):**
+the helpers take and return range-set *values*, the `'range'` row becomes
+`['set', …]`, and `notOf` is unnecessary.
 
 **6. Reduction at the functional level defeats memoization** — a thunk created
 during conversion has no `.name` and no shared identity.
@@ -358,6 +360,9 @@ three forms. It needs a data layer that can represent it.
   adapter Problem 9 constrains.
 - [terminal-range-shared-type](./terminal-range-shared-type.md) — the packed
   `TerminalRange` becomes data-layer only here.
+- [ebnf-range-set](./ebnf-range-set.md) — replaces the `['range', a, b]`
+  row with a range-set terminal `['set', …]`; answers Problem 5 and most of
+  Problem 9, and shares Problem 1's IR carrier decision.
 - [rule-visitor](./rule-visitor.md) — **depends on Problem 1's answer.** The
   visitor discriminates the data `Rule`, and if the data layer grows a
   bounded repeat that union changes, so implementing the visitor against
