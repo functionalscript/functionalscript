@@ -16,20 +16,21 @@ export type Rule =
     | Thunk
 
 export type Thunk =
-    | ConstInfo
-    | RangeInfo
-    | RepeatInfo
+    | ConstInfo<DataRule>
+    | RangeInfo<number, number>
+    | Info<['repeat', number, number, Rule]>
 
 export type Info<T extends readonly[string, ...readonly unknown[]]> =
     () => T
 
-export type ConstInfo =
-    Info<['const', DataRule]>
+export type ConstInfo<R extends DataRule> =
+    Info<['const', R]>
 
-export type RangeInfo =
-    Info<['range', number, number]>
+export type RangeInfo<Min extends number, Max extends number> =
+    Info<['range', Min, Max]>
 
-export type RepeatInfo =
-    Info<['repeat', number, number, Rule]>
+export type RepeatInfo<Min extends number, Max extends number, R extends Rule> =
+    Info<['repeat', Min, Max, R]>
 
-export type Infinity = typeof Infinity
+export type Infinity =
+    typeof Infinity

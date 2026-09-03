@@ -1,5 +1,5 @@
 /**
- * @import { Info, RangeInfo, Rule, Infinity } from './types.ts'
+ * @import { Info, RangeInfo, Rule, Infinity, RepeatInfo } from './types.ts'
  */
 
 import { assert } from "../asserts/module.f.mjs"
@@ -7,14 +7,16 @@ import { stringToCodePointList } from "../text/utf16/module.f.mjs"
 import { isTuple } from "../types/array/module.f.mjs"
 import { toArray } from "../types/list/module.f.mjs"
 
-const isTuple2 = isTuple(2)
+const isTuple2 =
+    isTuple(2)
 
 /**
  * Encodes a two-symbol string into a terminal range.
  *
  * @throws If `ab` does not contain exactly two unicode code points.
  *
- * @type {(ab: string) => RangeInfo}
+ * @type {(ab: string) =>
+ *  RangeInfo<number, number>}
  */
 export const range = ab => {
     const a = toArray(stringToCodePointList(ab))
@@ -24,7 +26,7 @@ export const range = ab => {
 
 /**
  * @type {<const A extends number, const B extends number>(a: A, b: B) =>
- *  RangeInfo}
+ *  RangeInfo<A, B>}
  */
 export const rangeEncode = (a, b) => (
     assert(a <= b),
@@ -34,9 +36,11 @@ export const rangeEncode = (a, b) => (
 /**
  * @type {<const Min extends number, const Max extends number>(min: Min, max: Max) =>
  *  <const R extends Rule>(rule: R) =>
- *  Info<['repeat', Min, Max, R]>}
+ *  RepeatInfo<Min, Max, R>}
  */
-export const repeat = (min, max) => rule => () => ['repeat', min, max, rule]
+export const repeat =
+    (min, max) => rule => () => ['repeat', min, max, rule]
 
-/** @type {<const R extends Rule>(rule: R) => Info<['repeat', 0, Infinity, R]>} */
-export const repeat0Plus = repeat(0, Infinity)
+/** @type {<const R extends Rule>(rule: R) => RepeatInfo<0, Infinity, R>} */
+export const repeat0Plus =
+    repeat(0, Infinity)
