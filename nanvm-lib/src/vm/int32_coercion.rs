@@ -3,10 +3,12 @@
 /// the latter not yet implemented — no operator needs it until `>>>`):
 /// non-finite (`NaN`, `±Infinity`) becomes `+0`, otherwise the number is
 /// truncated toward zero and reduced to its non-negative remainder modulo
-/// `2^32`. `%` on `f64` (unlike integer `%`) is exact — no precision is lost
-/// reducing even a huge truncated magnitude down to 32 bits — so the only
-/// rounding in this whole pipeline already happened when `argument` first
-/// became an `f64` via `ToNumber`.
+/// `2^32`. Unlike integer `%`, `f64`'s `%` (IEEE 754 remainder, C's `fmod`)
+/// never rounds: for any two finite operands the true mathematical
+/// remainder is itself exactly representable in the same format, so this
+/// step introduces no error of its own even when `number.trunc()` is a huge
+/// magnitude — whatever rounding happened is already baked into `number`
+/// from when it became an `f64` via `ToNumber`, upstream of this function.
 fn modulo_2_32(number: f64) -> u32 {
     if !number.is_finite() {
         return 0;
