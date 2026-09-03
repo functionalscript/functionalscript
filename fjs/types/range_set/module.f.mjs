@@ -1,13 +1,11 @@
 /**
- * A set of integers, as a canonical list of half-open boundaries. See
+ * A set of numbers, as a canonical list of half-open boundaries. See
  * `./types.ts` for the `RangeSet` value and what its boundaries mean.
  *
  * @module
  *
  * @import { Reduce } from '../function/operator/types.ts'
- * @import { Range } from '../range/types.ts'
- * @import { RangeMapArray } from '../range_map/types.ts'
- * @import { RangeSet, _And, _EofOfFirst, _EofOfList, _Not, _Or } from './types.ts'
+ * @import { RangeSet } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
@@ -19,34 +17,39 @@ import { merge } from '../sorted_list/module.f.mjs'
 /**
  * The empty set, the identity of `union`.
  *
- * @type {RangeSet<false>}
+ * @type {RangeSet}
  */
 export const empty = []
 
 /**
- * Every integer: the identity of `intersection`, and the set `complement`
+ * Every number: the identity of `intersection`, and the set `complement`
  * complements against.
  *
- * @type {RangeSet<true>}
+ * @type {RangeSet}
  */
 export const full = [-Infinity]
 
 /**
- * Whether `s` is a valid set: strictly increasing safe integers, save for a
- * leading `-Infinity`, which is the universe's own bottom rather than a symbol.
+ * A boundary is any number that spells a run exactly once. `NaN` is out
+ * because it has no order, `Infinity` because the run above it is empty — so
+ * `[Infinity]` would be a second spelling of `[]` — and `-0` because it is a
+ * second spelling of `0`. `-Infinity` is a boundary: it opens a set at the
+ * bottom of the universe.
  *
- * Canonicity is what asks for the integers, not tidiness: symbols are
- * integers, so `[0.5]` and `[1]` are the same set, and a trailing `Infinity`
- * is a second spelling of the set without it.
+ * @type {(v: number) => boolean}
+ */
+const isBoundary = v => (Number.isFinite(v) || v === -Infinity) && !Object.is(v, -0)
+
+/**
+ * Whether `s` is a valid set: boundaries, strictly increasing. Being strictly
+ * increasing is also what keeps `-Infinity` in the first position, and what
+ * rejects a repeated or descending boundary.
  *
  * @type {(s: readonly number[]) => boolean}
  */
-export const isRangeSet = s => s.every((v, i) =>
-    i === 0
-        ? v === -Infinity || Number.isSafeInteger(v)
-        : Number.isSafeInteger(v) && v > s[i - 1])
+export const isRangeSet = s => s.every((v, i) => isBoundary(v) && (i === 0 || v > s[i - 1]))
 
-/** @type {(s: readonly number[]) => readonly number[]} */
+/** @type {(s: readonly number[]) => RangeSet} */
 const validated = s => {
     assert(isRangeSet(s), s)
     return s
@@ -54,25 +57,29 @@ const validated = s => {
 
 /**
  * The one door a set of boundaries comes through. It panics on a list that is
- * not one: the algebra below reads every set as canonical, so an unsorted or
- * non-integer list has no meaning to give it, and the mistake belongs to
- * whoever wrote the boundaries down.
+ * not one: the algebra below reads every set as canonical, so an unsorted list
+ * or a second spelling of a number has no meaning to give it, and the mistake
+ * belongs to whoever wrote the boundaries down.
  *
- * The `Eof` of the result is read off the boundaries as written, which is why
- * the parameter is `const`: `rangeSet([-1, 0])` is `true`, an ordinary set is
- * `false`, and a list the caller built elsewhere is unknown.
- *
- * @type {<const S extends readonly number[]>(s: S) => RangeSet<_EofOfList<S>>}
+ * @type {(s: readonly number[]) => RangeSet}
  */
 export const rangeSet = validated
 
 /**
- * The closed range `a..b`, which is the two boundaries `[a, b + 1]`. An empty
- * or reversed range is not a set with no members but a mistake, and panics.
+ * One run, `a <= x < b` — `rangeSet` at the shape most sets are written in,
+ * and the name that says which end is exclusive.
  *
- * @type {<const R extends Range>(r: R) => RangeSet<_EofOfFirst<R[0]>>}
+ * Every boundary is exclusive above, so a caller whose symbols are integers
+ * writes the closed range `a..b` as `fromRange([a, b + 1])`: that `+ 1` is a
+ * fact about integers, and it belongs where the symbols are known rather than
+ * here, where boundaries are only ever compared.
+ *
+ * An empty or reversed run is not a set with no members but a mistake, and
+ * panics.
+ *
+ * @type {(r: readonly [number, number]) => RangeSet}
  */
-export const fromRange = ([a, b]) => validated([a, b + 1])
+export const fromRange = validated
 
 /**
  * Membership: the parity of the number of boundaries at or below `v`, found by
@@ -86,14 +93,14 @@ export const contains = s => {
 }
 
 /**
- * The complement against every integer — one toggle at the bottom of the
+ * The complement against every number — one toggle at the bottom of the
  * universe.
  *
  * That universe is never a grammar's alphabet: an alphabet-scoped complement is
  * `difference` against that alphabet's own set, which is the alphabet's to own
  * rather than this module's.
  *
- * @type {<A extends boolean>(s: RangeSet<A>) => RangeSet<_Not<A>>}
+ * @type {(s: RangeSet) => RangeSet}
  */
 export const complement = s => s[0] === -Infinity ? s.slice(1) : [-Infinity, ...s]
 
@@ -121,7 +128,7 @@ const mergeMember = op => a => b => {
  * valid set is off, and a result that is on there has no first boundary to say
  * so.
  *
- * @type {(op: Reduce<boolean>) => (a: RangeSet) => (b: RangeSet) => readonly number[]}
+ * @type {(op: Reduce<boolean>) => (a: RangeSet) => (b: RangeSet) => RangeSet}
  */
 const mergeWith = op => a => b => {
     const member = mergeMember(op)(a)(b)
@@ -129,32 +136,11 @@ const mergeWith = op => a => b => {
         .filter((v, i, all) => member(v) !== (i !== 0 && member(all[i - 1])))
 }
 
-/** @type {<A extends boolean>(a: RangeSet<A>) => <B extends boolean>(b: RangeSet<B>) => RangeSet<_Or<A, B>>} */
+/** @type {(a: RangeSet) => (b: RangeSet) => RangeSet} */
 export const union = mergeWith(a => b => a || b)
 
-/** @type {<A extends boolean>(a: RangeSet<A>) => <B extends boolean>(b: RangeSet<B>) => RangeSet<_And<A, B>>} */
+/** @type {(a: RangeSet) => (b: RangeSet) => RangeSet} */
 export const intersection = mergeWith(a => b => a && b)
 
-/** @type {<A extends boolean>(a: RangeSet<A>) => <B extends boolean>(b: RangeSet<B>) => RangeSet<_And<A, _Not<B>>>} */
+/** @type {(a: RangeSet) => (b: RangeSet) => RangeSet} */
 export const difference = mergeWith(a => b => a && !b)
-
-/**
- * The same set as a `range_map` of `boolean`, which is what a dispatch map is
- * built from. One entry per boundary, carrying whether the run below it is in
- * the set.
- *
- * A `range_map` entry carries an *inclusive* upper bound, and both ends of the
- * universe are one: a set that runs to `Infinity` closes with that bound, which
- * `get` compares against like any other, and a set that opens at `-Infinity`
- * has no run below its first boundary to write an entry for. So no alphabet
- * maximum is needed here — an alphabet's bounds are its consumer's to impose,
- * by intersecting with the set that spells them.
- *
- * @type {(s: RangeSet) => RangeMapArray<boolean>}
- */
-export const toRangeMap = s => {
-    /** @type {RangeMapArray<boolean>} */
-    const entries = s.map((v, i) => [i % 2 === 1, v - 1])
-    const runs = s[0] === -Infinity ? entries.slice(1) : entries
-    return s.length % 2 === 0 ? runs : [...runs, [true, Infinity]]
-}

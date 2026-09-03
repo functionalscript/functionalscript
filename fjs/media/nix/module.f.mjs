@@ -9,6 +9,8 @@
  * @module
  *
  * @import { List as ChunkList } from '../../types/list/types.ts'
+ * @import { Range } from '../../types/range/types.ts'
+ * @import { RangeSet } from '../../types/range_set/types.ts'
  * @import { Expression, _AttributePath, _Binding, _Reference, _AttributeSet, _NixList, _Application, _OpenSetPattern, _Lambda, _Let, _Chunks } from './types.ts'
  */
 
@@ -37,13 +39,21 @@ const reservedWords = /** @type {const} */ ([
 
 const isReservedWord = includes(reservedWords)
 
+/**
+ * The set of an inclusive ASCII range: `text/ascii` spells its ranges by their
+ * last character, and a range set's upper boundary is exclusive.
+ *
+ * @type {(r: Range) => RangeSet}
+ */
+const asciiSet = ([a, b]) => fromRange([a, b + 1])
+
 const letters = union
-    (fromRange(latinCapitalLetterRange))
-    (fromRange(latinSmallLetterRange))
+    (asciiSet(latinCapitalLetterRange))
+    (asciiSet(latinSmallLetterRange))
 
 const identifierInitial = union
     (letters)
-    (fromRange(range('_')))
+    (asciiSet(range('_')))
 
 const containsIdentifierInitial = contains(identifierInitial)
 
@@ -54,10 +64,10 @@ const isIdentifierInitial = character =>
 const identifierTrailing = union
     (union
         (identifierInitial)
-        (fromRange(digitRange)))
+        (asciiSet(digitRange)))
     (union
-        (fromRange(range("'")))
-        (fromRange(range('-'))))
+        (asciiSet(range("'")))
+        (asciiSet(range('-'))))
 
 const containsIdentifierTrailing = contains(identifierTrailing)
 
