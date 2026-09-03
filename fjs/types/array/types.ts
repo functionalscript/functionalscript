@@ -34,7 +34,16 @@ type _XMax = FixedArray<998, true>
 
 type _Option<X extends readonly unknown[]> = { readonly [K in keyof X]?: X[K] }
 
-export type OptionArray<N extends number, T> = _Option<FixedArray<N, T>>
+/**
+ * Up to `N` elements, each optional. An unknown `N` removes the ceiling — it
+ * does not admit an absent element in an array that has no fixed length, which
+ * is what mapping `_Option` over `readonly T[]` would say.
+ */
+export type OptionArray<N extends number, T> =
+    number extends N ? readonly T[] : _Option<FixedArray<N, T>>
+
+type _O2 = Assert<Equal<OptionArray<2, true>, readonly [true?, true?]>>
+type _O_ = Assert<Equal<OptionArray<number, true>, readonly true[]>>
 
 type _ArrayFrom<
     Max extends number,

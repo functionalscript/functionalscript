@@ -56,13 +56,22 @@ type _Single<T> =
  */
 type _Data<R> = R extends () => infer U ? _Data<U> : R
 
+/**
+ * The keys of `U` that name a branch at all. `variant` in
+ * `../data/module.f.mjs` reads branches with `Object.entries`, which never
+ * yields a symbol, so a symbol-keyed property is invisible to the grammar and
+ * counts towards nothing here — neither a branch of a variant nor a branch that
+ * would stop a repetition from being one.
+ */
+type _Keys<U> = Extract<keyof U, string | number>
+
 /** The keys of `U` whose branch is the empty sequence. */
 type _NoneKeys<U> =
-    { [K in keyof U]: _Data<U[K]> extends readonly [] ? K : never }[keyof U]
+    { [K in _Keys<U>]: _Data<U[K]> extends readonly [] ? K : never }[_Keys<U>]
 
 /** The keys of `U` whose branch is an item followed by `R` itself. */
 type _StepKeys<U, R> =
-    { [K in keyof U]: _Data<U[K]> extends readonly [Rule, R] ? K : never }[keyof U]
+    { [K in _Keys<U>]: _Data<U[K]> extends readonly [Rule, R] ? K : never }[_Keys<U>]
 
 /**
  * The item of `R` when `R` is a repetition, wrapped in a one-tuple, and `false`
@@ -92,7 +101,7 @@ type _RepeatItem<R> =
     R extends () => infer U
         ? _Single<_NoneKeys<U>> extends true
             ? _Single<_StepKeys<U, R>> extends true
-                ? Equal<keyof U, _NoneKeys<U> | _StepKeys<U, R>> extends true
+                ? Equal<_Keys<U>, _NoneKeys<U> | _StepKeys<U, R>> extends true
                     ? _Data<U[_StepKeys<U, R>]> extends readonly [infer I extends Rule, R]
                         ? readonly [I]
                         : false
@@ -115,19 +124,11 @@ type _RepeatItem<R> =
  *
  * `R[K]` of an optional key carries `undefined`, which `_FromAny` drops: a key
  * a grammar author wrote as optional still names a branch a match can select.
- * A symbol key names no branch at all, and is dropped for that reason.
+ * A symbol key names no branch at all — see {@link _Keys} — and is dropped for
+ * that reason, the line `Branch` also draws in `../matcher/types.ts`.
  */
 type _Branches<R extends Variant, K> =
-    K extends keyof R
-        // A symbol-keyed property satisfies `Variant` structurally, but `variant`
-        // in `../data/module.f.mjs` reads branches with `Object.entries`, which
-        // drops symbols — so no such branch reaches a parse, and advertising one
-        // would describe a match that cannot happen. `Branch` in
-        // `../matcher/types.ts` draws the same line.
-        ? K extends string | number
-            ? { readonly [_ in K]: _FromAny<R[K]> }
-            : never
-        : never
+    K extends _Keys<R> ? { readonly [_ in K]: _FromAny<R[K]> } : never
 
 export type AstRule<R extends Rule> =
     // A rule left at one of the BNF API's own types — `@type {Rule}` and
@@ -158,7 +159,7 @@ type _AstOne<R extends Rule> =
     // A variant is a choice, so its AST is the union of what each branch
     // produces, never the product of all of them: a match selects exactly one,
     // the same contract `Branch` states in `../matcher/types.ts`.
-    R extends Variant ? _Branches<R, keyof R> :
+    R extends Variant ? _Branches<R, _Keys<R>> :
     never
 
 type _0 = Assert<Equal<AstRule<0>, number>>
@@ -291,3 +292,12 @@ type _26 = Assert<Equal<AstRule<_LazyBranch>, readonly number[]>>
 declare const _sym: unique symbol
 type _Symbolic = { readonly [_sym]: 0, readonly a: 1 }
 type _27 = Assert<Equal<AstRule<_Symbolic>, { readonly a: number }>>
+
+// A symbol beside a repetition's two branches is invisible to `Object.entries`,
+// so it does not make the rule a three-branch variant; `repeatItem` returns `0`.
+type _SymbolBeside = () => {
+    readonly none: readonly[],
+    readonly some: readonly[0, _SymbolBeside],
+    readonly [_sym]: 1,
+}
+type _28 = Assert<Equal<AstRule<_SymbolBeside>, readonly number[]>>
