@@ -109,6 +109,15 @@ exists) are dependencies of the front end, not parts of it.
    port that proves the feature is still wanted, and a feature no surviving
    consumer needs is never ported at all.
 
+   **That is garbage collection, and it is the point.** Porting only what a
+   consumer reaches is a reachability walk over the old module with the
+   consumers as roots: whatever no port ever references is unreachable and
+   is deleted with `bnf/` at stage 7, without anyone having to decide to
+   drop it. Nothing needs a deprecation notice, a usage survey or a
+   "still needed?" review — if it was needed, a port pulled it across. The
+   retire bins in the triage below are the cases already known to be
+   unreachable; the walk finds the rest.
+
    **Moving, copying or porting a feature when it is needed is meant to be
    routine, not an event.** A feature is a function and its proof, and the
    two modules keep the same shape (front end, `data/`, `matcher/`, `ll1/`,
@@ -150,7 +159,8 @@ they hold:
 4. Keep the old module open for use and improvement; do not block anyone. A
    feature added to the old module is ported to the new one when a consumer
    that needs it moves, not before — and keep the two modules similar enough
-   in shape that such a port is routine.
+   in shape that such a port is routine. What no consumer's port reaches is
+   garbage, collected when the old module is retired.
 5. Move the consumers one by one, porting with each the features it needs.
 6. Retire the old module.
 
