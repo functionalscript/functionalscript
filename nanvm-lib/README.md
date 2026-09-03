@@ -55,7 +55,7 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 |----------|---------------------|----------|-------|
 | `&&`     | Logical AND         | [x]      | [`any/and.rs`](src/vm/any/and.rs) — `Any::logical_and()` method (no `core::ops` trait fits: Rust's own `&&` takes `bool` and short-circuits evaluation) |
 | `\|\|`   | Logical OR          | [x]      | [`any/or.rs`](src/vm/any/or.rs) — `Any::logical_or()` method, same reason |
-| `??`     | Nullish coalescing  | [x]      | [`any/nullish_coalescing.rs`](src/vm/any/nullish_coalescing.rs) — `Any::nullish_coalescing()` method, checked via the existing `Nullish` type (`Nullish::try_from`), not `ToBoolean` |
+| `??`     | Nullish coalescing  | [x]      | [`any/nullish_coalescing.rs`](src/vm/any/nullish_coalescing.rs) — `Any::nullish_coalescing()` method, checked by matching on `Unpacked::Nullish` directly (allocation-free), not `ToBoolean` |
 
 ### Other
 

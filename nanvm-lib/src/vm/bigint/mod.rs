@@ -92,7 +92,10 @@ fn sub_words_assign(a: &mut Vec<u64>, b: &[u64]) {
 pub struct BigInt<A: IVm>(A::InternalBigInt);
 
 impl<A: IVm> BigInt<A> {
-    fn is_zero(&self) -> bool {
+    /// `pub(crate)`, not private: `BooleanCoercion` (`vm/boolean_coercion.rs`)
+    /// uses this to test `0n` without constructing and comparing against a
+    /// throwaway `BigInt::default()`.
+    pub(crate) fn is_zero(&self) -> bool {
         self.0.items().is_empty()
     }
 
