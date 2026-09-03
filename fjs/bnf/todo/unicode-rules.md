@@ -3,14 +3,11 @@
 **Priority:** P3
 **Status:** blocked
 **Blocked by:**
-- [grammar-bucket](../../todo/grammar-bucket.md) stage 1, which creates
-  `fjs/grammar/terminal/` and moves `TerminalRange`, `rangeEncode` and
-  `rangeDecode` into it. The adapters this issue creates are built on those,
-  and their final paths (`fjs/grammar/unicode/`, `fjs/grammar/byte/`) only
-  exist once the bucket does. This issue is that plan's stage 2.
-- [ebnf-front-end](./ebnf-front-end.md)'s Problem 9 — one adapter must serve
-  both front ends, which want different representations. It is a design
-  answer, actionable now, but the adapter's public shape follows from it.
+- [ebnf-migration](../../todo/ebnf-migration.md)'s `fjs/ebnf/terminal/`,
+  which carries `TerminalRange`, `rangeEncode` and `rangeDecode`. The
+  adapters this issue creates are built on those, and their final paths
+  (`fjs/ebnf/unicode/`, `fjs/ebnf/byte/`) only exist once `fjs/ebnf/` does.
+  This issue is that plan's `unicode/` piece.
 
 ### Problem
 
@@ -32,29 +29,37 @@ serializable/core BNF conversion path itself currently has Unicode semantics.
 
 ### Proposal
 
-Split alphabet-specific rule construction from the generic BNF module:
+Split alphabet-specific rule construction from the generic grammar module —
+in `fjs/ebnf/`, where the split is built in from the start. `fjs/bnf/` is
+not changed by this issue: it keeps its text helpers and its `string` rule
+case until it is deleted, and the grammars written against it keep using
+them ([ebnf-migration](../../todo/ebnf-migration.md), principle 4).
 
-- `fjs/bnf/module.f.mjs` defines generic symbols/ranges, rule types, and grammar
-  combinators. It has no dependency on text/Unicode or byte-stream modules and
-  does not give JavaScript `string` or byte-container values terminal meaning.
-- `fjs/grammar/unicode/module.f.mjs` contains helpers for constructing generic
+- `fjs/ebnf/module.f.mjs` defines generic symbols, rule types and grammar
+  combinators. It has no dependency on text/Unicode or byte-stream modules.
+  A JavaScript `string` in the EBNF `Rule` union means one terminal per code
+  point — [ebnf-front-end](./ebnf-front-end.md) settles that — and the
+  lowering in `fjs/ebnf/data/` is where that meaning is applied; every
+  *other* text interpretation lives in the adapter.
+- `fjs/ebnf/unicode/module.f.mjs` contains helpers for constructing generic
   BNF rules from Unicode code points and JavaScript strings.
-- `fjs/grammar/byte/module.f.mjs` contains helpers for constructing generic BNF
+- `fjs/ebnf/byte/module.f.mjs` contains helpers for constructing generic BNF
   rules over binary byte streams, including the byte range `0..255` and
   convenient byte sequence/set/range construction where useful.
 
 Those are **final** paths, not `fjs/bnf/unicode/` and `fjs/bnf/byte/` as this
-issue first proposed. The adapters are siblings of the front ends rather than
-parts of one — both the classical and the EBNF front end depend on them — so
-they belong in the grammar bucket
-([grammar-bucket](../../todo/grammar-bucket.md)). Creating them under
-`fjs/bnf/` first would put a public API at an intermediate path and force a
-second breaking move, which is what that plan's one-hop rule forbids. This
-issue is its stage 2, and depends on stage 1 having extracted the neutral
-codec into `fjs/grammar/terminal/`, which is where these adapters get
-`rangeEncode` / `rangeDecode` and the `TerminalRange` type.
+issue first proposed. The adapters are dependencies of the EBNF front end
+rather than parts of it, and they serve that front end only, in its
+representation ([ebnf-migration](../../todo/ebnf-migration.md)). Creating
+them under `fjs/bnf/` would break that plan's dependency direction — `ebnf`
+never imports `bnf` — the moment `fjs/ebnf/` used them. This issue is its
+`unicode/` piece, and depends on the neutral codec having been copied into
+`fjs/ebnf/terminal/`, which is where these adapters get `rangeEncode` /
+`rangeDecode` and the `TerminalRange` type. The classical front end keeps its
+own text helpers until it is deleted.
 
-Move Unicode-specific APIs such as these to `fjs/grammar/unicode/module.f.mjs`:
+Unicode-specific APIs such as these — today's `fjs/bnf/module.f.mjs`
+exports, re-spelled in EBNF forms — go to `fjs/ebnf/unicode/module.f.mjs`:
 
 - `unicodeRange`
 - `unicodeMax`
@@ -65,9 +70,9 @@ Move Unicode-specific APIs such as these to `fjs/grammar/unicode/module.f.mjs`:
 - `notSet`
 
 The exact list should follow the semantic boundary: if an API needs to interpret
-text as Unicode code points, it belongs in `fjs/grammar/unicode`. Likewise,
+text as Unicode code points, it belongs in `fjs/ebnf/unicode`. Likewise,
 helpers that interpret binary data as byte symbols belong in
-`fjs/grammar/byte` rather than core BNF.
+`fjs/ebnf/byte` rather than core BNF.
 
 Remove `string` from the *functional* `DataRule` / `Rule` representation in
 `fjs/bnf/types.ts`. Unicode helpers should translate strings into ordinary
@@ -80,11 +85,11 @@ rule to repeat.
 Keep generic combinators generic. If an existing combinator currently embeds
 Unicode syntax in its API (for example `commaJoin0Plus` accepting `'[]'` and
 constructing `','` as a string rule), change its core form to accept rules or
-symbols. A Unicode convenience wrapper may live in `fjs/grammar/unicode` if useful.
+symbols. A Unicode convenience wrapper may live in `fjs/ebnf/unicode` if useful.
 
 EOF is a generic symbol convention rather than an alphabet-specific helper, so
-`fjs/grammar/terminal/` owns it — `EOF = -1`, outside the non-negative
-physical-symbol domain — not the front end stage 1 moves it out of. Unicode,
+`fjs/ebnf/terminal/` owns it — `EOF = -1`, outside the non-negative
+physical-symbol domain — not the front end it is copied out of. Unicode,
 byte, token, and future alphabet adapters therefore produce only ordinary
 non-negative symbols and never need to reserve one value from their own
 alphabet. After the bigint migration the full uint256 range `0 .. 2^256 - 1`
@@ -101,7 +106,7 @@ This split changes the public design assumptions used by older open TODOs:
   owns the two grammars this task ports — `fjs/bnf/lib/json` and
   `fjs/bnf/lib/datajs` — and its "Unicode migration requirements" section is
   written for whoever makes that port. They must import Unicode-specific
-  construction from `fjs/grammar/unicode/module.f.mjs` and lower text literals to
+  construction from `fjs/ebnf/unicode/module.f.mjs` and lower text literals to
   generic rules before they reach core BNF. DataJS's `'["__proto__"]'` key needs care: `str` lowers
   it to a contiguous sequence of terminal ranges, which is what it must become —
   the parser consumes code points, so a single terminal could not match it. It
@@ -139,7 +144,7 @@ This split changes the public design assumptions used by older open TODOs:
   point.
 - [`fjs/bnf/todo/recognizer-backend.md`](./recognizer-backend.md) is blocked by
   this task. It previously assigned byte/hex/byte-range helper creation to the
-  recognizer work; those helpers now belong exclusively to `fjs/grammar/byte`, and
+  recognizer work; those helpers now belong exclusively to `fjs/ebnf/byte`, and
   recognizer/DFA backends consume the generic rules produced by that adapter.
 - [`fjs/bnf/todo/proof-recognizer-and-fixtures.md`](./proof-recognizer-and-fixtures.md)
   is blocked by this task. Its shared `number` fixture currently constructs text
@@ -159,71 +164,48 @@ new module boundary and final rule discriminants before implementation starts.
 
 ### Tasks
 
-- [ ] Add `fjs/grammar/unicode/module.f.mjs` for Unicode code-point rule
+Everything here is additive in `fjs/ebnf/`. No task removes anything from
+`fjs/bnf/`: the classical helpers, the classical `string` rule case and the
+grammars that use them stay until `bnf/` is deleted, and the two
+`fjs/bnf/lib` grammars and the `fjs/djs` grammars adopt this adapter when
+they are ported ([ebnf-migration](../../todo/ebnf-migration.md)'s consumer
+port), not here.
+
+- [ ] Add `fjs/ebnf/unicode/module.f.mjs` for Unicode code-point rule
       helpers, at that final path — not under `fjs/bnf/`.
-- [ ] Add `fjs/grammar/byte/module.f.mjs` for binary byte-stream rule helpers,
+- [ ] Add `fjs/ebnf/byte/module.f.mjs` for binary byte-stream rule helpers,
       likewise at its final path.
-- [ ] Point `fjs/bnf/token_symbol` at `fjs/grammar/unicode` for `unicodeRange`,
-      so it stops reading it from the front end
-      ([grammar-bucket](../../todo/grammar-bucket.md) stage 2).
-- [ ] Move Unicode constants and string/code-point helper functions out of
-      `fjs/bnf/module.f.mjs`.
-- [ ] Remove Unicode/text imports from `fjs/bnf/module.f.mjs`.
-- [ ] Keep byte-container interpretation out of `fjs/bnf/module.f.mjs` and
-      `fjs/bnf/data/module.f.mjs`.
-- [ ] Remove `string` as a functional BNF `DataRule` / `Rule` case; leave the
-      data `Rule`'s string case, which is `Repeat`, alone.
-- [ ] Remove Unicode string expansion from `fjs/bnf/data/module.f.mjs`.
-- [ ] Make any core combinators that currently embed string/Unicode syntax
-      alphabet-agnostic; keep optional Unicode conveniences in
-      `fjs/grammar/unicode/module.f.mjs`.
-- [ ] Update grammars and imports to construct text terminals through the Unicode
-      helpers instead of relying on raw strings as generic rules. `fjs/bnf/lib/json`
-      and `fjs/bnf/lib/datajs` are importers of the removed core helpers and use
-      raw strings throughout, so they are ported **in this change**: this is a
-      breaking change, and [AGENTS.md §5](../../../AGENTS.md) requires every
-      importer updated in the same PR. `tsc` enforces it regardless — the split
-      cannot land green without them. Staging it (add
-      `fjs/grammar/unicode`, port the importers, then remove the core exports)
-      is the alternative, not deferral. `fjs/djs/parser` and `fjs/djs/tokenizer`
-      are importers too — the parser takes `unicodeRange` from the same import
-      line as its terminal and combinator exports — so they are ported here as
-      well.
-- [ ] Keep EOF generic and width-independent: use `fjs/grammar/terminal/`'s
-      `EOF = -1` — stage 1 moves it out of the front end and adds no
-      re-export — and keep all alphabet adapters restricted to ordinary
+- [ ] Have `fjs/ebnf/token_symbol` take `unicodeRange` from `fjs/ebnf/unicode`
+      when it lands, so no `ebnf/` module reads text constants from a front
+      end.
+- [ ] Keep `fjs/ebnf/module.f.mjs` free of Unicode/text imports, and keep
+      byte-container interpretation out of it and out of
+      `fjs/ebnf/data/module.f.mjs`; the one text meaning those two carry is
+      the `string` case ebnf-front-end fixes.
+- [ ] Keep EOF generic and width-independent: use `fjs/ebnf/terminal/`'s
+      `EOF = -1` and keep all alphabet adapters restricted to ordinary
       non-negative symbols without reserving the maximal value.
 - [ ] Restate the helper set and import boundary in
       [`bnf-grammar-single-owner`](./bnf-grammar-single-owner.md) against the
-      names this split actually ships, rather than the proposed ones it is
-      written on. That issue is blocked on this split for the design work the
+      names this adapter actually ships, rather than the proposed ones it is
+      written on. That issue is blocked on this one for the design work the
       port does not settle — parameterizing `string`, which digit rules are
-      exported, and sharing them with the `fsc` tokenizer — not for the port
-      itself, which is the previous task's and lands here.
-- [ ] Re-point the rule **values** `fjs/bnf/todo/207-bnf-semantic-actions.md`
-      keys its transformer maps on after this split: it is no longer blocked by
-      it, but lowering text literals through the Unicode adapter replaces rule
+      exported, and sharing them with the `fsc` tokenizer.
+- [ ] When a grammar is ported onto this adapter, re-point
+      the rule **values** its `207-bnf-semantic-actions` transformer maps are
+      keyed on: lowering text literals through the adapter replaces rule
       values, and an entry for a replaced rule is one the grammar no longer
       contains. Names are not involved — 207 keys by value.
-- [ ] Check `isRepeat` in `fjs/bnf/data/module.f.mjs` still holds after the
-      split: a data `Rule` that is a string is a `Repeat`, and removing the
-      functional Unicode-literal case only makes that reading unambiguous.
-- [ ] Keep `fjs/bnf/todo/rule-visitor.md` blocked until this split settles the
-      `Rule` union; define its visitor against the resulting semantic cases
-      rather than the obsolete raw-string test.
-- [ ] Keep `fjs/bnf/todo/recognizer-backend.md` blocked on this split and have it
-      consume byte helpers from `fjs/grammar/byte/module.f.mjs` rather than defining
-      another binary-helper family.
-- [ ] Keep `fjs/bnf/todo/proof-recognizer-and-fixtures.md` blocked on this split;
-      rebase its shared text fixtures/testlib imports on
-      `fjs/grammar/unicode/module.f.mjs` before implementing the extraction.
+- [ ] Have `fjs/bnf/todo/recognizer-backend.md` consume byte helpers from
+      `fjs/ebnf/byte/module.f.mjs` rather than defining another binary-helper
+      family.
+- [ ] Have `fjs/bnf/todo/proof-recognizer-and-fixtures.md` build its shared
+      text fixtures on `fjs/ebnf/unicode/module.f.mjs`.
 - [ ] Add byte helper proofs for byte boundaries and representative binary
-      sequences/ranges.
-- [ ] Move/add proof coverage so generic BNF proofs exercise abstract symbols and
-      Unicode proofs cover string/code-point conversion and boundaries.
-- [ ] Document the boundary: the core is generic; `fjs/grammar/unicode` and
-      `fjs/grammar/byte` adapt
-      concrete alphabets to generic BNF symbols.
+      sequences/ranges; Unicode proofs cover string/code-point conversion and
+      boundaries; the generic `fjs/ebnf/` proofs exercise abstract symbols.
+- [ ] Document the boundary: the core is generic; `fjs/ebnf/unicode` and
+      `fjs/ebnf/byte` adapt concrete alphabets to generic grammar symbols.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
@@ -252,10 +234,10 @@ new module boundary and final rule discriminants before implementation starts.
   discriminants; its visitor must not encode the pre-migration string/number
   dispatch assumptions.
 - [Recognizer backend](./recognizer-backend.md) — blocked on this split and must
-  consume `fjs/grammar/byte` helpers instead of owning a duplicate binary
+  consume `fjs/ebnf/byte` helpers instead of owning a duplicate binary
   authoring API.
 - [Shared recognizer/proof fixtures](./proof-recognizer-and-fixtures.md) — blocked
-  on this split; text fixture construction moves to `fjs/grammar/unicode` while parser
+  on this split; text fixture construction moves to `fjs/ebnf/unicode` while parser
   backends stay alphabet-agnostic.
 - data-tosequence-reuse (retired; superseded by this split) — reusing core
   `toSequence` in `bnf/data`; generic BNF data no longer performs Unicode
@@ -268,12 +250,11 @@ new module boundary and final rule discriminants before implementation starts.
   `string` in its rule union, meaning one terminal per code point, the same as
   a bare string means today; that is settled there. So the "remove `string`
   from the functional `Rule`" task below is the classical front end's alone.
-  What is still open there is Problem 9 — how one adapter serves both front
-  ends, which want different representations from `range` and `set` — and it
-  decides this module's public shape, so answer it before building.
-- [grammar-bucket](../../todo/grammar-bucket.md) — its stage 1 moves the
-  alphabet-neutral codec out of the front end and leaves every
-  text-interpreting helper to this issue. The adapter's final home there is
-  `fjs/grammar/unicode/` (with `byte/` beside it), a bucket sibling: it
-  outlives the classical front end, and this issue does not close when that
-  front end is deleted.
+  Its Problem 9 — how one adapter serves both front ends — is dissolved by
+  ebnf-migration: this adapter serves the EBNF front end only and returns its
+  representation.
+- [ebnf-migration](../../todo/ebnf-migration.md) — it copies the
+  alphabet-neutral codec into `fjs/ebnf/terminal/` and leaves every
+  text-interpreting helper to this issue, its `unicode/` piece. The
+  adapter's final home is `fjs/ebnf/unicode/` (with `byte/` beside it), and
+  this issue moves to `fjs/ebnf/unicode/todo/` with it.
