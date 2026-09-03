@@ -14,8 +14,8 @@ The upstream issue below is filed at
 [microsoft/typescript-go](https://github.com/microsoft/typescript-go/issues),
 fixed, and a TypeScript release containing the fix is picked up by this
 repository's `devDependencies`. Until then, substantial documented type APIs
-live in `types.ts` (whose declaration comments emit through the normal
-TypeScript pipeline), per `todo/migrate-typescript-to-mjs.md`.
+live in `types.ts`, whose declaration comments emit through the normal
+TypeScript pipeline.
 
 ### Problem
 
@@ -211,8 +211,6 @@ Body:
 
 ### Related
 
-- [`todo/migrate-typescript-to-mjs.md`](../migrate-typescript-to-mjs.md) —
-  "Typedef documentation does not survive declaration emit".
 - [`../../fjs/AGENTS.md`](../../fjs/AGENTS.md) §3.2 — private-type placement;
   superseded the wait-for-`@internal` strategy.
 - [microsoft/TypeScript#43534](https://github.com/microsoft/TypeScript/issues/43534),
