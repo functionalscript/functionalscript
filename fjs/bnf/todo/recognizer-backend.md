@@ -7,6 +7,10 @@
 - [ebnf-front-end](./ebnf-front-end.md)'s Problem 1 — which bounds the data
   `Rule` union carries. Both builders discriminate that union, so a bounded
   repeat added later is a second backend rewrite.
+- [EOF as an ordinary input symbol](./eof-as-ordinary-symbol.md) — the
+  `finish(state)` design below assumes the backend synthesizes EOF. That
+  proposal has callers supply it and deletes the synthesis, which would take
+  `finish` and its proofs with it.
 
 ### Problem
 
@@ -71,6 +75,10 @@ incremental input, including the effectful CAS chunk stream) and lets callers
 **short-circuit** once the state reaches an absorbing sink.
 
 #### Logical EOF finalization
+
+Written against today's contract, in which the backend synthesizes EOF. If
+[eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md) lands first, callers
+supply EOF and this whole section goes with the synthesis it deletes.
 
 The ordinary streaming step consumes physical symbols only. It must never inject
 EOF merely because one array/chunk ended. State is carried unchanged across chunk
