@@ -78,8 +78,8 @@ into one flag.
   proof.** For the **stream** modes this issue is about, the prover is
   `effects/node/virtual`, which is neither a TTY nor a pipe but answers
   `isTTY` either way. Scoped to those deliberately: the browser destination
-  above is proven by its own DOM stand-in, which the Node runner cannot observe
-  at all.
+  above is proven by its own DOM stand-in, which plain Node runs and the
+  **virtual** runner cannot observe at all.
 
 ### Tasks
 

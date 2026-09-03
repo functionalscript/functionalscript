@@ -86,8 +86,9 @@ not survive the enumeration, neither should the row.
     transports a stream run got — from `options.std[stream].isTTY` and
     `options.env`;
   - *caller-selected* — the **browser page** and the **bridge** — fixed at the
-    entry point called (`startBrowserTests`, `register`), neither of which
-    reads `isTTY` or `env` nor should be made to;
+    entry point called (`startBrowserTests`, `register`). Neither consults the
+    environment *to pick a renderer*: `register` does read `o.env`, but to
+    discover modules, and nothing in either path reads `isTTY`;
   - *user-chosen* — verbosity — from `options.args`, declared through the CLI
     eDSL rather than hand-parsed ([options-edsl](../cli/todo/options-edsl.md)).
 
@@ -98,9 +99,10 @@ not survive the enumeration, neither should the row.
 - **Provable without the destination.** Stream transports are proven through
   `effects/node/virtual`, which answers `isTTY` either way; a host renderer is
   proven by its host's own stand-in, the browser page by the DOM stand-in in
-  `emergent_testing/browser/proof.mjs` that the Node runner cannot observe and
-  must not be asked to. What every cell shares is the *value* rendered, and
-  that is provable without any destination.
+  `emergent_testing/browser/proof.mjs` — which plain Node runs, and which the
+  **virtual** runner cannot observe at all and must not be asked to. What every
+  cell shares is the *value* rendered, and that is provable without any
+  destination.
 - **It applies to more than one command — established by task 1, not assumed
   here.** Sharing a terminal is not sharing a structure: `fjs cas add` emits a
   hash and `fjs mcp` emits JSON-RPC. **The falsifier is admitted in advance**:
