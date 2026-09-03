@@ -59,8 +59,8 @@ fjs/grammar/
 
 **Membership:** a module belongs here iff it defines, transforms or executes
 grammars over a symbol alphabet. `fsc` is a compiler and `js/tokenizer` a
-hand-written scanner: both are consumers and stay out, as does `djs`, which
-keeps its planned move to `fjs/media/`.
+hand-written scanner: both are consumers and stay out, as does `djs`. Where
+those three end up is not this plan's business; that they are not grammars is.
 
 **Dependency:** nothing below a front end imports one. The alphabet adapters
 are *dependencies* of the front ends, not parts of them, so they outlive the
@@ -117,7 +117,8 @@ stages that relocate an API go straight to the final path.
 6. **The neutral modules** — `data/`, `matcher/`, `ll1/`, `descent/`,
    `token_symbol/`, `map/` — one PR each, in any order.
 7. **`fjs/grammar/lib/`**, then `fjs/grammar/ebnf/`.
-8. Port the consumers to `ebnf` one grammar per PR, then delete
+8. Port the consumers to `ebnf` in the order
+   [ebnf-front-end](../bnf/todo/ebnf-front-end.md) gives, then delete
    `fjs/grammar/bnf/`. `detectRepeat` and `unicode/` stay.
 
 **Before stage 5**, rewrite the backend proofs against `RuleSet` literals:
@@ -203,8 +204,10 @@ A module the migration creates goes to its final path immediately, never to
 - [ ] Stage 5: split `fjs/bnf/README.md` to its owners, creating
       `fjs/grammar/README.md`, and repoint every inbound link.
 - [ ] Stage 5: move the front end to `fjs/grammar/bnf/` with the conversion
-      and the wrappers, and the proof cases that cover them; update the five
-      `fjs/djs` importers, the `lib/` grammars (which do not move until stage
+      and the wrappers, and the proof cases that cover them; update the two
+      `fjs/djs` front-end importers — `parser/module.f.mjs` and
+      `tokenizer/module.f.mjs`; the other three import `matcher` or `data` and
+      repoint at stage 6 — the `lib/` grammars (which do not move until stage
       7, so their front-end imports repoint without moving), and every README
       and `todo/` link.
 - [ ] Stage 6: move `data/`, `matcher/`, `ll1/`, `descent/`, `token_symbol/`
