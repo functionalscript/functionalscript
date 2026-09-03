@@ -107,7 +107,9 @@ not survive the enumeration, neither should the row.
   here.** Sharing a terminal is not sharing a structure: `fjs cas add` emits a
   hash and `fjs mcp` emits JSON-RPC. **The falsifier is admitted in advance**:
   if the enumeration finds no second consumer, this is the proof runner's mode
-  system after all, the four issues unblock, and this document says so. One
+  system after all, **this** blocker comes off the four issues, and this
+  document says so. Off this one, not actionable: `test-framework-silent-mode`
+  also waits on [options-edsl](../cli/todo/options-edsl.md). One
   lead for task 1, not a finding — `fjs/cas/todo/` wants output "scriptable in
   CI and cron" over a CLI/MCP/Web matrix; a rendering makes it the second
   consumer, an exit code plus a payload schema fires the falsifier.

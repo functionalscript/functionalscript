@@ -48,9 +48,10 @@ than a newline:
   overwriting a running test's name with its result, a counter that stays on
   one row, a spinner, colour: the terminal is a canvas, and the announcement is
   transient rather than part of the log.
-- **On a pipe** every event has to be a complete, self-contained record,
-  written once and never revised, because that is all a line reader can
-  observe. What is transient on a TTY has to be *emitted* here — or framed
+- **For a line-oriented reader** every event has to be a complete,
+  self-contained record, written once and never revised, because a closed line
+  is all such a reader can observe. (Written as "on a pipe" until the epic
+  separated the two: a bytewise reader of the same pipe sees the open write.) What is transient on a TTY has to be *emitted* here — or framed
   some other way the consumer can act on immediately.
 
 So the answer is not a flag on the current format. It is that the reporter has
@@ -58,9 +59,11 @@ two modes with different event shapes, and the run's records — which a reader
 of [reporter modes](211-reporter-modes.md) will recognise as one more mode
 question — have to be defined for each rather than derived from the other.
 
-`options.std` already carries `isTTY` per stream, so the *selection* is
-available today and costs nothing; what is missing is the second format and the
-decision about what each mode owes a consumer. Note that a CI log collector is
+`options.std` already carries `isTTY` per stream, which distinguishes a
+terminal from a redirected stream at no cost — but **not** the line-oriented
+reader of that stream from a bytewise one, which is the audience this issue is
+about; what selects *that* is the epic's open question. What is missing here is
+the second format and the decision about what each mode owes a consumer. Note that a CI log collector is
 a non-TTY destination that also wants the GitHub annotation format, so the two
 axes — TTY-ness and CI-ness — are not the same axis and should not be collapsed
 into one flag.
