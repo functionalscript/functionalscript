@@ -60,6 +60,7 @@ const op1Js = {
     neg: a => -a,
     unaryPlus: a => +a,
     '!': a => !a,
+    typeof: a => typeof a,
 }
 
 /** The same, for the binary operations. @type {{ readonly [k in OpId]?: (a: any, b: any) => unknown }} */
