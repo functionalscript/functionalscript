@@ -60,6 +60,7 @@ const op1Js = {
     neg: a => -a,
     unaryPlus: a => +a,
     '!': a => !a,
+    '~': a => ~a,
     typeof: a => typeof a,
 }
 
@@ -71,6 +72,9 @@ const op2Js = {
     '-': (a, b) => a - b,
     '+': (a, b) => a + b,
     '%': (a, b) => a % b,
+    '&': (a, b) => a & b,
+    '|': (a, b) => a | b,
+    '^': (a, b) => a ^ b,
     '<': (a, b) => a < b,
     '<=': (a, b) => a <= b,
     '>': (a, b) => a > b,
@@ -353,7 +357,7 @@ const jsOnly = {
         forwardSharedRef: () =>
             lowerEq({ shared: { a: [ref('b')], b: [] }, cases: [] }),
         /** An id the corpus does not exercise has no JavaScript here. */
-        unusedOperation: () => op1('~'),
+        unusedOperation: () => op1('Number'),
         /**
          * A count the operation does not take. `Case<N>` cannot carry one,
          * but `caseExp` is exported and its `args` are a plain array, so the
