@@ -109,7 +109,7 @@ row that is a function of the form alone.
 | `['range', a, b]` | `number` — one symbol leaf |
 | `['repeat', min, max, r]` | `Repeat<min, max, AST<r>>`, below |
 | `number` | `number` — the symbol itself |
-| `string` | a tuple of `number`, one per code point |
+| `string` | `readonly number[]` — see below |
 | `Sequence` | one entry per element |
 | `Variant` | the branch taken, tagged by its key |
 
@@ -135,19 +135,26 @@ rather than four. An optional is a 0-or-1 list rather than a tagged
 family from the rest; an author wanting named branches writes the plain
 `Variant`.
 
-Two caveats for the implementation. **The cap is on the longest tuple a branch would build**, which is the finite
-`Max`, or `Min` when `Max` is `null` — not the span and not `Min` alone,
-either of which lets `repeat(Cap, Cap + 1)` through to a union that builds
-`Tuple<Cap + 1, T>`. `Tuple` in `fjs/types/array/types.ts:22` recurses
-linearly, so anything past the cap is TS2589 and degrades to `readonly T[]`.
-`Cap` is a named constant in `ebnf/types.ts`, not a value each call site
-picks — it decides whether a public AST type is a tuple union or an array, so
-implementers must agree on it. Start at **8**: it covers every bounded span a
+One caveat for the implementation. **The cap is on the longest tuple a
+branch would build**, which is the finite `Max`, or `Min` when `Max` is
+`null` — not the span and not `Min` alone, either of which lets
+`repeat(Cap, Cap + 1)` through to a union that builds `Tuple<Cap + 1, T>`.
+`Tuple` in `fjs/types/array/types.ts:22` recurses linearly, so anything past
+the cap is TS2589 and degrades to `readonly T[]`. `Cap` is a named constant
+in `ebnf/types.ts`, not a value each call site picks — it decides whether a
+public AST type is a tuple union or an array, so implementers must agree on
+it. Start at **8**: it covers every bounded span a
 real grammar writes (`times(4)(hex)` is the largest in the tree) and leaves
 ample headroom under the instantiation limit. The proofs pin `Cap` and
-`Cap + 1`. And TypeScript's template-literal recursion splits
-by UTF-16 code unit, so a naive `AST<'😀'>` is a 2-tuple where the grammar
-produces one element.
+`Cap + 1`.
+
+**A string's AST is `readonly number[]`, not a tuple.** The lowering emits one
+terminal per code point, but TypeScript's template-literal recursion splits by
+UTF-16 code unit, so a length-accurate `AST<'😀'>` would need a
+surrogate-aware type algorithm. This design declines to write one: the array
+is sound over every string — each element is a symbol — and loses only arity,
+the same trade the `Cap` fallback already makes. A grammar that wants the
+arity in its type spells the symbols as a `Sequence` of numbers.
 
 #### Constructors are the API
 
@@ -311,8 +318,10 @@ three forms. It needs a data layer that can represent it.
       it, never a re-export.
 - [ ] `rtti/`: the rule-info map, without `repeatItem`.
 - [ ] Proofs: every constructor; every `Info` form written directly; each
-      bound shape and the degenerate `0..0` and `1..1`; a one-code-point
-      string (a sequence of one) and an astral character (one element); every
+      bound shape and the degenerate `0..0` and `1..1`; string lowering,
+      where a one-code-point string and an astral character each emit exactly
+      one terminal — a lowering proof, since the AST *type* of a string is
+      `readonly number[]`; every
       lowering error; and the `descentEquivalence` cases re-expressed here,
       comparing **backend results** and stating per case whether the AST is
       expected to match the `bnf` original or to differ.
