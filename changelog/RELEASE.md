@@ -28,7 +28,7 @@ declaring the window's breaks.
 A pull request author knows their own change and not the release. Several pull
 requests routinely move the same thing, and entries written one at a time record
 the moves instead of the destination. The window since the `0.48.0` release —
-the one this convention arrives in, not the one `changelog/0.48.0/` records — is
+the one this convention arrives in, not the one `changelog/0.48.0.md` records — is
 the worked example:
 [#1807](https://github.com/functionalscript/functionalscript/pull/1807) made the
 generated `run` scripts pass `--quiet` three times,
@@ -372,7 +372,8 @@ triggers the `npm publish` workflow. Before merging:
 
 Through the release made under the previous scheme, every behavior-changing pull
 request added `changelog/unreleased/<PR>.md` and repeated it in a `Changelog:`
-section, and releasing renamed the directory. It was dropped because it charged
+section, and releasing renamed the directory to `changelog/<version>/` — those
+directories are single files now. It was dropped because it charged
 every pull request for an entry no one had the context to write well, and
 because the duplication rule did not hold in practice — in the last full window,
 17 of 29 entry files had no matching section in the merge commit.
