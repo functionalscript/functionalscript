@@ -2,7 +2,7 @@ use crate::vm::{
     Any, Array, BigInt, Function, IVm, Object, String, dispatch::Dispatch, nullish::Nullish,
 };
 
-/// The tag `Any::type_of` returns, one per `Unpacked` variant.
+/// The tag `Any::typeof_` returns, one per `Unpacked` variant.
 struct TypeOf;
 
 impl<A: IVm> Dispatch<A> for TypeOf {
@@ -47,11 +47,13 @@ impl<A: IVm> Dispatch<A> for TypeOf {
 
 impl<A: IVm> Any<A> {
     /// `typeof`. Not a `core::ops` trait — Rust has no unary operator to
-    /// spell it with (and `typeof` itself is a reserved word) — so this is a
-    /// plain method, the same as `unary_plus`. Never throws, but stays a
-    /// `Result` to match every other operator's shape.
+    /// spell it with — so this is a plain method, the same as `unary_plus`.
+    /// Named `typeof_`, not `type_of`: `typeof` is itself a reserved word, and
+    /// a trailing underscore — the convention FJS and JS both use for this —
+    /// resolves the collision while keeping the name recognizable. Never
+    /// throws, but stays a `Result` to match every other operator's shape.
     /// <https://tc39.es/ecma262/#sec-typeof-operator>
-    pub fn type_of(self) -> Result<Any<A>, Any<A>> {
+    pub fn typeof_(self) -> Result<Any<A>, Any<A>> {
         Ok(self.dispatch(TypeOf).into())
     }
 }

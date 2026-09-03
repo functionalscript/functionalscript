@@ -11,7 +11,7 @@ mod partial_eq;
 mod relational;
 mod rem;
 mod sub;
-mod type_of;
+mod typeof_;
 
 pub mod to_any;
 
