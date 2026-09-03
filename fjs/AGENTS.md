@@ -151,6 +151,19 @@ tables, and that is the contract the module promises. Mixed
 JavaScript/FunctionalScript interop is a separate concern for a separate
 repository; it does not belong in this one's proofs.
 
+**Recommended: judge a `proof.mjs` by a native runner.** `fjs t` is the
+FunctionalScript runner — it walks a proof tree where a leaf is a pure thunk and
+suspension, timers and real I/O belong to the interpreter. A host proof is none
+of those: it awaits, it opens a `node:vm` context, it drives a DOM stand-in. The
+runner its host already has fits it better, and `emergent_testing` is built for
+that — `registerModule` hands each leaf to an external framework so the
+framework owns scheduling, and `all.test.mjs` is the entry point `node --test`,
+`bun test` and `deno test` discover. Prefer `node --test` when a `proof.mjs`
+fails or behaves differently under the two.
+
+This one is a recommendation, not a rule. Both runners see every proof today,
+and `fjs t` stays the reference runner for everything `.f.mjs`.
+
 ---
 
 ## 2. Documentation
