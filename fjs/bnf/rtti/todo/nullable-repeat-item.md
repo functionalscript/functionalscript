@@ -16,6 +16,15 @@ for more, and none of it can be answered from the rule:
   body consuming nothing has infinitely many parses of the same input.
 - `contains(name)(reachable(ruleSet)(item))` rejects an item that can reach the
   rule again, so that the rule's only self-reference is the tail one.
+- A refusal does not propagate out of a branch. Normalization is eager, so a
+  malformed rule nested under a variant stops the whole grammar being built —
+  `toData({ a: { bad: undefined }, c: 1 })` throws — while `AstRule` gives
+  `{ a: never } | { c: number }`, still inhabited through the valid
+  alternative. Propagating it means asking whether each branch's own AST is a
+  refusal *before* producing the rule's, which is circular for a rule whose
+  branch refers back to it: attempting it makes the self-referential
+  three-branch variant of `_20` report `TS2589`. It is the nullability
+  obstruction again, reached from the other side.
 - `stepRule[1] !== name` asks whether the tail *is this rule*, by name. The
   type-level test asks whether the tail has this rule's shape, and those differ:
   given two separate declarations both spelled
@@ -36,7 +45,7 @@ parse.
 
 ### Why none of them is a guard
 
-All three are questions about a rule *set*, not about a rule. `reachable` walks
+All four are questions about a rule *set*, not about a rule. `reachable` walks
 a set of named rules; there is no set here to walk, and a structural type has
 no name to be reached.
 
@@ -81,8 +90,9 @@ Until then the limit is stated in
 - [ ] Decide between deriving from the rule set and documenting the restriction.
 - [ ] If the analysis is written, pin `Repeat0Plus<readonly []>`, a repetition
       over a variant with an empty branch, a repetition whose item reaches the
-      repetition, and a rule whose tail is a structurally identical other rule,
-      with `Assert<Equal<…>>`.
+      repetition, a rule whose tail is a structurally identical other rule, and
+      a malformed rule nested under a variant with a valid alternative, with
+      `Assert<Equal<…>>`.
 - [ ] `tsc`, `fjs t`.
 
 ### Related

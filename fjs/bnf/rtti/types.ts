@@ -8,7 +8,10 @@
  *
  * A rule the parser cannot process at all resolves to `never` rather than to a
  * plausible shape: a branch whose declared type admits `undefined` makes
- * `toData` throw, and is refused here.
+ * `toData` throw, and is refused here. The refusal does not propagate out of a
+ * branch, though — a malformed rule nested under a variant leaves the
+ * alternative beside it standing, where normalization would have refused the
+ * whole grammar: [nullable-repeat-item](./todo/nullable-repeat-item.md).
  *
  * A repetition is recognized from the rule alone, which is short of what
  * `repeatOf` in `../data/module.f.mjs` asks: that module also refuses an item
