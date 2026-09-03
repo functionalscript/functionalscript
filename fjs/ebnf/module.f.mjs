@@ -4,11 +4,11 @@
 
 import { assert } from "../asserts/module.f.mjs"
 import { stringToCodePointList } from "../text/utf16/module.f.mjs"
-import { isTuple } from "../types/array/module.f.mjs"
+import { isFixedArray } from "../types/array/module.f.mjs"
 import { toArray } from "../types/list/module.f.mjs"
 
-const isTuple2 =
-    isTuple(2)
+const isFixedArray2 =
+    isFixedArray(2)
 
 /**
  * Encodes a two-symbol string into a terminal range.
@@ -20,7 +20,7 @@ const isTuple2 =
  */
 export const range = ab => {
     const a = toArray(stringToCodePointList(ab))
-    assert(isTuple2(a))
+    assert(isFixedArray2(a))
     return rangeEncode(...a)
 }
 
