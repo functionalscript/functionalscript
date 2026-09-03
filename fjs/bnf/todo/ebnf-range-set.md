@@ -42,17 +42,32 @@ A range set is a strictly increasing list of boundaries over the universe
 boundary toggles it.
 
 ```ts
-type RangeSet<Eof extends boolean = boolean> = readonly number[]   // strictly increasing
+type RangeSet<P extends boolean = boolean> = readonly number[]   // strictly increasing
 ```
 
-`Eof` is a phantom: it does not exist at runtime, and it records whether the
-set contains the domain bottom, `-1`. See
+`P` is a phantom: it does not exist at runtime, and it records the set's
+membership of one fixed point chosen by whoever constructs sets with a
+non-`boolean` `P`. The terminal layer's point is EOF. See
 [EOF membership is a type](#eof-membership-is-a-type).
+
+**The boundaries are any numbers but `NaN`, not just integers.** A run is
+half-open, `[a, b)`, and the algebra only ever *compares* boundaries — it
+never adds one — so nothing in `range_set` knows what the successor of a
+number is. `[0.5, 1.5]` is a set like any other. Integer-ness enters in
+exactly three places, and all three are the terminal layer's: the closed
+range `a..b` and the singleton `x`, which need `b + 1` and `x + 1`;
+`toRangeMap`, because `range_map` entries carry an *inclusive* upper bound,
+so `[a, b)` becomes `b - 1`; and the domain `[-1]`, whose lowering also
+demands integer boundaries. Those are three helpers in
+`fjs/grammar/terminal/`, not a second range-set module: EBNF is the only
+consumer that cares, and `fjs/media/nix` builds its sets from `[a, b + 1]`
+directly.
 
 | set | meaning |
 |---|---|
 | `[]` | empty |
 | `[-Infinity]` | the universe |
+| `[0.5, 1.5]` | the reals `0.5 <= x < 1.5`; in the terminal domain, the symbol `1` — non-canonical there, so the lowering rejects it |
 | `[-1]` | everything in the terminal domain, EOF included |
 | `[0]` | every ordinary symbol; today's `fullRange` |
 | `[-1, 0]` | EOF only; today's `eof` |
@@ -72,8 +87,12 @@ Properties, each one a reason to prefer this over a list of ranges:
 
 - **Canonical by construction.** One spelling per set, so structural equality
   is set equality and content addressing works without a normalization pass.
-  Validation is the whole guarantee: strictly increasing. `[5, 5]` is
-  rejected, not normalized.
+  Validation is the whole guarantee: strictly increasing, which already
+  rejects `NaN` (every comparison with it is false) and `[5, 5]`; plus no
+  `Infinity` (a run starting there is empty, so `[Infinity]` would be a
+  second spelling of `[]`) and no `-0` (a second spelling of `0` under
+  `Object.is`). `-Infinity` needs no rule: strictly increasing already
+  confines it to the first position.
 - **Complement is one toggle.** Adding or removing a leading `-Infinity`.
   Union, intersection and difference are one parity merge over two sorted
   lists. Membership is a binary search plus the parity of the position.
@@ -81,10 +100,12 @@ Properties, each one a reason to prefer this over a list of ranges:
   `fullRange`, `unicodeMax` and the 24-bit codec leave grammars, and no module
   needs to know the domain maximum: an open tail converts to a `range_map`
   entry whose upper bound is `Infinity`, which `get` already handles.
-- **EOF membership is the first element.** Within the terminal domain a set
-  contains EOF iff its first boundary is at most `-1`. The runtime never has
-  to search for it, and the type level carries it as the phantom `Eof`,
-  which the AST row below relies on.
+- **EOF membership is the first element.** Once a set is in the terminal
+  domain — integer boundaries, none below `-1` — it contains EOF iff its
+  first boundary is `-1`. That is an integer-domain fact, not a `range_set`
+  one: over the reals `[-1.5, -1.2]` starts below `-1` and misses it. The
+  runtime never has to search for it, and the type level carries it as the
+  phantom, which the AST row below relies on.
 - **The cost.** `-Infinity` is not JSON and has no bigint. It never reaches
   the IR — lowering intersects with the domain, below — but a bigint range
   set later cannot toggle at a bottom it cannot spell, so it takes its own
@@ -137,14 +158,18 @@ algebra or an adapter returns is a widened `readonly number[]` whose first
 element TypeScript does not know. Reading `number` for every set that is not
 literally `[-1, …]` would make `AST<Rule>` unsound.
 
-So EOF membership is carried by the value's type, as the phantom `Eof`, and
-the algebra computes it alongside the boundaries — a shadow of the same parity
-arithmetic, one conditional type per operation:
+So EOF membership is carried by the value's type, as the phantom `P`, and
+the algebra computes it alongside the boundaries. This is why the phantom is
+generic rather than named `Eof`: the boolean operations act pointwise, so
+membership of *any* fixed point propagates through them the same way, and
+`range_set` need not know which point a consumer means. It propagates the
+flag; the terminal layer's constructors are what fix the point to EOF:
 
-| operation | `Eof` of the result |
+| operation | `P` of the result |
 |---|---|
-| `fromRange([a, b])` | `false` — the adapters only build ordinary ranges |
-| `eof` | `true` |
+| `range_set.fromRange([a, b))`, any generic constructor | `boolean` — the point is not its business |
+| `terminal.range(a, b)`, `terminal.one(x)` | `false` — ordinary symbols only |
+| `terminal.eof` | `true` |
 | `complement(a)` | `not A` |
 | `union(a)(b)` | `A or B` |
 | `intersection(a)(b)` | `A and B` |
@@ -158,7 +183,9 @@ exclude EOF. A `['set', …]` literal written by hand takes its flag from its
 first element: the literal `-1` is `true`, any other literal is `false`, and a
 widened `number` is `boolean`. The lowering's intersection with the domain
 `[-1]` is `A and true`, so clipping never changes the flag; that is what makes
-the type sound across the `-Infinity` case above.
+the type sound across the `-Infinity` case above. The lowering's integer
+check is what makes "first boundary is `-1`" and "contains EOF" the same
+statement at all.
 
 This is a type-level mechanism only. If [ebnf-front-end](./ebnf-front-end.md)'s
 Problem 7 ends with the AST table as documentation rather than a checked
@@ -172,7 +199,9 @@ means. The terminal domain is a set value, `[-1]`, owned by the neutral
 terminal module ([grammar-bucket](../../todo/grammar-bucket.md) stage 1), and
 the lowering intersects every set with it: that clips a `-Infinity` a generic
 complement produced back to `-1`, drops anything below EOF, and so restores
-canonicity before the IR.
+canonicity before the IR. It also requires every boundary to be an integer:
+`[0.5, 1.5]` and `[1, 2]` are the same set of symbols, and only one of them
+may reach content-addressed data.
 
 The top end is `maxSymbol + 1`, the exclusive boundary after the last
 ordinary symbol, and it must be accepted: the half-open API spells the closed
@@ -218,20 +247,27 @@ justification is the API and the AST, which is where
 ### Tasks
 
 - [ ] `fjs/types/range_set`: replace the `RangeMap<boolean>` representation
-      with the toggle list over `-Infinity..Infinity`; `contains`, `union`,
-      `intersection`, `complement`, `difference`, `fromRange`, `toRangeMap`,
-      validation on construction, and the phantom `Eof` computed by each
-      operation's type; proofs for each, for `[]`, `[-Infinity]`, `[-1, 0]`,
-      an open tail, and every rejected input, plus type-level proofs that
-      `Eof` is `false`, `true` and `boolean` where the table says. Port
-      `fjs/media/nix/module.f.mjs`.
+      with the toggle list over `-Infinity..Infinity`, any non-`NaN` number
+      a boundary; `contains`, `union`, `intersection`, `complement`,
+      `difference`, the half-open `fromRange`, validation on construction,
+      and the phantom `P` computed by each operation's type; proofs for each,
+      for `[]`, `[-Infinity]`, `[-1, 0]`, `[0.5, 1.5]`, an open tail, and
+      every rejected input (`NaN`, `Infinity`, `-0`, a repeat, a descent),
+      plus type-level proofs that `P` is `false`, `true` and `boolean` where
+      the table says. Port `fjs/media/nix/module.f.mjs` to `[a, b + 1]`.
+- [ ] `fjs/grammar/terminal/`: the integer helpers — `range(a, b)` and
+      `one(x)` as `[a, b + 1]` and `[x, x + 1]` with `P` `false`, `eof` as
+      `[-1, 0]` with `P` `true`, the domain `[-1]`, and `toRangeMap`
+      (inclusive upper bound `b - 1`; an open tail is `Infinity`). No integer
+      range-set module: these three arithmetic facts are the whole difference.
 - [ ] Settle the IR carrier together with ebnf-front-end's Problem 1, in that
       issue, before any backend touches a set.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
-      the union, the AST table (`number` when `Eof` is `false`, otherwise
+      the union, the AST table (`number` when `P` is `false`, otherwise
       `readonly [number?]`), the lowering requirements (intersect with the
-      domain `[-1]`; drop a trailing `maxSymbol + 1` and reject anything
-      beyond it; reject the empty set), and the constructor list.
+      domain `[-1]`; require integer boundaries; drop a trailing
+      `maxSymbol + 1` and reject anything beyond it; reject the empty set),
+      and the constructor list.
 - [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/grammar/unicode/`
       produce sets; `not` is difference against the Unicode universe. `str`
       is not one of them: `str('true')` is an ordered `Sequence` of
