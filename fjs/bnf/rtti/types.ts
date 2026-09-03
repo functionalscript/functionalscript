@@ -7,7 +7,7 @@
  * is types and `Assert`s, so `tsc` is this module's test.
  *
  * A rule the parser cannot process at all resolves to `never` rather than to a
- * plausible shape: a branch that is required and yet admits `undefined` makes
+ * plausible shape: a branch whose declared type admits `undefined` makes
  * `toData` throw, and is refused here.
  *
  * A repetition is recognized from the rule alone, which is short of what
@@ -60,38 +60,36 @@ type _Single<T> =
 type _Data<R> = R extends () => infer U ? _Data<U> : R
 
 /**
- * The rule the branch at `K` stands for.
+ * The rule the branch at `K` declares, with any lazy wrapper taken off.
  *
- * An *optional* key's indexed type carries `undefined` for the absence itself,
- * which is not part of the rule: `Variant` declares every key optional, so
- * leaving it in would make a two-branch repetition written with `?` fail the
- * shape tests and read as a variant. Optionality names which branches an author
- * wrote down rather than which a match may leave out, the same reading the
- * branch derivation takes.
+ * `Required<U>[K]` rather than `U[K]`: an optional key's indexed type carries
+ * `undefined` for the absence itself, which is not part of the rule. `Variant`
+ * declares every key optional, so reading that `undefined` as the rule would
+ * make a two-branch repetition written with `?` fail the shape tests and be
+ * read as a variant. Optionality names which branches an author wrote down
+ * rather than which a match may leave out.
  *
- * A *required* key whose declared type happens to include `undefined` is a
- * different thing and keeps it, so the shape tests reject it. Such a rule is
- * not one the parser can handle at all — `repeatItem` throws on the value it
- * describes, since normalization reads the present-but-`undefined` property —
- * and it must not be handed the shape of a repetition that works.
+ * Under `exactOptionalPropertyTypes`, `Required` removes the modifier without
+ * inventing an `undefined`, so what survives is exactly what the author wrote —
+ * which is also what makes it the right thing to test in {@link _Malformed}.
  */
-type _BranchOf<U, K extends keyof U> =
-    _Data<{} extends Pick<U, K> ? Exclude<U[K], undefined> : U[K]>
+type _BranchOf<U, K extends keyof U> = _Data<Required<U>[K]>
 
 /**
- * The keys of `U` that are required and yet admit `undefined` — a branch
- * declared as possibly absent-but-present, which no rule is.
+ * The keys of `U` whose branch admits `undefined` *as written* — with the
+ * optional modifier taken off, so this is about the declared rule and not about
+ * whether the key may be missing.
  *
  * `toData` throws on the value such a key describes, because normalization
  * reads a present property whose value is `undefined`, so a rule with one is
- * not a grammar the parser can process. An *optional* key is not this: under
- * `exactOptionalPropertyTypes` it cannot hold an explicit `undefined` at all,
- * so its absence is absence and nothing throws.
+ * not a grammar the parser can process. Both spellings reach it: a required
+ * `0 | undefined`, and an optional `?: 0 | undefined`, which
+ * `exactOptionalPropertyTypes` still lets hold an explicit `undefined`. A plain
+ * `?: 0` is not this — that key is absent or a rule, never present with no
+ * value.
  */
 type _Malformed<U> =
-    { [K in _Keys<U>]:
-        {} extends Pick<U, K> ? never : undefined extends U[K] ? K : never
-    }[_Keys<U>]
+    { [K in _Keys<U>]: undefined extends Required<U>[K] ? K : never }[_Keys<U>]
 
 /**
  * The keys of `U` that name a branch at all. `variant` in
@@ -371,3 +369,8 @@ type _31 = Assert<Equal<AstRule<{ readonly a: 0 | undefined }>, never>>
 // `undefined`, so nothing it describes reaches `Object.entries` as a present
 // property with no value.
 type _32 = Assert<Equal<AstRule<{ readonly a?: 0 }>, { readonly a: number }>>
+
+// `exactOptionalPropertyTypes` stops `?: 0` holding an explicit `undefined`,
+// but not `?: 0 | undefined` — which is the declared rule admitting it, and so
+// the same malformed rule as the required spelling.
+type _33 = Assert<Equal<AstRule<{ readonly a?: 0 | undefined }>, never>>
