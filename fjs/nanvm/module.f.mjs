@@ -946,7 +946,7 @@ const notCases = [
  * this corpus is `Value | FunctionValue` (see `types.ts`), and `Value` admits
  * no expression whose evaluation is observable (no side effect, no throw:
  * `Throws` is legal only as an `expected`, never an operand). Both consumers
- * build every argument before dispatch — `run` here, `result` in
+ * build every argument before dispatch — `run` in `proof.f.mjs`, `result` in
  * `rust/module.f.mjs` — so there is nothing an unevaluated operand could do
  * differently from an evaluated one for this corpus to catch. What these
  * cases prove is the other half: *which* operand comes back.
