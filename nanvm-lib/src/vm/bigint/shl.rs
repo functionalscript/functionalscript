@@ -8,6 +8,20 @@ use crate::{
 
 const TOO_LARGE: &str = "RangeError: Maximum BigInt size exceeded";
 
+/// The largest word count a single `<<` may grow a `BigInt` to — `2^24`
+/// words (`2^30` bits, 128 MiB) — matching V8's own `BigInt` size limit
+/// exactly (empirically: `1n << 1073741823n` succeeds in Node, `1n <<
+/// 1073741824n` throws `RangeError: Maximum BigInt size exceeded`).
+///
+/// This is *not* the same limit as `BigInt`'s internal `u32` word index
+/// (~4 billion words, ~34 GiB): that ceiling only protects the container's
+/// own indexing, not the process. An allocation anywhere near it can abort
+/// the process outright — `Vec`'s allocator failure is not a catchable
+/// panic — from a shift count an attacker can spell in one `u64` word, well
+/// before any guard based on the index limit alone would reject it. That is
+/// exactly the crash-instead-of-refuse this checks against.
+const MAX_WORDS: u64 = 1 << 24;
+
 fn too_large<A: IVm>() -> Result<BigInt<A>, Any<A>> {
     Err(TOO_LARGE.into())
 }
@@ -36,8 +50,7 @@ impl<A: IVm> Shl for BigInt<A> {
         let (word_shift, bit_shift) = shift.div_mod(64);
 
         // Result can have at most word_shift + n_len + 1 words (carry).
-        // BigInt uses u32 indexing, so the result must fit in u32::MAX words.
-        if word_shift + n_len as u64 + 1 > u32::MAX as u64 {
+        if word_shift + n_len as u64 + 1 > MAX_WORDS {
             return too_large();
         }
         let word_shift = word_shift as usize;
@@ -340,9 +353,22 @@ mod tests {
 
     #[test]
     fn shl_large_single_word_shift_returns_err() {
-        // u64::MAX would require ~2^58 words; exceeds u32::MAX limit
+        // u64::MAX would require ~2^58 words; exceeds the MAX_WORDS limit
         let a: T = 1u64.into();
         let b: T = u64::MAX.into();
+        assert_eq!(
+            a << b,
+            Err("RangeError: Maximum BigInt size exceeded".into())
+        );
+    }
+
+    #[test]
+    fn shl_just_over_max_words_returns_err_without_allocating() {
+        // One word past MAX_WORDS: rejected by the guard before any
+        // allocation is attempted, so this stays cheap even though the
+        // *value* it describes (2^30 bits) would not.
+        let a: T = 1u64.into();
+        let b: T = (super::MAX_WORDS * 64).into();
         assert_eq!(
             a << b,
             Err("RangeError: Maximum BigInt size exceeded".into())
