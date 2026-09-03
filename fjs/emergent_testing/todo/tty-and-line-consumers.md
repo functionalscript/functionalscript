@@ -9,12 +9,10 @@
 > invented from whichever audience happened to be asked about first. The
 > destinations, verbosities and scheduling shapes are enumerated and designed
 > together in the epic above. This issue is the **line-framing** concern there,
-> not "the pipe destination": a redirected `stdout` read bytewise sees the open
-> `name: ` write, and only a line-oriented consumer of that same pipe does not,
-> so the audience is a property of the reader rather than of the transport.
-> What names that audience is an open question in the epic. What is *below*
-> stays as the input it is: the two reasons a consumer needs the announcement,
-> and the constraints any answer must satisfy.
+> not a transport cell — the audience is a property of the reader, and what
+> names it is an open question in the epic. What is *below* stays as the input
+> it is: the two reasons a consumer needs the announcement, and the constraints
+> any answer must satisfy.
 
 ### Problem
 
@@ -50,8 +48,8 @@ than a newline:
   transient rather than part of the log.
 - **For a line-oriented reader** every event has to be a complete,
   self-contained record, written once and never revised, because a closed line
-  is all such a reader can observe. (Written as "on a pipe" until the epic
-  separated the two: a bytewise reader of the same pipe sees the open write.) What is transient on a TTY has to be *emitted* here — or framed
+  is all such a reader can observe — unlike a bytewise reader of the same pipe,
+  which sees the open write. What is transient on a TTY has to be *emitted* here — or framed
   some other way the consumer can act on immediately.
 
 So the answer is not a flag on the current format. It is that the reporter has

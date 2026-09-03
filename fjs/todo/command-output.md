@@ -92,10 +92,10 @@ not survive the enumeration, neither should the row.
   - *user-chosen* — verbosity — from `options.args`, declared through the CLI
     eDSL rather than hand-parsed ([options-edsl](../cli/todo/options-edsl.md)).
 
-  `progress`, `scheduling` and `surface` have no group. That is an omission,
-  not a decision — detecting a TTY says nothing about static versus dynamic
-  progress, and an implementation reading only these three groups would invent
-  a per-command default.
+  `progress`, `scheduling` and `surface` have no group, and whether verbosity
+  is `args`-only is unsettled — both below. An omission, not a decision:
+  detecting a TTY says nothing about static versus dynamic progress, so an
+  implementation reading only these groups would invent a per-command default.
 - **Provable without the destination.** Stream transports are proven through
   `effects/node/virtual`, which answers `isTTY` either way; a host renderer is
   proven by its host's own stand-in, the browser page by the DOM stand-in in
@@ -107,12 +107,12 @@ not survive the enumeration, neither should the row.
   here.** Sharing a terminal is not sharing a structure: `fjs cas add` emits a
   hash and `fjs mcp` emits JSON-RPC. **The falsifier is admitted in advance**:
   if the enumeration finds no second consumer, this is the proof runner's mode
-  system after all, **this** blocker comes off the four issues, and this
-  document says so. Off this one, not actionable: `test-framework-silent-mode`
-  also waits on [options-edsl](../cli/todo/options-edsl.md). One
-  lead for task 1, not a finding — `fjs/cas/todo/` wants output "scriptable in
-  CI and cron" over a CLI/MCP/Web matrix; a rendering makes it the second
-  consumer, an exit code plus a payload schema fires the falsifier.
+  system after all and **this** blocker comes off the four issues — off this
+  one, which is not the same as actionable, since each issue's own
+  `**Blocked by:**` says what remains. One lead for task 1, not a finding:
+  `fjs/cas/todo/` wants output "scriptable in CI and cron" over a CLI/MCP/Web
+  matrix; a rendering makes it the second consumer, an exit code plus a payload
+  schema fires the falsifier.
 
 ### Constraints inherited from what has landed
 
@@ -161,9 +161,12 @@ postponed rather than missed.
   events a renderer *consumes* with how much it *emits* per event: a dynamic
   current-test display consumes the start event while emitting nothing lasting
   for it. This decides whether a renderer may discard start events at all.
-- **Who chooses `progress`, `scheduling` and `surface`?** `scheduling` may not
-  survive; `surface` is plausibly caller-selected like the transport that
-  constrains it. Both are guesses.
+- **Who chooses the unassigned axes?** `progress`, `scheduling` and `surface`
+  have no group; `scheduling` may not survive and `surface` is plausibly
+  caller-selected like the transport constraining it, but both are guesses.
+- **Is verbosity `args`-only?** `211-reporter-modes` selects its quiet reporter
+  "via a CLI flag or env". Environment-selected verbosity crosses the
+  environment/user split above, so one of the two designs gives way.
 - **Does `options-edsl` block this design or only the flag?** Listed under
   *Related* on the second reading, since tasks 1 and 2 reach no flag. If a cell
   turns out to need an option to express it, that flips.
@@ -206,14 +209,9 @@ postponed rather than missed.
 
 ### Related
 
-- [tty-and-line-consumers](../emergent_testing/todo/tty-and-line-consumers.md)
-  — the pipe transport, blocked on this.
-- [github-color-modes](../emergent_testing/todo/github-color-modes.md)
-  — three cells named as three modes, and the reason colour is an axis.
-- [211-reporter-modes](../emergent_testing/todo/211-reporter-modes.md)
-  — the proof runner's own mode system, which this generalises.
-- [test-framework-silent-mode](../emergent_testing/todo/test-framework-silent-mode.md)
-  — a verbosity, on the axis above.
+The four issues this blocks are linked from *Problem* above, and each carries a
+`**Blocked by:**` back to here.
+
 - [options-edsl](../cli/todo/options-edsl.md)
   — how a user-chosen axis is declared. Not a blocker of this design, but a
-  blocker of shipping the `--verbose` it promises.
+  blocker of shipping the `--verbose` `test-framework-silent-mode` promises.
