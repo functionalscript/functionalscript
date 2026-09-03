@@ -34,7 +34,7 @@ store.
 `casToolRegistry(cas)(cacheKey)` to mirror `evoToolRegistry`, with one
 `const cas = fileCas(sha256)(home)` at the composition root, and the body
 rewritten flat with `history`/`historyStep`/`step`
-(`fjs/dev/update/module.f.mjs:99-106` is the in-repo model).
+(`fjs/cas/module.f.mjs:142-143` is the in-repo model).
 
 ### Tasks
 

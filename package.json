@@ -15,7 +15,7 @@
     "test": "tsc && node ./fjs/module.mjs t",
     "cov": "node --test --experimental-test-coverage --test-coverage-include=**/module.f.mjs --test-coverage-lines=100 --test-coverage-branches=100 --test-coverage-functions=100",
     "start": "node ./fjs/module.mjs",
-    "gen": "node ./fjs/module.mjs ci && node ./fjs/module.mjs r ./fjs/nanvm/update/module.f.mjs && node ./fjs/module.mjs r ./fjs/dev/update/module.f.mjs",
+    "gen": "node ./fjs/module.mjs ci && node ./fjs/module.mjs r ./fjs/nanvm/update/module.f.mjs",
     "lock-update": "npm run gen && ./nix/lock-update.sh && npm install && deno install && bun install && cargo update",
     "website": "node ./fjs/module.mjs r ./fjs/website/module.f.mjs"
   },
