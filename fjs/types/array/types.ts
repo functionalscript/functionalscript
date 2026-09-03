@@ -31,6 +31,7 @@ type _X3 = Assert<Equal<FixedArray<number, true>, readonly true[]>>
 type _X4 = Assert<Equal<FixedArray<2, true>, readonly [true, true]>>
 // type _X5 = Assert<Equal<FixedArray<-1, true>, readonly [true, true]>>
 type _XMax = FixedArray<998, true>
+type _XMix = Assert<Equal<FixedArray<1 | 2 | 3, true>, readonly [true] | readonly [true, true] | readonly [true, true, true]>>
 
 type _Option<X extends readonly unknown[]> = { readonly [K in keyof X]?: X[K] }
 
@@ -103,7 +104,7 @@ type _X01 = Assert<Equal<BoundedArray<0, 1, true>, readonly []|readonly[true]>>
 type _X02 = Assert<Equal<BoundedArray<0, 2, true>, readonly []|readonly[true]|readonly[true, true]>>
 type _X11 = Assert<Equal<BoundedArray<1, 1, true>, readonly [true]>>
 type _X12 = Assert<Equal<BoundedArray<1, 2, true>, readonly [true]|readonly[true, true]>>
-type _X13 = Assert<Equal<BoundedArray<1, 3, true>, FixedArray<1, true>|FixedArray<2, true>|FixedArray<3, true>>>
+type _X13 = Assert<Equal<BoundedArray<1, 3, true>, FixedArray<1|2|3, true>>>
 type _X22 = Assert<Equal<BoundedArray<2, 2, true>, readonly [true, true]>>
 type _X2_ = Assert<Equal<
     BoundedArray<2, number, true>,
@@ -128,8 +129,7 @@ type _X32 = Assert<Equal<BoundedArray<3, 2, true>, never>>
 // An unknown `Min` bounds nothing below `Max`.
 type _X_3 = Assert<Equal<
     BoundedArray<number, 3, true>,
-    readonly [] | readonly [true] | readonly [true, true] | readonly [true, true, true]>
->
+    FixedArray<0|1|2|3, true>>>
 
 export type OfLength<
     T extends readonly unknown[],
