@@ -131,6 +131,26 @@ only by a human or external tooling after something has already gone wrong, so
 don't over-invest proof effort in checking its exact value — whether it threw is
 normally the part of the contract that matters.
 
+### 1.6 Do not prove a `.f.mjs` API from plain JavaScript
+
+A `proof.mjs` exists to prove its **sibling `module.mjs`** — host code that
+FunctionalScript cannot express, such as the DOM adapter in
+`emergent_testing/browser` or the `node:` bindings in `effects/node/memory`.
+That is its whole purpose.
+
+It is **not** a back door for proving a `.f.mjs` API against inputs or control
+flow the subset forbids: values built by `Object.setPrototypeOf`,
+`Object.assign`, `defineProperty` or an accessor; a `try`/`catch` runner; a real
+async scheduler. Do not add such a file, and do not add such cases to an
+existing `proof.mjs`.
+
+These scenarios are speculation about what an *arbitrary JavaScript caller*
+might hand a FunctionalScript function, and nobody has asked for them. A module
+is proven against the values FunctionalScript can build, by `proof.f.mjs`
+tables, and that is the contract the module promises. Mixed
+JavaScript/FunctionalScript interop is a separate concern for a separate
+repository; it does not belong in this one's proofs.
+
 ---
 
 ## 2. Documentation

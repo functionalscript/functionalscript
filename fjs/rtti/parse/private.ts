@@ -4,7 +4,6 @@
  * @module
  */
 
-import type { Presence } from '../common/types.ts'
 import type { Unknown } from '../ts/types.ts'
 
 /**
@@ -17,6 +16,3 @@ export type _Entries =
 
 /** Rebuilds a parsed container from its entries. */
 export type _Rebuild = (entries: _Entries) => Unknown
-
-/** A declared container's parsed entries together with its presence flags. */
-export type _Declared = { readonly entries: _Entries, readonly presence: Presence }

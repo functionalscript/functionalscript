@@ -29,17 +29,12 @@ so an absent continuation reads as `undefined` rather than as whatever a
 prototype supplies at that index — an indexed `k[2]` would read the prototype,
 which is why none appears.
 
-That choice is not a hardening claim, and no read style would be one. Under a
-hostile host each has its own hole: an unchecked index reads through the
-prototype, and destructuring dispatches an own `Symbol.iterator`, which can
-yield a step past the length `validate` bounded. Neither is peculiar to
-ending by arity — the walkers destructured before it too — and closing them
-means a hermetic read path, which is
-[rtti's tracked question](../../rtti/todo/hostile-accessor-hermetic-read-path.md)
-for the readers and a VM's problem for an executor. This evaluator's
-guarantees assume what the language itself can build: a DJS value on a
-pristine host, where every read style coincides. That is one more reason it
-is not a VM, and nothing that matters should run on it.
+That choice is not a hardening claim, and no read style would be one. This
+evaluator's guarantees assume what the language itself can build: a DJS value
+on a pristine host, where every read style coincides — `fjs/AGENTS.md` §3.1
+"One realm, one prototype chain" is the rule, and keeping anything else out is
+the host boundary's job. That is one more reason this is not a VM, and nothing
+that matters should run on it.
 
 ### It forgets — hence the name
 

@@ -73,7 +73,7 @@ const mute = partialRun(/** @type {Commands<_BrowserOp>} */ (
  * rather than merely dangerous, and `attempt` folds the refusal into the same
  * answer a throw would give — which is what these proofs use to reach the
  * describing paths a pure runner can never reach by throwing (it has no `try`,
- * so a hostile fixture panics instead; those belong to `../catch.proof.mjs`).
+ * so a hostile fixture panics instead).
  *
  * @type {RunInstance<_BrowserOp, _Rows>}
  */

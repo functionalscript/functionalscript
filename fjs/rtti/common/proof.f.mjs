@@ -78,10 +78,6 @@ export const proof = {
         // long before any check could reject the value.
         lengthDoesNotBoundTheWalk: () =>
             assertEq(undeclaredMembers([], new Array(2 ** 32 - 1)).length, 0),
-        // An index the prototype supplies is a member too, and a canonical
-        // numeric key past the index range is one by the non-index half. Both
-        // need in-place mutation to build, so they are pinned in
-        // `../host.proof.mjs` — see its module doc.
     },
     // What a container schema declares, per kind. A tuple is read by length,
     // so a hole is a declared position whose schema is `undefined` — the same

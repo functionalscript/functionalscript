@@ -81,52 +81,29 @@ against a `bigint`, which no reader over an already-materialized value can do.
 
 The readers are written for **DJS values**: plain arrays and objects of
 primitives, the values FunctionalScript itself can build. Reading a member of
-one of those has no effect, and every guarantee below rests on that.
+one of those has no effect, and every guarantee the readers make rests on that.
 
-A value built by arbitrary JavaScript need not behave that way. A getter or a
-`Proxy` trap runs code on being read, so for such a value *asking a question
-is an action*, and the readers do not defend against it. Concretely:
+This is the language's assumption, not one the readers add. `fjs/AGENTS.md`
+§3.1 "One realm, one prototype chain" says a value an `.f.mjs` function sees
+was built by this realm's constructors, and §1.6 says the readers are not
+proven against anything else. A value carrying a getter, a `Proxy` trap or a
+replaced prototype is not such a value, and keeping one from reaching a reader
+is the host boundary's job — the thin `.mjs` that converts a foreign value
+before any `.f.mjs` sees it — not a defence each reader re-implements.
 
-- **A closed container is bounded by `length` before its members are read**,
-  which is what keeps an `or` of two arities from walking a shared operand
-  once per arm — validating a deeply nested `../edag/` chain is linear rather
-  than exponential because of it. The cost is that a `length` getter runs
-  before the members are read and can decide what they are: a proxy over
-  `['bad']` whose `length` getter sets index 0 to `1` is **accepted** against
-  `[number]` by `parse` and `validate`, while the data form rejects it.
-- **The same is true of the members a container has at all.** The shape is
-  settled before the members are read, so a read that *adds* a member is not
-  seen: an object whose `a` getter installs an undeclared `b` is **accepted**
-  against `{ a: number }` by `parse` and `validate`, while the data form
-  rejects it. An earlier revision re-asked the shape after the reads and
-  caught that one; the check was dropped rather than kept, because it closed
-  one arrangement out of an open set — the `length` example above defeats any
-  amount of re-asking, since it decides the members *before* anyone reads
-  them.
-- **So the three readers can disagree on such a value.** The agreement the
-  tables in `validate/proof.f.mjs` pin — and that `host.proof.mjs` holds them
-  to — is a promise about values whose reads are side-effect-free, which is
-  every DJS value and every ordinary array. It is not a promise about a value
-  engineered to answer differently each time it is asked.
-- **More of the verdict path is steerable than that one read**, by patching
-  the intrinsics the readers use rather than the value they read;
-  [`todo/hostile-accessor-hermetic-read-path.md`](./todo/hostile-accessor-hermetic-read-path.md)
-  enumerates those and is where hardening work belongs if it is ever wanted.
+So the readers ask each question once and trust the answer: a container's
+shape is settled before its members are read, a tuple's positions are its own
+indices below `length`, and nothing is re-asked afterwards. Defending against
+values the language cannot produce cost speed on every value it can — the
+prototype-chain walk for inherited indices and the presence re-check together
+accounted for roughly 40% of validation time on a graph of small containers.
 
-What still holds for any value at all: a reader returns a `Result` rather than
-throwing on ordinary input, and `validate` hands back the value it was given
-rather than a reconstruction. What is *not* promised for a hostile one is that
-its verdict matches another reader's, or that the value still denotes what was
-checked by the time the reader returns.
-
-This is a deliberate boundary, not an oversight. Hardening the readers against
-values the language cannot produce costs speed on every value it can: the
-prototype-chain walk that finds inherited indices and the presence re-check
-that catches a flipped member together account for roughly 40% of validation
-time on a graph of small containers. A caller reading genuinely untrusted
-JavaScript should convert it to DJS first — or parse from text, where
+What holds for any DJS value: a reader returns a `Result` rather than throwing,
+the three readers agree, and `validate` hands back the value it was given
+rather than a reconstruction. A caller holding genuinely untrusted JavaScript
+should convert it to DJS first — or parse from text, where
 [`../media/json/todo/rtti-parse.md`](../media/json/todo/rtti-parse.md) reads
-against a schema in one pass with no intermediate value to subvert.
+against a schema in one pass with no intermediate value at all.
 
 ## Schema types
 
