@@ -32,3 +32,4 @@
 - [ ] EBNF: I think, the idea to use `string` as raw value is still attractive. Also, if we use the first item of an array as discriminant together with a sequence, it became inconsistent with all other eDSL we have. https://github.com/functionalscript/functionalscript/pull/1847
 - [ ] convention for generated files, for example `gen_`
 - [ ] remove copilot MCP and copying the MCP to VSCode.
+- [ ] we may try to use `BoundedArray<2, 4, T>` instead of `OptionTailArray<2, 4, T>` in EDAG and RTTI for `[t, t, option(t), option(t)]`
