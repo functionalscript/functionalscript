@@ -112,7 +112,13 @@ stages that relocate an API go straight to the final path.
    `testlib.f.mjs`. `showAst` and the root `private.ts` that types it are
    backend-neutral and are what `ll1/proof.f.mjs` and `descent/proof.f.mjs`
    assert with, so they go to the surviving neutral testlib instead; only the
-   grammar-bearing `classic` / `deterministic` travel with the front end.
+   grammar-bearing `classic` / `deterministic` travel with the front end. Both
+   must become **local** classical fixtures in the same PR: `deterministic()`
+   returns `lib/json`'s grammar today (`testlib.f.mjs:8,128`), and stage 8
+   ports that grammar to `ebnf` while the classical front end is still alive,
+   so `toData(deterministic())`, `parser(deterministic())` and
+   `descentParser(deterministic())` would be handed ebnf thunks by a PR that
+   never touched them.
    `fjs/bnf/README.md` is **split**, not moved: the AST contract and node
    shape go to a new `fjs/grammar/README.md`, "Terminals and EOF" to
    `terminal/`, "Dispatch" to `ll1/`, and only the functional representation
@@ -217,7 +223,9 @@ A module the migration creates goes to its final path immediately, never to
 - [ ] Stage 5: move the front end to `fjs/grammar/bnf/` with the conversion
       and the wrappers, and the proof cases that cover them; repoint the
       `lib/` grammars (which do not move until stage 7, so their front-end
-      imports repoint without moving) and every README and `todo/` link.
+      imports repoint without moving) and every README and `todo/` link. Give
+      `classic` / `deterministic` local classical grammars here — delegating
+      to `lib/json` breaks the moment stage 8 ports it.
 - [ ] Stage 5, `fjs/djs`: `parser/module.f.mjs` and `tokenizer/module.f.mjs`
       import the front-end root and repoint here. The two `private.ts` files
       import `matcher` and wait for stage 6. `tokenizer/proof.f.mjs` takes
