@@ -36,3 +36,20 @@
 - [ ] remove useless crappy tests like fjs/rtti/host.proof.mjs. Nobody asks for them, nobody need them, nobody prioritizes them. They come from infinite reviewer speculation about "what if".
 - [ ] NiX and Rust eDSL should follow the same conventions as RTTI, new EBNF, HTML and EDAG. Use plain objects to define normal objects.
 - [ ] Specify what is `unknown` in FJS. The set is smaller than in JS.
+  ```js
+  type Primitive = boolean | null | number | string | undefined | bigint
+  type Object = StringMap<Value>
+  type Array = readonly Value[]
+  // DataJS
+  type Value = Primitive|Object|Array
+  // FJS. v1
+  type Value = Primitive|Object|Array|Function
+  // FJS. v2 (+object identification)
+  type Value = Primitive|Object|Array|Function|Map|Set
+  // FJS. v3 (+generators)
+  type Value = Primitive|Object|Array|Function|Map|Set|Iterable
+  ```
+  Generators:
+  ```js
+  {*[Symbol.iterator](){ ... }}
+  ```
