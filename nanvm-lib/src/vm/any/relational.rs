@@ -88,27 +88,58 @@ fn numeric_less_than<A: IVm>(nx: Numeric<A>, ny: Numeric<A>) -> Option<bool> {
     }
 }
 
-/// `StringToBigInt`, restricted to the plain decimal literals (optional
-/// sign, optional surrounding whitespace, ASCII digits) the corpus exercises
-/// — not the `0x`/`0o`/`0b` forms the full grammar also allows. `""` (or all
-/// whitespace) is `0n`, matching the spec's `StringToBigInt("")`.
+/// `StringToBigInt`: a decimal literal (optional leading sign), or a
+/// `0x`/`0o`/`0b` literal — those three take no sign, matching the grammar
+/// (`NonDecimalIntegerLiteral` has no `Sign` production, unlike
+/// `StrIntegerLiteral`'s decimal alternative). Surrounding whitespace is
+/// trimmed; `""` (or all whitespace) is `0n`, matching
+/// `StringToBigInt("")`.
 fn string_to_bigint<A: IVm>(s: &str) -> Option<BigInt<A>> {
     let trimmed = s.trim();
     if trimmed.is_empty() {
         return Some(BigInt::default());
     }
+    if let Some(digits) = trimmed
+        .strip_prefix("0x")
+        .or_else(|| trimmed.strip_prefix("0X"))
+    {
+        return parse_digits(digits, 16);
+    }
+    if let Some(digits) = trimmed
+        .strip_prefix("0o")
+        .or_else(|| trimmed.strip_prefix("0O"))
+    {
+        return parse_digits(digits, 8);
+    }
+    if let Some(digits) = trimmed
+        .strip_prefix("0b")
+        .or_else(|| trimmed.strip_prefix("0B"))
+    {
+        return parse_digits(digits, 2);
+    }
     let (negative, digits) = match trimmed.strip_prefix('-') {
         Some(rest) => (true, rest),
         None => (false, trimmed.strip_prefix('+').unwrap_or(trimmed)),
     };
-    if digits.is_empty() || !digits.bytes().all(|b| b.is_ascii_digit()) {
+    let magnitude = parse_digits(digits, 10)?;
+    Some(if negative { -magnitude } else { magnitude })
+}
+
+/// Parses `digits` as an unsigned integer literal in `radix` (2, 8, 10, or
+/// 16 — whatever the caller's prefix implied). `None` if `digits` is empty
+/// or any byte is out of range for the radix; `char::to_digit` covers both
+/// checks (and both cases of hex `a`-`f`) at once.
+fn parse_digits<A: IVm>(digits: &str, radix: u32) -> Option<BigInt<A>> {
+    if digits.is_empty() {
         return None;
     }
-    let ten: BigInt<A> = 10u64.into();
-    let magnitude = digits.bytes().fold(BigInt::default(), |acc, byte| {
-        acc * ten.clone() + BigInt::from((byte - b'0') as u64)
-    });
-    Some(if negative { -magnitude } else { magnitude })
+    let base: BigInt<A> = (radix as u64).into();
+    let mut magnitude = BigInt::default();
+    for byte in digits.bytes() {
+        let digit = (byte as char).to_digit(radix)?;
+        magnitude = magnitude * base.clone() + BigInt::from(digit as u64);
+    }
+    Some(magnitude)
 }
 
 /// `Number < BigInt`, per steps (g)-(k): `NaN` and the infinities are
@@ -251,5 +282,24 @@ mod tests {
         assert!(bool_of(big(20).lt(s("30"))));
         assert!(!bool_of(s("abc").lt(big(20))));
         assert!(!bool_of(big(20).lt(s("abc"))));
+    }
+
+    #[test]
+    fn string_to_bigint_non_decimal_literals() {
+        let s = |v: &str| -> Any<A> { v.into() };
+        // "0x10" is 16n, "0o10" is 8n, "0b10" is 2n — StringToBigInt parses
+        // all three, not just decimal, so each compares as its value rather
+        // than falling through to "not a valid literal".
+        assert!(bool_of(s("0x10").lt(big(17))));
+        assert!(!bool_of(s("0x10").lt(big(16))));
+        assert!(bool_of(s("0o10").lt(big(9))));
+        assert!(bool_of(s("0b10").lt(big(3))));
+        assert!(bool_of(s("0X1A").lt(big(27))));
+        // The sign-less forms don't accept a sign; "-0x10" is not a valid
+        // literal at all, so the comparison is `false` in both directions.
+        assert!(!bool_of(s("-0x10").lt(big(100))));
+        assert!(!bool_of(big(-100).lt(s("-0x10"))));
+        // An empty digit run after the prefix is invalid too.
+        assert!(!bool_of(s("0x").lt(big(1))));
     }
 }
