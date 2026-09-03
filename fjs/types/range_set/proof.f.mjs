@@ -1,4 +1,6 @@
 /**
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../ts/types.ts'
  * @import { RangeSet } from './types.ts'
  */
 
@@ -170,6 +172,51 @@ export const proof = {
             assertStructurallySame(rm, [[true, Infinity]])
             assert(get(false)(rm)(0))
         },
+    },
+    // the `Eof` table in `fjs/bnf/todo/ebnf-range-set.md`, each row asserted at
+    // the type level and witnessed at runtime by what the set actually contains
+    eof: () => {
+        const ordinary = fromRange([0, 9])
+        /** @typedef {Assert<Equal<typeof ordinary, RangeSet<false>>>} _FromRange */
+        assert(!contains(ordinary)(-1))
+        /** @typedef {Assert<Equal<typeof empty, RangeSet<false>>>} _Empty */
+        /** @typedef {Assert<Equal<typeof full, RangeSet<true>>>} _Full */
+
+        // a literal that opens at `-1` carries it, which is what the `const`
+        // type parameter is for
+        const eofOnly = rangeSet([-1, 0])
+        /** @typedef {Assert<Equal<typeof eofOnly, RangeSet<true>>>} _RangeSetLiteral */
+        assert(contains(eofOnly)(-1))
+
+        // boundaries the caller did not write down say nothing
+        /** @type {readonly number[]} */
+        const elsewhere = [-1, 0]
+        const unknown = rangeSet(elsewhere)
+        /** @typedef {Assert<Equal<typeof unknown, RangeSet<boolean>>>} _RangeSetWidened */
+
+        const notOrdinary = complement(ordinary)
+        /** @typedef {Assert<Equal<typeof notOrdinary, RangeSet<true>>>} _Complement */
+        assert(contains(notOrdinary)(-1))
+        const notEofOnly = complement(eofOnly)
+        /** @typedef {Assert<Equal<typeof notEofOnly, RangeSet<false>>>} _ComplementBack */
+        assert(!contains(notEofOnly)(-1))
+
+        const united = union(eofOnly)(ordinary)
+        /** @typedef {Assert<Equal<typeof united, RangeSet<true>>>} _Union */
+        assert(contains(united)(-1))
+
+        const intersected = intersection(eofOnly)(ordinary)
+        /** @typedef {Assert<Equal<typeof intersected, RangeSet<false>>>} _Intersection */
+        assert(!contains(intersected)(-1))
+
+        const differenced = difference(full)(eofOnly)
+        /** @typedef {Assert<Equal<typeof differenced, RangeSet<false>>>} _Difference */
+        assert(!contains(differenced)(-1))
+
+        // unknown on either side stays unknown
+        const widened = union(unknown)(ordinary)
+        /** @typedef {Assert<Equal<typeof widened, RangeSet<boolean>>>} _UnionUnknown */
+        assert(contains(widened)(-1))
     },
     throw: {
         rangeSetRejectsUnsorted: () => rangeSet([5, 5]),

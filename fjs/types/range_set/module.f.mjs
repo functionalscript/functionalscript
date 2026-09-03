@@ -7,7 +7,7 @@
  * @import { Reduce } from '../function/operator/types.ts'
  * @import { Range } from '../range/types.ts'
  * @import { RangeMapArray } from '../range_map/types.ts'
- * @import { RangeSet } from './types.ts'
+ * @import { RangeSet, _And, _EofOfFirst, _EofOfList, _Not, _Or } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
@@ -19,7 +19,7 @@ import { merge } from '../sorted_list/module.f.mjs'
 /**
  * The empty set, the identity of `union`.
  *
- * @type {RangeSet}
+ * @type {RangeSet<false>}
  */
 export const empty = []
 
@@ -27,7 +27,7 @@ export const empty = []
  * Every integer: the identity of `intersection`, and the set `complement`
  * complements against.
  *
- * @type {RangeSet}
+ * @type {RangeSet<true>}
  */
 export const full = [-Infinity]
 
@@ -46,26 +46,33 @@ export const isRangeSet = s => s.every((v, i) =>
         ? v === -Infinity || Number.isSafeInteger(v)
         : Number.isSafeInteger(v) && v > s[i - 1])
 
+/** @type {(s: readonly number[]) => readonly number[]} */
+const validated = s => {
+    assert(isRangeSet(s), s)
+    return s
+}
+
 /**
  * The one door a set of boundaries comes through. It panics on a list that is
  * not one: the algebra below reads every set as canonical, so an unsorted or
  * non-integer list has no meaning to give it, and the mistake belongs to
  * whoever wrote the boundaries down.
  *
- * @type {(s: readonly number[]) => RangeSet}
+ * The `Eof` of the result is read off the boundaries as written, which is why
+ * the parameter is `const`: `rangeSet([-1, 0])` is `true`, an ordinary set is
+ * `false`, and a list the caller built elsewhere is unknown.
+ *
+ * @type {<const S extends readonly number[]>(s: S) => RangeSet<_EofOfList<S>>}
  */
-export const rangeSet = s => {
-    assert(isRangeSet(s), s)
-    return s
-}
+export const rangeSet = validated
 
 /**
  * The closed range `a..b`, which is the two boundaries `[a, b + 1]`. An empty
  * or reversed range is not a set with no members but a mistake, and panics.
  *
- * @type {(r: Range) => RangeSet}
+ * @type {<const R extends Range>(r: R) => RangeSet<_EofOfFirst<R[0]>>}
  */
-export const fromRange = ([a, b]) => rangeSet([a, b + 1])
+export const fromRange = ([a, b]) => validated([a, b + 1])
 
 /**
  * Membership: the parity of the number of boundaries at or below `v`, found by
@@ -86,7 +93,7 @@ export const contains = s => {
  * `difference` against that alphabet's own set, which is the alphabet's to own
  * rather than this module's.
  *
- * @type {(s: RangeSet) => RangeSet}
+ * @type {<A extends boolean>(s: RangeSet<A>) => RangeSet<_Not<A>>}
  */
 export const complement = s => s[0] === -Infinity ? s.slice(1) : [-Infinity, ...s]
 
@@ -114,7 +121,7 @@ const mergeMember = op => a => b => {
  * valid set is off, and a result that is on there has no first boundary to say
  * so.
  *
- * @type {(op: Reduce<boolean>) => (a: RangeSet) => (b: RangeSet) => RangeSet}
+ * @type {(op: Reduce<boolean>) => (a: RangeSet) => (b: RangeSet) => readonly number[]}
  */
 const mergeWith = op => a => b => {
     const member = mergeMember(op)(a)(b)
@@ -122,13 +129,13 @@ const mergeWith = op => a => b => {
         .filter((v, i, all) => member(v) !== (i !== 0 && member(all[i - 1])))
 }
 
-/** @type {(a: RangeSet) => (b: RangeSet) => RangeSet} */
+/** @type {<A extends boolean>(a: RangeSet<A>) => <B extends boolean>(b: RangeSet<B>) => RangeSet<_Or<A, B>>} */
 export const union = mergeWith(a => b => a || b)
 
-/** @type {(a: RangeSet) => (b: RangeSet) => RangeSet} */
+/** @type {<A extends boolean>(a: RangeSet<A>) => <B extends boolean>(b: RangeSet<B>) => RangeSet<_And<A, B>>} */
 export const intersection = mergeWith(a => b => a && b)
 
-/** @type {(a: RangeSet) => (b: RangeSet) => RangeSet} */
+/** @type {<A extends boolean>(a: RangeSet<A>) => <B extends boolean>(b: RangeSet<B>) => RangeSet<_And<A, _Not<B>>>} */
 export const difference = mergeWith(a => b => a && !b)
 
 /**
