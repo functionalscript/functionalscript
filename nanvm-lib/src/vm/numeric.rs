@@ -13,8 +13,9 @@ const NO_UNSIGNED_RIGHT_SHIFT_FOR_BIGINT: &str =
 
 /// `ToUint32(rhs) & 0x1F`: the shift-count operand of `<<`/`>>`/`>>>`
 /// between two `Number`s is reduced modulo 32 — a `u32` shift always in
-/// `0..32`, so it can never panic Rust's own `<<`/`>>` on `i32`/`u32`
-/// (which requires a shift strictly less than the type's bit width).
+/// `0..=31`, so it can never panic Rust's own `<<`/`>>` on `i32`/`u32`
+/// (which requires a shift strictly less than the type's 32-bit width, i.e.
+/// at most 31).
 fn shift_count(rhs: f64) -> u32 {
     to_uint32(rhs) & 0x1F
 }
