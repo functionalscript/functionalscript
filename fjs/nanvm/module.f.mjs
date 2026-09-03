@@ -1050,7 +1050,7 @@ const ternaryCases = [
 ]
 
 /**
- * `typeof`, the corpus's other group with no canonical EDAG id (see
+ * `typeof`, another of the corpus's groups with no canonical EDAG id (see
  * `NonEdagGroup` in `types.ts`) — it returns a tag naming the operand's own
  * kind, so unlike `!`/`&&`/`||`/`??`/`?:` there is no identity concern here:
  * the result is always a fresh string, never the operand itself.
