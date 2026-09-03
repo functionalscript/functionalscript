@@ -230,7 +230,7 @@ justification is the API and the AST, which is where
       `difference`, the half-open `fromRange`, validation on construction;
       proofs for each, for `[]`, `[-Infinity]`, `[-1, 0]`, `[0.5, 1.5]`, an
       open tail, and every rejected input (`NaN`, `Infinity`, `-0`, a
-      repeat, a descent). Port `fjs/media/nix/module.f.mjs` to `[a, b + 1]`.
+      repeat, a decrease). Port `fjs/media/nix/module.f.mjs` to `[a, b + 1]`.
 - [ ] `fjs/ebnf/terminal/`: the integer helpers — `range(a, b)` and
       `one(x)` as `[a, b + 1]` and `[x, x + 1]`, `eof` as `[-1, 0]`, the
       domain `[0]`, and `toRangeMap` (inclusive upper bound `b - 1`; an open
