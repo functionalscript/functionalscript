@@ -31,9 +31,8 @@ producing package artifacts.
 
 ### Authored and generated JavaScript extensions
 
-The repository source migration is split into two stages; see
-[`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
-and the authoritative FunctionalScript extension contract in
+The repository source migration is split into two stages; both, and the
+authoritative FunctionalScript extension contract, are in
 [`fjs/fsc/README.md`](../../fsc/README.md).
 
 Stage 1 used different extensions for authored JavaScript and generated
@@ -217,8 +216,8 @@ must cover both runtime and declarations. These requirements are owned by
 
 - [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451) —
   initial implementation and CI validation of authored `.mjs` package support.
-- [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
-  — repository-wide two-stage ordering.
+- [`fjs/fsc/README.md`](../../fsc/README.md) — repository-wide two-stage
+  ordering and the extension contract.
 - [`f-mjs-package-support.md`](./f-mjs-package-support.md) — focused stage-1
   authored `.mjs` prerequisite.
 - [`f-js-package-support.md`](./f-js-package-support.md) — focused stage-2

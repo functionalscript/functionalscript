@@ -56,9 +56,11 @@ concatenation: `` `a${x}b` `` → `"a" + x + "b"`, and a substitution-free
 
 That rewrite is not free in this repository: 202 of the 260 `.mjs` files use
 template literals, with 494 substitutions between them. Like single-quoted
-strings, they are part of what
-[migrate-typescript-to-mjs.md](../../todo/migrate-typescript-to-mjs.md) stage 3
-has to normalize before the parser accepts the repository's own sources.
+strings, they have to be normalized before the parser accepts the repository's
+own sources — a precondition of the
+[stage-2](../../fjs/fsc/README.md#stage-2-mark-compiler-compatible-functionalscript)
+`.f.mjs` -> `.f.js` rename, which commits that the compiler in the same revision
+accepts the complete module.
 
 See
 <https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals>
