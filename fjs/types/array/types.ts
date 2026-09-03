@@ -101,6 +101,7 @@ type _X2_ = Assert<Equal<
     readonly [true, true, ...readonly true[]]>
 >
 type _XXMax = BoundedArray<0, 48, true>
+type _XXMax1 = BoundedArray<1, 49, true>
 
 // A union bound is every length it names, not the first one matched.
 type _XU_Max = Assert<Equal<
@@ -120,6 +121,18 @@ type _X_3 = Assert<Equal<
     BoundedArray<number, 3, true>,
     readonly [] | readonly [true] | readonly [true, true] | readonly [true, true, true]>
 >
+
+export type GetByLength<
+    T extends readonly unknown[],
+    L extends number,
+> =
+    T extends readonly unknown[]
+        ? T['length'] extends L
+            ? T
+            : never
+        : never
+
+type _M = Assert<Equal<GetByLength<BoundedArray<1, 49, true>, 2>, readonly [true, true]>>
 
 type _Tail<
     Max extends number,
