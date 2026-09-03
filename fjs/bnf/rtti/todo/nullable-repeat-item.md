@@ -1,6 +1,6 @@
 ## nullable-repeat-item. `AstRule` and `repeatOf` disagree where a rule set is needed
 
-*(The slug names the first case found; the issue grew to three.)*
+*(The slug names the first case found; the issue grew to six.)*
 
 **Priority:** P3
 **Status:** open
@@ -25,22 +25,6 @@ for more, and none of it can be answered from the rule:
   branch refers back to it: attempting it makes the self-referential
   three-branch variant of `_20` report `TS2589`. It is the nullability
   obstruction again, reached from the other side.
-- An *optional* branch may be omitted by a value the type admits, and then the
-  rule has fewer branches than it declares. `{ none?: [], some?: [0, R] }`
-  describes four grammars — both branches, either alone, neither — and only the
-  first is a repetition: `repeatItem` returns the item for it and `null` for
-  `{ none: [] }` on its own. `_29` picks the both-present reading, which is a
-  choice among the four rather than the answer, and the same choice `_12` makes
-  for variants. Deciding it properly needs the value, or a rule set built from
-  one.
-- A branch whose declared type is a *union of rules* is not distributed over
-  during recognition. `{ none: readonly [] | 1, some: [0, R] }` describes both a
-  repetition (when `none` is the empty sequence) and an ordinary variant (when
-  it is the terminal), and `repeatItem` returns the item for the first; the
-  tests here read the union whole, match neither shape, and give the variant.
-  Distributing it is not one more predicate: the members multiply across
-  branches, so recognizing every combination of an `N`-branch rule whose
-  branches have `M` members is `M^N` shapes.
 - `stepRule[1] !== name` asks whether the tail *is this rule*, by name. The
   type-level test asks whether the tail has this rule's shape, and those differ:
   given two separate declarations both spelled
@@ -52,12 +36,22 @@ repetition, and a rule whose tail is a structurally identical *other* rule all
 get an array from `AstRule` while the parser builds a variant. The type
 describes an AST the parser will not build.
 
-The consequence is bounded, and is what makes this a `todo/` rather than a fix:
-both are grammars the runtime refuses outright, so the wrong type belongs to a
-rule that does not work either way. That is unlike the repeat-detection defects
-fixed in the same pull request — extra branches, and branch names other than
-`some`/`none` — each of which gave a wrong shape to a grammar that *does*
-parse.
+The first two are grammars the runtime refuses outright, so the wrong type
+belongs to a rule that does not work either way. **The tail-identity case is
+not**, and it is the worst of the three for that reason. Given
+
+```js
+const B = () => ({ none: [], some: [0, B] })
+const A = () => ({ none: [], some: [0, B] })
+```
+
+`repeatItem(B)` returns `0` and `repeatItem(A)` returns `null`; `toData(A)`
+builds a five-rule set entered at `A`, and the descent parser matches the empty
+input against it, answering `{ tag: 'none', sequence: [] }`. `A` is a grammar
+that works, and `AstRule<A>` calls it `readonly number[]`. That is the same kind
+of defect as the repeat-detection ones fixed in the same pull request — extra
+branches, and branch names other than `some`/`none` — rather than the bounded
+kind, and it is the strongest argument for deriving from the rule set.
 
 ### Two more, from different causes
 
@@ -68,11 +62,16 @@ prototype setter rather than an own property, so `Object.entries` in
 [`../../data/module.f.mjs`](../../data/module.f.mjs) sees no branches at all and
 `toData(r)` produces an empty variant. The advertised branch can never exist.
 
-This one is *not* a rule-set question, and is the only limit here with a cheap
-and exact fix: the key is gone before a rule set is built, and `__proto__` is a
-single known name, so excluding it from `_Keys` is precise rather than a guess.
-A variant declaring only `__proto__` would then correctly refuse. Worth doing on
-its own rather than waiting for the larger change.
+Excluding `__proto__` from `_Keys` looks like a cheap and exact fix, and is not
+one. The computed spelling `{ ['__proto__']: 0 }` is an ordinary own property:
+`Object.entries` yields it, `toData` builds `{ __proto__: '' }` as a branch, and
+the grammar parses. TypeScript gives both spellings the same `keyof` —
+`Assert<Equal<keyof typeof r, '__proto__'>>` holds for either — so no test can
+tell them apart, and excluding the key would take a working grammar's only
+branch away. Between the two errors the present one is the better: it gives a
+wrong type to a rule that does not work, where the exclusion would give a wrong
+type to one that does. The rule-set derivation settles this too, since a rule
+set carries the keys `Object.entries` actually produced.
 
 ### One more, from a different cause
 
@@ -96,9 +95,9 @@ many a type admits.
 
 ### Why none of them is a guard
 
-All six are questions about a rule *set*, not about a rule. `reachable` walks
-a set of named rules; there is no set here to walk, and a structural type has
-no name to be reached.
+All four in the list above are questions about a rule *set*, not about a rule.
+`reachable` walks a set of named rules; there is no set here to walk, and a
+structural type has no name to be reached.
 
 The identity condition puts it beyond reach rather than merely inconvenient.
 TypeScript is structurally typed, so two rules with the same shape are not

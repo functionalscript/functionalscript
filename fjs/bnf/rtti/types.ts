@@ -24,6 +24,13 @@
  * module and the parser disagree:
  * [nullable-repeat-item](./todo/nullable-repeat-item.md).
  *
+ * Where a rule is written too widely to say whether it repeats — a branch left
+ * at `Sequence`, a branch written as a union with the empty sequence in it, an
+ * optional branch that a value may leave out, or a whole rule left at
+ * `() => Variant` — the answer is both shapes rather than the likelier one:
+ * `readonly Ast[]` beside the variant's branches. `lib/json`'s `value` is the
+ * last of those, so `json`'s middle element carries the array too.
+ *
  * @module
  */
 
@@ -114,11 +121,17 @@ type _StepKeys<U, R> =
     { [K in _Keys<U>]: _BranchOf<U, K> extends readonly [Rule, R] ? K : never }[_Keys<U>]
 
 /**
- * The item of `R` when `R` is a repetition, wrapped in a one-tuple, and `false`
- * when it is not one. The miss has to be `false` rather than `never`: `never`
- * is assignable to every type, so a `never` miss would match the one-tuple test
- * that reads the item back out, and every rule would read as a repetition over
- * `never`.
+ * The item of `R` when `R` is a repetition, wrapped in a one-tuple; `false`
+ * when `R` is definitely not one; and `true` when the declaration does not say
+ * which. The miss has to be `false` rather than `never`: `never` is assignable
+ * to every type, so a `never` miss would match the one-tuple test that reads
+ * the item back out, and every rule would read as a repetition over `never`.
+ *
+ * The third answer is what a widened or ambiguous declaration deserves. A
+ * branch typed `Sequence`, or a whole rule left at `() => Variant`, or a branch
+ * written as a union with `readonly []` in it, describes both a grammar that is
+ * a repetition and one that is not; a `false` there would be a claim, not an
+ * observation. {@link _AstOne} answers such a rule with both shapes.
  *
  * The conditions are `repeatOf`'s in `../data/module.f.mjs`, as far as they can
  * be asked of a rule standing on its own: exactly two branches, one of them the
@@ -139,16 +152,102 @@ type _StepKeys<U, R> =
  */
 type _RepeatItem<R> =
     R extends () => infer U
-        ? _Single<_NoneKeys<U>> extends true
-            ? _Single<_StepKeys<U, R>> extends true
-                ? Equal<_Keys<U>, _NoneKeys<U> | _StepKeys<U, R>> extends true
-                    ? _BranchOf<U, _StepKeys<U, R>> extends readonly [infer I extends Rule, R]
-                        ? readonly [I]
-                        : false
+        // An open key set names no branches in particular, so it says nothing
+        // about whether two of them make a repetition either — the reading
+        // {@link _Branches} gives it one step later, reached here first because
+        // an open variant *behind* a lazy wrapper can be a repetition where the
+        // bare one cannot.
+        ? string extends _Keys<U> ? true
+        : number extends _Keys<U> ? true
+        // A rule the parser throws on is refused outright by {@link _Branches},
+        // and asking whether it repeats would put an array in front of that
+        // refusal.
+        : [_Malformed<U>] extends [never]
+        // Openness only matters where it could make a repetition. A rule with
+        // no branch that could be the empty sequence, or none that could step,
+        // or only one key that could do either — the pair needs two — is a
+        // variant however widely its branches are written, and gets the exact
+        // answer rather than both shapes.
+        ? [_CouldNoneKeys<U>] extends [never] ? _Repeat<U, R>
+        : [_CouldStepKeys<U, R>] extends [never] ? _Repeat<U, R>
+        : _Single<_CouldNoneKeys<U> | _CouldStepKeys<U, R>> extends true ? _Repeat<U, R>
+        // A branch the declaration does not pin down leaves the classification
+        // open, and so does an optional one: `repeatOf` turns on the branches a
+        // value carries, and `?` is the author declining to say.
+        : [_UndecidedKeys<U, R>] extends [never]
+            ? [_OptionalKeys<U>] extends [never] ? _Repeat<U, R> : true
+            : true
+        // ...`_Malformed<U>`, and
+        : false
+    // ...`R extends () => infer U`. A rule that is not lazy cannot name itself,
+    // so nothing it holds can be its own tail.
+    : false
+
+/** {@link _RepeatItem} once every branch of `U` is known to be decided. */
+type _Repeat<U, R> =
+    _Single<_NoneKeys<U>> extends true
+        ? _Single<_StepKeys<U, R>> extends true
+            ? Equal<_Keys<U>, _NoneKeys<U> | _StepKeys<U, R>> extends true
+                ? _BranchOf<U, _StepKeys<U, R>> extends readonly [infer I extends Rule, R]
+                    ? readonly [I]
                     : false
                 : false
             : false
         : false
+
+/**
+ * The keys of `U` whose branch the declaration leaves open: it neither says the
+ * branch is the empty sequence or the step, nor rules either out.
+ *
+ * `Sequence` is the plain case — it *contains* the empty sequence, so a rule
+ * declaring a branch that way covers both a repetition and a variant. So does
+ * a union such as `readonly [] | 1`, and so does `Rule` itself, which is what a
+ * variant left at the API's own types offers for every key.
+ */
+type _UndecidedKeys<U, R> =
+    { [K in _Keys<U>]: _Undecided<_BranchOf<U, K>, R> extends true ? K : never }[_Keys<U>]
+
+/**
+ * Whether `B` is a branch neither test can answer for. Each test is asked twice
+ * and in this order: `B` is the shape when every value of `B` has it, `B` is
+ * not the shape when no value of `B` does, and anything left over is a
+ * declaration covering both.
+ *
+ * The tests are wrapped in one-tuples so a union `B` is weighed whole. A naked
+ * `B` would be split, and each member answered for on its own — which is the
+ * question `repeatOf` asks of a value, not the one a declaration answers.
+ */
+type _Undecided<B, R> =
+    [B] extends [readonly []] ? false :
+    [readonly []] extends [B] ? true :
+    [B] extends [readonly [Rule, R]] ? false :
+    [readonly [Rule, R]] extends [B] ? true :
+    false
+
+/** The keys of `U` whose branch is, or could be, the empty sequence. */
+type _CouldNoneKeys<U> =
+    { [K in _Keys<U>]: _CouldNone<_BranchOf<U, K>> extends true ? K : never }[_Keys<U>]
+
+type _CouldNone<B> =
+    [B] extends [readonly []] ? true : [readonly []] extends [B] ? true : false
+
+/** The keys of `U` whose branch is, or could be, an item followed by `R`. */
+type _CouldStepKeys<U, R> =
+    { [K in _Keys<U>]: _CouldStep<_BranchOf<U, K>, R> extends true ? K : never }[_Keys<U>]
+
+type _CouldStep<B, R> =
+    [B] extends [readonly [Rule, R]] ? true :
+    [readonly [Rule, R]] extends [B] ? true :
+    false
+
+/**
+ * The keys `U` declares optional. `Required` in {@link _BranchOf} reads the
+ * branch of such a key, because an optional key still names a branch a match
+ * can select; this asks the separate question of whether the branch is there at
+ * all, which is what counting them turns on.
+ */
+type _OptionalKeys<U> =
+    { [K in _Keys<U>]: {} extends Pick<U, K> ? K : never }[_Keys<U>]
 
 /**
  * The AST of a variant `R`: one branch per key of `K`, each naming only the
@@ -204,6 +303,13 @@ export type AstRule<R extends Rule> =
 
 type _AstOne<R extends Rule> =
     _RepeatItem<R> extends readonly [infer I extends Rule] ? readonly AstRule<I>[] :
+    // A declaration that does not say whether it is a repetition gets both
+    // shapes rather than the one it is merely more likely to be. The item is
+    // unknown along with the rest, so the array is over the widened `Ast`.
+    _RepeatItem<R> extends true ? readonly Ast[] | _AstNotRepeat<R> :
+    _AstNotRepeat<R>
+
+type _AstNotRepeat<R extends Rule> =
     R extends () => (infer U extends Rule) ? AstRule<U> :
     R extends TerminalRange ? number : // this is something that would be good to change
     R extends readonly Rule[]
@@ -359,16 +465,19 @@ type _SymbolBeside = () => {
 type _28 = Assert<Equal<AstRule<_SymbolBeside>, readonly number[]>>
 
 // `Variant` declares every key optional, so a repetition may be written with
-// `?` on both branches; `repeatItem` returns `0` for the value that shape
-// describes. It describes others too — a value may omit either branch, leaving
-// a one-branch variant that is no repetition — so this is the both-present
-// reading rather than the only one the type admits:
-// [nullable-repeat-item](./todo/nullable-repeat-item.md).
+// `?` on both branches; `repeatItem` returns `0` for the value with both. But
+// the same declaration describes values with one — a one-branch variant that is
+// no repetition — and nothing chooses between them, so the answer carries both:
+// the array a repetition parses to, over the widened item, beside the branches.
 type _OptionalBranches = () => {
     readonly none?: readonly[],
     readonly some?: readonly[0, _OptionalBranches],
 }
-type _29 = Assert<Equal<AstRule<_OptionalBranches>, readonly number[]>>
+type _29 = Assert<Equal<AstRule<_OptionalBranches>, _OptionalBranchesAst>>
+type _OptionalBranchesAst =
+    readonly Ast[] |
+    { readonly none: readonly[] } |
+    { readonly some: readonly[number, _OptionalBranchesAst] }
 
 // A *required* branch whose declared type includes `undefined` is not the same
 // as an optional one. `repeatItem` throws on the value it describes, because
@@ -403,10 +512,61 @@ type _34 = Assert<Equal<AstRule<Variant>, _WideVariant>>
 // `json` is `[ws, value, ws]`. `value` is `createValue`'s `Variant`, and `ws`
 // repeats `wsSymbol`, which `set` gives the same open key set — so the whole
 // grammar rests on the widened answer, and read `never` before it existed.
+//
+// `value` is `() => Variant`: a lazy rule over an open key set, which is the
+// one shape that could be a repetition without saying so. `createValue`'s seven
+// branches are not one, but that is a fact about the function's body and not
+// about the type `json` carries, so the middle element admits the array too.
 type _35 = Assert<Equal<
     AstRule<typeof json>,
-    readonly[readonly _WideVariant[], _WideVariant, readonly _WideVariant[]]>>
+    readonly[
+        readonly _WideVariant[],
+        readonly Ast[] | _WideVariant,
+        readonly _WideVariant[]]>>
 
 // A numeric index signature is an open key set too: a parse still selects one
 // branch, so an arbitrary index is absent rather than an `Ast`.
 type _37 = Assert<Equal<AstRule<{ readonly [k: number]: 0 }>, _WideVariant>>
+
+
+
+
+// A lazy rule over the widened `Variant` — `lib/json`'s `value`, in isolation.
+// Behind the wrapper the rule can name itself, so an open key set there covers
+// a repetition as well as a variant, and both shapes come back. A bare
+// `Variant` is not this: nothing it holds can refer to it, so `_34` above is
+// the variant alone.
+type _38 = Assert<Equal<AstRule<() => Variant>, readonly Ast[] | _WideVariant>>
+
+// A branch left at `Sequence` contains the empty sequence without being it, so
+// this describes a repetition over `0` and a two-branch variant alike.
+type _WideNone = () => {
+    readonly none: Sequence,
+    readonly some: readonly[0, _WideNone],
+}
+type _39 = Assert<Equal<AstRule<_WideNone>, readonly Ast[] | _WideNoneVariant>>
+type _WideNoneVariant =
+    { readonly none: readonly Ast[] } |
+    { readonly some: readonly[number, AstRule<_WideNone>] }
+
+// A branch written as a union with the empty sequence in it is the same
+// question asked another way: the member that is `readonly[]` makes a
+// repetition, the member that is `1` makes a variant.
+type _UnionNone = () => {
+    readonly none: readonly[] | 1,
+    readonly some: readonly[0, _UnionNone],
+}
+type _40 = Assert<Equal<AstRule<_UnionNone>, readonly Ast[] | _UnionNoneVariant>>
+type _UnionNoneVariant =
+    { readonly none: readonly[] | number } |
+    { readonly some: readonly[number, AstRule<_UnionNone>] }
+
+// Widening that cannot make a repetition is still decided: a rule with no
+// branch that steps is a variant however open its other branches are.
+type _WideNoStep = () => {
+    readonly none: Sequence,
+    readonly other: 0,
+}
+type _41 = Assert<Equal<
+    AstRule<_WideNoStep>,
+    { readonly none: readonly Ast[] } | { readonly other: number }>>
