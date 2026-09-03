@@ -132,13 +132,62 @@ type _Tail<
         ? _Option<O>
         : _Tail<Max, T, readonly [...R, unknown], readonly [...O, T]>
 
+/**
+ * {@link RangeArray} for bounds that are each a single `number` type: what that
+ * type distributes each of its two bounds over.
+ */
+/**
+ * The walk up to `Min`, which is also what rules out a `Min` above `Max`:
+ * reaching `Max` first means the two bounds crossed and no array satisfies
+ * them, where `_Tail` alone would count upwards past a `Max` it can never
+ * reach. Checking it here rather than against a `Max`-long tuple is what keeps
+ * it free — `Min` steps here plus `Max - Min` in `_Tail` is the `Max` steps
+ * the walk already cost.
+ */
+type _Walk<
+    Min extends number,
+    Max extends number,
+    T,
+    R extends readonly T[] = readonly [],
+> =
+    R['length'] extends Max
+        ? R['length'] extends Min ? R : never
+        : R['length'] extends Min
+            ? readonly [...R, ..._Tail<Max, T, R>]
+            : _Walk<Min, Max, T, readonly [...R, T]>
+
+/**
+ * {@link RangeArray} for bounds that are each a single `number` type: what that
+ * type distributes each of its two bounds over.
+ */
+type _Range<Min extends number, Max extends number, T> =
+    // An unknown `Min` bounds nothing, and a rest element cannot follow another
+    // rest element, so `FixedArray<number, T>` could not open a tuple.
+    number extends Min ? readonly T[] :
+    // An open `Max` has to be answered before the walk, which would otherwise
+    // read its very first `0 extends number` as having arrived.
+    number extends Max ? readonly [...FixedArray<Min, T>, ...T[]] :
+    _Walk<Min, Max, T>
+
+/**
+ * `Min` required elements followed by optional ones up to `Max`, as one tuple
+ * rather than {@link BoundedArray}'s union of lengths; `Max` as `number` leaves
+ * the tail open-ended.
+ *
+ * Both bounds are distributed before `_Tail` walks them: a bound is compared
+ * rather than destructured, so a union carried into the walk would stop at the
+ * first member matched and silently drop the rest.
+ */
 export type RangeArray<
     Min extends number,
     Max extends number,
     T,
 > =
-    FixedArray<Min, T> extends infer R extends readonly T[]
-        ? readonly [...R, ..._Tail<Max, T, R>]
+    // Both are naked type parameters in a checked position, which is what makes
+    // the conditional distribute; the `never` branches are unreachable, since
+    // each is constrained to `number` already.
+    Min extends number
+        ? Max extends number ? _Range<Min, Max, T> : never
         : never
 
 type _Y00 = Assert<Equal<RangeArray<0, 0, true>, readonly[]>>
@@ -153,5 +202,21 @@ type _Y2_ = Assert<Equal<
     readonly [true, true, ...readonly true[]]>
 >
 type _YXMax = RangeArray<0, 999, true>
+
+// A union bound is every length it names, not the first one matched.
+type _YU_Max = Assert<Equal<
+    RangeArray<1, 2 | 3, true>,
+    readonly [true, true?] | readonly [true, true?, true?]>
+>
+type _YU_Min = Assert<Equal<
+    RangeArray<1 | 2, 3, true>,
+    readonly [true, true?, true?] | readonly [true, true, true?]>
+>
+
+// A `Min` above `Max` describes no array at all.
+type _Y32 = Assert<Equal<RangeArray<3, 2, true>, never>>
+
+// An unknown `Min` bounds nothing.
+type _Y_3 = Assert<Equal<RangeArray<number, 3, true>, readonly true[]>>
 
 export type Includes<I, T extends readonly I[]> = (v: I) => v is T[number]
