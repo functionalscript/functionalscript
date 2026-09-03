@@ -6,6 +6,10 @@
  * the union of its branches, and a repetition becomes an array. Everything here
  * is types and `Assert`s, so `tsc` is this module's test.
  *
+ * A rule the parser cannot process at all resolves to `never` rather than to a
+ * plausible shape: a branch that is required and yet admits `undefined` makes
+ * `toData` throw, and is refused here.
+ *
  * A repetition is recognized from the rule alone, which is short of what
  * `repeatOf` in `../data/module.f.mjs` asks: that module also refuses an item
  * that can match empty or that can reach the repetition again, and it asks
@@ -73,6 +77,21 @@ type _Data<R> = R extends () => infer U ? _Data<U> : R
  */
 type _BranchOf<U, K extends keyof U> =
     _Data<{} extends Pick<U, K> ? Exclude<U[K], undefined> : U[K]>
+
+/**
+ * The keys of `U` that are required and yet admit `undefined` — a branch
+ * declared as possibly absent-but-present, which no rule is.
+ *
+ * `toData` throws on the value such a key describes, because normalization
+ * reads a present property whose value is `undefined`, so a rule with one is
+ * not a grammar the parser can process. An *optional* key is not this: under
+ * `exactOptionalPropertyTypes` it cannot hold an explicit `undefined` at all,
+ * so its absence is absence and nothing throws.
+ */
+type _Malformed<U> =
+    { [K in _Keys<U>]:
+        {} extends Pick<U, K> ? never : undefined extends U[K] ? K : never
+    }[_Keys<U>]
 
 /**
  * The keys of `U` that name a branch at all. `variant` in
@@ -146,7 +165,12 @@ type _RepeatItem<R> =
  * that reason, the line `Branch` also draws in `../matcher/types.ts`.
  */
 type _Branches<R extends Variant, K> =
-    K extends _Keys<R> ? { readonly [_ in K]: _FromAny<R[K]> } : never
+    // A rule the parser throws on is refused rather than given the AST of one
+    // that works — `_FromAny` would otherwise drop the `undefined` and hand
+    // back a plausible branch. See {@link _Malformed}.
+    [_Malformed<R>] extends [never]
+        ? K extends _Keys<R> ? { readonly [_ in K]: _FromAny<R[K]> } : never
+        : never
 
 export type AstRule<R extends Rule> =
     // A rule left at one of the BNF API's own types — `@type {Rule}` and
@@ -337,6 +361,13 @@ type _RequiredUndefined = () => {
     readonly none: readonly[] | undefined,
     readonly some: readonly[0, _RequiredUndefined],
 }
-type _30 = Assert<Equal<
-    AstRule<_RequiredUndefined> extends readonly unknown[] ? true : false,
-    false>>
+type _30 = Assert<Equal<AstRule<_RequiredUndefined>, never>>
+
+// The same branch outside a repetition, which is where the shape is refused.
+type _31 = Assert<Equal<AstRule<{ readonly a: 0 | undefined }>, never>>
+
+// The optional spelling is not that, and stays a branch: under
+// `exactOptionalPropertyTypes` an optional key cannot hold an explicit
+// `undefined`, so nothing it describes reaches `Object.entries` as a present
+// property with no value.
+type _32 = Assert<Equal<AstRule<{ readonly a?: 0 }>, { readonly a: number }>>
