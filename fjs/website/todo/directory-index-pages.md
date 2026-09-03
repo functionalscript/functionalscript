@@ -20,9 +20,9 @@ newcomer, and a maintainer looking at an unfamiliar corner, both start from.
 
 ### Preliminary design
 
-For every directory containing a `module.f.mjs` (and, after stage 2 of
-[`migrate-typescript-to-mjs`](../../../todo/migrate-typescript-to-mjs.md), an
-authored `module.f.js`), generate an `index.html` next to it in the output tree.
+For every directory containing a `module.f.mjs` (and, after
+[stage 2](../../fsc/README.md#stage-2-mark-compiler-compatible-functionalscript),
+an authored `module.f.js`), generate an `index.html` next to it in the output tree.
 Each page is a catalog of that directory:
 
 - **Files** — the modules, their `types.ts`, proofs and `README.md`, each linked
