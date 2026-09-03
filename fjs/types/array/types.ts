@@ -36,32 +36,33 @@ type _Option<X extends readonly unknown[]> = { readonly [K in keyof X]?: X[K] }
 
 export type OptionArray<N extends number, T> = _Option<FixedArray<N, T>>
 
-type _Tail<
+type _ArrayFrom<
     Max extends number,
     T,
-    R extends readonly unknown[],
-    O extends readonly T[] = readonly [],
+    R extends readonly T[],
 > =
-    number extends Max ? readonly T[] :
     R['length'] extends Max
-        ? _Option<O>
-        : _Tail<Max, T, readonly [...R, unknown], readonly [...O, T]>
+        ? R
+        : R | _ArrayFrom<Max, T, readonly [...R, T]>
 
 export type BoundedArray<
     Min extends number,
     Max extends number,
     T,
+    R extends readonly T[] = readonly [],
 > =
-    FixedArray<Min, T> extends infer R extends readonly T[]
-        ? readonly [...R, ..._Tail<Max, T, R>]
-        : never
+    R['length'] extends Min
+        ? number extends Max
+            ? readonly [...R, ...T[]]
+            : _ArrayFrom<Max, T, R>
+        : BoundedArray<Min, Max, T, readonly [...R, T]>
 
 type _X00 = Assert<Equal<BoundedArray<0, 0, true>, readonly []>>
-type _X01 = Assert<Equal<BoundedArray<0, 1, true>, readonly [true?]>>
-type _X02 = Assert<Equal<BoundedArray<0, 2, true>, readonly [true?, true?]>>
+type _X01 = Assert<Equal<BoundedArray<0, 1, true>, readonly []|readonly[true]>>
+type _X02 = Assert<Equal<BoundedArray<0, 2, true>, readonly []|readonly[true]|readonly[true, true]>>
 type _X11 = Assert<Equal<BoundedArray<1, 1, true>, readonly [true]>>
-type _X12 = Assert<Equal<BoundedArray<1, 2, true>, readonly [true, true?]>>
-type _X13 = Assert<Equal<BoundedArray<1, 3, true>, readonly [true, true?, true?]>>
+type _X12 = Assert<Equal<BoundedArray<1, 2, true>, readonly [true]|readonly[true, true]>>
+type _X13 = Assert<Equal<BoundedArray<1, 3, true>, readonly [true]|readonly[true, true]|readonly[true, true, true]>>
 type _X22 = Assert<Equal<BoundedArray<2, 2, true>, readonly [true, true]>>
 type _X2_ = Assert<Equal<
     BoundedArray<2, number, true>,
