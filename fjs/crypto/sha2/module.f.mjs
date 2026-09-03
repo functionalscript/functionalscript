@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Tuple } from '../../types/array/types.ts'
+ * @import { FixedArray } from '../../types/array/types.ts'
  * @import { Reduce } from '../../types/bigint/types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Fold } from '../../types/function/operator/types.ts'
@@ -34,10 +34,10 @@ const lastOne = vec(1n)(1n)
 /** @type {(init: {
  *   readonly logBitLen: bigint,
  *   readonly k: readonly V16[],
- *   readonly bs0: Tuple<3, bigint>,
- *   readonly bs1: Tuple<3, bigint>,
- *   readonly ss0: Tuple<3, bigint>,
- *   readonly ss1: Tuple<3, bigint>,
+ *   readonly bs0: FixedArray<3, bigint>,
+ *   readonly bs1: FixedArray<3, bigint>,
+ *   readonly ss0: FixedArray<3, bigint>,
+ *   readonly ss1: FixedArray<3, bigint>,
  * }) => Base} */
 const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
 
@@ -49,7 +49,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
         return n => n >> d | n << r
     }
 
-    /** @type {(third: Reduce) => (..._: Tuple<3, bigint>) => (x: bigint) => bigint} */
+    /** @type {(third: Reduce) => (..._: FixedArray<3, bigint>) => (x: bigint) => bigint} */
     const sigma = third => (a, b, c) => {
         const ra = rotr(a)
         const rb = rotr(b)
@@ -77,7 +77,7 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
 
     const m = mask(bitLength)
 
-    /** @type {(..._: Tuple<4, bigint>) => bigint} */
+    /** @type {(..._: FixedArray<4, bigint>) => bigint} */
     const wi = (a0, a1, a2, a3) =>
         (smallSigma1(a0) + a1 + smallSigma0(a2) + a3) & m
 

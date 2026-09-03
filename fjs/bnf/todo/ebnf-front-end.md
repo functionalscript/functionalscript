@@ -273,7 +273,9 @@ do not read the `some`/`none` tags, but `descent/proof.f.mjs:288-296` and
 **5. The range-set helpers have an input side.** `remove(range(…), set(…))` in
 the JSON grammar now takes EBNF forms, so the front-end helpers accept them as
 well as produce them. The rule-level complement needs its own name (`notOf`),
-never a second `not`.
+never a second `not`. **Answered by [ebnf-range-set](./ebnf-range-set.md):**
+the helpers take and return range-set *values*, the `'range'` row becomes
+`['set', …]`, and `notOf` is unnecessary.
 
 **6. Reduction at the functional level defeats memoization** — a thunk created
 during conversion has no `.name` and no shared identity.
@@ -315,12 +317,15 @@ three forms. It needs a data layer that can represent it.
       [#1865](https://github.com/functionalscript/functionalscript/pull/1865).
 - [ ] `module.f.mjs`: the `repeat(min, max)` constructor with `option` /
       `repeat0Plus` / `repeat1Plus` / `times` as partial applications, plus
-      `join0Plus`, `join1Plus`, `commaJoin0Plus` and `notOf`; and the lowering
-      per "What a lowering must do". `commaJoin0Plus` is needed by the first
-      grammar ported, so it is not optional.
-- [ ] Split the range-set helpers by layer: packed arithmetic in `terminal/`,
-      the rule-level complement a distinctly named front-end helper built on
-      it, never a re-export.
+      `join0Plus`, `join1Plus` and `commaJoin0Plus`; and the lowering per
+      "What a lowering must do". `commaJoin0Plus` is needed by the first
+      grammar ported, so it is not optional. There is no `notOf`: complement
+      is a `range_set` value operation, and the adapter's `not` is difference
+      against its universe ([ebnf-range-set](./ebnf-range-set.md)).
+- [ ] The range-set helpers are value operations in `fjs/types/range_set`,
+      never rule combinators: this front end has one injection from a set to
+      a rule, the `['set', …]` thunk, and no rule-level complement
+      ([ebnf-range-set](./ebnf-range-set.md)).
 - [ ] `rtti/`: the rule-info map, without `repeatItem`, with its own
       co-located `proof.f.mjs` covering every export and branch — a new
       `.f.mjs` owes that ([fjs/AGENTS.md](../../AGENTS.md)), and the classical
@@ -358,6 +363,9 @@ three forms. It needs a data layer that can represent it.
   adapter Problem 9 constrains.
 - [terminal-range-shared-type](./terminal-range-shared-type.md) — the packed
   `TerminalRange` becomes data-layer only here.
+- [ebnf-range-set](./ebnf-range-set.md) — replaces the `['range', a, b]`
+  row with a range-set terminal `['set', …]`; answers Problem 5 and most of
+  Problem 9, and shares Problem 1's IR carrier decision.
 - [rule-visitor](./rule-visitor.md) — **depends on Problem 1's answer.** The
   visitor discriminates the data `Rule`, and if the data layer grows a
   bounded repeat that union changes, so implementing the visitor against

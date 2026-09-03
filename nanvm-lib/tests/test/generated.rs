@@ -101,6 +101,34 @@ fn neg<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn bitwise_not<A: IVm>() {
+    check::<A>("null", Any::bitwise_not(Nullish::Null.to_any()), (-1f64).to_any());
+    check::<A>("undefined", Any::bitwise_not(Nullish::Undefined.to_any()), (-1f64).to_any());
+    check::<A>("booleanFalse", Any::bitwise_not(false.to_any()), (-1f64).to_any());
+    check::<A>("booleanTrue", Any::bitwise_not(true.to_any()), (-2f64).to_any());
+    check::<A>("stringTen", Any::bitwise_not(string_any("10")), (-11f64).to_any());
+    check::<A>("stringLetter", Any::bitwise_not(string_any("a")), (-1f64).to_any());
+    check::<A>("emptyArray", Any::bitwise_not(Array::default().to_any()), (-1f64).to_any());
+    check::<A>("arrayTen", Any::bitwise_not([(10f64).to_any()].to_array().to_any()), (-11f64).to_any());
+    check::<A>("arrayStringTen", Any::bitwise_not([string_any("10")].to_array().to_any()), (-11f64).to_any());
+    check::<A>("arrayPair", Any::bitwise_not([(0f64).to_any(), (0f64).to_any()].to_array().to_any()), (-1f64).to_any());
+    check::<A>("emptyObject", Any::bitwise_not(Object::default().to_any()), (-1f64).to_any());
+    check::<A>("function", Any::bitwise_not(function_any()), (-1f64).to_any());
+    check::<A>("truncatesTowardZero", Any::bitwise_not((3.9f64).to_any()), (-4f64).to_any());
+    check::<A>("negativeTruncatesTowardZero", Any::bitwise_not((-3.9f64).to_any()), (2f64).to_any());
+    check::<A>("nan", Any::bitwise_not((f64::NAN).to_any()), (-1f64).to_any());
+    check::<A>("infinity", Any::bitwise_not((f64::INFINITY).to_any()), (-1f64).to_any());
+    check::<A>("negativeInfinity", Any::bitwise_not((f64::NEG_INFINITY).to_any()), (-1f64).to_any());
+    check::<A>("wrapsAt32Bits", Any::bitwise_not((4294967301f64).to_any()), (-6f64).to_any());
+    check::<A>("negativeOne", Any::bitwise_not((-1f64).to_any()), (0f64).to_any());
+    check::<A>("bigZero", Any::bitwise_not(bigint_any(0)), bigint_any(-1));
+    check::<A>("bigPositive", Any::bitwise_not(bigint_any(5)), bigint_any(-6));
+    check::<A>("bigNegative", Any::bitwise_not(bigint_any(-5)), bigint_any(4));
+    check::<A>("bigOne", Any::bitwise_not(bigint_any(1)), bigint_any(-2));
+    check::<A>("bigNegativeOne", Any::bitwise_not(bigint_any(-1)), bigint_any(0));
+}
+
+#[rustfmt::skip]
 fn mul<A: IVm>() {
     check::<A>("nullByNull", Nullish::Null.to_any() * Nullish::Null.to_any(), (0f64).to_any());
     check::<A>("nullByNullSwapped", Nullish::Null.to_any() * Nullish::Null.to_any(), (0f64).to_any());
@@ -372,6 +400,184 @@ fn rem<A: IVm>() {
     check_throws::<A>("bigTenModZero", bigint_any(10) % bigint_any(0));
     check_throws::<A>("numberModBigint", (1f64).to_any() % bigint_any(1));
     check_throws::<A>("bigintModNumber", bigint_any(1) % (1f64).to_any());
+}
+
+#[rustfmt::skip]
+fn bitand<A: IVm>() {
+    check::<A>("nullBitAndSix", Nullish::Null.to_any() & (6f64).to_any(), (0f64).to_any());
+    check::<A>("nullBitAndSixSwapped", (6f64).to_any() & Nullish::Null.to_any(), (0f64).to_any());
+    check::<A>("undefinedBitAndSix", Nullish::Undefined.to_any() & (6f64).to_any(), (0f64).to_any());
+    check::<A>("undefinedBitAndSixSwapped", (6f64).to_any() & Nullish::Undefined.to_any(), (0f64).to_any());
+    check::<A>("trueBitAndSix", true.to_any() & (6f64).to_any(), (0f64).to_any());
+    check::<A>("trueBitAndSixSwapped", (6f64).to_any() & true.to_any(), (0f64).to_any());
+    check::<A>("falseBitAndSix", false.to_any() & (6f64).to_any(), (0f64).to_any());
+    check::<A>("falseBitAndSixSwapped", (6f64).to_any() & false.to_any(), (0f64).to_any());
+    check::<A>("stringTenBitAndSix", string_any("10") & (6f64).to_any(), (2f64).to_any());
+    check::<A>("stringTenBitAndSixSwapped", (6f64).to_any() & string_any("10"), (2f64).to_any());
+    check::<A>("stringLetterBitAndSix", string_any("a") & (6f64).to_any(), (0f64).to_any());
+    check::<A>("stringLetterBitAndSixSwapped", (6f64).to_any() & string_any("a"), (0f64).to_any());
+    check::<A>("emptyArrayBitAndSix", Array::default().to_any() & (6f64).to_any(), (0f64).to_any());
+    check::<A>("emptyArrayBitAndSixSwapped", (6f64).to_any() & Array::default().to_any(), (0f64).to_any());
+    check::<A>("arrayTenBitAndSix", [(10f64).to_any()].to_array().to_any() & (6f64).to_any(), (2f64).to_any());
+    check::<A>("arrayTenBitAndSixSwapped", (6f64).to_any() & [(10f64).to_any()].to_array().to_any(), (2f64).to_any());
+    check::<A>("arrayStringTenBitAndSix", [string_any("10")].to_array().to_any() & (6f64).to_any(), (2f64).to_any());
+    check::<A>("arrayStringTenBitAndSixSwapped", (6f64).to_any() & [string_any("10")].to_array().to_any(), (2f64).to_any());
+    check::<A>("arrayPairBitAndSix", [(0f64).to_any(), (0f64).to_any()].to_array().to_any() & (6f64).to_any(), (0f64).to_any());
+    check::<A>("arrayPairBitAndSixSwapped", (6f64).to_any() & [(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (0f64).to_any());
+    check::<A>("emptyObjectBitAndSix", Object::default().to_any() & (6f64).to_any(), (0f64).to_any());
+    check::<A>("emptyObjectBitAndSixSwapped", (6f64).to_any() & Object::default().to_any(), (0f64).to_any());
+    check::<A>("functionBitAndSix", function_any() & (6f64).to_any(), (0f64).to_any());
+    check::<A>("functionBitAndSixSwapped", (6f64).to_any() & function_any(), (0f64).to_any());
+    check::<A>("truncatesTowardZero", (3.9f64).to_any() & (6f64).to_any(), (2f64).to_any());
+    check::<A>("truncatesTowardZeroSwapped", (6f64).to_any() & (3.9f64).to_any(), (2f64).to_any());
+    check::<A>("negativeTruncatesTowardZero", (-3.9f64).to_any() & (6f64).to_any(), (4f64).to_any());
+    check::<A>("negativeTruncatesTowardZeroSwapped", (6f64).to_any() & (-3.9f64).to_any(), (4f64).to_any());
+    check::<A>("nanBitAndSix", (f64::NAN).to_any() & (6f64).to_any(), (0f64).to_any());
+    check::<A>("nanBitAndSixSwapped", (6f64).to_any() & (f64::NAN).to_any(), (0f64).to_any());
+    check::<A>("infinityBitAndSix", (f64::INFINITY).to_any() & (6f64).to_any(), (0f64).to_any());
+    check::<A>("infinityBitAndSixSwapped", (6f64).to_any() & (f64::INFINITY).to_any(), (0f64).to_any());
+    check::<A>("negativeInfinityBitAndSix", (f64::NEG_INFINITY).to_any() & (6f64).to_any(), (0f64).to_any());
+    check::<A>("negativeInfinityBitAndSixSwapped", (6f64).to_any() & (f64::NEG_INFINITY).to_any(), (0f64).to_any());
+    check::<A>("wrapsAt32Bits", (4294967301f64).to_any() & (6f64).to_any(), (4f64).to_any());
+    check::<A>("wrapsAt32BitsSwapped", (6f64).to_any() & (4294967301f64).to_any(), (4f64).to_any());
+    check::<A>("negativeOneBitAndSix", (-1f64).to_any() & (6f64).to_any(), (6f64).to_any());
+    check::<A>("negativeOneBitAndSixSwapped", (6f64).to_any() & (-1f64).to_any(), (6f64).to_any());
+    check::<A>("bigTwelveBitAndTen", bigint_any(12) & bigint_any(10), bigint_any(8));
+    check::<A>("bigTwelveBitAndTenSwapped", bigint_any(10) & bigint_any(12), bigint_any(8));
+    check::<A>("bigNegativeOneBitAndNegativeOne", bigint_any(-1) & bigint_any(-1), bigint_any(-1));
+    check::<A>("bigNegativeOneBitAndNegativeOneSwapped", bigint_any(-1) & bigint_any(-1), bigint_any(-1));
+    check::<A>("bigNegativeTwoBitAndNegativeThree", bigint_any(-2) & bigint_any(-3), bigint_any(-4));
+    check::<A>("bigNegativeTwoBitAndNegativeThreeSwapped", bigint_any(-3) & bigint_any(-2), bigint_any(-4));
+    check::<A>("bigFiveBitAndNegativeOne", bigint_any(5) & bigint_any(-1), bigint_any(5));
+    check::<A>("bigFiveBitAndNegativeOneSwapped", bigint_any(-1) & bigint_any(5), bigint_any(5));
+    check::<A>("bigZeroBitAndZero", bigint_any(0) & bigint_any(0), bigint_any(0));
+    check::<A>("bigZeroBitAndZeroSwapped", bigint_any(0) & bigint_any(0), bigint_any(0));
+    check::<A>("bigPositiveBitAndZero", bigint_any(12345) & bigint_any(0), bigint_any(0));
+    check::<A>("bigPositiveBitAndZeroSwapped", bigint_any(0) & bigint_any(12345), bigint_any(0));
+    check::<A>("bigNegativeBitAndZero", bigint_any(-12345) & bigint_any(0), bigint_any(0));
+    check::<A>("bigNegativeBitAndZeroSwapped", bigint_any(0) & bigint_any(-12345), bigint_any(0));
+    check::<A>("bigLargeMagnitude", bigint_any(-4611686018427387904) & bigint_any(-1), bigint_any(-4611686018427387904));
+    check::<A>("bigLargeMagnitudeSwapped", bigint_any(-1) & bigint_any(-4611686018427387904), bigint_any(-4611686018427387904));
+    check_throws::<A>("numberBitAndBigint", (1f64).to_any() & bigint_any(1));
+    check_throws::<A>("numberBitAndBigintSwapped", bigint_any(1) & (1f64).to_any());
+}
+
+#[rustfmt::skip]
+fn bitor<A: IVm>() {
+    check::<A>("nullBitOrSix", Nullish::Null.to_any() | (6f64).to_any(), (6f64).to_any());
+    check::<A>("nullBitOrSixSwapped", (6f64).to_any() | Nullish::Null.to_any(), (6f64).to_any());
+    check::<A>("undefinedBitOrSix", Nullish::Undefined.to_any() | (6f64).to_any(), (6f64).to_any());
+    check::<A>("undefinedBitOrSixSwapped", (6f64).to_any() | Nullish::Undefined.to_any(), (6f64).to_any());
+    check::<A>("trueBitOrSix", true.to_any() | (6f64).to_any(), (7f64).to_any());
+    check::<A>("trueBitOrSixSwapped", (6f64).to_any() | true.to_any(), (7f64).to_any());
+    check::<A>("falseBitOrSix", false.to_any() | (6f64).to_any(), (6f64).to_any());
+    check::<A>("falseBitOrSixSwapped", (6f64).to_any() | false.to_any(), (6f64).to_any());
+    check::<A>("stringTenBitOrSix", string_any("10") | (6f64).to_any(), (14f64).to_any());
+    check::<A>("stringTenBitOrSixSwapped", (6f64).to_any() | string_any("10"), (14f64).to_any());
+    check::<A>("stringLetterBitOrSix", string_any("a") | (6f64).to_any(), (6f64).to_any());
+    check::<A>("stringLetterBitOrSixSwapped", (6f64).to_any() | string_any("a"), (6f64).to_any());
+    check::<A>("emptyArrayBitOrSix", Array::default().to_any() | (6f64).to_any(), (6f64).to_any());
+    check::<A>("emptyArrayBitOrSixSwapped", (6f64).to_any() | Array::default().to_any(), (6f64).to_any());
+    check::<A>("arrayTenBitOrSix", [(10f64).to_any()].to_array().to_any() | (6f64).to_any(), (14f64).to_any());
+    check::<A>("arrayTenBitOrSixSwapped", (6f64).to_any() | [(10f64).to_any()].to_array().to_any(), (14f64).to_any());
+    check::<A>("arrayStringTenBitOrSix", [string_any("10")].to_array().to_any() | (6f64).to_any(), (14f64).to_any());
+    check::<A>("arrayStringTenBitOrSixSwapped", (6f64).to_any() | [string_any("10")].to_array().to_any(), (14f64).to_any());
+    check::<A>("arrayPairBitOrSix", [(0f64).to_any(), (0f64).to_any()].to_array().to_any() | (6f64).to_any(), (6f64).to_any());
+    check::<A>("arrayPairBitOrSixSwapped", (6f64).to_any() | [(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (6f64).to_any());
+    check::<A>("emptyObjectBitOrSix", Object::default().to_any() | (6f64).to_any(), (6f64).to_any());
+    check::<A>("emptyObjectBitOrSixSwapped", (6f64).to_any() | Object::default().to_any(), (6f64).to_any());
+    check::<A>("functionBitOrSix", function_any() | (6f64).to_any(), (6f64).to_any());
+    check::<A>("functionBitOrSixSwapped", (6f64).to_any() | function_any(), (6f64).to_any());
+    check::<A>("truncatesTowardZero", (3.9f64).to_any() | (6f64).to_any(), (7f64).to_any());
+    check::<A>("truncatesTowardZeroSwapped", (6f64).to_any() | (3.9f64).to_any(), (7f64).to_any());
+    check::<A>("negativeTruncatesTowardZero", (-3.9f64).to_any() | (6f64).to_any(), (-1f64).to_any());
+    check::<A>("negativeTruncatesTowardZeroSwapped", (6f64).to_any() | (-3.9f64).to_any(), (-1f64).to_any());
+    check::<A>("nanBitOrSix", (f64::NAN).to_any() | (6f64).to_any(), (6f64).to_any());
+    check::<A>("nanBitOrSixSwapped", (6f64).to_any() | (f64::NAN).to_any(), (6f64).to_any());
+    check::<A>("infinityBitOrSix", (f64::INFINITY).to_any() | (6f64).to_any(), (6f64).to_any());
+    check::<A>("infinityBitOrSixSwapped", (6f64).to_any() | (f64::INFINITY).to_any(), (6f64).to_any());
+    check::<A>("negativeInfinityBitOrSix", (f64::NEG_INFINITY).to_any() | (6f64).to_any(), (6f64).to_any());
+    check::<A>("negativeInfinityBitOrSixSwapped", (6f64).to_any() | (f64::NEG_INFINITY).to_any(), (6f64).to_any());
+    check::<A>("wrapsAt32Bits", (4294967301f64).to_any() | (6f64).to_any(), (7f64).to_any());
+    check::<A>("wrapsAt32BitsSwapped", (6f64).to_any() | (4294967301f64).to_any(), (7f64).to_any());
+    check::<A>("negativeOneBitOrSix", (-1f64).to_any() | (6f64).to_any(), (-1f64).to_any());
+    check::<A>("negativeOneBitOrSixSwapped", (6f64).to_any() | (-1f64).to_any(), (-1f64).to_any());
+    check::<A>("bigTwelveBitOrTen", bigint_any(12) | bigint_any(10), bigint_any(14));
+    check::<A>("bigTwelveBitOrTenSwapped", bigint_any(10) | bigint_any(12), bigint_any(14));
+    check::<A>("bigNegativeTwoBitOrNegativeThree", bigint_any(-2) | bigint_any(-3), bigint_any(-1));
+    check::<A>("bigNegativeTwoBitOrNegativeThreeSwapped", bigint_any(-3) | bigint_any(-2), bigint_any(-1));
+    check::<A>("bigFiveBitOrNegativeOne", bigint_any(5) | bigint_any(-1), bigint_any(-1));
+    check::<A>("bigFiveBitOrNegativeOneSwapped", bigint_any(-1) | bigint_any(5), bigint_any(-1));
+    check::<A>("bigZeroBitOrZero", bigint_any(0) | bigint_any(0), bigint_any(0));
+    check::<A>("bigZeroBitOrZeroSwapped", bigint_any(0) | bigint_any(0), bigint_any(0));
+    check::<A>("bigPositiveBitOrZero", bigint_any(12345) | bigint_any(0), bigint_any(12345));
+    check::<A>("bigPositiveBitOrZeroSwapped", bigint_any(0) | bigint_any(12345), bigint_any(12345));
+    check::<A>("bigNegativeBitOrZero", bigint_any(-12345) | bigint_any(0), bigint_any(-12345));
+    check::<A>("bigNegativeBitOrZeroSwapped", bigint_any(0) | bigint_any(-12345), bigint_any(-12345));
+    check::<A>("bigLargeMagnitude", bigint_any(-4611686018427387904) | bigint_any(-1), bigint_any(-1));
+    check::<A>("bigLargeMagnitudeSwapped", bigint_any(-1) | bigint_any(-4611686018427387904), bigint_any(-1));
+    check_throws::<A>("numberBitOrBigint", (1f64).to_any() | bigint_any(1));
+    check_throws::<A>("numberBitOrBigintSwapped", bigint_any(1) | (1f64).to_any());
+}
+
+#[rustfmt::skip]
+fn bitxor<A: IVm>() {
+    check::<A>("nullBitXorSix", Nullish::Null.to_any() ^ (6f64).to_any(), (6f64).to_any());
+    check::<A>("nullBitXorSixSwapped", (6f64).to_any() ^ Nullish::Null.to_any(), (6f64).to_any());
+    check::<A>("undefinedBitXorSix", Nullish::Undefined.to_any() ^ (6f64).to_any(), (6f64).to_any());
+    check::<A>("undefinedBitXorSixSwapped", (6f64).to_any() ^ Nullish::Undefined.to_any(), (6f64).to_any());
+    check::<A>("trueBitXorSix", true.to_any() ^ (6f64).to_any(), (7f64).to_any());
+    check::<A>("trueBitXorSixSwapped", (6f64).to_any() ^ true.to_any(), (7f64).to_any());
+    check::<A>("falseBitXorSix", false.to_any() ^ (6f64).to_any(), (6f64).to_any());
+    check::<A>("falseBitXorSixSwapped", (6f64).to_any() ^ false.to_any(), (6f64).to_any());
+    check::<A>("stringTenBitXorSix", string_any("10") ^ (6f64).to_any(), (12f64).to_any());
+    check::<A>("stringTenBitXorSixSwapped", (6f64).to_any() ^ string_any("10"), (12f64).to_any());
+    check::<A>("stringLetterBitXorSix", string_any("a") ^ (6f64).to_any(), (6f64).to_any());
+    check::<A>("stringLetterBitXorSixSwapped", (6f64).to_any() ^ string_any("a"), (6f64).to_any());
+    check::<A>("emptyArrayBitXorSix", Array::default().to_any() ^ (6f64).to_any(), (6f64).to_any());
+    check::<A>("emptyArrayBitXorSixSwapped", (6f64).to_any() ^ Array::default().to_any(), (6f64).to_any());
+    check::<A>("arrayTenBitXorSix", [(10f64).to_any()].to_array().to_any() ^ (6f64).to_any(), (12f64).to_any());
+    check::<A>("arrayTenBitXorSixSwapped", (6f64).to_any() ^ [(10f64).to_any()].to_array().to_any(), (12f64).to_any());
+    check::<A>("arrayStringTenBitXorSix", [string_any("10")].to_array().to_any() ^ (6f64).to_any(), (12f64).to_any());
+    check::<A>("arrayStringTenBitXorSixSwapped", (6f64).to_any() ^ [string_any("10")].to_array().to_any(), (12f64).to_any());
+    check::<A>("arrayPairBitXorSix", [(0f64).to_any(), (0f64).to_any()].to_array().to_any() ^ (6f64).to_any(), (6f64).to_any());
+    check::<A>("arrayPairBitXorSixSwapped", (6f64).to_any() ^ [(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (6f64).to_any());
+    check::<A>("emptyObjectBitXorSix", Object::default().to_any() ^ (6f64).to_any(), (6f64).to_any());
+    check::<A>("emptyObjectBitXorSixSwapped", (6f64).to_any() ^ Object::default().to_any(), (6f64).to_any());
+    check::<A>("functionBitXorSix", function_any() ^ (6f64).to_any(), (6f64).to_any());
+    check::<A>("functionBitXorSixSwapped", (6f64).to_any() ^ function_any(), (6f64).to_any());
+    check::<A>("truncatesTowardZero", (3.9f64).to_any() ^ (6f64).to_any(), (5f64).to_any());
+    check::<A>("truncatesTowardZeroSwapped", (6f64).to_any() ^ (3.9f64).to_any(), (5f64).to_any());
+    check::<A>("negativeTruncatesTowardZero", (-3.9f64).to_any() ^ (6f64).to_any(), (-5f64).to_any());
+    check::<A>("negativeTruncatesTowardZeroSwapped", (6f64).to_any() ^ (-3.9f64).to_any(), (-5f64).to_any());
+    check::<A>("nanBitXorSix", (f64::NAN).to_any() ^ (6f64).to_any(), (6f64).to_any());
+    check::<A>("nanBitXorSixSwapped", (6f64).to_any() ^ (f64::NAN).to_any(), (6f64).to_any());
+    check::<A>("infinityBitXorSix", (f64::INFINITY).to_any() ^ (6f64).to_any(), (6f64).to_any());
+    check::<A>("infinityBitXorSixSwapped", (6f64).to_any() ^ (f64::INFINITY).to_any(), (6f64).to_any());
+    check::<A>("negativeInfinityBitXorSix", (f64::NEG_INFINITY).to_any() ^ (6f64).to_any(), (6f64).to_any());
+    check::<A>("negativeInfinityBitXorSixSwapped", (6f64).to_any() ^ (f64::NEG_INFINITY).to_any(), (6f64).to_any());
+    check::<A>("wrapsAt32Bits", (4294967301f64).to_any() ^ (6f64).to_any(), (3f64).to_any());
+    check::<A>("wrapsAt32BitsSwapped", (6f64).to_any() ^ (4294967301f64).to_any(), (3f64).to_any());
+    check::<A>("negativeOneBitXorSix", (-1f64).to_any() ^ (6f64).to_any(), (-7f64).to_any());
+    check::<A>("negativeOneBitXorSixSwapped", (6f64).to_any() ^ (-1f64).to_any(), (-7f64).to_any());
+    check::<A>("bigTwelveBitXorTen", bigint_any(12) ^ bigint_any(10), bigint_any(6));
+    check::<A>("bigTwelveBitXorTenSwapped", bigint_any(10) ^ bigint_any(12), bigint_any(6));
+    check::<A>("bigNegativeOneBitXorNegativeOne", bigint_any(-1) ^ bigint_any(-1), bigint_any(0));
+    check::<A>("bigNegativeOneBitXorNegativeOneSwapped", bigint_any(-1) ^ bigint_any(-1), bigint_any(0));
+    check::<A>("bigNegativeTwoBitXorNegativeThree", bigint_any(-2) ^ bigint_any(-3), bigint_any(3));
+    check::<A>("bigNegativeTwoBitXorNegativeThreeSwapped", bigint_any(-3) ^ bigint_any(-2), bigint_any(3));
+    check::<A>("bigFiveBitXorNegativeOne", bigint_any(5) ^ bigint_any(-1), bigint_any(-6));
+    check::<A>("bigFiveBitXorNegativeOneSwapped", bigint_any(-1) ^ bigint_any(5), bigint_any(-6));
+    check::<A>("bigZeroBitXorZero", bigint_any(0) ^ bigint_any(0), bigint_any(0));
+    check::<A>("bigZeroBitXorZeroSwapped", bigint_any(0) ^ bigint_any(0), bigint_any(0));
+    check::<A>("bigPositiveBitXorZero", bigint_any(12345) ^ bigint_any(0), bigint_any(12345));
+    check::<A>("bigPositiveBitXorZeroSwapped", bigint_any(0) ^ bigint_any(12345), bigint_any(12345));
+    check::<A>("bigNegativeBitXorZero", bigint_any(-12345) ^ bigint_any(0), bigint_any(-12345));
+    check::<A>("bigNegativeBitXorZeroSwapped", bigint_any(0) ^ bigint_any(-12345), bigint_any(-12345));
+    check::<A>("bigLargeMagnitude", bigint_any(-4611686018427387904) ^ bigint_any(-1), bigint_any(4611686018427387903));
+    check::<A>("bigLargeMagnitudeSwapped", bigint_any(-1) ^ bigint_any(-4611686018427387904), bigint_any(4611686018427387903));
+    check_throws::<A>("numberBitXorBigint", (1f64).to_any() ^ bigint_any(1));
+    check_throws::<A>("numberBitXorBigintSwapped", bigint_any(1) ^ (1f64).to_any());
 }
 
 #[rustfmt::skip]
@@ -734,12 +940,16 @@ pub fn all<A: IVm>() {
     eq::<A>();
     unary_plus::<A>();
     neg::<A>();
+    bitwise_not::<A>();
     mul::<A>();
     div::<A>();
     pow::<A>();
     sub::<A>();
     add::<A>();
     rem::<A>();
+    bitand::<A>();
+    bitor::<A>();
+    bitxor::<A>();
     lt::<A>();
     le::<A>();
     gt::<A>();

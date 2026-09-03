@@ -1,6 +1,6 @@
-use std::ops::{Add, Div, Mul, Neg, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Sub};
 
-use crate::vm::{Any, BigInt, IVm, Unpacked};
+use crate::vm::{Any, BigInt, IVm, Unpacked, int32_coercion::to_int32};
 
 const CANNOT_MIX_NUMBER_AND_BIGINT: &str =
     "TypeError: Cannot mix BigInt and other types, use explicit conversions";
@@ -94,6 +94,48 @@ impl<A: IVm> Div for Numeric<A> {
     }
 }
 
+impl<A: IVm> BitAnd for Numeric<A> {
+    type Output = Result<Self, Any<A>>;
+
+    fn bitand(self, rhs: Self) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Numeric::Number(a), Numeric::Number(b)) => {
+                Numeric::Number((to_int32(a) & to_int32(b)) as f64)
+            }
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a & b),
+            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+        })
+    }
+}
+
+impl<A: IVm> BitOr for Numeric<A> {
+    type Output = Result<Self, Any<A>>;
+
+    fn bitor(self, rhs: Self) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Numeric::Number(a), Numeric::Number(b)) => {
+                Numeric::Number((to_int32(a) | to_int32(b)) as f64)
+            }
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a | b),
+            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+        })
+    }
+}
+
+impl<A: IVm> BitXor for Numeric<A> {
+    type Output = Result<Self, Any<A>>;
+
+    fn bitxor(self, rhs: Self) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Numeric::Number(a), Numeric::Number(b)) => {
+                Numeric::Number((to_int32(a) ^ to_int32(b)) as f64)
+            }
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt(a ^ b),
+            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+        })
+    }
+}
+
 /// `Number::exponentiate`. Diverges from `f64::powf` (and C99's `pow`, which
 /// `powf` follows) in exactly two spots: a `NaN` exponent is `NaN`
 /// regardless of the base (C99 special-cases `pow(1, y) = 1` even for a
@@ -120,6 +162,19 @@ impl<A: IVm> Numeric<A> {
             }
             (Numeric::BigInt(a), Numeric::BigInt(b)) => Ok(Numeric::BigInt(a.pow(b)?)),
             _ => Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+        }
+    }
+
+    /// `~`. Not a `core::ops` trait — `Not` is already claimed by `Any`'s
+    /// logical `!` one level up — so this is a plain method, the same as
+    /// `pow`. Number: `ToInt32` then bitwise-negate. BigInt: `-x - 1`, the
+    /// exact spec identity (`BigInt::unaryMinus`/`Number::subtract` on the
+    /// existing `Neg`/`Sub` impls), reusing them instead of a new
+    /// two's-complement algorithm.
+    pub fn bitwise_not(self) -> Self {
+        match self {
+            Numeric::Number(v) => Numeric::Number(!to_int32(v) as f64),
+            Numeric::BigInt(v) => Numeric::BigInt(-v - BigInt::from(1u64)),
         }
     }
 }

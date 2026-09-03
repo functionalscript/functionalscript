@@ -12,7 +12,6 @@
  * @import { Expression, _AttributePath, _Binding, _Reference, _AttributeSet, _NixList, _Application, _OpenSetPattern, _Lambda, _Let, _Chunks } from './types.ts'
  */
 
-import { toArray } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
 import {
@@ -21,7 +20,7 @@ import {
     latinSmallLetterRange,
     range,
 } from '../../text/ascii/module.f.mjs'
-import { fromRange, get, merge } from '../../types/range_set/module.f.mjs'
+import { contains, fromRange, union } from '../../types/range_set/module.f.mjs'
 
 const reservedWords = /** @type {const} */ ([
     'assert',
@@ -38,33 +37,33 @@ const reservedWords = /** @type {const} */ ([
 
 const isReservedWord = includes(reservedWords)
 
-const letters = merge
+const letters = union
     (fromRange(latinCapitalLetterRange))
     (fromRange(latinSmallLetterRange))
 
-const identifierInitial = toArray(merge
+const identifierInitial = union
     (letters)
-    (fromRange(range('_'))))
+    (fromRange(range('_')))
 
-const getIdentifierInitial = get(identifierInitial)
+const containsIdentifierInitial = contains(identifierInitial)
 
 /** @type {(character: string) => boolean} */
 const isIdentifierInitial = character =>
-    getIdentifierInitial(character.charCodeAt(0))
+    containsIdentifierInitial(character.charCodeAt(0))
 
-const identifierTrailing = toArray(merge
-    (merge
+const identifierTrailing = union
+    (union
         (identifierInitial)
         (fromRange(digitRange)))
-    (merge
+    (union
         (fromRange(range("'")))
-        (fromRange(range('-')))))
+        (fromRange(range('-'))))
 
-const getIdentifierTrailing = get(identifierTrailing)
+const containsIdentifierTrailing = contains(identifierTrailing)
 
 /** @type {(character: string) => boolean} */
 const isIdentifierTrailing = character =>
-    getIdentifierTrailing(character.charCodeAt(0))
+    containsIdentifierTrailing(character.charCodeAt(0))
 
 /** @type {(value: string) => boolean} */
 const isIdentifier = value => {

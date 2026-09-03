@@ -424,7 +424,7 @@ every case.
 That is a fact about placement, not about contents, and the distinction
 matters: a `types.ts` also holds declarations that describe no runtime value at
 all — [`fjs/types/array/types.ts`](../fjs/types/array/types.ts) exports
-`Index`, `Tuple`, `KeyOf`, `Includes`, conditional utilities over other types —
+`Index`, `FixedArray`, `KeyOf`, `Includes`, conditional utilities over other types —
 and no schema, printer, or reification produces those. Stage 11 states the
 rule and the known exceptions.
 
@@ -1455,7 +1455,7 @@ are stated instead:
       | --- | --- | --- |
       | Nominal / branded | `Vec = Nominal<'bit_vec', _Revision, bigint>` ([`bit_vec`](../fjs/types/bit_vec/types.ts)) | stage 9 — branding is a compile-time fiction, so nothing in the value carries it |
       | Generic schema constructors | `pair = t => [t, t]` | stage 8 — the argument-to-result relationship must be reified first |
-      | Type-only utilities | `Index`, `Tuple`, `KeyOf`, `Includes` ([`types/array`](../fjs/types/array/types.ts)) | **nothing yet** — these describe no runtime value, so no schema and no printer produces them |
+      | Type-only utilities | `Index`, `FixedArray`, `KeyOf`, `Includes` ([`types/array`](../fjs/types/array/types.ts)) | **nothing yet** — these describe no runtime value, so no schema and no printer produces them |
       | Polymorphic functions | `identity: <T>(value: T) => T` ([`types/function`](../fjs/types/function/module.f.mjs)) | **nothing yet** — a function schema with concrete parameter and result sets cannot say both positions share one caller-chosen type |
       | Unsettled `unknown` | any exported schema containing `unknown` | **a decision, not a stage** — the module/README, `Ts<>`, the readers and the printer disagree about what it promises; see stage 1 |
       | Inexpressible sets | the closed `{ a: number }`; `rest({ a: number }, string)`; a non-finite or `-0` const | **the policy above**, not a stage — TypeScript cannot name these sets, so the declaration is an upper bound however it is emitted |

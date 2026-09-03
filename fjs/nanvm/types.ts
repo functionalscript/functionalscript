@@ -16,7 +16,7 @@
 
 import type { Assert } from '../asserts/types.ts'
 import type { Exp, Op1Id, Op2, Op2Id } from '../edag/types.ts'
-import type { Tuple } from '../types/array/types.ts'
+import type { FixedArray } from '../types/array/types.ts'
 import type { Equal } from '../types/ts/types.ts'
 
 /**
@@ -138,7 +138,7 @@ export type OpId = Op1Id | Op2Id | NonEdagGroup['nanvmOp']
  */
 export type Case<N extends number> = {
     readonly name: string
-    readonly args: Tuple<N, Operand>
+    readonly args: FixedArray<N, Operand>
     readonly expected: Expectation
     readonly rust?: string
 }
