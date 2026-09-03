@@ -48,13 +48,22 @@ type _Single<T> =
             (x: infer I) => void ? I : never, T>
 
 /**
- * A rule with any lazy wrapper taken off, which is the form the branch tests
- * below ask about. Recognition in `../data/module.f.mjs` runs over the
- * *normalized* rules, where a lazy alias in either branch means what its direct
- * form means, so a branch written `() => readonly []` has to be read as the
- * empty sequence it stands for.
+ * The rule a branch stands for: any lazy wrapper taken off, and the `undefined`
+ * an optional key carries dropped.
+ *
+ * Recognition in `../data/module.f.mjs` runs over the *normalized* rules, where
+ * a lazy alias in either branch means what its direct form means, so a branch
+ * written `() => readonly []` has to be read as the empty sequence it stands
+ * for.
+ *
+ * The `undefined` is the optional marker rather than part of the rule, and
+ * `Variant` declares every key optional, so leaving it in would make a
+ * two-branch repetition written with `?` fail the shape tests below and read as
+ * a variant. That optionality names which branches an author wrote down rather
+ * than which a match may leave out is the same reading the branch derivation
+ * already takes.
  */
-type _Data<R> = R extends () => infer U ? _Data<U> : R
+type _Data<R> = R extends () => infer U ? _Data<U> : R extends undefined ? never : R
 
 /**
  * The keys of `U` that name a branch at all. `variant` in
@@ -301,3 +310,12 @@ type _SymbolBeside = () => {
     readonly [_sym]: 1,
 }
 type _28 = Assert<Equal<AstRule<_SymbolBeside>, readonly number[]>>
+
+// `Variant` declares every key optional, so a repetition may be written with
+// `?` on both branches; `repeatItem` returns `0` for the value that shape
+// describes.
+type _OptionalBranches = () => {
+    readonly none?: readonly[],
+    readonly some?: readonly[0, _OptionalBranches],
+}
+type _29 = Assert<Equal<AstRule<_OptionalBranches>, readonly number[]>>
