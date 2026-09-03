@@ -38,16 +38,22 @@ The packed `TerminalRange` also does not survive the bigint domain
 #### The value: a toggle list
 
 A range set is a strictly increasing list of integer boundaries. Reading from
-the bottom of the domain the set starts *off*; each boundary toggles it.
+the bottom of the universe the set starts *off*; each boundary toggles it.
 
 ```ts
-type RangeSet = readonly number[]   // strictly increasing, every element >= -1
+type RangeSet = readonly number[]   // strictly increasing integers
 ```
+
+The universe is every integer, `-Infinity..Infinity`: the value type knows no
+smallest and no largest symbol, so where EOF sits and where the alphabet stops
+stay the grammar's business. `-Infinity` is the one boundary that is not a
+symbol — it opens a set at the bottom, which is what a complement needs.
 
 | set | meaning |
 |---|---|
 | `[]` | empty |
-| `[-1]` | everything, EOF included |
+| `[-Infinity]` | every integer |
+| `[-1]` | everything a grammar can see, EOF included |
 | `[0]` | every ordinary symbol; today's `fullRange` |
 | `[-1, 0]` | EOF only; today's `eof` |
 | `[0x30, 0x3A]` | `0..9`; today's `range('09')` |
@@ -61,28 +67,32 @@ Properties, each one a reason to prefer this over a list of ranges:
 
 - **Canonical by construction.** One spelling per set, so structural equality
   is set equality and content addressing works without a normalization pass.
-  Validation is the whole guarantee: strictly increasing, integers, none below
-  `-1`, none above the domain maximum. `[5, 5]` is rejected, not normalized.
-- **Complement is one toggle.** The domain minimum is EOF, so complement over
-  the whole domain adds or removes a leading `-1`. Union, intersection and
-  difference are one parity merge over two sorted lists. Membership is a
-  binary search plus the parity of the position.
-- **Open above for free.** An odd-length set runs to the domain maximum, so
+  Validation is the whole guarantee: strictly increasing safe integers, save
+  for a leading `-Infinity`. `[5, 5]` is rejected, not normalized. The
+  alphabet's own bounds are checked where the alphabet is known — the
+  conversion to `range_map` takes the maximum and refuses a set that runs past
+  it.
+- **Complement is one toggle.** Complement against every integer adds or
+  removes a leading `-Infinity`. Union, intersection and difference are one
+  sweep over the boundaries of both sets. Membership is a binary search plus
+  the parity of the position.
+- **Open above for free.** An odd-length set runs to `Infinity`, so
   `fullRange`, `unicodeMax` and the 24-bit codec leave grammars. Nothing in
-  the form knows how wide the domain is; the form is unchanged when the
+  the form knows how wide the alphabet is; the form is unchanged when the
   boundaries become bigints.
-- **EOF membership is the first element.** A set contains EOF iff its first
-  boundary is `-1`. That is decidable at the type level, which the AST row
-  below relies on.
+- **EOF membership is the first element.** A set an alphabet built contains
+  EOF iff its first boundary is `-1`, since `-1` is where that alphabet
+  starts. That is decidable at the type level, which the AST row below relies
+  on.
 
-`fjs/types/range_set` becomes this type. It is a strictly better range set
-than the `RangeMap<boolean>` there now — smaller, canonical, bigint-ready, with
-a cheaper complement — and there must not be two. Its one consumer,
-`fjs/media/nix/module.f.mjs`, ports in the same change. The module exports the
-algebra (`contains`, `union`, `intersection`, `complement`, `difference`) and a
-conversion to `range_map`, which is what the LL(1) dispatch map is built from;
-`range_map`'s entries carry *inclusive* upper bounds, so an open tail needs the
-domain maximum, which the neutral terminal module supplies.
+`fjs/types/range_set` **is** this type — the `RangeMap<boolean>` that used to
+be there is gone, and there are not two. It exports the algebra (`contains`,
+`union`, `intersection`, `complement`, `difference`), the constructors
+(`rangeSet`, `fromRange`, `empty`, `full`) with `isRangeSet` for the validation
+they panic on, and `toRangeMap`, which is what the LL(1) dispatch map is built
+from; `range_map`'s entries carry *inclusive* upper bounds, so a set running to
+`Infinity` needs the alphabet maximum, which the neutral terminal module
+supplies.
 
 **The empty set is a value, not a rule.** As a value it is the identity for
 union and belongs in the algebra. As a terminal it is a rule that can never
@@ -153,11 +163,12 @@ justification is the API and the AST, which is where
 
 ### Tasks
 
-- [ ] `fjs/types/range_set`: replace the `RangeMap<boolean>` representation
+- [x] `fjs/types/range_set`: replace the `RangeMap<boolean>` representation
       with the toggle list; `contains`, `union`, `intersection`, `complement`,
       `difference`, `fromRange`, `toRangeMap(max)`, validation on
-      construction; proofs for each, for `[]`, `[-1]`, `[-1, 0]`, an open
-      tail, and every rejected input. Port `fjs/media/nix/module.f.mjs`.
+      construction; proofs for each, for `[]`, `[-Infinity]`, an open tail,
+      an open bottom, and every rejected input. Port
+      `fjs/media/nix/module.f.mjs`.
 - [ ] Settle the IR carrier together with ebnf-front-end's Problem 1, in that
       issue, before any backend touches a set.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
@@ -197,7 +208,7 @@ justification is the API and the AST, which is where
 - [rule-visitor](./rule-visitor.md) — discriminates the data `Rule`, so it
   waits on the same IR carrier decision.
 - [`fjs/types/range_set/module.f.mjs`](../../types/range_set/module.f.mjs) —
-  the module this replaces.
+  the module, now the toggle list.
 - [`fjs/js/todo/174-shared-range-map-lexer.md`](../../js/todo/174-shared-range-map-lexer.md)
   — the two hand-rolled scanners also build range-set cells over `range_map`;
   the shared value type is a natural input for the factory it proposes.
