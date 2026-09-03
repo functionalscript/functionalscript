@@ -107,10 +107,22 @@ exists) are dependencies of the front end, not parts of it.
    it to EBNF. **It is ported when a consumer that needs it transitions**, as
    part of that consumer's port — so the porting cost is paid once, by the
    port that proves the feature is still wanted, and a feature no surviving
-   consumer needs is never ported at all. Writing something in both front
-   ends is still welcome where it is cheap, because that is how EBNF's
-   advantages and pitfalls surface (principle 5), but it is an option, never
-   a requirement.
+   consumer needs is never ported at all.
+
+   **Moving, copying or porting a feature when it is needed is meant to be
+   routine, not an event.** A feature is a function and its proof, and the
+   two modules keep the same shape (front end, `data/`, `matcher/`, `ll1/`,
+   `token_symbol/`, `lib/`), so a port is usually a copy into the matching
+   place, a re-spelling against the EBNF `Rule`, and the proof brought along.
+   A feature BNF built on machinery that already lives in `ebnf/` is mostly
+   there before the port starts. If porting one turns out to be a big deal,
+   that is a finding, not a cost to absorb: either the feature was built
+   against the wrong layer, or the two modules have drifted further apart
+   than this plan intends, and either goes into the record stage 7 writes.
+
+   Writing something in both front ends is still welcome where it is cheap,
+   because that is how EBNF's advantages and pitfalls surface (principle 5),
+   but it is an option, never a requirement.
 5. **Compare, in proofs.** `descentEquivalence` in `bnf/ll1/proof.f.mjs` pins
    one grammar and one expected AST, matched by two backends. The same shape
    across front ends — one grammar spelled in `bnf` and in `ebnf`, lowered to
@@ -137,7 +149,8 @@ they hold:
    the old one can be removed without consequences.
 4. Keep the old module open for use and improvement; do not block anyone. A
    feature added to the old module is ported to the new one when a consumer
-   that needs it moves, not before.
+   that needs it moves, not before — and keep the two modules similar enough
+   in shape that such a port is routine.
 5. Move the consumers one by one, porting with each the features it needs.
 6. Retire the old module.
 
