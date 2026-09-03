@@ -1,29 +1,40 @@
-## nullable-repeat-item. `AstRule` flattens a repetition the runtime refuses
+## nullable-repeat-item. `AstRule` flattens repetitions the runtime refuses
 
 **Priority:** P3
 **Status:** open
 
 ### Problem
 
-`AstRule` classifies a repetition structurally: the rule is a lazy two-branch
-variant whose `some` tail is the rule itself. `repeatOf` in
-[`../../data/module.f.mjs`](../../data/module.f.mjs) asks for one thing more —
-`emptyTags[item] !== undefined` rejects an item that can match empty, since a
-body consuming nothing has infinitely many parses of the same input.
+`AstRule` classifies a repetition from the rule alone: a lazy two-branch
+variant, one branch the empty sequence, the other the item paired with the rule
+itself. `repeatOf` in [`../../data/module.f.mjs`](../../data/module.f.mjs) asks
+for two things more, and neither can be answered from the rule:
 
-So a rule such as `Repeat0Plus<readonly []>` gets `readonly (readonly [])[]`
-from `AstRule` while `repeatItem` returns `null` for it. The type describes an
-AST the parser will not build.
+- `emptyTags[item] !== undefined` rejects an item that can match empty, since a
+  body consuming nothing has infinitely many parses of the same input.
+- `contains(name)(reachable(ruleSet)(item))` rejects an item that can reach the
+  rule again, so that the rule's only self-reference is the tail one.
 
-The consequence is bounded: the grammar is one the runtime refuses outright, so
-the wrong type belongs to a rule that does not work either way. It is not a
-valid grammar given a wrong shape, which is what the other repeat-detection
-defects were.
+So `Repeat0Plus<readonly []>` and a repetition whose item refers back to the
+repetition both get an array from `AstRule`, while `repeatItem` returns `null`
+for each. The type describes an AST the parser will not build.
 
-### Why it is not a guard
+The consequence is bounded, and is what makes this a `todo/` rather than a fix:
+both are grammars the runtime refuses outright, so the wrong type belongs to a
+rule that does not work either way. That is unlike the repeat-detection defects
+fixed in the same pull request — extra branches, and branch names other than
+`some`/`none` — each of which gave a wrong shape to a grammar that *does*
+parse.
 
-Mirroring the check needs a type-level answer to "can this rule match empty?",
-and the recursive rule shape defeats the direct encoding. Written the obvious
+### Why neither is a guard
+
+Both conditions are questions about a rule *set*, not about a rule.
+`reachable` walks a set of named rules; there is no set here to walk, and a
+structural type has no name to be reached.
+
+Nullability is the one that shows the shape of the problem concretely.
+Mirroring it needs a type-level answer to "can this rule match empty?", and the
+recursive rule shape defeats the direct encoding. Written the obvious
 way — a terminal is `false`, an empty sequence `true`, a sequence `true` when
 every element is, a variant `true` when any branch is — it gives `boolean`
 rather than `true` for an ordinary `Repeat0Plus<0>`, and on
@@ -54,13 +65,14 @@ Until then the limit is stated in
 ### Tasks
 
 - [ ] Decide between deriving from the rule set and documenting the restriction.
-- [ ] If the analysis is written, pin `Repeat0Plus<readonly []>` and a
-      repetition over a variant with an empty branch with `Assert<Equal<…>>`.
+- [ ] If the analysis is written, pin `Repeat0Plus<readonly []>`, a repetition
+      over a variant with an empty branch, and a repetition whose item reaches
+      the repetition, with `Assert<Equal<…>>`.
 - [ ] `tsc`, `fjs t`.
 
 ### Related
 
-- [`../../data/module.f.mjs`](../../data/module.f.mjs) — `repeatOf` and
-  `emptyTagMap`, the conditions this issue is measured against.
+- [`../../data/module.f.mjs`](../../data/module.f.mjs) — `repeatOf`,
+  `emptyTagMap` and `reachable`, the conditions this issue is measured against.
 - [`../types.ts`](../types.ts) — `AstRule` and the module documentation stating
   the limit.

@@ -6,13 +6,13 @@
  * the union of its branches, and a repetition becomes an array. Everything here
  * is types and `Assert`s, so `tsc` is this module's test.
  *
- * A repetition is recognized by shape, which is one condition short of what
- * `repeatOf` in `../data/module.f.mjs` asks: that module also refuses an item
- * that can match empty. A repetition over such an item is therefore given an
- * array here and refused there — a grammar the runtime rejects either way, and
- * the one case where this module and the parser disagree. Deriving the answer
- * needs the normalized rule set `emptyTagMap` works over:
- * [nullable-repeat-item](./todo/nullable-repeat-item.md).
+ * A repetition is recognized from the rule alone, which is two conditions short
+ * of what `repeatOf` in `../data/module.f.mjs` asks: that module also refuses
+ * an item that can match empty, and one that can reach the repetition again.
+ * Such a repetition is therefore given an array here and refused there — in
+ * both cases a grammar the runtime rejects either way, and the only place this
+ * module and the parser disagree. Both are questions about a rule *set* rather
+ * than a rule: [nullable-repeat-item](./todo/nullable-repeat-item.md).
  *
  * @module
  */
@@ -37,23 +37,54 @@ export type Ast =
 
 type _FromAny<R> = R extends Rule ? AstRule<R> : never
 
+/** `never` for a union of two or more, so this asks for exactly one member. */
+type _Single<T> =
+    [T] extends [never]
+        ? false
+        : Equal<(T extends unknown ? (x: T) => void : never) extends
+            (x: infer I) => void ? I : never, T>
+
+/** The keys of `U` whose branch is the empty sequence. */
+type _NoneKeys<U> = { [K in keyof U]: U[K] extends readonly [] ? K : never }[keyof U]
+
+/** The keys of `U` whose branch is an item followed by `R` itself. */
+type _StepKeys<U, R> =
+    { [K in keyof U]: U[K] extends readonly [Rule, R] ? K : never }[keyof U]
+
 /**
  * The item of `R` when `R` is a repetition, wrapped in a one-tuple, and `false`
  * when it is not one. The miss has to be `false` rather than `never`: `never`
  * is assignable to every type, so a `never` miss would match the one-tuple test
- * below and read every rule as a repetition over `never`.
+ * that reads the item back out, and every rule would read as a repetition over
+ * `never`.
  *
- * `R extends Repeat0Plus<infer I>` alone is not the question. It asks whether
- * the `some`/`none` pair is *present*, and structural assignability allows a
- * variant to carry further branches alongside it — under which a three-branch
- * rule would flatten to an array and lose the branches it can also match.
- * `repeatOf` in `../data/module.f.mjs` rewrites a variant only when it has
- * exactly two branches, so the keys have to match exactly here too.
+ * The conditions are `repeatOf`'s in `../data/module.f.mjs`, as far as they can
+ * be asked of a rule standing on its own: exactly two branches, one of them the
+ * empty sequence, the other the item paired with `R`.
+ *
+ * The branches are matched by *shape*, never by the names `some` and `none`.
+ * `repeatOf` reads `definedValues` and never looks at a key, so
+ * `{ stop: [], next: [item, R] }` is as much a repetition as `Option`'s own
+ * spelling, and asking for `Repeat0Plus`'s names would deny a grammar the
+ * parser accepts. Asking only that the `some`/`none` pair is *present* is the
+ * opposite error: structural assignability lets a variant carry further
+ * branches beside it, and a three-branch rule would flatten to an array and
+ * lose the alternatives it can also match.
+ *
+ * Two of `repeatOf`'s conditions are not asked here, both needing the
+ * normalized rule set rather than the rule:
+ * [nullable-repeat-item](./todo/nullable-repeat-item.md).
  */
 type _RepeatItem<R> =
-    R extends Repeat0Plus<infer I extends Rule>
-        ? R extends () => infer U
-            ? Equal<keyof U, 'some' | 'none'> extends true ? readonly [I] : false
+    R extends () => infer U
+        ? _Single<_NoneKeys<U>> extends true
+            ? _Single<_StepKeys<U, R>> extends true
+                ? Equal<keyof U, _NoneKeys<U> | _StepKeys<U, R>> extends true
+                    ? U[_StepKeys<U, R>] extends readonly [infer I extends Rule, R]
+                        ? readonly [I]
+                        : false
+                    : false
+                : false
             : false
         : false
 
@@ -214,3 +245,11 @@ type _23 = Assert<Equal<
 // A union of rules is classified member by member, so a repetition beside an
 // ordinary rule stays a repetition.
 type _24 = Assert<Equal<AstRule<Repeat0Plus<0> | 1>, readonly number[] | number>>
+
+// `repeatOf` reads branch values and never a key, so a repetition spelled with
+// its own tags is one; `repeatItem` returns the item `0` for this rule.
+type _Custom = () => {
+    readonly stop: readonly[],
+    readonly next: readonly[0, _Custom],
+}
+type _25 = Assert<Equal<AstRule<_Custom>, readonly number[]>>
