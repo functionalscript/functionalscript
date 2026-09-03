@@ -122,7 +122,7 @@ type _X_3 = Assert<Equal<
     readonly [] | readonly [true] | readonly [true, true] | readonly [true, true, true]>
 >
 
-export type GetByLength<
+export type OfLength<
     T extends readonly unknown[],
     L extends number,
 > =
@@ -132,7 +132,7 @@ export type GetByLength<
             : never
         : never
 
-type _M = Assert<Equal<GetByLength<BoundedArray<1, 49, true>, 2>, readonly [true, true]>>
+type _M = Assert<Equal<OfLength<BoundedArray<1, 49, true>, 2>, readonly [true, true]>>
 
 type _Tail<
     Max extends number,
@@ -146,7 +146,7 @@ type _Tail<
         : _Tail<Max, T, readonly [...R, unknown], readonly [...O, T]>
 
 /**
- * {@link RangeArray} for bounds that are each a single `number` type: what that
+ * {@link OptionalTailArray} for bounds that are each a single `number` type: what that
  * type distributes each of its two bounds over.
  */
 /**
@@ -170,7 +170,7 @@ type _Walk<
             : _Walk<Min, Max, T, readonly [...R, T]>
 
 /**
- * {@link RangeArray} for bounds that are each a single `number` type: what that
+ * {@link OptionalTailArray} for bounds that are each a single `number` type: what that
  * type distributes each of its two bounds over.
  */
 type _Range<Min extends number, Max extends number, T> =
@@ -191,7 +191,7 @@ type _Range<Min extends number, Max extends number, T> =
  * rather than destructured, so a union carried into the walk would stop at the
  * first member matched and silently drop the rest.
  */
-export type RangeArray<
+export type OptionalTailArray<
     Min extends number,
     Max extends number,
     T,
@@ -203,33 +203,33 @@ export type RangeArray<
         ? Max extends number ? _Range<Min, Max, T> : never
         : never
 
-type _Y00 = Assert<Equal<RangeArray<0, 0, true>, readonly[]>>
-type _Y01 = Assert<Equal<RangeArray<0, 1, true>, readonly[true?]>>
-type _Y02 = Assert<Equal<RangeArray<0, 2, true>, readonly[true?, true?]>>
-type _Y11 = Assert<Equal<RangeArray<1, 1, true>, readonly[true]>>
-type _Y12 = Assert<Equal<RangeArray<1, 2, true>, readonly[true, true?]>>
-type _Y13 = Assert<Equal<RangeArray<1, 3, true>, readonly[true, true?, true?]>>
-type _Y22 = Assert<Equal<RangeArray<2, 2, true>, readonly[true, true]>>
+type _Y00 = Assert<Equal<OptionalTailArray<0, 0, true>, readonly[]>>
+type _Y01 = Assert<Equal<OptionalTailArray<0, 1, true>, readonly[true?]>>
+type _Y02 = Assert<Equal<OptionalTailArray<0, 2, true>, readonly[true?, true?]>>
+type _Y11 = Assert<Equal<OptionalTailArray<1, 1, true>, readonly[true]>>
+type _Y12 = Assert<Equal<OptionalTailArray<1, 2, true>, readonly[true, true?]>>
+type _Y13 = Assert<Equal<OptionalTailArray<1, 3, true>, readonly[true, true?, true?]>>
+type _Y22 = Assert<Equal<OptionalTailArray<2, 2, true>, readonly[true, true]>>
 type _Y2_ = Assert<Equal<
-    RangeArray<2, number, true>,
+    OptionalTailArray<2, number, true>,
     readonly [true, true, ...readonly true[]]>
 >
-type _YXMax = RangeArray<0, 999, true>
+type _YXMax = OptionalTailArray<0, 999, true>
 
 // A union bound is every length it names, not the first one matched.
 type _YU_Max = Assert<Equal<
-    RangeArray<1, 2 | 3, true>,
+    OptionalTailArray<1, 2 | 3, true>,
     readonly [true, true?] | readonly [true, true?, true?]>
 >
 type _YU_Min = Assert<Equal<
-    RangeArray<1 | 2, 3, true>,
+    OptionalTailArray<1 | 2, 3, true>,
     readonly [true, true?, true?] | readonly [true, true, true?]>
 >
 
 // A `Min` above `Max` describes no array at all.
-type _Y32 = Assert<Equal<RangeArray<3, 2, true>, never>>
+type _Y32 = Assert<Equal<OptionalTailArray<3, 2, true>, never>>
 
 // An unknown `Min` bounds nothing.
-type _Y_3 = Assert<Equal<RangeArray<number, 3, true>, readonly true[]>>
+type _Y_3 = Assert<Equal<OptionalTailArray<number, 3, true>, readonly true[]>>
 
 export type Includes<I, T extends readonly I[]> = (v: I) => v is T[number]
