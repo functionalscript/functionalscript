@@ -210,13 +210,13 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
   running modules as meta-programming, which is what compile-time evaluation of
   an annotation's named binding requires.
 - [fjs-nanvm-integration.md](../../todo/fjs-nanvm-integration.md) and
-  [migrate-typescript-to-mjs.md](../../todo/migrate-typescript-to-mjs.md) — the path to a
-  compiler that parses authored FunctionalScript.
+  [`fjs/fsc/README.md`](../../fjs/fsc/README.md) — the path to a compiler that
+  parses authored FunctionalScript.
 - [js-string-literals](./2460-js-string-literals.md) — FunctionalScript's string
   grammar is JSON's, so the repository's own single-quoted `.mjs` sources are
-  not yet input the parser accepts. Normalizing them is part of
-  [migrate-typescript-to-mjs.md](../../todo/migrate-typescript-to-mjs.md) stage 3, not a
-  tokenizer defect.
+  not yet input the parser accepts. Normalizing them is a precondition of the
+  [stage-2](../../fjs/fsc/README.md#stage-2-mark-compiler-compatible-functionalscript)
+  rename, not a tokenizer defect.
 
 ## Consequences for the TypeScript-era work
 

@@ -30,14 +30,15 @@ type _X2 = Assert<Equal<KeyOf<readonly [true] | readonly [false, false]>, 0 | 1>
 type _X3 = Assert<Equal<FixedArray<number, true>, readonly true[]>>
 type _X4 = Assert<Equal<FixedArray<2, true>, readonly [true, true]>>
 // type _X5 = Assert<Equal<FixedArray<-1, true>, readonly [true, true]>>
+type _XMax = FixedArray<998, true>
 
 type _Option<X extends readonly unknown[]> = { readonly [K in keyof X]?: X[K] }
 
 export type OptionArray<N extends number, T> = _Option<FixedArray<N, T>>
 
 /**
- * `BoundedArray` for bounds that are each a single `number` type; `Bounded` is
- * what {@link BoundedArray} distributes over its two unions.
+ * {@link BoundedArray} for bounds that are each a single `number` type: what
+ * that type distributes each of its two bounds over.
  *
  * The optional tail is not counted up to: it is `FixedArray<Max, T>` with its
  * first `Min` elements matched off, so the recursion is `FixedArray`'s and

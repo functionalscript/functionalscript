@@ -314,15 +314,30 @@ nothing to resolve in `node_modules` it downloads the registry's latest, which
 is the one version nothing here pins.
 
 For `node --test` and `npm run cov` to execute FunctionalScript proofs, the
-repository must include a Node test entry file, conventionally `all.test.ts`:
+repository must include a Node test entry file, conventionally `all.test.mjs`:
 
-```ts
+```js
 import 'functionalscript/fjs/emergent_testing/all.test.mjs'
 ```
 
+Note what makes that work. `npm run cov` passes **no path**, so `node --test`
+uses its own default discovery patterns (`*.test.*`, `test.*`, `*-test.*`,
+`test-*.*`, `*_test.*`, `test/**`). FunctionalScript proofs are
+`proof.f.mjs` / `module.f.mjs` and match none of them; the entry file is the
+only thing discovery finds, which is why it must exist and why its name has to
+keep matching `*.test.?(c|m)js`. The extension matters too: while the entry was
+`all.test.ts`, whether Node picked it up depended on that version's TypeScript
+support — v23 found nothing and reported no coverage at all — and authoring it
+as `.mjs` is what made discovery version-independent.
+
+`changelog/0.44.0.md` says `cov` "names its test entrypoint instead of relying
+on `node --test` default discovery". That describes a fix that was measured but
+not shipped; `package.json` still passes no path. Released changelog entries are
+left as written, so this paragraph is the correction.
+
 Without that file, third-party test runners discover no FunctionalScript proofs
 and will report zero tests. `fjs test` is the exception: it discovers proof modules
-directly and does not need `all.test.ts`.
+directly and does not need an entry file at all.
 
 **Note,** `npm run gen` in this repository runs the same built-in command through the
 checked-in Node entry point, which avoids relying on the package bin before the

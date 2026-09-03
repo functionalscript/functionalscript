@@ -17,9 +17,10 @@ Compiler compatibility alone is therefore not enough to rename `.f.mjs` to
 ship without the declaration and validation guarantees expected from the rest of
 the package.
 
-This work was gated on
-[`migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
-for two stated reasons: while `.f.ts` existed, TypeScript could generate
+This work was gated on the stage-1 TypeScript migration (tracked in
+`todo/migrate-typescript-to-mjs.md`, deleted when it finished; the contract it
+established is [`fjs/fsc/README.md`](../../fsc/README.md)) for two stated
+reasons: while `.f.ts` existed, TypeScript could generate
 `.f.js`, and the repository ignored `**/*.js`. Both are now false — stage 1
 removed the last `.f.ts` and the emission pass with it
 ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)), and
@@ -29,10 +30,11 @@ the gate is satisfied and this task is open.
 
 What stays gated is the *rename*, not this work: the first `.f.mjs` -> `.f.js`
 is blocked by **this** task completing, per the acceptance criteria below, and
-by the stage-2 boundary in `migrate-typescript-to-mjs.md`. Reading the
-dependency the other way makes it circular — that issue stays open until stage 2
-starts, stage 2 needs this task done, and this task would wait on that issue —
-which is why the block is recorded here as met rather than pending.
+by the stage-2 boundary in [`fjs/fsc/README.md`](../../fsc/README.md). Reading
+the dependency the other way was circular while the stage-1 issue existed — it
+stayed open until stage 2 started, stage 2 needed this task done, and this task
+waited on it — which is why the block is recorded here as met rather than
+pending.
 
 ### Proposal
 
@@ -101,8 +103,9 @@ rules in [`todo/fjs-nanvm-integration.md`](../../../todo/fjs-nanvm-integration.m
 
 ### Related
 
-- [`todo/migrate-typescript-to-mjs.md`](../../../todo/migrate-typescript-to-mjs.md)
-  — stage-1 prerequisite that removes TypeScript and makes `.js` authorable.
+- [`fjs/fsc/README.md`](../../fsc/README.md) — the extension contract. Stage 1
+  removed authored TypeScript and made `.js` authorable again; this task is
+  what makes it *packable*.
 - [`f-mjs-package-support.md`](./f-mjs-package-support.md) — stage-1 authored
   `.mjs` package support.
 - [`publishing-packages.md`](./publishing-packages.md) — broader package plan.
