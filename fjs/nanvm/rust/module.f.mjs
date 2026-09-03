@@ -82,12 +82,16 @@ export const path = `${directory}/generated.rs`
 export const rustName = {
     unaryPlus: 'unary_plus',
     neg: 'neg',
+    '~': 'bitwise_not',
     '*': 'mul',
     '/': 'div',
     '**': 'pow',
     '-': 'sub',
     '+': 'add',
     '%': 'rem',
+    '&': 'bitand',
+    '|': 'bitor',
+    '^': 'bitxor',
     '<': 'lt',
     '<=': 'le',
     '>': 'gt',
@@ -110,6 +114,7 @@ const op1Rust = {
     unaryPlus: a => `Any::unary_plus(${a})`,
     neg: a => `-(${a})`,
     '!': a => `!(${a})`,
+    '~': a => `Any::bitwise_not(${a})`,
     typeof: a => `Any::typeof_(${a})`,
     String: a => `${a}.to_string().map(|v| v.to_any())`,
 }
@@ -117,7 +122,7 @@ const op1Rust = {
 /**
  * The same, for the binary operations.
  *
- * An operator not yet implemented in `nanvm-lib` (such as `&`) has every one
+ * An operator not yet implemented in `nanvm-lib` (such as `<<`) has every one
  * of its cases carry a `rust` reason, and `emit` prints this text as a
  * comment rather than a statement — this entry only has to read as the
  * operation, not compile.
@@ -143,6 +148,9 @@ const op2Rust = {
     '-': (a, b) => `${a} - ${b}`,
     '+': (a, b) => `${a} + ${b}`,
     '%': (a, b) => `${a} % ${b}`,
+    '&': (a, b) => `${a} & ${b}`,
+    '|': (a, b) => `${a} | ${b}`,
+    '^': (a, b) => `${a} ^ ${b}`,
     '<': (a, b) => `Any::lt(${a}, ${b})`,
     '<=': (a, b) => `Any::le(${a}, ${b})`,
     '>': (a, b) => `Any::gt(${a}, ${b})`,

@@ -1,4 +1,7 @@
 mod add;
+mod bitand;
+mod bitor;
+mod bitxor;
 mod cmp;
 mod debug;
 mod default;
@@ -55,6 +58,32 @@ fn cmp_words(a: &[u64], b: &[u64]) -> Ordering {
         }
     }
     Ordering::Equal
+}
+
+/// The positive magnitude a negative `bitwise_op` result's two's-complement
+/// word pattern decodes to: flip every bit, then add one — the standard
+/// two's-complement negation, over words instead of a single machine
+/// integer. The `+ 1` can carry a new word into existence (`!x` all-ones
+/// becomes all-zeros, and `+ 1` then carries out past the last word) —
+/// tracked explicitly here since `words` isn't pre-sized for it the way
+/// [`BigInt::add_to_vec`]'s caller in `mul.rs` pre-sizes its target.
+fn magnitude_from_twos_complement(mut words: Vec<u64>) -> Vec<u64> {
+    for word in words.iter_mut() {
+        *word = !*word;
+    }
+    let mut carry = 1u64;
+    for word in words.iter_mut() {
+        let (sum, overflow) = word.overflowing_add(carry);
+        *word = sum;
+        carry = overflow as u64;
+        if carry == 0 {
+            break;
+        }
+    }
+    if carry != 0 {
+        words.push(carry);
+    }
+    normalize(&words).to_vec()
 }
 
 /// `a -= b`, in place, trimming any leading zero words the subtraction
@@ -298,6 +327,65 @@ impl<A: IVm> BigInt<A> {
         }
 
         (normalize(&quotient).to_vec(), remainder)
+    }
+
+    /// This BigInt's infinite-precision two's-complement bit pattern, sliced
+    /// to `len` words (the caller passes the larger of the two operand
+    /// lengths, so no significant bit is cut off). Non-negative: the
+    /// magnitude, zero-padded. Negative: `NOT(|self| - 1)` — the standard
+    /// two's-complement encoding, chosen (over flip-then-subtract) because
+    /// the sign bit implicitly repeats forever above the magnitude, and
+    /// subtracting first keeps that repetition free instead of needing it
+    /// threaded through the padding words too.
+    fn twos_complement_words(self, len: u32) -> Vec<u64> {
+        let sign = self.sign();
+        let mut words: Vec<u64> = self.index_iter().collect();
+        words.resize(len as usize, 0);
+        if sign == Sign::Negative {
+            let mut borrow = 1u64;
+            for word in words.iter_mut() {
+                let (diff, overflow) = word.overflowing_sub(borrow);
+                *word = diff;
+                borrow = overflow as u64;
+                if borrow == 0 {
+                    break;
+                }
+            }
+            for word in words.iter_mut() {
+                *word = !*word;
+            }
+        }
+        words
+    }
+
+    /// Shared `&`/`|`/`^` dispatch (ECMA-262's `BigInt::bitwiseOp`): decode
+    /// both operands to same-length two's-complement word patterns, apply
+    /// `word_op` word-by-word, then decode the outcome — `result_negative`
+    /// gives the result's sign from whether each operand was negative (AND:
+    /// both; OR: either; XOR: exactly one), and a negative outcome's word
+    /// pattern is turned back into a magnitude via
+    /// [`magnitude_from_twos_complement`].
+    fn bitwise_op(
+        self,
+        rhs: Self,
+        word_op: impl Fn(u64, u64) -> u64,
+        result_negative: impl Fn(bool, bool) -> bool,
+    ) -> Self {
+        let self_negative = self.sign() == Sign::Negative;
+        let rhs_negative = rhs.sign() == Sign::Negative;
+        let len = self.length().max(rhs.length());
+        let a = self.twos_complement_words(len);
+        let b = rhs.twos_complement_words(len);
+        let out: Vec<u64> = a
+            .iter()
+            .zip(b.iter())
+            .map(|(&x, &y)| word_op(x, y))
+            .collect();
+        if result_negative(self_negative, rhs_negative) {
+            Self::normalize_new(Sign::Negative, magnitude_from_twos_complement(out))
+        } else {
+            Self::normalize_new(Sign::Positive, out)
+        }
     }
 }
 

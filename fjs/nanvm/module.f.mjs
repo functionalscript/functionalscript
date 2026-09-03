@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 19
+ * data.groups.length // 23
  * ```
  */
 
@@ -1108,6 +1108,163 @@ const stringCoercionCases = [
     { name: 'object', args: [{ a: 1 }], expected: '[object Object]' },
 ]
 
+/**
+ * `&`/`|`/`^` all coerce both operands with `ToNumeric` like `*`, then — for
+ * two `Number`s — apply `ToInt32` to each side before the bitwise op, so a
+ * fraction truncates toward zero, a non-finite value becomes `+0`, and a
+ * magnitude beyond 32 bits wraps. Two `BigInt`s use the operator's exact
+ * infinite-precision two's-complement meaning instead, and mixed
+ * number/bigint operands throw, the same as every other arithmetic operator
+ * above.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const bitAndCases = [
+    { name: 'nullBitAndSix', args: [null, 6], expected: 0 },
+    { name: 'undefinedBitAndSix', args: [undefined, 6], expected: 0 },
+    { name: 'trueBitAndSix', args: [true, 6], expected: 0 },
+    { name: 'falseBitAndSix', args: [false, 6], expected: 0 },
+    { name: 'stringTenBitAndSix', args: ['10', 6], expected: 2 },
+    { name: 'stringLetterBitAndSix', args: ['a', 6], expected: 0 },
+    { name: 'emptyArrayBitAndSix', args: [[], 6], expected: 0 },
+    { name: 'arrayTenBitAndSix', args: [[10], 6], expected: 2 },
+    { name: 'arrayStringTenBitAndSix', args: [['10'], 6], expected: 2 },
+    { name: 'arrayPairBitAndSix', args: [[0, 0], 6], expected: 0 },
+    { name: 'emptyObjectBitAndSix', args: [{}, 6], expected: 0 },
+    // The one binary case that escapes: `functionValue` has no expression,
+    // so both consumers take the direct path with two operands rather than
+    // one.
+    { name: 'functionBitAndSix', args: [functionValue, 6], expected: 0 },
+    { name: 'truncatesTowardZero', args: [3.9, 6], expected: 2 },
+    { name: 'negativeTruncatesTowardZero', args: [-3.9, 6], expected: 4 },
+    { name: 'nanBitAndSix', args: [NaN, 6], expected: 0 },
+    { name: 'infinityBitAndSix', args: [Infinity, 6], expected: 0 },
+    { name: 'negativeInfinityBitAndSix', args: [-Infinity, 6], expected: 0 },
+    { name: 'wrapsAt32Bits', args: [2 ** 32 + 5, 6], expected: 4 },
+    { name: 'negativeOneBitAndSix', args: [-1, 6], expected: 6 },
+    { name: 'bigTwelveBitAndTen', args: [12n, 10n], expected: 8n },
+    { name: 'bigNegativeOneBitAndNegativeOne', args: [-1n, -1n], expected: -1n },
+    { name: 'bigNegativeTwoBitAndNegativeThree', args: [-2n, -3n], expected: -4n },
+    { name: 'bigFiveBitAndNegativeOne', args: [5n, -1n], expected: 5n },
+    { name: 'bigZeroBitAndZero', args: [0n, 0n], expected: 0n },
+    { name: 'bigPositiveBitAndZero', args: [12345n, 0n], expected: 0n },
+    { name: 'bigNegativeBitAndZero', args: [-12345n, 0n], expected: 0n },
+    // A magnitude near the largest value the corpus can print (`i64::MAX`),
+    // where `-1`'s all-ones pattern makes AND an identity.
+    { name: 'bigLargeMagnitude', args: [-(2n ** 62n), -1n], expected: -(2n ** 62n) },
+    { name: 'numberBitAndBigint', args: [1, 1n], expected: throws },
+]
+
+/** @type {readonly Case<2>[]} */
+const bitOrCases = [
+    { name: 'nullBitOrSix', args: [null, 6], expected: 6 },
+    { name: 'undefinedBitOrSix', args: [undefined, 6], expected: 6 },
+    { name: 'trueBitOrSix', args: [true, 6], expected: 7 },
+    { name: 'falseBitOrSix', args: [false, 6], expected: 6 },
+    { name: 'stringTenBitOrSix', args: ['10', 6], expected: 14 },
+    { name: 'stringLetterBitOrSix', args: ['a', 6], expected: 6 },
+    { name: 'emptyArrayBitOrSix', args: [[], 6], expected: 6 },
+    { name: 'arrayTenBitOrSix', args: [[10], 6], expected: 14 },
+    { name: 'arrayStringTenBitOrSix', args: [['10'], 6], expected: 14 },
+    { name: 'arrayPairBitOrSix', args: [[0, 0], 6], expected: 6 },
+    { name: 'emptyObjectBitOrSix', args: [{}, 6], expected: 6 },
+    // The one binary case that escapes: `functionValue` has no expression,
+    // so both consumers take the direct path with two operands rather than
+    // one.
+    { name: 'functionBitOrSix', args: [functionValue, 6], expected: 6 },
+    { name: 'truncatesTowardZero', args: [3.9, 6], expected: 7 },
+    { name: 'negativeTruncatesTowardZero', args: [-3.9, 6], expected: -1 },
+    { name: 'nanBitOrSix', args: [NaN, 6], expected: 6 },
+    { name: 'infinityBitOrSix', args: [Infinity, 6], expected: 6 },
+    { name: 'negativeInfinityBitOrSix', args: [-Infinity, 6], expected: 6 },
+    { name: 'wrapsAt32Bits', args: [2 ** 32 + 5, 6], expected: 7 },
+    { name: 'negativeOneBitOrSix', args: [-1, 6], expected: -1 },
+    { name: 'bigTwelveBitOrTen', args: [12n, 10n], expected: 14n },
+    { name: 'bigNegativeTwoBitOrNegativeThree', args: [-2n, -3n], expected: -1n },
+    { name: 'bigFiveBitOrNegativeOne', args: [5n, -1n], expected: -1n },
+    { name: 'bigZeroBitOrZero', args: [0n, 0n], expected: 0n },
+    { name: 'bigPositiveBitOrZero', args: [12345n, 0n], expected: 12345n },
+    { name: 'bigNegativeBitOrZero', args: [-12345n, 0n], expected: -12345n },
+    // A magnitude near the largest value the corpus can print (`i64::MAX`):
+    // `-1`'s all-ones two's-complement pattern absorbs anything it meets, so
+    // the result is `-1` regardless of the other operand's magnitude.
+    { name: 'bigLargeMagnitude', args: [-(2n ** 62n), -1n], expected: -1n },
+    { name: 'numberBitOrBigint', args: [1, 1n], expected: throws },
+]
+
+/** @type {readonly Case<2>[]} */
+const bitXorCases = [
+    { name: 'nullBitXorSix', args: [null, 6], expected: 6 },
+    { name: 'undefinedBitXorSix', args: [undefined, 6], expected: 6 },
+    { name: 'trueBitXorSix', args: [true, 6], expected: 7 },
+    { name: 'falseBitXorSix', args: [false, 6], expected: 6 },
+    { name: 'stringTenBitXorSix', args: ['10', 6], expected: 12 },
+    { name: 'stringLetterBitXorSix', args: ['a', 6], expected: 6 },
+    { name: 'emptyArrayBitXorSix', args: [[], 6], expected: 6 },
+    { name: 'arrayTenBitXorSix', args: [[10], 6], expected: 12 },
+    { name: 'arrayStringTenBitXorSix', args: [['10'], 6], expected: 12 },
+    { name: 'arrayPairBitXorSix', args: [[0, 0], 6], expected: 6 },
+    { name: 'emptyObjectBitXorSix', args: [{}, 6], expected: 6 },
+    // The one binary case that escapes: `functionValue` has no expression,
+    // so both consumers take the direct path with two operands rather than
+    // one.
+    { name: 'functionBitXorSix', args: [functionValue, 6], expected: 6 },
+    { name: 'truncatesTowardZero', args: [3.9, 6], expected: 5 },
+    { name: 'negativeTruncatesTowardZero', args: [-3.9, 6], expected: -5 },
+    { name: 'nanBitXorSix', args: [NaN, 6], expected: 6 },
+    { name: 'infinityBitXorSix', args: [Infinity, 6], expected: 6 },
+    { name: 'negativeInfinityBitXorSix', args: [-Infinity, 6], expected: 6 },
+    { name: 'wrapsAt32Bits', args: [2 ** 32 + 5, 6], expected: 3 },
+    { name: 'negativeOneBitXorSix', args: [-1, 6], expected: -7 },
+    { name: 'bigTwelveBitXorTen', args: [12n, 10n], expected: 6n },
+    { name: 'bigNegativeOneBitXorNegativeOne', args: [-1n, -1n], expected: 0n },
+    { name: 'bigNegativeTwoBitXorNegativeThree', args: [-2n, -3n], expected: 3n },
+    { name: 'bigFiveBitXorNegativeOne', args: [5n, -1n], expected: -6n },
+    { name: 'bigZeroBitXorZero', args: [0n, 0n], expected: 0n },
+    { name: 'bigPositiveBitXorZero', args: [12345n, 0n], expected: 12345n },
+    { name: 'bigNegativeBitXorZero', args: [-12345n, 0n], expected: -12345n },
+    // A magnitude near the largest value the corpus can print (`i64::MAX`):
+    // `x ^ -1` is `~x`, the identity `bitwiseNotCases` below checks
+    // directly, exercised here at a large magnitude instead of a small one.
+    { name: 'bigLargeMagnitude', args: [-(2n ** 62n), -1n], expected: 2n ** 62n - 1n },
+    { name: 'numberBitXorBigint', args: [1, 1n], expected: throws },
+]
+
+/**
+ * `~` coerces its operand with `ToNumeric` like the unary `+`/`-` groups
+ * above, then — for a `Number` — applies `ToInt32` before negating the bits.
+ * For a `BigInt`, `~x` is exactly `-x - 1` (`BigInt::unaryMinus` composed
+ * with `BigInt::subtract`), not a bitwise algorithm of its own.
+ *
+ * @type {readonly Case<1>[]}
+ */
+const bitwiseNotCases = [
+    { name: 'null', args: [null], expected: -1 },
+    { name: 'undefined', args: [undefined], expected: -1 },
+    { name: 'booleanFalse', args: [false], expected: -1 },
+    { name: 'booleanTrue', args: [true], expected: -2 },
+    { name: 'stringTen', args: ['10'], expected: -11 },
+    { name: 'stringLetter', args: ['a'], expected: -1 },
+    { name: 'emptyArray', args: [[]], expected: -1 },
+    { name: 'arrayTen', args: [[10]], expected: -11 },
+    { name: 'arrayStringTen', args: [['10']], expected: -11 },
+    { name: 'arrayPair', args: [[0, 0]], expected: -1 },
+    { name: 'emptyObject', args: [{}], expected: -1 },
+    { name: 'function', args: [functionValue], expected: -1 },
+    { name: 'truncatesTowardZero', args: [3.9], expected: -4 },
+    { name: 'negativeTruncatesTowardZero', args: [-3.9], expected: 2 },
+    { name: 'nan', args: [NaN], expected: -1 },
+    { name: 'infinity', args: [Infinity], expected: -1 },
+    { name: 'negativeInfinity', args: [-Infinity], expected: -1 },
+    { name: 'wrapsAt32Bits', args: [2 ** 32 + 5], expected: -6 },
+    { name: 'negativeOne', args: [-1], expected: 0 },
+    { name: 'bigZero', args: [0n], expected: -1n },
+    { name: 'bigPositive', args: [5n], expected: -6n },
+    { name: 'bigNegative', args: [-5n], expected: 4n },
+    { name: 'bigOne', args: [1n], expected: -2n },
+    { name: 'bigNegativeOne', args: [-1n], expected: 0n },
+]
+
 /** @type {Data} */
 export const data = {
     eq: {
@@ -1172,12 +1329,16 @@ export const data = {
                 { name: 'bigintNegative', args: [-1n], expected: 1n },
             ],
         },
+        { op: '~', cases: bitwiseNotCases },
         { op: '*', commutative: true, cases: mulCases },
         { op: '/', cases: divCases },
         { op: '**', cases: expCases },
         { op: '-', cases: subCases },
         { op: '+', cases: addCases },
         { op: '%', cases: remCases },
+        { op: '&', commutative: true, cases: bitAndCases },
+        { op: '|', commutative: true, cases: bitOrCases },
+        { op: '^', commutative: true, cases: bitXorCases },
         { op: '<', cases: lessThanCases },
         { op: '<=', cases: lessOrEqualCases },
         { op: '>', cases: greaterThanCases },

@@ -7,6 +7,7 @@ mod dispatch;
 mod ecma_whitespace;
 mod function;
 mod impls;
+mod int32_coercion;
 mod internal;
 mod join;
 mod nullish;
