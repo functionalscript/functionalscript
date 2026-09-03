@@ -115,9 +115,19 @@ type _RepeatItem<R> =
  *
  * `R[K]` of an optional key carries `undefined`, which `_FromAny` drops: a key
  * a grammar author wrote as optional still names a branch a match can select.
+ * A symbol key names no branch at all, and is dropped for that reason.
  */
 type _Branches<R extends Variant, K> =
-    K extends keyof R ? { readonly [_ in K & PropertyKey]: _FromAny<R[K]> } : never
+    K extends keyof R
+        // A symbol-keyed property satisfies `Variant` structurally, but `variant`
+        // in `../data/module.f.mjs` reads branches with `Object.entries`, which
+        // drops symbols — so no such branch reaches a parse, and advertising one
+        // would describe a match that cannot happen. `Branch` in
+        // `../matcher/types.ts` draws the same line.
+        ? K extends string | number
+            ? { readonly [_ in K]: _FromAny<R[K]> }
+            : never
+        : never
 
 export type AstRule<R extends Rule> =
     // A rule left at one of the BNF API's own types — `@type {Rule}` and
@@ -275,3 +285,9 @@ type _LazyBranch = () => {
     readonly some: readonly[0, _LazyBranch],
 }
 type _26 = Assert<Equal<AstRule<_LazyBranch>, readonly number[]>>
+
+// A symbol-keyed property is not a branch: `variant` reads branches with
+// `Object.entries`, so no parse can produce one.
+declare const _sym: unique symbol
+type _Symbolic = { readonly [_sym]: 0, readonly a: 1 }
+type _27 = Assert<Equal<AstRule<_Symbolic>, { readonly a: number }>>
