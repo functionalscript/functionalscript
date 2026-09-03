@@ -92,6 +92,9 @@ export const rustName = {
     '&': 'bitand',
     '|': 'bitor',
     '^': 'bitxor',
+    '<<': 'shl',
+    '>>': 'shr',
+    '>>>': 'unsigned_right_shift',
     '<': 'lt',
     '<=': 'le',
     '>': 'gt',
@@ -122,7 +125,7 @@ const op1Rust = {
 /**
  * The same, for the binary operations.
  *
- * An operator not yet implemented in `nanvm-lib` (such as `<<`) has every one
+ * An operator not yet implemented in `nanvm-lib` (such as `own`) has every one
  * of its cases carry a `rust` reason, and `emit` prints this text as a
  * comment rather than a statement — this entry only has to read as the
  * operation, not compile.
@@ -137,7 +140,10 @@ const op1Rust = {
  * take `bool` operands and short-circuit *evaluation*, neither of which fits
  * an operator over already-evaluated `Any<A>` values, and `?` is Rust's own
  * try-operator, unrelated to JS `??` — so all three are `Any` methods, named
- * for what they do rather than reusing punctuation Rust already owns.
+ * for what they do rather than reusing punctuation Rust already owns. `>>>`
+ * follows it for a fourth reason: Rust has no unsigned-right-shift operator
+ * at all (only `>>`, which is arithmetic on a signed type), so it is
+ * `Any::unsigned_right_shift`.
  *
  * @type {{ readonly [k in OpId]?: (a: string, b: string) => string }}
  */
@@ -151,6 +157,9 @@ const op2Rust = {
     '&': (a, b) => `${a} & ${b}`,
     '|': (a, b) => `${a} | ${b}`,
     '^': (a, b) => `${a} ^ ${b}`,
+    '<<': (a, b) => `${a} << ${b}`,
+    '>>': (a, b) => `${a} >> ${b}`,
+    '>>>': (a, b) => `Any::unsigned_right_shift(${a}, ${b})`,
     '<': (a, b) => `Any::lt(${a}, ${b})`,
     '<=': (a, b) => `Any::le(${a}, ${b})`,
     '>': (a, b) => `Any::gt(${a}, ${b})`,

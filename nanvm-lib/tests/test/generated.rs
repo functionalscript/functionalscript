@@ -581,6 +581,103 @@ fn bitxor<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn shl<A: IVm>() {
+    check::<A>("nullShlThree", Nullish::Null.to_any() << (3f64).to_any(), (0f64).to_any());
+    check::<A>("undefinedShlThree", Nullish::Undefined.to_any() << (3f64).to_any(), (0f64).to_any());
+    check::<A>("trueShlThree", true.to_any() << (3f64).to_any(), (8f64).to_any());
+    check::<A>("falseShlThree", false.to_any() << (3f64).to_any(), (0f64).to_any());
+    check::<A>("stringTenShlThree", string_any("10") << (3f64).to_any(), (80f64).to_any());
+    check::<A>("stringLetterShlThree", string_any("a") << (3f64).to_any(), (0f64).to_any());
+    check::<A>("emptyArrayShlThree", Array::default().to_any() << (3f64).to_any(), (0f64).to_any());
+    check::<A>("arrayTenShlThree", [(10f64).to_any()].to_array().to_any() << (3f64).to_any(), (80f64).to_any());
+    check::<A>("arrayStringTenShlThree", [string_any("10")].to_array().to_any() << (3f64).to_any(), (80f64).to_any());
+    check::<A>("arrayPairShlThree", [(0f64).to_any(), (0f64).to_any()].to_array().to_any() << (3f64).to_any(), (0f64).to_any());
+    check::<A>("emptyObjectShlThree", Object::default().to_any() << (3f64).to_any(), (0f64).to_any());
+    check::<A>("functionShlThree", function_any() << (3f64).to_any(), (0f64).to_any());
+    check::<A>("truncatesTowardZero", (3.9f64).to_any() << (3f64).to_any(), (24f64).to_any());
+    check::<A>("negativeTruncatesTowardZero", (-3.9f64).to_any() << (3f64).to_any(), (-24f64).to_any());
+    check::<A>("nanShlThree", (f64::NAN).to_any() << (3f64).to_any(), (0f64).to_any());
+    check::<A>("infinityShlThree", (f64::INFINITY).to_any() << (3f64).to_any(), (0f64).to_any());
+    check::<A>("negativeInfinityShlThree", (f64::NEG_INFINITY).to_any() << (3f64).to_any(), (0f64).to_any());
+    check::<A>("shiftCountWrapsAt32", (1f64).to_any() << (33f64).to_any(), (2f64).to_any());
+    check::<A>("shiftCountNegative", (1f64).to_any() << (-1f64).to_any(), (-2147483648f64).to_any());
+    check::<A>("valueWrapsAt32Bits", (4294967301f64).to_any() << (1f64).to_any(), (10f64).to_any());
+    check::<A>("resultOverflowsIntoSignBit", (1073741824f64).to_any() << (1f64).to_any(), (-2147483648f64).to_any());
+    check::<A>("bigFiveShlThree", bigint_any(5) << bigint_any(3), bigint_any(40));
+    check::<A>("bigNegativeFiveShlThree", bigint_any(-5) << bigint_any(3), bigint_any(-40));
+    check::<A>("bigFiveShlZero", bigint_any(5) << bigint_any(0), bigint_any(5));
+    check::<A>("bigZeroShlHuge", bigint_any(0) << bigint_any(100), bigint_any(0));
+    check::<A>("bigFiveShlNegativeThree", bigint_any(5) << bigint_any(-3), bigint_any(0));
+    check::<A>("bigNegativeFiveShlNegativeThree", bigint_any(-5) << bigint_any(-3), bigint_any(-1));
+    check_throws::<A>("bigShiftTooLarge", bigint_any(1) << bigint_any(100000000000000000));
+    check_throws::<A>("numberShlBigint", (1f64).to_any() << bigint_any(1));
+    check_throws::<A>("bigintShlNumber", bigint_any(1) << (1f64).to_any());
+}
+
+#[rustfmt::skip]
+fn shr<A: IVm>() {
+    check::<A>("nullShrThree", Nullish::Null.to_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("undefinedShrThree", Nullish::Undefined.to_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("trueShrThree", true.to_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("falseShrThree", false.to_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("stringTenShrThree", string_any("10") >> (3f64).to_any(), (1f64).to_any());
+    check::<A>("stringLetterShrThree", string_any("a") >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("emptyArrayShrThree", Array::default().to_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("arrayTenShrThree", [(10f64).to_any()].to_array().to_any() >> (3f64).to_any(), (1f64).to_any());
+    check::<A>("arrayStringTenShrThree", [string_any("10")].to_array().to_any() >> (3f64).to_any(), (1f64).to_any());
+    check::<A>("arrayPairShrThree", [(0f64).to_any(), (0f64).to_any()].to_array().to_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("emptyObjectShrThree", Object::default().to_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("functionShrThree", function_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("truncatesTowardZero", (3.9f64).to_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("negativeTruncatesTowardZero", (-3.9f64).to_any() >> (3f64).to_any(), (-1f64).to_any());
+    check::<A>("nanShrThree", (f64::NAN).to_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("infinityShrThree", (f64::INFINITY).to_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("negativeInfinityShrThree", (f64::NEG_INFINITY).to_any() >> (3f64).to_any(), (0f64).to_any());
+    check::<A>("shiftCountWrapsAt32", (16f64).to_any() >> (34f64).to_any(), (4f64).to_any());
+    check::<A>("shiftCountNegative", (-16f64).to_any() >> (-1f64).to_any(), (-1f64).to_any());
+    check::<A>("valueWrapsAt32Bits", (4294967301f64).to_any() >> (1f64).to_any(), (2f64).to_any());
+    check::<A>("wrapsAt32BitsThenNegative", (2147483648f64).to_any() >> (1f64).to_any(), (-1073741824f64).to_any());
+    check::<A>("bigFortyShrThree", bigint_any(40) >> bigint_any(3), bigint_any(5));
+    check::<A>("bigNegativeFortyShrThree", bigint_any(-40) >> bigint_any(3), bigint_any(-5));
+    check::<A>("bigFiveShrThree", bigint_any(5) >> bigint_any(3), bigint_any(0));
+    check::<A>("bigNegativeFiveShrThree", bigint_any(-5) >> bigint_any(3), bigint_any(-1));
+    check::<A>("bigFiveShrZero", bigint_any(5) >> bigint_any(0), bigint_any(5));
+    check::<A>("bigFiveShrNegativeThree", bigint_any(5) >> bigint_any(-3), bigint_any(40));
+    check::<A>("bigNegativeFiveShrNegativeThree", bigint_any(-5) >> bigint_any(-3), bigint_any(-40));
+    check_throws::<A>("bigShiftTooLarge", bigint_any(1) >> bigint_any(-100000000000000000));
+    check_throws::<A>("numberShrBigint", (1f64).to_any() >> bigint_any(1));
+    check_throws::<A>("bigintShrNumber", bigint_any(1) >> (1f64).to_any());
+}
+
+#[rustfmt::skip]
+fn unsigned_right_shift<A: IVm>() {
+    check::<A>("nullUshrThree", Any::unsigned_right_shift(Nullish::Null.to_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("undefinedUshrThree", Any::unsigned_right_shift(Nullish::Undefined.to_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("trueUshrThree", Any::unsigned_right_shift(true.to_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("falseUshrThree", Any::unsigned_right_shift(false.to_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("stringTenUshrThree", Any::unsigned_right_shift(string_any("10"), (3f64).to_any()), (1f64).to_any());
+    check::<A>("stringLetterUshrThree", Any::unsigned_right_shift(string_any("a"), (3f64).to_any()), (0f64).to_any());
+    check::<A>("emptyArrayUshrThree", Any::unsigned_right_shift(Array::default().to_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("arrayTenUshrThree", Any::unsigned_right_shift([(10f64).to_any()].to_array().to_any(), (3f64).to_any()), (1f64).to_any());
+    check::<A>("arrayStringTenUshrThree", Any::unsigned_right_shift([string_any("10")].to_array().to_any(), (3f64).to_any()), (1f64).to_any());
+    check::<A>("arrayPairUshrThree", Any::unsigned_right_shift([(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("emptyObjectUshrThree", Any::unsigned_right_shift(Object::default().to_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("functionUshrThree", Any::unsigned_right_shift(function_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("truncatesTowardZero", Any::unsigned_right_shift((3.9f64).to_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("negativeTruncatesTowardZero", Any::unsigned_right_shift((-3.9f64).to_any(), (3f64).to_any()), (536870911f64).to_any());
+    check::<A>("nanUshrThree", Any::unsigned_right_shift((f64::NAN).to_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("infinityUshrThree", Any::unsigned_right_shift((f64::INFINITY).to_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("negativeInfinityUshrThree", Any::unsigned_right_shift((f64::NEG_INFINITY).to_any(), (3f64).to_any()), (0f64).to_any());
+    check::<A>("shiftCountWrapsAt32", Any::unsigned_right_shift((16f64).to_any(), (34f64).to_any()), (4f64).to_any());
+    check::<A>("shiftCountNegative", Any::unsigned_right_shift((16f64).to_any(), (-1f64).to_any()), (0f64).to_any());
+    check::<A>("valueWrapsAt32Bits", Any::unsigned_right_shift((4294967301f64).to_any(), (1f64).to_any()), (2f64).to_any());
+    check::<A>("negativeBecomesLargePositive", Any::unsigned_right_shift((-1f64).to_any(), (0f64).to_any()), (4294967295f64).to_any());
+    check_throws::<A>("bigintUnsignedRightShift", Any::unsigned_right_shift(bigint_any(5), bigint_any(1)));
+    check_throws::<A>("numberUshrBigint", Any::unsigned_right_shift((1f64).to_any(), bigint_any(1)));
+    check_throws::<A>("bigintUshrNumber", Any::unsigned_right_shift(bigint_any(1), (1f64).to_any()));
+}
+
+#[rustfmt::skip]
 fn lt<A: IVm>() {
     check::<A>("nullLessThanFive", Any::lt(Nullish::Null.to_any(), (5f64).to_any()), true.to_any());
     check::<A>("undefinedLessThanFive", Any::lt(Nullish::Undefined.to_any(), (5f64).to_any()), false.to_any());
@@ -950,6 +1047,9 @@ pub fn all<A: IVm>() {
     bitand::<A>();
     bitor::<A>();
     bitxor::<A>();
+    shl::<A>();
+    shr::<A>();
+    unsigned_right_shift::<A>();
     lt::<A>();
     le::<A>();
     gt::<A>();

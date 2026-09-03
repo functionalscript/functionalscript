@@ -2,20 +2,26 @@ use core::ops::Shl;
 
 use crate::{
     common::{div_mod::DivMod, sized_index::SizedIndex},
+    sign::Sign,
     vm::{Any, BigInt, IVm},
 };
 
-const TOO_LARGE: &str = "shl: shift amount too large";
+const TOO_LARGE: &str = "RangeError: Maximum BigInt size exceeded";
 
 fn too_large<A: IVm>() -> Result<BigInt<A>, Any<A>> {
     Err(TOO_LARGE.into())
 }
 
+/// `<<`. <https://tc39.es/ecma262/#sec-numeric-types-bigint-leftShift>
 impl<A: IVm> Shl for BigInt<A> {
     type Output = Result<Self, Any<A>>;
 
-    // TODO: handle negative shift amounts (right shift)
     fn shl(self, rhs: Self) -> Self::Output {
+        // A negative shift amount is a right shift by its magnitude.
+        if rhs.sign() == Sign::Negative {
+            return self >> -rhs;
+        }
+
         let n_len = self.length();
         if n_len == 0 {
             return Ok(self);
@@ -202,7 +208,7 @@ mod tests {
         let a: T = 42u64.into();
         let shift: T = 10u64.into();
         let shifted = (a.clone() << shift.clone()).unwrap();
-        assert_eq!(shifted >> shift, 42u64.into());
+        assert_eq!((shifted >> shift).unwrap(), 42u64.into());
     }
 
     #[test]
@@ -266,7 +272,7 @@ mod tests {
         // ([0, 42] >> 10) << 10 should equal [0, 42] (no bits lost in low word)
         let a = pos(vec![0, 42]);
         let shift: T = 10u64.into();
-        let shifted = a.clone() >> shift.clone();
+        let shifted = (a.clone() >> shift.clone()).unwrap();
         assert_eq!((shifted << shift).unwrap(), pos(vec![0, 42]));
     }
 
@@ -326,7 +332,10 @@ mod tests {
     fn shl_multi_word_rhs_returns_err() {
         let a: T = 1u64.into();
         let b = pos(vec![0, 1]); // shift = 2^64
-        assert_eq!(a << b, Err("shl: shift amount too large".into()));
+        assert_eq!(
+            a << b,
+            Err("RangeError: Maximum BigInt size exceeded".into())
+        );
     }
 
     #[test]
@@ -334,6 +343,24 @@ mod tests {
         // u64::MAX would require ~2^58 words; exceeds u32::MAX limit
         let a: T = 1u64.into();
         let b: T = u64::MAX.into();
-        assert_eq!(a << b, Err("shl: shift amount too large".into()));
+        assert_eq!(
+            a << b,
+            Err("RangeError: Maximum BigInt size exceeded".into())
+        );
+    }
+
+    #[test]
+    fn shl_by_negative_is_right_shift() {
+        // x << -y is x >> y.
+        let a: T = 40u64.into();
+        let b: T = (-3i64).into();
+        assert_eq!((a << b).unwrap(), 5u64.into());
+    }
+
+    #[test]
+    fn shl_negative_by_negative_is_right_shift() {
+        let a = neg(vec![40]);
+        let b: T = (-3i64).into();
+        assert_eq!((a << b).unwrap(), neg(vec![5]));
     }
 }

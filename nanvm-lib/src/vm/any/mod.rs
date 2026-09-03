@@ -13,6 +13,8 @@ mod or;
 mod partial_eq;
 mod relational;
 mod rem;
+mod shl;
+mod shr;
 mod sub;
 mod typeof_;
 
@@ -79,6 +81,13 @@ impl<A: IVm> Any<A> {
         Ok(Unpacked::from(self.to_numeric()?.bitwise_not()).into())
     }
 
+    /// `>>>`. Not a `core::ops` trait — Rust has no unsigned-right-shift
+    /// operator — so this is a plain method, the same as `pow`/`bitwise_not`.
+    /// <https://tc39.es/ecma262/#sec-unsigned-right-shift-operator>
+    pub fn unsigned_right_shift(self, rhs: Self) -> Result<Self, Self> {
+        Ok(Unpacked::from(self.to_numeric()?.unsigned_right_shift(rhs.to_numeric()?)?).into())
+    }
+
     /// Same as `Number.isNaN` in ECMAScript.
     /// TODO: check and test.
     pub fn is_nan(self) -> bool {
@@ -126,5 +135,3 @@ impl<A: IVm> Any<A> {
         self.0.to_unpacked().dispatch(o)
     }
 }
-
-// TODO implement <<, >>, >>> using Rust standard traits - similarly to Neg above.

@@ -1,9 +1,23 @@
-use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Sub};
+use std::ops::{Add, BitAnd, BitOr, BitXor, Div, Mul, Neg, Rem, Shl, Shr, Sub};
 
-use crate::vm::{Any, BigInt, IVm, Unpacked, int32_coercion::to_int32};
+use crate::vm::{
+    Any, BigInt, IVm, Unpacked,
+    int32_coercion::{to_int32, to_uint32},
+};
 
 const CANNOT_MIX_NUMBER_AND_BIGINT: &str =
     "TypeError: Cannot mix BigInt and other types, use explicit conversions";
+
+const NO_UNSIGNED_RIGHT_SHIFT_FOR_BIGINT: &str =
+    "TypeError: BigInts have no unsigned right shift, use >> instead";
+
+/// `ToUint32(rhs) & 0x1F`: the shift-count operand of `<<`/`>>`/`>>>`
+/// between two `Number`s is reduced modulo 32 — a `u32` shift always in
+/// `0..32`, so it can never panic Rust's own `<<`/`>>` on `i32`/`u32`
+/// (which requires a shift strictly less than the type's bit width).
+fn shift_count(rhs: f64) -> u32 {
+    to_uint32(rhs) & 0x1F
+}
 
 /// <https://tc39.es/ecma262/#sec-tonumeric>
 /// Represents ECMAScript numeric types, i.e. `Number` or `BigInt`, as defined by ToNumeric.
@@ -136,6 +150,34 @@ impl<A: IVm> BitXor for Numeric<A> {
     }
 }
 
+impl<A: IVm> Shl for Numeric<A> {
+    type Output = Result<Self, Any<A>>;
+
+    fn shl(self, rhs: Self) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Numeric::Number(a), Numeric::Number(b)) => {
+                Numeric::Number((to_int32(a) << shift_count(b)) as f64)
+            }
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a << b)?),
+            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+        })
+    }
+}
+
+impl<A: IVm> Shr for Numeric<A> {
+    type Output = Result<Self, Any<A>>;
+
+    fn shr(self, rhs: Self) -> Self::Output {
+        Ok(match (self, rhs) {
+            (Numeric::Number(a), Numeric::Number(b)) => {
+                Numeric::Number((to_int32(a) >> shift_count(b)) as f64)
+            }
+            (Numeric::BigInt(a), Numeric::BigInt(b)) => Numeric::BigInt((a >> b)?),
+            _ => return Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
+        })
+    }
+}
+
 /// `Number::exponentiate`. Diverges from `f64::powf` (and C99's `pow`, which
 /// `powf` follows) in exactly two spots: a `NaN` exponent is `NaN`
 /// regardless of the base (C99 special-cases `pow(1, y) = 1` even for a
@@ -175,6 +217,25 @@ impl<A: IVm> Numeric<A> {
         match self {
             Numeric::Number(v) => Numeric::Number(!to_int32(v) as f64),
             Numeric::BigInt(v) => Numeric::BigInt(-v - BigInt::from(1u64)),
+        }
+    }
+
+    /// `>>>`. Not a `core::ops` trait — Rust has no unsigned-right-shift
+    /// operator, so this is a plain method, the same as `pow`/`bitwise_not`.
+    /// Number: `ToUint32` both sides (unlike `<<`/`>>`'s `ToInt32` on the
+    /// left — this is the one shift whose left operand's sign bit is never
+    /// preserved), then a logical (zero-filling) shift. BigInt: always
+    /// throws — arbitrary-precision integers have no fixed width for an
+    /// "unsigned" shift to be relative to.
+    pub fn unsigned_right_shift(self, rhs: Self) -> Result<Self, Any<A>> {
+        match (self, rhs) {
+            (Numeric::Number(a), Numeric::Number(b)) => {
+                Ok(Numeric::Number((to_uint32(a) >> shift_count(b)) as f64))
+            }
+            (Numeric::BigInt(_), Numeric::BigInt(_)) => {
+                Err(NO_UNSIGNED_RIGHT_SHIFT_FOR_BIGINT.into())
+            }
+            _ => Err(CANNOT_MIX_NUMBER_AND_BIGINT.into()),
         }
     }
 }

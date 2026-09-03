@@ -207,7 +207,12 @@ fn whole_f64_to_bigint<A: IVm>(f: f64) -> BigInt<A> {
         (magnitude << BigInt::from(exponent as u64))
             .expect("a finite f64's exponent cannot overflow BigInt::shl's word-count limit")
     } else {
-        magnitude >> BigInt::from((-exponent) as u64)
+        // The shift amount here is always non-negative (`-exponent` where
+        // `exponent < 0`), so `BigInt::shr` never takes its
+        // negative-shift-amount path into `<<` — the one path that can
+        // return `Err` — and this can't fail.
+        (magnitude >> BigInt::from((-exponent) as u64))
+            .expect("a non-negative BigInt::shr shift amount cannot fail")
     };
     if f.is_sign_negative() {
         -magnitude
