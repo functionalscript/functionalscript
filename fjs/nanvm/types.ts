@@ -175,10 +175,12 @@ export type Group2 = {
  * - `ternary` (`?:`) — the EDAG has no conditional-expression node at all
  *   yet, so this is the corpus's one ternary group; every other `Group`
  *   variant is unary or binary because the EDAG vocabulary it draws from is.
+ * - `typeof` — the EDAG has no `typeof` node either.
  */
 export type NonEdagGroup =
     | { readonly nanvmOp: 'unaryPlus'; readonly cases: readonly Case<1>[] }
     | { readonly nanvmOp: 'ternary'; readonly cases: readonly Case<3>[] }
+    | { readonly nanvmOp: 'typeof'; readonly cases: readonly Case<1>[] }
 
 export type Group = Group1 | Group2 | NonEdagGroup
 
