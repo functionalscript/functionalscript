@@ -1,7 +1,12 @@
 mod add;
+mod and;
+mod conditional;
 mod div;
 mod from;
 mod neg;
+mod not;
+mod nullish_coalescing;
+mod or;
 mod partial_eq;
 mod relational;
 mod rem;
@@ -11,6 +16,7 @@ pub mod to_any;
 
 use crate::vm::{
     IVm, String, ToAny, Unpacked,
+    boolean_coercion::BooleanCoercion,
     dispatch::Dispatch,
     number_coercion::NumberCoercion,
     numeric::Numeric,
@@ -78,6 +84,12 @@ impl<A: IVm> Any<A> {
         self.dispatch(NumberCoercion)
     }
 
+    /// Never fails, unlike `to_number`/`to_string`/`to_numeric` — `ToBoolean`
+    /// inspects the operand's type directly and never calls `ToPrimitive`.
+    pub fn to_boolean(self) -> bool {
+        self.dispatch(BooleanCoercion)
+    }
+
     pub fn to_numeric(self) -> Result<Numeric<A>, Any<A>> {
         // https://tc39.es/ecma262/#sec-tonumeric
         let prim_value = self.to_primitive(Some(ToPrimitivePreferredType::Number))?;
@@ -103,6 +115,6 @@ impl<A: IVm> Any<A> {
     }
 }
 
-// TODO implement other operators like +, -, *, /, %, &, |, ^, <<, >>, >>>, !, ~, etc using Rust
-// standard traits - similarly to Neg above. Implement operators that do not have corresponding Rust
-// standard traits via adding methods to Any<A> - similarly to unary_plus.
+// TODO implement other operators like &, |, ^, <<, >>, >>>, ~, typeof, etc using Rust standard
+// traits - similarly to Neg above. Implement operators that do not have corresponding Rust standard
+// traits via adding methods to Any<A> - similarly to unary_plus.

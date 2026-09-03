@@ -92,6 +92,11 @@ export const rustName = {
     '<=': 'le',
     '>': 'gt',
     '>=': 'ge',
+    '!': 'not',
+    '&&': 'logical_and',
+    '||': 'logical_or',
+    '??': 'nullish_coalescing',
+    ternary: 'conditional',
     String: 'string_coercion',
 }
 
@@ -103,6 +108,7 @@ export const rustName = {
 const op1Rust = {
     unaryPlus: a => `Any::unary_plus(${a})`,
     neg: a => `-(${a})`,
+    '!': a => `!(${a})`,
     String: a => `${a}.to_string().map(|v| v.to_any())`,
 }
 
@@ -120,7 +126,11 @@ const op1Rust = {
  * spell. The comparisons follow the same precedent for a different reason:
  * `check` takes a `Result<Any<A>, Any<A>>` against an `Any<A>` expectation,
  * which a `PartialOrd`-derived `<`/`<=`/`>`/`>=` on `Any<A>` would not give
- * back.
+ * back. `&&`/`||`/`??` follow it for a third reason: Rust's own `&&`/`||`
+ * take `bool` operands and short-circuit *evaluation*, neither of which fits
+ * an operator over already-evaluated `Any<A>` values, and `?` is Rust's own
+ * try-operator, unrelated to JS `??` — so all three are `Any` methods, named
+ * for what they do rather than reusing punctuation Rust already owns.
  *
  * @type {{ readonly [k in OpId]?: (a: string, b: string) => string }}
  */
@@ -135,6 +145,20 @@ const op2Rust = {
     '<=': (a, b) => `Any::le(${a}, ${b})`,
     '>': (a, b) => `Any::gt(${a}, ${b})`,
     '>=': (a, b) => `Any::ge(${a}, ${b})`,
+    '&&': (a, b) => `Any::logical_and(${a}, ${b})`,
+    '||': (a, b) => `Any::logical_or(${a}, ${b})`,
+    '??': (a, b) => `Any::nullish_coalescing(${a}, ${b})`,
+}
+
+/**
+ * The same, for the one ternary operation (`?:`) — another method, for the
+ * same reason as `&&`/`||`/`??`: Rust's own `if`/`else` takes a `bool`
+ * condition, not an `Any<A>` one, so there is no infix spelling to reuse.
+ *
+ * @type {{ readonly [k in OpId]?: (a: string, b: string, c: string) => string }}
+ */
+const op3Rust = {
+    ternary: (a, b, c) => `Any::conditional(${a}, ${b}, ${c})`,
 }
 
 /**
@@ -152,6 +176,8 @@ const lookup = table => id => {
 const op1 = lookup(op1Rust)
 
 const op2 = lookup(op2Rust)
+
+const op3 = lookup(op3Rust)
 
 const fnName = lookup(rustName)
 
@@ -298,15 +324,18 @@ const assertion = expected => name => result => isThrows(expected)
  * values.
  *
  * The escape dispatches on the group's arity, as the proof's does, so a
- * binary group's escaped case prints through `op2`.
+ * binary group's escaped case prints through `op2`, and the one ternary
+ * group (`?:`) through `op3`.
  *
  * @type {(g: Group) => (args: readonly Operand[]) => string}
  */
 const result = g => args => {
     const lowered = caseExp(g)(args)
     if (lowered[0] === 'exp') { return nodeExpr(lowered[1]) }
-    const [a, b] = args.map(valueExpr)
-    return arityOf(g) === 1 ? op1(opId(g))(a) : op2(opId(g))(a, b)
+    const [a, b, c] = args.map(valueExpr)
+    const id = opId(g)
+    const arity = arityOf(g)
+    return arity === 1 ? op1(id)(a) : arity === 2 ? op2(id)(a, b) : op3(id)(a, b, c)
 }
 
 /** @type {(g: Group) => readonly string[]} */

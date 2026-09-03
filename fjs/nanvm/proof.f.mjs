@@ -59,6 +59,7 @@ const op1Js = {
     String: a => String(a),
     neg: a => -a,
     unaryPlus: a => +a,
+    '!': a => !a,
 }
 
 /** The same, for the binary operations. @type {{ readonly [k in OpId]?: (a: any, b: any) => unknown }} */
@@ -74,6 +75,14 @@ const op2Js = {
     '>': (a, b) => a > b,
     '>=': (a, b) => a >= b,
     '===': (a, b) => a === b,
+    '&&': (a, b) => a && b,
+    '||': (a, b) => a || b,
+    '??': (a, b) => a ?? b,
+}
+
+/** The same, for the one ternary operation. @type {{ readonly [k in OpId]?: (a: any, b: any, c: any) => unknown }} */
+const op3Js = {
+    ternary: (a, b, c) => a ? b : c,
 }
 
 /**
@@ -91,6 +100,8 @@ const lookup = table => id => {
 const op1 = lookup(op1Js)
 
 const op2 = lookup(op2Js)
+
+const op3 = lookup(op3Js)
 
 /**
  * Evaluates a constant EDAG expression.
@@ -163,15 +174,18 @@ const escapedValue = v => isFunctionValue(v) ? () => 5 : evaluate([])(valueExp(v
  * values.
  *
  * The escape dispatches on the group's arity, so a binary group's escaped
- * case reaches `op2` rather than being refused by the unary table.
+ * case reaches `op2` rather than being refused by the unary table, and the
+ * one ternary group (`?:`) reaches `op3`.
  *
  * @type {(g: Group) => (args: readonly Operand[]) => unknown}
  */
 const run = g => args => {
     const lowered = caseExp(g)(args)
     if (lowered[0] === 'exp') { return evaluate([])(lowered[1]) }
-    const [a, b] = args.map(escapedValue)
-    return arityOf(g) === 1 ? op1(opId(g))(a) : op2(opId(g))(a, b)
+    const [a, b, c] = args.map(escapedValue)
+    const id = opId(g)
+    const arity = arityOf(g)
+    return arity === 1 ? op1(id)(a) : arity === 2 ? op2(id)(a, b) : op3(id)(a, b, c)
 }
 
 /**
@@ -184,7 +198,7 @@ const run = g => args => {
  * @type {(g: Group) => object}
  */
 const group = g => {
-    /** @type {(c: Case<1> | Case<2>) => readonly (readonly[string, () => void])[]} */
+    /** @type {(c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]} */
     const leaves = c => {
         const { expected } = c
         /** @type {(args: readonly Operand[]) => () => void} */
@@ -338,7 +352,7 @@ const jsOnly = {
         forwardSharedRef: () =>
             lowerEq({ shared: { a: [ref('b')], b: [] }, cases: [] }),
         /** An id the corpus does not exercise has no JavaScript here. */
-        unusedOperation: () => op1('!'),
+        unusedOperation: () => op1('~'),
         /**
          * A count the operation does not take. `Case<N>` cannot carry one,
          * but `caseExp` is exported and its `args` are a plain array, so the
