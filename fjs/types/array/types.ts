@@ -146,10 +146,6 @@ type _Tail<
         : _Tail<Max, T, readonly [...R, unknown], readonly [...O, T]>
 
 /**
- * {@link OptionalTailArray} for bounds that are each a single `number` type: what that
- * type distributes each of its two bounds over.
- */
-/**
  * The walk up to `Min`, which is also what rules out a `Min` above `Max`:
  * reaching `Max` first means the two bounds crossed and no array satisfies
  * them, where `_Tail` alone would count upwards past a `Max` it can never
@@ -170,8 +166,8 @@ type _Walk<
             : _Walk<Min, Max, T, readonly [...R, T]>
 
 /**
- * {@link OptionalTailArray} for bounds that are each a single `number` type: what that
- * type distributes each of its two bounds over.
+ * {@link OptionalTailArray} for bounds that are each a single `number` type:
+ * what that type distributes each of its two bounds over.
  */
 type _Range<Min extends number, Max extends number, T> =
     // An unknown `Min` bounds nothing, and a rest element cannot follow another
