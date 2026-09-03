@@ -175,7 +175,17 @@ A module the migration creates goes to its final path immediately, never to
       `TerminalRange`, `RangeVariant` and the backends' symbol type (so
       `remove`/`not` signatures and `matcher`/`ll1`/`descent` stop naming the
       front end and `CodePoint`); drop the `data/types.ts` redeclaration and
-      the `descent/types.ts` front-end import; point the five modules at it.
+      the `descent/types.ts` front-end import. Repoint **every** consumer in
+      the same PR, since there are no re-exports: `data`, `matcher`, `ll1`,
+      `descent`, `token_symbol`, the front-end module itself (it calls the
+      codec internally), and `fjs/djs/parser`, which imports `eof`,
+      `oneEncode` and `rangeDecode` today.
+- [ ] Stage 1: give `terminal/` a co-located `proof.f.mjs`, carrying the codec
+      cases out of `fjs/bnf/proof.f.mjs` — `rangeEncode`, `rangeDecode`,
+      `oneEncode` and their invalid-input cases. A new `.f.mjs` module ships
+      100% co-located coverage
+      ([fjs/AGENTS.md](../AGENTS.md)), so rerunning the BNF proofs is not
+      enough.
 - [ ] Rewrite `terminal-range-shared-type` to name `terminal/` as owner, and
       delete it in the stage-1 PR that implements it.
 - [ ] Stage 2: land `unicode-rules` at `fjs/grammar/unicode/` and point

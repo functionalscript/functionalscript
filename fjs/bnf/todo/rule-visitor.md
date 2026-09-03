@@ -96,7 +96,8 @@ scheme. Each call site keeps its own recursion/accumulator structure.
   consumer of this visitor: `emptyTagMap` walks the rule tree itself, so it is
   one of the traversals a `Rule` visitor would absorb.
 - `fjs/rtti/common/module.f.mjs` — existing `visit` precedent.
-- [ebnf-front-end](./ebnf-front-end.md) — a second functional front end; it
-  does not change the data `Rule` union this visitor discriminates, and
+- [ebnf-front-end](./ebnf-front-end.md) — a second functional front end.
+  Whether it changes the data `Rule` union this visitor discriminates is its
+  Problem 1, which is why that is a blocker above.
   [grammar-bucket](../../todo/grammar-bucket.md) moves this issue to
   `data/todo/` with the module.

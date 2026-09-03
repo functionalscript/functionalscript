@@ -76,8 +76,8 @@ every level.
   `['repeat', 0, 1, r]`, `['repeat', 0, null, r]`,
   `['repeat', 1, null, r]`, `['repeat', n, n, r]`.
 
-`min` is a non-negative integer; `max` is one or `null`, which means
-unbounded; `min <= max`.
+`min` is a non-negative integer; `max` is either a non-negative integer or
+`null`, which means unbounded; and `min <= max` whenever `max` is finite.
 
 `null` rather than numeric `Infinity` because TypeScript has numeric literal
 types only for finite literals: `Infinity` is typed plain `number`, so
