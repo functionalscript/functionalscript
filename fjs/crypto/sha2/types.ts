@@ -4,19 +4,19 @@
  * @module
  */
 
-import type { Tuple } from '../../types/array/types.ts'
+import type { FixedArray } from '../../types/array/types.ts'
 import type { Vec } from '../../types/bit_vec/types.ts'
 import type { Fold } from '../../types/function/operator/types.ts'
 
 /**
  * 8-word SHA-2 state vector.
  */
-export type V8 = Tuple<8, bigint>
+export type V8 = FixedArray<8, bigint>
 
 /**
  * 16-word SHA-2 message schedule chunk.
  */
-export type V16 = Tuple<16, bigint>
+export type V16 = FixedArray<16, bigint>
 
 /**
  * State of the SHA-2 algorithm: `hash` is the current hash value, `len` the

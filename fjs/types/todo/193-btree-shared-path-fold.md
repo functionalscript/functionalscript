@@ -26,7 +26,7 @@ return r.length === 1 ? r[0] : r          // :108  (root collapse, see i179)
 
 ```js
 // fjs/types/btree/remove/module.f.mjs:108
-/** @type {<A, T>(ms: Tuple<2, _Merge<A, T>>) => (item: PathItem<T>) => (a: A) => _Branch<T>} */
+/** @type {<A, T>(ms: FixedArray<2, _Merge<A, T>>) => (item: PathItem<T>) => (a: A) => _Branch<T>} */
 const reduceX = ms => ([i, n]) => a => {
     const [m0, m2] = ms
     switch (i) {
@@ -43,7 +43,7 @@ return result.length === 1 ? result[0] : result              // :138  (root coll
 
 Both are `fold(<rebuild parent at PathItem index i ∈ {0,2,4}>)` over `Path<T>`,
 dispatching on the same `0 | 2 | 4` slot positions of a `Branch3`/`Branch5`.
-`remove` already generalized the rebuild via `reduceX(ms: Tuple<2, _Merge>)`; `set`'s
+`remove` already generalized the rebuild via `reduceX(ms: FixedArray<2, _Merge>)`; `set`'s
 `reduceOp` is the same shape with the merge logic inlined.
 
 ### Proposed direction
