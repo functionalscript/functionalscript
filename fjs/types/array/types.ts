@@ -100,6 +100,7 @@ type _X2_ = Assert<Equal<
     BoundedArray<2, number, true>,
     readonly [true, true, ...readonly true[]]>
 >
+type _XXMax = BoundedArray<0, 48, true>
 
 // A union bound is every length it names, not the first one matched.
 type _XU_Max = Assert<Equal<
