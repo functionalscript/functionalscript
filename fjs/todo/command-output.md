@@ -175,7 +175,11 @@ postponed rather than missed.
       cell it can occupy and the selector that picks between them** — not one
       configuration. `fjs t` alone already varies two axes independently:
       `defaultReporter` reads `options.env['GITHUB_ACTIONS']` for annotation,
-      `csiWrite` reads `isTTY` for colour.
+      `csiWrite` reads `isTTY` for colour. And **what each producer emits
+      today** — its fields, records, ordering and stream behaviour. Task 2
+      covers only what is designed and not yet emitted, so without this the
+      shape could be designed complete and still regress `BrowserTestReport`
+      or a command's diagnostics.
 - [ ] Enumerate the report contracts **already designed but not yet emitted**,
       by sweeping the `todo/` directory of every producer task 1 found. The
       rule: *every unresolved issue specifying anything a destination must emit
