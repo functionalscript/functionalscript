@@ -1,12 +1,10 @@
 /**
- * A set of integers, as a canonical list of half-open boundaries. See
+ * A set of numbers, as a canonical list of half-open boundaries. See
  * `./types.ts` for the `RangeSet` value and what its boundaries mean.
  *
  * @module
  *
  * @import { Reduce } from '../function/operator/types.ts'
- * @import { Range } from '../range/types.ts'
- * @import { RangeMapArray } from '../range_map/types.ts'
  * @import { RangeSet } from './types.ts'
  */
 
@@ -24,7 +22,7 @@ import { merge } from '../sorted_list/module.f.mjs'
 export const empty = []
 
 /**
- * Every integer: the identity of `intersection`, and the set `complement`
+ * Every number: the identity of `intersection`, and the set `complement`
  * complements against.
  *
  * @type {RangeSet}
@@ -32,54 +30,88 @@ export const empty = []
 export const full = [-Infinity]
 
 /**
- * Whether `s` is a valid set: strictly increasing safe integers, save for a
- * leading `-Infinity`, which is the universe's own bottom rather than a symbol.
+ * A boundary is any number that spells a run exactly once. `NaN` is out
+ * because it has no order, `Infinity` because the run above it is empty — so
+ * `[Infinity]` would be a second spelling of `[]` — and `-0` because it is a
+ * second spelling of `0`. `-Infinity` is a boundary: it opens a set at the
+ * bottom of the universe.
  *
- * Canonicity is what asks for the integers, not tidiness: symbols are
- * integers, so `[0.5]` and `[1]` are the same set, and a trailing `Infinity`
- * is a second spelling of the set without it.
+ * @type {(v: number) => boolean}
+ */
+const isBoundary = v => (Number.isFinite(v) || v === -Infinity) && !Object.is(v, -0)
+
+/**
+ * Whether `s` is a valid set: boundaries, strictly increasing. Being strictly
+ * increasing is also what keeps `-Infinity` in the first position, and what
+ * rejects a repeat or a decrease.
+ *
+ * The list is spread first because `Array#every` skips the holes of a sparse
+ * array: `new Array(1)` would pass as a one-boundary set and then read as the
+ * whole universe, since membership counts boundaries by length. Spreading
+ * makes each hole the `undefined` it is, which is no boundary at all.
  *
  * @type {(s: readonly number[]) => boolean}
  */
-export const isRangeSet = s => s.every((v, i) =>
-    i === 0
-        ? v === -Infinity || Number.isSafeInteger(v)
-        : Number.isSafeInteger(v) && v > s[i - 1])
+export const isRangeSet = s => {
+    const dense = [...s]
+    return dense.every((v, i) => isBoundary(v) && (i === 0 || v > dense[i - 1]))
+}
 
-/**
- * The one door a set of boundaries comes through. It panics on a list that is
- * not one: the algebra below reads every set as canonical, so an unsorted or
- * non-integer list has no meaning to give it, and the mistake belongs to
- * whoever wrote the boundaries down.
- *
- * @type {(s: readonly number[]) => RangeSet}
- */
-export const rangeSet = s => {
+/** @type {(s: readonly number[]) => RangeSet} */
+const validated = s => {
     assert(isRangeSet(s), s)
     return s
 }
 
 /**
- * The closed range `a..b`, which is the two boundaries `[a, b + 1]`. An empty
- * or reversed range is not a set with no members but a mistake, and panics.
+ * The one door a set of boundaries comes through. It panics on a list that is
+ * not one: the algebra below reads every set as canonical, so an unsorted list
+ * or a second spelling of a number has no meaning to give it, and the mistake
+ * belongs to whoever wrote the boundaries down.
  *
- * @type {(r: Range) => RangeSet}
+ * @type {(s: readonly number[]) => RangeSet}
  */
-export const fromRange = ([a, b]) => rangeSet([a, b + 1])
+export const rangeSet = validated
+
+/**
+ * One run, `a <= x < b` — `rangeSet` at the shape most sets are written in,
+ * and the name that says which end is exclusive.
+ *
+ * Every boundary is exclusive above, so a caller whose symbols are integers
+ * writes the closed range `a..b` as `fromRange([a, b + 1])`: that `+ 1` is a
+ * fact about integers, and it belongs where the symbols are known rather than
+ * here, where boundaries are only ever compared.
+ *
+ * An empty or reversed run is not a set with no members but a mistake, and
+ * panics.
+ *
+ * @type {(r: readonly [number, number]) => RangeSet}
+ */
+export const fromRange = validated
 
 /**
  * Membership: the parity of the number of boundaries at or below `v`, found by
  * binary search.
  *
+ * `NaN` panics rather than being answered. It has no place in the order, so
+ * every comparison against it is false and the search would walk past every
+ * boundary and report membership. Answering `false` would be no better than a
+ * panic here: it would put `NaN` in neither a set nor its complement, and
+ * `contains(complement(s))(v) === !contains(s)(v)` is the one law a consumer
+ * reads off this module without checking.
+ *
  * @type {(s: RangeSet) => (v: number) => boolean}
  */
 export const contains = s => {
     const search = bsearch(s.length)
-    return v => search(mid => v < s[mid] ? -1 : 1) % 2 === 1
+    return v => {
+        assert(!Number.isNaN(v), v)
+        return search(mid => v < s[mid] ? -1 : 1) % 2 === 1
+    }
 }
 
 /**
- * The complement against every integer — one toggle at the bottom of the
+ * The complement against every number — one toggle at the bottom of the
  * universe.
  *
  * That universe is never a grammar's alphabet: an alphabet-scoped complement is
@@ -130,24 +162,3 @@ export const intersection = mergeWith(a => b => a && b)
 
 /** @type {(a: RangeSet) => (b: RangeSet) => RangeSet} */
 export const difference = mergeWith(a => b => a && !b)
-
-/**
- * The same set as a `range_map` of `boolean`, which is what a dispatch map is
- * built from. One entry per boundary, carrying whether the run below it is in
- * the set.
- *
- * A `range_map` entry carries an *inclusive* upper bound, and both ends of the
- * universe are one: a set that runs to `Infinity` closes with that bound, which
- * `get` compares against like any other, and a set that opens at `-Infinity`
- * has no run below its first boundary to write an entry for. So no alphabet
- * maximum is needed here — an alphabet's bounds are its consumer's to impose,
- * by intersecting with the set that spells them.
- *
- * @type {(s: RangeSet) => RangeMapArray<boolean>}
- */
-export const toRangeMap = s => {
-    /** @type {RangeMapArray<boolean>} */
-    const entries = s.map((v, i) => [i % 2 === 1, v - 1])
-    const runs = s[0] === -Infinity ? entries.slice(1) : entries
-    return s.length % 2 === 0 ? runs : [...runs, [true, Infinity]]
-}

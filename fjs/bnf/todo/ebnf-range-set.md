@@ -49,7 +49,7 @@ type RangeSet = readonly number[]   // strictly increasing
 |---|---|
 | `[]` | empty |
 | `[-Infinity]` | the universe |
-| `[-1]` | everything in the terminal domain, EOF included |
+| `[0.5, 1.5]` | the reals `0.5 <= x < 1.5` |
 | `[0]` | every ordinary symbol; today's `fullRange` |
 | `[-1, 0]` | EOF only; today's `eof` |
 | `[0x30, 0x3A]` | `0..9`; today's `range('09')` |
@@ -60,6 +60,18 @@ line, so `complement` is the toggle at `-Infinity`, and union, intersection,
 difference and `contains` never needed one. A *domain* is just a set value the
 consumer intersects with — see [Two complements](#two-complements-two-names).
 
+**The boundaries are any numbers but `NaN`, not just integers.** A run is
+half-open, `[a, b)`, and the algebra only ever *compares* boundaries — it
+never adds one — so nothing in `range_set` knows what the successor of a
+number is. Integer-ness enters in exactly three places, and all three are the
+terminal layer's: the closed range `a..b` and the singleton `x`, which need
+`b + 1` and `x + 1`; `toRangeMap`, because `range_map` entries carry an
+*inclusive* upper bound, so `[a, b)` becomes `b - 1`; and the domain, whose
+lowering demands integer boundaries. Those are three helpers in
+`fjs/ebnf/terminal/`, not a second range-set module: EBNF is the only
+consumer that cares, and `fjs/media/nix` builds its sets from `[a, b + 1]`
+directly.
+
 **Boundaries are half-open**: a boundary starts the next run, so a closed
 range `a..b` is `[a, b + 1]`, and every packed literal in the tree today reads
 inclusive. State this once, in the module doc, and nowhere else.
@@ -68,10 +80,12 @@ Properties, each one a reason to prefer this over a list of ranges:
 
 - **Canonical by construction.** One spelling per set, so structural equality
   is set equality and content addressing works without a normalization pass.
-  Validation is the whole guarantee: strictly increasing safe integers, save
-  for a leading `-Infinity`. `[5, 5]` is rejected, not normalized, and so are
-  `[0.5]` and a trailing `Infinity` — symbols are integers, so each of those
-  is a second spelling of a set that already has one.
+  Validation is the whole guarantee: strictly increasing, which already
+  rejects `NaN` (every comparison with it is false) and `[5, 5]`; plus no
+  `Infinity` (a run starting there is empty, so `[Infinity]` would be a
+  second spelling of `[]`) and no `-0` (a second spelling of `0` under
+  `Object.is`). `-Infinity` needs no rule: strictly increasing already
+  confines it to the first position.
 - **Complement is one toggle.** Adding or removing a leading `-Infinity`.
   Union, intersection and difference are one parity merge over two sorted
   lists. Membership is a binary search plus the parity of the position.
@@ -79,9 +93,6 @@ Properties, each one a reason to prefer this over a list of ranges:
   `fullRange`, `unicodeMax` and the 24-bit codec leave grammars, and no module
   needs to know the domain maximum: an open tail converts to a `range_map`
   entry whose upper bound is `Infinity`, which `get` already handles.
-- **EOF membership is the first element.** Within the terminal domain a set
-  contains EOF iff its first boundary is `-1`. That is decidable at the type
-  level, which the AST row below relies on.
 - **The cost.** `-Infinity` is not JSON and has no bigint. It never reaches
   the IR — lowering intersects with the domain, below — but a bigint range
   set later cannot toggle at a bottom it cannot spell, so it takes its own
@@ -90,17 +101,17 @@ Properties, each one a reason to prefer this over a list of ranges:
 
 `fjs/types/range_set` **is** this type — the `RangeMap<boolean>` that used to
 be there is gone, along with its one consumer's use of it
-(`fjs/media/nix/module.f.mjs`), and there are not two. The module exports the
-algebra (`contains`, `union`, `intersection`, `complement`, `difference`), the
-constructors (`rangeSet`, `fromRange`, `empty`, `full`) with `isRangeSet` for
-the validation they panic on, and `toRangeMap`, which is what the LL(1)
-dispatch map is built from.
+(`fjs/media/nix/module.f.mjs`, which builds its sets from `[a, b + 1]`), and
+there are not two. The module exports the algebra (`contains`, `union`,
+`intersection`, `complement`, `difference`), the half-open `fromRange`, and
+`rangeSet`, `empty` and `full` with `isRangeSet` for the validation they panic
+on; `toRangeMap`, which is what the LL(1) dispatch map is built from, is the
+terminal layer's.
 
 **The empty set is a value, not a rule.** As a value it is the identity for
 union and belongs in the algebra. As a terminal it is a rule that can never
 match — a grammar error, like a nullable body under an unbounded repeat — and
-the lowering rejects it. That guarantee is also what the IR discriminant below
-leans on.
+the lowering rejects it.
 
 #### The terminal form
 
@@ -110,55 +121,96 @@ In [ebnf-front-end](./ebnf-front-end.md) the `Info` row `['range', a, b]` is
 ```ts
 type Info =
     | readonly ['const', Const]
-    | readonly ['set', ...RangeSet]                 // symbols in the set
+    | readonly ['set', ...RangeSet]                 // ordinary symbols in the set
     | readonly ['repeat', number, number, Rule]
 ```
 
-`() => ['set']` is the empty set; `() => ['set', -1]` accepts anything, EOF
-included. A bare `number` stays as sugar: `0x61` means `['set', 0x61, 0x62]`
-and has the same AST row. `string` is unchanged.
+`() => ['set']` is the empty set, and rejected as a terminal. A bare `number`
+stays as sugar: `0x61` means `['set', 0x61, 0x62]` and has the same AST row.
+`string` is unchanged.
 
-**The AST row is `number` — one symbol leaf — with one exception the tree has
-already decided.** [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)
-records that a consumed EOF contributes no leaf, and
-`fjs/bnf/matcher/module.f.mjs:86` implements it for every terminal. So a set
-whose first boundary is `-1` has the row `readonly [number?]`, and every other
-set has `number`. Both are written from the form alone, which is the contract
-that issue's AST table demands. Sets containing EOF are worth having —
-"newline or end of input" is the natural terminator of a line comment — so
-this allows them rather than forbidding them.
+**A set holds ordinary symbols only; `eof` is not a set.** That is the rule
+ebnf-front-end already states for `['range', a, b]` — both endpoints
+ordinary, never spanning EOF — carried over unchanged. EOF stays the bare
+`-1` rule that issue defines, with the no-leaf behaviour
+[eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md) records and
+`fjs/bnf/matcher/module.f.mjs:86` implements. "Newline or end of input", the
+terminator of a line comment, is spelled as the variant `{ nl, eof }` it is
+today: a choice with a tag, not a set.
+
+**So the AST row is `number` — one symbol leaf — unconditionally.** It is a
+function of the form alone, which is the contract that issue's AST table
+demands, and it holds for a widened `readonly number[]` spread into the tuple
+as much as for a literal, because the lowering guarantees no set terminal can
+match EOF.
+
+#### Why EOF is not a set member
+
+An earlier draft allowed it, with the row `readonly [number?]` for a set
+containing EOF, and tried to carry membership at the type level. Review
+showed that cannot be made sound without one of two things this tree
+refuses: a phantom on `readonly number[]` is not structural, so
+`RangeSet<false>` is assignable to `RangeSet<true>` unless every constructor
+casts, and spreading the set into `['set', ...]` loses the parameter anyway;
+or the flag becomes a runtime field, which is a different value type. Reading
+membership off a literal is not sound either — `['set', -2, 0]` contains
+`-1` although its first element is not `-1`, and boundary parity is not
+computable over TypeScript numeric literals. The conservative alternative,
+an optional leaf for every set whose membership cannot be proven, would
+apply to every adapter result, which is nearly every set in a real grammar.
+
+Forbidding EOF costs one spelling — the union of a set and `eof` as a single
+terminal — and buys an unconditional row, no phantom, no cast, and the same
+carrier the author writes. The variant spelling remains, with a tag, and
+that is what every grammar in the tree uses today.
 
 #### Two complements, two names
 
 The generic `complement` is over the whole number line, which no grammar ever
-means. The terminal domain is a set value, `[-1]`, owned by the neutral
-terminal module ([grammar-bucket](../../todo/grammar-bucket.md) stage 1), and
-the lowering intersects every set with it: that clips a `-Infinity` a generic
-complement produced back to `-1`, drops anything below EOF, and so restores
-canonicity before the IR. Boundaries above the last ordinary symbol are
-rejected there rather than clipped, so the IR never spells the maximum and
-"everything" stays `[-1]`.
+means. The terminal domain is a set value, `[0]`, owned by `fjs/ebnf/terminal/`
+([ebnf-migration](../../todo/ebnf-migration.md), the `ebnf/terminal/` piece),
+and the lowering intersects every set with it: that clips a `-Infinity` a generic
+complement produced back to `0`, drops EOF and anything below it, and so
+restores canonicity before the IR. It also requires every boundary to be an
+integer: `[0.5, 1.5]` and `[1, 2]` are the same set of symbols, and only one
+of them may reach content-addressed data.
+
+The top end is `maxSymbol + 1`, the exclusive boundary after the last
+ordinary symbol, and it must be accepted: the half-open API spells the closed
+range `maxSymbol..maxSymbol` as `[maxSymbol, maxSymbol + 1]`, which is the
+last terminal `rangeEncode` accepts today. The lowering canonicalizes it
+rather than rejecting it — a trailing boundary equal to `maxSymbol + 1` is
+dropped, giving the open tail that means the same thing in the domain — and
+rejects anything beyond it. So the IR never spells the maximum, and
+"every ordinary symbol" stays `[0]`.
 
 The alphabet adapter's `not` is *difference against its universe*: Unicode's
 is `[0, 0x110000]`, bytes' is `[0, 256]`, and a token-symbol alphabet's is its
 own. The generic toggle lives in `range_set`; the alphabet-scoped one in
-`fjs/grammar/unicode/` and its siblings ([unicode-rules](./unicode-rules.md)).
-This answers ebnf-front-end's Problem 5
-— the helpers take and return sets, and `notOf` is unnecessary — and most of
-its Problem 9: the adapter returns set *values*, and each front end has one
-injection from a set to a rule.
+`fjs/ebnf/unicode/` and its siblings ([unicode-rules](./unicode-rules.md)).
+This answers ebnf-front-end's Problem 5 — the helpers take and return sets,
+and `notOf` is unnecessary — and most of its Problem 9: the adapter returns
+set *values*, and each front end has one injection from a set to a rule.
 
 #### Decide with the bounded repeat
 
-The data `Rule` is disjoint by JavaScript type alone: a number is a terminal,
-an array a `Sequence`, an object a `Variant`, a string a `Repeat`. A range set
-is an array of numbers, and a sequence an array of strings, so they collide at
-the empty array. With the empty set rejected as a terminal the collision is
-gone and `typeof rule[0] === 'number'` discriminates — one probe, at one
-element. But ebnf-front-end's Problem 1 already needs the IR to grow a carrier
-for bounded repeats. If that carrier is a tagged form, the set goes into it and
-the probe is never written. **Choose the IR carrier once, for both**, and do not
-land the set as a special case first.
+The data `Rule` in `fjs/bnf/data/types.ts` is disjoint by JavaScript type
+alone: a number is a terminal, an array a `Sequence`, an object a `Variant`, a
+string a `Repeat`. A data `Sequence` is `readonly string[]` — rule *names*,
+never rules — so a range set, an array of numbers, collides with it only at
+the empty array, and the lowering rejects the empty set. (The *functional*
+`Sequence` is `readonly Rule[]` and can hold numbers, but no set is a plain
+array there: the EBNF front end spells it as the `['set', …]` thunk.) So in
+the IR `typeof rule[0] === 'number'` discriminates — one probe, at one
+element. But ebnf-front-end's Problem 1 already needs the IR to grow a
+carrier for bounded repeats. If that carrier is a tagged form, the set goes
+into it and the probe is never written. **Choose the IR carrier once, for
+both**, and do not land the set as a special case first.
+
+EOF still reaches the IR as a terminal — the bare `-1` rule lowers to the set
+`[-1, 0]` — so the IR's terminal carrier holds either that one set or an
+ordinary one, and a backend tells them apart by the first boundary. That is
+the data layer's business; the front-end form never spells it.
 
 Whatever the carrier, the packed `0xBBBBBB_EEEEEE` literal leaves the IR with
 it, and with it the readability argument in `fjs/bnf/types.ts` for 24-bit
@@ -167,42 +219,48 @@ halves; `[0x30, 0x3A]` reads at least as well.
 #### What it is not
 
 Not a performance change. Real sets are tiny — three ranges in the JSON string
-rule — and the descent backend's per-branch attempts were never measured. The
+rule — and the classical variant's per-branch dispatch was never measured. The
 justification is the API and the AST, which is where
 [DESIGN.md](../../../doc/DESIGN.md) says quality lives; do not sell it as speed.
 
 ### Tasks
 
 - [x] `fjs/types/range_set`: replace the `RangeMap<boolean>` representation
-      with the toggle list over `-Infinity..Infinity`; `contains`, `union`,
-      `intersection`, `complement`, `difference`, `fromRange`, `toRangeMap`,
-      validation on construction; proofs for each, for `[]`, `[-Infinity]`,
-      `[-1, 0]`, an open tail, and every rejected input. Port
-      `fjs/media/nix/module.f.mjs`.
+      with the toggle list over `-Infinity..Infinity`, any non-`NaN` number
+      a boundary; `contains`, `union`, `intersection`, `complement`,
+      `difference`, the half-open `fromRange`, validation on construction;
+      proofs for each, for `[]`, `[-Infinity]`, `[-1, 0]`, `[0.5, 1.5]`, an
+      open tail, and every rejected input (`NaN`, `Infinity`, `-0`, a
+      repeat, a decrease). Port `fjs/media/nix/module.f.mjs` to `[a, b + 1]`.
+- [ ] `fjs/ebnf/terminal/`: the integer helpers — `range(a, b)` and
+      `one(x)` as `[a, b + 1]` and `[x, x + 1]`, `eof` as `[-1, 0]`, the
+      domain `[0]`, and `toRangeMap` (inclusive upper bound `b - 1`; an open
+      tail is `Infinity`). No integer range-set module: these arithmetic
+      facts are the whole difference.
 - [ ] Settle the IR carrier together with ebnf-front-end's Problem 1, in that
       issue, before any backend touches a set.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
-      the union, the AST table (`number`, or `readonly [number?]` when the
-      first boundary is `-1`), the lowering requirements (intersect with the
-      domain `[-1]`; reject a boundary above the last ordinary symbol; reject
-      the empty set), and the constructor list.
-- [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/grammar/unicode/`
+      the union, the AST table (`number`), the lowering requirements
+      (intersect with the domain `[0]`; require integer boundaries; drop a
+      trailing `maxSymbol + 1` and reject anything beyond it; reject the
+      empty set), and the constructor list.
+- [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/ebnf/unicode/`
       produce sets; `not` is difference against the Unicode universe. `str`
       is not one of them: `str('true')` is an ordered `Sequence` of
       one-symbol terminals, one per code point, exactly as a bare `string`
       lowers today. Same for `byte/` when it exists.
-- [ ] Backends: LL(1) builds its dispatch map from `toRangeMap`; descent tests
-      membership with `contains`; the failure record at
-      `fjs/bnf/descent/module.f.mjs:60` holds a set, so "expected" diagnostics
-      render one.
-- [ ] Port `fjs/bnf/lib/json`, `lib/datajs` and the `djs` tokenizer; the
-      per-character variant nodes disappear from their ASTs, which is a
-      breaking AST change for any consumer that reads rather than flattens
-      them. Delete `remove`, `not`, `notSet`, `RangeVariant` and `removeOne`
-      from the classical front end only if it is still alive; otherwise they
-      go with it in grammar-bucket stage 8.
-- [ ] Rewrite the note at `fjs/djs/tokenizer/module.f.mjs:249` as
-      `difference(unicode)(newLine)`, which is what it was reaching for.
+- [ ] `fjs/ebnf/ll1/`, the one backend the migration keeps: the dispatch map
+      is built from `toRangeMap`, and the first/first conflict error names
+      the rule, so it renders a set rather than a packed range.
+- [ ] The ports ebnf-migration schedules — `ebnf/lib/json`, `ebnf/lib/datajs`,
+      then the `djs` tokenizer and parser — spell their character classes as
+      sets; the per-character variant nodes disappear from their ASTs, which
+      the cross-front-end comparison proofs pin as an expected difference.
+      `remove`, `not`, `notSet`, `RangeVariant` and `removeOne` stay in
+      `bnf/` untouched and go with it at the migration's stage 7.
+- [ ] The `djs` tokenizer port spells the note at
+      `fjs/djs/tokenizer/module.f.mjs:249` as `difference(unicode)(newLine)`,
+      which is what it was reaching for.
 - [ ] `tsc`, `fjs test`. Each breaking PR declares `**BREAKING CHANGES:**`
       in the `Changelog:` section of its description
       ([changelog/RELEASE.md](../../../changelog/RELEASE.md)) — the
@@ -212,16 +270,18 @@ justification is the API and the AST, which is where
 ### Related
 
 - [ebnf-front-end](./ebnf-front-end.md) — the front end this row belongs to;
-  answers its Problem 5 and most of Problem 9, shares its Problem 1.
+  answers its Problem 5 and most of Problem 9, shares its Problem 1, and
+  keeps its rule that a terminal range never spans EOF.
 - [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md) — the no-leaf rule
-  for EOF that the AST row inherits.
+  for EOF, which is why EOF is not a set member.
 - [unicode-rules](./unicode-rules.md) — the adapters that own the
   alphabet-scoped `not`.
 - [terminal-range-representation](./terminal-range-representation.md) — the
   bigint domain; the toggle list is the representation it was looking for.
-- [grammar-bucket](../../todo/grammar-bucket.md) — `terminal/` owns the
-  domain set `[-1]` the lowering intersects with; `RangeVariant` no longer
-  moves there.
+- [ebnf-migration](../../todo/ebnf-migration.md) — the module this lands in.
+  `ebnf/terminal/` owns the domain set `[0]`, `eof` and the integer helpers;
+  `ebnf/unicode/` is rewritten in set values rather than `RangeVariant`, and
+  `notOf` leaves its triage row.
 - [rule-visitor](./rule-visitor.md) — discriminates the data `Rule`, so it
   waits on the same IR carrier decision.
 - [`fjs/types/range_set/module.f.mjs`](../../types/range_set/module.f.mjs) —
