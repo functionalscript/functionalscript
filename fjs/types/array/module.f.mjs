@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Tuple } from './types.ts'
+ * @import { FixedArray } from './types.ts'
  */
 
 import { toArray, repeat as listRepeat } from '../list/module.f.mjs'
@@ -15,10 +15,11 @@ import { fromUndefined } from '../nullable/module.f.mjs'
 export const isArray = value => value instanceof Array
 
 /**
- * Currently, TypeScript can't narrow the type of `readonly T[]` to `Array2<T>`
- * only by checking `a.length === 2`, so we need a user-defined type guard.
+ * Currently, TypeScript can't narrow the type of `readonly T[]` to
+ * `FixedArray<N, T>` only by checking `a.length === n`, so we need a
+ * user-defined type guard.
  */
-export const isTuple =
+export const isFixedArray =
     /**
      * @template {number} N
      * @param {N} n
@@ -27,7 +28,8 @@ export const isTuple =
     /**
      * @template T
      * @param {readonly T[]} a An array of unknown length.
-     * @return {a is Tuple<N, T>} True if `a` has length 2, and `a` is narrowed to `Array2<T>` in that case.
+     * @return {a is FixedArray<N, T>} True if `a` has length `n`, and `a` is
+     * narrowed to `FixedArray<N, T>` in that case.
      */
     a =>
         a.length === n
@@ -129,6 +131,6 @@ export const repeat =
     /**
      * @template T
      * @param {T} v
-     * @return {Tuple<N, T>}
+     * @return {FixedArray<N, T>}
      */
     v => /**@type{any}*/(toArray(listRepeat(v)(n)))
