@@ -172,8 +172,11 @@ type _Branches<R extends Variant, K> =
     // enumerate and nothing to validate — `Required<R>[string]` admits
     // `undefined` for the index signature itself, not for any branch an author
     // wrote — so the answer is the widened variant, as it is for every other
-    // rule left at one of the API's own types.
+    // rule left at one of the API's own types. An index signature over `number`
+    // is as open as one over `string`; `_Keys` keeps both, and a parse selects
+    // one branch under either.
     string extends _Keys<R> ? { readonly[k in string]?: Ast } :
+    number extends _Keys<R> ? { readonly[k in string]?: Ast } :
     // A rule the parser throws on is refused rather than given the AST of one
     // that works — `_FromAny` would otherwise drop the `undefined` and hand
     // back a plausible branch. See {@link _Malformed}.
@@ -398,3 +401,7 @@ type _34 = Assert<Equal<AstRule<Variant>, _WideVariant>>
 type _35 = Assert<Equal<
     AstRule<typeof json>,
     readonly[readonly _WideVariant[], _WideVariant, readonly _WideVariant[]]>>
+
+// A numeric index signature is an open key set too: a parse still selects one
+// branch, so an arbitrary index is absent rather than an `Ast`.
+type _37 = Assert<Equal<AstRule<{ readonly [k: number]: 0 }>, _WideVariant>>

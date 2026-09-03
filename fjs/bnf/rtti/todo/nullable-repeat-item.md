@@ -25,6 +25,14 @@ for more, and none of it can be answered from the rule:
   branch refers back to it: attempting it makes the self-referential
   three-branch variant of `_20` report `TS2589`. It is the nullability
   obstruction again, reached from the other side.
+- A branch whose declared type is a *union of rules* is not distributed over
+  during recognition. `{ none: readonly [] | 1, some: [0, R] }` describes both a
+  repetition (when `none` is the empty sequence) and an ordinary variant (when
+  it is the terminal), and `repeatItem` returns the item for the first; the
+  tests here read the union whole, match neither shape, and give the variant.
+  Distributing it is not one more predicate: the members multiply across
+  branches, so recognizing every combination of an `N`-branch rule whose
+  branches have `M` members is `M^N` shapes.
 - `stepRule[1] !== name` asks whether the tail *is this rule*, by name. The
   type-level test asks whether the tail has this rule's shape, and those differ:
   given two separate declarations both spelled
@@ -45,7 +53,7 @@ parse.
 
 ### Why none of them is a guard
 
-All four are questions about a rule *set*, not about a rule. `reachable` walks
+All five are questions about a rule *set*, not about a rule. `reachable` walks
 a set of named rules; there is no set here to walk, and a structural type has
 no name to be reached.
 
