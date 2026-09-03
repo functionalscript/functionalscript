@@ -82,8 +82,7 @@ every level.
 no sentinel. TypeScript has no literal type for `Infinity`, so an unbounded
 `max` arrives widened; that is the whole mechanism rather than a problem,
 because a widened `max` and an unbounded one deserve the same answer, and
-`fjs/types/array`'s `BoundedArray<Min, Max, T>` already gives it (below).
-The
+`fjs/types/array`'s `BoundedArray<Min, Max, T>` gives it (below). The
 comparisons also just work — `min <= Infinity` is true — where a `null`
 sentinel coerces to `0` and needs a guard at every site, and
 a `-1` sentinel would compile and be silently wrong — `-1` is EOF in the

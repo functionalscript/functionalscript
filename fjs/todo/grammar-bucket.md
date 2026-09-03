@@ -47,7 +47,7 @@ fjs/grammar/
   matcher/       cursor, EOF, AST, transformer tools     → data, terminal
   ll1/           backend over RuleSet only               → matcher, data, terminal
   descent/       backend over RuleSet only               → matcher, data, terminal
-  token_symbol/  multi-character token alphabet          → terminal
+  token_symbol/  multi-character token alphabet          → terminal, unicode
   map/           AST-level mapping types                 → matcher
   unicode/       str, set, range, notSet, toSequence, …  → terminal
   byte/          binary alphabet, when it exists         → terminal
@@ -82,10 +82,9 @@ stages that relocate an API go straight to the final path.
 
 1. **`fjs/grammar/terminal/`** — extract the alphabet-neutral codec directly to
    its final path, with `TerminalRange`, `RangeVariant`, the backends' symbol
-   type, `eofSymbol` / `eof`, and `fullRange`: `matcher`, `ll1` and
-   `token_symbol` read those from the front-end root today, which stage 8
-   deletes. Point `data`, `matcher`,
-   `ll1`, `descent` and `token_symbol` at it. Closes
+   type, `eofSymbol` / `eof`, and `fullRange`: `matcher`, `ll1`, `descent`
+   and `token_symbol` all read from that set today, and stage 8 deletes the
+   module they read it from. Point them and `data` at it. Closes
    `terminal-range-shared-type`.
 2. **`fjs/grammar/unicode/`** — the alphabet split
    ([unicode-rules](../bnf/todo/unicode-rules.md)), at its final path, with
