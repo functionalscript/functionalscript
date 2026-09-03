@@ -187,20 +187,23 @@ postponed rather than missed.
       covers only what is designed and not yet emitted, so without this the
       shape could be designed complete and still regress `BrowserTestReport`
       or a command's diagnostics.
-- [ ] Enumerate the report contracts **already designed but not yet emitted**,
-      by sweeping the `todo/` directory of every producer task 1 found. The
-      rule: *every unresolved issue constraining what a destination emits — a
-      field, a status, a tally, an annotation, a record that is not a result,
-      an ordering between records, or a requirement to emit **nothing** — is an
-      input to the shape.* Suppression is a contract like any other:
-      [66j-cas-add-directory](../cas/todo/66j-cas-add-directory.md) requires a
-      partial failure to print no manifest hash, "a manifest referencing blobs
-      that never landed would be a lie", and a predicate about what must be
-      emitted cannot see it.
-      **Unresolved**, not `open`: that is one
+- [ ] Sweep the `todo/` directory of every producer task 1 found — a sweep
+      rather than a list here, which goes stale by construction. The rule:
+      *every unresolved issue that **constrains or leaves open** what a
+      destination emits is an input to the shape.*
+      - *Constrains* covers a field, a status, a tally, an annotation, a record
+        that is not a result, an ordering between records, and a requirement to
+        emit **nothing** —
+        [66j-cas-add-directory](../cas/todo/66j-cas-add-directory.md) forbids a
+        manifest hash on partial failure.
+      - *Leaves open* covers a question not yet answered:
+        [timer-precision](../emergent_testing/todo/timer-precision.md) has not
+        decided whether a row renders a duration at all. A shape settled
+        without those is invalidated the moment they are.
+
+      **Unresolved**, not `open`: one
       [status](../../todo/README.md#status-values) among several, and every
-      issue this document blocks is `blocked`. A sweep, deliberately not a list
-      here — a list of a directory goes stale by construction.
+      issue this document blocks is `blocked`.
 - [ ] Design the shape and its renderers against that enumeration.
 - [ ] Answer every question under *Left open on purpose*, or record why it
       still has no answer.
