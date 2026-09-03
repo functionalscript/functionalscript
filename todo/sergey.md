@@ -1,6 +1,6 @@
 # Current Priority Tasks
 
-> Keep this file in the repository. It's personal notes.
+> Keep this file in the repository. It's personal notes. Don't review the file.
 
 - [ ] Browser Test
 - [ ] FunctionalScript
@@ -22,5 +22,46 @@
         RTTI-free — a validatable root output belongs to `checkMap`. Design and
         open questions:
         [43. Stateful parser](../fjs/bnf/todo/043-stateful-parser.md).
+  - [ ] Considering a special repeat0+ rule in BNF.
 - [ ] Website Module Browsing
+  - [ ] Demo pages.
 - [ ] Investigate using Git Commits instead of Evo
+- [ ] Replace CHANGELOG with a generated from a Website.
+  - [ ] Proposal: Create changelog during release.
+- [ ] Reformulate "grab and implement" task. It should focus on priorities.
+- [ ] EBNF: I think, the idea to use `string` as raw value is still attractive. Also, if we use the first item of an array as discriminant together with a sequence, it became inconsistent with all other eDSL we have. https://github.com/functionalscript/functionalscript/pull/1847
+- [ ] convention for generated files, for example `gen_`
+- [ ] remove copilot MCP and copying the MCP to VSCode.
+- [ ] we may try to use `BoundedArray<2, 4, T>` instead of `OptionTailArray<2, 4, T>` in EDAG and RTTI for `[t, t, option(t), option(t)]`
+- [ ] remove useless crappy tests like fjs/rtti/host.proof.mjs. Nobody asks for them, nobody need them, nobody prioritizes them. They come from infinite reviewer speculation about "what if".
+- [ ] NiX and Rust eDSL should follow the same conventions as RTTI, new EBNF, HTML and EDAG. Use plain objects to define normal objects.
+- [ ] Specify what is `unknown` in FJS. The set is smaller than in JS.
+  ```js
+  type Primitive = boolean | null | number | string | undefined | bigint
+  type Object = StringMap<Value>
+  type Array = readonly Value[]
+  // DataJS
+  type Value = Primitive|Object|Array
+  // FJS. v1
+  type Value = Primitive|Object|Array|Function
+  // FJS. v2 (+object identification)
+  type Value = Primitive|Object|Array|Function|Map|Set
+  // FJS. v3 (+generators)
+  type Value = Primitive|Object|Array|Function|Map|Set|Iterable
+  ```
+  Map and Set
+  ```js
+  // declaration
+  new Map(...)
+  new Set(...)
+  // detection
+  value instanceof Map
+  value instanceof Set
+  ```
+  Generators:
+  ```js
+  // declaration. operation `{*[Symbol.iterator]() { ${exp} }}
+  {*[Symbol.iterator](){ ... }}
+  // detection. operation `typeof ${exp}?.[Symbol.iterator]`
+  typeof value?.[Symbol.iterator] === 'function'
+  ```

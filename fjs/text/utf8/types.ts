@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Tuple } from '../../types/array/types.ts'
+import type { BoundedArray } from '../../types/array/types.ts'
 
 /** An unsigned 8-bit integer, represents a single byte. */
 export type U8 = number
@@ -21,10 +21,10 @@ export type ByteOrEof = U8 | null
 
 /**
  * Represents the state of a UTF-8 decoding operation that contains at least one
- * byte.
+ * byte: one to three, since a UTF-8 sequence is at most four bytes and the
+ * fourth completes it.
  */
-export type Utf8NonEmptyState =
-    Tuple<1, number> | Tuple<2, number> | Tuple<3, number>
+export type Utf8NonEmptyState = BoundedArray<1, 3, number>
 
 /**
  * Represents the state of a UTF-8 decoding operation, which can be either
