@@ -62,12 +62,45 @@ type _X01 = Assert<Equal<BoundedArray<0, 1, true>, readonly []|readonly[true]>>
 type _X02 = Assert<Equal<BoundedArray<0, 2, true>, readonly []|readonly[true]|readonly[true, true]>>
 type _X11 = Assert<Equal<BoundedArray<1, 1, true>, readonly [true]>>
 type _X12 = Assert<Equal<BoundedArray<1, 2, true>, readonly [true]|readonly[true, true]>>
-type _X13 = Assert<Equal<BoundedArray<1, 3, true>, readonly [true]|readonly[true, true]|readonly[true, true, true]>>
+type _X13 = Assert<Equal<BoundedArray<1, 3, true>, FixedArray<1, true>|FixedArray<2, true>|FixedArray<3, true>>>
 type _X22 = Assert<Equal<BoundedArray<2, 2, true>, readonly [true, true]>>
 type _X2_ = Assert<Equal<
     BoundedArray<2, number, true>,
     readonly [true, true, ...readonly true[]]>
 >
 type _XXMax = BoundedArray<0, 48, true>
+
+type _Tail<
+    Max extends number,
+    T,
+    R extends readonly unknown[],
+    O extends readonly T[] = readonly [],
+> =
+    number extends Max ? readonly [...O, ...T[]] :
+    R['length'] extends Max
+        ? _Option<O>
+        : _Tail<Max, T, readonly [...R, unknown], readonly [...O, T]>
+
+export type RangeArray<
+    Min extends number,
+    Max extends number,
+    T,
+> =
+    FixedArray<Min, T> extends infer R extends readonly T[]
+        ? readonly [...R, ..._Tail<Max, T, R>]
+        : never
+
+type _Y00 = Assert<Equal<RangeArray<0, 0, true>, readonly[]>>
+type _Y01 = Assert<Equal<RangeArray<0, 1, true>, readonly[true?]>>
+type _Y02 = Assert<Equal<RangeArray<0, 2, true>, readonly[true?, true?]>>
+type _Y11 = Assert<Equal<RangeArray<1, 1, true>, readonly[true]>>
+type _Y12 = Assert<Equal<RangeArray<1, 2, true>, readonly[true, true?]>>
+type _Y13 = Assert<Equal<RangeArray<1, 3, true>, readonly[true, true?, true?]>>
+type _Y22 = Assert<Equal<RangeArray<2, 2, true>, readonly[true, true]>>
+type _Y2_ = Assert<Equal<
+    RangeArray<2, number, true>,
+    readonly [true, true, ...readonly true[]]>
+>
+type _YXMax = RangeArray<0, 999, true>
 
 export type Includes<I, T extends readonly I[]> = (v: I) => v is T[number]
