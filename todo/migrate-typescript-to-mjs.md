@@ -1,12 +1,25 @@
 ## Migrate authored TypeScript implementations to `.mjs`
 
 **Priority:** P1
-**Status:** open
+**Status:** open — stage 1 is done, the issue is not. It still owns the stage-2
+boundary below (`module.f.mjs -> module.f.js` may not start before it), and
+[`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md), which performs that
+rename, carries "Complete migrate authored TypeScript to `.mjs`" as an unchecked
+task. [`fjs/ci/todo/f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md)
+used to carry this file as **Blocked by** as well; that made the dependency
+circular and it no longer does — its stated precondition is met, so it can
+start now, while the rename it enables stays gated on it.
+This is not the `todo/README.md` "kept as the record" exception — it is an open
+task whose first stage is complete. Delete it when stage 2 starts, together with
+those references and the conventions below.
 
 ### Problem
 
-FunctionalScript currently uses authored `.ts` / `.f.ts` implementation source
-and generated `.js` output. The compiler migration also used `.f.mjs` as a marker
+This is the problem as it stood when the issue was filed; stage 1 has since
+resolved it, and what remains is the stage-2 boundary described below.
+
+FunctionalScript used authored `.ts` / `.f.ts` implementation source and
+generated `.js` output. The compiler migration also used `.f.mjs` as a marker
 for modules accepted by the current FunctionalScript compiler. Those two
 migrations should not be coupled: removing TypeScript from runtime
 implementations is a repository-wide source-language migration, while compiler
@@ -107,7 +120,8 @@ proof.f.ts  -> proof.f.mjs
 ```
 
 - `.ts` / `.f.ts` are authored TypeScript **implementation/proof** source that
-  still remains to migrate, except for intentional `types.ts` type modules;
+  still remains to migrate, except for intentional `types.ts` type modules —
+  none remains; this list defines what the extensions meant during the task;
 - `.mjs` is authored ESM JavaScript with JSDoc types;
 - `.f.mjs` is authored FunctionalScript-intent JavaScript with JSDoc types;
 - `.f.mjs` does **not** promise that the current FunctionalScript compiler can
@@ -201,15 +215,27 @@ remains the repository type checker during this migration; JSDoc replaces
 implementation TypeScript syntax without creating an unchecked intermediate
 source set.
 
-Stage 1 is **blocked by** both of these prerequisites before the first real
-repository `.f.ts` -> `.f.mjs` implementation conversion:
+Stage 1 was written as **blocked by** both of these prerequisites before the
+first real repository `.f.ts` -> `.f.mjs` implementation conversion. Neither
+gate held in the end — both were de-scoped rather than met, as the matching
+`[x]` items under [Tasks](#tasks) record:
 
 - [`../fjs/ci/todo/f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md)
   makes authored `.mjs` and real `types.ts` checked, packable source and validates
-  the emitted package layout;
+  the emitted package layout. What the migration needed from it — the validation
+  — was performed one-time in
+  [#1520](https://github.com/functionalscript/functionalscript/pull/1520) and
+  recorded in
+  [`packed-consumer-validation.md`](../fjs/ci/packed-consumer-validation.md);
 - [`../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md)
   is **blocked by** that package-support task and adds an actual `.f.mjs`
-  runtime fixture proving proof execution plus Node and Deno coverage.
+  runtime fixture proving proof execution plus Node and Deno coverage. It became
+  moot as advance evidence once every conversion had happened: the repository
+  itself now supplies it, with every `module.f.mjs` loaded through its proof
+  under Node and Deno coverage.
+
+Both files remain open as regression work on their own schedule. Neither gates
+anything in this issue any more, and neither holds stage 2.
 
 Package and publish jobs run only in CI from a clean checkout. The migration does
 not need to preserve packability of arbitrary developer working trees or track
@@ -728,11 +754,16 @@ Keep `**/*.js` ignored while TypeScript implementations can still generate
 `.js`. After the last authored implementation/proof `.ts` / `.f.ts` source file
 is removed:
 
-1. authored `types.ts` may remain permanently;
+1. authored `types.ts` may remain permanently — it does;
 2. remove obsolete generated implementation `.js` output when performing that
-   transition;
+   transition — done with the emission pass in
+   [#1520](https://github.com/functionalscript/functionalscript/pull/1520);
 3. remove the blanket `**/*.js` rule from `.gitignore` when generated
-   implementation output no longer conflicts with authored `.js`.
+   implementation output no longer conflicts with authored `.js` — done in
+   [#1545](https://github.com/functionalscript/functionalscript/pull/1545).
+
+All three have happened; the list is kept as the record of what the boundary
+required, not as work outstanding.
 
 Do **not** assume the second TypeScript runtime-emission pass can be removed just
 because only `types.ts` source remains. The package-support experiment must first
@@ -768,9 +799,27 @@ this rename.
 **Stage 1 source migration is complete.** No authored `.f.ts` remains
 (`find . -name '*.f.ts'` returns 0 outside `node_modules`); the last twelve
 migrated in [#1505](https://github.com/functionalscript/functionalscript/pull/1505).
-What is left is the packaging and cleanup work the source migration was
-blocking, plus the prose sweep. The remaining items are listed under
-[Remaining after stage 1](#remaining-after-stage-1) below.
+The packaging work, the cleanup, the prose sweep and the documentation sweep
+that followed it are all done too, and every item under
+[Remaining after stage 1](#remaining-after-stage-1) is closed.
+
+That closes stage 1, not this issue. What is left in the list below is standing
+convention — rules that constrain future edits (`@type {const}` placement,
+`@satisfies`, `_`-prefix visibility and its breaking-change consequences,
+keeping the runtimes and the `**BREAKING CHANGES:**` declarations honest) plus
+the three verification items whose last known instances are fixed and measure
+clean. None of those is a pending change to make, so do not read this list as
+the reason the file survives. The file survives because the **stage-2 boundary
+is still ahead**: [End of stage 1](#end-of-stage-1) is what permits
+`module.f.mjs -> module.f.js`, no rename has happened, that rename waits on
+[`f-js-package-support.md`](../fjs/ci/todo/f-js-package-support.md) — open, not
+blocked by this file; the reverse dependency was circular and is gone — and
+[`fjs-nanvm-integration.md`](./fjs-nanvm-integration.md), which performs the
+rename, still carries "Complete migrate authored TypeScript to `.mjs`"
+unchecked. Deleting it now would orphan the boundary and that task. When stage 2 begins, move the standing conventions into
+[`fjs/AGENTS.md`](../fjs/AGENTS.md) and
+[`fjs/fsc/README.md`](../fjs/fsc/README.md), re-point the 30 inbound references
+across 16 other files, and delete the file in that change.
 
 - [x] Complete
       [`f-mjs-package-support.md`](../fjs/ci/todo/f-mjs-package-support.md),
@@ -790,11 +839,50 @@ blocking, plus the prose sweep. The remaining items are listed under
       Node and Deno coverage — now provides the evidence the synthetic fixture
       was designed to give in advance. The fixture file remains as future
       regression work, not a blocker for this task.
-- [ ] Update contributor, compiler, language, package, test, and roadmap
+- [x] Update contributor, compiler, language, package, test, and roadmap
       documentation to the stage-1 extension meanings and `types.ts` convention.
-- [ ] Identify type-only `.ts` / `.f.ts` files and convert them directly to
+      Distinct from the prose sweep two items below, which fixed stale `.f.ts`
+      *paths*; this one fixed the *guidance*, which still read as a live gate on
+      completed work. Contributor: [`CONTRIBUTING.md`](../CONTRIBUTING.md) gained
+      the `types.ts` / `private.ts` placement rule, the `!**/private.d.ts`
+      packaging consequence, and the fact that `.f.js` is not authored today.
+      The placement rule restates `AGENTS.md` §3 and
+      [`fjs/AGENTS.md`](../fjs/AGENTS.md) §3.2 for a human contributor; the
+      `.f.js` half is new here, since §3.5 says only that compiler support does
+      not gate the eventual `.f.mjs` -> `.f.js` rename, and the root `AGENTS.md`
+      does not mention `.f.js` at all. Compiler: [`fjs/fsc/README.md`](../fjs/fsc/README.md), the
+      authoritative contract — its `.f.js` row claimed the extension is
+      generated from `.f.ts`, which no command has done since
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520);
+      its two stage-1 prerequisites still read as gates rather than as the
+      de-scoped record; and it still instructed a reader to remove the
+      `**/*.js` `.gitignore` rule that
+      [#1545](https://github.com/functionalscript/functionalscript/pull/1545)
+      removed. Language: [`spec/README.md`](../spec/README.md)'s File Types table
+      now says the `.f.js` in it is the *language's* extension and names the
+      repository's `.f.mjs` / `types.ts` spelling beside it. Package:
+      [`publishing-packages.md`](../fjs/ci/todo/publishing-packages.md)'s
+      stage-1 invariant listed `.ts` as "awaiting migration" and `.js` as
+      generated, and omitted `types.ts` entirely. Test:
+      [`fjs/emergent_testing/README.md`](../fjs/emergent_testing/README.md) now
+      states that `types.ts` is neither load tier and carries no proof-coverage
+      obligation. Roadmap: [`plan/roadmap.md`](./plan/roadmap.md) described
+      stage 1 in the present tense as ongoing.
+- [x] Identify type-only `.ts` / `.f.ts` files and convert them directly to
       `types.ts`; identify truly runtime-empty declaration-only `.f.mjs` files
       that should become `types.ts` as well when that is the cleaner design.
+      Both halves are empty sets, measured rather than assumed. The first is
+      moot: `find . -name '*.ts' -not -path './node_modules/*'` returns exactly
+      101 `types.ts` and 19 `private.ts` and nothing else, so no `.ts` /
+      `.f.ts` is left to reclassify. For the second, no authored `.mjs` in the
+      tree lacks a runtime export except three executables — `fjs/module.mjs`
+      (the CLI entry point), `fjs/emergent_testing/all.test.mjs` (the
+      external-runner entry) and `fjs/types/bigint/benchmark.mjs` — none of
+      which is a declaration module. Zero `.mjs` carries a file-scope
+      `@typedef` either, which is the other shape a runtime-empty type module
+      would take, so the rule in
+      [`fjs/fsc/README.md`](../fjs/fsc/README.md) now applies to new source
+      only. Re-measure both before reopening this.
 - [x] Rename `fjs/types/phantom/module.f.ts` to
       `fjs/types/phantom/types.ts` and update its type-only consumers to use the
       real `types.ts` source path; do not introduce a runtime phantom value.
@@ -911,15 +999,20 @@ blocking, plus the prose sweep. The remaining items are listed under
       emit them as exports, but still require `**BREAKING CHANGES:**` whenever a
       change to one alters the assignability of a public declaration.
 - [ ] Once a module is `.mjs`, treat any later move of a public JSDoc typedef to
-      a `_` name as an ordinary breaking API change with its own changelog entry
-      and importer updates, not as a visibility cleanup.
+      a `_` name as an ordinary breaking API change with its own
+      `**BREAKING CHANGES:**` declaration and importer updates, not as a
+      visibility cleanup.
 - [x] Continue upward through the runtime dependency graph in reviewable groups
       until no authored TypeScript implementation/proof source remains. Done for
       every module in the migration group: no `.f.ts` is left anywhere. The
-      `fjs/emergent_testing/scenarios/*.pass.ts` fixtures are still authored
-      TypeScript that `run.sh` hard-links to `_scenario.proof.ts`, but their
-      extension is the thing under test rather than an unmigrated module — see
-      the scenario item under [Remaining after stage 1](#remaining-after-stage-1).
+      `fjs/emergent_testing/scenarios/*.pass.ts` fixtures were the one exception
+      while they existed — authored TypeScript that `run.sh` hard-linked to
+      `_scenario.proof.ts`, whose extension was the thing under test rather than
+      an unmigrated module. The suite was deleted in
+      [#1520](https://github.com/functionalscript/functionalscript/pull/1520),
+      so the exception is gone with it: no `*.pass.ts` is tracked and neither
+      the directory nor `run.sh` exists. See the scenario item under
+      [Remaining after stage 1](#remaining-after-stage-1).
 - [x] Translate `.ts` to `.mjs` and `.f.ts` to `.f.mjs`, moving static type
       information either to JSDoc or to an intentionally separate `types.ts`
       without weakening public type semantics.
@@ -933,7 +1026,7 @@ blocking, plus the prose sweep. The remaining items are listed under
       [Remaining after stage 1](#remaining-after-stage-1).
 - [ ] Preserve Node, Deno, Bun, proof, coverage, type-checking, declaration, and
       CI package behavior throughout the migration.
-- [ ] Add required `**BREAKING CHANGES:**` changelog entries for every public
+- [ ] Add required `**BREAKING CHANGES:**` declarations for every public
       runtime or type-contract change; direct changes to an emitted `_` alias
       are exempt only when the expanded public contract is unchanged.
 - [x] After the last authored TypeScript implementation/proof file is gone,
@@ -954,12 +1047,15 @@ Each item below is stated with the measurement that produced it, so the next
 person can re-check rather than re-derive. Counts are as of
 [#1505](https://github.com/functionalscript/functionalscript/pull/1505).
 
-- [x] **Make `npm run cov` report real coverage.** Done: `cov` now names its
-      entrypoint (`fjs/emergent_testing/all.test.ts`; authored `all.test.mjs`
-      since [#1520](https://github.com/functionalscript/functionalscript/pull/1520))
-      instead of relying on
-      `node --test` default discovery, and the dead `**/module.f.ts` glob is
-      gone.
+- [x] **Make `npm run cov` report real coverage.** Done, though not the way an
+      earlier revision of this line claimed: `cov` still passes no path and so
+      still uses `node --test` default discovery. What fixed it is that the one
+      file discovery finds is now authored `fjs/emergent_testing/all.test.mjs`
+      rather than `all.test.ts`
+      ([#1520](https://github.com/functionalscript/functionalscript/pull/1520)),
+      so it matches `*.test.?(c|m)js` on every Node version instead of
+      depending on that version's TypeScript support. The dead
+      `**/module.f.ts` glob is gone and the three 100% thresholds were added.
 
       The diagnosis above was right and the "vacuous for several PRs" framing
       was wrong, so both are recorded here rather than deleted. The cause was
@@ -982,9 +1078,16 @@ person can re-check rather than re-derive. Counts are as of
       So every Node version CI actually runs (`22.23.2`, `24.18.1`, `26.7.0` in
       the `node22` / `node24` / `node26` jobs) already reported real coverage;
       v23 — released, EOL, not in CI — is the version that reports nothing. The
-      fix removes the dependency on default discovery altogether: naming the
-      entrypoint yields the same counts and the same `99.93` report on 22, 24
-      and 26, and turns v23's `tests 0` into `tests 2431` with a full report.
+      Naming the entrypoint explicitly was measured as the candidate fix, and
+      it works — the same counts and the same `99.93` report on 22, 24 and 26,
+      with v23's `tests 0` becoming `tests 2431`. It is **not** what shipped, so
+      read it as the counterfactual it is: `cov` still passes no path. What
+      shipped is the entry file becoming authored `all.test.mjs`, which matches
+      `*.test.?(c|m)js` on every Node version and so removes the
+      TypeScript-support dependency that made v23 differ, plus dropping the dead
+      `**/module.f.ts` glob and adding the three 100% thresholds. A future
+      rename of the test entry is therefore still assessed against default
+      discovery — keep the new name matching those patterns.
 
       The 2431-vs-2495 gap is **not** a second defect. It is exactly the 64
       sub-tests — those reachable only through a test function's *return value*.
@@ -1044,8 +1147,10 @@ person can re-check rather than re-derive. Counts are as of
 - [x] **Then drop the blanket `.gitignore` rule** for generated JavaScript
       (`.gitignore` line 131). Unblocked by
       [#1520](https://github.com/functionalscript/functionalscript/pull/1520):
-      no repository command generates `.js` any more, so the rule guarded
-      only stale artifacts in pre-existing working trees. Dropped in
+      no build or packaging command generates repository `.js` any more, so the
+      rule guarded only stale artifacts in pre-existing working trees. (`fjs
+      compile` still writes one where a caller asks for it; that output is now
+      untracked rather than ignored.) Dropped in
       [#1545](https://github.com/functionalscript/functionalscript/pull/1545);
       `**/*.js` deliberately stays in `package.json` `files` because the
       extension may be used for other purposes later, so a publish must keep
@@ -1064,7 +1169,7 @@ person can re-check rather than re-derive. Counts are as of
       records the sources verbatim and how to recreate them. `all.test.ts` is
       renamed to authored `all.test.mjs` (which the package also ships as the
       external-runner entry), and the repository's only authored TypeScript is
-      now `types.ts`. The obsolete rename issue
+      now `types.ts` and its optional sibling `private.ts`. The obsolete rename issue
       `fjs/emergent_testing/todo/205.md` is deleted with the suite.
 - [x] **Sweep the remaining stale prose.** Done. The measured set was 88
       mentions across 42 `.md` files naming an `X.f.ts` whose `X.f.mjs` now
@@ -1176,8 +1281,12 @@ person can re-check rather than re-derive. Counts are as of
   `import type` plus JSDoc `@import` both use the same real source path.
 - Deno resolves source `types.ts` without `@ts-types`, `@ts-self-types`, a dummy
   authored `types.js`, or missing-file declaration substitution.
-- The `.f.mjs` runtime test/coverage fixture is complete before the first real
-  repository `.f.ts` -> `.f.mjs` implementation conversion.
+- ~~The `.f.mjs` runtime test/coverage fixture is complete before the first real
+  repository `.f.ts` -> `.f.mjs` implementation conversion.~~ **De-scoped, not
+  met:** every conversion happened first, and the repository became the evidence
+  the fixture was to supply in advance. The fixture stays future regression work
+  in
+  [`f-mjs-test-and-coverage.md`](../fjs/emergent_testing/todo/f-mjs-test-and-coverage.md).
 - No authored implementation/proof `.ts` or `.f.ts` source files remain at the
   end of Stage 1; authored `types.ts` files may remain permanently.
 - Migration proceeds incrementally from runtime dependency leaves toward

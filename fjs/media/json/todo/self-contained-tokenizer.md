@@ -72,7 +72,7 @@ This is the design's own defect class in its worst form. `"\x"` at least emits
 an error beside its fabricated string; this emits **a value token for text the
 input never contained and no error at all** — and `0n1` produces `number(01)`,
 which is not even a valid JSON number. `parse` returns `["ok", …]`. It is
-precisely what [DESIGN.md §10](../../../../DESIGN.md#10-refuse-what-you-cannot-handle)
+precisely what [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 forbids.
 
 The class is **larger than one `n`, and does not have a tidy shape.** A search
@@ -139,7 +139,7 @@ since rule 1 below covers all of them at once.
 
 A caller that filters errors out — or a parser that resynchronizes on the next
 value — sees a string `"x"` that no document contained. That is
-[DESIGN.md §10](../../../../DESIGN.md#10-refuse-what-you-cannot-handle): an
+[DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle): an
 unsupported input is refused, never answered with a plausible wrong value. The
 malformed literal has to be one error token and nothing else.
 
@@ -205,7 +205,8 @@ the tokenizer's error contract, so a consumer can exhaustively switch on it, and
 a message JSON cannot produce should not typecheck.
 
 This is a public API change, additive in one direction and narrowing in the
-other, and it belongs in the changelog entry alongside the error shapes.
+other, and it belongs in the `Changelog:` declaration alongside the error
+shapes.
 
 There is a second edge to repoint, easy to miss because it does not go through
 the tokenizer at all: `fjs/media/json/parser/types.ts` imports `NumberToken`
@@ -967,7 +968,7 @@ changed error recovery — and that a PR should do one. Earlier drafts argued th
 split was unavailable. **That was wrong**, on the repo's own rule and on the
 facts, and the design now splits.
 
-[`DESIGN.md`](../../../../DESIGN.md) settles the question and even settles the
+[`DESIGN.md`](../../../../doc/DESIGN.md) settles the question and even settles the
 order. It forbids *the combination*, not a fixed order, and it names this exact
 case: when the idea is the **premise** — decided before any port and provable in
 the existing context — the separation runs idea first, then the port, "which
@@ -975,7 +976,7 @@ then carries no idea of its own beyond what the shared code already does".
 
 #### Stage 3a — the fabricated token, fixed where it lives
 
-The fabricated `string` after `"\x"` is a DESIGN.md §10 violation that exists
+The fabricated `string` after `"\x"` is a doc/DESIGN.md §10 violation that exists
 **today**, was found before any port was designed, and is provable against the
 current wrapper. It is the premise, so it lands first, on its own, with no
 dependency change.
@@ -1101,9 +1102,10 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
 - [ ] Prove the three cases and the boundary: `"\x"` and `"\u{41}"` and a raw
       NUL are each one error with no value token, while `"\x" "ok"` keeps
       `"ok"` — the last is what makes the rule a rule rather than a heuristic.
-- [ ] `changelog/unreleased/<PR>.md`, `**BREAKING CHANGES:**` — a consumer
-      relying on a value token after a malformed literal stops receiving one.
-      Valid JSON is unaffected, and the entry should say so.
+- [ ] Declare the break in the PR description's `Changelog:` section,
+      `**BREAKING CHANGES:**` — a consumer relying on a value token after a
+      malformed literal stops receiving one. Valid JSON is unaffected, and the
+      declaration should say so.
 - [ ] `npm run gen`, then `tsc`, `fjs test`, `cargo clippy` and
       `cargo fmt -- --check`.
 
@@ -1172,9 +1174,9 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
 - [ ] Repoint `streaming-recognizer`'s scanner citations at JSON's own string
       and number scanners. (666's edit is **already done** — it was rewritten in
       the PR that filed this design, so nothing is owed there.)
-- [ ] Add `changelog/unreleased/<PR>.md` and the matching `Changelog:` section
-      in the PR description. The implementation changes observable behavior of
-      the public `tokenize` — the error tokens it emits — so the entry is
+- [ ] Add the `Changelog:` section to the PR description. The implementation
+      changes observable behavior of the public `tokenize` — the error tokens it
+      emits — so the declaration is
       required, with an additive half for the newly exported `scanString`,
       `scanNumber`, their initial states `stringStart` and `numberStart`, and
       their state types, and a note that `JsonToken`'s error

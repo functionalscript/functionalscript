@@ -206,8 +206,8 @@ path is public API and any downstream caller gets a tagged `Result` tuple where
 it used to get a chunk list, a string, or `undefined`. A repository search
 bounds the migration work, not the blast radius.
 
-So `AGENTS.md` §8.4 applies to the implementing PR: prefix its CHANGELOG entry
-with `**BREAKING CHANGES:**`, state the old and new shapes, and show the
+So `AGENTS.md` §5 applies to the implementing PR: declare the break with
+`**BREAKING CHANGES:**` in its description, state the old and new shapes, and show the
 one-line migration — a caller that did
 `unwrapNullable(fromUndefined(nixToString(e)))` writes `unwrap(nixToString(e))`,
 and one that tested `=== undefined` now tests `[0] === 'error'` and gets a
@@ -271,8 +271,8 @@ where it lands.
 - [ ] Add proof cases for each rejection reason — today's proof can only
       observe "rejected", so the reasons need coverage as they become
       observable.
-- [ ] Prefix the implementing PR's CHANGELOG entry with `**BREAKING CHANGES:**`
-      (`AGENTS.md` §8.4) — see "This is a breaking change" above.
+- [ ] Declare the break with `**BREAKING CHANGES:**` in the implementing PR's
+      description (`AGENTS.md` §5) — see "This is a breaking change" above.
 - [ ] Run `tsc` and `fjs t`.
 
 ### Related

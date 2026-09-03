@@ -45,7 +45,7 @@ simplicity. **Maximize signal-to-noise** — make the high-level structure obvio
 put details and edge cases at the leaves, not in the main flow. **The API is the
 most important part of quality** — if a new version can have a better, simpler
 API, change it; breaking changes are the right call whenever they improve the
-API. The full set, which governs both code bases, is [DESIGN.md](./DESIGN.md).
+API. The full set, which governs both code bases, is [DESIGN.md](./doc/DESIGN.md).
 
 This file is a map: each section below holds the facts you must not violate and
 links to the document that holds the rest. Read a linked document when the task
@@ -69,7 +69,7 @@ Find or file the issue in `todo/` first, next to the code it describes; for
 anything non-trivial make sure it contains a concrete design before writing
 code. Deviating from that design later is fine; deviating silently is not, and
 a design that cannot be built as written is rewritten rather than forced
-through ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Write the
+through ([DESIGN.md §3](./doc/DESIGN.md#3-design-before-implementation)). Write the
 code plus its proof, run `npm run gen` after changing source, run the check
 set above, and delete the `todo/` issue file in the same PR that fixes it.
 
@@ -121,14 +121,15 @@ Commands and Rust coding style: [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md).
 A PR implements only one feature or improvement, with minimal code changes, and
 every check above passing. Its title and description become the merge commit
 on `main`, so write them as one: a `<topic>: <short description>` title and a
-description. A PR that changes behavior or the public API adds
-`changelog/unreleased/<PR>.md`, named by the real PR number once the PR exists,
-and repeats it in a matching `Changelog:` section — the last section of the
-description before any trailer block; a PR that doesn't — internal refactors,
-test-only changes, and PRs that only touch `todo/`, `AGENTS.md`, or other
-documentation — needs neither. Breaking changes are welcome when they improve
-the API — prefix the entry with `**BREAKING CHANGES:**` and update every
-importer in the same PR.
+description. **A PR adds no changelog file** — the changelog is written once per
+release, from the PRs that shipped in it. What a PR owes is one declaration:
+when it **breaks the public API**, a `Changelog:` section — the last section of
+the description before any trailer block — with an item prefixed
+`**BREAKING CHANGES:**`. That is required, because nothing derives a break from
+a diff and the release reads it to pick the version number. For a non-breaking
+change the section is optional raw material for the release author, and a PR
+that changes no observable behavior omits it. Breaking changes are welcome when
+they improve the API — declare it and update every importer in the same PR.
 
 **Merge the knowledge.** A small step merged with what was learned written down
 beats two hundred iterations of a PR that never lands. Answer a review, don't
@@ -136,14 +137,15 @@ absorb it — and never only in the thread, which is the one place the answer
 will not survive. A crash may be deferred behind a `todo/` naming the input
 that breaks it; a **regression** may not, and neither may **silence** — an
 unsupported input is refused, never answered with a plausible wrong value
-([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)).
+([DESIGN.md §10](./doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 
 Which comments to fix, which to push back on, and what a push-back leaves
-behind: [REVIEW.md](./REVIEW.md).
+behind: [REVIEW.md](./doc/REVIEW.md).
 Commit-message format and the PR checklist:
 [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
 Changelog entry rules, breaking changes, and versioning:
 [changelog/README.md](./changelog/README.md).
+How a release collects its entries: [changelog/RELEASE.md](./changelog/RELEASE.md).
 
 ## 6. External tools
 

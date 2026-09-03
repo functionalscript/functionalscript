@@ -310,7 +310,7 @@ knowing about this failure mode.
 Cross-realm testing is not supported and not wanted: `fjs/AGENTS.md`'s "One
 realm, one prototype chain" puts a value built in an iframe, a worker or a
 `node:vm` context outside the language this runner runs, so a proof that hands
-one over has already left the subset. [REVIEW.md](../../../REVIEW.md)'s rule —
+one over has already left the subset. [REVIEW.md](../../../doc/REVIEW.md)'s rule —
 an unsupported input is refused, never answered with a plausible wrong value —
 is about inputs the language admits; this value is not one.
 

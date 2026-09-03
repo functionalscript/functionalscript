@@ -156,6 +156,76 @@ const enoent = error(ioError({ code: 'ENOENT', message: 'no such file or directo
 const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
 
 /**
+ * What a file operation answers for a name holding a `JsModule` — the one
+ * question {@link resolveFile}'s three callers do *not* answer alike, so it is
+ * the parameter rather than a policy baked into the resolver.
+ *
+ * `readFile` and `readBytes` panic: their whole contract is to produce bytes,
+ * a `JsModule` has none, and nothing in FunctionalScript catches a throw
+ * ([`../../../AGENTS.md`](../../../AGENTS.md)), so it reaches a human as what
+ * it is — a fixture pointing a read at a module.
+ *
+ * @type {(op: string) => (name: string) => Error<IoError>}
+ */
+const jsModuleUnsupported = op => name => { throw new Error(`'${name}' is a JsModule; ${op} not supported`) }
+
+/**
+ * What `writeBytes` answers for the same name, and it is deliberately a
+ * *value*: a `JsModule` stands in for a host's FIFO, device or socket (see
+ * {@link notRegular}), writing to one fails on a host with an ordinary IO
+ * error, and `WriteBytes` in [`../types.ts`](../types.ts) promises an
+ * `IoResult`. A caller's branch for that failure can only be reached — let
+ * alone proven — against this runner if the runner returns it, so making this
+ * a panic for symmetry with the reads would delete the only way to write that
+ * proof.
+ *
+ * @type {(name: string) => Error<IoError>}
+ */
+const jsModuleNotAFile = name => fail(`'${name}' is not a file`)
+
+/**
+ * The chunk list the entry `p` names holds, or the `IoResult` error that says
+ * why there is none. Every operation whose subject is a *file* — `readFile`,
+ * `readBytes`, `writeBytes` — starts here, so the three answer one question
+ * once instead of open-coding it three times and drifting apart.
+ *
+ * **`p` is what is left after `operation` descended**, so one segment is the
+ * entry itself and anything else is a path this file system cannot hold a file
+ * at. `operation` hands the op the whole remaining path in *two* situations —
+ * the first name is absent, or it exists and is not a directory — so a longer
+ * `p` means one of those rather than specifically the second; an empty `p`
+ * means the path named a directory.
+ *
+ * **All three answer `ENOENT` here, and a host does not.** An absent name is
+ * `ENOENT` everywhere, but a path *through* a non-directory is `ENOTDIR` on
+ * POSIX, and a read of a directory is `EISDIR` on Linux, macOS and Windows —
+ * FreeBSD does not fail at all there, so that last one is not one answer to
+ * copy. `stat` models the `ENOTDIR` case, and asks presence *before* length so
+ * an absent name keeps `ENOENT`; see {@link statPath}. So the reads disagree
+ * with `stat` in this same file as well as with a host. That is
+ * [reads-enotdir-through-a-file](./todo/reads-enotdir-through-a-file.md); until
+ * it is settled, this says what the runner does rather than what a host would.
+ *
+ * `stat` is not a caller. It *reports* what a name holds rather than reading
+ * it, so all three failures here are successes there — `directory`,
+ * `ENOTDIR`, `notRegular` — and routing it through this would cost the POSIX
+ * distinctions {@link statPath} documents.
+ *
+ * @type {(onJsModule: (name: string) => Error<IoError>) => (dir: Dir, p: readonly string[]) => IoResult<readonly Vec[]>}
+ */
+const resolveFile = onJsModule => (dir, p) => {
+    if (p.length !== 1) { return enoent }
+    const file = entryOf(dir, p[0])
+    if (file === undefined) { return enoent }
+    if (isJsModule(file)) { return onJsModule(p[0]) }
+    // `operation`'s wrapper descends into every plain-object (`Dir`) entry
+    // before this op ever runs, and the `JsModule` case is gone above, so
+    // `file` here is always a `Vec[]` — never a bare `Dir`.
+    assert(isBinFile(file), `'${p[0]}' is not a file`)
+    return ok(file)
+}
+
+/**
  * **The requested path is captured, not reconstructed from what the op sees.**
  * `operation`'s wrapper descends before the op runs, so `p` holds only the
  * entry name — `readFile('dir/big.mjs')` reaches this with `p = ['big.mjs']`.
@@ -169,15 +239,9 @@ const enotdir = error(ioError({ code: 'ENOTDIR', message: 'not a directory' }))
  * @type {(path: string) => (state: State) => readonly [State, IoResult<Vec>]}
  */
 const readFile = path => readOperation((dir, p) => {
-    if (p.length !== 1) { return enoent }
-    const file = entryOf(dir, p[0])
-    if (file === undefined) { return enoent }
-    if (isJsModule(file)) { throw new Error(`'${p[0]}' is a JsModule; readFile not supported`) }
-    // `operation`'s wrapper descends into every plain-object (`Dir`) entry
-    // before this op ever runs, and the `JsModule` case already threw above,
-    // so `file` here is always a `Vec[]` — never a bare `Dir`.
-    assert(isBinFile(file), `'${p[0]}' is not a file`)
-    const chunks = file
+    const resolved = resolveFile(jsModuleUnsupported('readFile'))(dir, p)
+    if (resolved[0] === 'error') { return resolved }
+    const chunks = resolved[1]
     const capBits = maxLengthBytes * 8n
     let result = empty
     for (const chunk of chunks) {
@@ -340,20 +404,14 @@ const rename = (src, dst) => state => {
 
 /** @type {(path: string, offset: number, size: number) => (state: State) => readonly [State, IoResult<Vec>]} */
 const readBytesOp = (path, offset, size) => readOperation((dir, p) => {
-    if (p.length !== 1) { return enoent }
-    const file = entryOf(dir, p[0])
-    if (file === undefined) { return enoent }
-    if (isJsModule(file)) { throw new Error(`'${p[0]}' is a JsModule; readBytes not supported`) }
-    // `operation`'s wrapper descends into every plain-object (`Dir`) entry
-    // before this op ever runs, and the `JsModule` case already threw above,
-    // so `file` here is always a `Vec[]` — never a bare `Dir`.
-    assert(isBinFile(file), `'${p[0]}' is not a file`)
+    const resolved = resolveFile(jsModuleUnsupported('readBytes'))(dir, p)
+    if (resolved[0] === 'error') { return resolved }
     if (!Number.isInteger(offset)) { return fail(`Offset ${offset} is not an integer`) }
     if (!Number.isInteger(size)) { return fail(`Chunk size ${size} is not an integer`) }
     if (offset < 0) { return fail(`Offset ${offset} is negative`) }
     if (size < 0) { return fail(`Chunk size ${size} is negative`) }
     if (BigInt(size) > maxLengthBytes) { return fail(`Chunk size ${size} exceeds maximum allowed size of ${maxLengthBytes} bytes`) }
-    const chunks = file
+    const chunks = resolved[1]
     let toSkip = BigInt(offset) * 8n
     let toRead = BigInt(size) * 8n
     let result = empty
@@ -415,17 +473,16 @@ const createExclusive = operation(createExclusiveOp)
 // the one access pattern its callers use.
 /** @type {(offset: number, data: Vec) => (dir: Dir, p: readonly string[]) => readonly [Dir, IoResult<void>]} */
 const writeBytesRawOp = (offset, data) => (dir, p) => {
-    if (p.length !== 1) { return [dir, enoent] }
-    const [name] = p
-    const file = entryOf(dir, name)
-    if (file === undefined) { return [dir, enoent] }              // writeBytes never creates
-    if (!isBinFile(file)) { return [dir, fail(`'${name}' is not a file`)] }
+    // `resolveFile`'s `ENOENT` is also the answer for a name that is not there:
+    // writeBytes never creates.
+    const resolved = resolveFile(jsModuleNotAFile)(dir, p)
+    if (resolved[0] === 'error') { return [dir, resolved] }
     if (!Number.isInteger(offset) || offset < 0) { return [dir, fail(`Offset ${offset} is invalid`)] }
-    const chunks = file
+    const chunks = resolved[1]
     if (offset !== fileSizeBytes(chunks)) {
         return [dir, fail(`writeBytes offset ${offset} must equal the file size (append-only)`)]
     }
-    return [{ ...dir, [name]: [...chunks, data] }, okVoid]
+    return [{ ...dir, [p[0]]: [...chunks, data] }, okVoid]
 }
 
 /** @type {(path: string, offset: number, data: Vec) => (state: State) => readonly [State, IoResult<void>]} */
