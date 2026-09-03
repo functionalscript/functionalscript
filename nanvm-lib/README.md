@@ -33,10 +33,10 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 |----------|---------------------|----------|-------|
 | `===`    | Strict equality     | [x]      | [`any/partial_eq.rs`](src/vm/any/partial_eq.rs) — `PartialEq for Any<A>` |
 | `!==`    | Strict inequality   | [x]      | Provided by `PartialEq` |
-| `<`      | Less than           | [ ]      | `PartialOrd for BigInt` exists; no `Any`-level impl |
-| `<=`     | Less than or equal  | [ ]      | |
-| `>`      | Greater than        | [ ]      | |
-| `>=`     | Greater or equal    | [ ]      | |
+| `<`      | Less than           | [x]      | [`any/relational.rs`](src/vm/any/relational.rs) — `IsLessThan`: `ToPrimitive`s both sides, lexicographic by UTF-16 code unit if both are strings, `StringToBigInt` if one side is a `BigInt`, otherwise exact `Number`/`BigInt` comparison (via IEEE 754 bit decomposition, not a lossy `f64` round-trip); `NaN` anywhere gives `false` in both directions |
+| `<=`     | Less than or equal  | [x]      | `Any::le` — `!(y < x)`, except `NaN` anywhere stays `false` |
+| `>`      | Greater than        | [x]      | `Any::gt` — the reversed `<`: `y < x` |
+| `>=`     | Greater or equal    | [x]      | `Any::ge` — `!(x < y)`, except `NaN` anywhere stays `false` |
 
 ### Bitwise
 

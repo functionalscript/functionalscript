@@ -3,6 +3,7 @@ mod div;
 mod from;
 mod neg;
 mod partial_eq;
+mod relational;
 mod rem;
 mod sub;
 

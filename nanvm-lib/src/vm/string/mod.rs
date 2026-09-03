@@ -1,3 +1,4 @@
+mod cmp;
 mod index;
 mod partial_eq;
 mod sized_index;

@@ -375,6 +375,222 @@ fn rem<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn lt<A: IVm>() {
+    check::<A>("nullLessThanFive", Any::lt(Nullish::Null.to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("undefinedLessThanFive", Any::lt(Nullish::Undefined.to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("trueLessThanFive", Any::lt(true.to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("falseLessThanFive", Any::lt(false.to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("stringThreeLessThanFive", Any::lt(string_any("3"), (5f64).to_any()), true.to_any());
+    check::<A>("stringLetterLessThanFive", Any::lt(string_any("a"), (5f64).to_any()), false.to_any());
+    check::<A>("emptyArrayLessThanFive", Any::lt(Array::default().to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("arrayThreeLessThanFive", Any::lt([(3f64).to_any()].to_array().to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("arrayStringThreeLessThanFive", Any::lt([string_any("3")].to_array().to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("arrayPairLessThanFive", Any::lt([(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("emptyObjectLessThanFive", Any::lt(Object::default().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("functionLessThanFive", Any::lt(function_any(), (5f64).to_any()), false.to_any());
+    check::<A>("threeLessThanFive", Any::lt((3f64).to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("fiveLessThanThree", Any::lt((5f64).to_any(), (3f64).to_any()), false.to_any());
+    check::<A>("fiveLessThanFive", Any::lt((5f64).to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("zeroLessThanNegativeZero", Any::lt((0f64).to_any(), (-0f64).to_any()), false.to_any());
+    check::<A>("negativeZeroLessThanZero", Any::lt((-0f64).to_any(), (0f64).to_any()), false.to_any());
+    check::<A>("nanLessThanOne", Any::lt((f64::NAN).to_any(), (1f64).to_any()), false.to_any());
+    check::<A>("oneLessThanNan", Any::lt((1f64).to_any(), (f64::NAN).to_any()), false.to_any());
+    check::<A>("nanLessThanNan", Any::lt((f64::NAN).to_any(), (f64::NAN).to_any()), false.to_any());
+    check::<A>("infinityLessThanOne", Any::lt((f64::INFINITY).to_any(), (1f64).to_any()), false.to_any());
+    check::<A>("oneLessThanInfinity", Any::lt((1f64).to_any(), (f64::INFINITY).to_any()), true.to_any());
+    check::<A>("negativeInfinityLessThanInfinity", Any::lt((f64::NEG_INFINITY).to_any(), (f64::INFINITY).to_any()), true.to_any());
+    check::<A>("infinityLessThanInfinity", Any::lt((f64::INFINITY).to_any(), (f64::INFINITY).to_any()), false.to_any());
+    check::<A>("stringTenLessThanStringNine", Any::lt(string_any("10"), string_any("9")), true.to_any());
+    check::<A>("stringNineLessThanStringTen", Any::lt(string_any("9"), string_any("10")), false.to_any());
+    check::<A>("stringALessThanStringB", Any::lt(string_any("a"), string_any("b")), true.to_any());
+    check::<A>("emptyStringLessThanStringA", Any::lt(string_any(""), string_any("a")), true.to_any());
+    check::<A>("stringAbLessThanStringAbc", Any::lt(string_any("ab"), string_any("abc")), true.to_any());
+    check::<A>("stringAbcLessThanStringAb", Any::lt(string_any("abc"), string_any("ab")), false.to_any());
+    check::<A>("stringUppercaseBLessThanStringA", Any::lt(string_any("B"), string_any("a")), true.to_any());
+    check::<A>("stringTenLessThanNine", Any::lt(string_any("10"), (9f64).to_any()), false.to_any());
+    check::<A>("nineLessThanStringTen", Any::lt((9f64).to_any(), string_any("10")), true.to_any());
+    check::<A>("stringAbcLessThanFive", Any::lt(string_any("abc"), (5f64).to_any()), false.to_any());
+    check::<A>("fiveLessThanStringAbc", Any::lt((5f64).to_any(), string_any("abc")), false.to_any());
+    check::<A>("negativeFiveBigLessThanThreeBig", Any::lt(bigint_any(-5), bigint_any(3)), true.to_any());
+    check::<A>("threeBigLessThanThreeBig", Any::lt(bigint_any(3), bigint_any(3)), false.to_any());
+    check::<A>("threeBigLessThanNegativeFiveBig", Any::lt(bigint_any(3), bigint_any(-5)), false.to_any());
+    check::<A>("fiveBigLessThanFiveHalf", Any::lt(bigint_any(5), (5.5f64).to_any()), true.to_any());
+    check::<A>("fiveBigLessThanFive", Any::lt(bigint_any(5), (5f64).to_any()), false.to_any());
+    check::<A>("fiveLessThanFiveBig", Any::lt((5f64).to_any(), bigint_any(5)), false.to_any());
+    check::<A>("fiveBigLessThanNan", Any::lt(bigint_any(5), (f64::NAN).to_any()), false.to_any());
+    check::<A>("nanLessThanFiveBig", Any::lt((f64::NAN).to_any(), bigint_any(5)), false.to_any());
+    check::<A>("fiveBigLessThanInfinity", Any::lt(bigint_any(5), (f64::INFINITY).to_any()), true.to_any());
+    check::<A>("negativeInfinityLessThanFiveBig", Any::lt((f64::NEG_INFINITY).to_any(), bigint_any(5)), true.to_any());
+    check::<A>("infinityLessThanFiveBig", Any::lt((f64::INFINITY).to_any(), bigint_any(5)), false.to_any());
+    check::<A>("stringTenLessThanTwentyBig", Any::lt(string_any("10"), bigint_any(20)), true.to_any());
+    check::<A>("twentyBigLessThanStringThirty", Any::lt(bigint_any(20), string_any("30")), true.to_any());
+    check::<A>("stringAbcLessThanTwentyBig", Any::lt(string_any("abc"), bigint_any(20)), false.to_any());
+    check::<A>("twentyBigLessThanStringAbc", Any::lt(bigint_any(20), string_any("abc")), false.to_any());
+}
+
+#[rustfmt::skip]
+fn le<A: IVm>() {
+    check::<A>("nullLessOrEqualFive", Any::le(Nullish::Null.to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("undefinedLessOrEqualFive", Any::le(Nullish::Undefined.to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("trueLessOrEqualFive", Any::le(true.to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("falseLessOrEqualFive", Any::le(false.to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("stringThreeLessOrEqualFive", Any::le(string_any("3"), (5f64).to_any()), true.to_any());
+    check::<A>("stringLetterLessOrEqualFive", Any::le(string_any("a"), (5f64).to_any()), false.to_any());
+    check::<A>("emptyArrayLessOrEqualFive", Any::le(Array::default().to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("arrayThreeLessOrEqualFive", Any::le([(3f64).to_any()].to_array().to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("arrayStringThreeLessOrEqualFive", Any::le([string_any("3")].to_array().to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("arrayPairLessOrEqualFive", Any::le([(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("emptyObjectLessOrEqualFive", Any::le(Object::default().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("functionLessOrEqualFive", Any::le(function_any(), (5f64).to_any()), false.to_any());
+    check::<A>("threeLessOrEqualFive", Any::le((3f64).to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("fiveLessOrEqualThree", Any::le((5f64).to_any(), (3f64).to_any()), false.to_any());
+    check::<A>("fiveLessOrEqualFive", Any::le((5f64).to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("zeroLessOrEqualNegativeZero", Any::le((0f64).to_any(), (-0f64).to_any()), true.to_any());
+    check::<A>("negativeZeroLessOrEqualZero", Any::le((-0f64).to_any(), (0f64).to_any()), true.to_any());
+    check::<A>("nanLessOrEqualOne", Any::le((f64::NAN).to_any(), (1f64).to_any()), false.to_any());
+    check::<A>("oneLessOrEqualNan", Any::le((1f64).to_any(), (f64::NAN).to_any()), false.to_any());
+    check::<A>("nanLessOrEqualNan", Any::le((f64::NAN).to_any(), (f64::NAN).to_any()), false.to_any());
+    check::<A>("infinityLessOrEqualOne", Any::le((f64::INFINITY).to_any(), (1f64).to_any()), false.to_any());
+    check::<A>("oneLessOrEqualInfinity", Any::le((1f64).to_any(), (f64::INFINITY).to_any()), true.to_any());
+    check::<A>("negativeInfinityLessOrEqualInfinity", Any::le((f64::NEG_INFINITY).to_any(), (f64::INFINITY).to_any()), true.to_any());
+    check::<A>("infinityLessOrEqualInfinity", Any::le((f64::INFINITY).to_any(), (f64::INFINITY).to_any()), true.to_any());
+    check::<A>("stringTenLessOrEqualStringNine", Any::le(string_any("10"), string_any("9")), true.to_any());
+    check::<A>("stringNineLessOrEqualStringTen", Any::le(string_any("9"), string_any("10")), false.to_any());
+    check::<A>("stringALessOrEqualStringB", Any::le(string_any("a"), string_any("b")), true.to_any());
+    check::<A>("emptyStringLessOrEqualStringA", Any::le(string_any(""), string_any("a")), true.to_any());
+    check::<A>("stringAbLessOrEqualStringAbc", Any::le(string_any("ab"), string_any("abc")), true.to_any());
+    check::<A>("stringAbcLessOrEqualStringAb", Any::le(string_any("abc"), string_any("ab")), false.to_any());
+    check::<A>("stringUppercaseBLessOrEqualStringA", Any::le(string_any("B"), string_any("a")), true.to_any());
+    check::<A>("stringTenLessOrEqualNine", Any::le(string_any("10"), (9f64).to_any()), false.to_any());
+    check::<A>("nineLessOrEqualStringTen", Any::le((9f64).to_any(), string_any("10")), true.to_any());
+    check::<A>("stringAbcLessOrEqualFive", Any::le(string_any("abc"), (5f64).to_any()), false.to_any());
+    check::<A>("fiveLessOrEqualStringAbc", Any::le((5f64).to_any(), string_any("abc")), false.to_any());
+    check::<A>("negativeFiveBigLessOrEqualThreeBig", Any::le(bigint_any(-5), bigint_any(3)), true.to_any());
+    check::<A>("threeBigLessOrEqualThreeBig", Any::le(bigint_any(3), bigint_any(3)), true.to_any());
+    check::<A>("threeBigLessOrEqualNegativeFiveBig", Any::le(bigint_any(3), bigint_any(-5)), false.to_any());
+    check::<A>("fiveBigLessOrEqualFiveHalf", Any::le(bigint_any(5), (5.5f64).to_any()), true.to_any());
+    check::<A>("fiveBigLessOrEqualFive", Any::le(bigint_any(5), (5f64).to_any()), true.to_any());
+    check::<A>("fiveLessOrEqualFiveBig", Any::le((5f64).to_any(), bigint_any(5)), true.to_any());
+    check::<A>("fiveBigLessOrEqualNan", Any::le(bigint_any(5), (f64::NAN).to_any()), false.to_any());
+    check::<A>("nanLessOrEqualFiveBig", Any::le((f64::NAN).to_any(), bigint_any(5)), false.to_any());
+    check::<A>("fiveBigLessOrEqualInfinity", Any::le(bigint_any(5), (f64::INFINITY).to_any()), true.to_any());
+    check::<A>("negativeInfinityLessOrEqualFiveBig", Any::le((f64::NEG_INFINITY).to_any(), bigint_any(5)), true.to_any());
+    check::<A>("infinityLessOrEqualFiveBig", Any::le((f64::INFINITY).to_any(), bigint_any(5)), false.to_any());
+    check::<A>("stringTenLessOrEqualTwentyBig", Any::le(string_any("10"), bigint_any(20)), true.to_any());
+    check::<A>("twentyBigLessOrEqualStringThirty", Any::le(bigint_any(20), string_any("30")), true.to_any());
+    check::<A>("stringAbcLessOrEqualTwentyBig", Any::le(string_any("abc"), bigint_any(20)), false.to_any());
+    check::<A>("twentyBigLessOrEqualStringAbc", Any::le(bigint_any(20), string_any("abc")), false.to_any());
+}
+
+#[rustfmt::skip]
+fn gt<A: IVm>() {
+    check::<A>("nullGreaterThanFive", Any::gt(Nullish::Null.to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("undefinedGreaterThanFive", Any::gt(Nullish::Undefined.to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("trueGreaterThanFive", Any::gt(true.to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("falseGreaterThanFive", Any::gt(false.to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("stringThreeGreaterThanFive", Any::gt(string_any("3"), (5f64).to_any()), false.to_any());
+    check::<A>("stringLetterGreaterThanFive", Any::gt(string_any("a"), (5f64).to_any()), false.to_any());
+    check::<A>("emptyArrayGreaterThanFive", Any::gt(Array::default().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("arrayThreeGreaterThanFive", Any::gt([(3f64).to_any()].to_array().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("arrayStringThreeGreaterThanFive", Any::gt([string_any("3")].to_array().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("arrayPairGreaterThanFive", Any::gt([(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("emptyObjectGreaterThanFive", Any::gt(Object::default().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("functionGreaterThanFive", Any::gt(function_any(), (5f64).to_any()), false.to_any());
+    check::<A>("threeGreaterThanFive", Any::gt((3f64).to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("fiveGreaterThanThree", Any::gt((5f64).to_any(), (3f64).to_any()), true.to_any());
+    check::<A>("fiveGreaterThanFive", Any::gt((5f64).to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("zeroGreaterThanNegativeZero", Any::gt((0f64).to_any(), (-0f64).to_any()), false.to_any());
+    check::<A>("negativeZeroGreaterThanZero", Any::gt((-0f64).to_any(), (0f64).to_any()), false.to_any());
+    check::<A>("nanGreaterThanOne", Any::gt((f64::NAN).to_any(), (1f64).to_any()), false.to_any());
+    check::<A>("oneGreaterThanNan", Any::gt((1f64).to_any(), (f64::NAN).to_any()), false.to_any());
+    check::<A>("nanGreaterThanNan", Any::gt((f64::NAN).to_any(), (f64::NAN).to_any()), false.to_any());
+    check::<A>("infinityGreaterThanOne", Any::gt((f64::INFINITY).to_any(), (1f64).to_any()), true.to_any());
+    check::<A>("oneGreaterThanInfinity", Any::gt((1f64).to_any(), (f64::INFINITY).to_any()), false.to_any());
+    check::<A>("negativeInfinityGreaterThanInfinity", Any::gt((f64::NEG_INFINITY).to_any(), (f64::INFINITY).to_any()), false.to_any());
+    check::<A>("infinityGreaterThanInfinity", Any::gt((f64::INFINITY).to_any(), (f64::INFINITY).to_any()), false.to_any());
+    check::<A>("stringTenGreaterThanStringNine", Any::gt(string_any("10"), string_any("9")), false.to_any());
+    check::<A>("stringNineGreaterThanStringTen", Any::gt(string_any("9"), string_any("10")), true.to_any());
+    check::<A>("stringAGreaterThanStringB", Any::gt(string_any("a"), string_any("b")), false.to_any());
+    check::<A>("emptyStringGreaterThanStringA", Any::gt(string_any(""), string_any("a")), false.to_any());
+    check::<A>("stringAbGreaterThanStringAbc", Any::gt(string_any("ab"), string_any("abc")), false.to_any());
+    check::<A>("stringAbcGreaterThanStringAb", Any::gt(string_any("abc"), string_any("ab")), true.to_any());
+    check::<A>("stringUppercaseBGreaterThanStringA", Any::gt(string_any("B"), string_any("a")), false.to_any());
+    check::<A>("stringTenGreaterThanNine", Any::gt(string_any("10"), (9f64).to_any()), true.to_any());
+    check::<A>("nineGreaterThanStringTen", Any::gt((9f64).to_any(), string_any("10")), false.to_any());
+    check::<A>("stringAbcGreaterThanFive", Any::gt(string_any("abc"), (5f64).to_any()), false.to_any());
+    check::<A>("fiveGreaterThanStringAbc", Any::gt((5f64).to_any(), string_any("abc")), false.to_any());
+    check::<A>("negativeFiveBigGreaterThanThreeBig", Any::gt(bigint_any(-5), bigint_any(3)), false.to_any());
+    check::<A>("threeBigGreaterThanThreeBig", Any::gt(bigint_any(3), bigint_any(3)), false.to_any());
+    check::<A>("threeBigGreaterThanNegativeFiveBig", Any::gt(bigint_any(3), bigint_any(-5)), true.to_any());
+    check::<A>("fiveBigGreaterThanFiveHalf", Any::gt(bigint_any(5), (5.5f64).to_any()), false.to_any());
+    check::<A>("fiveBigGreaterThanFive", Any::gt(bigint_any(5), (5f64).to_any()), false.to_any());
+    check::<A>("fiveGreaterThanFiveBig", Any::gt((5f64).to_any(), bigint_any(5)), false.to_any());
+    check::<A>("fiveBigGreaterThanNan", Any::gt(bigint_any(5), (f64::NAN).to_any()), false.to_any());
+    check::<A>("nanGreaterThanFiveBig", Any::gt((f64::NAN).to_any(), bigint_any(5)), false.to_any());
+    check::<A>("fiveBigGreaterThanInfinity", Any::gt(bigint_any(5), (f64::INFINITY).to_any()), false.to_any());
+    check::<A>("negativeInfinityGreaterThanFiveBig", Any::gt((f64::NEG_INFINITY).to_any(), bigint_any(5)), false.to_any());
+    check::<A>("infinityGreaterThanFiveBig", Any::gt((f64::INFINITY).to_any(), bigint_any(5)), true.to_any());
+    check::<A>("stringTenGreaterThanTwentyBig", Any::gt(string_any("10"), bigint_any(20)), false.to_any());
+    check::<A>("twentyBigGreaterThanStringThirty", Any::gt(bigint_any(20), string_any("30")), false.to_any());
+    check::<A>("stringAbcGreaterThanTwentyBig", Any::gt(string_any("abc"), bigint_any(20)), false.to_any());
+    check::<A>("twentyBigGreaterThanStringAbc", Any::gt(bigint_any(20), string_any("abc")), false.to_any());
+}
+
+#[rustfmt::skip]
+fn ge<A: IVm>() {
+    check::<A>("nullGreaterOrEqualFive", Any::ge(Nullish::Null.to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("undefinedGreaterOrEqualFive", Any::ge(Nullish::Undefined.to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("trueGreaterOrEqualFive", Any::ge(true.to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("falseGreaterOrEqualFive", Any::ge(false.to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("stringThreeGreaterOrEqualFive", Any::ge(string_any("3"), (5f64).to_any()), false.to_any());
+    check::<A>("stringLetterGreaterOrEqualFive", Any::ge(string_any("a"), (5f64).to_any()), false.to_any());
+    check::<A>("emptyArrayGreaterOrEqualFive", Any::ge(Array::default().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("arrayThreeGreaterOrEqualFive", Any::ge([(3f64).to_any()].to_array().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("arrayStringThreeGreaterOrEqualFive", Any::ge([string_any("3")].to_array().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("arrayPairGreaterOrEqualFive", Any::ge([(0f64).to_any(), (0f64).to_any()].to_array().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("emptyObjectGreaterOrEqualFive", Any::ge(Object::default().to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("functionGreaterOrEqualFive", Any::ge(function_any(), (5f64).to_any()), false.to_any());
+    check::<A>("threeGreaterOrEqualFive", Any::ge((3f64).to_any(), (5f64).to_any()), false.to_any());
+    check::<A>("fiveGreaterOrEqualThree", Any::ge((5f64).to_any(), (3f64).to_any()), true.to_any());
+    check::<A>("fiveGreaterOrEqualFive", Any::ge((5f64).to_any(), (5f64).to_any()), true.to_any());
+    check::<A>("zeroGreaterOrEqualNegativeZero", Any::ge((0f64).to_any(), (-0f64).to_any()), true.to_any());
+    check::<A>("negativeZeroGreaterOrEqualZero", Any::ge((-0f64).to_any(), (0f64).to_any()), true.to_any());
+    check::<A>("nanGreaterOrEqualOne", Any::ge((f64::NAN).to_any(), (1f64).to_any()), false.to_any());
+    check::<A>("oneGreaterOrEqualNan", Any::ge((1f64).to_any(), (f64::NAN).to_any()), false.to_any());
+    check::<A>("nanGreaterOrEqualNan", Any::ge((f64::NAN).to_any(), (f64::NAN).to_any()), false.to_any());
+    check::<A>("infinityGreaterOrEqualOne", Any::ge((f64::INFINITY).to_any(), (1f64).to_any()), true.to_any());
+    check::<A>("oneGreaterOrEqualInfinity", Any::ge((1f64).to_any(), (f64::INFINITY).to_any()), false.to_any());
+    check::<A>("negativeInfinityGreaterOrEqualInfinity", Any::ge((f64::NEG_INFINITY).to_any(), (f64::INFINITY).to_any()), false.to_any());
+    check::<A>("infinityGreaterOrEqualInfinity", Any::ge((f64::INFINITY).to_any(), (f64::INFINITY).to_any()), true.to_any());
+    check::<A>("stringTenGreaterOrEqualStringNine", Any::ge(string_any("10"), string_any("9")), false.to_any());
+    check::<A>("stringNineGreaterOrEqualStringTen", Any::ge(string_any("9"), string_any("10")), true.to_any());
+    check::<A>("stringAGreaterOrEqualStringB", Any::ge(string_any("a"), string_any("b")), false.to_any());
+    check::<A>("emptyStringGreaterOrEqualStringA", Any::ge(string_any(""), string_any("a")), false.to_any());
+    check::<A>("stringAbGreaterOrEqualStringAbc", Any::ge(string_any("ab"), string_any("abc")), false.to_any());
+    check::<A>("stringAbcGreaterOrEqualStringAb", Any::ge(string_any("abc"), string_any("ab")), true.to_any());
+    check::<A>("stringUppercaseBGreaterOrEqualStringA", Any::ge(string_any("B"), string_any("a")), false.to_any());
+    check::<A>("stringTenGreaterOrEqualNine", Any::ge(string_any("10"), (9f64).to_any()), true.to_any());
+    check::<A>("nineGreaterOrEqualStringTen", Any::ge((9f64).to_any(), string_any("10")), false.to_any());
+    check::<A>("stringAbcGreaterOrEqualFive", Any::ge(string_any("abc"), (5f64).to_any()), false.to_any());
+    check::<A>("fiveGreaterOrEqualStringAbc", Any::ge((5f64).to_any(), string_any("abc")), false.to_any());
+    check::<A>("negativeFiveBigGreaterOrEqualThreeBig", Any::ge(bigint_any(-5), bigint_any(3)), false.to_any());
+    check::<A>("threeBigGreaterOrEqualThreeBig", Any::ge(bigint_any(3), bigint_any(3)), true.to_any());
+    check::<A>("threeBigGreaterOrEqualNegativeFiveBig", Any::ge(bigint_any(3), bigint_any(-5)), true.to_any());
+    check::<A>("fiveBigGreaterOrEqualFiveHalf", Any::ge(bigint_any(5), (5.5f64).to_any()), false.to_any());
+    check::<A>("fiveBigGreaterOrEqualFive", Any::ge(bigint_any(5), (5f64).to_any()), true.to_any());
+    check::<A>("fiveGreaterOrEqualFiveBig", Any::ge((5f64).to_any(), bigint_any(5)), true.to_any());
+    check::<A>("fiveBigGreaterOrEqualNan", Any::ge(bigint_any(5), (f64::NAN).to_any()), false.to_any());
+    check::<A>("nanGreaterOrEqualFiveBig", Any::ge((f64::NAN).to_any(), bigint_any(5)), false.to_any());
+    check::<A>("fiveBigGreaterOrEqualInfinity", Any::ge(bigint_any(5), (f64::INFINITY).to_any()), false.to_any());
+    check::<A>("negativeInfinityGreaterOrEqualFiveBig", Any::ge((f64::NEG_INFINITY).to_any(), bigint_any(5)), false.to_any());
+    check::<A>("infinityGreaterOrEqualFiveBig", Any::ge((f64::INFINITY).to_any(), bigint_any(5)), true.to_any());
+    check::<A>("stringTenGreaterOrEqualTwentyBig", Any::ge(string_any("10"), bigint_any(20)), false.to_any());
+    check::<A>("twentyBigGreaterOrEqualStringThirty", Any::ge(bigint_any(20), string_any("30")), false.to_any());
+    check::<A>("stringAbcGreaterOrEqualTwentyBig", Any::ge(string_any("abc"), bigint_any(20)), false.to_any());
+    check::<A>("twentyBigGreaterOrEqualStringAbc", Any::ge(bigint_any(20), string_any("abc")), false.to_any());
+}
+
+#[rustfmt::skip]
 fn string_coercion<A: IVm>() {
     check::<A>("number", (123f64).to_any().to_string().map(|v| v.to_any()), string_any("123"));
     check::<A>("negativeNumber", (-456f64).to_any().to_string().map(|v| v.to_any()), string_any("-456"));
@@ -409,5 +625,9 @@ pub fn all<A: IVm>() {
     sub::<A>();
     add::<A>();
     rem::<A>();
+    lt::<A>();
+    le::<A>();
+    gt::<A>();
+    ge::<A>();
     string_coercion::<A>();
 }
