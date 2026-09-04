@@ -1,18 +1,20 @@
 /**
  * @import { Assert } from '../asserts/types.ts'
  * @import { Equal } from '../types/ts/types.ts'
- * @import { SetInfo } from './types.ts'
+ * @import { RepeatFrom, Set } from './types.ts'
  */
 
 import { assertStructurallySame } from '../asserts/module.f.mjs'
 import { difference, union } from '../types/range_set/module.f.mjs'
 import {
     oneOf,
+    join,
     option,
     range,
     rangeEncode,
     repeat,
-    repeat0Plus,
+    repeatFrom,
+    repeatFrom0,
     set,
     times,
     unicodeMax,
@@ -25,7 +27,7 @@ const c = a => a.codePointAt(0) ?? 0
  * The boundaries a rule carries. Every rule constructor returns a thunk, so
  * reading one is what proves the thunk itself runs.
  *
- * @type {(a: SetInfo) => readonly number[]}
+ * @type {(a: Set) => readonly number[]}
  */
 const boundaries = a => {
     const [, ...r] = a()
@@ -150,10 +152,17 @@ export const proof = {
         // The three derived constructors are the same shape with fixed bounds.
         // `Infinity` is `number` at the type level, which is why the bound
         // asserted here is `number` and not a literal.
-        zeroPlus: () => {
-            const r = repeat0Plus({ b: 'c' })
+        from0: () => {
+            const r = repeatFrom0({ b: 'c' })
             /** @typedef {Assert<Equal<ReturnType<typeof r>, readonly['repeat', 0, number, { readonly b: 'c' }]>>} _Const */
             assertStructurallySame(r(), ['repeat', 0, Infinity, { b: 'c' }])
+        },
+        // `repeatFrom0` is the nullary case of a bound below with none above,
+        // which is what makes "one or more" a partial application too.
+        from: () => {
+            const r = repeatFrom(1)({ b: 'c' })
+            /** @typedef {Assert<Equal<ReturnType<typeof r>, readonly['repeat', 1, number, { readonly b: 'c' }]>>} _Const */
+            assertStructurallySame(r(), ['repeat', 1, Infinity, { b: 'c' }])
         },
         times: () => {
             const r = times(4)({ b: 'c' })
@@ -170,6 +179,19 @@ export const proof = {
             const inner = oneOf(range('09'))
             assertStructurallySame(times(2)(inner)(), ['repeat', 2, 2, inner])
         },
+    },
+    // A separated list, written out of the constructors above rather than as a
+    // rule form of its own: an optional head followed by any number of
+    // separator-and-item pairs. Empty is a list, which is why the whole thing
+    // is an option and the tail starts at zero.
+    join: () => {
+        const r = join(',')({ b: 'c' })
+        /** @typedef {Assert<Equal<ReturnType<typeof r>, readonly['repeat', 0, 1, readonly[{ readonly b: 'c' }, RepeatFrom<0, readonly[',', { readonly b: 'c' }]>]]>>} _Const */
+        const [tag, min, max, body] = r()
+        assertStructurallySame([tag, min, max], ['repeat', 0, 1])
+        const [head, tail] = body
+        assertStructurallySame(head, { b: 'c' })
+        assertStructurallySame(tail(), ['repeat', 0, Infinity, [',', { b: 'c' }]])
     },
     throw: {
         // `range` takes exactly two symbols: one is not a range, and three is

@@ -16,7 +16,7 @@
  */
 
 import { difference } from "../../../types/range_set/module.f.mjs";
-import { oneOf, range, repeat0Plus, unicodeMax, set, times, option } from "../../module.f.mjs";
+import { oneOf, range, repeatFrom0, unicodeMax, set, times, option } from "../../module.f.mjs";
 
 const onenine = oneOf(range('19'))
 
@@ -31,7 +31,7 @@ const hex = /**@type {const}*/({
 /** @type {Rule} */
 export const string = [
     '"',
-    repeat0Plus({
+    repeatFrom0({
         c: oneOf(difference(range(` ${unicodeMax}`))(set('"\\'))),
         escape: [
             '\\',
@@ -44,7 +44,7 @@ export const string = [
     '"'
 ]
 
-const digits0 = repeat0Plus(digit)
+const digits0 = repeatFrom0(digit)
 
 const digits = /**@type{const}*/([digit, digits0])
 
@@ -69,7 +69,7 @@ export const number = /**@type {const}*/([
 /** The set of symbols JSON allows between tokens — a value, which `ws` injects. */
 export const wsSymbol = set(' \n\r\t')
 
-export const ws = repeat0Plus(oneOf(wsSymbol))
+export const ws = repeatFrom0(oneOf(wsSymbol))
 
 // export const cj = commaJoin0Plus(ws)
 

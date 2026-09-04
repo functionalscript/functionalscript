@@ -6,8 +6,11 @@
  * and `complement`, not a second set of combinators here. `oneOf` is the one
  * door a value comes through to become a rule, so a grammar writes
  * `oneOf(range('09'))` and composes with the value operations before that
- * point. A raw set is never a rule: as an element of a sequence it would read
- * as its boundaries, two symbols in a row, and `oneOf` is what says otherwise.
+ * point. A raw set is never a rule: `RangeSet` is `readonly number[]`, which is
+ * a `Tuple` of bare-number rules, so `[48, 58]` would read as the two symbols
+ * `0` and `:` in a row. `oneOf` is what says otherwise. Mind the two names: the
+ * `Set` type is the terminal *rule*, and what `range`, `set` and the algebra
+ * hand back is a `RangeSet` *value*.
  *
  * The helpers that build a set from symbols are the ones that know a symbol is
  * an integer, which is what the `+ 1` in a half-open boundary pair is: the
@@ -23,7 +26,7 @@
  * @module
  *
  * @import { RangeSet } from '../types/range_set/types.ts'
- * @import { SetInfo, Rule, Infinity, RepeatInfo } from './types.ts'
+ * @import { Set, Rule, Infinity, Repeat, Option, RepeatFrom, Times } from './types.ts'
  */
 
 import { assert } from "../asserts/module.f.mjs"
@@ -116,7 +119,7 @@ const isTerminalSet = s => isRangeSet(s) && s.length !== 0 && s.every(isSymbol)
  *
  * @throws If `s` is not a set of ordinary symbols, or is empty.
  *
- * @type {(s: RangeSet) => SetInfo}
+ * @type {(s: RangeSet) => Set}
  */
 export const oneOf = s => {
     assert(isTerminalSet(s), s)
@@ -152,7 +155,7 @@ const isMax = v => v === Infinity || isCount(v)
  *
  * @type {<const A extends number, const B extends number>(a: A, b: B) =>
  *  <const R extends Rule>(rule: R) =>
- *  RepeatInfo<A, B, R>}
+ *  Repeat<A, B, R>}
  */
 export const repeat = (a, b) => {
     assert(isCount(a) && isMax(b) && a <= b, [a, b])
@@ -160,20 +163,40 @@ export const repeat = (a, b) => {
 }
 
 /**
- * @type {<const R extends Rule>(rule: R) =>
- *  RepeatInfo<0, Infinity, R>}
+ * `n` matches of a rule or more, with no bound above.
+ *
+ * @type {<const N extends number>(n: N) =>
+ *  <const R extends Rule>(rule: R) =>
+ *  RepeatFrom<N, R>}
  */
-export const repeat0Plus =
-    repeat(0, Infinity)
+export const repeatFrom = n =>
+    repeat(n, Infinity)
+
+/**
+ * Any number of matches, including none.
+ *
+ * @type {<const R extends Rule>(rule: R) => RepeatFrom<0, R>}
+ */
+export const repeatFrom0 = repeatFrom(0)
 
 /**
  * @type {<const N extends number>(n: N) =>
- *  <const R extends Rule>(rule: R) => RepeatInfo<N, N, R>}
+ *  <const R extends Rule>(rule: R) => Times<N, R>}
  */
 export const times = n => repeat(n, n)
 
-/** @type {<const R extends Rule>(rule: R) => RepeatInfo<0, 1, R>} */
+/** @type {<const R extends Rule>(rule: R) => Option<R>} */
 export const option = repeat(0, 1)
+
+/**
+ * A list of `r` separated by `s`, possibly empty — the shape a comma list is,
+ * written out of the constructors above rather than as a rule form of its own.
+ *
+ * @type {<const S extends Rule>(s: S) =>
+ *  <const R extends Rule>(r: R) =>
+ *  Option<readonly[R, RepeatFrom<0, readonly[S, R]>]>}
+ */
+export const join = s => r => option([r, repeatFrom0([s, r])])
 
 /**
  * The top Unicode code point, as the character it is rather than as its number,
