@@ -84,6 +84,12 @@ const typo = () => ['typo']
 const unsorted = () => ['set', 0, 10, 5]
 
 /** @type {unknown} */
+const fractionalBoundary = () => ['set', 0, 0.5]
+
+/** @type {unknown} */
+const negativeBoundary = () => ['set', -5, 3]
+
+/** @type {unknown} */
 const holeThenB = [, c('b')]
 
 const withEnd = /**@type {const}*/({ end: null, x: 'x' })
@@ -310,5 +316,9 @@ export const proof = {
         // A set whose boundaries are no range set would answer membership
         // wrong, so it is refused before any symbol is read.
         unsortedSet: () => none(/** @type {Rule} */ (unsorted))(/** @type {any} */ (20)),
+        // A boundary is a symbol too: a fractional or negative one would
+        // hold the symbols between it and the next.
+        fractionalBoundarySet: () => none(/** @type {Rule} */ (fractionalBoundary))(/** @type {any} */ (0)),
+        negativeBoundarySet: () => none(/** @type {Rule} */ (negativeBoundary))(/** @type {any} */ (0)),
     },
 }
