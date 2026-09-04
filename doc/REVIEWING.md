@@ -89,10 +89,12 @@ TypeScript evaluates conditional and recursive types against a hard depth, and a
 type that walks a value's shape reaches it: `Ts<T>`, `parse` and `validate` in
 `fjs/rtti` all hit TS2589 and pay for it with fast paths, phantom annotations and
 boundary casts ([`fjs/rtti/ts/README.md`](../fjs/rtti/ts/README.md#the-problem-ts2589)).
-That depth is a budget the whole module shares. An additional type-level check
-on an input the code already accepts spends it and changes nothing observable —
-the runtime already refuses the invalid value, and the valid one was valid
-before — so do not ask for one. Ask for the simplest type that states the
+Every check added to a type that walks a value is one more step toward that
+depth, and a step spent on an input the code already accepts changes nothing
+observable — the runtime already refuses the invalid value, and the valid one
+was valid before — so do not ask for one; the simplest type that holds is the
+right one whether or not a walk is near the limit
+([DESIGN.md §1](./DESIGN.md#1-simplicity-first)). Ask for the simplest type that states the
 contract, an `Assert<Equal<…>>` in the proof where the inference matters
 ([fjs/AGENTS.md §1.4](../fjs/AGENTS.md#14-assert-type-level-facts-with-assertequal)),
 and a `todo/` for anything tighter.
@@ -100,9 +102,10 @@ and a `todo/` for anything tighter.
 ## Bots
 
 Bot reviews re-run on every push, and each round finds "fresh evidence" in the
-previous round's fix. A bot finding is a bug report: verify it, fix it when it
-names a real input, answer it once when it does not — and leave it when the
-answer is already in a document or a `todo/`. A human reviewer forwards a bot
+previous round's fix. A bot finding is a bug report: verify it, then treat it
+like any other — a regression or silence is fixed, the rest is a `todo/` —
+answer it once when it names no real input, and leave it when the answer is
+already in a document or a `todo/`. A human reviewer forwards a bot
 finding only when they would have raised it themselves, and does not hold
 approval on an open bot thread.
 
@@ -125,5 +128,6 @@ that says less than you would have written: the next person adds what is
 missing, in a pull request that need not implement anything
 ([REVIEW.md](./REVIEW.md#designs)).
 
-Two rounds is normal. A third round on the same file means the review has
-become design work, and that belongs in a pull request of its own.
+Two rounds is normal. A third round of design feedback on the same file means
+the review has become design work, and that belongs in a pull request of its
+own. A regression or silence blocks in any round.
