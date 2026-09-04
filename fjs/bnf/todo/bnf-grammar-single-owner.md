@@ -15,20 +15,21 @@ one-line delegation to it rather than a second copy.
 
 Two things are still owed, and they belong to different changes.
 
-The module was written against the current API — `range`, `set`, `unicodeMax`
-imported from generic `fjs/bnf/module.f.mjs`, and raw JavaScript strings
-(`'"'`, `'\\'`, `'true'`) used directly as `Rule` values. The blocking split
-removes both: text interpretation moves to `fjs/grammar/unicode`, and `string`
-leaves the functional `DataRule`. That **port is the split's own**, not this
-issue's — it breaks these grammars, so it fixes them in the same change. This
-issue records what the port has to preserve.
+The module was written against the classical API — `range`, `set`,
+`unicodeMax` imported from `fjs/bnf/module.f.mjs`, and raw JavaScript strings
+(`'"'`, `'\\'`, `'true'`) used directly as `Rule` values — and it keeps
+working against it until `bnf/` is deleted: nothing removes those helpers or
+the `string` case from classical BNF. The grammar adopts `fjs/ebnf/unicode`
+when it is ported to `fjs/ebnf/lib`, which is
+[ebnf-migration](../../todo/ebnf-migration.md)'s consumer port and **not this
+issue's**. This issue records what that port has to preserve.
 
 What is left for this issue is the shared lexical API itself, which #1817 shipped
 only partly: `string` is not parameterized over its simple escapes, so a second
 caller cannot keep its own branch tags; `onenine`, `digits0` and `digits` are
 private, so "reuse the digit rules" has nothing to import; and the `fsc`
 tokenizer is not pointed at any of it. None of that is alphabet work, but all of
-it is easier to land once the split has settled the names.
+it is easier to land once the EBNF adapter has settled the names.
 
 **Do not create `fjs/media/json/grammar/module.f.mjs`.** That was this issue's
 original proposal and it is withdrawn.
@@ -39,8 +40,8 @@ example, not a runtime module under `fjs/media/json`. A module there would
 recreate exactly the duplication this issue existed to remove.
 
 That is also why this file moved here from `fjs/media/json/todo/`. Everything it
-still describes — the two `fjs/bnf/lib` grammars and the `fjs/grammar/unicode` API they
-must move onto — lives under `fjs/bnf`, and it now rules out adding any code at
+still describes — the two `fjs/bnf/lib` grammars and the `fjs/ebnf/unicode` API
+their port moves them onto — lives under `fjs/bnf`, and it now rules out adding any code at
 all under `fjs/media/json`, so a reader of the media codec's `todo/` would find
 nothing here to act on.
 
@@ -60,63 +61,50 @@ path changes, from `fjs/djs/tokenizer` to the `fsc` tokenizer.
 
 ### Proposal
 
-When the split rebases [`fjs/bnf/lib/json`](../lib/json/module.f.mjs) and
-[`fjs/bnf/lib/datajs`](../lib/datajs/module.f.mjs) onto the API it produces, the
-boundary it must leave visible is:
+When the port moves [`fjs/bnf/lib/json`](../lib/json/module.f.mjs) and
+[`fjs/bnf/lib/datajs`](../lib/datajs/module.f.mjs) onto the EBNF front end and
+its adapter, the boundary it must leave visible is:
 
 - generic grammar structure and combinators come from the front end —
-  `fjs/bnf/module.f.mjs` while it lives there, `fjs/grammar/bnf/module.f.mjs`
-  after [grammar-bucket](../../todo/grammar-bucket.md) stage 5 moves it;
+  `fjs/bnf/module.f.mjs` for the classical grammars, `fjs/ebnf/module.f.mjs`
+  once [ebnf-migration](../../todo/ebnf-migration.md) ports them;
 - all JavaScript-string / Unicode-code-point interpretation comes from
-  `fjs/grammar/unicode/module.f.mjs`, which that plan's stage 2 creates at
-  that path directly;
+  `fjs/ebnf/unicode/module.f.mjs`, which that plan creates at that path
+  directly;
 - raw strings are not generic BNF rules. Text literals such as `"`, `\`, `/`,
   punctuation, keywords, and character sets are lowered through Unicode helpers
   before they enter the generic grammar.
 
-Conceptually the imports should follow this boundary. The relative paths
-differ by stage, so both are spelled out — a single block mixing them resolves
-to nothing at either point.
+Conceptually the imports should follow this boundary.
 
-**At stage 2**, from `fjs/bnf/lib/json/`, while the front end is still
-`fjs/bnf` and `unicode/` already exists at its final path:
+**Before the port** nothing changes: the classical grammar keeps taking
+`range`, `set`, `unicodeMax` and its combinators from `fjs/bnf/module.f.mjs`,
+as it does today. The EBNF adapter returns EBNF forms, which the classical
+front end does not read, so it is not an option for a grammar that is still
+classical — and the classical helpers stay until `bnf/` is deleted, so it
+does not need one. The classical library never moves: under
+[ebnf-migration](../../todo/ebnf-migration.md) it is ported to
+`fjs/ebnf/lib/json/` when its consumers move, and deleted with `bnf/`.
 
-```ts
-import {
-    commaJoin0Plus, option, remove, repeat0Plus,
-} from '../../module.f.mjs'                        // fjs/bnf
-import {
-    range, set, str, unicodeMax,
-} from '../../../grammar/unicode/module.f.mjs'     // fjs/grammar/unicode
-import { repeat } from '../../../types/array/module.f.mjs'
-```
-
-**Between stage 5 and stage 7** the front end has moved and the library has
-not, so from `fjs/bnf/lib/json/` the front end is
-`../../../grammar/bnf/module.f.mjs`. The rule, rather than a third block: the
-Unicode path is fixed from stage 2, and the front-end path tracks wherever the
-front end currently lives.
-
-**After the library moves** to `fjs/grammar/lib/json/` and the front end to
-`fjs/grammar/bnf/`:
+**After the port** to `fjs/ebnf/lib/json/`, against the EBNF front end:
 
 ```ts
 import {
     commaJoin0Plus, option, remove, repeat0Plus,
-} from '../../bnf/module.f.mjs'                    // fjs/grammar/bnf
+} from '../../module.f.mjs'                        // fjs/ebnf
 import {
     range, set, str, unicodeMax,
-} from '../../unicode/module.f.mjs'                // fjs/grammar/unicode
+} from '../../unicode/module.f.mjs'                // fjs/ebnf/unicode
 import { repeat } from '../../../types/array/module.f.mjs'
 ```
 
-`repeat` is in that third line rather than the first because the split does not
+`repeat` is in that third line rather than the first because the port does not
 touch it: [#1817](https://github.com/functionalscript/functionalscript/pull/1817)
 already moved it out of `fjs/bnf` to `types/array` as a breaking change, so it
-is an array helper today and stays one afterwards. Only `str` is a name this
-split introduces.
+is an array helper today and stays one afterwards. Only `str` is a name the
+adapter introduces.
 
-The other helper names should follow the API the Unicode split produces. The
+The other helper names should follow the API the EBNF adapter produces. The
 important constraint is the boundary: generic BNF does not regain string
 semantics merely to make this grammar convenient.
 
@@ -193,18 +181,17 @@ implements the pass with it; shipping one that skips it would be
 
 ### Unicode migration requirements
 
-These constrain the **split's own port**, not work that follows it. Removing
-`range`, `set` and `unicodeMax` from core BNF and dropping `string` from the
-functional `DataRule` breaks both grammars the moment it lands, so
-[`unicode-rules`](./unicode-rules.md) ports them in the same change —
-[AGENTS.md §5](../../../AGENTS.md) requires every importer updated in the PR
-that breaks them, and `tsc` will not let it land otherwise. They are recorded
+These constrain the **port** to `fjs/ebnf/lib`, not work that follows it.
+Nothing is removed from classical BNF before `bnf/` is deleted, so nothing
+breaks these grammars in place; the port rewrites them against the EBNF front
+end and the [`unicode-rules`](./unicode-rules.md) adapter in one change, and
+these are the properties that change must keep. They are recorded
 here because this issue owns these grammars, and whoever does that port should
 read them first:
 
 - [ ] Replace every core import of `range`, `set`, `unicodeMax`, `str`, or
       equivalent Unicode/text helpers in `fjs/bnf/lib/json` and
-      `fjs/bnf/lib/datajs` with imports from `fjs/grammar/unicode/module.f.mjs`.
+      `fjs/bnf/lib/datajs` with imports from `fjs/ebnf/unicode/module.f.mjs`.
 - [ ] Replace every raw string used as a generic BNF `Rule` with the appropriate
       Unicode helper construction. For `fjs/bnf/lib/datajs`'s `'["__proto__"]'`
       that means exactly the contiguous sequence `str` lowers it to: `str`
@@ -224,7 +211,7 @@ read them first:
 ### Tasks
 
 - [ ] Wait for [Separate alphabet-specific BNF helpers](./unicode-rules.md),
-      which ports both `fjs/bnf/lib` grammars onto `fjs/grammar/unicode` as part of its
+      which ports both `fjs/bnf/lib` grammars onto `fjs/ebnf/unicode` as part of its
       own change, and check the result against the requirements above. What
       follows below is the design work that port does not settle.
 - [ ] Keep JSON-specific Unicode construction in `fjs/bnf/lib/json`; do not move
