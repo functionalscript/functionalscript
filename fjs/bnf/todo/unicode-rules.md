@@ -74,18 +74,20 @@ text as Unicode code points, it belongs in `fjs/ebnf/unicode`. Likewise,
 helpers that interpret binary data as byte symbols belong in
 `fjs/ebnf/byte` rather than core BNF.
 
-Remove `string` from the *functional* `DataRule` / `Rule` representation in
-`fjs/bnf/types.ts`. Unicode helpers should translate strings into ordinary
-generic rules before the grammar reaches `fjs/bnf/data`, so
-`fjs/bnf/data/module.f.mjs` no longer imports `stringToCodePointList` or performs
-a string-specific conversion. This does not touch the *data* `Rule` in
-`fjs/bnf/data/types.ts`, where a string is a `Repeat` and means the name of a
-rule to repeat.
+In the EBNF `Rule` union a `string` means one terminal per code point — that
+is settled in [ebnf-front-end](./ebnf-front-end.md) — and applying that
+meaning in the lowering is the one piece of text interpretation
+`fjs/ebnf/module.f.mjs` and `fjs/ebnf/data/` carry. Everything else that
+reads text lives in the adapter. Nothing here changes `fjs/bnf/types.ts` or
+`fjs/bnf/data/`: the classical `string` case and its conversion stay exactly
+as they are until `bnf/` is deleted.
 
-Keep generic combinators generic. If an existing combinator currently embeds
-Unicode syntax in its API (for example `commaJoin0Plus` accepting `'[]'` and
-constructing `','` as a string rule), change its core form to accept rules or
-symbols. A Unicode convenience wrapper may live in `fjs/ebnf/unicode` if useful.
+Generic combinators are best kept generic. Where a combinator embeds Unicode
+syntax in its API today (`commaJoin0Plus` takes `'[]'` and builds `','` as a
+string rule), the EBNF front end may give its core form rules or symbols and
+leave a Unicode convenience wrapper to `fjs/ebnf/unicode` — or keep the
+string spelling, since a string is a legal EBNF rule. That is the front
+end's call, not this issue's.
 
 EOF is a generic symbol convention rather than an alphabet-specific helper, so
 `fjs/ebnf/terminal/` owns it — `EOF = -1`, outside the non-negative
