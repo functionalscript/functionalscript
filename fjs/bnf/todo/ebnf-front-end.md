@@ -129,14 +129,19 @@ row that is a function of the form alone.
 **This type is not ebnf's to write.** It is `BoundedArray<Min, Max, T>` in
 [`fjs/types/array/types.ts`](../../types/array/types.ts), shipped by
 [#1865](https://github.com/functionalscript/functionalscript/pull/1865):
-`FixedArray<Min, T>` followed by an optional-element tail up to `Max`, with
-`number extends Max ? readonly T[]` as the tail. A required prefix and an
-optional remainder — one tuple, not a union of them:
+every length from `Min` to `Max` as the union of those fixed-length tuples,
+and `number extends Max ? readonly [...FixedArray<Min, T>, ...T[]]` for an
+open tail. **Amended:** this paragraph used to describe one tuple with an
+optional-element tail, `readonly [T?]`; that is not what shipped, and
+`fjs/types/array` pins the union in its own assertions —
+`BoundedArray<0, 1, T>` is `readonly [] | readonly [T]`, and
+`fjs/ebnf/ast/types.ts` asserts the same for `Ast<Repeat<0, 1, 43>>`. The
+union is the more precise type, since `.length` narrows it:
 
 | bounds | AST |
 |---|---|
-| `0, 1` | `readonly [T?]` |
-| `1, 3` | `readonly [T, T?, T?]` |
+| `0, 1` | `readonly [] \| readonly [T]` |
+| `1, 3` | `readonly [T] \| readonly [T, T] \| readonly [T, T, T]` |
 | `4, 4` | `readonly [T, T, T, T]` |
 | `1, Infinity` | `readonly [T, ...readonly T[]]` |
 | `0, Infinity` | `readonly T[]` |
@@ -149,10 +154,10 @@ detect, so nothing to spell.
 
 Every repetition is a flat array whatever its bounds, `.length` discriminates,
 and a consumer that folds one folds all. That is the substance of one form
-rather than four. An optional is `readonly [T?]` rather than a tagged
-`some`/`none` because the tagged form made it a *choice*, in a different
-family from the rest; an author wanting named branches writes the plain
-`Variant`.
+rather than four. An optional is `readonly [] | readonly [T]` rather than a
+tagged `some`/`none` because the tagged form made it a *choice*, in a
+different family from the rest; an author wanting named branches writes the
+plain `Variant`.
 
 The tail recurses linearly in `Max`, so a large finite `Max` is TS2589 —
 measured at `1000`, clean at `900`. `BoundedArray` sets no cap, and ebnf does
