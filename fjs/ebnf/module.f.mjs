@@ -83,11 +83,14 @@ export const repeat =
     (a, b) => rule => () => ['repeat', a, b, rule]
 
 /**
- * @type {<const R extends Rule>(rule: R) =>
- *  RepeatInfo<0, Infinity, R>}
+ * @type {<N extends number>(n: N) =>
+ *  <const R extends Rule>(rule: R) =>
+ *  RepeatInfo<N, Infinity, R>}
  */
-export const repeat0Plus =
-    repeat(0, Infinity)
+export const repeatFrom = n =>
+    repeat(n, Infinity)
+
+export const repeatFrom0 = repeatFrom(0)
 
 /**
  * @type {<const N extends number>(n: N) =>
