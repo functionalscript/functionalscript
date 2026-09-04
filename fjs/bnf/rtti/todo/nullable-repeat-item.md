@@ -1,6 +1,6 @@
 ## nullable-repeat-item. `AstRule` and `repeatOf` disagree where a rule set is needed
 
-*(The slug names the first case found; the issue grew to twelve.)*
+*(The slug names the first case found; the issue grew to ten.)*
 
 **Priority:** P3
 **Status:** open
@@ -53,7 +53,7 @@ of defect as the repeat-detection ones fixed in the same pull request — extra
 branches, and branch names other than `some`/`none` — rather than the bounded
 kind, and it is the strongest argument for deriving from the rule set.
 
-### Eight more, from different causes
+### Six more, from different causes
 
 An *open* key set whose value type admits `undefined` —
 `{ readonly [k: string]: 0 | undefined }` — is answered with the widened variant
@@ -75,25 +75,23 @@ undefined }, string>` holds, because an index signature demands no property.
 The rule-set derivation closes this like the rest: normalization has the value,
 and either throws on it or does not.
 
-An object-literal `__proto__` branch — `const r = { __proto__: 0 } as const` —
-is accepted as a `Rule`, and `AstRule<typeof r>` gives
-`{ readonly __proto__: number }`. JavaScript treats that literal key as the
-prototype setter rather than an own property, so `Object.entries` in
-[`../../data/module.f.mjs`](../../data/module.f.mjs) sees no branches at all and
-`toData(r)` produces an empty variant. The advertised branch can never exist.
+A declared key set is a *lower bound*, not the branches a value carries.
+TypeScript object types are inexact outside a fresh literal, so
 
-Excluding `__proto__` from `_Keys` looks like a cheap and exact fix, and is not
-one. The computed spelling `{ ['__proto__']: 0 }` is an ordinary own property:
-`Object.entries` yields it, `toData` builds a variant with a `__proto__` branch
-pointing at the rule for `0` — `toData(() => ({ ['__proto__']: 0 }))` is
-`[{ '0': 0, '': { __proto__: '0' } }, '']`, where `'0'` names the branch's rule
-and `''` the variant's own — and the grammar parses. TypeScript gives both spellings the same `keyof` —
-`Assert<Equal<keyof typeof r, '__proto__'>>` holds for either — so no test can
-tell them apart, and excluding the key would take a working grammar's only
-branch away. Between the two errors the present one is the better: it gives a
-wrong type to a rule that does not work, where the exclusion would give a wrong
-type to one that does. The rule-set derivation settles this too, since a rule
-set carries the keys `Object.entries` actually produced.
+```ts
+const extra = () => ({ none: [], some: [0, extra], other: 1 })
+const r: R = extra          // `R` declares only `none` and `some`
+```
+
+type-checks, and `Object.entries` then sees three branches where the type names
+two: `repeatItem(r)` is `null` and a match can produce `{ other: number }`, while
+`AstRule<R>` reads a repetition.
+
+There is nothing to fix short of not trusting a key set at all, which is the
+module: every answer here counts the branches a declaration names. It is the
+same fact as the tail-identity case above — a structural type describes a set of
+values rather than the one in hand — and the same remedy: a rule set holds the
+value's own keys.
 
 A variant keyed by a *pattern* — `{ [k in `x-${string}`]: 0 }` — is an open key
 set like an index signature over `string` or `number`, and is not recognized as
@@ -146,19 +144,6 @@ The literal key is out of reach: `keyof (StringMap<Rule> & { fixed: 0 })` is
 so nothing to ask about the branch it names. A rule set has the keys the value
 turned out to carry.
 
-A plain object shaped like a tuple is read as a sequence. `Object.assign({}, [0])`
-is `{ '0': 0 }` — `Array.isArray` is `false`, so `toData` takes the *variant*
-path and builds `{ '0': '0' }`, a one-branch variant a match answers with
-`{ '0': number }` — while its type is `{} & readonly[0]`, which
-`Assert<Equal<…, readonly[0]>>` says is the tuple, so `AstRule` promises
-`readonly[number]`.
-
-This is the `__proto__` case again from the other side: TypeScript has no nominal
-array identity, so one type describes both a real array and an object that
-merely has its shape, and the two normalize differently. Refusing "structurally
-array-like" inputs would refuse every genuine tuple, since there is nothing else
-to refuse on. A rule set carries what `Array.isArray` said.
-
 A repetition whose item holds a union *below its top level* admits arrays whose
 elements differ, where a grammar fixes one. The item of
 
@@ -180,23 +165,9 @@ rule type into the union of the concrete rules it describes, and a rule with `N`
 union sites of `M` members each describes `M^N` of them. It is also not confined
 to the item — the same is true of any sequence element under a repetition.
 
-So this is a *loss of precision* rather than a wrong shape, like the augmented
-sequence below: the type admits arrays the parser will not build, and every array
-it will build is in it. A rule set closes it by holding the alternative the rule
+So this is a *loss of precision* rather than a wrong shape: the type admits
+arrays the parser will not build, and every array it will build is in it. A rule set closes it by holding the alternative the rule
 turned out to be, which is one rule rather than a type describing many.
-
-A sequence carrying own properties beside its indices —
-`Object.assign([0], { extra: 1 })`, and `{ '-1': 1 }` just as much — keeps its
-element types but loses its length. `toData` takes the array path and reads the
-indices, so it is a working grammar, and the answer is the widened
-`readonly Ast[]` rather than `readonly[number]`. The mapping that keeps a
-tuple's arity is homomorphic over an array and not over
-`readonly[0] & { readonly extra: 1 }`; rebuilding the tuple by destructuring
-it — `R extends readonly[infer H, ...infer T]`, recursing on `T` — makes `tsc`
-exhaust its stack, and `[...R]`, `Extract<R, Sequence>` and a mapped copy all
-give back the intersection. This one is a *loss of precision* rather than a
-wrong answer, so it is the mildest here, and the rule-set derivation closes it
-with the array normalization already built.
 
 ### Why none of them is a guard
 

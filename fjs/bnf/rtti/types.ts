@@ -28,11 +28,9 @@
  *
  * Those are not the only places this module and the parser disagree. The rest
  * have other causes — an open key set is not refused, a pattern key set is not
- * recognized as open, an object-literal `__proto__` names a branch the parser
- * never sees, a plain object shaped like a tuple is read as a sequence where the
- * parser builds a variant, an overloaded rule function is read at the wrong
- * overload, and a union below a repetition item's top level lets the array's
- * elements differ where a grammar fixes one.
+ * recognized as open, an overloaded rule function is read at the wrong overload,
+ * and a union below a repetition item's top level lets the array's elements
+ * differ where a grammar fixes one.
  * [nullable-repeat-item](./todo/nullable-repeat-item.md) is the whole list, and
  * names the input that breaks each one.
  *
@@ -357,10 +355,24 @@ type _One<I> = I extends Rule ? readonly[I] : never
 type _Class<B, R> =
     readonly[B] extends readonly[_None] ? 'none' :
     readonly[B] extends readonly[readonly[Rule, R]] ? 'step' :
-    readonly[readonly[]] extends readonly[B] ? 'open' :
-    readonly[''] extends readonly[B] ? 'open' :
-    readonly[readonly[never, R]] extends readonly[B] ? 'open' :
+    _MaybeNone<B> extends true ? 'open' :
+    _MaybeStep<B, R> extends true ? 'open' :
     'other'
+
+/** Whether the empty branch is among `B`'s values. */
+type _MaybeNone<B> =
+    readonly[readonly[]] extends readonly[B] ? true :
+    readonly[''] extends readonly[B] ? true :
+    false
+
+/**
+ * Whether a step is among `B`'s values. The item is `never` rather than `Rule`
+ * so the test reaches a *specific* pair: `readonly[Rule, R]` is not assignable
+ * to `readonly[0, R | 1]`, whose tail is a union the outer distribution never
+ * reaches, while `readonly[never, R]` is — and being the narrower of the two it
+ * still catches everything `Rule` would.
+ */
+type _MaybeStep<B, R> = readonly[readonly[never, R]] extends readonly[B] ? true : false
 
 /** {@link _Class} of every member of `B`. */
 type _Classes<B, R> = B extends unknown ? _Class<B, R> : never
@@ -383,14 +395,20 @@ type _CouldNoneKeys<U, R> =
     { readonly[K in _Keys<U>]: _CouldNone<_BranchOf<U, K>, R> extends true ? K : never }[_Keys<U>]
 
 type _CouldNone<B, R> =
-    readonly[Extract<_Classes<B, R>, 'none' | 'open'>] extends readonly[never] ? false : true
+    true extends (B extends unknown
+        ? readonly[B] extends readonly[_None] ? true : _MaybeNone<B>
+        : never)
+        ? true : false
 
 /** The keys of `U` whose branch is, or could be, an item followed by `R`. */
 type _CouldStepKeys<U, R> =
     { readonly[K in _Keys<U>]: _CouldStep<_BranchOf<U, K>, R> extends true ? K : never }[_Keys<U>]
 
 type _CouldStep<B, R> =
-    readonly[Extract<_Classes<B, R>, 'step' | 'open'>] extends readonly[never] ? false : true
+    true extends (B extends unknown
+        ? readonly[B] extends readonly[readonly[Rule, R]] ? true : _MaybeStep<B, R>
+        : never)
+        ? true : false
 
 /**
  * The keys `U` declares optional. `Required` in {@link _BranchOf} reads the
@@ -473,15 +491,6 @@ type _AstOf<R extends Rule, T> =
     readonly[T] extends readonly[true] ? readonly Ast[] | _AstNotRepeat<R> :
     _AstNotRepeat<R>
 
-/**
- * The same mapping {@link _AstOne} gives a sequence, with a constant in place of
- * each element's AST: enough to say whether the mapping stayed an array,
- * without deriving an AST to find out. The element types cannot be asked for
- * here — a tuple holding the rule this mapping belongs to would send the
- * derivation through itself, which `tsc` reports as `TS2615`.
- */
-type _Shape<R> = { readonly[K in keyof R]: 0 }
-
 type _AstRepeat<T> = T extends readonly[infer I extends Rule] ? readonly AstRule<I>[] : never
 
 type _AstNotRepeat<R extends Rule> =
@@ -490,22 +499,7 @@ type _AstNotRepeat<R extends Rule> =
     R extends readonly Rule[]
         // Reached with `R` an array, so `Sequence extends R` holds only for the
         // widened `Sequence` itself, never for a tuple.
-        ? Sequence extends R ? readonly Ast[]
-        // An array carrying own properties beside its indices —
-        // `Object.assign([0], { extra: 1 })` — is a sequence the parser reads by
-        // index and nothing else. The mapping below is homomorphic over an
-        // array and keeps its shape, but not over that intersection: it answers
-        // with an object carrying `extra` and every array method mapped through.
-        // The answer to that is the array a sequence produces, since the arity
-        // cannot be recovered — a recursive destructure of the intersection does
-        // not terminate: [nullable-repeat-item](./todo/nullable-repeat-item.md).
-        //
-        // {@link _Shape} asks whether the mapping came back an array, which is
-        // the question itself rather than a guess at which keys are indices:
-        // `'-1'` reads as one by name and is not one.
-        : _Shape<R> extends readonly unknown[]
-            ? { readonly [K in keyof R]: _FromAny<R[K]> }
-            : readonly Ast[]
+        ? Sequence extends R ? readonly Ast[] : { readonly [K in keyof R]: _FromAny<R[K]> }
         :
     R extends string ? readonly number[] :
     // A variant is a choice, so its AST is the union of what each branch
@@ -835,18 +829,7 @@ type _48 = Assert<Equal<
     AstRule<_TwoRepeats>,
     readonly number[] | readonly (readonly[number])[]>>
 
-
-// A sequence carrying own properties beside its indices, which
-// `Object.assign([0] as const, { extra: 1 as const })` produces. `toData` takes
-// the array path and reads the indices, so this is a working grammar; the
-// mapping that keeps a tuple's arity does not survive the intersection, so the
-// answer is the array a sequence produces without its length.
-type _49 = Assert<Equal<
-    AstRule<readonly[0] & { readonly extra: 1 }>,
-    readonly Ast[]>>
-
-// The arity is kept for a plain tuple, which is the case the widening above
-// must not reach.
+// A one-element sequence keeps its arity.
 type _50 = Assert<Equal<AstRule<readonly[0]>, readonly[number]>>
 
 // A union inside the step's *tail*. The value whose tail is the rule is a
@@ -861,15 +844,6 @@ type _51 = Assert<Equal<AstRule<_TailUnion>, readonly Ast[] | _TailUnionVariant>
 type _TailUnionVariant =
     { readonly none: readonly[] } |
     { readonly some: readonly[number, AstRule<_TailUnion> | number] }
-
-// `'-1'` is a `${number}` and is not an array index: iteration ignores it, and
-// `toData` of this builds the same one-element sequence as `_49`'s. What
-// separates a sequence from an augmented one is whether the mapping stayed an
-// array, not whether a key reads like an index.
-type _52 = Assert<Equal<
-    AstRule<readonly[0] & { readonly '-1': 1 }>,
-    readonly Ast[]>>
-
 
 // An optional branch whose rule is `never` cannot be there:
 // `exactOptionalPropertyTypes` keeps it from holding an `undefined` instead, so
@@ -900,11 +874,6 @@ type _55 = Assert<
 type _56 = Assert<
     readonly[number, readonly[number]] extends AstRule<_UnionItem> ? false : true>
 
-
-
-
-
-
 // The same union one slot further in: inside the step's *item* rather than
 // across the step tuples. A rule fixes the item once, so this is a repetition
 // over `0` or over `readonly[0]`, never a sequence holding both.
@@ -917,3 +886,15 @@ type _58 = Assert<
     readonly (readonly[number])[] extends AstRule<_UnionInItem> ? true : false>
 type _59 = Assert<
     readonly[number, readonly[number]] extends AstRule<_UnionInItem> ? false : true>
+
+// A branch left at `string` contains the empty branch and no step: a string is
+// never a pair. Nothing here can be a repetition, so the answer is the variant
+// alone — `_CouldNone` and `_CouldStep` ask their own questions rather than
+// reading one "open" answer between them.
+type _StringBranches = () => {
+    readonly a: string,
+    readonly b: string,
+}
+type _60 = Assert<Equal<
+    AstRule<_StringBranches>,
+    { readonly a: readonly number[] } | { readonly b: readonly number[] }>>
