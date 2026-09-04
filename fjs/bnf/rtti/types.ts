@@ -322,7 +322,15 @@ type _Repeat<U, R> =
  */
 type _Items<B, R> =
     readonly[B] extends readonly[never] ? false :
-    B extends readonly[infer I extends Rule, R] ? readonly[I] : false
+    B extends readonly[infer I extends Rule, R] ? _One<I> : false
+
+/**
+ * One one-tuple per member of an item. The item is distributed over for the
+ * same reason the branch is: `readonly[0 | readonly[0], R]` is one step whose
+ * item a rule fixes at `0` or at `readonly[0]`, and wrapping the union whole
+ * would give one array over both.
+ */
+type _One<I> = I extends Rule ? readonly[I] : never
 
 /**
  * What a branch `B` is, as one of four answers per member of it:
@@ -893,3 +901,16 @@ type _56 = Assert<
 
 
 
+
+// The same union one slot further in: inside the step's *item* rather than
+// across the step tuples. A rule fixes the item once, so this is a repetition
+// over `0` or over `readonly[0]`, never a sequence holding both.
+type _UnionInItem = () => {
+    readonly none: readonly[],
+    readonly some: readonly[0 | readonly[0], _UnionInItem],
+}
+type _57 = Assert<readonly number[] extends AstRule<_UnionInItem> ? true : false>
+type _58 = Assert<
+    readonly (readonly[number])[] extends AstRule<_UnionInItem> ? true : false>
+type _59 = Assert<
+    readonly[number, readonly[number]] extends AstRule<_UnionInItem> ? false : true>
