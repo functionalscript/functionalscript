@@ -2,17 +2,16 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** *implementation only* — the design work below, and Problem 9
-above all, is actionable now and grammar-bucket stage 2 waits on it.
+**Blocked by:** *implementation only* — the design work below is actionable
+now.
 
-- [grammar-bucket](../../todo/grammar-bucket.md) stages 1-5 — the dependency
-  inversion. `data/` is not neutral until stage 5, because `toData`,
-  `RuleNameMap` and `GrammarData` name the classical `FRule` until then.
-- [unicode-rules](./unicode-rules.md), for the `fjs/grammar/unicode/` adapter
-  this front end takes its text terminals from.
-- [#1865](https://github.com/functionalscript/functionalscript/pull/1865), for
-  `BoundedArray` — `fjs/types/array` exports no such type yet, and the AST
-  types below are instantiations of it.
+- [ebnf-migration](../../todo/ebnf-migration.md) — the `fjs/ebnf/` module.
+  This front end is its first piece, and Problems 2 and 9 below dissolve
+  there: nothing is shared with the classical front end, and `fjs/ebnf/data/`
+  is a new IR rather than a neutralized `bnf/data`.
+- [unicode-rules](./unicode-rules.md), for the `fjs/ebnf/unicode/` adapter
+  the ported grammars take their text terminals from. It gates the port, not
+  the front end, whose own proofs spell terminals as numbers and strings.
 
 ### Problem
 
@@ -37,11 +36,11 @@ front end gets the final union from day one instead.
 
 ### Proposal
 
-`fjs/grammar/ebnf/` is a second front end over the same `RuleSet`: a `Rule`
-union, its constructors, its lowering, and its rtti map. The backends, the
-matcher and `emptyTagMap` are shared — they consume a `RuleSet` and never see
-a functional rule. (Their *proofs* are
-[Problem 2](#problems).)
+`fjs/ebnf/` is a new module with a second front end — a `Rule` union, its
+constructors, its lowering, and its rtti map — over its own `RuleSet`,
+backends and matcher, which the classical front end may import but which
+never import it ([ebnf-migration](../../todo/ebnf-migration.md)). They
+consume a `RuleSet` and never see a functional rule.
 
 #### The union follows RTTI
 
@@ -113,7 +112,7 @@ row that is a function of the form alone.
 | `Variant` | the branch taken, tagged by its key |
 
 **This type is not ebnf's to write.** It is `BoundedArray<Min, Max, T>` in
-`fjs/types/array/types.ts`, landing in
+[`fjs/types/array/types.ts`](../../types/array/types.ts), shipped by
 [#1865](https://github.com/functionalscript/functionalscript/pull/1865):
 `FixedArray<Min, T>` followed by an optional-element tail up to `Max`, with
 `number extends Max ? readonly T[]` as the tail. A required prefix and an
@@ -171,7 +170,7 @@ export const times       = n => repeat(n, n)
 
 Currying the bounds makes the familiar names partial applications and leaves
 their call sites at today's arity, so a ported grammar keeps its spelling.
-`range` and `set` come from `fjs/grammar/unicode/`. `join0Plus` and
+`range` and `set` come from `fjs/ebnf/unicode/`. `join0Plus` and
 `join1Plus` compose.
 
 Bare numbers and strings in `Const` mean a tagged tuple written *without* its
@@ -225,9 +224,12 @@ AST changes:
 pairs, so the array and object productions change shape. A grammar adopting a
 new form is not shape-preserving either.
 
-Also: the rtti map tests the shape directly and `repeatItem` goes away;
-`detectRepeat` stays in `data/` as opt-in normalization for hand-written and
-deserialized sets.
+Also: the rtti map tests the shape directly and `repeatItem` goes away, and
+`detectRepeat` retires with the classical `data/`
+([ebnf-migration](../../todo/ebnf-migration.md)): a hand-written or
+deserialized EBNF set spells the primitive, and an opt-in normalizer of the
+right-recursive shape may be added to `ebnf/data/` by whoever wants one, but
+nothing plans it.
 
 #### Problems
 
@@ -244,10 +246,12 @@ judged correct against it. The question is which bounds a data layer carries
 natively. Narrowing the front end to match today's IR is the option this
 design rejects.
 
-**2. The backend proofs are built with the front end.** `ll1/proof.f.mjs:14`,
-`descent/proof.f.mjs:10`, `data/proof.f.mjs:7`, `matcher/proof.f.mjs:8`.
-Rewriting them against `RuleSet` literals is grammar-bucket's pre-stage-5 work
-and is also what first makes `descentEquivalence` front-end neutral.
+**2. Dissolved by ebnf-migration.** It was: the backend proofs are built
+with the classical front end (`ll1/proof.f.mjs:14`, `descent/proof.f.mjs:10`,
+`data/proof.f.mjs:7`, `matcher/proof.f.mjs:8`), so deleting that front end
+would take the proofs down. Under that plan `fjs/ebnf/`'s backends and their
+proofs are its own, and the classical proofs stay in `bnf/` until it is
+deleted whole.
 
 **3. A nullable body is two problems.** Unbounded max is non-termination and
 stays rejected. Bounded max is *ambiguity*: `['repeat', 2, 2, r]` over a body
@@ -289,12 +293,12 @@ structural values while today's AST is `{ tag, sequence }` nodes
 cannot be written until this is settled, and it decides what "the same AST"
 means in the port claim.
 
-**9. One alphabet adapter cannot return both representations.** `range('09')`
-is a packed `TerminalRange` to the classical front end and a `'range'` thunk
-here; `set('abc')` likewise. The front ends coexist for the whole port, so the
-adapter needs a shared decoding core with per-front-end constructors, or
-something equivalent. **This must be answered before `fjs/grammar/unicode/` is
-built**, since it decides that module's public shape.
+**9. Dissolved by ebnf-migration.** It was: one alphabet adapter cannot
+return both representations — `range('09')` is a packed `TerminalRange` to
+the classical front end and a `'range'` thunk here — and the front ends
+coexist for the whole port. Under that plan `fjs/ebnf/unicode/` serves this
+front end only and returns its representation; the classical front end keeps
+its own helpers until it is deleted.
 
 #### Left for later
 
@@ -305,14 +309,15 @@ three forms. It needs a data layer that can represent it.
 
 ### Tasks
 
-- [ ] Answer the nine problems above, in the issue, before writing code. 8
-      first — the tables cannot be finished without it, and 4 and 7 depend on
-      it. Then 1, 3 and 6 gate the lowering; 2 is grammar-bucket's; 9 gates
-      the alphabet adapter and so the whole port.
+- [ ] Answer the open problems above — 1, 3, 4, 5, 6, 7 and 8; 2 and 9 are
+      dissolved — as the code that depends on each is written, in the issue
+      or in `fjs/ebnf/README.md`, and revise an answer when the code shows
+      it wrong. What depends on what: 8 decides the AST tables, and 4 and 7
+      follow it; 1, 3 and 6 shape the lowering. That is a dependency map for
+      whoever picks an order, not an order.
 - [ ] `types.ts`: the union, the `Join*` types, and `AST<Rule>` from the
-      tables, with a proof per row. `BoundedArray` is instantiated, not
-      redefined — it arrives with
-      [#1865](https://github.com/functionalscript/functionalscript/pull/1865).
+      tables, with a proof per row. `BoundedArray` is instantiated from
+      `fjs/types/array`, not redefined.
 - [ ] `module.f.mjs`: the `repeat(min, max)` constructor with `option` /
       `repeat0Plus` / `repeat1Plus` / `times` as partial applications, plus
       `join0Plus`, `join1Plus`, `commaJoin0Plus` and `notOf`; and the lowering
@@ -334,7 +339,7 @@ three forms. It needs a data layer that can represent it.
       cases re-expressed here, comparing **backend results** and stating per
       case whether the AST is expected to match the `bnf` original or to
       differ.
-- [ ] Port `fjs/grammar/lib/json` and `lib/datajs` **in one PR** — datajs
+- [ ] Port `lib/json` and `lib/datajs` to `fjs/ebnf/lib/` **in one PR** — datajs
       imports eight rule values from json (`lib/datajs/module.f.mjs:17`), so a
       json-only PR hands classical combinators ebnf thunks. `\uXXXX` becomes
       `times(4)(hex)`. Then the `djs` tokenizer and parser, one PR each. Those
@@ -349,8 +354,8 @@ three forms. It needs a data layer that can represent it.
 
 ### Related
 
-- [grammar-bucket](../../todo/grammar-bucket.md) — the layout this lands in
-  and the inversion it needs.
+- [ebnf-migration](../../todo/ebnf-migration.md) — the module this lands in,
+  as its first piece, and the dependency rule it lives under.
 - [`fjs/rtti/types.ts`](../../rtti/types.ts) — the eDSL shape this copies.
 - [the `repeat` rule](../data/README.md#the-repeat-rule) — the recognition
   this makes unnecessary.
