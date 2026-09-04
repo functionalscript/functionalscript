@@ -1,4 +1,6 @@
 /**
+ * @import { Assert } from '../asserts/types.ts'
+ * @import { Equal } from '../types/ts/types.ts'
  * @import { SetInfo } from './types.ts'
  */
 
@@ -59,6 +61,9 @@ export const proof = {
     rangeEncode: () => {
         assertStructurallySame(boundaries(rangeEncode(0, 7)), [0, 8])
         assertStructurallySame(boundaries(rangeEncode(3, 3)), [3, 4])
+        // A negative symbol is a bound like any other: only the algebra's own
+        // rules on a boundary apply here, not an alphabet's.
+        assertStructurallySame(boundaries(rangeEncode(-2, -1)), [-2, 0])
     },
     set: {
         // Adjacent symbols coalesce into one run, in either order given.
@@ -121,18 +126,42 @@ export const proof = {
     },
     repeat: {
         // The bounds and the rule are carried verbatim.
+        //
+        // Each `@typedef` below is the only thing standing between a `const`
+        // type parameter and a rule that widens on the way in, and each one
+        // passes a *variant literal* to be worth writing. A lone `'a'` is
+        // inferred as `'a'` either way, because `Rule` admits `string` and a
+        // type parameter constrained to a primitive keeps the literal; a
+        // variant is what widens, to `{ b: string }`, mutable and with the
+        // alternative's own spelling gone. Dropping a `const` fails these and
+        // nothing else in the suite.
         bounds: () => {
-            assertStructurallySame(repeat(2, 5)('a')(), ['repeat', 2, 5, 'a'])
+            const r = repeat(2, 5)({ b: 'c' })
+            /** @typedef {Assert<Equal<ReturnType<typeof r>, readonly['repeat', 2, 5, { readonly b: 'c' }]>>} _Const */
+            assertStructurallySame(r(), ['repeat', 2, 5, { b: 'c' }])
+        },
+        // A repeat may match nothing at all, which is a cardinality rather
+        // than a mistake.
+        empty: () => {
+            assertStructurallySame(repeat(0, 0)('a')(), ['repeat', 0, 0, 'a'])
         },
         // The three derived constructors are the same shape with fixed bounds.
+        // `Infinity` is `number` at the type level, which is why the bound
+        // asserted here is `number` and not a literal.
         zeroPlus: () => {
-            assertStructurallySame(repeat0Plus('a')(), ['repeat', 0, Infinity, 'a'])
+            const r = repeat0Plus({ b: 'c' })
+            /** @typedef {Assert<Equal<ReturnType<typeof r>, readonly['repeat', 0, number, { readonly b: 'c' }]>>} _Const */
+            assertStructurallySame(r(), ['repeat', 0, Infinity, { b: 'c' }])
         },
         times: () => {
-            assertStructurallySame(times(4)('a')(), ['repeat', 4, 4, 'a'])
+            const r = times(4)({ b: 'c' })
+            /** @typedef {Assert<Equal<ReturnType<typeof r>, readonly['repeat', 4, 4, { readonly b: 'c' }]>>} _Const */
+            assertStructurallySame(r(), ['repeat', 4, 4, { b: 'c' }])
         },
         option: () => {
-            assertStructurallySame(option('a')(), ['repeat', 0, 1, 'a'])
+            const r = option({ b: 'c' })
+            /** @typedef {Assert<Equal<ReturnType<typeof r>, readonly['repeat', 0, 1, { readonly b: 'c' }]>>} _Const */
+            assertStructurallySame(r(), ['repeat', 0, 1, { b: 'c' }])
         },
         // A rule is any rule, including a nested thunk.
         nested: () => {
@@ -151,5 +180,22 @@ export const proof = {
         rangeRejectsOneAstral: () => range(unicodeMax),
         // A reversed range is a mistake rather than an empty set.
         rangeEncodeRejectsReversed: () => rangeEncode(7, 0),
+        // `a <= b` alone would pass each of these, and `b + 1` would then be
+        // no boundary above `a`: `Infinity` is outside the universe, and at
+        // this magnitude the successor is the number itself.
+        rangeEncodeRejectsInfinity: () => rangeEncode(Infinity, Infinity),
+        rangeEncodeRejectsUnsafe: () => rangeEncode(0, Number.MAX_VALUE),
+        rangeEncodeRejectsFraction: () => rangeEncode(0.5, 1.5),
+        rangeEncodeRejectsNaN: () => rangeEncode(NaN, NaN),
+        // `-0` is a second spelling of `0`, so it is no boundary — the pair
+        // goes through `fromRange`, which is what catches it.
+        rangeEncodeRejectsNegativeZero: () => rangeEncode(-0, 1),
+        // A repetition bound is a count: `Infinity` is one only above.
+        repeatRejectsNegativeMin: () => repeat(-1, 5),
+        repeatRejectsFractionalMin: () => repeat(0.5, 5),
+        repeatRejectsNegativeMax: () => repeat(0, -1),
+        repeatRejectsFractionalMax: () => repeat(0, 1.5),
+        repeatRejectsInfiniteMin: () => repeat(Infinity, Infinity),
+        repeatRejectsReversed: () => repeat(2, 1),
     },
 }

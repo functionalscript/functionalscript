@@ -1,4 +1,13 @@
 /**
+ * JSON's lexical rules, written in the EBNF rule vocabulary — the first grammar
+ * to use it, and what the constructors are shaped for.
+ *
+ * Only the lexical layer is here. The composite rules (`value`, `array`,
+ * `object`) wait on the sequence combinators that join a list with a separator;
+ * they are kept commented out below rather than written a second way.
+ *
+ * @module
+ *
  * @import { Rule } from '../../types.ts'
  */
 
@@ -46,11 +55,11 @@ export const optionFloatSuffix = /**@type {const}*/([
     option([set('Ee'), option(set('+-')), digits])
 ])
 
-const number = [
+export const number = /**@type {const}*/([
     optionNeg,
     uint,
     ...optionFloatSuffix
-]
+])
 
 export const wsSymbol = set(' \n\r\t')
 

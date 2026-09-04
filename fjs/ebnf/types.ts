@@ -1,3 +1,15 @@
+/**
+ * The type-level rule algebra an EBNF grammar is written in.
+ *
+ * A rule is data — a number, a string, a `Tuple` (a sequence) or a `Variant`
+ * (named alternatives) — or a `Thunk`: a tagged tuple behind a function, which
+ * is what lets a grammar refer to a rule before that rule is defined. The tags
+ * are `const` (a rule under a name), `set` (a terminal, as `range_set`
+ * boundaries) and `repeat` (a bounded repetition).
+ *
+ * @module
+ */
+
 export type DataRule =
     | number
     | string
