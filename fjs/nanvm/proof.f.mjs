@@ -4,8 +4,9 @@
  * Every case in [`module.f.mjs`](./module.f.mjs) is lowered to the EDAG
  * expression it denotes and evaluated here, so the shared data is proven to
  * describe JavaScript before `nanvm-lib/tests/test/generated.rs` holds
- * `nanvm-lib` to it. This module contains no test cases of its own beyond the
- * `jsOnly` section at the end — adding a case means editing the data.
+ * `nanvm-lib` to it. This module contains no test cases of its own beyond
+ * `jsOnly` (below `edagShape`) and `crossCheck` (below `group`) — adding a
+ * case means editing the data.
  *
  * The operand-count assertions are not here but in
  * [`types.ts`](./types.ts): a `@typedef` inside a function body is never
@@ -27,7 +28,7 @@
  *
  * @import { Exp, Op2, Properties } from '../edag/types.ts'
  * @import { Context } from '../edag/amnesia/types.ts'
- * @import { Case, EqCase, Expectation, Group, OpId, Operand, SharedNode } from './types.ts'
+ * @import { Case, EqCase, Expectation, Group, OpId, Operand, SharedNode, Value } from './types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
@@ -287,6 +288,67 @@ const group = g => {
         : { ...fromEntries(ok), throw: fromEntries(bad) }
 }
 
+/**
+ * Replays a group's non-escaped cases a second time, through the
+ * `functionValue`-escape reference (`op1Js`/`op2Js`) instead of `amnesia`,
+ * and checks the two agree.
+ *
+ * `run`'s escape branch and its lowered-`exp` branch are two independent
+ * implementations of the same operator, reached from disjoint cases —
+ * nothing keeps them in step once an id's reference entry survives on the
+ * strength of a single `functionValue` case. That is exactly how `own`'s
+ * receiver-before-key check order drifted between the two before anyone
+ * noticed by hand ([nanvm-lib#1879](https://github.com/functionalscript/functionalscript/pull/1879),
+ * fixed in `523b08a` for this file and `a6aabfc` for `amnesia`): a corpus
+ * case with `expected: throws` can't tell two throwing orders apart, so
+ * nothing here would have caught it either — but a wrong non-throwing
+ * *value* is exactly what this catches, and would have caught it sooner had
+ * one of the two reorderings landed first without the other.
+ *
+ * `own` is deliberately excluded: its reference entry is now a plain
+ * `Object.getOwnPropertyDescriptor` read for the one escape case that keeps
+ * it alive, not a copy of `amnesia`'s own's stricter receiver/key
+ * invariants — `nonStringKeyThrows` (`[{1: 42}, 1]`) is real JS and does
+ * *not* throw through `Object.getOwnPropertyDescriptor`, only through
+ * `amnesia`'s FS-specific string-key check, so the two are expected to
+ * disagree there. Every other id here has no such gap: each is a bare
+ * JavaScript operator on both sides, so agreement is the only correct
+ * outcome, not a coincidence of scope.
+ *
+ * Throwing cases are checked structurally only — both sides must throw,
+ * not throw the same thing — for the same reason `group` above can't
+ * compare thrown values: see
+ * `../emergent_testing/todo/throw-payload-assertions.md`.
+ *
+ * @type {(g: Group) => object}
+ */
+const crossCheck = g => {
+    if (!('op' in g) || g.op === 'own') { return {} }
+    const arity = arityOf(g)
+    const table = arity === 1 ? op1Js : op2Js
+    if (!(g.op in table)) { return {} }
+    const id = g.op
+    /** @type {(c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]} */
+    const leaves = c => orders(g)(c).flatMap(([name, args]) => {
+        if (args.some(isFunctionValue)) { return [] }
+        const lowered = caseExp(g)(args)
+        if (lowered[0] !== 'exp') { return [] }
+        const [ra, rb] = /** @type {readonly Value[]} */ (args).map(v => vm(context)(valueExp(v)))
+        const refValue = () => arity === 1 ? op1(id)(ra) : op2(id)(ra, rb)
+        const fn = isThrows(c.expected)
+            ? () => { refValue() }
+            : () => {
+                const amnesiaValue = vm(context)(lowered[1])
+                assert(is(amnesiaValue, refValue()), [amnesiaValue, 'is not', refValue(), 'for', id])
+            }
+        return [[name, fn]]
+    })
+    const cases = casesOf(g)
+    const ok = cases.filter(c => !isThrows(c.expected)).flatMap(leaves)
+    const bad = cases.filter(c => isThrows(c.expected)).flatMap(leaves)
+    return bad.length === 0 ? fromEntries(ok) : { ...fromEntries(ok), throw: fromEntries(bad) }
+}
+
 const eqProof = (() => {
     const { shared, cases } = lowerEq(data.eq)
     /** @type {(ce: readonly[EqCase, Op2]) => readonly[string, () => void]} */
@@ -430,6 +492,8 @@ const jsOnly = {
 export const proof = {
     eq: eqProof,
     ...fromEntries(data.groups.map(g => [opId(g), group(g)])),
+    crossCheck: fromEntries(
+        data.groups.filter(g => 'op' in g && g.op !== 'own').map(g => [opId(g), crossCheck(g)])),
     edagShape,
     nestedSharing,
     jsOnly,
