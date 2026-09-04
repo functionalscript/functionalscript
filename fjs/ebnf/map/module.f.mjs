@@ -30,7 +30,8 @@ const { isSafeInteger } = Number
  * number and no symbol is refused, since a set's boundaries would admit
  * it as they admit the symbols between them.
  *
- * @type {(n: unknown) => n is number}
+ * @param {unknown} n
+ * @returns {n is number}
  */
 const isSymbol = n => typeof n === 'number' && isSafeInteger(n) && n >= 0
 
