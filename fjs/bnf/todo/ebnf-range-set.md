@@ -35,6 +35,19 @@ The packed `TerminalRange` also does not survive the bigint domain
 
 ### Proposal
 
+**What this issue fixes, and what it leaves open.** Fixed: the value's
+meaning — a canonical toggle list over the number line — and the terminal's
+contract: ordinary symbols only, one symbol leaf, validated before the
+algebra sees it, clipped to the domain, safe-integer boundaries. Open, and
+the implementer's: export names and lists (`fjs/types/range_set` already
+ships `rangeSet` with `isRangeSet`, `empty` and `full` in
+[#1874](https://github.com/functionalscript/functionalscript/pull/1874),
+and that is the validating constructor a lowering calls), the order of
+checks beyond what soundness needs, helper signatures, and how proofs are
+grouped. Where this text and shipped code disagree, the code and its proof
+are the record, and this issue is corrected to match rather than the other
+way round.
+
 #### The value: a toggle list
 
 A range set is a strictly increasing list of boundaries over the universe
