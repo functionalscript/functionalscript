@@ -96,7 +96,10 @@ layer leaves it to the backend to say:
   rounds begins with nothing, so it conflicts with no branch: its item is
   never entered.
 
-Both are found before any input, when the parser is built.
+Both are found before any input, when the parser is built — over the rules
+the entry reaches. A rule the entry does not reach is dead, not wrong, as
+the data layer says, so a parser leaves it alone; `firstMap` over a whole
+set analyses every rule of it, dead ones included.
 
 A **first/follow conflict** is not detected: `[option('x'), 'x']` is
 accepted, and the option takes the `x` when it sees one, so the sequence

@@ -26,7 +26,7 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
-import { at, definedEntries } from '../../types/object/module.f.mjs'
+import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
 import { contains, empty, intersection, union } from '../../types/range_set/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { contains as visiting, empty as noNames, set as visit } from '../../types/string_set/module.f.mjs'
@@ -115,10 +115,14 @@ const firstOf = (ruleSet, nullable) => {
     return first
 }
 
-/** @type {(ruleSet: RuleSet, nullable: (name: string) => boolean) => FirstMap} */
+/**
+ * The first sets of the rules named, and of every rule they reach.
+ *
+ * @type {(ruleSet: RuleSet, nullable: (name: string) => boolean) => (names: readonly string[]) => FirstMap}
+ */
 const firstMapOf = (ruleSet, nullable) => {
     const first = firstOf(ruleSet, nullable)(noNames)
-    return keys(ruleSet).reduce(
+    return names => names.reduce(
         /** @type {(map: FirstMap, name: string) => FirstMap} */
         ((map, name) => first(map, name)[0]),
         {})
@@ -138,11 +142,36 @@ const firstMapOf = (ruleSet, nullable) => {
  * `left recursion`, which no lookahead can decide and a predictive match
  * would loop on — and a variant two of whose branches begin with a symbol
  * in common — `first/first conflict`, which one symbol cannot tell apart.
- * Each names the rule.
+ * Each names the rule. This is the analysis of a whole set, every rule of
+ * it; a parser analyses only what its entry reaches.
  *
  * @type {(ruleSet: RuleSet) => FirstMap}
  */
-export const firstMap = ruleSet => firstMapOf(ruleSet, nullable(emptyTagMap(ruleSet)))
+export const firstMap = ruleSet => firstMapOf(ruleSet, nullable(emptyTagMap(ruleSet)))(keys(ruleSet))
+
+/**
+ * The rules a rule names.
+ *
+ * @type {RuleVisitor<readonly string[]>}
+ */
+const references = {
+    set: () => [],
+    sequence: items => items,
+    variant: branches => definedValues(branches),
+    repeat: (_min, _max, item) => [item],
+}
+
+/**
+ * The names `name` reaches, itself first, added to those already found: a
+ * rule the entry does not reach is dead, not wrong, as `../data` says, so
+ * a parser leaves it out of its analysis rather than refusing the set over
+ * it.
+ *
+ * @type {(ruleSet: RuleSet) => (found: readonly string[], name: string) => readonly string[]}
+ */
+const reach = ruleSet => (found, name) => found.includes(name)
+    ? found
+    : matchRule(references)(ruleSet[name]).reduce(reach(ruleSet), [...found, name])
 
 /**
  * The machine, for a set already validated. A match is a loop over one
@@ -151,12 +180,12 @@ export const firstMap = ruleSet => firstMapOf(ruleSet, nullable(emptyTagMap(rule
  * recursive matcher would overflow the JS stack on a few thousand nested
  * brackets, where this one's stack grows on the heap.
  *
- * @type {(ruleSet: RuleSet, empty: EmptyTagMap) => (entry: string) => Parser<unknown>}
+ * @type {(ruleSet: RuleSet, empty: EmptyTagMap, entry: string) => Parser<unknown>}
  */
-const build = (ruleSet, empty) => {
+const build = (ruleSet, empty, entry) => {
     const isNullable = nullable(empty)
-    const first = firstMapOf(ruleSet, isNullable)
-    return entry => input => {
+    const first = firstMapOf(ruleSet, isNullable)(reach(ruleSet)([], entry))
+    return input => {
         const outside = input.findIndex(s => !isSymbol(s))
         assert(outside === -1, ['not a symbol', outside, input[outside]])
         const { length } = input
@@ -289,18 +318,20 @@ const build = (ruleSet, empty) => {
 
 /**
  * A parser for a rule set at its entry. The set is validated as `../data`
- * validates it, then analysed by {@link firstMap}, so a set that is no
- * grammar and a grammar that is not LL(1) are both refused here, before any
- * input. The tree it builds is the one `Ast<R>` gives the rule the set was
- * lowered from — a symbol for a set, an empty node for EOF, an array for a
- * sequence, `[tag, node]` for a variant, and one flat array for a
- * repetition whatever its bounds.
+ * validates it, then the rules the entry reaches are analysed as
+ * {@link firstMap} analyses a set, so a set that is no grammar and a grammar
+ * that is not LL(1) are both refused here, before any input — a rule the
+ * entry does not reach is dead, not wrong, and is left alone. The tree it
+ * builds is the one `Ast<R>` gives the rule the set was lowered from — a
+ * symbol for a set, an empty node for EOF, an array for a sequence,
+ * `[tag, node]` for a variant, and one flat array for a repetition whatever
+ * its bounds.
  *
  * @type {(ruleSet: RuleSet, entry: string) => Parser<unknown>}
  */
 export const parserRuleSet = (ruleSet, entry) => {
     validate(ruleSet, entry)
-    return build(ruleSet, emptyTagMap(ruleSet))(entry)
+    return build(ruleSet, emptyTagMap(ruleSet), entry)
 }
 
 /**
@@ -314,5 +345,5 @@ export const parserRuleSet = (ruleSet, entry) => {
  */
 export const parser = rule => {
     const [ruleSet, entry] = toData(rule)
-    return /** @type {Parser<any>} */ (build(ruleSet, emptyTagMap(ruleSet))(entry))
+    return /** @type {Parser<any>} */ (build(ruleSet, emptyTagMap(ruleSet), entry))
 }

@@ -333,9 +333,17 @@ export const proof = {
         assertStructurallySame(p(cps('-')), ['error', 1])
         assertStructurallySame(p([]), ['error', 0])
     },
+    // A rule the entry does not reach is dead, not wrong: the parser leaves
+    // it out of its analysis, where `firstMap` over the whole set refuses it.
+    dead: () => {
+        /** @type {RuleSet} */
+        const dead = { ...int, dead: ['sequence', 'dead'] }
+        assertStructurallySame(parserRuleSet(dead, 'document')(cps('7')), ['ok', [[[['none', []], ['positive', [c('7'), []]]], []], 1]])
+    },
     throw: {
         // A set that is no grammar is refused as `validate` refuses it, and
         // a grammar that is not LL(1) as `firstMap` does — before any input.
+        deadInSet: () => firstMap({ ...int, dead: ['sequence', 'dead'] }),
         unknownEntry: () => parserRuleSet(int, 'float'),
         leftRecursion: () => parserRuleSet({ ...int, int: ['sequence', 'int', 'uint'] }, 'document'),
         firstFirstConflict: () => parser({ a: 'x', b: ['x', 'y'] }),
