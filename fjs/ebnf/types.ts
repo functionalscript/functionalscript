@@ -6,6 +6,7 @@
  */
 
 import type { Assert } from '../asserts/types.ts'
+import type { Phantom } from '../types/phantom/types.ts'
 import type { Equal } from '../types/ts/types.ts'
 
 /**
@@ -70,12 +71,35 @@ export type Info<T extends readonly[string, ...readonly unknown[]]> =
 export type Const<R extends DataRule> =
     Info<readonly['const', R]>
 
-export type Set =
-    Info<readonly['set', ...readonly number[]]>
+/**
+ * One symbol from a set of ranges.
+ *
+ * `S` is the set's *spelling* — the constructor it was built with and the
+ * arguments it was given, as `range('09')` is `readonly ['range', '09']` —
+ * carried as a phantom that nothing reads back. Two sets spelled differently
+ * are two rules, and the spelling makes them two types, which is what lets
+ * a map keyed by spelling (`../map`) find a rule by its type: without it
+ * every set would be one type.
+ */
+export type Set<S = unknown> =
+    Phantom<Info<readonly['set', ...readonly number[]]>, S>
+
+// The spelling tells sets apart, and a set without one is any set.
+type _SetSpelling = Assert<Equal<
+    Set<readonly ['range', '09']> extends Set<readonly ['range', 'az']> ? true : false,
+    false>>
+type _SetAny = Assert<Set<readonly ['range', '09']> extends Set ? true : false>
 
 export type Repeat<Min extends number, Max extends number, R extends Rule> =
     Info<readonly['repeat', Min, Max, R]>
 
+/**
+ * The unbounded `max`, which is `number`: TypeScript has no literal for
+ * `Infinity`. It is the one bound a repetition's type may spell as
+ * `number`, because `repeat`, `repeatFrom` and `times` refuse a bound
+ * that is not a literal, so a `max` of `number` is `repeatFrom`'s and
+ * means unbounded — to `BoundedArray`, and to a map keyed by rule types.
+ */
 export type Infinity =
     typeof Infinity
 

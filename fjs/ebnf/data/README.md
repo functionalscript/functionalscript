@@ -298,8 +298,9 @@ rows — each bound shape is the same node with a different `.length` — and it
 is what a backend's tree is judged against. Every front-end form maps to
 exactly one data kind, so the table is a function of the form as that issue
 demands. Problem 8, how a *typed* AST (`fjs/ebnf/ast`) relates to these
-nodes, is the mapping layer's (`ebnf/map/`), not this one's: the data layer
-commits to the nodes.
+nodes, is the mapping layer's ([`../map`](../map/README.md)), not this
+one's: the data layer commits to the nodes, and the mapping is defined over
+the typed AST; what a backend owes between the two is what remains of it.
 
 What a backend owes a bounded repeat: start another round exactly while the
 lookahead is in the item's first set and fewer than `max` have matched; on
