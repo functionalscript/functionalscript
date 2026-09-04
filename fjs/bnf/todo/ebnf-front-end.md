@@ -363,10 +363,13 @@ structural values while today's AST is `{ tag, sequence }` nodes
 ([`../README.md`](../README.md#ast)). `AST<Sequence>` and `AST<Variant>`
 cannot be written until this is settled, and it decides what "the same AST"
 means in the port claim. **Narrowed by
-[ebnf-data](../../ebnf/data/README.md):** the data layer commits to
-the `{ tag, sequence }` node per rule invocation, with one flat node for a
-repetition of any bounds; how the typed `Ast<R>` relates to those nodes is
-`ebnf/map/`'s to settle. **Narrowed again by
+[ebnf-data](../../ebnf/data/README.md):** the data layer commits to one
+node per rule invocation, with one flat node for a repetition of any
+bounds; how the typed `Ast<R>` relates to those nodes is `ebnf/map/`'s to
+settle. That layer said `{ tag, sequence }` when it landed, since the
+classical node was the only one there was; its README says `Ast<R>` now,
+amended by the backend below, and no `{ tag, sequence }` node survives in
+`ebnf/`. **Narrowed again by
 [`fjs/ebnf/map`](../../ebnf/map/README.md):** the mapping layer is defined
 over the typed `Ast<R>` — its rows are the table above with every child
 position a hole — so what remains is the backend's: build `Ast<R>` values,
