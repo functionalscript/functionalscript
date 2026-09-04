@@ -6,13 +6,6 @@
  * the union of its branches, and a repetition becomes an array. Everything here
  * is types and `Assert`s, so `tsc` is this module's test.
  *
- * A rule the parser cannot process at all resolves to `never` rather than to a
- * plausible shape: a branch whose declared type admits `undefined` makes
- * `toData` throw, and is refused here. The refusal does not propagate out of a
- * branch, though — a malformed rule nested under a variant leaves the
- * alternative beside it standing, where normalization would have refused the
- * whole grammar: [nullable-repeat-item](./todo/nullable-repeat-item.md).
- *
  * A repetition's empty branch is `readonly []` or `''`, since `data` normalizes
  * a string rule into the sequence of its symbols and the empty string into the
  * empty sequence.
@@ -86,26 +79,9 @@ type _Data<R> = R extends () => infer U ? _Data<U> : R
  * rather than which a match may leave out.
  *
  * Under `exactOptionalPropertyTypes`, `Required` removes the modifier without
- * inventing an `undefined`, so what survives is exactly what the author wrote —
- * which is also what makes it the right thing to test in {@link _Malformed}.
+ * inventing an `undefined`, so what survives is exactly what the author wrote.
  */
 type _BranchOf<U, K extends keyof U> = _Data<Required<U>[K]>
-
-/**
- * The keys of `U` whose branch admits `undefined` *as written* — with the
- * optional modifier taken off, so this is about the declared rule and not about
- * whether the key may be missing.
- *
- * `toData` throws on the value such a key describes, because normalization
- * reads a present property whose value is `undefined`, so a rule with one is
- * not a grammar the parser can process. Both spellings reach it: a required
- * `0 | undefined`, and an optional `?: 0 | undefined`, which
- * `exactOptionalPropertyTypes` still lets hold an explicit `undefined`. A plain
- * `?: 0` is not this — that key is absent or a rule, never present with no
- * value.
- */
-type _Malformed<U> =
-    { readonly [K in _Keys<U>]: undefined extends Required<U>[K] ? K : never }[_Keys<U>]
 
 /**
  * The keys of `U` that name a branch at all. `variant` in
@@ -198,12 +174,7 @@ type _Branches<R extends Variant, K> =
     // literals: [nullable-repeat-item](./todo/nullable-repeat-item.md).
     string extends _Keys<R> ? StringMap<Ast> :
     number extends _Keys<R> ? StringMap<Ast> :
-    // A rule the parser throws on is refused rather than given the AST of one
-    // that works — `_FromAny` would otherwise drop the `undefined` and hand
-    // back a plausible branch. See {@link _Malformed}.
-    readonly [_Malformed<R>] extends readonly [never]
-        ? K extends _Keys<R> ? { readonly [_ in K]: _FromAny<R[K]> } : never
-        : never
+    K extends _Keys<R> ? { readonly [_ in K]: _FromAny<R[K]> } : never
 
 export type AstRule<R extends Rule> =
     // A rule left at one of the BNF API's own types — `@type {Rule}` and
@@ -389,33 +360,14 @@ type _OptionalBranches = () => {
 }
 type _29 = Assert<Equal<AstRule<_OptionalBranches>, readonly number[]>>
 
-// A *required* branch whose declared type includes `undefined` is not the same
-// as an optional one. `repeatItem` throws on the value it describes, because
-// normalization reads the present-but-`undefined` property, so this is not a
-// repetition and must not be given one's shape.
-type _RequiredUndefined = () => {
-    readonly none: readonly[] | undefined,
-    readonly some: readonly[0, _RequiredUndefined],
-}
-type _30 = Assert<Equal<AstRule<_RequiredUndefined>, never>>
-
-// The same branch outside a repetition, which is where the shape is refused.
-type _31 = Assert<Equal<AstRule<{ readonly a: 0 | undefined }>, never>>
-
-// The optional spelling is not that, and stays a branch: under
-// `exactOptionalPropertyTypes` an optional key cannot hold an explicit
-// `undefined`, so nothing it describes reaches `Object.entries` as a present
-// property with no value.
+// An optional key still names a branch a match can select: under
+// `exactOptionalPropertyTypes` it cannot hold an explicit `undefined`, so its
+// absence is absence.
 type _32 = Assert<Equal<AstRule<{ readonly a?: 0 }>, { readonly a: number }>>
 
-// `exactOptionalPropertyTypes` stops `?: 0` holding an explicit `undefined`,
-// but not `?: 0 | undefined` — which is the declared rule admitting it, and so
-// the same malformed rule as the required spelling.
-type _33 = Assert<Equal<AstRule<{ readonly a?: 0 | undefined }>, never>>
-
-// The widened `Variant` names no branches, so it is not a malformed rule — it
-// is one carrying no shape, like `Rule` and `Sequence` above. `lib/json`'s
-// `createValue` is annotated with it, so `json` itself depends on this.
+// The widened `Variant` names no branches in particular — it carries no shape,
+// like `Rule` and `Sequence` above. `lib/json`'s `createValue` is annotated
+// with it, so `json` itself depends on this.
 type _34 = Assert<Equal<AstRule<Variant>, StringMap<Ast>>>
 
 // `json` is `[ws, value, ws]`. `value` is `createValue`'s `Variant`, and `ws`

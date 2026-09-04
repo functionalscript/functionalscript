@@ -16,15 +16,6 @@ for more, and none of it can be answered from the rule:
   body consuming nothing has infinitely many parses of the same input.
 - `contains(name)(reachable(ruleSet)(item))` rejects an item that can reach the
   rule again, so that the rule's only self-reference is the tail one.
-- A refusal does not propagate out of a branch. Normalization is eager, so a
-  malformed rule nested under a variant stops the whole grammar being built —
-  `toData({ a: { bad: undefined }, c: 1 })` throws — while `AstRule` gives
-  `{ a: never } | { c: number }`, still inhabited through the valid
-  alternative. Propagating it means asking whether each branch's own AST is a
-  refusal *before* producing the rule's, which is circular for a rule whose
-  branch refers back to it: attempting it makes the self-referential
-  three-branch variant of `_20` report `TS2589`. It is the nullability
-  obstruction again, reached from the other side.
 - An *optional* branch may be omitted by a value the type admits, and then the
   rule has fewer branches than it declares. `{ none?: [], some?: [0, R] }`
   describes four grammars — both branches, either alone, neither — and only the
@@ -52,12 +43,22 @@ repetition, and a rule whose tail is a structurally identical *other* rule all
 get an array from `AstRule` while the parser builds a variant. The type
 describes an AST the parser will not build.
 
-The consequence is bounded, and is what makes this a `todo/` rather than a fix:
-both are grammars the runtime refuses outright, so the wrong type belongs to a
-rule that does not work either way. That is unlike the repeat-detection defects
-fixed in the same pull request — extra branches, and branch names other than
-`some`/`none` — each of which gave a wrong shape to a grammar that *does*
-parse.
+The first two are grammars the runtime refuses outright, so the wrong type
+belongs to a rule that does not work either way. **The tail-identity case is
+not**, and it is the worst of the three for that reason. Given
+
+```js
+const B = () => ({ none: [], some: [0, B] })
+const A = () => ({ none: [], some: [0, B] })
+```
+
+`repeatItem(B)` returns `0` and `repeatItem(A)` returns `null`; `toData(A)`
+builds a five-rule set entered at `A`, and the descent parser matches the empty
+input against it, answering `{ tag: 'none', sequence: [] }`. `A` is a grammar
+that works, and `AstRule<A>` calls it `readonly number[]`. That is the same kind
+of defect as the repeat-detection ones fixed in the same pull request — extra
+branches, and branch names other than `some`/`none` — rather than the bounded
+kind, and it is the strongest argument for deriving from the rule set.
 
 ### One more, from a different cause
 
@@ -81,7 +82,7 @@ many a type admits.
 
 ### Why none of them is a guard
 
-All six are questions about a rule *set*, not about a rule. `reachable` walks
+All five are questions about a rule *set*, not about a rule. `reachable` walks
 a set of named rules; there is no set here to walk, and a structural type has
 no name to be reached.
 
@@ -126,9 +127,8 @@ Until then the limit is stated in
 - [ ] Decide between deriving from the rule set and documenting the restriction.
 - [ ] If the analysis is written, pin `Repeat0Plus<readonly []>`, a repetition
       over a variant with an empty branch, a repetition whose item reaches the
-      repetition, a rule whose tail is a structurally identical other rule, and
-      a malformed rule nested under a variant with a valid alternative, with
-      `Assert<Equal<…>>`.
+      repetition, and a rule whose tail is a structurally identical other rule,
+      with `Assert<Equal<…>>`.
 - [ ] `tsc`, `fjs t`.
 
 ### Related
