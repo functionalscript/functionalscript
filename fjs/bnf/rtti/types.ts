@@ -29,7 +29,9 @@
  * Those are not the only places this module and the parser disagree. The rest
  * have other causes — an open key set is not refused, a pattern key set is not
  * recognized as open, an object-literal `__proto__` names a branch the parser
- * never sees, and an overloaded rule function is read at the wrong overload.
+ * never sees, an overloaded rule function is read at the wrong overload, and a
+ * union below a repetition item's top level lets the array's elements differ
+ * where a grammar fixes one.
  * [nullable-repeat-item](./todo/nullable-repeat-item.md) is the whole list, and
  * names the input that breaks each one.
  *

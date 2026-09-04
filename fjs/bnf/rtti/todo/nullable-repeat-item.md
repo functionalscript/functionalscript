@@ -1,6 +1,6 @@
 ## nullable-repeat-item. `AstRule` and `repeatOf` disagree where a rule set is needed
 
-*(The slug names the first case found; the issue grew to ten.)*
+*(The slug names the first case found; the issue grew to eleven.)*
 
 **Priority:** P3
 **Status:** open
@@ -53,7 +53,7 @@ of defect as the repeat-detection ones fixed in the same pull request — extra
 branches, and branch names other than `some`/`none` — rather than the bounded
 kind, and it is the strongest argument for deriving from the rule set.
 
-### Six more, from different causes
+### Seven more, from different causes
 
 An *open* key set whose value type admits `undefined` —
 `{ readonly [k: string]: 0 | undefined }` — is answered with the widened variant
@@ -145,6 +145,32 @@ The literal key is out of reach: `keyof (StringMap<Rule> & { fixed: 0 })` is
 `Assert<Equal<keyof …, string>>` holds. There is no name left to index by, and
 so nothing to ask about the branch it names. A rule set has the keys the value
 turned out to carry.
+
+A repetition whose item holds a union *below its top level* admits arrays whose
+elements differ, where a grammar fixes one. The item of
+
+```ts
+() => ({ none: [], some: [[0 | [0]], R] })
+```
+
+is the one-element sequence `readonly[0 | readonly[0]]`, and its AST is
+`readonly[number | readonly[number]]` — exact for one occurrence, since the
+element is one or the other — but the repetition over it then admits
+`[[0], [[0]]]`, which no parse produces: `toDataAdd` evaluates the rule once and
+fixes that element.
+
+The top level is handled — `_One` wraps each member of the item, and `_Items`
+each member of the step, so a union directly in either place gives one array per
+alternative. Below that it is the `M^N` problem again, the one that rules out
+distributing a variant's branches: making the answer exact means normalizing a
+rule type into the union of the concrete rules it describes, and a rule with `N`
+union sites of `M` members each describes `M^N` of them. It is also not confined
+to the item — the same is true of any sequence element under a repetition.
+
+So this is a *loss of precision* rather than a wrong shape, like the augmented
+sequence below: the type admits arrays the parser will not build, and every array
+it will build is in it. A rule set closes it by holding the alternative the rule
+turned out to be, which is one rule rather than a type describing many.
 
 A sequence carrying own properties beside its indices —
 `Object.assign([0], { extra: 1 })`, and `{ '-1': 1 }` just as much — keeps its
