@@ -44,7 +44,7 @@ more precise" is not.
 
 | You found | Ask for |
 | --------- | ------- |
-| A corner case the change does not handle | A `todo/` naming the input — not a fix |
+| A corner case the change does not handle | A `todo/` naming the input — not a fix. If the case answers wrong, the refusal first: that is silence |
 | A design that leaves a decision open | Nothing, unless two implementers would produce different observable behavior or API; then one sentence in the document, or a `todo/` |
 | A plan that prescribes no order or method | Nothing; that is deliberate |
 | An improvement that would be nice while here | A `todo/` |
@@ -71,6 +71,11 @@ answered every "settle X before stage 1" and "fix the order of Y" by removing
 a prescription rather than adding one: the stages are numbered for reference,
 not for order, and each open question is answered by whoever needs the answer,
 when they need it, where they make it.
+
+A pull request that only files a `todo/`, or only grows one, is a change like
+any other. Review it for direction and consistency, not for completeness: a
+problem statement with no proposal is a valid increment, and so is a proposal
+that leaves most of its decisions to the implementation.
 
 What a design review does check: the document does not contradict the code it
 describes — a path that does not exist, an importer that does not import — and

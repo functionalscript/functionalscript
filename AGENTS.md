@@ -65,11 +65,15 @@ actually touches its subject.
 
 ## 1. Workflow
 
-Find or file the issue in `todo/` first, next to the code it describes; for
-anything non-trivial make sure it contains a concrete design before writing
-code. Deviating from that design later is fine; deviating silently is not, and
-a design that cannot be built as written is rewritten rather than forced
-through ([DESIGN.md §3](./doc/DESIGN.md#3-design-before-implementation)). Write the
+Check `todo/` for existing work before starting, and file an issue there, next
+to the code it describes, when the work is worth tracking — a problem statement
+is enough. A design is not a gate: it grows one pull request at a time — an
+underspecified `todo/`, then details and ideas, then an implementation — and
+none of them waits on the document being complete. What every step owes is
+direction and consistency: a `todo/` that contradicts the code or another
+`todo/` is corrected, not built on, and deviating from a design is fine where
+deviating silently is not
+([DESIGN.md §3](./doc/DESIGN.md#3-design-before-implementation)). Write the
 code plus its proof, run `npm run gen` after changing source, run the check
 set above, and delete the `todo/` issue file in the same PR that fixes it.
 

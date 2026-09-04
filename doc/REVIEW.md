@@ -17,7 +17,7 @@ is wrong: it is the one place the answer will not survive.
 | An implementation is asked for another feature | Find or file a `todo/`, and reply with the link |
 | One case is generalized into a rule | Answer with the case that breaks it, and record what the decision depends on |
 | A defect is reported | Fix it, or defer it behind a `todo/` naming the input that breaks it |
-| A corner case is raised | File a `todo/` naming the input, and reply with the link — not a fix |
+| A corner case is raised | File a `todo/` naming the input, and reply with the link — not a fix. If the case answers wrong, refuse it first: that is silence |
 | A tighter type is asked for on a valid input | Keep the type simple: depth is a budget ([REVIEWING.md](./REVIEWING.md#type-level-computation)); a `todo/` if the check is wanted |
 
 A pull request implements one feature, so "while you're here" is a second one.
@@ -34,11 +34,11 @@ differs is what comes next.
 - **Overspecified.** The implementer is not bound by it. Deviating is fine,
   deviating silently is not: the reason goes into the document.
 - **Underspecified.** The next person adds what is missing, in a pull request
-  that need not implement anything — an increment like any other, and what
-  [DESIGN.md §3](./DESIGN.md#3-design-before-implementation) means by updating
-  the issue before writing code against it. Detail is missing where two
-  implementers working from the design would not produce the same observable
-  behavior and the same API.
+  that need not implement anything — an increment like any other
+  ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Nobody waits on
+  it: an implementation may land against a thin design and say what it
+  decided. Detail is missing where two implementers working from the design
+  would not produce the same observable behavior and the same API.
 
 Either way, prefer to land the design change and the implementation as separate
 pull requests ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)).
