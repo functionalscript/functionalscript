@@ -27,6 +27,21 @@ const typo = ['typo']
 /** @type {unknown} */
 const notARule = true
 
+/** @type {unknown} */
+const repeatTrailing = ['repeat', 0, 1, 'digit', 'separator']
+
+/** @type {unknown} */
+const variantTrailing = ['variant', { zero: 'zero' }, 'extra']
+
+/** @type {unknown} */
+const variantNotAnObject = ['variant', ['zero']]
+
+/** @type {unknown} */
+const numericReference = ['sequence', 1]
+
+/** @type {unknown} */
+const numericItem = ['repeat', 0, 1, 1]
+
 /** @type {(a: string) => readonly ['set', number, number]} */
 const one = a => ['set', c(a), c(a) + 1]
 
@@ -86,8 +101,15 @@ export const proof = {
             assertEq(showRule(int.uint), 'variant zero digits')
             assertEq(showRule(int.digits0), 'repeat 0 Infinity digit')
         },
-        // A tag nothing spells reaches no handler.
-        throw: () => showRule(/** @type {DataRule} */ (typo)),
+        // The carrier is checked where the tag is read: a tag nothing
+        // spells, a field past a fixed arity, or branches that are no
+        // object, are refused rather than dispatched with a part dropped.
+        throw: {
+            unknownTag: () => showRule(/** @type {DataRule} */ (typo)),
+            repeatTrailing: () => showRule(/** @type {DataRule} */ (repeatTrailing)),
+            variantTrailing: () => showRule(/** @type {DataRule} */ (variantTrailing)),
+            variantNotAnObject: () => showRule(/** @type {DataRule} */ (variantNotAnObject)),
+        },
     },
     emptyTagMap: {
         // A set never matches empty; a repeat from zero always does, with no
@@ -182,8 +204,17 @@ export const proof = {
             // A round that consumes nothing would repeat forever.
             nullableUnbounded: () => refuse({ digits0: ['repeat', 0, Infinity, 'none'] }),
             // Data is validated as data: a tag nothing spells is refused,
-            // not certified.
+            // not certified, and so is a reference that is no string — a
+            // number would reach the rule `'1'` through key coercion.
             unknownTag: () => validate({ entry: /** @type {DataRule} */ (typo) }, 'entry'),
+            numericReference: () => validate({
+                entry: /** @type {DataRule} */ (numericReference),
+                1: one('a'),
+            }, 'entry'),
+            numericItem: () => validate({
+                entry: /** @type {DataRule} */ (numericItem),
+                1: one('a'),
+            }, 'entry'),
         },
         // A nullable item under a bounded repeat is accepted: the bound is
         // the cardinality, and the item's own ambiguity is a backend's to

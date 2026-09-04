@@ -23,7 +23,7 @@ import { assert } from '../../asserts/module.f.mjs'
 import { errorMask } from '../../text/code_point/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { at, definedEntries, definedValues, structurallySame } from '../../types/object/module.f.mjs'
+import { at, definedEntries, definedValues, isObject, structurallySame } from '../../types/object/module.f.mjs'
 import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module.f.mjs'
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.mjs'
 
@@ -33,6 +33,12 @@ const { entries, fromEntries, keys } = Object
 /**
  * The one discriminator over the data {@link Rule}: each handler receives the
  * rule's payload without its tag.
+ *
+ * A hand-written or deserialized set is data, so the carrier is checked
+ * here, where the tag is read: a tag nothing spells, a fixed-arity tuple
+ * with a field past its arity, or a variant whose branches are no object,
+ * is refused rather than dispatched with part of it dropped. What the
+ * payload holds — boundaries, bounds, names — is `validate`'s.
  *
  * @type {<R>(v: RuleVisitor<R>) => (rule: Rule) => R}
  */
@@ -47,14 +53,15 @@ export const matchRule = v => rule => {
             return v.sequence(items)
         }
         case 'variant': {
-            return v.variant(rule[1])
+            const [, branches] = rule
+            assert(rule.length === 2 && isObject(branches), ['not a variant', rule])
+            return v.variant(branches)
         }
         case 'repeat': {
             const [, min, max, item] = rule
+            assert(rule.length === 4, ['not a repeat', rule])
             return v.repeat(min, max, item)
         }
-        // A hand-written or deserialized set is data, and a tag nothing
-        // spells is refused rather than dispatched to no handler.
         default: { throw ['not a rule', rule] }
     }
 }
@@ -125,9 +132,15 @@ const domain = rangeSet([0])
 /** @type {(n: number) => boolean} */
 const isSymbol = n => isSafeInteger(n) && n >= 0
 
-/** @type {(ruleSet: RuleSet) => (name: string) => (item: string) => void} */
+/**
+ * A reference is a string naming a rule of the set. The type is checked
+ * because data is untyped: a number would reach the same rule through
+ * property-key coercion and certify a value that is no `Rule`.
+ *
+ * @type {(ruleSet: RuleSet) => (name: string) => (item: string) => void}
+ */
 const defined = ruleSet => name => item =>
-    assert(at(item)(ruleSet) !== null, ['unknown rule', name, item])
+    assert(typeof item === 'string' && at(item)(ruleSet) !== null, ['unknown rule', name, item])
 
 /** @type {(ruleSet: RuleSet, empty: EmptyTagMap) => (name: string) => (rule: Rule) => void} */
 const validateRule = (ruleSet, empty) => name => {
