@@ -56,9 +56,38 @@ The options, from least to most:
 Whichever wins, the per-condition refusals stop being decided one
 reviewer comment at a time, which is what this issue exists to end.
 
+#### Replacement is not one of them
+
+A fourth answer suggests itself and does not work. `repeat(0, 0)(R)`
+matches what `[]` matches and has the AST `[]` has — `Ast` gives both
+`readonly []` — so replacing the one rule by the other looks free, and
+would answer the zero-round case by leaving no item to check at all.
+
+It breaks the monotonicity `Ast` is built on. `Ast` is monotone in its
+rule: `A extends B` implies `Ast<A> extends Ast<B>`, which `_Mono` in
+[`../../ast/types.ts`](../../ast/types.ts) pins. A bounded repetition
+refines the unbounded one — `Repeat<0, 0, D> extends Repeat<0, number, D>`,
+since `0 extends number` — and `Ast` carries the refinement through, as
+`readonly []` extends `readonly Ast<D>[]`. The empty tuple refines
+nothing of the sort: `readonly []` is no `Repeat`, so it stands in no
+relation to `Repeat<0, number, D>` at all. The replacement takes a rule
+from under a repetition it refined and puts it beside that repetition,
+and a consumer reasoning "a narrower rule has a narrower AST" can no
+longer reason through it.
+
+So every answer above keeps the rules the author wrote. The same binds a
+*normalizer* — the opt-in one
+[ebnf-migration](../../../todo/ebnf-migration.md) leaves open for
+`ebnf/data/` — which may replace a rule only by one that sits where the
+original sat, and owes an `Assert` saying so
+([fjs/AGENTS.md §1.4](../../../AGENTS.md#14-assert-type-level-facts-with-assertequal)):
+there is nothing to attach one to until such a rewrite exists, which is
+why this is prose here and a check there.
+
 ### Tasks
 
-- [ ] Decide which of the three the rewrite promises.
+- [ ] Decide which of the three the rewrite promises. Not by replacing
+      rules: that loses the order `Ast` is monotone in, above.
 - [ ] Apply it: extend, prune, or replace the refusals in
       [`../module.f.mjs`](../module.f.mjs) to match, and say the promise
       in [`../README.md`](../README.md).
