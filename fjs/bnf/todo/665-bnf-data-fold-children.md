@@ -123,6 +123,9 @@ removing the four mutated `let`s.
 
 ### Related
 
+- [`fjs/ebnf/data`](../../ebnf/data/module.f.mjs) — the EBNF lowering's
+  `toData` threads its memo through one immutable child fold from the start,
+  which is the shape this issue asks of the classical one.
 - [i197-djs-unknown-walker](../../djs/todo/197-djs-unknown-shape-walker.md) — same spirit
   (collapse several near-identical typeof/child walks onto one parameterized
   traversal), on the DJS value side.

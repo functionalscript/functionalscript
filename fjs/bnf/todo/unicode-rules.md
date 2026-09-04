@@ -184,13 +184,12 @@ This split changes the public design assumptions used by older open TODOs:
   ever met inside `data()`'s `case 'string'`. `isRepeat` in
   `fjs/bnf/data/module.f.mjs` is the single discriminator to re-point if the
   rule model moves again.
-- [`fjs/bnf/todo/rule-visitor.md`](./rule-visitor.md) is blocked by this task
-  and by [ebnf-front-end](./ebnf-front-end.md)'s Problem 1; the bigint
-  symbol/range migration is [on hold](./bigint-symbols.md) and no longer one
-  of its blockers. Its visitor must not preserve a generic string branch
-  after this split removes one; the terminal discriminant follows the
-  range-set carrier ([ebnf-range-set](./ebnf-range-set.md)), and
-  centralizing it in the visitor is that task's point.
+- rule-visitor (retired; shipped as `matchRule` in
+  [`fjs/ebnf/data`](../../ebnf/data/module.f.mjs)) was blocked by this task
+  and by [ebnf-front-end](./ebnf-front-end.md)'s Problem 1, and landed with
+  that problem's answer: it has no string branch, since the EBNF lowering
+  expands a string to terminals, and its terminal case takes the range-set
+  carrier ([ebnf-range-set](./ebnf-range-set.md)).
 - [`fjs/bnf/todo/recognizer-backend.md`](./recognizer-backend.md) is blocked by
   this task. It previously assigned byte/hex/byte-range helper creation to the
   recognizer work; those helpers now belong exclusively to `fjs/ebnf/byte`, and
@@ -282,9 +281,9 @@ port), not here.
 - [`../data/README.md`](../data/README.md#the-repeat-rule) — unaffected by this
   split; the shipped `Repeat` encoding is a data-layer string, not a functional
   one.
-- [BNF rule visitor](./rule-visitor.md) — blocked on the final generic `Rule`
-  discriminants; its visitor must not encode the pre-migration string/number
-  dispatch assumptions.
+- rule-visitor (retired; shipped as `matchRule` in
+  [`fjs/ebnf/data`](../../ebnf/data/module.f.mjs)) — the one discriminator
+  over the data `Rule`, written after the carrier was settled.
 - [Recognizer backend](./recognizer-backend.md) — blocked on this split and must
   consume `fjs/ebnf/byte` helpers instead of owning a duplicate binary
   authoring API.

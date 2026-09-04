@@ -294,7 +294,7 @@ beside a repetition, whose AST is a 2-tuple, not the flat list the table
 specifies. So the table holds only for the unbounded `0..`, and a lowering cannot be
 judged correct against it. The question is which bounds a data layer carries
 natively. Narrowing the front end to match today's IR is the option this
-design rejects. **Answered by [ebnf-data](../../ebnf/data/todo/ebnf-data.md):**
+design rejects. **Answered by [ebnf-data](../../ebnf/data/README.md):**
 the data layer carries every bound natively, as `['repeat', min, max, name]`,
 so nothing is reduced and no rule is synthesized.
 
@@ -322,7 +322,7 @@ be ambiguous too — `repeat(1, 2)({ short: 'a', long: 'aa' })` reads `aa` as on
 `long` or two `short` — and deciding that in general is not the front end's
 job.
 
-**Answered by [ebnf-data](../../ebnf/data/todo/ebnf-data.md)** for the data
+**Answered by [ebnf-data](../../ebnf/data/README.md)** for the data
 layer: only a nullable body under an unbounded `max` is refused. At a bounded
 `max` the repetition adds no decision of its own — a round is forced up to
 `min` and lookahead-guarded up to `max` — so the ambiguity, where there is
@@ -341,7 +341,7 @@ the helpers take and return range-set *values*, the `'range'` row becomes
 
 **6. Reduction at the functional level defeats memoization** — a thunk created
 during conversion has no `.name` and no shared identity. **Dissolved by
-[ebnf-data](../../ebnf/data/todo/ebnf-data.md):** nothing is reduced, at
+[ebnf-data](../../ebnf/data/README.md):** nothing is reduced, at
 either level.
 
 **7. `AST<T>` needs explicit annotations on recursive rules.** TypeScript will
@@ -354,7 +354,7 @@ structural values while today's AST is `{ tag, sequence }` nodes
 ([`../README.md`](../README.md#ast)). `AST<Sequence>` and `AST<Variant>`
 cannot be written until this is settled, and it decides what "the same AST"
 means in the port claim. **Narrowed by
-[ebnf-data](../../ebnf/data/todo/ebnf-data.md):** the data layer commits to
+[ebnf-data](../../ebnf/data/README.md):** the data layer commits to
 the `{ tag, sequence }` node per rule invocation, with one flat node for a
 repetition of any bounds; how the typed `Ast<R>` relates to those nodes is
 `ebnf/map/`'s to settle.
@@ -433,7 +433,7 @@ three forms. It needs a data layer that can represent it.
 
 - [ebnf-migration](../../todo/ebnf-migration.md) — the module this lands in,
   as its first piece, and the dependency rule it lives under.
-- [ebnf-data](../../ebnf/data/todo/ebnf-data.md) — the data layer this
+- [ebnf-data](../../ebnf/data/README.md) — the data layer this
   lowers into: answers Problems 1, 3 and 6, narrows 8, and settles the IR
   carrier rule-visitor and ebnf-range-set wait on.
 - [`fjs/rtti/types.ts`](../../rtti/types.ts) — the eDSL shape this copies.
@@ -448,10 +448,8 @@ three forms. It needs a data layer that can represent it.
 - [ebnf-range-set](./ebnf-range-set.md) — replaces the `['range', a, b]`
   row with a range-set terminal `['set', …]`; answers Problem 5 and most of
   Problem 9, and shares Problem 1's IR carrier decision.
-- [rule-visitor](./rule-visitor.md) — **depends on Problem 1's answer.** The
-  visitor discriminates the data `Rule`, and if the data layer grows a
-  bounded repeat that union changes, so implementing the visitor against
-  today's string-only `Repeat` would need a second rewrite. It is blocked on
-  the IR decision, not merely on the alphabet split.
+- rule-visitor (retired; shipped as `matchRule` in
+  [`fjs/ebnf/data`](../../ebnf/data/module.f.mjs)) — the visitor discriminates
+  the data `Rule`, so it waited on Problem 1's answer and landed with it.
 - [207-bnf-semantic-actions](./207-bnf-semantic-actions.md) — rule maps keyed
   by identity; Problem 1 is its sharpest edge.
