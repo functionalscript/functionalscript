@@ -354,7 +354,9 @@ contract, which is a much weaker proposal. **Met again by
 written against a declared input, since its true input depends on the whole
 map, and `rewrite` checks the declaration against the map once it is whole.
 Non-recursive grammars pay one annotation per mapping; a recursive one is
-still the untested case.
+still the untested case, and now a blocking one: a key must have a type
+that says its parts, so a recursive rule annotated `Thunk` or
+`Const<Variant>` cannot be a key until it has its recursive type.
 
 **8. The tables never say how a node is represented.** Rows are written as
 structural values while today's AST is `{ tag, sequence }` nodes

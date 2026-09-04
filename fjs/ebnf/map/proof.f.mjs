@@ -81,6 +81,9 @@ const sparse = [, 'x']
 const typo = () => ['typo']
 
 /** @type {unknown} */
+const unsorted = () => ['set', 0, 10, 5]
+
+/** @type {unknown} */
 const holeThenB = [, c('b')]
 
 const withEnd = /**@type {const}*/({ end: null, x: 'x' })
@@ -123,12 +126,21 @@ const outer = () => ['const', inner]
 
 const twoDigits = times(2)(digit)
 
-/** A map with one thunk key of each kind, for the look-alikes below. */
+/** A map with a set key and a repeat key, for the look-alikes below. */
 const thunkKeys = rewrite([
     [digit, /** @type {(d: number) => number} */ (d => d - c('0'))],
-    [self1, /** @type {(v: unknown) => string} */ (() => 'self')],
     [twoDigits, /** @type {(v: readonly [number, number]) => number} */ (([a, b]) => a * 10 + b)],
 ])
+
+/**
+ * A map keyed by a self-naming thunk. Its type is the bare `Thunk`, which
+ * says nothing of its parts, so `Checked` refuses it as a key; the value
+ * is spelled outside the type system to reach the runtime, which keys a
+ * thunk by itself and needs no type.
+ */
+const selfKeys = rewrite(/** @type {any} */ ([
+    [self1, /** @type {(v: unknown) => string} */ (() => 'self')],
+]))
 
 export const proof = {
     // The example end to end: the tree of a list is rewritten to the list.
@@ -196,7 +208,8 @@ export const proof = {
         assertStructurallySame(r({ a: 'x', b: 'x' })(['a', cps('x')]), ['a', cps('x')])
         // A thunk that is no look-alike of any key is left as it is.
         assertEq(thunkKeys(range('az'))(c('a')), c('a'))
-        assertStructurallySame(thunkKeys(selfOther)(['x', cps('y')]), ['x', cps('y')])
+        assertStructurallySame(selfKeys(selfOther)(['x', cps('y')]), ['x', cps('y')])
+        assertEq(selfKeys(self1)(['x', cps('x')]), 'self')
     },
     // A variant's mapping receives the tag and the branch's rewrite; a
     // numeric key arrives as the string it is at runtime.
@@ -267,7 +280,7 @@ export const proof = {
         setByAnotherSpelling: () => thunkKeys(range('09'))(c('7')),
         setSpelledAgain: () => thunkKeys(/** @type {Rule} */ (range('09')))(c('7')),
         setByEncode: () => thunkKeys(/** @type {Rule} */ (rangeEncode(c('0'), c('9'))))(c('7')),
-        selfSpelledAgain: () => thunkKeys(self2)(['x', cps('x')]),
+        selfSpelledAgain: () => selfKeys(self2)(['x', cps('x')]),
         repeatSpelledAgain: () => thunkKeys(times(2)(digit))([c('1'), c('2')]),
         // Two keys of one spelling are one key twice.
         spelledTwice: () => rewrite(/** @type {any} */ ([
@@ -285,5 +298,8 @@ export const proof = {
         hole: () => none(/** @type {Rule} */ (sparse))(/** @type {any} */ ([undefined, cps('x')])),
         notARule: () => none(/** @type {Rule} */ (notARule))(/** @type {any} */ (true)),
         unknownTag: () => none(/** @type {Rule} */ (typo))(/** @type {any} */ (0)),
+        // A set whose boundaries are no range set would answer membership
+        // wrong, so it is refused before any symbol is read.
+        unsortedSet: () => none(/** @type {Rule} */ (unsorted))(/** @type {any} */ (20)),
     },
 }
