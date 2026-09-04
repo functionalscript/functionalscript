@@ -363,15 +363,22 @@ structural values while today's AST is `{ tag, sequence }` nodes
 ([`../README.md`](../README.md#ast)). `AST<Sequence>` and `AST<Variant>`
 cannot be written until this is settled, and it decides what "the same AST"
 means in the port claim. **Narrowed by
-[ebnf-data](../../ebnf/data/README.md):** the data layer commits to
-the `{ tag, sequence }` node per rule invocation, with one flat node for a
-repetition of any bounds; how the typed `Ast<R>` relates to those nodes is
-`ebnf/map/`'s to settle. **Narrowed again by
+[ebnf-data](../../ebnf/data/README.md):** the data layer commits to one
+node per rule invocation, with one flat node for a repetition of any
+bounds; how the typed `Ast<R>` relates to those nodes is `ebnf/map/`'s to
+settle. That layer said `{ tag, sequence }` when it landed, since the
+classical node was the only one there was; its README says `Ast<R>` now,
+amended by the backend below, and no `{ tag, sequence }` node survives in
+`ebnf/`. **Narrowed again by
 [`fjs/ebnf/map`](../../ebnf/map/README.md):** the mapping layer is defined
 over the typed `Ast<R>` — its rows are the table above with every child
 position a hole — so what remains is the backend's: build `Ast<R>` values,
 or fold the same map into the parse and hand each mapping the children that
-README specifies.
+README specifies. **Answered by
+[`fjs/ebnf/ll1`](../../ebnf/ll1/README.md):** the backend builds `Ast<R>`
+values — `parser(rule)` returns a `Parser<Ast<typeof rule>>` — so a node
+*is* the row's structural value, and "the same AST" in the port claim means
+the same `Ast<R>`. There is no `{ tag, sequence }` node in `ebnf/`.
 
 **9. Dissolved by ebnf-migration.** It was: one alphabet adapter cannot
 return both representations — `range('09')` is a packed `TerminalRange` to
