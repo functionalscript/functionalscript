@@ -3,18 +3,21 @@
 The `ebnf/data/` piece of [ebnf-migration](../../todo/ebnf-migration.md): the
 intermediate representation (IR) the EBNF backends consume, and the lowering
 from the front end in [`../module.f.mjs`](../module.f.mjs) into it. It settles
-the carrier question [ebnf-front-end](../../bnf/todo/ebnf-front-end.md)
-(Problem 1) and [ebnf-range-set](../../bnf/todo/ebnf-range-set.md) ("Decide
-with the bounded repeat") both deferred to this layer, and it absorbs the
-rule-visitor issue as `matchRule`.
+the carrier question the ebnf-front-end issue (Problem 1) and the
+ebnf-range-set issue ("Decide with the bounded repeat") both deferred to this
+layer, and it absorbs the rule-visitor issue as `matchRule`. Those issues live
+under `fjs/bnf/todo/` today and are not linked from here: `ebnf/` never
+reaches into `bnf/`, a README link included, because the migration deletes
+`bnf/` at its last stage
+([ebnf-migration](../../todo/ebnf-migration.md), principle 2).
 
 - `module.f.mjs` — `matchRule`, `emptyTagMap`, `validate`, `toData`;
 - `types.ts` — the `Rule` union, `RuleSet`, `RuleVisitor`, `GrammarData`.
 
 ## Why not the classical form
 
-The classical IR in [`fjs/bnf/data`](../../bnf/data/README.md) is four rule
-kinds told apart by JavaScript type alone: a number is a terminal range, an
+The classical IR in `fjs/bnf/data` is four rule kinds told apart by
+JavaScript type alone: a number is a terminal range, an
 array a sequence of rule names, an object a variant of rule names, and a
 string the name of a rule to repeat zero or more times. That property is what
 its every consumer dispatches on, and the EBNF front end breaks it twice:
@@ -30,7 +33,7 @@ So the EBNF IR is a different carrier, not the classical one with two rows
 edited, and the carrier was chosen once, for both. What did not change is the
 contract on top of it — every rule of a set has a name, the AST is one node
 per rule invocation, and a repetition is one flat node whatever its bounds
-([the AST is one contract](../../bnf/README.md#the-ast-is-one-contract)).
+("The AST is one contract" in the classical `fjs/bnf/README.md`).
 
 ## The form
 
@@ -194,8 +197,7 @@ entry rather than re-deriving any of it.
   ebnf-range-set's **Amended** note says. In the data form a set is either
   exactly `[-1, 0]` or has a first boundary of `0` or more; a set mixing EOF
   with ordinary symbols is invalid, which is what keeps the terminal AST row
-  unconditional ([ebnf-range-set](../../bnf/todo/ebnf-range-set.md), "Why EOF
-  is not a set member"). `b + 1` is exact for safe integers only, so a
+  unconditional (ebnf-range-set, "Why EOF is not a set member"). `b + 1` is exact for safe integers only, so a
   boundary above them would name a different range than the one written.
 - **Repeat bounds**: `min` a non-negative safe integer, `max` a non-negative
   safe integer or `Infinity`, `min <= max`

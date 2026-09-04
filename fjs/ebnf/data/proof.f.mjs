@@ -49,6 +49,9 @@ const undefinedBranch = { ok: 'x', missing: undefined }
 const sparse = [, 'x']
 
 /** @type {unknown} */
+const constObject = { 0: 'const', 1: 'x', length: 2 }
+
+/** @type {unknown} */
 const numericReference = ['sequence', 1]
 
 /** @type {unknown} */
@@ -424,6 +427,9 @@ export const proof = {
             // refused where the tuple is read, since the data form's arity
             // check only ever sees what the lowering emitted.
             constTrailing: () => toData(() => /** @type {readonly ['const', string]} */ (constTrailing)),
+            // An object spelling a tuple has the fields and the length, and
+            // is no info tuple.
+            constObject: () => toData(() => /** @type {readonly ['const', string]} */ (constObject)),
             // A branch that is explicitly `undefined` is no rule, and is
             // refused rather than dropped into a grammar with one branch
             // fewer than the one written.

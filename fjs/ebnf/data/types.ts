@@ -38,7 +38,19 @@ export type Repeat = readonly ['repeat', number, number, string]
 
 export type Rule = Terminal | Sequence | Variant | Repeat
 
-/** The full grammar: every rule the entry reaches, by name. */
+/**
+ * The full grammar: every rule the entry reaches, by name.
+ *
+ * This is an abstraction in the sense of `AbstractRequiredMap` in
+ * `fjs/types/object/types.ts`, as the classical rule set is: no object
+ * carries every string as a key, so reading a name the set does not define
+ * is typed as a `Rule` and yields `undefined` at runtime. That is the right
+ * side of the trade-off for a set every consumer reads *after* `validate`,
+ * which certifies that every name a rule references is defined — a backend
+ * following a reference is reading a rule, not a rule that might be
+ * missing. The one reader that meets a name that may be absent, `validate`
+ * itself, looks names up through `at`, where a miss is typed.
+ */
 export type RuleSet = AbstractRequiredMap<string, Rule>
 
 /**

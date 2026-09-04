@@ -320,6 +320,9 @@ const lowerThunk = (state, hint, fr) => {
     const name = freshName(state.taken)(fr.name === '' ? hint : fr.name)
     const registered = register(state, name, fr)
     const info = fr()
+    // An info is a tuple; an object spelling one — `{ 0: 'const', 1: c,
+    // length: 2 }` — would pass every field read below and is refused first.
+    assert(info instanceof Array, ['not a rule', name, info])
     switch (info[0]) {
         case 'const': {
             assert(info.length === 2, ['not a const', name, info])
