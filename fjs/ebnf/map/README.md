@@ -117,9 +117,12 @@ composes with `rewrite` directly; one that folds transformers into its parse
 as the classical `ll1` does, building no tree, is a different engine over
 the same map — the map's keys and functions are what it would consume, and
 the children a function receives are specified here so that the two agree.
-Whether the reference backend produces `Ast<R>` values or `{ tag, sequence }`
-nodes with a conversion beside them is the backend's, and is what remains of
-the front-end design's Problem 8.
+The reference backend, [`../ll1`](../ll1/README.md), builds `Ast<R>` values:
+`parser(rule)` returns a `Parser<Ast<typeof rule>>`, and its tree goes into
+`rewrite(rules)(rule)` as it is. That is the answer to what remained of the
+front-end design's Problem 8; a fold over the map that never builds the tree
+stays an option for a consumer that asks for it, and the table above is what
+such a fold would owe each mapping.
 
 **No metadata channel.** The classical protocol pairs every value with an `M`
 and folds it through the tree. `Ast<R>` carries none, so neither does this.
@@ -138,5 +141,3 @@ rename here.
   does not reach inside `'ab'`, though the data layer names `'a'`'s symbol
   and a bare `97` as one rule. A backend keyed by data-rule names will meet
   that difference and is where it is settled.
-- Which of `Ast<R>` values or a conversion from `{ tag, sequence }` nodes
-  the backend owes — Problem 8's remainder, above.
