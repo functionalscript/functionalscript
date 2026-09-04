@@ -59,8 +59,10 @@ impl<A: IVm> Shl for BigInt<A> {
         // A carry word is only produced when `bit_shift` actually pushes a
         // set bit out of the current top word — not on every shift, so this
         // is computed exactly rather than conservatively reserved for every
-        // call: `1n << 1073741823n` needs exactly `MAX_WORDS` words (no
-        // carry) and must succeed, the same as it does in Node.
+        // call: `1n << 1048575n` needs exactly `MAX_WORDS` words (no carry)
+        // and must succeed. That boundary is `nanvm-lib`'s own `MAX_WORDS`
+        // policy limit (see its doc comment), not V8's own — V8 alone would
+        // still accept a shift far past it.
         let top_word = self[n_len - 1];
         let carries_new_word = bit_shift > 0 && top_word >> (64 - bit_shift) != 0;
         let result_len = word_shift + n_len as u64 + if carries_new_word { 1 } else { 0 };
@@ -69,7 +71,7 @@ impl<A: IVm> Shl for BigInt<A> {
         }
         let word_shift = word_shift as usize;
 
-        // `result_len` is already policy-bounded to `MAX_WORDS` (128 MiB) by
+        // `result_len` is already policy-bounded to `MAX_WORDS` (128 KiB) by
         // the check above, but the allocator can still fail below that —
         // the real memory available to an embedder can be smaller — so this
         // reserves fallibly rather than through `Vec`'s ordinary growth,
@@ -385,11 +387,13 @@ mod tests {
 
     #[test]
     fn shl_just_over_max_words_returns_err_without_allocating() {
-        // Shifting by exactly `MAX_WORDS * 64` bits (2^30) needs
-        // MAX_WORDS + 1 words (word_shift = MAX_WORDS, plus the existing
-        // word of `1`, no carry since bit_shift is 0) — one word past the
-        // limit, matching the exact boundary Node itself rejects at
-        // (`1n << 1073741823n` succeeds, `1n << 1073741824n` throws).
+        // Shifting by exactly `MAX_WORDS * 64` bits (2^20, matching
+        // `fjs/types/bigint/module.f.mjs`'s `maxLength`) needs MAX_WORDS + 1
+        // words (word_shift = MAX_WORDS, plus the existing word of `1`, no
+        // carry since bit_shift is 0) — one word past `nanvm-lib`'s own
+        // policy limit. That is not a boundary V8 itself enforces (V8 alone
+        // would still accept this shift); it is the tighter, cross-engine
+        // limit this file's `MAX_WORDS` doc comment explains.
         // Rejected by the guard before any allocation is attempted, so this
         // stays cheap even though the *value* it describes would not.
         let a: T = 1u64.into();
@@ -409,7 +413,7 @@ mod tests {
         // the shift is chosen so the guard's word-count arithmetic is
         // exercised directly (word_shift = 2, matching a hypothetically
         // tiny `MAX_WORDS`), without needing an allocation anywhere near
-        // the real 128 MiB limit to prove it.
+        // the real 128 KiB limit to prove it.
         let a: T = 1u64.into();
         let b: T = 191u64.into(); // word_shift = 2, bit_shift = 63
         assert_eq!((a << b).unwrap(), pos(vec![0, 0, 1u64 << 63]));
