@@ -1,6 +1,6 @@
 ## nullable-repeat-item. `AstRule` and `repeatOf` disagree where a rule set is needed
 
-*(The slug names the first case found; the issue grew to eleven.)*
+*(The slug names the first case found; the issue grew to twelve.)*
 
 **Priority:** P3
 **Status:** open
@@ -53,7 +53,7 @@ of defect as the repeat-detection ones fixed in the same pull request — extra
 branches, and branch names other than `some`/`none` — rather than the bounded
 kind, and it is the strongest argument for deriving from the rule set.
 
-### Seven more, from different causes
+### Eight more, from different causes
 
 An *open* key set whose value type admits `undefined` —
 `{ readonly [k: string]: 0 | undefined }` — is answered with the widened variant
@@ -145,6 +145,19 @@ The literal key is out of reach: `keyof (StringMap<Rule> & { fixed: 0 })` is
 `Assert<Equal<keyof …, string>>` holds. There is no name left to index by, and
 so nothing to ask about the branch it names. A rule set has the keys the value
 turned out to carry.
+
+A plain object shaped like a tuple is read as a sequence. `Object.assign({}, [0])`
+is `{ '0': 0 }` — `Array.isArray` is `false`, so `toData` takes the *variant*
+path and builds `{ '0': '0' }`, a one-branch variant a match answers with
+`{ '0': number }` — while its type is `{} & readonly[0]`, which
+`Assert<Equal<…, readonly[0]>>` says is the tuple, so `AstRule` promises
+`readonly[number]`.
+
+This is the `__proto__` case again from the other side: TypeScript has no nominal
+array identity, so one type describes both a real array and an object that
+merely has its shape, and the two normalize differently. Refusing "structurally
+array-like" inputs would refuse every genuine tuple, since there is nothing else
+to refuse on. A rule set carries what `Array.isArray` said.
 
 A repetition whose item holds a union *below its top level* admits arrays whose
 elements differ, where a grammar fixes one. The item of
