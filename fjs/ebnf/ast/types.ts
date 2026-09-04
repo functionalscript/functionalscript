@@ -57,7 +57,7 @@ type _Set1 = Assert<Equal<Ast<() => ['set', number]>, number>>
 type _Set2 = Assert<Equal<Ast<() => ['set', number, -1]>, number>>
 
 type _RepeatAst<Min extends number, Max extends number, D extends Rule> =
-    BoundedArray<Min, Max, D>
+    BoundedArray<Min, Max, Ast<D>>
 
 type _Repeat = Assert<Equal<Ast<Repeat<0, 1, 43>>, readonly[] | readonly[43]>>
 type _Repeat0 = Assert<Equal<Ast<Repeat<0, 0, 43>>, readonly[]>>
