@@ -237,7 +237,8 @@ tuple is the one way an unvalidated value reaches it:
 
 | front end | data |
 |---|---|
-| `n`, a symbol | `['set', n, n + 1]`; `-1` is `['set', -1, 0]`; the top ordinary symbol `Number.MAX_SAFE_INTEGER` is the open tail `['set', n]` ([top-symbol-open-tail](../todo/top-symbol-open-tail.md)); any other negative number, a fraction, or an unsafe integer is refused |
+| `null`, EOF | `['set', -1, 0]`, the one set with a negative boundary |
+| `n`, a symbol | `['set', n, n + 1]`; the top ordinary symbol `Number.MAX_SAFE_INTEGER` is the open tail `['set', n]` ([top-symbol-open-tail](../todo/top-symbol-open-tail.md)); any negative number — `-1` included, since EOF is `null` and not a number — a fraction, or an unsafe integer is refused |
 | `'text'` | a `['sequence', …]` of one `['set', c, c + 1]` per code point; `''` is the empty sequence; malformed UTF-16 is refused ([malformed-utf16-symbols](../todo/malformed-utf16-symbols.md)) |
 | `Tuple` | a `['sequence', …]` of the elements' names |
 | `Variant` | a `['variant', …]` of the branches' names |

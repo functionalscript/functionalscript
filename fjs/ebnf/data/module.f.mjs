@@ -66,28 +66,35 @@ export const matchRule = v => rule => {
     }
 }
 
+/**
+ * Whether the rule named `item` is nullable in `map` — an own entry only: a
+ * rule may be named `constructor`, and `{}` inherits one.
+ *
+ * @type {(map: EmptyTagMap) => (item: string) => boolean}
+ */
+const nullable = map => item => at(item)(map) !== null
+
+/**
+ * The nullability of one rule, given that of the rules it names.
+ *
+ * @type {(nullable: (item: string) => boolean) => RuleVisitor<EmptyTag>}
+ */
+const emptyTagVisitor = nullable => ({
+    set: () => undefined,
+    sequence: items => items.every(nullable) ? true : undefined,
+    // A variant's tag is its last nullable branch's, the one a dispatch
+    // miss selects.
+    variant: branches => definedEntries(branches)
+        .filter(([, item]) => nullable(item))
+        .at(-1)
+        ?.[0],
+    // A repetition is a sequence of items, not a choice, so it carries no
+    // tag of its own; zero rounds match whatever the item does.
+    repeat: (min, _max, item) => min === 0 || nullable(item) ? true : undefined,
+})
+
 /** @type {(map: EmptyTagMap) => (rule: Rule) => EmptyTag} */
-const emptyTagOf = map => {
-    // An own entry only: a rule may be named `constructor`, and `{}`
-    // inherits one.
-    /** @type {(item: string) => boolean} */
-    const nullable = item => at(item)(map) !== null
-    /** @type {RuleVisitor<EmptyTag>} */
-    const v = {
-        set: () => undefined,
-        sequence: items => items.every(nullable) ? true : undefined,
-        // A variant's tag is its last nullable branch's, the one a dispatch
-        // miss selects.
-        variant: branches => definedEntries(branches)
-            .filter(([, item]) => nullable(item))
-            .at(-1)
-            ?.[0],
-        // A repetition is a sequence of items, not a choice, so it carries no
-        // tag of its own; zero rounds match whatever the item does.
-        repeat: (min, _max, item) => min === 0 || nullable(item) ? true : undefined,
-    }
-    return matchRule(v)
-}
+const emptyTagOf = map => matchRule(emptyTagVisitor(nullable(map)))
 
 /** @type {(ruleSet: RuleSet) => (map: EmptyTagMap) => EmptyTagMap} */
 const emptyTagStep = ruleSet => map => {
@@ -142,27 +149,31 @@ const isSymbol = n => isSafeInteger(n) && n >= 0
 const defined = ruleSet => name => item =>
     assert(typeof item === 'string' && at(item)(ruleSet) !== null, ['unknown rule', name, item])
 
+/**
+ * The checks on one rule, given the name it has, the reference check of its
+ * set, and whether a name is nullable there.
+ *
+ * @type {(name: string, ref: (item: string) => void, nullable: (item: string) => boolean) => RuleVisitor<void>}
+ */
+const validateVisitor = (name, ref, nullable) => ({
+    set: s => {
+        assert(isRangeSet(s) && s.length !== 0, ['not a set of symbols', name, s])
+        assert(s.every(isSafeInteger), ['a boundary is not a safe integer', name, s])
+        assert(s[0] >= 0 || structurallySame(s, eofSet), ['a set holds ordinary symbols only, or is EOF', name, s])
+    },
+    sequence: items => items.forEach(ref),
+    variant: branches => definedValues(branches).forEach(ref),
+    repeat: (min, max, item) => {
+        assert(isSymbol(min), ['min is not a non-negative integer', name, min])
+        assert((isSafeInteger(max) || max === Infinity) && min <= max, ['max is not an integer at or above min, or Infinity', name, max])
+        ref(item)
+        assert(max !== Infinity || !nullable(item), ['a nullable item under an unbounded repeat', name, item])
+    },
+})
+
 /** @type {(ruleSet: RuleSet, empty: EmptyTagMap) => (name: string) => (rule: Rule) => void} */
-const validateRule = (ruleSet, empty) => name => {
-    const ref = defined(ruleSet)(name)
-    /** @type {RuleVisitor<void>} */
-    const v = {
-        set: s => {
-            assert(isRangeSet(s) && s.length !== 0, ['not a set of symbols', name, s])
-            assert(s.every(isSafeInteger), ['a boundary is not a safe integer', name, s])
-            assert(s[0] >= 0 || structurallySame(s, eofSet), ['a set holds ordinary symbols only, or is EOF', name, s])
-        },
-        sequence: items => items.forEach(ref),
-        variant: branches => definedValues(branches).forEach(ref),
-        repeat: (min, max, item) => {
-            assert(isSymbol(min), ['min is not a non-negative integer', name, min])
-            assert((isSafeInteger(max) || max === Infinity) && min <= max, ['max is not an integer at or above min, or Infinity', name, max])
-            ref(item)
-            assert(max !== Infinity || at(item)(empty) === null, ['a nullable item under an unbounded repeat', name, item])
-        },
-    }
-    return matchRule(v)
-}
+const validateRule = (ruleSet, empty) => name =>
+    matchRule(validateVisitor(name, defined(ruleSet)(name), nullable(empty)))
 
 /**
  * Refuses a rule set that is not a grammar, naming the rule: a reference to a
@@ -216,12 +227,12 @@ const emit = ({ names, taken, ruleSet }, name, rule) =>
     ({ names, taken, ruleSet: { ...ruleSet, [name]: rule } })
 
 /**
- * One symbol: `-1` is EOF, and the top ordinary symbol is the open tail.
+ * One symbol, and the top ordinary symbol is the open tail; EOF is `null`,
+ * not a number, so `-1` is refused like any negative.
  *
  * @type {(n: number) => Terminal}
  */
 const symbolTerminal = n => {
-    if (n === -1) { return eof }
     assert(isSymbol(n), ['not a symbol', n])
     return n === MAX_SAFE_INTEGER ? ['set', n] : ['set', n, n + 1]
 }
@@ -277,9 +288,9 @@ const lowerVariant = (state, name, branches) => {
 }
 
 /**
- * The data rule a name stands for: a number is one symbol, a string one
- * symbol per code point in sequence, an array a sequence, an object a
- * variant.
+ * The data rule a name stands for: `null` is EOF, a number one symbol, a
+ * string one symbol per code point in sequence, an array a sequence, an
+ * object a variant.
  *
  * @type {(state: _State, name: string, dr: DataRule) => _Lowered<Rule>}
  */
@@ -288,9 +299,11 @@ const lowerBody = (state, name, dr) => {
         case 'number': { return [state, symbolTerminal(dr)] }
         case 'string': { return lowerSequence(state, name, codePoints(dr)) }
         case 'object': {
-            return dr instanceof Array
-                ? lowerSequence(state, name, dr)
-                : lowerVariant(state, name, dr)
+            return dr === null
+                ? [state, eof]
+                : dr instanceof Array
+                    ? lowerSequence(state, name, dr)
+                    : lowerVariant(state, name, dr)
         }
         default: { throw ['not a rule', dr] }
     }

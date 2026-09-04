@@ -4,7 +4,7 @@
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { option, range, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.mjs'
+import { eof, option, range, remove, repeat, repeatFrom0, set, times, unicodeMax } from '../module.f.mjs'
 import { dataJs } from '../lib/datajs/module.f.mjs'
 import { digit, json, string, uint, ws, wsSymbol } from '../lib/json/module.f.mjs'
 import { emptyTagMap, matchRule, toData, validate } from './module.f.mjs'
@@ -248,8 +248,9 @@ export const proof = {
             assertStructurallySame(ruleSet, { '': one('a') })
             assertEq(names.get(c('a')), '')
         },
+        // EOF is the `null` rule, the one set with a negative boundary.
         eof: () => {
-            const [ruleSet] = toData(-1)
+            const [ruleSet] = toData(eof)
             assertStructurallySame(ruleSet, { '': ['set', -1, 0] })
         },
         // The top ordinary symbol is the open tail: the boundary above it is
@@ -407,8 +408,10 @@ export const proof = {
             assertStructurallySame(ruleSet, { below: ['set', 0, 5] })
         },
         throw: {
-            // A symbol is a non-negative safe integer, or EOF.
+            // A symbol is a non-negative safe integer; EOF is `null`, not
+            // `-1`, so `-1` is refused like any negative.
             symbolNegative: () => toData(-2),
+            symbolMinusOne: () => toData(-1),
             symbolFractional: () => toData(1.5),
             symbolUnsafe: () => toData(2 ** 53),
             malformedUtf16: () => toData('\uD800'),
