@@ -12,6 +12,7 @@ export type Ast<R extends Rule> =
     // Tuple
     R extends Tuple ? _TupleAst<R> :
     // Variant
+    {} extends R ? never :
     R extends Variant ? _VariantAst<R> :
     // Const
     R extends Const<infer D> ? Ast<D> :
@@ -43,7 +44,7 @@ type _VariantAst<R extends Variant> =
 type _Variant = Assert<Equal<Ast<
     { readonly a: 12, readonly b: 'hello' }>,
     { readonly a: 12, readonly b: readonly number[] }>>
-type _Variant0 = Assert<Equal<Ast<{}>, {}>>
+type _Variant0 = Assert<Equal<Ast<{}>, never>>
 
 type _Const = Assert<Equal<Ast<Const<42>>, 42>>
 type _Const0 = Assert<Equal<Ast<() => ['const', 42]>, 42>>
