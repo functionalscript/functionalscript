@@ -191,6 +191,7 @@ fjs/ebnf/
   module.f.mjs, types.ts   the front end: Rule union with a repetition primitive
   terminal/                TerminalRange, EOF, the codec            (move)
   unicode/                 text adapter: str, set, range, notOf, …   (rewrite)
+  byte/                    binary alphabet adapter, when a consumer needs it (rewrite)
   data/                    RuleSet IR with bounded Repeat, emptyTagMap (rewrite)
   matcher/                 cursor, EOF, AST, transformer tools       (move)
   ll1/                     the reference backend                     (rewrite)
@@ -234,9 +235,12 @@ consumers, `fjs/djs` included, exactly as they are until each consumer's own
 port. Repointing a `bnf/` module at its `ebnf/` counterpart is allowed by
 principle 2 and worth doing when it removes a second copy someone would
 otherwise maintain, and it is never a precondition for anything. So the only
-breaking change in this plan is stage 7, which declares
+breaking change to `fjs/bnf/` paths is stage 7, which declares
 `**BREAKING CHANGES:**` in its `Changelog:` section
-([changelog/RELEASE.md](../../changelog/RELEASE.md)).
+([changelog/RELEASE.md](../../changelog/RELEASE.md)). A consumer's port may
+change that consumer's own public API where it had exposed the backend it is
+leaving (the djs tokenizer does; stage 6 names the exports), and declares
+that in its own PR.
 
 #### Consumer port
 
@@ -332,7 +336,10 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    `toData`, `detectRepeat` and `repeatItem` as its own either way.
 3. **`ebnf/matcher/` and `ebnf/unicode/`.** The matcher copied and retargeted
    to the EBNF `Rule`; the text adapter in EBNF forms, before anything that
-   imports it.
+   imports it. `ebnf/byte/`, the other half of unicode-rules, has the same
+   owner and lands whenever its first consumer wants it — the recognizer
+   backend, per that issue; nothing in this plan needs it earlier, and
+   nothing forbids it earlier.
 4. **`ebnf/token_symbol/`, `ebnf/ll1/` and `ebnf/map/`.** `token_symbol`
    copied, taking `unicodeRange` from `ebnf/unicode/`. `ll1` rewritten against
    the new IR: flat nodes for every bound, a conflict error that names the
@@ -349,6 +356,16 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    `djs/tokenizer` then `djs/parser` on `ebnf/ll1/`. The first grammar to leave
    `descent` is the first evidence the backend decision holds; if it does not,
    this stage is where the plan is revised, not forced.
+
+   The djs tokenizer's public exports that expose the descent backend —
+   `jsMatcher`, which builds a `descentParserRuleSet`, and
+   `descentParserCpOnly`, which returns a `DescentMatchResult` — are the
+   port's to replace with their LL(1) equivalents, under whatever names fit.
+   Their only importer is the tokenizer's own proof, updated in the same PR.
+   That is a change to `fjs/djs/tokenizer`'s own public API and the port
+   declares it as such; the "one breaking change" above is a statement about
+   `fjs/bnf/` paths, not about a consumer's surface where it had exposed the
+   backend it is leaving.
 7. **Delete `fjs/bnf/`.** With it: the retired issues, `descentEquivalence` in
    its two-backend form, and the classical half of the README split. Finish
    the issue moves. One `**BREAKING CHANGES:**` declaration.
@@ -365,7 +382,8 @@ consumer port"), never by number, so a renumbering here cannot strand them.
 - [ ] Stage 2: `ebnf/data/` with bounded `Repeat` and proof; rule-visitor and
       665 absorbed or moved.
 - [ ] Stage 3: `ebnf/matcher/` and `ebnf/unicode/` with proofs; `showAst` in
-      `ebnf/`'s testlib; unicode-rules settled.
+      `ebnf/`'s testlib; unicode-rules' `unicode/` half settled, its `byte/`
+      half owed to the first consumer that wants it.
 - [ ] Stage 4: `ebnf/token_symbol/`, `ebnf/ll1/` and `ebnf/map/` with proofs;
       rename-check-map settled.
 - [ ] Stage 5: `ebnf/lib/json` and `ebnf/lib/datajs` with proofs; the

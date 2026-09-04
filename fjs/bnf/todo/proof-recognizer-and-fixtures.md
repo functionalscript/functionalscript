@@ -145,8 +145,10 @@ already exposes, so no production API is added here; a `bnf`-local descent
 adapter builds via `descentParserRuleSet(ruleSet)` the same way.
 
 That local adapter also absorbs the proof-local copy of `descentParserCpOnly`.
-Keep the DJS tokenizer export: its proof has typed-result consumers beyond the
-recognition corpus, so removing it would be a separate public-API change.
+Leave the DJS tokenizer's own `descentParserCpOnly` export to the djs port:
+its proof has typed-result consumers beyond the recognition corpus, and the
+port replaces it with an LL(1) equivalent as part of that module's own API
+change ([ebnf-migration](../../todo/ebnf-migration.md), the consumer port).
 
 `stringToCodePointList` / `toArray` / code-point mapping stay inside the Unicode
 recognizer adapter. The alphabet-specific conversion should be imported from the
@@ -202,7 +204,7 @@ explicit named override list for the rows where token-stream acceptance differs.
 - [ ] Fold the proof-local `descentParserCpOnly` / code-point adapter into a
       `bnf/descent`-local `descentRecognizer` that reuses the shared
       `Recognizer` type and `assertRecognizes`; leave the DJS tokenizer's
-      public export alone.
+      public export to the djs port.
 - [ ] Add `number` as a directly authored `RuleSet` and entry name — no
       functional `Rule`, no `toData` in the shared testlib — and add
       `jsonCases`.
