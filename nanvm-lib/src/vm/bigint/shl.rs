@@ -100,6 +100,14 @@ impl<A: IVm> Shl for BigInt<A> {
             "shl: result must be normalized and non-empty"
         );
 
+        // TODO: `value`'s own allocation above is fallible, but
+        // `unchecked_new` -> `IContainer::new_ok` -> (for `Naive`)
+        // `Container::new` collects it into an `Rc<[u64]>`, a second
+        // allocation that is not: an allocator that fails only that step
+        // still aborts the process instead of returning `RangeError` here.
+        // Making container construction reuse this buffer, or exposing a
+        // fallible construction path, needs a change to `IContainer`/the
+        // `Naive` backend rather than to this function.
         Ok(Self::unchecked_new(self.sign(), value))
     }
 }
