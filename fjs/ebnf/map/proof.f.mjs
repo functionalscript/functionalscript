@@ -93,6 +93,12 @@ const negativeBoundary = () => ['set', -5, 3]
 const constTrailing = () => ['const', 42, 'extra']
 
 /** @type {unknown} */
+const constObject = () => ({ 0: 'const', 1: 42, length: 2 })
+
+/** @type {unknown} */
+const constThunk = () => ['const', range('09')]
+
+/** @type {unknown} */
 const repeatTrailing = () => ['repeat', 0, 1, 'x', 'extra']
 
 /** @type {unknown} */
@@ -336,6 +342,11 @@ export const proof = {
         // rather than dropped, since a rule read from part of what it
         // spells is not that rule.
         constTrailingField: () => none(/** @type {Rule} */ (constTrailing))(/** @type {any} */ (42)),
+        // An object spelling a tuple passes every field read, so the
+        // carrier is refused before any of them.
+        constObjectCarrier: () => none(/** @type {Rule} */ (constObject))(/** @type {any} */ (42)),
+        // A `const` spells a data rule, and a thunk is none.
+        constThunkPayload: () => none(/** @type {Rule} */ (constThunk))(/** @type {any} */ (c('7'))),
         repeatTrailingField: () => none(/** @type {Rule} */ (repeatTrailing))(/** @type {any} */ ([])),
         // A repetition's bounds are the lowering's too, and `-0` reaches
         // the constructor because `tsc` reads it as the literal `0`.

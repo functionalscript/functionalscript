@@ -129,13 +129,21 @@ const fixed = (rule, ast, length) => {
  */
 const thunkChildren = rules => (fr, ast) => {
     const info = fr()
+    // An info is a tuple; an object spelling one — `{ 0: 'const', 1: c,
+    // length: 2 }` — would pass every field read below, so it is refused
+    // first, as the lowering refuses it.
+    assert(info instanceof Array, ['not a rule', fr, info])
     switch (info[0]) {
         case 'const': {
             // An info is a fixed-arity tuple where its tag says so, and a
             // field past that arity is a mistake the lowering refuses: a
-            // rule read from part of what it spells is not that rule.
+            // rule read from part of what it spells is not that rule. What
+            // a `const` spells is a data rule, so a thunk under it is one
+            // the lowering refuses too.
             assert(info.length === 2, ['not a const', fr, info])
-            return rewriteRule(rules)(info[1])(ast)
+            const dr = info[1]
+            assert(typeof dr !== 'function', ['not a data rule', fr, dr])
+            return rewriteRule(rules)(dr)(ast)
         }
         case 'set': {
             // A hand-written set is data, and its boundaries are the
