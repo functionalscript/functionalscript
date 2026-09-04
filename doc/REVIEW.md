@@ -2,7 +2,7 @@
 
 For the author of a pull request under review. Opening one is
 [CONTRIBUTING.md](../CONTRIBUTING.md#opening-a-pull-request); the principles are
-[DESIGN.md](./DESIGN.md).
+[DESIGN.md](./DESIGN.md); the reviewer's side is [REVIEWING.md](./REVIEWING.md).
 
 **Merge the knowledge.** A small step merged with what was learned written down
 beats two hundred iterations of a pull request that never lands. Most comments
@@ -17,6 +17,9 @@ is wrong: it is the one place the answer will not survive.
 | An implementation is asked for another feature | Find or file a `todo/`, and reply with the link |
 | One case is generalized into a rule | Answer with the case that breaks it, and record what the decision depends on |
 | A defect is reported | Fix it, or defer it behind a `todo/` naming the input that breaks it |
+| A corner case is raised | File a `todo/` naming the input, and reply with the link — not a fix. If the case answers wrong, refuse it first: that is silence |
+| A bot finds "fresh evidence" in your last fix | After the second round: a `todo/` or an answer, not a push — unless it [blocks](./REVIEWING.md#what-to-raise) |
+| A tighter type is asked for on a valid input | Keep the type simple: depth is a budget ([REVIEWING.md](./REVIEWING.md#type-level-computation)); a `todo/` if the check is wanted |
 
 A pull request implements one feature, so "while you're here" is a second one.
 And a rule generalized from one real case fails on the case the reviewer did not
@@ -32,11 +35,11 @@ differs is what comes next.
 - **Overspecified.** The implementer is not bound by it. Deviating is fine,
   deviating silently is not: the reason goes into the document.
 - **Underspecified.** The next person adds what is missing, in a pull request
-  that need not implement anything — an increment like any other, and what
-  [DESIGN.md §3](./DESIGN.md#3-design-before-implementation) means by updating
-  the issue before writing code against it. Detail is missing where two
-  implementers working from the design would not produce the same observable
-  behavior and the same API.
+  that need not implement anything — an increment like any other
+  ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)). Nobody waits on
+  it: an implementation may land against a thin design and say what it
+  decided. Detail is missing where two implementers working from the design
+  would not produce the same observable behavior and the same API.
 
 Either way, prefer to land the design change and the implementation as separate
 pull requests ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)).
@@ -58,20 +61,27 @@ that cannot read a file above 128 KB is a documented limit and a `todo/` — the
 only people who can hand it a file are the people who maintain it, no such file
 exists, and the day one does is the day the issue is picked up
 ([DESIGN.md §1](./DESIGN.md#1-simplicity-first)). A module in the published
-package is the opposite: the input belongs to someone we have never met, so it
-is fixed before it lands.
+package hands its input to someone we have never met: that raises the `todo/`'s
+priority and is the reason to refuse the input now (below) — it is not a reason
+to fix it in this pull request.
 
-Never deferrable: a **regression**, and **silence**.
+A corner case — a case the change did not set out to handle, which no real
+input reaches today — is a `todo/` by default, not a fix. Whether it is needed
+is decided later, on its own; the alternative is a pull request that answers
+every "what if" and never lands.
+
+Never deferrable: what [blocks](./REVIEWING.md#what-to-raise) — a
+**regression**, **silence**, an undeclared break, a broken code rule.
 
 ## Refusing loudly
 
 An unsupported input is refused, never answered with a plausible wrong value —
 **rejected** as a `try*` returning `Nullable<T>` where a caller may legitimately
 supply it, **panicked** on where it violates a precondition
-([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)). New code gets
-that right before it lands. A defect found late may be staged behind an assert,
-which stops the wrong answers today, as long as the `todo/` says the rejection
-is what it still owes. Refuse fast, file, then fix.
+([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)). An assert is
+the fast form of either, in new code or in a defect found late: it stops the
+wrong answers today, as long as the `todo/` says the rejection it still owes.
+Refuse fast, file, then fix.
 
 ## When it cannot land
 
