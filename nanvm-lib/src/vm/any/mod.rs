@@ -114,10 +114,20 @@ impl<A: IVm> Any<A> {
     /// objects `own_property` inspects) and always answers `undefined`,
     /// same as every absent key does; a nullish one throws, matching
     /// `ToObject`'s own `TypeError` on `null`/`undefined`.
+    ///
+    /// The receiver is checked before the key is: real `ToObject` runs
+    /// before `ToPropertyKey`
+    /// (<https://tc39.es/ecma262/#sec-object.getownpropertydescriptor>), so
+    /// a nullish receiver throws regardless of what the key is, even one
+    /// this would otherwise reject — `Object.getOwnPropertyDescriptor(null,
+    /// 42)` throws the nullish `TypeError`, not one about `42`.
     pub fn own_property(self, key: Self) -> Result<Self, Self> {
+        let unpacked: Unpacked<A> = self.into();
+        if let Unpacked::Nullish(_) = &unpacked {
+            return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
+        }
         let key: String<A> = key.try_into()?;
-        Ok(match self.into() {
-            Unpacked::Nullish(_) => return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into()),
+        Ok(match unpacked {
             Unpacked::Object(o) => o
                 .own_property(&key)
                 .unwrap_or_else(|| Nullish::Undefined.to_any()),
