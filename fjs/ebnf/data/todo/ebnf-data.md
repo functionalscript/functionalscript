@@ -6,14 +6,21 @@
 The `ebnf/data/` piece of [ebnf-migration](../../../todo/ebnf-migration.md):
 the intermediate representation (IR) the EBNF backends consume, and the
 lowering from the front end in [`../../module.f.mjs`](../../module.f.mjs)
-into it. It settles the carrier question [ebnf-front-end](../../../bnf/todo/ebnf-front-end.md)
-(Problem 1) and [ebnf-range-set](../../../bnf/todo/ebnf-range-set.md)
+into it. It settles the carrier question ebnf-front-end
+(Problem 1) and ebnf-range-set
 ("Decide with the bounded repeat") both defer to this layer, and it absorbs
-the design of [rule-visitor](../../../bnf/todo/rule-visitor.md).
+the design of rule-visitor.
+
+The records this issue cites by name — ebnf-front-end, ebnf-range-set,
+rule-visitor, and the classical `fjs/bnf` files — live under `fjs/bnf/`
+today and are named rather than linked: nothing under `fjs/ebnf/` may
+reach `fjs/bnf/` by a relative link, so that deleting `bnf/` breaks
+nothing here (ebnf-migration, principle 2). Its issue triage moves each of
+them into `fjs/ebnf/` — the front-end design as `fjs/ebnf/README.md`.
 
 ### Problem
 
-The classical IR in [`fjs/bnf/data`](../../../bnf/data/README.md) is four rule
+The classical IR in `fjs/bnf/data/README.md` is four rule
 kinds told apart by JavaScript type alone: a number is a terminal range, an
 array a sequence of rule names, an object a variant of rule names, and a
 string the name of a rule to repeat zero or more times. That property is what
@@ -31,7 +38,7 @@ edited, and the record already says not to land either half as a special
 case: choose the carrier once, for both. What cannot change is the contract
 on top of it — every rule of a set has a name, the AST is one node per rule
 invocation, and a repetition is one flat node whatever its bounds
-([the AST is one contract](../../../bnf/README.md#the-ast-is-one-contract)).
+(the AST is one contract).
 
 ### Proposal
 
@@ -137,7 +144,7 @@ the EBNF backend. Nothing in `ebnf/` reads the classical form.
 
 #### One discriminator: the visitor
 
-The `Rule` dispatch lives in this module once, as [rule-visitor](../../../bnf/todo/rule-visitor.md)
+The `Rule` dispatch lives in this module once, as rule-visitor
 asks, mirroring `visit` in `fjs/rtti/common`:
 
 ```ts
@@ -198,7 +205,7 @@ cannot handle is refused, never answered with a plausible set
   thunk into the empty set, refused. In the data form a set is either exactly
   `[-1, 0]` or has a first boundary of `0` or more; a set mixing EOF with
   ordinary symbols is invalid, which is what keeps the terminal AST row
-  unconditional ([ebnf-range-set](../../../bnf/todo/ebnf-range-set.md),
+  unconditional (ebnf-range-set,
   "Why EOF is not a set member").
 - **A bare number** is one symbol: `n` lowers to `['set', n, n + 1]`, the top
   ordinary symbol `Number.MAX_SAFE_INTEGER` to the open tail `['set', n]`
@@ -307,10 +314,10 @@ ebnf-front-end leaves open — has a natural spelling as a fifth element on
       (`''`, one code point, an astral code point, a repeated symbol); and
       the JSON grammar in [`../../lib/json`](../../lib/json/module.f.mjs)
       lowered whole, pinned as a `RuleSet` literal.
-- [ ] Absorb [rule-visitor](../../../bnf/todo/rule-visitor.md) and
-      [665-bnf-data-fold-children](../../../bnf/todo/665-bnf-data-fold-children.md)
+- [ ] Absorb rule-visitor and
+      665-bnf-data-fold-children
       — the child fold is one immutable `reduce` in the new `toData` from the
-      start — and move [042-mixing-serializable-bnfs](../../../bnf/todo/042-mixing-serializable-bnfs.md)
+      start — and move 042-mixing-serializable-bnfs
       here, as [ebnf-migration](../../../todo/ebnf-migration.md) assigns.
 - [ ] Record what this issue settles in `fjs/ebnf/data/README.md` when the
       module ships, and delete this file.
@@ -321,19 +328,19 @@ ebnf-front-end leaves open — has a natural spelling as a fifth element on
 
 - [ebnf-migration](../../../todo/ebnf-migration.md) — the plan; this is its
   `data/` piece, and its `data/` row is amended for the carrier chosen here.
-- [ebnf-front-end](../../../bnf/todo/ebnf-front-end.md) — the front end this
+- ebnf-front-end — the front end this
   lowers; Problems 1 and 6 dissolve here, Problem 3 gets the data layer's
   answer, and Problem 8 passes to `ebnf/map/`.
-- [ebnf-range-set](../../../bnf/todo/ebnf-range-set.md) — the terminal value
+- ebnf-range-set — the terminal value
   and its contract, which the `['set', …]` row carries unchanged; its
   "Decide with the bounded repeat" is decided here.
-- [rule-visitor](../../../bnf/todo/rule-visitor.md) — absorbed: `matchRule`
+- rule-visitor — absorbed: `matchRule`
   above is that visitor over this carrier.
-- [`../../../bnf/data/README.md`](../../../bnf/data/README.md) — the classical
+- `fjs/bnf/data/README.md` — the classical
   IR this replaces, and the `repeat` recognition it does not need.
-- [`../../../bnf/README.md`](../../../bnf/README.md#the-ast-is-one-contract)
+- `fjs/bnf/README.md`
   — the AST contract the node table above keeps.
-- [`../../../bnf/matcher/types.ts`](../../../bnf/matcher/types.ts) — the
+- `fjs/bnf/matcher/types.ts` — the
   transformer protocol whose tag words the `sequence`, `variant` and `repeat`
   rows share, and whose `Entry.rule` the `names` map serves.
 - [`../../../rtti/data/README.md`](../../../rtti/data/README.md) — the other
