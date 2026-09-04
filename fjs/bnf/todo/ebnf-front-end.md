@@ -59,12 +59,26 @@ type Info     =
     | readonly ['repeat', number, number, Rule] // min..max copies
 ```
 
+**Amended:** `Variant` shipped as `{ readonly [k in string]: Rule }`, with no
+`?`, and `Const` gained `null` for EOF (below). A grammar's variant is an
+author's literal whose tags are all present, so the optional signature typed
+every alternative as possibly missing and cost more than it guarded; the type
+is an abstract required map in the sense of `AbstractRequiredMap`, stated on
+the type, and [fjs/AGENTS.md](../../AGENTS.md) records the exception. A
+lookup by a runtime tag belongs to the data layer's open `StringMap`.
+
 Three word tags, the RTTI vocabulary. Discrimination is by JavaScript type at
 every level.
 
-- **`number`** is one symbol: `0x61` is the letter, `-1` is EOF. How a
+- **`number`** is one symbol: `0x61` is the letter. How a
   terminal is *stored* is the data layer's business, so the packed
-  `0x000030_000039` literal leaves grammars.
+  `0x000030_000039` literal leaves grammars. **Amended:** `-1` was EOF here
+  and is not. EOF is **`null`**, a plain value of its own in `DataRule`, with
+  `eof` exported as its name, so that `number` means an ordinary symbol and
+  nothing else — a rule typed `number` is never the end of input, which is
+  what keeps `Ast<R>` monotonic in `R` — and a negative number is refused
+  like any symbol outside the domain. The *input* still carries EOF as
+  `-1`; that is the alphabet's convention, not the grammar's spelling.
 - **`string`** is the text it spells, one terminal per code point — the
   meaning `toData` gives a bare string today. `const a: Rule = 'Hello'`
   matches `Hello`. What you see is what you get, as with RTTI's `Const`. This
@@ -88,7 +102,7 @@ because a widened `max` and an unbounded one deserve the same answer, and
 comparisons also just work — `min <= Infinity` is true — where a `null`
 sentinel coerces to `0` and needs a guard at every site, and
 a `-1` sentinel would compile and be silently wrong — `-1` is EOF in the
-terminal domain besides. `undefined` is rejected for a different reason: a
+input alphabet besides. `undefined` is rejected for a different reason: a
 dropped argument would read as *plausible*, so `repeat(2)` would silently
 mean two-or-more while reading as "exactly two", which already has a
 spelling in `times(2)`. `min > max` is an error. `0..0` and `1..1` are legal
@@ -107,6 +121,7 @@ row that is a function of the form alone.
 | `['set', …]` | `number` — one symbol leaf |
 | `['repeat', min, max, r]` | `BoundedArray<min, max, AST<r>>`, below |
 | `number` | `number` — the symbol itself |
+| `null` | `readonly []` — **Amended:** EOF consumes no source element and so contributes no leaf; its node is empty ([eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)) |
 | `string` | `readonly number[]` — see below |
 | `Sequence` | one entry per element |
 | `Variant` | the branch taken, tagged by its key |
@@ -114,14 +129,19 @@ row that is a function of the form alone.
 **This type is not ebnf's to write.** It is `BoundedArray<Min, Max, T>` in
 [`fjs/types/array/types.ts`](../../types/array/types.ts), shipped by
 [#1865](https://github.com/functionalscript/functionalscript/pull/1865):
-`FixedArray<Min, T>` followed by an optional-element tail up to `Max`, with
-`number extends Max ? readonly T[]` as the tail. A required prefix and an
-optional remainder — one tuple, not a union of them:
+every length from `Min` to `Max` as the union of those fixed-length tuples,
+and `number extends Max ? readonly [...FixedArray<Min, T>, ...T[]]` for an
+open tail. **Amended:** this paragraph used to describe one tuple with an
+optional-element tail, `readonly [T?]`; that is not what shipped, and
+`fjs/types/array` pins the union in its own assertions —
+`BoundedArray<0, 1, T>` is `readonly [] | readonly [T]`, and
+`fjs/ebnf/ast/types.ts` asserts the same for `Ast<Repeat<0, 1, 43>>`. The
+union is the more precise type, since `.length` narrows it:
 
 | bounds | AST |
 |---|---|
-| `0, 1` | `readonly [T?]` |
-| `1, 3` | `readonly [T, T?, T?]` |
+| `0, 1` | `readonly [] \| readonly [T]` |
+| `1, 3` | `readonly [T] \| readonly [T, T] \| readonly [T, T, T]` |
 | `4, 4` | `readonly [T, T, T, T]` |
 | `1, Infinity` | `readonly [T, ...readonly T[]]` |
 | `0, Infinity` | `readonly T[]` |
@@ -134,10 +154,10 @@ detect, so nothing to spell.
 
 Every repetition is a flat array whatever its bounds, `.length` discriminates,
 and a consumer that folds one folds all. That is the substance of one form
-rather than four. An optional is `readonly [T?]` rather than a tagged
-`some`/`none` because the tagged form made it a *choice*, in a different
-family from the rest; an author wanting named branches writes the plain
-`Variant`.
+rather than four. An optional is `readonly [] | readonly [T]` rather than a
+tagged `some`/`none` because the tagged form made it a *choice*, in a
+different family from the rest; an author wanting named branches writes the
+plain `Variant`.
 
 The tail recurses linearly in `Max`, so a large finite `Max` is TS2589 —
 measured at `1000`, clean at `900`. `BoundedArray` sets no cap, and ebnf does
@@ -177,7 +197,14 @@ issue proposed in two ways worth stating rather than leaving as a diff.
 The zero-or-more form is `repeatFrom0`, and the lower bound is a parameter —
 `repeatFrom(n)` — instead of one name per bound: `repeat1Plus` is
 `repeatFrom(1)`, and so is every bound above it, which is the generalization
-the two fixed names were hiding. `join` replaces `commaJoin0Plus` and takes
+the two fixed names were hiding. Two bounds are still named, as partial
+applications of that one form: `repeatFrom0` and `repeatFrom1` ship beside
+`repeatFrom`, because zero-or-more and one-or-more are the bounds every
+grammar reaches for — `ws` and `ws1` in the DataJS grammar are the pair —
+and a name reads better at those call sites than a literal. That is a
+convenience over the parameter, not a return to a fixed-bound API: nothing
+above `1` gets a name, and `repeatFrom(n)` is what both are. `join` replaces
+`commaJoin0Plus` and takes
 its separator as a rule rather than building `','` itself, which is what
 keeps it out of the Unicode-specific category this issue warned about below.
 What that gives up is the claim this paragraph used to make: a ported grammar
@@ -219,8 +246,8 @@ Stated as requirements, since the data layer is open.
   so a set terminal never matches EOF — and non-empty with safe-integer
   boundaries after that ([ebnf-range-set](./ebnf-range-set.md)); which
   `range_set` export does the validating is that module's business. A bare
-  `number` is one symbol as the union above defines it — `-1` is EOF — and
-  takes no set validation.
+  `number` is one ordinary symbol as the union above defines it, and takes
+  no set validation; EOF is `null` (**Amended** above).
 - **A nullable body** at an unbounded max is non-termination and is rejected.
   At a bounded max it is not — see [Problem 3](#problems), which is open; the
   lowering must not reject it until that is settled.
@@ -267,7 +294,9 @@ beside a repetition, whose AST is a 2-tuple, not the flat list the table
 specifies. So the table holds only for the unbounded `0..`, and a lowering cannot be
 judged correct against it. The question is which bounds a data layer carries
 natively. Narrowing the front end to match today's IR is the option this
-design rejects.
+design rejects. **Answered by [ebnf-data](../../ebnf/data/todo/ebnf-data.md):**
+the data layer carries every bound natively, as `['repeat', min, max, name]`,
+so nothing is reduced and no rule is synthesized.
 
 **2. Dissolved by ebnf-migration.** It was: the backend proofs are built
 with the classical front end (`ll1/proof.f.mjs:14`, `descent/proof.f.mjs:10`,
@@ -293,6 +322,12 @@ be ambiguous too — `repeat(1, 2)({ short: 'a', long: 'aa' })` reads `aa` as on
 `long` or two `short` — and deciding that in general is not the front end's
 job.
 
+**Answered by [ebnf-data](../../ebnf/data/todo/ebnf-data.md)** for the data
+layer: only a nullable body under an unbounded `max` is refused. At a bounded
+`max` the repetition adds no decision of its own — a round is forced up to
+`min` and lookahead-guarded up to `max` — so the ambiguity, where there is
+one, is the item's, resolved as any variant's is.
+
 **4. The optional's AST change is a bulk proof rewrite.** Production consumers
 do not read the `some`/`none` tags, but `descent/proof.f.mjs:288-296` and
 `ll1/proof.f.mjs` pin them throughout their expected-AST strings.
@@ -305,7 +340,9 @@ the helpers take and return range-set *values*, the `'range'` row becomes
 `['set', …]`, and `notOf` is unnecessary.
 
 **6. Reduction at the functional level defeats memoization** — a thunk created
-during conversion has no `.name` and no shared identity.
+during conversion has no `.name` and no shared identity. **Dissolved by
+[ebnf-data](../../ebnf/data/todo/ebnf-data.md):** nothing is reduced, at
+either level.
 
 **7. `AST<T>` needs explicit annotations on recursive rules.** TypeScript will
 not infer a recursive thunk. Worth testing on a real grammar early: if the
@@ -316,7 +353,11 @@ contract, which is a much weaker proposal.
 structural values while today's AST is `{ tag, sequence }` nodes
 ([`../README.md`](../README.md#ast)). `AST<Sequence>` and `AST<Variant>`
 cannot be written until this is settled, and it decides what "the same AST"
-means in the port claim.
+means in the port claim. **Narrowed by
+[ebnf-data](../../ebnf/data/todo/ebnf-data.md):** the data layer commits to
+the `{ tag, sequence }` node per rule invocation, with one flat node for a
+repetition of any bounds; how the typed `Ast<R>` relates to those nodes is
+`ebnf/map/`'s to settle.
 
 **9. Dissolved by ebnf-migration.** It was: one alphabet adapter cannot
 return both representations — `range('09')` is a packed `TerminalRange` to
@@ -392,6 +433,9 @@ three forms. It needs a data layer that can represent it.
 
 - [ebnf-migration](../../todo/ebnf-migration.md) — the module this lands in,
   as its first piece, and the dependency rule it lives under.
+- [ebnf-data](../../ebnf/data/todo/ebnf-data.md) — the data layer this
+  lowers into: answers Problems 1, 3 and 6, narrows 8, and settles the IR
+  carrier rule-visitor and ebnf-range-set wait on.
 - [`fjs/rtti/types.ts`](../../rtti/types.ts) — the eDSL shape this copies.
 - [the `repeat` rule](../data/README.md#the-repeat-rule) — the recognition
   this makes unnecessary.

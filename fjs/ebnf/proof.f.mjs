@@ -4,17 +4,22 @@
 
 import { assertStructurallySame } from '../asserts/module.f.mjs'
 import {
+    eof,
+    join,
     option,
     range,
     rangeEncode,
     remove,
     repeat,
+    repeatFrom,
     repeatFrom0,
+    repeatFrom1,
     set,
     times,
     unicodeMax,
     union,
 } from './module.f.mjs'
+import { force } from './testlib.f.mjs'
 
 /** @type {(a: string) => number} */
 const c = a => a.codePointAt(0) ?? 0
@@ -55,6 +60,10 @@ export const proof = {
         assertStructurallySame([...unicodeMax].length, 1)
         assertStructurallySame(unicodeMax.length, 2)
         assertStructurallySame(unicodeMax.codePointAt(0), 0x10FFFF)
+    },
+    // EOF is the one plain rule that is not a symbol, a string or a container.
+    eof: () => {
+        assertStructurallySame(eof, null)
     },
     rangeEncode: () => {
         assertStructurallySame(boundaries(rangeEncode(0, 7)), [0, 8])
@@ -124,9 +133,17 @@ export const proof = {
         bounds: () => {
             assertStructurallySame(repeat(2, 5)('a')(), ['repeat', 2, 5, 'a'])
         },
-        // The three derived constructors are the same shape with fixed bounds.
+        // The derived constructors are the same shape with fixed bounds:
+        // `repeatFrom(n)` is open above, and the two named bounds are its
+        // partial applications.
+        from: () => {
+            assertStructurallySame(repeatFrom(2)('a')(), ['repeat', 2, Infinity, 'a'])
+        },
         zeroPlus: () => {
             assertStructurallySame(repeatFrom0('a')(), ['repeat', 0, Infinity, 'a'])
+        },
+        onePlus: () => {
+            assertStructurallySame(repeatFrom1('a')(), ['repeat', 1, Infinity, 'a'])
         },
         times: () => {
             assertStructurallySame(times(4)('a')(), ['repeat', 4, 4, 'a'])
@@ -139,6 +156,13 @@ export const proof = {
             const inner = range('09')
             assertStructurallySame(times(2)(inner)(), ['repeat', 2, 2, inner])
         },
+    },
+    // A separated list is an optional first item followed by any number of
+    // separator-item pairs, so an empty list is one too.
+    join: () => {
+        assertStructurallySame(
+            force(join(',')('a')),
+            ['repeat', 0, 1, ['a', ['repeat', 0, Infinity, [',', 'a']]]])
     },
     throw: {
         // `range` takes exactly two symbols: one is not a range, and three is

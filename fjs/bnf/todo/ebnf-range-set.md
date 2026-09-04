@@ -179,8 +179,8 @@ that was never meant to match.
 
 **A set holds ordinary symbols only; `eof` is not a set.** That is the rule
 ebnf-front-end already states for `['range', a, b]` — both endpoints
-ordinary, never spanning EOF — carried over unchanged. EOF stays the bare
-`-1` rule that issue defines, with the no-leaf behaviour
+ordinary, never spanning EOF — carried over unchanged. EOF is the `null`
+rule that issue defines (**Amended**: it was the bare `-1`), with the no-leaf behaviour
 [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md) records and
 `fjs/bnf/matcher/module.f.mjs:86` implements. "Newline or end of input", the
 terminator of a line comment, is spelled as the variant `{ nl, eof }` it is
@@ -291,7 +291,7 @@ carrier for bounded repeats. If that carrier is a tagged form, the set goes
 into it and the probe is never written. **Choose the IR carrier once, for
 both**, and do not land the set as a special case first.
 
-EOF still reaches the IR as a terminal — the bare `-1` rule lowers to the set
+EOF still reaches the IR as a terminal — the `null` rule lowers to the set
 `[-1, 0]` — so the IR's terminal carrier holds either that one set or an
 ordinary one, and a backend tells them apart by the first boundary. That is
 the data layer's business; the front-end form never spells it.
@@ -299,6 +299,11 @@ the data layer's business; the front-end form never spells it.
 Whatever the carrier, the packed `0xBBBBBB_EEEEEE` literal leaves the IR with
 it, and with it the readability argument in `fjs/bnf/types.ts` for 24-bit
 halves; `[0x30, 0x3A]` reads at least as well.
+
+**Decided in [ebnf-data](../../ebnf/data/todo/ebnf-data.md):** every data
+rule is a tagged tuple, the set goes into it as `['set', …]`, and the probe
+is never written. EOF is the one set with a negative boundary, `[-1, 0]`, as
+above.
 
 #### What it is not
 
@@ -324,8 +329,10 @@ justification is the API and the AST, which is where
       and `toRangeMap` (inclusive upper bound `b - 1`; an open tail is
       `Infinity`). No integer range-set module: these arithmetic facts are
       the whole difference.
-- [ ] Settle the IR carrier together with ebnf-front-end's Problem 1, in that
-      issue, before any backend touches a set.
+- [x] Settle the IR carrier together with ebnf-front-end's Problem 1 —
+      settled in [ebnf-data](../../ebnf/data/todo/ebnf-data.md), the
+      `data/` issue, before any backend touches a set: a tagged tuple for
+      every rule kind, `['set', …]` for the terminal.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
       the union, the AST table (`number`), the lowering requirements
       (validate the generic range-set invariants through `range_set`'s
@@ -374,7 +381,9 @@ justification is the API and the AST, which is where
   `ebnf/unicode/` is rewritten in set values rather than `RangeVariant`, and
   `notOf` leaves its triage row.
 - [rule-visitor](./rule-visitor.md) — discriminates the data `Rule`, so it
-  waits on the same IR carrier decision.
+  waited on the same IR carrier decision.
+- [ebnf-data](../../ebnf/data/todo/ebnf-data.md) — the carrier decision,
+  and the lowering that validates a set as this issue requires.
 - [`fjs/types/range_set/module.f.mjs`](../../types/range_set/module.f.mjs) —
   the module, now the toggle list.
 - [`fjs/js/todo/174-shared-range-map-lexer.md`](../../js/todo/174-shared-range-map-lexer.md)

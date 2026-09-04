@@ -6,6 +6,11 @@
 ([ebnf-migration](../../todo/ebnf-migration.md)). The visitor discriminates
 the EBNF data `Rule` union, so it is either part of that rewrite or the
 first thing built on it — whichever the developer doing the rewrite prefers.
+The carrier is settled: [ebnf-data](../../ebnf/data/todo/ebnf-data.md)
+makes every data rule a tagged tuple and spells this visitor as `matchRule`
+over it, so the `terminal` case takes `['set', …]` and the discriminant is
+the tag at `rule[0]`. That issue absorbs this one; this file is the record
+until `ebnf/data/` ships.
 
 ### Problem
 
@@ -22,11 +27,13 @@ discriminates is not the classical one, and a discriminator written once
 there is what keeps `fjs/ebnf/ll1/` and every later backend from each
 re-deriving it.
 
-The terminal representation is open. [ebnf-range-set](./ebnf-range-set.md)
-replaces the packed `number` with a range set, and its carrier in the IR is
-decided together with the bounded `Repeat`'s (ebnf-front-end's Problem 1). So
-the visitor's `terminal` case takes whichever form that decision settles on,
-and its discriminant is written once, after it: `typeof rule === 'number'`
+The terminal representation was open when this was written.
+[ebnf-range-set](./ebnf-range-set.md) replaces the packed `number` with a
+range set, and its carrier in the IR is decided together with the bounded
+`Repeat`'s (ebnf-front-end's Problem 1) — now done, in
+[ebnf-data](../../ebnf/data/todo/ebnf-data.md). So the visitor's `terminal`
+case takes the `['set', …]` tuple that decision settled on, and its
+discriminant is written once, after it: `typeof rule === 'number'`
 is the classical `bnf/data` discriminant, not this visitor's. The bigint
 symbol/range migration is [on hold](./bigint-symbols.md) and no longer a
 factor, since a range set's boundaries need no fixed width.

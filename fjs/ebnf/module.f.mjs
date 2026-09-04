@@ -119,6 +119,7 @@ export const repeatFrom = n =>
     repeat(n, Infinity)
 
 export const repeatFrom0 = repeatFrom(0)
+export const repeatFrom1 = repeatFrom(1)
 
 /**
  * @type {<const N extends number>(n: N) =>
@@ -135,6 +136,14 @@ export const option = rule => () => ['repeat', 0, 1, rule]
  *  Option<readonly[R, RepeatFrom<0, readonly[S, R]>]>}
  */
 export const join = s => r => option([r, repeatFrom0([s, r])])
+
+/**
+ * The end of input, as a rule. A grammar that must consume the whole input
+ * ends in it: `[value, eof]`.
+ *
+ * @type {null}
+ */
+export const eof = null
 
 export const unicodeMax =
     codePointListToString([0x10FFFF])

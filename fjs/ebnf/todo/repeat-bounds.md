@@ -14,7 +14,7 @@ repeat(1.5, 2)('x')()  // ['repeat', 1.5, 2, 'x']
 repeat(3, 2)('x')()    // ['repeat', 3, 2, 'x']
 ```
 
-[ebnf-front-end](../../bnf/todo/ebnf-front-end.md) settles the domain: `min` is
+ebnf-front-end settles the domain: `min` is
 a non-negative integer, `max` is a non-negative integer or `Infinity`, and
 `min <= max` — "`min > max` is an error" in those words. Nothing downstream
 enforces it either, because there is no lowering yet, so a malformed grammar
@@ -42,7 +42,7 @@ minimum matches nothing.
 
 ### Related
 
-- [ebnf-front-end](../../bnf/todo/ebnf-front-end.md) — defines the bounds and
+- ebnf-front-end — defines the bounds and
   calls `min > max` an error.
 - [`../module.f.mjs`](../module.f.mjs) — `repeat` and its partial applications.
 - [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) —

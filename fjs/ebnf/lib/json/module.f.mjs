@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Const, Rule, Set, Tuple, Variant } from '../../types.ts'
+ * @import { Const, Rule, Tuple, Variant } from '../../types.ts'
  */
 
 import { assert } from "../../../asserts/module.f.mjs"
@@ -15,7 +15,7 @@ const isFixedArray2 =
 
 const onenine = range('19')
 
-const digit = range('09')
+export const digit = range('09')
 
 const hex = {
     digit,
