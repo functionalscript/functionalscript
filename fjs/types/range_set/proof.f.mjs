@@ -75,6 +75,8 @@ export const proof = {
         },
         full: () => {
             const has = contains(full)
+            // the universe's bottom is a member of it
+            assert(has(-Infinity))
             assert(has(-1))
             assert(has(0x110000))
         },
@@ -162,8 +164,10 @@ export const proof = {
         rangeSetRejectsRepeat: () => rangeSet([5, 5]),
         rangeSetRejectsDecrease: () => rangeSet([5, 4]),
         rangeSetRejectsHole: () => rangeSet(new Array(1)),
-        // `NaN` is in no set, and in no complement of one either
+        // outside the universe there is no answer to give: such a value would
+        // be in neither a set nor the complement of one
         containsRejectsNaN: () => contains(full)(NaN),
+        containsRejectsInfinity: () => contains(full)(Infinity),
         rangeSetRejectsNaN: () => rangeSet([NaN]),
         rangeSetRejectsInfinity: () => rangeSet([0, Infinity]),
         rangeSetRejectsNegativeZero: () => rangeSet([-0]),
