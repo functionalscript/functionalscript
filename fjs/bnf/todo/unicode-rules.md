@@ -64,13 +64,14 @@ end keeps its own text helpers until it is deleted.
 Unicode-specific APIs such as these — today's `fjs/bnf/module.f.mjs`
 exports, re-spelled in EBNF forms — go to `fjs/ebnf/unicode/module.f.mjs`:
 
-- `unicodeRange`
+- `unicodeRange` — the Unicode universe as the range-set value
+  `[0, 0x110000]`, which `not` below and `token_symbol` consume
 - `unicodeMax`
 - `toSequence`
 - `str`
 - `set`
 - `range`
-- `not` — difference against the Unicode universe `[0, 0x110000]`, in place
+- `not` — `difference(unicodeRange)`, in place
   of today's `notSet`
 
 `set`, `range` and `not` return range-set *values*, combined with the

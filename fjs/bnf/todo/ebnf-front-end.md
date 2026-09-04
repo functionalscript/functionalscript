@@ -370,8 +370,9 @@ three forms. It needs a data layer that can represent it.
 - [unicode-rules](./unicode-rules.md) — owns the text lowering and the
   adapter Problem 9 constrains.
 - terminal-range-shared-type (retired; `fjs/ebnf/` has no `TerminalRange`,
-  see [ebnf-range-set](./ebnf-range-set.md)) — the packed
-  `TerminalRange` becomes data-layer only here.
+  see [ebnf-range-set](./ebnf-range-set.md)) — `fjs/ebnf/data/` stores
+  range-set terminals, and the classical packed declarations retire with
+  `bnf/`.
 - [ebnf-range-set](./ebnf-range-set.md) — replaces the `['range', a, b]`
   row with a range-set terminal `['set', …]`; answers Problem 5 and most of
   Problem 9, and shares Problem 1's IR carrier decision.

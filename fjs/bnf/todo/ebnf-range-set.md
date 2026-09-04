@@ -139,7 +139,7 @@ export const oneOf = s => () => ['set', ...s]
 
 a rule matching one symbol of the set `s`. The adapter's `range`, `set` and
 `not` return *values*, so a grammar writes `oneOf(range('09'))`, and the JSON
-string body becomes `repeat0Plus(oneOf(difference(unicode)(set('"\\'))))`
+string body becomes `repeat0Plus(oneOf(difference(unicodeRange)(set('"\\'))))`
 where today it spreads `remove(…)` into a variant. A raw set is never a
 rule: as an element of the functional `Sequence` it would read as its
 boundaries, two symbols in a row, and `oneOf` is what says otherwise.
@@ -229,7 +229,9 @@ adapter can deliver, and that is the adapter's contract stated above. So
 top symbol alone, and lowers as such.
 
 The alphabet adapter's `not` is *difference against its universe*: Unicode's
-is `[0, 0x110000]`, bytes' is `[0, 256]`, and a token-symbol alphabet's is its
+is `unicodeRange = [0, 0x110000]`, exported by `fjs/ebnf/unicode/` as the
+range-set value that name already denotes today, bytes' is `[0, 256]`, and a
+token-symbol alphabet's is its
 own. The generic toggle lives in `range_set`; the alphabet-scoped one in
 `fjs/ebnf/unicode/` and its siblings ([unicode-rules](./unicode-rules.md)).
 This answers ebnf-front-end's Problem 5 — the helpers take and return sets,
@@ -310,7 +312,7 @@ justification is the API and the AST, which is where
       `remove`, `not`, `notSet`, `RangeVariant` and `removeOne` stay in
       `bnf/` untouched and go with it at the migration's stage 7.
 - [ ] The `djs` tokenizer port spells the note at
-      `fjs/djs/tokenizer/module.f.mjs:249` as `difference(unicode)(newLine)`,
+      `fjs/djs/tokenizer/module.f.mjs:249` as `difference(unicodeRange)(newLine)`,
       which is what it was reaching for.
 - [ ] `tsc`, `fjs test`. Each breaking PR declares `**BREAKING CHANGES:**`
       in the `Changelog:` section of its description
