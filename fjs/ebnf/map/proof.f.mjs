@@ -7,7 +7,7 @@
  */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { eof, join, option, range, rangeEncode, repeatFrom1, times } from '../module.f.mjs'
+import { eof, join, option, range, rangeEncode, repeat, repeatFrom1, times } from '../module.f.mjs'
 import { rewrite } from './module.f.mjs'
 
 /** @type {(a: string) => number} */
@@ -88,6 +88,12 @@ const fractionalBoundary = () => ['set', 0, 0.5]
 
 /** @type {unknown} */
 const negativeBoundary = () => ['set', -5, 3]
+
+/** @type {unknown} */
+const fractionalMax = () => ['repeat', 0, 1.5, 'x']
+
+/** @type {unknown} */
+const boundsReversed = () => ['repeat', 3, 2, 'x']
 
 /** @type {unknown} */
 const holeThenB = [, c('b')]
@@ -320,5 +326,10 @@ export const proof = {
         // hold the symbols between it and the next.
         fractionalBoundarySet: () => none(/** @type {Rule} */ (fractionalBoundary))(/** @type {any} */ (0)),
         negativeBoundarySet: () => none(/** @type {Rule} */ (negativeBoundary))(/** @type {any} */ (0)),
+        // A repetition's bounds are the lowering's too, and `-0` reaches
+        // the constructor because `tsc` reads it as the literal `0`.
+        negativeZeroMin: () => none(repeat(-0, 1)(42))([]),
+        fractionalMaxRepeat: () => none(/** @type {Rule} */ (fractionalMax))(/** @type {any} */ ([])),
+        reversedBoundsRepeat: () => none(/** @type {Rule} */ (boundsReversed))(/** @type {any} */ ([])),
     },
 }
