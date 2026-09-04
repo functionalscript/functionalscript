@@ -66,6 +66,9 @@ const numericItem = ['repeat', 0, 1, 1]
 /** @type {unknown} */
 const undefinedDataBranch = ['variant', { zero: 'zero', missing: undefined }]
 
+/** @type {unknown} */
+const arraySet = [['sequence']]
+
 /** @type {(a: string) => readonly ['set', number, number]} */
 const one = a => ['set', c(a), c(a) + 1]
 
@@ -211,6 +214,9 @@ export const proof = {
         },
         throw: {
             unknownEntry: () => validate(int, 'float'),
+            // A rule set is a record; an array would answer for the name
+            // `'0'` and walk as one.
+            arraySet: () => validate(/** @type {RuleSet} */ (arraySet), '0'),
             unknownInSequence: () => refuse({ int: ['sequence', 'sign', 'uint'] }),
             unknownInVariant: () => refuse({ uint: ['variant', { zero: 'zero', digits: 'digit1' }] }),
             unknownInRepeat: () => refuse({ digits0: ['repeat', 0, Infinity, 'digi'] }),

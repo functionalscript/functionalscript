@@ -202,6 +202,9 @@ const validateRule = (ruleSet, empty) => name =>
  * @type {(ruleSet: RuleSet, entry: string) => void}
  */
 export const validate = (ruleSet, entry) => {
+    // The set is data too: an array would answer `at('0')` with its first
+    // element and walk under `entries`, so the carrier is checked first.
+    assert(isRecord(ruleSet), ['not a rule set', ruleSet])
     defined(ruleSet)(entry)(entry)
     const rule = validateRule(ruleSet, emptyTagMap(ruleSet))
     entries(ruleSet).forEach(([name, r]) => rule(name)(r))
