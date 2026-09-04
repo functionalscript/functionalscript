@@ -28,7 +28,17 @@ import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.mjs'
 
 const { isSafeInteger, MAX_SAFE_INTEGER } = Number
-const { entries, fromEntries, keys } = Object
+const { entries, fromEntries, keys, getPrototypeOf } = Object
+
+/**
+ * A plain record — an object literal's shape — and nothing else that is an
+ * object: a `Map` has no own string-keyed entries, so read as a variant it
+ * would be an empty one. One realm, one prototype chain, so the prototype
+ * is a reliable test.
+ *
+ * @type {(v: unknown) => v is { readonly [k in string]: unknown }}
+ */
+const isRecord = v => isObject(v) && getPrototypeOf(v) === Object.prototype
 
 /**
  * The one discriminator over the data {@link Rule}: each handler receives the
@@ -54,7 +64,7 @@ export const matchRule = v => rule => {
         }
         case 'variant': {
             const [, branches] = rule
-            assert(rule.length === 2 && isObject(branches), ['not a variant', rule])
+            assert(rule.length === 2 && isRecord(branches), ['not a variant', rule])
             return v.variant(branches)
         }
         case 'repeat': {
@@ -299,11 +309,10 @@ const lowerBody = (state, name, dr) => {
         case 'number': { return [state, symbolTerminal(dr)] }
         case 'string': { return lowerSequence(state, name, codePoints(dr)) }
         case 'object': {
-            return dr === null
-                ? [state, eof]
-                : dr instanceof Array
-                    ? lowerSequence(state, name, dr)
-                    : lowerVariant(state, name, dr)
+            if (dr === null) { return [state, eof] }
+            if (dr instanceof Array) { return lowerSequence(state, name, dr) }
+            assert(isRecord(dr), ['not a rule', dr])
+            return lowerVariant(state, name, dr)
         }
         default: { throw ['not a rule', dr] }
     }
