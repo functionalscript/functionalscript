@@ -2,7 +2,7 @@
  * @import { Rule, Set, Tuple, Variant } from '../../types.ts'
  */
 
-import { range, remove, repeatFrom0, unicodeMax, set, times, option, join } from "../../module.f.mjs";
+import { range, remove, repeatFrom0, unicodeMax, set, times, option, join } from "../../module.f.mjs"
 
 const onenine = range('19')
 
