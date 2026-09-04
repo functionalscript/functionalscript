@@ -379,7 +379,13 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    backend it is leaving.
 7. **Delete `fjs/bnf/`.** With it: the retired issues, `descentEquivalence` in
    its two-backend form, and the classical half of the README split. Finish
-   the issue moves. One `**BREAKING CHANGES:**` declaration.
+   the issue moves, each taking its inbound links with it. Repoint every
+   other inbound reference from outside `fjs/bnf/` — Markdown links and
+   roadmap prose alike, `nanvm-lib/todo/mvp-roadmap.md` and
+   `spec/todo/3360-type-annotations.md` among a couple of dozen files today —
+   at `fjs/ebnf/` or at whatever replaced the target. Neither `tsc` nor the
+   suite reads Markdown, so the deletion PR finds them by search. One
+   `**BREAKING CHANGES:**` declaration.
 
 ### Tasks
 
@@ -400,7 +406,8 @@ consumer port"), never by number, so a renumbering here cannot strand them.
       cross-front-end comparison proof group; bnf-grammar-single-owner moved.
 - [ ] Stage 6: the token layer; the djs tokenizer and parser grammars made
       LL(1); both ported; the descent backend without consumers.
-- [ ] Stage 7: delete `fjs/bnf/`; move the remaining issues; split the README.
+- [ ] Stage 7: delete `fjs/bnf/`; move the remaining issues; split the README;
+      repoint every inbound link and reference from outside `fjs/bnf/`.
       `**BREAKING CHANGES:**`.
 - [ ] Stage 7: record the pattern above in `doc/DESIGN.md`, with this
       migration as the worked example and what it taught.
