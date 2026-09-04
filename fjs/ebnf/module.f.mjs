@@ -4,7 +4,7 @@
  */
 
 import { assert } from "../asserts/module.f.mjs"
-import { stringToCodePointList } from "../text/utf16/module.f.mjs"
+import { codePointListToString, stringToCodePointList } from "../text/utf16/module.f.mjs"
 import { isFixedArray } from "../types/array/module.f.mjs"
 import { toArray } from "../types/list/module.f.mjs"
 import { complement, empty, fromRange, intersection, union as setUnion } from "../types/range_set/module.f.mjs"
@@ -46,7 +46,7 @@ export const set = a => {
     const r = /**@type {const}*/([
         'set',
         ...x.reduce(
-            (a, b) => setUnion(a)(fromRange([b, b])),
+            (a, b) => setUnion(a)(fromRange([b, b + 1])),
             empty)])
     return () => r
 }
@@ -91,4 +91,4 @@ export const repeat0Plus =
 export const times = n => repeat(n, n)
 
 export const unicodeMax =
-    0x10FFFF
+    codePointListToString([0x10FFFF])
