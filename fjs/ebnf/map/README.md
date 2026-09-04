@@ -56,29 +56,38 @@ What a function receives, per form of the rule:
 That is the `Ast<R>` table with a hole in every child position, and
 `Children<R, M>` in `types.ts` is that table as a type.
 
-## Keyed by the rule's spelling
+## Keyed by the rule, as the types see it
 
-A key is a spelling: the rule the author held when the map was written,
-and every rule spelled the same — a number or a string by value, a tuple
-element by element, a variant entry by entry, a thunk by what it yields, and
-a rule that names itself by the same comparison meeting the same pair again,
-so two `value`s written alike are one spelling. Mapping `42` maps every
-`42`; mapping `range('09')` maps every `range('09')`, however many times a
-grammar spells it; and two rules spelled alike in different roles are one
-rule to the map, as they are one language — the role is the parent's to
-read off the tag it receives. Two keys of one spelling are refused.
+A key is a rule the author held when the map was written, matched the way
+the type system matches it, so that the runtime and the types agree by
+construction: a number or a string by value, a tuple element by element, a
+variant entry by entry — a `const` literal's type *is* its parts — and a
+thunk by itself. Mapping `42` maps every `42`, mapping `['x', digit]` maps
+every tuple of those two parts, and two tuples spelled alike in different
+roles are one rule to the map, as they are one language; the role is the
+parent's to read off the tag it receives.
+
+A thunk is its own key because two thunks have no spelling the runtime
+reads that the types read too. `range('09')` and `rangeEncode(48, 57)` yield
+one set and are two types; `range('09')` twice yields one set and is one
+type; two `value`s written alike are one spelling, found by comparing what
+they yield until the same pair comes round again, and two types or one
+depending on how they were annotated. So the walk **refuses** a rule that
+spells like a key — the same parts, the same set by its boundaries, the
+same self-naming — without being it, as a rule spelled twice: the types
+cannot say whether the two are one, and neither mapping it nor leaving it
+would be honest. A grammar spells a rule once and holds it, which is what
+makes the refusal rare; two keys of one spelling are refused the same way.
 
 A rule built inside a combinator and returned to nobody — the `[',', item]`
-pair `join` makes — is still mappable by spelling it again, though the
-parent sees it as it is when nothing does; a combinator that wants its
-scaffolding mapped returns the mappings beside the rule.
+pair `join` makes — is mappable by spelling it again only where it holds
+no thunk of its own; otherwise the parent sees it as it is, and a
+combinator that wants its scaffolding mapped returns the mappings beside
+the rule.
 
-Why spelling and not identity: the types can only tell rules apart by type,
-and the type of a rule is its spelling, so a map keyed by `===` would have
-been typed as one keyed by spelling and been wrong wherever the two differ.
-The lowering in [`../data`](../data/README.md) shares rules by `===`, so two
-rules of one spelling are two names there; a backend that dispatches by name
-meets that difference, below.
+The lowering in [`../data`](../data/README.md) shares rules by `===` alone,
+so two tuples of one spelling are two names there and one key here; a
+backend that dispatches by name meets that difference, below.
 
 ## Typed: the map proves what a mapping declared
 
@@ -94,7 +103,9 @@ named `digits` would have typed every `repeatFrom1` of a set as a number.
 Two keys of one type are refused by `Checked`, as two keys of one spelling
 are by the rewrite. What the types cannot see is a rule annotated wider than
 it is spelled — `Rule`, `Tuple`, a bare `Set` — which is the
-widened-rule-signatures issue's rather than this layer's.
+widened-rule-signatures issue's rather than this layer's; and where the
+types and the runtime could disagree on whether two thunks are one rule,
+the runtime refuses, above.
 
 A mapping's function is written against a type the author declares —
 `(d: number) => number` — because its true input depends on the whole map,
@@ -147,8 +158,8 @@ rename here.
 
 ## Left for later
 
-- The data layer shares rules by `===` and this layer by spelling, so two
-  rules of one spelling are two names in a rule set and one key here, and a
-  mapping over a string's code points is the string's here where the data
-  layer names `'a'`'s symbol and a bare `97` as one rule. A backend keyed by
-  data-rule names will meet both differences and is where they are settled.
+- The data layer shares rules by `===` alone, so two tuples of one
+  spelling are two names in a rule set and one key here, and a mapping over
+  a string's code points is the string's here where the data layer names
+  `'a'`'s symbol and a bare `97` as one rule. A backend keyed by data-rule
+  names will meet both differences and is where they are settled.

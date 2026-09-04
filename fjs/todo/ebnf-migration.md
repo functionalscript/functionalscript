@@ -229,7 +229,7 @@ only because of shared machinery and do not.
 | `ll1/` | rewrite | [`ebnf/ll1/`](../ebnf/ll1/README.md), shipped: a `RuleSet`-only entry (`parserRuleSet`) and a front-end one (`parser`), `firstMap` refusing left recursion and a first/first conflict by name, one flat node per repetition whatever its bounds, and the AST mapping by building `Ast<R>` values that `rewrite` takes as they are. Not shipped: layer composition, which is stage 6's, and per-layer metadata per [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md), which is [metadata](../ebnf/ll1/todo/metadata.md), owed to the first consumer that needs positions |
 | `descent/` | retire | consumers port to `ll1/` (below) |
 | `token_symbol/` | move | the layer boundary; imports `unicode/`, so it lands after it |
-| `map/types.ts` | rewrite | [`ebnf/map/`](../ebnf/map/README.md), shipped: a mapping is keyed by the rule the author holds and typed against `Ast<R>` rather than `Meta`, and `rewrite` is the bottom-up rewrite of the typed AST — the AST mapping stage 4's backend consumes or reproduces |
+| `map/types.ts` | rewrite | [`ebnf/map/`](../ebnf/map/README.md), shipped: a mapping is keyed by the rule the author holds, as the types see it, and typed against `Ast<R>` rather than `Meta`, and `rewrite` is the bottom-up rewrite of the typed AST — the AST mapping stage 4's backend consumes or reproduces |
 | `map/rtti/` | retire | its runtime check of a mapping's declared input is `Checked` in `ebnf/map/types.ts`, done by `tsc` against the typed AST, so no RTTI layer is needed and [rename-check-map](../bnf/map/rtti/todo/rename-check-map.md) has nothing to rename in `ebnf/`; it retires with `bnf/` |
 | `lib/json`, `lib/datajs` | port | one PR for both; `join` (was `commaJoin0Plus`) changes the AST of both bracket pairs |
 | `testlib.f.mjs` — `showAst` and the root `private.ts` typing it | retire | **Amended.** It was to be moved for `ll1`'s proofs, which spell `Ast<R>` trees directly instead — the tree is data, so it is pinned as data — and take a larger one through `rewrite` with nothing mapped, which refuses a tree that is not the rule's |
@@ -421,9 +421,10 @@ consumer port"), never by number, so a renumbering here cannot strand them.
 - [ ] Stage 3: `ebnf/unicode/` with proof; unicode-rules' `unicode/` half
       settled, its `byte/` half owed to the first consumer that wants it.
       `ebnf/matcher/` and `showAst` retired from the stage (**Amended**).
-- [x] `ebnf/map/` with proof: the rewrite over the typed AST, keyed by rule
-      identity, its declared inputs checked by `tsc`; rename-check-map
-      retired with `bnf/map/rtti`.
+- [x] `ebnf/map/` with proof: the rewrite over the typed AST, keyed by the
+      rule as the types see it — a data rule by its parts, a thunk by
+      itself, a look-alike refused — its declared inputs checked by `tsc`;
+      rename-check-map retired with `bnf/map/rtti`.
 - [x] Stage 4: `ebnf/ll1/` with proof; the backend's side of the AST
       mapping, as `Ast<R>` values.
 - [ ] Stage 4: `ebnf/token_symbol/` with proof.

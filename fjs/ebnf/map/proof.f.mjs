@@ -7,7 +7,7 @@
  */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { eof, join, option, range, repeatFrom1, times } from '../module.f.mjs'
+import { eof, join, option, range, rangeEncode, repeatFrom1, times } from '../module.f.mjs'
 import { rewrite } from './module.f.mjs'
 
 /** @type {(a: string) => number} */
@@ -88,8 +88,10 @@ const withEnd = /**@type {const}*/({ end: null, x: 'x' })
 /** @type {unknown} */
 const undefinedBranch = { x: 'x', missing: undefined }
 
-// Two rules that name themselves the same way: one spelling, by
-// coinduction, since comparing what they yield meets the pair again.
+// Two rules that name themselves the same way: one spelling, found by
+// coinduction, since comparing what they yield meets the pair again — and
+// so two thunks the types may or may not tell apart, refused where one is
+// a key and the other is met.
 /** @type {Thunk} */
 const self1 = () => ['const', { again: self1, x: 'x' }]
 
@@ -98,6 +100,7 @@ const self2 = () => ['const', { again: self2, x: 'x' }]
 
 /** @type {Thunk} */
 const selfOther = () => ['const', { again: selfOther, x: 'y' }]
+
 
 /**
  * The same rule mapped twice, as a map that arrives untyped: `Checked`
@@ -118,8 +121,14 @@ const inner = /**@type {const}*/({ a: 'x' })
 /** @type {() => readonly ['const', typeof inner]} */
 const outer = () => ['const', inner]
 
-/** @type {Thunk} */
 const twoDigits = times(2)(digit)
+
+/** A map with one thunk key of each kind, for the look-alikes below. */
+const thunkKeys = rewrite([
+    [digit, /** @type {(d: number) => number} */ (d => d - c('0'))],
+    [self1, /** @type {(v: unknown) => string} */ (() => 'self')],
+    [twoDigits, /** @type {(v: readonly [number, number]) => number} */ (([a, b]) => a * 10 + b)],
+])
 
 export const proof = {
     // The example end to end: the tree of a list is rewritten to the list.
@@ -168,26 +177,26 @@ export const proof = {
         const r = rewrite([[eof, /** @type {(v: readonly []) => string} */ (() => 'end')]])
         assertStructurallySame(r(withEnd)(['end', []]), ['end', 'end'])
     },
-    // A key is a spelling: a rule spelled the same as a key is mapped, and
-    // one spelled differently is not, whatever the two share.
+    // A key is the rule as the types see it: a tuple or a variant spelled
+    // the same as a key is mapped, one spelled differently is not, whatever
+    // the two share, and a thunk is its own key — a rule holding the key's
+    // thunk is the key's spelling, one holding another set is not.
     spelling: () => {
         const r = rewrite([
-            [range('09'), /** @type {(d: number) => number} */ (d => d - c('0'))],
-            [/**@type {const}*/(['x', 42]), /** @type {(v: readonly [readonly number[], 42]) => string} */ (() => 'pair')],
+            [/**@type {const}*/(['x', 42, digit]), /** @type {(v: readonly [readonly number[], 42, number]) => string} */ (() => 'triple')],
             [inner, /** @type {(v: readonly ['a', readonly number[]]) => string} */ (() => 'inner')],
-            [self1, /** @type {(v: unknown) => string} */ (() => 'self')],
         ])
-        assertEq(r(range('09'))(c('7')), 7)
-        assertEq(r(range('08'))(c('7')), c('7'))
-        assertEq(r(/**@type {const}*/(['x', 42]))([cps('x'), 42]), 'pair')
-        assertStructurallySame(r(/**@type {const}*/(['x', 43]))([cps('x'), 43]), [cps('x'), 43])
-        assertStructurallySame(r(/**@type {const}*/(['x']))([cps('x')]), [cps('x')])
-        assertStructurallySame(r(/**@type {const}*/({ 0: 'x', 1: 42 }))(['1', 42]), ['1', 42])
+        assertEq(r(/**@type {const}*/(['x', 42, digit]))([cps('x'), 42, c('7')]), 'triple')
+        assertStructurallySame(r(/**@type {const}*/(['x', 43, digit]))([cps('x'), 43, c('7')]), [cps('x'), 43, c('7')])
+        assertStructurallySame(r(/**@type {const}*/(['x', 42]))([cps('x'), 42]), [cps('x'), 42])
+        assertStructurallySame(r(/**@type {const}*/({ 0: 'x', 1: 42, 2: digit }))(['1', 42]), ['1', 42])
+        assertStructurallySame(r(/**@type {const}*/(['x', 42, range('az')]))([cps('x'), 42, c('a')]), [cps('x'), 42, c('a')])
         assertEq(r({ a: 'x' })(['a', cps('x')]), 'inner')
         assertStructurallySame(r({ b: 'x' })(['b', cps('x')]), ['b', cps('x')])
         assertStructurallySame(r({ a: 'x', b: 'x' })(['a', cps('x')]), ['a', cps('x')])
-        assertEq(r(self2)(['x', cps('x')]), 'self')
-        assertStructurallySame(r(selfOther)(['x', cps('y')]), ['x', cps('y')])
+        // A thunk that is no look-alike of any key is left as it is.
+        assertEq(thunkKeys(range('az'))(c('a')), c('a'))
+        assertStructurallySame(thunkKeys(selfOther)(['x', cps('y')]), ['x', cps('y')])
     },
     // A variant's mapping receives the tag and the branch's rewrite; a
     // numeric key arrives as the string it is at runtime.
@@ -250,6 +259,16 @@ export const proof = {
         variantTagNotAString: () => none(variant)(/** @type {any} */ ([0, cps('x')])),
         variantBranchMissing: () => none(variant)(/** @type {any} */ (['c', cps('x')])),
         variantBranchUndefined: () => none(/** @type {Rule} */ (undefinedBranch))(/** @type {any} */ (['missing', cps('x')])),
+        // A thunk that spells like a key without being it: the types may
+        // see one rule or two, so the walk refuses rather than choose. The
+        // same set by another constructor, the same set by the same
+        // constructor again, a self-naming rule written again, and a tuple
+        // holding such a look-alike.
+        setByAnotherSpelling: () => thunkKeys(range('09'))(c('7')),
+        setSpelledAgain: () => thunkKeys(/** @type {Rule} */ (range('09')))(c('7')),
+        setByEncode: () => thunkKeys(/** @type {Rule} */ (rangeEncode(c('0'), c('9'))))(c('7')),
+        selfSpelledAgain: () => thunkKeys(self2)(['x', cps('x')]),
+        repeatSpelledAgain: () => thunkKeys(times(2)(digit))([c('1'), c('2')]),
         // Two keys of one spelling are one key twice.
         spelledTwice: () => rewrite(/** @type {any} */ ([
             [/**@type {const}*/(['x']), /** @type {(v: readonly [readonly number[]]) => string} */ (() => 'a')],
@@ -258,7 +277,7 @@ export const proof = {
         // `{}` inherits a `constructor`; a branch is an own entry only. The
         // empty variant's AST is `never`, so the rule is widened to reach it.
         variantInheritedBranch: () => none(/** @type {Rule} */ ({}))(/** @type {any} */ (['constructor', []])),
-        tooFewRounds: () => none(twoDigits)([c('1')]),
+        tooFewRounds: () => none(twoDigits)(/** @type {any} */ ([c('1')])),
         tooManyRounds: () => none(sign)(/** @type {any} */ ([cps('-'), cps('-')])),
         roundsNotAnArray: () => none(twoDigits)(/** @type {any} */ (c('1'))),
         // What is no rule is refused as one: a hole in a tuple, a value
