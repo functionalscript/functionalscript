@@ -16,6 +16,11 @@ import type { BoundedArray } from "../../types/array/types.ts"
 import type { Equal } from "../../types/ts/types.ts"
 import type { Const, Rule, Tuple, Variant, Set, Repeat } from "../types.ts"
 
+type AnyAst =
+    | number
+    | readonly AnyAst[]
+    | readonly [string, AnyAst]
+
 export type Ast<R extends Rule> =
     // number
     R extends number ? R :
