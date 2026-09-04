@@ -19,7 +19,7 @@ import type { Assert } from '../../asserts/types.ts'
 import type { BoundedArray } from '../../types/array/types.ts'
 import type { Equal } from '../../types/ts/types.ts'
 import type { Ast } from '../ast/types.ts'
-import type { Const, Repeat, Rule, Set, Tuple, Variant } from '../types.ts'
+import type { Const, DataRule, Info, Repeat, Rule, Set, Tuple, Variant } from '../types.ts'
 
 /**
  * The rewrite of one rule: the rule the author holds, and a function from
@@ -37,13 +37,51 @@ export type RuleMap = readonly Mapping[]
 /**
  * What the mapping keyed by `R` in `M` returns, wrapped so that a mapping
  * returning `undefined` is told from no mapping at all. A key matches by
- * type equality, which is the spelling the rewrite matches by, where the
- * types are the literal ones the front end's constructors give.
+ * type equality, which is the rule's spelling where the type is exact: a
+ * literal's, or the one the front end's constructors give a thunk.
  */
 type _Find<M extends RuleMap, R> =
     M extends readonly [infer H extends Mapping, ...infer T extends RuleMap]
         ? Equal<H[0], R> extends true ? readonly [ReturnType<H[1]>] : _Find<T, R>
         : undefined
+
+/**
+ * Whether a rule type is one of the union's own members rather than a
+ * spelling: what `Rule` says a rule may be, not what one rule is.
+ */
+type _Widened<R> =
+    number extends R ? true :
+    string extends R ? true :
+    Tuple extends R ? true :
+    Variant extends R ? true :
+    Set extends R ? true :
+    Const<DataRule> extends R ? true :
+    Info<readonly ['repeat', number, number, Rule]> extends R ? true :
+    false
+
+/**
+ * Whether a rule type says the rule's parts: a literal, or a form over
+ * exact parts. A type this is not true of admits rules of many spellings,
+ * so a rule of that type may or may not be a key, whatever the key is.
+ */
+type _Exact<R> =
+    _Widened<R> extends true ? false :
+    R extends null | number | string ? true :
+    R extends Tuple ? { readonly [K in keyof R]: _Exact<R[K]> }[number] extends true ? true : false :
+    R extends Variant ? { readonly [K in keyof R]: _Exact<Exclude<R[K], undefined>> }[keyof R] extends true ? true : false :
+    R extends Const<infer D> ? _Exact<D> :
+    R extends Set ? true :
+    R extends Repeat<infer Min, infer _Max, infer D> ? number extends Min ? false : _Exact<D> :
+    false
+
+/**
+ * What the keys a rule of type `R` may be return: every key assignable to
+ * `R`, for an `R` that does not say its parts.
+ */
+type _Applicable<M extends RuleMap, R> =
+    M[number] extends infer E
+        ? E extends Mapping<infer K> ? K extends R ? ReturnType<E[1]> : never : never
+        : never
 
 /** Everything a mapping of `M` may build. */
 type _Outputs<M extends RuleMap> = ReturnType<M[number][1]>
@@ -104,10 +142,21 @@ export type Children<R extends Rule, M extends RuleMap> =
 
 /**
  * The AST of `R` under `M`: what `R`'s mapping returns where it has one, and
- * its {@link Children} where it has none.
+ * its {@link Children} where it has none. A union is taken member by
+ * member. A type that does not say its parts — `number`, `Tuple`, a bare
+ * `Set`, `Rule` — is the children *or* what any key it could be returns,
+ * since the rule it stands for may be a key or may not.
  */
 export type Mapped<R extends Rule, M extends RuleMap> =
-    _Find<M, R> extends readonly [infer T] ? T : Children<R, M>
+    // The whole union first, before it is taken apart: its tuple member
+    // holds the whole union again, so member by member it would not end.
+    Equal<R, Rule> extends true ? _Any<M> :
+    R extends unknown ? _MappedOne<R, M> : never
+
+type _MappedOne<R extends Rule, M extends RuleMap> =
+    _Exact<R> extends true
+        ? _Find<M, R> extends readonly [infer T] ? T : Children<R, M>
+        : Children<R, M> | _Applicable<M, R>
 
 /** Whether a key other than the one at `K`, whose rule is `R`, has `R`'s type. */
 type _KeyTwice<M extends RuleMap, K extends keyof M, R> = true extends {
@@ -116,19 +165,29 @@ type _KeyTwice<M extends RuleMap, K extends keyof M, R> = true extends {
 }[number] ? true : false
 
 /**
+ * A mapping nothing is assignable to: its function slot takes no function.
+ * It keeps a mapping's shape, with a rule where the rule goes, rather than
+ * being `never` outright, because `tsc` types the map literal against
+ * {@link Checked} of the constraint before it infers `M`, and a `never`
+ * where the key goes costs the key its `readonly` inference.
+ */
+type _Refused = readonly [Rule, never]
+
+/**
  * `M` with every mapping's parameter spelled as what the rewrite hands it,
  * so that a map whose declared input is narrower than the actual children
- * is a compile error at `rewrite`, where `M` is whole. Two keys of one
- * type are refused there too — as `never`, which nothing is assignable
- * to — as the rewrite refuses two keys of one spelling: one would silently
- * win.
+ * is a compile error at `rewrite`, where `M` is whole. Refused there too —
+ * as a mapping nothing is assignable to — are two keys of one type, as the
+ * rewrite refuses two keys of one spelling, and a key whose type does not
+ * say its parts, which no rule could be found by.
  */
 export type Checked<M extends RuleMap> = {
     readonly [K in keyof M]: M[K] extends Mapping<infer R>
-        ? _KeyTwice<M, K, R> extends true
-            ? never
-            : readonly [R, (children: Children<R, M>) => unknown]
-        : never
+        ? _KeyTwice<M, K, R> extends true ? _Refused :
+            _Exact<R> extends true
+                ? readonly [R, (children: Children<R, M>) => unknown]
+                : _Refused
+        : _Refused
 }
 
 // The law: the empty map is the identity, row by row.
@@ -182,13 +241,30 @@ type _Checked = Assert<Equal<
 // Two keys of one type are refused, whatever their functions.
 type _CheckedTwice = Assert<Equal<
     Checked<readonly [Mapping<_Digit, number, bigint>, Mapping<_Digit, number, string>]>,
-    readonly [never, never]>>
+    readonly [_Refused, _Refused]>>
+// A union is mapped member by member, and a type that does not say its
+// parts may be any key it admits.
+type _M42 = readonly [Mapping<42, 42, string>]
+type _MappedUnion = Assert<Equal<Mapped<42 | 43, _M42>, string | 43>>
+type _MappedNumber = Assert<Equal<Mapped<number, _M42>, number | string>>
+type _MappedTupleWide = Assert<Equal<Mapped<readonly [number], _M42>, readonly [number | string]>>
+type _MappedNotApplicable = Assert<Equal<Mapped<string, _M42>, readonly number[]>>
+type _MappedWideTuple = Assert<Equal<Mapped<Tuple, _M42>, readonly _Any<_M42>[]>>
+// A key whose type does not say its parts is refused, wherever the width is.
+type _CheckedWide = Assert<Equal<Checked<readonly [Mapping<number, number, string>]>, readonly [_Refused]>>
+type _CheckedWideInside = Assert<Equal<Checked<readonly [Mapping<readonly [Tuple, 'x'], unknown, string>]>, readonly [_Refused]>>
+type _CheckedWideSet = Assert<Equal<Checked<readonly [Mapping<Set, number, string>]>, readonly [_Refused]>>
+type _CheckedWideRepeat = Assert<Equal<Checked<readonly [Mapping<Repeat<number, number, 'x'>, unknown, string>]>, readonly [_Refused]>>
+type _CheckedExact = Assert<Equal<
+    Checked<readonly [Mapping<readonly [Repeat<0, number, Set<readonly ['range', '09']>>, { readonly a: 'x' }, Const<'y'>, null], unknown, string>]>,
+    readonly [readonly [readonly [Repeat<0, number, Set<readonly ['range', '09']>>, { readonly a: 'x' }, Const<'y'>, null], (children: readonly [readonly number[], readonly ['a', readonly number[]], readonly number[], readonly []]) => unknown]]>>
 // Two sets spelled differently are two keys, so a mapping of one leaves
 // the other as it is.
 type _Letter = Set<readonly ['range', 'az']>
 type _Spelled = readonly [Mapping<Set<readonly ['range', '09']>, number, bigint>]
 type _MappedSpelling = Assert<Equal<Mapped<Set<readonly ['range', '09']>, _Spelled>, bigint>>
 type _MappedOtherSpelling = Assert<Equal<Mapped<_Letter, _Spelled>, number>>
+type _MappedBareSet = Assert<Equal<Mapped<Set, _Spelled>, number | bigint>>
 type _MappedRepeatSpelling = Assert<Equal<
     Mapped<readonly [Repeat<1, number, Set<readonly ['range', '09']>>, Repeat<1, number, _Letter>], _Spelled>,
     readonly [readonly [bigint, ...(readonly bigint[])], readonly [number, ...(readonly number[])]]>>

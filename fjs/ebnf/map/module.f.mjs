@@ -21,7 +21,7 @@ import { assert } from '../../asserts/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { definedEntries, structurallySame } from '../../types/object/module.f.mjs'
-import { contains } from '../../types/range_set/module.f.mjs'
+import { contains, isRangeSet } from '../../types/range_set/module.f.mjs'
 
 /**
  * Whether two values are alike: the same value, or the same shape over
@@ -117,7 +117,10 @@ const thunkChildren = rules => (fr, ast) => {
     switch (info[0]) {
         case 'const': { return rewriteRule(rules)(info[1])(ast) }
         case 'set': {
+            // A hand-written set is data: boundaries that are no range set
+            // would answer membership by a list `contains` cannot read.
             const [, ...s] = info
+            assert(isRangeSet(s), ['not a set', fr, s])
             assert(typeof ast === 'number' && contains(s)(ast), ['not a symbol of the rule', fr, ast])
             return ast
         }

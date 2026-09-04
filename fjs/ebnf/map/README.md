@@ -101,11 +101,23 @@ over one is not a repetition over the other, and `digits` is not typed as
 `word`. Without that every set would be the one type `Set`, and a map that
 named `digits` would have typed every `repeatFrom1` of a set as a number.
 Two keys of one type are refused by `Checked`, as two keys of one spelling
-are by the rewrite. What the types cannot see is a rule annotated wider than
-it is spelled — `Rule`, `Tuple`, a bare `Set` — which is the
-widened-rule-signatures issue's rather than this layer's; and where the
-types and the runtime could disagree on whether two thunks are one rule,
-the runtime refuses, above.
+are by the rewrite; and where the types and the runtime could disagree on
+whether two thunks are one rule, the runtime refuses, above.
+
+A rule's type may not say its parts — `number`, `Tuple`, a bare `Set`,
+`Rule`, or a tuple with one such element — as a rule annotated wider than
+it is spelled, or a union of rules, arrives. `Mapped` takes a union member
+by member, and types a rule whose type does not say its parts as its
+children *or* what any key it could be returns: `Mapped<number, M>` with
+`42` mapped to a string is `number | string`. That is sound and no more,
+and it is what a parent mapping over such a rule has to accept. A key must
+say its parts, since no rule could be found by a type that does not, so a
+key annotated `Tuple`, `Thunk` or a bare `Set` is refused by `Checked`. A
+rule that names itself is the case this bites: `value` in
+[`../lib/json`](../lib/json/module.f.mjs) is annotated `Const<Variant>`,
+which says nothing of its parts, so it cannot be a key until it has its
+recursive type — Problem 7 of the front-end design, and the
+widened-rule-signatures issue.
 
 A mapping's function is written against a type the author declares —
 `(d: number) => number` — because its true input depends on the whole map,
