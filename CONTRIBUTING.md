@@ -192,7 +192,7 @@ real Nix — see [`nix/README.md`](./nix/README.md).
 
 A pull request implements only one feature or improvement, with minimal code
 changes. Before submitting, ensure every check above passes and delete the
-`todo/` issue file in the same pull request. It adds **no changelog file**: the
+`todo/` issue file it fixes, if there is one. It adds **no changelog file**: the
 changelog is written once per release from the pull requests that shipped in it
 ([changelog/RELEASE.md](./changelog/RELEASE.md)). What a pull request owes
 instead is a declaration in its description, below. The everyday workflow around

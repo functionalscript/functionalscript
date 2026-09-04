@@ -65,9 +65,8 @@ actually touches its subject.
 
 ## 1. Workflow
 
-Check `todo/` for existing work before starting, and file an issue there, next
-to the code it describes, when the work is worth tracking — a problem statement
-is enough. A design is not a gate: it grows one pull request at a time — an
+File an issue in `todo/`, next to the code it describes, when the work is worth
+tracking — a problem statement is enough. A design is not a gate: it grows one pull request at a time — an
 underspecified `todo/`, then details and ideas, then an implementation — and
 none of them waits on the document being complete. What every step owes is
 direction and consistency: a `todo/` that contradicts the code or another
@@ -75,7 +74,7 @@ direction and consistency: a `todo/` that contradicts the code or another
 deviating silently is not
 ([DESIGN.md §3](./doc/DESIGN.md#3-design-before-implementation)). Write the
 code plus its proof, run `npm run gen` after changing source, run the check
-set above, and delete the `todo/` issue file in the same PR that fixes it.
+set above, and delete the `todo/` issue file the PR fixes, if there is one.
 
 Format, priorities, where each issue file belongs, and how GitHub-reported bugs
 become `todo/` files: [todo/README.md](./todo/README.md).

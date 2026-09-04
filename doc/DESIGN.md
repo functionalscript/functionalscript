@@ -73,8 +73,9 @@ on top of the weaker design.
 
 ## 3. Design before implementation
 
-- A non-trivial feature's design lives in its `todo/` issue, and the issue may
-  be as thin as a problem statement. The design is not a gate: it grows through
+- Design before implementation is an order of work, not a gate. A non-trivial
+  feature's design lives in its `todo/` issue, and the issue may be as thin as
+  a problem statement. The design grows through
   pull requests — an underspecified issue, then details and ideas, then an
   implementation, with a prototype wherever nobody yet knows — and none of them
   waits on the document being complete. What it owes is direction and

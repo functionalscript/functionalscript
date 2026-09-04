@@ -78,10 +78,10 @@ Never deferrable: what [blocks](./REVIEWING.md#what-to-raise) — a
 An unsupported input is refused, never answered with a plausible wrong value —
 **rejected** as a `try*` returning `Nullable<T>` where a caller may legitimately
 supply it, **panicked** on where it violates a precondition
-([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)). New code gets
-that right before it lands. A defect found late may be staged behind an assert,
-which stops the wrong answers today, as long as the `todo/` says the rejection
-is what it still owes. Refuse fast, file, then fix.
+([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)). An assert is
+the fast form of either, in new code or in a defect found late: it stops the
+wrong answers today, as long as the `todo/` says the rejection it still owes.
+Refuse fast, file, then fix.
 
 ## When it cannot land
 
