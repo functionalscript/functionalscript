@@ -116,11 +116,19 @@ const emptyTagStep = ruleSet => map => {
 /**
  * Relaxes `map` one round at a time until a round changes no rule.
  *
+ * A loop rather than a recursion: a chain of rules each naming the next
+ * advances one nullable fact per round, so the rounds are as many as the
+ * rules, and a recursion that deep is a stack overflow on a few thousand.
+ *
  * @type {(step: (map: EmptyTagMap) => EmptyTagMap, names: readonly string[]) => (map: EmptyTagMap) => EmptyTagMap}
  */
 const fixpoint = (step, names) => map => {
-    const next = step(map)
-    return names.every(name => at(name)(next) === at(name)(map)) ? next : fixpoint(step, names)(next)
+    let current = map
+    while (true) {
+        const next = step(current)
+        if (names.every(name => at(name)(next) === at(name)(current))) { return next }
+        current = next
+    }
 }
 
 /**
