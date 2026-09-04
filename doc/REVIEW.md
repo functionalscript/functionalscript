@@ -18,6 +18,7 @@ is wrong: it is the one place the answer will not survive.
 | One case is generalized into a rule | Answer with the case that breaks it, and record what the decision depends on |
 | A defect is reported | Fix it, or defer it behind a `todo/` naming the input that breaks it |
 | A corner case is raised | File a `todo/` naming the input, and reply with the link — not a fix |
+| A tighter type is asked for on a valid input | Keep the type simple: depth is a budget ([REVIEWING.md](./REVIEWING.md#type-level-computation)); a `todo/` if the check is wanted |
 
 A pull request implements one feature, so "while you're here" is a second one.
 And a rule generalized from one real case fails on the case the reviewer did not

@@ -46,6 +46,7 @@ retired" is a finding. "This could be more precise" is not.
 | An improvement that would be nice while here | A `todo/` |
 | A rule a tool already enforces (`tsc`, coverage, `clippy`, `fmt`) | Nothing; CI has it |
 | A "what if" nobody has asked for, untested | Nothing; a test for it is noise, not proof |
+| A type that could reject more at compile time | Nothing on an input the code already accepts; see [below](#type-level-computation) |
 
 A corner case is a case the change did not set out to handle and no real input
 reaches today. The answer is a `todo/`, and whether it is ever picked up is
@@ -72,6 +73,20 @@ describes — a path that does not exist, an importer that does not import — a
 it does not contradict itself — a task list still building what the proposal
 above it retired. Both are checked against the tree, not against what the
 reviewer expects the tree to hold.
+
+## Type-level computation
+
+TypeScript evaluates conditional and recursive types against a hard depth, and a
+type that walks a value's shape reaches it: `Ts<T>`, `parse` and `validate` in
+`fjs/rtti` all hit TS2589 and pay for it with fast paths, phantom annotations and
+boundary casts ([`fjs/rtti/ts/README.md`](../fjs/rtti/ts/README.md#the-problem-ts2589)).
+That depth is a budget the whole module shares. An additional type-level check
+on an input the code already accepts spends it and changes nothing observable —
+the runtime already refuses the invalid value, and the valid one was valid
+before — so do not ask for one. Ask for the simplest type that states the
+contract, an `Assert<Equal<…>>` in the proof where the inference matters
+([fjs/AGENTS.md §1.4](../fjs/AGENTS.md#14-assert-type-level-facts-with-assertequal)),
+and a `todo/` for anything tighter.
 
 ## Bots
 
