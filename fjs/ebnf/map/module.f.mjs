@@ -129,8 +129,22 @@ const fixed = (rule, ast, length) => {
  */
 const thunkChildren = rules => (fr, ast) => {
     const info = fr()
+    // An info is a tuple; an object spelling one — `{ 0: 'const', 1: c,
+    // length: 2 }` — would pass every field read below, so it is refused
+    // first, as the lowering refuses it.
+    assert(info instanceof Array, ['not a rule', fr, info])
     switch (info[0]) {
-        case 'const': { return rewriteRule(rules)(info[1])(ast) }
+        case 'const': {
+            // An info is a fixed-arity tuple where its tag says so, and a
+            // field past that arity is a mistake the lowering refuses: a
+            // rule read from part of what it spells is not that rule. What
+            // a `const` spells is a data rule, so a thunk under it is one
+            // the lowering refuses too.
+            assert(info.length === 2, ['not a const', fr, info])
+            const dr = info[1]
+            assert(typeof dr !== 'function', ['not a data rule', fr, dr])
+            return rewriteRule(rules)(dr)(ast)
+        }
         case 'set': {
             // A hand-written set is data, and its boundaries are the
             // symbol domain's: a range set, as `contains` reads one, and
@@ -147,6 +161,7 @@ const thunkChildren = rules => (fr, ast) => {
             // check: `-0` is the literal type `0` to `tsc` and no symbol at
             // runtime. Bounds outside the domain would compare against the
             // rounds and answer a plausible list for a rule that is none.
+            assert(info.length === 4, ['not a repeat', fr, info])
             const [, min, max, r] = info
             assert(isSymbol(min), ['min is not a non-negative integer', fr, min])
             assert((isSymbol(max) || max === Infinity) && min <= max, ['max is not an integer at or above min, or Infinity', fr, max])
