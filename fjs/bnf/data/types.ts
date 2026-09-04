@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { StringMap } from '../../types/object/types.ts'
+import type { AbstractRequiredMap, StringMap } from '../../types/object/types.ts'
 import type { Rule as FRule } from '../types.ts'
 
 /**
@@ -52,7 +52,7 @@ export type Repeat = string
 export type Rule = Variant | Sequence | TerminalRange | Repeat
 
 /** The full grammar */
-export type RuleSet = ReadonlyMap<string, Rule>
+export type RuleSet = AbstractRequiredMap<string, Rule>
 
 /** Functional rules keyed to the generated names used by a {@link RuleSet}. */
 export type RuleNameMap = ReadonlyMap<FRule, string>
