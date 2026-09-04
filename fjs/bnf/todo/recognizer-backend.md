@@ -174,8 +174,13 @@ convenient — its output is a valid rule set either way
 ([ebnf-migration](../../todo/ebnf-migration.md)).
 
 The data IR is exactly the substrate for automaton construction:
-`Rule = Variant | Sequence | TerminalRange` — alternation, concatenation, and
-terminal ranges, with name references for recursion. `dispatchMap` / `parser`
+alternation, concatenation, terminal ranges and a bounded repetition, with
+name references for recursion — `Rule = Variant | Sequence | TerminalRange |
+Repeat` in today's terms, but the exact union is whatever `fjs/ebnf/data/`
+defines when these builders are written, and a builder compiles a bounded
+`Repeat` however its own design finds best (unrolled to a bound, a counter in
+the state, or something else): that is decided when the builder is designed,
+not here. `dispatchMap` / `parser`
 are already *one* family built from `RuleSet`; the recognizer and DFA backends
 are **new builders over the same `RuleSet`**, siblings of `dispatchMap` — not a
 separate front end. So: author `magic | utf8` in a front end, lower it,
