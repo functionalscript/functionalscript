@@ -170,10 +170,14 @@ type _StepKeys<U, R> =
 type _RepeatItem<R> =
     R extends () => infer U
         // The members of `U` are weighed one at a time and their answers put
-        // back together: all `false` is `false`, one answer alone is that
-        // answer, and members that disagree leave the classification open.
+        // back together. All `false` is `false`. Members that all name an item
+        // keep every item: they are repetitions whichever one the rule turns
+        // out to be, and {@link _AstOne} answers with an array per item rather
+        // than one array over the lot. Anything else — a `true`, or a `false`
+        // beside an item — is members disagreeing about whether this repeats at
+        // all, which leaves the classification open.
         ? [_Members<U, R>] extends [false] ? false
-        : _Single<_Members<U, R>> extends true ? _Members<U, R>
+        : [Extract<_Members<U, R>, boolean>] extends [never] ? _Members<U, R>
         : true
     // A rule that is not lazy cannot name itself, so nothing it holds can be
     // its own tail.
@@ -229,7 +233,7 @@ type _RepeatOne<U, R> =
  * branches that pair however many keys turn up.
  */
 type _OpenRepeat<U, R> =
-    _CouldNone<_BranchOf<U, _Keys<U>>> extends true
+    _CouldNone<_BranchOf<U, _Keys<U>>, R> extends true
         ? _CouldStep<_BranchOf<U, _Keys<U>>, R> extends true ? true : false
         : false
 
@@ -244,7 +248,7 @@ type _OpenRepeat<U, R> =
  * optional `none` leaves no empty branch and keeping it makes three.
  */
 type _Pairs<U, R> =
-    _Pair<_CouldNoneKeys<U>, _CouldStepKeys<U, R>, Exclude<_Keys<U>, _OptionalKeys<U>>>
+    _Pair<_CouldNoneKeys<U, R>, _CouldStepKeys<U, R>, Exclude<_Keys<U>, _OptionalKeys<U>>>
 
 type _Pair<A, B, Req> =
     A extends unknown
@@ -268,57 +272,61 @@ type _Repeat<U, R> =
         : false
 
 /**
- * The keys of `U` whose branch the declaration leaves open: it neither says the
- * branch is the empty branch or the step, nor rules either out.
+ * What a branch `B` is, as one of four answers per member of it:
  *
- * `Sequence` is the plain case — it *contains* the empty sequence, so a rule
- * declaring a branch that way covers both a repetition and a variant. So does
- * a union such as `readonly[] | 1`, so does `string`, which contains `''`, and
- * so does `Rule` itself, which is what a variant left at the API's own types
- * offers for every key.
+ * - `'none'` — every value of the member is the empty branch;
+ * - `'step'` — every value is an item paired with `R`;
+ * - `'other'` — no value is either;
+ * - `'open'` — the member covers one of them without being it, so values of it
+ *   go both ways. `Sequence` and `string` are the plain cases, each containing
+ *   an empty branch, and so is `Rule` itself, which is what a variant left at
+ *   the API's own types offers for every key.
+ *
+ * The tests are wrapped in one-tuples, and `_Classes` distributes over `B`
+ * instead, so each member is weighed on its own and the answers collected. A
+ * union has to be taken apart here: `repeatOf` reads whichever member the value
+ * turned out to be, so `readonly[0, R] | 1` holds a step even though the union
+ * neither *is* the general step nor *contains* it — `readonly[Rule, R]` is not
+ * assignable to the specific `readonly[0, R]`, so asking of the union whole
+ * finds nothing.
+ */
+type _Class<B, R> =
+    [B] extends [_None] ? 'none' :
+    [B] extends [readonly[Rule, R]] ? 'step' :
+    [readonly[]] extends [B] ? 'open' :
+    [''] extends [B] ? 'open' :
+    [readonly[Rule, R]] extends [B] ? 'open' :
+    'other'
+
+/** {@link _Class} of every member of `B`. */
+type _Classes<B, R> = B extends unknown ? _Class<B, R> : never
+
+/**
+ * The keys of `U` whose branch the declaration leaves open: its members do not
+ * agree on what the branch is, or one of them is open on its own.
  */
 type _UndecidedKeys<U, R> =
     { readonly[K in _Keys<U>]: _Undecided<_BranchOf<U, K>, R> extends true ? K : never }[_Keys<U>]
 
-/**
- * Whether `B` is a branch neither test can answer for. Each test is asked twice
- * and in this order: `B` is the shape when every value of `B` has it, `B` is
- * not the shape when no value of `B` does, and anything left over is a
- * declaration covering both.
- *
- * The tests are wrapped in one-tuples so a union `B` is weighed whole. A naked
- * `B` would be split, and each member answered for on its own — which is the
- * question `repeatOf` asks of a value, not the one a declaration answers. The
- * two spellings of the empty branch are asked after it for that reason: `_None`
- * is itself a union, and `string` contains one of its members without
- * containing it.
- */
 type _Undecided<B, R> =
-    [B] extends [_None] ? false :
-    [readonly[]] extends [B] ? true :
-    [''] extends [B] ? true :
-    [B] extends [readonly[Rule, R]] ? false :
-    [readonly[Rule, R]] extends [B] ? true :
-    false
+    [_Classes<B, R>] extends [never] ? false :
+    [Extract<_Classes<B, R>, 'open'>] extends [never]
+        ? _Single<_Classes<B, R>> extends true ? false : true
+        : true
 
 /** The keys of `U` whose branch is, or could be, the empty branch. */
-type _CouldNoneKeys<U> =
-    { readonly[K in _Keys<U>]: _CouldNone<_BranchOf<U, K>> extends true ? K : never }[_Keys<U>]
+type _CouldNoneKeys<U, R> =
+    { readonly[K in _Keys<U>]: _CouldNone<_BranchOf<U, K>, R> extends true ? K : never }[_Keys<U>]
 
-type _CouldNone<B> =
-    [B] extends [_None] ? true :
-    [readonly[]] extends [B] ? true :
-    [''] extends [B] ? true :
-    false
+type _CouldNone<B, R> =
+    [Extract<_Classes<B, R>, 'none' | 'open'>] extends [never] ? false : true
 
 /** The keys of `U` whose branch is, or could be, an item followed by `R`. */
 type _CouldStepKeys<U, R> =
     { readonly[K in _Keys<U>]: _CouldStep<_BranchOf<U, K>, R> extends true ? K : never }[_Keys<U>]
 
 type _CouldStep<B, R> =
-    [B] extends [readonly[Rule, R]] ? true :
-    [readonly[Rule, R]] extends [B] ? true :
-    false
+    [Extract<_Classes<B, R>, 'step' | 'open'>] extends [never] ? false : true
 
 /**
  * The keys `U` declares optional. `Required` in {@link _BranchOf} reads the
@@ -387,12 +395,17 @@ export type AstRule<R extends Rule> =
     R extends Rule ? _AstOne<R> : never
 
 type _AstOne<R extends Rule> =
-    _RepeatItem<R> extends readonly [infer I extends Rule] ? readonly AstRule<I>[] :
+    // One array per item, not one array over the union of them: a rule whose
+    // return type names two repetitions parses as one or the other, never as a
+    // sequence mixing their items.
+    [_RepeatItem<R>] extends [readonly [Rule]] ? _AstRepeat<_RepeatItem<R>> :
     // A declaration that does not say whether it is a repetition gets both
     // shapes rather than the one it is merely more likely to be. The item is
     // unknown along with the rest, so the array is over the widened `Ast`.
     _RepeatItem<R> extends true ? readonly Ast[] | _AstNotRepeat<R> :
     _AstNotRepeat<R>
+
+type _AstRepeat<T> = T extends readonly [infer I extends Rule] ? readonly AstRule<I>[] : never
 
 type _AstNotRepeat<R extends Rule> =
     R extends () => (infer U extends Rule) ? AstRule<U> :
@@ -702,3 +715,31 @@ type _46 = Assert<Equal<
 type _UnionReturnAst =
     { readonly none: readonly[] } |
     { readonly some: readonly[number, AstRule<_UnionReturn>] }
+
+// A union-valued *step* branch. `repeatOf` reads whichever member the value
+// turned out to be, so the tuple member makes this a repetition — but asking
+// the union whole finds nothing, since `readonly[Rule, R]` is neither what the
+// union is nor assignable to its specific `readonly[0, _UnionStep]` member. The
+// members are classified one at a time.
+type _UnionStep = () => {
+    readonly none: readonly[],
+    readonly some: readonly[0, _UnionStep] | 1,
+}
+type _47 = Assert<Equal<AstRule<_UnionStep>, readonly Ast[] | _UnionStepVariant>>
+type _UnionStepVariant =
+    { readonly none: readonly[] } |
+    { readonly some: readonly[number, AstRule<_UnionStep>] | number }
+
+// Two return alternatives that are both repetitions, over different items. Each
+// is definite, so the answer is a repetition either way — one array per item
+// rather than the variant's branches beside them.
+type _TwoRepeats = () => ({
+    readonly none: readonly[],
+    readonly some: readonly[0, _TwoRepeats],
+} | {
+    readonly stop: readonly[],
+    readonly next: readonly[readonly[0], _TwoRepeats],
+})
+type _48 = Assert<Equal<
+    AstRule<_TwoRepeats>,
+    readonly number[] | readonly (readonly[number])[]>>
