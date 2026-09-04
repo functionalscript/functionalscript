@@ -9,7 +9,7 @@ import {
     rangeEncode,
     remove,
     repeat,
-    repeat0Plus,
+    repeatFrom0,
     set,
     times,
     unicodeMax,
@@ -126,7 +126,7 @@ export const proof = {
         },
         // The three derived constructors are the same shape with fixed bounds.
         zeroPlus: () => {
-            assertStructurallySame(repeat0Plus('a')(), ['repeat', 0, Infinity, 'a'])
+            assertStructurallySame(repeatFrom0('a')(), ['repeat', 0, Infinity, 'a'])
         },
         times: () => {
             assertStructurallySame(times(4)('a')(), ['repeat', 4, 4, 'a'])
