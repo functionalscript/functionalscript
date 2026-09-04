@@ -32,7 +32,7 @@ export type Variant = readonly ['variant', StringMap<string>]
 
 /**
  * `min..max` copies of the named rule: `min` a non-negative safe integer,
- * `max` one or `Infinity`, `min <= max`.
+ * `max` a non-negative safe integer or `Infinity`, `min <= max`.
  */
 export type Repeat = readonly ['repeat', number, number, string]
 
