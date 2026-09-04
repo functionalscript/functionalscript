@@ -1,3 +1,16 @@
+/**
+ * Type-level API of the EBNF AST: `Ast<R>` is the type of what matching the
+ * rule `R` produces, one row per form of the rule union in `../types.ts`.
+ *
+ * A symbol is itself; a string is its symbols; a tuple maps its elements; a
+ * variant is the branch taken, tagged by its key, and an empty one, which
+ * nothing can match, is `never`; a `const` thunk is its payload; a set is
+ * one symbol; and a repeat is a `BoundedArray` of its item, so every bound
+ * shape is one flat array with a different `.length`.
+ *
+ * @module
+ */
+
 import type { Assert } from "../../asserts/types.ts"
 import type { BoundedArray } from "../../types/array/types.ts"
 import type { Equal } from "../../types/ts/types.ts"
@@ -12,11 +25,12 @@ export type Ast<R extends Rule> =
     // Tuple
     R extends Tuple ? _TupleAst<R> :
     // Variant
+    {} extends R ? never :
     R extends Variant ? _VariantAst<R> :
     // Const
     R extends Const<infer D> ? Ast<D> :
     // Set
-    R extends () => ['set'] ? never :
+    R extends () => readonly['set'] ? never :
     R extends Set ? number :
     // Repeat
     R extends Repeat<infer Min, infer Max, infer D> ? _RepeatAst<Min, Max, D>:
@@ -37,15 +51,13 @@ type _Tuple = Assert<Equal<Ast<[12, -1]>, readonly[12, -1]>>
 type _Tuple0 = Assert<Equal<Ast<[]>, readonly[]>>
 type _Tuple1 = Assert<Equal<Ast<[12, string]>, readonly[12, readonly number[]]>>
 
-// An alternative is optional in `Variant`, so `R[K]` admits `undefined` that
-// `Ast` does not take. A branch that is absent contributes no AST.
 type _VariantAst<R extends Variant> =
-    { readonly[K in keyof R]: Ast<Exclude<R[K], undefined>> }
+    { readonly[K in keyof R]: readonly[K, Ast<R[K]>] }[keyof R]
 
 type _Variant = Assert<Equal<Ast<
     { readonly a: 12, readonly b: 'hello' }>,
-    { readonly a: 12, readonly b: readonly number[] }>>
-type _Variant0 = Assert<Equal<Ast<{}>, {}>>
+    readonly['a', 12] | readonly['b', readonly number[]]>>
+type _Variant0 = Assert<Equal<Ast<{}>, never>>
 
 type _Const = Assert<Equal<Ast<Const<42>>, 42>>
 type _Const0 = Assert<Equal<Ast<() => ['const', 42]>, 42>>

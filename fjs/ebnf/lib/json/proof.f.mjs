@@ -187,9 +187,9 @@ export const proof = {
         /** @type {Rule} */
         const rule = json
         assertEq(rule, json)
-        // An alternative that isn't there is `undefined` rather than a rule,
-        // which is why `Variant`'s keys are optional. `types.ts` pins the type
-        // side of this; here it is the value.
+        // `Variant` is an abstraction: an alternative that isn't there is
+        // typed as a rule and is `undefined` at runtime. `types.ts` pins the
+        // type side of this; here is the value side it stands for.
         assertEq(createValue('p', 'v').missing, undefined)
     },
 }
