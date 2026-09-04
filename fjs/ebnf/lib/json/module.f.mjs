@@ -1,5 +1,5 @@
 /**
- * @import { Rule, Set, Tuple, Variant } from '../../types.ts'
+ * @import { Const, Rule, Set, Tuple, Variant } from '../../types.ts'
  */
 
 import { range, remove, repeatFrom0, unicodeMax, set, times, option, join } from "../../module.f.mjs"
@@ -81,6 +81,13 @@ export const createValue = (p, v) => ({
     null: 'null',
 })
 
-const value = () => createValue(string, value)
+/**
+ * A value contains values, so the rule has to name itself, and a thunk is how
+ * a name is spelled here. `const` is the tag that says the thunk yields a data
+ * rule, which is what tells a consumer apart from a set or a repetition.
+ *
+ * @type {Const<Variant>}
+ */
+const value = () => ['const', createValue(string, value)]
 
 export const json = /**@type {const}*/([ws, value, ws])

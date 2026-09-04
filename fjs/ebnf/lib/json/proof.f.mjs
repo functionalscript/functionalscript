@@ -164,11 +164,14 @@ export const proof = {
     },
     // A document is one value between two runs of whitespace. The value is a
     // thunk rather than the variant itself because a value contains values:
-    // the grammar has to name itself, and here a name is a thunk. Expanding it
-    // is therefore the only step this proof takes by hand.
+    // the grammar has to name itself, and here a name is a thunk, tagged
+    // `const` because what it yields is a data rule. Expanding it is therefore
+    // the only step this proof takes by hand.
     json: () => {
         const [before, value, after] = json
         assertStructurallySame([force(before), force(after)], [wsData, wsData])
-        assertStructurallySame(keys(value()), alternatives)
+        const [tag, variant] = value()
+        assertEq(tag, 'const')
+        assertStructurallySame(keys(variant), alternatives)
     },
 }
