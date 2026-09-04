@@ -186,7 +186,7 @@ const validateVisitor = (name, ref, nullable) => ({
     variant: branches => entries(branches).forEach(([, item]) => ref(item)),
     repeat: (min, max, item) => {
         assert(isSymbol(min), ['min is not a non-negative integer', name, min])
-        assert((isSafeInteger(max) || max === Infinity) && min <= max, ['max is not an integer at or above min, or Infinity', name, max])
+        assert((isSymbol(max) || max === Infinity) && min <= max, ['max is not an integer at or above min, or Infinity', name, max])
         ref(item)
         assert(max !== Infinity || !nullable(item), ['a nullable item under an unbounded repeat', name, item])
     },
