@@ -189,8 +189,10 @@ records why.
 ```text
 fjs/ebnf/
   module.f.mjs, types.ts   the front end: Rule union with a repetition primitive
+                           (and the string-taking terminal helpers: a string
+                           is a Unicode sequence — unicode-rules, Amended)
   terminal/                the symbol domain, EOF, integer helpers over range_set (rewrite)
-  unicode/                 text adapter: str, set, range, not, …     (rewrite)
+  unicode/                 text adapter: str, not, unicodeRange, …   (rewrite)
   byte/                    binary alphabet adapter, when a consumer needs it (rewrite)
   data/                    RuleSet IR with bounded Repeat, emptyTagMap (rewrite)
   matcher/                 cursor, EOF, AST, transformer tools       (move)
