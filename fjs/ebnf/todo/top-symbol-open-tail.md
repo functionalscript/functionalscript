@@ -9,7 +9,7 @@
 integer, which makes `rangeEncode(a, Number.MAX_SAFE_INTEGER)` throw — the top
 ordinary symbol has no spelling.
 
-[ebnf-range-set](../../bnf/todo/ebnf-range-set.md) gives it one: a range set is
+ebnf-range-set gives it one: a range set is
 a list of boundaries that may be *open above*, and the top symbol is the open
 tail `[a]` — "`[2 ** 53 - 1]` is its singleton, and `[a]` is `a` up to and
 including it, the only spelling either has, because the boundary after the top,
@@ -38,7 +38,7 @@ so `union`, `remove` and the rest need nothing.
 
 ### Related
 
-- [ebnf-range-set](../../bnf/todo/ebnf-range-set.md) — the open tail and why it
+- ebnf-range-set — the open tail and why it
   is the top symbol's only spelling.
 - [`../module.f.mjs`](../module.f.mjs) — `rangeEncode`.
 - [`fjs/types/range_set/`](../../types/range_set/module.f.mjs) — the algebra

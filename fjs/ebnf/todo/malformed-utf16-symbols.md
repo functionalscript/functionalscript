@@ -15,7 +15,7 @@ set('\uD800')()   // ['set', -2147428352, -2147428351]
 ```
 
 An ordinary symbol is a non-negative safe integer
-([ebnf-range-set](../../bnf/todo/ebnf-range-set.md)), so that terminal is
+(ebnf-range-set), so that terminal is
 outside the domain in a way nothing downstream will catch — `-1` is EOF, and
 these are further out still. The input is a mistake at the call site, and a
 lone surrogate cannot be a code point terminal under any reading, so there is
@@ -43,5 +43,5 @@ test as `codePoint & errorMask`.
 - [`../module.f.mjs`](../module.f.mjs) — `set`, `range`.
 - [`fjs/text/utf16/module.f.mjs`](../../text/utf16/module.f.mjs) — the decoder
   that tags rather than throws.
-- [ebnf-range-set](../../bnf/todo/ebnf-range-set.md) — ordinary symbols are the
+- ebnf-range-set — ordinary symbols are the
   non-negative safe integers.

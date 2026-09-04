@@ -59,6 +59,14 @@ type Info     =
     | readonly ['repeat', number, number, Rule] // min..max copies
 ```
 
+**Amended:** `Variant` shipped as `{ readonly [k in string]: Rule }`, with no
+`?`, and `Const` gained `null` for EOF (below). A grammar's variant is an
+author's literal whose tags are all present, so the optional signature typed
+every alternative as possibly missing and cost more than it guarded; the type
+is an abstract required map in the sense of `AbstractRequiredMap`, stated on
+the type, and [fjs/AGENTS.md](../../AGENTS.md) records the exception. A
+lookup by a runtime tag belongs to the data layer's open `StringMap`.
+
 Three word tags, the RTTI vocabulary. Discrimination is by JavaScript type at
 every level.
 

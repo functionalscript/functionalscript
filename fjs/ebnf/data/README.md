@@ -9,7 +9,9 @@ layer, and it absorbs the rule-visitor issue as `matchRule`. Those issues live
 under `fjs/bnf/todo/` today and are not linked from here: `ebnf/` never
 reaches into `bnf/`, a README link included, because the migration deletes
 `bnf/` at its last stage
-([ebnf-migration](../../todo/ebnf-migration.md), principle 2).
+([ebnf-migration](../../todo/ebnf-migration.md), principle 2). Its issue
+triage moves each of them into `fjs/ebnf/`, the front-end design as
+`fjs/ebnf/README.md`.
 
 - `module.f.mjs` — `matchRule`, `emptyTagMap`, `validate`, `toData`;
 - `types.ts` — the `Rule` union, `RuleSet`, `RuleVisitor`, `GrammarData`.
