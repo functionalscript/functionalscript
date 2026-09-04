@@ -34,9 +34,10 @@ const { entries, fromEntries, keys, getPrototypeOf } = Object
  * A plain record — an object literal's shape — and nothing else that is an
  * object: a `Map` has no own string-keyed entries, so read as a variant it
  * would be an empty one. One realm, one prototype chain, so the prototype
- * is a reliable test.
+ * is a reliable test. Not a type predicate: both call sites hold a value the
+ * type system has already narrowed, and only ask whether to refuse it.
  *
- * @type {(v: unknown) => v is { readonly [k in string]: unknown }}
+ * @type {(v: unknown) => boolean}
  */
 const isRecord = v => isObject(v) && getPrototypeOf(v) === Object.prototype
 
