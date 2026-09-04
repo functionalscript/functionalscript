@@ -91,6 +91,7 @@ export const repeatFrom = n =>
     repeat(n, Infinity)
 
 export const repeatFrom0 = repeatFrom(0)
+export const repeatFrom1 = repeatFrom(1)
 
 /**
  * @type {<const N extends number>(n: N) =>

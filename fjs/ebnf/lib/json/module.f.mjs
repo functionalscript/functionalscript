@@ -6,7 +6,7 @@ import { range, remove, repeatFrom0, unicodeMax, set, times, option, join } from
 
 const onenine = range('19')
 
-const digit = range('09')
+export const digit = range('09')
 
 const hex = {
     digit,
