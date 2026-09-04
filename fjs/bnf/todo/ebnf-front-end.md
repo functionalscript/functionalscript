@@ -198,7 +198,7 @@ Stated as requirements, since the data layer is open.
 
 - **Validate here, at the front end**, while the author still has a rule to
   point at: bounds in the domain above; `['set', …]` a valid range set of
-  **ordinary** symbols per [ebnf-range-set](./ebnf-range-set.md) — integer
+  **ordinary** symbols per [ebnf-range-set](./ebnf-range-set.md) — safe-integer
   boundaries, none below `0`, so never EOF, and not empty; a bare `number` an
   integer in the terminal domain.
 - **A nullable body** at an unbounded max is non-termination and is rejected.

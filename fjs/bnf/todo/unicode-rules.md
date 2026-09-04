@@ -208,8 +208,9 @@ port), not here.
 - [ ] Have `fjs/bnf/todo/recognizer-backend.md` consume byte helpers from
       `fjs/ebnf/byte/module.f.mjs` rather than defining another binary-helper
       family.
-- [ ] Have `fjs/bnf/todo/proof-recognizer-and-fixtures.md` build its shared
-      text fixtures on `fjs/ebnf/unicode/module.f.mjs`.
+- [ ] Leave `fjs/bnf/todo/proof-recognizer-and-fixtures.md`'s shared fixture
+      as the directly authored `RuleSet` it specifies: it imports no text
+      helper, neither this adapter's nor the classical one's.
 - [ ] Add byte helper proofs for byte boundaries and representative binary
       sequences/ranges; Unicode proofs cover string/code-point conversion and
       boundaries; the generic `fjs/ebnf/` proofs exercise abstract symbols.

@@ -186,9 +186,10 @@ means. The terminal domain is a set value, `[0]`, owned by `fjs/ebnf/terminal/`
 ([ebnf-migration](../../todo/ebnf-migration.md), the `ebnf/terminal/` piece),
 and the lowering intersects every set with it: that clips a `-Infinity` a generic
 complement produced back to `0`, drops EOF and anything below it, and so
-restores canonicity before the IR. It also requires every boundary to be an
-integer: `[0.5, 1.5]` and `[1, 2]` are the same set of symbols, and only one
-of them may reach content-addressed data.
+restores canonicity before the IR. It also requires every boundary to be a
+safe integer: `[0.5, 1.5]` and `[1, 2]` are the same set of symbols, and only
+one of them may reach content-addressed data; the safety half is the next
+paragraph's.
 
 **There is no top end.** The last ordinary symbol, `2 ** 24 - 2`, is a fact
 about the packed codec — two 24-bit halves in one number — and it leaves with
@@ -202,14 +203,18 @@ adapter delivers, exactly as a packed range does today: neither validates the
 input against the domain, and neither should, because the adapter is the one
 that knows the alphabet.
 
-What does have a ceiling is the helpers' arithmetic. `b + 1` and `x + 1` are
-exact only for safe integers, so `range(a, b)` and `one(x)` require
-`Number.isSafeInteger(b + 1)` and reject beyond it. `one(2 ** 53)` would fail
-set validation anyway — `2 ** 53 + 1 === 2 ** 53`, so it would spell
-`[2 ** 53, 2 ** 53]` — but the check belongs at the helper, where the author
-still has a symbol to point at. A boundary above `2 ** 53` written by hand is
-an integer and still a legal set; no helper produces one and no alphabet
-assigns a symbol there.
+What does have a ceiling is `number` arithmetic. `b + 1`, `x + 1` and
+`toRangeMap`'s `b - 1` are exact only for safe integers — `2 ** 53 + 1` is
+`2 ** 53`, and `2 ** 54 - 1` is `2 ** 54` — so **every boundary of a terminal
+set is a safe integer**, and the lowering rejects any other, hand-written
+ones included: `[0, 2 ** 54]` never reaches the IR, where its inclusive
+upper bound would have been itself. The helpers check earlier, where the
+author still has a symbol to point at: `range(a, b)` and `one(x)` require
+`Number.isSafeInteger(b + 1)`. So ordinary symbols run `0 .. 2 ** 53 - 2`,
+and their boundaries `0 .. 2 ** 53 - 1`. That is a fact about `number`, not
+about the set, and it needs no canonicalization rule: the open tail `[a]` is
+still the only spelling of "from `a` up", because no boundary can spell the
+top.
 
 The alphabet adapter's `not` is *difference against its universe*: Unicode's
 is `[0, 0x110000]`, bytes' is `[0, 256]`, and a token-symbol alphabet's is its
@@ -273,8 +278,8 @@ justification is the API and the AST, which is where
       issue, before any backend touches a set.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
       the union, the AST table (`number`), the lowering requirements
-      (intersect with the domain `[0]`; require integer boundaries; reject
-      the empty set), and `oneOf` in the constructor list.
+      (intersect with the domain `[0]`; require safe-integer boundaries;
+      reject the empty set), and `oneOf` in the constructor list.
 - [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/ebnf/unicode/`
       produce sets; `not` is difference against the Unicode universe. `str`
       is not one of them: `str('true')` is an ordered `Sequence` of
