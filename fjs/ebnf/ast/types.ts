@@ -3,10 +3,10 @@
  * rule `R` produces, one row per form of the rule union in `../types.ts`.
  *
  * A symbol is itself; a string is its symbols; a tuple maps its elements; a
- * variant maps its alternatives, and an empty one, which nothing can match,
- * is `never`; a `const` thunk is its payload; a set is one symbol; and a
- * repeat is a `BoundedArray` of its item, so every bound shape is one flat
- * array with a different `.length`.
+ * variant is the branch taken, tagged by its key, and an empty one, which
+ * nothing can match, is `never`; a `const` thunk is its payload; a set is
+ * one symbol; and a repeat is a `BoundedArray` of its item, so every bound
+ * shape is one flat array with a different `.length`.
  *
  * @module
  */
