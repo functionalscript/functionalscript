@@ -33,7 +33,8 @@ use crate::vm::{
 };
 
 /// `Object.getOwnPropertyDescriptor`'s own message for a nullish receiver
-/// (`own_property`'s only throwing case — see its doc comment).
+/// (one of `own_property`'s two throwing cases, the other being a
+/// non-`String` key — see its doc comment).
 const CANNOT_CONVERT_NULLISH_TO_OBJECT: &str =
     "TypeError: Cannot convert undefined or null to object";
 
