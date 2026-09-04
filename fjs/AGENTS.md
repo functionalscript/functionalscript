@@ -858,6 +858,15 @@ alias may not reference itself through *another* alias's instantiation, so
 itself") even though it expands to the inline spelling, which resolves. That is
 a property of aliasing, not of any one definition — writing the record as a
 mapped type rather than a conditional one does not lift it.
+**Exception:** a record whose keys are static and all present — a grammar's
+variant, whose tags the author writes — may be typed as
+`AbstractRequiredMap<string, T>`, or as its inline spelling where recursion
+forces it, with the abstraction stated on the type: a read of a key that
+isn't there is typed `T` and yields `undefined`. Making every key optional
+there was tried, on `fjs/ebnf`'s `Variant`, and cost more than it guarded:
+every alternative the author wrote read as possibly missing, and every
+consumer paid a guard or a cast. A lookup by a key that arrived at runtime
+belongs in a `StringMap<T>`.
 
 When iterating all defined entries of a `StringMap<T>`, use `definedEntries`
 from `fjs/types/object/module.f.mjs` instead of `Object.entries`; use
