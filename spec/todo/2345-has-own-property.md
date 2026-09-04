@@ -57,6 +57,16 @@ same call compared against `undefined` instead of read with `?.value`:
 const hasB = Object.getOwnPropertyDescriptor(x, 'b') !== undefined
 ```
 
+Both `own` and `hasOwn` are pattern-recognized around the *bare* call —
+neither exposes `Object.getOwnPropertyDescriptor(obj, prop)`'s actual return
+value, the full descriptor object (`value`, `writable`, `get`, `set`,
+`enumerable`, `configurable`). That is deliberate, not an oversight to close
+later: a real descriptor drags in accessors and mutability flags, which is
+exactly the complexity FS's object model exists to avoid. `own`/`hasOwn`
+only ever recognize the two shapes that consume the descriptor immediately
+(`?.value` and `!== undefined`) and never let the descriptor itself become a
+value in the language.
+
 This needs no new keyword and no new compatibility argument: the source text
 is already exactly what it means in any JS engine, the same way `own`'s
 source pattern already was. It also needs no closures — unlike a `hasOwn`
