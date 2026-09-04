@@ -106,7 +106,7 @@ export const option = rule => () => ['repeat', 0, 1, rule]
  *  <R extends Rule>(r: R) =>
  *  Option<[R, RepeatFrom<0, readonly[S, R]>]>}
  */
-export const join = s => r => option([r, repeat(0, Infinity)([s, r])])
+export const join = s => r => option([r, repeatFrom0([s, r])])
 
 export const unicodeMax =
     codePointListToString([0x10FFFF])
