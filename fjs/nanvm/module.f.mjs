@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 26
+ * data.groups.length // 27
  * ```
  */
 
@@ -1426,6 +1426,57 @@ const unsignedRightShiftCases = [
     { name: 'bigintUshrNumber', args: [1n, 1], expected: throws },
 ]
 
+/**
+ * `own` — exactly `Object.getOwnPropertyDescriptor(object, key)?.value`:
+ * no getter invocation, and no prototype chain to walk, since `nanvm-lib`
+ * objects have none — `{}` "inheriting" `toString`/`constructor` in real
+ * JS is exactly the prototype-chain reach `own` exists to bypass, so those
+ * names are absent from an object that never set them itself, the same as
+ * any other missing key. The key operand must *evaluate* to a string: `own`
+ * refuses a non-`String` key rather than `ToPropertyKey`-coercing it the
+ * way every other operator here coerces its operands. A non-object,
+ * non-nullish receiver (`Number`, `String`, `Boolean`, `BigInt`, `Array`,
+ * a function) is never an own-property owner and always answers
+ * `undefined`, never throwing; a nullish one throws instead, matching
+ * `ToObject`'s own rejection of `null`/`undefined`. Not `commutative`: the
+ * receiver and the key are not interchangeable.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const ownCases = [
+    { name: 'presentProperty', args: [{ a: 7 }, 'a'], expected: 7 },
+    { name: 'missingProperty', args: [{ a: 7 }, 'b'], expected: undefined },
+    { name: 'emptyObject', args: [{}, 'a'], expected: undefined },
+    // `own` bypasses the prototype chain entirely — the whole reason it
+    // exists apart from plain property access — so a name every object
+    // "inherits" in real JS is still absent unless the object carries it
+    // as an own property.
+    { name: 'inheritedNameIsAbsent', args: [{}, 'toString'], expected: undefined },
+    { name: 'valuePreservesBooleanType', args: [{ a: true }, 'a'], expected: true },
+    { name: 'valuePreservesBigintType', args: [{ a: 5n }, 'a'], expected: 5n },
+    { name: 'valuePreservesStringType', args: [{ a: 'x' }, 'a'], expected: 'x' },
+    { name: 'valuePreservesNullType', args: [{ a: null }, 'a'], expected: null },
+    { name: 'multiplePropertiesDistinguished', args: [{ a: 1, b: 2 }, 'b'], expected: 2 },
+    { name: 'numericStringKey', args: [{ 1: 42 }, '1'], expected: 42 },
+    { name: 'nonObjectNumberReceiver', args: [5, 'a'], expected: undefined },
+    // `'length'` would be the wrong probe here: real JS strings and arrays
+    // carry real own properties for `.length` (and, for arrays, numeric
+    // indices), so `Object.getOwnPropertyDescriptor` answers those with a
+    // real descriptor instead of `undefined` — a key genuinely absent from
+    // both is what actually exercises "never an own-property owner".
+    { name: 'nonObjectStringReceiver', args: ['hi', 'a'], expected: undefined },
+    { name: 'nonObjectBooleanReceiver', args: [true, 'a'], expected: undefined },
+    { name: 'nonObjectBigintReceiver', args: [5n, 'a'], expected: undefined },
+    { name: 'nonObjectArrayReceiver', args: [[1, 2], 'a'], expected: undefined },
+    // The one binary case that escapes: `functionValue` has no expression,
+    // so both consumers take the direct path with two operands rather than
+    // one.
+    { name: 'nonObjectFunctionReceiver', args: [functionValue, 'a'], expected: undefined },
+    { name: 'nullReceiverThrows', args: [null, 'a'], expected: throws },
+    { name: 'undefinedReceiverThrows', args: [undefined, 'a'], expected: throws },
+    { name: 'nonStringKeyThrows', args: [{ 1: 42 }, 1], expected: throws },
+]
+
 /** @type {Data} */
 export const data = {
     eq: {
@@ -1514,5 +1565,6 @@ export const data = {
         { nanvmOp: 'ternary', cases: ternaryCases },
         { nanvmOp: 'typeof', cases: typeofCases },
         { op: 'String', cases: stringCoercionCases },
+        { op: 'own', cases: ownCases },
     ],
 }

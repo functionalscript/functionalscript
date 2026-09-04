@@ -62,7 +62,8 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | Operator   | Description         | `Any<A>` | Notes |
 |------------|---------------------|----------|-------|
 | `?:`       | Conditional         | [x]      | [`any/conditional.rs`](src/vm/any/conditional.rs) — `Any::conditional()` method; the corpus's one ternary group (`fjs/nanvm/types.ts`'s `NonEdagGroup`, since the EDAG has no conditional-expression node) |
-| `.` / `[]` | Member access       | [ ]      | |
+| `own`      | Own-property lookup | [x]      | [`any/mod.rs`](src/vm/any/mod.rs) / [`object/own_property.rs`](src/vm/object/own_property.rs) — `Any::own_property()` method, exactly `Object.getOwnPropertyDescriptor(object, key)?.value`: no getter invocation, no prototype chain (`nanvm-lib` objects have none), last-duplicate-wins flat key lookup on `Object<A>`; the key must already be a `String<A>` (`Result::Err`, not a coercion); a non-object, non-nullish receiver (`Number`, `String`, `Boolean`, `BigInt`, `Array`, a function) always answers `undefined`; a nullish one throws |
+| `.` / `[]` | Member access       | [ ]      | not yet: full property access still needs prototype-chain walking, getters, and `Array<A>` indexing beyond what `own` covers |
 | `in`       | Property check      | [ ]      | |
 | `instanceof` | Instance check    | [ ]      | |
 
