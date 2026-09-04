@@ -7,7 +7,10 @@ export type DataRule =
 export type Tuple =
     readonly Rule[]
 
-/** The type is the same as AbstractRequiredMap. */
+/**
+ * The type is the same as AbstractRequiredMap,
+ * but we can't use it because of circular dependencies.
+ */
 export type Variant =
     { readonly[k in string]: Rule }
 
@@ -18,7 +21,8 @@ export type Rule =
 export type Thunk =
     | Const<DataRule>
     | Set
-    // the same as Repeat<number, number, Rule>
+    // The same as Repeat<number, number, Rule>
+    // but we can't use it because of circular dependencies.
     | Info<readonly['repeat', number, number, Rule]>
 
 export type Info<T extends readonly[string, ...readonly unknown[]]> =
