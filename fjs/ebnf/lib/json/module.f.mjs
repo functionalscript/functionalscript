@@ -2,7 +2,7 @@
  * @import { Rule } from '../../types.ts'
  */
 
-import { range, remove, repeat0Plus, unicodeMax, set, times, union } from "../../module.f.mjs";
+import { range, remove, repeat0Plus, unicodeMax, set, times } from "../../module.f.mjs";
 
 const onenine = range('19')
 
