@@ -111,39 +111,46 @@ they genuinely own (`length`, valid indices) or refuse those receivers
 outright (throw, or reject at compile time) rather than answer a boolean
 that looks authoritative and isn't.
 
-## Resolved: `own(...) !== undefined` is correct, not an approximation
+## Provisional: `own(...) !== undefined`, pending one layering question
 
 An earlier version of this section argued `hasOwn` needs its own
 existence-check primitive, because `own(...) !== undefined` collapses
 `{ a: undefined }` (present, `'a' in { a: undefined }` is `true` in real JS)
-with a genuinely absent key. That argument implicitly assumed `hasOwn` has
-to reproduce real JS's answer for that case. It doesn't —
-[undefined-property](./1010-undefined-property.md) already settles this,
-for the whole language, the other way: `{ x: undefined }` is defined to be
-*semantically equivalent to* `{}` in FS, specifically **because** the two
-diverge under `Object.entries`/`Object.values`/`in` in real JS, and that
-divergence is exactly the class of bug `1010` exists to rule out at the
-language level. It even names `in` by example: `'x' in { x: undefined }`
-being `true` despite the property being "non-existent under the FS model"
-is the *reason* `1010` gives for prohibiting `in`, not an incidental detail.
+with a genuinely absent key. [undefined-property](./1010-undefined-property.md)
+looked like it settled this the other way — FS defines `{ x: undefined }`
+as semantically equivalent to `{}`, and names `in` producing `true` for that
+case as exactly the divergence it exists to rule out.
 
-So `hasOwn` reporting `{ a: undefined }` as absent isn't a gap to close —
-it's the one answer consistent with `1010`, and `own_property`'s existing
-`?.value` collapse (which already can't tell "absent" from
-"present-but-undefined," because both read as no value) is already exactly
-that answer. `own(...) !== undefined` is correct as written. `hasOwn` needs
-no new `Object<A>` primitive: it composes directly on `own_property`, the
-same value `own` already returns, and inherits every scope decision `own`'s
-Stage 4a already made (`Object<A>` receivers only, nullish throws, the
-`String`/`Array` gap flagged above) with nothing further to resolve here.
+That's real, but it doesn't settle *where* the equivalence holds, and that
+turns out to matter here:
+[undefined-property-vm-layer](./1015-undefined-property-vm-layer.md) spells
+out the two readings — a source-language restriction on what FS programs
+can express (VM representation unchanged, `{ a: undefined }` really does
+store the entry, same as real JS) versus a VM-level rule (the entry is
+gone, or every own-property primitive treats it as gone, not just what
+FS source can observe). Today's reference interpreter
+(`fjs/edag/amnesia/module.f.mjs`'s `'{}'` handler) supports the first
+reading — it does not strip `undefined`-valued entries — but that alone
+isn't proof of intent.
+
+Until `1015` resolves, treat `own(...) !== undefined` as the working
+answer, not a closed one: correct if `own`/`hasOwn` are meant to enforce
+`1010`'s equivalence themselves, wrong (needing the dedicated existence-check
+primitive after all) if they're meant to be faithful, general VM primitives
+and the equivalence is the FS-source-restriction's job alone. Everything
+else here — no new keyword, pattern-recognition instead of a helper
+function, the `String`/`Array` scope gap above — holds regardless of how
+that resolves.
 
 ## Related
 
 - [functionalscript/functionalscript#1888](https://github.com/functionalscript/functionalscript/pull/1888)
   — the discussion that arrived at this.
 - [undefined-property](./1010-undefined-property.md) — the pre-existing
-  rule that already prohibits `in` by name, and the reason `hasOwn` needs
-  no new existence-check primitive beyond `own_property`.
+  rule that already prohibits `in` by name.
+- [undefined-property-vm-layer](./1015-undefined-property-vm-layer.md) —
+  the open question this doc's own conclusion is provisional on: whether
+  `1010`'s equivalence is a language-surface restriction or a VM-level one.
 - [operators](./2340-operators.md) — the operator table this deliberately
   does *not* add an entry to.
 - [property-accessor](./2330-property-accessor.md) — `own_property`'s

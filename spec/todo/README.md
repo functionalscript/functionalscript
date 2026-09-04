@@ -13,6 +13,9 @@ below is this directory's own; the specification has no section numbers.
 ## 1. JSON
 
 1. [ ] [undefined-property](./1010-undefined-property.md).
+2. [ ] [undefined-property-vm-layer](./1015-undefined-property-vm-layer.md)
+   — open question; whether `undefined-property`'s equivalence is a
+   language-surface restriction or reaches the VM's own representation.
 
 ## 2. DJS
 
