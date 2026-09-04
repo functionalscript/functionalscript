@@ -1,5 +1,5 @@
 /**
- * @import { Rule, Set, Tuple, Variant } from '../../types.ts'
+ * @import { Rule, Tuple, Variant } from '../../types.ts'
  */
 
 import { range, remove, repeatFrom0, unicodeMax, set, times, option, join } from "../../module.f.mjs";
