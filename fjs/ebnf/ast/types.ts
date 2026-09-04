@@ -16,7 +16,13 @@ import type { BoundedArray } from "../../types/array/types.ts"
 import type { Equal } from "../../types/ts/types.ts"
 import type { Const, Rule, Tuple, Variant, Set, Repeat } from "../types.ts"
 
+type AnyAst =
+    | number
+    | readonly AnyAst[]
+    | readonly [string, AnyAst]
+
 export type Ast<R extends Rule> =
+    Equal<R, Rule> extends true ? AnyAst :
     // number
     R extends number ? R :
     // string
@@ -35,6 +41,8 @@ export type Ast<R extends Rule> =
     R extends Repeat<infer Min, infer Max, infer D> ? _RepeatAst<Min, Max, D>:
     //
     never
+
+type _Any = Assert<Equal<Ast<Rule>, AnyAst>>
 
 type _Number = Assert<Equal<Ast<number>, number>>
 type _Number0 = Assert<Equal<Ast<42>, 42>>
