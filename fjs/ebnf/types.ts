@@ -18,19 +18,19 @@ export type Rule =
 export type Thunk =
     | ConstInfo<DataRule>
     | SetInfo
-    | Info<['repeat', number, number, Rule]>
+    | Info<readonly['repeat', number, number, Rule]>
 
 export type Info<T extends readonly[string, ...readonly unknown[]]> =
     () => T
 
 export type ConstInfo<R extends DataRule> =
-    Info<['const', R]>
+    Info<readonly['const', R]>
 
 export type SetInfo =
-    Info<['set', ...readonly number[]]>
+    Info<readonly['set', ...readonly number[]]>
 
 export type RepeatInfo<Min extends number, Max extends number, R extends Rule> =
-    Info<['repeat', Min, Max, R]>
+    Info<readonly['repeat', Min, Max, R]>
 
 export type Infinity =
     typeof Infinity

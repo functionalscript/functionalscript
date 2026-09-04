@@ -7,7 +7,7 @@ import { assert } from "../asserts/module.f.mjs"
 import { stringToCodePointList } from "../text/utf16/module.f.mjs"
 import { isFixedArray } from "../types/array/module.f.mjs"
 import { toArray } from "../types/list/module.f.mjs"
-import { complement, intersection } from "../types/range_set/module.f.mjs"
+import { complement, empty, fromRange, intersection, union as setUnion } from "../types/range_set/module.f.mjs"
 
 const isFixedArray2 =
     isFixedArray(2)
@@ -28,10 +28,11 @@ export const range = ab => {
 /**
  * @type {(a: number, b: number) => SetInfo}
  */
-export const rangeEncode = (a, b) => (
-    assert(a <= b),
-    () => ['set', a, b + 1]
-)
+export const rangeEncode = (a, b) => {
+    assert(a <= b)
+    const r = /**@type {const}*/(['set', a, b + 1])
+    return () => r
+}
 
 /** @type {(a: SetInfo) => RangeSet} */
 const getSet = a => {
@@ -39,14 +40,35 @@ const getSet = a => {
     return r
 }
 
+/** @type {(a: string) => SetInfo} */
+export const set = a => {
+    const x = toArray(stringToCodePointList(a))
+    const r = /**@type {const}*/([
+        'set',
+        ...x.reduce(
+            (a, b) => setUnion(a)(fromRange([b, b])),
+            empty)])
+    return () => r
+}
+
+/** @type {(...a: SetInfo[]) => SetInfo} */
+export const union = (...a) => {
+    const r = /**@type {const}*/([
+        'set',
+        ...a.reduce(
+            (a, b) => setUnion(a)(getSet(b)),
+            empty)])
+    return () => r
+}
+
 /**
- * @type {(a: SetInfo) =>
- *  (b: SetInfo) =>
+ * @type {(a: SetInfo, b: SetInfo) =>
  *  SetInfo}
  */
-export const remove =
-    a => b => () => ['set', ...intersection(getSet(a))(complement(getSet(b)))]
-
+export const remove = (a, b) => {
+        const r = /**@type {const}*/(['set', ...intersection(getSet(a))(complement(getSet(b)))])
+        return () => r
+    }
 /**
  * @type {<const A extends number, const B extends number>(a: A, b: B) =>
  *  <const R extends Rule>(rule: R) =>
@@ -55,6 +77,18 @@ export const remove =
 export const repeat =
     (a, b) => rule => () => ['repeat', a, b, rule]
 
-/** @type {<const R extends Rule>(rule: R) => RepeatInfo<0, Infinity, R>} */
+/**
+ * @type {<const R extends Rule>(rule: R) =>
+ *  RepeatInfo<0, Infinity, R>}
+ */
 export const repeat0Plus =
     repeat(0, Infinity)
+
+/**
+ * @type {<const N extends number>(n: N) =>
+ *  <const R extends Rule>(rule: R) => RepeatInfo<N, N, R>}
+ */
+export const times = n => repeat(n, n)
+
+export const unicodeMax =
+    0x10FFFF
