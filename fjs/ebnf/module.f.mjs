@@ -35,7 +35,7 @@ export const rangeEncode = (a, b) => {
 }
 
 /** @type {(a: Set) => RangeSet} */
-const getSet = a => {
+const rangeSet = a => {
     const [, ...r] = a()
     return r
 }
@@ -59,7 +59,7 @@ const setUnionX = unionX(b => fromRange([b, b + 1]))
 /** @type {(a: string) => Set} */
 export const set = a => setUnionX(toArray(stringToCodePointList(a)))
 
-const infoUnionX = unionX(getSet)
+const infoUnionX = unionX(rangeSet)
 
 /** @type {(...a: Set[]) => Set} */
 export const union = (...a) => infoUnionX(a)
@@ -71,7 +71,7 @@ export const union = (...a) => infoUnionX(a)
 export const remove = (a, b) => {
     const r = /**@type {const}*/([
         'set',
-        ...intersection(getSet(a))(complement(getSet(b)))])
+        ...intersection(rangeSet(a))(complement(rangeSet(b)))])
     return () => r
 }
 /**
