@@ -39,11 +39,11 @@ type _Tuple0 = Assert<Equal<Ast<[]>, readonly[]>>
 type _Tuple1 = Assert<Equal<Ast<[12, string]>, readonly[12, readonly number[]]>>
 
 type _VariantAst<R extends Variant> =
-    { readonly[K in keyof R]: Ast<R[K]> }
+    { readonly[K in keyof R]: readonly[K, Ast<R[K]>] }[keyof R]
 
 type _Variant = Assert<Equal<Ast<
     { readonly a: 12, readonly b: 'hello' }>,
-    { readonly a: 12, readonly b: readonly number[] }>>
+    readonly['a', 12] | readonly['b', readonly number[]]>>
 type _Variant0 = Assert<Equal<Ast<{}>, never>>
 
 type _Const = Assert<Equal<Ast<Const<42>>, 42>>
