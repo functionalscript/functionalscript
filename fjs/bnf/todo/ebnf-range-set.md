@@ -294,9 +294,10 @@ justification is the API and the AST, which is where
       issue, before any backend touches a set.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
       the union, the AST table (`number`), the lowering requirements
-      (intersect with the domain `[0]` first, then require safe-integer
-      boundaries and reject the empty set), and `oneOf` in the constructor
-      list.
+      (validate the generic range-set invariants through `range_set`'s
+      constructor first, then intersect with the domain `[0]`, then require
+      safe-integer boundaries and reject the empty set), and `oneOf` in the
+      constructor list.
 - [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/ebnf/unicode/`
       produce sets; `not` is difference against the Unicode universe. `str`
       is not one of them: `str('true')` is an ordered `Sequence` of

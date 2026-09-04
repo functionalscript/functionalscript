@@ -197,13 +197,17 @@ change the representation.
 Stated as requirements, since the data layer is open.
 
 - **Validate here, at the front end**, while the author still has a rule to
-  point at: bounds in the domain above; `['set', …]` a valid range set,
-  which the lowering **first intersects with the domain `[0]`** — so a
-  generic complement's `-Infinity`, EOF and anything below `0` are clipped
-  away, never an error, and a set terminal never matches EOF — and **then**
-  requires to have safe-integer boundaries and to be non-empty
-  ([ebnf-range-set](./ebnf-range-set.md)); a bare `number` an integer in the
-  terminal domain.
+  point at: bounds in the domain above; `['set', …]` checked in three steps
+  in this order ([ebnf-range-set](./ebnf-range-set.md)): **first** the
+  generic range-set invariants — strictly increasing, no `NaN`, `Infinity`
+  or `-0` — through `range_set`'s own constructor, since a hand-written
+  tuple is the one way an unvalidated list can reach the algebra and the
+  parity merge assumes a canonical input; **then** intersection with the
+  domain `[0]`, so a generic complement's `-Infinity`, EOF and anything
+  below `0` are clipped away, never an error, and a set terminal never
+  matches EOF; **then** the terminal checks on what is left — safe-integer
+  boundaries and non-empty; a bare `number` an integer in the terminal
+  domain.
 - **A nullable body** at an unbounded max is non-termination and is rejected.
   At a bounded max it is not — see [Problem 3](#problems), which is open; the
   lowering must not reject it until that is settled.
