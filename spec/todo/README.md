@@ -13,6 +13,9 @@ below is this directory's own; the specification has no section numbers.
 ## 1. JSON
 
 1. [ ] [undefined-property](./1010-undefined-property.md).
+2. [ ] [undefined-property-vm-layer](./1015-undefined-property-vm-layer.md)
+   — open question; whether `undefined-property`'s equivalence is a
+   language-surface restriction or reaches the VM's own representation.
 
 ## 2. DJS
 
@@ -32,10 +35,13 @@ We need it to use JSDoc and TypeScript.
 
 1. [ ] [property-accessor](./2330-property-accessor.md),
 2. [ ] [operators](./2340-operators.md),
-3. [ ] [grouping](./2350-grouping.md),
-4. [ ] [built-in](./2360-built-in.md),
-5. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
-6. [ ] computed property key from an expression — `{ [name]: 0 }`. The
+3. [ ] [has-own-property](./2345-has-own-property.md) — open; argues
+   against adding `in` and for a pattern-recognized `hasOwn` alongside
+   `own_property` instead,
+4. [ ] [grouping](./2350-grouping.md),
+5. [ ] [built-in](./2360-built-in.md),
+6. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
+7. [ ] computed property key from an expression — `{ [name]: 0 }`. The
    constant-string form is implemented
    ([property keys](../README.md#property-keys)); the general one waits
    on expressions.
