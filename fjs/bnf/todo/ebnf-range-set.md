@@ -120,7 +120,10 @@ there are not two. The module exports the algebra (`contains`, `union`,
 `intersection`, `complement`, `difference`), the half-open `fromRange`, and
 `rangeSet`, `empty` and `full` with `isRangeSet` for the validation they panic
 on; `toRangeMap`, which is what the LL(1) dispatch map is built from, is the
-terminal layer's.
+terminal layer's. A probe outside the universe panics too — `contains(s)(NaN)`
+and `contains(s)(Infinity)` — since no set can say whether such a value is a
+member, and answering `false` would put it in neither a set nor its
+complement.
 
 **The empty set is a value, not a rule.** As a value it is the identity for
 union and belongs in the algebra. As a terminal it is a rule that can never
