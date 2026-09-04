@@ -128,7 +128,9 @@ const firstMapOf = (ruleSet, nullable) => {
  * The first set of every rule in the set: the symbols a match of the rule may
  * begin with, EOF's `-1` among them. A set begins with its symbols, a
  * sequence with its items' up to and including the first that cannot match
- * empty, a variant with its branches' and a repetition with its item's.
+ * empty, a variant with its branches', and a repetition with its item's —
+ * unless its `max` is `0`, when no round can start and it begins with
+ * nothing, so a rule that can only match empty has the empty set.
  *
  * The set is read as `validate` in `../data` certifies it. What is refused
  * here is what that layer leaves to a backend, because another backend may

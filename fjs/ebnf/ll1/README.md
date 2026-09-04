@@ -92,7 +92,9 @@ layer leaves it to the backend to say:
   classical, unbounded one could not.
 - **first/first conflict** — two branches of a variant beginning with a
   symbol in common, EOF included. The refusal names the rule, the second
-  branch, and the symbols the two share.
+  branch, and the symbols the two share. A repetition of at most zero
+  rounds begins with nothing, so it conflicts with no branch: its item is
+  never entered.
 
 Both are found before any input, when the parser is built.
 
