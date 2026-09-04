@@ -1,6 +1,6 @@
 ## nullable-repeat-item. `AstRule` and `repeatOf` disagree where a rule set is needed
 
-*(The slug names the first case found; the issue grew to eight.)*
+*(The slug names the first case found; the issue grew to ten.)*
 
 **Priority:** P3
 **Status:** open
@@ -53,7 +53,7 @@ of defect as the repeat-detection ones fixed in the same pull request — extra
 branches, and branch names other than `some`/`none` — rather than the bounded
 kind, and it is the strongest argument for deriving from the rule set.
 
-### Four more, from different causes
+### Six more, from different causes
 
 An *open* key set whose value type admits `undefined` —
 `{ readonly [k: string]: 0 | undefined }` — is answered with the widened variant
@@ -130,6 +130,33 @@ pick an overload by argument count. Selecting one needs the overload list
 written out — `typeof r extends { (): infer V, (x?: string): unknown } ? V`
 — which is the declaration itself, not something derivable from it. The rule-set
 derivation closes it by calling the rule rather than reading its type.
+
+An open key set with a *required literal branch* beside it —
+`() => StringMap<Rule> & { readonly fixed: 0 }` — is widened rather than given
+the exact answer. It can never be a repetition: `fixed` is a terminal and is
+carried by every value, so one more branch cannot supply both the empty branch
+and the step, and two more make three. `_OpenRepeat` reads the branch type as
+`Required<U>[string]`, which is the index signature's `Rule` with `fixed`'s `0`
+folded into it, so it answers "could be either" and `AstRule` carries an array
+the parser can never produce.
+
+The literal key is out of reach: `keyof (StringMap<Rule> & { fixed: 0 })` is
+`string | 'fixed'`, which TypeScript reduces to `string` —
+`Assert<Equal<keyof …, string>>` holds. There is no name left to index by, and
+so nothing to ask about the branch it names. A rule set has the keys the value
+turned out to carry.
+
+A sequence carrying own properties beside its indices —
+`Object.assign([0], { extra: 1 })` — keeps its element types but loses its
+length. `toData` takes the array path and reads the indices, so it is a working
+grammar, and the answer is the widened `readonly Ast[]` rather than
+`readonly[number]`. The mapping that keeps a tuple's arity is homomorphic over
+an array and not over `readonly[0] & { readonly extra: 1 }`; rebuilding the
+tuple by destructuring it — `R extends readonly[infer H, ...infer T]`, recursing
+on `T` — makes `tsc` exhaust its stack, and `[...R]`, `Extract<R, Sequence>` and
+a mapped copy all give back the intersection. This one is a *loss of precision*
+rather than a wrong answer, so it is the mildest here, and the rule-set
+derivation closes it with the array normalization already built.
 
 ### Why none of them is a guard
 

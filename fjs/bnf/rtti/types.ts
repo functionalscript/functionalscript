@@ -48,6 +48,7 @@ import type {
     array as jsonArray, digit, json, optionNeg, string as jsonString, uint,
 } from "../lib/json/module.f.mjs"
 import type { Equal } from "../../types/ts/types.ts"
+import type { StringMap } from "../../types/object/types.ts"
 import type {
     DataRule, Join1Plus, Repeat0Plus, Repeat1Plus, Rule, Sequence, TerminalRange,
     Variant,
@@ -61,6 +62,12 @@ export type Ast =
     // variant: the one branch that matched, under its own name. The others are
     // absent, not present-and-empty, so the values are optional — a reader that
     // reaches for a branch it did not match must be made to check.
+    //
+    // This is `StringMap<Ast>` written out, which the rule in `fjs/AGENTS.md`
+    // asks for and this one declaration cannot use: an alias may not reference
+    // itself through another alias's instantiation, so `StringMap<Ast>` here is
+    // `TS2456`. Everything below that answers with the open key set uses the
+    // named form.
     { readonly[k in string]?: Ast}
 
 type _FromAny<R> = R extends Rule ? AstRule<R> : never
@@ -369,8 +376,8 @@ type _Branches<R extends Variant, K> =
     // keeps both, and a parse selects one branch under either. A *pattern* key set is open too and is not
     // caught here, because nothing distinguishes it from a finite union of
     // literals: [nullable-repeat-item](./todo/nullable-repeat-item.md).
-    string extends _Keys<R> ? { readonly[k in string]?: Ast } :
-    number extends _Keys<R> ? { readonly[k in string]?: Ast } :
+    string extends _Keys<R> ? StringMap<Ast> :
+    number extends _Keys<R> ? StringMap<Ast> :
     // A rule the parser throws on is refused rather than given the AST of one
     // that works — `_FromAny` would otherwise drop the `undefined` and hand
     // back a plausible branch. See {@link _Malformed}.
@@ -413,7 +420,19 @@ type _AstNotRepeat<R extends Rule> =
     R extends readonly Rule[]
         // Reached with `R` an array, so `Sequence extends R` holds only for the
         // widened `Sequence` itself, never for a tuple.
-        ? Sequence extends R ? readonly Ast[] : { readonly [K in keyof R]: _FromAny<R[K]> }
+        ? Sequence extends R ? readonly Ast[]
+        // An array carrying own properties beside its indices —
+        // `Object.assign([0], { extra: 1 })` — is a sequence the parser reads by
+        // index and nothing else. The mapping below is homomorphic over an
+        // array and keeps its shape, but not over that intersection: it would
+        // answer with an object carrying `extra` and every array method mapped
+        // through. The arity cannot be recovered — a recursive destructure of
+        // the intersection does not terminate — so the answer is the widened
+        // array, which is what a sequence produces:
+        // [nullable-repeat-item](./todo/nullable-repeat-item.md).
+        : [Exclude<keyof R, keyof readonly unknown[] | `${number}`>] extends [never]
+            ? { readonly [K in keyof R]: _FromAny<R[K]> }
+            : readonly Ast[]
         :
     R extends string ? readonly number[] :
     // A variant is a choice, so its AST is the union of what each branch
@@ -430,7 +449,7 @@ type _2 = Assert<Equal<
     AstRule<readonly[0, 1, 2]>,
     readonly[number, number, number]>>
 type _3 = Assert<Equal<
-    AstRule<{ a: 0, b: 1 }>,
+    AstRule<{ readonly a: 0, readonly b: 1 }>,
     { readonly a: number } | { readonly b: number }>>
 
 type _X = Repeat0Plus<0>
@@ -604,8 +623,7 @@ type _33 = Assert<Equal<AstRule<{ readonly a?: 0 | undefined }>, never>>
 // The widened `Variant` names no branches, so it is not a malformed rule — it
 // is one carrying no shape, like `Rule` and `Sequence` above. `lib/json`'s
 // `createValue` is annotated with it, so `json` itself depends on this.
-type _WideVariant = { readonly[k in string]?: Ast }
-type _34 = Assert<Equal<AstRule<Variant>, _WideVariant>>
+type _34 = Assert<Equal<AstRule<Variant>, StringMap<Ast>>>
 
 // `json` is `[ws, value, ws]`. `value` is `createValue`'s `Variant`, and `ws`
 // repeats `wsSymbol`, which `set` gives the same open key set — so the whole
@@ -618,20 +636,20 @@ type _34 = Assert<Equal<AstRule<Variant>, _WideVariant>>
 type _35 = Assert<Equal<
     AstRule<typeof json>,
     readonly[
-        readonly _WideVariant[],
-        readonly Ast[] | _WideVariant,
-        readonly _WideVariant[]]>>
+        readonly StringMap<Ast>[],
+        readonly Ast[] | StringMap<Ast>,
+        readonly StringMap<Ast>[]]>>
 
 // A numeric index signature is an open key set too: a parse still selects one
 // branch, so an arbitrary index is absent rather than an `Ast`.
-type _37 = Assert<Equal<AstRule<{ readonly [k: number]: 0 }>, _WideVariant>>
+type _37 = Assert<Equal<AstRule<{ readonly [k: number]: 0 }>, StringMap<Ast>>>
 
 // A lazy rule over the widened `Variant` — `lib/json`'s `value`, in isolation.
 // Behind the wrapper the rule can name itself, so an open key set there covers
 // a repetition as well as a variant, and both shapes come back. A bare
 // `Variant` is not this: nothing it holds can refer to it, so `_34` above is
 // the variant alone.
-type _38 = Assert<Equal<AstRule<() => Variant>, readonly Ast[] | _WideVariant>>
+type _38 = Assert<Equal<AstRule<() => Variant>, readonly Ast[] | StringMap<Ast>>>
 
 // A branch left at `Sequence` contains the empty sequence without being it, so
 // this describes a repetition over `0` and a two-branch variant alike.
@@ -700,7 +718,7 @@ type _44 = Assert<Equal<
 // repetition however many keys a value turns out to have.
 type _45 = Assert<Equal<
     AstRule<() => { readonly[k: string]: 0 }>,
-    _WideVariant>>
+    StringMap<Ast>>>
 
 // A lazy rule may be annotated with a union of return types, and `keyof` of a
 // union keeps only the keys every member has — none here — so weighing it whole
@@ -743,3 +761,17 @@ type _TwoRepeats = () => ({
 type _48 = Assert<Equal<
     AstRule<_TwoRepeats>,
     readonly number[] | readonly (readonly[number])[]>>
+
+
+// A sequence carrying own properties beside its indices, which
+// `Object.assign([0] as const, { extra: 1 as const })` produces. `toData` takes
+// the array path and reads the indices, so this is a working grammar; the
+// mapping that keeps a tuple's arity does not survive the intersection, so the
+// answer is the array a sequence produces without its length.
+type _49 = Assert<Equal<
+    AstRule<readonly[0] & { readonly extra: 1 }>,
+    readonly Ast[]>>
+
+// The arity is kept for a plain tuple, which is the case the widening above
+// must not reach.
+type _50 = Assert<Equal<AstRule<readonly[0]>, readonly[number]>>
