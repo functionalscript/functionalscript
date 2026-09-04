@@ -251,9 +251,15 @@ const lowerChildren = (state, parent, children) => {
     return children.reduce(lowerChild(parent), init)
 }
 
-/** @type {(state: _State, name: string, items: readonly FRule[]) => _Lowered<Sequence>} */
+/**
+ * The list is spread first because `Array#map` skips the holes of a sparse
+ * array: `[, 'x']` would lower as a one-element sequence. Spreading makes
+ * each hole the `undefined` it is, which is no rule and is refused as one.
+ *
+ * @type {(state: _State, name: string, items: readonly FRule[]) => _Lowered<Sequence>}
+ */
 const lowerSequence = (state, name, items) => {
-    const [next, named] = lowerChildren(state, name, items.map((item, i) => [`${i}`, item]))
+    const [next, named] = lowerChildren(state, name, [...items].map((item, i) => [`${i}`, item]))
     return [next, ['sequence', ...named.map(([, n]) => n)]]
 }
 

@@ -46,6 +46,9 @@ const constTrailing = ['const', 'x', 'extra']
 const undefinedBranch = { ok: 'x', missing: undefined }
 
 /** @type {unknown} */
+const sparse = [, 'x']
+
+/** @type {unknown} */
 const numericReference = ['sequence', 1]
 
 /** @type {unknown} */
@@ -381,8 +384,8 @@ export const proof = {
         },
         // Two thunks with one name: the second gets a counter.
         sameName: () => {
-            const first = { a: () => /** @type {const} */ (['const', 'x']) }
-            const second = { a: () => /** @type {const} */ (['const', 'y']) }
+            const first = /** @type {const} */ ({ a: () => /** @type {const} */ (['const', 'x']) })
+            const second = /** @type {const} */ ({ a: () => /** @type {const} */ (['const', 'y']) })
             const [ruleSet] = toData([first.a, second.a])
             assertStructurallySame(ruleSet, {
                 '': ['sequence', 'a', 'a1'],
@@ -425,6 +428,9 @@ export const proof = {
             // refused rather than dropped into a grammar with one branch
             // fewer than the one written.
             undefinedBranch: () => toData(/** @type {Rule} */ (undefinedBranch)),
+            // A hole in a sequence is no rule either, and is refused rather
+            // than skipped into a sequence one element shorter.
+            sparse: () => toData(/** @type {Rule} */ (sparse)),
             repeatTrailing: () => toData(() => /** @type {readonly ['repeat', number, number, string]} */ (repeatTrailing)),
         },
         // The grammars of `../lib` lower and validate whole. What the contract
