@@ -37,7 +37,8 @@ export type RuleMap = readonly Mapping[]
 /**
  * What the mapping keyed by `R` in `M` returns, wrapped so that a mapping
  * returning `undefined` is told from no mapping at all. A key matches by
- * type equality, the type-level stand-in for the `===` the rewrite uses.
+ * type equality, which is the spelling the rewrite matches by, where the
+ * types are the literal ones the front end's constructors give.
  */
 type _Find<M extends RuleMap, R> =
     M extends readonly [infer H extends Mapping, ...infer T extends RuleMap]
@@ -119,8 +120,8 @@ type _KeyTwice<M extends RuleMap, K extends keyof M, R> = true extends {
  * so that a map whose declared input is narrower than the actual children
  * is a compile error at `rewrite`, where `M` is whole. Two keys of one
  * type are refused there too — as `never`, which nothing is assignable
- * to — since the lookup by type could not tell them apart and would hand
- * both the first one's output.
+ * to — as the rewrite refuses two keys of one spelling: one would silently
+ * win.
  */
 export type Checked<M extends RuleMap> = {
     readonly [K in keyof M]: M[K] extends Mapping<infer R>

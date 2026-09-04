@@ -78,9 +78,8 @@ export type Const<R extends DataRule> =
  * arguments it was given, as `range('09')` is `readonly ['range', '09']` —
  * carried as a phantom that nothing reads back. Two sets spelled differently
  * are two rules, and the spelling makes them two types, which is what lets
- * a map keyed by rule identity (`../map`) find a rule by its type: without
- * it every set would be one type. A set spelled twice is two rules to the
- * runtime and one to the types, so a rule is spelled once and held.
+ * a map keyed by spelling (`../map`) find a rule by its type: without it
+ * every set would be one type.
  */
 export type Set<S = unknown> =
     Phantom<Info<readonly['set', ...readonly number[]]>, S>
