@@ -1,6 +1,6 @@
 /**
  * @import { Rule, Thunk } from '../types.ts'
- * @import { Rule as DataRule, RuleSet, RuleVisitor } from './types.ts'
+ * @import { Rule as DataRule, RuleNameMap, RuleSet, RuleVisitor } from './types.ts'
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -101,6 +101,13 @@ const show = {
 }
 
 const showRule = matchRule(show)
+
+/**
+ * The name a lowering gave a rule the author holds.
+ *
+ * @type {(names: RuleNameMap) => (rule: Rule) => string}
+ */
+const nameOf = names => rule => assertNotNullish(names.get(rule))
 
 /** @type {RuleVisitor<string | undefined>} */
 const stringBranch = {
@@ -478,19 +485,18 @@ export const proof = {
         json: () => {
             const [ruleSet, entry, names] = toData(json)
             assertEq(entry, '')
-            /** @type {(rule: Rule) => string} */
-            const nameOf = rule => assertNotNullish(names.get(rule))
-            assertStructurallySame(ruleSet[entry], ['sequence', nameOf(ws), 'value', nameOf(ws)])
-            assertStructurallySame(ruleSet[nameOf(ws)], ['repeat', 0, Infinity, nameOf(wsSymbol)])
-            assertStructurallySame(ruleSet[nameOf(wsSymbol)], ['set', 9, 11, 13, 14, 32, 33])
-            assertStructurallySame(ruleSet[nameOf(digit)], ['set', c('0'), c('9') + 1])
-            assertStructurallySame(ruleSet[nameOf(uint)], ['variant', {
-                0: nameOf('0'),
-                onenine: nameOf(uint.onenine),
+            const name = nameOf(names)
+            assertStructurallySame(ruleSet[entry], ['sequence', name(ws), 'value', name(ws)])
+            assertStructurallySame(ruleSet[name(ws)], ['repeat', 0, Infinity, name(wsSymbol)])
+            assertStructurallySame(ruleSet[name(wsSymbol)], ['set', 9, 11, 13, 14, 32, 33])
+            assertStructurallySame(ruleSet[name(digit)], ['set', c('0'), c('9') + 1])
+            assertStructurallySame(ruleSet[name(uint)], ['variant', {
+                0: name('0'),
+                onenine: name(uint.onenine),
             }])
             // The string rule is held by the `string` alternative and by an
             // object's property, so both name the one rule.
-            assertEq(matchRule(stringBranch)(ruleSet.value), nameOf(string))
+            assertEq(matchRule(stringBranch)(ruleSet.value), name(string))
             assertEq(keys(ruleSet).length, 81)
         },
         dataJs: () => {

@@ -261,6 +261,10 @@ export const proof = {
         eofLeaf: () => none(eof)(/** @type {any} */ ([c('x')])),
         notTheSymbol: () => none(42)(/** @type {any} */ (43)),
         notANumber: () => none(digit)(/** @type {any} */ ('5')),
+        // A symbol is a non-negative safe integer: a number between two
+        // boundaries is not one for being between them.
+        fractionalSymbol: () => none(digit)(/** @type {any} */ (c('0') + 0.5)),
+        fractionalRule: () => none(/** @type {Rule} */ (48.5))(/** @type {any} */ (48.5)),
         outsideTheSet: () => none(digit)(c('a')),
         notTheString: () => none('ab')(cps('a')),
         // A hole is no symbol and no round, however long the list.

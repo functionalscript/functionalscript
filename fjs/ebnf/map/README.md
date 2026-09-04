@@ -112,7 +112,12 @@ children *or* what any key it could be returns: `Mapped<number, M>` with
 `42` mapped to a string is `number | string`. That is sound and no more,
 and it is what a parent mapping over such a rule has to accept. A key must
 say its parts, since no rule could be found by a type that does not, so a
-key annotated `Tuple`, `Thunk` or a bare `Set` is refused by `Checked`. A
+key annotated `Tuple`, `Thunk` or a bare `Set` is refused by `Checked`, and
+so is a set whose spelling holds a widened argument — `range(s)` for an
+`s` of type `string` is every range at once — or, written by hand, whose
+boundaries are not literals. A repetition's bounds are literals by the
+front end's own rule: `repeat`, `repeatFrom` and `times` refuse a bound
+that is not one, so the one bound spelled `number` is `Infinity`. A
 rule that names itself is the case this bites: `value` in
 [`../lib/json`](../lib/json/module.f.mjs) is annotated `Const<Variant>`,
 which says nothing of its parts, so it cannot be a key until it has its

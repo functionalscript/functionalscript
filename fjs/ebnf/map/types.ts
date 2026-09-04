@@ -59,10 +59,48 @@ type _Widened<R> =
     Info<readonly ['repeat', number, number, Rule]> extends R ? true :
     false
 
+/** Whether every element of a tuple is a number literal. */
+type _Literals<B> =
+    B extends readonly [] ? true :
+    B extends readonly [infer H, ...infer T] ? number extends H ? false : _Literals<T> :
+    false
+
+/** Whether every element of a tuple is an exact set. */
+type _ExactSets<S> =
+    S extends readonly [] ? true :
+    S extends readonly [infer H, ...infer T] ? _ExactSet<H> extends true ? _ExactSets<T> : false :
+    false
+
+/**
+ * Whether a set's spelling says the set: a constructor's arguments are
+ * literals, or exact sets, all the way down.
+ */
+type _ExactSpelling<S> =
+    S extends readonly ['range', infer T] ? string extends T ? false : true :
+    S extends readonly ['set', infer T] ? string extends T ? false : true :
+    S extends readonly ['rangeEncode', infer A, infer B] ? _Literals<readonly [A, B]> :
+    S extends readonly ['union', ...infer Sets] ? _ExactSets<Sets> :
+    S extends readonly ['remove', infer A, infer B] ? _ExactSets<readonly [A, B]> :
+    false
+
+/**
+ * Whether a set type says the set: by its spelling where the front end
+ * gave it one, else — a set written by hand — by its boundaries being
+ * literals.
+ */
+type _ExactSet<R> =
+    R extends Set<infer S>
+        ? S extends readonly [string, ...unknown[]] ? _ExactSpelling<S> :
+            R extends () => readonly ['set', ...infer B] ? _Literals<B> : false
+        : false
+
 /**
  * Whether a rule type says the rule's parts: a literal, or a form over
  * exact parts. A type this is not true of admits rules of many spellings,
- * so a rule of that type may or may not be a key, whatever the key is.
+ * so a rule of that type may or may not be a key, whatever the key is. A
+ * repetition's `max` may be `number`, which is `Infinity`'s spelling and
+ * no other bound's, since the front end refuses a bound that is not a
+ * literal.
  */
 type _Exact<R> =
     _Widened<R> extends true ? false :
@@ -70,7 +108,7 @@ type _Exact<R> =
     R extends Tuple ? { readonly [K in keyof R]: _Exact<R[K]> }[number] extends true ? true : false :
     R extends Variant ? { readonly [K in keyof R]: _Exact<Exclude<R[K], undefined>> }[keyof R] extends true ? true : false :
     R extends Const<infer D> ? _Exact<D> :
-    R extends Set ? true :
+    R extends Set ? _ExactSet<R> :
     R extends Repeat<infer Min, infer _Max, infer D> ? number extends Min ? false : _Exact<D> :
     false
 
@@ -255,6 +293,23 @@ type _CheckedWide = Assert<Equal<Checked<readonly [Mapping<number, number, strin
 type _CheckedWideInside = Assert<Equal<Checked<readonly [Mapping<readonly [Tuple, 'x'], unknown, string>]>, readonly [_Refused]>>
 type _CheckedWideSet = Assert<Equal<Checked<readonly [Mapping<Set, number, string>]>, readonly [_Refused]>>
 type _CheckedWideRepeat = Assert<Equal<Checked<readonly [Mapping<Repeat<number, number, 'x'>, unknown, string>]>, readonly [_Refused]>>
+// A set's spelling must be spelled too: a constructor given a widened
+// argument, at any depth, and a hand-written set without literal
+// boundaries, are refused; a `max` of `number` is unbounded, not widened.
+type _CheckedWideRange = Assert<Equal<Checked<readonly [Mapping<Set<readonly ['range', string]>, number, string>]>, readonly [_Refused]>>
+type _CheckedWideEncode = Assert<Equal<Checked<readonly [Mapping<Set<readonly ['rangeEncode', number, 58]>, number, string>]>, readonly [_Refused]>>
+type _CheckedWideUnion = Assert<Equal<
+    Checked<readonly [Mapping<Set<readonly ['union', Set<readonly ['range', '09']>, Set<readonly ['set', string]>]>, number, string>]>,
+    readonly [_Refused]>>
+type _CheckedWideRemove = Assert<Equal<
+    Checked<readonly [Mapping<Set<readonly ['remove', Set<readonly ['range', ' ~']>, Set<readonly ['range', string]>]>, number, string>]>,
+    readonly [_Refused]>>
+type _CheckedHandSet = Assert<Equal<Checked<readonly [Mapping<() => readonly ['set', ...(readonly number[])], number, string>]>, readonly [_Refused]>>
+type _CheckedExactUnion = Assert<Equal<
+    Checked<readonly [Mapping<Set<readonly ['union', Set<readonly ['range', '09']>, Set<readonly ['remove', Set<readonly ['set', 'ab']>, Set<readonly ['rangeEncode', 97, 97]>]>]>, number, string>]>,
+    readonly [readonly [Set<readonly ['union', Set<readonly ['range', '09']>, Set<readonly ['remove', Set<readonly ['set', 'ab']>, Set<readonly ['rangeEncode', 97, 97]>]>]>, (children: number) => unknown]]>>
+// A set with a widened spelling may be any exact set that spelling admits.
+type _MappedWideRange = Assert<Equal<Mapped<Set<readonly ['range', string]>, _Spelled>, number | bigint>>
 type _CheckedExact = Assert<Equal<
     Checked<readonly [Mapping<readonly [Repeat<0, number, Set<readonly ['range', '09']>>, { readonly a: 'x' }, Const<'y'>, null], unknown, string>]>,
     readonly [readonly [readonly [Repeat<0, number, Set<readonly ['range', '09']>>, { readonly a: 'x' }, Const<'y'>, null], (children: readonly [readonly number[], readonly ['a', readonly number[]], readonly number[], readonly []]) => unknown]]>>
