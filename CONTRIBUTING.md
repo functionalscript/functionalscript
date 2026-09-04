@@ -11,7 +11,8 @@ repository-wide design principles are in [DESIGN.md](./doc/DESIGN.md), the
 FunctionalScript and TypeScript rules in [fjs/AGENTS.md](./fjs/AGENTS.md), the
 Rust ones in [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md), and what to do with
 the comments a review leaves on your pull request in
-[REVIEW.md](./doc/REVIEW.md). This file covers getting a working environment and
+[REVIEW.md](./doc/REVIEW.md), and how to review someone else's in
+[REVIEWING.md](./doc/REVIEWING.md). This file covers getting a working environment and
 opening a pull request; every document links to the others rather than
 restating them, so they cannot drift apart.
 
@@ -191,7 +192,7 @@ real Nix — see [`nix/README.md`](./nix/README.md).
 
 A pull request implements only one feature or improvement, with minimal code
 changes. Before submitting, ensure every check above passes and delete the
-`todo/` issue file in the same pull request. It adds **no changelog file**: the
+`todo/` issue file it fixes, if there is one. It adds **no changelog file**: the
 changelog is written once per release from the pull requests that shipped in it
 ([changelog/RELEASE.md](./changelog/RELEASE.md)). What a pull request owes
 instead is a declaration in its description, below. The everyday workflow around
@@ -260,6 +261,7 @@ messages are not working notes: write each one for a reader who meets it on
 
 Once the pull request is open, which comments to fix, which to push back on,
 and what a push-back has to leave behind: [REVIEW.md](./doc/REVIEW.md).
+Reviewing someone else's pull request: [REVIEWING.md](./doc/REVIEWING.md).
 
 ## OpenAI Codex environment
 

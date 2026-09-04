@@ -65,18 +65,22 @@ same change; the work isn't done until that issue is deleted.
 
 **If you see a way to improve an API — or a new API that would make consuming
 modules simpler and more readable — propose it as soon as you notice it.** Don't
-defer or silently work around it. File a `todo/` issue with a concrete design
-(see [todo/README.md](../todo/README.md)) so it can be reviewed promptly; if the
+defer or silently work around it. File a `todo/` issue — a problem statement
+is enough to start, the design can grow later
+(see [todo/README.md](../todo/README.md)) — so it can be reviewed promptly; if the
 improvement is in scope for what you're already doing, raise it before building
 on top of the weaker design.
 
 ## 3. Design before implementation
 
-- Before implementing a non-trivial feature, ensure the corresponding issue
-  document in `todo/` contains a concrete design. If the issue exists but the
-  design is absent, vague, or contradicts the codebase or runtime behavior,
-  update the issue first and wait for review — do not write code against an
-  incomplete or incorrect design.
+- Design before implementation is an order of work, not a gate. A non-trivial
+  feature's design lives in its `todo/` issue, and the issue may be as thin as
+  a problem statement. The design grows through
+  pull requests — an underspecified issue, then details and ideas, then an
+  implementation, with a prototype wherever nobody yet knows — and none of them
+  waits on the document being complete. What it owes is direction and
+  consistency: a design that contradicts the codebase, the runtime, or another
+  issue is corrected rather than built on.
 - When a discrepancy is found between an issue's design and reality (a missing
   API, a wrong environment variable, an incompatible type), correct the design
   document and surface the problem rather than silently working around it.
@@ -334,6 +338,18 @@ There are two ways to refuse, and the choice between them is the one drawn in
   entry of the operation — when the input violates something the caller was
   supposed to guarantee, so there is nothing sensible for it to do with a
   `null` anyway.
+
+Where the line falls follows from where validation happens. A value is
+validated once, where it enters from IO — a file, a socket, a command line —
+and is trusted from then on. Inside, an assert that fires means a bug, not a bad
+input, and crashing there is better than continuing: the caller was supposed to
+have validated, and a program that goes on past a broken assumption produces
+the silent corruption this section exists to prevent. So a `try*` belongs at
+the boundary, and an assert is the right answer inside it — an asserting API is
+not unusable, it is used after prevalidation. That is not a reason to assert
+everything: an assert guards an assumption the code would otherwise answer
+wrongly on, and one that guards nothing the code relies on is noise
+([§9](#9-maximize-signal-to-noise)).
 
 A documented implementation limit ([§1](#1-simplicity-first)) is acceptable only
 under this rule: the limit has to be enforced where it is crossed. "Handles up
