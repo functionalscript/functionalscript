@@ -267,7 +267,9 @@ beside a repetition, whose AST is a 2-tuple, not the flat list the table
 specifies. So the table holds only for the unbounded `0..`, and a lowering cannot be
 judged correct against it. The question is which bounds a data layer carries
 natively. Narrowing the front end to match today's IR is the option this
-design rejects.
+design rejects. **Answered by [ebnf-data](../../ebnf/data/todo/ebnf-data.md):**
+the data layer carries every bound natively, as `['repeat', min, max, name]`,
+so nothing is reduced and no rule is synthesized.
 
 **2. Dissolved by ebnf-migration.** It was: the backend proofs are built
 with the classical front end (`ll1/proof.f.mjs:14`, `descent/proof.f.mjs:10`,
@@ -293,6 +295,12 @@ be ambiguous too — `repeat(1, 2)({ short: 'a', long: 'aa' })` reads `aa` as on
 `long` or two `short` — and deciding that in general is not the front end's
 job.
 
+**Answered by [ebnf-data](../../ebnf/data/todo/ebnf-data.md)** for the data
+layer: only a nullable body under an unbounded `max` is refused. At a bounded
+`max` the repetition adds no decision of its own — a round is forced up to
+`min` and lookahead-guarded up to `max` — so the ambiguity, where there is
+one, is the item's, resolved as any variant's is.
+
 **4. The optional's AST change is a bulk proof rewrite.** Production consumers
 do not read the `some`/`none` tags, but `descent/proof.f.mjs:288-296` and
 `ll1/proof.f.mjs` pin them throughout their expected-AST strings.
@@ -305,7 +313,9 @@ the helpers take and return range-set *values*, the `'range'` row becomes
 `['set', …]`, and `notOf` is unnecessary.
 
 **6. Reduction at the functional level defeats memoization** — a thunk created
-during conversion has no `.name` and no shared identity.
+during conversion has no `.name` and no shared identity. **Dissolved by
+[ebnf-data](../../ebnf/data/todo/ebnf-data.md):** nothing is reduced, at
+either level.
 
 **7. `AST<T>` needs explicit annotations on recursive rules.** TypeScript will
 not infer a recursive thunk. Worth testing on a real grammar early: if the
@@ -316,7 +326,11 @@ contract, which is a much weaker proposal.
 structural values while today's AST is `{ tag, sequence }` nodes
 ([`../README.md`](../README.md#ast)). `AST<Sequence>` and `AST<Variant>`
 cannot be written until this is settled, and it decides what "the same AST"
-means in the port claim.
+means in the port claim. **Narrowed by
+[ebnf-data](../../ebnf/data/todo/ebnf-data.md):** the data layer commits to
+the `{ tag, sequence }` node per rule invocation, with one flat node for a
+repetition of any bounds; how the typed `Ast<R>` relates to those nodes is
+`ebnf/map/`'s to settle.
 
 **9. Dissolved by ebnf-migration.** It was: one alphabet adapter cannot
 return both representations — `range('09')` is a packed `TerminalRange` to
@@ -392,6 +406,9 @@ three forms. It needs a data layer that can represent it.
 
 - [ebnf-migration](../../todo/ebnf-migration.md) — the module this lands in,
   as its first piece, and the dependency rule it lives under.
+- [ebnf-data](../../ebnf/data/todo/ebnf-data.md) — the data layer this
+  lowers into: answers Problems 1, 3 and 6, narrows 8, and settles the IR
+  carrier rule-visitor and ebnf-range-set wait on.
 - [`fjs/rtti/types.ts`](../../rtti/types.ts) — the eDSL shape this copies.
 - [the `repeat` rule](../data/README.md#the-repeat-rule) — the recognition
   this makes unnecessary.

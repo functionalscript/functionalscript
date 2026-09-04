@@ -300,6 +300,11 @@ Whatever the carrier, the packed `0xBBBBBB_EEEEEE` literal leaves the IR with
 it, and with it the readability argument in `fjs/bnf/types.ts` for 24-bit
 halves; `[0x30, 0x3A]` reads at least as well.
 
+**Decided in [ebnf-data](../../ebnf/data/todo/ebnf-data.md):** every data
+rule is a tagged tuple, the set goes into it as `['set', …]`, and the probe
+is never written. EOF is the one set with a negative boundary, `[-1, 0]`, as
+above.
+
 #### What it is not
 
 Not a performance change. Real sets are tiny — three ranges in the JSON string
@@ -324,8 +329,10 @@ justification is the API and the AST, which is where
       and `toRangeMap` (inclusive upper bound `b - 1`; an open tail is
       `Infinity`). No integer range-set module: these arithmetic facts are
       the whole difference.
-- [ ] Settle the IR carrier together with ebnf-front-end's Problem 1, in that
-      issue, before any backend touches a set.
+- [x] Settle the IR carrier together with ebnf-front-end's Problem 1 —
+      settled in [ebnf-data](../../ebnf/data/todo/ebnf-data.md), the
+      `data/` issue, before any backend touches a set: a tagged tuple for
+      every rule kind, `['set', …]` for the terminal.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
       the union, the AST table (`number`), the lowering requirements
       (validate the generic range-set invariants through `range_set`'s
@@ -374,7 +381,9 @@ justification is the API and the AST, which is where
   `ebnf/unicode/` is rewritten in set values rather than `RangeVariant`, and
   `notOf` leaves its triage row.
 - [rule-visitor](./rule-visitor.md) — discriminates the data `Rule`, so it
-  waits on the same IR carrier decision.
+  waited on the same IR carrier decision.
+- [ebnf-data](../../ebnf/data/todo/ebnf-data.md) — the carrier decision,
+  and the lowering that validates a set as this issue requires.
 - [`fjs/types/range_set/module.f.mjs`](../../types/range_set/module.f.mjs) —
   the module, now the toggle list.
 - [`fjs/js/todo/174-shared-range-map-lexer.md`](../../js/todo/174-shared-range-map-lexer.md)
