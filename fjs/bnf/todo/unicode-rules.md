@@ -153,9 +153,10 @@ This split changes the public design assumptions used by older open TODOs:
 - [`fjs/bnf/todo/bnf-grammar-single-owner.md`](./bnf-grammar-single-owner.md)
   owns the two grammars this task ports — `fjs/bnf/lib/json` and
   `fjs/bnf/lib/datajs` — and its "Unicode migration requirements" section is
-  written for whoever makes that port. They must import Unicode-specific
-  construction from `fjs/ebnf/unicode/module.f.mjs` and lower text literals to
-  generic rules before they reach core BNF. DataJS's `'["__proto__"]'` key needs care: `str` lowers
+  written for whoever makes that port. They must import text construction the
+  rule union does not imply from `fjs/ebnf/unicode/module.f.mjs` — `range`,
+  `set` and `unicodeMax` come from the front end (**Amended** above) — and
+  lower text literals to generic rules before they reach core BNF. DataJS's `'["__proto__"]'` key needs care: `str` lowers
   it to a contiguous sequence of terminal ranges, which is what it must become —
   the parser consumes code points, so a single terminal could not match it. It
   is one *token* because nothing separates that sequence's elements, not because
