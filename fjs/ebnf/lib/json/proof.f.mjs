@@ -16,28 +16,9 @@ import {
     ws,
     wsSymbol,
 } from './module.f.mjs'
+import { force } from '../../testlib.f.mjs'
 
-const { entries, fromEntries, keys } = Object
-
-/**
- * Expands a rule into plain data by calling every thunk it meets, so two
- * independently built rules can be compared structurally: a thunk is a
- * function, and functions are only ever the same as themselves.
- *
- * There is no depth limit, so this terminates on a rule that does not name
- * itself. `json` does name itself, which is why the proof of `json` below
- * expands its thunk by hand instead.
- *
- * @type {(r: unknown) => unknown}
- */
-const force = r => {
-    if (typeof r === 'function') { return force(r()) }
-    if (r instanceof Array) { return r.map(force) }
-    if (typeof r === 'object' && r !== null) {
-        return fromEntries(entries(r).map(([k, v]) => [k, force(v)]))
-    }
-    return r
-}
+const { keys } = Object
 
 // The four whitespace symbols, as the run boundaries a set carries: tab and
 // newline are adjacent, so they coalesce into one run, and carriage return and
