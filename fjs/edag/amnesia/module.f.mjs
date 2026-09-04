@@ -273,7 +273,10 @@ const map = {
     // runs before `ToPropertyKey`, so a nullish receiver must reach that
     // throw first, the same order `fjs/nanvm/proof.f.mjs`'s `own` uses.
     own: o2((a, b) => {
-        if (nullish(a)) { return Object.getOwnPropertyDescriptor(a, b)?.value }
+        // No `?.value` here: a nullish `a` always throws on this call, so
+        // the "call returned, `?.value` reads it" branch a real read would
+        // need can never be taken — only the throw matters on this path.
+        if (nullish(a)) { Object.getOwnPropertyDescriptor(a, b) }
         assert(typeof b === 'string', ['own: key is not a string', b])
         return Object.getOwnPropertyDescriptor(a, b)?.value
     }),
