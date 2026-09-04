@@ -55,7 +55,7 @@ type Variant  = { readonly [k in string]?: Rule }
 type Thunk    = () => Info
 type Info     =
     | readonly ['const', Const]              // a plain rule behind a thunk
-    | readonly ['range', number, number]     // symbols a..b, inclusive
+    | readonly ['set', ...RangeSet]          // one symbol from the set
     | readonly ['repeat', number, number, Rule] // min..max copies
 ```
 
@@ -104,7 +104,7 @@ row that is a function of the form alone.
 | form | AST |
 |---|---|
 | `['const', c]` | `AST<c>` |
-| `['range', a, b]` | `number` — one symbol leaf |
+| `['set', …]` | `number` — one symbol leaf |
 | `['repeat', min, max, r]` | `BoundedArray<min, max, AST<r>>`, below |
 | `number` | `number` — the symbol itself |
 | `string` | `readonly number[]` — see below |
@@ -163,15 +163,32 @@ primitive:
 export const repeat = (min, max) => rule => () => ['repeat', min, max, rule]
 
 export const option      = repeat(0, 1)
-export const repeat0Plus = repeat(0, Infinity)
-export const repeat1Plus = repeat(1, Infinity)
+export const repeatFrom  = n => repeat(n, Infinity)
+export const repeatFrom0 = repeatFrom(0)
 export const times       = n => repeat(n, n)
 ```
 
-Currying the bounds makes the familiar names partial applications and leaves
-their call sites at today's arity, so a ported grammar keeps its spelling.
-`range` and `set` come from `fjs/ebnf/unicode/`. `join0Plus` and
-`join1Plus` compose.
+Currying the bounds makes each familiar form a partial application and leaves
+its call sites at today's arity.
+
+**Amended.** The block above is what shipped, and it differs from what this
+issue proposed in two ways worth stating rather than leaving as a diff.
+
+The zero-or-more form is `repeatFrom0`, and the lower bound is a parameter —
+`repeatFrom(n)` — instead of one name per bound: `repeat1Plus` is
+`repeatFrom(1)`, and so is every bound above it, which is the generalization
+the two fixed names were hiding. `join` replaces `commaJoin0Plus` and takes
+its separator as a rule rather than building `','` itself, which is what
+keeps it out of the Unicode-specific category this issue warned about below.
+What that gives up is the claim this paragraph used to make: a ported grammar
+does **not** keep its spelling, and the datajs port re-spells its four
+`repeat0Plus` / `repeat1Plus` call sites
+(`fjs/bnf/lib/datajs/module.f.mjs`).
+
+And `range` and `set` ship in `fjs/ebnf/module.f.mjs` rather than the adapter
+([unicode-rules](./unicode-rules.md), **Amended**), returning terminal
+*rules* rather than range-set values — there is no `oneOf`
+([ebnf-range-set](./ebnf-range-set.md), **Amended**).
 
 Bare numbers and strings in `Const` mean a tagged tuple written *without* its
 thunk is a legal rule with another meaning, and `tsc` accepts it. That is
@@ -195,9 +212,15 @@ change the representation.
 Stated as requirements, since the data layer is open.
 
 - **Validate here, at the front end**, while the author still has a rule to
-  point at: bounds in the domain above; `['range', a, b]` with `a <= b` and
-  both **ordinary** symbols, never spanning EOF; a bare `number` an integer in
-  the terminal domain.
+  point at: bounds in the domain above; `['set', …]` validated as a range
+  set before the algebra touches it (a hand-written tuple is the one way an
+  unvalidated list can reach the parity merge), clipped to the domain `[0]`
+  — a generic complement's `-Infinity` and EOF are dropped, never an error,
+  so a set terminal never matches EOF — and non-empty with safe-integer
+  boundaries after that ([ebnf-range-set](./ebnf-range-set.md)); which
+  `range_set` export does the validating is that module's business. A bare
+  `number` is one symbol as the union above defines it — `-1` is EOF — and
+  takes no set validation.
 - **A nullable body** at an unbounded max is non-termination and is rejected.
   At a bounded max it is not — see [Problem 3](#problems), which is open; the
   lowering must not reject it until that is settled.
@@ -215,18 +238,21 @@ AST changes:
 
 | constructor | changes? |
 |---|---|
-| `repeat0Plus`, `join1Plus` | no |
+| `repeatFrom0` | no |
 | `option` | yes — variant node becomes `[] \| [T]` |
-| `repeat1Plus` | yes — `readonly [T, Repeat0Plus<T>]` becomes a flat non-empty list |
-| `join0Plus`, `commaJoin0Plus` | yes, via `option` |
+| `repeatFrom(1)` | yes — `readonly [T, Repeat0Plus<T>]` becomes a flat non-empty list |
+| `join` | yes, via `option` |
 
-`commaJoin0Plus` matters most: `fjs/bnf/lib/json` uses it for both bracket
+`join` matters most, as `commaJoin0Plus`'s replacement: `fjs/bnf/lib/json` uses that for both bracket
 pairs, so the array and object productions change shape. A grammar adopting a
 new form is not shape-preserving either.
 
-Also: the rtti map tests the shape directly and `repeatItem` goes away;
-`detectRepeat` stays in `data/` as opt-in normalization for hand-written and
-deserialized sets.
+Also: the rtti map tests the shape directly and `repeatItem` goes away, and
+`detectRepeat` retires with the classical `data/`
+([ebnf-migration](../../todo/ebnf-migration.md)): a hand-written or
+deserialized EBNF set spells the primitive, and an opt-in normalizer of the
+right-recursive shape may be added to `ebnf/data/` by whoever wants one, but
+nothing plans it.
 
 #### Problems
 
@@ -318,12 +344,13 @@ three forms. It needs a data layer that can represent it.
       tables, with a proof per row. `BoundedArray` is instantiated from
       `fjs/types/array`, not redefined.
 - [ ] `module.f.mjs`: the `repeat(min, max)` constructor with `option` /
-      `repeat0Plus` / `repeat1Plus` / `times` as partial applications, plus
-      `join0Plus`, `join1Plus` and `commaJoin0Plus`; and the lowering per
-      "What a lowering must do". `commaJoin0Plus` is needed by the first
-      grammar ported, so it is not optional. There is no `notOf`: complement
-      is a `range_set` value operation, and the adapter's `not` is difference
-      against its universe ([ebnf-range-set](./ebnf-range-set.md)).
+      `repeatFrom` / `repeatFrom0` / `times` as partial applications, plus
+      `join`; and the lowering per "What a lowering must do" (**Amended**
+      above for the names, and for `range`/`set` returning rules). `join` is
+      needed by the first grammar ported, so it is not optional. There is no
+      `notOf`: complement is a `range_set` value operation, and the adapter's
+      `not` is difference against its universe
+      ([ebnf-range-set](./ebnf-range-set.md)).
 - [ ] The range-set helpers are value operations in `fjs/types/range_set`,
       never rule combinators: this front end has one injection from a set to
       a rule, the `['set', …]` thunk, and no rule-level complement
@@ -347,6 +374,13 @@ three forms. It needs a data layer that can represent it.
       `times(4)(hex)`. Then the `djs` tokenizer and parser, one PR each. Those
       are the only consumers: outside `fjs/bnf` the repository imports it from
       five files, all under `fjs/djs`.
+      **What "in one PR" binds** is the port — the change that makes
+      `fjs/bnf/lib/json` stop being what datajs imports. Writing an ebnf
+      spelling *beside* an untouched classical grammar is not that: datajs
+      goes on importing `bnf/lib/json`, so no classical combinator ever meets
+      an ebnf thunk, and the hazard this task names does not arise. A second
+      spelling may therefore land alone; the two grammars still move together
+      when they move.
 - [ ] Update what describes the derived `Repeat`: `data/types.ts:29` carries
       the phrase "the one rule kind `toData` derives"; `data/README.md` and
       `descent/README.md` describe the same thing in their own words.
@@ -363,8 +397,10 @@ three forms. It needs a data layer that can represent it.
   this makes unnecessary.
 - [unicode-rules](./unicode-rules.md) — owns the text lowering and the
   adapter Problem 9 constrains.
-- [terminal-range-shared-type](./terminal-range-shared-type.md) — the packed
-  `TerminalRange` becomes data-layer only here.
+- terminal-range-shared-type (retired; `fjs/ebnf/` has no `TerminalRange`,
+  see [ebnf-range-set](./ebnf-range-set.md)) — `fjs/ebnf/data/` stores
+  range-set terminals, and the classical packed declarations retire with
+  `bnf/`.
 - [ebnf-range-set](./ebnf-range-set.md) — replaces the `['range', a, b]`
   row with a range-set terminal `['set', …]`; answers Problem 5 and most of
   Problem 9, and shares Problem 1's IR carrier decision.

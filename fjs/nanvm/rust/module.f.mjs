@@ -92,6 +92,9 @@ export const rustName = {
     '&': 'bitand',
     '|': 'bitor',
     '^': 'bitxor',
+    '<<': 'shl',
+    '>>': 'shr',
+    '>>>': 'unsigned_right_shift',
     '<': 'lt',
     '<=': 'le',
     '>': 'gt',
@@ -100,6 +103,7 @@ export const rustName = {
     '&&': 'logical_and',
     '||': 'logical_or',
     '??': 'nullish_coalescing',
+    own: 'own_property',
     ternary: 'conditional',
     typeof: 'typeof_',
     String: 'string_coercion',
@@ -122,7 +126,7 @@ const op1Rust = {
 /**
  * The same, for the binary operations.
  *
- * An operator not yet implemented in `nanvm-lib` (such as `<<`) has every one
+ * An operator not yet implemented in `nanvm-lib` (such as `=>`) has every one
  * of its cases carry a `rust` reason, and `emit` prints this text as a
  * comment rather than a statement — this entry only has to read as the
  * operation, not compile.
@@ -137,7 +141,12 @@ const op1Rust = {
  * take `bool` operands and short-circuit *evaluation*, neither of which fits
  * an operator over already-evaluated `Any<A>` values, and `?` is Rust's own
  * try-operator, unrelated to JS `??` — so all three are `Any` methods, named
- * for what they do rather than reusing punctuation Rust already owns.
+ * for what they do rather than reusing punctuation Rust already owns. `>>>`
+ * follows it for a fourth reason: Rust has no unsigned-right-shift operator
+ * at all (only `>>`, which is arithmetic on a signed type), so it is
+ * `Any::unsigned_right_shift`. `own` follows it for a fifth: no Rust
+ * operator spells a keyed property lookup at all, so it is
+ * `Any::own_property`.
  *
  * @type {{ readonly [k in OpId]?: (a: string, b: string) => string }}
  */
@@ -151,6 +160,9 @@ const op2Rust = {
     '&': (a, b) => `${a} & ${b}`,
     '|': (a, b) => `${a} | ${b}`,
     '^': (a, b) => `${a} ^ ${b}`,
+    '<<': (a, b) => `${a} << ${b}`,
+    '>>': (a, b) => `${a} >> ${b}`,
+    '>>>': (a, b) => `Any::unsigned_right_shift(${a}, ${b})`,
     '<': (a, b) => `Any::lt(${a}, ${b})`,
     '<=': (a, b) => `Any::le(${a}, ${b})`,
     '>': (a, b) => `Any::gt(${a}, ${b})`,
@@ -158,6 +170,7 @@ const op2Rust = {
     '&&': (a, b) => `Any::logical_and(${a}, ${b})`,
     '||': (a, b) => `Any::logical_or(${a}, ${b})`,
     '??': (a, b) => `Any::nullish_coalescing(${a}, ${b})`,
+    own: (a, b) => `Any::own_property(${a}, ${b})`,
 }
 
 /**

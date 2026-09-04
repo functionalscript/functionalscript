@@ -2,7 +2,10 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [Separate alphabet-specific BNF helpers](./unicode-rules.md)
+**Blocked by:** [ebnf-migration](../../todo/ebnf-migration.md)'s `ebnf/ll1/`
+piece, which `ll1Recognizer` is built over; not by
+[unicode-rules](./unicode-rules.md), since the neutral fixture imports no
+text helper.
 
 ### Problem
 
@@ -16,10 +19,12 @@ kind never made it there and are copy-pasted instead, across
 This design predates the alphabet split. Its shared `number` fixture currently
 constructs Unicode terminals with core `range('--')` / `range('09')`, and its
 import analysis assumes `fjs/bnf/testlib.f.mjs` obtains text helpers from
-`./module.f.mjs`. After the split, text/range construction belongs to
-`fjs/ebnf/unicode/module.f.mjs`. Do not implement the fixture extraction against
-the old core API: rebase the fixture imports on `fjs/ebnf/unicode` first while keeping
-the recognizer backends themselves generic.
+`./module.f.mjs`. The neutral fixture below imports no text helper at all: it
+is a directly authored `RuleSet`, so it depends neither on the classical
+`range` nor on `fjs/ebnf/unicode/`, whose values are range sets the classical
+backends do not consume ([ebnf-range-set](./ebnf-range-set.md)). Only a
+classical fixture that still spells rules functionally keeps the classical
+helper, and it stays in `fjs/bnf/testlib.f.mjs`.
 
 #### 1. The "recognizes the whole input" helper — 8 copies
 
@@ -73,10 +78,13 @@ const digitRule = range('09')
 const numberRule = [optionalMinusRule, digitRule]
 ```
 
-The fixture remains a Unicode/text fixture, so after the alphabet split the
-`range` used here must come from `fjs/ebnf/unicode/module.f.mjs` (or the equivalent
-final Unicode adapter API), **not** from core `fjs/bnf/module.f.mjs`. The produced
-rules are still ordinary generic BNF rules consumed by descent/LL1.
+The fixture is a Unicode/text fixture for the **classical** backends, so it
+keeps the classical `range` from `fjs/bnf/module.f.mjs`. It cannot take the
+one from `fjs/ebnf/unicode/module.f.mjs`: that adapter is EBNF-only and its
+`range` returns a range-set value ([ebnf-range-set](./ebnf-range-set.md)),
+which the classical descent/LL1 backends do not consume. The EBNF backend's
+fixture, when it exists, is the directly authored `RuleSet` proposed below or
+`fjs/ebnf/unicode/`'s own form — never a mix of the two front ends.
 
 Four of the nine copies carry a `minursRule` typo. One site is a deliberate
 variant that prefixes optional space; it should stay distinct rather than being
@@ -92,8 +100,9 @@ That divergence should be an explicit override table rather than a copied corpus
 
 ### Proposal
 
-Move the shared harness and fixtures into a neutral testlib, after rebasing
-text construction on the Unicode adapter. It is a **separate home** from
+Move the shared harness and fixtures into a neutral testlib, with the fixtures
+authored as rule sets rather than built with any text helper. It is a
+**separate home** from
 `classic()` and `deterministic()`: those stay in `fjs/bnf/testlib.f.mjs`, which
 depends on the classical front end and which
 [ebnf-migration](../../todo/ebnf-migration.md) retires with `bnf/` (its stage
@@ -145,13 +154,17 @@ already exposes, so no production API is added here; a `bnf`-local descent
 adapter builds via `descentParserRuleSet(ruleSet)` the same way.
 
 That local adapter also absorbs the proof-local copy of `descentParserCpOnly`.
-Keep the DJS tokenizer export: its proof has typed-result consumers beyond the
-recognition corpus, so removing it would be a separate public-API change.
+Leave the DJS tokenizer's own `descentParserCpOnly` export to the djs port:
+its proof has typed-result consumers beyond the recognition corpus, and the
+port replaces it with an LL(1) equivalent as part of that module's own API
+change ([ebnf-migration](../../todo/ebnf-migration.md), the consumer port).
 
 `stringToCodePointList` / `toArray` / code-point mapping stay inside the Unicode
-recognizer adapter. The alphabet-specific conversion should be imported from the
-Unicode boundary after `unicode-rules.md` lands; generic parser modules should
-not regain text dependencies.
+recognizer adapter, which takes them from `fjs/text/utf16` — input decoding,
+which exists today and is not what [unicode-rules](./unicode-rules.md) owns.
+That issue is about constructing *rules* from text, and the neutral fixture
+constructs none; so this adapter waits on nothing there. Generic parser
+modules should not regain text dependencies.
 
 **2. `export const number`** — the optional-minus-then-digit grammar. Exported
 as a **`RuleSet` plus its entry name**, not as a functional `Rule`: the
@@ -181,9 +194,12 @@ explicit named override list for the rows where token-stream acceptance differs.
       may be written earlier against `bnf/ll1` inside `bnf/` and moved when
       it can, if that is more convenient. Anything front-end-coupled built
       under `fjs/ebnf/` would violate that plan's dependency rule.
-- [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase the
-      testlib's text/range imports on `fjs/ebnf/unicode/module.f.mjs`;
-      do not import Unicode `range` from core `./module.f.mjs`.
+- [ ] The shared `number` fixture is a directly authored `RuleSet` (above),
+      so the surviving testlib imports no text helper at all — neither the
+      classical `range` from `fjs/bnf/module.f.mjs` nor `fjs/ebnf/unicode/`'s,
+      whose values are range sets the classical backends do not consume. A
+      classical fixture that still spells rules functionally keeps the
+      classical helper.
 - [ ] Add `Case`, `Recognition`, `assertRecognizes`, the two recognizer
       adapters, **and the AST renderer** — `showAst` plus the root
       `private.ts` that types it, which the LL1 and descent proofs assert
@@ -202,7 +218,7 @@ explicit named override list for the rows where token-stream acceptance differs.
 - [ ] Fold the proof-local `descentParserCpOnly` / code-point adapter into a
       `bnf/descent`-local `descentRecognizer` that reuses the shared
       `Recognizer` type and `assertRecognizes`; leave the DJS tokenizer's
-      public export alone.
+      public export to the djs port.
 - [ ] Add `number` as a directly authored `RuleSet` and entry name — no
       functional `Rule`, no `toData` in the shared testlib — and add
       `jsonCases`.
@@ -219,9 +235,9 @@ explicit named override list for the rows where token-stream acceptance differs.
 
 ### Related
 
-- [Separate alphabet-specific BNF helpers](./unicode-rules.md) — **blocks this
-  task**; shared text fixtures must consume `fjs/ebnf/unicode`, not the removed core
-  text/range API.
+- [Separate alphabet-specific BNF helpers](./unicode-rules.md) — does **not**
+  block this task: the neutral fixture is a directly authored `RuleSet` and
+  consumes neither that adapter nor the classical text helpers.
 - [bnf-grammar-single-owner](./bnf-grammar-single-owner.md) —
   owns the grammars themselves, now shipped under `fjs/bnf/lib`; this issue moves
   the proof harness/fixtures.

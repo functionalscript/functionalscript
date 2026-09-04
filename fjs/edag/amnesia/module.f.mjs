@@ -269,8 +269,14 @@ const map = {
     // The key must *evaluate* to a string — a runtime constraint the
     // shape-only schema cannot express, so the executor upholds it. Without
     // the check JS `ToPropertyKey` would coerce, and `['own', o, 1]` would
-    // silently read `o['1']`.
+    // silently read `o['1']`. Checked after the receiver: real `ToObject`
+    // runs before `ToPropertyKey`, so a nullish receiver must reach that
+    // throw first, the same order `fjs/nanvm/proof.f.mjs`'s `own` uses.
     own: o2((a, b) => {
+        // No `?.value` here: a nullish `a` always throws on this call, so
+        // the "call returned, `?.value` reads it" branch a real read would
+        // need can never be taken — only the throw matters on this path.
+        if (nullish(a)) { Object.getOwnPropertyDescriptor(a, b) }
         assert(typeof b === 'string', ['own: key is not a string', b])
         return Object.getOwnPropertyDescriptor(a, b)?.value
     }),

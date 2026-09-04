@@ -13,6 +13,8 @@ mod or;
 mod partial_eq;
 mod relational;
 mod rem;
+mod shl;
+mod shr;
 mod sub;
 mod typeof_;
 
@@ -22,12 +24,19 @@ use crate::vm::{
     IVm, String, ToAny, Unpacked,
     boolean_coercion::BooleanCoercion,
     dispatch::Dispatch,
+    nullish::Nullish,
     number_coercion::NumberCoercion,
     numeric::Numeric,
     primitive::Primitive,
     primitive_coercion::{PrimitiveCoercionOp, ToPrimitivePreferredType},
     string_coercion::StringCoercion,
 };
+
+/// `Object.getOwnPropertyDescriptor`'s own message for a nullish receiver
+/// (one of `own_property`'s two throwing cases, the other being a
+/// non-`String` key — see its doc comment).
+const CANNOT_CONVERT_NULLISH_TO_OBJECT: &str =
+    "TypeError: Cannot convert undefined or null to object";
 
 /// ```
 /// use nanvm_lib::{
@@ -79,6 +88,54 @@ impl<A: IVm> Any<A> {
         Ok(Unpacked::from(self.to_numeric()?.bitwise_not()).into())
     }
 
+    /// `>>>`. Not a `core::ops` trait — Rust has no unsigned-right-shift
+    /// operator — so this is a plain method, the same as `pow`/`bitwise_not`.
+    /// <https://tc39.es/ecma262/#sec-unsigned-right-shift-operator>
+    pub fn unsigned_right_shift(self, rhs: Self) -> Result<Self, Self> {
+        Ok(Unpacked::from(self.to_numeric()?.unsigned_right_shift(rhs.to_numeric()?)?).into())
+    }
+
+    /// The EDAG's `own` — exactly
+    /// `Object.getOwnPropertyDescriptor(self, key)?.value`, no getter
+    /// invocation, no prototype chain (`nanvm-lib` objects have no
+    /// `__proto__` to walk in the first place). Not a `core::ops` trait —
+    /// no Rust operator fits a keyed property lookup — so this is a plain
+    /// method, the same as `pow`/`bitwise_not`/`unsigned_right_shift`.
+    ///
+    /// `key` must itself be a `String` — a runtime-value constraint the
+    /// EDAG's shape-only schema can't express, upheld by whatever builds
+    /// the `own` node in the first place, not by any coercion here (unlike
+    /// real JS's `ToPropertyKey`, which would silently stringify a
+    /// `Number` key rather than reject it). A non-`String` key is a
+    /// `TypeError` here, the same as reaching `own` with one is a bug
+    /// upstream, not a value for this to coerce past.
+    ///
+    /// A non-nullish, non-`Object` receiver is never an own-property owner
+    /// (a `Number`/`String`/`Array`/etc. — none of these are the plain
+    /// objects `own_property` inspects) and always answers `undefined`,
+    /// same as every absent key does; a nullish one throws, matching
+    /// `ToObject`'s own `TypeError` on `null`/`undefined`.
+    ///
+    /// The receiver is checked before the key is: real `ToObject` runs
+    /// before `ToPropertyKey`
+    /// (<https://tc39.es/ecma262/#sec-object.getownpropertydescriptor>), so
+    /// a nullish receiver throws regardless of what the key is, even one
+    /// this would otherwise reject — `Object.getOwnPropertyDescriptor(null,
+    /// 42)` throws the nullish `TypeError`, not one about `42`.
+    pub fn own_property(self, key: Self) -> Result<Self, Self> {
+        let unpacked: Unpacked<A> = self.into();
+        if let Unpacked::Nullish(_) = &unpacked {
+            return Err(CANNOT_CONVERT_NULLISH_TO_OBJECT.into());
+        }
+        let key: String<A> = key.try_into()?;
+        Ok(match unpacked {
+            Unpacked::Object(o) => o
+                .own_property(&key)
+                .unwrap_or_else(|| Nullish::Undefined.to_any()),
+            _ => Nullish::Undefined.to_any(),
+        })
+    }
+
     /// Same as `Number.isNaN` in ECMAScript.
     /// TODO: check and test.
     pub fn is_nan(self) -> bool {
@@ -127,4 +184,28 @@ impl<A: IVm> Any<A> {
     }
 }
 
-// TODO implement <<, >>, >>> using Rust standard traits - similarly to Neg above.
+#[cfg(test)]
+mod tests {
+    use crate::{
+        naive::Naive,
+        vm::{Nullish, ToAny},
+    };
+
+    type A = Naive;
+
+    /// A corpus `expected: throws` case can't tell the two check orders
+    /// apart — `own(null, 1)` throws either way — so this compares the
+    /// actual error instead of just the fact of throwing: the receiver is
+    /// checked first (see `own_property`'s own doc comment), so a nullish
+    /// receiver paired with a non-string key must still produce the
+    /// nullish `TypeError`, not the key-type one.
+    #[test]
+    fn own_property_nullish_receiver_outranks_non_string_key() {
+        let receiver = Nullish::Null.to_any::<A>();
+        let key = (1f64).to_any::<A>();
+        assert_eq!(
+            receiver.own_property(key),
+            Err("TypeError: Cannot convert undefined or null to object".into())
+        );
+    }
+}

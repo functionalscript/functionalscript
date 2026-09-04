@@ -63,7 +63,7 @@ still imports the classical front end today, and this is where:
   backend over token symbols already contradicts its own types.
 
 Every **move** below cuts these edges on the way in: `ebnf/` may not import
-`bnf/`, so a moved module takes the codec from `ebnf/terminal/`, the rule
+`bnf/`, so a moved module takes its terminal form from `ebnf/terminal/`, the rule
 identity from the EBNF `Rule`, and its symbol type from `terminal/` rather
 than from `fjs/text`.
 
@@ -189,8 +189,11 @@ records why.
 ```text
 fjs/ebnf/
   module.f.mjs, types.ts   the front end: Rule union with a repetition primitive
-  terminal/                TerminalRange, EOF, the codec            (move)
-  unicode/                 text adapter: str, set, range, not, …     (rewrite)
+                           (and the string-taking terminal helpers: a string
+                           is a Unicode sequence — unicode-rules, Amended)
+  terminal/                the symbol domain, EOF, integer helpers over range_set (rewrite)
+  unicode/                 text adapter: str, not, unicodeRange, …   (rewrite)
+  byte/                    binary alphabet adapter, when a consumer needs it (rewrite)
   data/                    RuleSet IR with bounded Repeat, emptyTagMap (rewrite)
   matcher/                 cursor, EOF, AST, transformer tools       (move)
   ll1/                     the reference backend                     (rewrite)
@@ -202,9 +205,11 @@ fjs/ebnf/
 
 The front end itself is the design in
 [ebnf-front-end](../bnf/todo/ebnf-front-end.md): the `Rule` union following
-RTTI, `repeat(min, max)` with `option` / `repeat0Plus` / `repeat1Plus` / `times`
-as partial applications, the AST as a function of the form, `BoundedArray` from
-`fjs/types/array`. Its Problems 1, 3, 6, 7 and 8 are about the IR and the AST
+RTTI, `repeat(min, max)` with `option` / `repeatFrom` / `repeatFrom0` /
+`times` as partial applications — the names that shipped, not the
+`repeat*Plus` pair the issue proposed
+([ebnf-front-end](../bnf/todo/ebnf-front-end.md), **Amended**) — the AST as a
+function of the form, `BoundedArray` from `fjs/types/array`. Its Problems 1, 3, 6, 7 and 8 are about the IR and the AST
 and still need answers here. Problems 2 and 9 exist only because of shared
 machinery and do not.
 
@@ -213,17 +218,19 @@ machinery and do not.
 | `bnf/` today | bin | in `ebnf/` |
 |---|---|---|
 | `module.f.mjs` — constructors, `Rule` union | rewrite | `module.f.mjs`, `types.ts`, per ebnf-front-end |
-| `module.f.mjs` — `rangeEncode`, `rangeDecode`, `oneEncode`, `eof`, `fullRange` | move | `terminal/`; `bnf` keeps its own and may repoint |
-| `module.f.mjs` — `str`, `set`, `range`, `not`, `notSet`, `remove`, `unicodeRange`, `unicodeMax` | rewrite | `unicode/`, EBNF forms only ([unicode-rules](../bnf/todo/unicode-rules.md)) |
+| `module.f.mjs` — `rangeEncode`, `rangeDecode`, `oneEncode`, `eof`, `fullRange` | rewrite | `terminal/` over `fjs/types/range_set` values — the domain, `eof`, `one`, `toRangeMap` ([ebnf-range-set](../bnf/todo/ebnf-range-set.md)); there is no packed codec in `ebnf/`, so `bnf` keeps its own and has nothing to repoint to. `rangeEncode` shipped in `module.f.mjs` ahead of `terminal/` existing |
+| `module.f.mjs` — `set`, `range`, `remove`, `unicodeMax` | rewrite | `module.f.mjs`: the front end's rule union already reads a `string` as a Unicode sequence ([unicode-rules](../bnf/todo/unicode-rules.md), **Amended**) |
+| `module.f.mjs` — `str`, `not`, `notSet`, `unicodeRange` | rewrite | `unicode/`, EBNF forms only — what the rule union does not already imply ([unicode-rules](../bnf/todo/unicode-rules.md)) |
 | `data/` — `RuleSet`, `emptyTagMap`, `isRepeat` | rewrite | `data/` with a bounded `Repeat` carrying `min`/`max`; keeps a spelling for `0..Infinity` so `bnf`'s `toData` output stays a valid rule set, and `bnf/data` may repoint its IR types and `emptyTagMap` to it |
-| `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem`, `GrammarData`, `RuleNameMap` | retire | the front-end lowering in `ebnf/` needs no recognition; a hand-written or deserialized set uses the primitive |
+| `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem` | retire | the front-end lowering in `ebnf/` needs no recognition, and a hand-written or deserialized EBNF set spells the primitive; an opt-in normalizer of the right-recursive shape may be added to `ebnf/data/` by whoever wants one, but nothing plans it |
+| `data/` — `GrammarData`, `RuleNameMap` | rewrite | the classical ones retire; the EBNF lowering returns its own map from EBNF rule identity to generated name beside the rule set and entry — the bridge the transformer protocol keys on through `Entry.rule`, and the "rule identity must survive" requirement in [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — in whatever shape the `data/` rewrite chooses |
 | `matcher/` | move | `Rule` identity in the transformer protocol retargeted to the EBNF `Rule`; `bnf` keeps its own copy, and its identity-keyed pieces (`Entry.rule`, the repeat arm) in any case |
 | `ll1/` | rewrite | the reference backend: `RuleSet`-only entry, layer composition, per-layer metadata per [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md), AST mapping; a first/first conflict names the rule |
 | `descent/` | retire | consumers port to `ll1/` (below) |
 | `token_symbol/` | move | the layer boundary; imports `unicode/`, so it lands after it |
 | `map/types.ts` | move | |
 | `map/rtti/` | rewrite | tests the shape directly, no `repeatItem`; absorbs [rename-check-map](../bnf/map/rtti/todo/rename-check-map.md) |
-| `lib/json`, `lib/datajs` | port | one PR for both; `commaJoin0Plus` changes the AST of both bracket pairs |
+| `lib/json`, `lib/datajs` | port | one PR for both; `join` (was `commaJoin0Plus`) changes the AST of both bracket pairs |
 | `testlib.f.mjs` — `showAst` and the root `private.ts` typing it | move | backend-neutral; needed by `ll1`'s proofs |
 | `testlib.f.mjs` — `classic`, `deterministic` | retire | `ebnf/lib` is its own fixture |
 | `README.md` | split | the AST contract, "Terminals and EOF", "Dispatch" go to `ebnf/` and its owners; the functional representation stays and dies with `bnf/` |
@@ -234,15 +241,25 @@ consumers, `fjs/djs` included, exactly as they are until each consumer's own
 port. Repointing a `bnf/` module at its `ebnf/` counterpart is allowed by
 principle 2 and worth doing when it removes a second copy someone would
 otherwise maintain, and it is never a precondition for anything. So the only
-breaking change in this plan is stage 7, which declares
+breaking change to `fjs/bnf/` paths is stage 7, which declares
 `**BREAKING CHANGES:**` in its `Changelog:` section
-([changelog/RELEASE.md](../../changelog/RELEASE.md)).
+([changelog/RELEASE.md](../../changelog/RELEASE.md)). A consumer's port may
+change that consumer's own public API where it had exposed the backend it is
+leaving (the djs tokenizer does; stage 6 names the exports), and declares
+that in its own PR. Work outside `bnf/` that this plan pulls in declares its
+own too: replacing `fjs/types/range_set`'s representation
+([ebnf-range-set](../bnf/todo/ebnf-range-set.md)) is a breaking PR before
+stage 7 and says so in its own `Changelog:` section.
 
 #### Consumer port
 
 Outside `fjs/bnf` the front end has exactly five consumers, all under
 `fjs/djs`. Each port carries with it whatever BNF gained since `ebnf/` was
-started that the consumer relies on (principle 4). In dependency order:
+started that the consumer relies on (principle 4). The consumers are named
+by today's paths: [parser-serializer-restructure](../../todo/parser-serializer-restructure.md)
+renames the tokenizer and parser to `fjs/fsc/` as a rename with the BNF
+dependency intact, and if that lands first the port simply follows them
+there. Nothing here orders the two plans either way. In dependency order:
 
 1. `bnf/lib/json` and `bnf/lib/datajs` — atomically, since `testlib`'s
    `deterministic()` delegates to `lib/json`. The originals stay in `bnf/`.
@@ -282,7 +299,7 @@ rewritten against the surviving backend as they move.
 | issue | bin | destination |
 |---|---|---|
 | [ebnf-front-end](../bnf/todo/ebnf-front-end.md) | absorb | its design becomes `fjs/ebnf/README.md` as stage 1 ships; every problem still open then — 1, 3, 4, 5, 6, 7 and 8 at the time of writing — moves to `ebnf/todo/` as one issue each, or is answered in the README |
-| [terminal-range-shared-type](../bnf/todo/terminal-range-shared-type.md) | close | `ebnf/terminal/` declares the type once for `ebnf/`; `bnf/`'s two declarations stay, or alias it, at the discretion of whoever touches them, and go with `bnf/` |
+| terminal-range-shared-type | retired | deleted by the PR that filed [ebnf-range-set](../bnf/todo/ebnf-range-set.md), with its reason recorded here: it asked for one `TerminalRange` declaration shared by `bnf/` and `bnf/data`, owned by the codec's module; `ebnf/` has no `TerminalRange` and no codec — its terminal is a range set — so there is nothing to declare once, and `bnf/`'s two declarations stay and go with `bnf/` at stage 7 |
 | [unicode-rules](../bnf/todo/unicode-rules.md) | move | `ebnf/unicode/todo/` until stage 3 implements it |
 | [rule-visitor](../bnf/todo/rule-visitor.md), [665-bnf-data-fold-children](../bnf/todo/665-bnf-data-fold-children.md) | absorb | inputs to the `data/` rewrite (stage 2) |
 | [042-mixing-serializable-bnfs](../bnf/todo/042-mixing-serializable-bnfs.md) | move | `ebnf/data/todo/` |
@@ -315,8 +332,10 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    the file is deleted and every citation of its stages repointed here. Add
    one sentence to [fjs/AGENTS.md](../AGENTS.md) stating the direction
    (principle 2), which is all the enforcement this plan asks for.
-1. **`ebnf/terminal/` and the front end.** Copy the codec with its proof
-   cases into `ebnf/terminal/`; `bnf/` keeps its own, and its consumers are
+1. **`ebnf/terminal/` and the front end.** Write `ebnf/terminal/` over
+   `fjs/types/range_set` — the symbol domain, `eof`, the integer helpers and
+   `toRangeMap`, per [ebnf-range-set](../bnf/todo/ebnf-range-set.md) — with
+   its proof; there is no packed codec to copy, and `bnf/` keeps its own
    untouched. Land `ebnf/types.ts` and `ebnf/module.f.mjs` per
    ebnf-front-end. Its open problems are answered by
    whoever needs the answer, when they need it, in `ebnf/README.md` or in
@@ -327,12 +346,16 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    where the code that relies on it can point to it. `BoundedArray` is in
    `fjs/types/array` already.
 2. **`ebnf/data/`.** The IR with a bounded `Repeat`, `emptyTagMap`, and the
-   lowering from the EBNF front end. `bnf/data` may repoint its IR types and
+   lowering from the EBNF front end, which returns the identity-to-name map
+   AST mapping needs beside the rule set and entry. `bnf/data` may repoint its IR types and
    `emptyTagMap` here — that would be the first `bnf → ebnf` edge — and keeps
    `toData`, `detectRepeat` and `repeatItem` as its own either way.
 3. **`ebnf/matcher/` and `ebnf/unicode/`.** The matcher copied and retargeted
    to the EBNF `Rule`; the text adapter in EBNF forms, before anything that
-   imports it.
+   imports it. `ebnf/byte/`, the other half of unicode-rules, has the same
+   owner and lands whenever its first consumer wants it — the recognizer
+   backend, per that issue; nothing in this plan needs it earlier, and
+   nothing forbids it earlier.
 4. **`ebnf/token_symbol/`, `ebnf/ll1/` and `ebnf/map/`.** `token_symbol`
    copied, taking `unicodeRange` from `ebnf/unicode/`. `ll1` rewritten against
    the new IR: flat nodes for every bound, a conflict error that names the
@@ -340,18 +363,37 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    copied; the rtti map rewritten without `repeatItem`, with its co-located
    proof.
 5. **`ebnf/lib/` and the comparison proofs.** Port `json` and `datajs` in one
-   PR. Add the cross-front-end proof group: each `lib/` grammar in both
+   PR — the *port*, meaning the change that stops `bnf/lib/datajs` importing
+   `bnf/lib/json`. An ebnf spelling written beside the untouched classical
+   grammar carries none of that risk and may land alone
+   ([ebnf-front-end](../bnf/todo/ebnf-front-end.md)). Add the cross-front-end proof group: each `lib/` grammar in both
    spellings, same `RuleSet` where the constructors are shape-preserving, same
    AST otherwise, with the differences ebnf-front-end predicts pinned
-   explicitly (`option`, `repeat1Plus`, `commaJoin0Plus`).
+   explicitly (`option`, `repeatFrom(1)`, `join`).
 6. **Layered LL(1) and the djs port.** The token layer with maximal munch or
    the left-factoring helper; the two conflicts above resolved in the grammars;
    `djs/tokenizer` then `djs/parser` on `ebnf/ll1/`. The first grammar to leave
    `descent` is the first evidence the backend decision holds; if it does not,
    this stage is where the plan is revised, not forced.
+
+   The djs tokenizer's public exports that expose the descent backend —
+   `jsMatcher`, which builds a `descentParserRuleSet`, and
+   `descentParserCpOnly`, which returns a `DescentMatchResult` — are the
+   port's to replace with their LL(1) equivalents, under whatever names fit.
+   Their only importer is the tokenizer's own proof, updated in the same PR.
+   That is a change to `fjs/djs/tokenizer`'s own public API and the port
+   declares it as such; the "one breaking change" above is a statement about
+   `fjs/bnf/` paths, not about a consumer's surface where it had exposed the
+   backend it is leaving.
 7. **Delete `fjs/bnf/`.** With it: the retired issues, `descentEquivalence` in
    its two-backend form, and the classical half of the README split. Finish
-   the issue moves. One `**BREAKING CHANGES:**` declaration.
+   the issue moves, each taking its inbound links with it. Repoint every
+   other inbound reference from outside `fjs/bnf/` — Markdown links and
+   roadmap prose alike, `nanvm-lib/todo/mvp-roadmap.md` and
+   `spec/todo/3360-type-annotations.md` among a couple of dozen files today —
+   at `fjs/ebnf/` or at whatever replaced the target. Neither `tsc` nor the
+   suite reads Markdown, so the deletion PR finds them by search. One
+   `**BREAKING CHANGES:**` declaration.
 
 ### Tasks
 
@@ -360,19 +402,20 @@ consumer port"), never by number, so a renumbering here cannot strand them.
 - [ ] Stage 0: the direction sentence in `fjs/AGENTS.md`.
 - [ ] Stage 1: `ebnf/terminal/` with proof; `ebnf/types.ts` and
       `ebnf/module.f.mjs` with proof; ebnf-front-end's open problems
-      answered as they are needed, in `ebnf/README.md`; close
-      terminal-range-shared-type.
+      answered as they are needed, in `ebnf/README.md`.
 - [ ] Stage 2: `ebnf/data/` with bounded `Repeat` and proof; rule-visitor and
       665 absorbed or moved.
 - [ ] Stage 3: `ebnf/matcher/` and `ebnf/unicode/` with proofs; `showAst` in
-      `ebnf/`'s testlib; unicode-rules settled.
+      `ebnf/`'s testlib; unicode-rules' `unicode/` half settled, its `byte/`
+      half owed to the first consumer that wants it.
 - [ ] Stage 4: `ebnf/token_symbol/`, `ebnf/ll1/` and `ebnf/map/` with proofs;
       rename-check-map settled.
 - [ ] Stage 5: `ebnf/lib/json` and `ebnf/lib/datajs` with proofs; the
       cross-front-end comparison proof group; bnf-grammar-single-owner moved.
 - [ ] Stage 6: the token layer; the djs tokenizer and parser grammars made
       LL(1); both ported; the descent backend without consumers.
-- [ ] Stage 7: delete `fjs/bnf/`; move the remaining issues; split the README.
+- [ ] Stage 7: delete `fjs/bnf/`; move the remaining issues; split the README;
+      repoint every inbound link and reference from outside `fjs/bnf/`.
       `**BREAKING CHANGES:**`.
 - [ ] Stage 7: record the pattern above in `doc/DESIGN.md`, with this
       migration as the worked example and what it taught.

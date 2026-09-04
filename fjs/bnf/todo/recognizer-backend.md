@@ -159,19 +159,32 @@ when that issue lands rather than implementing both.
 
 #### Build from the data representation, not the functional one
 
-BNF has two representations and the automata builders consume the **second**:
+A grammar has two representations and the automata builders consume the
+**second**:
 
 ```
-functional grammar (fjs/bnf)  ──toData──▶  data RuleSet (fjs/bnf/data)  ──build──▶  automata
-   (composable authoring)                 (serializable IR)
+functional grammar (a front end)  ──lower──▶  data RuleSet (fjs/ebnf/data)  ──build──▶  automata
+     (composable authoring)                    (serializable IR)
 ```
+
+Which front end, and which lowering, is not the builders' business: the EBNF
+front end and its lowering once `fjs/ebnf/data/` exists, the classical
+`fjs/bnf` and `toData` for as long as `bnf/` lives and someone finds that
+convenient — its output is a valid rule set either way
+([ebnf-migration](../../todo/ebnf-migration.md)).
 
 The data IR is exactly the substrate for automaton construction:
-`Rule = Variant | Sequence | TerminalRange` — alternation, concatenation, and
-terminal ranges, with name references for recursion. `dispatchMap` / `parser`
+alternation, concatenation, terminal ranges and a bounded repetition, with
+name references for recursion — `Rule = Variant | Sequence | TerminalRange |
+Repeat` in today's terms, but the exact union is whatever `fjs/ebnf/data/`
+defines when these builders are written, and a builder compiles a bounded
+`Repeat` however its own design finds best (unrolled to a bound, a counter in
+the state, or something else): that is decided when the builder is designed,
+not here. `dispatchMap` / `parser`
 are already *one* family built from `RuleSet`; the recognizer and DFA backends
 are **new builders over the same `RuleSet`**, siblings of `dispatchMap` — not a
-separate front end. So: author `magic | utf8` functionally, `toData` it, compile.
+separate front end. So: author `magic | utf8` in a front end, lower it,
+compile; the builders never see which front end it came from.
 
 Module layout follows from this: the data module should hold only the
 serializable IR (`RuleSet` alone — under

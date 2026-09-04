@@ -151,5 +151,15 @@ export const proof = {
         rangeRejectsOneAstral: () => range(unicodeMax),
         // A reversed range is a mistake rather than an empty set.
         rangeEncodeRejectsReversed: () => rangeEncode(7, 0),
+        // An ordinary symbol is a non-negative safe integer, and so is the
+        // boundary above the range's top. Each of these would otherwise
+        // encode a range that is not the one asked for: `[-1, 2]` gets
+        // clipped to `[0, 2]` by the algebra's domain, a fractional endpoint
+        // sorts between two symbols that have nothing between them, and
+        // `MAX_SAFE_INTEGER + 1` is not distinct from `MAX_SAFE_INTEGER`.
+        rangeEncodeRejectsNegative: () => rangeEncode(-1, 1),
+        rangeEncodeRejectsFractional: () => rangeEncode(0, 1.5),
+        rangeEncodeRejectsUnsafeTop: () =>
+            rangeEncode(0, Number.MAX_SAFE_INTEGER),
     },
 }

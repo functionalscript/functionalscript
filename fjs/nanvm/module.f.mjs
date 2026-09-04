@@ -36,7 +36,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 23
+ * data.groups.length // 27
  * ```
  */
 
@@ -1265,6 +1265,218 @@ const bitwiseNotCases = [
     { name: 'bigNegativeOne', args: [-1n], expected: 0n },
 ]
 
+/**
+ * `<<` coerces both operands with `ToNumeric` like `&`/`|`/`^`. For two
+ * `Number`s, the left side is `ToInt32`'d and the right side `ToUint32`'d
+ * then masked to `& 0x1F` (so the shift count wraps modulo 32 and a
+ * negative or huge right operand is never a Rust-panicking shift amount)
+ * before the native shift, so the result can wrap in *two* independent
+ * ways — the value through `ToInt32`, the count through the mask. Two
+ * `BigInt`s use the operator's exact infinite-precision meaning: `x * 2^y`
+ * for a non-negative `y`, or a right shift by `-y` when `y` is negative —
+ * and, since a `BigInt` shift is not bounded to 32 bits, an excessive
+ * shift count throws a `RangeError` (`nanvm-lib`'s own word-count limit)
+ * rather than silently wrapping. Mixed number/bigint operands throw too,
+ * the same as every other arithmetic operator above. Not `commutative`:
+ * unlike `&`/`|`/`^`, swapping a shift's operands is not the same
+ * operation.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const shiftLeftCases = [
+    { name: 'nullShlThree', args: [null, 3], expected: 0 },
+    { name: 'undefinedShlThree', args: [undefined, 3], expected: 0 },
+    { name: 'trueShlThree', args: [true, 3], expected: 8 },
+    { name: 'falseShlThree', args: [false, 3], expected: 0 },
+    { name: 'stringTenShlThree', args: ['10', 3], expected: 80 },
+    { name: 'stringLetterShlThree', args: ['a', 3], expected: 0 },
+    { name: 'emptyArrayShlThree', args: [[], 3], expected: 0 },
+    { name: 'arrayTenShlThree', args: [[10], 3], expected: 80 },
+    { name: 'arrayStringTenShlThree', args: [['10'], 3], expected: 80 },
+    { name: 'arrayPairShlThree', args: [[0, 0], 3], expected: 0 },
+    { name: 'emptyObjectShlThree', args: [{}, 3], expected: 0 },
+    // The one binary case that escapes: `functionValue` has no expression,
+    // so both consumers take the direct path with two operands rather than
+    // one.
+    { name: 'functionShlThree', args: [functionValue, 3], expected: 0 },
+    { name: 'truncatesTowardZero', args: [3.9, 3], expected: 24 },
+    { name: 'negativeTruncatesTowardZero', args: [-3.9, 3], expected: -24 },
+    { name: 'nanShlThree', args: [NaN, 3], expected: 0 },
+    { name: 'infinityShlThree', args: [Infinity, 3], expected: 0 },
+    { name: 'negativeInfinityShlThree', args: [-Infinity, 3], expected: 0 },
+    { name: 'shiftCountWrapsAt32', args: [1, 33], expected: 2 },
+    // The shift count is `ToUint32`'d then masked, so a negative right
+    // operand becomes a large one first: `ToUint32(-1) & 0x1F` is `31`.
+    { name: 'shiftCountNegative', args: [1, -1], expected: -2147483648 },
+    { name: 'valueWrapsAt32Bits', args: [2 ** 32 + 5, 1], expected: 10 },
+    { name: 'resultOverflowsIntoSignBit', args: [0x40000000, 1], expected: -2147483648 },
+    { name: 'bigFiveShlThree', args: [5n, 3n], expected: 40n },
+    { name: 'bigNegativeFiveShlThree', args: [-5n, 3n], expected: -40n },
+    { name: 'bigFiveShlZero', args: [5n, 0n], expected: 5n },
+    { name: 'bigZeroShlHuge', args: [0n, 100n], expected: 0n },
+    // A negative shift count is a right shift by its magnitude.
+    { name: 'bigFiveShlNegativeThree', args: [5n, -3n], expected: 0n },
+    { name: 'bigNegativeFiveShlNegativeThree', args: [-5n, -3n], expected: -1n },
+    { name: 'bigShiftTooLarge', args: [1n, 100000000000000000n], expected: throws },
+    { name: 'numberShlBigint', args: [1, 1n], expected: throws },
+    { name: 'bigintShlNumber', args: [1n, 1], expected: throws },
+]
+
+/**
+ * `>>` shares `<<`'s coercion (`ToNumeric`, then `ToInt32`/`ToUint32`-and-
+ * mask for two `Number`s), but shifts arithmetically — sign-extending, so a
+ * negative `Number` stays negative. Two `BigInt`s use
+ * `BigInt::signedRightShift`: floor division by `2^y` for a non-negative
+ * `y` (which rounds toward `-infinity`, not toward zero, so a nonzero bit
+ * shifted off a negative value rounds the result *away* from zero — `-1n`
+ * stays `-1n` no matter how far right it shifts), or a left shift by `-y`
+ * when `y` is negative, throwing the same `RangeError` `<<` does if that
+ * left shift needs too many words. Mixed number/bigint operands throw too.
+ * Not `commutative`, the same as `<<`.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const signedRightShiftCases = [
+    { name: 'nullShrThree', args: [null, 3], expected: 0 },
+    { name: 'undefinedShrThree', args: [undefined, 3], expected: 0 },
+    { name: 'trueShrThree', args: [true, 3], expected: 0 },
+    { name: 'falseShrThree', args: [false, 3], expected: 0 },
+    { name: 'stringTenShrThree', args: ['10', 3], expected: 1 },
+    { name: 'stringLetterShrThree', args: ['a', 3], expected: 0 },
+    { name: 'emptyArrayShrThree', args: [[], 3], expected: 0 },
+    { name: 'arrayTenShrThree', args: [[10], 3], expected: 1 },
+    { name: 'arrayStringTenShrThree', args: [['10'], 3], expected: 1 },
+    { name: 'arrayPairShrThree', args: [[0, 0], 3], expected: 0 },
+    { name: 'emptyObjectShrThree', args: [{}, 3], expected: 0 },
+    // The one binary case that escapes: `functionValue` has no expression,
+    // so both consumers take the direct path with two operands rather than
+    // one.
+    { name: 'functionShrThree', args: [functionValue, 3], expected: 0 },
+    { name: 'truncatesTowardZero', args: [3.9, 3], expected: 0 },
+    // Arithmetic shift sign-extends: floor(-3 / 8) is -1, not 0.
+    { name: 'negativeTruncatesTowardZero', args: [-3.9, 3], expected: -1 },
+    { name: 'nanShrThree', args: [NaN, 3], expected: 0 },
+    { name: 'infinityShrThree', args: [Infinity, 3], expected: 0 },
+    { name: 'negativeInfinityShrThree', args: [-Infinity, 3], expected: 0 },
+    { name: 'shiftCountWrapsAt32', args: [16, 34], expected: 4 },
+    { name: 'shiftCountNegative', args: [-16, -1], expected: -1 },
+    { name: 'valueWrapsAt32Bits', args: [2 ** 32 + 5, 1], expected: 2 },
+    // `ToInt32(2^31)` is `i32::MIN`; arithmetic-shifting that right sign-
+    // extends rather than producing a small negative number.
+    { name: 'wrapsAt32BitsThenNegative', args: [2 ** 31, 1], expected: -1073741824 },
+    { name: 'bigFortyShrThree', args: [40n, 3n], expected: 5n },
+    { name: 'bigNegativeFortyShrThree', args: [-40n, 3n], expected: -5n },
+    { name: 'bigFiveShrThree', args: [5n, 3n], expected: 0n },
+    // Floor rounds away from zero: floor(-5 / 8) is -1, not 0.
+    { name: 'bigNegativeFiveShrThree', args: [-5n, 3n], expected: -1n },
+    { name: 'bigFiveShrZero', args: [5n, 0n], expected: 5n },
+    // A negative shift count is a left shift by its magnitude.
+    { name: 'bigFiveShrNegativeThree', args: [5n, -3n], expected: 40n },
+    { name: 'bigNegativeFiveShrNegativeThree', args: [-5n, -3n], expected: -40n },
+    { name: 'bigShiftTooLarge', args: [1n, -100000000000000000n], expected: throws },
+    { name: 'numberShrBigint', args: [1, 1n], expected: throws },
+    { name: 'bigintShrNumber', args: [1n, 1], expected: throws },
+]
+
+/**
+ * `>>>` is the one shift — and the one binary operator anywhere in this
+ * corpus — that rejects `BigInt` outright: it `ToUint32`s *both* operands
+ * (unlike `<<`/`>>`, which `ToInt32` the left one), so there is no sign to
+ * preserve and nothing for an arbitrary-precision integer to be shifted
+ * within. A `BigInt` on either side throws — the mixed-type check runs
+ * before the `BigInt`-specific one, so `1 >>> 1n` and `1n >>> 1` throw the
+ * generic mixing error, while `1n >>> 1n` reaches the shift-specific one —
+ * but every combination throws regardless of which message fires. Not
+ * `commutative`, the same as `<<`/`>>`.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const unsignedRightShiftCases = [
+    { name: 'nullUshrThree', args: [null, 3], expected: 0 },
+    { name: 'undefinedUshrThree', args: [undefined, 3], expected: 0 },
+    { name: 'trueUshrThree', args: [true, 3], expected: 0 },
+    { name: 'falseUshrThree', args: [false, 3], expected: 0 },
+    { name: 'stringTenUshrThree', args: ['10', 3], expected: 1 },
+    { name: 'stringLetterUshrThree', args: ['a', 3], expected: 0 },
+    { name: 'emptyArrayUshrThree', args: [[], 3], expected: 0 },
+    { name: 'arrayTenUshrThree', args: [[10], 3], expected: 1 },
+    { name: 'arrayStringTenUshrThree', args: [['10'], 3], expected: 1 },
+    { name: 'arrayPairUshrThree', args: [[0, 0], 3], expected: 0 },
+    { name: 'emptyObjectUshrThree', args: [{}, 3], expected: 0 },
+    // The one binary case that escapes: `functionValue` has no expression,
+    // so both consumers take the direct path with two operands rather than
+    // one.
+    { name: 'functionUshrThree', args: [functionValue, 3], expected: 0 },
+    { name: 'truncatesTowardZero', args: [3.9, 3], expected: 0 },
+    // `ToUint32` never reinterprets a sign bit, unlike `ToInt32`: a negative
+    // value becomes a large positive one first, so this differs sharply
+    // from `>>`'s sign-extending `negativeTruncatesTowardZero` case.
+    { name: 'negativeTruncatesTowardZero', args: [-3.9, 3], expected: 536870911 },
+    { name: 'nanUshrThree', args: [NaN, 3], expected: 0 },
+    { name: 'infinityUshrThree', args: [Infinity, 3], expected: 0 },
+    { name: 'negativeInfinityUshrThree', args: [-Infinity, 3], expected: 0 },
+    { name: 'shiftCountWrapsAt32', args: [16, 34], expected: 4 },
+    { name: 'shiftCountNegative', args: [16, -1], expected: 0 },
+    { name: 'valueWrapsAt32Bits', args: [2 ** 32 + 5, 1], expected: 2 },
+    // The idiomatic `x >>> 0` use: turns a negative `Number` into its
+    // unsigned 32-bit reading, with no shifting at all.
+    { name: 'negativeBecomesLargePositive', args: [-1, 0], expected: 4294967295 },
+    { name: 'bigintUnsignedRightShift', args: [5n, 1n], expected: throws },
+    { name: 'numberUshrBigint', args: [1, 1n], expected: throws },
+    { name: 'bigintUshrNumber', args: [1n, 1], expected: throws },
+]
+
+/**
+ * `own` — exactly `Object.getOwnPropertyDescriptor(object, key)?.value`:
+ * no getter invocation, and no prototype chain to walk, since `nanvm-lib`
+ * objects have none — `{}` "inheriting" `toString`/`constructor` in real
+ * JS is exactly the prototype-chain reach `own` exists to bypass, so those
+ * names are absent from an object that never set them itself, the same as
+ * any other missing key. The key operand must *evaluate* to a string: `own`
+ * refuses a non-`String` key rather than `ToPropertyKey`-coercing it the
+ * way every other operator here coerces its operands. A non-object,
+ * non-nullish receiver (`Number`, `String`, `Boolean`, `BigInt`, `Array`,
+ * a function) is never an own-property owner and always answers
+ * `undefined`, never throwing; a nullish one throws instead, matching
+ * `ToObject`'s own rejection of `null`/`undefined`. Not `commutative`: the
+ * receiver and the key are not interchangeable.
+ *
+ * @type {readonly Case<2>[]}
+ */
+const ownCases = [
+    { name: 'presentProperty', args: [{ a: 7 }, 'a'], expected: 7 },
+    { name: 'missingProperty', args: [{ a: 7 }, 'b'], expected: undefined },
+    { name: 'emptyObject', args: [{}, 'a'], expected: undefined },
+    // `own` bypasses the prototype chain entirely — the whole reason it
+    // exists apart from plain property access — so a name every object
+    // "inherits" in real JS is still absent unless the object carries it
+    // as an own property.
+    { name: 'inheritedNameIsAbsent', args: [{}, 'toString'], expected: undefined },
+    { name: 'valuePreservesBooleanType', args: [{ a: true }, 'a'], expected: true },
+    { name: 'valuePreservesBigintType', args: [{ a: 5n }, 'a'], expected: 5n },
+    { name: 'valuePreservesStringType', args: [{ a: 'x' }, 'a'], expected: 'x' },
+    { name: 'valuePreservesNullType', args: [{ a: null }, 'a'], expected: null },
+    { name: 'multiplePropertiesDistinguished', args: [{ a: 1, b: 2 }, 'b'], expected: 2 },
+    { name: 'numericStringKey', args: [{ 1: 42 }, '1'], expected: 42 },
+    { name: 'nonObjectNumberReceiver', args: [5, 'a'], expected: undefined },
+    // `'length'` would be the wrong probe here: real JS strings and arrays
+    // carry real own properties for `.length` (and, for arrays, numeric
+    // indices), so `Object.getOwnPropertyDescriptor` answers those with a
+    // real descriptor instead of `undefined` — a key genuinely absent from
+    // both is what actually exercises "never an own-property owner".
+    { name: 'nonObjectStringReceiver', args: ['hi', 'a'], expected: undefined },
+    { name: 'nonObjectBooleanReceiver', args: [true, 'a'], expected: undefined },
+    { name: 'nonObjectBigintReceiver', args: [5n, 'a'], expected: undefined },
+    { name: 'nonObjectArrayReceiver', args: [[1, 2], 'a'], expected: undefined },
+    // The one binary case that escapes: `functionValue` has no expression,
+    // so both consumers take the direct path with two operands rather than
+    // one.
+    { name: 'nonObjectFunctionReceiver', args: [functionValue, 'a'], expected: undefined },
+    { name: 'nullReceiverThrows', args: [null, 'a'], expected: throws },
+    { name: 'undefinedReceiverThrows', args: [undefined, 'a'], expected: throws },
+    { name: 'nonStringKeyThrows', args: [{ 1: 42 }, 1], expected: throws },
+]
+
 /** @type {Data} */
 export const data = {
     eq: {
@@ -1339,6 +1551,9 @@ export const data = {
         { op: '&', commutative: true, cases: bitAndCases },
         { op: '|', commutative: true, cases: bitOrCases },
         { op: '^', commutative: true, cases: bitXorCases },
+        { op: '<<', cases: shiftLeftCases },
+        { op: '>>', cases: signedRightShiftCases },
+        { op: '>>>', cases: unsignedRightShiftCases },
         { op: '<', cases: lessThanCases },
         { op: '<=', cases: lessOrEqualCases },
         { op: '>', cases: greaterThanCases },
@@ -1350,5 +1565,6 @@ export const data = {
         { nanvmOp: 'ternary', cases: ternaryCases },
         { nanvmOp: 'typeof', cases: typeofCases },
         { op: 'String', cases: stringCoercionCases },
+        { op: 'own', cases: ownCases },
     ],
 }

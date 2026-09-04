@@ -45,9 +45,9 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | `&`      | AND                 | [x]      | [`any/bitand.rs`](src/vm/any/bitand.rs) — `BitAnd for Any<A>`; `Number`: `ToInt32` each side, then native `&`; `BigInt`: [`bigint/bitand.rs`](src/vm/bigint/bitand.rs) — infinite-precision two's-complement `AND` over words (see [`bigint/mod.rs`](src/vm/bigint/mod.rs)'s `bitwise_op`); rejects mixed `number`/`bigint` |
 | `\|`     | OR                  | [x]      | [`any/bitor.rs`](src/vm/any/bitor.rs) — `BitOr for Any<A>`; same coercion as `&`; `BigInt`: [`bigint/bitor.rs`](src/vm/bigint/bitor.rs) |
 | `^`      | XOR                 | [x]      | [`any/bitxor.rs`](src/vm/any/bitxor.rs) — `BitXor for Any<A>`; same coercion as `&`; `BigInt`: [`bigint/bitxor.rs`](src/vm/bigint/bitxor.rs) |
-| `<<`     | Left shift          | [ ]      | `Shl for BigInt` exists; no `Any`-level impl |
-| `>>`     | Signed right shift  | [ ]      | `Shr for BigInt` exists; no `Any`-level impl |
-| `>>>`    | Unsigned right shift| [ ]      | |
+| `<<`     | Left shift          | [x]      | `Shl for Any<A>`; `Number`: `ToInt32` the left side, `ToUint32(rhs) & 0x1F` the shift count, then native `<<`; `BigInt`: [`bigint/shl.rs`](src/vm/bigint/shl.rs) — `x * 2^y` exactly (arbitrary precision, no 32-bit wrap), delegating to `>>` for a negative `y`; throws a `RangeError` if the result would exceed `fjs/types/bigint/module.f.mjs`'s `maxLength` (the smallest `BigInt` size limit across the engines FunctionalScript targets); the result's own buffer is reserved fallibly rather than through ordinary (abort-on-failure) `Vec` growth, though the container construction it's then handed to is not yet — see that file's own TODO |
+| `>>`     | Signed right shift  | [x]      | `Shr for Any<A>`; same `Number` coercion as `<<`, arithmetic (sign-extending) shift; `BigInt`: [`bigint/shr.rs`](src/vm/bigint/shr.rs) — floor division by `2^y` (not truncation: a negative `BigInt` rounds *away* from zero when a set bit is shifted out, so `-1n >> 1_000_000n` stays `-1n`), delegating to `<<` for a negative `y` |
+| `>>>`    | Unsigned right shift| [x]      | `Any::unsigned_right_shift()` method (no Rust operator for it — `>>` on a signed type is arithmetic, and there's no unsigned counterpart); `Number`: `ToUint32` *both* sides (never `ToInt32` — the one shift where the left operand's sign bit is never preserved); `BigInt`: always throws, since arbitrary-precision integers have no fixed width to be "unsigned" relative to |
 
 ### Logical
 
@@ -62,7 +62,8 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | Operator   | Description         | `Any<A>` | Notes |
 |------------|---------------------|----------|-------|
 | `?:`       | Conditional         | [x]      | [`any/conditional.rs`](src/vm/any/conditional.rs) — `Any::conditional()` method; the corpus's one ternary group (`fjs/nanvm/types.ts`'s `NonEdagGroup`, since the EDAG has no conditional-expression node) |
-| `.` / `[]` | Member access       | [ ]      | |
+| `own`      | Own-property lookup | [x]      | [`any/mod.rs`](src/vm/any/mod.rs) / [`object/own_property.rs`](src/vm/object/own_property.rs) — `Any::own_property()` method, exactly `Object.getOwnPropertyDescriptor(object, key)?.value`: no getter invocation, no prototype chain (`nanvm-lib` objects have none), last-duplicate-wins flat key lookup on `Object<A>`; the key must already be a `String<A>` (`Result::Err`, not a coercion); a non-object, non-nullish receiver (`Number`, `String`, `Boolean`, `BigInt`, `Array`, a function) always answers `undefined`; a nullish one throws |
+| `.` / `[]` | Member access       | [ ]      | not yet: full property access still needs prototype-chain walking, getters, and `Array<A>` indexing beyond what `own` covers |
 | `in`       | Property check      | [ ]      | |
 | `instanceof` | Instance check    | [ ]      | |
 
@@ -75,4 +76,5 @@ Operators on [`Any<A>`](src/vm/any/mod.rs) (the top-level VM value type).
 | To boolean     | [x]    | [`boolean_coercion.rs`](src/vm/boolean_coercion.rs) — never throws, unlike the others |
 | To primitive   | [x]    | [`primitive_coercion.rs`](src/vm/primitive_coercion.rs) |
 | To numeric     | [x]    | `Any::to_numeric()` |
-| To int32       | [x]    | [`int32_coercion.rs`](src/vm/int32_coercion.rs) — `ToInt32`, operating on the already-coerced `f64` a `Number::` bitwise op needs (`ToUint32` not yet needed — only `>>>` uses it) |
+| To int32       | [x]    | [`int32_coercion.rs`](src/vm/int32_coercion.rs) — `ToInt32`, operating on the already-coerced `f64` a `Number::` bitwise/shift op needs |
+| To uint32      | [x]    | [`int32_coercion.rs`](src/vm/int32_coercion.rs) — `ToUint32`, shares its `modulo 2^32` step with `ToInt32`; used for `<<`/`>>`'s shift-count operand and both of `>>>`'s operands |
