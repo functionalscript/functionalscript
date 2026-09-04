@@ -69,7 +69,9 @@ export const union = (...a) => infoUnionX(a)
  *  SetInfo}
  */
 export const remove = (a, b) => {
-    const r = /**@type {const}*/(['set', ...intersection(getSet(a))(complement(getSet(b)))])
+    const r = /**@type {const}*/([
+        'set',
+        ...intersection(getSet(a))(complement(getSet(b)))])
     return () => r
 }
 /**
