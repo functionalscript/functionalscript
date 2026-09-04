@@ -9,10 +9,11 @@
  * @module
  *
  * @import { List as ChunkList } from '../../types/list/types.ts'
+ * @import { Range } from '../../types/range/types.ts'
+ * @import { RangeSet } from '../../types/range_set/types.ts'
  * @import { Expression, _AttributePath, _Binding, _Reference, _AttributeSet, _NixList, _Application, _OpenSetPattern, _Lambda, _Let, _Chunks } from './types.ts'
  */
 
-import { toArray } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { includes } from '../../types/array/module.f.mjs'
 import {
@@ -21,7 +22,7 @@ import {
     latinSmallLetterRange,
     range,
 } from '../../text/ascii/module.f.mjs'
-import { fromRange, get, merge } from '../../types/range_set/module.f.mjs'
+import { contains, fromRange, union } from '../../types/range_set/module.f.mjs'
 
 const reservedWords = /** @type {const} */ ([
     'assert',
@@ -38,33 +39,41 @@ const reservedWords = /** @type {const} */ ([
 
 const isReservedWord = includes(reservedWords)
 
-const letters = merge
-    (fromRange(latinCapitalLetterRange))
-    (fromRange(latinSmallLetterRange))
+/**
+ * The set of an inclusive ASCII range: `text/ascii` spells its ranges by their
+ * last character, and a range set's upper boundary is exclusive.
+ *
+ * @type {(r: Range) => RangeSet}
+ */
+const asciiSet = ([a, b]) => fromRange([a, b + 1])
 
-const identifierInitial = toArray(merge
+const letters = union
+    (asciiSet(latinCapitalLetterRange))
+    (asciiSet(latinSmallLetterRange))
+
+const identifierInitial = union
     (letters)
-    (fromRange(range('_'))))
+    (asciiSet(range('_')))
 
-const getIdentifierInitial = get(identifierInitial)
+const containsIdentifierInitial = contains(identifierInitial)
 
 /** @type {(character: string) => boolean} */
 const isIdentifierInitial = character =>
-    getIdentifierInitial(character.charCodeAt(0))
+    containsIdentifierInitial(character.charCodeAt(0))
 
-const identifierTrailing = toArray(merge
-    (merge
+const identifierTrailing = union
+    (union
         (identifierInitial)
-        (fromRange(digitRange)))
-    (merge
-        (fromRange(range("'")))
-        (fromRange(range('-')))))
+        (asciiSet(digitRange)))
+    (union
+        (asciiSet(range("'")))
+        (asciiSet(range('-'))))
 
-const getIdentifierTrailing = get(identifierTrailing)
+const containsIdentifierTrailing = contains(identifierTrailing)
 
 /** @type {(character: string) => boolean} */
 const isIdentifierTrailing = character =>
-    getIdentifierTrailing(character.charCodeAt(0))
+    containsIdentifierTrailing(character.charCodeAt(0))
 
 /** @type {(value: string) => boolean} */
 const isIdentifier = value => {
