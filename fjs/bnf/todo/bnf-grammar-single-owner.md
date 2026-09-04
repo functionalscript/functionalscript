@@ -68,9 +68,11 @@ its adapter, the boundary it must leave visible is:
 - generic grammar structure and combinators come from the front end —
   `fjs/bnf/module.f.mjs` for the classical grammars, `fjs/ebnf/module.f.mjs`
   once [ebnf-migration](../../todo/ebnf-migration.md) ports them;
-- all JavaScript-string / Unicode-code-point interpretation comes from
-  `fjs/ebnf/unicode/module.f.mjs`, which that plan creates at that path
-  directly;
+- JavaScript-string / Unicode-code-point interpretation beyond what the rule
+  union already implies comes from `fjs/ebnf/unicode/module.f.mjs`, which that
+  plan creates at that path directly. `range`, `set` and `unicodeMax` are not
+  in it: a `string` in the union *is* a Unicode sequence, so the front end
+  carries them ([unicode-rules](./unicode-rules.md), **Amended**);
 - raw strings are not generic BNF rules. Text literals such as `"`, `\`, `/`,
   punctuation, keywords, and character sets are lowered through Unicode helpers
   before they enter the generic grammar.
@@ -90,19 +92,28 @@ does not need one. The classical library never moves: under
 
 ```ts
 import {
-    commaJoin0Plus, option, remove, repeat0Plus,
+    join, option, range, remove, repeatFrom0, set, times, unicodeMax,
 } from '../../module.f.mjs'                        // fjs/ebnf
-import {
-    range, set, str, unicodeMax,
-} from '../../unicode/module.f.mjs'                // fjs/ebnf/unicode
-import { repeat } from '../../../types/array/module.f.mjs'
+import { str } from '../../unicode/module.f.mjs'   // fjs/ebnf/unicode
 ```
 
-`repeat` is in that third line rather than the first because the port does not
-touch it: [#1817](https://github.com/functionalscript/functionalscript/pull/1817)
-already moved it out of `fjs/bnf` to `types/array` as a breaking change, so it
-is an array helper today and stays one afterwards. Only `str` is a name the
-adapter introduces.
+That is what `fjs/ebnf/lib/json/module.f.mjs` actually imports, less `str`,
+which has no consumer yet. Two predictions this block used to make did not
+hold: the repetition constructors are `repeatFrom0` and `join` rather than
+`repeat0Plus` and `commaJoin0Plus`, and `range`, `set` and `unicodeMax` come
+from the front end rather than the adapter — see **Amended** in
+[ebnf-front-end](./ebnf-front-end.md) and [unicode-rules](./unicode-rules.md)
+for both.
+
+A third prediction went further than it needed to. The block used to import
+`repeat` from `fjs/types/array` alongside the grammar constructors, on the
+reasoning that the port does not touch it:
+[#1817](https://github.com/functionalscript/functionalscript/pull/1817)
+already moved it out of `fjs/bnf` as a breaking change, so it is an array
+helper today and stays one. That still holds of the helper — the port simply
+has no call for it, because the front end's own `times(4)(hex)` spells what
+the classical grammar spelled with it. Only `str` is a name the adapter
+introduces.
 
 The other helper names should follow the API the EBNF adapter produces. The
 important constraint is the boundary: generic BNF does not regain string
@@ -189,9 +200,13 @@ these are the properties that change must keep. They are recorded
 here because this issue owns these grammars, and whoever does that port should
 read them first:
 
-- [ ] Replace every core import of `range`, `set`, `unicodeMax`, `str`, or
-      equivalent Unicode/text helpers in `fjs/bnf/lib/json` and
-      `fjs/bnf/lib/datajs` with imports from `fjs/ebnf/unicode/module.f.mjs`.
+- [ ] Replace every core import of Unicode/text helpers in
+      `fjs/bnf/lib/json` and `fjs/bnf/lib/datajs`. `range`, `set` and
+      `unicodeMax` come from `fjs/ebnf/module.f.mjs`, not the adapter — the
+      front end's rule union already reads a `string` as a Unicode sequence
+      ([unicode-rules](./unicode-rules.md), **Amended**). `str` and the rest
+      of what the union does not imply come from
+      `fjs/ebnf/unicode/module.f.mjs`.
 - [ ] Replace every raw string used as a generic BNF `Rule` with the appropriate
       Unicode helper construction. For `fjs/bnf/lib/datajs`'s `'["__proto__"]'`
       that means exactly the contiguous sequence `str` lowers it to: `str`

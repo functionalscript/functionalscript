@@ -189,8 +189,10 @@ records why.
 ```text
 fjs/ebnf/
   module.f.mjs, types.ts   the front end: Rule union with a repetition primitive
+                           (and the string-taking terminal helpers: a string
+                           is a Unicode sequence — unicode-rules, Amended)
   terminal/                the symbol domain, EOF, integer helpers over range_set (rewrite)
-  unicode/                 text adapter: str, set, range, not, …     (rewrite)
+  unicode/                 text adapter: str, not, unicodeRange, …   (rewrite)
   byte/                    binary alphabet adapter, when a consumer needs it (rewrite)
   data/                    RuleSet IR with bounded Repeat, emptyTagMap (rewrite)
   matcher/                 cursor, EOF, AST, transformer tools       (move)
@@ -203,9 +205,11 @@ fjs/ebnf/
 
 The front end itself is the design in
 [ebnf-front-end](../bnf/todo/ebnf-front-end.md): the `Rule` union following
-RTTI, `repeat(min, max)` with `option` / `repeat0Plus` / `repeat1Plus` / `times`
-as partial applications, the AST as a function of the form, `BoundedArray` from
-`fjs/types/array`. Its Problems 1, 3, 6, 7 and 8 are about the IR and the AST
+RTTI, `repeat(min, max)` with `option` / `repeatFrom` / `repeatFrom0` /
+`times` as partial applications — the names that shipped, not the
+`repeat*Plus` pair the issue proposed
+([ebnf-front-end](../bnf/todo/ebnf-front-end.md), **Amended**) — the AST as a
+function of the form, `BoundedArray` from `fjs/types/array`. Its Problems 1, 3, 6, 7 and 8 are about the IR and the AST
 and still need answers here. Problems 2 and 9 exist only because of shared
 machinery and do not.
 
@@ -214,8 +218,9 @@ machinery and do not.
 | `bnf/` today | bin | in `ebnf/` |
 |---|---|---|
 | `module.f.mjs` — constructors, `Rule` union | rewrite | `module.f.mjs`, `types.ts`, per ebnf-front-end |
-| `module.f.mjs` — `rangeEncode`, `rangeDecode`, `oneEncode`, `eof`, `fullRange` | rewrite | `terminal/` over `fjs/types/range_set` values — the domain, `eof`, `range`, `one`, `toRangeMap` ([ebnf-range-set](../bnf/todo/ebnf-range-set.md)); there is no packed codec in `ebnf/`, so `bnf` keeps its own and has nothing to repoint to |
-| `module.f.mjs` — `str`, `set`, `range`, `not`, `notSet`, `remove`, `unicodeRange`, `unicodeMax` | rewrite | `unicode/`, EBNF forms only ([unicode-rules](../bnf/todo/unicode-rules.md)) |
+| `module.f.mjs` — `rangeEncode`, `rangeDecode`, `oneEncode`, `eof`, `fullRange` | rewrite | `terminal/` over `fjs/types/range_set` values — the domain, `eof`, `one`, `toRangeMap` ([ebnf-range-set](../bnf/todo/ebnf-range-set.md)); there is no packed codec in `ebnf/`, so `bnf` keeps its own and has nothing to repoint to. `rangeEncode` shipped in `module.f.mjs` ahead of `terminal/` existing |
+| `module.f.mjs` — `set`, `range`, `remove`, `unicodeMax` | rewrite | `module.f.mjs`: the front end's rule union already reads a `string` as a Unicode sequence ([unicode-rules](../bnf/todo/unicode-rules.md), **Amended**) |
+| `module.f.mjs` — `str`, `not`, `notSet`, `unicodeRange` | rewrite | `unicode/`, EBNF forms only — what the rule union does not already imply ([unicode-rules](../bnf/todo/unicode-rules.md)) |
 | `data/` — `RuleSet`, `emptyTagMap`, `isRepeat` | rewrite | `data/` with a bounded `Repeat` carrying `min`/`max`; keeps a spelling for `0..Infinity` so `bnf`'s `toData` output stays a valid rule set, and `bnf/data` may repoint its IR types and `emptyTagMap` to it |
 | `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem` | retire | the front-end lowering in `ebnf/` needs no recognition, and a hand-written or deserialized EBNF set spells the primitive; an opt-in normalizer of the right-recursive shape may be added to `ebnf/data/` by whoever wants one, but nothing plans it |
 | `data/` — `GrammarData`, `RuleNameMap` | rewrite | the classical ones retire; the EBNF lowering returns its own map from EBNF rule identity to generated name beside the rule set and entry — the bridge the transformer protocol keys on through `Entry.rule`, and the "rule identity must survive" requirement in [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — in whatever shape the `data/` rewrite chooses |
@@ -225,7 +230,7 @@ machinery and do not.
 | `token_symbol/` | move | the layer boundary; imports `unicode/`, so it lands after it |
 | `map/types.ts` | move | |
 | `map/rtti/` | rewrite | tests the shape directly, no `repeatItem`; absorbs [rename-check-map](../bnf/map/rtti/todo/rename-check-map.md) |
-| `lib/json`, `lib/datajs` | port | one PR for both; `commaJoin0Plus` changes the AST of both bracket pairs |
+| `lib/json`, `lib/datajs` | port | one PR for both; `join` (was `commaJoin0Plus`) changes the AST of both bracket pairs |
 | `testlib.f.mjs` — `showAst` and the root `private.ts` typing it | move | backend-neutral; needed by `ll1`'s proofs |
 | `testlib.f.mjs` — `classic`, `deterministic` | retire | `ebnf/lib` is its own fixture |
 | `README.md` | split | the AST contract, "Terminals and EOF", "Dispatch" go to `ebnf/` and its owners; the functional representation stays and dies with `bnf/` |
@@ -358,10 +363,13 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    copied; the rtti map rewritten without `repeatItem`, with its co-located
    proof.
 5. **`ebnf/lib/` and the comparison proofs.** Port `json` and `datajs` in one
-   PR. Add the cross-front-end proof group: each `lib/` grammar in both
+   PR — the *port*, meaning the change that stops `bnf/lib/datajs` importing
+   `bnf/lib/json`. An ebnf spelling written beside the untouched classical
+   grammar carries none of that risk and may land alone
+   ([ebnf-front-end](../bnf/todo/ebnf-front-end.md)). Add the cross-front-end proof group: each `lib/` grammar in both
    spellings, same `RuleSet` where the constructors are shape-preserving, same
    AST otherwise, with the differences ebnf-front-end predicts pinned
-   explicitly (`option`, `repeat1Plus`, `commaJoin0Plus`).
+   explicitly (`option`, `repeatFrom(1)`, `join`).
 6. **Layered LL(1) and the djs port.** The token layer with maximal munch or
    the left-factoring helper; the two conflicts above resolved in the grammars;
    `djs/tokenizer` then `djs/parser` on `ebnf/ll1/`. The first grammar to leave
