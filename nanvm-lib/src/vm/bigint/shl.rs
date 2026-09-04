@@ -413,6 +413,24 @@ mod tests {
     }
 
     #[test]
+    fn shl_at_max_words_boundary_succeeds() {
+        // One bit under the just-over-the-limit case above: shifting by
+        // `MAX_WORDS * 64 - 1` bits needs exactly `MAX_WORDS` words
+        // (word_shift = MAX_WORDS - 1, bit_shift = 63, no carry since the
+        // shifted bit lands on the top word's own MSB rather than past it)
+        // and must succeed — the doc comment on `MAX_WORDS`'s own use above
+        // asserts this ("must succeed"), but nothing tested it: the only
+        // existing boundary test exercises the throwing side, one word past
+        // this one. Tightening the guard to reject this shift too would
+        // leave that test green.
+        let a: T = 1u64.into();
+        let b: T = (super::MAX_WORDS * 64 - 1).into();
+        let mut expected = vec![0u64; super::MAX_WORDS as usize - 1];
+        expected.push(1u64 << 63);
+        assert_eq!((a << b).unwrap(), pos(expected));
+    }
+
+    #[test]
     fn shl_carry_word_only_counted_when_actually_needed() {
         // A shift landing the single set bit on the top word's own MSB
         // (bit_shift = 63, and that bit was 0 before the shift) produces no
