@@ -11,7 +11,7 @@
  *
  * @module
  *
- * @import { Rule, Thunk, Tuple } from '../../types.ts'
+ * @import { Rule, Thunk } from '../../types.ts'
  */
 
 import { createValue, digit, optionFloatSuffix, optionNeg, string, uint, ws, wsSymbol } from '../json/module.f.mjs'
@@ -49,7 +49,14 @@ const value = () => ['const', {
 
 const ws1 = repeatFrom1(wsSymbol)
 
-/** @type {(...v: readonly Rule[]) => Tuple} */
+/**
+ * A statement is its keyword prefix, then a value, then `;`, with whitespace
+ * allowed before and after the terminator. The prefix keeps its arity, so
+ * the AST of a statement is a tuple rather than a list.
+ *
+ * @type {<const V extends readonly Rule[]>(...v: V) =>
+ *  readonly [...V, Thunk, typeof ws, ';', typeof ws]}
+ */
 const statement = (...v) => [
     ...v,
     value,

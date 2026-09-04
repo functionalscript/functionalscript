@@ -197,10 +197,10 @@ entry rather than re-deriving any of it.
   unconditional ([ebnf-range-set](../../bnf/todo/ebnf-range-set.md), "Why EOF
   is not a set member"). `b + 1` is exact for safe integers only, so a
   boundary above them would name a different range than the one written.
-- **Repeat bounds**: `min` a non-negative safe integer, `max` one or
-  `Infinity`, `min <= max` ([repeat-bounds](../todo/repeat-bounds.md) puts the
-  same check in the constructor; the data form keeps it for the hand-written
-  tuple).
+- **Repeat bounds**: `min` a non-negative safe integer, `max` a non-negative
+  safe integer or `Infinity`, `min <= max`
+  ([repeat-bounds](../todo/repeat-bounds.md) puts the same check in the
+  constructor; the data form keeps it for the hand-written tuple).
 - **A nullable item under an unbounded `max`**: a round that consumes nothing
   would repeat forever. That covers the degenerate `R = repeatFrom0(R)`, which
   the classical LL(1) backend admits as "matches empty"; the grammar
