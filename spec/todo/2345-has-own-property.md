@@ -76,10 +76,18 @@ The three layers this crosses, mirroring `own_property`'s own three (FJS
 source, EDAG node, VM command): the FJS pattern above is recognized and
 lowered to a new EDAG `Op2` node, `['hasOwn', obj, prop]` — a new `Op2Id`
 alongside the existing `'own'` (`fjs/edag/types.ts:163`) rather than a
-reuse of it — which in turn lowers to a new VM command, a `HasOwn` sibling
-to `own_property`'s `OwnProperty` struct
-(`nanvm-lib/src/vm/object/own_property.rs`), returning a `bool` rather than
-an `Option<Any<A>>`.
+reuse of it — which in turn lowers to a new `nanvm-lib` method. `own`
+lowers to `Any::own_property` (`nanvm-lib/src/vm/any/mod.rs`), a method
+that unwraps a nullish-or-`Object` receiver check and a `String`-key check
+before delegating to `Object::own_property`
+(`nanvm-lib/src/vm/object/own_property.rs`, `pub(crate)`, returning
+`Option<Any<A>>`) — not a struct, despite [property-accessor](./2330-property-accessor.md)'s
+older conceptual sketch naming one; that sketch predates the code and
+isn't what shipped. `hasOwn` would need the same two-level shape: a new
+`Any::has_own_property` doing the same receiver/key checks
+`Any::own_property` already does, delegating to a new
+`Object::has_own_property` returning `bool` in place of
+`Option<Any<A>>`.
 
 (An earlier version of this section recognized
 `Object.getOwnPropertyDescriptor(x, 'b') !== undefined` instead.
@@ -180,9 +188,10 @@ no position on which; the instruction should not ship until it does.
 - [design-principles](./design-principles.md) — the no-prototype-chain
   decision `in` couldn't reconcile with JS compatibility, and `hasOwn`
   doesn't need to.
-- `nanvm-lib/src/vm/object/own_property.rs` — the existing flat-lookup
-  primitive that a `hasOwn` VM instruction would sit beside, not compose
-  on: `own`'s recognized pattern reads a descriptor's `?.value` through
-  this method, while `hasOwn`'s recognized pattern (`Object.hasOwn`) would
-  answer directly, without going through `own_property`'s `Option`-to-value
-  shape at all.
+- `nanvm-lib/src/vm/any/mod.rs` and `nanvm-lib/src/vm/object/own_property.rs`
+  — `Any::own_property`/`Object::own_property`, the existing two-level
+  flat-lookup methods a `hasOwn` implementation would sit beside, not
+  compose on: `own`'s recognized pattern reads a descriptor's `?.value`
+  through them, while `hasOwn`'s recognized pattern (`Object.hasOwn`) would
+  answer directly, through new `has_own_property` counterparts, without
+  going through `own_property`'s `Option`-to-value shape at all.

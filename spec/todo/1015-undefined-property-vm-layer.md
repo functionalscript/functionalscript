@@ -32,21 +32,40 @@ What `1010` doesn't say is *where* that equivalence holds:
    undefined)` entry as absent, not just every *source-reachable* pattern.
 
 These two ways of reaching (2) are themselves not interchangeable once
-duplicate keys are in play. An EDAG object's entries are never deduplicated
-— they're applied in written order with the later entry winning
-(`fjs/edag/module.f.mjs`'s `'{}'` handler comment) — so for an object
-equivalent to `{ a: 1, a: undefined }`, *construction-time* stripping and
-*lookup-time* treat-as-absent disagree: stripping the later `(a, undefined)`
-entry at construction time leaves the earlier `(a, 1)` entry as the one that
-remains, so a lookup for `a` finds `1`. Treating `(key, undefined)` as
-absent only at lookup time, with the entry itself still physically last in
-the list, instead makes the lookup stop at that last, undefined-valued
-entry and report `a` as absent — never falling back to the earlier `1`.
-Real JS agrees with neither of these `undefined`-collapsing readings, for
-what it's worth: `{ a: 1, a: undefined }.a` is `undefined`, plainly, because
-the later assignment really does overwrite the earlier one. Any VM-layer
-implementation of (2) has to pick one of the two behaviors above, not treat
-them as one design.
+duplicate keys are in play, and the two questions they answer — what a
+plain read gets, versus what an existence check like `hasOwn` reports —
+have to be kept separate to see how. An EDAG object's entries are never
+deduplicated — they're applied in written order with the later entry
+winning (`fjs/edag/module.f.mjs`'s `'{}'` handler comment) — so take an
+object equivalent to `{ a: 1, a: undefined }`. Real JS's own answer for
+both questions is settled and not in dispute: `.a` reads `undefined` (the
+later assignment overwrote the earlier one, plainly), and
+`Object.hasOwn(obj, 'a')` is `true` (the property is there, merely
+`undefined`-valued).
+
+*Construction-time* stripping (drop `undefined`-valued entries when the
+object is built) diverges from real JS on the **value** question: with the
+trailing `(a, undefined)` entry gone, the earlier `(a, 1)` entry is what's
+left, so `.a` — and `own_property`'s `?.value` — reads `1`, not real JS's
+`undefined`. It happens to *agree* with real JS on the **existence**
+question, though for an unrelated reason: `hasOwn(obj, 'a')` is `true`
+either way, but under this reading that's because a genuine `(a, 1)` entry
+survived, not because of anything specific to the `undefined` duplicate.
+
+*Lookup-time* treat-as-absent (leave every entry stored as written; only a
+boolean existence primitive treats a `(key, undefined)` entry specially)
+does the opposite: value reads are unaffected by it, so `.a` still finds
+the real last entry and reads `undefined`, matching real JS. But
+`hasOwn(obj, 'a')` — the thing this reading actually changes — reports
+`false` (stops at the last, `undefined`-valued entry and calls that
+"absent," never falling back to the earlier `1`), diverging from real JS's
+`true`.
+
+So neither reading reproduces real JS on *both* questions at once for this
+case — each matches on one and diverges on the other, and which one
+diverges depends on which question is asked. Any VM-layer implementation of
+(2) has to pick a behavior for the duplicate-key case explicitly, not treat
+it as a detail that falls out of choosing (2) over (1).
 
 These aren't equivalent, and which one is intended changes a real
 implementation decision for [has-own-property](./2345-has-own-property.md):
@@ -60,9 +79,10 @@ answering `false` is correct by definition, not a gap to close.
 
 ## What today's code does — and what it isn't evidence of
 
-Two pieces of existing code touch this, and neither is the VM of record, so
-neither settles the question — but both are worth being precise about
-rather than citing loosely as "the reference VM."
+Three pieces of existing code touch this. None is the VM of record and
+none settles the question, but the strongest of the three is real,
+running codegen — worth being precise about rather than citing any of
+them loosely as "the reference VM."
 
 [`fjs/edag/amnesia/module.f.mjs`](../../fjs/edag/amnesia/module.f.mjs)'s
 `'{}'` handler builds an object literal with `Object.fromEntries(kv)` over
@@ -77,30 +97,43 @@ executor of record." Citing Amnesia's behavior as "what the reference VM
 does" overstates it; at most it shows what one JS-hosted proof tool happens
 to do, not a VM-layer decision.
 
-NaNVM's own object representation offers a narrower, more relevant data
-point: `nanvm-lib/src/vm/object/to_object.rs`'s `ToObject::to_object`, the
+`nanvm-lib/src/vm/object/to_object.rs`'s `ToObject::to_object`, the
 primitive that builds an `Object<A>` from a list of properties, also applies
 no filter — whatever `(key, value)` pairs it's given, `undefined`-valued
 ones included, are what the resulting object holds. That's evidence the flat
 representation itself has no built-in stripping behavior at the primitive
-level. It is still not proof of intent for `{ x: undefined }` specifically:
-there is no EDAG-`{}`-literal-to-NaNVM codegen path yet (object-literal
-compilation isn't implemented), so nothing has actually compiled `{ x:
-undefined }` down to a `to_object` call and observed the result — this only
-shows the primitive doesn't filter when a caller doesn't ask it to, not what
-a future object-literal lowering would choose to pass it.
+level, but taken alone it isn't proof of intent for `{ x: undefined }`
+specifically: nothing here says whether a caller building an object from an
+EDAG node would filter before calling it.
+
+The third piece answers that: [`fjs/nanvm/rust/module.f.mjs`](../../fjs/nanvm/rust/module.f.mjs)
+is real, tested EDAG-to-Rust codegen — its `expExpr`'s `'{}'` branch lowers
+an EDAG object-literal node directly to a `to_object()` call, printing every
+`key: value` entry via `propertyExpr` with no filter on the value, `undefined`
+included. This *is* a real EDAG-`{}`-to-NaNVM lowering path, contrary to what
+an earlier version of this document claimed — but it's worth being precise
+about its scope: this printer's output is `nanvm-lib/tests/test/generated.rs`,
+generated from the shared hand-authored operator-test corpus
+(`fjs/nanvm/module.f.mjs`), not from compiling parsed DJS source — there is
+still no DJS-source-`{}`-literal-to-EDAG-to-NaNVM path exercising this for a
+program a person actually wrote. What it does prove: today's only real,
+compiled-and-run object-literal lowering to NaNVM preserves an
+`undefined`-valued entry rather than stripping it — the strongest evidence
+so far for reading (1), short of an explicit design decision either way.
 
 ## Open questions
 
 1. If reading (2) is correct, does it mean construction-time stripping or
    lookup-time treat-as-absent? These disagree on duplicate keys (see
-   above) — `{ a: 1, a: undefined }` — and neither one matches real JS's own
-   `{ a: 1, a: undefined }.a === undefined`, so this isn't a detail that
-   falls out of picking (2); it's its own decision.
-2. Is today's no-filtering behavior (Amnesia's `'{}'` handler, and
-   `to_object`'s lack of a filter at the primitive level) the intended
-   VM-layer semantics, or does a future EDAG-`{}`-to-NaNVM lowering need to
-   start stripping `undefined`-valued entries to make reading (2) true?
+   above) — `{ a: 1, a: undefined }` — with each matching real JS on one of
+   the value/existence questions and diverging on the other, so this isn't
+   a detail that falls out of picking (2); it's its own decision.
+2. Is today's no-filtering behavior (Amnesia's `'{}'` handler, `to_object`'s
+   lack of a filter at the primitive level, and `fjs/nanvm/rust/module.f.mjs`'s
+   real object-literal-to-`to_object()` lowering) the intended VM-layer
+   semantics, or does object-literal codegen need to start stripping
+   `undefined`-valued entries — including in this existing printer — to
+   make reading (2) true?
 3. If reading (1) is correct — the VM stores the real entry, and only
    FS-source-level restrictions create the equivalence — do `own`/`hasOwn`
    themselves count as "the language" (bound by `1010`'s restriction, so
@@ -126,3 +159,6 @@ a future object-literal lowering would choose to pass it.
   object-literal construction, and why it isn't VM-layer evidence.
 - `nanvm-lib/src/vm/object/to_object.rs` — NaNVM's own flat-object
   construction primitive, which also applies no filter.
+- `fjs/nanvm/rust/module.f.mjs` — the real, tested EDAG-`{}`-to-Rust
+  printer whose object-literal branch is today's strongest (though still
+  not dispositive) evidence for reading (1).
