@@ -106,7 +106,7 @@ row that is a function of the form alone.
 | `['const', c]` | `AST<c>` |
 | `['set', …]` | `number` — one symbol leaf |
 | `['repeat', min, max, r]` | `BoundedArray<min, max, AST<r>>`, below |
-| `number` | `number` — the symbol itself |
+| `number` | `number` — the symbol itself; **Amended:** except `-1`, whose AST is `readonly []`, since a consumed EOF has no source element and so no leaf ([eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)) |
 | `string` | `readonly number[]` — see below |
 | `Sequence` | one entry per element |
 | `Variant` | the branch taken, tagged by its key |
