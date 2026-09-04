@@ -174,7 +174,10 @@ type _Branches<R extends Variant, K> =
     // literals: [nullable-repeat-item](./todo/nullable-repeat-item.md).
     string extends _Keys<R> ? StringMap<Ast> :
     number extends _Keys<R> ? StringMap<Ast> :
-    K extends _Keys<R> ? { readonly [_ in K]: _FromAny<R[K]> } : never
+    // The key is stringified, as `Object.entries` stringifies it: a variant
+    // written `{ 0: rule }` answers under `'0'`. `BranchKey` in
+    // `../matcher/types.ts` draws the same line, and pins it with an assertion.
+    K extends _Keys<R> ? { readonly [_ in `${K}`]: _FromAny<R[K]> } : never
 
 export type AstRule<R extends Rule> =
     // A rule left at one of the BNF API's own types — `@type {Rule}` and
@@ -389,3 +392,10 @@ type _EmptyString = () => {
     readonly some: readonly[0, _EmptyString],
 }
 type _38 = Assert<Equal<AstRule<_EmptyString>, readonly number[]>>
+
+// A numeric key is a branch name like any other, and `Object.entries` gives it
+// back as a string — the line `BranchKey` draws in `../matcher/types.ts`, with
+// an assertion of its own. Asked of `keyof`, since an object type spells a
+// numeric literal key and its string form the same way.
+type _39 = Assert<Equal<keyof AstRule<{ readonly 0: 0 }>, '0'>>
+
