@@ -101,10 +101,11 @@ exports, re-spelled in EBNF forms — go to `fjs/ebnf/unicode/module.f.mjs`:
 - `not` — `difference(unicodeRange)`, in place
   of today's `notSet`
 
-`not` returns a range-set *value*, combined with the `range_set` algebra and
-made into a rule by `oneOf` in `fjs/ebnf/module.f.mjs`; `str` and
-`toSequence` return rules, one terminal per code point
-([ebnf-range-set](./ebnf-range-set.md)).
+`str` and `toSequence` return rules, one terminal per code point. `not`
+returns a range-set *value* to be combined with the `range_set` algebra —
+though the front end's own `set`, `range`, `union` and `remove` return
+terminal rules rather than values, so `not` should follow them when it is
+written ([ebnf-range-set](./ebnf-range-set.md), **Amended**).
 
 `set`, `range` and `unicodeMax` were on this list and are not any more: they
 ship in the front end, whose rule union already reads a `string` as a
@@ -128,7 +129,11 @@ syntax in its API today (`commaJoin0Plus` takes `'[]'` and builds `','` as a
 string rule), the EBNF front end may give its core form rules or symbols and
 leave a Unicode convenience wrapper to `fjs/ebnf/unicode` — or keep the
 string spelling, since a string is a legal EBNF rule. That is the front
-end's call, not this issue's.
+end's call, not this issue's, and it has been made: `join(s)(r)` takes its
+separator as a rule, so the front end's own form embeds no syntax and needs
+no wrapper ([ebnf-front-end](./ebnf-front-end.md), **Amended**). `cj` in
+`ebnf/lib/json` keeps the two-symbol string spelling for a bracket pair,
+which is a grammar's convenience rather than a combinator's.
 
 EOF is a generic symbol convention rather than an alphabet-specific helper, so
 `fjs/ebnf/terminal/` owns it — `EOF = -1`, outside the non-negative

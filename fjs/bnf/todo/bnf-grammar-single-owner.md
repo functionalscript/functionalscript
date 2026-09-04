@@ -90,13 +90,18 @@ does not need one. The classical library never moves: under
 
 ```ts
 import {
-    commaJoin0Plus, option, remove, repeat0Plus,
+    join, option, range, remove, repeatFrom0, set, times, unicodeMax,
 } from '../../module.f.mjs'                        // fjs/ebnf
-import {
-    range, set, str, unicodeMax,
-} from '../../unicode/module.f.mjs'                // fjs/ebnf/unicode
-import { repeat } from '../../../types/array/module.f.mjs'
+import { str } from '../../unicode/module.f.mjs'   // fjs/ebnf/unicode
 ```
+
+That is what `fjs/ebnf/lib/json/module.f.mjs` actually imports, less `str`,
+which has no consumer yet. Two predictions this block used to make did not
+hold: the repetition constructors are `repeatFrom0` and `join` rather than
+`repeat0Plus` and `commaJoin0Plus`, and `range`, `set` and `unicodeMax` come
+from the front end rather than the adapter — see **Amended** in
+[ebnf-front-end](./ebnf-front-end.md) and [unicode-rules](./unicode-rules.md)
+for both. `times(4)(hex)` replaces `repeat` from `fjs/types/array`.
 
 `repeat` is in that third line rather than the first because the port does not
 touch it: [#1817](https://github.com/functionalscript/functionalscript/pull/1817)

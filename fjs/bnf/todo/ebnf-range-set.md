@@ -142,24 +142,40 @@ type Info =
     | readonly ['repeat', number, number, Rule]
 ```
 
-`() => ['set']` is the empty set, and rejected as a terminal. A bare `number`
+`() => ['set']` is the empty set, and rejected as a terminal — but see
+**Amended** below, where it becomes the lowering's call. A bare `number`
 stays as sugar: `0x61` means `['set', 0x61, 0x62]` and has the same AST row.
 `string` is unchanged.
 
 **Authors never write the tuple** — constructors are the API, as
-ebnf-front-end says of every `Info` form. The injection is one constructor in
-`fjs/ebnf/module.f.mjs`:
+ebnf-front-end says of every `Info` form.
+
+**Amended.** This issue proposed one injection from a set value to a rule:
 
 ```js
 export const oneOf = s => () => ['set', ...s]
 ```
 
-a rule matching one symbol of the set `s`. The adapter's `range`, `set` and
-`not` return *values*, so a grammar writes `oneOf(range('09'))`, and the JSON
-string body becomes `repeat0Plus(oneOf(difference(unicodeRange)(set('"\\'))))`
-where today it spreads `remove(…)` into a variant. A raw set is never a
-rule: as an element of the functional `Sequence` it would read as its
-boundaries, two symbols in a row, and `oneOf` is what says otherwise.
+so that `range`, `set` and `not` would return *values* and a grammar would
+write `oneOf(range('09'))`. The shipped front end does not have `oneOf`:
+`range`, `set`, `union` and `remove` each return the terminal rule directly,
+and the JSON string body is `repeatFrom0({ c: remove(range(…), set('"\\')), … })`
+rather than a `oneOf` around a difference.
+
+The hazard the split was for is real and is handled by the carrier rather
+than by a constructor: a raw set as an element of a `Sequence` would read as
+its boundaries, two symbols in a row. A `Set` here is a thunk, and a thunk is
+never a sequence element by mistake — `['set', …]` only ever arrives as
+something's return value, so there is no bare boundary list for a `Sequence`
+to swallow. That is what makes the injection unnecessary rather than skipped.
+
+The empty set moves with it. `['set']` is constructible — it is `union()`'s
+identity and what `remove(a, a)` returns, so refusing it at construction
+would make the algebra partial and every fold need a special case. Whether an
+empty *terminal* is legal in a grammar is the lowering's question, and the
+lowering does not exist yet; when it does, it is the place to decide, since
+it is the first code that can tell a terminal that matches nothing from one
+that was never meant to match.
 
 **A set holds ordinary symbols only; `eof` is not a set.** That is the rule
 ebnf-front-end already states for `['range', a, b]` — both endpoints
@@ -252,9 +268,10 @@ token-symbol alphabet's is its
 own. The generic toggle lives in `range_set`; the alphabet-scoped one in
 `fjs/ebnf/unicode/` and its siblings ([unicode-rules](./unicode-rules.md)).
 This answers ebnf-front-end's Problem 5 — the helpers take and return sets,
-and `notOf` is unnecessary — and Problem 9 does not arise: the adapter returns
-set *values*, and the EBNF front end has one injection from a set to a rule,
-`oneOf`. The classical front end never sees a set value.
+and `notOf` is unnecessary — and Problem 9 does not arise, though not by the
+route proposed here: the shipped helpers return terminal rules and there is
+no injection to make (**Amended** above). The classical front end never sees
+a set value either way.
 `fjs/ebnf/unicode/` is EBNF-only, and `bnf/` keeps its own helpers and its
 `RangeVariant` until the migration's stage 7, so a raw `[0x30, 0x3A]` is
 never handed to a front end whose `Sequence` would read it as two symbols.
@@ -313,8 +330,8 @@ justification is the API and the AST, which is where
       the union, the AST table (`number`), the lowering requirements
       (validate the generic range-set invariants through `range_set`'s
       constructor first, then intersect with the domain `[0]`, then require
-      safe-integer boundaries and reject the empty set), and `oneOf` in the
-      constructor list.
+      safe-integer boundaries, and decide the empty set there), dropping
+      `oneOf` from the constructor list (**Amended** above).
 - [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/ebnf/unicode/`
       produce sets; `not` is difference against the Unicode universe. `str`
       is not one of them: `str('true')` is an ordered `Sequence` of

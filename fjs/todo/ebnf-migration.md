@@ -205,9 +205,11 @@ fjs/ebnf/
 
 The front end itself is the design in
 [ebnf-front-end](../bnf/todo/ebnf-front-end.md): the `Rule` union following
-RTTI, `repeat(min, max)` with `option` / `repeat0Plus` / `repeat1Plus` / `times`
-as partial applications, the AST as a function of the form, `BoundedArray` from
-`fjs/types/array`. Its Problems 1, 3, 6, 7 and 8 are about the IR and the AST
+RTTI, `repeat(min, max)` with `option` / `repeatFrom` / `repeatFrom0` /
+`times` as partial applications — the names that shipped, not the
+`repeat*Plus` pair the issue proposed
+([ebnf-front-end](../bnf/todo/ebnf-front-end.md), **Amended**) — the AST as a
+function of the form, `BoundedArray` from `fjs/types/array`. Its Problems 1, 3, 6, 7 and 8 are about the IR and the AST
 and still need answers here. Problems 2 and 9 exist only because of shared
 machinery and do not.
 
@@ -227,7 +229,7 @@ machinery and do not.
 | `token_symbol/` | move | the layer boundary; imports `unicode/`, so it lands after it |
 | `map/types.ts` | move | |
 | `map/rtti/` | rewrite | tests the shape directly, no `repeatItem`; absorbs [rename-check-map](../bnf/map/rtti/todo/rename-check-map.md) |
-| `lib/json`, `lib/datajs` | port | one PR for both; `commaJoin0Plus` changes the AST of both bracket pairs |
+| `lib/json`, `lib/datajs` | port | one PR for both; `join` (was `commaJoin0Plus`) changes the AST of both bracket pairs |
 | `testlib.f.mjs` — `showAst` and the root `private.ts` typing it | move | backend-neutral; needed by `ll1`'s proofs |
 | `testlib.f.mjs` — `classic`, `deterministic` | retire | `ebnf/lib` is its own fixture |
 | `README.md` | split | the AST contract, "Terminals and EOF", "Dispatch" go to `ebnf/` and its owners; the functional representation stays and dies with `bnf/` |
@@ -366,7 +368,7 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    ([ebnf-front-end](../bnf/todo/ebnf-front-end.md)). Add the cross-front-end proof group: each `lib/` grammar in both
    spellings, same `RuleSet` where the constructors are shape-preserving, same
    AST otherwise, with the differences ebnf-front-end predicts pinned
-   explicitly (`option`, `repeat1Plus`, `commaJoin0Plus`).
+   explicitly (`option`, `repeatFrom(1)`, `join`).
 6. **Layered LL(1) and the djs port.** The token layer with maximal munch or
    the left-factoring helper; the two conflicts above resolved in the grammars;
    `djs/tokenizer` then `djs/parser` on `ebnf/ll1/`. The first grammar to leave
