@@ -358,6 +358,13 @@ three forms. It needs a data layer that can represent it.
       `times(4)(hex)`. Then the `djs` tokenizer and parser, one PR each. Those
       are the only consumers: outside `fjs/bnf` the repository imports it from
       five files, all under `fjs/djs`.
+      **What "in one PR" binds** is the port — the change that makes
+      `fjs/bnf/lib/json` stop being what datajs imports. Writing an ebnf
+      spelling *beside* an untouched classical grammar is not that: datajs
+      goes on importing `bnf/lib/json`, so no classical combinator ever meets
+      an ebnf thunk, and the hazard this task names does not arise. A second
+      spelling may therefore land alone; the two grammars still move together
+      when they move.
 - [ ] Update what describes the derived `Repeat`: `data/types.ts:29` carries
       the phrase "the one rule kind `toData` derives"; `data/README.md` and
       `descent/README.md` describe the same thing in their own words.

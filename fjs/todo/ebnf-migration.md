@@ -360,7 +360,10 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    copied; the rtti map rewritten without `repeatItem`, with its co-located
    proof.
 5. **`ebnf/lib/` and the comparison proofs.** Port `json` and `datajs` in one
-   PR. Add the cross-front-end proof group: each `lib/` grammar in both
+   PR — the *port*, meaning the change that stops `bnf/lib/datajs` importing
+   `bnf/lib/json`. An ebnf spelling written beside the untouched classical
+   grammar carries none of that risk and may land alone
+   ([ebnf-front-end](../bnf/todo/ebnf-front-end.md)). Add the cross-front-end proof group: each `lib/` grammar in both
    spellings, same `RuleSet` where the constructors are shape-preserving, same
    AST otherwise, with the differences ebnf-front-end predicts pinned
    explicitly (`option`, `repeat1Plus`, `commaJoin0Plus`).
