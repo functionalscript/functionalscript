@@ -290,7 +290,7 @@ rewritten against the surviving backend as they move.
 | issue | bin | destination |
 |---|---|---|
 | [ebnf-front-end](../bnf/todo/ebnf-front-end.md) | absorb | its design becomes `fjs/ebnf/README.md` as stage 1 ships; every problem still open then — 1, 3, 4, 5, 6, 7 and 8 at the time of writing — moves to `ebnf/todo/` as one issue each, or is answered in the README |
-| [terminal-range-shared-type](../bnf/todo/terminal-range-shared-type.md) | close | `ebnf/` has no `TerminalRange` to declare — its terminal is a range set ([ebnf-range-set](../bnf/todo/ebnf-range-set.md)); `bnf/`'s two declarations stay and go with `bnf/` |
+| terminal-range-shared-type | retired | deleted by the PR that filed [ebnf-range-set](../bnf/todo/ebnf-range-set.md), with its reason recorded here: it asked for one `TerminalRange` declaration shared by `bnf/` and `bnf/data`, owned by the codec's module; `ebnf/` has no `TerminalRange` and no codec — its terminal is a range set — so there is nothing to declare once, and `bnf/`'s two declarations stay and go with `bnf/` at stage 7 |
 | [unicode-rules](../bnf/todo/unicode-rules.md) | move | `ebnf/unicode/todo/` until stage 3 implements it |
 | [rule-visitor](../bnf/todo/rule-visitor.md), [665-bnf-data-fold-children](../bnf/todo/665-bnf-data-fold-children.md) | absorb | inputs to the `data/` rewrite (stage 2) |
 | [042-mixing-serializable-bnfs](../bnf/todo/042-mixing-serializable-bnfs.md) | move | `ebnf/data/todo/` |
@@ -384,8 +384,7 @@ consumer port"), never by number, so a renumbering here cannot strand them.
 - [ ] Stage 0: the direction sentence in `fjs/AGENTS.md`.
 - [ ] Stage 1: `ebnf/terminal/` with proof; `ebnf/types.ts` and
       `ebnf/module.f.mjs` with proof; ebnf-front-end's open problems
-      answered as they are needed, in `ebnf/README.md`; close
-      terminal-range-shared-type.
+      answered as they are needed, in `ebnf/README.md`.
 - [ ] Stage 2: `ebnf/data/` with bounded `Repeat` and proof; rule-visitor and
       665 absorbed or moved.
 - [ ] Stage 3: `ebnf/matcher/` and `ebnf/unicode/` with proofs; `showAst` in

@@ -369,7 +369,8 @@ three forms. It needs a data layer that can represent it.
   this makes unnecessary.
 - [unicode-rules](./unicode-rules.md) — owns the text lowering and the
   adapter Problem 9 constrains.
-- [terminal-range-shared-type](./terminal-range-shared-type.md) — the packed
+- terminal-range-shared-type (retired; `fjs/ebnf/` has no `TerminalRange`,
+  see [ebnf-range-set](./ebnf-range-set.md)) — the packed
   `TerminalRange` becomes data-layer only here.
 - [ebnf-range-set](./ebnf-range-set.md) — replaces the `['range', a, b]`
   row with a range-set terminal `['set', …]`; answers Problem 5 and most of
