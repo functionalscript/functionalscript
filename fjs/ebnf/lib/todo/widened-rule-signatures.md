@@ -40,7 +40,7 @@ The last row is not: `value` names itself, and TypeScript infers nothing
 recursive, so the thunk needs an explicit recursive type — a named alias in a
 sibling `types.ts`, since a file-scope `@typedef` is not allowed
 ([fjs/AGENTS.md](../../../AGENTS.md)). That is
-[ebnf-front-end](../../../bnf/todo/ebnf-front-end.md)'s Problem 7, and this
+ebnf-front-end's Problem 7, and this
 grammar is the real case it asked to be tested on: if the annotation is
 onerous, the AST table is documentation rather than a checked contract, and
 the answer belongs in that issue as much as here.
@@ -60,7 +60,7 @@ the answer belongs in that issue as much as here.
 
 - [`../../ast/types.ts`](../../ast/types.ts) — `Ast<R>`, and why a widened
   `R` gives `Ast<Rule>`.
-- [ebnf-front-end](../../../bnf/todo/ebnf-front-end.md) — Problem 7, explicit
+- ebnf-front-end — Problem 7, explicit
   annotations on recursive rules.
 - [pin-literal-constants](../json/todo/pin-literal-constants.md) — the same
   precision loss on two literals.

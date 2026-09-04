@@ -23,7 +23,7 @@ import { assert } from '../../asserts/module.f.mjs'
 import { errorMask } from '../../text/code_point/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { at, definedEntries, definedValues, isObject, structurallySame } from '../../types/object/module.f.mjs'
+import { at, definedEntries, isObject, structurallySame } from '../../types/object/module.f.mjs'
 import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module.f.mjs'
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.mjs'
 
@@ -153,9 +153,11 @@ const isSymbol = n => isSafeInteger(n) && n >= 0
 /**
  * A reference is a string naming a rule of the set. The type is checked
  * because data is untyped: a number would reach the same rule through
- * property-key coercion and certify a value that is no `Rule`.
+ * property-key coercion, and an explicit `undefined` under a variant's tag
+ * would be a branch the type calls absent, each certifying a value that is
+ * no `Rule`.
  *
- * @type {(ruleSet: RuleSet) => (name: string) => (item: string) => void}
+ * @type {(ruleSet: RuleSet) => (name: string) => (item: unknown) => void}
  */
 const defined = ruleSet => name => item =>
     assert(typeof item === 'string' && at(item)(ruleSet) !== null, ['unknown rule', name, item])
@@ -164,7 +166,7 @@ const defined = ruleSet => name => item =>
  * The checks on one rule, given the name it has, the reference check of its
  * set, and whether a name is nullable there.
  *
- * @type {(name: string, ref: (item: string) => void, nullable: (item: string) => boolean) => RuleVisitor<void>}
+ * @type {(name: string, ref: (item: unknown) => void, nullable: (item: string) => boolean) => RuleVisitor<void>}
  */
 const validateVisitor = (name, ref, nullable) => ({
     set: s => {
@@ -173,7 +175,9 @@ const validateVisitor = (name, ref, nullable) => ({
         assert(s[0] >= 0 || structurallySame(s, eofSet), ['a set holds ordinary symbols only, or is EOF', name, s])
     },
     sequence: items => items.forEach(ref),
-    variant: branches => definedValues(branches).forEach(ref),
+    // Every own entry, so a tag written with no rule under it is refused
+    // rather than read as absent.
+    variant: branches => entries(branches).forEach(([, item]) => ref(item)),
     repeat: (min, max, item) => {
         assert(isSymbol(min), ['min is not a non-negative integer', name, min])
         assert((isSafeInteger(max) || max === Infinity) && min <= max, ['max is not an integer at or above min, or Infinity', name, max])
@@ -198,6 +202,9 @@ const validateRule = (ruleSet, empty) => name =>
  * @type {(ruleSet: RuleSet, entry: string) => void}
  */
 export const validate = (ruleSet, entry) => {
+    // The set is data too: an array would answer `at('0')` with its first
+    // element and walk under `entries`, so the carrier is checked first.
+    assert(isRecord(ruleSet), ['not a rule set', ruleSet])
     defined(ruleSet)(entry)(entry)
     const rule = validateRule(ruleSet, emptyTagMap(ruleSet))
     entries(ruleSet).forEach(([name, r]) => rule(name)(r))
