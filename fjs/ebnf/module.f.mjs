@@ -40,35 +40,32 @@ const getSet = a => {
     return r
 }
 
-/** @type {(a: string) => SetInfo} */
-export const set = a => {
-    const x = toArray(stringToCodePointList(a))
-    const r = /**@type {const}*/([
-        'set',
-        ...x.reduce(
-            (a, b) => setUnion(a)(fromRange([b, b + 1])),
-            empty)])
-    return () => r
-}
-
-/** @type {(...a: SetInfo[]) => SetInfo} */
-export const union = (...a) => {
+/** @type {(a: RangeSet[]) => SetInfo} */
+const unionX = (a) => {
     const r = /**@type {const}*/([
         'set',
         ...a.reduce(
-            (a, b) => setUnion(a)(getSet(b)),
+            (a, b) => setUnion(a)(b),
             empty)])
     return () => r
 }
 
+/** @type {(a: string) => SetInfo} */
+export const set = a => unionX(
+    toArray(stringToCodePointList(a))
+        .map(b => fromRange([b, b + 1])))
+
+/** @type {(...a: SetInfo[]) => SetInfo} */
+export const union = (...a) => unionX(
+    a.map(getSet))
 /**
  * @type {(a: SetInfo, b: SetInfo) =>
  *  SetInfo}
  */
 export const remove = (a, b) => {
-        const r = /**@type {const}*/(['set', ...intersection(getSet(a))(complement(getSet(b)))])
-        return () => r
-    }
+    const r = /**@type {const}*/(['set', ...intersection(getSet(a))(complement(getSet(b)))])
+    return () => r
+}
 /**
  * @type {<const A extends number, const B extends number>(a: A, b: B) =>
  *  <const R extends Rule>(rule: R) =>
