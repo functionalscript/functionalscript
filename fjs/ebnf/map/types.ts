@@ -37,7 +37,8 @@ export type RuleMap = readonly Mapping[]
 /**
  * What the mapping keyed by `R` in `M` returns, wrapped so that a mapping
  * returning `undefined` is told from no mapping at all. A key matches by
- * type equality, the type-level stand-in for the `===` the rewrite uses.
+ * type equality, which is the spelling the rewrite matches by, where the
+ * types are the literal ones the front end's constructors give.
  */
 type _Find<M extends RuleMap, R> =
     M extends readonly [infer H extends Mapping, ...infer T extends RuleMap]
@@ -108,14 +109,25 @@ export type Children<R extends Rule, M extends RuleMap> =
 export type Mapped<R extends Rule, M extends RuleMap> =
     _Find<M, R> extends readonly [infer T] ? T : Children<R, M>
 
+/** Whether a key other than the one at `K`, whose rule is `R`, has `R`'s type. */
+type _KeyTwice<M extends RuleMap, K extends keyof M, R> = true extends {
+    readonly [J in keyof M]: J extends K ? false :
+        M[J] extends Mapping<infer RJ> ? Equal<RJ, R> : false
+}[number] ? true : false
+
 /**
  * `M` with every mapping's parameter spelled as what the rewrite hands it,
  * so that a map whose declared input is narrower than the actual children
- * is a compile error at `rewrite`, where `M` is whole.
+ * is a compile error at `rewrite`, where `M` is whole. Two keys of one
+ * type are refused there too — as `never`, which nothing is assignable
+ * to — as the rewrite refuses two keys of one spelling: one would silently
+ * win.
  */
 export type Checked<M extends RuleMap> = {
     readonly [K in keyof M]: M[K] extends Mapping<infer R>
-        ? readonly [R, (children: Children<R, M>) => unknown]
+        ? _KeyTwice<M, K, R> extends true
+            ? never
+            : readonly [R, (children: Children<R, M>) => unknown]
         : never
 }
 
@@ -167,3 +179,16 @@ type _Checked = Assert<Equal<
         readonly [readonly [_Digit, _Digit], (children: readonly [bigint, bigint]) => unknown],
         readonly [_Digit, (children: number) => unknown],
     ]>>
+// Two keys of one type are refused, whatever their functions.
+type _CheckedTwice = Assert<Equal<
+    Checked<readonly [Mapping<_Digit, number, bigint>, Mapping<_Digit, number, string>]>,
+    readonly [never, never]>>
+// Two sets spelled differently are two keys, so a mapping of one leaves
+// the other as it is.
+type _Letter = Set<readonly ['range', 'az']>
+type _Spelled = readonly [Mapping<Set<readonly ['range', '09']>, number, bigint>]
+type _MappedSpelling = Assert<Equal<Mapped<Set<readonly ['range', '09']>, _Spelled>, bigint>>
+type _MappedOtherSpelling = Assert<Equal<Mapped<_Letter, _Spelled>, number>>
+type _MappedRepeatSpelling = Assert<Equal<
+    Mapped<readonly [Repeat<1, number, Set<readonly ['range', '09']>>, Repeat<1, number, _Letter>], _Spelled>,
+    readonly [readonly [bigint, ...(readonly bigint[])], readonly [number, ...(readonly number[])]]>>

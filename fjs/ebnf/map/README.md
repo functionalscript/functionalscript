@@ -56,35 +56,45 @@ What a function receives, per form of the rule:
 That is the `Ast<R>` table with a hole in every child position, and
 `Children<R, M>` in `types.ts` is that table as a type.
 
-## Keyed by the rule the author holds
+## Keyed by the rule's spelling
 
-A key is the rule value itself, by `===` — the same identity the lowering in
-[`../data`](../data/README.md) shares rules by, so a thunk, an array or an
-object is the key wherever it appears, and a number or a string is one rule by
-value: mapping `42` maps every `42`. Whoever holds a rule holds its key, and
-nothing else does: a rule built inside a combinator and returned to nobody —
-the `[',', item]` pair `join` makes — is not mappable, and its parent sees it
-as it is. A combinator that wants its scaffolding mapped returns the mappings
-beside the rule.
+A key is a spelling: the rule the author held when the map was written,
+and every rule spelled the same — a number or a string by value, a tuple
+element by element, a variant entry by entry, a thunk by what it yields, and
+a rule that names itself by the same comparison meeting the same pair again,
+so two `value`s written alike are one spelling. Mapping `42` maps every
+`42`; mapping `range('09')` maps every `range('09')`, however many times a
+grammar spells it; and two rules spelled alike in different roles are one
+rule to the map, as they are one language — the role is the parent's to
+read off the tag it receives. Two keys of one spelling are refused.
 
-Why not by name: the data layer names rules by the path they were reached by,
-with a counter where a name is taken, and only the entry is contractual. A
-map keyed by such names would be written against an artifact of the lowering.
-The identity map `toData` returns is the bridge the other way, for a backend
-that dispatches by name and wants to find the mapping of the rule a name
-stands for.
+A rule built inside a combinator and returned to nobody — the `[',', item]`
+pair `join` makes — is still mappable by spelling it again, though the
+parent sees it as it is when nothing does; a combinator that wants its
+scaffolding mapped returns the mappings beside the rule.
 
-A rule mapped twice is refused at `rewrite`, since one mapping would silently
-win.
+Why spelling and not identity: the types can only tell rules apart by type,
+and the type of a rule is its spelling, so a map keyed by `===` would have
+been typed as one keyed by spelling and been wrong wherever the two differ.
+The lowering in [`../data`](../data/README.md) shares rules by `===`, so two
+rules of one spelling are two names there; a backend that dispatches by name
+meets that difference, below.
 
 ## Typed: the map proves what a mapping declared
 
 `Mapped<R, M>` is the type of the rewrite of `R` under the map `M`: the
 output type of `R`'s mapping if `M` has one, else `Children<R, M>`. A key is
-found by type equality — `Equal<K, R>` — which is the type-level stand-in for
-`===`; two rules of the same literal type are one key to the type system,
-which is where the runtime sees them apart, and a rule widened to `Rule` or
-`Tuple` is the widened-rule-signatures issue's rather than this layer's.
+found by type equality — `Equal<K, R>` — which is the spelling, as the type
+system sees it: a `const` literal's type is its spelling, and the front end
+makes a set's so by carrying it as a phantom type parameter — `range('09')`
+is `Set<readonly ['range', '09']>`, `range('az')` is not — so a repetition
+over one is not a repetition over the other, and `digits` is not typed as
+`word`. Without that every set would be the one type `Set`, and a map that
+named `digits` would have typed every `repeatFrom1` of a set as a number.
+Two keys of one type are refused by `Checked`, as two keys of one spelling
+are by the rewrite. What the types cannot see is a rule annotated wider than
+it is spelled — `Rule`, `Tuple`, a bare `Set` — which is the
+widened-rule-signatures issue's rather than this layer's.
 
 A mapping's function is written against a type the author declares —
 `(d: number) => number` — because its true input depends on the whole map,
@@ -137,7 +147,8 @@ rename here.
 
 ## Left for later
 
-- A mapping over a string's code points is the string's; a number mapping
-  does not reach inside `'ab'`, though the data layer names `'a'`'s symbol
-  and a bare `97` as one rule. A backend keyed by data-rule names will meet
-  that difference and is where it is settled.
+- The data layer shares rules by `===` and this layer by spelling, so two
+  rules of one spelling are two names in a rule set and one key here, and a
+  mapping over a string's code points is the string's here where the data
+  layer names `'a'`'s symbol and a bare `97` as one rule. A backend keyed by
+  data-rule names will meet both differences and is where they are settled.

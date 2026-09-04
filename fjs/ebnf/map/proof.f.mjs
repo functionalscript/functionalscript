@@ -3,7 +3,7 @@
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { Rule, Thunk } from '../types.ts'
  * @import { Ast } from '../ast/types.ts'
- * @import { Mapped } from './types.ts'
+ * @import { Mapped, RuleMap } from './types.ts'
  */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -80,6 +80,37 @@ const sparse = [, 'x']
 /** @type {unknown} */
 const typo = () => ['typo']
 
+/** @type {unknown} */
+const holeThenB = [, c('b')]
+
+const withEnd = /**@type {const}*/({ end: null, x: 'x' })
+
+/** @type {unknown} */
+const undefinedBranch = { x: 'x', missing: undefined }
+
+// Two rules that name themselves the same way: one spelling, by
+// coinduction, since comparing what they yield meets the pair again.
+/** @type {Thunk} */
+const self1 = () => ['const', { again: self1, x: 'x' }]
+
+/** @type {Thunk} */
+const self2 = () => ['const', { again: self2, x: 'x' }]
+
+/** @type {Thunk} */
+const selfOther = () => ['const', { again: selfOther, x: 'y' }]
+
+/**
+ * The same rule mapped twice, as a map that arrives untyped: `Checked`
+ * refuses it at compile time, which is why the value is spelled outside
+ * the type system to reach the runtime refusal.
+ *
+ * @type {RuleMap}
+ */
+const twice = [
+    [digit, /** @type {(d: number) => number} */ (d => d)],
+    [digit, /** @type {(d: number) => number} */ (d => d + 1)],
+]
+
 const variant = /**@type {const}*/({ a: 'x', b: 42 })
 
 const inner = /**@type {const}*/({ a: 'x' })
@@ -130,6 +161,34 @@ export const proof = {
         const r = rewrite([['ab', /** @type {(v: readonly number[]) => string} */ (v => String.fromCodePoint(...v))]])
         assertEq(r('ab')(cps('ab')), 'ab')
     },
+    // EOF is a branch, though its rule is `null`; a branch explicitly
+    // `undefined` is not.
+    eofBranch: () => {
+        assertStructurallySame(none(withEnd)(['end', []]), ['end', []])
+        const r = rewrite([[eof, /** @type {(v: readonly []) => string} */ (() => 'end')]])
+        assertStructurallySame(r(withEnd)(['end', []]), ['end', 'end'])
+    },
+    // A key is a spelling: a rule spelled the same as a key is mapped, and
+    // one spelled differently is not, whatever the two share.
+    spelling: () => {
+        const r = rewrite([
+            [range('09'), /** @type {(d: number) => number} */ (d => d - c('0'))],
+            [/**@type {const}*/(['x', 42]), /** @type {(v: readonly [readonly number[], 42]) => string} */ (() => 'pair')],
+            [inner, /** @type {(v: readonly ['a', readonly number[]]) => string} */ (() => 'inner')],
+            [self1, /** @type {(v: unknown) => string} */ (() => 'self')],
+        ])
+        assertEq(r(range('09'))(c('7')), 7)
+        assertEq(r(range('08'))(c('7')), c('7'))
+        assertEq(r(/**@type {const}*/(['x', 42]))([cps('x'), 42]), 'pair')
+        assertStructurallySame(r(/**@type {const}*/(['x', 43]))([cps('x'), 43]), [cps('x'), 43])
+        assertStructurallySame(r(/**@type {const}*/(['x']))([cps('x')]), [cps('x')])
+        assertStructurallySame(r(/**@type {const}*/({ 0: 'x', 1: 42 }))(['1', 42]), ['1', 42])
+        assertEq(r({ a: 'x' })(['a', cps('x')]), 'inner')
+        assertStructurallySame(r({ b: 'x' })(['b', cps('x')]), ['b', cps('x')])
+        assertStructurallySame(r({ a: 'x', b: 'x' })(['a', cps('x')]), ['a', cps('x')])
+        assertEq(r(self2)(['x', cps('x')]), 'self')
+        assertStructurallySame(r(selfOther)(['x', cps('y')]), ['x', cps('y')])
+    },
     // A variant's mapping receives the tag and the branch's rewrite; a
     // numeric key arrives as the string it is at runtime.
     variant: () => {
@@ -172,10 +231,7 @@ export const proof = {
     },
     throw: {
         // One rule, one mapping: a second would silently win or lose.
-        duplicate: () => rewrite([
-            [digit, /** @type {(d: number) => number} */ (d => d)],
-            [digit, /** @type {(d: number) => number} */ (d => d + 1)],
-        ]),
+        duplicate: () => rewrite(/** @type {any} */ (twice)),
         // An AST that is not the rule's is refused where the walk reads it.
         // `Ast<R>` already refuses most of these at compile time, which is
         // what the casts step around: the check here is for a tree that
@@ -185,11 +241,20 @@ export const proof = {
         notANumber: () => none(digit)(/** @type {any} */ ('5')),
         outsideTheSet: () => none(digit)(c('a')),
         notTheString: () => none('ab')(cps('a')),
+        // A hole is no symbol and no round, however long the list.
+        stringHole: () => none('ab')(/** @type {any} */ (holeThenB)),
+        roundsHole: () => none(twoDigits)(/** @type {any} */ (holeThenB)),
         tupleArity: () => none(/**@type {const}*/(['x', 'y']))(/** @type {any} */ ([cps('x')])),
         tupleNotAnArray: () => none(/**@type {const}*/(['x']))(/** @type {any} */ (cps('x'))),
         variantArity: () => none(variant)(/** @type {any} */ (['a'])),
         variantTagNotAString: () => none(variant)(/** @type {any} */ ([0, cps('x')])),
         variantBranchMissing: () => none(variant)(/** @type {any} */ (['c', cps('x')])),
+        variantBranchUndefined: () => none(/** @type {Rule} */ (undefinedBranch))(/** @type {any} */ (['missing', cps('x')])),
+        // Two keys of one spelling are one key twice.
+        spelledTwice: () => rewrite(/** @type {any} */ ([
+            [/**@type {const}*/(['x']), /** @type {(v: readonly [readonly number[]]) => string} */ (() => 'a')],
+            [/**@type {const}*/(['x']), /** @type {(v: readonly [readonly number[]]) => string} */ (() => 'b')],
+        ])),
         // `{}` inherits a `constructor`; a branch is an own entry only. The
         // empty variant's AST is `never`, so the rule is widened to reach it.
         variantInheritedBranch: () => none(/** @type {Rule} */ ({}))(/** @type {any} */ (['constructor', []])),
