@@ -4,6 +4,7 @@
 
 import { assertStructurallySame } from '../asserts/module.f.mjs'
 import {
+    eof,
     option,
     range,
     rangeEncode,
@@ -55,6 +56,10 @@ export const proof = {
         assertStructurallySame([...unicodeMax].length, 1)
         assertStructurallySame(unicodeMax.length, 2)
         assertStructurallySame(unicodeMax.codePointAt(0), 0x10FFFF)
+    },
+    // EOF is the one plain rule that is not a symbol, a string or a container.
+    eof: () => {
+        assertStructurallySame(eof, null)
     },
     rangeEncode: () => {
         assertStructurallySame(boundaries(rangeEncode(0, 7)), [0, 8])

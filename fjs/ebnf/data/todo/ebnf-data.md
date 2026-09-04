@@ -191,7 +191,8 @@ cannot handle is refused, never answered with a plausible set
   repeat. It is a legal *value* in the front end — `union()`'s identity,
   what `remove(a, a)` returns — and that is why the decision is here rather
   than in the constructor, as ebnf-range-set's **Amended** note says.
-- **EOF** is the bare `-1` rule, and it alone lowers to `['set', -1, 0]`.
+- **EOF** is the `null` rule — the front end's `eof` — and it alone lowers
+  to `['set', -1, 0]`.
   No set the front end builds contains `-1` (`rangeEncode` refuses a negative
   endpoint), and the domain clip above turns a hand-written `['set', -1, 0]`
   thunk into the empty set, refused. In the data form a set is either exactly
@@ -201,9 +202,9 @@ cannot handle is refused, never answered with a plausible set
   "Why EOF is not a set member").
 - **A bare number** is one symbol: `n` lowers to `['set', n, n + 1]`, the top
   ordinary symbol `Number.MAX_SAFE_INTEGER` to the open tail `['set', n]`
-  ([top-symbol-open-tail](../../todo/top-symbol-open-tail.md)), and `-1` as
-  above. Any other negative number, a fraction, or an unsafe integer is
-  refused.
+  ([top-symbol-open-tail](../../todo/top-symbol-open-tail.md)). Any
+  negative number — `-1` included, since EOF is `null` and not a number — a
+  fraction, or an unsafe integer is refused.
 - **A string** is one `['set', c, c + 1]` per code point, in a `['sequence', …]`;
   `''` is the empty sequence. A malformed UTF-16 string is refused
   ([malformed-utf16-symbols](../../todo/malformed-utf16-symbols.md)).

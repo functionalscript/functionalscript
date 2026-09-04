@@ -179,8 +179,8 @@ that was never meant to match.
 
 **A set holds ordinary symbols only; `eof` is not a set.** That is the rule
 ebnf-front-end already states for `['range', a, b]` — both endpoints
-ordinary, never spanning EOF — carried over unchanged. EOF stays the bare
-`-1` rule that issue defines, with the no-leaf behaviour
+ordinary, never spanning EOF — carried over unchanged. EOF is the `null`
+rule that issue defines (**Amended**: it was the bare `-1`), with the no-leaf behaviour
 [eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md) records and
 `fjs/bnf/matcher/module.f.mjs:86` implements. "Newline or end of input", the
 terminator of a line comment, is spelled as the variant `{ nl, eof }` it is
@@ -291,7 +291,7 @@ carrier for bounded repeats. If that carrier is a tagged form, the set goes
 into it and the probe is never written. **Choose the IR carrier once, for
 both**, and do not land the set as a special case first.
 
-EOF still reaches the IR as a terminal — the bare `-1` rule lowers to the set
+EOF still reaches the IR as a terminal — the `null` rule lowers to the set
 `[-1, 0]` — so the IR's terminal carrier holds either that one set or an
 ordinary one, and a backend tells them apart by the first boundary. That is
 the data layer's business; the front-end form never spells it.

@@ -29,7 +29,7 @@ const digitsData = /**@type {const}*/([digitData, digits0Data])
 const constVariant = t => {
     const [tag, r] = t()
     assertEq(tag, 'const')
-    assert(typeof r === 'object' && !(r instanceof Array))
+    assert(typeof r === 'object' && r !== null && !(r instanceof Array))
     return /** @type {Variant} */ (r)
 }
 
@@ -148,7 +148,7 @@ export const proof = {
             const [member] = pair
             assert(member instanceof Array)
             const [property] = member
-            assert(typeof property === 'object' && !(property instanceof Array))
+            assert(typeof property === 'object' && property !== null && !(property instanceof Array))
             assertStructurallySame(keys(property), ['string', 'proto'])
             assertEq(property.string, string)
             assertStructurallySame(property.proto, '["__proto__"]')

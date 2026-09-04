@@ -62,9 +62,15 @@ type Info     =
 Three word tags, the RTTI vocabulary. Discrimination is by JavaScript type at
 every level.
 
-- **`number`** is one symbol: `0x61` is the letter, `-1` is EOF. How a
+- **`number`** is one symbol: `0x61` is the letter. How a
   terminal is *stored* is the data layer's business, so the packed
-  `0x000030_000039` literal leaves grammars.
+  `0x000030_000039` literal leaves grammars. **Amended:** `-1` was EOF here
+  and is not. EOF is **`null`**, a plain value of its own in `DataRule`, with
+  `eof` exported as its name, so that `number` means an ordinary symbol and
+  nothing else — a rule typed `number` is never the end of input, which is
+  what keeps `Ast<R>` monotonic in `R` — and a negative number is refused
+  like any symbol outside the domain. The *input* still carries EOF as
+  `-1`; that is the alphabet's convention, not the grammar's spelling.
 - **`string`** is the text it spells, one terminal per code point — the
   meaning `toData` gives a bare string today. `const a: Rule = 'Hello'`
   matches `Hello`. What you see is what you get, as with RTTI's `Const`. This
@@ -88,7 +94,7 @@ because a widened `max` and an unbounded one deserve the same answer, and
 comparisons also just work — `min <= Infinity` is true — where a `null`
 sentinel coerces to `0` and needs a guard at every site, and
 a `-1` sentinel would compile and be silently wrong — `-1` is EOF in the
-terminal domain besides. `undefined` is rejected for a different reason: a
+input alphabet besides. `undefined` is rejected for a different reason: a
 dropped argument would read as *plausible*, so `repeat(2)` would silently
 mean two-or-more while reading as "exactly two", which already has a
 spelling in `times(2)`. `min > max` is an error. `0..0` and `1..1` are legal
@@ -106,7 +112,8 @@ row that is a function of the form alone.
 | `['const', c]` | `AST<c>` |
 | `['set', …]` | `number` — one symbol leaf |
 | `['repeat', min, max, r]` | `BoundedArray<min, max, AST<r>>`, below |
-| `number` | `number` — the symbol itself; **Amended:** except `-1`, whose AST is `readonly []`, since a consumed EOF has no source element and so no leaf ([eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)) |
+| `number` | `number` — the symbol itself |
+| `null` | `readonly []` — **Amended:** EOF consumes no source element and so contributes no leaf; its node is empty ([eof-as-ordinary-symbol](./eof-as-ordinary-symbol.md)) |
 | `string` | `readonly number[]` — see below |
 | `Sequence` | one entry per element |
 | `Variant` | the branch taken, tagged by its key |
@@ -226,8 +233,8 @@ Stated as requirements, since the data layer is open.
   so a set terminal never matches EOF — and non-empty with safe-integer
   boundaries after that ([ebnf-range-set](./ebnf-range-set.md)); which
   `range_set` export does the validating is that module's business. A bare
-  `number` is one symbol as the union above defines it — `-1` is EOF — and
-  takes no set validation.
+  `number` is one ordinary symbol as the union above defines it, and takes
+  no set validation; EOF is `null` (**Amended** above).
 - **A nullable body** at an unbounded max is non-termination and is rejected.
   At a bounded max it is not — see [Problem 3](#problems), which is open; the
   lowering must not reject it until that is settled.

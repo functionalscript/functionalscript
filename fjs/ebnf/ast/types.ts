@@ -2,9 +2,9 @@
  * Type-level API of the EBNF AST: `Ast<R>` is the type of what matching the
  * rule `R` produces, one row per form of the rule union in `../types.ts`.
  *
- * A symbol is itself, except EOF, which has no source element and so no leaf:
- * its node is empty, as an empty string's is; a string is its symbols; a tuple
- * maps its elements; a
+ * The end of input has no source element and so no leaf: its node is empty,
+ * as an empty string's is; a symbol is itself; a string is its symbols; a
+ * tuple maps its elements; a
  * variant is the branch taken, tagged by its key, and an empty one, which
  * nothing can match, is `never`; a `const` thunk is its payload; a set is
  * one symbol; and a repeat is a `BoundedArray` of its item, so every bound
@@ -26,9 +26,8 @@ type _AnyAst =
 export type Ast<R extends Rule> =
     Equal<R, Rule> extends true ? _AnyAst :
     // EOF: a consumed end of input has no source element, so it contributes
-    // no leaf — the node is empty, as an empty string's is. Only the literal
-    // `-1` is EOF at the type level; a widened `number` is a symbol.
-    R extends -1 ? readonly[] :
+    // no leaf — the node is empty, as an empty string's is.
+    R extends null ? readonly[] :
     // number
     R extends number ? R :
     // string
@@ -52,13 +51,24 @@ type _Any = Assert<Equal<Ast<Rule>, _AnyAst>>
 
 type _Number = Assert<Equal<Ast<number>, number>>
 type _Number0 = Assert<Equal<Ast<42>, 42>>
-type _Number1 = Assert<Equal<Ast<42|-1>, 42 | readonly[]>>
+type _Number1 = Assert<Equal<Ast<42|-1>, -1|42>>
 
-type _Eof = Assert<Equal<Ast<-1>, readonly[]>>
+type _Eof = Assert<Equal<Ast<null>, readonly[]>>
 // `document = [value, eof]`: the tuple keeps its arity, the EOF slot is empty.
-type _Eof0 = Assert<Equal<Ast<readonly[42, -1]>, readonly[42, readonly[]]>>
+type _Eof0 = Assert<Equal<Ast<readonly[42, null]>, readonly[42, readonly[]]>>
 // An optional EOF: zero rounds, or one round holding the empty node.
-type _Eof1 = Assert<Equal<Ast<Repeat<0, 1, -1>>, readonly[] | readonly[readonly[]]>>
+type _Eof1 = Assert<Equal<Ast<Repeat<0, 1, null>>, readonly[] | readonly[readonly[]]>>
+
+// A narrower rule has a narrower AST: `A extends B` implies `Ast<A> extends
+// Ast<B>`. EOF being `null` rather than `-1` is what keeps `number` inside
+// the law — a rule typed `number` is never the end of input.
+type _Mono<A extends B, B extends Rule> = Ast<A> extends Ast<B> ? true : false
+type _Mono0 = Assert<_Mono<null, Rule>>
+type _Mono1 = Assert<_Mono<42, number>>
+type _Mono2 = Assert<_Mono<-1, number>>
+type _Mono3 = Assert<_Mono<readonly[42, null], Tuple>>
+type _Mono4 = Assert<_Mono<{ readonly end: null }, Variant>>
+type _Mono5 = Assert<_Mono<number, Rule>>
 
 type _String = Assert<Equal<Ast<string>, readonly number[]>>
 type _String0 = Assert<Equal<Ast<'hello'>, readonly number[]>>
@@ -66,7 +76,7 @@ type _String1 = Assert<Equal<Ast<''>, readonly[]>>
 
 type _TupleAst<R extends Tuple> = { readonly[K in keyof R]: Ast<R[K]> }
 
-type _Tuple = Assert<Equal<Ast<[12, -1]>, readonly[12, readonly[]]>>
+type _Tuple = Assert<Equal<Ast<[12, -1]>, readonly[12, -1]>>
 type _Tuple0 = Assert<Equal<Ast<[]>, readonly[]>>
 type _Tuple1 = Assert<Equal<Ast<[12, string]>, readonly[12, readonly number[]]>>
 
