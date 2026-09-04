@@ -229,7 +229,7 @@ only because of shared machinery and do not.
 | `ll1/` | rewrite | the reference backend: `RuleSet`-only entry, layer composition, per-layer metadata per [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md), AST mapping; a first/first conflict names the rule |
 | `descent/` | retire | consumers port to `ll1/` (below) |
 | `token_symbol/` | move | the layer boundary; imports `unicode/`, so it lands after it |
-| `map/types.ts` | rewrite | [`ebnf/map/`](../ebnf/map/README.md), shipped: a mapping is keyed by the rule the author holds and typed against `Ast<R>` rather than `Meta`, and `rewrite` is the bottom-up rewrite of the typed AST — the AST mapping stage 4's backend consumes or reproduces |
+| `map/types.ts` | rewrite | [`ebnf/map/`](../ebnf/map/README.md), shipped: a mapping is keyed by the rule the author holds, as the types see it, and typed against `Ast<R>` rather than `Meta`, and `rewrite` is the bottom-up rewrite of the typed AST — the AST mapping stage 4's backend consumes or reproduces |
 | `map/rtti/` | retire | its runtime check of a mapping's declared input is `Checked` in `ebnf/map/types.ts`, done by `tsc` against the typed AST, so no RTTI layer is needed and [rename-check-map](../bnf/map/rtti/todo/rename-check-map.md) has nothing to rename in `ebnf/`; it retires with `bnf/` |
 | `lib/json`, `lib/datajs` | port | one PR for both; `join` (was `commaJoin0Plus`) changes the AST of both bracket pairs |
 | `testlib.f.mjs` — `showAst` and the root `private.ts` typing it | move | backend-neutral; needed by `ll1`'s proofs |
@@ -418,9 +418,10 @@ consumer port"), never by number, so a renumbering here cannot strand them.
 - [ ] Stage 3: `ebnf/matcher/` and `ebnf/unicode/` with proofs; `showAst` in
       `ebnf/`'s testlib; unicode-rules' `unicode/` half settled, its `byte/`
       half owed to the first consumer that wants it.
-- [x] `ebnf/map/` with proof: the rewrite over the typed AST, keyed by rule
-      identity, its declared inputs checked by `tsc`; rename-check-map
-      retired with `bnf/map/rtti`.
+- [x] `ebnf/map/` with proof: the rewrite over the typed AST, keyed by the
+      rule as the types see it — a data rule by its parts, a thunk by
+      itself, a look-alike refused — its declared inputs checked by `tsc`;
+      rename-check-map retired with `bnf/map/rtti`.
 - [ ] Stage 4: `ebnf/token_symbol/` and `ebnf/ll1/` with proofs; the
       backend's side of the AST mapping.
 - [ ] Stage 5: `ebnf/lib/json` and `ebnf/lib/datajs` with proofs; the

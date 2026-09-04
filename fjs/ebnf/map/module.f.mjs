@@ -1,6 +1,6 @@
 /**
  * The EBNF rule mapping: a rewrite of the AST a rule matches, keyed by the
- * rules' spellings.
+ * rules the author holds.
  *
  * {@link rewrite} takes a map of rules to functions and a rule, and returns
  * the function from the rule's AST — the `Ast<R>` of `../ast/types.ts` — to
@@ -24,45 +24,74 @@ import { definedEntries, structurallySame } from '../../types/object/module.f.mj
 import { contains } from '../../types/range_set/module.f.mjs'
 
 /**
- * Whether two values are one spelling: the same value, or the same shape
- * over the same spellings — a number or a string by value, a list element
- * by element, a record entry by entry, and a thunk by what it yields. The
- * pairs of thunks under comparison are carried, and a pair met again is
- * taken as the same, so two rules that name themselves the same way are
- * one spelling and the comparison ends.
+ * Whether two values are alike: the same value, or the same shape over
+ * alike parts — a number or a string by value, a list element by element,
+ * a record entry by entry — with two distinct thunks compared as `thunks`
+ * says.
+ *
+ * @type {(thunks: (a: unknown, b: unknown) => boolean) => (a: unknown, b: unknown) => boolean}
+ */
+const alikeBy = thunks => {
+    /** @type {(a: unknown, b: unknown) => boolean} */
+    const alike = (a, b) => {
+        if (a === b) { return true }
+        if (typeof a === 'function' && typeof b === 'function') { return thunks(a, b) }
+        if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) { return false }
+        if (a instanceof Array || b instanceof Array) {
+            return a instanceof Array && b instanceof Array && a.length === b.length
+                && [...a].every((v, i) => alike(v, b[i]))
+        }
+        const ea = definedEntries(a)
+        const eb = definedEntries(b)
+        return ea.length === eb.length && ea.every(([k, v]) => {
+            const e = eb.find(([kb]) => kb === k)
+            return e !== undefined && alike(v, e[1])
+        })
+    }
+    return alike
+}
+
+/**
+ * Whether two values are one spelling: alike, with a thunk compared by
+ * what it yields. The pairs of thunks under comparison are carried, and a
+ * pair met again is taken as the same, so two rules that name themselves
+ * the same way are one spelling and the comparison ends.
  *
  * @type {(seen: readonly (readonly [unknown, unknown])[]) => (a: unknown, b: unknown) => boolean}
  */
-const twinIn = seen => (a, b) => {
-    if (a === b) { return true }
-    if (typeof a === 'function' && typeof b === 'function') {
-        if (seen.some(([x, y]) => x === a && y === b)) { return true }
-        return twinIn([...seen, [a, b]])(a(), b())
-    }
-    if (typeof a !== 'object' || typeof b !== 'object' || a === null || b === null) { return false }
-    const twin = twinIn(seen)
-    if (a instanceof Array || b instanceof Array) {
-        return a instanceof Array && b instanceof Array && a.length === b.length
-            && [...a].every((v, i) => twin(v, b[i]))
-    }
-    const ea = definedEntries(a)
-    const eb = definedEntries(b)
-    return ea.length === eb.length && ea.every(([k, v]) => {
-        const e = eb.find(([kb]) => kb === k)
-        return e !== undefined && twin(v, e[1])
-    })
-}
+const twinIn = seen => alikeBy((a, b) =>
+    seen.some(([x, y]) => x === a && y === b)
+    || twinIn([...seen, [a, b]])(/** @type {() => unknown} */ (a)(), /** @type {() => unknown} */ (b)()))
 
 /** @type {(a: unknown, b: unknown) => boolean} */
 const twin = twinIn([])
 
 /**
- * The function mapped to `rule`, if any. A key is a spelling: the rule the
- * author held when the map was written, and every rule spelled the same.
+ * Whether two values are one rule: alike, with a thunk its own rule and
+ * no other's.
+ *
+ * @type {(a: unknown, b: unknown) => boolean}
+ */
+const same = alikeBy(() => false)
+
+/**
+ * The function mapped to `rule`, if any. A key is the rule as the types
+ * see it: a number or a string by value, a tuple or a variant by its parts,
+ * and a thunk by itself — two thunks have no spelling the runtime reads
+ * that the types read too, since `range('09')` and `rangeEncode(48, 57)`
+ * yield one set and are two types, and `range('09')` twice yields one set
+ * and is one type. So a rule that spells like a key without being it is
+ * refused, as a rule spelled twice: the types cannot say whether the two
+ * are one, and neither mapping it nor leaving it would be honest.
  *
  * @type {(rules: RuleMap) => (rule: Rule) => _Mapper | undefined}
  */
-const find = rules => rule => rules.find(([r]) => twin(r, rule))?.[1]
+const find = rules => rule => {
+    const entry = rules.find(([r]) => twin(r, rule))
+    if (entry === undefined) { return undefined }
+    assert(same(entry[0], rule), ['a rule spelled twice', entry[0], rule])
+    return entry[1]
+}
 
 /**
  * A node with a known number of children — a tuple's, or the two of a
@@ -166,8 +195,9 @@ const rewriteRule = rules => rule => ast => {
  * matches to the tree with every mapped rule's node — the given rule's
  * included — replaced by what its function returns.
  *
- * A map names each spelling once; a rule mapped twice, or two rules of one
- * spelling, is refused, since one would silently win. An AST that is not
+ * A map names each rule once; a rule mapped twice, or two keys of one
+ * spelling, is refused, since one would silently win, and so is a rule the
+ * walk meets that spells like a key without being it. An AST that is not
  * the rule's — a node of the wrong
  * arity, a branch the variant lacks, a symbol outside the set, a repetition
  * outside its bounds — is refused where the walk reads it, naming the rule,
