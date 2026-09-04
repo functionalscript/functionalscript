@@ -2,7 +2,10 @@
 
 **Priority:** P3
 **Status:** blocked
-**Blocked by:** [Separate alphabet-specific BNF helpers](./unicode-rules.md)
+**Blocked by:** [ebnf-migration](../../todo/ebnf-migration.md)'s `ebnf/ll1/`
+piece, which `ll1Recognizer` is built over; not by
+[unicode-rules](./unicode-rules.md), since the neutral fixture imports no
+text helper.
 
 ### Problem
 
@@ -16,10 +19,12 @@ kind never made it there and are copy-pasted instead, across
 This design predates the alphabet split. Its shared `number` fixture currently
 constructs Unicode terminals with core `range('--')` / `range('09')`, and its
 import analysis assumes `fjs/bnf/testlib.f.mjs` obtains text helpers from
-`./module.f.mjs`. After the split, text/range construction belongs to
-`fjs/ebnf/unicode/module.f.mjs`. Do not implement the fixture extraction against
-the old core API: rebase the fixture imports on `fjs/ebnf/unicode` first while keeping
-the recognizer backends themselves generic.
+`./module.f.mjs`. The neutral fixture below imports no text helper at all: it
+is a directly authored `RuleSet`, so it depends neither on the classical
+`range` nor on `fjs/ebnf/unicode/`, whose values are range sets the classical
+backends do not consume ([ebnf-range-set](./ebnf-range-set.md)). Only a
+classical fixture that still spells rules functionally keeps the classical
+helper, and it stays in `fjs/bnf/testlib.f.mjs`.
 
 #### 1. The "recognizes the whole input" helper — 8 copies
 
@@ -95,8 +100,9 @@ That divergence should be an explicit override table rather than a copied corpus
 
 ### Proposal
 
-Move the shared harness and fixtures into a neutral testlib, after rebasing
-text construction on the Unicode adapter. It is a **separate home** from
+Move the shared harness and fixtures into a neutral testlib, with the fixtures
+authored as rule sets rather than built with any text helper. It is a
+**separate home** from
 `classic()` and `deterministic()`: those stay in `fjs/bnf/testlib.f.mjs`, which
 depends on the classical front end and which
 [ebnf-migration](../../todo/ebnf-migration.md) retires with `bnf/` (its stage
@@ -227,9 +233,9 @@ explicit named override list for the rows where token-stream acceptance differs.
 
 ### Related
 
-- [Separate alphabet-specific BNF helpers](./unicode-rules.md) — **blocks this
-  task**; shared text fixtures must consume `fjs/ebnf/unicode`, not the removed core
-  text/range API.
+- [Separate alphabet-specific BNF helpers](./unicode-rules.md) — does **not**
+  block this task: the neutral fixture is a directly authored `RuleSet` and
+  consumes neither that adapter nor the classical text helpers.
 - [bnf-grammar-single-owner](./bnf-grammar-single-owner.md) —
   owns the grammars themselves, now shipped under `fjs/bnf/lib`; this issue moves
   the proof harness/fixtures.

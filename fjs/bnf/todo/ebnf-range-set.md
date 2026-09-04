@@ -208,13 +208,18 @@ What does have a ceiling is `number` arithmetic. `b + 1`, `x + 1` and
 `2 ** 53`, and `2 ** 54 - 1` is `2 ** 54` — so **every boundary of a terminal
 set is a safe integer**, and the lowering rejects any other, hand-written
 ones included: `[0, 2 ** 54]` never reaches the IR, where its inclusive
-upper bound would have been itself. The helpers check earlier, where the
-author still has a symbol to point at: `range(a, b)` and `one(x)` require
-`Number.isSafeInteger(b + 1)`. So ordinary symbols run `0 .. 2 ** 53 - 2`,
-and their boundaries `0 .. 2 ** 53 - 1`. That is a fact about `number`, not
-about the set, and it needs no canonicalization rule: the open tail `[a]` is
-still the only spelling of "from `a` up", because no boundary can spell the
-top.
+upper bound would have been itself. **Ordinary symbols are the non-negative
+safe integers**, `0 .. 2 ** 53 - 1`, and the open tail is what spells the
+top one: `[2 ** 53 - 1]` is its singleton, and `[a]` is `a` up to and
+including it, the only spelling either has, because the boundary after the
+top, `2 ** 53`, is not safe and is rejected. `range(a, b)` and `one(x)`
+therefore return `[a, b + 1]` when `b + 1` is a safe integer and the open
+tail `[a]` when `b` is `Number.MAX_SAFE_INTEGER`, and reject a larger `b`.
+`toRangeMap` gives an open tail the upper bound `Infinity`, which is right:
+nothing above the top is a safe integer, so nothing above it is a symbol an
+adapter can deliver, and that is the adapter's contract stated above. So
+`complement(fromRange([-Infinity, 2 ** 53 - 1]))` is `[2 ** 53 - 1]`, the
+top symbol alone, and lowers as such.
 
 The alphabet adapter's `not` is *difference against its universe*: Unicode's
 is `[0, 0x110000]`, bytes' is `[0, 256]`, and a token-symbol alphabet's is its
@@ -269,8 +274,9 @@ justification is the API and the AST, which is where
       open tail, and every rejected input (`NaN`, `Infinity`, `-0`, a
       repeat, a decrease). Port `fjs/media/nix/module.f.mjs` to `[a, b + 1]`.
 - [ ] `fjs/ebnf/terminal/`: the integer helpers — `range(a, b)` and
-      `one(x)` as `[a, b + 1]` and `[x, x + 1]`, rejecting an end whose
-      successor is not a safe integer; `eof` as `[-1, 0]`; the domain `[0]`;
+      `one(x)` as `[a, b + 1]` and `[x, x + 1]`, the open tail when the end
+      is `Number.MAX_SAFE_INTEGER`, rejecting a larger end; `eof` as
+      `[-1, 0]`; the domain `[0]`;
       and `toRangeMap` (inclusive upper bound `b - 1`; an open tail is
       `Infinity`). No integer range-set module: these arithmetic facts are
       the whole difference.
@@ -278,8 +284,9 @@ justification is the API and the AST, which is where
       issue, before any backend touches a set.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
       the union, the AST table (`number`), the lowering requirements
-      (intersect with the domain `[0]`; require safe-integer boundaries;
-      reject the empty set), and `oneOf` in the constructor list.
+      (intersect with the domain `[0]` first, then require safe-integer
+      boundaries and reject the empty set), and `oneOf` in the constructor
+      list.
 - [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/ebnf/unicode/`
       produce sets; `not` is difference against the Unicode universe. `str`
       is not one of them: `str('true')` is an ordered `Sequence` of
