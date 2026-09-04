@@ -70,7 +70,8 @@ input reaches today — is a `todo/` by default, not a fix. Whether it is needed
 is decided later, on its own; the alternative is a pull request that answers
 every "what if" and never lands.
 
-Never deferrable: a **regression**, and **silence**.
+Never deferrable: what [blocks](./REVIEWING.md#what-to-raise) — a
+**regression**, **silence**, an undeclared break, a broken code rule.
 
 ## Refusing loudly
 

@@ -40,8 +40,8 @@ finding with the rule as its link. "An implementer following this task builds
 against a module the proposal above it retired" is a finding. "This could be
 more precise" is not.
 
-**What blocks.** A regression, silence, an undeclared break, and a broken rule
-are fixed before approval. Everything else in this document is a `todo/` or an
+**What blocks.** A regression, silence, an undeclared break, and a broken code
+rule — the ones held by review, above — are fixed before approval. Everything else in this document is a `todo/` or an
 answer, and never a reason to hold the pull request.
 
 ## What to ask for
