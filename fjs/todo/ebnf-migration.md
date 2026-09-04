@@ -217,7 +217,7 @@ machinery and do not.
 | `module.f.mjs` — `rangeEncode`, `rangeDecode`, `oneEncode`, `eof`, `fullRange` | move | `terminal/`; `bnf` keeps its own and may repoint |
 | `module.f.mjs` — `str`, `set`, `range`, `not`, `notSet`, `remove`, `unicodeRange`, `unicodeMax` | rewrite | `unicode/`, EBNF forms only ([unicode-rules](../bnf/todo/unicode-rules.md)) |
 | `data/` — `RuleSet`, `emptyTagMap`, `isRepeat` | rewrite | `data/` with a bounded `Repeat` carrying `min`/`max`; keeps a spelling for `0..Infinity` so `bnf`'s `toData` output stays a valid rule set, and `bnf/data` may repoint its IR types and `emptyTagMap` to it |
-| `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem` | retire | the front-end lowering in `ebnf/` needs no recognition; a hand-written or deserialized set uses the primitive |
+| `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem` | retire | the front-end lowering in `ebnf/` needs no recognition, and a hand-written or deserialized EBNF set spells the primitive; an opt-in normalizer of the right-recursive shape may be added to `ebnf/data/` by whoever wants one, but nothing plans it |
 | `data/` — `GrammarData`, `RuleNameMap` | rewrite | the classical ones retire; the EBNF lowering returns its own map from EBNF rule identity to generated name beside the rule set and entry — the bridge the transformer protocol keys on through `Entry.rule`, and the "rule identity must survive" requirement in [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — in whatever shape the `data/` rewrite chooses |
 | `matcher/` | move | `Rule` identity in the transformer protocol retargeted to the EBNF `Rule`; `bnf` keeps its own copy, and its identity-keyed pieces (`Entry.rule`, the repeat arm) in any case |
 | `ll1/` | rewrite | the reference backend: `RuleSet`-only entry, layer composition, per-layer metadata per [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md), AST mapping; a first/first conflict names the rule |
@@ -247,7 +247,11 @@ that in its own PR.
 
 Outside `fjs/bnf` the front end has exactly five consumers, all under
 `fjs/djs`. Each port carries with it whatever BNF gained since `ebnf/` was
-started that the consumer relies on (principle 4). In dependency order:
+started that the consumer relies on (principle 4). The consumers are named
+by today's paths: [parser-serializer-restructure](../../todo/parser-serializer-restructure.md)
+renames the tokenizer and parser to `fjs/fsc/` as a rename with the BNF
+dependency intact, and if that lands first the port simply follows them
+there. Nothing here orders the two plans either way. In dependency order:
 
 1. `bnf/lib/json` and `bnf/lib/datajs` — atomically, since `testlib`'s
    `deterministic()` delegates to `lib/json`. The originals stay in `bnf/`.
