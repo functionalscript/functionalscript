@@ -215,6 +215,13 @@ including it, the only spelling either has, because the boundary after the
 top, `2 ** 53`, is not safe and is rejected. `range(a, b)` and `one(x)`
 therefore return `[a, b + 1]` when `b + 1` is a safe integer and the open
 tail `[a]` when `b` is `Number.MAX_SAFE_INTEGER`, and reject a larger `b`.
+They reject a negative endpoint too, `range(-1, 1)` included: the helpers
+build ordinary-symbol sets, so an endpoint below `0` is a mistake at the
+call site, and it must fail there rather than reach the lowering, whose
+intersection with the domain would clip `[-1, 2]` to the plausible but
+different `[0, 2]` without a word. That intersection exists for values the
+algebra produces — a generic complement starts at `-Infinity` — not for
+helper input, which has an author to point at.
 `toRangeMap` gives an open tail the upper bound `Infinity`, which is right:
 nothing above the top is a safe integer, so nothing above it is a symbol an
 adapter can deliver, and that is the adapter's contract stated above. So
@@ -274,9 +281,10 @@ justification is the API and the AST, which is where
       open tail, and every rejected input (`NaN`, `Infinity`, `-0`, a
       repeat, a decrease). Port `fjs/media/nix/module.f.mjs` to `[a, b + 1]`.
 - [ ] `fjs/ebnf/terminal/`: the integer helpers — `range(a, b)` and
-      `one(x)` as `[a, b + 1]` and `[x, x + 1]`, the open tail when the end
-      is `Number.MAX_SAFE_INTEGER`, rejecting a larger end; `eof` as
-      `[-1, 0]`; the domain `[0]`;
+      `one(x)` as `[a, b + 1]` and `[x, x + 1]` over non-negative safe
+      integers with `a <= b`, the open tail when the end is
+      `Number.MAX_SAFE_INTEGER`, rejecting a negative endpoint, a reversed
+      pair or a larger end; `eof` as `[-1, 0]`; the domain `[0]`;
       and `toRangeMap` (inclusive upper bound `b - 1`; an open tail is
       `Infinity`). No integer range-set module: these arithmetic facts are
       the whole difference.

@@ -160,9 +160,11 @@ port replaces it with an LL(1) equivalent as part of that module's own API
 change ([ebnf-migration](../../todo/ebnf-migration.md), the consumer port).
 
 `stringToCodePointList` / `toArray` / code-point mapping stay inside the Unicode
-recognizer adapter. The alphabet-specific conversion should be imported from the
-Unicode boundary after `unicode-rules.md` lands; generic parser modules should
-not regain text dependencies.
+recognizer adapter, which takes them from `fjs/text/utf16` — input decoding,
+which exists today and is not what [unicode-rules](./unicode-rules.md) owns.
+That issue is about constructing *rules* from text, and the neutral fixture
+constructs none; so this adapter waits on nothing there. Generic parser
+modules should not regain text dependencies.
 
 **2. `export const number`** — the optional-minus-then-digit grammar. Exported
 as a **`RuleSet` plus its entry name**, not as a functional `Rule`: the
