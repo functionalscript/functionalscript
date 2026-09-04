@@ -297,6 +297,10 @@ const lowerData = (state, hint, dr) => {
  * complement's `-Infinity` and anything below `0`; a `repeat` lowers its
  * item under its own name.
  *
+ * A hand-written info tuple is data too, and a field past a fixed arity is
+ * refused here rather than dropped: the data form's own arity check never
+ * sees the front-end tuple, only what this emitted from it.
+ *
  * @type {(state: _State, hint: string, fr: Thunk) => _Lowered<string>}
  */
 const lowerThunk = (state, hint, fr) => {
@@ -305,6 +309,7 @@ const lowerThunk = (state, hint, fr) => {
     const info = fr()
     switch (info[0]) {
         case 'const': {
+            assert(info.length === 2, ['not a const', name, info])
             const [next, rule] = lowerBody(registered, name, info[1])
             return [emit(next, name, rule), name]
         }
@@ -314,6 +319,7 @@ const lowerThunk = (state, hint, fr) => {
         }
         case 'repeat': {
             const [, min, max, r] = info
+            assert(info.length === 4, ['not a repeat', name, info])
             const [next, item] = lower(registered, childHint(name, 'item'), r)
             return [emit(next, name, ['repeat', min, max, item]), name]
         }

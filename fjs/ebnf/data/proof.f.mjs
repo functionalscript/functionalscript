@@ -37,6 +37,12 @@ const variantTrailing = ['variant', { zero: 'zero' }, 'extra']
 const variantNotAnObject = ['variant', ['zero']]
 
 /** @type {unknown} */
+const variantString = ['variant', 'zero']
+
+/** @type {unknown} */
+const constTrailing = ['const', 'x', 'extra']
+
+/** @type {unknown} */
 const numericReference = ['sequence', 1]
 
 /** @type {unknown} */
@@ -109,6 +115,7 @@ export const proof = {
             repeatTrailing: () => showRule(/** @type {DataRule} */ (repeatTrailing)),
             variantTrailing: () => showRule(/** @type {DataRule} */ (variantTrailing)),
             variantNotAnObject: () => showRule(/** @type {DataRule} */ (variantNotAnObject)),
+            variantString: () => showRule(/** @type {DataRule} */ (variantString)),
         },
     },
     emptyTagMap: {
@@ -407,6 +414,11 @@ export const proof = {
             // that is no rule at all, are refused rather than lowered.
             unknownTag: () => toData(() => /** @type {readonly ['const', string]} */ (typo)),
             notARule: () => toData(/** @type {Rule} */ (notARule)),
+            // A field past a fixed arity in a hand-written info tuple is
+            // refused where the tuple is read, since the data form's arity
+            // check only ever sees what the lowering emitted.
+            constTrailing: () => toData(() => /** @type {readonly ['const', string]} */ (constTrailing)),
+            repeatTrailing: () => toData(() => /** @type {readonly ['repeat', number, number, string]} */ (repeatTrailing)),
         },
         // The grammars of `../lib` lower and validate whole. What the contract
         // fixes is the entry and the identity map, never a generated name, so
