@@ -152,6 +152,16 @@ node of the wrong arity, a variant tag the rule lacks or inherits, a symbol
 outside its set, a string that is not the rule's, a repetition outside its
 bounds, and anything under a rule that is no rule.
 
+The walk also refuses a *rule* the lowering refuses, where it reads one —
+an info that is no tuple or carries a field past its arity, a `const` over
+a thunk, a set or a repetition whose bounds are outside the domain. Where
+it does not read one it does not: a rule no part of the AST exercises, a
+repetition of zero rounds over it or an unselected variant branch, is
+never looked at. What the rewrite should promise about a rule at all is
+open — [rule-restrictions](./todo/rule-restrictions.md) holds the
+question, and until it is answered a rule is validated by `toData` and a
+backend, not here.
+
 ## What it is not
 
 **Not a backend.** Nothing here matches input. A backend that builds `Ast<R>`
