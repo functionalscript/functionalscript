@@ -80,9 +80,10 @@ Properties, each one a reason to prefer this over a list of ranges:
 
 - **Canonical by construction.** One spelling per set, so structural equality
   is set equality and content addressing works without a normalization pass.
-  Validation is the whole guarantee: strictly increasing, which already
-  rejects `NaN` (every comparison with it is false) and `[5, 5]`; plus no
-  `Infinity` (a run starting there is empty, so `[Infinity]` would be a
+  Validation is the whole guarantee: strictly increasing, which rejects
+  `[5, 5]` and `[5, 4]`; plus no `NaN`, checked explicitly — a lone `[NaN]`
+  is never compared with anything, so ordering alone would let it through —
+  no `Infinity` (a run starting there is empty, so `[Infinity]` would be a
   second spelling of `[]`) and no `-0` (a second spelling of `0` under
   `Object.is`). `-Infinity` needs no rule: strictly increasing already
   confines it to the first position.
@@ -174,22 +175,29 @@ restores canonicity before the IR. It also requires every boundary to be an
 integer: `[0.5, 1.5]` and `[1, 2]` are the same set of symbols, and only one
 of them may reach content-addressed data.
 
-The top end is `maxSymbol + 1`, the exclusive boundary after the last
-ordinary symbol, and it must be accepted: the half-open API spells the closed
-range `maxSymbol..maxSymbol` as `[maxSymbol, maxSymbol + 1]`, which is the
-last terminal `rangeEncode` accepts today. The lowering canonicalizes it
-rather than rejecting it — a trailing boundary equal to `maxSymbol + 1` is
-dropped, giving the open tail that means the same thing in the domain — and
-rejects anything beyond it. So the IR never spells the maximum, and
-"every ordinary symbol" stays `[0]`.
+**There is no top end.** The last ordinary symbol, `2 ** 24 - 2`, is a fact
+about the packed codec — two 24-bit halves in one number — and it leaves with
+the codec. The domain `[0]` is open above: every non-negative integer is an
+ordinary symbol, so no lowering rule clips, drops or rejects a boundary for
+being large, and "every ordinary symbol" is `[0]` with nothing to
+canonicalize. Which symbols an input can actually carry is its alphabet's
+contract — code points end at `0x10FFFF`, token symbols occupy the range
+`token_symbol/` assigns above them — and a set terminal matches whatever the
+adapter delivers, exactly as a packed range does today: neither validates the
+input against the domain, and neither should, because the adapter is the one
+that knows the alphabet.
 
 The alphabet adapter's `not` is *difference against its universe*: Unicode's
 is `[0, 0x110000]`, bytes' is `[0, 256]`, and a token-symbol alphabet's is its
 own. The generic toggle lives in `range_set`; the alphabet-scoped one in
 `fjs/ebnf/unicode/` and its siblings ([unicode-rules](./unicode-rules.md)).
 This answers ebnf-front-end's Problem 5 — the helpers take and return sets,
-and `notOf` is unnecessary — and most of its Problem 9: the adapter returns
-set *values*, and each front end has one injection from a set to a rule.
+and `notOf` is unnecessary — and Problem 9 does not arise: the adapter returns
+set *values*, and the EBNF front end has one injection from a set to a rule,
+the `['set', …]` thunk. The classical front end never sees a set value.
+`fjs/ebnf/unicode/` is EBNF-only, and `bnf/` keeps its own helpers and its
+`RangeVariant` until the migration's stage 7, so a raw `[0x30, 0x3A]` is
+never handed to a front end whose `Sequence` would read it as two symbols.
 
 #### Decide with the bounded repeat
 
@@ -240,9 +248,8 @@ justification is the API and the AST, which is where
       issue, before any backend touches a set.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
       the union, the AST table (`number`), the lowering requirements
-      (intersect with the domain `[0]`; require integer boundaries; drop a
-      trailing `maxSymbol + 1` and reject anything beyond it; reject the
-      empty set), and the constructor list.
+      (intersect with the domain `[0]`; require integer boundaries; reject
+      the empty set), and the constructor list.
 - [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/ebnf/unicode/`
       produce sets; `not` is difference against the Unicode universe. `str`
       is not one of them: `str('true')` is an ordered `Sequence` of

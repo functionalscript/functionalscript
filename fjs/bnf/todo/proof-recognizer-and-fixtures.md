@@ -73,10 +73,13 @@ const digitRule = range('09')
 const numberRule = [optionalMinusRule, digitRule]
 ```
 
-The fixture remains a Unicode/text fixture, so after the alphabet split the
-`range` used here must come from `fjs/ebnf/unicode/module.f.mjs` (or the equivalent
-final Unicode adapter API), **not** from core `fjs/bnf/module.f.mjs`. The produced
-rules are still ordinary generic BNF rules consumed by descent/LL1.
+The fixture is a Unicode/text fixture for the **classical** backends, so it
+keeps the classical `range` from `fjs/bnf/module.f.mjs`. It cannot take the
+one from `fjs/ebnf/unicode/module.f.mjs`: that adapter is EBNF-only and its
+`range` returns a range-set value ([ebnf-range-set](./ebnf-range-set.md)),
+which the classical descent/LL1 backends do not consume. The EBNF backend's
+fixture, when it exists, is the directly authored `RuleSet` proposed below or
+`fjs/ebnf/unicode/`'s own form — never a mix of the two front ends.
 
 Four of the nine copies carry a `minursRule` typo. One site is a deliberate
 variant that prefixes optional space; it should stay distinct rather than being

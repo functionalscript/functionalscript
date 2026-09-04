@@ -22,11 +22,14 @@ discriminates is not the classical one, and a discriminator written once
 there is what keeps `fjs/ebnf/ll1/` and every later backend from each
 re-deriving it.
 
-The terminal representation does **not** change. The bigint symbol/range
-migration would have replaced the number-based terminal and its discriminant,
-but it is [on hold](./bigint-symbols.md), so the visitor targets the shipped
-representation — a `number` terminal — rather than waiting for a union that is
-not coming.
+The terminal representation is open. [ebnf-range-set](./ebnf-range-set.md)
+replaces the packed `number` with a range set, and its carrier in the IR is
+decided together with the bounded `Repeat`'s (ebnf-front-end's Problem 1). So
+the visitor's `terminal` case takes whichever form that decision settles on,
+and its discriminant is written once, after it: `typeof rule === 'number'`
+is the classical `bnf/data` discriminant, not this visitor's. The bigint
+symbol/range migration is [on hold](./bigint-symbols.md) and no longer a
+factor, since a range set's boundaries need no fixed width.
 
 ### Proposal
 
@@ -37,7 +40,7 @@ Conceptually the visitor exposes the semantic rule cases:
 
 ```ts
 export type RuleVisitor<R> = {
-    readonly terminal: (r: TerminalRange) => R
+    readonly terminal: (r: Terminal) => R   // the range-set carrier, once settled
     readonly sequence: (s: Sequence) => R
     readonly variant: (v: Variant) => R
     readonly repeat: (r: Repeat) => R

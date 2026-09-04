@@ -234,9 +234,12 @@ consumers, `fjs/djs` included, exactly as they are until each consumer's own
 port. Repointing a `bnf/` module at its `ebnf/` counterpart is allowed by
 principle 2 and worth doing when it removes a second copy someone would
 otherwise maintain, and it is never a precondition for anything. So the only
-breaking change in this plan is stage 7, which declares
+breaking change to `bnf/` in this plan is stage 7, which declares
 `**BREAKING CHANGES:**` in its `Changelog:` section
-([changelog/RELEASE.md](../../changelog/RELEASE.md)).
+([changelog/RELEASE.md](../../changelog/RELEASE.md)). Work outside `bnf/`
+that this plan pulls in declares its own: replacing `fjs/types/range_set`'s
+representation ([ebnf-range-set](../bnf/todo/ebnf-range-set.md)) is a
+breaking PR before stage 7 and says so in its own `Changelog:` section.
 
 #### Consumer port
 
