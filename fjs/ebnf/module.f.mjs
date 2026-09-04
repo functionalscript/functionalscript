@@ -40,24 +40,29 @@ const getSet = a => {
     return r
 }
 
-/** @type {(a: RangeSet[]) => SetInfo} */
-const unionX = (a) => {
+/**
+ * @type {<T>(f: (v: T) => RangeSet) =>
+ *  (v: readonly T[]) =>
+ *  SetInfo}
+ */
+const unionX = f => v => {
     const r = /**@type {const}*/([
         'set',
-        ...a.reduce(
+        ...v.map(f).reduce(
             (a, b) => setUnion(a)(b),
             empty)])
     return () => r
 }
 
 /** @type {(a: string) => SetInfo} */
-export const set = a => unionX(
-    toArray(stringToCodePointList(a))
-        .map(b => fromRange([b, b + 1])))
+export const set = a =>
+    unionX(b => fromRange([b, b + 1]))
+        (toArray(stringToCodePointList(a)))
 
 /** @type {(...a: SetInfo[]) => SetInfo} */
-export const union = (...a) => unionX(
-    a.map(getSet))
+export const union = (...a) =>
+    unionX(getSet)(a)
+
 /**
  * @type {(a: SetInfo, b: SetInfo) =>
  *  SetInfo}
