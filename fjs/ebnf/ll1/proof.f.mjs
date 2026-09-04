@@ -339,6 +339,9 @@ export const proof = {
         /** @type {RuleSet} */
         const dead = { ...int, dead: ['sequence', 'dead'] }
         assertStructurallySame(parserRuleSet(dead, 'document')(cps('7')), ['ok', [[[['none', []], ['positive', [c('7'), []]]], []], 1]])
+        // The item of a zero-bound repeat is never entered, so it is dead
+        // too, whatever it is.
+        assertStructurallySame(parserRuleSet({ start: ['repeat', 0, 0, 'dead'], dead: ['sequence', 'dead'] }, 'start')([]), ['ok', [[], 0]])
     },
     throw: {
         // A set that is no grammar is refused as `validate` refuses it, and

@@ -150,7 +150,8 @@ const firstMapOf = (ruleSet, nullable) => {
 export const firstMap = ruleSet => firstMapOf(ruleSet, nullable(emptyTagMap(ruleSet)))(keys(ruleSet))
 
 /**
- * The rules a rule names.
+ * The rules a rule enters: the ones it names, except the item of a
+ * repetition of at most zero rounds, which no round ever enters.
  *
  * @type {RuleVisitor<readonly string[]>}
  */
@@ -158,7 +159,7 @@ const references = {
     set: () => [],
     sequence: items => items,
     variant: branches => definedValues(branches),
-    repeat: (_min, _max, item) => [item],
+    repeat: (_min, max, item) => max === 0 ? [] : [item],
 }
 
 /**
