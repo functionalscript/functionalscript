@@ -63,6 +63,9 @@ const numericReference = ['sequence', 1]
 /** @type {unknown} */
 const numericItem = ['repeat', 0, 1, 1]
 
+/** @type {unknown} */
+const undefinedDataBranch = ['variant', { zero: 'zero', missing: undefined }]
+
 /** @type {(a: string) => readonly ['set', number, number]} */
 const one = a => ['set', c(a), c(a) + 1]
 
@@ -240,6 +243,9 @@ export const proof = {
                 entry: /** @type {DataRule} */ (numericItem),
                 1: one('a'),
             }, 'entry'),
+            // A tag written with no rule under it is a branch the type calls
+            // absent, and is refused rather than dropped.
+            undefinedBranch: () => refuse({ uint: /** @type {DataRule} */ (undefinedDataBranch) }),
         },
         // A nullable item under a bounded repeat is accepted: the bound is
         // the cardinality, and the item's own ambiguity is a backend's to
