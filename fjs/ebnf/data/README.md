@@ -281,8 +281,11 @@ tuple is the one way an unvalidated value reaches it:
 ## The AST
 
 The data form fixes the AST the way the classical one does — one node per
-rule invocation, `{ tag, sequence }`, and every backend builds it — with the
-repeat row generalized:
+rule invocation, and every backend builds it — with the repeat row
+generalized and the node itself the typed `Ast<R>` of `fjs/ebnf/ast` rather
+than the classical `{ tag, sequence }` wrapper: a symbol, an array, a
+`[tag, node]` pair, as the rows below and the `Ast<R>` table agree, so a
+backend's tree needs no conversion before the mapping layer takes it.
 
 | rule | node |
 |---|---|
@@ -300,11 +303,16 @@ exactly one data kind, so the table is a function of the form as that issue
 demands. Problem 8, how a *typed* AST (`fjs/ebnf/ast`) relates to these
 nodes, is the mapping layer's ([`../map`](../map/README.md)), not this
 one's: the data layer commits to the nodes, and the mapping is defined over
-the typed AST; what a backend owes between the two is what remains of it.
+the typed AST. The reference backend, [`../ll1`](../ll1/README.md), builds
+the typed AST directly — the rows above are `Ast<R>`'s, form by form — so
+there is no second node shape between the two.
 
-What a backend owes a bounded repeat: start another round exactly while the
-lookahead is in the item's first set and fewer than `max` have matched; on
-leaving the loop, succeed iff at least `min` did; build one flat node.
+What a backend owes a bounded repeat: a round is forced while fewer than
+`min` have matched and optional until `max`, and an optional round starts
+exactly when the lookahead is in the item's first set; build one flat node.
+A forced round may match empty, which is how `['repeat', 3, 3, []]` matches
+empty three times above; an optional one never starts on an item whose first
+set is empty, which is how `['repeat', 0, 1, []]` matches it zero times.
 
 ## Left for later
 
