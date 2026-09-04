@@ -54,9 +54,13 @@ const { fromEntries, is } = Object
  * The JavaScript each unary operation the corpus uses denotes, keyed by the
  * canonical EDAG id — plus `unaryPlus`, the one operation with no such id.
  *
- * Only the operations the corpus exercises are here: an entry for an id no
- * case names would be a line no proof runs, and `lookup` refuses an id it
- * does not hold rather than answering for it.
+ * Only lowered cases used to reach these; now that they run through
+ * `amnesia`'s `vm` instead (see `run` below), an entry is needed only for an
+ * id `run`'s escape branch can still reach: a `NonEdagGroup` (`unaryPlus`,
+ * `typeof`), which always escapes, or an ordinary group with at least one
+ * `functionValue`-operand case. An id neither covers would be a line no case
+ * runs, and `lookup` refuses an id it does not hold rather than answering for
+ * it — `String`, for one, has no such case and so no entry here.
  *
  * The `any` parameters are the point of the exercise: these operators are
  * being applied to operand types TypeScript rejects (`-[]`, `{} * 1`), which
@@ -65,7 +69,6 @@ const { fromEntries, is } = Object
  * @type {{ readonly [k in OpId]?: (a: any) => unknown }}
  */
 const op1Js = {
-    String: a => String(a),
     neg: a => -a,
     unaryPlus: a => +a,
     '!': a => !a,
@@ -73,13 +76,20 @@ const op1Js = {
     typeof: a => typeof a,
 }
 
-/** The same, for the binary operations. @type {{ readonly [k in OpId]?: (a: any, b: any) => unknown }} */
+/**
+ * The same, for the binary operations — plus `'==='`, which `evaluate` below
+ * reaches directly and which has no group of its own to escape from (`eq`'s
+ * cases build it by hand in `lowerEq`, never through `run`). `'+'` has no
+ * `functionValue`-operand case, so — unlike every other arithmetic
+ * operator here — it has no entry either.
+ *
+ * @type {{ readonly [k in OpId]?: (a: any, b: any) => unknown }}
+ */
 const op2Js = {
     '*': (a, b) => a * b,
     '/': (a, b) => a / b,
     '**': (a, b) => a ** b,
     '-': (a, b) => a - b,
-    '+': (a, b) => a + b,
     '%': (a, b) => a % b,
     '&': (a, b) => a & b,
     '|': (a, b) => a | b,
@@ -87,20 +97,16 @@ const op2Js = {
     '<<': (a, b) => a << b,
     '>>': (a, b) => a >> b,
     '>>>': (a, b) => a >>> b,
-    // The key must *evaluate* to a string — a runtime constraint the
-    // EDAG's shape-only schema can't express, so this (like
-    // `fjs/edag/amnesia/module.f.mjs`'s own `own`) upholds it directly
-    // rather than letting `Object.getOwnPropertyDescriptor`'s own
-    // `ToPropertyKey` silently coerce a non-string key. The nullish check
-    // comes first, matching real `ToObject` running before `ToPropertyKey`:
-    // a nullish receiver throws regardless of what the key is.
-    own: (a, b) => {
-        if (a === null || a === undefined) {
-            throw new TypeError('Cannot convert undefined or null to object')
-        }
-        if (typeof b !== 'string') { throw new TypeError('own: key is not a string') }
-        return Object.getOwnPropertyDescriptor(a, b)?.value
-    },
+    // `own` only reaches this table through the `functionValue`-operand
+    // escape (`run`'s `caseExp(g)(args)[0] === 'escape'` branch), never
+    // through a lowered case — every `own` case that actually claims a
+    // throw (`nullReceiverThrows`, `nonStringKeyThrows`, …) lowers to
+    // `['own', a, b]` and is proven by `amnesia`'s `own` instead, which
+    // carries the nullish/non-string-key invariants this used to
+    // duplicate. No escaped case pairs `functionValue` with a nullish
+    // receiver or a non-string key — one operand already being a function
+    // is what makes it escape — so this stays the plain read.
+    own: (a, b) => Object.getOwnPropertyDescriptor(a, b)?.value,
     '<': (a, b) => a < b,
     '<=': (a, b) => a <= b,
     '>': (a, b) => a > b,
@@ -160,6 +166,15 @@ const context = { frame: undefined, args: [] }
  * a separate, smaller walker for exactly that reason, rather than the general
  * evaluator `run` and `escapedValue` use below.
  *
+ * Sees two kinds of node: a `Value`'s lowering (`eq.shared`'s nodes, and the
+ * operands `eqProof` reads out of `e` below — plus, from
+ * `jsOnly.throw.objectSpread`, a hand-built one of the same shape), which is
+ * always a constant or a `ref` and so always `'undefined'`/`'[]'`/`'{}'` or a
+ * primitive, never an operator application; and `lowerEq`'s own `['===', a,
+ * b]`, the one binary node this file ever builds by hand. Nothing here is
+ * ever a *unary* operator node, which is why there is no `op1` dispatch —
+ * only `op2`, and only ever for `'==='`.
+ *
  * @type {(memo: readonly (readonly[Exp, unknown])[]) => (e: Exp) => unknown}
  */
 const evaluate = memo => {
@@ -181,7 +196,7 @@ const evaluate = memo => {
                 return [f(p[1]), f(p[2])]
             }))
         }
-        return e.length === 2 ? op1(id)(f(a)) : op2(id)(f(a), f(b))
+        return op2(id)(f(a), f(b))
     }
     return f
 }
