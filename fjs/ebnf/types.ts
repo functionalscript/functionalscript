@@ -93,6 +93,13 @@ type _SetAny = Assert<Set<readonly ['range', '09']> extends Set ? true : false>
 export type Repeat<Min extends number, Max extends number, R extends Rule> =
     Info<readonly['repeat', Min, Max, R]>
 
+/**
+ * The unbounded `max`, which is `number`: TypeScript has no literal for
+ * `Infinity`. It is the one bound a repetition's type may spell as
+ * `number`, because `repeat`, `repeatFrom` and `times` refuse a bound
+ * that is not a literal, so a `max` of `number` is `repeatFrom`'s and
+ * means unbounded — to `BoundedArray`, and to a map keyed by rule types.
+ */
 export type Infinity =
     typeof Infinity
 

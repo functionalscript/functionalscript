@@ -23,6 +23,17 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { definedEntries, structurallySame } from '../../types/object/module.f.mjs'
 import { contains, isRangeSet } from '../../types/range_set/module.f.mjs'
 
+const { isSafeInteger } = Number
+
+/**
+ * An ordinary symbol is a non-negative safe integer; a leaf that is a
+ * number and no symbol is refused, since a set's boundaries would admit
+ * it as they admit the symbols between them.
+ *
+ * @type {(n: unknown) => n is number}
+ */
+const isSymbol = n => typeof n === 'number' && isSafeInteger(n) && n >= 0
+
 /**
  * Whether two values are alike: the same value, or the same shape over
  * alike parts — a number or a string by value, a list element by element,
@@ -121,7 +132,7 @@ const thunkChildren = rules => (fr, ast) => {
             // would answer membership by a list `contains` cannot read.
             const [, ...s] = info
             assert(isRangeSet(s), ['not a set', fr, s])
-            assert(typeof ast === 'number' && contains(s)(ast), ['not a symbol of the rule', fr, ast])
+            assert(isSymbol(ast) && contains(s)(ast), ['not a symbol of the rule', fr, ast])
             return ast
         }
         case 'repeat': {
@@ -149,6 +160,7 @@ const thunkChildren = rules => (fr, ast) => {
 const dataChildren = rules => (dr, ast) => {
     switch (typeof dr) {
         case 'number': {
+            assert(isSymbol(dr), ['not a symbol', dr])
             assert(ast === dr, ['not the symbol of the rule', dr, ast])
             return ast
         }

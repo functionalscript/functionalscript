@@ -112,7 +112,15 @@ export const remove = (a, b) => {
     return () => r
 }
 /**
- * @type {<const A extends number, const B extends number>(a: A, b: B) =>
+ * `min..max` copies of a rule. A bound is spelled or refused: a literal
+ * type says which bound is meant, where `number` — the type `Infinity` has,
+ * and the type a bound widens to — would read as unbounded to whatever
+ * matches rules by their types (`./map`). So a bound that is not a literal
+ * is refused here, and `repeatFrom` spells the unbounded case.
+ *
+ * @type {<const A extends number, const B extends number>(
+ *  a: number extends A ? never : A,
+ *  b: number extends B ? never : B) =>
  *  <const R extends Rule>(rule: R) =>
  *  Repeat<A, B, R>}
  */
@@ -120,21 +128,23 @@ export const repeat =
     (a, b) => rule => () => ['repeat', a, b, rule]
 
 /**
- * @type {<N extends number>(n: N) =>
+ * `n` or more copies of a rule: the one repetition whose `max` is
+ * `Infinity`, spelled `number` in its type.
+ *
+ * @type {<const N extends number>(n: number extends N ? never : N) =>
  *  <const R extends Rule>(rule: R) =>
  *  RepeatFrom<N, R>}
  */
-export const repeatFrom = n =>
-    repeat(n, Infinity)
+export const repeatFrom = n => rule => () => ['repeat', n, Infinity, rule]
 
 export const repeatFrom0 = repeatFrom(0)
 export const repeatFrom1 = repeatFrom(1)
 
 /**
- * @type {<const N extends number>(n: N) =>
+ * @type {<const N extends number>(n: number extends N ? never : N) =>
  *  <const R extends Rule>(rule: R) => Times<N, R>}
  */
-export const times = n => repeat(n, n)
+export const times = n => rule => () => ['repeat', n, n, rule]
 
 /** @type {<const R extends Rule>(rule: R) => Option<R>} */
 export const option = rule => () => ['repeat', 0, 1, rule]
