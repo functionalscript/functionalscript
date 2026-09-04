@@ -346,7 +346,10 @@ input, and crashing there is better than continuing: the caller was supposed to
 have validated, and a program that goes on past a broken assumption produces
 the silent corruption this section exists to prevent. So a `try*` belongs at
 the boundary, and an assert is the right answer inside it — an asserting API is
-not unusable, it is used after prevalidation.
+not unusable, it is used after prevalidation. That is not a reason to assert
+everything: an assert guards an assumption the code would otherwise answer
+wrongly on, and one that guards nothing the code relies on is noise
+([§9](#9-maximize-signal-to-noise)).
 
 A documented implementation limit ([§1](#1-simplicity-first)) is acceptable only
 under this rule: the limit has to be enforced where it is crossed. "Handles up
