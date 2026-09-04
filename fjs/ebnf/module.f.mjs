@@ -17,8 +17,7 @@ const isFixedArray2 =
  *
  * @throws If `ab` does not contain exactly two unicode code points.
  *
- * @type {(ab: string) =>
- *  SetInfo<readonly[number, number]>}
+ * @type {(ab: string) => SetInfo}
  */
 export const range = ab => {
     const a = toArray(stringToCodePointList(ab))
@@ -27,24 +26,23 @@ export const range = ab => {
 }
 
 /**
- * @type {(a: number, b: number) =>
- *  SetInfo<readonly[number, number]>}
+ * @type {(a: number, b: number) => SetInfo}
  */
 export const rangeEncode = (a, b) => (
     assert(a <= b),
     () => ['set', a, b + 1]
 )
 
-/** @type {(a: SetInfo<readonly number[]>) => RangeSet} */
+/** @type {(a: SetInfo) => RangeSet} */
 const getSet = a => {
     const [, ...r] = a()
     return r
 }
 
 /**
- * @type {(a: SetInfo<readonly[number, number]>) =>
- *  (b: SetInfo<readonly[number, number]>) =>
- *  SetInfo<readonly number[]>}
+ * @type {(a: SetInfo) =>
+ *  (b: SetInfo) =>
+ *  SetInfo}
  */
 export const remove =
     a => b => () => ['set', ...intersection(getSet(a))(complement(getSet(b)))]
