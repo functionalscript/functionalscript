@@ -207,8 +207,8 @@ cannot handle is refused, never answered with a plausible set
 - **A string** is one `['set', c, c + 1]` per code point, in a `['sequence', …]`;
   `''` is the empty sequence. A malformed UTF-16 string is refused
   ([malformed-utf16-symbols](../../todo/malformed-utf16-symbols.md)).
-- **Repeat bounds**: `min` a non-negative safe integer, `max` one or
-  `Infinity`, `min <= max` ([repeat-bounds](../../todo/repeat-bounds.md) puts
+- **Repeat bounds**: `min` a non-negative safe integer, `max` a non-negative
+  safe integer or `Infinity`, `min <= max` ([repeat-bounds](../../todo/repeat-bounds.md) puts
   the same check in the constructor; the lowering keeps it for the
   hand-written tuple).
 - **A nullable item under an unbounded `max`** is refused: a round that
