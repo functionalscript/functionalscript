@@ -33,8 +33,10 @@ Lower with an explicit work stack over the immutable `_State`, the shape
 `fjs/bnf/ll1`'s matcher uses for the same reason: a frame per rule being
 lowered holding the children still to lower and the names lowered so far,
 so the JS stack stays O(1) however deep the rule. `emptyTagMap`'s fixpoint
-and `freshFrom` recurse too, but bounded by rounds and by name collisions
-rather than by nesting, and need nothing.
+already iterates rather than recurses, since a chain of rules each naming
+the next takes as many rounds as it has rules; what it still pays is a
+full round per fact, quadratic on such a chain, a cost rather than a crash.
+`freshFrom` recurses bounded by name collisions and needs nothing.
 
 ### Tasks
 
