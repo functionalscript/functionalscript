@@ -183,3 +183,29 @@ impl<A: IVm> Any<A> {
         self.0.to_unpacked().dispatch(o)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::{
+        naive::Naive,
+        vm::{Nullish, ToAny},
+    };
+
+    type A = Naive;
+
+    /// A corpus `expected: throws` case can't tell the two check orders
+    /// apart — `own(null, 1)` throws either way — so this compares the
+    /// actual error instead of just the fact of throwing: the receiver is
+    /// checked first (see `own_property`'s own doc comment), so a nullish
+    /// receiver paired with a non-string key must still produce the
+    /// nullish `TypeError`, not the key-type one.
+    #[test]
+    fn own_property_nullish_receiver_outranks_non_string_key() {
+        let receiver = Nullish::Null.to_any::<A>();
+        let key = (1f64).to_any::<A>();
+        assert_eq!(
+            receiver.own_property(key),
+            Err("TypeError: Cannot convert undefined or null to object".into())
+        );
+    }
+}
