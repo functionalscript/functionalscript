@@ -234,6 +234,7 @@ export const proof = {
             minNegative: () => refuse({ digits0: ['repeat', -1, 2, 'digit'] }),
             minFractional: () => refuse({ digits0: ['repeat', 0.5, 2, 'digit'] }),
             minNegativeZero: () => refuse({ digits0: ['repeat', -0, 2, 'digit'] }),
+            maxNegativeZero: () => refuse({ digits0: ['repeat', 0, -0, 'digit'] }),
             maxFractional: () => refuse({ digits0: ['repeat', 0, 2.5, 'digit'] }),
             minAboveMax: () => refuse({ digits0: ['repeat', 3, 2, 'digit'] }),
             // A round that consumes nothing would repeat forever.
