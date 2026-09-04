@@ -20,17 +20,18 @@
  * | `[0.5, 1.5]` | the numbers `0.5 <= x < 1.5` |
  * | `[0x30, 0x3A]` | the integers `0..9` |
  *
- * The universe is `-Infinity..Infinity`, and a boundary is any number in it —
- * integers are a caller's subject, not this type's. The algebra only ever
- * *compares* boundaries and never adds one, so nothing here knows what the
- * successor of a number is; a consumer whose symbols are integers writes
- * `[a, b + 1]` for the closed range `a..b` itself.
+ * The universe is a half-open run like every other, `-Infinity <= x < Infinity`,
+ * and a boundary is any number in it — integers are a caller's subject, not
+ * this type's. The algebra only ever *compares* boundaries and never adds one,
+ * so nothing here knows what the successor of a number is; a consumer whose
+ * symbols are integers writes `[a, b + 1]` for the closed range `a..b` itself.
  *
- * A valid set is strictly increasing, with no `NaN` (it has no order), no
- * `Infinity` (the run above it is empty, so `[Infinity]` would be a second
- * spelling of `[]`) and no `-0` (a second spelling of `0`). `-Infinity` needs
- * no rule of its own: strictly increasing already confines it to the first
- * position, where it opens a set at the bottom of the universe.
+ * A valid set is strictly increasing, with no `NaN` and no `Infinity` — neither
+ * is in the universe, and the run `[Infinity]` would open is empty, so it would
+ * be a second spelling of `[]` — and no `-0`, a second spelling of `0`.
+ * `-Infinity` needs no rule of its own: strictly increasing already confines it
+ * to the first position, where it opens a set at the bottom of the universe, a
+ * member there like any other number.
  *
  * Those rules are what make the spelling canonical — one list per set, so
  * structural equality is set equality. Every operation assumes that and

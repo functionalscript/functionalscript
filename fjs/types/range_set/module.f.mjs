@@ -22,23 +22,32 @@ import { merge } from '../sorted_list/module.f.mjs'
 export const empty = []
 
 /**
- * Every number: the identity of `intersection`, and the set `complement`
- * complements against.
+ * The whole universe: the identity of `intersection`, and the set `complement`
+ * complements against. It opens at the universe's own bottom, which is a member
+ * like any other.
  *
  * @type {RangeSet}
  */
 export const full = [-Infinity]
 
 /**
- * A boundary is any number that spells a run exactly once. `NaN` is out
- * because it has no order, `Infinity` because the run above it is empty — so
- * `[Infinity]` would be a second spelling of `[]` — and `-0` because it is a
- * second spelling of `0`. `-Infinity` is a boundary: it opens a set at the
- * bottom of the universe.
+ * The universe is itself a half-open run, `-Infinity <= v < Infinity`. Its
+ * bottom is a number like any other — a set that opens there contains it — and
+ * `NaN`, which has no place in the order, is outside it along with `Infinity`.
  *
  * @type {(v: number) => boolean}
  */
-const isBoundary = v => (Number.isFinite(v) || v === -Infinity) && !Object.is(v, -0)
+const inUniverse = v => v === -Infinity || Number.isFinite(v)
+
+/**
+ * A boundary is a number of the universe that spells its run exactly once. That
+ * leaves out only `-0`, a second spelling of `0`; `Infinity` is already out for
+ * not being in the universe, which is the same thing as saying the run it would
+ * open is empty, so `[Infinity]` would be a second spelling of `[]`.
+ *
+ * @type {(v: number) => boolean}
+ */
+const isBoundary = v => inUniverse(v) && !Object.is(v, -0)
 
 /**
  * Whether `s` is a valid set: boundaries, strictly increasing. Being strictly
@@ -93,19 +102,24 @@ export const fromRange = validated
  * Membership: the parity of the number of boundaries at or below `v`, found by
  * binary search.
  *
- * `NaN` panics rather than being answered. It has no place in the order, so
- * every comparison against it is false and the search would walk past every
- * boundary and report membership. Answering `false` would be no better than a
- * panic here: it would put `NaN` in neither a set nor its complement, and
+ * A probe outside the universe panics rather than being answered. `NaN` has no
+ * place in the order, so every comparison against it is false and the search
+ * would walk past every boundary and report membership; `Infinity` sits above
+ * the universe, where no boundary can be written, so no set can say whether it
+ * is a member. Answering `false` for either would be no better than a panic: it
+ * would put the value in neither a set nor its complement, and
  * `contains(complement(s))(v) === !contains(s)(v)` is the one law a consumer
  * reads off this module without checking.
+ *
+ * `-0` is a probe like any other — it compares as `0`, which is the answer it
+ * gets. Only a *boundary* has to be the one spelling of its number.
  *
  * @type {(s: RangeSet) => (v: number) => boolean}
  */
 export const contains = s => {
     const search = bsearch(s.length)
     return v => {
-        assert(!Number.isNaN(v), v)
+        assert(inUniverse(v), v)
         return search(mid => v < s[mid] ? -1 : 1) % 2 === 1
     }
 }
