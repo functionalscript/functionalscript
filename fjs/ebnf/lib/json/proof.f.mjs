@@ -134,6 +134,14 @@ export const proof = {
     cj: () => {
         assertStructurallySame(force(cj('()', 'x')), containerData('(', ')', 'x'))
     },
+    // A delimiter above the BMP is one symbol, not the two UTF-16 units that
+    // spell it, because spreading a string walks code points.
+    cjAstral: () => {
+        const brace = String.fromCodePoint(0x1D114)
+        assertStructurallySame(
+            force(cj(`${brace}${brace}`, 'x')),
+            containerData(brace, brace, 'x'))
+    },
     array: () => {
         assertStructurallySame(force(array('x')), containerData('[', ']', 'x'))
     },
@@ -177,6 +185,13 @@ export const proof = {
         const [tag, variant] = value()
         assertEq(tag, 'const')
         assertStructurallySame(keys(variant), alternatives)
+    },
+    throw: {
+        // The delimiters are exactly two symbols: one leaves the closing one
+        // `undefined`, and three silently drops the last.
+        cjRejectsOne: () => cj('(', 'x'),
+        cjRejectsThree: () => cj('([)', 'x'),
+        cjRejectsEmpty: () => cj('', 'x'),
     },
     /**
      * The grammar is a `Rule`, which is the whole point of a front end: a
