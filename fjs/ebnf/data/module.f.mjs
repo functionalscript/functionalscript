@@ -53,13 +53,18 @@ export const matchRule = v => rule => {
             const [, min, max, item] = rule
             return v.repeat(min, max, item)
         }
+        // A hand-written or deserialized set is data, and a tag nothing
+        // spells is refused rather than dispatched to no handler.
+        default: { throw ['not a rule', rule] }
     }
 }
 
 /** @type {(map: EmptyTagMap) => (rule: Rule) => EmptyTag} */
 const emptyTagOf = map => {
+    // An own entry only: a rule may be named `constructor`, and `{}`
+    // inherits one.
     /** @type {(item: string) => boolean} */
-    const nullable = item => map[item] !== undefined
+    const nullable = item => at(item)(map) !== null
     /** @type {RuleVisitor<EmptyTag>} */
     const v = {
         set: () => undefined,
@@ -90,7 +95,7 @@ const emptyTagStep = ruleSet => map => {
  */
 const fixpoint = (step, names) => map => {
     const next = step(map)
-    return names.every(name => next[name] === map[name]) ? next : fixpoint(step, names)(next)
+    return names.every(name => at(name)(next) === at(name)(map)) ? next : fixpoint(step, names)(next)
 }
 
 /**
@@ -140,7 +145,7 @@ const validateRule = (ruleSet, empty) => name => {
             assert(isSymbol(min), ['min is not a non-negative integer', name, min])
             assert((isSafeInteger(max) || max === Infinity) && min <= max, ['max is not an integer at or above min, or Infinity', name, max])
             ref(item)
-            assert(max !== Infinity || empty[item] === undefined, ['a nullable item under an unbounded repeat', name, item])
+            assert(max !== Infinity || at(item)(empty) === null, ['a nullable item under an unbounded repeat', name, item])
         },
     }
     return matchRule(v)
@@ -256,11 +261,12 @@ const lowerBody = (state, name, dr) => {
     switch (typeof dr) {
         case 'number': { return [state, symbolTerminal(dr)] }
         case 'string': { return lowerSequence(state, name, codePoints(dr)) }
-        default: {
+        case 'object': {
             return dr instanceof Array
                 ? lowerSequence(state, name, dr)
                 : lowerVariant(state, name, dr)
         }
+        default: { throw ['not a rule', dr] }
     }
 }
 
@@ -298,6 +304,7 @@ const lowerThunk = (state, hint, fr) => {
             const [next, item] = lower(registered, childHint(name, 'item'), r)
             return [emit(next, name, ['repeat', min, max, item]), name]
         }
+        default: { throw ['not a rule', name, info] }
     }
 }
 

@@ -1,6 +1,6 @@
 /**
  * @import { Rule, Thunk } from '../types.ts'
- * @import { RuleSet, RuleVisitor } from './types.ts'
+ * @import { Rule as DataRule, RuleSet, RuleVisitor } from './types.ts'
  */
 
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -14,6 +14,18 @@ const { MAX_SAFE_INTEGER } = Number
 
 /** @type {(a: string) => number} */
 const c = a => a.codePointAt(0) ?? 0
+
+/**
+ * Values as they arrive from outside the type system — a deserialized set, a
+ * hand-written thunk — spelled as what they are and narrowed only at the
+ * call that must refuse them.
+ *
+ * @type {unknown}
+ */
+const typo = ['typo']
+
+/** @type {unknown} */
+const notARule = true
 
 /** @type {(a: string) => readonly ['set', number, number]} */
 const one = a => ['set', c(a), c(a) + 1]
@@ -66,12 +78,16 @@ const refuse = ruleSet => validate({ ...int, ...ruleSet }, 'int')
 
 export const proof = {
     // Each handler receives the payload without its tag.
-    matchRule: () => {
-        assertEq(showRule(int.digit), `set ${c('0')} ${c('9') + 1}`)
-        assertEq(showRule(int.digits), 'sequence digit digits0')
-        assertEq(showRule(int.none), 'sequence ')
-        assertEq(showRule(int.uint), 'variant zero digits')
-        assertEq(showRule(int.digits0), 'repeat 0 Infinity digit')
+    matchRule: {
+        kinds: () => {
+            assertEq(showRule(int.digit), `set ${c('0')} ${c('9') + 1}`)
+            assertEq(showRule(int.digits), 'sequence digit digits0')
+            assertEq(showRule(int.none), 'sequence ')
+            assertEq(showRule(int.uint), 'variant zero digits')
+            assertEq(showRule(int.digits0), 'repeat 0 Infinity digit')
+        },
+        // A tag nothing spells reaches no handler.
+        throw: () => showRule(/** @type {DataRule} */ (typo)),
     },
     emptyTagMap: {
         // A set never matches empty; a repeat from zero always does, with no
@@ -110,6 +126,15 @@ export const proof = {
                 onceX: undefined,
                 choice: 'c',
             })
+        },
+        // A rule may carry a name `{}` inherits — `constructor` — and reads
+        // as its own entry, never as the inherited one.
+        inherited: () => {
+            /** @type {DataRule} */
+            const self = ['sequence', 'constructor']
+            /** @type {RuleSet} */
+            const ruleSet = { constructor: self }
+            assertStructurallySame(emptyTagMap(ruleSet), { constructor: undefined })
         },
         // Nullability propagates along a chain one rule per round, so a
         // rule three references away from the empty sequence needs three
@@ -156,6 +181,9 @@ export const proof = {
             minAboveMax: () => refuse({ digits0: ['repeat', 3, 2, 'digit'] }),
             // A round that consumes nothing would repeat forever.
             nullableUnbounded: () => refuse({ digits0: ['repeat', 0, Infinity, 'none'] }),
+            // Data is validated as data: a tag nothing spells is refused,
+            // not certified.
+            unknownTag: () => validate({ entry: /** @type {DataRule} */ (typo) }, 'entry'),
         },
         // A nullable item under a bounded repeat is accepted: the bound is
         // the cardinality, and the item's own ambiguity is a backend's to
@@ -298,6 +326,18 @@ export const proof = {
             assertEq(names.get(digit), '0')
             assertEq(names.size, 2)
         },
+        // A thunk may be named as `{}`'s prototype names things, and the
+        // rule set and the identity map both read it as their own entry.
+        inheritedName: () => {
+            const constructor = () => /** @type {const} */ (['const', 'x'])
+            const [ruleSet, entry, names] = toData(constructor)
+            assertEq(entry, 'constructor')
+            assertEq(names.get(constructor), 'constructor')
+            assertStructurallySame(ruleSet, {
+                constructor: ['sequence', 'constructor.0'],
+                'constructor.0': one('x'),
+            })
+        },
         // Two thunks with one name: the second gets a counter.
         sameName: () => {
             const first = { a: () => /** @type {const} */ (['const', 'x']) }
@@ -332,6 +372,10 @@ export const proof = {
             setEmpty: () => toData(set('')),
             boundsReversed: () => toData(repeat(3, 2)('x')),
             nullableUnbounded: () => toData(repeatFrom0(option('x'))),
+            // A hand-written thunk with a tag nothing spells, and a value
+            // that is no rule at all, are refused rather than lowered.
+            unknownTag: () => toData(() => /** @type {readonly ['const', string]} */ (typo)),
+            notARule: () => toData(/** @type {Rule} */ (notARule)),
         },
         // The grammars of `../lib` lower and validate whole. What the contract
         // fixes is the entry and the identity map, never a generated name, so
