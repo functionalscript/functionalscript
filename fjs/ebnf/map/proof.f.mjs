@@ -3,7 +3,7 @@
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { Rule, Thunk } from '../types.ts'
  * @import { Ast } from '../ast/types.ts'
- * @import { Mapped } from './types.ts'
+ * @import { Mapped, RuleMap } from './types.ts'
  */
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -79,6 +79,21 @@ const sparse = [, 'x']
 
 /** @type {unknown} */
 const typo = () => ['typo']
+
+/** @type {unknown} */
+const holeThenB = [, c('b')]
+
+/**
+ * The same rule mapped twice, as a map that arrives untyped: `Checked`
+ * refuses it at compile time, which is why the value is spelled outside
+ * the type system to reach the runtime refusal.
+ *
+ * @type {RuleMap}
+ */
+const twice = [
+    [digit, /** @type {(d: number) => number} */ (d => d)],
+    [digit, /** @type {(d: number) => number} */ (d => d + 1)],
+]
 
 const variant = /**@type {const}*/({ a: 'x', b: 42 })
 
@@ -172,10 +187,7 @@ export const proof = {
     },
     throw: {
         // One rule, one mapping: a second would silently win or lose.
-        duplicate: () => rewrite([
-            [digit, /** @type {(d: number) => number} */ (d => d)],
-            [digit, /** @type {(d: number) => number} */ (d => d + 1)],
-        ]),
+        duplicate: () => rewrite(/** @type {any} */ (twice)),
         // An AST that is not the rule's is refused where the walk reads it.
         // `Ast<R>` already refuses most of these at compile time, which is
         // what the casts step around: the check here is for a tree that
@@ -185,6 +197,9 @@ export const proof = {
         notANumber: () => none(digit)(/** @type {any} */ ('5')),
         outsideTheSet: () => none(digit)(c('a')),
         notTheString: () => none('ab')(cps('a')),
+        // A hole is no symbol and no round, however long the list.
+        stringHole: () => none('ab')(/** @type {any} */ (holeThenB)),
+        roundsHole: () => none(twoDigits)(/** @type {any} */ (holeThenB)),
         tupleArity: () => none(/**@type {const}*/(['x', 'y']))(/** @type {any} */ ([cps('x')])),
         tupleNotAnArray: () => none(/**@type {const}*/(['x']))(/** @type {any} */ (cps('x'))),
         variantArity: () => none(variant)(/** @type {any} */ (['a'])),

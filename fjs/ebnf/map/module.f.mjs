@@ -63,7 +63,10 @@ const thunkChildren = rules => (fr, ast) => {
         case 'repeat': {
             const [, min, max, r] = info
             assert(ast instanceof Array && min <= ast.length && ast.length <= max, ['not within the bounds of the rule', fr, ast])
-            return ast.map(rewriteRule(rules)(r))
+            // Spread first: `Array#map` skips the holes of a sparse list,
+            // and a hole is no round. Each becomes the `undefined` it is,
+            // which no item accepts.
+            return [...ast].map(rewriteRule(rules)(r))
         }
         default: { throw ['not a rule', fr, info] }
     }
@@ -73,8 +76,9 @@ const thunkChildren = rules => (fr, ast) => {
  * The children of a data rule's node, each rewritten. EOF and a string are
  * leaves: EOF's node is empty, and a string's is the code points it spells,
  * which are the string's own and not rules an author holds. A hole in a
- * tuple is no rule, so the list is spread to make it the `undefined` it is
- * rather than skipped.
+ * tuple rule is no rule, so the list is spread to make it the `undefined` it
+ * is rather than skipped; a hole in the node is read by index, so it is
+ * the `undefined` no child accepts.
  *
  * @type {(rules: RuleMap) => (dr: DataRule, ast: unknown) => unknown}
  */
@@ -85,7 +89,11 @@ const dataChildren = rules => (dr, ast) => {
             return ast
         }
         case 'string': {
-            assert(structurallySame(ast, toArray(stringToCodePointList(dr))), ['not the string of the rule', dr, ast])
+            // Compared spread, since `structurallySame` skips the holes of
+            // a sparse list and a hole is no symbol.
+            const symbols = toArray(stringToCodePointList(dr))
+            const leaves = fixed(dr, ast, symbols.length)
+            assert(structurallySame([...leaves], symbols), ['not the string of the rule', dr, ast])
             return ast
         }
         case 'object': {

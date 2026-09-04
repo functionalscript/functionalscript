@@ -67,6 +67,12 @@ the `[',', item]` pair `join` makes — is not mappable, and its parent sees it
 as it is. A combinator that wants its scaffolding mapped returns the mappings
 beside the rule.
 
+**A rule is spelled once and held.** Two calls of `range('09')` are two
+rules to the runtime — a mapping of one does not reach the other — and one
+type to the type system, below. Spelling a rule once is what a grammar does
+anyway, since a rule that appears twice is meant to be the same rule; the
+map makes it a rule rather than a habit.
+
 Why not by name: the data layer names rules by the path they were reached by,
 with a counter where a name is taken, and only the entry is contractual. A
 map keyed by such names would be written against an artifact of the lowering.
@@ -82,9 +88,17 @@ win.
 `Mapped<R, M>` is the type of the rewrite of `R` under the map `M`: the
 output type of `R`'s mapping if `M` has one, else `Children<R, M>`. A key is
 found by type equality — `Equal<K, R>` — which is the type-level stand-in for
-`===`; two rules of the same literal type are one key to the type system,
-which is where the runtime sees them apart, and a rule widened to `Rule` or
-`Tuple` is the widened-rule-signatures issue's rather than this layer's.
+`===`. That stand-in is only as good as the types are distinct, and the
+front end makes them so: a set carries its *spelling* as a phantom type
+parameter — `range('09')` is `Set<readonly ['range', '09']>`, `range('az')`
+is not — so a repetition over one is not a repetition over the other, and
+`digits` is not typed as `word`. Without the spelling every set would be the
+one type `Set`, and a map that named `digits` would have typed every
+`repeatFrom1` of a set as a number. What the spelling cannot separate is a
+rule spelled twice, which is the rule above; where two keys of one type
+meet in a map, `Checked` refuses the map, since the lookup would hand both
+the first one's output. A rule widened to `Rule` or `Tuple` is the
+widened-rule-signatures issue's rather than this layer's.
 
 A mapping's function is written against a type the author declares —
 `(d: number) => number` — because its true input depends on the whole map,
