@@ -16,13 +16,13 @@ import type { BoundedArray } from "../../types/array/types.ts"
 import type { Equal } from "../../types/ts/types.ts"
 import type { Const, Rule, Tuple, Variant, Set, Repeat } from "../types.ts"
 
-type AnyAst =
+type _AnyAst =
     | number
-    | readonly AnyAst[]
-    | readonly [string, AnyAst]
+    | readonly _AnyAst[]
+    | readonly [string, _AnyAst]
 
 export type Ast<R extends Rule> =
-    Equal<R, Rule> extends true ? AnyAst :
+    Equal<R, Rule> extends true ? _AnyAst :
     // number
     R extends number ? R :
     // string
@@ -42,7 +42,7 @@ export type Ast<R extends Rule> =
     //
     never
 
-type _Any = Assert<Equal<Ast<Rule>, AnyAst>>
+type _Any = Assert<Equal<Ast<Rule>, _AnyAst>>
 
 type _Number = Assert<Equal<Ast<number>, number>>
 type _Number0 = Assert<Equal<Ast<42>, 42>>
@@ -58,11 +58,16 @@ type _Tuple = Assert<Equal<Ast<[12, -1]>, readonly[12, -1]>>
 type _Tuple0 = Assert<Equal<Ast<[]>, readonly[]>>
 type _Tuple1 = Assert<Equal<Ast<[12, string]>, readonly[12, readonly number[]]>>
 
+type _ToString<V> =
+    V extends string ? V :
+    V extends number ? `${V}` :
+    never
+
 type _VariantAst<R extends Variant> =
     string extends keyof R ? readonly unknown[] :
     {
         readonly[K in keyof R]: readonly[
-            K extends string|number ? `${K}` : never,
+            _ToString<K>,
             Ast<R[K]>
         ]
     }[keyof R]
