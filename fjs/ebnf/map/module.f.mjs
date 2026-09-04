@@ -143,7 +143,13 @@ const thunkChildren = rules => (fr, ast) => {
             return ast
         }
         case 'repeat': {
+            // The bounds are the lowering's, which the constructors do not
+            // check: `-0` is the literal type `0` to `tsc` and no symbol at
+            // runtime. Bounds outside the domain would compare against the
+            // rounds and answer a plausible list for a rule that is none.
             const [, min, max, r] = info
+            assert(isSymbol(min), ['min is not a non-negative integer', fr, min])
+            assert((isSymbol(max) || max === Infinity) && min <= max, ['max is not an integer at or above min, or Infinity', fr, max])
             assert(ast instanceof Array && min <= ast.length && ast.length <= max, ['not within the bounds of the rule', fr, ast])
             // Spread first: `Array#map` skips the holes of a sparse list,
             // and a hole is no round. Each becomes the `undefined` it is,
