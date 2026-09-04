@@ -1,6 +1,6 @@
 # Does `undefined` Delete a Property? VM vs. Language Layer
 
-**Status:** open question, raised in
+**Status:** open, raised in
 [functionalscript/functionalscript#1888](https://github.com/functionalscript/functionalscript/pull/1888)
 while resolving [has-own-property](./2345-has-own-property.md), separated
 out at [@sergey-shandar's request](https://github.com/functionalscript/functionalscript/pull/1888#issuecomment-5544729336)
@@ -33,32 +33,52 @@ What `1010` doesn't say is *where* that equivalence holds:
 
 These aren't equivalent, and which one is intended changes a real
 implementation decision for [has-own-property](./2345-has-own-property.md):
-under (1), `own(x, 'a') !== undefined` for `{ a: undefined }` would
-incorrectly answer `false` (real JS's `Object.getOwnPropertyDescriptor`
-finds the entry) — `hasOwn` would need the dedicated existence-check
-primitive that doc's discussion first proposed, then walked back. Under
-(2), collapsing "absent" and "present-but-undefined" is correct by
-definition, and `own(...) !== undefined` — what that doc currently says —
-needs nothing further.
+that doc proposes recognizing `Object.hasOwn(obj, prop)` as one VM
+instruction. Under (1), the recognized instruction would need to answer
+`true` for `{ a: undefined }` to match real JS (the entry is genuinely
+there; only FS *source* is restricted from expressing certain ways of
+seeing it) — matching `Object.hasOwn`'s real-JS behavior exactly. Under
+(2), the entry doesn't exist at the VM layer at all, so the instruction
+answering `false` is correct by definition, not a gap to close.
 
-## What the reference interpreter does today
+## What today's code does — and what it isn't evidence of
+
+Two pieces of existing code touch this, and neither is the VM of record, so
+neither settles the question — but both are worth being precise about
+rather than citing loosely as "the reference VM."
 
 [`fjs/edag/amnesia/module.f.mjs`](../../fjs/edag/amnesia/module.f.mjs)'s
 `'{}'` handler builds an object literal with `Object.fromEntries(kv)` over
 every `key: value` pair as written — it does not filter out entries whose
-value is `undefined`. An EDAG `{ x: undefined }` node evaluates, today, to a
-real JS object with a real `x` property set to `undefined`, indistinguishable
-at that layer from what a non-FS JS engine would build. This is evidence for
-reading (1) (VM/interpreter representation matches real JS; the restriction
-is enforced elsewhere, at the surface the compiler accepts), not proof of
-intent — nothing in `1010` or the interpreter comments says this was a
-deliberate layering decision rather than simply not having been asked yet.
+value is `undefined`. But Amnesia's own README is explicit that
+[it is not a VM for FunctionalScript, and nothing that matters should run on
+it](../../fjs/edag/amnesia/README.md#why-it-is-not-a-vm): it exists only so
+proofs can state what an EDAG node means by evaluating it, it delegates to
+its JS host for everything the specification doesn't pin down, and that same
+README names NaNVM's Rust bytecode interpreter — not Amnesia — as "the
+executor of record." Citing Amnesia's behavior as "what the reference VM
+does" overstates it; at most it shows what one JS-hosted proof tool happens
+to do, not a VM-layer decision.
+
+NaNVM's own object representation offers a narrower, more relevant data
+point: `nanvm-lib/src/vm/object/to_object.rs`'s `ToObject::to_object`, the
+primitive that builds an `Object<A>` from a list of properties, also applies
+no filter — whatever `(key, value)` pairs it's given, `undefined`-valued
+ones included, are what the resulting object holds. That's evidence the flat
+representation itself has no built-in stripping behavior at the primitive
+level. It is still not proof of intent for `{ x: undefined }` specifically:
+there is no EDAG-`{}`-literal-to-NaNVM codegen path yet (object-literal
+compilation isn't implemented), so nothing has actually compiled `{ x:
+undefined }` down to a `to_object` call and observed the result — this only
+shows the primitive doesn't filter when a caller doesn't ask it to, not what
+a future object-literal lowering would choose to pass it.
 
 ## Open questions
 
-1. Is the amnesia interpreter's current behavior (preserve the entry) the
-   intended VM-layer semantics, or does object construction need to start
-   stripping `undefined`-valued entries to make reading (2) true?
+1. Is today's no-filtering behavior (Amnesia's `'{}'` handler, and
+   `to_object`'s lack of a filter at the primitive level) the intended
+   VM-layer semantics, or does a future EDAG-`{}`-to-NaNVM lowering need to
+   start stripping `undefined`-valued entries to make reading (2) true?
 2. If reading (1) is correct — the VM stores the real entry, and only
    FS-source-level restrictions create the equivalence — do `own`/`hasOwn`
    themselves count as "the language" (bound by `1010`'s restriction, so
@@ -76,8 +96,11 @@ deliberate layering decision rather than simply not having been asked yet.
 - [undefined-property](./1010-undefined-property.md) — the language-level
   rule this document's layering question is about.
 - [has-own-property](./2345-has-own-property.md) — the proposal whose
-  `own(...) !== undefined` conclusion depends on how this resolves.
+  `hasOwn` instruction needs this resolved before it can ship.
 - [functionalscript/functionalscript#1888](https://github.com/functionalscript/functionalscript/pull/1888)
   — where this was raised.
-- `fjs/edag/amnesia/module.f.mjs`'s `'{}'` handler — today's reference
-  behavior for object-literal construction.
+- `fjs/edag/amnesia/module.f.mjs`'s `'{}'` handler and
+  `fjs/edag/amnesia/README.md` — today's proof-tool behavior for
+  object-literal construction, and why it isn't VM-layer evidence.
+- `nanvm-lib/src/vm/object/to_object.rs` — NaNVM's own flat-object
+  construction primitive, which also applies no filter.
