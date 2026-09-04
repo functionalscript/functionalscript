@@ -35,10 +35,10 @@ const constVariant = t => {
 
 // The JSON alternatives in their order, `number` replaced in place, then the
 // three DataJS extends it with.
-const alternatives = [
+const alternatives = /**@type {const}*/([
     'array', 'object', 'string', 'number', 'true', 'false', 'null',
     'nan', 'undefined', 'id',
-]
+])
 
 /**
  * A statement is its keyword prefix, then a value, then `;`, with whitespace
