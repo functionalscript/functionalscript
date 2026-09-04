@@ -8,10 +8,17 @@ use crate::{
 
 const TOO_LARGE: &str = "RangeError: Maximum BigInt size exceeded";
 
-/// The largest word count a single `<<` may grow a `BigInt` to — `2^24`
-/// words (`2^30` bits, 128 MiB) — matching V8's own `BigInt` size limit
-/// exactly (empirically: `1n << 1073741823n` succeeds in Node, `1n <<
-/// 1073741824n` throws `RangeError: Maximum BigInt size exceeded`).
+/// The largest word count a single `<<` may grow a `BigInt` to — `2^14`
+/// words (`2^20` bits, 128 KiB) — matching
+/// [`fjs/types/bigint/module.f.mjs`](../../../../fjs/types/bigint/module.f.mjs)'s
+/// own `maxLength` (`0x10_0000n` bits) exactly, divided down from bits to
+/// 64-bit words. `maxLength` is itself the *smallest* `BigInt` size limit
+/// across the engines FunctionalScript targets — V8's own limit is `2^30`
+/// bits, far larger, but Bun's and Safari's are tighter, and `maxLength` is
+/// already chosen to fit under all of them (see that file's own comment on
+/// `mask`, keyed to the same constant). `nanvm-lib` follows the tightest
+/// bound already established for the language rather than picking a
+/// second, V8-only one of its own.
 ///
 /// This is *not* the same limit as `BigInt`'s internal `u32` word index
 /// (~4 billion words, ~34 GiB): that ceiling only protects the container's
@@ -20,7 +27,7 @@ const TOO_LARGE: &str = "RangeError: Maximum BigInt size exceeded";
 /// panic — from a shift count an attacker can spell in one `u64` word, well
 /// before any guard based on the index limit alone would reject it. That is
 /// exactly the crash-instead-of-refuse this checks against.
-const MAX_WORDS: u64 = 1 << 24;
+const MAX_WORDS: u64 = 1 << 14;
 
 fn too_large<A: IVm>() -> Result<BigInt<A>, Any<A>> {
     Err(TOO_LARGE.into())
