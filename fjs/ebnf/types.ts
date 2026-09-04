@@ -35,3 +35,12 @@ export type Repeat<Min extends number, Max extends number, R extends Rule> =
 
 export type Infinity =
     typeof Infinity
+
+export type RepeatFrom<Min extends number, R extends Rule> =
+    Repeat<Min, Infinity, R>
+
+export type Times<N extends number, R extends Rule> =
+    Repeat<N, N, R>
+
+export type Option<R extends Rule> =
+    Repeat<0, 1, R>

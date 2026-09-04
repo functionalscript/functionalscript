@@ -1,6 +1,6 @@
 /**
  * @import { RangeSet } from '../types/range_set/types.ts'
- * @import { Set, Rule, Infinity, Repeat, Tuple } from './types.ts'
+ * @import { Set, Rule, Infinity, Repeat, Option, RepeatFrom, Times } from './types.ts'
  */
 
 import { assert } from "../asserts/module.f.mjs"
@@ -85,7 +85,7 @@ export const repeat =
 /**
  * @type {<N extends number>(n: N) =>
  *  <const R extends Rule>(rule: R) =>
- *  Repeat<N, Infinity, R>}
+ *  RepeatFrom<N, R>}
  */
 export const repeatFrom = n =>
     repeat(n, Infinity)
@@ -94,17 +94,17 @@ export const repeatFrom0 = repeatFrom(0)
 
 /**
  * @type {<const N extends number>(n: N) =>
- *  <const R extends Rule>(rule: R) => Repeat<N, N, R>}
+ *  <const R extends Rule>(rule: R) => Times<N, R>}
  */
 export const times = n => repeat(n, n)
 
-/** @type {<const R extends Rule>(rule: R) => Repeat<0, 1, R>} */
+/** @type {<const R extends Rule>(rule: R) => Option<R>} */
 export const option = rule => () => ['repeat', 0, 1, rule]
 
 /**
  * @type {<S extends Rule>(s: S) =>
  *  <R extends Rule>(r: R) =>
- *  Repeat<0, 1, [R, Repeat<0, Infinity, [S, R]>]>}
+ *  Option<[R, RepeatFrom<0, readonly[S, R]>]>}
  */
 export const join = s => r => option([r, repeat(0, Infinity)([s, r])])
 
