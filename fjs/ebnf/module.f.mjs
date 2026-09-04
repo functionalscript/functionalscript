@@ -54,14 +54,15 @@ const unionX = f => v => {
     return () => r
 }
 
+const setUnionX = unionX(b => fromRange([b, b + 1]))
+
 /** @type {(a: string) => SetInfo} */
-export const set = a =>
-    unionX(b => fromRange([b, b + 1]))
-        (toArray(stringToCodePointList(a)))
+export const set = a => setUnionX(toArray(stringToCodePointList(a)))
+
+const infoUnionX = unionX(getSet)
 
 /** @type {(...a: SetInfo[]) => SetInfo} */
-export const union = (...a) =>
-    unionX(getSet)(a)
+export const union = (...a) => infoUnionX(a)
 
 /**
  * @type {(a: SetInfo, b: SetInfo) =>
