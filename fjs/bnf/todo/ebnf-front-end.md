@@ -177,7 +177,14 @@ issue proposed in two ways worth stating rather than leaving as a diff.
 The zero-or-more form is `repeatFrom0`, and the lower bound is a parameter —
 `repeatFrom(n)` — instead of one name per bound: `repeat1Plus` is
 `repeatFrom(1)`, and so is every bound above it, which is the generalization
-the two fixed names were hiding. `join` replaces `commaJoin0Plus` and takes
+the two fixed names were hiding. Two bounds are still named, as partial
+applications of that one form: `repeatFrom0` and `repeatFrom1` ship beside
+`repeatFrom`, because zero-or-more and one-or-more are the bounds every
+grammar reaches for — `ws` and `ws1` in the DataJS grammar are the pair —
+and a name reads better at those call sites than a literal. That is a
+convenience over the parameter, not a return to a fixed-bound API: nothing
+above `1` gets a name, and `repeatFrom(n)` is what both are. `join` replaces
+`commaJoin0Plus` and takes
 its separator as a rule rather than building `','` itself, which is what
 keeps it out of the Unicode-specific category this issue warned about below.
 What that gives up is the claim this paragraph used to make: a ported grammar
