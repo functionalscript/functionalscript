@@ -1,5 +1,5 @@
 /**
- * @import { SetInfo } from './types.ts'
+ * @import { Set } from './types.ts'
  */
 
 import { assertStructurallySame } from '../asserts/module.f.mjs'
@@ -23,7 +23,7 @@ const c = a => a.codePointAt(0) ?? 0
  * The boundaries a `SetInfo` carries. Every constructor returns a thunk, so
  * reading one is what proves the thunk itself runs.
  *
- * @type {(a: SetInfo) => readonly number[]}
+ * @type {(a: Set) => readonly number[]}
  */
 const boundaries = a => {
     const [, ...r] = a()
