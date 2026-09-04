@@ -53,9 +53,10 @@ discrimination follows the representation the EBNF tree has, which the
 EBNF lowering expands a string rule to terminals before the data form
 exists, exactly as `toData` does today.
 
-Centralizing `typeof rule === 'number'` in the visitor is the point of the
-task, not a compromise: one discriminator to change is exactly what makes a
-future terminal-representation migration cheap, should
+Centralizing the terminal discriminant in the visitor is the point of the
+task, not a compromise: it is written once, after the carrier
+[ebnf-range-set](./ebnf-range-set.md) settles, and one discriminator to
+change is exactly what makes a later representation move cheap, should
 [bigint-symbols](./bigint-symbols.md) ever revive.
 
 `emptyTagMap` and LL(1) dispatch then use the shared visitor instead of

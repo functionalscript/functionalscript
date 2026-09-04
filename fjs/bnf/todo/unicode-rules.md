@@ -4,7 +4,8 @@
 **Status:** blocked
 **Blocked by:**
 - [ebnf-migration](../../todo/ebnf-migration.md)'s `fjs/ebnf/terminal/`,
-  which carries `TerminalRange`, `rangeEncode` and `rangeDecode`. The
+  which carries the terminal domain and the integer helpers over
+  `fjs/types/range_set` values ([ebnf-range-set](./ebnf-range-set.md)). The
   adapters this issue creates are built on those, and their final paths
   (`fjs/ebnf/unicode/`, `fjs/ebnf/byte/`) only exist once `fjs/ebnf/` does.
   This issue is that plan's `unicode/` piece.
@@ -54,9 +55,11 @@ representation ([ebnf-migration](../../todo/ebnf-migration.md)). Creating
 them under `fjs/bnf/` would break that plan's dependency direction — `ebnf`
 never imports `bnf` — the moment `fjs/ebnf/` used them. This issue is its
 `unicode/` piece, and depends on the neutral codec having been copied into
-`fjs/ebnf/terminal/`, which is where these adapters get `rangeEncode` /
-`rangeDecode` and the `TerminalRange` type. The classical front end keeps its
-own text helpers until it is deleted.
+`fjs/ebnf/terminal/`, which is where these adapters get the terminal domain
+and the integer helpers — `range`, `one`, `eof`, `toRangeMap` — over
+`fjs/types/range_set` values ([ebnf-range-set](./ebnf-range-set.md)). There
+is no packed codec and no `TerminalRange` in `fjs/ebnf/`. The classical front
+end keeps its own text helpers until it is deleted.
 
 Unicode-specific APIs such as these — today's `fjs/bnf/module.f.mjs`
 exports, re-spelled in EBNF forms — go to `fjs/ebnf/unicode/module.f.mjs`:
@@ -67,7 +70,13 @@ exports, re-spelled in EBNF forms — go to `fjs/ebnf/unicode/module.f.mjs`:
 - `str`
 - `set`
 - `range`
-- `notSet`
+- `not` — difference against the Unicode universe `[0, 0x110000]`, in place
+  of today's `notSet`
+
+`set`, `range` and `not` return range-set *values*, combined with the
+`range_set` algebra and made into a rule by `oneOf` in
+`fjs/ebnf/module.f.mjs`; `str` and `toSequence` return rules, one terminal per
+code point ([ebnf-range-set](./ebnf-range-set.md)).
 
 The exact list should follow the semantic boundary: if an API needs to interpret
 text as Unicode code points, it belongs in `fjs/ebnf/unicode`. Likewise,
@@ -139,9 +148,9 @@ This split changes the public design assumptions used by older open TODOs:
   and by [ebnf-front-end](./ebnf-front-end.md)'s Problem 1; the bigint
   symbol/range migration is [on hold](./bigint-symbols.md) and no longer one
   of its blockers. Its visitor must not preserve a generic string branch
-  after this split removes one; the terminal discriminant, by contrast, is the
-  shipped `number` one, and centralizing it in the visitor is that task's
-  point.
+  after this split removes one; the terminal discriminant follows the
+  range-set carrier ([ebnf-range-set](./ebnf-range-set.md)), and
+  centralizing it in the visitor is that task's point.
 - [`fjs/bnf/todo/recognizer-backend.md`](./recognizer-backend.md) is blocked by
   this task. It previously assigned byte/hex/byte-range helper creation to the
   recognizer work; those helpers now belong exclusively to `fjs/ebnf/byte`, and

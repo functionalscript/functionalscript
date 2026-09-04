@@ -186,9 +186,12 @@ explicit named override list for the rows where token-stream acceptance differs.
       may be written earlier against `bnf/ll1` inside `bnf/` and moved when
       it can, if that is more convenient. Anything front-end-coupled built
       under `fjs/ebnf/` would violate that plan's dependency rule.
-- [ ] Wait for [the alphabet split](./unicode-rules.md), then rebase the
-      testlib's text/range imports on `fjs/ebnf/unicode/module.f.mjs`;
-      do not import Unicode `range` from core `./module.f.mjs`.
+- [ ] The shared `number` fixture is a directly authored `RuleSet` (above),
+      so the surviving testlib imports no text helper at all — neither the
+      classical `range` from `fjs/bnf/module.f.mjs` nor `fjs/ebnf/unicode/`'s,
+      whose values are range sets the classical backends do not consume. A
+      classical fixture that still spells rules functionally keeps the
+      classical helper.
 - [ ] Add `Case`, `Recognition`, `assertRecognizes`, the two recognizer
       adapters, **and the AST renderer** — `showAst` plus the root
       `private.ts` that types it, which the LL1 and descent proofs assert

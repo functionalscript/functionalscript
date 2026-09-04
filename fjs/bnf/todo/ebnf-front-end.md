@@ -55,7 +55,7 @@ type Variant  = { readonly [k in string]?: Rule }
 type Thunk    = () => Info
 type Info     =
     | readonly ['const', Const]              // a plain rule behind a thunk
-    | readonly ['range', number, number]     // symbols a..b, inclusive
+    | readonly ['set', ...RangeSet]          // one symbol from the set
     | readonly ['repeat', number, number, Rule] // min..max copies
 ```
 
@@ -104,7 +104,7 @@ row that is a function of the form alone.
 | form | AST |
 |---|---|
 | `['const', c]` | `AST<c>` |
-| `['range', a, b]` | `number` — one symbol leaf |
+| `['set', …]` | `number` — one symbol leaf |
 | `['repeat', min, max, r]` | `BoundedArray<min, max, AST<r>>`, below |
 | `number` | `number` — the symbol itself |
 | `string` | `readonly number[]` — see below |
@@ -170,8 +170,10 @@ export const times       = n => repeat(n, n)
 
 Currying the bounds makes the familiar names partial applications and leaves
 their call sites at today's arity, so a ported grammar keeps its spelling.
-`range` and `set` come from `fjs/ebnf/unicode/`. `join0Plus` and
-`join1Plus` compose.
+`range`, `set` and `not` come from `fjs/ebnf/unicode/` and return range-set
+*values*; `oneOf(s)` is the constructor that makes a rule of one
+([ebnf-range-set](./ebnf-range-set.md)). `join0Plus` and `join1Plus`
+compose.
 
 Bare numbers and strings in `Const` mean a tagged tuple written *without* its
 thunk is a legal rule with another meaning, and `tsc` accepts it. That is
@@ -195,9 +197,10 @@ change the representation.
 Stated as requirements, since the data layer is open.
 
 - **Validate here, at the front end**, while the author still has a rule to
-  point at: bounds in the domain above; `['range', a, b]` with `a <= b` and
-  both **ordinary** symbols, never spanning EOF; a bare `number` an integer in
-  the terminal domain.
+  point at: bounds in the domain above; `['set', …]` a valid range set of
+  **ordinary** symbols per [ebnf-range-set](./ebnf-range-set.md) — integer
+  boundaries, none below `0`, so never EOF, and not empty; a bare `number` an
+  integer in the terminal domain.
 - **A nullable body** at an unbounded max is non-termination and is rejected.
   At a bounded max it is not — see [Problem 3](#problems), which is open; the
   lowering must not reject it until that is settled.

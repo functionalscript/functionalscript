@@ -129,6 +129,21 @@ type Info =
 stays as sugar: `0x61` means `['set', 0x61, 0x62]` and has the same AST row.
 `string` is unchanged.
 
+**Authors never write the tuple** — constructors are the API, as
+ebnf-front-end says of every `Info` form. The injection is one constructor in
+`fjs/ebnf/module.f.mjs`:
+
+```js
+export const oneOf = s => () => ['set', ...s]
+```
+
+a rule matching one symbol of the set `s`. The adapter's `range`, `set` and
+`not` return *values*, so a grammar writes `oneOf(range('09'))`, and the JSON
+string body becomes `repeat0Plus(oneOf(difference(unicode)(set('"\\'))))`
+where today it spreads `remove(…)` into a variant. A raw set is never a
+rule: as an element of the functional `Sequence` it would read as its
+boundaries, two symbols in a row, and `oneOf` is what says otherwise.
+
 **A set holds ordinary symbols only; `eof` is not a set.** That is the rule
 ebnf-front-end already states for `['range', a, b]` — both endpoints
 ordinary, never spanning EOF — carried over unchanged. EOF stays the bare
@@ -187,6 +202,15 @@ adapter delivers, exactly as a packed range does today: neither validates the
 input against the domain, and neither should, because the adapter is the one
 that knows the alphabet.
 
+What does have a ceiling is the helpers' arithmetic. `b + 1` and `x + 1` are
+exact only for safe integers, so `range(a, b)` and `one(x)` require
+`Number.isSafeInteger(b + 1)` and reject beyond it. `one(2 ** 53)` would fail
+set validation anyway — `2 ** 53 + 1 === 2 ** 53`, so it would spell
+`[2 ** 53, 2 ** 53]` — but the check belongs at the helper, where the author
+still has a symbol to point at. A boundary above `2 ** 53` written by hand is
+an integer and still a legal set; no helper produces one and no alphabet
+assigns a symbol there.
+
 The alphabet adapter's `not` is *difference against its universe*: Unicode's
 is `[0, 0x110000]`, bytes' is `[0, 256]`, and a token-symbol alphabet's is its
 own. The generic toggle lives in `range_set`; the alphabet-scoped one in
@@ -194,7 +218,7 @@ own. The generic toggle lives in `range_set`; the alphabet-scoped one in
 This answers ebnf-front-end's Problem 5 — the helpers take and return sets,
 and `notOf` is unnecessary — and Problem 9 does not arise: the adapter returns
 set *values*, and the EBNF front end has one injection from a set to a rule,
-the `['set', …]` thunk. The classical front end never sees a set value.
+`oneOf`. The classical front end never sees a set value.
 `fjs/ebnf/unicode/` is EBNF-only, and `bnf/` keeps its own helpers and its
 `RangeVariant` until the migration's stage 7, so a raw `[0x30, 0x3A]` is
 never handed to a front end whose `Sequence` would read it as two symbols.
@@ -240,16 +264,17 @@ justification is the API and the AST, which is where
       open tail, and every rejected input (`NaN`, `Infinity`, `-0`, a
       repeat, a decrease). Port `fjs/media/nix/module.f.mjs` to `[a, b + 1]`.
 - [ ] `fjs/ebnf/terminal/`: the integer helpers — `range(a, b)` and
-      `one(x)` as `[a, b + 1]` and `[x, x + 1]`, `eof` as `[-1, 0]`, the
-      domain `[0]`, and `toRangeMap` (inclusive upper bound `b - 1`; an open
-      tail is `Infinity`). No integer range-set module: these arithmetic
-      facts are the whole difference.
+      `one(x)` as `[a, b + 1]` and `[x, x + 1]`, rejecting an end whose
+      successor is not a safe integer; `eof` as `[-1, 0]`; the domain `[0]`;
+      and `toRangeMap` (inclusive upper bound `b - 1`; an open tail is
+      `Infinity`). No integer range-set module: these arithmetic facts are
+      the whole difference.
 - [ ] Settle the IR carrier together with ebnf-front-end's Problem 1, in that
       issue, before any backend touches a set.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
       the union, the AST table (`number`), the lowering requirements
       (intersect with the domain `[0]`; require integer boundaries; reject
-      the empty set), and the constructor list.
+      the empty set), and `oneOf` in the constructor list.
 - [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/ebnf/unicode/`
       produce sets; `not` is difference against the Unicode universe. `str`
       is not one of them: `str('true')` is an ordered `Sequence` of
