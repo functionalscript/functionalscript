@@ -37,10 +37,8 @@ type _Tuple = Assert<Equal<Ast<[12, -1]>, readonly[12, -1]>>
 type _Tuple0 = Assert<Equal<Ast<[]>, readonly[]>>
 type _Tuple1 = Assert<Equal<Ast<[12, string]>, readonly[12, readonly number[]]>>
 
-// An alternative is optional in `Variant`, so `R[K]` admits `undefined` that
-// `Ast` does not take. A branch that is absent contributes no AST.
 type _VariantAst<R extends Variant> =
-    { readonly[K in keyof R]: Ast<Exclude<R[K], undefined>> }
+    { readonly[K in keyof R]: Ast<R[K]> }
 
 type _Variant = Assert<Equal<Ast<
     { readonly a: 12, readonly b: 'hello' }>,

@@ -20,19 +20,26 @@ export type Tuple =
 /**
  * A choice between named alternatives.
  *
- * The keys are open, so a value is optional: an absent alternative reads as
- * `undefined` rather than as a rule. The record is spelled inline rather than
- * as `StringMap<Rule>` because it is mutually recursive with `Rule`, and an
- * alias may not reach itself through another alias's instantiation.
+ * This is an abstraction in the sense of `AbstractRequiredMap` in
+ * `fjs/types/object/types.ts`, not a concrete object type: no object carries
+ * every string as a key, so reading an alternative that isn't there is typed
+ * as a `Rule` and yields `undefined` at runtime. That is the right side of
+ * the trade-off for a grammar literal, whose tags are static and all present
+ * — `createValue(p, v).string` is a rule, not a rule that might be missing.
+ * Looking a branch up by a tag that arrived at runtime is the data layer's
+ * job, where the variant is an open `StringMap` and a miss is typed.
+ *
+ * The record is spelled inline rather than as `AbstractRequiredMap<string,
+ * Rule>` because it is mutually recursive with `Rule`, and an alias may not
+ * reach itself through another alias's instantiation (TS2456).
  */
 export type Variant =
-    { readonly[k in string]?: Rule }
+    { readonly[k in string]: Rule }
 
-// An alternative that isn't there reads as `undefined` rather than as a rule.
-// `types/ts/types.ts` states that rule for open string-keyed records in
-// general; this pins it for `Variant`, where dropping the `?` would type an
-// absent branch as a grammar rule.
-type _AbsentAlternative = Assert<Equal<Variant['missing'], Rule | undefined>>
+// The abstraction stated as a type-level fact: every key reads as a rule,
+// the absent ones included. A `?` here would make each alternative an author
+// wrote read as possibly missing, which is the lie in the other direction.
+type _AbsentAlternative = Assert<Equal<Variant['missing'], Rule>>
 
 export type Rule =
     | DataRule
