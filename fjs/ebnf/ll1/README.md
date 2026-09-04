@@ -101,15 +101,22 @@ follow sets it computes for them — the symbols that may come right after a
 match of each rule, by the standard fixpoint, with nothing required after
 the entry since a match stops where its rule does:
 
-- **first/follow conflict** — a rule that can match empty and begins with a
-  symbol that may also follow it. One symbol cannot decide it: the lookahead
-  enters the rule where the grammar also allows it to match empty and leave
-  the symbol to what follows, so `[option('x'), 'x']` would never match `x`,
-  and the classical backend accepted it and failed on that input. The
-  refusal names the rule and the symbols. The check is the textbook one,
-  `FIRST` and `FOLLOW` disjoint for every nullable rule, so it also refuses
-  `times(2)(option('x'))`, where the round that follows a round is what the
-  option begins with.
+- **first/follow conflict** — a rule whose own decision is made on a symbol
+  that may also follow it. One symbol cannot decide it: the lookahead takes
+  the step where the grammar also allows the rule to end and leave the
+  symbol to what follows, so `[option('x'), 'x']` would never match `x`, and
+  the classical backend accepted it and failed on that input. The refusal
+  names the rule and the symbols.
+
+  A rule has such a decision in two ways, and a repetition from zero has
+  both, its two sets being one. It **can match empty**, so entering it at
+  all is decided on what it begins with — the textbook `FIRST` against
+  `FOLLOW`. Or it is a **repetition with a round to spare**, `max > min`,
+  so one more round is decided on what its item begins with, even where it
+  must match once and is no nullable rule: `[repeat(1, 2)('x'), 'x']` is
+  refused, as `[option('x'), 'x']` is. A round below `min` is forced and a
+  `max`th round impossible, so neither decides anything, and
+  `[times(2)('x'), 'x']` is a grammar this backend parses.
 
 All are found before any input, when the parser is built. A rule the entry
 does not reach is dead, not wrong, as the data layer says, so a parser

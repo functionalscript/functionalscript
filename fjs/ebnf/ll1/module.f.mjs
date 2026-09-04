@@ -224,18 +224,45 @@ const followMap = (ruleSet, first, nullable, names) => {
 }
 
 /**
- * Refuses a rule that can match empty and begins with a symbol that may
- * also follow it — a first/follow conflict, which one symbol cannot decide:
- * the lookahead would enter the rule where the grammar also allows it to
- * match empty and leave the symbol to what follows, so `[option('x'), 'x']`
- * would never match `x`. The refusal names the rule and the symbols.
+/**
+ * What a rule's own optional decision is made on: the symbols that make the
+ * lookahead take one more step here rather than leave the rule. A rule that
+ * can match empty is entered on what it begins with, and a repetition with
+ * a round left to spare starts that round on what its item begins with —
+ * one decision or the other, or both, since a repetition from zero is
+ * nullable and its two sets are one.
+ *
+ * A round below `min` is forced and a `max`th round impossible, so neither
+ * is a decision; every other rule is entered by its parent, which is the
+ * parent's decision and not this one's.
+ *
+ * @type {(first: FirstMap, nullable: (name: string) => boolean) => (name: string) => RuleVisitor<RangeSet>}
+ */
+const decisionOf = (first, nullable) => name => {
+    const skip = nullable(name) ? first[name] : empty
+    return {
+        set: () => skip,
+        sequence: () => skip,
+        variant: () => skip,
+        repeat: (min, max, item) => union(skip)(max > min ? first[item] : empty),
+    }
+}
+
+/**
+ * Refuses a rule whose own decision is made on a symbol that may also
+ * follow it — a first/follow conflict, which one symbol cannot decide: the
+ * lookahead takes the step where the grammar also allows the rule to end
+ * and leave the symbol to what follows, so `[option('x'), 'x']` would never
+ * match `x`, and neither would `[repeat(1, 2)('x'), 'x']` on `xx`. The
+ * refusal names the rule and the symbols.
  *
  * @type {(ruleSet: RuleSet, first: FirstMap, nullable: (name: string) => boolean, names: readonly string[]) => void}
  */
 const checkFollow = (ruleSet, first, nullable, names) => {
     const follow = followMap(ruleSet, first, nullable, names)
-    names.filter(nullable).forEach(name => {
-        const clash = intersection(first[name])(follow[name])
+    const decision = decisionOf(first, nullable)
+    names.forEach(name => {
+        const clash = intersection(matchRule(decision(name))(ruleSet[name]))(follow[name])
         assert(clash.length === 0, ['first/follow conflict', name, clash])
     })
 }

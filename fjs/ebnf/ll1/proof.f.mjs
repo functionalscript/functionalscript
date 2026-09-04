@@ -273,6 +273,12 @@ export const proof = {
             assertStructurallySame(p(cps('y')), ['ok', [[[], cps('y')], 1]])
             assertStructurallySame(p(cps('xy')), ['ok', [[[cps('x')], cps('y')], 2]])
         },
+        // A repetition every round of which is forced decides nothing, so
+        // what follows it may begin with what its item does.
+        forcedRounds: () => {
+            const p = parser([times(2)('x'), 'x'])
+            assertStructurallySame(p(cps('xxx')), ['ok', [[[cps('x'), cps('x')], cps('x')], 3]])
+        },
         // The tree is `Ast<R>`, so the map's rewrite takes it as it is: the
         // example grammar parsed and rewritten is the integers.
         integers: () => {
@@ -369,6 +375,10 @@ export const proof = {
         firstFollowConflictVariant: () => parser([{ a: 'x', n: '' }, 'x']),
         firstFollowConflictNested: () => parser([['y', option('x')], 'x']),
         firstFollowConflictRounds: () => parser(times(2)(option('x'))),
+        // A repetition with a round to spare decides on its item too,
+        // though it must match once and so is no nullable rule.
+        firstFollowConflictOptionalRound: () => parser([repeat(1, 2)('x'), 'x']),
+        firstFollowConflictUnboundedRound: () => parser([repeatFrom1('x'), 'x']),
         // A rule that is no rule reaches the lowering's refusal.
         notARule: () => parser(/** @type {Rule} */ (/** @type {unknown} */ (true))),
         // The input holds ordinary symbols only: `-1` is the end of input,
