@@ -132,10 +132,13 @@ const thunkChildren = rules => (fr, ast) => {
     switch (info[0]) {
         case 'const': { return rewriteRule(rules)(info[1])(ast) }
         case 'set': {
-            // A hand-written set is data: boundaries that are no range set
-            // would answer membership by a list `contains` cannot read.
+            // A hand-written set is data, and its boundaries are the
+            // symbol domain's: a range set, as `contains` reads one, and
+            // ordinary symbols, as the lowering requires. A fractional or
+            // negative boundary would answer membership for symbols
+            // between it and the next.
             const [, ...s] = info
-            assert(isRangeSet(s), ['not a set', fr, s])
+            assert(isRangeSet(s) && s.every(isSymbol), ['not a set of symbols', fr, s])
             assert(isSymbol(ast) && contains(s)(ast), ['not a symbol of the rule', fr, ast])
             return ast
         }
