@@ -65,3 +65,4 @@
   // detection. operation `typeof ${exp}?.[Symbol.iterator]`
   typeof value?.[Symbol.iterator] === 'function'
   ```
+- [ ] If a standard property or property method is not implemented, it should be banned in the property accessor. For example, `obj.hasOwnProperty(prop)`.
