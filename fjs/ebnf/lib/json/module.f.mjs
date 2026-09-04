@@ -2,6 +2,10 @@
  * JSON's lexical rules, written in the EBNF rule vocabulary — the first grammar
  * to use it, and what the constructors are shaped for.
  *
+ * The terminals show the value/rule split the vocabulary is built on: a range
+ * or a spelled-out set is a value, `difference` composes two of them, and
+ * `oneOf` is what turns the result into a rule.
+ *
  * Only the lexical layer is here. The composite rules (`value`, `array`,
  * `object`) wait on the sequence combinators that join a list with a separator;
  * they are kept commented out below rather than written a second way.
@@ -11,27 +15,28 @@
  * @import { Rule } from '../../types.ts'
  */
 
-import { range, remove, repeat0Plus, unicodeMax, set, times, option } from "../../module.f.mjs";
+import { difference } from "../../../types/range_set/module.f.mjs";
+import { oneOf, range, repeat0Plus, unicodeMax, set, times, option } from "../../module.f.mjs";
 
-const onenine = range('19')
+const onenine = oneOf(range('19'))
 
-const digit = range('09')
+const digit = oneOf(range('09'))
 
-const hex = {
+const hex = /**@type {const}*/({
     digit,
-    AF: range('AF'),
-    af: range('af'),
-}
+    AF: oneOf(range('AF')),
+    af: oneOf(range('af')),
+})
 
 /** @type {Rule} */
 export const string = [
     '"',
     repeat0Plus({
-        c: remove(range(` ${unicodeMax}`), set('"\\')),
+        c: oneOf(difference(range(` ${unicodeMax}`))(set('"\\'))),
         escape: [
             '\\',
             {
-                c: set('"\\/bfnrt'),
+                c: oneOf(set('"\\/bfnrt')),
                 u: ['u', times(4)(hex)],
             }
         ],
@@ -52,7 +57,7 @@ export const uint = /**@type {const}*/({
 
 export const optionFloatSuffix = /**@type {const}*/([
     option(['.', digits]),
-    option([set('Ee'), option(set('+-')), digits])
+    option([oneOf(set('Ee')), option(oneOf(set('+-'))), digits])
 ])
 
 export const number = /**@type {const}*/([
@@ -61,9 +66,10 @@ export const number = /**@type {const}*/([
     ...optionFloatSuffix
 ])
 
+/** The set of symbols JSON allows between tokens — a value, which `ws` injects. */
 export const wsSymbol = set(' \n\r\t')
 
-export const ws = repeat0Plus(wsSymbol)
+export const ws = repeat0Plus(oneOf(wsSymbol))
 
 // export const cj = commaJoin0Plus(ws)
 

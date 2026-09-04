@@ -5,24 +5,24 @@
  */
 
 import { assertStructurallySame } from '../asserts/module.f.mjs'
+import { difference, union } from '../types/range_set/module.f.mjs'
 import {
+    oneOf,
     option,
     range,
     rangeEncode,
-    remove,
     repeat,
     repeat0Plus,
     set,
     times,
     unicodeMax,
-    union,
 } from './module.f.mjs'
 
 /** @type {(a: string) => number} */
 const c = a => a.codePointAt(0) ?? 0
 
 /**
- * The boundaries a `SetInfo` carries. Every constructor returns a thunk, so
+ * The boundaries a rule carries. Every rule constructor returns a thunk, so
  * reading one is what proves the thunk itself runs.
  *
  * @type {(a: SetInfo) => readonly number[]}
@@ -34,20 +34,20 @@ const boundaries = a => {
 
 export const proof = {
     // A closed two-symbol range, exclusive above: `'0'..'9'` is `[48, 58]`.
+    // The constructors below return set *values*, so a proof reads them
+    // directly; `oneOf` is what a grammar puts between one and a rule.
     range: () => {
-        assertStructurallySame(boundaries(range('09')), [c('0'), c('9') + 1])
+        assertStructurallySame(range('09'), [c('0'), c('9') + 1])
     },
     // One symbol is still a range, and the caller spells it with the symbol
     // twice rather than with a second constructor.
     rangeOfOne: () => {
-        assertStructurallySame(boundaries(range('aa')), [c('a'), c('a') + 1])
+        assertStructurallySame(range('aa'), [c('a'), c('a') + 1])
     },
     // A code point above the BMP is one symbol, not the two UTF-16 units that
     // spell it — which is why the bound is taken from the code point list.
     rangeAstral: () => {
-        assertStructurallySame(
-            boundaries(range(` ${unicodeMax}`)),
-            [c(' '), 0x10FFFF + 1])
+        assertStructurallySame(range(` ${unicodeMax}`), [c(' '), 0x10FFFF + 1])
     },
     // `unicodeMax` is the character, not its number: interpolating a number
     // would spell its decimal digits and make the range above eight symbols.
@@ -58,70 +58,72 @@ export const proof = {
         assertStructurallySame(unicodeMax.length, 2)
         assertStructurallySame(unicodeMax.codePointAt(0), 0x10FFFF)
     },
-    rangeEncode: () => {
-        assertStructurallySame(boundaries(rangeEncode(0, 7)), [0, 8])
-        assertStructurallySame(boundaries(rangeEncode(3, 3)), [3, 4])
-        // A negative symbol is a bound like any other: only the algebra's own
-        // rules on a boundary apply here, not an alphabet's.
-        assertStructurallySame(boundaries(rangeEncode(-2, -1)), [-2, 0])
+    rangeEncode: {
+        pair: () => {
+            assertStructurallySame(rangeEncode(0, 7), [0, 8])
+            assertStructurallySame(rangeEncode(3, 3), [3, 4])
+        },
+        // The top symbol has no boundary above it — `2 ** 53` is not safe — so
+        // a range that reaches it is the open tail, its only spelling.
+        top: () => {
+            const top = Number.MAX_SAFE_INTEGER
+            assertStructurallySame(rangeEncode(top, top), [top])
+            assertStructurallySame(rangeEncode(0, top), [0])
+        },
     },
     set: {
         // Adjacent symbols coalesce into one run, in either order given.
         adjacent: () => {
-            assertStructurallySame(boundaries(set('ab')), [c('a'), c('b') + 1])
-            assertStructurallySame(boundaries(set('ba')), [c('a'), c('b') + 1])
+            assertStructurallySame(set('ab'), [c('a'), c('b') + 1])
+            assertStructurallySame(set('ba'), [c('a'), c('b') + 1])
         },
         // A gap stays a gap: two runs, not one.
         gap: () => {
             assertStructurallySame(
-                boundaries(set('ac')),
+                set('ac'),
                 [c('a'), c('a') + 1, c('c'), c('c') + 1])
         },
         // A repeated symbol is the same set as one of it.
         duplicate: () => {
-            assertStructurallySame(boundaries(set('aa')), boundaries(set('a')))
+            assertStructurallySame(set('aa'), set('a'))
         },
-        // No symbols is the empty set, which is a set rather than a mistake.
+        // No symbols is the empty set, which is a value rather than a mistake.
+        // It is not a terminal, which is `oneOf`'s business below.
         empty: () => {
-            assertStructurallySame(boundaries(set('')), [])
+            assertStructurallySame(set(''), [])
         },
     },
-    union: {
-        // Union of disjoint ranges keeps both runs.
-        disjoint: () => {
+    // The set algebra is `types/range_set`'s, over values, and there is no
+    // second copy of it here. These two are what the grammars below reach for.
+    algebra: {
+        union: () => {
             assertStructurallySame(
-                boundaries(union(range('09'), range('af'))),
+                union(range('09'))(range('af')),
                 [c('0'), c('9') + 1, c('a'), c('f') + 1])
-        },
-        // Overlapping ranges merge, so the result is one run.
-        overlapping: () => {
             assertStructurallySame(
-                boundaries(union(range('09'), range('5A'))),
+                union(range('09'))(range('5A')),
                 [c('0'), c('A') + 1])
         },
-        // No arguments is the empty set — the identity the fold starts from.
-        none: () => {
-            assertStructurallySame(boundaries(union()), [])
-        },
-    },
-    remove: {
         // The motivating case: every symbol from a space up, minus the two a
         // JSON string cannot carry raw.
-        excluded: () => {
-            const r = boundaries(remove(range(' ~'), set('"\\')))
+        difference: () => {
             assertStructurallySame(
-                r,
+                difference(range(' ~'))(set('"\\')),
                 [c(' '), c('"'), c('"') + 1, c('\\'), c('\\') + 1, c('~') + 1])
         },
-        // Removing what is not there changes nothing.
-        disjoint: () => {
-            assertStructurallySame(
-                boundaries(remove(range('09'), range('af'))),
-                [c('0'), c('9') + 1])
+    },
+    oneOf: {
+        // The one injection from a value to a rule: the boundaries, behind the
+        // `'set'` tag and a thunk.
+        rule: () => {
+            assertStructurallySame(oneOf(range('09'))(), ['set', c('0'), c('9') + 1])
+            assertStructurallySame(boundaries(oneOf(set('ac'))), set('ac'))
         },
-        // Removing a superset leaves nothing.
-        all: () => {
-            assertStructurallySame(boundaries(remove(range('09'), range('09'))), [])
+        // An open tail is a terminal like any other — it is how the top symbol
+        // is spelled at all.
+        openTail: () => {
+            const top = Number.MAX_SAFE_INTEGER
+            assertStructurallySame(boundaries(oneOf(rangeEncode(top, top))), [top])
         },
     },
     repeat: {
@@ -165,7 +167,7 @@ export const proof = {
         },
         // A rule is any rule, including a nested thunk.
         nested: () => {
-            const inner = range('09')
+            const inner = oneOf(range('09'))
             assertStructurallySame(times(2)(inner)(), ['repeat', 2, 2, inner])
         },
     },
@@ -180,16 +182,27 @@ export const proof = {
         rangeRejectsOneAstral: () => range(unicodeMax),
         // A reversed range is a mistake rather than an empty set.
         rangeEncodeRejectsReversed: () => rangeEncode(7, 0),
-        // `a <= b` alone would pass each of these, and `b + 1` would then be
-        // no boundary above `a`: `Infinity` is outside the universe, and at
-        // this magnitude the successor is the number itself.
+        // Ordinary symbols are the non-negative safe integers. Above the top
+        // the successor is the number itself, and `Infinity` is not in the
+        // universe at all; below zero is EOF's place, not a set's.
         rangeEncodeRejectsInfinity: () => rangeEncode(Infinity, Infinity),
         rangeEncodeRejectsUnsafe: () => rangeEncode(0, Number.MAX_VALUE),
         rangeEncodeRejectsFraction: () => rangeEncode(0.5, 1.5),
         rangeEncodeRejectsNaN: () => rangeEncode(NaN, NaN),
-        // `-0` is a second spelling of `0`, so it is no boundary — the pair
-        // goes through `fromRange`, which is what catches it.
+        rangeEncodeRejectsNegative: () => rangeEncode(-2, -1),
+        rangeEncodeRejectsEof: () => rangeEncode(-1, 0),
+        // `-0` is a second spelling of `0`, so it is no boundary.
         rangeEncodeRejectsNegativeZero: () => rangeEncode(-0, 1),
+        // A set that can never match is a grammar error, not a rule.
+        oneOfRejectsEmpty: () => oneOf(set('')),
+        // A set holds ordinary symbols only: EOF is a rule of its own, and a
+        // generic complement opens at a bottom no symbol reaches.
+        oneOfRejectsEof: () => oneOf([-1, 0]),
+        oneOfRejectsUnbounded: () => oneOf([-Infinity]),
+        // The boundary above the top symbol is not one an adapter can deliver.
+        oneOfRejectsUnsafe: () => oneOf([0, 2 ** 53]),
+        // A list that is not a set at all — a repeat is not strictly increasing.
+        oneOfRejectsNonSet: () => oneOf([1, 1]),
         // A repetition bound is a count: `Infinity` is one only above.
         repeatRejectsNegativeMin: () => repeat(-1, 5),
         repeatRejectsFractionalMin: () => repeat(0.5, 5),

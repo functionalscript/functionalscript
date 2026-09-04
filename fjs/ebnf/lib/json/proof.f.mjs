@@ -188,20 +188,21 @@ export const proof = {
         assert(number[3] === optionFloatSuffix[1], number)
     },
     ws: {
-        // The four symbols JSON allows between tokens: tab and newline are
-        // adjacent, so they coalesce into one run.
+        // The four symbols JSON allows between tokens, as a set *value*: tab
+        // and newline are adjacent, so they coalesce into one run.
         symbol: () => {
             assertStructurallySame(
-                boundaries(wsSymbol),
+                wsSymbol,
                 [
                     c('\t'), c('\n') + 1,
                     c('\r'), c('\r') + 1,
                     c(' '), c(' ') + 1,
                 ])
         },
-        // Whitespace is any number of them, including none.
+        // Whitespace is any number of them, including none — and the value
+        // reaches the rule through `oneOf`, which is what the repeat carries.
         repeat: () => {
-            assert(repeat0PlusOf(ws) === wsSymbol, ws)
+            assertStructurallySame(boundaries(repeat0PlusOf(ws)), wsSymbol)
         },
     },
 }
