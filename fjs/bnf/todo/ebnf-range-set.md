@@ -300,7 +300,7 @@ Whatever the carrier, the packed `0xBBBBBB_EEEEEE` literal leaves the IR with
 it, and with it the readability argument in `fjs/bnf/types.ts` for 24-bit
 halves; `[0x30, 0x3A]` reads at least as well.
 
-**Decided in [ebnf-data](../../ebnf/data/todo/ebnf-data.md):** every data
+**Decided in [ebnf-data](../../ebnf/data/README.md):** every data
 rule is a tagged tuple, the set goes into it as `['set', …]`, and the probe
 is never written. EOF is the one set with a negative boundary, `[-1, 0]`, as
 above.
@@ -330,7 +330,7 @@ justification is the API and the AST, which is where
       `Infinity`). No integer range-set module: these arithmetic facts are
       the whole difference.
 - [x] Settle the IR carrier together with ebnf-front-end's Problem 1 —
-      settled in [ebnf-data](../../ebnf/data/todo/ebnf-data.md), the
+      settled in [ebnf-data](../../ebnf/data/README.md), the
       `data/` issue, before any backend touches a set: a tagged tuple for
       every rule kind, `['set', …]` for the terminal.
 - [ ] ebnf-front-end: replace the `['range', a, b]` row with `['set', …]` in
@@ -380,9 +380,10 @@ justification is the API and the AST, which is where
   `ebnf/terminal/` owns the domain set `[0]`, `eof` and the integer helpers;
   `ebnf/unicode/` is rewritten in set values rather than `RangeVariant`, and
   `notOf` leaves its triage row.
-- [rule-visitor](./rule-visitor.md) — discriminates the data `Rule`, so it
-  waited on the same IR carrier decision.
-- [ebnf-data](../../ebnf/data/todo/ebnf-data.md) — the carrier decision,
+- rule-visitor (retired; shipped as `matchRule` in
+  [`fjs/ebnf/data`](../../ebnf/data/module.f.mjs)) — discriminates the data
+  `Rule`, so it waited on the same IR carrier decision and landed with it.
+- [ebnf-data](../../ebnf/data/README.md) — the carrier decision,
   and the lowering that validates a set as this issue requires.
 - [`fjs/types/range_set/module.f.mjs`](../../types/range_set/module.f.mjs) —
   the module, now the toggle list.

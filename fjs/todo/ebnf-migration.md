@@ -210,7 +210,7 @@ RTTI, `repeat(min, max)` with `option` / `repeatFrom` / `repeatFrom0` /
 `repeat*Plus` pair the issue proposed
 ([ebnf-front-end](../bnf/todo/ebnf-front-end.md), **Amended**) — the AST as a
 function of the form, `BoundedArray` from `fjs/types/array`. Its Problems 1, 3, 6, 7 and 8 are about the IR and the AST:
-1, 3 and 6 are answered by [ebnf-data](../ebnf/data/todo/ebnf-data.md), the
+1, 3 and 6 are answered by [ebnf-data](../ebnf/data/README.md), the
 `data/` piece, and 7 and 8 still need answers here. Problems 2 and 9 exist
 only because of shared machinery and do not.
 
@@ -222,7 +222,7 @@ only because of shared machinery and do not.
 | `module.f.mjs` — `rangeEncode`, `rangeDecode`, `oneEncode`, `eof`, `fullRange` | rewrite | `terminal/` over `fjs/types/range_set` values — the domain, `eof`, `one`, `toRangeMap` ([ebnf-range-set](../bnf/todo/ebnf-range-set.md)); there is no packed codec in `ebnf/`, so `bnf` keeps its own and has nothing to repoint to. `rangeEncode` shipped in `module.f.mjs` ahead of `terminal/` existing |
 | `module.f.mjs` — `set`, `range`, `remove`, `unicodeMax` | rewrite | `module.f.mjs`: the front end's rule union already reads a `string` as a Unicode sequence ([unicode-rules](../bnf/todo/unicode-rules.md), **Amended**) |
 | `module.f.mjs` — `str`, `not`, `notSet`, `unicodeRange` | rewrite | `unicode/`, EBNF forms only — what the rule union does not already imply ([unicode-rules](../bnf/todo/unicode-rules.md)) |
-| `data/` — `RuleSet`, `emptyTagMap`, `isRepeat` | rewrite | `data/` per [ebnf-data](../ebnf/data/todo/ebnf-data.md): every rule a tagged tuple, a range-set terminal, a `Repeat` carrying `min`/`max`. The classical `toData` output is **not** a valid EBNF set — a packed range has no reading there — so `bnf/data` cannot simply repoint its IR types; the bridge from the classical set to the EBNF one is mechanical and is `bnf/data`'s to add, under the direction rule, if the comparison proofs want it |
+| `data/` — `RuleSet`, `emptyTagMap`, `isRepeat` | rewrite | `data/` per [ebnf-data](../ebnf/data/README.md): every rule a tagged tuple, a range-set terminal, a `Repeat` carrying `min`/`max`. The classical `toData` output is **not** a valid EBNF set — a packed range has no reading there — so `bnf/data` cannot simply repoint its IR types; the bridge from the classical set to the EBNF one is mechanical and is `bnf/data`'s to add, under the direction rule, if the comparison proofs want it |
 | `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem` | retire | the front-end lowering in `ebnf/` needs no recognition, and a hand-written or deserialized EBNF set spells the primitive; an opt-in normalizer of the right-recursive shape may be added to `ebnf/data/` by whoever wants one, but nothing plans it |
 | `data/` — `GrammarData`, `RuleNameMap` | rewrite | the classical ones retire; the EBNF lowering returns its own map from EBNF rule identity to generated name beside the rule set and entry — the bridge the transformer protocol keys on through `Entry.rule`, and the "rule identity must survive" requirement in [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — in whatever shape the `data/` rewrite chooses |
 | `matcher/` | move | `Rule` identity in the transformer protocol retargeted to the EBNF `Rule`; `bnf` keeps its own copy, and its identity-keyed pieces (`Entry.rule`, the repeat arm) in any case |
@@ -302,8 +302,8 @@ rewritten against the surviving backend as they move.
 | [ebnf-front-end](../bnf/todo/ebnf-front-end.md) | absorb | its design becomes `fjs/ebnf/README.md` as stage 1 ships; every problem still open then — 1, 3, 4, 5, 6, 7 and 8 at the time of writing — moves to `ebnf/todo/` as one issue each, or is answered in the README |
 | terminal-range-shared-type | retired | deleted by the PR that filed [ebnf-range-set](../bnf/todo/ebnf-range-set.md), with its reason recorded here: it asked for one `TerminalRange` declaration shared by `bnf/` and `bnf/data`, owned by the codec's module; `ebnf/` has no `TerminalRange` and no codec — its terminal is a range set — so there is nothing to declare once, and `bnf/`'s two declarations stay and go with `bnf/` at stage 7 |
 | [unicode-rules](../bnf/todo/unicode-rules.md) | move | `ebnf/unicode/todo/` until stage 3 implements it |
-| [rule-visitor](../bnf/todo/rule-visitor.md), [665-bnf-data-fold-children](../bnf/todo/665-bnf-data-fold-children.md) | absorb | inputs to the `data/` rewrite (stage 2) |
-| [042-mixing-serializable-bnfs](../bnf/todo/042-mixing-serializable-bnfs.md) | move | `ebnf/data/todo/` |
+| rule-visitor (retired; shipped as `matchRule` in [`fjs/ebnf/data`](../ebnf/data/module.f.mjs)), [665-bnf-data-fold-children](../bnf/todo/665-bnf-data-fold-children.md) | absorb | inputs to the `data/` rewrite (stage 2): the visitor is `matchRule`, and the child fold is one immutable `reduce` in `toData` from the start; 665 stays `bnf/`'s own issue, since it describes `bnf/data`'s code |
+| [042-mixing-serializable-bnfs](../ebnf/data/todo/042-mixing-serializable-bnfs.md) | move | `ebnf/data/todo/` — done |
 | [bigint-symbols](../bnf/todo/bigint-symbols.md), [terminal-range-representation](../bnf/todo/terminal-range-representation.md), [eof-as-ordinary-symbol](../bnf/todo/eof-as-ordinary-symbol.md) | move | `ebnf/terminal/todo/` |
 | [utf8-token-symbols](../bnf/todo/utf8-token-symbols.md), [tokens-with-extra-information](../bnf/todo/tokens-with-extra-information.md) | move | `ebnf/token_symbol/todo/` |
 | [207-bnf-semantic-actions](../bnf/todo/207-bnf-semantic-actions.md), [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md), [layered-parser](../bnf/todo/layered-parser.md), [043-stateful-parser](../bnf/todo/043-stateful-parser.md), [parser-structure](../bnf/todo/parser-structure.md) | move | `ebnf/todo/` — they describe the reference backend and its protocol |
@@ -349,7 +349,7 @@ consumer port"), never by number, so a renumbering here cannot strand them.
 2. **`ebnf/data/`.** The IR with a bounded `Repeat`, `emptyTagMap`, and the
    lowering from the EBNF front end, which returns the identity-to-name map
    AST mapping needs beside the rule set and entry — designed in
-   [ebnf-data](../ebnf/data/todo/ebnf-data.md). `bnf/data` keeps its own IR,
+   [ebnf-data](../ebnf/data/README.md). `bnf/data` keeps its own IR,
    since the classical output is not a valid EBNF set (ebnf-data, "What
    differs"), and may add the bridge that issue describes — that would be
    the first `bnf → ebnf` edge — while keeping `toData`, `detectRepeat` and
@@ -407,9 +407,9 @@ consumer port"), never by number, so a renumbering here cannot strand them.
 - [ ] Stage 1: `ebnf/terminal/` with proof; `ebnf/types.ts` and
       `ebnf/module.f.mjs` with proof; ebnf-front-end's open problems
       answered as they are needed, in `ebnf/README.md`.
-- [ ] Stage 2: `ebnf/data/` with bounded `Repeat` and proof, per
-      [ebnf-data](../ebnf/data/todo/ebnf-data.md); rule-visitor and 665
-      absorbed or moved.
+- [x] Stage 2: `ebnf/data/` with bounded `Repeat` and proof, per its
+      [README](../ebnf/data/README.md); rule-visitor absorbed, 042 moved,
+      665 left with `bnf/data`.
 - [ ] Stage 3: `ebnf/matcher/` and `ebnf/unicode/` with proofs; `showAst` in
       `ebnf/`'s testlib; unicode-rules' `unicode/` half settled, its `byte/`
       half owed to the first consumer that wants it.

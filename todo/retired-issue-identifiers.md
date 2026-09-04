@@ -99,7 +99,8 @@ not, and both outcomes occur:
 `iNNN` is not the only naming scheme this hits. Todo files under their current
 `{slug-kebab}.md` names are deleted when their issue is fixed, as the README
 requires, and a citation to one is left just as bare — `nullable-analysis-shared`
-in [`fjs/bnf/todo/rule-visitor.md`](../fjs/bnf/todo/rule-visitor.md) was one
+in `fjs/bnf/todo/rule-visitor.md` — itself since retired, shipped as
+`matchRule` in [`fjs/ebnf/data`](../fjs/ebnf/data/module.f.mjs) — was one
 until this branch resolved it (shipped as `emptyTagMap` in `fjs/bnf/data`,
 commit `94b7ff06`, which deleted the file in the same change). The same search
 finds these, against the todo path rather than `issues/`:
