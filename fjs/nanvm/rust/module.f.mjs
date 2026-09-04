@@ -103,6 +103,7 @@ export const rustName = {
     '&&': 'logical_and',
     '||': 'logical_or',
     '??': 'nullish_coalescing',
+    own: 'own_property',
     ternary: 'conditional',
     typeof: 'typeof_',
     String: 'string_coercion',
@@ -125,7 +126,7 @@ const op1Rust = {
 /**
  * The same, for the binary operations.
  *
- * An operator not yet implemented in `nanvm-lib` (such as `own`) has every one
+ * An operator not yet implemented in `nanvm-lib` (such as `=>`) has every one
  * of its cases carry a `rust` reason, and `emit` prints this text as a
  * comment rather than a statement — this entry only has to read as the
  * operation, not compile.
@@ -143,7 +144,9 @@ const op1Rust = {
  * for what they do rather than reusing punctuation Rust already owns. `>>>`
  * follows it for a fourth reason: Rust has no unsigned-right-shift operator
  * at all (only `>>`, which is arithmetic on a signed type), so it is
- * `Any::unsigned_right_shift`.
+ * `Any::unsigned_right_shift`. `own` follows it for a fifth: no Rust
+ * operator spells a keyed property lookup at all, so it is
+ * `Any::own_property`.
  *
  * @type {{ readonly [k in OpId]?: (a: string, b: string) => string }}
  */
@@ -167,6 +170,7 @@ const op2Rust = {
     '&&': (a, b) => `Any::logical_and(${a}, ${b})`,
     '||': (a, b) => `Any::logical_or(${a}, ${b})`,
     '??': (a, b) => `Any::nullish_coalescing(${a}, ${b})`,
+    own: (a, b) => `Any::own_property(${a}, ${b})`,
 }
 
 /**

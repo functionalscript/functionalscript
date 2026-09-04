@@ -559,6 +559,10 @@ export const proof = {
         // `own`'s key operand must evaluate to a string, and `ToPropertyKey`
         // coercion is exactly what that rules out.
         ownNonStringKey: () => ev(['own', ['{}', [[':', '1', 42]]], 1]),
+        // The receiver is checked before the key: real `ToObject` runs
+        // before `ToPropertyKey`, so a nullish receiver throws regardless
+        // of the key.
+        ownNullReceiver: () => ev(['own', null, 'a']),
         // Not a function: `()` calls whatever the callee operand evaluates
         // to, so this is the host `TypeError`, not a check of its own.
         callNonFunction: () => ev(['()', 1, noArgs]),
