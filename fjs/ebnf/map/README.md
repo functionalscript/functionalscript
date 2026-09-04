@@ -118,9 +118,10 @@ so is a set whose spelling holds a widened argument — `range(s)` for an
 boundaries are not literals. A repetition's bounds are literals by the
 front end's own rule: `repeat`, `repeatFrom` and `times` refuse a bound
 that is not one, so the one bound spelled `number` is `Infinity`. What
-`_Exact` reads is what the front end spells; an annotation that says less
-than its value — a bound that is a union from a helper — it cannot see, and
-[exact-key-types](./todo/exact-key-types.md) holds the case. A
+`_Exact` reads is what the front end spells; an annotation that says less,
+or other, than its value it cannot see, and neither the types nor the
+rewrite check that a key is a rule —
+[exact-key-types](./todo/exact-key-types.md) holds both. A
 rule that names itself is the case this bites: `value` in
 [`../lib/json`](../lib/json/module.f.mjs) is annotated `Const<Variant>`,
 which says nothing of its parts, so it cannot be a key until it has its

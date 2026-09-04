@@ -90,6 +90,12 @@ const fractionalBoundary = () => ['set', 0, 0.5]
 const negativeBoundary = () => ['set', -5, 3]
 
 /** @type {unknown} */
+const constTrailing = () => ['const', 42, 'extra']
+
+/** @type {unknown} */
+const repeatTrailing = () => ['repeat', 0, 1, 'x', 'extra']
+
+/** @type {unknown} */
 const fractionalMax = () => ['repeat', 0, 1.5, 'x']
 
 /** @type {unknown} */
@@ -326,6 +332,11 @@ export const proof = {
         // hold the symbols between it and the next.
         fractionalBoundarySet: () => none(/** @type {Rule} */ (fractionalBoundary))(/** @type {any} */ (0)),
         negativeBoundarySet: () => none(/** @type {Rule} */ (negativeBoundary))(/** @type {any} */ (0)),
+        // An info's arity is the lowering's: a field past it is refused
+        // rather than dropped, since a rule read from part of what it
+        // spells is not that rule.
+        constTrailingField: () => none(/** @type {Rule} */ (constTrailing))(/** @type {any} */ (42)),
+        repeatTrailingField: () => none(/** @type {Rule} */ (repeatTrailing))(/** @type {any} */ ([])),
         // A repetition's bounds are the lowering's too, and `-0` reaches
         // the constructor because `tsc` reads it as the literal `0`.
         negativeZeroMin: () => none(repeat(-0, 1)(42))([]),
