@@ -230,9 +230,12 @@ AST changes:
 pairs, so the array and object productions change shape. A grammar adopting a
 new form is not shape-preserving either.
 
-Also: the rtti map tests the shape directly and `repeatItem` goes away;
-`detectRepeat` stays in `data/` as opt-in normalization for hand-written and
-deserialized sets.
+Also: the rtti map tests the shape directly and `repeatItem` goes away, and
+`detectRepeat` retires with the classical `data/`
+([ebnf-migration](../../todo/ebnf-migration.md)): a hand-written or
+deserialized EBNF set spells the primitive, and an opt-in normalizer of the
+right-recursive shape may be added to `ebnf/data/` by whoever wants one, but
+nothing plans it.
 
 #### Problems
 
