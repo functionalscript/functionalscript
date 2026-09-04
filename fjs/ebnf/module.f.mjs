@@ -1,4 +1,13 @@
 /**
+ * The EBNF front end: the constructors a grammar is written with.
+ *
+ * A terminal is a set of symbol ranges rather than a single symbol, so the
+ * range-set algebra in `types/range_set` is what `set`, `union` and `remove`
+ * lift here. Everything else is `repeat` with its bounds fixed. See
+ * `./types.ts` for what the constructors build.
+ *
+ * @module
+ *
  * @import { RangeSet } from '../types/range_set/types.ts'
  * @import { Set, Rule, Infinity, Repeat, Option, RepeatFrom, Times } from './types.ts'
  */

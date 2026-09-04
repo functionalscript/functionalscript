@@ -1,4 +1,8 @@
 /**
+ * The JSON grammar, written with the EBNF front end.
+ *
+ * @module
+ *
  * @import { Const, Rule, Set, Tuple, Variant } from '../../types.ts'
  */
 

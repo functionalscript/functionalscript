@@ -1,3 +1,7 @@
+/**
+ * @import { Rule } from '../../types.ts'
+ */
+
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import {
     array,
@@ -173,5 +177,23 @@ export const proof = {
         const [tag, variant] = value()
         assertEq(tag, 'const')
         assertStructurallySame(keys(variant), alternatives)
+    },
+    /**
+     * The grammar is a `Rule`, which is the whole point of a front end: a
+     * consumer takes `json` through the advertised type. Nothing else states
+     * that — the module pins `json` as a literal rather than annotating it, so
+     * a shape that drifts out of the union would otherwise be caught at the
+     * first consumer instead of here. The annotated binding is the check: a
+     * `@typedef` in a function body is not resolved unless something uses it,
+     * so an `Assert` written that way would pass whatever it claimed.
+     */
+    contract: () => {
+        /** @type {Rule} */
+        const rule = json
+        assertEq(rule, json)
+        // An alternative that isn't there is `undefined` rather than a rule,
+        // which is why `Variant`'s keys are optional. `types.ts` pins the type
+        // side of this; here it is the value.
+        assertEq(createValue('p', 'v').missing, undefined)
     },
 }

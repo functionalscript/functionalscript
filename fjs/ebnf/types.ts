@@ -1,3 +1,13 @@
+/**
+ * Type-level API of the EBNF front end: what a rule is, and the tagged shapes
+ * a thunk may return.
+ *
+ * @module
+ */
+
+import type { Assert } from '../asserts/types.ts'
+import type { Equal } from '../types/ts/types.ts'
+
 export type DataRule =
     | number
     | string
@@ -8,11 +18,21 @@ export type Tuple =
     readonly Rule[]
 
 /**
- * The type is the same as AbstractRequiredMap,
- * but we can't use it because of circular dependencies.
+ * A choice between named alternatives.
+ *
+ * The keys are open, so a value is optional: an absent alternative reads as
+ * `undefined` rather than as a rule. The record is spelled inline rather than
+ * as `StringMap<Rule>` because it is mutually recursive with `Rule`, and an
+ * alias may not reach itself through another alias's instantiation.
  */
 export type Variant =
-    { readonly[k in string]: Rule }
+    { readonly[k in string]?: Rule }
+
+// An alternative that isn't there reads as `undefined` rather than as a rule.
+// `types/ts/types.ts` states that rule for open string-keyed records in
+// general; this pins it for `Variant`, where dropping the `?` would type an
+// absent branch as a grammar rule.
+type _AbsentAlternative = Assert<Equal<Variant['missing'], Rule | undefined>>
 
 export type Rule =
     | DataRule
