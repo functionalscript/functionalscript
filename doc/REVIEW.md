@@ -2,7 +2,7 @@
 
 For the author of a pull request under review. Opening one is
 [CONTRIBUTING.md](../CONTRIBUTING.md#opening-a-pull-request); the principles are
-[DESIGN.md](./DESIGN.md).
+[DESIGN.md](./DESIGN.md); the reviewer's side is [REVIEWING.md](./REVIEWING.md).
 
 **Merge the knowledge.** A small step merged with what was learned written down
 beats two hundred iterations of a pull request that never lands. Most comments
@@ -17,6 +17,7 @@ is wrong: it is the one place the answer will not survive.
 | An implementation is asked for another feature | Find or file a `todo/`, and reply with the link |
 | One case is generalized into a rule | Answer with the case that breaks it, and record what the decision depends on |
 | A defect is reported | Fix it, or defer it behind a `todo/` naming the input that breaks it |
+| A corner case is raised | File a `todo/` naming the input, and reply with the link — not a fix |
 
 A pull request implements one feature, so "while you're here" is a second one.
 And a rule generalized from one real case fails on the case the reviewer did not
@@ -58,8 +59,14 @@ that cannot read a file above 128 KB is a documented limit and a `todo/` — the
 only people who can hand it a file are the people who maintain it, no such file
 exists, and the day one does is the day the issue is picked up
 ([DESIGN.md §1](./DESIGN.md#1-simplicity-first)). A module in the published
-package is the opposite: the input belongs to someone we have never met, so it
-is fixed before it lands.
+package hands its input to someone we have never met: that raises the `todo/`'s
+priority and is the reason to refuse the input now (below) — it is not a reason
+to fix it in this pull request.
+
+A corner case — a case the change did not set out to handle, which no real
+input reaches today — is a `todo/` by default, not a fix. Whether it is needed
+is decided later, on its own; the alternative is a pull request that answers
+every "what if" and never lands.
 
 Never deferrable: a **regression**, and **silence**.
 

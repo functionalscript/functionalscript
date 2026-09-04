@@ -140,7 +140,8 @@ unsupported input is refused, never answered with a plausible wrong value
 ([DESIGN.md §10](./doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 
 Which comments to fix, which to push back on, and what a push-back leaves
-behind: [REVIEW.md](./doc/REVIEW.md).
+behind: [REVIEW.md](./doc/REVIEW.md). What to raise when reviewing, what to ask
+for, and when to approve: [REVIEWING.md](./doc/REVIEWING.md).
 Commit-message format and the PR checklist:
 [CONTRIBUTING.md](./CONTRIBUTING.md#opening-a-pull-request).
 Changelog entry rules, breaking changes, and versioning:
