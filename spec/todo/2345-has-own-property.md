@@ -72,6 +72,15 @@ a descriptor:
 const hasB = Object.hasOwn(x, 'b')
 ```
 
+The three layers this crosses, mirroring `own_property`'s own three (FJS
+source, EDAG node, VM command): the FJS pattern above is recognized and
+lowered to a new EDAG `Op2` node, `['hasOwn', obj, prop]` — a new `Op2Id`
+alongside the existing `'own'` (`fjs/edag/types.ts:163`) rather than a
+reuse of it — which in turn lowers to a new VM command, a `HasOwn` sibling
+to `own_property`'s `OwnProperty` struct
+(`nanvm-lib/src/vm/object/own_property.rs`), returning a `bool` rather than
+an `Option<Any<A>>`.
+
 (An earlier version of this section recognized
 `Object.getOwnPropertyDescriptor(x, 'b') !== undefined` instead.
 `Object.hasOwn` is spec-defined as exactly equivalent to that comparison in
