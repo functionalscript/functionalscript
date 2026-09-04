@@ -6,6 +6,16 @@
  * the union of its branches, and a repetition becomes an array. Everything here
  * is types and `Assert`s, so `tsc` is this module's test.
  *
+ * This is the *semantic* shape, not the node tree a backend builds by default.
+ * `astTerminal`, `astSequence` and `astRepeat` in `../matcher/module.f.mjs` wrap
+ * every rule invocation in matcher's own `Ast<L>` — `{ tag, sequence }`, the
+ * per-invocation contract `../README.md` states — and are what a rule with no
+ * explicit mapping gets. {@link AstRule} describes what transformers project
+ * that tree *to*: the terminal's number, the sequence's elements in order, the
+ * branch that matched under its own name. The two types share a name and
+ * describe different things, which is worth fixing before anything imports this
+ * module.
+ *
  * A repetition's empty branch is `readonly []` or `''`, since `data` normalizes
  * a string rule into the sequence of its symbols and the empty string into the
  * empty sequence.
