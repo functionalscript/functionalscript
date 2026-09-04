@@ -100,6 +100,14 @@ impl<A: IVm> Shl for BigInt<A> {
             "shl: result must be normalized and non-empty"
         );
 
+        // TODO: `value`'s own allocation above is fallible, but
+        // `unchecked_new` -> `IContainer::new_ok` -> (for `Naive`)
+        // `Container::new` collects it into an `Rc<[u64]>`, a second
+        // allocation that is not: an allocator that fails only that step
+        // still aborts the process instead of returning `RangeError` here.
+        // Making container construction reuse this buffer, or exposing a
+        // fallible construction path, needs a change to `IContainer`/the
+        // `Naive` backend rather than to this function.
         Ok(Self::unchecked_new(self.sign(), value))
     }
 }
@@ -402,6 +410,24 @@ mod tests {
             a << b,
             Err("RangeError: Maximum BigInt size exceeded".into())
         );
+    }
+
+    #[test]
+    fn shl_at_max_words_boundary_succeeds() {
+        // One bit under the just-over-the-limit case above: shifting by
+        // `MAX_WORDS * 64 - 1` bits needs exactly `MAX_WORDS` words
+        // (word_shift = MAX_WORDS - 1, bit_shift = 63, no carry since the
+        // shifted bit lands on the top word's own MSB rather than past it)
+        // and must succeed — the doc comment on `MAX_WORDS`'s own use above
+        // asserts this ("must succeed"), but nothing tested it: the only
+        // existing boundary test exercises the throwing side, one word past
+        // this one. Tightening the guard to reject this shift too would
+        // leave that test green.
+        let a: T = 1u64.into();
+        let b: T = (super::MAX_WORDS * 64 - 1).into();
+        let mut expected = vec![0u64; super::MAX_WORDS as usize - 1];
+        expected.push(1u64 << 63);
+        assert_eq!((a << b).unwrap(), pos(expected));
     }
 
     #[test]
