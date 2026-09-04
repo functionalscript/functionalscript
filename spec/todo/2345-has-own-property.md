@@ -26,7 +26,8 @@ Real JS's `in` is *defined* by chain-walking:
 'a' in null       // TypeError
 'a' in {}         // false
 'toString' in {}  // true  — inherited from Object.prototype
-'length' in []    // true  — inherited from Array.prototype
+'length' in []    // true  — own: every array instance has its own `length`,
+                  //          not one inherited from Array.prototype
 0 in [1, 2, 3]    // true  — own, index 0 exists
 ```
 
@@ -42,7 +43,11 @@ As raised in review: FS also bans every *mutating* method a real prototype
 chain would otherwise expose (`[].push(...)` and the like are compile
 errors), which removes a good deal of `in`'s remaining practical value —
 what's actually useful is knowing whether *this object itself* defines a
-key, which `own` already answers.
+key. `own` was already built in that spirit (it bypasses the chain the same
+way), but — as the open question below explains — it doesn't actually
+answer that question precisely: it returns a value, and a value of
+`undefined` is ambiguous between "absent" and "present but `undefined`."
+Answering the existence question precisely is exactly what `hasOwn` is for.
 
 ## `hasOwn` instead
 
@@ -81,10 +86,22 @@ rather than reopening any of them: `Object<A>` receivers only for a first
 landing (matching `own`'s own Stage 4a scope), a nullish receiver throws,
 a non-object/non-nullish receiver behaves however `own` already defined that
 (verified against Node: `Object.getOwnPropertyDescriptor(5, 'x')` is
-`undefined`, matching `own`'s design; `Object.getOwnPropertyDescriptor('hi',
-'length')` is a real descriptor in actual JS, which `own`'s Stage 4a scope
-already knowingly doesn't reproduce for `String`/`Array` receivers — the
-same accepted gap carries over here unchanged, not a new one).
+`undefined`, matching `own`'s design).
+
+**This inherited gap is worse for `hasOwn` than it was for `own`, and needs
+an explicit decision, not a silent carry-over.** `Object.getOwnPropertyDescriptor('hi',
+'length')` and `Object.getOwnPropertyDescriptor([1, 2], 0)` are both real
+descriptors in actual JS — `own`'s Stage 4a scope already knowingly doesn't
+reproduce that for `String`/`Array` receivers, answering `undefined`
+instead. For `own`, that reads as "no value available," which a caller
+already has to treat as an open question. For `hasOwn`, the same gap
+produces a *definite, wrong* `false` — `Object.getOwnPropertyDescriptor('hi',
+'length') !== undefined` would say "this string has no `length`," which is
+false. A `hasOwn` that ships with `own`'s current `Object<A>`-only scope
+needs to either extend to `String`/`Array` receivers for at least the names
+they genuinely own (`length`, valid indices) or refuse those receivers
+outright (throw, or reject at compile time) rather than answer a boolean
+that looks authoritative and isn't.
 
 ## Open question: what backs the existence check
 
