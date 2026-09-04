@@ -105,28 +105,44 @@ descriptor object (`value`, `writable`, `get`, `set`, `enumerable`,
 reads. `hasOwn` doesn't need that same care: `Object.hasOwn`'s return value
 *is* the boolean already, so there's nothing to filter out of it.
 
-This needs no new keyword and no new compatibility argument: the source text
-is already exactly what it means in any JS engine, the same way `own`'s
-source pattern already was. It also needs no closures — unlike a `hasOwn`
-*helper function* (`const hasOwn = (obj, prop) => ...`), which would need
-`=>`. The tokenizer and the EDAG's `Op2Id` union already recognize `=>`
-(`fjs/djs/tokenizer/module.f.mjs`, `fjs/edag/types.ts`), but the parser and
-AST do not yet turn it into anything — no arrow-function AST node, no
-grammar production consuming it (confirmed by reading `fjs/djs/`). A
-pattern-recognized instruction works today; a helper function couldn't.
+This needs no new keyword: `Object.hasOwn(obj, prop)` is already exactly
+what it means in any JS engine, the same way `own`'s source pattern already
+was — *when the receiver is one `own`'s scope already covers.* That
+qualifier matters: the `String`/`Array` gap just above is a real, named
+compatibility divergence for the receivers `own` doesn't cover, so "no new
+compatibility argument" holds only for the scope this document actually
+recognizes, not unconditionally for every call this shape could spell.
+
+Recognizing `Object.hasOwn(obj, prop)` also needs no closures — unlike a
+`hasOwn` *helper function* (`const hasOwn = (obj, prop) => ...`), which
+would need `=>`. The tokenizer and the EDAG's `Op2Id` union already
+recognize `=>` (`fjs/djs/tokenizer/module.f.mjs`, `fjs/edag/types.ts`), but
+the parser and AST do not yet turn it into anything — no arrow-function AST
+node, no grammar production consuming it (confirmed by reading `fjs/djs/`).
+Neither shape actually parses today, to be precise: `fjs/djs/ast/types.ts`
+has no call-expression node at all yet — `own_property` itself is still an
+unimplemented `spec/todo/` pattern, the same as everything else here — so
+"pattern-recognized instruction" and "helper function" are both future
+work, not a working-today/not-working-today split. What's asymmetric is
+what each would need *beyond* a call-expression AST node once one exists: a
+pattern-recognized `hasOwn` needs nothing more, while a helper function
+additionally needs `=>` and closures.
 
 Because this is scoped to the same receiver `own_property` already
 recognizes, it inherits `own`'s existing, already-settled scope decisions
 rather than reopening any of them: `Object<A>` receivers only for a first
-landing (matching `own`'s own Stage 4 scope), a nullish receiver throws,
-a non-object/non-nullish receiver behaves however `own` already defined that
-(verified against Node: `Object.getOwnPropertyDescriptor(5, 'x')` is
-`undefined`, matching `own`'s design).
+landing (matching `own`'s own scope — `Object<A>` only, no `String`/`Array`
+case, per `nanvm-lib/src/vm/any/mod.rs` and `nanvm-lib/README.md`; no
+"stage" label attaches to this scope decision anywhere in the repo, so none
+is used here either), a nullish receiver throws, a non-object/non-nullish
+receiver behaves however `own` already defined that (verified against
+Node: `Object.getOwnPropertyDescriptor(5, 'x')` is `undefined`, matching
+`own`'s design).
 
 **This inherited gap is worse for `hasOwn` than it was for `own`, and needs
 an explicit decision, not a silent carry-over.** `Object.hasOwn('hi',
 'length')` is `true` in real JS, and so is `Object.hasOwn([1, 2], '0')` for
-a string-form index — `own`'s Stage 4 scope already knowingly doesn't
+a string-form index — `own`'s current scope already knowingly doesn't
 reproduce that for `String`/`Array` receivers, answering `undefined`
 instead (its underlying `own_property` primitive requires a `String` key
 already in hand and has no `String`/`Array`-receiver case at all — it
