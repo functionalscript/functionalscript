@@ -147,16 +147,17 @@ so nothing to ask about the branch it names. A rule set has the keys the value
 turned out to carry.
 
 A sequence carrying own properties beside its indices —
-`Object.assign([0], { extra: 1 })` — keeps its element types but loses its
-length. `toData` takes the array path and reads the indices, so it is a working
-grammar, and the answer is the widened `readonly Ast[]` rather than
-`readonly[number]`. The mapping that keeps a tuple's arity is homomorphic over
-an array and not over `readonly[0] & { readonly extra: 1 }`; rebuilding the
-tuple by destructuring it — `R extends readonly[infer H, ...infer T]`, recursing
-on `T` — makes `tsc` exhaust its stack, and `[...R]`, `Extract<R, Sequence>` and
-a mapped copy all give back the intersection. This one is a *loss of precision*
-rather than a wrong answer, so it is the mildest here, and the rule-set
-derivation closes it with the array normalization already built.
+`Object.assign([0], { extra: 1 })`, and `{ '-1': 1 }` just as much — keeps its
+element types but loses its length. `toData` takes the array path and reads the
+indices, so it is a working grammar, and the answer is the widened
+`readonly Ast[]` rather than `readonly[number]`. The mapping that keeps a
+tuple's arity is homomorphic over an array and not over
+`readonly[0] & { readonly extra: 1 }`; rebuilding the tuple by destructuring
+it — `R extends readonly[infer H, ...infer T]`, recursing on `T` — makes `tsc`
+exhaust its stack, and `[...R]`, `Extract<R, Sequence>` and a mapped copy all
+give back the intersection. This one is a *loss of precision* rather than a
+wrong answer, so it is the mildest here, and the rule-set derivation closes it
+with the array normalization already built.
 
 ### Why none of them is a guard
 

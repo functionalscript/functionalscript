@@ -74,7 +74,7 @@ type _FromAny<R> = R extends Rule ? AstRule<R> : never
 
 /** `never` for a union of two or more, so this asks for exactly one member. */
 type _Single<T> =
-    [T] extends [never]
+    readonly[T] extends readonly[never]
         ? false
         : Equal<(T extends unknown ? (x: T) => void : never) extends
             (x: infer I) => void ? I : never, T>
@@ -183,8 +183,8 @@ type _RepeatItem<R> =
         // than one array over the lot. Anything else — a `true`, or a `false`
         // beside an item — is members disagreeing about whether this repeats at
         // all, which leaves the classification open.
-        ? [_Members<U, R>] extends [false] ? false
-        : [Extract<_Members<U, R>, boolean>] extends [never] ? _Members<U, R>
+        ? readonly[_Members<U, R>] extends readonly[false] ? false
+        : readonly[Extract<_Members<U, R>, boolean>] extends readonly[never] ? _Members<U, R>
         : true
     // A rule that is not lazy cannot name itself, so nothing it holds can be
     // its own tail.
@@ -218,16 +218,19 @@ type _RepeatOne<U, R> =
     number extends _Keys<U> ? _OpenRepeat<U, R> :
     // A rule the parser throws on is refused outright by {@link _Branches}, and
     // asking whether it repeats would put an array in front of that refusal.
-    [_Malformed<U>] extends [never]
+    readonly[_Malformed<U>] extends readonly[never]
         // Two branches make a repetition, so there has to be a pair to make one
         // from — however widely the branches are written, and however many of
         // them are optional.
-        ? [_Pairs<U, R>] extends [never] ? false
+        // {@link Equal} rather than the one-tuple guard the rest of the file
+        // uses: `readonly[_Pairs<U, R>] extends readonly[never]` reads as `true`
+        // for a pair that exists, and takes `Repeat0Plus` with it.
+        ? Equal<_Pairs<U, R>, never> extends true ? false
         // A branch the declaration does not pin down leaves the classification
         // open, and so does an optional one: `repeatOf` turns on the branches a
         // value carries, and `?` is the author declining to say.
-        : [_UndecidedKeys<U, R>] extends [never]
-            ? [_OptionalKeys<U>] extends [never] ? _Repeat<U, R> : true
+        : readonly[_UndecidedKeys<U, R>] extends readonly[never]
+            ? readonly[_OptionalKeys<U>] extends readonly[never] ? _Repeat<U, R> : true
             : true
         // ...`_Malformed<U>`.
         : false
@@ -260,8 +263,8 @@ type _Pairs<U, R> =
 type _Pair<A, B, Req> =
     A extends unknown
         ? B extends unknown
-            ? [A] extends [B] ? never
-            : [Exclude<Req, A | B>] extends [never] ? readonly[A, B]
+            ? readonly[A] extends readonly[B] ? never
+            : readonly[Exclude<Req, A | B>] extends readonly[never] ? readonly[A, B]
             : never
             : never
         : never
@@ -298,11 +301,11 @@ type _Repeat<U, R> =
  * finds nothing.
  */
 type _Class<B, R> =
-    [B] extends [_None] ? 'none' :
-    [B] extends [readonly[Rule, R]] ? 'step' :
-    [readonly[]] extends [B] ? 'open' :
-    [''] extends [B] ? 'open' :
-    [readonly[Rule, R]] extends [B] ? 'open' :
+    readonly[B] extends readonly[_None] ? 'none' :
+    readonly[B] extends readonly[readonly[Rule, R]] ? 'step' :
+    readonly[readonly[]] extends readonly[B] ? 'open' :
+    readonly[''] extends readonly[B] ? 'open' :
+    readonly[readonly[never, R]] extends readonly[B] ? 'open' :
     'other'
 
 /** {@link _Class} of every member of `B`. */
@@ -316,8 +319,8 @@ type _UndecidedKeys<U, R> =
     { readonly[K in _Keys<U>]: _Undecided<_BranchOf<U, K>, R> extends true ? K : never }[_Keys<U>]
 
 type _Undecided<B, R> =
-    [_Classes<B, R>] extends [never] ? false :
-    [Extract<_Classes<B, R>, 'open'>] extends [never]
+    readonly[_Classes<B, R>] extends readonly[never] ? false :
+    readonly[Extract<_Classes<B, R>, 'open'>] extends readonly[never]
         ? _Single<_Classes<B, R>> extends true ? false : true
         : true
 
@@ -326,14 +329,14 @@ type _CouldNoneKeys<U, R> =
     { readonly[K in _Keys<U>]: _CouldNone<_BranchOf<U, K>, R> extends true ? K : never }[_Keys<U>]
 
 type _CouldNone<B, R> =
-    [Extract<_Classes<B, R>, 'none' | 'open'>] extends [never] ? false : true
+    readonly[Extract<_Classes<B, R>, 'none' | 'open'>] extends readonly[never] ? false : true
 
 /** The keys of `U` whose branch is, or could be, an item followed by `R`. */
 type _CouldStepKeys<U, R> =
     { readonly[K in _Keys<U>]: _CouldStep<_BranchOf<U, K>, R> extends true ? K : never }[_Keys<U>]
 
 type _CouldStep<B, R> =
-    [Extract<_Classes<B, R>, 'step' | 'open'>] extends [never] ? false : true
+    readonly[Extract<_Classes<B, R>, 'step' | 'open'>] extends readonly[never] ? false : true
 
 /**
  * The keys `U` declares optional. `Required` in {@link _BranchOf} reads the
@@ -381,7 +384,7 @@ type _Branches<R extends Variant, K> =
     // A rule the parser throws on is refused rather than given the AST of one
     // that works — `_FromAny` would otherwise drop the `undefined` and hand
     // back a plausible branch. See {@link _Malformed}.
-    [_Malformed<R>] extends [never]
+    readonly[_Malformed<R>] extends readonly[never]
         ? K extends _Keys<R> ? { readonly [_ in K]: _FromAny<R[K]> } : never
         : never
 
@@ -405,12 +408,21 @@ type _AstOne<R extends Rule> =
     // One array per item, not one array over the union of them: a rule whose
     // return type names two repetitions parses as one or the other, never as a
     // sequence mixing their items.
-    [_RepeatItem<R>] extends [readonly [Rule]] ? _AstRepeat<_RepeatItem<R>> :
+    readonly[_RepeatItem<R>] extends readonly[readonly[Rule]] ? _AstRepeat<_RepeatItem<R>> :
     // A declaration that does not say whether it is a repetition gets both
     // shapes rather than the one it is merely more likely to be. The item is
     // unknown along with the rest, so the array is over the widened `Ast`.
     _RepeatItem<R> extends true ? readonly Ast[] | _AstNotRepeat<R> :
     _AstNotRepeat<R>
+
+/**
+ * The same mapping {@link _AstOne} gives a sequence, with a constant in place of
+ * each element's AST: enough to say whether the mapping stayed an array,
+ * without deriving an AST to find out. The element types cannot be asked for
+ * here — a tuple holding the rule this mapping belongs to would send the
+ * derivation through itself, which `tsc` reports as `TS2615`.
+ */
+type _Shape<R> = { readonly[K in keyof R]: 0 }
 
 type _AstRepeat<T> = T extends readonly [infer I extends Rule] ? readonly AstRule<I>[] : never
 
@@ -424,13 +436,16 @@ type _AstNotRepeat<R extends Rule> =
         // An array carrying own properties beside its indices —
         // `Object.assign([0], { extra: 1 })` — is a sequence the parser reads by
         // index and nothing else. The mapping below is homomorphic over an
-        // array and keeps its shape, but not over that intersection: it would
-        // answer with an object carrying `extra` and every array method mapped
-        // through. The arity cannot be recovered — a recursive destructure of
-        // the intersection does not terminate — so the answer is the widened
-        // array, which is what a sequence produces:
-        // [nullable-repeat-item](./todo/nullable-repeat-item.md).
-        : [Exclude<keyof R, keyof readonly unknown[] | `${number}`>] extends [never]
+        // array and keeps its shape, but not over that intersection: it answers
+        // with an object carrying `extra` and every array method mapped through.
+        // The answer to that is the array a sequence produces, since the arity
+        // cannot be recovered — a recursive destructure of the intersection does
+        // not terminate: [nullable-repeat-item](./todo/nullable-repeat-item.md).
+        //
+        // {@link _Shape} asks whether the mapping came back an array, which is
+        // the question itself rather than a guess at which keys are indices:
+        // `'-1'` reads as one by name and is not one.
+        : _Shape<R> extends readonly unknown[]
             ? { readonly [K in keyof R]: _FromAny<R[K]> }
             : readonly Ast[]
         :
@@ -775,3 +790,24 @@ type _49 = Assert<Equal<
 // The arity is kept for a plain tuple, which is the case the widening above
 // must not reach.
 type _50 = Assert<Equal<AstRule<readonly[0]>, readonly[number]>>
+
+// A union inside the step's *tail*. The value whose tail is the rule is a
+// repetition — `repeatItem` gives `0` for it — and the one whose tail is `1` is
+// a plain pair; the outer distribution never reaches inside the tuple, so this
+// is caught by asking whether a specific pair is among the branch's values.
+type _TailUnion = () => {
+    readonly none: readonly[],
+    readonly some: readonly[0, _TailUnion | 1],
+}
+type _51 = Assert<Equal<AstRule<_TailUnion>, readonly Ast[] | _TailUnionVariant>>
+type _TailUnionVariant =
+    { readonly none: readonly[] } |
+    { readonly some: readonly[number, AstRule<_TailUnion> | number] }
+
+// `'-1'` is a `${number}` and is not an array index: iteration ignores it, and
+// `toData` of this builds the same one-element sequence as `_49`'s. What
+// separates a sequence from an augmented one is whether the mapping stayed an
+// array, not whether a key reads like an index.
+type _52 = Assert<Equal<
+    AstRule<readonly[0] & { readonly '-1': 1 }>,
+    readonly Ast[]>>
