@@ -17,8 +17,8 @@ later, one `todo/` at a time.
 
 Four things are always worth a comment, because nothing else catches them:
 
-- **A regression.** Something that worked before the change and does not
-  after.
+- **A regression.** Something that worked before the change, was meant to
+  keep working, and does not after. A declared breaking change is not one.
 - **Silence.** An unsupported input answered with a plausible wrong value
   instead of a refusal
   ([DESIGN.md §10](./DESIGN.md#10-refuse-what-you-cannot-handle)). Ask for the
@@ -39,6 +39,10 @@ regular expressions, no file-scope `@typedef`
 finding with the rule as its link. "An implementer following this task builds
 against a module the proposal above it retired" is a finding. "This could be
 more precise" is not.
+
+**What blocks.** A regression, silence, an undeclared break, and a broken rule
+are fixed before approval. Everything else in this document is a `todo/` or an
+answer, and never a reason to hold the pull request.
 
 ## What to ask for
 
@@ -103,12 +107,12 @@ and a `todo/` for anything tighter.
 
 Bot reviews re-run on every push, and each round finds "fresh evidence" in the
 previous round's fix. A bot finding is a bug report: verify it, then treat it
-like any other — a regression, silence or an undeclared break is fixed, the
-rest is a `todo/` —
-answer it once when it names no real input, and leave it when the answer is
-already in a document or a `todo/`. A human reviewer forwards a bot
-finding only when they would have raised it themselves, and does not hold
-approval on an open bot thread.
+like any other — what [blocks](#what-to-raise) is fixed, the rest is a `todo/`
+or an answer, given once — and leave it when the answer is already in a
+document or a `todo/`. After the second round, a finding that does not block
+gets no push: a `todo/` or an answer, and the pull request lands. A human
+reviewer forwards a bot finding only when they would have raised it
+themselves, and does not hold approval on an open bot thread.
 
 ## Writing the comment
 
@@ -121,14 +125,12 @@ approval on an open bot thread.
 
 ## When to approve
 
-Approve when what remains is `todo/` work, or the answer is in a document. A
-regression, silence or an undeclared break is never `todo/` work
-([REVIEW.md](./REVIEW.md#deferring-a-defect)): those are fixed before approval.
-Open `todo/` files are not a reason to hold a pull request, and neither is a `todo/`
+Approve when what remains is `todo/` work, or the answer is in a document, and
+what [blocks](#what-to-raise) is fixed. Open `todo/` files are not a reason to hold a pull request, and neither is a `todo/`
 that says less than you would have written: the next person adds what is
 missing, in a pull request that need not implement anything
 ([REVIEW.md](./REVIEW.md#designs)).
 
 Two rounds is normal. A third round of design feedback on the same file means
 the review has become design work, and that belongs in a pull request of its
-own. A regression, silence or an undeclared break blocks in any round.
+own. What blocks, blocks in any round.
