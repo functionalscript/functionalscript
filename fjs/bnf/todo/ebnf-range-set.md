@@ -332,11 +332,14 @@ justification is the API and the AST, which is where
       constructor first, then intersect with the domain `[0]`, then require
       safe-integer boundaries, and decide the empty set there), dropping
       `oneOf` from the constructor list (**Amended** above).
-- [ ] Alphabet adapters: `range`, `set` and `not` in `fjs/ebnf/unicode/`
-      produce sets; `not` is difference against the Unicode universe. `str`
-      is not one of them: `str('true')` is an ordered `Sequence` of
-      one-symbol terminals, one per code point, exactly as a bare `string`
-      lowers today. Same for `byte/` when it exists.
+- [ ] Alphabet adapters: `not` in `fjs/ebnf/unicode/`, as difference against
+      the Unicode universe. `range` and `set` are not adapter names — they
+      ship in the front end and return terminal rules (**Amended** above, and
+      [unicode-rules](./unicode-rules.md)) — so `not` follows them rather
+      than producing a set value. `str` is not one of them either:
+      `str('true')` is an ordered `Sequence` of one-symbol terminals, one per
+      code point, exactly as a bare `string` lowers today. Same for `byte/`
+      when it exists.
 - [ ] `fjs/ebnf/ll1/`, the one backend the migration keeps: the dispatch map
       is built from `toRangeMap`, and the first/first conflict error names
       the rule, so it renders a set rather than a packed range.

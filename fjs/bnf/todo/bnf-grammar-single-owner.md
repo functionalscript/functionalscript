@@ -103,13 +103,17 @@ hold: the repetition constructors are `repeatFrom0` and `join` rather than
 `repeat0Plus` and `commaJoin0Plus`, and `range`, `set` and `unicodeMax` come
 from the front end rather than the adapter — see **Amended** in
 [ebnf-front-end](./ebnf-front-end.md) and [unicode-rules](./unicode-rules.md)
-for both. `times(4)(hex)` replaces `repeat` from `fjs/types/array`.
+for both.
 
-`repeat` is in that third line rather than the first because the port does not
-touch it: [#1817](https://github.com/functionalscript/functionalscript/pull/1817)
-already moved it out of `fjs/bnf` to `types/array` as a breaking change, so it
-is an array helper today and stays one afterwards. Only `str` is a name the
-adapter introduces.
+A third prediction went further than it needed to. The block used to import
+`repeat` from `fjs/types/array` alongside the grammar constructors, on the
+reasoning that the port does not touch it:
+[#1817](https://github.com/functionalscript/functionalscript/pull/1817)
+already moved it out of `fjs/bnf` as a breaking change, so it is an array
+helper today and stays one. That still holds of the helper — the port simply
+has no call for it, because the front end's own `times(4)(hex)` spells what
+the classical grammar spelled with it. Only `str` is a name the adapter
+introduces.
 
 The other helper names should follow the API the EBNF adapter produces. The
 important constraint is the boundary: generic BNF does not regain string
