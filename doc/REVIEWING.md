@@ -32,9 +32,13 @@ Four things are always worth a comment, because nothing else catches them:
   ([#1844](https://github.com/functionalscript/functionalscript/pull/1844)).
 
 Beyond those, a comment is worth writing when it names the input that breaks
-the code, or the sentence a reader would follow to a wrong place. "An
-implementer following this task builds against a module the proposal above it
-retired" is a finding. "This could be more precise" is not.
+the code, the rule the change breaks, or the sentence a reader would follow to
+a wrong place. The rules no tool enforces — immutability, no `try`/`catch`, no
+regular expressions, no file-scope `@typedef`
+([fjs/AGENTS.md](../fjs/AGENTS.md)) — are held by review, so a violation is a
+finding with the rule as its link. "An implementer following this task builds
+against a module the proposal above it retired" is a finding. "This could be
+more precise" is not.
 
 ## What to ask for
 
@@ -108,8 +112,10 @@ approval on an open bot thread.
 
 ## When to approve
 
-Approve when what remains is `todo/` work, or the answer is in a document. Open
-`todo/` files are not a reason to hold a pull request, and neither is a `todo/`
+Approve when what remains is `todo/` work, or the answer is in a document. A
+regression or silence is never `todo/` work
+([REVIEW.md](./REVIEW.md#deferring-a-defect)): those are fixed before approval.
+Open `todo/` files are not a reason to hold a pull request, and neither is a `todo/`
 that says less than you would have written: the next person adds what is
 missing, in a pull request that need not implement anything
 ([REVIEW.md](./REVIEW.md#designs)).
