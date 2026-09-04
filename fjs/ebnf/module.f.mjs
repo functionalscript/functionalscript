@@ -95,5 +95,8 @@ export const repeat0Plus =
  */
 export const times = n => repeat(n, n)
 
+/** @type {<const R extends Rule>(rule: R) => RepeatInfo<0, 1, R>} */
+export const option = rule => () => ['repeat', 0, 1, rule]
+
 export const unicodeMax =
     codePointListToString([0x10FFFF])
