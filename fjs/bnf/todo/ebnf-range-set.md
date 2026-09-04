@@ -113,13 +113,17 @@ Properties, each one a reason to prefer this over a list of ranges:
   bottom or ships without a generic complement. That is that module's
   problem, not this one's.
 
-`fjs/types/range_set` becomes this type. It is a strictly better range set
-than the `RangeMap<boolean>` there now — smaller, canonical, with a cheaper
-complement — and there must not be two. Its one consumer,
-`fjs/media/nix/module.f.mjs`, ports in the same change. The module exports the
-algebra (`contains`, `union`, `intersection`, `complement`, `difference`) and
-the half-open `fromRange`; `toRangeMap`, which is what the LL(1) dispatch map
-is built from, is the terminal layer's.
+`fjs/types/range_set` **is** this type — the `RangeMap<boolean>` that used to
+be there is gone, along with its one consumer's use of it
+(`fjs/media/nix/module.f.mjs`, which builds its sets from `[a, b + 1]`), and
+there are not two. The module exports the algebra (`contains`, `union`,
+`intersection`, `complement`, `difference`), the half-open `fromRange`, and
+`rangeSet`, `empty` and `full` with `isRangeSet` for the validation they panic
+on; `toRangeMap`, which is what the LL(1) dispatch map is built from, is the
+terminal layer's. A probe outside the universe panics too — `contains(s)(NaN)`
+and `contains(s)(Infinity)` — since no set can say whether such a value is a
+member, and answering `false` would put it in neither a set nor its
+complement.
 
 **The empty set is a value, not a rule.** As a value it is the identity for
 union and belongs in the algebra. As a terminal it is a rule that can never
@@ -288,7 +292,7 @@ justification is the API and the AST, which is where
 
 ### Tasks
 
-- [ ] `fjs/types/range_set`: replace the `RangeMap<boolean>` representation
+- [x] `fjs/types/range_set`: replace the `RangeMap<boolean>` representation
       with the toggle list over `-Infinity..Infinity`, any non-`NaN` number
       a boundary; `contains`, `union`, `intersection`, `complement`,
       `difference`, the half-open `fromRange`, validation on construction;
@@ -352,7 +356,7 @@ justification is the API and the AST, which is where
 - [rule-visitor](./rule-visitor.md) — discriminates the data `Rule`, so it
   waits on the same IR carrier decision.
 - [`fjs/types/range_set/module.f.mjs`](../../types/range_set/module.f.mjs) —
-  the module this replaces.
+  the module, now the toggle list.
 - [`fjs/js/todo/174-shared-range-map-lexer.md`](../../js/todo/174-shared-range-map-lexer.md)
   — the two hand-rolled scanners also build range-set cells over `range_map`;
   the shared value type is a natural input for the factory it proposes.
