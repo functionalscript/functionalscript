@@ -233,6 +233,7 @@ export const proof = {
             setMixesEof: () => refuse({ digit: ['set', -1, 5] }),
             minNegative: () => refuse({ digits0: ['repeat', -1, 2, 'digit'] }),
             minFractional: () => refuse({ digits0: ['repeat', 0.5, 2, 'digit'] }),
+            minNegativeZero: () => refuse({ digits0: ['repeat', -0, 2, 'digit'] }),
             maxFractional: () => refuse({ digits0: ['repeat', 0, 2.5, 'digit'] }),
             minAboveMax: () => refuse({ digits0: ['repeat', 3, 2, 'digit'] }),
             // A round that consumes nothing would repeat forever.
@@ -433,6 +434,10 @@ export const proof = {
             // `-1`, so `-1` is refused like any negative.
             symbolNegative: () => toData(-2),
             symbolMinusOne: () => toData(-1),
+            // `-0` is no spelling of a symbol, alone or after `0`, where the
+            // memo would otherwise hand it `0`'s rule.
+            symbolNegativeZero: () => toData(-0),
+            symbolNegativeZeroAfterZero: () => toData([0, -0]),
             symbolFractional: () => toData(1.5),
             symbolUnsafe: () => toData(2 ** 53),
             malformedUtf16: () => toData('\uD800'),

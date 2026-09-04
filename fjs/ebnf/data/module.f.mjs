@@ -147,8 +147,14 @@ const eof = ['set', ...eofSet]
 /** The symbol domain: every ordinary symbol, open above. */
 const domain = rangeSet([0])
 
-/** @type {(n: number) => boolean} */
-const isSymbol = n => isSafeInteger(n) && n >= 0
+/**
+ * A non-negative safe integer, spelled the one way: `-0` is refused, since a
+ * boundary or a bound written as `-0` is not canonical, and `range_set`
+ * refuses the boundary for the same reason.
+ *
+ * @type {(n: number) => boolean}
+ */
+const isSymbol = n => isSafeInteger(n) && n >= 0 && !Object.is(n, -0)
 
 /**
  * A reference is a string naming a rule of the set. The type is checked
@@ -381,6 +387,9 @@ const lowerThunk = (state, hint, fr) => {
  * @type {(state: _State, hint: string, fr: FRule) => _Lowered<string>}
  */
 const lower = (state, hint, fr) => {
+    // The memo's `Map` keys by SameValueZero, so `-0` would find `0`'s rule
+    // and inherit it; it is refused before the lookup, as it is everywhere.
+    assert(!Object.is(fr, -0), ['not a symbol', fr])
     const known = state.names.get(fr)
     if (known !== undefined) { return [state, known] }
     return typeof fr === 'function' ? lowerThunk(state, hint, fr) : lowerData(state, hint, fr)
