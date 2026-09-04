@@ -265,6 +265,11 @@ export const proof = {
         // boundaries is not one for being between them.
         fractionalSymbol: () => none(digit)(/** @type {any} */ (c('0') + 0.5)),
         fractionalRule: () => none(/** @type {Rule} */ (48.5))(/** @type {any} */ (48.5)),
+        // `-0` is `0`'s second spelling and no symbol, as the lowering says.
+        negativeZeroRule: () => none(/** @type {Rule} */ (-0))(/** @type {any} */ (-0)),
+        negativeZeroLeaf: () => none(0)(/** @type {any} */ (-0)),
+        // A lone surrogate is no string of symbols, as the lowering says.
+        malformedString: () => none(/** @type {Rule} */ ('\uD800'))(/** @type {any} */ ([])),
         outsideTheSet: () => none(digit)(c('a')),
         notTheString: () => none('ab')(cps('a')),
         // A hole is no symbol and no round, however long the list.
