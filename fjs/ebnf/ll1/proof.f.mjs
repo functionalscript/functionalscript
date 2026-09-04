@@ -1,4 +1,6 @@
 /**
+ * @import { Assert } from '../../asserts/types.ts'
+ * @import { Equal } from '../../types/ts/types.ts'
  * @import { Ast } from '../ast/types.ts'
  * @import { Rule } from '../types.ts'
  * @import { RuleSet } from '../data/types.ts'
@@ -136,6 +138,16 @@ export const proof = {
                 c('f'), c('f') + 1, c('n'), c('n') + 1, c('t'), c('t') + 1, c('{'), c('{') + 1,
             ])
         },
+        // A repetition of at most zero rounds never enters its item, so its
+        // first set is empty: a variant of it beside its item is not a
+        // conflict, and the lookahead selects the item's branch while a
+        // miss selects the empty one.
+        zeroRounds: () => {
+            assertStructurallySame(firstMap({ z: ['repeat', 0, 0, 'x'], x: one('x') }), { z: [], x: [c('x'), c('x') + 1] })
+            const p = parser({ empty: times(0)('x'), x: 'x' })
+            assertStructurallySame(p(cps('x')), ['ok', [['x', cps('x')], 1]])
+            assertStructurallySame(p([]), ['ok', [['empty', []], 0]])
+        },
         // A rule that may begin with the end of input has `-1` in its first
         // set beside its symbols.
         eof: () => {
@@ -235,6 +247,15 @@ export const proof = {
             assertStructurallySame(any(cps('123x')), ['ok', [[c('1'), c('2'), c('3')], 3]])
             assertStructurallySame(parser(repeatFrom1(digit))([]), ['error', 0])
         },
+        // The rule's literal type survives the call — `R` is a `const` type
+        // parameter — so the parser is typed by the tree the rule builds.
+        // The assertion is what makes the modifier load-bearing: dropping it
+        // would widen every inline rule silently and `tsc` would still pass.
+        constParameter: () => {
+            const p = parser({ a: 'x', b: ['y', 42] })
+            /** @typedef {Assert<Equal<typeof p, Parser<readonly ['a', readonly number[]] | readonly ['b', readonly [readonly number[], 42]]>>>} _ConstParameter */
+            assertStructurallySame(p(cps('y*')), ['ok', [['b', [cps('y'), 42]], 2]])
+        },
         // A nullable item under a bounded repeat, as `../data` promises: a
         // forced round matches empty, so `times(3)('')` matches empty three
         // times, and an optional round never starts on it, so `option('')`
@@ -320,5 +341,10 @@ export const proof = {
         firstFirstConflict: () => parser({ a: 'x', b: ['x', 'y'] }),
         // A rule that is no rule reaches the lowering's refusal.
         notARule: () => parser(/** @type {Rule} */ (/** @type {unknown} */ (true))),
+        // The input holds ordinary symbols only: `-1` is the end of input,
+        // which is synthesized after the input and not spelled in it, and a
+        // fraction is no symbol.
+        eofInInput: () => parser(eof)([-1]),
+        notASymbol: () => parser(digit)([0.5]),
     },
 }

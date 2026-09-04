@@ -33,9 +33,20 @@ import { contains as visiting, empty as noNames, set as visit } from '../../type
 import { emptyTagMap, matchRule, toData, validate } from '../data/module.f.mjs'
 
 const { keys } = Object
+const { isSafeInteger } = Number
 
 /** The end of input, as the one symbol the parser synthesizes after the last. */
 const eofSymbol = -1
+
+/**
+ * An ordinary symbol, as the sets of `../data` are drawn from: a non-negative
+ * safe integer, spelled the one way. The input is refused outside that
+ * domain because `-1` in it would read as the end of input, which is
+ * synthesized and not spelled, and anything else in it could match no set.
+ *
+ * @type {(s: number) => boolean}
+ */
+const isSymbol = s => isSafeInteger(s) && s >= 0 && !Object.is(s, -0)
 
 /**
  * Whether the rule named `name` can match empty — an own entry only, as in
@@ -93,7 +104,10 @@ const firstOf = (ruleSet, nullable) => {
                     return [next, union(f)(itemFirst)]
                 }),
                 [map, empty]),
-            repeat: (_min, _max, item) => inner(map, item),
+            // A repetition begins with its item, unless no round can ever
+            // start: `max` of `0` matches empty and only empty, so its first
+            // set is empty and its item is not in first position.
+            repeat: (_min, max, item) => max === 0 ? [map, empty] : inner(map, item),
         }
         const [next, f] = matchRule(v)(ruleSet[name])
         return [{ ...next, [name]: f }, f]
@@ -141,6 +155,8 @@ const build = (ruleSet, empty) => {
     const isNullable = nullable(empty)
     const first = firstMapOf(ruleSet, isNullable)
     return entry => input => {
+        const outside = input.findIndex(s => !isSymbol(s))
+        assert(outside === -1, ['not a symbol', outside, input[outside]])
         const { length } = input
 
         /**

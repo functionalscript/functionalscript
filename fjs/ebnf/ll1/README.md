@@ -38,10 +38,13 @@ value(unwrap(parse([0x31, 0x32]))[0])   // 12
 ```
 
 The input is a list of symbols and nothing more. The alphabet is the caller's
-— code points for a text grammar, token symbols for one over tokens — and the
-end of input is synthesized once after the last symbol, so a grammar that
-ends in `eof` is matched against the whole input, and one that does not
-stops where its rule does, reporting the index of the first symbol it left.
+— code points for a text grammar, token symbols for one over tokens — within
+the domain the data layer's sets are drawn from, the non-negative safe
+integers: an input holding anything else is refused, since `-1` in it would
+read as the end of input and nothing else in it could match a set. The end
+of input is synthesized once after the last symbol, so a grammar that ends
+in `eof` is matched against the whole input, and one that does not stops
+where its rule does, reporting the index of the first symbol it left.
 
 ## The tree is `Ast<R>`
 

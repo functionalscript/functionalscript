@@ -281,8 +281,11 @@ tuple is the one way an unvalidated value reaches it:
 ## The AST
 
 The data form fixes the AST the way the classical one does — one node per
-rule invocation, `{ tag, sequence }`, and every backend builds it — with the
-repeat row generalized:
+rule invocation, and every backend builds it — with the repeat row
+generalized and the node itself the typed `Ast<R>` of `fjs/ebnf/ast` rather
+than the classical `{ tag, sequence }` wrapper: a symbol, an array, a
+`[tag, node]` pair, as the rows below and the `Ast<R>` table agree, so a
+backend's tree needs no conversion before the mapping layer takes it.
 
 | rule | node |
 |---|---|
