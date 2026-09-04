@@ -29,11 +29,8 @@
 - [ ] Replace CHANGELOG with a generated from a Website.
   - [ ] Proposal: Create changelog during release.
 - [ ] Reformulate "grab and implement" task. It should focus on priorities.
-- [ ] EBNF: I think, the idea to use `string` as raw value is still attractive. Also, if we use the first item of an array as discriminant together with a sequence, it became inconsistent with all other eDSL we have. https://github.com/functionalscript/functionalscript/pull/1847
 - [ ] convention for generated files, for example `gen_`
-- [ ] remove copilot MCP and copying the MCP to VSCode.
 - [ ] we may try to use `BoundedArray<2, 4, T>` instead of `OptionTailArray<2, 4, T>` in EDAG and RTTI for `[t, t, option(t), option(t)]`
-- [ ] remove useless crappy tests like fjs/rtti/host.proof.mjs. Nobody asks for them, nobody need them, nobody prioritizes them. They come from infinite reviewer speculation about "what if".
 - [ ] NiX and Rust eDSL should follow the same conventions as RTTI, new EBNF, HTML and EDAG. Use plain objects to define normal objects.
 - [ ] Specify what is `unknown` in FJS. The set is smaller than in JS.
   ```js
@@ -66,3 +63,4 @@
   typeof value?.[Symbol.iterator] === 'function'
   ```
 - [ ] If a standard property or property method is not implemented, it should be banned in the property accessor. For example, `obj.hasOwnProperty(prop)`.
+- [ ] Meta
