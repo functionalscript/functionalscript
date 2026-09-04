@@ -18,22 +18,25 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
+import { errorMask } from '../../text/code_point/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { definedEntries, structurallySame } from '../../types/object/module.f.mjs'
 import { contains, isRangeSet } from '../../types/range_set/module.f.mjs'
 
 const { isSafeInteger } = Number
+const { is } = Object
 
 /**
- * An ordinary symbol is a non-negative safe integer; a leaf that is a
- * number and no symbol is refused, since a set's boundaries would admit
- * it as they admit the symbols between them.
+ * An ordinary symbol is a non-negative safe integer, and `-0` is not one:
+ * it is `0`'s second spelling, which the lowering refuses too. A leaf that
+ * is a number and no symbol is refused, since a set's boundaries would
+ * admit it as they admit the symbols between them.
  *
  * @param {unknown} n
  * @returns {n is number}
  */
-const isSymbol = n => typeof n === 'number' && isSafeInteger(n) && n >= 0
+const isSymbol = n => typeof n === 'number' && isSafeInteger(n) && n >= 0 && !is(n, -0)
 
 /**
  * Whether two values are alike: the same value, or the same shape over
@@ -162,13 +165,16 @@ const dataChildren = rules => (dr, ast) => {
     switch (typeof dr) {
         case 'number': {
             assert(isSymbol(dr), ['not a symbol', dr])
-            assert(ast === dr, ['not the symbol of the rule', dr, ast])
+            assert(isSymbol(ast) && ast === dr, ['not the symbol of the rule', dr, ast])
             return ast
         }
         case 'string': {
+            // Malformed UTF-16 is refused as the lowering refuses it: a lone
+            // surrogate decodes to a tagged number that is no symbol.
             // Compared spread, since `structurallySame` skips the holes of
             // a sparse list and a hole is no symbol.
             const symbols = toArray(stringToCodePointList(dr))
+            assert(symbols.every(s => (s & errorMask) === 0), ['malformed UTF-16', dr])
             const leaves = fixed(dr, ast, symbols.length)
             assert(structurallySame([...leaves], symbols), ['not the string of the rule', dr, ast])
             return ast
