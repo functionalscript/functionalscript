@@ -43,6 +43,9 @@ const variantString = ['variant', 'zero']
 const constTrailing = ['const', 'x', 'extra']
 
 /** @type {unknown} */
+const undefinedBranch = { ok: 'x', missing: undefined }
+
+/** @type {unknown} */
 const numericReference = ['sequence', 1]
 
 /** @type {unknown} */
@@ -418,6 +421,10 @@ export const proof = {
             // refused where the tuple is read, since the data form's arity
             // check only ever sees what the lowering emitted.
             constTrailing: () => toData(() => /** @type {readonly ['const', string]} */ (constTrailing)),
+            // A branch that is explicitly `undefined` is no rule, and is
+            // refused rather than dropped into a grammar with one branch
+            // fewer than the one written.
+            undefinedBranch: () => toData(/** @type {Rule} */ (undefinedBranch)),
             repeatTrailing: () => toData(() => /** @type {readonly ['repeat', number, number, string]} */ (repeatTrailing)),
         },
         // The grammars of `../lib` lower and validate whole. What the contract

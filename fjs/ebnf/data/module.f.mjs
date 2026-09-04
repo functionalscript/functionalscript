@@ -257,9 +257,16 @@ const lowerSequence = (state, name, items) => {
     return [next, ['sequence', ...named.map(([, n]) => n)]]
 }
 
-/** @type {(state: _State, name: string, branches: import('../types.ts').Variant) => _Lowered<Variant>} */
+/**
+ * Every entry of a front-end variant is a branch: the front end types each
+ * key as a rule, so a branch that is explicitly `undefined` is no rule and
+ * reaches `lowerBody`'s refusal rather than being dropped, which would
+ * lower a different grammar than the one written.
+ *
+ * @type {(state: _State, name: string, branches: import('../types.ts').Variant) => _Lowered<Variant>}
+ */
 const lowerVariant = (state, name, branches) => {
-    const [next, named] = lowerChildren(state, name, definedEntries(branches))
+    const [next, named] = lowerChildren(state, name, entries(branches))
     return [next, ['variant', fromEntries(named)]]
 }
 
