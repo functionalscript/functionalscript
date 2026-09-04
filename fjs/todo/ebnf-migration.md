@@ -63,7 +63,7 @@ still imports the classical front end today, and this is where:
   backend over token symbols already contradicts its own types.
 
 Every **move** below cuts these edges on the way in: `ebnf/` may not import
-`bnf/`, so a moved module takes the codec from `ebnf/terminal/`, the rule
+`bnf/`, so a moved module takes its terminal form from `ebnf/terminal/`, the rule
 identity from the EBNF `Rule`, and its symbol type from `terminal/` rather
 than from `fjs/text`.
 
@@ -189,8 +189,8 @@ records why.
 ```text
 fjs/ebnf/
   module.f.mjs, types.ts   the front end: Rule union with a repetition primitive
-  terminal/                TerminalRange, EOF, the codec            (move)
-  unicode/                 text adapter: str, set, range, notOf, …   (rewrite)
+  terminal/                the symbol domain, EOF, integer helpers over range_set (rewrite)
+  unicode/                 text adapter: str, set, range, not, …     (rewrite)
   byte/                    binary alphabet adapter, when a consumer needs it (rewrite)
   data/                    RuleSet IR with bounded Repeat, emptyTagMap (rewrite)
   matcher/                 cursor, EOF, AST, transformer tools       (move)
@@ -214,7 +214,7 @@ machinery and do not.
 | `bnf/` today | bin | in `ebnf/` |
 |---|---|---|
 | `module.f.mjs` — constructors, `Rule` union | rewrite | `module.f.mjs`, `types.ts`, per ebnf-front-end |
-| `module.f.mjs` — `rangeEncode`, `rangeDecode`, `oneEncode`, `eof`, `fullRange` | move | `terminal/`; `bnf` keeps its own and may repoint |
+| `module.f.mjs` — `rangeEncode`, `rangeDecode`, `oneEncode`, `eof`, `fullRange` | rewrite | `terminal/` over `fjs/types/range_set` values — the domain, `eof`, `range`, `one`, `toRangeMap` ([ebnf-range-set](../bnf/todo/ebnf-range-set.md)); there is no packed codec in `ebnf/`, so `bnf` keeps its own and has nothing to repoint to |
 | `module.f.mjs` — `str`, `set`, `range`, `not`, `notSet`, `remove`, `unicodeRange`, `unicodeMax` | rewrite | `unicode/`, EBNF forms only ([unicode-rules](../bnf/todo/unicode-rules.md)) |
 | `data/` — `RuleSet`, `emptyTagMap`, `isRepeat` | rewrite | `data/` with a bounded `Repeat` carrying `min`/`max`; keeps a spelling for `0..Infinity` so `bnf`'s `toData` output stays a valid rule set, and `bnf/data` may repoint its IR types and `emptyTagMap` to it |
 | `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem` | retire | the front-end lowering in `ebnf/` needs no recognition, and a hand-written or deserialized EBNF set spells the primitive; an opt-in normalizer of the right-recursive shape may be added to `ebnf/data/` by whoever wants one, but nothing plans it |
@@ -241,7 +241,10 @@ breaking change to `fjs/bnf/` paths is stage 7, which declares
 ([changelog/RELEASE.md](../../changelog/RELEASE.md)). A consumer's port may
 change that consumer's own public API where it had exposed the backend it is
 leaving (the djs tokenizer does; stage 6 names the exports), and declares
-that in its own PR.
+that in its own PR. Work outside `bnf/` that this plan pulls in declares its
+own too: replacing `fjs/types/range_set`'s representation
+([ebnf-range-set](../bnf/todo/ebnf-range-set.md)) is a breaking PR before
+stage 7 and says so in its own `Changelog:` section.
 
 #### Consumer port
 
@@ -291,7 +294,7 @@ rewritten against the surviving backend as they move.
 | issue | bin | destination |
 |---|---|---|
 | [ebnf-front-end](../bnf/todo/ebnf-front-end.md) | absorb | its design becomes `fjs/ebnf/README.md` as stage 1 ships; every problem still open then — 1, 3, 4, 5, 6, 7 and 8 at the time of writing — moves to `ebnf/todo/` as one issue each, or is answered in the README |
-| [terminal-range-shared-type](../bnf/todo/terminal-range-shared-type.md) | close | `ebnf/terminal/` declares the type once for `ebnf/`; `bnf/`'s two declarations stay, or alias it, at the discretion of whoever touches them, and go with `bnf/` |
+| terminal-range-shared-type | retired | deleted by the PR that filed [ebnf-range-set](../bnf/todo/ebnf-range-set.md), with its reason recorded here: it asked for one `TerminalRange` declaration shared by `bnf/` and `bnf/data`, owned by the codec's module; `ebnf/` has no `TerminalRange` and no codec — its terminal is a range set — so there is nothing to declare once, and `bnf/`'s two declarations stay and go with `bnf/` at stage 7 |
 | [unicode-rules](../bnf/todo/unicode-rules.md) | move | `ebnf/unicode/todo/` until stage 3 implements it |
 | [rule-visitor](../bnf/todo/rule-visitor.md), [665-bnf-data-fold-children](../bnf/todo/665-bnf-data-fold-children.md) | absorb | inputs to the `data/` rewrite (stage 2) |
 | [042-mixing-serializable-bnfs](../bnf/todo/042-mixing-serializable-bnfs.md) | move | `ebnf/data/todo/` |
@@ -324,8 +327,10 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    the file is deleted and every citation of its stages repointed here. Add
    one sentence to [fjs/AGENTS.md](../AGENTS.md) stating the direction
    (principle 2), which is all the enforcement this plan asks for.
-1. **`ebnf/terminal/` and the front end.** Copy the codec with its proof
-   cases into `ebnf/terminal/`; `bnf/` keeps its own, and its consumers are
+1. **`ebnf/terminal/` and the front end.** Write `ebnf/terminal/` over
+   `fjs/types/range_set` — the symbol domain, `eof`, the integer helpers and
+   `toRangeMap`, per [ebnf-range-set](../bnf/todo/ebnf-range-set.md) — with
+   its proof; there is no packed codec to copy, and `bnf/` keeps its own
    untouched. Land `ebnf/types.ts` and `ebnf/module.f.mjs` per
    ebnf-front-end. Its open problems are answered by
    whoever needs the answer, when they need it, in `ebnf/README.md` or in
@@ -389,8 +394,7 @@ consumer port"), never by number, so a renumbering here cannot strand them.
 - [ ] Stage 0: the direction sentence in `fjs/AGENTS.md`.
 - [ ] Stage 1: `ebnf/terminal/` with proof; `ebnf/types.ts` and
       `ebnf/module.f.mjs` with proof; ebnf-front-end's open problems
-      answered as they are needed, in `ebnf/README.md`; close
-      terminal-range-shared-type.
+      answered as they are needed, in `ebnf/README.md`.
 - [ ] Stage 2: `ebnf/data/` with bounded `Repeat` and proof; rule-visitor and
       665 absorbed or moved.
 - [ ] Stage 3: `ebnf/matcher/` and `ebnf/unicode/` with proofs; `showAst` in
