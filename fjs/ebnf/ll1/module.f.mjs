@@ -21,18 +21,18 @@
  * @import { Rule } from '../types.ts'
  * @import { EmptyTagMap, RuleSet, RuleVisitor } from '../data/types.ts'
  * @import { FirstMap, Parser } from './types.ts'
- * @import { _FirstState, _RepeatFrame, _Stack, _State } from './private.ts'
+ * @import { _FirstState, _Follows, _RepeatFrame, _Stack, _State } from './private.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
-import { at, definedEntries, definedValues } from '../../types/object/module.f.mjs'
+import { at, definedEntries, definedValues, structurallySame } from '../../types/object/module.f.mjs'
 import { contains, empty, intersection, union } from '../../types/range_set/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { contains as visiting, empty as noNames, set as visit } from '../../types/string_set/module.f.mjs'
 import { emptyTagMap, matchRule, toData, validate } from '../data/module.f.mjs'
 
-const { keys } = Object
+const { keys, fromEntries } = Object
 const { isSafeInteger } = Number
 
 /** The end of input, as the one symbol the parser synthesizes after the last. */
@@ -175,6 +175,72 @@ const reach = ruleSet => (found, name) => found.includes(name)
     : matchRule(references)(ruleSet[name]).reduce(reach(ruleSet), [...found, name])
 
 /**
+ * What one rule says about the symbols that may follow the rules it names,
+ * given its own follow set: in a sequence, each item is followed by what
+ * the items after it begin with, and by what follows the sequence where
+ * those may all match empty; a variant's branch is followed by what follows
+ * the variant; a repetition's item by what follows the repetition and, where
+ * a round may follow, by what the item begins with.
+ *
+ * @type {(first: FirstMap, nullable: (name: string) => boolean) => (own: RangeSet) => RuleVisitor<_Follows>}
+ */
+const followsOf = (first, nullable) => own => ({
+    set: () => [],
+    sequence: items => items.reduceRight(
+        /** @type {(acc: readonly [_Follows, RangeSet, boolean], item: string) => readonly [_Follows, RangeSet, boolean]} */
+        (([follows, after, open], item) => [
+            [...follows, [item, open ? union(after)(own) : after]],
+            union(first[item])(nullable(item) ? after : empty),
+            open && nullable(item)]),
+        [[], empty, true])[0],
+    variant: branches => definedValues(branches).map(item => [item, own]),
+    repeat: (_min, max, item) => max === 0 ? [] : [[item, union(own)(max > 1 ? first[item] : empty)]],
+})
+
+/**
+ * The symbols that may come right after a match of each rule named: the
+ * standard follow-set fixpoint over the rules the entry reaches, from every
+ * set empty — nothing is required after the entry, since a match stops
+ * where its rule does — relaxed a round at a time until a round changes
+ * nothing. A round only ever grows a set, so it terminates.
+ *
+ * @type {(ruleSet: RuleSet, first: FirstMap, nullable: (name: string) => boolean, names: readonly string[]) => FirstMap}
+ */
+const followMap = (ruleSet, first, nullable, names) => {
+    const follows = followsOf(first, nullable)
+    /** @type {(follow: FirstMap) => FirstMap} */
+    const step = follow => names
+        .flatMap(name => matchRule(follows(follow[name]))(ruleSet[name]))
+        .reduce(
+            /** @type {(m: FirstMap, entry: readonly [string, RangeSet]) => FirstMap} */
+            ((m, [name, symbols]) => ({ ...m, [name]: union(m[name])(symbols) })),
+            follow)
+    /** @type {(follow: FirstMap) => FirstMap} */
+    const fixpoint = follow => {
+        const next = step(follow)
+        return structurallySame(next, follow) ? next : fixpoint(next)
+    }
+    return fixpoint(fromEntries(names.map(name => [name, empty])))
+}
+
+/**
+ * Refuses a rule that can match empty and begins with a symbol that may
+ * also follow it — a first/follow conflict, which one symbol cannot decide:
+ * the lookahead would enter the rule where the grammar also allows it to
+ * match empty and leave the symbol to what follows, so `[option('x'), 'x']`
+ * would never match `x`. The refusal names the rule and the symbols.
+ *
+ * @type {(ruleSet: RuleSet, first: FirstMap, nullable: (name: string) => boolean, names: readonly string[]) => void}
+ */
+const checkFollow = (ruleSet, first, nullable, names) => {
+    const follow = followMap(ruleSet, first, nullable, names)
+    names.filter(nullable).forEach(name => {
+        const clash = intersection(first[name])(follow[name])
+        assert(clash.length === 0, ['first/follow conflict', name, clash])
+    })
+}
+
+/**
  * The machine, for a set already validated. A match is a loop over one
  * state — the frames suspended and what to do next — rather than a
  * recursion: nesting depth grows with the input, not the grammar, so a
@@ -185,7 +251,9 @@ const reach = ruleSet => (found, name) => found.includes(name)
  */
 const build = (ruleSet, empty, entry) => {
     const isNullable = nullable(empty)
-    const first = firstMapOf(ruleSet, isNullable)(reach(ruleSet)([], entry))
+    const names = reach(ruleSet)([], entry)
+    const first = firstMapOf(ruleSet, isNullable)(names)
+    checkFollow(ruleSet, first, isNullable, names)
     return input => {
         const outside = input.findIndex(s => !isSymbol(s))
         assert(outside === -1, ['not a symbol', outside, input[outside]])
@@ -320,9 +388,11 @@ const build = (ruleSet, empty, entry) => {
 /**
  * A parser for a rule set at its entry. The set is validated as `../data`
  * validates it, then the rules the entry reaches are analysed as
- * {@link firstMap} analyses a set, so a set that is no grammar and a grammar
- * that is not LL(1) are both refused here, before any input — a rule the
- * entry does not reach is dead, not wrong, and is left alone. The tree it
+ * {@link firstMap} analyses a set, and their follow sets beside, so a set
+ * that is no grammar and a grammar that is not LL(1) — left recursion, a
+ * first/first conflict, a first/follow conflict — are all refused here,
+ * before any input, naming the rule; a rule the entry does not reach is
+ * dead, not wrong, and is left alone. The tree it
  * builds is the one `Ast<R>` gives the rule the set was lowered from — a
  * symbol for a set, an empty node for EOF, an array for a sequence,
  * `[tag, node]` for a variant, and one flat array for a repetition whatever

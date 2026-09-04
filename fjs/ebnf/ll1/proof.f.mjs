@@ -264,6 +264,15 @@ export const proof = {
             assertStructurallySame(parser(times(3)(''))([]), ['ok', [[[], [], []], 0]])
             assertStructurallySame(parser(option(''))([]), ['ok', [[], 0]])
         },
+        // A rule that can match empty is entered exactly when the lookahead
+        // is in its first set, so what follows it may begin with anything
+        // else — and the conflict, where it may begin with the same symbol,
+        // is refused when the parser is built, below.
+        firstFollow: () => {
+            const p = parser([option('x'), 'y'])
+            assertStructurallySame(p(cps('y')), ['ok', [[[], cps('y')], 1]])
+            assertStructurallySame(p(cps('xy')), ['ok', [[[cps('x')], cps('y')], 2]])
+        },
         // The tree is `Ast<R>`, so the map's rewrite takes it as it is: the
         // example grammar parsed and rewritten is the integers.
         integers: () => {
@@ -350,6 +359,16 @@ export const proof = {
         unknownEntry: () => parserRuleSet(int, 'float'),
         leftRecursion: () => parserRuleSet({ ...int, int: ['sequence', 'int', 'uint'] }, 'document'),
         firstFirstConflict: () => parser({ a: 'x', b: ['x', 'y'] }),
+        // A rule that can match empty, followed by what it begins with: an
+        // option, a repetition from zero, a variant with an empty branch,
+        // an option two rules deep — its follow set reaches it through the
+        // sequence it ends — and an option repeated, where the round that
+        // follows a round begins with what the option does.
+        firstFollowConflict: () => parser([option('x'), 'x']),
+        firstFollowConflictRepeat: () => parser([repeatFrom0('x'), 'x']),
+        firstFollowConflictVariant: () => parser([{ a: 'x', n: '' }, 'x']),
+        firstFollowConflictNested: () => parser([['y', option('x')], 'x']),
+        firstFollowConflictRounds: () => parser(times(2)(option('x'))),
         // A rule that is no rule reaches the lowering's refusal.
         notARule: () => parser(/** @type {Rule} */ (/** @type {unknown} */ (true))),
         // The input holds ordinary symbols only: `-1` is the end of input,

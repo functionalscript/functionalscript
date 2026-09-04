@@ -15,6 +15,12 @@ import type { FirstMap } from './types.ts'
 export type _FirstState = readonly [map: FirstMap, first: RangeSet]
 
 /**
+ * What one rule contributes to the follow sets of the rules it names: the
+ * symbols that may come right after each, in that rule.
+ */
+export type _Follows = readonly (readonly [name: string, symbols: RangeSet])[]
+
+/**
  * A suspended sequence: `items[index]` is being matched, and `done` holds the
  * trees of the items before it.
  */

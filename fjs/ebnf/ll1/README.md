@@ -96,16 +96,25 @@ layer leaves it to the backend to say:
   rounds begins with nothing, so it conflicts with no branch: its item is
   never entered.
 
-Both are found before any input, when the parser is built — over the rules
-the entry reaches. A rule the entry does not reach is dead, not wrong, as
-the data layer says, so a parser leaves it alone; `firstMap` over a whole
-set analyses every rule of it, dead ones included.
+The parser refuses one more, over the rules its entry reaches, from the
+follow sets it computes for them — the symbols that may come right after a
+match of each rule, by the standard fixpoint, with nothing required after
+the entry since a match stops where its rule does:
 
-A **first/follow conflict** is not detected: `[option('x'), 'x']` is
-accepted, and the option takes the `x` when it sees one, so the sequence
-fails on the second. That is the classical backend's behaviour too, and the
-grammars in `../lib` have none; a check would need follow sets, which nothing
-here computes yet.
+- **first/follow conflict** — a rule that can match empty and begins with a
+  symbol that may also follow it. One symbol cannot decide it: the lookahead
+  enters the rule where the grammar also allows it to match empty and leave
+  the symbol to what follows, so `[option('x'), 'x']` would never match `x`,
+  and the classical backend accepted it and failed on that input. The
+  refusal names the rule and the symbols. The check is the textbook one,
+  `FIRST` and `FOLLOW` disjoint for every nullable rule, so it also refuses
+  `times(2)(option('x'))`, where the round that follows a round is what the
+  option begins with.
+
+All are found before any input, when the parser is built. A rule the entry
+does not reach is dead, not wrong, as the data layer says, so a parser
+leaves it alone; `firstMap` over a whole set analyses every rule of it,
+dead ones included, and has no entry to compute follow sets from.
 
 ## How a repeat is matched
 
@@ -146,5 +155,4 @@ slices the input at the index gets the remainder.
   positions: [metadata](./todo/metadata.md).
 - **What was expected.** A failure reports where, not what: the first set of
   the rule that failed there is available and not returned.
-- **Follow sets**, for the first/follow check above.
 - **A fold over the map**, should a consumer want the tree never built.
