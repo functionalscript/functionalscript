@@ -32,10 +32,12 @@ We need it to use JSDoc and TypeScript.
 
 1. [ ] [property-accessor](./2330-property-accessor.md),
 2. [ ] [operators](./2340-operators.md),
-3. [ ] [grouping](./2350-grouping.md),
-4. [ ] [built-in](./2360-built-in.md),
-5. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
-6. [ ] computed property key from an expression — `{ [name]: 0 }`. The
+3. [ ] [in-operator](./2345-in-operator.md) — proposal stage; not yet in
+   `operators`' table or the EDAG's `Op2Id`,
+4. [ ] [grouping](./2350-grouping.md),
+5. [ ] [built-in](./2360-built-in.md),
+6. [ ] property key as number — `{ 3e+7: true }` (no leading sign allowed),
+7. [ ] computed property key from an expression — `{ [name]: 0 }`. The
    constant-string form is implemented
    ([property keys](../README.md#property-keys)); the general one waits
    on expressions.
