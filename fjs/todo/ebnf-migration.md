@@ -217,7 +217,8 @@ machinery and do not.
 | `module.f.mjs` — `rangeEncode`, `rangeDecode`, `oneEncode`, `eof`, `fullRange` | move | `terminal/`; `bnf` keeps its own and may repoint |
 | `module.f.mjs` — `str`, `set`, `range`, `not`, `notSet`, `remove`, `unicodeRange`, `unicodeMax` | rewrite | `unicode/`, EBNF forms only ([unicode-rules](../bnf/todo/unicode-rules.md)) |
 | `data/` — `RuleSet`, `emptyTagMap`, `isRepeat` | rewrite | `data/` with a bounded `Repeat` carrying `min`/`max`; keeps a spelling for `0..Infinity` so `bnf`'s `toData` output stays a valid rule set, and `bnf/data` may repoint its IR types and `emptyTagMap` to it |
-| `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem`, `GrammarData`, `RuleNameMap` | retire | the front-end lowering in `ebnf/` needs no recognition; a hand-written or deserialized set uses the primitive |
+| `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem` | retire | the front-end lowering in `ebnf/` needs no recognition; a hand-written or deserialized set uses the primitive |
+| `data/` — `GrammarData`, `RuleNameMap` | rewrite | the classical ones retire; the EBNF lowering returns its own map from EBNF rule identity to generated name beside the rule set and entry — the bridge the transformer protocol keys on through `Entry.rule`, and the "rule identity must survive" requirement in [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — in whatever shape the `data/` rewrite chooses |
 | `matcher/` | move | `Rule` identity in the transformer protocol retargeted to the EBNF `Rule`; `bnf` keeps its own copy, and its identity-keyed pieces (`Entry.rule`, the repeat arm) in any case |
 | `ll1/` | rewrite | the reference backend: `RuleSet`-only entry, layer composition, per-layer metadata per [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md), AST mapping; a first/first conflict names the rule |
 | `descent/` | retire | consumers port to `ll1/` (below) |
@@ -334,7 +335,8 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    where the code that relies on it can point to it. `BoundedArray` is in
    `fjs/types/array` already.
 2. **`ebnf/data/`.** The IR with a bounded `Repeat`, `emptyTagMap`, and the
-   lowering from the EBNF front end. `bnf/data` may repoint its IR types and
+   lowering from the EBNF front end, which returns the identity-to-name map
+   AST mapping needs beside the rule set and entry. `bnf/data` may repoint its IR types and
    `emptyTagMap` here — that would be the first `bnf → ebnf` edge — and keeps
    `toData`, `detectRepeat` and `repeatItem` as its own either way.
 3. **`ebnf/matcher/` and `ebnf/unicode/`.** The matcher copied and retargeted
