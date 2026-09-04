@@ -12,18 +12,27 @@
  * checked, so the claim has to be a module-scope alias in a `.ts` file to be
  * one at all.
  *
- * The evaluator below is an inline one for the constant subset the corpus
- * uses. When the EDAG interpreter
- * ([interpret-edag](../djs/todo/interpret-edag.md)) lands it replaces this
- * one, and the corpus becomes part of that interpreter's test suite for free:
- * the memoization contract these cases rely on is the one it already owes.
+ * Every lowered case runs through [`amnesia`](../edag/amnesia/module.f.mjs),
+ * the repository's one real EDAG evaluator, rather than a second hand-written
+ * walker — so an operator's behaviour here is proven by actually executing
+ * the EDAG node, the same way [`../proof.f.mjs`](../proof.f.mjs) proves the
+ * schema against it. `eq`'s cases are the one exception: they exist to check
+ * EDAG node **identity** (`arrayByItself` and friends), which amnesia
+ * deliberately does not preserve — see "It forgets" in
+ * [amnesia's README](../edag/amnesia/README.md) — so `evaluate` below stays a
+ * small dedicated memoizing walker for that section alone. When a
+ * memoizing (identity-preserving) EDAG interpreter
+ * ([interpret-edag](../djs/todo/interpret-edag.md)) lands, it can absorb
+ * `evaluate` too and this module reduces to lowering plus assertions.
  *
  * @import { Exp, Op2, Properties } from '../edag/types.ts'
+ * @import { Context } from '../edag/amnesia/types.ts'
  * @import { Case, EqCase, Expectation, Group, OpId, Operand, SharedNode } from './types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { exp } from '../edag/module.f.mjs'
+import { vm } from '../edag/amnesia/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
     arityOf,
@@ -126,15 +135,30 @@ const op2 = lookup(op2Js)
 const op3 = lookup(op3Js)
 
 /**
- * Evaluates a constant EDAG expression.
+ * The evaluation context every lowered case runs `amnesia`'s `vm` under. No
+ * lowered case ever contains a `frame` or `args` node — the corpus only
+ * derives constant expressions — so both fields exist only to satisfy
+ * {@link Context}, never to be read.
  *
- * `memo` holds the nodes already evaluated for this case, which is what makes
- * a node reached from several places one value — the model's rule that a
- * shared node evaluates once, and the whole reason `arrayByItself` is `true`
- * where `arrayByEqualArray` is `false`. It is a list and not a `Map` because
- * the corpus's shared nodes are the three `eq` ones and nothing else: the
- * lowering gives every other operand a node of its own, so a node reached
- * twice is always a `ref`.
+ * @type {Context}
+ */
+const context = { frame: undefined, args: [] }
+
+/**
+ * Evaluates a constant EDAG expression **with identity preserved** across a
+ * shared node — what `amnesia`'s `vm` deliberately does not do (see "It
+ * forgets" in [its README](../edag/amnesia/README.md)), and the one thing
+ * `eq`'s cases are for: `memo` holds the nodes already evaluated for this
+ * case, so a node reached from several places is one value, which is the
+ * whole reason `arrayByItself` is `true` where `arrayByEqualArray` is
+ * `false`. It is a list and not a `Map` because the corpus's shared nodes are
+ * the three `eq` ones and nothing else: the lowering gives every other
+ * operand a node of its own, so a node reached twice is always a `ref`.
+ *
+ * `amnesia`'s recursion is not pluggable — its handlers call its own `vm`
+ * directly — so it cannot be handed this memo to consult mid-walk; this stays
+ * a separate, smaller walker for exactly that reason, rather than the general
+ * evaluator `run` and `escapedValue` use below.
  *
  * @type {(memo: readonly (readonly[Exp, unknown])[]) => (e: Exp) => unknown}
  */
@@ -183,17 +207,20 @@ const sharedMemo = shared => shared.reduce(
  * An operand of an escaped case, built directly.
  *
  * `functionValue` is why the case escaped; every other operand still goes
- * through the lowering, so there is one walk from a corpus value to a
- * JavaScript one rather than two that can disagree.
+ * through the lowering and `amnesia`'s `vm`, so there is one walk from a
+ * corpus value to a JavaScript one rather than two that can disagree. No
+ * escaped operand is ever a shared node — sharing exists only in `eq` and
+ * `eq` never escapes — so `amnesia`'s non-preservation of identity is not in
+ * play here.
  *
  * @type {(v: Operand) => unknown}
  */
-const escapedValue = v => isFunctionValue(v) ? () => 5 : evaluate([])(valueExp(v))
+const escapedValue = v => isFunctionValue(v) ? () => 5 : vm(context)(valueExp(v))
 
 /**
- * The value one argument order produces: the case's expression evaluated, or
- * — for a case the corpus does not lower — the operation applied to built
- * values.
+ * The value one argument order produces: the case's expression evaluated
+ * through `amnesia`'s `vm`, or — for a case the corpus does not lower — the
+ * operation applied to built values.
  *
  * The escape dispatches on the group's arity, so a binary group's escaped
  * case reaches `op2` rather than being refused by the unary table, and the
@@ -203,7 +230,7 @@ const escapedValue = v => isFunctionValue(v) ? () => 5 : evaluate([])(valueExp(v
  */
 const run = g => args => {
     const lowered = caseExp(g)(args)
-    if (lowered[0] === 'exp') { return evaluate([])(lowered[1]) }
+    if (lowered[0] === 'exp') { return vm(context)(lowered[1]) }
     const [a, b, c] = args.map(escapedValue)
     const id = opId(g)
     const arity = arityOf(g)
@@ -232,7 +259,7 @@ const group = g => {
                 const result = run(g)(args)
                 // `expected` describes the outcome, not the program, so it is
                 // built as a value and never joined to the case's expression.
-                const e = evaluate([])(valueExp(expected))
+                const e = vm(context)(valueExp(expected))
                 assert(is(result, e), [result, 'is not', e])
             }
         return orders(g)(c).map(([name, args]) => [name, fn(args)])
