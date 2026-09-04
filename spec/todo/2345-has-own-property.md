@@ -12,18 +12,19 @@ and *for* a `hasOwn` pattern instead, alongside `own_property` in
 `key in obj` is absent from every layer of the stack — not in
 [operators](./2340-operators.md)'s table, not in
 [property-accessor](./2330-property-accessor.md), not in the EDAG's `Op2Id`
-union (`fjs/edag/types.ts`) — unlike `own`, `<<`, `>>`, `>>>`, which were all
-already-spec'd EDAG commands `nanvm-lib` just hadn't implemented yet. Adding
-`in` would mean proposing a genuinely new operator, and it runs into a real
-problem doing so: [design-principles](./design-principles.md) removes the
+union (`fjs/edag/types.ts`) — unlike `own`, `<<`, `>>`, `>>>`, each of which
+was already a spec'd EDAG command before `nanvm-lib` implemented it (all
+four now ship). Adding `in` would mean proposing a genuinely new operator
+with no prior EDAG entry to catch up to, and it runs into a real problem
+doing so: [design-principles](./design-principles.md) removes the
 prototype chain from FS for simplicity/safety, while
 [principle 2](../README.md#principles) requires FS code to "behave on the
 FunctionalScript VM the same way as on any other modern JavaScript engine."
 Real JS's `in` is *defined* by chain-walking:
 
 ```js
-'a' in 1          // TypeError: Cannot use 'in' operator to search for 'a' in 1
-'a' in null       // TypeError
+'a' in 1          // throws TypeError (message text is engine-specific)
+'a' in null       // throws TypeError
 'a' in {}         // false
 'toString' in {}  // true  — inherited from Object.prototype
 'length' in []    // true  — own: every array instance has its own `length`,
