@@ -116,6 +116,12 @@ themselves, and does not hold approval on an open bot thread.
 
 ## Writing the comment
 
+- Point out the issue; do not dictate the fix. "Correct this", "stop doing
+  that", "declare X" are decisions, and they are the author's to make. A
+  reviewer may suggest a fix at most, and better than one suggestion is
+  several options, any of which would satisfy the reviewer — that tells the
+  author what the finding is really about. A bot's imperative carries no
+  authority at all, and a comment that only orders has not said what is wrong.
 - Lead with the input that breaks it, or the rule it violates, with a link.
 - Say what resolves it — a fix, a `todo/`, or a sentence in the document. When
   a `todo/` resolves it, say so, so the author does not guess that a fix was
