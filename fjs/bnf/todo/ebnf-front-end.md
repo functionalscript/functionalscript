@@ -55,7 +55,7 @@ type Variant  = { readonly [k in string]?: Rule }
 type Thunk    = () => Info
 type Info     =
     | readonly ['const', Const]              // a plain rule behind a thunk
-    | readonly ['range', number, number]     // symbols a..b, inclusive
+    | readonly ['set', ...RangeSet]          // one symbol from the set
     | readonly ['repeat', number, number, Rule] // min..max copies
 ```
 
@@ -104,7 +104,7 @@ row that is a function of the form alone.
 | form | AST |
 |---|---|
 | `['const', c]` | `AST<c>` |
-| `['range', a, b]` | `number` — one symbol leaf |
+| `['set', …]` | `number` — one symbol leaf |
 | `['repeat', min, max, r]` | `BoundedArray<min, max, AST<r>>`, below |
 | `number` | `number` — the symbol itself |
 | `string` | `readonly number[]` — see below |
@@ -170,8 +170,10 @@ export const times       = n => repeat(n, n)
 
 Currying the bounds makes the familiar names partial applications and leaves
 their call sites at today's arity, so a ported grammar keeps its spelling.
-`range` and `set` come from `fjs/ebnf/unicode/`. `join0Plus` and
-`join1Plus` compose.
+`range`, `set` and `not` come from `fjs/ebnf/unicode/` and return range-set
+*values*; `oneOf(s)` is the constructor that makes a rule of one
+([ebnf-range-set](./ebnf-range-set.md)). `join0Plus` and `join1Plus`
+compose.
 
 Bare numbers and strings in `Const` mean a tagged tuple written *without* its
 thunk is a legal rule with another meaning, and `tsc` accepts it. That is
@@ -195,9 +197,15 @@ change the representation.
 Stated as requirements, since the data layer is open.
 
 - **Validate here, at the front end**, while the author still has a rule to
-  point at: bounds in the domain above; `['range', a, b]` with `a <= b` and
-  both **ordinary** symbols, never spanning EOF; a bare `number` an integer in
-  the terminal domain.
+  point at: bounds in the domain above; `['set', …]` validated as a range
+  set before the algebra touches it (a hand-written tuple is the one way an
+  unvalidated list can reach the parity merge), clipped to the domain `[0]`
+  — a generic complement's `-Infinity` and EOF are dropped, never an error,
+  so a set terminal never matches EOF — and non-empty with safe-integer
+  boundaries after that ([ebnf-range-set](./ebnf-range-set.md)); which
+  `range_set` export does the validating is that module's business. A bare
+  `number` is one symbol as the union above defines it — `-1` is EOF — and
+  takes no set validation.
 - **A nullable body** at an unbounded max is non-termination and is rejected.
   At a bounded max it is not — see [Problem 3](#problems), which is open; the
   lowering must not reject it until that is settled.
@@ -224,9 +232,12 @@ AST changes:
 pairs, so the array and object productions change shape. A grammar adopting a
 new form is not shape-preserving either.
 
-Also: the rtti map tests the shape directly and `repeatItem` goes away;
-`detectRepeat` stays in `data/` as opt-in normalization for hand-written and
-deserialized sets.
+Also: the rtti map tests the shape directly and `repeatItem` goes away, and
+`detectRepeat` retires with the classical `data/`
+([ebnf-migration](../../todo/ebnf-migration.md)): a hand-written or
+deserialized EBNF set spells the primitive, and an opt-in normalizer of the
+right-recursive shape may be added to `ebnf/data/` by whoever wants one, but
+nothing plans it.
 
 #### Problems
 
@@ -363,8 +374,10 @@ three forms. It needs a data layer that can represent it.
   this makes unnecessary.
 - [unicode-rules](./unicode-rules.md) — owns the text lowering and the
   adapter Problem 9 constrains.
-- [terminal-range-shared-type](./terminal-range-shared-type.md) — the packed
-  `TerminalRange` becomes data-layer only here.
+- terminal-range-shared-type (retired; `fjs/ebnf/` has no `TerminalRange`,
+  see [ebnf-range-set](./ebnf-range-set.md)) — `fjs/ebnf/data/` stores
+  range-set terminals, and the classical packed declarations retire with
+  `bnf/`.
 - [ebnf-range-set](./ebnf-range-set.md) — replaces the `['range', a, b]`
   row with a range-set terminal `['set', …]`; answers Problem 5 and most of
   Problem 9, and shares Problem 1's IR carrier decision.
