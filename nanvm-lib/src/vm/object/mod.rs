@@ -1,4 +1,5 @@
 mod index;
+mod own_property;
 mod partial_eq;
 mod sized_index;
 

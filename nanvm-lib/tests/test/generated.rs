@@ -1033,6 +1033,29 @@ fn string_coercion<A: IVm>() {
     check::<A>("object", [(string_key("a"), (1f64).to_any())].to_object().to_any().to_string().map(|v| v.to_any()), string_any("[object Object]"));
 }
 
+#[rustfmt::skip]
+fn own_property<A: IVm>() {
+    check::<A>("presentProperty", Any::own_property([(string_key("a"), (7f64).to_any())].to_object().to_any(), string_any("a")), (7f64).to_any());
+    check::<A>("missingProperty", Any::own_property([(string_key("a"), (7f64).to_any())].to_object().to_any(), string_any("b")), Nullish::Undefined.to_any());
+    check::<A>("emptyObject", Any::own_property(Object::default().to_any(), string_any("a")), Nullish::Undefined.to_any());
+    check::<A>("inheritedNameIsAbsent", Any::own_property(Object::default().to_any(), string_any("toString")), Nullish::Undefined.to_any());
+    check::<A>("valuePreservesBooleanType", Any::own_property([(string_key("a"), true.to_any())].to_object().to_any(), string_any("a")), true.to_any());
+    check::<A>("valuePreservesBigintType", Any::own_property([(string_key("a"), bigint_any(5))].to_object().to_any(), string_any("a")), bigint_any(5));
+    check::<A>("valuePreservesStringType", Any::own_property([(string_key("a"), string_any("x"))].to_object().to_any(), string_any("a")), string_any("x"));
+    check::<A>("valuePreservesNullType", Any::own_property([(string_key("a"), Nullish::Null.to_any())].to_object().to_any(), string_any("a")), Nullish::Null.to_any());
+    check::<A>("multiplePropertiesDistinguished", Any::own_property([(string_key("a"), (1f64).to_any()), (string_key("b"), (2f64).to_any())].to_object().to_any(), string_any("b")), (2f64).to_any());
+    check::<A>("numericStringKey", Any::own_property([(string_key("1"), (42f64).to_any())].to_object().to_any(), string_any("1")), (42f64).to_any());
+    check::<A>("nonObjectNumberReceiver", Any::own_property((5f64).to_any(), string_any("a")), Nullish::Undefined.to_any());
+    check::<A>("nonObjectStringReceiver", Any::own_property(string_any("hi"), string_any("a")), Nullish::Undefined.to_any());
+    check::<A>("nonObjectBooleanReceiver", Any::own_property(true.to_any(), string_any("a")), Nullish::Undefined.to_any());
+    check::<A>("nonObjectBigintReceiver", Any::own_property(bigint_any(5), string_any("a")), Nullish::Undefined.to_any());
+    check::<A>("nonObjectArrayReceiver", Any::own_property([(1f64).to_any(), (2f64).to_any()].to_array().to_any(), string_any("a")), Nullish::Undefined.to_any());
+    check::<A>("nonObjectFunctionReceiver", Any::own_property(function_any(), string_any("a")), Nullish::Undefined.to_any());
+    check_throws::<A>("nullReceiverThrows", Any::own_property(Nullish::Null.to_any(), string_any("a")));
+    check_throws::<A>("undefinedReceiverThrows", Any::own_property(Nullish::Undefined.to_any(), string_any("a")));
+    check_throws::<A>("nonStringKeyThrows", Any::own_property([(string_key("1"), (42f64).to_any())].to_object().to_any(), (1f64).to_any()));
+}
+
 pub fn all<A: IVm>() {
     eq::<A>();
     unary_plus::<A>();
@@ -1061,4 +1084,5 @@ pub fn all<A: IVm>() {
     conditional::<A>();
     typeof_::<A>();
     string_coercion::<A>();
+    own_property::<A>();
 }

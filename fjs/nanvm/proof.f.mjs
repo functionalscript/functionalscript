@@ -78,6 +78,15 @@ const op2Js = {
     '<<': (a, b) => a << b,
     '>>': (a, b) => a >> b,
     '>>>': (a, b) => a >>> b,
+    // The key must *evaluate* to a string — a runtime constraint the
+    // EDAG's shape-only schema can't express, so this (like
+    // `fjs/edag/amnesia/module.f.mjs`'s own `own`) upholds it directly
+    // rather than letting `Object.getOwnPropertyDescriptor`'s own
+    // `ToPropertyKey` silently coerce a non-string key.
+    own: (a, b) => {
+        if (typeof b !== 'string') { throw new TypeError('own: key is not a string') }
+        return Object.getOwnPropertyDescriptor(a, b)?.value
+    },
     '<': (a, b) => a < b,
     '<=': (a, b) => a <= b,
     '>': (a, b) => a > b,
