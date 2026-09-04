@@ -95,6 +95,22 @@ The form serializes as DJS. It is not JSON, because an unbounded `max` is
 a dropped argument cannot read as plausible — holds one layer down.
 `fjs/rtti/data` made the same call for `bigint`.
 
+**The DJS serializer does not spell `Infinity` yet.** `numberSerialize` in
+`fjs/media/json/serializer`, which `fjs/djs/serializer` reuses for every
+number, is `JSON.stringify`, and `JSON.stringify(Infinity)` is `null` — so a
+set holding `['repeat', 0, Infinity, 'x']` is written as
+`['repeat', 0, null, 'x']` today, and reads back as a bounded repeat whose
+`max` compares as `0`: the plausible wrong value
+[DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+forbids. The requirement is already owned:
+[compile-modules-to-edag](../../../djs/todo/compile-modules-to-edag.md),
+"Number parsing and serialization", makes DJS round-trip `Infinity`,
+`-Infinity`, `NaN` and `-0`, with the JSON side kept separate under
+[number-edge-cases](../../../media/json/todo/number-edge-cases.md). Nothing
+in this module serializes, so the module does not wait on it; the first
+grammar *persisted* with an unbounded repeat does, and until then a persisted
+set is not to be trusted to carry one.
+
 #### What differs from `bnf/data`
 
 | | `bnf/data` | `ebnf/data` |
@@ -322,3 +338,6 @@ ebnf-front-end leaves open — has a natural spelling as a fifth element on
 - [`../../../rtti/data/README.md`](../../../rtti/data/README.md) — the other
   serializable data form in the tree, and the precedent for serializing as
   DJS rather than JSON.
+- [compile-modules-to-edag](../../../djs/todo/compile-modules-to-edag.md)
+  — owns spelling `Infinity` in DJS, which persisting a set with an
+  unbounded repeat needs; the serializer writes `null` for it today.
