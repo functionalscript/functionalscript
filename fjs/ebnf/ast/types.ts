@@ -16,7 +16,7 @@ export type Ast<R extends Rule> =
     // Const
     R extends Const<infer D> ? Ast<D> :
     // Set
-    R extends () => ['set'] ? never :
+    R extends () => readonly['set'] ? never :
     R extends Set ? number :
     // Repeat
     R extends Repeat<infer Min, infer Max, infer D> ? _RepeatAst<Min, Max, D>:
