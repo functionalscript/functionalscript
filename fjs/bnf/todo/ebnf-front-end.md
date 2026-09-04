@@ -274,7 +274,9 @@ AST changes:
 pairs, so the array and object productions change shape. A grammar adopting a
 new form is not shape-preserving either.
 
-Also: the rtti map tests the shape directly and `repeatItem` goes away, and
+Also: the rtti map goes away with `repeatItem` — **Amended:** there is no
+rtti map in `ebnf/`; [`fjs/ebnf/map`](../../ebnf/map/README.md) checks a
+mapping's declared input in `tsc` against the typed AST — and
 `detectRepeat` retires with the classical `data/`
 ([ebnf-migration](../../todo/ebnf-migration.md)): a hand-written or
 deserialized EBNF set spells the primitive, and an opt-in normalizer of the
@@ -347,7 +349,14 @@ either level.
 **7. `AST<T>` needs explicit annotations on recursive rules.** TypeScript will
 not infer a recursive thunk. Worth testing on a real grammar early: if the
 annotations are onerous, the table is documentation rather than a checked
-contract, which is a much weaker proposal.
+contract, which is a much weaker proposal. **Met again by
+[`fjs/ebnf/map`](../../ebnf/map/README.md):** a mapping's function is
+written against a declared input, since its true input depends on the whole
+map, and `rewrite` checks the declaration against the map once it is whole.
+Non-recursive grammars pay one annotation per mapping; a recursive one is
+still the untested case, and now a blocking one: a key must have a type
+that says its parts, so a recursive rule annotated `Thunk` or
+`Const<Variant>` cannot be a key until it has its recursive type.
 
 **8. The tables never say how a node is represented.** Rows are written as
 structural values while today's AST is `{ tag, sequence }` nodes
@@ -357,7 +366,12 @@ means in the port claim. **Narrowed by
 [ebnf-data](../../ebnf/data/README.md):** the data layer commits to
 the `{ tag, sequence }` node per rule invocation, with one flat node for a
 repetition of any bounds; how the typed `Ast<R>` relates to those nodes is
-`ebnf/map/`'s to settle.
+`ebnf/map/`'s to settle. **Narrowed again by
+[`fjs/ebnf/map`](../../ebnf/map/README.md):** the mapping layer is defined
+over the typed `Ast<R>` — its rows are the table above with every child
+position a hole — so what remains is the backend's: build `Ast<R>` values,
+or fold the same map into the parse and hand each mapping the children that
+README specifies.
 
 **9. Dissolved by ebnf-migration.** It was: one alphabet adapter cannot
 return both representations — `range('09')` is a packed `TerminalRange` to
@@ -396,10 +410,10 @@ three forms. It needs a data layer that can represent it.
       never rule combinators: this front end has one injection from a set to
       a rule, the `['set', …]` thunk, and no rule-level complement
       ([ebnf-range-set](./ebnf-range-set.md)).
-- [ ] `rtti/`: the rule-info map, without `repeatItem`, with its own
-      co-located `proof.f.mjs` covering every export and branch — a new
-      `.f.mjs` owes that ([fjs/AGENTS.md](../../AGENTS.md)), and the classical
-      `map/rtti/` already ships one.
+- [x] ~~`rtti/`: the rule-info map, without `repeatItem`~~ — retired:
+      [`fjs/ebnf/map`](../../ebnf/map/README.md) checks a mapping's declared
+      input in `tsc`, against the typed AST, so there is no runtime type
+      information to keep.
 - [ ] Proofs: every constructor; every `Info` form written directly; each
       bound shape, `Infinity` among them, and the degenerate `0..0` and
       `1..1`; string lowering,
