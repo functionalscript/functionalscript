@@ -28,7 +28,7 @@ import { intersection, isRangeSet, rangeSet } from '../../types/range_set/module
 import { contains, empty as noStrings, set as stringSetAdd } from '../../types/string_set/module.f.mjs'
 
 const { isSafeInteger, MAX_SAFE_INTEGER } = Number
-const { entries, fromEntries, keys, getPrototypeOf } = Object
+const { entries, fromEntries, keys, getPrototypeOf, is: sameValue, prototype: objectPrototype } = Object
 
 /**
  * A plain record — an object literal's shape — and nothing else that is an
@@ -39,7 +39,7 @@ const { entries, fromEntries, keys, getPrototypeOf } = Object
  *
  * @type {(v: unknown) => boolean}
  */
-const isRecord = v => isObject(v) && getPrototypeOf(v) === Object.prototype
+const isRecord = v => isObject(v) && getPrototypeOf(v) === objectPrototype
 
 /**
  * The one discriminator over the data {@link Rule}: each handler receives the
@@ -154,7 +154,7 @@ const domain = rangeSet([0])
  *
  * @type {(n: number) => boolean}
  */
-const isSymbol = n => isSafeInteger(n) && n >= 0 && !Object.is(n, -0)
+const isSymbol = n => isSafeInteger(n) && n >= 0 && !sameValue(n, -0)
 
 /**
  * A reference is a string naming a rule of the set. The type is checked
@@ -389,7 +389,7 @@ const lowerThunk = (state, hint, fr) => {
 const lower = (state, hint, fr) => {
     // The memo's `Map` keys by SameValueZero, so `-0` would find `0`'s rule
     // and inherit it; it is refused before the lookup, as it is everywhere.
-    assert(!Object.is(fr, -0), ['not a symbol', fr])
+    assert(!sameValue(fr, -0), ['not a symbol', fr])
     const known = state.names.get(fr)
     if (known !== undefined) { return [state, known] }
     return typeof fr === 'function' ? lowerThunk(state, hint, fr) : lowerData(state, hint, fr)
