@@ -22,11 +22,14 @@ discriminates is not the classical one, and a discriminator written once
 there is what keeps `fjs/ebnf/ll1/` and every later backend from each
 re-deriving it.
 
-The terminal representation does **not** change. The bigint symbol/range
-migration would have replaced the number-based terminal and its discriminant,
-but it is [on hold](./bigint-symbols.md), so the visitor targets the shipped
-representation — a `number` terminal — rather than waiting for a union that is
-not coming.
+The terminal representation is open. [ebnf-range-set](./ebnf-range-set.md)
+replaces the packed `number` with a range set, and its carrier in the IR is
+decided together with the bounded `Repeat`'s (ebnf-front-end's Problem 1). So
+the visitor's `terminal` case takes whichever form that decision settles on,
+and its discriminant is written once, after it: `typeof rule === 'number'`
+is the classical `bnf/data` discriminant, not this visitor's. The bigint
+symbol/range migration is [on hold](./bigint-symbols.md) and no longer a
+factor, since a range set's boundaries need no fixed width.
 
 ### Proposal
 
@@ -37,7 +40,7 @@ Conceptually the visitor exposes the semantic rule cases:
 
 ```ts
 export type RuleVisitor<R> = {
-    readonly terminal: (r: TerminalRange) => R
+    readonly terminal: (r: Terminal) => R   // the range-set carrier, once settled
     readonly sequence: (s: Sequence) => R
     readonly variant: (v: Variant) => R
     readonly repeat: (r: Repeat) => R
@@ -50,9 +53,10 @@ discrimination follows the representation the EBNF tree has, which the
 EBNF lowering expands a string rule to terminals before the data form
 exists, exactly as `toData` does today.
 
-Centralizing `typeof rule === 'number'` in the visitor is the point of the
-task, not a compromise: one discriminator to change is exactly what makes a
-future terminal-representation migration cheap, should
+Centralizing the terminal discriminant in the visitor is the point of the
+task, not a compromise: it is written once, after the carrier
+[ebnf-range-set](./ebnf-range-set.md) settles, and one discriminator to
+change is exactly what makes a later representation move cheap, should
 [bigint-symbols](./bigint-symbols.md) ever revive.
 
 `emptyTagMap` and LL(1) dispatch then use the shared visitor instead of
