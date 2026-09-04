@@ -8,7 +8,19 @@
 import type { Assert } from '../asserts/types.ts'
 import type { Equal } from '../types/ts/types.ts'
 
+/**
+ * A plain value is a rule directly, told from the others by its JavaScript
+ * type: `null` is the end of input, a number one symbol, a string its
+ * symbols in order, an array a sequence, an object a choice.
+ *
+ * `null` is EOF rather than `-1` so that `number` means an ordinary symbol
+ * and nothing else: a rule typed `number` is never the end of input, and
+ * the AST of a narrower rule is always assignable to the AST of a wider one.
+ * The input stream still carries EOF as `-1`; that is the alphabet's
+ * business, not the grammar's spelling.
+ */
 export type DataRule =
+    | null
     | number
     | string
     | Tuple
