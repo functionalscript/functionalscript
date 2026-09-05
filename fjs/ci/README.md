@@ -3,11 +3,11 @@
 This directory contains the FunctionalScript source that defines the GitHub Actions
 workflows for this repository. Running the generator writes
 `.github/workflows/ci.yml` with the latest matrix of jobs and steps and
-`.github/workflows/npm-publish.yml` with the release job, plus four Nix
+`.github/workflows/npm-publish.yml` with the release job, plus three Nix
 development environments under `nix/`. The first of those, written to `nix/`
-itself, is the shell a developer enters and the shell eight of the fourteen
-jobs run inside; the other three exist for the jobs that cannot share it — Node
-22, Node 24 and `ubuntu-intel32`. Three jobs enter none: the two Windows ones,
+itself, is the shell a developer enters and the shell nine of the fourteen
+jobs run inside; the other two exist for the jobs that cannot share it — Node
+22 and Node 24. Three jobs enter none: the two Windows ones,
 where Nix does not run, and `package-check`, which has no checkout. Which jobs
 have a flake and why the rest do not is
 [`todo/65z-ci-nix.md`](./todo/65z-ci-nix.md), under "Jobs with no flake".
@@ -55,11 +55,12 @@ for, and whether that answer should change, is
   standing in for declarations the tarball omits, so the check would pass on
   the repository rather than on the package.
   `proof.f.mjs` — its property-based proofs.
-- `rust/module.f.mjs` — `cargo` build/test steps, the toolchain action the three
-  jobs that cannot use a flake still need, and the `wasm` job's steps. `cargo`
-  now comes from the shared shell everywhere Nix runs and no 32-bit target is in
-  play; `i686Target` is the predicate that decides which jobs those are, and
-  `../module.f.mjs` asks it rather than restating the pair of names. Both paths
+- `rust/module.f.mjs` — `cargo` build/test steps, the toolchain action the two
+  Windows jobs still need, the `wasm` job's steps, and what Intel Linux adds to
+  the shared shell for the 32-bit target. `cargo` now comes from that shell
+  everywhere Nix runs, 32-bit Linux included; `i686Target` is the predicate that
+  decides which jobs install a toolchain of their own instead, and
+  `../module.f.mjs` asks it rather than restating the names. Both paths
   name `config/module.f.mjs`'s `rust`, so the version cannot differ between
   them.
 - `deno/module.f.mjs` — the `deno` job's steps and its flake declaration.
@@ -103,9 +104,12 @@ one explicit `devShells.<system>.default` per system rather than looping. The
 two Node flakes name one each, since their jobs run on one runner image; the
 shared shell names four, because a developer's machine is not a runner — which
 is the reason that field is a list. `nix/module.f.mjs` writes each out as one
-static `flake.nix` exposing `devShells.<system>.default`. A job may also declare a
-job-local `shellHook`, run on every entry to the shell — `ubuntu-intel32`
-declares the one, pointing `cargo` at a 32-bit linker. See
+static `flake.nix` exposing `devShells.<system>.default`. A declaration may also
+say what a *single* system adds, in `perSystem`: extra toolchain targets, and a
+`shellHook` run on every entry to that system's shell. The shared shell declares
+the one, giving `x86_64-linux` the 32-bit target and the linker `cargo` needs
+for it — a package set that exists on x86 Linux and throws anywhere else, which
+is why it is a platform's capability rather than the shell's. See
 [nix/README.md](../../nix/README.md) for how the generated files are meant to be
 consumed.
 
@@ -201,15 +205,18 @@ outputs get built at all. Only the two Windows jobs are off Nix, because Nix has
 no native Windows.
 
 32-bit Linux is a job of its own, `ubuntu-intel32`, rather than four more steps
-on `ubuntu-intel`. Its linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for*
-`i686-linux` — and on every other system the shared shell serves, that package
-set is marked broken, so it cannot live there. Not `gcc_multi` either: a
-multilib wrapper finds the right 32-bit files and still emits `-m elf_x86_64`,
-which is `todo/65z-ci-nix.md`'s story. Separating it also lets the two run in
-parallel, and makes a red result say "32-bit Linux" rather than "something in
-the Intel Linux job". It replaces `apt-get install libc6-dev-i386` rather than
-joining it: a Nix toolchain does not look in `/usr`, so a libc installed by the
-runner's package manager would sit there unread.
+on `ubuntu-intel` — so the two run in parallel, and a red result says "32-bit
+Linux" rather than "something in the Intel Linux job". It is not an environment
+of its own: it enters the same shell from the same runner, where `perSystem`
+gives `x86_64-linux` the target's `rust-std` and the linker for it.
+
+That linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for* `i686-linux` —
+and the attribute throws on any host that is not x86 Linux, which is what makes
+it one system's rather than the shell's. Not `gcc_multi` either: a multilib
+wrapper finds the right 32-bit files and still emits `-m elf_x86_64`, which is
+`todo/65z-ci-nix.md`'s story. It replaces `apt-get install libc6-dev-i386`
+rather than joining it: a Nix toolchain does not look in `/usr`, so a libc
+installed by the runner's package manager would sit there unread.
 
 Windows is also where the *published* CLI is still exercised, by
 `npm install -g functionalscript@<version>` and `fjs test`. Every job that moved

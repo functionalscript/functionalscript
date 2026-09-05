@@ -58,6 +58,33 @@ export type NixPin = {
     readonly sources: { readonly [system: string]: NixArchive }
 }
 
+/**
+ * What one system adds to the shell every system of a job gets.
+ *
+ * A shell that carries everything its platform's jobs need is not the same
+ * shell on every platform: a 32-bit x86 toolchain exists for `x86_64-linux`
+ * and nowhere else, and `pkgsi686Linux` — the package set holding its linker —
+ * throws on any host that is not x86 Linux. So the difference is declared here
+ * rather than folded into the job, and the generated flake writes it at that
+ * system's `devShells` attribute, where it can be read without evaluating
+ * anything.
+ */
+export type NixPerSystem = {
+    /**
+     * Rust targets this system's toolchain carries beyond the job's.
+     *
+     * Added to `NixRust.targets` rather than replacing them: a target the job
+     * declares is one every system builds, and one here is a platform's own.
+     */
+    readonly targets?: readonly string[]
+    /**
+     * Shell initialization only this system needs, in the parts an indented
+     * string is made of — a `_Reference` part interpolates a store path Nix
+     * resolves, a `string` part is escaped.
+     */
+    readonly shellHook?: readonly (string | _Reference)[]
+}
+
 /** One downloadable archive, and the hash its content must have. */
 export type NixArchive = {
     /** Where the release publishes it. */
@@ -87,8 +114,16 @@ export type NixJob = {
     readonly systems: readonly [string, ...readonly string[]]
     /** Nixpkgs attribute names made available in the job's shell. */
     readonly packages: readonly string[]
-    /** Job-local shell initialization, when the job needs one. */
-    readonly shellHook?: readonly (string | _Reference)[]
+    /**
+     * What individual systems add, keyed by system.
+     *
+     * Every key is one of `systems`; a key that is not names a shell the flake
+     * does not have, so `../proof.f.mjs` holds the declaration to it. A system
+     * with nothing to add has no entry rather than an empty one, and a job
+     * whose shell is the same everywhere has no `perSystem` at all — which is
+     * what keeps its flake the flat text it was before this existed.
+     */
+    readonly perSystem?: { readonly [system: string]: NixPerSystem }
     /** A `rust-overlay` toolchain, for a job whose targets Nixpkgs has no `std` for. */
     readonly rust?: NixRust
     /** An upstream release replacing a snapshot package the job's suite fails on. */

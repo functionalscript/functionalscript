@@ -547,9 +547,9 @@ export const proof = {
         assertEq(exitCode(result), 0)
         // Every generated flake: `nixJobs` is what the generator was given, so
         // a family that declares an environment and never has it written fails
-        // here. Four — the shared shell, one apiece for the two Node versions
-        // it cannot serve, and one for the 32-bit Linux job.
-        assertEq(nixJobs.length, 4)
+        // here. Three — the shared shell, and one apiece for the two Node
+        // versions it cannot serve.
+        assertEq(nixJobs.length, 3)
         for (const job of nixJobs) {
             // The pipeline wrote that job's flake, whole, at the path a
             // `nix develop` step names. Equality rather than a substring
@@ -672,11 +672,11 @@ export const proof = {
             ['ubuntu-arm', nixShell, [['node --version', `v${node.default}`]]],
             ['macos-intel', nixShell, [['node --version', `v${node.default}`]]],
             ['macos-arm', nixShell, [['node --version', `v${node.default}`]]],
-            // `ubuntu-intel32` asserts nothing, and is the one job with a flake
-            // that does not. Its shell provides a single toolchain whose flake
-            // names `1.98.0` in full, so a check could only restate the file —
+            // `ubuntu-intel32` asserts nothing, and is the one job entering a
+            // flake that does not. The tool it runs is `cargo`, whose release
+            // the flake names in full, so a check could only restate the file —
             // the same reason `wasm` does not check its Rust either.
-            [i686JobId, i686JobId, []],
+            [i686JobId, nixShell, []],
         ]
         // Between them these name every declared flake, which is what replaced
         // the `dev` job: the shared shell used to be checked in one place
@@ -814,9 +814,14 @@ export const proof = {
         ])) {
             assertStructurallySame(flakesEntered(gha.jobs[id]), [nixShell])
         }
-        // And the 32-bit job entered one of its own, because `pkgsi686Linux`
-        // is marked broken on every system but that one.
-        assertStructurallySame(flakesEntered(gha.jobs[i686JobId]), [i686JobId])
+        // And the 32-bit job enters the same shell, from the one system that
+        // can carry what it needs. It used to have a flake of its own, on the
+        // grounds that `pkgsi686Linux` throws everywhere else — which is a
+        // reason for that system's shell to hold more, not for this job to
+        // have an environment of its own. Asserted here because it is the
+        // property that would rot silently: the job would still pass on a
+        // flake that had quietly become a second environment.
+        assertStructurallySame(flakesEntered(gha.jobs[i686JobId]), [nixShell])
     },
     // Bun, step for step. It lost its setup action, and every command it runs
     // enters its own flake — whose Bun is the one thing in any generated shell

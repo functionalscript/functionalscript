@@ -26,7 +26,6 @@ import {
 } from './common/module.f.mjs'
 import {
     i686JobId,
-    i686NixJob,
     i686Steps,
     rustPlatformCommands,
     rustPlatformSteps,
@@ -62,9 +61,9 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
  *
  * All four non-Windows platform jobs enter the same shell, so the matrix
  * differs by platform and by nothing else. Windows is the only exception left,
- * because Nix does not run there natively; 32-bit Linux used to be a second
- * one, and is now `../rust/module.f.mjs`'s `ubuntu-intel32` — a job whose
- * linker is broken on every system this shell serves but one.
+ * because Nix does not run there natively; 32-bit Linux is a job of its own,
+ * `../rust/module.f.mjs`'s `ubuntu-intel32`, and enters this same shell — on
+ * Intel Linux it carries the target and the linker that job needs.
  *
  * It runs this commit's suite rather than installing a published
  * FunctionalScript and running that. `npm install -g` writes to the read-only
@@ -207,17 +206,22 @@ const job = (rust, nodeExtra) => o => a => {
 }
 
 /**
- * Every generated flake. Four, for the fourteen jobs `./proof.f.mjs`'s
+ * Every generated flake. Three, for the fourteen jobs `./proof.f.mjs`'s
  * `matrixShape` counts.
  *
- * `dev` is the one a developer enters and the one **eight** of those jobs
+ * `dev` is the one a developer enters and the one **nine** of those jobs
  * enter — see `./dev/module.f.mjs` for why sharing is safe where a command
  * names its runtime, and `./node/module.f.mjs` for the two jobs where it is
- * not. **Three** have a flake to themselves: Node 22 and Node 24, whose `node`
- * is the thing under test, and `ubuntu-intel32`, whose 32-bit package set is
- * marked broken on every other system this shell serves. **Three** enter none:
- * the two Windows jobs, where Nix does not run, and `package-check`, which has
- * no checkout for a flake to be in.
+ * not. **Two** have a flake to themselves: Node 22 and Node 24, whose `node`
+ * is the thing under test. **Three** enter none: the two Windows jobs, where
+ * Nix does not run, and `package-check`, which has no checkout for a flake to
+ * be in.
+ *
+ * `ubuntu-intel32` was a fourth flake until its shell became a platform of this
+ * one. What it needs — a 32-bit `rust-std` and the linker for it — exists on
+ * `x86_64-linux` and nowhere else, which is a reason for that *system* to carry
+ * more, not for the job to have an environment of its own. See
+ * `./dev/module.f.mjs`.
  *
  * `./proof.f.mjs`'s `nixCoverage` reads that split off the generated workflow
  * rather than off this comment, so a job changing sides fails there.
@@ -236,7 +240,6 @@ const job = (rust, nodeExtra) => o => a => {
  */
 export const nixJobs = [
     ...nodeNixJobs,
-    i686NixJob,
     devNixJob,
 ]
 
