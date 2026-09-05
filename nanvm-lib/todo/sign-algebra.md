@@ -20,6 +20,10 @@ let sign = if self.0.header() == rhs.0.header() {
 };
 ```
 
+— which `src/vm/bigint/div.rs:18-22` repeats character-for-character
+(modulo `.sign()` vs `.0.header()`): the quotient's sign is the same
+product, so `impl Mul for Sign` has a third consumer already.
+
 and the sign **dispatch** for ordering in `src/vm/bigint/cmp.rs:17-22`:
 
 ```rust
@@ -55,7 +59,7 @@ scoped to magnitude work.
 ### Tasks
 
 - [ ] Add `impl Mul for Sign` (or an equivalent method) in `src/sign.rs`;
-      use it in `mul.rs`.
+      use it in `mul.rs` and `div.rs`.
 - [ ] Add ordering support on `Sign` (`derive`d or explicit `Ord`); rewrite
       `cmp.rs`'s four-arm match to equal-sign arms + delegation.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
