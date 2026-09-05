@@ -29,15 +29,19 @@ One factory in `fjs/ci/common` (or `fjs/ci/nix`, next to the shell it
 checks):
 
 ```js
-export const migratedJobChecks = ({ steps, jobId, retiredAction }) => ({
+export const _migratedJobChecks = ({ steps, jobId, retiredAction }) => ({
     noPublishedPackage: ..., installsNixOnly: ..., sharesTheShell: ...,
 })
 ```
 
-Each tool's proof spreads the result and keeps only its genuinely specific
-rows — `steps`, Deno's `coverageStep` and dependency-age assertion, Bun's
-`pinSources`. The migration contract becomes a single named thing the next
-job imports instead of re-deriving.
+The `_` prefix is deliberate: the export exists only so the Bun and Deno
+proofs can import it — module linkage, not a public CI API — which is
+exactly what the private-runtime naming rule reserves `_` for
+(`fjs/AGENTS.md`), so renaming or removing it later is not a breaking
+change. Each tool's proof spreads the result and keeps only its genuinely
+specific rows — `steps`, Deno's `coverageStep` and dependency-age
+assertion, Bun's `pinSources`. The migration contract becomes a single
+named thing the next job imports instead of re-deriving.
 
 ### Tasks
 

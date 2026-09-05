@@ -28,8 +28,10 @@ files, and only `casCommand`'s totality catches one of them.
 
 One exported driver next to the CAS (exported from `cas/proof.f.mjs`, or a
 small test-support module if proof-to-proof imports are unwanted):
-`driveCas(overrides)` owning the command table, the default responses, and
-the loop — ideally expressed over `fjs/effects/mock`'s runner rather than a
+`_driveCas(overrides)` — `_`-prefixed because the export exists only so
+the other proof can import it, module linkage rather than a supported CAS
+API, per the private-runtime naming rule (`fjs/AGENTS.md`) — owning the
+command table, the default responses, and the loop — ideally expressed over `fjs/effects/mock`'s runner rather than a
 third hand-rolled walk — with an extension point for extra operations, so
 `mcp/cas/proof.f.mjs` spreads in its `MemOp` handlers and its `readBytes`
 default the way `commonOperationMap` is spread into the node runner. One

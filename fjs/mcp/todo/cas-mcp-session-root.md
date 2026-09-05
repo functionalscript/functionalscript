@@ -30,13 +30,20 @@ wiring while still passing.
 
 ### Proposal
 
-Parameterize the root by its consumer and export it once:
+Parameterize the root by its consumer and export it once — **written
+flat**, not by extracting today's nesting verbatim: the existing
+`step(initEvo…, cacheKey => step(create…, sessionKey => …))` shape is the
+nested form `fjs/AGENTS.md` §3.4 rules out, and the shared owner must not
+codify it. The transport needs both keys, which is exactly what
+`history`/`historyStep` exist for:
 
 ```js
-export const casMcpSession = home => transport =>
-    step(initEvo(fileCas(sha256)(home)),
-        cacheKey => step(create(uninitializedState),
-            sessionKey => transport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey))))
+export const casMcpSession = home => transport => {
+    const cacheKey = history(initEvo(fileCas(sha256)(home)))
+    const keys = historyStep(cacheKey, () => create(uninitializedState))
+    return step(keys, ([sessionKey, cacheKey]) =>
+        transport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)))
+}
 
 export const casMcpServer = home => casMcpSession(home)(stdioTransport)
 ```
@@ -46,7 +53,8 @@ export const casMcpServer = home => casMcpSession(home)(stdioTransport)
 `ioStep`/`step` split is a typing detail to resolve in the change (one of
 the two suffices for both consumers, or the channel type generalizes).
 This composes with, rather than conflicts with, the `share-cas`
-flattening: after both, the wiring exists exactly once.
+flattening — that issue asks for the same `history`-based shape — so after
+both, the wiring exists exactly once and flat.
 
 ### Tasks
 
