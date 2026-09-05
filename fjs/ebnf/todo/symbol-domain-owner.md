@@ -26,14 +26,21 @@ author's mistake reaches first — is the only one that accepts `-0`, which
 `range` bounds involving `-0` pass the constructor and are refused three
 layers down, far from the call site that wrote them.
 
-EOF's encoding is likewise restated three times: `eof = null` at the front
-(`module.f.mjs:165`), `eofSet = [-1, 0]` in `data` (`:150`), and
-`eofSymbol = -1` in `ll1` (`:39`).
+EOF's *numeric sentinel* is written independently twice: `data` lowers EOF
+to the terminal range `eofSet = [-1, 0]` (`:150`) and `ll1` synthesizes the
+input symbol `eofSymbol = -1` (`:39`) — the same `-1` with no shared
+declaration tying them together. The front end's `eof = null`
+(`module.f.mjs:165`) is **not** a third copy: it is a deliberate public
+representation, because a `DataRule` reserves every number for ordinary
+symbols; it stays as it is.
 
 ### Proposal
 
-One owner for the domain predicate and the EOF constant, imported by the
-other modules. [`../../todo/ebnf-migration.md`](../../todo/ebnf-migration.md)
+One owner for the domain predicate and the numeric EOF sentinel: `ll1`
+imports the sentinel, `data` derives its `eofSet` range from it, and each
+layer keeps its own representation on top (the front end's public `null`,
+`data`'s terminal range, `ll1`'s input symbol — those are contracts, not
+copies). [`../../todo/ebnf-migration.md`](../../todo/ebnf-migration.md)
 already reserves the module — stage 1's `terminal/` is "the symbol domain,
 EOF, integer helpers over range_set" — and this issue is the concrete
 inventory of what moves there, plus the front-end `-0` fix that should not
@@ -44,7 +51,9 @@ with the other three importing it.
 ### Tasks
 
 - [ ] Pick the owner (`terminal/` per the migration, or `data` interim);
-      export `isSymbol` and the EOF constant; delete the other copies.
+      export `isSymbol` and the numeric EOF sentinel; delete the other
+      `isSymbol` copies, derive `data`'s `eofSet` and `ll1`'s `eofSymbol`
+      from the sentinel, leave the front end's `eof = null` as is.
 - [ ] The front end's `range`/`set` checks now refuse `-0` at the
       constructor — add the proof case.
 - [ ] `tsc`, `fjs t`.

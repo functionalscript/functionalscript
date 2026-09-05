@@ -33,16 +33,26 @@ own fix.)
 
 Export `nullable` and `fixpoint` from `fjs/ebnf/data` — both are already
 described in `ll1`'s prose as `../data`'s rules — and express `followMap`
-as `fixpoint(step, names)(fromEntries(...))`. The `EmptyTagMap`-specific
-signature of `data`'s `fixpoint` generalizes to the `FirstMap` case (both
-are "map, step, per-name stability check"); if the generalization fights
-the types, a second monomorphic export still beats a recursion with a
-documented overflow.
+through the loop-based fixpoint.
+
+**The equality is part of the generalization, not a detail.** `data`'s
+`fixpoint` decides stability with `at(name)(next) === at(name)(current)`,
+which is right for `EmptyTagMap`'s values but wrong for `FirstMap`'s:
+those are `RangeSet` arrays, and `union` builds a fresh array even when
+the contents stop changing, so the `===` loop would never terminate. The
+shared helper must take the per-entry equality as a parameter — `data`
+passing `===`, `ll1` passing its `structurallySame` (or a `RangeSet`
+equality) — or, if that parameterization fights the types, `ll1` keeps a
+monomorphic **loop** with `structurallySame`, which still removes the
+recursion-depth hazard even though it shares only the shape. Replacing the
+existing terminating recursion with the exported loop as-is would trade a
+stack overflow for an infinite loop.
 
 ### Tasks
 
-- [ ] Export the two helpers from `data`; delete `ll1`'s copies; `followMap`
-      goes through the loop-based fixpoint.
+- [ ] Export the two helpers from `data`, with the stability equality as a
+      parameter; `followMap` goes through the loop-based fixpoint with a
+      structural `RangeSet` equality, `data` keeps `===`.
 - [ ] Consider `reach`'s recursion in the same pass, or file it separately.
 - [ ] `tsc`, `fjs t`.
 
