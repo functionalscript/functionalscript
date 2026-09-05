@@ -5,7 +5,7 @@ workflows for this repository. Running the generator writes
 `.github/workflows/ci.yml` with the latest matrix of jobs and steps and
 `.github/workflows/npm-publish.yml` with the release job, plus three Nix
 development environments under `nix/`. The first of those, written to `nix/`
-itself, is the shell a developer enters and the shell nine of the fourteen
+itself, is the shell a developer enters and the shell eight of the thirteen
 jobs run inside; the other two exist for the jobs that cannot share it — Node
 22 and Node 24. Three jobs enter none: the two Windows ones,
 where Nix does not run, and `package-check`, which has no checkout. Which jobs
@@ -204,11 +204,14 @@ only place that shell's `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin`
 outputs get built at all. Only the two Windows jobs are off Nix, because Nix has
 no native Windows.
 
-32-bit Linux is a job of its own, `ubuntu-intel32`, rather than four more steps
-on `ubuntu-intel` — so the two run in parallel, and a red result says "32-bit
-Linux" rather than "something in the Intel Linux job". It is not an environment
-of its own: it enters the same shell from the same runner, where `perSystem`
-gives `x86_64-linux` the target's `rust-std` and the linker for it.
+32-bit Linux is four more steps on `ubuntu-intel`, and the one thing that makes
+that job differ from its three siblings. It was a job of its own,
+`ubuntu-intel32`, while it needed a shell of its own; once `perSystem` gave
+`x86_64-linux` the target's `rust-std` and the linker for it, what the extra job
+still did was install Nix and substitute that same shell on a second runner —
+and a runner is the scarce thing, since a workflow gets only so many at once.
+The cost of folding it back in is the check name: a red `ubuntu-intel` no longer
+says "32-bit Linux" without opening it.
 
 That linker is `pkgsi686Linux.stdenv.cc` — Nixpkgs built *for* `i686-linux` —
 and the attribute throws on any host that is not x86 Linux, which is what makes

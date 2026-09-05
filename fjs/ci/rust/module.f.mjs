@@ -70,27 +70,22 @@ const i686Linux = /** @type {const} */ ('i686-unknown-linux-gnu')
  * The 32-bit target a platform job also checks, which is now Windows Intel and
  * nothing else.
  *
- * 32-bit Linux used to be here too, and became {@link i686JobId} — a job of its
- * own, whose target and linker the shared shell carries on the one system they
- * exist for. Windows stays because that job has no shell at all: Nix does not
- * run there, so `dtolnay/rust-toolchain` provides the target the way it always
- * did.
+ * 32-bit *Linux* is not here, because that job is on the shared shell and this
+ * decides which jobs install a toolchain of their own — see
+ * {@link shellRustCommands}, which is where Intel Linux gets its second target.
+ * Windows is here because those two jobs have no shell at all: Nix does not run
+ * there, so `dtolnay/rust-toolchain` provides the target the way it always did.
  *
  * @type {(v: Os, a: Architecture) => string | undefined}
  */
 export const i686Target = (v, a) =>
     a === 'intel' && v === 'windows' ? 'i686-pc-windows-msvc' : undefined
 
-/** CI job id of the 32-bit Linux job. */
-export const i686JobId = /** @type {const} */ ('ubuntu-intel32')
-
 /** @type {(v: Os, a: Architecture) => readonly MetaStep[]} */
 const i686 = (v, a) => {
     const target = i686Target(v, a)
     return target === undefined ? [] : rustTarget(target)
 }
-
-
 
 /**
  * The one system a 32-bit x86 toolchain exists for, and the runner this job
@@ -158,27 +153,6 @@ export const i686PerSystem = {
 }
 
 /**
- * The 32-bit Linux job: one target, checked four ways, in the shared shell.
- *
- * It is a job rather than four more steps on `ubuntu-intel` so that the two run
- * in parallel, and so that a red result says "32-bit Linux" where a red
- * `ubuntu-intel` used to mean one of nine things. It is not a job because of
- * its environment: it runs on Intel Linux, where the shared shell carries the
- * target and the linker above.
- *
- * No version check, unlike most jobs entering that shell: the tool this one
- * runs is `cargo`, whose flake names `1.98.0` in full, so a check could only
- * restate the file. The runtimes the same shell provides are checked by the
- * jobs that use them.
- *
- * @type {readonly MetaStep[]}
- */
-export const i686Steps = [
-    nixInstall,
-    ...nixSteps(nixShell)(targetCheckCommands(i686Linux)),
-]
-
-/**
  * The native checks every platform job runs, as commands rather than steps.
  *
  * A job on the shared shell runs these through `nix develop` and needs no
@@ -194,6 +168,30 @@ export const rustPlatformSteps = (v, a) => [
     { type: 'rust' },
     ...testSteps(rustPlatformCommands),
     ...i686(v, a),
+]
+
+/**
+ * What a platform job on the shared shell runs `cargo` for: its own platform,
+ * and — on Intel Linux — the 32-bit target that platform's shell carries.
+ *
+ * Those four checks were a job of their own, `ubuntu-intel32`, for as long as
+ * they needed a second environment. They no longer do, and a job is not free:
+ * it is one more of the runners a workflow gets at once, and the whole of what
+ * this one did beyond `ubuntu-intel` was install Nix and substitute the same
+ * `x86_64-linux` shell a second time — that shell being the only thing the two
+ * ever had in common, since no other job in the workflow runs on Intel Linux
+ * at all.
+ *
+ * What it cost to fold them back in is the job name: a red `ubuntu-intel` says
+ * "Intel Linux" now, and which of its steps failed is a click away rather than
+ * a check name. That is the trade, and it is the only one — the steps
+ * themselves are unchanged, and each is still its own reportable step.
+ *
+ * @type {(v: Os, a: Architecture) => readonly string[]}
+ */
+export const shellRustCommands = (v, a) => [
+    ...rustPlatformCommands,
+    ...(v === 'ubuntu' && a === 'intel' ? targetCheckCommands(i686Linux) : []),
 ]
 
 /** CI job id, and the directory name of its generated flake. */

@@ -20,16 +20,16 @@ import { rust } from '../config/module.f.mjs'
 import { devNixJob } from '../dev/module.f.mjs'
 import { flakeText } from '../nix/module.f.mjs'
 import {
-    i686JobId,
     i686System,
     i686Target,
     rustPlatformCommands,
+    shellRustCommands,
     wasmJobId,
     wasmRust,
     wasmTargets,
 } from './module.f.mjs'
 
-/** The shell the 32-bit job enters, as the text the generator writes. */
+/** The shared shell, as the text the generator writes for it. */
 const devFlake = flakeText(devNixJob)
 
 /** @type {(needle: string) => void} */
@@ -46,14 +46,14 @@ export const proof = {
     i686Shell: {
         // The toolchain. Deleting the `rust` field regenerates a flake with no
         // `rust-overlay` input, no overlay and no toolchain — an empty shell
-        // for a job whose every command is `cargo`.
+        // for the jobs whose every command is `cargo`.
         toolchain: () => {
             assertFlakeContains(`pkgs.rust-bin.stable."${rust}".minimal`)
             assertFlakeContains('rust-overlay.overlays.default')
         },
-        // Clippy. Four of this job's commands are `cargo clippy`, and
-        // `extensions = []` leaves them a toolchain that cannot run them.
-        // Asserting the command is not asserting the tool.
+        // Clippy. Half the commands run against this target are `cargo
+        // clippy`, and `extensions = []` leaves them a toolchain that cannot
+        // run them. Asserting the command is not asserting the tool.
         clippy: () => assertFlakeContains('"clippy"'),
         // The target's standard library, in the one shell that can link it and
         // in no other. Without it `cargo --target i686-unknown-linux-gnu` has
@@ -102,8 +102,8 @@ export const proof = {
         assertEq(wasmRust.version, rust)
         assertStructurallySame([...wasmRust.targets], [...wasmTargets])
     },
-    // The 32-bit *Linux* target is a job now; the only platform job that still
-    // asks `dtolnay/rust-toolchain` for a second target is Windows Intel.
+    // 32-bit *Linux* comes from the shell now, so the only platform job that
+    // still asks `dtolnay/rust-toolchain` for a second target is Windows Intel.
     i686TargetIsWindowsOnly: () => {
         for (const o of /** @type {const} */ (['ubuntu', 'macos', 'windows'])) {
             for (const a of /** @type {const} */ (['intel', 'arm'])) {
@@ -116,8 +116,8 @@ export const proof = {
             }
         }
     },
-    // The native checks, named. A job on the shared shell runs exactly these
-    // and gets its toolchain from the flake.
+    // The native checks, named. A job on the shared shell runs these and gets
+    // its toolchain from the flake.
     platformCommands: () => {
         assertStructurallySame([...rustPlatformCommands], [
             'cargo test',
@@ -126,8 +126,35 @@ export const proof = {
             'cargo clippy --release -- -D warnings',
         ])
     },
-    jobIds: () => {
-        assertEq(i686JobId, 'ubuntu-intel32')
-        assertEq(wasmJobId, 'wasm')
+    // And on Intel Linux, those four and the 32-bit target's four — the job
+    // `ubuntu-intel32` was, now that the shell it would have entered is the
+    // one `ubuntu-intel` already enters.
+    //
+    // Every other platform gets the native four and nothing else, which is the
+    // half worth asserting: `pkgsi686Linux` throws on their systems, so a
+    // 32-bit command there would be a job whose shell cannot be built. Windows
+    // is not among them — those two jobs have no shell, and `i686Target` is
+    // what gives them their own 32-bit target.
+    shellCommandsPerPlatform: () => {
+        assertStructurallySame(
+            [...shellRustCommands('ubuntu', 'intel')],
+            [
+                ...rustPlatformCommands,
+                'cargo test --target i686-unknown-linux-gnu',
+                'cargo test --target i686-unknown-linux-gnu --release',
+                'cargo clippy --target i686-unknown-linux-gnu -- -D warnings',
+                'cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings',
+            ])
+        for (const [o, a] of /** @type {const} */ ([
+            ['ubuntu', 'arm'],
+            ['macos', 'intel'],
+            ['macos', 'arm'],
+        ])) {
+            assertStructurallySame(
+                [...shellRustCommands(o, a)],
+                [...rustPlatformCommands],
+                `${o}-${a}`)
+        }
     },
+    jobIds: () => assertEq(wasmJobId, 'wasm'),
 }

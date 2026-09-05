@@ -10,7 +10,6 @@ import { actions, bun, deno, functionalscript, node, typescript, wasmer, wasmtim
 import { major, nodeNixJobs, packageArtifact, packageJobId } from './node/module.f.mjs'
 import { flakePath, flakeText, nixDevelop, nixShell, runPath } from './nix/module.f.mjs'
 import { packageCheckJobId } from './package/module.f.mjs'
-import { i686JobId } from './rust/module.f.mjs'
 import { npmPublishJobId, npmPublishPath, npmPublishWorkflow } from './publish/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { empty as emptyVec } from '../types/bit_vec/module.f.mjs'
@@ -209,19 +208,23 @@ const runDefault = packageJson => {
 export const proof = {
     matrixShape: () => {
         const gha = run(true)
-        assertEq(Object.keys(gha.jobs).length, 14, 'expected 14 CI jobs')
+        assertEq(Object.keys(gha.jobs).length, 13, 'expected 13 CI jobs')
         assertEq(gha.permissions.contents, 'read', 'expected read-only contents permission')
         assertEq(Object.keys(gha.permissions).length, 1, 'expected least-privilege workflow permissions')
-        // 32-bit Linux is a job of its own, because its linker is a package
-        // broken on every system the shared shell serves but one. The four
-        // checks are what it exists for.
-        assert(hasRunInJob(i686JobId, 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected 32-bit Linux check')
-        assert(hasRunInJob(i686JobId, 'cargo test --target i686-unknown-linux-gnu --release')(gha), 'expected 32-bit Linux release check')
-        assert(hasRunInJob(i686JobId, 'cargo clippy --target i686-unknown-linux-gnu -- -D warnings')(gha), 'expected 32-bit Linux lint')
-        assert(hasRunInJob(i686JobId, 'cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings')(gha), 'expected 32-bit Linux release lint')
-        // And nowhere else: `ubuntu-intel` is now the same job as its three
-        // siblings, differing by platform and by nothing else.
-        assert(!hasRunInJob('ubuntu-intel', '--target i686')(gha), 'unexpected 32-bit check in ubuntu-intel')
+        // The 32-bit Linux checks, in the Intel Linux job, because that is the
+        // one platform whose shell carries the target and the linker for it.
+        // They had a job of their own while they needed a second environment;
+        // what is asserted now is that folding it back in kept all four.
+        assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu')(gha), 'expected 32-bit Linux check')
+        assert(hasRunInJob('ubuntu-intel', 'cargo test --target i686-unknown-linux-gnu --release')(gha), 'expected 32-bit Linux release check')
+        assert(hasRunInJob('ubuntu-intel', 'cargo clippy --target i686-unknown-linux-gnu -- -D warnings')(gha), 'expected 32-bit Linux lint')
+        assert(hasRunInJob('ubuntu-intel', 'cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings')(gha), 'expected 32-bit Linux release lint')
+        // And in no other platform job: `pkgsi686Linux` throws on every system
+        // but that one, so a 32-bit check anywhere else is a job whose shell
+        // could not be built.
+        for (const id of /** @type {const} */ (['ubuntu-arm', 'macos-intel', 'macos-arm'])) {
+            assert(!hasRunInJob(id, '--target i686')(gha), `unexpected 32-bit check in ${id}`)
+        }
         assert(hasRunInJob('ubuntu-arm', 'cargo test --release')(gha), 'expected native platform Rust release check')
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy -- -D warnings')(gha), 'expected native platform Rust lint')
         assert(hasRunInJob('ubuntu-arm', 'cargo clippy --release -- -D warnings')(gha), 'expected native platform Rust release lint')
@@ -305,7 +308,6 @@ export const proof = {
             'ubuntu-arm',
             'macos-intel',
             'macos-arm',
-            i686JobId,
             'wasm',
         ])) {
             assert(
@@ -668,15 +670,14 @@ export const proof = {
             // All four platform jobs, in the one shell. These are the only
             // place its three systems other than the canonical runner's are
             // built at all.
+            // `ubuntu-intel` runs the 32-bit checks too, and asserts nothing
+            // more for them: the tool they run is `cargo`, whose release the
+            // flake names in full — the same reason `wasm` does not check its
+            // Rust either.
             ['ubuntu-intel', nixShell, [['node --version', `v${node.default}`]]],
             ['ubuntu-arm', nixShell, [['node --version', `v${node.default}`]]],
             ['macos-intel', nixShell, [['node --version', `v${node.default}`]]],
             ['macos-arm', nixShell, [['node --version', `v${node.default}`]]],
-            // `ubuntu-intel32` asserts nothing, and is the one job entering a
-            // flake that does not. The tool it runs is `cargo`, whose release
-            // the flake names in full, so a check could only restate the file —
-            // the same reason `wasm` does not check its Rust either.
-            [i686JobId, nixShell, []],
         ]
         // Between them these name every declared flake, which is what replaced
         // the `dev` job: the shared shell used to be checked in one place
@@ -814,14 +815,6 @@ export const proof = {
         ])) {
             assertStructurallySame(flakesEntered(gha.jobs[id]), [nixShell])
         }
-        // And the 32-bit job enters the same shell, from the one system that
-        // can carry what it needs. It used to have a flake of its own, on the
-        // grounds that `pkgsi686Linux` throws everywhere else — which is a
-        // reason for that system's shell to hold more, not for this job to
-        // have an environment of its own. Asserted here because it is the
-        // property that would rot silently: the job would still pass on a
-        // flake that had quietly become a second environment.
-        assertStructurallySame(flakesEntered(gha.jobs[i686JobId]), [nixShell])
     },
     // Bun, step for step. It lost its setup action, and every command it runs
     // enters its own flake — whose Bun is the one thing in any generated shell

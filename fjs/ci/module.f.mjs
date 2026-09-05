@@ -21,15 +21,12 @@ import {
     os,
     test,
     toSteps,
-    ubuntu,
     ubuntuArm
 } from './common/module.f.mjs'
 import {
-    i686JobId,
-    i686Steps,
-    rustPlatformCommands,
     rustPlatformSteps,
     rustWasmSteps,
+    shellRustCommands,
 } from './rust/module.f.mjs'
 import { nodeMainSteps, nodeNixJobs, nodeVersionJobs } from './node/module.f.mjs'
 import {
@@ -59,11 +56,10 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
  * A platform job on the shared shell: every command through `nix develop`, and
  * the runtime asserted first.
  *
- * All four non-Windows platform jobs enter the same shell, so the matrix
- * differs by platform and by nothing else. Windows is the only exception left,
- * because Nix does not run there natively; 32-bit Linux is a job of its own,
- * `../rust/module.f.mjs`'s `ubuntu-intel32`, and enters this same shell — on
- * Intel Linux it carries the target and the linker that job needs.
+ * All four non-Windows platform jobs enter the same shell, and differ in one
+ * thing: Intel Linux also checks the 32-bit target, because that is the one
+ * system whose shell can carry it. Windows is the only platform off Nix, since
+ * it does not run there natively.
  *
  * It runs this commit's suite rather than installing a published
  * FunctionalScript and running that. `npm install -g` writes to the read-only
@@ -93,14 +89,20 @@ const workflowText = gha => JSON.stringify(gha, null, '  ')
  * this is what turns four shells that were pinned as text into four that are
  * known to work.
  *
- * @type {(rust: boolean) => readonly MetaStep[]}
+ * The platform reaches the `cargo` commands because one of the four runs more
+ * of them: Intel Linux checks the 32-bit target its shell carries, which was a
+ * job of its own until that shell had it. `../rust/module.f.mjs` decides which
+ * platform that is; everything else about these jobs is still identical across
+ * the four.
+ *
+ * @type {(rust: boolean, o: Os, a: Architecture) => readonly MetaStep[]}
  */
-const shellPlatformSteps = rust => [
+const shellPlatformSteps = (rust, o, a) => [
     nixInstall,
     nixVersionStep(nixShell, 'node --version', `v${node.default}`),
     ...nixSteps(nixShell)([
         'npm ci',
-        ...(rust ? rustPlatformCommands : []),
+        ...(rust ? shellRustCommands(o, a) : []),
         'node --test',
     ]),
 ]
@@ -201,15 +203,15 @@ const job = (rust, nodeExtra) => o => a => {
             ...nodeMainSteps(functionalscript),
             ...nodeExtra,
         ]
-        : [...shellPlatformSteps(rust), ...nodeExtra.map(inShell)]
+        : [...shellPlatformSteps(rust, o, a), ...nodeExtra.map(inShell)]
     return [id, { 'runs-on': image, steps: toSteps(result) }]
 }
 
 /**
- * Every generated flake. Three, for the fourteen jobs `./proof.f.mjs`'s
+ * Every generated flake. Three, for the thirteen jobs `./proof.f.mjs`'s
  * `matrixShape` counts.
  *
- * `dev` is the one a developer enters and the one **nine** of those jobs
+ * `dev` is the one a developer enters and the one **eight** of those jobs
  * enter — see `./dev/module.f.mjs` for why sharing is safe where a command
  * names its runtime, and `./node/module.f.mjs` for the two jobs where it is
  * not. **Two** have a flake to themselves: Node 22 and Node 24, whose `node`
@@ -217,11 +219,13 @@ const job = (rust, nodeExtra) => o => a => {
  * Nix does not run, and `package-check`, which has no checkout for a flake to
  * be in.
  *
- * `ubuntu-intel32` was a fourth flake until its shell became a platform of this
- * one. What it needs — a 32-bit `rust-std` and the linker for it — exists on
- * `x86_64-linux` and nowhere else, which is a reason for that *system* to carry
- * more, not for the job to have an environment of its own. See
- * `./dev/module.f.mjs`.
+ * `ubuntu-intel32` was a fourth flake, and then a fourteenth job. What it
+ * needs — a 32-bit `rust-std` and the linker for it — exists on `x86_64-linux`
+ * and nowhere else, which is a reason for that *system* to carry more, not for
+ * a job to have an environment of its own; and once it had none of its own, the
+ * job was `ubuntu-intel`'s runner doing the same setup twice. Its four checks
+ * are steps in that job now. See `./dev/module.f.mjs` and
+ * `./rust/module.f.mjs`.
  *
  * `./proof.f.mjs`'s `nixCoverage` reads that split off the generated workflow
  * rather than off this comment, so a job changing sides fails there.
@@ -266,11 +270,7 @@ export const nixJobs = [
  */
 const canonicalJobs = rust => ({
     ...(rust
-        ? {
-            wasm: ubuntuArm(rustWasmSteps),
-            // Intel, because that is where a 32-bit x86 target can be built.
-            [i686JobId]: ubuntu(i686Steps),
-        }
+        ? { wasm: ubuntuArm(rustWasmSteps) }
         : {}),
     deno: ubuntuArm(denoSteps),
     bun: ubuntuArm(bunSteps),
