@@ -31,6 +31,14 @@ Besides the placement, the `_` arm packs a value it has fully in hand —
 `to_number` can start by unpacking it again and re-running `to_primitive` on
 a value already known to be primitive.
 
+The operation already has a second, hand-inlined copy:
+`primitive_to_numeric` in `src/vm/any/relational.rs:66-74` is exactly this
+body minus the leading `to_primitive` call — its own doc comment says it is
+"the non-`BigInt` half of `Any::to_numeric`". The proposed
+`to_numeric(p: Primitive<A>)` is precisely that function; the relational
+operators are its second consumer, and landing the refactor without
+deleting `primitive_to_numeric` would leave the copy behind.
+
 ### Proposal
 
 A sibling `src/vm/numeric_coercion.rs` owning the operation over the type it
@@ -49,6 +57,8 @@ like its `to_string`/`to_number` siblings:
 
 - [ ] Add `numeric_coercion.rs`; move the body; make the non-bigint arms call
       `NumberCoercion`'s primitive handlers directly.
+- [ ] Replace `primitive_to_numeric` in `src/vm/any/relational.rs` with the
+      new function and delete the copy.
 - [ ] `cargo test`, `cargo clippy`, `cargo fmt -- --check`.
 
 ### Related

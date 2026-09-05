@@ -31,6 +31,24 @@ and `fromVec` merely wraps it with an octet-alignment check and an
 `isValidCodePoint` filter. `fjs/media/module.f.mjs:142-145` even documents that
 its own detector re-proves "the same two conditions `fromVec` checks, via the
 same decoder" — evidence the pipeline is being re-derived in several places.
+
+The byte-list level below the `Vec` has the same fan-out, outside `text/`:
+
+```ts
+// fjs/web/module.f.mjs:71 — tryUtf8's inner pipeline, re-derived
+const utf8Bytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
+// fjs/web/module.f.mjs:77-83 — fromVec minus the alignment check, over bytes
+const utf8String = bytes => { /* toCodePointList + isValidCodePoint loop + codePointListToString */ }
+// fjs/effects/common/module.f.mjs:174-175 — utf8ToString's inner pipeline
+const utf8ListToString = bytes => codePointListToString(toCodePointList(bytes))
+```
+
+Both modules import the low-level `utf8`/`utf16` primitives directly while
+*also* importing `fjs/text`'s wrapper — reaching past the module whose
+stated job this is. `fjs/effects/node/module.f.mjs:27-29` still imports
+`toCodePointList`, `codePointListToString` and `reverse` and uses none of
+them: the residue of this block having been copied out of `effects/node`
+into `effects/common`.
 The unchecked and checked forms also live in *different* modules (top `text`
 vs `text/utf8`), so the `Vec` → string UTF-8 boundary has no single owner.
 Both are real consumers: `utf8ToString` is used by `effects/node`, `djs`,
@@ -62,6 +80,11 @@ with every importer updated in the same PR; a re-export left in
       `fromVec` and `utf8ToString` through it.
 - [ ] Decide whether `utf8ToString` moves next to `fromVec`; update importers
       if so.
+- [ ] Export the byte-list pair too (unchecked and code-point-validated
+      forms, beside `fromVec`); replace `fjs/web`'s `utf8Bytes`/`utf8String`
+      and `fjs/effects/common`'s `utf8ListToString` with it, so those
+      modules stop importing the utf8/utf16 primitives directly.
+- [ ] Drop the three unused imports at `fjs/effects/node/module.f.mjs:27-29`.
 - [ ] `tsc`, `fjs t`.
 
 ### Related
