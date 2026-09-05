@@ -80,7 +80,7 @@ type _Tuple = Assert<Equal<Ast<[12, -1]>, readonly[12, -1]>>
 type _Tuple0 = Assert<Equal<Ast<[]>, readonly[]>>
 type _Tuple1 = Assert<Equal<Ast<[12, string]>, readonly[12, readonly number[]]>>
 
-type _ToString<V> =
+type _PropertyName<V> =
     V extends string ? V :
     V extends number ? `${V}` :
     never
@@ -89,7 +89,7 @@ type _VariantAst<R extends Variant> =
     string extends keyof R ? readonly[string, Ast<R[string]>] :
     {
         readonly[K in keyof R]: readonly[
-            _ToString<K>,
+            _PropertyName<K>,
             Ast<R[K]>
         ]
     }[keyof R]
