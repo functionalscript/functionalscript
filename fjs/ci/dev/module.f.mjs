@@ -42,7 +42,7 @@
 import { node, typescript } from '../config/module.f.mjs'
 import { bunPin } from '../bun/module.f.mjs'
 import { major } from '../node/module.f.mjs'
-import { wasmPackages, wasmRust } from '../rust/module.f.mjs'
+import { i686PerSystem, wasmPackages, wasmRust } from '../rust/module.f.mjs'
 import { nixShell } from '../nix/module.f.mjs'
 
 /** The directory name of the generated flake. */
@@ -69,10 +69,20 @@ export const devSystems = [
 
 /**
  * The declaration itself: Node, Deno, the WASM runtimes, `git`, the compiler,
- * the pinned Bun and the Rust toolchain.
+ * the pinned Bun and the Rust toolchain — and, on Intel Linux, the 32-bit
+ * target and linker that platform's job needs.
  *
  * The Node here is the default one, which is what makes `node26` able to share
  * this shell and Node 22 and Node 24 unable to.
+ *
+ * `perSystem` is what makes this *the* environment rather than most of it. Every
+ * job a platform runs should be runnable in the shell that platform's developer
+ * enters, and one of them needs something no other system can have: 32-bit
+ * Linux, whose linker comes from a package set that exists only on x86 Linux.
+ * Declaring it for that system gives Intel Linux the whole of its CI, and
+ * leaves the other three shells exactly what they were — a difference the
+ * generated flake writes at the system it belongs to, rather than a condition
+ * inside a shell shared by four.
  *
  * @type {NixJob}
  */
@@ -88,4 +98,5 @@ export const devNixJob = {
     ],
     rust: wasmRust,
     pin: bunPin(devSystems),
+    perSystem: i686PerSystem,
 }

@@ -194,12 +194,13 @@ files is gone.
 
 ##### Shell hooks
 
-One job declares one: `ubuntu-intel32`, pointing `cargo` at a 32-bit linker. Node
-22's kept `npm install -g functionalscript` writable and put the installed `fjs` on
-`PATH`, and went when that install did. The generator
-still emits a `shellHook` for a job that declares one, and
-`fjs/ci/nix/proof.f.mjs` holds that capability to its shape; do not introduce a
-generalized shell-setup schema until a job needs it.
+One shell declares one, for one of its systems: the shared shell on
+`x86_64-linux`, pointing `cargo` at a 32-bit linker. Node 22's kept
+`npm install -g functionalscript` writable and put the installed `fjs` on
+`PATH`, and went when that install did. The generator still emits a `shellHook`
+where a system declares one, and `fjs/ci/nix/proof.f.mjs` holds that capability
+to its shape; do not introduce a generalized shell-setup schema until a job
+needs it.
 
 #### Phase 3: validate independently
 

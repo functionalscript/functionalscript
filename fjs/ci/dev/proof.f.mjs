@@ -1,7 +1,12 @@
 import { devJobId, devNixJob, devSystems } from './module.f.mjs'
 import { bunPin } from '../bun/module.f.mjs'
 import { major, nodeNixJobs } from '../node/module.f.mjs'
-import { wasmPackages, wasmRust } from '../rust/module.f.mjs'
+import {
+    i686PerSystem,
+    i686System,
+    wasmPackages,
+    wasmRust,
+} from '../rust/module.f.mjs'
 import { node } from '../config/module.f.mjs'
 import { nixShell, nixSystem } from '../nix/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -64,5 +69,25 @@ export const proof = {
             assert(devNixJob.packages.includes(name), name)
         }
         assertStructurallySame(devNixJob.pin, bunPin(devSystems))
+        // The 32-bit declaration too, and from `../rust` for the same reason:
+        // the job that runs those commands owns what its shell needs to run
+        // them. Identity, so this cannot become a copy that drifts.
+        assert(
+            devNixJob.perSystem === i686PerSystem,
+            'expected the 32-bit declaration itself')
+    },
+    // What makes this the environment for a platform rather than the common
+    // part of four. One system carries more than the others — the 32-bit
+    // target and its linker — because that is what its CI runs and what its
+    // package set can hold; `pkgsi686Linux` throws on the other three, so a
+    // shell identical everywhere could only be a shell missing this.
+    //
+    // That one system and no other, which is the half that would rot quietly:
+    // a hook reaching a system that cannot evaluate the package it names breaks
+    // `nix develop ./nix` there and nowhere else. And it has to be a system
+    // this shell is generated for, or the capability reaches no shell at all.
+    carriesWhatOnlyOneSystemCan: () => {
+        assertStructurallySame(Object.keys(i686PerSystem), [i686System])
+        assert(devSystems.includes(i686System), i686System)
     },
 }

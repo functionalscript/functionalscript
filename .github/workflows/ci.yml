@@ -36,6 +36,18 @@
           "run": "./nix/run cargo clippy --release -- -D warnings"
         },
         {
+          "run": "./nix/run cargo test --target i686-unknown-linux-gnu"
+        },
+        {
+          "run": "./nix/run cargo test --target i686-unknown-linux-gnu --release"
+        },
+        {
+          "run": "./nix/run cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
+        },
+        {
+          "run": "./nix/run cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings"
+        },
+        {
           "run": "./nix/run node --test"
         }
       ]
@@ -308,29 +320,6 @@
         },
         {
           "run": "./nix/run cargo test --target wasm32-wasip1-threads --config .cargo/config.wasmer.toml --release"
-        }
-      ]
-    },
-    "ubuntu-intel32": {
-      "runs-on": "ubuntu-26.04",
-      "steps": [
-        {
-          "uses": "cachix/install-nix-action@v31.11.1"
-        },
-        {
-          "uses": "actions/checkout@v7.0.1"
-        },
-        {
-          "run": "./nix/ubuntu-intel32/run cargo test --target i686-unknown-linux-gnu"
-        },
-        {
-          "run": "./nix/ubuntu-intel32/run cargo test --target i686-unknown-linux-gnu --release"
-        },
-        {
-          "run": "./nix/ubuntu-intel32/run cargo clippy --target i686-unknown-linux-gnu -- -D warnings"
-        },
-        {
-          "run": "./nix/ubuntu-intel32/run cargo clippy --target i686-unknown-linux-gnu --release -- -D warnings"
         }
       ]
     },
