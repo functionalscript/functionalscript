@@ -4,26 +4,36 @@
  * Every case in [`module.f.mjs`](./module.f.mjs) is lowered to the EDAG
  * expression it denotes and evaluated here, so the shared data is proven to
  * describe JavaScript before `nanvm-lib/tests/test/generated.rs` holds
- * `nanvm-lib` to it. This module contains no test cases of its own beyond the
- * `jsOnly` section at the end — adding a case means editing the data.
+ * `nanvm-lib` to it. This module contains no test cases of its own beyond
+ * `jsOnly` (below `edagShape`) and `crossCheck` (below `group`) — adding a
+ * case means editing the data.
  *
  * The operand-count assertions are not here but in
  * [`types.ts`](./types.ts): a `@typedef` inside a function body is never
  * checked, so the claim has to be a module-scope alias in a `.ts` file to be
  * one at all.
  *
- * The evaluator below is an inline one for the constant subset the corpus
- * uses. When the EDAG interpreter
- * ([interpret-edag](../djs/todo/interpret-edag.md)) lands it replaces this
- * one, and the corpus becomes part of that interpreter's test suite for free:
- * the memoization contract these cases rely on is the one it already owes.
+ * Every lowered case runs through [`amnesia`](../edag/amnesia/module.f.mjs),
+ * the repository's one real EDAG evaluator, rather than a second hand-written
+ * walker — so an operator's behaviour here is proven by actually executing
+ * the EDAG node, the same way [`../edag/proof.f.mjs`](../edag/proof.f.mjs)
+ * proves the schema against it. `eq`'s cases are the one exception: they
+ * exist to check EDAG node **identity** (`arrayByItself` and friends), which
+ * amnesia deliberately does not preserve — see "It forgets" in
+ * [amnesia's README](../edag/amnesia/README.md) — so `evaluate` below stays a
+ * small dedicated memoizing walker for that section alone. When a
+ * memoizing (identity-preserving) EDAG interpreter
+ * ([interpret-edag](../djs/todo/interpret-edag.md)) lands, it can absorb
+ * `evaluate` too and this module reduces to lowering plus assertions.
  *
  * @import { Exp, Op2, Properties } from '../edag/types.ts'
- * @import { Case, EqCase, Expectation, Group, OpId, Operand, SharedNode } from './types.ts'
+ * @import { Context } from '../edag/amnesia/types.ts'
+ * @import { Case, EqCase, Expectation, Group, OpId, Operand, SharedNode, Value } from './types.ts'
  */
 
 import { assert, assertEq } from '../asserts/module.f.mjs'
 import { exp } from '../edag/module.f.mjs'
+import { vm } from '../edag/amnesia/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
     arityOf,
@@ -45,9 +55,13 @@ const { fromEntries, is } = Object
  * The JavaScript each unary operation the corpus uses denotes, keyed by the
  * canonical EDAG id — plus `unaryPlus`, the one operation with no such id.
  *
- * Only the operations the corpus exercises are here: an entry for an id no
- * case names would be a line no proof runs, and `lookup` refuses an id it
- * does not hold rather than answering for it.
+ * Only lowered cases used to reach these; now that they run through
+ * `amnesia`'s `vm` instead (see `run` below), an entry is needed only for an
+ * id `run`'s escape branch can still reach: a `NonEdagGroup` (`unaryPlus`,
+ * `typeof`), which always escapes, or an ordinary group with at least one
+ * `functionValue`-operand case. An id neither covers would be a line no case
+ * runs, and `lookup` refuses an id it does not hold rather than answering for
+ * it — `String`, for one, has no such case and so no entry here.
  *
  * The `any` parameters are the point of the exercise: these operators are
  * being applied to operand types TypeScript rejects (`-[]`, `{} * 1`), which
@@ -56,7 +70,6 @@ const { fromEntries, is } = Object
  * @type {{ readonly [k in OpId]?: (a: any) => unknown }}
  */
 const op1Js = {
-    String: a => String(a),
     neg: a => -a,
     unaryPlus: a => +a,
     '!': a => !a,
@@ -64,13 +77,20 @@ const op1Js = {
     typeof: a => typeof a,
 }
 
-/** The same, for the binary operations. @type {{ readonly [k in OpId]?: (a: any, b: any) => unknown }} */
+/**
+ * The same, for the binary operations — plus `'==='`, which `evaluate` below
+ * reaches directly and which has no group of its own to escape from (`eq`'s
+ * cases build it by hand in `lowerEq`, never through `run`). `'+'` has no
+ * `functionValue`-operand case, so — unlike every other arithmetic
+ * operator here — it has no entry either.
+ *
+ * @type {{ readonly [k in OpId]?: (a: any, b: any) => unknown }}
+ */
 const op2Js = {
     '*': (a, b) => a * b,
     '/': (a, b) => a / b,
     '**': (a, b) => a ** b,
     '-': (a, b) => a - b,
-    '+': (a, b) => a + b,
     '%': (a, b) => a % b,
     '&': (a, b) => a & b,
     '|': (a, b) => a | b,
@@ -78,20 +98,16 @@ const op2Js = {
     '<<': (a, b) => a << b,
     '>>': (a, b) => a >> b,
     '>>>': (a, b) => a >>> b,
-    // The key must *evaluate* to a string — a runtime constraint the
-    // EDAG's shape-only schema can't express, so this (like
-    // `fjs/edag/amnesia/module.f.mjs`'s own `own`) upholds it directly
-    // rather than letting `Object.getOwnPropertyDescriptor`'s own
-    // `ToPropertyKey` silently coerce a non-string key. The nullish check
-    // comes first, matching real `ToObject` running before `ToPropertyKey`:
-    // a nullish receiver throws regardless of what the key is.
-    own: (a, b) => {
-        if (a === null || a === undefined) {
-            throw new TypeError('Cannot convert undefined or null to object')
-        }
-        if (typeof b !== 'string') { throw new TypeError('own: key is not a string') }
-        return Object.getOwnPropertyDescriptor(a, b)?.value
-    },
+    // `own` only reaches this table through the `functionValue`-operand
+    // escape (`run`'s `caseExp(g)(args)[0] === 'escape'` branch), never
+    // through a lowered case — every `own` case that actually claims a
+    // throw (`nullReceiverThrows`, `nonStringKeyThrows`, …) lowers to
+    // `['own', a, b]` and is proven by `amnesia`'s `own` instead, which
+    // carries the nullish/non-string-key invariants this used to
+    // duplicate. No escaped case pairs `functionValue` with a nullish
+    // receiver or a non-string key — one operand already being a function
+    // is what makes it escape — so this stays the plain read.
+    own: (a, b) => Object.getOwnPropertyDescriptor(a, b)?.value,
     '<': (a, b) => a < b,
     '<=': (a, b) => a <= b,
     '>': (a, b) => a > b,
@@ -126,15 +142,39 @@ const op2 = lookup(op2Js)
 const op3 = lookup(op3Js)
 
 /**
- * Evaluates a constant EDAG expression.
+ * The evaluation context every lowered case runs `amnesia`'s `vm` under. No
+ * lowered case ever contains a `frame` or `args` node — the corpus only
+ * derives constant expressions — so both fields exist only to satisfy
+ * {@link Context}, never to be read.
  *
- * `memo` holds the nodes already evaluated for this case, which is what makes
- * a node reached from several places one value — the model's rule that a
- * shared node evaluates once, and the whole reason `arrayByItself` is `true`
- * where `arrayByEqualArray` is `false`. It is a list and not a `Map` because
- * the corpus's shared nodes are the three `eq` ones and nothing else: the
- * lowering gives every other operand a node of its own, so a node reached
- * twice is always a `ref`.
+ * @type {Context}
+ */
+const context = { frame: undefined, args: [] }
+
+/**
+ * Evaluates a constant EDAG expression **with identity preserved** across a
+ * shared node — what `amnesia`'s `vm` deliberately does not do (see "It
+ * forgets" in [its README](../edag/amnesia/README.md)), and the one thing
+ * `eq`'s cases are for: `memo` holds the nodes already evaluated for this
+ * case, so a node reached from several places is one value, which is the
+ * whole reason `arrayByItself` is `true` where `arrayByEqualArray` is
+ * `false`. It is a list and not a `Map` because the corpus's shared nodes are
+ * the three `eq` ones and nothing else: the lowering gives every other
+ * operand a node of its own, so a node reached twice is always a `ref`.
+ *
+ * `amnesia`'s recursion is not pluggable — its handlers call its own `vm`
+ * directly — so it cannot be handed this memo to consult mid-walk; this stays
+ * a separate, smaller walker for exactly that reason, rather than the general
+ * evaluator `run` and `escapedValue` use below.
+ *
+ * Sees two kinds of node: a `Value`'s lowering (`eq.shared`'s nodes, and the
+ * operands `eqProof` reads out of `e` below — plus, from
+ * `jsOnly.throw.objectSpread`, a hand-built one of the same shape), which is
+ * always a constant or a `ref` and so always `'undefined'`/`'[]'`/`'{}'` or a
+ * primitive, never an operator application; and `lowerEq`'s own `['===', a,
+ * b]`, the one binary node this file ever builds by hand. Nothing here is
+ * ever a *unary* operator node, which is why there is no `op1` dispatch —
+ * only `op2`, and only ever for `'==='`.
  *
  * @type {(memo: readonly (readonly[Exp, unknown])[]) => (e: Exp) => unknown}
  */
@@ -157,7 +197,7 @@ const evaluate = memo => {
                 return [f(p[1]), f(p[2])]
             }))
         }
-        return e.length === 2 ? op1(id)(f(a)) : op2(id)(f(a), f(b))
+        return op2(id)(f(a), f(b))
     }
     return f
 }
@@ -183,17 +223,20 @@ const sharedMemo = shared => shared.reduce(
  * An operand of an escaped case, built directly.
  *
  * `functionValue` is why the case escaped; every other operand still goes
- * through the lowering, so there is one walk from a corpus value to a
- * JavaScript one rather than two that can disagree.
+ * through the lowering and `amnesia`'s `vm`, so there is one walk from a
+ * corpus value to a JavaScript one rather than two that can disagree. No
+ * escaped operand is ever a shared node — sharing exists only in `eq` and
+ * `eq` never escapes — so `amnesia`'s non-preservation of identity is not in
+ * play here.
  *
  * @type {(v: Operand) => unknown}
  */
-const escapedValue = v => isFunctionValue(v) ? () => 5 : evaluate([])(valueExp(v))
+const escapedValue = v => isFunctionValue(v) ? () => 5 : vm(context)(valueExp(v))
 
 /**
- * The value one argument order produces: the case's expression evaluated, or
- * — for a case the corpus does not lower — the operation applied to built
- * values.
+ * The value one argument order produces: the case's expression evaluated
+ * through `amnesia`'s `vm`, or — for a case the corpus does not lower — the
+ * operation applied to built values.
  *
  * The escape dispatches on the group's arity, so a binary group's escaped
  * case reaches `op2` rather than being refused by the unary table, and the
@@ -203,7 +246,7 @@ const escapedValue = v => isFunctionValue(v) ? () => 5 : evaluate([])(valueExp(v
  */
 const run = g => args => {
     const lowered = caseExp(g)(args)
-    if (lowered[0] === 'exp') { return evaluate([])(lowered[1]) }
+    if (lowered[0] === 'exp') { return vm(context)(lowered[1]) }
     const [a, b, c] = args.map(escapedValue)
     const id = opId(g)
     const arity = arityOf(g)
@@ -232,7 +275,7 @@ const group = g => {
                 const result = run(g)(args)
                 // `expected` describes the outcome, not the program, so it is
                 // built as a value and never joined to the case's expression.
-                const e = evaluate([])(valueExp(expected))
+                const e = vm(context)(valueExp(expected))
                 assert(is(result, e), [result, 'is not', e])
             }
         return orders(g)(c).map(([name, args]) => [name, fn(args)])
@@ -243,6 +286,67 @@ const group = g => {
     return bad.length === 0
         ? fromEntries(ok)
         : { ...fromEntries(ok), throw: fromEntries(bad) }
+}
+
+/**
+ * Replays a group's non-escaped cases a second time, through the
+ * `functionValue`-escape reference (`op1Js`/`op2Js`) instead of `amnesia`,
+ * and checks the two agree.
+ *
+ * `run`'s escape branch and its lowered-`exp` branch are two independent
+ * implementations of the same operator, reached from disjoint cases —
+ * nothing keeps them in step once an id's reference entry survives on the
+ * strength of a single `functionValue` case. That is exactly how `own`'s
+ * receiver-before-key check order drifted between the two before anyone
+ * noticed by hand ([nanvm-lib#1879](https://github.com/functionalscript/functionalscript/pull/1879),
+ * fixed in `523b08a` for this file and `a6aabfc` for `amnesia`): a corpus
+ * case with `expected: throws` can't tell two throwing orders apart, so
+ * nothing here would have caught it either — but a wrong non-throwing
+ * *value* is exactly what this catches, and would have caught it sooner had
+ * one of the two reorderings landed first without the other.
+ *
+ * `own` is deliberately excluded: its reference entry is now a plain
+ * `Object.getOwnPropertyDescriptor` read for the one escape case that keeps
+ * it alive, not a copy of `amnesia`'s own's stricter receiver/key
+ * invariants — `nonStringKeyThrows` (`[{1: 42}, 1]`) is real JS and does
+ * *not* throw through `Object.getOwnPropertyDescriptor`, only through
+ * `amnesia`'s FS-specific string-key check, so the two are expected to
+ * disagree there. Every other id here has no such gap: each is a bare
+ * JavaScript operator on both sides, so agreement is the only correct
+ * outcome, not a coincidence of scope.
+ *
+ * Throwing cases are checked structurally only — both sides must throw,
+ * not throw the same thing — for the same reason `group` above can't
+ * compare thrown values: see
+ * `../emergent_testing/todo/throw-payload-assertions.md`.
+ *
+ * @type {(g: Group) => object}
+ */
+const crossCheck = g => {
+    if (!('op' in g) || g.op === 'own') { return {} }
+    const arity = arityOf(g)
+    const table = arity === 1 ? op1Js : op2Js
+    if (!(g.op in table)) { return {} }
+    const id = g.op
+    /** @type {(c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]} */
+    const leaves = c => orders(g)(c).flatMap(([name, args]) => {
+        if (args.some(isFunctionValue)) { return [] }
+        const lowered = caseExp(g)(args)
+        if (lowered[0] !== 'exp') { return [] }
+        const [ra, rb] = /** @type {readonly Value[]} */ (args).map(v => vm(context)(valueExp(v)))
+        const refValue = () => arity === 1 ? op1(id)(ra) : op2(id)(ra, rb)
+        const fn = isThrows(c.expected)
+            ? () => { refValue() }
+            : () => {
+                const amnesiaValue = vm(context)(lowered[1])
+                assert(is(amnesiaValue, refValue()), [amnesiaValue, 'is not', refValue(), 'for', id])
+            }
+        return [[name, fn]]
+    })
+    const cases = casesOf(g)
+    const ok = cases.filter(c => !isThrows(c.expected)).flatMap(leaves)
+    const bad = cases.filter(c => isThrows(c.expected)).flatMap(leaves)
+    return bad.length === 0 ? fromEntries(ok) : { ...fromEntries(ok), throw: fromEntries(bad) }
 }
 
 const eqProof = (() => {
@@ -388,6 +492,8 @@ const jsOnly = {
 export const proof = {
     eq: eqProof,
     ...fromEntries(data.groups.map(g => [opId(g), group(g)])),
+    crossCheck: fromEntries(
+        data.groups.filter(g => 'op' in g && g.op !== 'own').map(g => [opId(g), crossCheck(g)])),
     edagShape,
     nestedSharing,
     jsOnly,
