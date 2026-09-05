@@ -200,13 +200,24 @@ the only place its `x86_64-linux`, `aarch64-darwin` and `x86_64-darwin` shells
 are built rather than pinned as text.
 
 32-bit Linux became a **job of its own**, `ubuntu-intel32`, with a flake of its
-own. Its linker is `pkgsi686Linux.stdenv.cc`, and on every system the shared
-shell serves except `x86_64-linux` that package set is marked broken — so
-folding it in would break `nix develop ./nix` on both macOS systems and on ARM
-Linux. Splitting the *job* rather than giving `ubuntu-intel` two shells keeps
-the one-shell-per-job property `../proof.f.mjs`'s `nixCoverage` asserts, lets
-the two run in parallel, and makes a red result name 32-bit Linux rather than
-one of nine things.
+own — and is now four steps of `ubuntu-intel` again, with neither.
+
+The flake went first. Its linker is `pkgsi686Linux.stdenv.cc`, and that
+attribute throws on every system the shared shell serves but `x86_64-linux`, so
+a job-wide `shellHook` would have broken `nix develop ./nix` on both macOS
+systems and on ARM Linux. That is a fact about the *system*, not about the job,
+and it is now declared as one: `NixJob`'s `perSystem` gives one system extra
+toolchain targets and a hook of its own, and the flake writes them at that
+system's `devShells` entry. A developer on Intel Linux therefore has the whole
+of what that platform's CI runs, which was the point.
+
+The job went with it. Splitting it had bought parallelism and a red result
+naming 32-bit Linux; the first of those is not free — a workflow gets a bounded
+number of runners at once, and this job's whole existence beyond `ubuntu-intel`
+was installing Nix and substituting the identical `x86_64-linux` shell on a
+second one, no other job in the workflow being on that image. So the checks are
+steps of `ubuntu-intel` now, and the name is what that cost: a red there says
+"Intel Linux", and which step failed is one click away.
 That replaced `apt-get install libc6-dev-i386` rather than joining it: the Nix
 cc-wrapper keeps `/usr/include` and `/usr/lib` off its search paths, so a libc
 from the runner's package manager is invisible to the compiler `cargo` invokes.
@@ -372,12 +383,14 @@ system-selection framework.
 Node 22, Node 24, Node 26 and `deno` remain separate because they use different
 runtimes and run different command sequences.
 
-One job declares a `shellHook`: `ubuntu-intel32`, pointing `cargo` at
-`pkgsi686Linux.stdenv.cc`. Node 22's, which existed for a global install the job no
-longer makes, is gone. So the capability has exactly one user, and it is the kind the
-field was for — a store path that cannot be written as text, resolved on entry. Do not
-generalize this into a shell-configuration framework unless a second job proves that
-abstraction useful.
+One shell declares a `shellHook`, for one of its systems: the shared shell on
+`x86_64-linux`, pointing `cargo` at `pkgsi686Linux.stdenv.cc`. Node 22's, which
+existed for a global install the job no longer makes, is gone. So the capability
+has exactly one user, and it is the kind the field was for — a store path that
+cannot be written as text, resolved on entry. It hangs off `perSystem` rather
+than off the job, because a hook naming a package is a statement about the
+platform that has it. Do not generalize either into a shell-configuration
+framework unless a second job proves that abstraction useful.
 
 #### Nixpkgs update
 

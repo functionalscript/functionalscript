@@ -113,9 +113,11 @@ installed CLI. Same module, same artifact, different runner requirements.
       it — `platformNodeSteps` is the last thing that does
 - [x] Drop Deno's `--minimum-dependency-age=0` with its reason — done when that
       job's registry install went
-- [x] Consider dropping `NixJob.shellHook` — **no**: `ubuntu-intel32` declares one,
-      pointing `cargo` at `pkgsi686Linux.stdenv.cc`. Node 22's went with its global
-      install, but the field now has a user of the kind it was for
+- [x] Consider dropping the `shellHook` field — **no**: the shared shell declares
+      one for `x86_64-linux`, pointing `cargo` at `pkgsi686Linux.stdenv.cc`. Node
+      22's went with its global install, but the field now has a user of the kind
+      it was for. It has since moved from the job to `NixJob.perSystem`, where a
+      hook belongs to the system whose package it names
 - [ ] Update `../proof.f.mjs`: the job count, the per-job assertions, and
       `jobNeeds`'s ordering count
 

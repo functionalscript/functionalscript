@@ -19,7 +19,7 @@
  * @module
  *
  * @import { Architecture, MetaStep, Os } from '../common/types.ts'
- * @import { NixJob, NixRust } from '../nix/types.ts'
+ * @import { NixPerSystem, NixRust } from '../nix/types.ts'
  */
 
 import { rust, wasmer, wasmtime } from '../config/module.f.mjs'
@@ -70,19 +70,16 @@ const i686Linux = /** @type {const} */ ('i686-unknown-linux-gnu')
  * The 32-bit target a platform job also checks, which is now Windows Intel and
  * nothing else.
  *
- * 32-bit Linux used to be here too, and became {@link i686JobId} — a job of its
- * own, because its linker is `pkgsi686Linux.*`, which is broken on every system
- * the shared shell serves but one. Windows stays because that job has no shell
- * at all: Nix does not run there, so `dtolnay/rust-toolchain` provides the
- * target the way it always did.
+ * 32-bit *Linux* is not here, because that job is on the shared shell and this
+ * decides which jobs install a toolchain of their own — see
+ * {@link shellRustCommands}, which is where Intel Linux gets its second target.
+ * Windows is here because those two jobs have no shell at all: Nix does not run
+ * there, so `dtolnay/rust-toolchain` provides the target the way it always did.
  *
  * @type {(v: Os, a: Architecture) => string | undefined}
  */
 export const i686Target = (v, a) =>
     a === 'intel' && v === 'windows' ? 'i686-pc-windows-msvc' : undefined
-
-/** CI job id of the 32-bit Linux job, and the directory of its flake. */
-export const i686JobId = /** @type {const} */ ('ubuntu-intel32')
 
 /** @type {(v: Os, a: Architecture) => readonly MetaStep[]} */
 const i686 = (v, a) => {
@@ -90,16 +87,25 @@ const i686 = (v, a) => {
     return target === undefined ? [] : rustTarget(target)
 }
 
-
+/**
+ * The one system a 32-bit x86 toolchain exists for, and the runner this job
+ * has.
+ *
+ * `pkgsi686Linux` is Nixpkgs built for `i686-linux`, and the snapshot builds it
+ * only where the host is x86 Linux — on anything else the attribute is a
+ * `throw`, not a package set. So this is a capability of one platform, declared
+ * for that platform, rather than a property of the shell.
+ */
+export const i686System = /** @type {const} */ ('x86_64-linux')
 
 /**
- * The one platform job the shared shell cannot serve, and the environment it
- * gets instead.
+ * What Intel Linux adds to the shared shell: the 32-bit target, and the linker
+ * `cargo` has to be pointed at to use it.
  *
- * The linker is the whole reason this is separate, and it is an **i686**
- * toolchain rather than a multilib one. `pkgsi686Linux` is Nixpkgs built for
- * `i686-linux`, so its cc-wrapper injects the 32-bit emulation and the 32-bit
- * libc as a matter of what it is, with nothing to override.
+ * The linker is the whole reason this is a per-system declaration, and it is an
+ * **i686** toolchain rather than a multilib one. `pkgsi686Linux` is Nixpkgs
+ * built for `i686-linux`, so its cc-wrapper injects the 32-bit emulation and
+ * the 32-bit libc as a matter of what it is, with nothing to override.
  *
  * `gcc_multi` was tried first and does not work, which is worth recording
  * because it looks like the obvious answer. It finds every 32-bit file
@@ -113,11 +119,11 @@ const i686 = (v, a) => {
  * toolchain does not look in `/usr`: the cc-wrapper is built to keep
  * `/usr/include` and `/usr/lib` off its search paths, so a libc installed by
  * the runner's package manager would sit there unread. The `rust-std` for the
- * target comes from `rust-overlay`, as the `targets` list below asks; that is
- * the standard library, and this is what it links against.
+ * target comes from `rust-overlay`, as the `targets` below asks; that is the
+ * standard library, and this is what it links against.
  *
- * Nothing names it in `packages`, and it does not need to: interpolating a
- * derivation into the hook puts it in the shell's closure, which is all that is
+ * Nothing names it in the shell's `packages`, and nothing should: interpolating
+ * a derivation into the hook puts it in the closure, which is all that is
  * wanted here — a 32-bit `cc` on `PATH` would only shadow the host one that
  * the untargeted `cargo test` needs.
  *
@@ -128,49 +134,23 @@ const i686 = (v, a) => {
  * interpolation, not this file's — the generator emits an indented string,
  * where Nix resolves the reference to its store path.
  *
- * @type {NixJob}
+ * The target is an addition to what every system's toolchain carries rather
+ * than a toolchain of its own: the shell already has `rust-overlay`'s
+ * `1.98.0` with the WASM targets, and this is one more `rust-std` on the
+ * platform that can link it.
+ *
+ * @type {{ readonly [system: string]: NixPerSystem }}
  */
-export const i686NixJob = {
-    id: i686JobId,
-    // The one system a 32-bit x86 toolchain exists for, and the runner this
-    // job has.
-    systems: ['x86_64-linux'],
-    // Nothing. This job builds one target and runs nothing else — the suite
-    // and every other check belong to jobs that share the developer shell.
-    packages: [],
-    rust: {
-        version: rust,
-        // No `rustfmt`: `wasm` runs the one `cargo fmt` this repository has.
-        extensions: ['clippy'],
+export const i686PerSystem = {
+    [i686System]: {
         targets: [i686Linux],
+        shellHook: [
+            'export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=',
+            /** @type {const} */ (['ref', 'pkgs', 'pkgsi686Linux', 'stdenv', 'cc']),
+            '/bin/cc',
+        ],
     },
-    shellHook: [
-        'export CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER=',
-        /** @type {const} */ (['ref', 'pkgs', 'pkgsi686Linux', 'stdenv', 'cc']),
-        '/bin/cc',
-    ],
 }
-
-/**
- * The 32-bit Linux job: one target, checked four ways, in a shell of its own.
- *
- * It is a job rather than four more steps on `ubuntu-intel` because its shell
- * cannot be that job's. Keeping them apart buys three things beyond that. Every
- * platform job now enters the *same* shell, so the matrix differs by platform
- * and by nothing else. The two run in parallel rather than one after the other.
- * And a red result here says "32-bit Linux", where a red `ubuntu-intel` used to
- * mean one of nine things.
- *
- * No version check, unlike every other job with a flake: this shell provides
- * one thing, its flake names `1.98.0` in full, and a check could only restate
- * the file.
- *
- * @type {readonly MetaStep[]}
- */
-export const i686Steps = [
-    nixInstall,
-    ...nixSteps(i686JobId)(targetCheckCommands(i686Linux)),
-]
 
 /**
  * The native checks every platform job runs, as commands rather than steps.
@@ -188,6 +168,30 @@ export const rustPlatformSteps = (v, a) => [
     { type: 'rust' },
     ...testSteps(rustPlatformCommands),
     ...i686(v, a),
+]
+
+/**
+ * What a platform job on the shared shell runs `cargo` for: its own platform,
+ * and — on Intel Linux — the 32-bit target that platform's shell carries.
+ *
+ * Those four checks were a job of their own, `ubuntu-intel32`, for as long as
+ * they needed a second environment. They no longer do, and a job is not free:
+ * it is one more of the runners a workflow gets at once, and the whole of what
+ * this one did beyond `ubuntu-intel` was install Nix and substitute the same
+ * `x86_64-linux` shell a second time — that shell being the only thing the two
+ * ever had in common, since no other job in the workflow runs on Intel Linux
+ * at all.
+ *
+ * What it cost to fold them back in is the job name: a red `ubuntu-intel` says
+ * "Intel Linux" now, and which of its steps failed is a click away rather than
+ * a check name. That is the trade, and it is the only one — the steps
+ * themselves are unchanged, and each is still its own reportable step.
+ *
+ * @type {(v: Os, a: Architecture) => readonly string[]}
+ */
+export const shellRustCommands = (v, a) => [
+    ...rustPlatformCommands,
+    ...(v === 'ubuntu' && a === 'intel' ? targetCheckCommands(i686Linux) : []),
 ]
 
 /** CI job id, and the directory name of its generated flake. */
