@@ -16,10 +16,10 @@
  * Every lowered case runs through [`amnesia`](../edag/amnesia/module.f.mjs),
  * the repository's one real EDAG evaluator, rather than a second hand-written
  * walker — so an operator's behaviour here is proven by actually executing
- * the EDAG node, the same way [`../proof.f.mjs`](../proof.f.mjs) proves the
- * schema against it. `eq`'s cases are the one exception: they exist to check
- * EDAG node **identity** (`arrayByItself` and friends), which amnesia
- * deliberately does not preserve — see "It forgets" in
+ * the EDAG node, the same way [`../edag/proof.f.mjs`](../edag/proof.f.mjs)
+ * proves the schema against it. `eq`'s cases are the one exception: they
+ * exist to check EDAG node **identity** (`arrayByItself` and friends), which
+ * amnesia deliberately does not preserve — see "It forgets" in
  * [amnesia's README](../edag/amnesia/README.md) — so `evaluate` below stays a
  * small dedicated memoizing walker for that section alone. When a
  * memoizing (identity-preserving) EDAG interpreter
