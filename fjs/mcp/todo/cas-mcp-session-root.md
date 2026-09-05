@@ -38,18 +38,23 @@ codify it. The transport needs both keys, which is exactly what
 `history`/`historyStep` exist for:
 
 ```js
-export const casMcpSession = home => transport => {
+export const _casMcpSession = home => transport => {
     const cacheKey = history(initEvo(fileCas(sha256)(home)))
     const keys = historyStep(cacheKey, () => create(uninitializedState))
     return step(keys, ([sessionKey, cacheKey]) =>
         transport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)))
 }
 
-export const casMcpServer = home => casMcpSession(home)(stdioTransport)
+export const casMcpServer = home => _casMcpSession(home)(stdioTransport)
 ```
 
-`runStdio` becomes `casMcpSession(home)(stdioTransport)` and
-`runSessionVirtual` becomes `casMcpSession(home)(h => feed(h)(msgs))`. The
+The `_` prefix is deliberate: the factory is exported only so the proof
+helpers can reuse the production wiring — module linkage, not a new
+transport-injection API — per the private-runtime naming rule
+(`fjs/AGENTS.md`), so it can be renamed or removed later without a
+breaking change; `casMcpServer` stays the one public entry point.
+`runStdio` becomes `_casMcpSession(home)(stdioTransport)` and
+`runSessionVirtual` becomes `_casMcpSession(home)(h => feed(h)(msgs))`. The
 `ioStep`/`step` split is a typing detail to resolve in the change (one of
 the two suffices for both consumers, or the channel type generalizes).
 This composes with, rather than conflicts with, the `share-cas`
@@ -58,7 +63,7 @@ both, the wiring exists exactly once and flat.
 
 ### Tasks
 
-- [ ] Export `casMcpSession`; express `casMcpServer` and both proof
+- [ ] Export `_casMcpSession`; express `casMcpServer` and both proof
       helpers through it.
 - [ ] `tsc`, `fjs t`.
 
