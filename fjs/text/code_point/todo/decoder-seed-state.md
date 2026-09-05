@@ -13,11 +13,12 @@ op forks on `input === null`, flatten the produced lists.
 down to the `flat([input, [null]])` literal and its cast —
 in `tokenizeWithPositionOp` + `tokenize`, because `decoder` hardcodes its
 seed state to `null` and the tokenizer's seed is
-`{ state: { kind: 'initial' }, metadata: ... }`. The
-`flat(stateScan(op)(seed)(flat([input, [null]])))` shape recurs in
-`fjs/djs/tokenizer/module.f.mjs` as well (four `stateScan` call sites);
-the sentinel trick and its type cast are re-derived wherever a scan needs
-an end-of-input step.
+`{ state: { kind: 'initial' }, metadata: ... }`.
+
+(`fjs/djs/tokenizer`'s `stateScan` calls are **not** further instances:
+they scan finite arrays, flush through an empty-string grammar step, or
+consume the JS tokenizer's own `eof` token — none injects a `null`
+sentinel, so none is a consumer of this combinator.)
 
 ### Proposal
 
@@ -36,8 +37,11 @@ test. The JS tokenizer's `tokenize` becomes a one-line `scanToEof`
 application once
 [../../../js/todo/666-js-tokenizer-position-layer.md](../../../js/todo/666-js-tokenizer-position-layer.md)'s
 step (1) re-extracts the `input == null ? eof : char` dispatch as a named
-op; the DJS tokenizer's four call sites are further consumers of the lower
-home. If the implementation instead decides the curried
+op. The lower home is justified by the combinator's subject — a scan with
+an end-of-input step is a list concern, not a code-point one — and by the
+dependency direction: `js/tokenizer` importing it from `types/list` beats
+importing it from `text/code_point`. If the implementation instead decides
+the curried
 `decoder(init)(unitOp, eofOp)` is the better API, that is a **breaking
 change** to a public export and must be declared as such (`Changelog:`
 with `**BREAKING CHANGES:**`), not slipped through as an internal
@@ -48,7 +52,7 @@ refactor.
 - [ ] Add the seedful combinator beside `stateScan`; re-express `decoder`
       over it, signature unchanged.
 - [ ] Express `js/tokenizer`'s `tokenize` through it (after or together
-      with 666's step 1); consider the `djs/tokenizer` call sites.
+      with 666's step 1).
 - [ ] `tsc`, `fjs t`.
 
 ### Related

@@ -22,9 +22,12 @@ const isSymbol = s => isSafeInteger(s) && s >= 0 && !Object.is(s, -0)
 
 The divergence is a bug, not just noise: the front end's copy — the one an
 author's mistake reaches first — is the only one that accepts `-0`, which
-`data` refuses explicitly because its memo `Map` keys by SameValueZero. So
-`range` bounds involving `-0` pass the constructor and are refused three
-layers down, far from the call site that wrote them.
+`data` refuses explicitly because its memo `Map` keys by SameValueZero.
+The constructor it guards that can actually receive `-0` is `rangeEncode`,
+the one front-end constructor taking numeric endpoints (`range` and `set`
+derive their symbols from string code points, which are never `-0`). So
+`rangeEncode(-0, …)` passes the constructor and is refused three layers
+down, far from the call site that wrote it.
 
 EOF's *numeric sentinel* is written independently twice: `data` lowers EOF
 to the terminal range `eofSet = [-1, 0]` (`:150`) and `ll1` synthesizes the
@@ -54,8 +57,9 @@ with the other three importing it.
       export `isSymbol` and the numeric EOF sentinel; delete the other
       `isSymbol` copies, derive `data`'s `eofSet` and `ll1`'s `eofSymbol`
       from the sentinel, leave the front end's `eof = null` as is.
-- [ ] The front end's `range`/`set` checks now refuse `-0` at the
-      constructor — add the proof case.
+- [ ] `rangeEncode` now refuses `-0` at the constructor — add a
+      `rangeEncode(-0, …)` refusal proof case (the string-driven `range`/
+      `set` cannot supply `-0`, so no case is possible or needed there).
 - [ ] `tsc`, `fjs t`.
 
 ### Related

@@ -45,8 +45,14 @@ divergence is a parser/transformer disagreement no type checks.
 
 Investigate a shared skeleton private to `ll1`, parameterized over the
 completion step (roughly: `leaf`, `node(tag, children)`, and the
-repeat-fold hook the transformer path threads), with `parserRuleSet` and
-`build(...).match` as its two instantiations. If the parameterization costs
+repeat-fold hook the transformer path threads) **and over the
+input-exhaustion policy**, with `parserRuleSet` and `build(...).match` as
+its two instantiations. The exhaustion policy is a deliberate divergence,
+not shared machine: when input ends mid-rule, `parserRuleSet` completes a
+partial AST with a `null` remainder (`module.f.mjs:249-252`, pinned by
+its proofs) while the transformer path unwinds to `['no-match', null]`
+(`:586`), as [207 §6](./207-bnf-semantic-actions.md) requires — so it must
+be a parameter of the skeleton, never a casualty of it. If the parameterization costs
 more indirection than the ~110 duplicated lines are worth — a real
 possibility given the per-frame payload differences — record the outcome
 here (or in a comment tying the two `:234`/`:487` twins together) and
