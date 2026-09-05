@@ -13,16 +13,16 @@ Two inlined sign computations are not covered by `flip`:
 The sign **product** in `src/vm/bigint/mul.rs:37-41`:
 
 ```rust
-let sign = if self.0.header() == rhs.0.header() {
+let sign = if self.sign() == rhs.sign() {
     Sign::Positive
 } else {
     Sign::Negative
 };
 ```
 
-— which `src/vm/bigint/div.rs:18-22` repeats character-for-character
-(modulo `.sign()` vs `.0.header()`): the quotient's sign is the same
-product, so `impl Mul for Sign` has a third consumer already.
+— which `src/vm/bigint/div.rs:18-22` repeats byte-for-byte: the quotient's
+sign is the same product, so `impl Mul for Sign` has a second consumer
+already.
 
 and the sign **dispatch** for ordering in `src/vm/bigint/cmp.rs:17-22`:
 
@@ -47,11 +47,15 @@ Add the full small algebra next to the enum rather than just `flip`:
   `i8`). `mul.rs`'s four lines become `let sign = lhs_sign * rhs_sign;`.
 - An ordering helper on `Sign`, e.g.
   `fn cmp_with(self, rhs: Sign, abs: impl FnOnce(bool) -> Ordering) -> Ordering`
-  or simply `impl Ord for Sign` (`Negative < Positive`) so `cmp.rs` handles
+  or an `impl Ord for Sign` (`Negative < Positive`) so `cmp.rs` handles
   only the equal-sign arms and delegates the mixed-sign case to
-  `lhs_sign.cmp(&rhs_sign)`. Pick whichever leaves `cmp.rs` smallest —
-  deriving `Ord` on the enum plus a two-arm equal-sign match is likely the
-  cleanest.
+  `lhs_sign.cmp(&rhs_sign)`. **Not a bare `derive(Ord)` as declared**:
+  Rust's derive orders enum variants by declaration, not by their
+  `repr(i8)` discriminants, and `src/sign.rs:3-6` declares `Positive`
+  before `Negative` — the derive would give `Positive < Negative` and
+  invert every mixed-sign comparison. Either write the `Ord` impl
+  explicitly, or reorder the variants (`Negative` first) and derive, after
+  checking nothing depends on the declaration order.
 
 This keeps the sign axis in one place (`sign.rs`) and each operator file
 scoped to magnitude work.

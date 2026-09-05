@@ -20,6 +20,15 @@ they scan finite arrays, flush through an empty-string grammar step, or
 consume the JS tokenizer's own `eof` token — none injects a `null`
 sentinel, so none is a consumer of this combinator.)
 
+`fjs/media/json/tokenizer/module.f.mjs:82` **is** a third instance:
+
+```js
+flat(stateScan(scanToken)({ kind: 'def' })(concat(jsTokens)([null])))
+```
+
+— a seeded scan over an injected `null` sentinel, differing from the other
+two only in spelling the append as `concat(...)([null])`.
+
 ### Proposal
 
 Extract the seedful combinator one level down, next to `stateScan` in
@@ -53,6 +62,7 @@ refactor.
       over it, signature unchanged.
 - [ ] Express `js/tokenizer`'s `tokenize` through it (after or together
       with 666's step 1).
+- [ ] Express `media/json/tokenizer`'s `tokenize` (`:82`) through it.
 - [ ] `tsc`, `fjs t`.
 
 ### Related

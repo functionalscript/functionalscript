@@ -49,7 +49,7 @@ repeat-fold hook the transformer path threads) **and over the
 input-exhaustion policy**, with `parserRuleSet` and `build(...).match` as
 its two instantiations. The exhaustion policy is a deliberate divergence,
 not shared machine: when input ends mid-rule, `parserRuleSet` completes a
-partial AST with a `null` remainder (`module.f.mjs:249-252`, pinned by
+partial AST with a `null` remainder (`ll1/module.f.mjs:249-252`, pinned by
 its proofs) while the transformer path unwinds to `['no-match', null]`
 (`:586`), as [207 §6](./207-bnf-semantic-actions.md) requires — so it must
 be a parameter of the skeleton, never a casualty of it. If the parameterization costs

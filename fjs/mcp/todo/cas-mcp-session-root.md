@@ -39,8 +39,8 @@ codify it. The transport needs both keys, which is exactly what
 
 ```js
 export const _casMcpSession = home => transport => {
-    const cacheKey = history(initEvo(fileCas(sha256)(home)))
-    const keys = historyStep(cacheKey, () => create(uninitializedState))
+    const cacheKeyEffect = history(initEvo(fileCas(sha256)(home)))
+    const keys = historyStep(cacheKeyEffect, () => create(uninitializedState))
     return step(keys, ([sessionKey, cacheKey]) =>
         transport(mcpStep(casConfig)(casMcpHandlers(home)(cacheKey))(sessionKey)))
 }

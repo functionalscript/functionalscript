@@ -24,12 +24,14 @@ const chunkToIndex = chunk => {
 ```
 
 The bodies are character-for-character the same modulo `(bo, 8n)` vs
-`(msb, bits)`, and the rule they encode is non-obvious enough that it is
-explained in prose at both sites (and again in
+`(msb, bits)`, and the rule they encode is non-obvious enough that `basen`
+explains it in prose (`fjs/basen/module.f.mjs:52-55`, echoed in
 `fjs/basen/base64/proof.f.mjs`): a trailing partial chunk is left-padded
 because `unpackSplit`'s shift amount goes negative, which per spec becomes a
-left shift. An invariant that subtle should live once, in `bit_vec` next to
-`unpackSplit` — not be re-derived inside a codec.
+left shift. `vecToU8` encodes the same rule with no comment at all — so the
+invariant is either re-explained or silent, depending on which copy a
+reader finds. It should live once, in `bit_vec` next to `unpackSplit` —
+not be re-derived inside a codec.
 
 There is also a mechanical cost: both consumers go through
 `chunkList = mappedChunkList(unpack)(pack)` and then immediately `unpack`

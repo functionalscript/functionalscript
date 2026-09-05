@@ -22,8 +22,10 @@ return state.count === 3 ? [[acc], { kind: 'normal' }] : [null, { kind: 'unicode
 ```
 
 Two different spellings of one arithmetic, two different state field names,
-and the escape's width stated in five places across two modules: the
-literal `3` four times in the two accumulators, plus `repeat(4)` in the
+and the escape's width stated in four places across two modules: the
+literal `3` three times in the two accumulators
+(`fjs/js/tokenizer/module.f.mjs:537`, `:538`,
+`fjs/djs/tokenizer/module.f.mjs:406`), plus `repeat(4)` in the
 DJS tokenizer's escape *grammar* (`fjs/djs/tokenizer/module.f.mjs:173`,
 the `u: ['u', ...repeat(4)({...})]` production). A drift here is a
 tokenizer disagreement about what a string literal means — exactly what
