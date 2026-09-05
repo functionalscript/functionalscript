@@ -22,9 +22,12 @@ return state.count === 3 ? [[acc], { kind: 'normal' }] : [null, { kind: 'unicode
 ```
 
 Two different spellings of one arithmetic, two different state field names,
-and the escape's width (the literal `3`) stated four times across two
-modules. A drift here is a tokenizer disagreement about what a string
-literal means — exactly what `string_escape`'s header exists to prevent.
+and the escape's width stated in five places across two modules: the
+literal `3` four times in the two accumulators, plus `repeat(4)` in the
+DJS tokenizer's escape *grammar* (`fjs/djs/tokenizer/module.f.mjs:173`,
+the `u: ['u', ...repeat(4)({...})]` production). A drift here is a
+tokenizer disagreement about what a string literal means — exactly what
+`string_escape`'s header exists to prevent.
 
 ### Proposal
 
@@ -39,14 +42,20 @@ export const pushHexDigit = acc => hexDigitValue => (acc << 4) | hexDigitValue
 
 (or a `{ acc, count } → next-state | code point` step, if both callers can
 share the completion test too). Both tokenizers then express their
-`unicode`/`unicodeChar` states through it, and only `string_escape` knows
-the escape is four digits wide. The JS tokenizer's index-based placement
-becomes the shift-and-or form — behavior-identical for left-to-right input.
+`unicode`/`unicodeChar` states through it, **and the DJS escape grammar's
+`repeat(4)` derives from `unicodeEscapeDigits` too** — porting only the
+two accumulator states would leave that third width declaration free to
+disagree with the shared accumulator. Only then does `string_escape` alone
+know the escape is four digits wide. The JS tokenizer's index-based
+placement becomes the shift-and-or form — behavior-identical for
+left-to-right input.
 
 ### Tasks
 
 - [ ] Add the accumulator to `fjs/js/string_escape`; port both tokenizer
       states.
+- [ ] Derive the DJS grammar's `repeat(4)` (`djs/tokenizer:173`) from
+      `unicodeEscapeDigits`.
 - [ ] `tsc`, `fjs t`; both tokenizers' escape proofs pin the semantics.
 
 ### Related

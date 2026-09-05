@@ -21,25 +21,32 @@ an end-of-input step.
 
 ### Proposal
 
-Generalize the seed instead of hardcoding it:
+Extract the seedful combinator one level down, next to `stateScan` in
+`types/list` — roughly
 
 ```js
-export const decoder = init => (unitOp, eofOp) => { ... stateScan(op)(init) ... }
+export const scanToEof = init => (unitOp, eofOp) => { ... stateScan(op)(init) ... }
 ```
 
-with `utf8`/`utf16` calling `decoder(null)(...)` and the JS tokenizer
-becoming a one-line application once
+— and express `decoder` through it as `scanToEof(null)`, **keeping
+`decoder`'s public signature unchanged**: `decoder(byteOp, eofOp)` is an
+exported API with external reach, and its in-repository consumers
+(`utf8`/`utf16`) updating cleanly would hide a signature break from every
+test. The JS tokenizer's `tokenize` becomes a one-line `scanToEof`
+application once
 [../../../js/todo/666-js-tokenizer-position-layer.md](../../../js/todo/666-js-tokenizer-position-layer.md)'s
 step (1) re-extracts the `input == null ? eof : char` dispatch as a named
-op. Whether the combinator then still belongs in `code_point` — or one
-level down, next to `stateScan` in `types/list`, with `code_point` as its
-first consumer — is an open question for the implementation; the DJS
-tokenizer's four call sites suggest the lower home.
+op; the DJS tokenizer's four call sites are further consumers of the lower
+home. If the implementation instead decides the curried
+`decoder(init)(unitOp, eofOp)` is the better API, that is a **breaking
+change** to a public export and must be declared as such (`Changelog:`
+with `**BREAKING CHANGES:**`), not slipped through as an internal
+refactor.
 
 ### Tasks
 
-- [ ] Generalize `decoder`'s seed (or extract the seedful form beside
-      `stateScan`); port `utf8`/`utf16`.
+- [ ] Add the seedful combinator beside `stateScan`; re-express `decoder`
+      over it, signature unchanged.
 - [ ] Express `js/tokenizer`'s `tokenize` through it (after or together
       with 666's step 1); consider the `djs/tokenizer` call sites.
 - [ ] `tsc`, `fjs t`.
