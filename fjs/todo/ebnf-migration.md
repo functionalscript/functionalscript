@@ -226,7 +226,7 @@ only because of shared machinery and do not.
 | `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem` | retire | the front-end lowering in `ebnf/` needs no recognition, and a hand-written or deserialized EBNF set spells the primitive; an opt-in normalizer of the right-recursive shape may be added to `ebnf/data/` by whoever wants one, but nothing plans it, and it may replace a rule only by one that sits where the original sat — `repeat(0, 0)(R)` for `[]` does not, and loses the order `Ast` is monotone in ([rule-restrictions](../ebnf/map/todo/rule-restrictions.md)) |
 | `data/` — `GrammarData`, `RuleNameMap` | rewrite | the classical ones retire; the EBNF lowering returns its own map from EBNF rule identity to generated name beside the rule set and entry — the bridge the transformer protocol keys on through `Entry.rule`, and the "rule identity must survive" requirement in [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — in whatever shape the `data/` rewrite chooses |
 | `matcher/` | retire | **Amended.** It was to be moved with the `Rule` identity of its transformer protocol retargeted to the EBNF `Rule`. [`ebnf/ll1/`](../ebnf/ll1/README.md) shipped without it: the cursor is the backend's own, the AST is `Ast<R>` from `ebnf/ast/` and needs no constructors, and the transformer protocol is `ebnf/map/`'s `rewrite`. What is left of it is shared by no one until a second backend exists, and that backend is where a `matcher/` would be extracted from `ll1/` — an option, not a task. `bnf` keeps its own copy in any case |
-| `ll1/` | rewrite | [`ebnf/ll1/`](../ebnf/ll1/README.md), shipped: a `RuleSet`-only entry (`parserRuleSet`) and a front-end one (`parser`), `firstMap` refusing left recursion and a first/first conflict by name, one flat node per repetition whatever its bounds, and the AST mapping by building `Ast<R>` values that `rewrite` takes as they are. Not shipped: layer composition, which is stage 6's, and per-layer metadata per [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md), which is [metadata](../ebnf/ll1/todo/metadata.md), owed to the first consumer that needs positions |
+| `ll1/` | rewrite | [`ebnf/ll1/`](../ebnf/ll1/README.md), shipped: a `RuleSet`-only entry (`parserRuleSet`) and a front-end one (`parser`), `firstMap` refusing left recursion and a first/first conflict by name, one flat node per repetition whatever its bounds, and the AST mapping by building `Ast<R>` values that `rewrite` takes as they are. Not shipped: layer composition, which is stage 6's, and per-layer metadata per [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md), which is [meta-ast-mapping](../ebnf/todo/meta-ast-mapping.md), designed and not yet built |
 | `descent/` | retire | consumers port to `ll1/` (below) |
 | `token_symbol/` | move | the layer boundary; imports `unicode/`, so it lands after it |
 | `map/types.ts` | rewrite | [`ebnf/map/`](../ebnf/map/README.md), shipped: a mapping is keyed by the rule the author holds, as the types see it, and typed against `Ast<R>` rather than `Meta`, and `rewrite` is the bottom-up rewrite of the typed AST — the AST mapping stage 4's backend consumes or reproduces |
@@ -266,7 +266,7 @@ there. Nothing here orders the two plans either way. In dependency order:
    `deterministic()` delegates to `lib/json`. The originals stay in `bnf/`.
 2. `fjs/djs/tokenizer` — depends on `terminal/`, `unicode/`, `data/`,
    `ast/` and `map/` (the tree and its mapping), `ll1/`, and on
-   [metadata](../ebnf/ll1/todo/metadata.md) for the positions it reports.
+   [meta-ast-mapping](../ebnf/todo/meta-ast-mapping.md) for the positions it reports.
 3. `fjs/djs/parser` — the above plus `token_symbol/`.
 
 **Neither djs grammar is LL(1) as spelled.** Checked by running both through
@@ -372,8 +372,8 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    its own fold over the same map, building no tree — it builds the values,
    and the map's proof trees are now what the parser produces. Metadata per
    the moved issues did not ship with it and is
-   [metadata](../ebnf/ll1/todo/metadata.md), decided when the djs port
-   needs positions.
+   [meta-ast-mapping](../ebnf/todo/meta-ast-mapping.md), designed there
+   as a metadata channel the parser folds a rewrite set through.
 5. **`ebnf/lib/` and the comparison proofs.** Port `json` and `datajs` in one
    PR — the *port*, meaning the change that stops `bnf/lib/datajs` importing
    `bnf/lib/json`. An ebnf spelling written beside the untouched classical
