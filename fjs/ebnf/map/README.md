@@ -118,9 +118,10 @@ so is a set whose spelling holds a widened argument — `range(s)` for an
 boundaries are not literals. A repetition's bounds are literals by the
 front end's own rule: `repeat`, `repeatFrom` and `times` refuse a bound
 that is not one, so the one bound spelled `number` is `Infinity`. What
-`_Exact` reads is what the front end spells; an annotation that says less
-than its value — a bound that is a union from a helper — it cannot see, and
-[exact-key-types](./todo/exact-key-types.md) holds the case. A
+`_Exact` reads is what the front end spells; an annotation that says less,
+or other, than its value it cannot see, and neither the types nor the
+rewrite check that a key is a rule —
+[exact-key-types](./todo/exact-key-types.md) holds both. A
 rule that names itself is the case this bites: `value` in
 [`../lib/json`](../lib/json/module.f.mjs) is annotated `Const<Variant>`,
 which says nothing of its parts, so it cannot be a key until it has its
@@ -150,6 +151,16 @@ tree that arrives untyped, the walk refuses at runtime, naming the rule: a
 node of the wrong arity, a variant tag the rule lacks or inherits, a symbol
 outside its set, a string that is not the rule's, a repetition outside its
 bounds, and anything under a rule that is no rule.
+
+The walk also refuses a *rule* the lowering refuses, where it reads one —
+an info that is no tuple or carries a field past its arity, a `const` over
+a thunk, a set or a repetition whose bounds are outside the domain. Where
+it does not read one it does not: a rule no part of the AST exercises, a
+repetition of zero rounds over it or an unselected variant branch, is
+never looked at. What the rewrite should promise about a rule at all is
+open — [rule-restrictions](./todo/rule-restrictions.md) holds the
+question, and until it is answered a rule is validated by `toData` and a
+backend, not here.
 
 ## What it is not
 
