@@ -8,8 +8,9 @@
 Three of the four ECMAScript coercion abstract operations each own a module —
 `number_coercion.rs` (ToNumber), `string_coercion.rs` (ToString),
 `primitive_coercion.rs` (ToPrimitive). The fourth, ToNumeric, is an inline
-method body on `Any` (`src/vm/any/mod.rs:71-82`), sitting between
-`to_string`/`to_number`, which are one-line `dispatch` delegations:
+method body on `Any` (`src/vm/any/mod.rs:162-173`), sitting right after
+`to_string`/`to_number`/`to_boolean`, which are one-line `dispatch`
+delegations:
 
 ```rust
 pub fn to_numeric(self) -> Result<Numeric<A>, Any<A>> {
