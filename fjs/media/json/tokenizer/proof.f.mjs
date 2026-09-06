@@ -229,6 +229,18 @@ export const proof = {
         twoInvalidEscapes: () => assertEq(render('"\\x\\y"'), 'E(invalid string) eof'),
         // a genuine string after the error still arrives
         laterStringSurvives: () => assertEq(render('"\\x" "ok"'), 'E(invalid string) string("ok") eof'),
+        // ...and **adjacently**, with no whitespace between the two literals.
+        // Review found that the spaced form alone cannot pin this: under 3a's
+        // wrapper the intervening whitespace token cleared the suppression flag
+        // on its own, so the case passed even when the reset was wrong. The
+        // scanner has no flag to reset — recovery consumes the closing quote
+        // and reaches `failed`, and the next `"` opens a fresh scan — but the
+        // claim is the same one and the adjacent form is what tests it.
+        adjacentStringSurvives: () => assertEq(
+            render('"\\x""ok"'), 'E(invalid string) string("ok") eof'),
+        // the same through the hex state, which reaches recovery by delegation
+        adjacentStringSurvivesAfterHexError: () => assertEq(
+            render('"\\u""ok"'), 'E(invalid string) string("ok") eof'),
         // the fabricated token also reached the wrapper's `'-'` state; there is
         // no such state now, and `-` is a number that never started
         afterMinus: () => assertEq(render('-"\\x"'), 'E(invalid number) E(invalid string) eof'),
