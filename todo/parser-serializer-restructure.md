@@ -17,7 +17,7 @@ Read in this order; each line says what to do and why it comes when it does.
    own scanner — so
    [`fjs/media/json/todo/self-contained-tokenizer.md`](../fjs/media/json/todo/self-contained-tokenizer.md)
    is now read for its **Deviations** section rather than for its task list:
-   four places where the implementation does not match the design, two of which
+   five places where the implementation does not match the design, two of which
    change the seam stage 4 imports. Read it before stage 4, not before stage 1b.
    The scanners `fjs/media/datajs` will reuse — `scanString`, `scanNumber`,
    their initial states and their public state unions — are exported from

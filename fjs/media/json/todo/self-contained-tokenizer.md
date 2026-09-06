@@ -1095,7 +1095,7 @@ regression.
 
 ### Deviations, and what stage 4 should build against
 
-Four places where the implementation does not match this document. Each is
+Five places where the implementation does not match this document. Each is
 recorded here rather than in the pull request alone, because stage 4 reads this
 file and two of them change the seam it will import.
 
@@ -1128,7 +1128,20 @@ file and two of them change the seam it will import.
    restructure away rather than leave uncovered. The array is bounded at four,
    so deviation 2's argument does not apply here.
 
-4. **A string reaching `done` emits without a re-dispatch arm.** `done` is only
+4. **The two sweep tables are indices into a shared dictionary, and their
+   inputs are generated rather than listed.** "Commit two tables" collides with
+   a repository limit the design did not know about: `readUtf8File` rejects any
+   file over **128 KiB**
+   ([`fjs/effects/node/module.mjs`](../../../effects/node/module.mjs)), and the
+   website build runs over every module, so an oversized one fails CI — which
+   is how this was found, by the Cloudflare deployment going red. Written out
+   as `[input, tokens]` pairs the tables come to 691 KiB. Deduplicating the 697
+   distinct token streams and deriving the inputs from the prefix and suffix
+   lists brings the file to 79 KiB, and `inputs` is still exported so a
+   consumer sees literal text. Both tables are still complete and the invariant
+   check still runs over the pair; what changed is only how they are spelled.
+
+5. **A string reaching `done` emits without a re-dispatch arm.** `done` is only
    ever entered by *consuming* the closing quote, so the `stopped` branch beside
    it was unreachable — the same §1.2 rule. `failed` keeps both arms, because a
    raw LF, a raw CR and end of input all reach it without consuming.

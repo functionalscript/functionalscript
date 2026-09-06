@@ -44,7 +44,6 @@ import {
     colon,
     comma,
     cr,
-    digit0,
     digitRange,
     dollarSign,
     fullStop,

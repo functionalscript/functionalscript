@@ -3,7 +3,7 @@
  */
 
 import { scanNumber, scanString, numberStart, stringStart, tokenize } from './module.f.mjs'
-import { expected, recorded } from './sweep.f.mjs'
+import { expected, inputs, recorded, streams } from './sweep.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../../../djs/serializer/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
@@ -518,7 +518,8 @@ export const proof = {
     // against the pair — which is the whole point of having recorded it.
     sweep: {
         matchesTheCommittedTable: () => {
-            for (const [input, tokens] of expected) { assertEq(render(input), tokens) }
+            assertEq(expected.length, inputs.length)
+            for (const [i, input] of inputs.entries()) { assertEq(render(input), streams[expected[i]]) }
         },
         // Invariant 1 and 2 together: no row may move between erroring and not
         // erroring, in either direction — **except** where the old tokenizer
@@ -529,15 +530,16 @@ export const proof = {
         // includes `1n1n1` and `-1n1` but excludes `1n0`, and every attempt to
         // write that shape down has been wrong.
         crossesTheErroringBoundaryOnlyForTheNClass: () => {
-            assertEq(recorded.length, expected.length)
-            const errs = /** @type {(s: string) => boolean} */(s => s.includes('E('))
-            for (const [i, [input, old]] of recorded.entries()) {
-                const [, now] = expected[i]
-                assertEq(input, expected[i][0])
-                if (errs(old) === errs(now)) { continue }
-                // it crossed, so the old output must be a bare number whose
-                // value is the input with its `n`s deleted
-                assertEq(old, `number(${JSON.stringify(input.replaceAll('n', ''))}) eof`)
+            assertEq(recorded.length, inputs.length)
+            const errs = /** @type {(s: string) => boolean} */(t => t.includes('E('))
+            for (const [i, input] of inputs.entries()) {
+                const before = streams[recorded[i]]
+                const now = streams[expected[i]]
+                if (errs(before) === errs(now)) { continue }
+                // It crossed, so the old output must be a bare number whose
+                // value is the input with its `n`s deleted. Two rows reach
+                // here, `12n1` and `0n1`.
+                assertEq(before, `number(${JSON.stringify(input.replaceAll('n', ''))}) eof`)
                 assert(errs(now))
             }
         },
