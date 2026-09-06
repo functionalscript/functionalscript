@@ -15,8 +15,8 @@
  * @import { IoChannel, Mkdir, WriteFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Expression, _Binding, _Reference } from '../../media/nix/types.ts'
- * @import { NixArchive, NixJob, NixPin, NixRust } from './types.ts'
- * @import { _PerSystem } from './private.ts'
+ * @import { NixArchive, NixJob, NixPerSystem, NixPin, NixRust } from './types.ts'
+ * @import { _ShellValues } from './private.ts'
  */
 
 import { pureOk } from '../../effects/module.f.mjs'
@@ -64,13 +64,18 @@ const rustOverlayUrl = inputUrl(rustOverlay)
  * generated job checks its Rust version from inside the shell the way it checks
  * an unversioned attribute — there is nothing left for the check to establish.
  *
- * @type {(rust: NixRust) => Expression}
+ * The targets arrive separately rather than from the declaration, because they
+ * are the half that varies with the system: a platform whose `perSystem` adds
+ * one — 32-bit Linux is the case that exists — carries a longer list than the
+ * job declares, so a flake writing four shells hands each its own.
+ *
+ * @type {(rust: NixRust, targets: Expression) => Expression}
  */
-const toolchain = ({ version, extensions, targets }) => ['apply',
+const toolchain = ({ version, extensions }, targets) => ['apply',
     ['ref', 'pkgs', 'rust-bin', 'stable', version, 'minimal', 'override'],
     ['set',
         ['=', ['extensions'], ['list', ...extensions]],
-        ['=', ['targets'], ['list', ...targets]],
+        ['=', ['targets'], targets],
     ]
 ]
 
@@ -133,59 +138,205 @@ const pinned = ({ package: name, version }, source, hash) => ['apply',
 const shellName = /** @type {const} */ ('shell')
 
 /**
- * One development shell: the `let` that builds it and the `mkShell` that is it.
+ * What one system adds to the shell every system of a job gets.
  *
- * What varies with the system is not only its name — a pinned package names a
- * different archive, with a hash of its own — so all three arrive together
- * rather than being derived from each other here.
+ * Nothing declared is the empty record rather than `undefined`, and the two
+ * ways of declaring nothing collapse into it: a job with no `perSystem` at all,
+ * and one whose `perSystem` says nothing about this system, describe the same
+ * shell. Everything downstream then asks about one field instead of about a
+ * record and a field.
  *
- * @type {(job: NixJob, perSystem: _PerSystem) => Expression}
+ * @type {(job: NixJob, system: string) => NixPerSystem}
  */
-const shell = ({ packages, shellHook, rust, pin }, { system, url: source, hash }) => ['let',
-    [
-        ['=', ['pkgs'], ['apply',
-            ['ref', 'import'],
-            ['ref', 'nixpkgs'],
-            ['set',
-                ['=', ['system'], system],
-                ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
-                    ['=', ['overlays'], ['list', ['ref', 'rust-overlay', 'overlays', 'default']]],
-                ])),
-            ]
-        ]],
+const additions = ({ perSystem }, system) =>
+    perSystem === undefined ? {} : perSystem[system] ?? {}
+
+/**
+ * The Rust targets one system's toolchain carries: the job's, then the
+ * platform's own.
+ *
+ * Added rather than substituted — a target the job declares is one every system
+ * builds, and one a system declares is a capability only that platform has.
+ * Nothing here is deduplicated: a system repeating a target the job already
+ * names would put it in the list twice, which `rust-overlay` would resolve
+ * twice, so the declaration says it once.
+ *
+ * @type {(job: NixJob, system: string) => readonly string[]}
+ */
+const targetsOf = (job, system) => {
+    const { targets } = additions(job, system)
+    return [
+        ...(job.rust === undefined ? [] : job.rust.targets),
+        ...(targets === undefined ? [] : targets),
+    ]
+}
+
+/**
+ * The shell initialization one system declares, as the indented string the
+ * flake writes, or nothing.
+ *
+ * @type {(job: NixJob, system: string) => Expression | undefined}
+ */
+const hookOf = (job, system) => {
+    const { shellHook } = additions(job, system)
+    return shellHook === undefined
+        ? undefined
+        : ['indented-string', ...shellHook]
+}
+
+/**
+ * Whether any of a job's systems declares a hook.
+ *
+ * It is a question about the *flake* rather than about a system: the shared
+ * function takes a `shellHook` when some system had something to say, and a job
+ * whose shell needs no initialization anywhere generates the shell it always
+ * did — no argument, and no `shellHook` binding in the `mkShell`.
+ *
+ * The targets are not asked the same question. A flake with a toolchain hands
+ * every system its own list whether or not they differ, because that is what a
+ * shell serving several platforms is: each entry states what its toolchain
+ * carries, and a list written once inside the function would state it for
+ * platforms it was not read from.
+ *
+ * @type {(job: NixJob) => boolean}
+ */
+const declaresHook = job =>
+    job.systems.some(system => hookOf(job, system) !== undefined)
+
+/**
+ * The package set one system's shell is built from, with the overlay a
+ * toolchain needs.
+ *
+ * It is bound at the `devShells.<system>.default` that reads it rather than
+ * inside the shared shell, and that placement is what makes a per-system
+ * difference expressible at all: a `shellHook` naming a package — 32-bit
+ * Linux's linker is the one that exists — interpolates `pkgs`, so it has to be
+ * written where a `pkgs` for *that* system already has a name. Written inside
+ * the shared function instead, the hook would reach every system, and
+ * `pkgsi686Linux` throws on any host that is not x86 Linux.
+ *
+ * @type {(system: string, rust: NixRust | undefined) => Expression}
+ */
+const packageSet = (system, rust) => ['apply',
+    ['ref', 'import'],
+    ['ref', 'nixpkgs'],
+    ['set',
+        ['=', ['system'], system],
         ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
-            ['=', ['rust'], toolchain(rust)],
+            ['=', ['overlays'], ['list', ['ref', 'rust-overlay', 'overlays', 'default']]],
         ])),
-        ...(pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
-            ['=', [pinName], pinned(pin, source, hash)],
-        ])),
-    ],
-    ['apply',
-        ['ref', 'pkgs', 'mkShell'],
-        ['set',
-            ['=', ['packages'], ['list',
-                ...(rust === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', 'rust']])),
-                ...(pin === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', pinName]])),
-                ...packages.map(p => /** @type {const} */ (['ref', 'pkgs', p])),
-            ]],
-            ...(shellHook === undefined
-                ? []
-                : [/** @type {const} */ (['=', ['shellHook'], ['indented-string', ...shellHook]])])
-        ]
     ]
 ]
 
 /**
- * The values one system passes to the shared function: its name, and the
- * archive a pinned package takes on it.
+ * `let bindings in body`, or the body alone when there is nothing to bind.
+ *
+ * A shell binds a name for a toolchain and one for a pinned package, and a job
+ * declaring neither has an empty `let` — which Nix has no syntax for.
+ *
+ * @type {(bindings: readonly _Binding[], body: Expression) => Expression}
+ */
+const letIn = (bindings, body) =>
+    bindings.length === 0 ? body : ['let', bindings, body]
+
+/**
+ * What a shell binds besides its package set: the toolchain, and the pinned
+ * package.
+ *
+ * They are returned rather than wrapped in a `let` of their own, because where
+ * they end up is the caller's question. A single-system flake binds `pkgs`
+ * beside them, in one `let`; a shared function takes `pkgs` as an argument and
+ * binds only these.
+ *
+ * @type {(job: NixJob, values: _ShellValues) => readonly _Binding[]}
+ */
+const shellBindings = ({ rust, pin }, { targets, url: source, hash }) => [
+    ...(rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+        ['=', ['rust'], toolchain(rust, targets)],
+    ])),
+    ...(pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+        ['=', [pinName], pinned(pin, source, hash)],
+    ])),
+]
+
+/**
+ * The `mkShell` a development shell is: everything on `PATH`, and the
+ * initialization the system it is for declares.
+ *
+ * It reads `pkgs` from the scope it is written into rather than binding it —
+ * see {@link packageSet}.
+ *
+ * @type {(job: NixJob, hook: Expression | undefined) => Expression}
+ */
+const mkShell = ({ packages, rust, pin }, hook) => ['apply',
+    ['ref', 'pkgs', 'mkShell'],
+    ['set',
+        ['=', ['packages'], ['list',
+            ...(rust === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', 'rust']])),
+            ...(pin === undefined ? [] : /** @type {readonly _Reference[]} */ ([['ref', pinName]])),
+            ...packages.map(p => /** @type {const} */ (['ref', 'pkgs', p])),
+        ]],
+        ...(hook === undefined
+            ? []
+            : [/** @type {const} */ (['=', ['shellHook'], hook])])
+    ]
+]
+
+/**
+ * The values one system's shell reads, written out rather than passed: its
+ * targets, the archive a pinned package takes on it, and the hook it declares.
+ *
+ * @type {(job: NixJob, system: string) => _ShellValues}
+ */
+const systemValues = (job, system) => {
+    const { url: source, hash } = archive(job.pin, system)
+    return {
+        targets: ['list', ...targetsOf(job, system)],
+        url: source,
+        hash,
+        hook: hookOf(job, system),
+    }
+}
+
+/**
+ * The same values, as references to the shared function's arguments.
+ *
+ * Everything a shell reads that a system could differ on is an argument, so the
+ * body says *that* it takes a toolchain's targets and the entries below say
+ * which. The one exception is the hook, which is absent rather than empty when
+ * no system declares one.
+ *
+ * @type {(job: NixJob) => _ShellValues}
+ */
+const sharedValues = job => ({
+    targets: ['ref', 'targets'],
+    url: ['ref', 'url'],
+    hash: ['ref', 'hash'],
+    hook: declaresHook(job) ? ['ref', 'shellHook'] : undefined,
+})
+
+/**
+ * The arguments one system passes to the shared function: its package set, and
+ * whatever else some system of this job had to say.
+ *
+ * A system with no hook of its own still passes one, because the function's
+ * argument list is the same for every caller. It passes the empty string, which
+ * is the shell initialization it has.
  *
  * @type {(job: NixJob, system: string) => readonly _Binding[]}
  */
-const perSystemArguments = ({ pin }, system) => {
-    const { url: source, hash } = archive(pin, system)
+const systemArguments = (job, system) => {
+    const { url: source, hash } = archive(job.pin, system)
+    const hook = hookOf(job, system)
     return [
-        ['=', ['system'], system],
-        ...(pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+        ['=', ['pkgs'], ['ref', 'pkgs']],
+        ...(job.rust === undefined ? [] : /** @type {readonly _Binding[]} */ ([
+            ['=', ['targets'], ['list', ...targetsOf(job, system)]],
+        ])),
+        ...(declaresHook(job) ? /** @type {readonly _Binding[]} */ ([
+            ['=', ['shellHook'], hook === undefined ? '' : hook],
+        ]) : []),
+        ...(job.pin === undefined ? [] : /** @type {readonly _Binding[]} */ ([
             ['=', ['url'], source],
             ['=', ['hash'], hash],
         ])),
@@ -206,34 +357,49 @@ const perSystemArguments = ({ pin }, system) => {
  * you can read, not a fold over one this file does not contain. That was
  * `../todo/65z-ci-nix.md`'s reason for refusing `flake-utils`, and it survives.
  *
+ * What each entry says about its system survives with it. The package set is
+ * bound at the entry, and a platform that carries more than the others — a
+ * target, a linker `cargo` has to be pointed at — says so there rather than in
+ * a condition inside the shared body. So the file remains a table you read:
+ * which systems there are, and what each one has.
+ *
  * @type {(job: NixJob) => Expression}
  */
 const devShells = job => {
     const [system, ...rest] = job.systems
     if (rest.length === 0) {
+        const values = systemValues(job, system)
         return ['set',
-            ['=', ['devShells', system, 'default'], shell(job, {
-                system,
-                ...archive(job.pin, system),
-            })],
+            ['=', ['devShells', system, 'default'], ['let',
+                [
+                    ['=', ['pkgs'], packageSet(system, job.rust)],
+                    ...shellBindings(job, values),
+                ],
+                mkShell(job, values.hook),
+            ]],
         ]
     }
+    const values = sharedValues(job)
     return ['let',
         [
             ['=', [shellName], ['lambda',
-                ['open-set-pattern', 'system', ...(job.pin === undefined ? [] : ['url', 'hash'])],
-                shell(job, {
-                    system: ['ref', 'system'],
-                    url: ['ref', 'url'],
-                    hash: ['ref', 'hash'],
-                }),
+                ['open-set-pattern',
+                    'pkgs',
+                    ...(job.rust === undefined ? [] : ['targets']),
+                    ...(declaresHook(job) ? ['shellHook'] : []),
+                    ...(job.pin === undefined ? [] : ['url', 'hash']),
+                ],
+                letIn(shellBindings(job, values), mkShell(job, values.hook)),
             ]],
         ],
         ['set',
             ...job.systems.map(s => /** @type {_Binding} */ ([
                 '=',
                 ['devShells', s, 'default'],
-                ['apply', ['ref', shellName], ['set', ...perSystemArguments(job, s)]],
+                ['let',
+                    [['=', ['pkgs'], packageSet(s, job.rust)]],
+                    ['apply', ['ref', shellName], ['set', ...systemArguments(job, s)]],
+                ],
             ])),
         ],
     ]

@@ -11,10 +11,17 @@ Everything the project builds and tests with lives in the shell
 tooling. It is not a convenience assembled alongside CI: most CI jobs run their
 commands inside this very shell, so it cannot drift from them.
 
-A few jobs need something this shell deliberately cannot provide — an older
-`node` for the commands that resolve their runtime from `PATH`, or a package
-set that is broken everywhere else. Those get a subdirectory with a flake and
-a `run` script of their own.
+Two jobs need something this shell deliberately cannot provide: an older `node`,
+for the commands that resolve their runtime from `PATH`. Those get a
+subdirectory with a flake and a `run` script of their own.
+
+Everything else a job needs is here, including what only one platform can have.
+The shell is not identical on every system — `x86_64-linux` carries a 32-bit
+`rust-std` and the linker for it, from a package set that exists on x86 Linux
+and throws anywhere else — and that is the point rather than an exception: the
+shell a platform's developer enters runs everything that platform's CI does. A
+system that carries more says so at its own `devShells.<system>.default`, so
+what each one has is something you read rather than evaluate.
 
 ## Generated, except this file
 
