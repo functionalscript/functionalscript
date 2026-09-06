@@ -9,8 +9,7 @@ import type { Tree } from '../types.ts'
 import type { OrderedMap } from '../../../types/ordered_map/types.ts'
 import type { List } from '../../../types/list/types.ts'
 import type { Result } from '../../../types/result/types.ts'
-import type { JsonToken } from '../tokenizer/types.ts'
-import type { NumberToken } from '../../../js/tokenizer/types.ts'
+import type { JsonToken, NumberToken } from '../tokenizer/types.ts'
 
 /** JSON tokens that carry a directly-usable value. */
 export type _ValueToken = Extract<JsonToken, { readonly kind: 'null' | 'false' | 'true' | 'string' | 'number' }>

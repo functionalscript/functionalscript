@@ -1,7 +1,7 @@
 ## Restructure JSON, DataJS, and FunctionalScript parsers/serializers
 
 **Priority:** P1 — stages 3 and 4 are urgent; see [Priority](#priority-stages-3-and-4-come-first).
-**Status:** wip — stages 1a, 2 and 3a done.
+**Status:** wip — stages 1a, 2 and 3 done.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
@@ -12,26 +12,18 @@ not here.
 
 Read in this order; each line says what to do and why it comes when it does.
 
-1. **Next: stage 3b, the port.** Stage 3a — the fabricated string token — has
-   landed, so what is left of stage 3 is the JSON self-contained tokenizer
-   itself. Design is written and
-   reviewed:
-   [`fjs/media/json/todo/self-contained-tokenizer.md`](../fjs/media/json/todo/self-contained-tokenizer.md).
-   It has the grammar, the error rule and the two invariants that decide
-   whether a difference is expected, an illustrative table of error shapes that
-   change, the seam DataJS will reuse, the edits owed to two other issues, and
-   the task list. That table is illustrative and known incomplete, and even the
-   generated sweeps are coverage rather than an enumeration — the design is
-   explicit that no finite sweep is exhaustive, so the rules plus the
-   invariants are what an implementation is held to. Implementable without
-   reading anything else here. It lands as **two PRs**: 3a dropped the
-   fabricated string token in the existing wrapper, and 3b is the port, which
-   then carries only what removing the dependency forces — the order
-   [`DESIGN.md`](../doc/DESIGN.md) prescribes when the idea is the premise.
-   *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
-   scanner unchanged and its number core extended, so JSON has to own those
-   scanners before DataJS can borrow them.
-2. **Then: stage 1b, the conformance vectors**
+1. **Next: stage 1b, the conformance vectors.** Stage 3 has landed in full —
+   3a dropped the fabricated string token, 3b replaced the wrapper with JSON's
+   own scanner — so
+   [`fjs/media/json/todo/self-contained-tokenizer.md`](../fjs/media/json/todo/self-contained-tokenizer.md)
+   is now read for its **Deviations** section rather than for its task list:
+   four places where the implementation does not match the design, two of which
+   change the seam stage 4 imports. Read it before stage 4, not before stage 1b.
+   The scanners `fjs/media/datajs` will reuse — `scanString`, `scanNumber`,
+   their initial states and their public state unions — are exported from
+   [`fjs/media/json/tokenizer`](../fjs/media/json/tokenizer/module.f.mjs) and
+   unreleased, so stage 4 may still refine their contract for free.
+2. **The conformance vectors**
    ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)).
    *Why here:* it is stage 4's proof source, so landing stage 4 first means
    writing its proofs twice. The corpus bootstraps in JSON precisely so it can
@@ -52,8 +44,9 @@ Read in this order; each line says what to do and why it comes when it does.
 4. **Then stages 5–7**, in order, as listed below.
 
 **Already done, do not redo:** stage 1a (the DataJS specification), stage 2
-(the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
-token, dropped). All three are on `main`.
+(the dead `fjs/fsc` grammars, deleted), and stage 3 (the fabricated string
+token dropped, then the self-contained tokenizer ported). All three are on
+`main`.
 
 **Three things are decided and should not be reopened without a reason:**
 DataJS is frozen at "JSON extended from a tree to a DAG, plus the leaves JSON

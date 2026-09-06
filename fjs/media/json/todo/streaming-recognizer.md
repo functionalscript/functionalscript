@@ -15,10 +15,10 @@ pipeline unfit as a validity check for a size-independent streaming consumer:
    `top`/`stack`, i.e. O(n) memory in the document size — even when the caller
    only wants a yes/no verdict.
 
-2. **The tokenizer buffers token payloads.** The shared `fjs/js` string and
-   number states accumulate their text with `appendChar`
-   (`ParseStringState.value`, `ParseNumberState.value` —
-   `fjs/js/tokenizer/module.f.mjs:436-474,550-556`). A single huge token — e.g.
+2. **The tokenizer buffers token payloads.** JSON's own string and number
+   states accumulate their text (`StringState.value`, `NumberState.lexeme` —
+   `scanString` and `scanNumber` in
+   [`../tokenizer/module.f.mjs`](../tokenizer/module.f.mjs)). A single huge token — e.g.
    `{"x":"⟨1 MB⟩"}` or one very long number — allocates O(token length) even
    before the parser runs. So a recognizer built by discarding only the parser's
    values still buffers whole tokens.
@@ -150,21 +150,26 @@ next to it. A standalone recognizer that re-derives the grammar is explicitly
 out of scope, even if a test corpus shows it equivalent.
 
 Concretely, reuse the existing grammar rather than writing a fourth JSON
-parser; drop only the accumulation. Where the bullets below say `fjs/js`, read
-`fjs/media/json/tokenizer` once
-[self-contained-tokenizer](./self-contained-tokenizer.md) lands: the string and
-number scanners become JSON's own, which is a better fit for this design, not a
-worse one — "one grammar, two builders" stops meaning one *JavaScript* grammar.
+parser; drop only the accumulation. The scanners the bullets below cite are
+JSON's own as of
+[self-contained-tokenizer](./self-contained-tokenizer.md)'s stage 3b, which is a
+better fit for this design than the `fjs/js` ones they used to name, not a worse
+one: "one grammar, two builders" no longer means one *JavaScript* grammar, and
+the phases the recognizer needs are already a public, fixed-size part of the
+seam rather than something to be factored out first.
 
 - **Payload-free scanning.** Reuse the tokenizer's *transition structure*
-  (range-map dispatch, escape / `\uXXXX` / surrogate handling, number-shape DFA)
-  but replace payload accumulation with recognition: strings and numbers need a
-  small fixed-size sub-state (in-string / in-escape / hex-digit index; number
-  phase int/frac/exp), not a growing `value`. The scanner emits *token
-  boundaries and kinds*, not token text. The cleanest route is to factor the
-  `fjs/js` string/number ops over their "builder" so the recognizer instantiates
-  them with a no-op builder (O(1) per token), the same way the value-free parser
-  drops object/array construction — one grammar, two builders.
+  (escape / `\uXXXX` handling, the number-shape DFA) but replace payload
+  accumulation with recognition: strings and numbers need a small fixed-size
+  sub-state, not a growing `value`. Stage 3b already did half of this — the
+  phases are named and public (`StringState`'s eight kinds, `NumberState`'s
+  nine), and the hex escape carries a bounded four-element `digits` rather than
+  text — so what is left is the value and the lexeme. The scanner emits *token
+  boundaries and kinds*, not token text. The cleanest route is to factor
+  `scanString` and `scanNumber` over their "builder" so the recognizer
+  instantiates them with a no-op builder (O(1) per token), the same way the
+  value-free parser drops object/array construction — one grammar, two
+  builders, and now one *JSON* grammar.
 
 - **Value-free parsing.** Drive `fjs/media/json/parser`'s per-token control machine
   (`foldOp` — `fjs/media/json/parser/module.f.mjs:205-224`) with a no-op value builder,
@@ -177,10 +182,9 @@ worse one — "one grammar, two builders" stops meaning one *JavaScript* grammar
   leaving it off keeps them equivalent.
 
 - **Strictness.** Honor RFC 8259 at scan time. The raw-control-in-string
-  rejection already lives in the shared `fjs/js` tokenizer (`parseStringStateOp`),
-  so the recognizer inherits it for free by reusing that scanner's string op
-  (factored over a no-op builder, per the payload-free point above) rather than
-  re-deriving the check.
+  rejection already lives in `scanString`'s `body` state, so the recognizer
+  inherits it for free by reusing that scanner (factored over a no-op builder,
+  per the payload-free point above) rather than re-deriving the check.
 
 Because the recognizer and the value-building `parse` run on the same state
 machine over the same grammar, they cannot diverge **by construction** — the
@@ -242,5 +246,5 @@ property, scoped to make it actually hold:
 ### Related
 
 - `fjs/media/json/parser/module.f.mjs:205-238` — `foldOp` / `parse`; the control machine to reuse value-free.
-- `fjs/js/tokenizer/module.f.mjs:436-474,550-556` — string/number states that buffer payloads and must gain payload-free variants.
+- [`../tokenizer/module.f.mjs`](../tokenizer/module.f.mjs) — `scanString` and `scanNumber`, JSON's own since stage 3b: their phases are already public and fixed-size, and what must gain payload-free variants is the `value`/`lexeme` each still accumulates.
 - `fjs/media/type/todo/detect-json.md` — first consumer; needs O(depth), payload-free validity to keep `detectStream` size-independent.

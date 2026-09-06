@@ -3,8 +3,11 @@
 **Priority:** P1 — raised, see
 [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)'s
 priority note. EDAG needs a DataJS codec, and this stage is its prerequisite.
-**Status:** wip — 3a has landed, 3b is open. The fabricated token is gone; the
-`fjs/js/tokenizer` dependency is not.
+**Status:** done — 3a and 3b have both landed. The fabricated token is gone and
+so is the `fjs/js/tokenizer` dependency. Kept as the record until stage 4 has
+consumed the seam: the "Deviations" section below is what stage 4 must build
+against, and the two invariants are the bar any future change to
+[`../tokenizer/`](../tokenizer/module.f.mjs) is held to.
 
 ### Problem
 
@@ -533,8 +536,18 @@ the earlier drafts claimed, because these two are true.
 A complete number is accepted today when followed by:
 
 ```text
-space TAB LF CR  ! % & ( ) * , - / : < = > ? [ ] ^ { | } ~   and end of input
+space TAB LF CR  ! % & ( ) * , - / : ; < = > ? [ ] ^ { | } ~   and end of input
 ```
+
+> **`;` was missing from this list, and from the recovery list below.** Both
+> omissions were errors in this document rather than choices, found by
+> measuring the sets out of the old tokenizer during implementation rather than
+> transcribing them. `;` is a JavaScript punctuator like every other character
+> here, so it was in `rangeSetTerminalForNumber` all along: today `12;1` is
+> `number 12`, an error, then `number 1`, and `00;1` is three tokens because
+> `;` ends recovery too. Dropping it would have turned an accepted number into
+> an error, which invariant 2 forbids outright. See "Deviations" for what this
+> costs the seam argument.
 
 That set is `rangeSetTerminalForNumber` plus `-`: JavaScript's operator
 characters, with no JSON principle behind it — none of `!`, `%`, `(` can appear
@@ -627,10 +640,11 @@ Three failure states, which earlier drafts conflated into two:
   recovery, consuming until a boundary and emitting one `invalid number`.
   `00abc`, `01"a"`, `012"a"`, `12+"a"` and `1e."a"` are each one error.
 
-Recovery's boundary set is today's, **reproduced exactly** — `-` is not in it:
+Recovery's boundary set is today's, **reproduced exactly** — `-` is not in it,
+and `;` is (see the correction above):
 
 ```text
-space TAB LF CR  ! % & ( ) * , / : < = > ? [ ] ^ { | } ~  and end of input
+space TAB LF CR  ! % & ( ) * , / : ; < = > ? [ ] ^ { | } ~  and end of input
 ```
 
 A draft of this design added `-`, because it is the one boundary whose absence
@@ -1018,7 +1032,7 @@ without JSON's own machine knowing about it. Either way the port deletes it,
 which is the point rather than a cost: it is what makes 3b carry no idea of its
 own.
 
-#### Stage 3b — the port, carrying only what the removal forces
+#### Stage 3b — the port, carrying only what the removal forces — **landed**
 
 Everything else in this design belongs to the port, because it **is** the
 removal showing through rather than a policy this stage chose:
@@ -1078,6 +1092,51 @@ row — the table lists the cases worth explaining to a reader, while the sweep
 lists all of them. An earlier draft rested the attribution rule on the manual
 table, which would have misclassified a correct implementation as a
 regression.
+
+### Deviations, and what stage 4 should build against
+
+Four places where the implementation does not match this document. Each is
+recorded here rather than in the pull request alone, because stage 4 reads this
+file and two of them change the seam it will import.
+
+1. **`;` is in both terminator sets** (corrected in place above). The seam
+   section argues that `;` "is not in JSON's accepting-terminator set — `12;1`
+   is an `invalid number` today" and concludes that "the seam is useless to
+   stage 4 unless `;` can terminate an accepting number". Measured, `12;1` is
+   `number 12` today: `;` was already there. **The conclusion survives and the
+   motivating example does not.** Stage 4 needs no addition to JSON's set for
+   `const $0=1;` or `export default 1;` — those already work — but the
+   architecture is unchanged and is what the implementation does: `scanNumber`
+   reports where it stopped and in which state, and both sets live in
+   `../tokenizer/module.f.mjs` as the caller's policy. What the correction
+   costs is only the claim that DataJS needed a character JSON lacked.
+
+2. **`lexeme` and `value` are `string`, not `readonly U16[]`.** A JavaScript
+   string *is* a sequence of UTF-16 code units, so nothing about the code
+   unit/code point argument changes — but it is the only accumulator whose
+   append does not copy. Measured at the size the losslessness proofs already
+   use, a 100,002-character lexeme: **15,946ms for the array against 5ms for
+   the string**, so the specified shape would have added about a minute to the
+   suite. Stage 4 loses nothing: it reads `kind` to intercept and `lexeme` to
+   build a value, and `BigInt(lexeme)` wants the string anyway.
+
+3. **`StringState`'s `hex` carries `digits: readonly number[]` — the `0..15`
+   values, not the characters.** Every entry passed `hexDigitValue` before
+   being stored, so folding four of them into a code unit needs no failure
+   case. With the characters it would have needed one, and that branch is
+   unreachable, which [`fjs/AGENTS.md`](../../../AGENTS.md) §1.2 says to
+   restructure away rather than leave uncovered. The array is bounded at four,
+   so deviation 2's argument does not apply here.
+
+4. **A string reaching `done` emits without a re-dispatch arm.** `done` is only
+   ever entered by *consuming* the closing quote, so the `stopped` branch beside
+   it was unreachable — the same §1.2 rule. `failed` keeps both arms, because a
+   raw LF, a raw CR and end of input all reach it without consuming.
+
+One thing this document was right about and worth confirming: after the port,
+`fjs/js/tokenizer`'s `tokenize` has **no runtime callers**. The only importer
+left anywhere is `fjs/djs/tokenizer/module.f.mjs`, taking exactly
+`isKeywordToken` and `mergeTrivia`, so stage 7 is the move it predicted.
 
 ### Edits owed to existing issues
 
@@ -1144,41 +1203,41 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
 
 #### Stage 3b — the port
 
-- [ ] Write the scanner in `fjs/media/json/tokenizer/module.f.mjs`; delete the
+- [x] Write the scanner in `fjs/media/json/tokenizer/module.f.mjs`; delete the
       `fjs/js/tokenizer` import, the `mapToken`/`parseMinusState` wrapper, and
       3a's fabricated-token suppression, which the scanner makes unreachable.
-- [ ] Move `StringToken`, `NumberToken`, `ErrorToken`, `EofToken` into
+- [x] Move `StringToken`, `NumberToken`, `ErrorToken`, `EofToken` into
       `fjs/media/json/tokenizer/types.ts`; drop the `js/tokenizer` imports.
       Give `ErrorToken` JSON's own four-literal `message` union rather than
       widening it to `string` or copying JavaScript's ten.
-- [ ] Repoint `fjs/media/json/parser/types.ts`'s direct `NumberToken` import at
+- [x] Repoint `fjs/media/json/parser/types.ts`'s direct `NumberToken` import at
       `../tokenizer/types.ts`, so no file under `fjs/media/json` names
       `js/tokenizer`.
-- [ ] Keep every accepted-input proof unchanged; rewrite only the error-shape
+- [x] Keep every accepted-input proof unchanged; rewrite only the error-shape
       cases, each with the reason it changed.
-- [ ] Add string-recovery proofs for the escape cases, which today's suite does
+- [x] Add string-recovery proofs for the escape cases, which today's suite does
       not cover: `"\x\""` is one `invalid string`, and `"ok\x\"tail" 1` is one
       `invalid string` followed by the number `1` — the second pins the
       resumption point, not just the count. Pin at least one *other* invalid
       escape (`"\v"`) and one raw control character, so the proof holds the
       class rather than three instances of it.
-- [ ] Add word-boundary proofs, which today's suite does not cover: `true0`,
+- [x] Add word-boundary proofs, which today's suite does not cover: `true0`,
       `true_`, `true$`, `nullx`, `tru3` and `_x` are each one `invalid token`;
       `null-1` is `null` then `-1`; `trueÿ` is `true` then
       `unexpected character`.
-- [ ] Keep the losslessness proofs — a valid number reaches `value` as its
+- [x] Keep the losslessness proofs — a valid number reaches `value` as its
       exact lexeme, with no derived numeric value built while scanning.
-- [ ] 100% proof coverage, including `scanString` and `scanNumber` called
+- [x] 100% proof coverage, including `scanString` and `scanNumber` called
       directly from their exported initial states — not only through
       `tokenize`. A seam proved only via its own module's entry point is not
       proved as a seam, and stage 4 is about to be its second caller.
-- [ ] Prove the terminator policy is the caller's: `scanNumber` reports the
+- [x] Prove the terminator policy is the caller's: `scanNumber` reports the
       stop, `fjs/media/json/tokenizer` applies JSON's set, and a proof feeds
       the scanner `1;` with a set containing `;` and gets `number 1` — the
       case stage 4 needs for `const $0=1;`, the terminal export's bare number
       being covered by the end-of-input member the set already carries. JSON's own tokens must not
       move: `12;1` stays `invalid number`, `unexpected character`, `number 1`.
-- [ ] Export `Scan<S>`, `ScanResult<S>`, `StringState` and `NumberState` from
+- [x] Export `Scan<S>`, `ScanResult<S>`, `StringState` and `NumberState` from
       `types.ts`, and `scanString`, `scanNumber`, `stringStart` and
       `numberStart` from the module, **as declared above** — the initial states
       by those names and with those values, since stage 4 imports them — the kinds and fields, not a shape of
@@ -1191,7 +1250,7 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       caller can terminate, re-dispatch or take over; `done` and `failed` are
       terminal; and a number's `lexeme` is its exact source text while a
       string's `value` is decoded.
-- [ ] Prove the state is observable the way stage 4 needs: from the exported
+- [x] Prove the state is observable the way stage 4 needs: from the exported
       state alone, a caller can distinguish "stopped after a well-formed `int`"
       (the bigint interception point) from "stopped after the sign" (the
       `-Infinity` one), from **start**, from **recovery**, and from every other
@@ -1201,13 +1260,13 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       `00n`, `12+n` or `1e.n`; and pin that the initial state is **start** and
       not the sign or integer variant, so an untouched scanner cannot pose as
       an interception site.
-- [ ] Confirm afterwards that no runtime importer of `fjs/js/tokenizer` calls
+- [x] Confirm afterwards that no runtime importer of `fjs/js/tokenizer` calls
       `tokenize`, and that `fjs/djs/tokenizer`'s `isKeywordToken`/`mergeTrivia`
       import is all that is left. The machine is retired in stage 7, not here.
-- [ ] Repoint `streaming-recognizer`'s scanner citations at JSON's own string
+- [x] Repoint `streaming-recognizer`'s scanner citations at JSON's own string
       and number scanners. (666's edit is **already done** — it was rewritten in
       the PR that filed this design, so nothing is owed there.)
-- [ ] Add the `Changelog:` section to the PR description. The implementation
+- [x] Add the `Changelog:` section to the PR description. The implementation
       changes observable behavior of the public `tokenize` — the error tokens it
       emits — so the declaration is
       required, with an additive half for the newly exported `scanString`,
@@ -1222,7 +1281,7 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       token is **3a's** entry, not this one — it is gone before the port
       begins, and claiming it here would credit the port with a change it did
       not make. Valid JSON is unaffected, and the entry should say so.
-- [ ] **Derive the sweep's prefixes from the scanners' own behavior** — rule
+- [x] **Derive the sweep's prefixes from the scanners' own behavior** — rule
       2's absorption table for numbers, `StringState`'s kinds for strings —
       rather than listing the ones that came to mind. This requirement is
       the point: the prefix set has now been too narrow in three review rounds
@@ -1321,7 +1380,7 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       falsified repeatedly and the prefix costs nothing. A prefix set
       derived only from the new scanner cannot reach any of them, which is how
       this was missed.
-- [ ] Commit **two** tables from the sweep, not one: the old tokenizer's output
+- [x] Commit **two** tables from the sweep, not one: the old tokenizer's output
       (recorded once during implementation, for review) and the new scanner's
       expected output. The proof asserts against the *new* table — asserting
       against the old one cannot pass, since the `n` class changes deliberately
@@ -1330,7 +1389,7 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       `fjs/js/tokenizer`: a permanent dependency would contradict this stage's
       own "no runtime importer calls `tokenize`" task and leave stage 7 unable
       to delete the machine without rewriting the proof.
-- [ ] Check the recorded diff against the two invariants, which is the whole
+- [x] Check the recorded diff against the two invariants, which is the whole
       point of recording it: no row where the old output has no error and the
       new one does (or vice versa), and no row where a valid JSON document
       tokenizes differently — **with the one exception**, an `n` the old
@@ -1340,14 +1399,14 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       an `n`, and a bug otherwise. Do not test it by matching input shapes —
       the class includes `1n1n1`, `0n01` and `-1n1` but excludes `1n0`, and
       three attempts in this document to write that shape down were all wrong.
-- [ ] Sweep **mixed boundaries** too, not only single characters: `00"/1` and
+- [x] Sweep **mixed boundaries** too, not only single characters: `00"/1` and
       `12+"]` are both invisible to `prefix` + `c` + `1`, because the damage
       comes from what the re-dispatched character's *own* scanner then
       consumes — in `12+"]` a re-dispatched `+` would hand `"` to a string scan
       that eats the `]`. Generate the table from two-character suffixes as
       well; that is how both absorbed characters were found, one review round
       apart.
-- [ ] Pin the individual cases, since they are what a reader reads: **no input
+- [x] Pin the individual cases, since they are what a reader reads: **no input
       in the `00` + `c` + `1` family changes its token kinds or counts** — that
       is the point of reproducing today's recovery set rather than improving it.
       Messages are a separate matter and do change, so the two groups are pinned
@@ -1356,9 +1415,9 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       keep their kinds and counts with `/`'s message becoming `unexpected
       character`. `message` is part of `JsonToken`, so a committed table that
       claimed the whole family unchanged could not be satisfied.
-- [ ] Prove string recovery ends at an unescaped quote, a raw LF and a raw CR
+- [x] Prove string recovery ends at an unescaped quote, a raw LF and a raw CR
       but not a space — `"a<LF>1` emits the number `1`, `"a 1` is one error.
-- [ ] Pin the **comment** cases, since they are the one place a suffix token is
+- [x] Pin the **comment** cases, since they are the one place a suffix token is
       lost: `/*a*/1` is four `unexpected character` and an `invalid token` for
       the word `a`, then `number 1`; `/*"*/1` is two `unexpected character`
       then one `invalid string`, with the `number 1` gone; and `//"<LF>1`
@@ -1366,7 +1425,7 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       discovered — it is the exception the no-suffix-loss claim carries, and a
       proof that states it is what stops the next reader from "fixing" it by
       teaching JSON's scanner about comments.
-- [ ] `npm run gen`, then `tsc`, `fjs test`, `cargo clippy` and
+- [x] `npm run gen`, then `tsc`, `fjs test`, `cargo clippy` and
       `cargo fmt -- --check`. The check set lists the last two unconditionally —
       only `cargo test` is scoped to having touched Rust — and they are quick
       no-ops for a change that touches none. The `gen` step is not
