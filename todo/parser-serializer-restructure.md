@@ -152,10 +152,12 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
   tokenizer being replaced rather than about its replacement.
 - **DataJS** (the format known in this repository as DJS): a new, minimal,
   spec'd format — JSON extended from a tree to a DAG, nothing else. Its reader
-  is a grammar in `fjs/media/datajs` extending JSON's rather than a hand-written
-  parser layered on JSON's exported scanners; the serializer stays
-  hand-written, since nothing generates one from a grammar. Everything that is
-  not needed for the DAG property moves to FunctionalScript.
+  runs a grammar extending JSON's rather than a hand-written parser layered on
+  JSON's exported scanners. That grammar is already written, at
+  [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) beside JSON's and
+  importing its rules — not under `fjs/media/datajs`, which holds the codec. The
+  serializer stays hand-written, since nothing generates one from a grammar.
+  Everything that is not needed for the DAG property moves to FunctionalScript.
 - **FunctionalScript**: the current `fjs/djs` front end (grammar-based
   tokenizer, BNF parser, AST, transpiler) moves to `fjs/fsc` and continues to
   grow there — comments, imports, identifier keys, and the staged EDAG work.
@@ -543,15 +545,37 @@ throughout.
    3b can fix; error-shape proofs rewritten once, to shapes 3b has still to
    decide.
 4. **`fjs/media/datajs` — urgent, see above; this is what EDAG needs.** Parser
-   and serializer, proofs over the spec vectors. The parser reuses JSON's container machine, and today's seam is
-   **not wide enough for that**: `NumberPolicy` receives number tokens only,
-   `JsonToken` has no identifier/bigint/`=` tokens, and the object states
-   accept string keys only. Generalizing the seam is therefore explicit
-   stage-4 prerequisite work on `fjs/media/json/parser`: extend the token
-   vocabulary the machine can be fed, add the leaf/identifier policy hook
-   (JSON's instantiation: error) and the key-form hook (JSON's: string keys
-   only), and pin JSON's accepted language and behavior unchanged by proofs
-   across the API change. The serializer is the shared walker of
+   and serializer, proofs over the spec vectors.
+
+   **Which reader stage 4 builds is an open question, and it must be settled
+   before its prerequisite work starts.** The reversal above puts DataJS's
+   reader on a grammar, and
+   [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) already exists
+   and already imports JSON's rules. The paragraph below describes the *other*
+   route, written when a hand-written token-driven parser was the plan:
+
+   > The parser reuses JSON's container machine, and today's seam is
+   > **not wide enough for that**: `NumberPolicy` receives number tokens only,
+   > `JsonToken` has no identifier/bigint/`=` tokens, and the object states
+   > accept string keys only. Generalizing the seam is therefore explicit
+   > stage-4 prerequisite work on `fjs/media/json/parser`: extend the token
+   > vocabulary the machine can be fed, add the leaf/identifier policy hook
+   > (JSON's instantiation: error) and the key-form hook (JSON's: string keys
+   > only), and pin JSON's accepted language and behavior unchanged by proofs
+   > across the API change.
+
+   The two are not variants of one design. If the grammar maps straight to
+   values, the container machine is not widened but **retired**, and that
+   quoted work is wasted; if the grammar only produces tokens for it, the
+   widening is still owed exactly as written. Nothing measured so far decides
+   it — `fjs/ebnf/map` can rewrite an AST to values, which makes the first
+   route real, while the second is what today's code is shaped for. Whoever
+   starts stage 4 settles this first and records it here and in
+   [its own issue](../fjs/media/datajs/todo/parser-serializer.md), which
+   currently states the second route as settled.
+
+   The serializer is unaffected either way, since nothing generates one from a
+   grammar. It is the shared walker of
    [157](../fjs/djs/todo/157-json-djs-shared-value-machine.md) §2 with a
    ref-lookup hook and DataJS's own number writer.
 5. **Front-end move** — `fjs/djs/{tokenizer,parser,ast,transpiler}` →

@@ -189,7 +189,23 @@ anything after the `export`. The environment is what makes forward and unknown
 references errors: a reference resolves by lookup, and a failed lookup is a
 parse error rather than a `null` leaf.
 
-**Layer 1 — the value machine**, which is `fjs/media/json/parser` generalized.
+**Layer 1 — the value machine.** *Which* machine is now an open question that
+this section predates, and it has to be settled before any of the widening
+below is started.
+
+The coordinating plan reversed its no-runtime-grammar rule, so DataJS's reader
+may instead be the grammar at
+[`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs), which already
+exists, already imports JSON's rules, and is proof-covered. Mapped straight to
+values through `fjs/ebnf/map`, it **retires** the token-driven container machine
+rather than widening it, and the four rows below become moot. Mapped only to a
+token stream, every row still stands as written.
+
+The two routes are not variants of one design, and picking wrong wastes the
+prerequisite work. See stage 4 in
+[parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md).
+
+What follows is the second route, which is what today's code is shaped for.
 Measured against the code as it stands, four things are too narrow:
 
 | Today | Why it does not fit |
@@ -407,10 +423,14 @@ the spec judges them independently and this module provides all three.
 
 ### Tasks
 
-- [ ] Widen `fjs/media/json/parser`'s seams: leaf policy, multi-token key
-      policy, token vocabulary, and order-preserving member accumulation in
-      place of the sorting `OrderedMap`. One PR, with proofs pinning JSON's
-      accepted language and observable key order unchanged.
+- [ ] **First: settle whether the reader is the grammar or the token machine**
+      (§3, Layer 1). Everything below assumes the token machine, and the
+      grammar route retires rather than widens it.
+- [ ] *Token-machine route only.* Widen `fjs/media/json/parser`'s seams: leaf
+      policy, multi-token key policy, token vocabulary, and order-preserving
+      member accumulation in place of the sorting `OrderedMap`. One PR, with
+      proofs pinning JSON's accepted language and observable key order
+      unchanged.
 - [ ] `fjs/media/datajs/types.ts` and `README.md`.
 - [ ] Tokenizer, reusing JSON's rules through whatever seam stage 3b settles on
       — not the exported scanners the withdrawn design promised.

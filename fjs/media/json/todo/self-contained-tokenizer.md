@@ -1,7 +1,8 @@
 ## self-contained-tokenizer. JSON's reader comes from a grammar, not a wrapper
 
-**Priority:** P2 — lowered from P1. Stage 4 still waits on it, but nothing can
-start until the EBNF backend can carry what a reader needs.
+**Priority:** P2 — lowered from P1. Stage 4 still waits on it, but the reader
+cannot report errors until a mapping can carry metadata, so it cannot hold the
+front of a queue.
 **Status:** blocked
 **Blocked by:** [ebnf-migration](../../../todo/ebnf-migration.md)
 and the metadata channel filed in
@@ -50,19 +51,44 @@ direction rather than a retreat.
 
 ### Why it is blocked rather than open
 
-`fjs/ebnf/` exists but its LL(1) backend cannot yet carry what a reader needs.
-A mapping must receive what the grammar ignored about each input symbol — a
-position, or which identifier a token was — and must be able to return
-information of its own. That channel is being designed now, in
-[#1890](https://github.com/functionalscript/functionalscript/pull/1890)
-(`meta-ast-mapping`), and the module's own migration is
-[ebnf-migration](../../../todo/ebnf-migration.md).
+**Less is missing than an earlier draft of this section claimed**, and the
+difference matters, because it says what to build rather than what to wait for.
+Measured against the tree as it stands:
 
-Without it a JSON grammar can recognize a document but cannot produce a token
-stream carrying values, let alone the error positions
-[`fjs/media/json/parser`](../parser/module.f.mjs) reports. So there is nothing
-to implement here yet, and the design that *can* be written is the grammar
-itself, which is cheap and can wait for the backend it runs on.
+- The **grammar already exists**, exported and proof-covered, at
+  [`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs). It is not work
+  this issue owes.
+- The **LL(1) backend already parses JSON with it.**
+  [`fjs/ebnf/ll1/proof.f.mjs`](../../../ebnf/ll1/proof.f.mjs) builds
+  `parser(json)`, and running it on `[1]` returns a full typed `Ast<typeof
+  json>`.
+- **Values are already mappable.** [`fjs/ebnf/map`](../../../ebnf/map/README.md)
+  rewrites an AST bottom-up, and `ll1`'s own proof does exactly that over the
+  LL(1) backend to turn `[-12,3]` into integers.
+- An LL(1) failure already returns **an offset** — `[1,` yields `['error', 3]`.
+
+So a grammar-driven reader is closer than "nothing to implement". Two gaps are
+real, and they are about the *mapping*, not the grammar:
+
+1. **A mapping receives no metadata.** Per `map`'s own table a function sees
+   only its children already rewritten — never a position, never which symbol
+   it matched — and it cannot return information alongside its value. So a
+   mapping cannot attach source locations or classify a failure. That channel
+   is [#1890](https://github.com/functionalscript/functionalscript/pull/1890)
+   (`meta-ast-mapping`), and the module's own migration is
+   [ebnf-migration](../../../todo/ebnf-migration.md).
+2. **An offset is not an error message.** The backend says *where* a parse
+   failed, not *what* was wrong. Today's tokenizer emits classified messages
+   (`invalid number`, `invalid token`), and the error shapes a grammar-driven
+   reader should emit are an open question either way — see the last item under
+   [What unblocks this](#what-unblocks-this).
+
+**The bar is not position preservation.**
+[`fjs/media/json/parser`](../parser/module.f.mjs) says so in its own source:
+its single error "carries no position or metadata". An earlier draft here
+claimed the replacement had to preserve error positions the parser reports; it
+reports none, and the LL(1) backend already gives more location information
+than the current API exposes.
 
 **Do not start a hand-written scanner in the meantime.** That is what was just
 withdrawn.
@@ -511,29 +537,44 @@ own.
 
 ### What unblocks this
 
-- [ ] **#1890 lands**, so a mapping can receive and return metadata.
-- [ ] The EBNF backend reaches the point where a grammar can emit a token
-      stream carrying values and positions — the `fjs/ebnf/` half of
-      [ebnf-migration](../../../todo/ebnf-migration.md).
-- [ ] Write JSON's grammar in EBNF, cross-checked against the accepted-language
-      probes above, and decide where it lives. A codec that *runs* a grammar is
-      a different arrangement from one that keeps the grammar as a
-      proof-covered example. What is settled is that it is **not** under
-      `fjs/bnf`, which is the module being retired and still holds its JSON
+- [ ] **#1890 lands**, so a mapping can receive and return metadata. This is
+      the one true blocker: without it a mapping sees only its rewritten
+      children, so no reader built on it can locate or classify a failure.
+- [ ] The `fjs/ebnf/` half of
+      [ebnf-migration](../../../todo/ebnf-migration.md) settles, so the codec is
+      not written against names still in motion. **Not** a claim that parsing is
+      missing — `ll1` parses JSON today.
+- [x] ~~Write JSON's grammar in EBNF.~~ **It already exists**, exported and
+      proof-covered, at
+      [`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs), and
+      `fjs/ebnf/ll1` already parses JSON with it. Placement is settled with it:
+      not under `fjs/bnf`, which is the module being retired and holds its JSON
       grammar as an example only
-      ([bnf-grammar-single-owner](../../../bnf/todo/bnf-grammar-single-owner.md));
-      the open part is where under `fjs/ebnf/` or `fjs/media/json` the runtime
-      grammar sits, and whether DataJS extends it by import or by restatement.
-- [ ] Decide what replaces the seam. `fjs/media/datajs` was to reuse JSON's
-      string and number scanners; over a grammar the reuse is of *rules*, and
-      DataJS's own grammar extends rather than wraps. The requirement is
-      unchanged and is stated in
-      [`fjs/media/datajs/todo/parser-serializer.md`](../../datajs/todo/parser-serializer.md):
-      a bigint is `int 'n'` reusing JSON's integer part, and `NaN`/`Infinity`
-      are words rather than number syntax.
-- [ ] Re-derive the error-shape decisions. The measured tables above say what
-      today's tokenizer does; what a grammar-driven reader *should* do with
-      malformed input is an open question, and the answer will not be the
+      ([bnf-grammar-single-owner](../../../bnf/todo/bnf-grammar-single-owner.md)).
+      **Do not write a second one.**
+- [ ] Cross-check that grammar against the accepted-language probes above. It
+      was written to RFC 8259 rather than against this tokenizer, so agreement
+      is expected but unmeasured, and the `1n1` class is exactly where today's
+      wrapper is known to differ from JSON.
+- [ ] Write the mapping from its AST to JSON values, which is `fjs/ebnf/map`'s
+      `rewrite` — the shape `ll1`'s proof already demonstrates on a smaller
+      grammar. This is the reader's substance and the part that does not exist
+      yet.
+- [x] ~~Decide what replaces the seam.~~ **Answered in code, and it is what the
+      reversal predicted.**
+      [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) already
+      imports JSON's exported rules — `string`, `uint`, `optionNeg`,
+      `optionFloatSuffix`, `digit`, `ws` — so the reuse is of *rules*, by
+      ordinary import, and DataJS's grammar extends rather than wraps. The
+      requirement in
+      [`fjs/media/datajs/todo/parser-serializer.md`](../../datajs/todo/parser-serializer.md)
+      is met by it: a bigint is `uint` plus `'n'`, and `Infinity` is a word in
+      the number variant rather than number syntax.
+- [ ] Re-derive the error-shape decisions — the last genuinely open design
+      question. The measured tables above say what today's tokenizer does; an
+      LL(1) failure is instead a bare offset, and today's tokenizer emits
+      classified messages. What a grammar-driven reader *should* do with
+      malformed input is settled by neither, and the answer will not be the
       hand-written recovery rules, which existed to reproduce a JavaScript
       lexer's accidents.
 
@@ -555,7 +596,16 @@ own.
   written when a codec grammar was an example rather than a runtime dependency;
   edited for this direction. Its `fjs/media/json/grammar` ban survives on the
   narrower ground that `fjs/bnf` is the module being retired.
-- [streaming-recognizer](./streaming-recognizer.md),
-  [number-edge-cases](./number-edge-cases.md),
+- [streaming-recognizer](./streaming-recognizer.md) — built on the `Scan<S>`
+  seam this issue no longer promises, so it is now **blocked on this one** and
+  its tasks are marked not to be started. Its requirement survives the rebase;
+  its lexer plan does not.
+- [number-edge-cases](./number-edge-cases.md),
   [standard-parse-serialize](./standard-parse-serialize.md) — behavior around
-  this tokenizer; the first names scanners this issue no longer promises.
+  this tokenizer.
+- [`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs) and
+  [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) — the grammars
+  this reader is to run, both already written and proof-covered, the second
+  importing the first's rules.
+- [`fjs/ebnf/map`](../../../ebnf/map/README.md) — the AST-to-value rewrite a
+  reader's mapping is written in, and the layer the metadata channel extends.
