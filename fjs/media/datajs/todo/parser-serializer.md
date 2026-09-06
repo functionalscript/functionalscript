@@ -140,11 +140,18 @@ seam met from the other side, and it interacts with
 
 #### 2. Tokenizer
 
-Depends on stage 3b, which is what exports JSON's scanners for reuse.
+Depends on stage 3b, and **the seam it depends on is an open question.** Stage
+3b was to export `scanString` and `scanNumber`; that design is withdrawn, and
+JSON's reader comes from a grammar over `fjs/ebnf/` instead. What DataJS reuses
+is therefore JSON's *rules* rather than its functions, and DataJS's own grammar
+extends JSON's rather than wrapping its scanners. The table below states the
+requirement, which is unchanged; only the mechanism is undecided, and it is
+listed as open in
+[self-contained-tokenizer](../../json/todo/self-contained-tokenizer.md).
 
 | Piece | Source |
 |---|---|
-| string scanner | JSON's, **unchanged** — the spec's §Strings is "a JSON string, unchanged" |
+| string rule | JSON's, **unchanged** — the spec's §Strings is "a JSON string, unchanged" |
 | number core | JSON's, extended |
 | everything else | new here |
 
@@ -405,7 +412,8 @@ the spec judges them independently and this module provides all three.
       place of the sorting `OrderedMap`. One PR, with proofs pinning JSON's
       accepted language and observable key order unchanged.
 - [ ] `fjs/media/datajs/types.ts` and `README.md`.
-- [ ] Tokenizer, over stage 3b's exported scanners.
+- [ ] Tokenizer, reusing JSON's rules through whatever seam stage 3b settles on
+      — not the exported scanners the withdrawn design promised.
 - [ ] Statement layer: environment, bound-once, declare-before-use.
 - [ ] Key policy: accept the computed `["__proto__"]`, and reject a plain
       string key decoding to `__proto__` in every spelling.

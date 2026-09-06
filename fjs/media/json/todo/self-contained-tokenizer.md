@@ -514,11 +514,14 @@ own.
       stream carrying values and positions — the `fjs/ebnf/` half of
       [ebnf-migration](../../../todo/ebnf-migration.md).
 - [ ] Write JSON's grammar in EBNF, cross-checked against the accepted-language
-      probes above, and decide where it lives: a codec that *runs* a grammar is
+      probes above, and decide where it lives. A codec that *runs* a grammar is
       a different arrangement from one that keeps the grammar as a
-      proof-covered example, which is what
-      [bnf-grammar-single-owner](../../../bnf/todo/bnf-grammar-single-owner.md)
-      assumes today.
+      proof-covered example. What is settled is that it is **not** under
+      `fjs/bnf`, which is the module being retired and still holds its JSON
+      grammar as an example only
+      ([bnf-grammar-single-owner](../../../bnf/todo/bnf-grammar-single-owner.md));
+      the open part is where under `fjs/ebnf/` or `fjs/media/json` the runtime
+      grammar sits, and whether DataJS extends it by import or by restatement.
 - [ ] Decide what replaces the seam. `fjs/media/datajs` was to reuse JSON's
       string and number scanners; over a grammar the reuse is of *rules*, and
       DataJS's own grammar extends rather than wraps. The requirement is
@@ -547,8 +550,9 @@ own.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — DataJS's
   grammar. Its string rule is JSON's and its number rule is JSON's unchanged.
 - [bnf-grammar-single-owner](../../../bnf/todo/bnf-grammar-single-owner.md) —
-  written when a codec grammar was an example rather than a runtime
-  dependency; owed an edit once this direction is settled.
+  written when a codec grammar was an example rather than a runtime dependency;
+  edited for this direction. Its `fjs/media/json/grammar` ban survives on the
+  narrower ground that `fjs/bnf` is the module being retired.
 - [streaming-recognizer](./streaming-recognizer.md),
   [number-edge-cases](./number-edge-cases.md),
   [standard-parse-serialize](./standard-parse-serialize.md) — behavior around

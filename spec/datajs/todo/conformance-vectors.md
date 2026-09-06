@@ -3,7 +3,8 @@
 **Priority:** P1 — it blocks stage 4, which is P1. Raised with the stages it
 sits between; see
 [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md).
-**Status:** open
+**Status:** open — and **next**, since stage 3b is blocked on EBNF while this is
+not blocked on anything.
 
 ### Problem
 
@@ -26,12 +27,16 @@ states, with its character sweeps as coverage rather than proof: that design is
 explicit that no finite sweep is exhaustive. A DataJS corpus has nothing to say
 about any of it.
 
-**This corpus must therefore land before or together with stage 4.** The
-sequence was 3, then 1b, then 4; stage 3 is now blocked on EBNF, so this corpus
-is the one piece of it that can proceed — it bootstraps in JSON precisely so it
-can exist before any DataJS reader does, and it is indifferent to whether that
-reader is hand-written or generated from a grammar.
-Landing stage 4 without it would mean writing stage 4's proofs twice.
+**This corpus must therefore land before or together with stage 4**, and that is
+the only ordering constraint it carries. Landing stage 4 without it would mean
+writing stage 4's proofs twice.
+
+The coordinating plan sequenced it 3, then 1b, then 4. Stage 3b is now blocked
+on EBNF, so **1b goes first** — the plan's task list says so too. Nothing is
+lost by the swap, because 1b never depended on stage 3: the corpus bootstraps in
+JSON precisely so it can exist before any DataJS reader does, and it is
+indifferent to whether that reader ends up hand-written or generated from a
+grammar. That makes this the one piece of the plan that is actionable today.
 
 ### Proposal
 
