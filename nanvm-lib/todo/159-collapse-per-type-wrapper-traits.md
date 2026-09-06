@@ -130,11 +130,17 @@ and the constructor traits themselves — `ToObject` (`vm/object/to_object.rs:4-
 — are the same blanket-trait skeleton modulo wrapper/internal/item type
 (`ToString` additionally carries a `try_` variant).
 
-Since the `into_iter`/`default` bodies are already trait-method delegations,
-a sealed helper trait carrying `Internal`/`Item` (the same
-source-of-truth-table axis as items 1–2) plus one blanket
-`impl<A: IVm, W: …>` per family collapses `into_iterator.rs` and
-`default.rs` to zero hand-written impls.
+Since the `into_iter`/`default` bodies are already trait-method
+delegations, a sealed helper trait carrying `Internal`/`Item` (the same
+source-of-truth-table axis as items 1–2) centralizes the knowledge — but
+**not through a blanket impl**: `IntoIterator` and `Default` are foreign
+traits, and Rust's orphan rules reject `impl<A: IVm, W: Sealed> Default
+for W` (the self type is an uncovered type parameter, E0210), so "zero
+hand-written impls" is not reachable on this route. The honest floor is
+one concrete one-line impl per wrapper delegating to the sealed trait —
+each `Array<A>`/`Object<A>`/`String<A>` self type is local, so those are
+fine — or rung 2 of the `nanvm-lib/AGENTS.md` ladder (`build.rs` from the
+shared table), or accepting the duplication (rung 3).
 
 ### Notes
 
