@@ -10,7 +10,6 @@ import { readUtf8File } from '../../effects/node/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { nixpkgs, node, rustOverlay, typescript } from '../config/module.f.mjs'
 import { devJobId, devSystems } from '../dev/module.f.mjs'
-import { i686JobId } from '../rust/module.f.mjs'
 import { nixJobs } from '../module.f.mjs'
 import { nodeNixJobs } from '../node/module.f.mjs'
 import {
@@ -44,13 +43,18 @@ const plain = {
  * The interpolation is the half that cannot be written as a string. A store
  * path is not knowable when this file is generated, so a reference has to
  * reach the flake unescaped and be resolved by Nix — which is exactly what
- * `ubuntu-intel32` needs to point `cargo` at a 32-bit linker. The text around
- * it is escaped, so the `$HOME` below arrives as those five characters rather
- * than as anything Nix reads.
+ * Intel Linux needs to point `cargo` at a 32-bit linker. The text around it is
+ * escaped, so the `$HOME` below arrives as those five characters rather than as
+ * anything Nix reads.
  *
- * The package named here is a fixture, not the one that job uses: this file
- * proves how a hook *renders*, and `../rust/proof.f.mjs` proves what the job
- * actually declares.
+ * It is declared for a system rather than for the job, because a hook naming a
+ * package is a statement about the platform that has it. With one system there
+ * is nothing to distinguish it from a job-wide hook, which is why the flake
+ * below is the flat text a hook always produced.
+ *
+ * The package named here is a fixture, not the one the developer shell uses:
+ * this file proves how a hook *renders*, and `../rust/proof.f.mjs` proves what
+ * is actually declared.
  *
  * @type {NixJob}
  */
@@ -58,11 +62,15 @@ const withShellHook = {
     ...plain,
     id: 'node22',
     packages: ['nodejs_22'],
-    shellHook: [
-        'export NPM_CONFIG_PREFIX="$HOME/.npm-global"\nexport CC=',
-        ['ref', 'pkgs', 'gcc_multi'],
-        '/bin/cc',
-    ],
+    perSystem: {
+        'aarch64-linux': {
+            shellHook: [
+                'export NPM_CONFIG_PREFIX="$HOME/.npm-global"\nexport CC=',
+                ['ref', 'pkgs', 'gcc_multi'],
+                '/bin/cc',
+            ],
+        },
+    },
 }
 
 /**
@@ -222,10 +230,7 @@ const withSystems = {
 const systemsFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
     outputs = { nixpkgs, ... }: let
-        shell = { system, url, hash, ... }: let
-            pkgs = import nixpkgs {
-                system = system;
-            };
+        shell = { pkgs, url, hash, ... }: let
             pinned = pkgs.bun.overrideAttrs {
                 version = "1.4.0";
                 src = pkgs.fetchurl {
@@ -239,13 +244,23 @@ const systemsFlake = `{
         };
     in
     {
-        devShells.aarch64-linux.default = shell {
-            system = "aarch64-linux";
+        devShells.aarch64-linux.default = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+            };
+        in
+        shell {
+            pkgs = pkgs;
             url = "https://example.test/bun-linux-aarch64.zip";
             hash = "sha256-AAAA";
         };
-        devShells.x86_64-darwin.default = shell {
-            system = "x86_64-darwin";
+        devShells.x86_64-darwin.default = let
+            pkgs = import nixpkgs {
+                system = "x86_64-darwin";
+            };
+        in
+        shell {
+            pkgs = pkgs;
             url = "https://example.test/bun-darwin-x64-baseline.zip";
             hash = "sha256-BBBB";
         };
@@ -272,21 +287,118 @@ const withSystemsUnpinned = {
 const unpinnedSystemsFlake = `{
     inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
     outputs = { nixpkgs, ... }: let
-        shell = { system, ... }: let
-            pkgs = import nixpkgs {
-                system = system;
-            };
-        in
-        pkgs.mkShell {
+        shell = { pkgs, ... }: pkgs.mkShell {
             packages = [ pkgs.nodejs_24 ];
         };
     in
     {
-        devShells.aarch64-linux.default = shell {
-            system = "aarch64-linux";
+        devShells.aarch64-linux.default = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+            };
+        in
+        shell {
+            pkgs = pkgs;
         };
-        devShells.x86_64-darwin.default = shell {
-            system = "x86_64-darwin";
+        devShells.x86_64-darwin.default = let
+            pkgs = import nixpkgs {
+                system = "x86_64-darwin";
+            };
+        in
+        shell {
+            pkgs = pkgs;
+        };
+    };
+}
+`
+
+/**
+ * The developer environment's real shape: several systems, and one of them
+ * carrying something the others cannot have.
+ *
+ * This is the whole reason `perSystem` exists. A shell that is the environment
+ * for its platform is not the same shell on every platform — 32-bit Linux needs
+ * a `rust-std` and a linker that exist on x86 Linux and nowhere else — so the
+ * difference has to be sayable, and sayable at the system it belongs to.
+ *
+ * What the flake below shows is that saying it costs the other systems nothing
+ * they can trip over. The package a hook names is resolved inside the entry
+ * that declares it, from a `pkgs` for *that* system, so a system without the
+ * hook never mentions the package — where a condition inside the shared body
+ * would put the name in text every system reads.
+ *
+ * @type {NixJob}
+ */
+const withPerSystem = {
+    ...withSystems,
+    rust: {
+        version: '1.98.0',
+        extensions: ['clippy'],
+        targets: ['wasm32-wasip1'],
+    },
+    perSystem: {
+        'aarch64-linux': {
+            targets: ['i686-unknown-linux-gnu'],
+            shellHook: [
+                'export CC=',
+                ['ref', 'pkgs', 'pkgsi686Linux', 'stdenv', 'cc'],
+                '/bin/cc',
+            ],
+        },
+    },
+}
+
+const perSystemFlake = `{
+    inputs.nixpkgs.url = "github:NixOS/nixpkgs/${commit}";
+    inputs.rust-overlay.url = "github:oxalica/rust-overlay/${rustOverlay.commit}";
+    inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
+    outputs = { nixpkgs, rust-overlay, ... }: let
+        shell = { pkgs, targets, shellHook, url, hash, ... }: let
+            rust = pkgs.rust-bin.stable."1.98.0".minimal.override {
+                extensions = [ "clippy" ];
+                targets = targets;
+            };
+            pinned = pkgs.bun.overrideAttrs {
+                version = "1.4.0";
+                src = pkgs.fetchurl {
+                    url = url;
+                    hash = hash;
+                };
+            };
+        in
+        pkgs.mkShell {
+            packages = [ rust pinned pkgs.git ];
+            shellHook = shellHook;
+        };
+    in
+    {
+        devShells.aarch64-linux.default = let
+            pkgs = import nixpkgs {
+                system = "aarch64-linux";
+                overlays = [ rust-overlay.overlays.default ];
+            };
+        in
+        shell {
+            pkgs = pkgs;
+            targets = [ "wasm32-wasip1" "i686-unknown-linux-gnu" ];
+            shellHook = ''
+                export CC=\${pkgs.pkgsi686Linux.stdenv.cc}/bin/cc
+            '';
+            url = "https://example.test/bun-linux-aarch64.zip";
+            hash = "sha256-AAAA";
+        };
+        devShells.x86_64-darwin.default = let
+            pkgs = import nixpkgs {
+                system = "x86_64-darwin";
+                overlays = [ rust-overlay.overlays.default ];
+            };
+        in
+        shell {
+            pkgs = pkgs;
+            targets = [ "wasm32-wasip1" ];
+            shellHook = "";
+            url = "https://example.test/bun-darwin-x64-baseline.zip";
+            hash = "sha256-BBBB";
         };
     };
 }
@@ -344,6 +456,18 @@ export const proof = {
         // reads.
         unpinnedSystems: () =>
             assertEq(flakeText(withSystemsUnpinned), unpinnedSystemsFlake),
+        // One system carrying more than the others, which is what a shell that
+        // is the environment *for its platform* means. The two arguments the
+        // function grows are exactly the two some system had something to say
+        // about; the system that had nothing still passes both, because a
+        // caller's argument list is the function's, not its own.
+        //
+        // The linker is named where it can be: inside the entry that declares
+        // it, from that system's `pkgs`. `x86_64-darwin`'s shell does not
+        // mention the package at all, which is the property a condition inside
+        // the shared body would lose — Nix would not evaluate it there either,
+        // but a reader would have to know that to believe it.
+        perSystem: () => assertEq(flakeText(withPerSystem), perSystemFlake),
         // A package name reaches one quotable position and one binding the
         // generator owns, so an unusual one is escaped rather than rejected.
         // The `let` name is the generator's precisely so that it cannot be:
@@ -476,28 +600,27 @@ exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-
                 assertStructurallySame([...rest], [''])
             }
         },
-        // Every declared job runs on the one runner the flakes are generated
-        // for. A second system would need its own `devShells.<system>.default`
-        // rather than a loop, so a job that quietly declared another would
-        // otherwise generate a shell no runner can enter.
         // Every job but the developer environment runs on one runner, and
-        // declares the one system that runner is. Both exceptions are named
+        // declares the one system that runner is. The exception is named
         // rather than exempted by a pattern: a job quietly declaring a second
         // system would otherwise generate a shell no runner enters.
         //
         // `dev` is the reason the list form exists — four systems, one per
-        // machine a developer might have. `ubuntu-intel32` is the other, and
-        // its one system is not the one every other job declares: it runs on
-        // the Intel Linux runner, which is the one system where `pkgsi686Linux`
-        // is not marked broken.
+        // machine a developer might have. It is also the only declaration with
+        // a `perSystem`, and every key of one has to be a system the flake
+        // writes a shell for: a key that is not names a shell that does not
+        // exist, and the capability it declares would silently be in none.
         systems: () => {
-            for (const { id, systems } of nixJobs) {
+            for (const { id, systems, perSystem } of nixJobs) {
                 if (id === devJobId) {
                     assertStructurallySame([...systems], [...devSystems])
-                } else if (id === i686JobId) {
-                    assertStructurallySame([...systems], ['x86_64-linux'])
                 } else {
                     assertStructurallySame([...systems], [nixSystem])
+                }
+                for (const system of Object.keys(perSystem ?? {})) {
+                    assert(
+                        systems.includes(system),
+                        `${id} declares ${system}, which it has no shell for`)
                 }
             }
         },
