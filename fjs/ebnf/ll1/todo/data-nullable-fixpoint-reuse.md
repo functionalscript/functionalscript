@@ -32,8 +32,8 @@ own fix.)
 ### Proposal
 
 Export the two helpers from `fjs/ebnf/data` as `_nullable` and
-`_fixpoint` — both are already described in `ll1`'s prose as `../data`'s
-rules — and express `followMap` through the loop-based fixpoint. The `_`
+`_fixpoint` — `nullable`'s copy already cites `../data` in its own doc
+comment — and express `followMap` through the loop-based fixpoint. The `_`
 prefix is deliberate: the exports exist so `ll1` can reuse the
 implementation — module linkage, not a new public `ebnf/data` API — per
 the private-runtime naming rule (`fjs/AGENTS.md`), so they can be renamed

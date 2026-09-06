@@ -80,10 +80,13 @@ with every importer updated in the same PR; a re-export left in
       `fromVec` and `utf8ToString` through it.
 - [ ] Decide whether `utf8ToString` moves next to `fromVec`; update importers
       if so.
-- [ ] Export the byte-list pair too (unchecked and code-point-validated
-      forms, beside `fromVec`); replace `fjs/web`'s `utf8Bytes`/`utf8String`
-      and `fjs/effects/common`'s `utf8ListToString` with it, so those
-      modules stop importing the utf8/utf16 primitives directly.
+- [ ] Export the byte-list helpers in both directions, beside `fromVec`:
+      the decoder pair (unchecked and code-point-validated
+      `bytes → string`) replaces `fjs/web`'s `utf8String` and
+      `fjs/effects/common`'s `utf8ListToString`; a byte-list encoder
+      (`string → bytes`, the inner pipeline of `tryUtf8`) replaces
+      `fjs/web`'s `utf8Bytes`. Then those modules stop importing the
+      utf8/utf16 primitives directly.
 - [ ] Drop the three unused imports at `fjs/effects/node/module.f.mjs:27-29`.
 - [ ] `tsc`, `fjs t`.
 
