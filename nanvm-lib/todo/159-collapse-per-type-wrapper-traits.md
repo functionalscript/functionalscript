@@ -166,7 +166,7 @@ shared table), or accepting the duplication (rung 3).
   `i33` asked for `Any` as a wrapper struct so operators could be implemented on
   it; `i81` generalized that to the whole family. Both landed in
   [`nanvm-lib/src/vm/`](../src/vm/mod.rs): `pub struct Any<A: IVm>(A)` at
-  `src/vm/any/mod.rs:40`, with `Array`, `Object`, `String`, `BigInt` and
+  `src/vm/any/mod.rs:63`, with `Array`, `Object`, `String`, `BigInt` and
   `Function` wrappers beside it, and the operators implemented on the wrappers
   rather than on the VM traits.
 - [65Y-nanvm-conversion-macros](./65y-nanvm-conversion-macros.md) — the
