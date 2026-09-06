@@ -354,6 +354,18 @@ renaming or removing a `_`-prefixed name is not by itself a breaking change.
 The public contract still governs transitive effects. See
 [Private types](./fsc/README.md#private-types) for the full rule.
 
+The prefix marks a name that **is** exported as no part of the API — "even when
+module linkage requires an export" is the reach of the rule, not an example of
+it. A `const` that is never exported reaches no emitted declaration and no
+consumer, so it has nothing to disclaim and takes no prefix: `mapToken` and
+`scanToken` in
+[`fjs/media/json/tokenizer`](./media/json/tokenizer/module.f.mjs) are the
+ordinary shape, beside the exported `_ScanState` in its `types.ts`, which is the
+rule's. Measured across `fjs/`, module-private constants run about 1,900
+unprefixed to eight prefixed — so reading the rule as reaching them would put
+nearly every `.f.mjs` in the tree in violation, which is the check that the
+reading is wrong.
+
 That rule runs in one direction only. Moving a *published public* typedef to a
 `_` name is an ordinary breaking API change: it needs its own
 `**BREAKING CHANGES:**` declaration and importer updates, exactly like removing
