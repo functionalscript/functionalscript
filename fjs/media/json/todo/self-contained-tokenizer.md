@@ -1155,9 +1155,16 @@ file and two of them change the seam it will import.
    is how this was found, by the Cloudflare deployment going red. Written out
    as `[input, tokens]` pairs the tables come to 691 KiB. Deduplicating the 697
    distinct token streams and deriving the inputs from the prefix and suffix
-   lists brings the file to 79 KiB, and `inputs` is still exported so a
+   lists brings the file to 86 KiB, and `inputs` is still exported so a
    consumer sees literal text. Both tables are still complete and the invariant
    check still runs over the pair; what changed is only how they are spelled.
+
+   `streams` holds **one array entry per token** rather than a joined line.
+   Comparing token-wise against a line means splitting it again, and splitting
+   one needs a parser — an `E(invalid token)` message and a `string("a b")`
+   value both carry spaces of their own — which §3.1's
+   no-regular-expressions rule then applies to. Not rendering to text is the
+   shorter way to obey it, and it is what the token-loss check above reads.
 
 5. **A string reaching `done` emits without a re-dispatch arm.** `done` is only
    ever entered by *consuming* the closing quote, so the `stopped` branch beside
