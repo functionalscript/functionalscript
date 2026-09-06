@@ -47,15 +47,17 @@ Add the full small algebra next to the enum rather than just `flip`:
   `i8`). `mul.rs`'s four lines become `let sign = lhs_sign * rhs_sign;`.
 - An ordering helper on `Sign`, e.g.
   `fn cmp_with(self, rhs: Sign, abs: impl FnOnce(bool) -> Ordering) -> Ordering`
-  or an `impl Ord for Sign` (`Negative < Positive`) so `cmp.rs` handles
+  or `Ord` on the enum (`Negative < Positive`) so `cmp.rs` handles
   only the equal-sign arms and delegates the mixed-sign case to
-  `lhs_sign.cmp(&rhs_sign)`. **Not a bare `derive(Ord)` as declared**:
-  Rust's derive orders enum variants by declaration, not by their
-  `repr(i8)` discriminants, and `src/sign.rs:3-6` declares `Positive`
-  before `Negative` — the derive would give `Positive < Negative` and
-  invert every mixed-sign comparison. Either write the `Ord` impl
-  explicitly, or reorder the variants (`Negative` first) and derive, after
-  checking nothing depends on the declaration order.
+  `lhs_sign.cmp(&rhs_sign)`. Deriving is the cleanest and is **correct as
+  declared**: derived `Ord` on a fieldless enum follows the discriminant
+  *values*, and `src/sign.rs:4-5` sets them explicitly (`Positive = 1`,
+  `Negative = -1`), so a bare derive yields `Negative < Positive` —
+  declaration order would matter only if the discriminants were implicit.
+  What the derive list actually needs is `Eq, PartialOrd, Ord` added to
+  the current `PartialEq, Debug, Clone, Copy` (`:2`), and a test pinning
+  `Sign::Negative < Sign::Positive` so the ordering the operators rely on
+  is stated somewhere the discriminants cannot silently drift from.
 
 This keeps the sign axis in one place (`sign.rs`) and each operator file
 scoped to magnitude work.

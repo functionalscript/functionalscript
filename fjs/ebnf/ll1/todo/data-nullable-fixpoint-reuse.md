@@ -31,9 +31,13 @@ own fix.)
 
 ### Proposal
 
-Export `nullable` and `fixpoint` from `fjs/ebnf/data` — both are already
-described in `ll1`'s prose as `../data`'s rules — and express `followMap`
-through the loop-based fixpoint.
+Export the two helpers from `fjs/ebnf/data` as `_nullable` and
+`_fixpoint` — both are already described in `ll1`'s prose as `../data`'s
+rules — and express `followMap` through the loop-based fixpoint. The `_`
+prefix is deliberate: the exports exist so `ll1` can reuse the
+implementation — module linkage, not a new public `ebnf/data` API — per
+the private-runtime naming rule (`fjs/AGENTS.md`), so they can be renamed
+or removed later without a breaking change.
 
 **The equality is part of the generalization, not a detail.** `data`'s
 `fixpoint` decides stability with `at(name)(next) === at(name)(current)`,
@@ -50,9 +54,9 @@ stack overflow for an infinite loop.
 
 ### Tasks
 
-- [ ] Export the two helpers from `data`, with the stability equality as a
-      parameter; `followMap` goes through the loop-based fixpoint with a
-      structural `RangeSet` equality, `data` keeps `===`.
+- [ ] Export `_nullable` and `_fixpoint` from `data`, with the stability
+      equality as a parameter; `followMap` goes through the loop-based
+      fixpoint with a structural `RangeSet` equality, `data` keeps `===`.
 - [ ] Consider `reach`'s recursion in the same pass, or file it separately.
 - [ ] `tsc`, `fjs t`.
 
