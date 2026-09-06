@@ -97,12 +97,17 @@ export type MetaAst<M extends Meta, R extends Rule> =
         R extends ''      ? readonly [] :
         R extends string  ? readonly MetaSymbol<M>[] :
         R extends Tuple   ? { readonly [K in keyof R]: MetaAst<M, R[K]> } :
-        R extends Variant ? /* [tag, MetaAst<M, branch>], as Ast<R> */ never :
+        R extends Variant ? _VariantMetaAst<M, R> :
         R extends Const<infer D> ? MetaAst<M, D> :
         R extends Set     ? never :
         R extends Repeat<infer Min, infer Max, infer D> ? BoundedArray<Min, Max, MetaAst<M, D>> :
         never
     )
+
+// `[tag, node]`, as `_VariantAst` in `../ast/types.ts` spells it
+type _VariantMetaAst<M extends Meta, R extends Variant> =
+    string extends keyof R ? readonly [string, MetaAst<M, Rule>] :
+    { readonly [K in keyof R]: readonly [_ToString<K>, MetaAst<M, R[K]>] }[keyof R]
 ```
 
 The parser's tree is `MetaAst<MI, R>`; a mapping of `R` under a set whose
