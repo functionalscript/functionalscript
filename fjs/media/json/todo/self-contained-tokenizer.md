@@ -3,7 +3,8 @@
 **Priority:** P1 — raised, see
 [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)'s
 priority note. EDAG needs a DataJS codec, and this stage is its prerequisite.
-**Status:** open
+**Status:** wip — 3a has landed, 3b is open. The fabricated token is gone; the
+`fjs/js/tokenizer` dependency is not.
 
 ### Problem
 
@@ -112,8 +113,12 @@ JavaScript token stream that produced them.
 
 ### One error shape is wrong; the rest are merely noisy
 
+> Stage 3a has landed, so the shape this section describes is **history**: the
+> table below is what `tokenize` did before it, kept because it is what the 3a
+> proofs were written against and what a reader comparing the two stages needs.
+
 Rewriting error shapes is cheap to wave through as churn, so the one that is a
-defect should be named as such. It emits a **value token for text that was never
+defect should be named as such. It emitted a **value token for text that was never
 in the input**, and it is a *class* rather than a handful of cases: **every
 invalid escape, and every raw control character the tokenizer reports as
 `unescaped control character in string`**, produces one.
@@ -141,7 +146,9 @@ A caller that filters errors out — or a parser that resynchronizes on the next
 value — sees a string `"x"` that no document contained. That is
 [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle): an
 unsupported input is refused, never answered with a plausible wrong value. The
-malformed literal has to be one error token and nothing else.
+malformed literal has to report as error tokens alone — as many as the scan
+raises, since `"\x\y"` has two defects and says so, but no value token among
+them. It is the fabricated value §10 forbids, not the second error.
 
 The rest are artifacts rather than defects, and they are noisy:
 
@@ -974,12 +981,13 @@ case: when the idea is the **premise** — decided before any port and provable 
 the existing context — the separation runs idea first, then the port, "which
 then carries no idea of its own beyond what the shared code already does".
 
-#### Stage 3a — the fabricated token, fixed where it lives
+#### Stage 3a — the fabricated token, fixed where it lives — **landed**
 
-The fabricated `string` after `"\x"` is a doc/DESIGN.md §10 violation that exists
-**today**, was found before any port was designed, and is provable against the
-current wrapper. It is the premise, so it lands first, on its own, with no
-dependency change.
+The fabricated `string` after `"\x"` was a doc/DESIGN.md §10 violation that
+existed before any port was designed, and was provable against the wrapper as it
+stood. It is the premise, so it landed first, on its own, with no dependency
+change: `dropFabricatedString` in
+[`../tokenizer/module.f.mjs`](../tokenizer/module.f.mjs).
 
 An earlier draft called the wrapper-side fix "a heuristic over someone else's
 token stream, wrong in its own way". Measured, it is neither heuristic nor
@@ -998,9 +1006,17 @@ on "a control character".
 So the rule is total over an enumerated set: **the `string` token immediately
 following one of those three errors is fabricated, and is dropped.** No other
 token is affected, and a real string after a string error survives — `"\x" "ok"`
-keeps `"ok"`, which the proof pins. The code is a few lines in the wrapper's
-fold, and the port deletes it. That deletion is the point, not a cost: it is
-what makes 3b carry no idea of its own.
+keeps `"ok"`, which the proof pins.
+
+As implemented the rule is a few lines *before* the wrapper's fold rather than
+inside it — a `stateScan` over the JS token stream, applied where `tokenize`
+builds it. Inside the fold it would have been incomplete: the fabricated token
+also arrives while the wrapper sits in its `'-'` state, which returns to `'def'`
+on the error and so passes the following `string` straight through, and `-"\x"`
+leaked one where `"\x"` did not. Ahead of the fold the rule holds for both
+without JSON's own machine knowing about it. Either way the port deletes it,
+which is the point rather than a cost: it is what makes 3b carry no idea of its
+own.
 
 #### Stage 3b — the port, carrying only what the removal forces
 
@@ -1095,19 +1111,36 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
 
 #### Stage 3a — drop the fabricated string
 
-- [ ] In `fjs/media/json/tokenizer/module.f.mjs`, drop the `string` token that
+**Done.** `dropFabricatedString` in
+[`../tokenizer/module.f.mjs`](../tokenizer/module.f.mjs), with the
+`stringRecovery` proofs beside it; 3b deletes both.
+
+- [x] In `fjs/media/json/tokenizer/module.f.mjs`, drop the `string` token that
       immediately follows an `unescaped character`, `invalid hex value` or
       `unescaped control character in string` error. No dependency change, no
       new scanner, no other error shape touched.
-- [ ] Prove the three cases and the boundary: `"\x"` and `"\u{41}"` and a raw
+- [x] Prove the three cases and the boundary: `"\x"` and `"\u{41}"` and a raw
       NUL are each one error with no value token, while `"\x" "ok"` keeps
       `"ok"` — the last is what makes the rule a rule rather than a heuristic.
-- [ ] Declare the break in the PR description's `Changelog:` section,
+
+      One case the design did not name had to be added: the fabricated token
+      also reaches the wrapper's `'-'` state, which returns to `'def'` on the
+      error and would have passed the `string` through, so `-"\x"` leaked one
+      where `"\x"` did not. That is why the suppression runs over the JS token
+      stream *before* `scanToken` rather than inside it.
+- [x] Declare the break in the PR description's `Changelog:` section,
       `**BREAKING CHANGES:**` — a consumer relying on a value token after a
       malformed literal stops receiving one. Valid JSON is unaffected, and the
       declaration should say so.
-- [ ] `npm run gen`, then `tsc`, `fjs test`, `cargo clippy` and
-      `cargo fmt -- --check`.
+- [x] `npm run gen` (no diff), then `tsc`, `fjs test` — and `node --test`,
+      5493 passing.
+
+      `cargo clippy -- -D warnings` and `cargo fmt -- --check` are
+      unconditional, unlike `cargo test`; both ran on the branch head in CI —
+      `clippy` in every platform job, `fmt` in `wasm` — and passed. Calling
+      them vacuous because 3a touches no Rust was wrong: the checks apply to
+      the tree, not to the diff, and "not affected by this change" is a
+      prediction where a green run is a fact.
 
 #### Stage 3b — the port
 
