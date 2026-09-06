@@ -71,9 +71,10 @@ nothing is deferred.
 **A mapping returns a `MetaSymbol` and nothing else.** Its value goes in
 `meta`, its kind in `symbol` — a symbol of the next grammar, or of this
 one. That is what keeps a mapping's result, a JSON array say, from ever
-colliding with a raw node; and it is what makes a layer's output the next
-layer's input with no conversion at the boundary, since the `id` already
-says which alphabet it is.
+colliding with a raw node; and it is what lets a symbol cross a layer
+boundary as it is — no rename, no re-tagging — since the `id` already
+says which alphabet it is. What does not cross for free is the *list*:
+see "The boundary" below.
 
 The AST of a rule, before or after rewriting, is then one type beside
 `Ast<R>`:
@@ -99,7 +100,7 @@ The parser's tree is `MetaAst<MI, R>`; a mapping of `R` under a set whose
 results carry `MO` is
 
 ```ts
-(ast: MetaAst<MI | MO, R>, ahead: MetaSymbol<MI> | undefined) => MetaSymbol<MO>
+(ast: MetaAst<MI | MO, R>, ahead: MetaSymbol<MI> | undefined) => Result<MetaSymbol<MO>, E>
 ```
 
 and `MetaAst<MI | never, R>` is `MetaAst<MI, R>`, so the parser's tree
@@ -196,9 +197,23 @@ machine refuses everything else: a rule the grammar does not hold, and a
 rule mapped twice. The second matters because the set is assembled from
 several sources; a `Map` built naively would let the later entry win, and
 the output would depend on assembly order. `rewrite` refuses the same
-("a rule mapped twice"). The machine knows the position at every `emit`,
-so a mapping's throw is caught there and rethrown with `pos`; the mapping
-is not told the position and does not need to be.
+("a rule mapped twice").
+
+**A mapping's failure is a value, never a throw.** FunctionalScript has
+no `try`/`catch`, so nothing in `ll1/module.f.mjs` could intercept a
+throw; a `throw` in a mapping is a panic for a broken invariant, as
+[`fjs/AGENTS.md`](../../AGENTS.md) §1.5 says, and never control flow. So
+a mapping returns `Result<MetaSymbol<MO>, E>`, and `emit` folds an
+`['error', e]` into the machine's own `'error'` step, which already stops
+the match at the first failure since LL(1) never backtracks. The parser's
+result type gains the case: its error is the position, or the position
+with the mapping's `e` beside it. That is how a mapping's error carries
+a position without the mapping being told one — as a value the machine
+pairs, not an exception it catches. A mapping that wants the parse to
+*continue* past a semantic error has the other value-shaped option with
+no machine support at all: emit a symbol of an error alphabet,
+`{ id: 'error', … }`, and let the mappings above it dispatch on `id` as
+they do for everything else. The two are not exclusive.
 
 Three differences from `rewrite`, all to keep:
 
@@ -225,6 +240,23 @@ The shape asserts of the `rewrite` pass — `fixed`, `contains`,
 `structurallySame` — do not exist in the fold. The machine built the
 node from the rule, so its shape is right by construction; the asserts
 are the mappings' own, on `meta.id`, for now.
+
+**The boundary.** A tokenizer whose token rules are mapped and whose
+outer repetition is not produces `MetaAst<Cp | Tok, Repeat<…>>`, and that
+type admits either alphabet or an array at every subtree: it is
+independent of the set, by design, so it cannot say that every round
+became a `'tok'` symbol, and it is not assignable to the next parser's
+`readonly MetaSymbol<Tok>[]`. Each symbol crosses as it is; the list
+needs one operation, `symbols(result, 'tok')`, which walks the array,
+checks every element is a symbol of that alphabet, and returns
+`readonly MetaSymbol<Tok>[]` — or refuses, naming the position of the
+first element that is not, which is where a token rule left unmapped is
+caught. That check is the one runtime fact the type cannot carry, done
+once, at the one place it matters. A layer whose result is a single value
+rather than a stream — the JSON grammar mapped to a JSON value — maps its
+entry rule instead and needs no such step: `parser(rule, set)` then
+returns a `MetaSymbol<MO>` outright. The fold-form repetition below
+would let a tokenizer do the same, collecting its rounds as it goes.
 
 **What still grows.** With mappings of the form `(ast) => MetaSymbol`, a
 repetition holds every round's result until it closes: depth is folded
@@ -284,8 +316,9 @@ reads.
       guard reading `.symbol`, the argument renamed away from `input`;
       frames carry their rule name; `parser(rule, set)` folding at the
       five sites with `ahead`; a mapping whose rule the grammar does not
-      hold, or a rule mapped twice, refused at build; a mapping's throw
-      rethrown with `pos`.
+      hold, or a rule mapped twice, refused at build; a mapping's
+      `['error', e]` folded into the machine's `'error'` step with `pos`;
+      `symbols(result, id)` for the boundary.
 - [ ] The per-layer factory binding `MI` and `MO`; `rule(a, f)`,
       `Mapping`, `RewriteSet` types, with `f` contextually typed from
       `a` under them.
@@ -293,7 +326,8 @@ reads.
       called, with `ahead`; `parser(r, set)` agrees with
       `rewrite`-then-parse where the three keyings agree; a two-layer
       example — a tokenizer emitting `{ id: 'tok', … }` symbols with a
-      payload, parsed by a grammar over `'tok'` whose mapping reads the
+      payload, taken through `symbols(result, 'tok')`, parsed by a
+      grammar over `'tok'` whose mapping reads the
       payload.
 - [ ] Amend `ll1/README.md` ("Left for later") and `map/README.md` ("No
       metadata channel", "What it is not", "Left for later").
