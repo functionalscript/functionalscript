@@ -40,7 +40,7 @@ forgotten DJS one.
 
 ### Related
 
-- [../../todo/value-token-kind-list.md](../../todo/value-token-kind-list.md)
+- [../../parser/todo/value-token-kind-list.md](../../parser/todo/value-token-kind-list.md)
   — the parser-side subset of the same vocabulary, spelled four more times.
 - [tokenize-string-derive.md](./tokenize-string-derive.md) — the pipeline
   duplication in this file; independent.

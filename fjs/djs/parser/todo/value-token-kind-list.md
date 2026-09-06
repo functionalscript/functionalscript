@@ -52,6 +52,6 @@ export const _valueKinds = /** @type {const} */ ([
 
 ### Related
 
-- [../tokenizer/todo/djs-token-kind-owner.md](../tokenizer/todo/djs-token-kind-owner.md)
+- [../../tokenizer/todo/djs-token-kind-owner.md](../../tokenizer/todo/djs-token-kind-owner.md)
   — the same disease one layer down: the full `DjsToken` kind vocabulary
   restated in `mapDjsToken`.

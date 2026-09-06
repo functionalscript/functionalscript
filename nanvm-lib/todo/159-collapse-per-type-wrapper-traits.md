@@ -87,13 +87,24 @@ so only the to-string side needs threading:
 fn ordinary_to_primitive<A: IVm, T: Clone>(
     v: T,
     preferred: ToPrimitivePreferredType,
-    to_string: impl Fn(T) -> Option<Result<Primitive<A>, Any<A>>>,
+    to_string: impl FnOnce(T) -> Option<Result<Primitive<A>, Any<A>>>,
 ) -> Result<Primitive<A>, Any<A>> { /* shared number/string-first dispatch */ }
 ```
 
-The three public functions become one-line wrappers passing
-`obj_to_string` / `arr_to_string` / `fn_to_string`. This is the lowest-risk
-item — no macro, just a generic helper.
+`FnOnce`, not `Fn`: each branch calls `to_string` at most once, so the
+weaker bound admits every caller. The three public functions become
+one-line wrappers passing `obj_to_string` / `arr_to_string` /
+`fn_to_string`. This is the lowest-risk item — no macro, just a generic
+helper — and the timing matters more than the size: when user-defined
+`valueOf`/`toString` lands (the `TODO`s at `primitive_coercion.rs:34`,
+`:42`, `:51`, `:64`), the spec's method-ordering rule must otherwise
+change in three places in lockstep, and a divergence is a silent spec bug
+for one reference type only.
+
+The three `Dispatch` arms calling these (`:164-177`) also each re-spell
+`self.0.unwrap_or(ToPrimitivePreferredType::Number)` with the same
+spec-reference comment; hoist that default into one accessor on
+`PrimitiveCoercionOp` in the same change.
 
 ### 4. `IntoIterator`, `Default`, and the `ToX` constructor traits — same axis, missing from the inventory
 

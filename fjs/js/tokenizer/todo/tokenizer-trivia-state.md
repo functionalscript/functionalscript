@@ -49,8 +49,8 @@ duplicated table, one range-map build, and one of the two state typedefs.
 
 ### Related
 
-- [tokenizer-flush-redispatch.md](./tokenizer-flush-redispatch.md) — lists
+- [../../todo/tokenizer-flush-redispatch.md](../../todo/tokenizer-flush-redispatch.md) — lists
   `parseWhitespaceDefault`/`parseNewLineDefault` as two rows of its flush
   table; merging them first shrinks that issue's table by one row.
-- [666-js-tokenizer-position-layer.md](./666-js-tokenizer-position-layer.md)
+- [../../todo/666-js-tokenizer-position-layer.md](../../todo/666-js-tokenizer-position-layer.md)
   — same file, independent change.

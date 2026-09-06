@@ -29,7 +29,7 @@ divergence is a parser/transformer disagreement no type checks.
 
 ### Prior decisions this does not reopen
 
-- [207-bnf-semantic-actions.md](./207-bnf-semantic-actions.md) decided
+- [207-bnf-semantic-actions.md](../../todo/207-bnf-semantic-actions.md) decided
   "`parserRuleSet` keeps its native path. It is not this machine with an
   empty map: the machine needs a `Monoid<M>` the AST API has no use for."
   That rules out *implementing one entry point as the other*. It does not
@@ -51,7 +51,7 @@ its two instantiations. The exhaustion policy is a deliberate divergence,
 not shared machine: when input ends mid-rule, `parserRuleSet` completes a
 partial AST with a `null` remainder (`ll1/module.f.mjs:249-252`, pinned by
 its proofs) while the transformer path unwinds to `['no-match', null]`
-(`:586`), as [207 §6](./207-bnf-semantic-actions.md) requires — so it must
+(`:586`), as [207 §6](../../todo/207-bnf-semantic-actions.md) requires — so it must
 be a parameter of the skeleton, never a casualty of it. If the parameterization costs
 more indirection than the ~110 duplicated lines are worth — a real
 possibility given the per-frame payload differences — record the outcome
@@ -70,5 +70,5 @@ edits, which is the cheapest fix of all.
 
 ### Related
 
-- [207-bnf-semantic-actions.md](./207-bnf-semantic-actions.md) — the
+- [207-bnf-semantic-actions.md](../../todo/207-bnf-semantic-actions.md) — the
   decision constraining, but not foreclosing, this factoring; see above.

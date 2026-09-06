@@ -1,4 +1,4 @@
-## padded-uint-chunk-list. One owner for "chunk → zero-left-padded unsigned int"
+## padded-uint-chunk-list. One owner for "short chunk → tail-padded unsigned int"
 
 **Priority:** P4
 **Status:** open
@@ -6,7 +6,7 @@
 ### Problem
 
 Two modules hand-roll the same subtle conversion of a possibly-short chunk
-into its zero-left-padded unsigned value:
+into its zero-extended unsigned value:
 
 ```js
 // fjs/types/bit_vec/module.f.mjs:449-456 — vecToU8, behind u8List
@@ -26,12 +26,16 @@ const chunkToIndex = chunk => {
 The bodies are character-for-character the same modulo `(bo, 8n)` vs
 `(msb, bits)`, and the rule they encode is non-obvious enough that `basen`
 explains it in prose (`fjs/basen/module.f.mjs:52-55`, echoed in
-`fjs/basen/base64/proof.f.mjs`): a trailing partial chunk is left-padded
-because `unpackSplit`'s shift amount goes negative, which per spec becomes a
-left shift. `vecToU8` encodes the same rule with no comment at all — so the
-invariant is either re-explained or silent, depending on which copy a
-reader finds. It should live once, in `bit_vec` next to `unpackSplit` —
-not be re-derived inside a codec.
+`fjs/basen/base64/proof.f.mjs`): a trailing partial chunk is zero-extended
+at the *tail of the bit order* because `unpackSplit`'s shift amount goes
+negative, which per spec becomes a left shift. The direction is
+bit-order-dependent, not a single "left-padded": under `msb` the value is
+shifted left (`101` reads as `10100000` — zeros in the low bits), while
+under `lsb` the value is unchanged (zeros in the high bits). `vecToU8`
+encodes the same rule with no comment at all — so the invariant is either
+re-explained or silent, depending on which copy a reader finds. It should
+live once, in `bit_vec` next to `unpackSplit` — not be re-derived inside a
+codec.
 
 There is also a mechanical cost: both consumers go through
 `chunkList = mappedChunkList(unpack)(pack)` and then immediately `unpack`
@@ -43,23 +47,28 @@ One export in `fjs/types/bit_vec/module.f.mjs`, built on the existing
 `mappedChunkList` so the pack/unpack round trip disappears:
 
 ```js
-const paddedUint = unpackSplit => n => {
+const tailPaddedUint = unpackSplit => n => {
     const us = unpackSplit(n)
     return u => u.length < n ? us(u)[0] : u.uint
 }
-/** Fixed-size chunks as zero-left-padded unsigned values. */
-export const paddedUintChunkList = bo => n =>
-    mappedChunkList(unpack)(paddedUint(bo.unpackSplit)(n))(bo)(n)
+/**
+ * Fixed-size chunks as unsigned values; a short trailing chunk is
+ * zero-extended at the tail of the bit order — under `msb` the value is
+ * shifted left (zeros in the low bits), under `lsb` it is unchanged
+ * (zeros in the high bits).
+ */
+export const tailPaddedUintChunkList = bo => n =>
+    mappedChunkList(unpack)(tailPaddedUint(bo.unpackSplit)(n))(bo)(n)
 ```
 
-`u8List(bo)` becomes `compose(paddedUintChunkList(bo)(8n))(map(Number))`;
-`baseN`'s `vecToString` folds over `paddedUintChunkList(msb)(bits)` and
-drops its own `unpackSplit`/`unpack` machinery. The left-padding rationale
-moves to `paddedUint`'s JSDoc, its one home.
+`u8List(bo)` becomes `compose(tailPaddedUintChunkList(bo)(8n))(map(Number))`;
+`baseN`'s `vecToString` folds over `tailPaddedUintChunkList(msb)(bits)` and
+drops its own `unpackSplit`/`unpack` machinery. The tail-extension
+rationale moves to `tailPaddedUint`'s JSDoc, its one home.
 
 ### Tasks
 
-- [ ] Add `paddedUintChunkList`; express `u8List` and `basen`'s
+- [ ] Add `tailPaddedUintChunkList`; express `u8List` and `basen`'s
       `vecToString`/`chunkToIndex` through it.
 - [ ] `tsc`, `fjs t`; the `basen` codec proofs pin the padding behavior.
 
