@@ -3,8 +3,9 @@
 **Priority:** P1 — stage 4 is urgent and stage 1b feeds it; see
 [Priority](#priority-stages-3-and-4-come-first). **Stage 3b is P2 while it is
 blocked**, which is the level its own issue now carries.
-**Status:** wip — stages 1a, 2 and 3a done; **stage 3b is blocked on EBNF**, so
-**stage 1b is what to pick up next**.
+**Status:** wip — stages 1a, 2 and 3a done. **Stage 1b is what to pick up
+next**: it is P1 and gates stage 4, while stage 3b is P2 with its error shapes
+still undecided.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
@@ -14,16 +15,28 @@ not here.
 ### Pick up here
 
 Read in this order; each line says what to do and why it comes when it does.
-Item 1 is context rather than work — it is blocked. **Item 2 is what to start.**
+Item 1 is context rather than work. **Item 2 is what to start.**
 
-1. **Stage 3b is blocked, and the reason changes this plan.** JSON's reader
+1. **Stage 3b changed direction, and that changes this plan.** JSON's reader
    will come from an **EBNF grammar** over `fjs/ebnf/` rather than the
    hand-written scanner this issue specified, so the no-runtime-grammar rule
-   below is reversed. Nothing can start until the EBNF LL(1) backend can carry
-   a mapping's metadata, which is being designed in
-   [#1890](https://github.com/functionalscript/functionalscript/pull/1890);
-   the module's own migration is
+   below is reversed.
+
+   **It is not blocked, though two earlier drafts of this plan said so.**
+   Measurement retired that claim: the grammar exists at `fjs/ebnf/lib/json`,
+   the LL(1) backend parses JSON with it, and `fjs/ebnf/map` already rewrites
+   the result to values. The metadata channel in
+   [#1890](https://github.com/functionalscript/functionalscript/pull/1890) buys
+   errors *better* than today's rather than the ones this reader owes, and it
+   cannot classify a parse failure at all, since a failure yields no tree to
+   annotate. What genuinely remains is a design decision — what the reader
+   reports on malformed input — plus the module's own migration,
    [`fjs/todo/ebnf-migration.md`](../fjs/todo/ebnf-migration.md).
+
+   It still is not what to pick up first. It is P2, its error shapes are
+   undecided, and `fjs/ebnf/` is mid-migration, so writing a codec against it
+   now means writing against names still moving. Stage 1b is P1 and gates
+   stage 4, which is the ordering that matters.
 
    The hand-written design was written, reviewed, implemented in full and
    **withdrawn** —
@@ -170,7 +183,7 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
 
   The old rule rested on the grammar module not being stable enough to depend
   on, and that argument has not changed — `fjs/ebnf/` is mid-migration, which is
-  why stage 3b is *blocked* rather than open. What changed is what the
+  why stage 3b is not the thing to start first. What changed is what the
   alternative costs: a hand-written tokenizer and container machine per format,
   whose defects have to be found one at a time by review, against a grammar of a
   few dozen readable lines.
@@ -472,11 +485,12 @@ Stages 3 and 4 are the urgent ones, ahead of the rest of this plan. They are
 what [EDAG](./edag-spec.md) is waiting on. Stage 1b comes with them, between the
 two — it is stage 4's proof source.
 
-**Urgency is not the same as actionability, and stage 3b now separates them.**
-Being blocked on EBNF lowered its own issue to **P2**: it is still what stage 4
-waits on, but no amount of priority makes it startable, so it cannot hold the
-front of a queue. The P1 urgency of this plan therefore rests on stages 1b and
-4 until the EBNF backend unblocks 3b, at which point it returns to the front.
+**Urgency is not the same as readiness, and stage 3b now separates them.** The
+change of direction lowered its own issue to **P2**. It is still what stage 4
+waits on, and it is startable — the grammar and the value mapping both exist —
+but what it reports on malformed input is undecided, and `fjs/ebnf/` is
+mid-migration. Design work and a moving dependency are poor reasons to hold the
+front of a queue, so the P1 urgency of this plan rests on stages 1b and 4.
 
 An EDAG is an expression DAG whose sharing is *semantics*, not an encoding
 detail: one node referenced from two operand positions is one value, and `{} ===
@@ -501,12 +515,12 @@ Stage 1b (the conformance vectors) sits **between** them: it is stage 4's proof
 source, not stage 3's, and its corpus is stored in JSON exactly so it can exist
 before a DataJS reader does. So the intended order is 3, 1b, 4.
 
-**With 3b blocked, 1b runs first.** Only 3b is blocked, and 1b never depended
-on it: the corpus bootstraps in JSON, and it is indifferent to whether the
-DataJS reader that eventually consumes it is hand-written or generated from a
-grammar. It is therefore the one piece of this plan that is actionable today,
-and running it early costs nothing — it still lands before stage 4, which is
-the only ordering constraint it ever carried.
+**1b runs first anyway.** It never depended on stage 3: the corpus bootstraps in
+JSON, and it is indifferent to whether the DataJS reader that eventually
+consumes it is hand-written or generated from a grammar. It is P1 where 3b is
+P2, it needs no decision that has not been made, and running it early costs
+nothing — it still lands before stage 4, which is the only ordering constraint
+it ever carried.
 
 ### Stages
 
@@ -645,10 +659,14 @@ throughout.
 - [x] Stage 3a: drop the fabricated `string` token in the existing wrapper —
       [`self-contained-tokenizer`](../fjs/media/json/todo/self-contained-tokenizer.md),
       the defect that predates the replacement and is provable without it.
-- [ ] Stage 3b: **blocked on EBNF, do not start.** The reader comes from a
-      grammar over `fjs/ebnf/`, not from a hand-written scanner, and it waits
-      on the metadata channel in
-      [#1890](https://github.com/functionalscript/functionalscript/pull/1890).
+- [ ] Stage 3b: the reader comes from a grammar over `fjs/ebnf/`, not from a
+      hand-written scanner. **Startable but not first**: the grammar exists at
+      `fjs/ebnf/lib/json` and `fjs/ebnf/map` already rewrites its AST to
+      values, so this is no longer blocked on
+      [#1890](https://github.com/functionalscript/functionalscript/pull/1890) —
+      that channel buys better errors than today's, not the ones owed. What is
+      undecided is the error shapes, and `fjs/ebnf/` is mid-migration.
+      A reader must compose EOF: `json` alone accepts `[1]x`.
       What is measured and still holds is the swap's blast radius: the accepted
       language is JSON's already, but for one defect — `1n1` and its class,
       accepted today by deleting an `n` from inside a number, which only 3b can

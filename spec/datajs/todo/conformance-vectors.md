@@ -3,8 +3,8 @@
 **Priority:** P1 — it blocks stage 4, which is P1. Raised with the stages it
 sits between; see
 [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md).
-**Status:** open — and **next**, since stage 3b is blocked on EBNF while this is
-not blocked on anything.
+**Status:** open — and **next**. It is P1 and gates stage 4, where stage 3b is
+P2 with an undecided design, and this is blocked on nothing.
 
 ### Problem
 

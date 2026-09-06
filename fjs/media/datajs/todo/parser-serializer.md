@@ -5,14 +5,18 @@ conformance-vector issue, which says outright that it blocks stage 4 "which is
 P1". This file is the canonical co-located issue, so it carries the same level.
 **Status:** blocked
 **Blocked by:** [JSON's reader](../../json/todo/self-contained-tokenizer.md),
-which is itself blocked on EBNF — so this is now two removes from actionable.
+which is open but undecided rather than blocked — so the wait here is on a
+decision, not on a dependency landing.
 The dependency also **changed shape**: JSON's reader will be a grammar over
 `fjs/ebnf/` rather than a hand-written scanner, so what this issue reuses is
 JSON's *rules* and not the `scanString`/`scanNumber` exports the withdrawn
 [#1895](https://github.com/functionalscript/functionalscript/pull/1895)
 provided. The requirement is unchanged — a bigint is `int 'n'` reusing JSON's
-integer part, and `NaN`/`Infinity` are words rather than number syntax — but the
-seam it arrives through is an open question, listed as such in that issue.
+integer part, and `NaN`/`Infinity` are words rather than number syntax — and the
+seam is now **answered in code**:
+[`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) already exists and
+imports JSON's rules directly. What is still open is §3's Layer 1 — whether this
+codec runs that grammar or the token-driven container machine.
 
 ### Problem
 
@@ -456,6 +460,6 @@ the spec judges them independently and this module provides all three.
 - [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md) — the coordinating plan; this is its stage 4.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. This issue implements it.
 - [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, the proof source. Land it first.
-- [JSON's reader](../../json/todo/self-contained-tokenizer.md) — stage 3, blocked on EBNF. It no longer promises the exported scanners this issue was written to reuse; over a grammar the reuse is of rules.
+- [JSON's reader](../../json/todo/self-contained-tokenizer.md) — stage 3, open with its error shapes undecided. It no longer promises the exported scanners this issue was written to reuse; over a grammar the reuse is of rules, which [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) already does by import.
 - [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. Stage 4 is its second consumer.
 - [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type; interacts with the optional index signature in §1.

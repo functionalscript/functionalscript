@@ -1,13 +1,17 @@
 ## self-contained-tokenizer. JSON's reader comes from a grammar, not a wrapper
 
-**Priority:** P2 — lowered from P1. Stage 4 still waits on it, but the reader
-cannot report errors until a mapping can carry metadata, so it cannot hold the
-front of a queue.
-**Status:** blocked
-**Blocked by:** [ebnf-migration](../../../todo/ebnf-migration.md)
-and the metadata channel filed in
+**Priority:** P2 — lowered from P1. Stage 4 still waits on it, but the error
+shapes are undecided and `fjs/ebnf/` is mid-migration, so it is not the thing
+to pick up first.
+**Status:** open — **partly startable**. Measurement retired the two blockers
+earlier drafts claimed; see [What is actually missing](#what-is-actually-missing).
+The grammar exists, the LL(1) backend parses JSON with it, and `fjs/ebnf/map`
+can already rewrite the result to values. What is undecided is what the reader
+reports on malformed input, and what a streaming consumer gets.
+**Related, not blocking:**
+[ebnf-migration](../../../todo/ebnf-migration.md), and the metadata channel in
 [functionalscript/functionalscript#1890](https://github.com/functionalscript/functionalscript/pull/1890)
-— `fjs/ebnf/todo/meta-ast-mapping.md`, which lands with it.
+— which buys *better* errors than today's, not the ones this reader owes.
 
 ### The direction changed, and this issue is rewritten around it
 
@@ -49,46 +53,66 @@ lexer produces, and each one had to be found by a person. **That is the cost the
 grammar is being bought to avoid**, and it is why the withdrawal is a change of
 direction rather than a retreat.
 
-### Why it is blocked rather than open
+### What is actually missing
 
-**Less is missing than an earlier draft of this section claimed**, and the
-difference matters, because it says what to build rather than what to wait for.
+Two earlier drafts of this section each named a blocker, and measurement
+retired both. The honest answer is that **the value half of this reader can be
+built now**, and what remains open is error reporting and one API property.
+
 Measured against the tree as it stands:
 
 - The **grammar already exists**, exported and proof-covered, at
   [`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs). It is not work
   this issue owes.
-- The **LL(1) backend already parses JSON with it.**
-  [`fjs/ebnf/ll1/proof.f.mjs`](../../../ebnf/ll1/proof.f.mjs) builds
-  `parser(json)`, and running it on `[1]` returns a full typed `Ast<typeof
-  json>`.
+- The **LL(1) backend already parses JSON with it**, as
+  [`fjs/ebnf/ll1/proof.f.mjs`](../../../ebnf/ll1/proof.f.mjs) shows.
 - **Values are already mappable.** [`fjs/ebnf/map`](../../../ebnf/map/README.md)
-  rewrites an AST bottom-up, and `ll1`'s own proof does exactly that over the
-  LL(1) backend to turn `[-12,3]` into integers.
-- An LL(1) failure already returns **an offset** — `[1,` yields `['error', 3]`.
+  rewrites an AST bottom-up, keyed by the rules the grammar exports. The
+  recursive `value` thunk is reachable as `json[1]`, and a `rewrite` keyed on it
+  rewrites the parsed node — so nothing about JSON's self-reference blocks a
+  mapping.
+- An LL(1) failure returns **an offset** — `[1,` yields `['error', 3]`.
 
-So a grammar-driven reader is closer than "nothing to implement". Two gaps are
-real, and they are about the *mapping*, not the grammar:
+**`json` alone is a prefix parser, and a reader must not use it that way.** The
+rule ends where its own syntax ends, so `parser(json)` accepts `[1]x`,
+returning a plausible `[1]` and an end offset of 3; `1 2` likewise stops at 2.
+A document is `[json, eof]`, which the `ll1` proof spells out and which
+correctly rejects both. **Any reader built here composes EOF or checks that the
+end offset equals the input length**; mapping the AST from a bare `parser(json)`
+would silently accept malformed JSON.
 
-1. **A mapping receives no metadata.** Per `map`'s own table a function sees
-   only its children already rewritten — never a position, never which symbol
-   it matched — and it cannot return information alongside its value. So a
-   mapping cannot attach source locations or classify a failure. That channel
-   is [#1890](https://github.com/functionalscript/functionalscript/pull/1890)
-   (`meta-ast-mapping`), and the module's own migration is
-   [ebnf-migration](../../../todo/ebnf-migration.md).
-2. **An offset is not an error message.** The backend says *where* a parse
-   failed, not *what* was wrong. Today's tokenizer emits classified messages
-   (`invalid number`, `invalid token`), and the error shapes a grammar-driven
-   reader should emit are an open question either way — see the last item under
-   [What unblocks this](#what-unblocks-this).
+**Metadata is not a prerequisite, and an earlier draft was wrong to call it
+one.** [#1890](https://github.com/functionalscript/functionalscript/pull/1890)
+adds a channel so a mapping can receive a position and return information of its
+own. That would let this reader report *better* errors than today's. It is not
+needed to match today's, and it cannot help with the failure case at all: when
+LL(1) fails there is no AST, so there are no mapped nodes to carry metadata.
+Classifying a failure is the backend's job, not the mapping's.
 
-**The bar is not position preservation.**
-[`fjs/media/json/parser`](../parser/module.f.mjs) says so in its own source:
-its single error "carries no position or metadata". An earlier draft here
-claimed the replacement had to preserve error positions the parser reports; it
-reports none, and the LL(1) backend already gives more location information
-than the current API exposes.
+**The bar for errors is low, which is what makes the work startable.**
+[`fjs/media/json/parser`](../parser/module.f.mjs) says in its own source that
+its single error "carries no position or metadata". So the public parser's
+contract is met by discarding the offset the backend already gives. The
+tokenizer's classified messages (`invalid number`, `invalid token`) are the
+harder half, and this issue already accepts that error shapes change once in
+the swap.
+
+So what genuinely remains, in the order it should be done:
+
+1. **Error shapes.** Decide what a grammar-driven reader reports. This is design
+   work, not a dependency, and it is the last item under
+   [What this still needs](#what-this-still-needs).
+2. **The streaming seam.** `Parser<T>` takes `readonly number[]`, a
+   materialized array, while `tokenize` is public and `List`-based. The public
+   `parse(text)` is unaffected, since it starts from a string, but a streaming
+   consumer has no grammar equivalent today. This is a real consequence of the
+   direction and is why
+   [streaming-recognizer](./streaming-recognizer.md) is now blocked rather than
+   merely rebased.
+3. **`fjs/ebnf/` stability.** The module is mid-migration
+   ([ebnf-migration](../../../todo/ebnf-migration.md)), so a codec written
+   against it now is written against names still in motion. This is a reason to
+   sequence carefully, not a missing capability.
 
 **Do not start a hand-written scanner in the meantime.** That is what was just
 withdrawn.
@@ -535,15 +559,28 @@ own.
       the tree, not to the diff, and "not affected by this change" is a
       prediction where a green run is a fact.
 
-### What unblocks this
+### What this still needs
 
-- [ ] **#1890 lands**, so a mapping can receive and return metadata. This is
-      the one true blocker: without it a mapping sees only its rewritten
-      children, so no reader built on it can locate or classify a failure.
+Renamed from "What unblocks this", because measurement showed most of it is not
+blocked. The first two items can be started today.
+
+- [ ] Compose EOF, or check the end offset against the input length. `json`
+      alone is a **prefix** rule: `parser(json)` accepts `[1]x`. A document is
+      `[json, eof]`. Do this before anything maps an AST, or the reader silently
+      accepts trailing garbage.
 - [ ] The `fjs/ebnf/` half of
       [ebnf-migration](../../../todo/ebnf-migration.md) settles, so the codec is
-      not written against names still in motion. **Not** a claim that parsing is
-      missing — `ll1` parses JSON today.
+      not written against names still in motion. A sequencing concern, **not** a
+      missing capability — `ll1` parses JSON today.
+- [ ] Decide whether the reader must keep a streaming entry point. `Parser<T>`
+      takes a materialized `readonly number[]` while `tokenize` is `List`-based.
+      `parse(text)` is unaffected; a streaming consumer has no grammar
+      equivalent yet.
+- [ ] *Optional, and not a prerequisite.*
+      [#1890](https://github.com/functionalscript/functionalscript/pull/1890)
+      lands, letting a mapping receive and return metadata. It buys errors
+      better than today's. It cannot classify a parse **failure**, since a
+      failure produces no AST and so no mapped nodes.
 - [x] ~~Write JSON's grammar in EBNF.~~ **It already exists**, exported and
       proof-covered, at
       [`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs), and
