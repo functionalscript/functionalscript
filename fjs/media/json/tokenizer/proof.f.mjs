@@ -291,6 +291,19 @@ export const proof = {
         laterStringSurvives: () => assertEq(
             stringify(tokenizeString('"\\x" "ok"')),
             '[{"kind":"error","message":"unescaped character"},{"kind":"string","value":"ok"},{"kind":"eof"}]'),
+        // ...and **adjacently**, which is the case that actually rests on the
+        // flag being cleared when the fabricated token is dropped. With a space
+        // between, the whitespace token clears the flag on its own, so the
+        // spaced case above still passes when the reset is wrong — and the
+        // adjacent form is exactly the one that then loses a genuine string.
+        // Verified by mutation: `[empty, true]` in place of `[empty, false]`
+        // leaves the suite green without these two and fails with them.
+        adjacentStringSurvives: () => assertEq(
+            stringify(tokenizeString('"\\x""ok"')),
+            '[{"kind":"error","message":"unescaped character"},{"kind":"string","value":"ok"},{"kind":"eof"}]'),
+        adjacentStringSurvivesAfterHexError: () => assertEq(
+            stringify(tokenizeString('"\\u""ok"')),
+            '[{"kind":"error","message":"invalid hex value"},{"kind":"string","value":"ok"},{"kind":"eof"}]'),
         // the fabricated token reaches the `'-'` state too, which returns to
         // `'def'` on the error and so would have passed the `string` through
         afterMinus: () => assertEq(
