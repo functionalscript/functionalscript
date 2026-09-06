@@ -15,11 +15,18 @@ const tokenizeString = s => toArray(tokenize(stringToList(s)))
 
 const stringify = stringifyAsTree(sort)
 
-/** One line per token stream, matching the sweep tables' rendering. */
-const render = /** @type {(s: string) => string} */(s => tokenizeString(s).map(t =>
+/**
+ * One entry per token, matching the sweep tables' `streams`.
+ *
+ * @type {(s: string) => readonly string[]}
+ */
+const renderTokens = s => tokenizeString(s).map(t =>
     t.kind === 'error' ? `E(${t.message})`
         : 'value' in t ? `${t.kind}(${JSON.stringify(t.value)})`
-            : t.kind).join(' '))
+            : t.kind)
+
+/** The same, joined, for the assertions a reader reads. @type {(s: string) => string} */
+const render = s => renderTokens(s).join(' ')
 
 /**
  * Feeds `s` to `scanNumber` from `numberStart` and reports where it stopped:
@@ -52,24 +59,22 @@ const runString = s => {
 }
 
 /**
- * A rendered stream splits into tokens on spaces at depth zero only: an
- * `E(invalid token)` message and a `string("a b")` value both carry spaces of
- * their own, so splitting on every space mis-parses both.
- *
- * @type {(s: string) => readonly string[]}
- */
-const splitTokens = s => s.match(/E\([^)]*\)|(?:number|string)\("(?:[^"\\]|\\.)*"\)|\S+/g) ?? []
-
-/**
  * The trailing run of non-error tokens: what survives past the last failure,
  * and so what a malformed lexeme must not have swallowed.
  *
- * @type {(s: string) => string}
+ * The sweep's `streams` are arrays of tokens for this reason. A joined line
+ * would have to be split again here, and splitting one needs a parser — an
+ * `E(invalid token)` message and a `string("a b")` value both contain spaces of
+ * their own — which is a lexical transformation, exactly what
+ * [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 says to write as an ordinary typed
+ * function rather than a regular expression. Not rendering to text in the first
+ * place is the shorter way to obey it.
+ *
+ * @type {(tokens: readonly string[]) => readonly string[]}
  */
-const trailingValues = s => {
-    const ts = splitTokens(s).filter(t => t !== 'eof')
-    const from = ts.findLastIndex(t => t.startsWith('E('))
-    return ts.slice(from + 1).join(' ')
+const trailingValues = tokens => {
+    const ts = tokens.filter(t => t !== 'eof')
+    return ts.slice(ts.findLastIndex(t => t.startsWith('E(')) + 1)
 }
 
 export const proof = {
@@ -540,7 +545,9 @@ export const proof = {
     sweep: {
         matchesTheCommittedTable: () => {
             assertEq(expected.length, inputs.length)
-            for (const [i, input] of inputs.entries()) { assertEq(render(input), streams[expected[i]]) }
+            for (const [i, input] of inputs.entries()) {
+                assertStructurallySame(renderTokens(input), streams[expected[i]])
+            }
         },
         // The design's third claim, which **neither invariant covers**: no row
         // loses a well-formed token belonging to the input *after* the
@@ -554,7 +561,8 @@ export const proof = {
         losesNoTokenAfterTheLiteral: () => {
             const lost = inputs.filter((_, i) => {
                 const before = trailingValues(streams[recorded[i]])
-                return before !== '' && before !== trailingValues(streams[expected[i]])
+                return before.length !== 0
+                    && before.join(' ') !== trailingValues(streams[expected[i]]).join(' ')
             })
             assertStructurallySame(lost, [
                 // the `n` class: the old tokenizer deleted the `n` and
@@ -577,7 +585,8 @@ export const proof = {
         // write that shape down has been wrong.
         crossesTheErroringBoundaryOnlyForTheNClass: () => {
             assertEq(recorded.length, inputs.length)
-            const errs = /** @type {(s: string) => boolean} */(t => t.includes('E('))
+            const errs = /** @type {(ts: readonly string[]) => boolean} */(
+                ts => ts.some(t => t.startsWith('E(')))
             for (const [i, input] of inputs.entries()) {
                 const before = streams[recorded[i]]
                 const now = streams[expected[i]]
@@ -585,7 +594,9 @@ export const proof = {
                 // It crossed, so the old output must be a bare number whose
                 // value is the input with its `n`s deleted. Two rows reach
                 // here, `12n1` and `0n1`.
-                assertEq(before, `number(${JSON.stringify(input.replaceAll('n', ''))}) eof`)
+                assertStructurallySame(
+                    before,
+                    [`number(${JSON.stringify(input.replaceAll('n', ''))})`, 'eof'])
                 assert(errs(now))
             }
         },
