@@ -10,10 +10,27 @@
  *
  * `expected` is what this module's own tokenizer produces and is what
  * [`proof.f.mjs`](./proof.f.mjs) asserts against. `recorded` is what the
- * wrapper over `fjs/js/tokenizer` produced before the port, captured once so a
- * reviewer can diff the two and so the proof can check the two invariants
- * against the pair. Nothing imports `fjs/js/tokenizer` to obtain it, which is
- * what lets stage 7 delete that machine without rewriting this proof.
+ * wrapper over `fjs/js/tokenizer` produced before the port, so the proof can
+ * check the two invariants against the pair.
+ *
+ * **`expected` is re-derived on every run; `recorded` can never be.**
+ * `matchesTheCommittedTable` recomputes `expected` from the live tokenizer and
+ * fails on any drift, so that half needs no generator to stay honest.
+ * `recorded` has no in-tree reproducer **by construction**: nothing under
+ * `fjs/media/json` may import `fjs/js/tokenizer`, which is what lets stage 7
+ * delete that machine without rewriting this proof. So `recorded` is a
+ * **one-time record of a tokenizer that is gone**, and the only way to
+ * re-validate it is to rebuild the pre-port one out of history and replay
+ * `inputs` through it:
+ *
+ * ```sh
+ * git show 61b9ffaa:fjs/media/json/tokenizer/module.f.mjs
+ * ```
+ *
+ * Review did exactly that and found **0 mismatches** across all 5586 rows,
+ * with a corrupted row as the positive control. That is the one claim this
+ * suite cannot make for itself, so it is recorded here rather than left to a
+ * pull request thread.
  *
  * **Both tables are indices into `streams`, and the inputs are generated
  * rather than listed.** Written out as `[input, tokens]` pairs the two tables
@@ -22,10 +39,11 @@
  * ([`fjs/effects/node/module.mjs`](../../../effects/node/module.mjs)), which
  * the website build and therefore CI runs over every module. Deduplicating the
  * 697 distinct token streams and deriving the inputs from the prefix and
- * suffix lists brings it to about 100 KiB. `inputs` below reconstructs them,
+ * suffix lists brings it to about 85 KiB. `inputs` below reconstructs them,
  * so a consumer still sees literal text.
  *
- * Generated. Do not edit by hand.
+ * Neither table is written by hand, and no generator is committed: one would
+ * need the pre-port tokenizer, which is the dependency this stage removed.
  *
  * @module
  */

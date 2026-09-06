@@ -1155,7 +1155,7 @@ file and two of them change the seam it will import.
    is how this was found, by the Cloudflare deployment going red. Written out
    as `[input, tokens]` pairs the tables come to 691 KiB. Deduplicating the 697
    distinct token streams and deriving the inputs from the prefix and suffix
-   lists brings the file to 86 KiB, and `inputs` is still exported so a
+   lists brings the file to 85 KiB, and `inputs` is still exported so a
    consumer sees literal text. Both tables are still complete and the invariant
    check still runs over the pair; what changed is only how they are spelled.
 
