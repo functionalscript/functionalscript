@@ -23,8 +23,11 @@ import { assertEq } from '../../../asserts/module.f.mjs'
  *
  * That is a value invented for input that was refused, which
  * [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
- * forbids: a malformed literal must be one error and nothing else.
- * `dropFabricatedString` drops it.
+ * forbids. `dropFabricatedString` drops it, leaving a malformed literal to
+ * report as **errors alone**: as many as the scan raises — `"\x\y"` is two,
+ * one per bad escape — and no value token among them. It is the value that is
+ * forbidden, not the second error, which carries real information about a
+ * second defect.
  *
  * A raw newline is deliberately **not** in this set. It ends the literal
  * instead (`unterminated string literal`, leaving the string state), so there

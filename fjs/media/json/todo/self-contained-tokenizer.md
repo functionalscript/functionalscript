@@ -146,7 +146,9 @@ A caller that filters errors out — or a parser that resynchronizes on the next
 value — sees a string `"x"` that no document contained. That is
 [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle): an
 unsupported input is refused, never answered with a plausible wrong value. The
-malformed literal has to be one error token and nothing else.
+malformed literal has to report as error tokens alone — as many as the scan
+raises, since `"\x\y"` has two defects and says so, but no value token among
+them. It is the fabricated value §10 forbids, not the second error.
 
 The rest are artifacts rather than defects, and they are noisy:
 
@@ -1131,7 +1133,14 @@ Two PRs, in this order. Everything from "Stage 3b" down is the second.
       malformed literal stops receiving one. Valid JSON is unaffected, and the
       declaration should say so.
 - [x] `npm run gen` (no diff), then `tsc`, `fjs test` — and `node --test`,
-      5493 passing. The `cargo` half is vacuous here: 3a touches no Rust.
+      5493 passing.
+
+      `cargo clippy -- -D warnings` and `cargo fmt -- --check` are
+      unconditional, unlike `cargo test`; both ran on the branch head in CI —
+      `clippy` in every platform job, `fmt` in `wasm` — and passed. Calling
+      them vacuous because 3a touches no Rust was wrong: the checks apply to
+      the tree, not to the diff, and "not affected by this change" is a
+      prediction where a green run is a fact.
 
 #### Stage 3b — the port
 
