@@ -80,10 +80,15 @@ exists) are dependencies of the front end, not parts of it.
    today (`data/`, `matcher/`, `ll1/`, `token_symbol/`), which is what
    grammar-bucket wanted from a bucket and what `bnf/` already does.
 2. **Dependency direction: `bnf` may import from `ebnf`; `ebnf` never imports
-   from `bnf`.** In any form — a runtime `import`, a JSDoc `@import`, an
-   `import type` in `types.ts`, or a relative link in a README or `todo/`. A
-   type-only dependency is exactly what would make `tsc` fail when `bnf/` is
-   deleted, so it counts. The rule is written down in
+   from `bnf`.** In any code form — a runtime `import`, a JSDoc `@import`,
+   an `import type` in `types.ts`. A type-only dependency is exactly what
+   would make `tsc` fail when `bnf/` is deleted, so it counts. A relative
+   link from an `ebnf/` README or `todo/` to a `bnf/` document is a
+   reference, not a dependency: it makes nothing fail, and `bnf/`'s issues
+   are the record of the designs `ebnf/` replaces, which `ebnf/`'s own
+   issues may cite. Stage 7 re-points or retires such links as
+   [todo/README.md](../../todo/README.md) describes for retired issues.
+   The rule is written down in
    [fjs/AGENTS.md](../AGENTS.md) and held by review; no new tool is added
    for it, because none the repository has can express it and a text scan
    is not analysis ([AGENTS.md §6](../../AGENTS.md#6-external-tools)). Its

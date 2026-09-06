@@ -219,12 +219,15 @@ Three differences from `rewrite`, all to keep:
   not fought: a grammar that wants them apart spells the string as a
   set.
 - **A `const` thunk and its payload are one rule.** `toData` lowers the
-  payload under the thunk's own name and never names the payload, so the
-  key is the thunk, and the payload offered as a key is refused as a rule
-  the grammar does not hold. `rewrite` maps the payload first and the
-  thunk after, as two rules; the map README already reads the thunk as
-  "the rule its payload spells", and the fold takes that literally, with
-  one mapping where `rewrite` allowed two.
+  payload under the thunk's own name and does not name the payload for
+  it, so the key is the thunk. A payload held nowhere else has no name,
+  and offered as a key is refused as a rule the grammar does not hold; a
+  payload also reached directly elsewhere has its own name there, and a
+  mapping keyed by it applies to that occurrence and not to the one under
+  the thunk — the first bullet again. `rewrite` maps the payload first
+  and the thunk after, as two rules; the map README already reads the
+  thunk as "the rule its payload spells", and the fold takes that
+  literally.
 
 The shape asserts of the `rewrite` pass — `fixed`, `contains`,
 `structurallySame` — do not exist in the fold. The machine built the
