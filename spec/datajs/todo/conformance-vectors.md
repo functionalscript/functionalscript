@@ -26,8 +26,11 @@ states, with its character sweeps as coverage rather than proof: that design is
 explicit that no finite sweep is exhaustive. A DataJS corpus has nothing to say
 about any of it.
 
-**This corpus must therefore land before or together with stage 4**, which is
-compatible with running stage 3 first: the sequence is 3, then 1b, then 4.
+**This corpus must therefore land before or together with stage 4.** The
+sequence was 3, then 1b, then 4; stage 3 is now blocked on EBNF, so this corpus
+is the one piece of it that can proceed — it bootstraps in JSON precisely so it
+can exist before any DataJS reader does, and it is indifferent to whether that
+reader is hand-written or generated from a grammar.
 Landing stage 4 without it would mean writing stage 4's proofs twice.
 
 ### Proposal

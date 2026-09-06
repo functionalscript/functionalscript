@@ -1,7 +1,7 @@
 ## Restructure JSON, DataJS, and FunctionalScript parsers/serializers
 
 **Priority:** P1 — stages 3 and 4 are urgent; see [Priority](#priority-stages-3-and-4-come-first).
-**Status:** wip — stages 1a, 2 and 3a done.
+**Status:** wip — stages 1a, 2 and 3a done; **stage 3b is blocked on EBNF**.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
@@ -12,10 +12,20 @@ not here.
 
 Read in this order; each line says what to do and why it comes when it does.
 
-1. **Next: stage 3b, the port.** Stage 3a — the fabricated string token — has
-   landed, so what is left of stage 3 is the JSON self-contained tokenizer
-   itself. Design is written and
-   reviewed:
+1. **Stage 3b is blocked, and the reason changes this plan.** JSON's reader
+   will come from an **EBNF grammar** over `fjs/ebnf/` rather than the
+   hand-written scanner this issue specified, so the no-runtime-grammar rule
+   below is reversed. Nothing can start until the EBNF LL(1) backend can carry
+   a mapping's metadata, which is being designed in
+   [#1890](https://github.com/functionalscript/functionalscript/pull/1890);
+   the module's own migration is
+   [`fjs/todo/ebnf-migration.md`](../fjs/todo/ebnf-migration.md).
+
+   The hand-written design was written, reviewed, implemented in full and
+   **withdrawn** —
+   [#1895](https://github.com/functionalscript/functionalscript/pull/1895),
+   reverted. Read it for its measurements, not as a plan. The rewritten issue
+   carries what survives:
    [`fjs/media/json/todo/self-contained-tokenizer.md`](../fjs/media/json/todo/self-contained-tokenizer.md).
    It has the grammar, the error rule and the two invariants that decide
    whether a difference is expected, an illustrative table of error shapes that
@@ -24,13 +34,11 @@ Read in this order; each line says what to do and why it comes when it does.
    generated sweeps are coverage rather than an enumeration — the design is
    explicit that no finite sweep is exhaustive, so the rules plus the
    invariants are what an implementation is held to. Implementable without
-   reading anything else here. It lands as **two PRs**: 3a dropped the
-   fabricated string token in the existing wrapper, and 3b is the port, which
-   then carries only what removing the dependency forces — the order
-   [`DESIGN.md`](../doc/DESIGN.md) prescribes when the idea is the premise.
-   *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
-   scanner unchanged and its number core extended, so JSON has to own those
-   scanners before DataJS can borrow them.
+   the two invariants any replacement is held to, the accepted-language
+   probes, the measured terminator sets, and what still has to be decided.
+   *Why it still matters:* stage 4 needs it. DataJS's reader reuses JSON's, and
+   over a grammar the reuse is of rules rather than of exported scanners —
+   which is one of the open questions the rewritten issue lists.
 2. **Then: stage 1b, the conformance vectors**
    ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)).
    *Why here:* it is stage 4's proof source, so landing stage 4 first means
@@ -55,11 +63,16 @@ Read in this order; each line says what to do and why it comes when it does.
 (the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
 token, dropped). All three are on `main`.
 
+**Do not start a hand-written JSON scanner.** That is what #1895 was, and it is
+withdrawn — not because it failed, but because the defects review had to find in
+it one at a time are the cost the grammar is being bought to avoid.
+
 **Three things are decided and should not be reopened without a reason:**
 DataJS is frozen at "JSON extended from a tree to a DAG, plus the leaves JSON
 cannot spell" — new syntax belongs in FunctionalScript, not here; the media
-codecs take no runtime dependency on `fjs/bnf` or on `fjs/js/tokenizer`, which
-is the whole point of the restructure; and the mandatory identifier prefix is
+codecs take no runtime dependency on `fjs/js/tokenizer`, which is the whole
+point of the restructure — **the half of that rule about grammar modules is
+reversed, see below**; and the mandatory identifier prefix is
 **`$`**, not `_` or any other character. The prefix itself is what carries the
 design — it retires the exclusion list — and the grammar does not force which
 character does it, so the choice was made once and is closed. The objection on
@@ -119,27 +132,51 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
                    operators) → parser → AST → EDAG
 ```
 
-- **JSON**: accepted language and value semantics are frozen; the tokenizer
-  becomes self-contained (the `fjs/js/tokenizer` wrapper is replaced by a
-  small scanner of JSON's own lexical grammar). Error shapes may change once
-  in that swap; accepted-input behavior does not, with one enumerated
-  exception — inputs like `1n1`, which today's tokenizer accepts as a number
-  by deleting the `n`, start erroring. No existing proof is in that class.
+- **JSON**: accepted language and value semantics are frozen; the
+  `fjs/js/tokenizer` wrapper is replaced by a reader generated from JSON's own
+  grammar over `fjs/ebnf/`. Error shapes may change once in that swap;
+  accepted-input behavior does not, with one enumerated exception — inputs like
+  `1n1`, which today's tokenizer accepts as a number by deleting the `n`, start
+  erroring. No existing proof is in that class. Both halves are measured and
+  the invariants stated in
+  [self-contained-tokenizer](../fjs/media/json/todo/self-contained-tokenizer.md),
+  which survives the change of direction because they are facts about the
+  tokenizer being replaced rather than about its replacement.
 - **DataJS** (the format known in this repository as DJS): a new, minimal,
-  spec'd format — JSON extended from a tree to a DAG, nothing else. New
-  hand-written parser and serializer in `fjs/media/datajs`, layered on JSON's
-  exported pieces. Everything that is not needed for the DAG property moves to
-  FunctionalScript.
+  spec'd format — JSON extended from a tree to a DAG, nothing else. Its reader
+  is a grammar in `fjs/media/datajs` extending JSON's rather than a hand-written
+  parser layered on JSON's exported scanners; the serializer stays
+  hand-written, since nothing generates one from a grammar. Everything that is
+  not needed for the DAG property moves to FunctionalScript.
 - **FunctionalScript**: the current `fjs/djs` front end (grammar-based
   tokenizer, BNF parser, AST, transpiler) moves to `fjs/fsc` and continues to
   grow there — comments, imports, identifier keys, and the staged EDAG work.
   The compiler can emit DataJS (normalized) or JSON.
-- **BNF is not a runtime dependency of the media codecs.** The spec carries
+- **A grammar module *is* a runtime dependency of the media codecs — reversed.**
+  This bullet used to read "BNF is not a runtime dependency of the media
+  codecs", with the grammars kept as proof-covered examples. JSON's and DataJS's
+  readers are instead a grammar over [`fjs/ebnf/`](../fjs/ebnf/module.f.mjs)
+  plus a mapping.
+
+  The old rule rested on the grammar module not being stable enough to depend
+  on, and that argument has not changed — `fjs/ebnf/` is mid-migration, which is
+  why stage 3b is *blocked* rather than open. What changed is what the
+  alternative costs: a hand-written tokenizer and container machine per format,
+  whose defects have to be found one at a time by review, against a grammar of a
+  few dozen readable lines.
+
+  The rule's other half survives, and binds harder now: an example grammar
+  without proof coverage is how the dead `fjs/fsc` copy happened, so none may be
+  added without proofs. The paragraph below is what the old rule said, kept
+  because [bnf-grammar-single-owner](../fjs/bnf/todo/bnf-grammar-single-owner.md)
+  is still written against it and is owed an edit.
+
+  ~~The spec carries
   the grammars as BNF text; `fjs/bnf/**` may hold the JSON and DataJS grammars
   as *proof-covered examples* cross-checked against the spec's test vectors.
   An example grammar without proof coverage is how the dead `fjs/fsc` copy
   happened — nothing imported or proved it, so it silently drifted from the
-  other two; none may be added without proofs.
+  other two; none may be added without proofs.~~
 
 ### The DataJS format (decision record)
 
