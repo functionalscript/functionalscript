@@ -81,8 +81,9 @@ nothing is deferred.
 one. That is what keeps a mapping's result, a JSON array say, from ever
 colliding with a raw node; and it is what lets a symbol cross a layer
 boundary as it is — no rename, no re-tagging — since the `id` already
-says which alphabet it is. What does not cross for free is the *list*:
-see "The boundary" below.
+says which alphabet it is. A layer's entry rule is mapped like any other
+rule, and that mapping's result is the next layer's input; nothing
+happens at a boundary that does not happen at every other node.
 
 The AST of a rule, before or after rewriting, is then one type beside
 `Ast<R>`:
@@ -225,57 +226,20 @@ The shape asserts of the `rewrite` pass — `fixed`, `contains`,
 node from the rule, so its shape is right by construction; the asserts
 are the mappings' own, on `meta.id`, for now.
 
-**The boundary.** A tokenizer whose token rules are mapped and whose
-outer repetition is not produces `MetaAst<Cp | Tok, Repeat<…>>`, and that
-type admits either alphabet or an array at every subtree: it is
-independent of the set, by design, so it cannot say that every round
-became a `'tok'` symbol, and it is not assignable to the next parser's
-`readonly MetaSymbol<Tok>[]`. Each symbol crosses as it is; the list
-needs one operation, `symbols(result, 'tok')`, which walks the array,
-checks every element is a symbol of that alphabet, and returns
-`readonly MetaSymbol<Tok>[]` — or refuses, naming the position of the
-first element that is not, which is where a token rule left unmapped is
-caught. That check is the one runtime fact the type cannot carry, done
-once, at the one place it matters. A layer whose result is a single value
-rather than a stream — the JSON grammar mapped to a JSON value — maps its
-entry rule instead and needs no such step: `parser(rule, set)` then
-returns a `MetaSymbol<MO>` outright. The fold-form repetition below
-would let a tokenizer do the same, collecting its rounds as it goes.
+### Later
 
-**What still grows.** With mappings of the form `(ast) => MetaSymbol`, a
-repetition holds every round's result until it closes: depth is folded
-away, but a top-level `repeat(statement)` holds one result per statement
-until EOF. Not growing needs the repetition's mapping in fold form —
-`init`/`update`/`end`, the classical `RepeatTransformer` and 043's
-`StateFold` — and the frame already accumulates as a list, so swapping
-that accumulator for user state is a follow-up, not a redesign.
+Each of these can be added later, with a breaking change if need be,
+and so is not part of the design:
 
-### Later: the RTTI precheck
-
-The first version checks nothing before the fold runs; a mapping asserts
-at runtime. Because the tree has no functions in it, every node kind is
-a shape [`../../rtti`](../../rtti/README.md) can spell — a `MetaSymbol` as
-`{ symbol: number, meta: { id: 'cp', … } }` with `id` a literal and the
-rest `unknown`, a tuple as a tuple, `[tag, node]` as a tuple of a string
-literal and the branch — so a later precheck is the classical
-`bnf/map/rtti/checkMap` minus its corner-cutting:
-
-- `rule(a, f)` grows optional `ri`/`ro` descriptions; a mapping without
-  them stays unchecked.
-- At `parser(rule, set)`, after `toData`, compute per name over the
-  finite `RuleSet` what each mapping will actually receive — a mapped
-  child is its `ro`, an unmapped child its shape over its children's
-  computed types, memoized so recursion closes — and refuse
-  `ri ⊉ computed`, naming the rule, next to the LL(1) refusals.
-- Compare with `rtti/data`'s coinductive `subset`, not `equal`, since
-  the computed type's rule names are never the author's.
-
-The classical `inputOf` typed an unmapped child as the wide "any AST",
-which lost its shape and was wrong for a mixed subtree; the exact
-computation removes that and the "mixed mapped and unmapped variant
-boundary" refusal that guarded it. The `id` makes an alphabet mismatch
-a build-time refusal, and it is the one field of metadata the check
-reads.
+- **A repetition mapped as a fold** — `init`/`update`/`end` over the
+  rounds as they arrive — so a top-level `repeat(statement)` holds one
+  result at a time rather than one per statement until it closes.
+- **An RTTI precheck** of what each mapping receives, computed per name
+  over the finite `RuleSet` from the mappings' declared types, possible
+  because the tree has no functions in it; a mismatch of alphabets would
+  then be refused at build.
+- **A boundary helper** that checks a result is a list of one alphabet's
+  symbols, should mapping the entry rule prove not to be enough.
 
 ### Decided separately
 
@@ -299,21 +263,19 @@ reads.
       guard reading `.symbol`, the argument renamed away from `input`;
       frames carry their rule name; `parser(rule, set)` folding at the
       five sites; a mapping whose rule the grammar does not hold, or a
-      rule mapped twice, refused at build; `symbols(result, id)` for the
-      boundary.
+      rule mapped twice, refused at build.
 - [ ] The per-layer factory binding `MI` and `MO`; `rule(a, f)`,
       `Mapping`, `RewriteSet` types, with `f` contextually typed from
       `a` under them.
 - [ ] Proofs: the empty set is the identity; `parser(r, set)` agrees with
       `rewrite`-then-parse where the three keyings agree; a two-layer
       example — a tokenizer emitting `{ id: 'tok', … }` symbols with a
-      payload, taken through `symbols(result, 'tok')`, parsed by a
+      payload, parsed by a
       grammar over `'tok'` whose mapping reads the
       payload.
 - [ ] Amend `ll1/README.md` ("Left for later") and `map/README.md` ("No
       metadata channel", "What it is not", "Left for later").
-- [ ] File the follow-ups: the fold-form repetition mapping; the RTTI
-      precheck; retiring `Ast<R>` and `rewrite`.
+- [ ] File the follow-ups that turn out to be wanted, from "Later".
 
 ### Related
 
