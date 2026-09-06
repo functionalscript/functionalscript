@@ -7,7 +7,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../../../djs/serializer/module.f.mjs'
 import { sort } from '../../../types/object/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
-import { assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 
 /** @type {(s: string) => readonly JsonToken[]} */
 const tokenizeString = s => toArray(tokenize(stringToList(s)))
@@ -85,10 +85,6 @@ export const proof = {
             if (result !== '[{"kind":"string","value":"/"},{"kind":"eof"}]') { throw result }
         },
         () => {
-            const result = stringify(tokenizeString('"\\x"'))
-            if (result !== '[{"kind":"error","message":"unescaped character"},{"kind":"string","value":"x"},{"kind":"eof"}]') { throw result }
-        },
-        () => {
             const result = stringify(tokenizeString('"\\'))
             if (result !== '[{"kind":"error","message":"\\" are missing"},{"kind":"eof"}]') { throw result }
         },
@@ -103,10 +99,6 @@ export const proof = {
         () => {
             const result = stringify(tokenizeString('"\\uaBcDEeFf"'))
             if (result !== '[{"kind":"string","value":"ꯍEeFf"},{"kind":"eof"}]') { throw result }
-        },
-        () => {
-            const result = stringify(tokenizeString('"\\uEeFg"'))
-            if (result !== '[{"kind":"error","message":"invalid hex value"},{"kind":"string","value":"g"},{"kind":"eof"}]') { throw result }
         },
         () => {
             const result = stringify(tokenizeString('0'))
@@ -253,6 +245,65 @@ export const proof = {
             if (result !== '[{"kind":"["},{"kind":"error","message":"invalid token"},{"kind":"error","message":"invalid token"},{"kind":"]"},{"kind":"eof"}]') { throw result }
         },
     ],
+    // A malformed string literal is reported as errors alone. `fjs/js/tokenizer`
+    // keeps scanning after an error raised from *inside* a literal, so the
+    // closing quote used to emit an ordinary `string` token for text no
+    // document contained — `"\x"` gave `string "x"`, which a caller filtering
+    // errors out could not tell from the `"x"` a valid document produces.
+    //
+    // All three messages that behave that way are pinned here, together with
+    // the two boundaries that make the suppression a rule rather than a guess:
+    // a genuine string after the error still arrives, and a raw newline is not
+    // in the class at all.
+    stringRecovery: {
+        invalidEscape: () => assertEq(
+            stringify(tokenizeString('"\\x"')),
+            '[{"kind":"error","message":"unescaped character"},{"kind":"eof"}]'),
+        // a second escape, so the proof holds the class and not one instance
+        // of it: `\v` is a JavaScript escape that JSON does not have
+        escapeJsHasAndJsonDoesNot: () => assertEq(
+            stringify(tokenizeString('"\\v"')),
+            '[{"kind":"error","message":"unescaped character"},{"kind":"eof"}]'),
+        // `\u` whose four hex digits are not four hex digits
+        invalidHexValue: () => assertEq(
+            stringify(tokenizeString('"\\uEeFg"')),
+            '[{"kind":"error","message":"invalid hex value"},{"kind":"eof"}]'),
+        // JavaScript's code-point escape, which JSON does not have: the `{`
+        // is the non-hex character, and `{41}` was the value it fabricated
+        codePointEscape: () => assertEq(
+            stringify(tokenizeString('"\\u{41}"')),
+            '[{"kind":"error","message":"invalid hex value"},{"kind":"eof"}]'),
+        // the third message, which no proof reached before: a raw control
+        // character, which the literal absorbed into its value
+        rawTab: () => assertEq(
+            stringify(tokenizeString('"a\tb"')),
+            '[{"kind":"error","message":"unescaped control character in string"},{"kind":"eof"}]'),
+        rawNul: () => assertEq(
+            stringify(tokenizeString('"\u0000"')),
+            '[{"kind":"error","message":"unescaped control character in string"},{"kind":"eof"}]'),
+        // two errors from one literal: an error is not a `string`, so the flag
+        // survives it and still drops the one token the closing quote emits
+        twoInvalidEscapes: () => assertEq(
+            stringify(tokenizeString('"\\x\\y"')),
+            '[{"kind":"error","message":"unescaped character"},{"kind":"error","message":"unescaped character"},{"kind":"eof"}]'),
+        // the rule is "the next token", not "every string after an error":
+        // `"ok"` is really in the source, and a caller is owed it
+        laterStringSurvives: () => assertEq(
+            stringify(tokenizeString('"\\x" "ok"')),
+            '[{"kind":"error","message":"unescaped character"},{"kind":"string","value":"ok"},{"kind":"eof"}]'),
+        // the fabricated token reaches the `'-'` state too, which returns to
+        // `'def'` on the error and so would have passed the `string` through
+        afterMinus: () => assertEq(
+            stringify(tokenizeString('-"\\x"')),
+            '[{"kind":"error","message":"invalid token"},{"kind":"error","message":"unescaped character"},{"kind":"eof"}]'),
+        // where the class ends: a raw newline *ends* the literal rather than
+        // continuing it, so there is no partial token to drop and this shape
+        // is unchanged. That boundary is why the rule keys on the message and
+        // not on "a control character".
+        rawNewLine: () => assertEq(
+            stringify(tokenizeString('"a\nb"')),
+            '[{"kind":"error","message":"unterminated string literal"},{"kind":"error","message":"invalid token"},{"kind":"error","message":"\\" are missing"},{"kind":"eof"}]'),
+    },
     id: [
         () => {
             const result = stringify(tokenizeString('err'))
