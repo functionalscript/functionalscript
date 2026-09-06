@@ -31,8 +31,12 @@ mapping no way to return anything. The classical stack's design for the
 same requirement, `MI`/`MO` with `translate` and `reduce`
 ([generic-parser-metadata](../../bnf/todo/generic-parser-metadata.md),
 [043-stateful-parser](../../bnf/todo/043-stateful-parser.md)), is what the
-data structure below replaces: with the alphabet named in the metadata,
-neither operation is needed.
+data structure below replaces for `ebnf/`: with the alphabet named in the
+metadata, `translate` is not needed, `reduce` is each mapping's own fold
+over its children, and the identity `empty` that those issues left open
+becomes a value the machine has, below. The two issues describe the
+classical `bnf/` backend and stay as its record; each says so at its head,
+and the migration table keeps them there rather than moving them here.
 
 ### The data structure
 
@@ -95,16 +99,18 @@ The parser's tree is `MetaAst<MI, R>`; a mapping of `R` under a set whose
 results carry `MO` is
 
 ```ts
-(ast: MetaAst<MI | MO, R>) => MetaSymbol<MO>
+(ast: MetaAst<MI | MO, R>, ahead: MetaSymbol<MI> | undefined) => MetaSymbol<MO>
 ```
 
 and `MetaAst<MI | never, R>` is `MetaAst<MI, R>`, so the parser's tree
 and the tree rewritten by the empty set are one type by definition
-rather than by assertion. `MetaAst` is kept separate from `Ast<R>` for
-now: `Ast<R>` keeps the symbol literal, which `MetaAst` cannot under
-`MI | MO` (a mapped leaf carries another symbol), and `rewrite` keeps
-taking it. Whether `Ast<R>` is retired once the fold below exists is
-decided then.
+rather than by assertion. `ahead` is the lookahead — the input symbol at
+the position the match ended, `undefined` at the end of input — and it
+is what an empty match has instead of a leaf, below. `MetaAst` is kept
+separate from `Ast<R>` for now: `Ast<R>` keeps the symbol literal, which
+`MetaAst` cannot under `MI | MO` (a mapped leaf carries another symbol),
+and `rewrite` keeps taking it. Whether `Ast<R>` is retired once the fold
+below exists is decided then.
 
 **The property everything rests on.** A value a mapping sees is one of
 two things, told apart by one test. Not an array: a `MetaSymbol`, and
@@ -131,11 +137,22 @@ const a = option(set('abc'))                 // the grammar, defined first
 rule(a, ast => f(ast))                       // a mapping, bound later
 ```
 
-`rule(a, f)` is a constructor for the pair, and the reason it is a call
-rather than a tuple literal: a function inside a tuple gets no contextual
-type, which is why every mapping in `../map` today carries a
-`/** @type {…} */` cast, where a call can type `f`'s parameter as
-`MetaAst<MI | MO, typeof a>` from `a` alone. The set is an array, so it
+`rule(a, f)` is a constructor for the pair, and it comes from a factory
+bound once per layer to the layer's metadata types:
+
+```js
+/** @type {Mappings<Cp, Tok>} */
+const { rule } = mappings()
+```
+
+`a` carries only its rule type and says nothing of `MI` or `MO`, so they
+are bound where a layer begins and read from there; with them bound, a
+call types `f`'s parameter as `MetaAst<MI | MO, typeof a>` from `a`, where
+a function inside a tuple literal gets no contextual type at all — which
+is why every mapping in `../map` today carries a `/** @type {…} */` cast.
+The exact spelling of the factory is the implementation's; what the
+design fixes is that the metadata types are bound once, not per mapping
+and not inferred from a rule. The set is an array, so it
 is assembled across modules — a grammar's mappings for its own
 scaffolding beside a consumer's — and nothing in its type depends on the
 whole. Keys are rule values, so the rules a consumer maps have to be
@@ -143,17 +160,30 @@ reachable: `value`, `array` and `object` in
 [`../lib/json`](../lib/json/module.f.mjs) currently are not.
 
 **The parser takes the set and folds it.** The `ll1` machine builds
-bottom-up, and a node comes into existence at four `'ok'` sites — a
-set's leaf in `enter`, and in `resume` the end of a sequence, the variant
-wrap, and `round` closing a repetition. On-the-fly rewriting is one
-function at those sites:
+bottom-up, and a node comes into existence at five `'ok'` sites — in
+`enter`, a set's leaf and the empty sequence, which returns `['ok', [], pos]`
+without a frame (the empty string lowers to one, so it is this site too);
+and in `resume`, the end of a sequence, the variant wrap, and `round`
+closing a repetition. On-the-fly rewriting is one function at those sites:
 
 ```js
-const emit = (name, node) => {
+const emit = (name, node, pos) => {
     const f = mappers.get(name)
-    return f === undefined ? node : f(node)
+    return f === undefined ? node : f(node, aheadAt(pos))
 }
 ```
+
+**An empty match has no leaf to read a position from.** A mapped empty
+tuple, zero-round repetition, or EOF receives `[]` and nothing else, so
+"expected `x` at line N" for a missing optional could not say N. That is
+why the machine hands every mapping the lookahead as `ahead`: the
+`MetaSymbol<MI>` at the position the match ended, which gives an empty
+match the metadata of the symbol it stopped in front of — a zero-width
+span there — and gives a non-empty one the symbol after it, for free. This
+is where the classical `empty` went: not an identity the algebra must
+supply, but a value the machine has at every `emit`. The end of input is
+the one position with no such symbol, so `ahead` is `undefined` there;
+closing that is the EOF issue's gap, below.
 
 Frames hand `emit`'s result up instead of the node, so `done` and
 `rounds` hold mapped values and the only structure that ever exists is
@@ -161,12 +191,16 @@ the unmapped region between a mapping and the mappings below it. The
 frames need one field they lack — their own rule name — and that is the
 whole change to the machine. Keying is by name through the `RuleNameMap`
 `toData` returns: `parser(rule, set)` translates each `[a, f]` to
-`[names.get(a), f]` at build time and refuses a rule the grammar does not
-hold, before any input, where the machine refuses everything else. A
-mapping that throws does so at a known position, so its error can carry
-one.
+`[names.get(a), f]` at build time and refuses, before any input, where the
+machine refuses everything else: a rule the grammar does not hold, and a
+rule mapped twice. The second matters because the set is assembled from
+several sources; a `Map` built naively would let the later entry win, and
+the output would depend on assembly order. `rewrite` refuses the same
+("a rule mapped twice"). The machine knows the position at every `emit`,
+so a mapping's throw is caught there and rethrown with `pos`; the mapping
+is not told the position and does not need to be.
 
-Two differences from `rewrite`, both to keep:
+Three differences from `rewrite`, all to keep:
 
 - **Identity, not spelling.** The `RuleNameMap` is keyed by `===`, so a
   tuple spelled twice is two names and only the held instance is mapped;
@@ -179,6 +213,13 @@ Two differences from `rewrite`, both to keep:
   `rewrite` treats a string's symbols as the string's own. Documented,
   not fought: a grammar that wants them apart spells the string as a
   set.
+- **A `const` thunk and its payload are one rule.** `toData` lowers the
+  payload under the thunk's own name and never names the payload, so the
+  key is the thunk, and the payload offered as a key is refused as a rule
+  the grammar does not hold. `rewrite` maps the payload first and the
+  thunk after, as two rules; the map README already reads the thunk as
+  "the rule its payload spells", and the fold takes that literally, with
+  one mapping where `rewrite` allowed two.
 
 The shape asserts of the `rewrite` pass — `fixed`, `contains`,
 `structurallySame` — do not exist in the fold. The machine built the
@@ -222,13 +263,18 @@ reads.
 
 ### Decided separately
 
-- **EOF** stays synthesized by the parser, its node `[]`; whether the
-  caller sends it as a symbol with its own metadata
-  ([eof-as-ordinary-symbol](../../bnf/todo/eof-as-ordinary-symbol.md))
+- **EOF** stays synthesized by the parser, its node `[]` and `ahead`
+  `undefined` at it; whether the caller sends it as a symbol with its own
+  metadata, which would close both gaps at once
+  ([eof-as-ordinary-symbol](../../bnf/todo/eof-as-ordinary-symbol.md)),
   is its own issue.
-- **One `M` per tree**, `MI | MO`, discriminated by `id`. A mapping that
-  emits into its own input alphabet is nothing special: the union
-  collapses there, and the position is typed as what it holds.
+- **One `M` per tree**, `MI | MO`, discriminated by `id` — so **an `id`
+  names one metadata type**. Two shapes under one `id` would be one
+  alphabet with nothing to tell them apart, since `id` is the only
+  discriminator; a layer whose input alphabet carries several kinds of
+  metadata makes that one type, discriminated by a field of its own. A
+  mapping that emits into its input alphabet therefore emits `MI`, the
+  union collapses there, and the position is typed as what it holds.
 
 ### Tasks
 
@@ -237,12 +283,15 @@ reads.
 - [ ] `ll1`: input `readonly MetaSymbol<MI>[]`, `symbolAt` and the input
       guard reading `.symbol`, the argument renamed away from `input`;
       frames carry their rule name; `parser(rule, set)` folding at the
-      four sites; a mapping whose rule the grammar does not hold refused
-      at build.
-- [ ] `rule(a, f)`, `Mapping`, `RewriteSet` types, with `f` contextually
-      typed from `a`.
-- [ ] Proofs: the empty set is the identity; `parser(r, set)` agrees with
-      `rewrite`-then-parse where the two keyings agree; a two-layer
+      five sites with `ahead`; a mapping whose rule the grammar does not
+      hold, or a rule mapped twice, refused at build; a mapping's throw
+      rethrown with `pos`.
+- [ ] The per-layer factory binding `MI` and `MO`; `rule(a, f)`,
+      `Mapping`, `RewriteSet` types, with `f` contextually typed from
+      `a` under them.
+- [ ] Proofs: the empty set is the identity; a mapped empty match is
+      called, with `ahead`; `parser(r, set)` agrees with
+      `rewrite`-then-parse where the three keyings agree; a two-layer
       example — a tokenizer emitting `{ id: 'tok', … }` symbols with a
       payload, parsed by a grammar over `'tok'` whose mapping reads the
       payload.

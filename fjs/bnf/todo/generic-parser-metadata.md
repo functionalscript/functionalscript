@@ -3,6 +3,13 @@
 **Priority:** P3
 **Status:** open
 
+For the EBNF backend this is superseded by
+[meta-ast-mapping](../../ebnf/todo/meta-ast-mapping.md), which replaces
+`MI`/`MO` with an alphabet named in the metadata, and `translate`,
+`reduce` and `empty` with a mapping's own fold, the lookahead, and a
+fold in the parser. This issue describes the classical `bnf/` backend
+only.
+
 ### Problem
 
 `checkMap` currently fixes every implicit rule output to an AST with unknown
