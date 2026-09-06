@@ -365,17 +365,19 @@ The pattern is one grammar's leftovers seen through another: `+`, a second
 `.`, a second `e` are all *number* characters, so JavaScript's machine keeps
 eating them and then reports the whole run invalid. Where the grammar wants
 the character the question never arises — `1e+5` consumes its sign, `12.5`
-its point.
+its point. That table is also what the two references below mean by
+"absorbed", and every row of it is a fact about today's tokenizer rather than
+a choice.
 
 Two review rounds found this rule one phase at a time, which is why it is
 stated generatively and then measured rather than listed. `12+"]` is
 `invalid number` then `]` today; re-dispatching the `+` hands `"` to a
 string scan that eats the `]`. `1e."/1` is `invalid number`, an error for
+`/`, then `number 1`; re-dispatching the `.` loses that `1` the same way.
 
-That table is what the two references below mean by "absorbed", and it is a fact
-about today's tokenizer rather than a choice: `+`, a second `.` and a second `e`
-are all *number* characters, so JavaScript's machine keeps eating them and then
-reports the whole run invalid.
+Both were re-measured against the wrapper as it stands and still hold. What a
+grammar-driven reader *should* do with them is open: the withdrawn design
+reproduced these accidents on purpose, and that rationale went with it.
 
 ### Where a number lexeme ends
 
@@ -437,7 +439,7 @@ that makes the obvious fix wrong.
 Independent of everything above, and still correct under the new direction: it
 fixes the wrapper that remains in place until the grammar replaces it.
 
-#### Stage 3a — the fabricated token, fixed where it lives — **landed**
+#### Why it landed on its own
 
 The fabricated `string` after `"\x"` was a doc/DESIGN.md §10 violation that
 existed before any port was designed, and was provable against the wrapper as it
@@ -474,7 +476,7 @@ without JSON's own machine knowing about it. Either way the port deletes it,
 which is the point rather than a cost: it is what makes 3b carry no idea of its
 own.
 
-#### Stage 3a — drop the fabricated string
+#### The change, and its proofs
 
 **Done.** `dropFabricatedString` in
 [`../tokenizer/module.f.mjs`](../tokenizer/module.f.mjs), with the

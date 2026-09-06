@@ -1,6 +1,8 @@
 ## Restructure JSON, DataJS, and FunctionalScript parsers/serializers
 
-**Priority:** P1 — stages 3 and 4 are urgent; see [Priority](#priority-stages-3-and-4-come-first).
+**Priority:** P1 — stage 4 is urgent and stage 1b feeds it; see
+[Priority](#priority-stages-3-and-4-come-first). **Stage 3b is P2 while it is
+blocked**, which is the level its own issue now carries.
 **Status:** wip — stages 1a, 2 and 3a done; **stage 3b is blocked on EBNF**, so
 **stage 1b is what to pick up next**.
 
@@ -34,11 +36,10 @@ Item 1 is context rather than work — it is blocked. **Item 2 is what to start.
    accepting and terminator sets, the error shapes today's wrapper produces,
    and a checklist of what has to be decided before an implementation can
    start. Those survive the reversal because they are facts about the
-   tokenizer being replaced rather than about its replacement. The tables are
-   illustrative and known incomplete, and even the generated sweeps are
-   coverage rather than an enumeration — the design is explicit that no finite
-   sweep is exhaustive, so the rules plus the invariants are what an
-   implementation is held to.
+   tokenizer being replaced rather than about its replacement. Read the tables
+   as what that file calls them — **recorded, not promised**: a before/after
+   record reviewed as data, not a rule a replacement inherits. The two
+   invariants are the part an implementation is actually held to.
    *Why it still matters:* stage 4 needs it. DataJS's reader reuses JSON's, and
    over a grammar the reuse is of rules rather than of exported scanners —
    which is one of the open questions the rewritten issue lists.
@@ -468,6 +469,12 @@ combined marker would encode a redundant fact.
 Stages 3 and 4 are the urgent ones, ahead of the rest of this plan. They are
 what [EDAG](./edag-spec.md) is waiting on. Stage 1b comes with them, between the
 two — it is stage 4's proof source.
+
+**Urgency is not the same as actionability, and stage 3b now separates them.**
+Being blocked on EBNF lowered its own issue to **P2**: it is still what stage 4
+waits on, but no amount of priority makes it startable, so it cannot hold the
+front of a queue. The P1 urgency of this plan therefore rests on stages 1b and
+4 until the EBNF backend unblocks 3b, at which point it returns to the front.
 
 An EDAG is an expression DAG whose sharing is *semantics*, not an encoding
 detail: one node referenced from two operand positions is one value, and `{} ===
