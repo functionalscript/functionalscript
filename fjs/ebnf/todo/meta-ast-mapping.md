@@ -14,6 +14,15 @@ to live. The requirement on the mapping is stronger than a position channel:
 a mapping **must** receive that information with each input symbol, and
 **must** be able to return information of its own.
 
+**The goal is one transformation: fold a sequence into a symbol of another
+alphabet.** The code points of a number into one `number` token; the tokens
+of a statement into one node; so that the layer above parses something
+compact. Nothing else is the mapping's job — not errors, not whether a
+DataJS name resolves, not recovery. Those belong to the layer above, which
+holds the whole compact stream. The mapping is the simplest thing that does
+this one transformation; features are added later, with breaking changes if
+need be, once the use cases are seen.
+
 `rewrite` in [`../map`](../map/README.md) has a second problem. It is a
 pass over a tree that has to exist whole, allocated before any mapping
 runs; and its map has to be whole too, since `Checked<M>` types every
@@ -32,9 +41,8 @@ same requirement, `MI`/`MO` with `translate` and `reduce`
 ([generic-parser-metadata](../../bnf/todo/generic-parser-metadata.md),
 [043-stateful-parser](../../bnf/todo/043-stateful-parser.md)), is what the
 data structure below replaces for `ebnf/`: with the alphabet named in the
-metadata, `translate` is not needed, `reduce` is each mapping's own fold
-over its children, and the identity `empty` that those issues left open
-becomes a value the machine has, below. The two issues describe the
+metadata, `translate` is not needed and `reduce` is each mapping's own
+fold over its children. The two issues describe the
 classical `bnf/` backend and stay as its record; each says so at its head,
 and the migration table keeps them there rather than moving them here.
 
@@ -100,14 +108,12 @@ The parser's tree is `MetaAst<MI, R>`; a mapping of `R` under a set whose
 results carry `MO` is
 
 ```ts
-(ast: MetaAst<MI | MO, R>, ahead: MetaSymbol<MI> | undefined) => Result<MetaSymbol<MO>, E>
+(ast: MetaAst<MI | MO, R>) => MetaSymbol<MO>
 ```
 
 and `MetaAst<MI | never, R>` is `MetaAst<MI, R>`, so the parser's tree
 and the tree rewritten by the empty set are one type by definition
-rather than by assertion. `ahead` is the lookahead — the input symbol at
-the position the match ended, `undefined` at the end of input — and it
-is what an empty match has instead of a leaf, below. `MetaAst` is kept
+rather than by assertion. `MetaAst` is kept
 separate from `Ast<R>` for now: `Ast<R>` keeps the symbol literal, which
 `MetaAst` cannot under `MI | MO` (a mapped leaf carries another symbol),
 and `rewrite` keeps taking it. Whether `Ast<R>` is retired once the fold
@@ -168,23 +174,11 @@ and in `resume`, the end of a sequence, the variant wrap, and `round`
 closing a repetition. On-the-fly rewriting is one function at those sites:
 
 ```js
-const emit = (name, node, pos) => {
+const emit = (name, node) => {
     const f = mappers.get(name)
-    return f === undefined ? node : f(node, aheadAt(pos))
+    return f === undefined ? node : f(node)
 }
 ```
-
-**An empty match has no leaf to read a position from.** A mapped empty
-tuple, zero-round repetition, or EOF receives `[]` and nothing else, so
-"expected `x` at line N" for a missing optional could not say N. That is
-why the machine hands every mapping the lookahead as `ahead`: the
-`MetaSymbol<MI>` at the position the match ended, which gives an empty
-match the metadata of the symbol it stopped in front of — a zero-width
-span there — and gives a non-empty one the symbol after it, for free. This
-is where the classical `empty` went: not an identity the algebra must
-supply, but a value the machine has at every `emit`. The end of input is
-the one position with no such symbol, so `ahead` is `undefined` there;
-closing that is the EOF issue's gap, below.
 
 Frames hand `emit`'s result up instead of the node, so `done` and
 `rounds` hold mapped values and the only structure that ever exists is
@@ -199,21 +193,11 @@ several sources; a `Map` built naively would let the later entry win, and
 the output would depend on assembly order. `rewrite` refuses the same
 ("a rule mapped twice").
 
-**A mapping's failure is a value, never a throw.** FunctionalScript has
-no `try`/`catch`, so nothing in `ll1/module.f.mjs` could intercept a
-throw; a `throw` in a mapping is a panic for a broken invariant, as
-[`fjs/AGENTS.md`](../../AGENTS.md) §1.5 says, and never control flow. So
-a mapping returns `Result<MetaSymbol<MO>, E>`, and `emit` folds an
-`['error', e]` into the machine's own `'error'` step, which already stops
-the match at the first failure since LL(1) never backtracks. The parser's
-result type gains the case: its error is the position, or the position
-with the mapping's `e` beside it. That is how a mapping's error carries
-a position without the mapping being told one — as a value the machine
-pairs, not an exception it catches. A mapping that wants the parse to
-*continue* past a semantic error has the other value-shaped option with
-no machine support at all: emit a symbol of an error alphabet,
-`{ id: 'error', … }`, and let the mappings above it dispatch on `id` as
-they do for everything else. The two are not exclusive.
+**A mapping reports no errors and does not throw in normal control
+flow.** It is a transformation from one alphabet to another, and anything
+that can fail belongs to the layer above. FunctionalScript has no
+`try`/`catch`, so a `throw` in a mapping is a panic for a broken invariant,
+as [`fjs/AGENTS.md`](../../AGENTS.md) §1.5 says, and nothing else.
 
 Three differences from `rewrite`, all to keep:
 
@@ -295,10 +279,9 @@ reads.
 
 ### Decided separately
 
-- **EOF** stays synthesized by the parser, its node `[]` and `ahead`
-  `undefined` at it; whether the caller sends it as a symbol with its own
-  metadata, which would close both gaps at once
-  ([eof-as-ordinary-symbol](../../bnf/todo/eof-as-ordinary-symbol.md)),
+- **EOF** stays synthesized by the parser, its node `[]`; whether the
+  caller sends it as a symbol with its own metadata
+  ([eof-as-ordinary-symbol](../../bnf/todo/eof-as-ordinary-symbol.md))
   is its own issue.
 - **One `M` per tree**, `MI | MO`, discriminated by `id` — so **an `id`
   names one metadata type**. Two shapes under one `id` would be one
@@ -315,15 +298,13 @@ reads.
 - [ ] `ll1`: input `readonly MetaSymbol<MI>[]`, `symbolAt` and the input
       guard reading `.symbol`, the argument renamed away from `input`;
       frames carry their rule name; `parser(rule, set)` folding at the
-      five sites with `ahead`; a mapping whose rule the grammar does not
-      hold, or a rule mapped twice, refused at build; a mapping's
-      `['error', e]` folded into the machine's `'error'` step with `pos`;
-      `symbols(result, id)` for the boundary.
+      five sites; a mapping whose rule the grammar does not hold, or a
+      rule mapped twice, refused at build; `symbols(result, id)` for the
+      boundary.
 - [ ] The per-layer factory binding `MI` and `MO`; `rule(a, f)`,
       `Mapping`, `RewriteSet` types, with `f` contextually typed from
       `a` under them.
-- [ ] Proofs: the empty set is the identity; a mapped empty match is
-      called, with `ahead`; `parser(r, set)` agrees with
+- [ ] Proofs: the empty set is the identity; `parser(r, set)` agrees with
       `rewrite`-then-parse where the three keyings agree; a two-layer
       example — a tokenizer emitting `{ id: 'tok', … }` symbols with a
       payload, taken through `symbols(result, 'tok')`, parsed by a
