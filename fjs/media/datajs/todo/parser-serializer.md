@@ -36,7 +36,8 @@ below:
   `export default`, with names and a declare-before-use rule;
 - a document denotes a **DAG**, so a reference must read back as the same node,
   and a serializer must hoist a node reachable more than once;
-- JSON's parser seam is **not wide enough** to be reused as it stands, which is
+- JSON's parser seam is **not wide enough** to be reused as it stands, so on
+  the token-machine route — one of the two §3 leaves open — there is
   prerequisite work on `fjs/media/json/parser` rather than work here.
 
 ### Proposal
@@ -144,14 +145,16 @@ seam met from the other side, and it interacts with
 
 #### 2. Tokenizer
 
-Depends on stage 3b, and **the seam it depends on is an open question.** Stage
+Depends on stage 3b, and **the seam it depends on is answered in code.** Stage
 3b was to export `scanString` and `scanNumber`; that design is withdrawn, and
 JSON's reader comes from a grammar over `fjs/ebnf/` instead. What DataJS reuses
-is therefore JSON's *rules* rather than its functions, and DataJS's own grammar
-extends JSON's rather than wrapping its scanners. The table below states the
-requirement, which is unchanged; only the mechanism is undecided, and it is
-listed as open in
-[self-contained-tokenizer](../../json/todo/self-contained-tokenizer.md).
+is therefore JSON's *rules* rather than its functions, by ordinary import —
+[`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) already does
+exactly that, and
+[self-contained-tokenizer](../../json/todo/self-contained-tokenizer.md) marks
+the question done. The table below states the requirement, which is unchanged.
+What is still open is §3's Layer 1: whether this codec runs that grammar or
+feeds a token machine.
 
 | Piece | Source |
 |---|---|
@@ -436,8 +439,10 @@ the spec judges them independently and this module provides all three.
       proofs pinning JSON's accepted language and observable key order
       unchanged.
 - [ ] `fjs/media/datajs/types.ts` and `README.md`.
-- [ ] Tokenizer, reusing JSON's rules through whatever seam stage 3b settles on
-      — not the exported scanners the withdrawn design promised.
+- [ ] Tokenizer. On the grammar route this is `fjs/ebnf/lib/datajs`, which
+      already reuses JSON's rules by import; on the token-machine route, a lexer
+      that reuses them the same way — not the exported scanners the withdrawn
+      design promised.
 - [ ] Statement layer: environment, bound-once, declare-before-use.
 - [ ] Key policy: accept the computed `["__proto__"]`, and reject a plain
       string key decoding to `__proto__` in every spelling.

@@ -39,8 +39,8 @@ used to settle that the media codecs take **no runtime dependency** on a
 grammar module at all. **That rule is reversed**: JSON's and DataJS's readers
 will be grammars over `fjs/ebnf/` plus a mapping, which is that plan's stage 3b
 ([self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md),
-rewritten around the reversal and blocked on
-[ebnf-migration](../../todo/ebnf-migration.md)).
+rewritten around the reversal; open, with
+[ebnf-migration](../../todo/ebnf-migration.md) related rather than blocking).
 
 What survives is the ban on a *classical* copy under `fjs/media/json`. `fjs/bnf`
 is the module being retired, so a second grammar there would recreate exactly
@@ -61,7 +61,7 @@ withdrawn** — the hand-written JSON scanner was implemented in full and
 reverted with
 [#1895](https://github.com/functionalscript/functionalscript/pull/1895), and
 [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md)
-is now written around a grammar instead. Until that unblocks, `fjs/bnf/lib/json`
+is now written around a grammar instead. Until that lands, `fjs/bnf/lib/json`
 stays an example rather than any codec's source, and the spec — not a shared
 module — is what keeps today's tokenizer and the BNF example in agreement.
 

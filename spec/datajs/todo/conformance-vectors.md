@@ -31,12 +31,12 @@ DataJS corpus has nothing to say about any of it.
 the only ordering constraint it carries. Landing stage 4 without it would mean
 writing stage 4's proofs twice.
 
-The coordinating plan sequenced it 3, then 1b, then 4. Stage 3b is now blocked
-on EBNF, so **1b goes first** — the plan's task list says so too. Nothing is
-lost by the swap, because 1b never depended on stage 3: the corpus bootstraps in
-JSON precisely so it can exist before any DataJS reader does, and it is
-indifferent to whether that reader ends up hand-written or generated from a
-grammar. That makes this the one piece of the plan that is actionable today.
+The coordinating plan sequenced it 3, then 1b, then 4. Stage 3b is open but
+P2, with its error shapes undecided, where this is P1 and gates stage 4 — so
+**1b goes first**, and the plan's task list says so too. Nothing is lost by the
+swap, because 1b never depended on stage 3: the corpus bootstraps in JSON
+precisely so it can exist before any DataJS reader does, and it is indifferent
+to whether that reader ends up hand-written or generated from a grammar.
 
 ### Proposal
 

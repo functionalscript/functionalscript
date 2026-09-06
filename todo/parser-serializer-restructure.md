@@ -1,8 +1,9 @@
 ## Restructure JSON, DataJS, and FunctionalScript parsers/serializers
 
 **Priority:** P1 — stage 4 is urgent and stage 1b feeds it; see
-[Priority](#priority-stages-3-and-4-come-first). **Stage 3b is P2 while it is
-blocked**, which is the level its own issue now carries.
+[Priority](#priority-stages-3-and-4-come-first). **Stage 3b is P2**: open,
+partly startable, and not first, which is the level and status its own issue
+carries.
 **Status:** wip — stages 1a, 2 and 3a done. **Stage 1b is what to pick up
 next**: it is P1 and gates stage 4, while stage 3b is P2 with its error shapes
 still undecided.
@@ -54,8 +55,10 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    record reviewed as data, not a rule a replacement inherits. The two
    invariants are the part an implementation is actually held to.
    *Why it still matters:* stage 4 needs it. DataJS's reader reuses JSON's, and
-   over a grammar the reuse is of rules rather than of exported scanners —
-   which is one of the open questions the rewritten issue lists.
+   over a grammar the reuse is of rules rather than of exported scanners.
+   That is answered in code —
+   [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) already
+   imports JSON's rules — and the rewritten issue marks it done.
 2. **Start here: stage 1b, the conformance vectors**
    ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)).
    *Why here:* it is stage 4's proof source, so landing stage 4 first means
@@ -65,17 +68,19 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    own proofs — unchanged but for one enumerated defect, an `n` today's
    tokenizer deletes from inside a number.
    *Why it moved:* it was listed after stage 3 for convenience, not dependency.
-   With 3b blocked it is the only actionable piece of this plan, and it is
-   blocked on nothing — it needs no DataJS reader, and it does not care whether
-   that reader is eventually hand-written or generated.
+   It is P1 and gates stage 4, where 3b is P2 with its error shapes undecided,
+   and it is blocked on nothing — it needs no DataJS reader, and it does not
+   care whether that reader is eventually hand-written or generated.
 3. **Then: stage 4, `fjs/media/datajs`.** Design is filed:
    [`fjs/media/datajs/todo/parser-serializer.md`](../fjs/media/datajs/todo/parser-serializer.md).
    The normative
    behavior is already settled in
    [`spec/datajs/README.md`](../spec/datajs/README.md); stage 4 implements that
-   spec, it does not redesign it. Known prerequisite work is named in the stage
-   list below: JSON's parser seam is **not** wide enough today and has to be
-   generalized first.
+   spec, it does not redesign it. Its first task is a decision the stage list
+   below states: whether the reader is the grammar at `fjs/ebnf/lib/datajs`
+   mapped to values, or the token-driven container machine. Only on the second
+   route is JSON's parser seam — **not** wide enough today — prerequisite
+   work; on the first it is retired instead.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
 4. **Then stages 5–7**, in order, as listed below.
@@ -547,14 +552,16 @@ throughout.
    design this plan replaces with `;`, so keeping it would have preserved a
    grammar contradicting the decision record above. Git history holds them if
    a future stage wants the `id`/`alpha`/comment rules.
-3. **JSON's reader — 3a done, 3b blocked; see above.** Two PRs: **3a** drops
-   the fabricated `string` token that follows a malformed-literal error, in the
-   existing wrapper, since that defect predates the replacement and is provable
-   without it; **3b** replaces the `fjs/js/tokenizer` wrapper in
+3. **JSON's reader — 3a done, 3b open but not first; see above.** Two PRs:
+   **3a** drops the fabricated `string` token that follows a malformed-literal
+   error, in the existing wrapper, since that defect predates the replacement
+   and is provable without it; **3b** replaces the `fjs/js/tokenizer` wrapper in
    `fjs/media/json/tokenizer` with a reader generated from JSON's own grammar
    over `fjs/ebnf/`. **3b exports no scanners.** That seam belonged to the
-   withdrawn hand-written design, and what replaces it is one of the open
-   questions the stage-3 issue lists. Accepted-input proofs unchanged in both,
+   withdrawn hand-written design, and what replaces it is answered in code:
+   rule reuse by ordinary import, as
+   [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) already does.
+   Accepted-input proofs unchanged in both,
    but for one enumerated defect — the `n` an old number swallowed — which only
    3b can fix; error-shape proofs rewritten once, to shapes 3b has still to
    decide.
@@ -585,8 +592,8 @@ throughout.
    it — `fjs/ebnf/map` can rewrite an AST to values, which makes the first
    route real, while the second is what today's code is shaped for. Whoever
    starts stage 4 settles this first and records it here and in
-   [its own issue](../fjs/media/datajs/todo/parser-serializer.md), which
-   currently states the second route as settled.
+   [its own issue](../fjs/media/datajs/todo/parser-serializer.md), which says
+   the same and makes the decision its first task.
 
    The serializer is unaffected either way, since nothing generates one from a
    grammar. It is the shared walker of
@@ -651,8 +658,9 @@ throughout.
       **Next, and actionable now**: the only constraint it carries is landing
       **before stage 4**, which consumes it, since landing stage 4 first means
       writing its proofs twice. It was sequenced after stage 3 for convenience
-      rather than dependency, and with 3b blocked it goes first. The corpus
-      bootstraps in JSON so it needs no DataJS reader to exist.
+      rather than dependency, and it goes first because it is P1 where 3b is
+      P2 with its error shapes undecided. The corpus bootstraps in JSON so it
+      needs no DataJS reader to exist.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/bnf/todo/207-bnf-semantic-actions.md)
       repointed at `fjs/bnf/testlib.f.mjs`.
@@ -671,8 +679,10 @@ throughout.
       language is JSON's already, but for one defect — `1n1` and its class,
       accepted today by deleting an `n` from inside a number, which only 3b can
       fix — so beyond that only error shapes change. What replaces the
-      hand-written seam, and what error shapes a grammar-driven reader should
-      produce, are open questions listed in that issue.
+      hand-written seam is answered in code — rule reuse by import, as
+      `fjs/ebnf/lib/datajs` already does — and what error shapes a
+      grammar-driven reader should produce is the open question that issue
+      lists.
 - [ ] Stage 4: `fjs/media/datajs`; file its todo. Needs stage 1b's corpus in
       place as its proof source.
 - [ ] Stage 5: front-end move to `fjs/fsc`; file its todo.
@@ -699,7 +709,7 @@ throughout.
   no longer "a media codec may not depend on a grammar module at runtime",
   which is reversed. It is that `fjs/bnf` is the classical module being
   retired, so a runtime grammar belongs to `fjs/ebnf/` and arrives with stage
-  3b. Until 3b is unblocked the `fjs/bnf/lib/json` grammar remains an example
+  3b. Until 3b lands the `fjs/bnf/lib/json` grammar remains an example
   rather than the codec's source, so nothing in that issue's current work
   changes — but its statement that **the media scanners stay hand-written** is
   withdrawn and must not be built on. Lowering the example onto
