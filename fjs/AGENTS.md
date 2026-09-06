@@ -357,14 +357,19 @@ The public contract still governs transitive effects. See
 The prefix marks a name that **is** exported as no part of the API — "even when
 module linkage requires an export" is the reach of the rule, not an example of
 it. A `const` that is never exported reaches no emitted declaration and no
-consumer, so it has nothing to disclaim and takes no prefix: `mapToken` and
-`scanToken` in
-[`fjs/media/json/tokenizer`](./media/json/tokenizer/module.f.mjs) are the
-ordinary shape, beside the exported `_ScanState` in its `types.ts`, which is the
-rule's. Measured across `fjs/`, module-private constants run about 1,900
-unprefixed to eight prefixed — so reading the rule as reaching them would put
-nearly every `.f.mjs` in the tree in violation, which is the check that the
-reading is wrong.
+consumer, so it has nothing to disclaim and takes no prefix: `scanString` and
+`scanNumber` in
+[`fjs/media/json/tokenizer`](./media/json/tokenizer/module.f.mjs) are exported
+and unprefixed because they *are* API, while `step` and `codeUnitSet` beside
+them are module-private and unprefixed because there is nothing to disclaim;
+the prefixed `_TokenizerState` in its `types.ts` is the rule's own case, an
+`@internal` type that linkage forces into the emitted declaration. Measured
+across `fjs/`, module-private constants run about 1,900 unprefixed to eight
+prefixed — so reading the rule as reaching them would put nearly every `.f.mjs`
+in the tree in violation, which is the check that the reading is wrong.
+
+Pick examples that will still exist. This paragraph first cited `mapToken` and
+`scanToken`, which the very next pull request deleted.
 
 That rule runs in one direction only. Moving a *published public* typedef to a
 `_` name is an ordinary breaking API change: it needs its own

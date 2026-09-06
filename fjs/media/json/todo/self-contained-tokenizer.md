@@ -581,6 +581,24 @@ lost `number 1` in `00-"/1`. Then a re-dispatched `+` lost the `]` in `12+"]`.
 Both were reverted, and both were found by review rather than by the rule, which
 is why the scoped claim is stated here rather than assumed.
 
+A fourth was found the same way, in review of the implementation: a `"` met
+while scanning `\uXXXX` was swallowed as recovery text instead of closing the
+literal, so `"\u"1` lost its `number 1` and `"\u" "ok"` destroyed a genuine
+string. **Neither invariant could see it** — the row errors before and after, so
+nothing crossed the erroring boundary — and the sweep contained the row and
+passed. That is the sharpest illustration of "the sweep is coverage, not a
+proof" this document has: the tables surface differences, and only a stated rule
+decides which may exist.
+
+So this claim is now **checked** rather than only stated:
+`losesNoTokenAfterTheLiteral` in [`../tokenizer/proof.f.mjs`](../tokenizer/proof.f.mjs)
+compares the trailing run of non-error tokens across both sweep tables and
+asserts the losing set whole. Three rows are in it — `12n1` and `0n1` for the
+`n` class, and `--1`, where the token is not lost but different because
+JavaScript merged `--` into one operator. A fourth fails the proof. The
+block-comment exception is not in that set because no sweep prefix can spell
+`/*"*/1`; it is pinned individually instead.
+
 The exception is **comments**, and it is the one loss this port declines to
 avoid — *declines*, not cannot, which is how an earlier draft put it and which
 review was right to refuse.

@@ -110,9 +110,17 @@ const codeUnitSet = chars => {
  * This set and the recovery set below are the *caller's* policy, not the
  * scanner's: both are JavaScript operator tables reproduced for compatibility,
  * sitting where a language's own delimiters belong. Keeping them here is what
- * lets `fjs/media/datajs` apply its own — that set is this one plus `;`, so
- * `const $0=1;` and `export default 1;` both end their number at the `;` —
- * without parameterizing the grammar.
+ * lets `fjs/media/datajs` bring its own set rather than reaching into the
+ * scanner — `scanNumber` reports where it stopped and in which state, and
+ * whether that character *terminates* is decided afterwards, by whoever called
+ * it.
+ *
+ * DataJS needs no addition to this particular set, which is worth saying
+ * because the design assumed otherwise: it argued `;` was absent and that the
+ * seam was useless to stage 4 until it could be added. `;` is already here (see
+ * below), so `const $0=1;` and `export default 1;` end their number at the `;`
+ * with JSON's own set. The architecture is what matters and is unchanged; the
+ * example that motivated it was wrong.
  *
  * Reproduced exactly rather than narrowed to JSON's own delimiters: accepting
  * *more* characters would stop `12"a"` erroring at all, and gratuitously
@@ -331,7 +339,13 @@ export const scanString = state => input => {
         case 'hex': {
             if (endsLiteral(c)) { return stringStopped({ kind: 'failed' }) }
             const value = hexDigitValue(c)
-            if (value === null) { return stringConsumed({ kind: 'recovery' }) }
+            // The escape is malformed, and the character that broke it may be
+            // string *syntax* rather than ordinary text: the `"` in `"\u"1`
+            // closes the literal, and the `\` in `"\u\""` protects the quote
+            // after it. So enter recovery by applying recovery's own rules to
+            // that character rather than swallowing it — swallowing it eats the
+            // closing quote, and with it every token after the literal.
+            if (value === null) { return scanString({ kind: 'recovery' })(c) }
             const digits = [...state.digits, value]
             return stringConsumed(digits.length === hexDigitCount
                 ? { kind: 'body', value: `${state.value}${fromCharCode(hexCodeUnit(digits))}` }

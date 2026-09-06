@@ -51,6 +51,27 @@ const runString = s => {
     return go(stringStart, 0)
 }
 
+/**
+ * A rendered stream splits into tokens on spaces at depth zero only: an
+ * `E(invalid token)` message and a `string("a b")` value both carry spaces of
+ * their own, so splitting on every space mis-parses both.
+ *
+ * @type {(s: string) => readonly string[]}
+ */
+const splitTokens = s => s.match(/E\([^)]*\)|(?:number|string)\("(?:[^"\\]|\\.)*"\)|\S+/g) ?? []
+
+/**
+ * The trailing run of non-error tokens: what survives past the last failure,
+ * and so what a malformed lexeme must not have swallowed.
+ *
+ * @type {(s: string) => string}
+ */
+const trailingValues = s => {
+    const ts = splitTokens(s).filter(t => t !== 'eof')
+    const from = ts.findLastIndex(t => t.startsWith('E('))
+    return ts.slice(from + 1).join(' ')
+}
+
 export const proof = {
     // Accepted-input cases. Every one of these passes **byte-identically** to
     // the wrapper this replaces, which is invariant 1 and the property every
@@ -520,6 +541,31 @@ export const proof = {
         matchesTheCommittedTable: () => {
             assertEq(expected.length, inputs.length)
             for (const [i, input] of inputs.entries()) { assertEq(render(input), streams[expected[i]]) }
+        },
+        // The design's third claim, which **neither invariant covers**: no row
+        // loses a well-formed token belonging to the input *after* the
+        // malformed literal. A token can go missing without any row crossing
+        // the erroring boundary, so the boundary check cannot see it — which is
+        // how `"\u"1` shipped in this pull request losing its `number 1`, with
+        // the sweep containing the row and passing.
+        //
+        // The losing set is asserted whole rather than filtered by a rule: a
+        // fourth entry fails the proof, and each of these three is explained.
+        losesNoTokenAfterTheLiteral: () => {
+            const lost = inputs.filter((_, i) => {
+                const before = trailingValues(streams[recorded[i]])
+                return before !== '' && before !== trailingValues(streams[expected[i]])
+            })
+            assertStructurallySame(lost, [
+                // the `n` class: the old tokenizer deleted the `n` and
+                // returned a number the input never spelled
+                '12n1',
+                '0n1',
+                // not a loss — a different token. JavaScript merged `--` into
+                // one decrement operator and read `1`; JSON reads `-` then
+                // `-1`, which is the `--` artifact the design's table lists.
+                '--1',
+            ])
         },
         // Invariant 1 and 2 together: no row may move between erroring and not
         // erroring, in either direction — **except** where the old tokenizer
