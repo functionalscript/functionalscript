@@ -572,7 +572,11 @@ removed; `git log -- docker/` has it.
 - [x] Commit the generated flakes.
 - [x] Bootstrap Nix through a pinned CI action in each migrated job.
 - [x] Run each migrated job's complete command sequence through its flake, one
-      `nix develop --command` step per command.
+      `nix develop --command` step per command — the tool commands, that is:
+      the runner-native generated-file drift check
+      (`git add -A && git diff --cached --exit-code`,
+      `fjs/ci/node/module.f.mjs:140`) deliberately stays outside the shell,
+      as [migrated-job-proof](./migrated-job-proof.md) records.
 - [x] Validate each Node job independently with its existing commands and order.
 - [x] Keep tracked checkout state unchanged.
 - [x] Migrate jobs one at a time — Node 24, then Node 26, then Node 22, then `deno`.
