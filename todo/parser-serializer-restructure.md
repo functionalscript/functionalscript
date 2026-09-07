@@ -1,7 +1,7 @@
 ## Restructure JSON, DataJS, and FunctionalScript parsers/serializers
 
 **Priority:** P1 — stages 3 and 4 are urgent; see [Priority](#priority-stages-3-and-4-come-first).
-**Status:** wip — stages 1a and 2 done.
+**Status:** wip — stages 1a, 2 and 3a done.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
@@ -12,7 +12,9 @@ not here.
 
 Read in this order; each line says what to do and why it comes when it does.
 
-1. **Next: stage 3, the JSON self-contained tokenizer.** Design is written and
+1. **Next: stage 3b, the port.** Stage 3a — the fabricated string token — has
+   landed, so what is left of stage 3 is the JSON self-contained tokenizer
+   itself. Design is written and
    reviewed:
    [`fjs/media/json/todo/self-contained-tokenizer.md`](../fjs/media/json/todo/self-contained-tokenizer.md).
    It has the grammar, the error rule and the two invariants that decide
@@ -22,9 +24,9 @@ Read in this order; each line says what to do and why it comes when it does.
    generated sweeps are coverage rather than an enumeration — the design is
    explicit that no finite sweep is exhaustive, so the rules plus the
    invariants are what an implementation is held to. Implementable without
-   reading anything else here. It lands as **two PRs**: 3a drops the fabricated
-   string token in the existing wrapper, and 3b is the port, which then carries
-   only what removing the dependency forces — the order
+   reading anything else here. It lands as **two PRs**: 3a dropped the
+   fabricated string token in the existing wrapper, and 3b is the port, which
+   then carries only what removing the dependency forces — the order
    [`DESIGN.md`](../doc/DESIGN.md) prescribes when the idea is the premise.
    *Why first:* stage 4 needs it. DataJS's tokenizer reuses JSON's string
    scanner unchanged and its number core extended, so JSON has to own those
@@ -49,8 +51,9 @@ Read in this order; each line says what to do and why it comes when it does.
    [Priority](#priority-stages-3-and-4-come-first).
 4. **Then stages 5–7**, in order, as listed below.
 
-**Already done, do not redo:** stage 1a (the DataJS specification) and stage 2
-(the dead `fjs/fsc` grammars, deleted). Both are on `main`.
+**Already done, do not redo:** stage 1a (the DataJS specification), stage 2
+(the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
+token, dropped). All three are on `main`.
 
 **Three things are decided and should not be reopened without a reason:**
 DataJS is frozen at "JSON extended from a tree to a DAG, plus the leaves JSON
