@@ -98,8 +98,8 @@ existing CI config -> generated Node flake.nix -> existing Node job commands
 - keep commands in GitHub Actions;
 - run each migrated job's complete command sequence through its flake, one
   `nix develop --command` step per command — its tool commands, that is:
-  runner-native maintenance steps like the generated-file drift check
-  (`fjs/ci/node/module.f.mjs:140`) stay outside the shell, as
+  the one runner-native maintenance step, the generated-file drift check
+  (`fjs/ci/node/module.f.mjs:140`), stays outside the shell, as
   [migrated-job-proof](./migrated-job-proof.md) records;
 - preserve each job's current commands, order, and coverage;
 - keep `npm run gen` Nix-independent and runnable on Windows;

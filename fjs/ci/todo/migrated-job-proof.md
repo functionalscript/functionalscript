@@ -12,10 +12,11 @@ step — is a property of the migration, not of any one tool. It is not
 every migration's invariant, though: the migrated Node job deliberately
 runs its generated-file check runner-native
 (`fjs/ci/node/module.f.mjs:140`'s
-`git add -A && git diff --cached --exit-code`, whose presence
-`fjs/ci/proof.f.mjs:248` pins — via the substring-matching `hasRunInJob`,
-so the proof guards the command, not its unwrapped form), so "every
-command through the shell" belongs to
+`git add -A && git diff --cached --exit-code`, pinned unwrapped by
+`migratedNodeJobs`' exact `assertStructurallySame` over the job's whole
+`run` list — the literal appears at `fjs/ci/proof.f.mjs:617` — while
+`:248` pins only the command's presence via the substring-matching
+`hasRunInJob`), so "every command through the shell" belongs to
 the Bun/Deno-style jobs, not to migration as such. Today the all-Nix form
 is stated twice, as near-identical proof entries:
 
