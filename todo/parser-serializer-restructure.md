@@ -542,10 +542,9 @@ picked up in is the next paragraph's.
 **The execution order is 1b, then 3b, then 4.** 1b never depended on stage 3:
 the corpus bootstraps in JSON, and it is indifferent to whether the DataJS
 reader that eventually consumes it is hand-written or generated from a
-grammar. It is P1 where 3b is
-P2, it needs no decision that has not been made, and running it early costs
-nothing — it still lands before stage 4, which is the only ordering constraint
-it ever carried.
+grammar. It is P1 where 3b is P2, it needs no decision that has not been made,
+and running it early costs nothing — it still lands before stage 4, which is
+the only ordering constraint it ever carried.
 
 ### Stages
 
