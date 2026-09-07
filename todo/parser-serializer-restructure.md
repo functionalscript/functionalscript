@@ -39,8 +39,8 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    code-unit sequences, which the `ll1` proof's code-point decoding throws
    on. Its typed mapping has one prerequisite, `string`'s pin in
    [widened-rule-signatures](../fjs/ebnf/lib/todo/widened-rule-signatures.md),
-   and one design question of its own: the naive token grammar is not LL(1)
-   at a number's boundary. The metadata channel in
+   and one design question of its own: the naive token grammar gets a
+   number's and a word's boundaries wrong. The metadata channel in
    [#1890](https://github.com/functionalscript/functionalscript/pull/1890) buys
    errors *better* than today's rather than the ones this reader owes, and it
    cannot classify a parse failure at all, since a failure yields no tree to
@@ -512,8 +512,9 @@ two — it is stage 4's proof source.
 **Urgency is not the same as readiness, and stage 3b now separates them.** The
 change of direction lowered its own issue to **P2**. It is still what stage 4
 waits on, and it is startable — the lexical rules and the mapping engine
-exist, though its token-stream grammar is not written, must be made LL(1) at
-a number's boundary, and its mapping waits on `string`'s pin — but what it
+exist, though its token-stream grammar is not written, must match today's
+tokenizer at a number's and a word's boundaries, and its mapping waits on
+`string`'s pin — but what it
 reports on malformed input is undecided, and `fjs/ebnf/` is mid-migration.
 Design work, one type prerequisite and a moving dependency are poor reasons
 to hold the
@@ -707,8 +708,9 @@ throughout.
       hand-written scanner. **Startable but not first**: the lexical rules
       exist at `fjs/ebnf/lib/json` and `fjs/ebnf/map` is the engine that
       rewrites a tree — the token-stream grammar 3b runs, over UTF-16 code
-      units, is still to be written and made LL(1) at a number's boundary;
-      its mapping builds **tokens** for the container machine that stays and
+      units, is still to be written and made to match today's at a number's
+      and a word's boundaries; its mapping builds **tokens** for the container
+      machine that stays and
       needs `string`'s pin from
       [widened-rule-signatures](../fjs/ebnf/lib/todo/widened-rule-signatures.md)
       first — so this is no longer blocked on

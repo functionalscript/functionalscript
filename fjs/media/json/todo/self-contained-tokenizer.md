@@ -11,8 +11,8 @@ narrower and not yet written: a **token-stream grammar** over that module's
 exported lexical rules, over **UTF-16 code units**, mapped to the tokens the
 container machine consumes — the four contracts that decide it are under
 [What the reader must keep](#what-the-reader-must-keep). What is undecided is
-what the reader reports on malformed input, how a number's boundary is made
-LL(1), and what a streaming consumer gets.
+what the reader reports on malformed input, how a number's and a word's
+boundaries are made to match today's, and what a streaming consumer gets.
 **Prerequisite of one task, not of the issue:**
 [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md) —
 its `string` row; the mapping cannot be type-checked before it.
@@ -133,12 +133,12 @@ So what genuinely remains, in the order it should be done:
    lands its `string` row, the mapping can be run but not type-checked. Its
    `value` row is not needed here, since no lexical rule names `value`. It is
    filed P4, which understates it now that a P2 stage waits on it.
-3. **The number boundary.** The token-stream grammar written naively is not
-   LL(1), because `12` is one token where `1 2` is two and a nullable
-   separator cannot decide that predictively —
+3. **Token boundaries.** The token-stream grammar written naively is not
+   LL(1) at a number, because `12` is one token where `1 2` is two and a
+   nullable separator cannot decide that predictively, and it accepts
+   `truetrue` at a word where today's tokenizer refuses it —
    [What the reader must keep](#what-the-reader-must-keep) has the measured
-   conflict, what today's tokenizer does at that boundary, and the two
-   resolutions. Design work, not a dependency.
+   table and the two resolutions. Design work, not a dependency.
 4. **The streaming seam.** `Parser<T>` takes `readonly number[]`, a
    materialized array, while `tokenize` is public and `List`-based. The public
    `parse(text)` is unaffected, since it starts from a string, but a streaming
@@ -208,21 +208,38 @@ tokenizer wrapper — where a value mapping would retire the parser too. The
 value route stays open to whoever can show all four kept through a mapping;
 nothing measured says that is impossible, only that the pieces do not exist.
 
-**The token-stream grammar is not written, and written naively it is not
-LL(1).** `[ws, repeat0([token, ws]), eof]`, with `token` a variant of
-`string`, `[optionNeg, uint, ...optionFloatSuffix]`, the six punctuators and
-the three words, is refused at construction — `first/follow conflict` at
+**The token-stream grammar is not written, and written naively it gets two
+boundaries wrong.** `[ws, repeat0([token, ws]), eof]`, with `token` a variant
+of `string`, `[optionNeg, uint, ...optionFloatSuffix]`, the six punctuators
+and the three words, is refused at construction — `first/follow conflict` at
 `1.item.0.number.1.onenine.1`, the optional digits after a number's first —
 because `ws` is nullable and the next token may begin with a digit. Maximal
 munch, by which `12` is one token where `1 2` is two, is not a predictive
-decision across a nullable separator. What today's tokenizer does at that
-boundary is measured, since a resolution has to reproduce it: `1-1` is two
-numbers, `1]` a number and a bracket, `1true` and `1"a"` an error and then
-the second token, `1.5.5` and `1e` one error each. Two resolutions are on the
-table, and choosing is the design question this stage owns beside error
-shapes: a boundary rule in the grammar, saying what may follow a number
-without whitespace; or an entry point that reads one token from an offset by
-prefix parse, which is the streaming seam under another name.
+decision across a nullable separator. And with the number left out so that
+the grammar builds, it accepts what today's tokenizer refuses: `truetrue`,
+`truefalse` and `nulltrue` lex as two words each where `tokenize` returns one
+error, so a word's boundary is a second case of the same thing. What today's
+tokenizer does at both boundaries is measured, since a resolution has to
+reproduce the accepted rows and keep the refused ones refused — the first
+invariant below lets nothing but the `n` class cross:
+
+| after | followed by | today |
+| --- | --- | --- |
+| a number | a digit | munched: `12` is one number |
+| a number | `.`, `e`, `E` | munched into the lexeme, or an error: `1.5.5`, `1e` |
+| a number | `-` | two numbers: `1-1` |
+| a number | a punctuator | two tokens: `1[` |
+| a number | a letter or `"` | an error, then the second token: `1true`, `1"a"` |
+| a word | a letter or a digit | one error: `truetrue`, `true1`, `nulltrue` |
+| a word | `-`, `"` or a punctuator | two tokens: `true-1`, `true"a"`, `true[` |
+| a string or a punctuator | anything | two tokens: `"a"true`, `"a""b"`, `]true` |
+
+Two resolutions are on the table, and choosing is the design question this
+stage owns beside error shapes: a boundary rule in the grammar, saying what
+may follow a number or a word without whitespace; or an entry point that reads
+one token from an offset by prefix parse, which is the streaming seam under
+another name and still owes the word rows. Nothing here is settled, and
+nothing here has to be before the cross-check task starts.
 
 ### What any replacement is held to
 
@@ -701,12 +718,12 @@ blocked. The first two items can be started today.
       the rules that module exports.
 - [ ] Write the token-stream grammar, `[ws, repeat0([token, ws]), eof]` over
       `string`, `uint`, `optionNeg`, `optionFloatSuffix` and `ws` from
-      `fjs/ebnf/lib/json`, run over UTF-16 code units, and make it LL(1) at a
-      number's boundary —
-      [What the reader must keep](#what-the-reader-must-keep) has the conflict
-      and the two resolutions. Prove that `1 2`, `[] []` and `1,2` lex as they
-      do today, that `"\ud800"` is one string token, and that 20,000 nested
-      brackets lex.
+      `fjs/ebnf/lib/json`, run over UTF-16 code units, and make its number
+      and word boundaries match today's —
+      [What the reader must keep](#what-the-reader-must-keep) has the measured
+      table and the two resolutions. Prove that `1 2`, `[] []` and `1,2` lex
+      as they do today, that `12` is one number and `truetrue` an error, that
+      `"\ud800"` is one string token, and that 20,000 nested brackets lex.
 - [ ] Cross-check that grammar against the accepted-language probes above. It
       was written to RFC 8259 rather than against this tokenizer, so agreement
       is expected but unmeasured, and the `1n1` class is exactly where today's

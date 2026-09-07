@@ -3,10 +3,13 @@
 **Priority:** P1 — stage 4 is P1 in the coordinating issue and in the
 conformance-vector issue, which says outright that it blocks stage 4 "which is
 P1". This file is the canonical co-located issue, so it carries the same level.
-**Status:** blocked
-**Blocked by:** [JSON's reader](../../json/todo/self-contained-tokenizer.md),
-which is open but undecided rather than blocked — so the wait here is on a
-decision, not on a dependency landing.
+**Status:** open — **the first task is actionable now**: settling whether the
+reader is the grammar or the token machine (§3, Layer 1) depends on nothing
+outside this file, and it decides what the rest waits on. Implementation then
+waits on stage 1b's corpus, its proof source, and — on the token route — on
+[JSON's reader](../../json/todo/self-contained-tokenizer.md), whose
+token-stream grammar this codec's would extend; the grammar route waits on the
+`fjs/ebnf` items §3 names instead.
 The dependency also **changed shape**: JSON's reader will be a grammar over
 `fjs/ebnf/` rather than a hand-written scanner, so what this issue reuses is
 JSON's *rules* and not the `scanString`/`scanNumber` exports the withdrawn
@@ -203,7 +206,12 @@ below is started.
 The coordinating plan reversed its no-runtime-grammar rule, so DataJS's reader
 may instead be the grammar at
 [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs), which already
-exists, already imports JSON's rules, and is proof-covered. Mapped straight to
+exists, already imports JSON's rules, and is proof-covered. It is a **prefix**
+rule, like JSON's: `parser(dataJs)` accepts `export default 1;garbage` at
+offset 17 and `export default 1; export default 2;` at 18, so a reader on this
+route composes `eof` or checks the end offset against the input length —
+`[dataJs, eof]` rejects both at those offsets — or it returns a plausible
+value for a document Layer 2 must reject. Mapped straight to
 values through `fjs/ebnf/map`, it **retires** the token-driven container machine
 rather than widening it, and the four rows below become moot — with the same
 type prerequisite as JSON's mapping, since its `value` is a widened `Thunk`
@@ -449,10 +457,10 @@ the spec judges them independently and this module provides all three.
       proofs pinning JSON's accepted language and observable key order
       unchanged.
 - [ ] `fjs/media/datajs/types.ts` and `README.md`.
-- [ ] Tokenizer. On the grammar route this is `fjs/ebnf/lib/datajs`, which
-      already reuses JSON's rules by import; on the token-machine route, a lexer
-      that reuses them the same way — not the exported scanners the withdrawn
-      design promised.
+- [ ] Tokenizer. On the grammar route this is `fjs/ebnf/lib/datajs` composed
+      with `eof`, since it is a prefix rule, and it already reuses JSON's rules
+      by import; on the token-machine route, a token-stream grammar extending
+      JSON's — not the exported scanners the withdrawn design promised.
 - [ ] Statement layer: environment, bound-once, declare-before-use.
 - [ ] Key policy: accept the computed `["__proto__"]`, and reject a plain
       string key decoding to `__proto__` in every spelling.
