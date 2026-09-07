@@ -66,3 +66,8 @@ the answer belongs in that issue as much as here.
   precision loss on two literals.
 - [`../datajs/module.f.mjs`](../datajs/module.f.mjs) — `statement`, the
   helper already fixed.
+- [self-contained-tokenizer](../../../media/json/todo/self-contained-tokenizer.md)
+  — stage 3b's token mapping keys on `string`, which `Checked` refuses as
+  annotated; the `string` row here is that stage's one prerequisite. The
+  `value` row is stage 4's grammar route's, and DataJS's `value` thunk is the
+  same case.

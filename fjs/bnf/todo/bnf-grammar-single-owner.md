@@ -32,12 +32,21 @@ tokenizer is not pointed at any of it. None of that is alphabet work, but all of
 it is easier to land once the EBNF adapter has settled the names.
 
 **Do not create `fjs/media/json/grammar/module.f.mjs`.** That was this issue's
-original proposal and it is withdrawn.
+original proposal and it is withdrawn, and it stays withdrawn — but the reason
+has changed, and the old reason must not be quoted back.
 [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
-settles that the media codecs take **no runtime dependency** on `fjs/bnf`: the
-canonical JSON grammar's owner is the spec text plus a proof-covered `fjs/bnf`
-example, not a runtime module under `fjs/media/json`. A module there would
-recreate exactly the duplication this issue existed to remove.
+used to settle that the media codecs take **no runtime dependency** on a
+grammar module at all. **That rule is reversed**: JSON's and DataJS's readers
+will be grammars over `fjs/ebnf/` plus a mapping, which is that plan's stage 3b
+([self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md),
+rewritten around the reversal; open, with
+[ebnf-migration](../../todo/ebnf-migration.md) related rather than blocking).
+
+What survives is the ban on a *classical* copy under `fjs/media/json`. `fjs/bnf`
+is the module being retired, so a second grammar there would recreate exactly
+the duplication this issue existed to remove, and it would be written against
+the API that is going away. A runtime grammar belongs to `fjs/ebnf/` and arrives
+with stage 3b, not here.
 
 That is also why this file moved here from `fjs/media/json/todo/`. Everything it
 still describes — the two `fjs/bnf/lib` grammars and the `fjs/ebnf/unicode` API
@@ -45,11 +54,16 @@ their port moves them onto — lives under `fjs/bnf`, and it now rules out addin
 all under `fjs/media/json`, so a reader of the media codec's `todo/` would find
 nothing here to act on.
 
-That constraint is on the **media codecs**, and only them. Their scanners stay
-hand-written and take no runtime dependency on `fjs/bnf`
-([self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md)
-covers the JSON one), so for those the spec — not a shared module — is what
-keeps them and the BNF example in agreement.
+That constraint is on the **media codecs**, and only them: no grammar of theirs
+under `fjs/bnf`. It is no longer a statement about how their scanners are
+written. This file used to say the media scanners stay hand-written; **that is
+withdrawn** — the hand-written JSON scanner was implemented in full and
+reverted with
+[#1895](https://github.com/functionalscript/functionalscript/pull/1895), and
+[self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md)
+is now written around a grammar instead. Until that lands, `fjs/bnf/lib/json`
+stays an example rather than any codec's source, and the spec — not a shared
+module — is what keeps today's tokenizer and the BNF example in agreement.
 
 The compiler front end is the opposite case and keeps this issue's original
 task. `fjs/djs`'s tokenizer is already grammar-based
@@ -261,9 +275,11 @@ read them first:
   [`fjs/bnf/lib/datajs`](../lib/datajs/module.f.mjs) — the canonical
   grammars this task migrates.
 - [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md) — why the
-  **media** JSON scanner stays hand-written and takes no runtime dependency on
-  these grammars. It does not govern the compiler front end, whose tokenizer is
-  grammar-based and stays so.
+  **media** JSON reader takes no runtime dependency on *these* grammars: it will
+  be a grammar over `fjs/ebnf/`, not over the classical module being retired.
+  Its earlier hand-written design is withdrawn, so this file no longer rests on
+  the media scanner staying hand-written. It does not govern the compiler front
+  end, whose tokenizer is grammar-based and stays so.
 - [157](../../djs/todo/157-json-djs-shared-value-machine.md) — shares JSON/DJS
   value machinery; orthogonal to the lexical BNF grammar.
 - [group-fs-subdirectories-by-concern](../../todo/group-fs-subdirectories-by-concern.md)
@@ -271,8 +287,10 @@ read them first:
   placement is no longer one of its exports-map dependents.
 - [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
   — the plan this task sits inside; its stage 2 deleted a third copy, and its BNF
-  rule (grammars are spec text plus proof-covered `fjs/bnf` examples, never a
-  runtime dependency of the **media codecs**) is what withdrew this issue's
-  original proposal. Its stage 5 renames the grammar-based front-end tokenizer
+  rule is what withdrew this issue's original proposal. That rule has since been
+  **partly reversed** there: a grammar module may now be a runtime dependency of
+  the media codecs, but it is `fjs/ebnf/`, and `fjs/bnf` grammars remain spec
+  text plus proof-covered examples. The withdrawal stands on the surviving half.
+  Its stage 5 renames the grammar-based front-end tokenizer
   into `fjs/fsc`, which is why this issue's tokenizer task survives with a new
   path rather than being withdrawn with the rest.

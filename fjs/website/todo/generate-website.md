@@ -9,7 +9,7 @@
 - [ ] Convert `README.md` files into HTML and publish them
 - [ ] Source code highlighting and per-module JSDoc — see
       [source-and-doc-view](source-and-doc-view.md)
-- [ ] One `main.css` — see [main-css](main-css.md)
+- [x] One `main.css` (`fjs/website/style/module.f.mjs`, written to the root as `_main.css` and linked root-relative)
 - [ ] Convention for `demo.f.mjs` — an optional pure demo next to a module,
       rendered on its page — see [demo-convention](demo-convention.md)
 - [ ] An `index.html` per module directory, cataloguing its files,
