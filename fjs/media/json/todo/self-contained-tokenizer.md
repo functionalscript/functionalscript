@@ -6,8 +6,14 @@ to pick up first.
 **Status:** open — **partly startable**. Measurement retired the two blockers
 earlier drafts claimed; see [What is actually missing](#what-is-actually-missing).
 The grammar exists, the LL(1) backend parses JSON with it, and `fjs/ebnf/map`
-can already rewrite the result to values. What is undecided is what the reader
-reports on malformed input, and what a streaming consumer gets.
+is the engine that rewrites the result to values. JSON's own mapping is not
+written, and its typed form has one prerequisite —
+[widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md),
+a recursive type for `value`. What is undecided is what the reader reports on
+malformed input, and what a streaming consumer gets.
+**Prerequisite of one task, not of the issue:**
+[widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md) —
+the mapping cannot be type-checked before it.
 **Related, not blocking:**
 [ebnf-migration](../../../todo/ebnf-migration.md), and the metadata channel in
 [functionalscript/functionalscript#1890](https://github.com/functionalscript/functionalscript/pull/1890)
@@ -56,8 +62,9 @@ direction rather than a retreat.
 ### What is actually missing
 
 Two earlier drafts of this section each named a blocker, and measurement
-retired both. The honest answer is that **the value half of this reader can be
-built now**, and what remains open is error reporting and one API property.
+retired both. The honest answer is that **the value half of this reader has one
+type prerequisite and no other**, and what remains open is error reporting and
+one API property.
 
 Measured against the tree as it stands:
 
@@ -66,11 +73,19 @@ Measured against the tree as it stands:
   this issue owes.
 - The **LL(1) backend already parses JSON with it**, as
   [`fjs/ebnf/ll1/proof.f.mjs`](../../../ebnf/ll1/proof.f.mjs) shows.
-- **Values are already mappable.** [`fjs/ebnf/map`](../../../ebnf/map/README.md)
-  rewrites an AST bottom-up, keyed by the rules the grammar exports. The
-  recursive `value` thunk is reachable as `json[1]`, and a `rewrite` keyed on it
-  rewrites the parsed node — so nothing about JSON's self-reference blocks a
-  mapping.
+- **The mapping engine exists; JSON's mapping does not.**
+  [`fjs/ebnf/map`](../../../ebnf/map/README.md) rewrites an AST bottom-up,
+  keyed by the rules the grammar exports, and `ll1`'s proof does it on a
+  smaller grammar. At runtime a `rewrite` keyed on the `value` thunk, reachable
+  as `json[1]`, rewrites the parsed node. **Under `tsc` it is refused**: `value`
+  is annotated `Const<Variant>` and `string` is annotated `Rule`, neither of
+  which says its parts, so `Checked` rejects both as keys — measured, along
+  with `json` itself; `digit` and `uint` are accepted. A typed JSON mapping
+  therefore waits on
+  [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md):
+  a recursive type for `value` and a `const` pin for `string`. That is
+  prerequisite type work, not a missing capability, and it is the one thing
+  the mapping task below cannot start without.
 - An LL(1) failure returns **an offset** — `[1,` yields `['error', 3]`.
 
 **`json` alone is a prefix parser, and a reader must not use it that way.** The
@@ -102,14 +117,19 @@ So what genuinely remains, in the order it should be done:
 1. **Error shapes.** Decide what a grammar-driven reader reports. This is design
    work, not a dependency, and it is the last item under
    [What this still needs](#what-this-still-needs).
-2. **The streaming seam.** `Parser<T>` takes `readonly number[]`, a
+2. **A recursive type for `value`.** The one dependency: until
+   [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)
+   lands its `value` and `string` rows, the mapping can be run but not
+   type-checked. It is filed P4, which understates it now that a P2 stage
+   waits on it.
+3. **The streaming seam.** `Parser<T>` takes `readonly number[]`, a
    materialized array, while `tokenize` is public and `List`-based. The public
    `parse(text)` is unaffected, since it starts from a string, but a streaming
    consumer has no grammar equivalent today. This is a real consequence of the
    direction and is why
    [streaming-recognizer](./streaming-recognizer.md) is now blocked rather than
    merely rebased.
-3. **`fjs/ebnf/` stability.** The module is mid-migration
+4. **`fjs/ebnf/` stability.** The module is mid-migration
    ([ebnf-migration](../../../todo/ebnf-migration.md)), so a codec written
    against it now is written against names still in motion. This is a reason to
    sequence carefully, not a missing capability.
@@ -596,7 +616,10 @@ blocked. The first two items can be started today.
 - [ ] Write the mapping from its AST to JSON values, which is `fjs/ebnf/map`'s
       `rewrite` — the shape `ll1`'s proof already demonstrates on a smaller
       grammar. This is the reader's substance and the part that does not exist
-      yet.
+      yet. **After** `value` has its recursive type and `string` its pin, per
+      [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md):
+      `Checked` refuses both as keys today, so a typed mapping cannot be
+      written before that lands.
 - [x] ~~Decide what replaces the seam.~~ **Answered in code, and it is what the
       reversal predicted.**
       [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) already

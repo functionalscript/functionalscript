@@ -25,8 +25,12 @@ Item 1 is context rather than work. **Item 2 is what to start.**
 
    **It is not blocked, though two earlier drafts of this plan said so.**
    Measurement retired that claim: the grammar exists at `fjs/ebnf/lib/json`,
-   the LL(1) backend parses JSON with it, and `fjs/ebnf/map` already rewrites
-   the result to values. The metadata channel in
+   the LL(1) backend parses JSON with it, and `fjs/ebnf/map` is the engine that
+   rewrites a parsed tree to values. JSON's own mapping is **not written**, and
+   its typed form has one prerequisite: `value` and `string` are annotated
+   widened, so `rewrite` refuses them as keys until
+   [widened-rule-signatures](../fjs/ebnf/lib/todo/widened-rule-signatures.md)
+   gives `value` its recursive type. The metadata channel in
    [#1890](https://github.com/functionalscript/functionalscript/pull/1890) buys
    errors *better* than today's rather than the ones this reader owes, and it
    cannot classify a parse failure at all, since a failure yields no tree to
@@ -170,11 +174,16 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
   tokenizer being replaced rather than about its replacement.
 - **DataJS** (the format known in this repository as DJS): a new, minimal,
   spec'd format — JSON extended from a tree to a DAG, nothing else. Its reader
-  runs a grammar extending JSON's rather than a hand-written parser layered on
-  JSON's exported scanners. That grammar is already written, at
+  is built on a grammar extending JSON's rather than on JSON's exported
+  scanners, which the withdrawn design promised and nothing now provides. That
+  grammar is already written, at
   [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) beside JSON's and
-  importing its rules — not under `fjs/media/datajs`, which holds the codec. The
-  serializer stays hand-written, since nothing generates one from a grammar.
+  importing its rules — not under `fjs/media/datajs`, which holds the codec.
+  **Whether that grammar maps straight to values or only feeds the token-driven
+  container machine is not decided here**: it is stage 4's first task, below,
+  and the container machine is retired on the first route and widened on the
+  second. The serializer stays hand-written either way, since nothing generates
+  one from a grammar.
   Everything that is not needed for the DAG property moves to FunctionalScript.
 - **FunctionalScript**: the current `fjs/djs` front end (grammar-based
   tokenizer, BNF parser, AST, transpiler) moves to `fjs/fsc` and continues to
@@ -492,9 +501,11 @@ two — it is stage 4's proof source.
 
 **Urgency is not the same as readiness, and stage 3b now separates them.** The
 change of direction lowered its own issue to **P2**. It is still what stage 4
-waits on, and it is startable — the grammar and the value mapping both exist —
-but what it reports on malformed input is undecided, and `fjs/ebnf/` is
-mid-migration. Design work and a moving dependency are poor reasons to hold the
+waits on, and it is startable — the grammar and the mapping engine exist,
+though JSON's own mapping is not written and its typed form waits on a
+recursive type for `value` — but what it reports on malformed input is
+undecided, and `fjs/ebnf/` is mid-migration. Design work, one type
+prerequisite and a moving dependency are poor reasons to hold the
 front of a queue, so the P1 urgency of this plan rests on stages 1b and 4.
 
 An EDAG is an expression DAG whose sharing is *semantics*, not an encoding
@@ -590,7 +601,9 @@ throughout.
    quoted work is wasted; if the grammar only produces tokens for it, the
    widening is still owed exactly as written. Nothing measured so far decides
    it — `fjs/ebnf/map` can rewrite an AST to values, which makes the first
-   route real, while the second is what today's code is shaped for. Whoever
+   route real, though DataJS's `value` is a widened thunk like JSON's and
+   needs the same recursive type before a typed mapping can key on it — while
+   the second is what today's code is shaped for. Whoever
    starts stage 4 settles this first and records it here and in
    [its own issue](../fjs/media/datajs/todo/parser-serializer.md), which says
    the same and makes the decision its first task.
@@ -669,8 +682,11 @@ throughout.
       the defect that predates the replacement and is provable without it.
 - [ ] Stage 3b: the reader comes from a grammar over `fjs/ebnf/`, not from a
       hand-written scanner. **Startable but not first**: the grammar exists at
-      `fjs/ebnf/lib/json` and `fjs/ebnf/map` already rewrites its AST to
-      values, so this is no longer blocked on
+      `fjs/ebnf/lib/json` and `fjs/ebnf/map` is the engine that rewrites its
+      AST to values — JSON's own mapping is still to be written, and its typed
+      form needs `value`'s recursive type from
+      [widened-rule-signatures](../fjs/ebnf/lib/todo/widened-rule-signatures.md)
+      first — so this is no longer blocked on
       [#1890](https://github.com/functionalscript/functionalscript/pull/1890) —
       that channel buys better errors than today's, not the ones owed. What is
       undecided is the error shapes, and `fjs/ebnf/` is mid-migration.

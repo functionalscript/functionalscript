@@ -205,8 +205,12 @@ may instead be the grammar at
 [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs), which already
 exists, already imports JSON's rules, and is proof-covered. Mapped straight to
 values through `fjs/ebnf/map`, it **retires** the token-driven container machine
-rather than widening it, and the four rows below become moot. Mapped only to a
-token stream, every row still stands as written.
+rather than widening it, and the four rows below become moot — with the same
+type prerequisite as JSON's mapping, since its `value` is a widened `Thunk`
+that `Checked` refuses as a key until
+[widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)
+gives it a recursive type. Mapped only to a token stream, every row still
+stands as written.
 
 The two routes are not variants of one design, and picking wrong wastes the
 prerequisite work. See stage 4 in
