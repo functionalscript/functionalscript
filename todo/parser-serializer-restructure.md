@@ -30,7 +30,12 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    its typed form has one prerequisite: `value` and `string` are annotated
    widened, so `rewrite` refuses them as keys until
    [widened-rule-signatures](../fjs/ebnf/lib/todo/widened-rule-signatures.md)
-   gives `value` its recursive type. The metadata channel in
+   gives `value` its recursive type, and `rewrite` recurses per node, so it
+   overflows at 1,000 nested arrays where today's parser is proven at 5,000 —
+   [stack-safe-rewrite](../fjs/ebnf/map/todo/stack-safe-rewrite.md). The
+   mapping builds **tokens** for the container machine, which stays: a value
+   mapping would also lose the `NumberPolicy` seam the extended codec's
+   `123n` comes from. The metadata channel in
    [#1890](https://github.com/functionalscript/functionalscript/pull/1890) buys
    errors *better* than today's rather than the ones this reader owes, and it
    cannot classify a parse failure at all, since a failure yields no tree to
@@ -502,8 +507,8 @@ two — it is stage 4's proof source.
 **Urgency is not the same as readiness, and stage 3b now separates them.** The
 change of direction lowered its own issue to **P2**. It is still what stage 4
 waits on, and it is startable — the grammar and the mapping engine exist,
-though JSON's own mapping is not written and its typed form waits on a
-recursive type for `value` — but what it reports on malformed input is
+though JSON's own mapping is not written and waits on a recursive type for
+`value` and a stack-safe `rewrite` — but what it reports on malformed input is
 undecided, and `fjs/ebnf/` is mid-migration. Design work, one type
 prerequisite and a moving dependency are poor reasons to hold the
 front of a queue, so the P1 urgency of this plan rests on stages 1b and 4.
@@ -568,8 +573,11 @@ throughout.
    error, in the existing wrapper, since that defect predates the replacement
    and is provable without it; **3b** replaces the `fjs/js/tokenizer` wrapper in
    `fjs/media/json/tokenizer` with a reader generated from JSON's own grammar
-   over `fjs/ebnf/`. **3b exports no scanners.** That seam belonged to the
-   withdrawn hand-written design, and what replaces it is answered in code:
+   over `fjs/ebnf/`, whose mapping builds **tokens** for the container machine
+   in `fjs/media/json/parser`, which stays with both codecs and their
+   `NumberPolicy` unchanged. **3b exports no scanners.** That seam belonged
+   to the withdrawn hand-written design, and what replaces it is answered in
+   code:
    rule reuse by ordinary import, as
    [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) already does.
    Accepted-input proofs unchanged in both,
@@ -599,11 +607,17 @@ throughout.
    The two are not variants of one design. If the grammar maps straight to
    values, the container machine is not widened but **retired**, and that
    quoted work is wasted; if the grammar only produces tokens for it, the
-   widening is still owed exactly as written. Nothing measured so far decides
-   it — `fjs/ebnf/map` can rewrite an AST to values, which makes the first
-   route real, though DataJS's `value` is a widened thunk like JSON's and
-   needs the same recursive type before a typed mapping can key on it — while
-   the second is what today's code is shaped for. Whoever
+   widening is still owed exactly as written. What is measured bears on it
+   without settling it. Stage 3b took the token route for JSON because a
+   value mapping breaks two contracts today's parser keeps: depth, since
+   `rewrite` recurses per node and overflows at 1,000 nested arrays where the
+   parser is proven at 5,000, and the `NumberPolicy` seam that gives the
+   extended codec its `bigint`. DataJS owes both too — its values nest as
+   JSON's do, and its bigint is the same lexeme-preserving requirement. The
+   grammar route has to keep both through the mapping, on top of the
+   recursive type DataJS's widened `value` thunk needs like JSON's; the token
+   route keeps both by construction and is what today's code is shaped for.
+   Whoever
    starts stage 4 settles this first and records it here and in
    [its own issue](../fjs/media/datajs/todo/parser-serializer.md), which says
    the same and makes the decision its first task.
@@ -683,10 +697,13 @@ throughout.
 - [ ] Stage 3b: the reader comes from a grammar over `fjs/ebnf/`, not from a
       hand-written scanner. **Startable but not first**: the grammar exists at
       `fjs/ebnf/lib/json` and `fjs/ebnf/map` is the engine that rewrites its
-      AST to values — JSON's own mapping is still to be written, and its typed
-      form needs `value`'s recursive type from
+      AST — JSON's own mapping is still to be written, builds **tokens** for
+      the container machine that stays, and needs two `fjs/ebnf` items first:
+      `value`'s recursive type from
       [widened-rule-signatures](../fjs/ebnf/lib/todo/widened-rule-signatures.md)
-      first — so this is no longer blocked on
+      and a `rewrite` that does not recurse per node,
+      [stack-safe-rewrite](../fjs/ebnf/map/todo/stack-safe-rewrite.md) — so
+      this is no longer blocked on
       [#1890](https://github.com/functionalscript/functionalscript/pull/1890) —
       that channel buys better errors than today's, not the ones owed. What is
       undecided is the error shapes, and `fjs/ebnf/` is mid-migration.

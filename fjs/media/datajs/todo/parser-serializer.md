@@ -209,8 +209,13 @@ rather than widening it, and the four rows below become moot — with the same
 type prerequisite as JSON's mapping, since its `value` is a widened `Thunk`
 that `Checked` refuses as a key until
 [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)
-gives it a recursive type. Mapped only to a token stream, every row still
-stands as written.
+gives it a recursive type, and with two contracts stage 3b measured and took
+the token route to keep: `rewrite` recurses per node and overflows at 1,000
+nested arrays where JSON's parser is proven at 5,000
+([stack-safe-rewrite](../../../ebnf/map/todo/stack-safe-rewrite.md)), and a
+mapping straight to values loses the exact number lexeme, which here is what
+tells `1n` from `1`. Mapped only to a token stream, every row still stands as
+written, and both contracts are kept by construction.
 
 The two routes are not variants of one design, and picking wrong wastes the
 prerequisite work. See stage 4 in
