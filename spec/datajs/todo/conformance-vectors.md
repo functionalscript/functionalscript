@@ -31,15 +31,16 @@ DataJS corpus has nothing to say about any of it.
 the only ordering constraint it carries. Landing stage 4 without it would mean
 writing stage 4's proofs twice.
 
-The coordinating plan's dependencies are 1b before 4, and 3b before 4 on
-stage 4's token-machine route only; an earlier draft wrote that as a sequence,
-3, then 1b, then 4, and it is not one. Stage 3b is open but P2, with its error
+The coordinating plan's dependencies are 1b before 4, and 3b before 4 on stage
+4's token-machine route only; an earlier draft wrote that as a sequence, 3,
+then 1b, then 4, and it is not one. Stage 3b is open but P2, with its error
 shapes undecided, where this is P1 and gates stage 4 on either route — so the
 execution order is **1b first**, with 3b and 4 following as stage 4's route
-decides, and the plan's priority section and task list say so too. Nothing is lost by
-that, because 1b never depended on stage 3: the corpus bootstraps in JSON
-precisely so it can exist before any DataJS reader does, and it is indifferent
-to whether that reader ends up hand-written or generated from a grammar.
+decides, and the plan's priority section and task list say so too. Nothing is
+lost by that, because 1b never depended on stage 3: the corpus bootstraps in
+JSON precisely so it can exist before any DataJS reader does, and it is
+indifferent to whether that reader ends up hand-written or generated from a
+grammar.
 
 ### Proposal
 
