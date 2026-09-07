@@ -80,7 +80,14 @@ vectors as byte arrays "fed to the reader's public byte-accepting path — which
 stage 4 owes". By the time input is a JavaScript string both distinctions are
 gone, so `tryParse` alone can neither implement nor prove them. `tryParseBytes`
 decodes with [`fjs/text/utf8`](../../../text/utf8/module.f.mjs)'s
-`toCodePointList`, refuses invalid UTF-8, and **rejects** a leading `EF BB BF`.
+`toCodePointList`, refuses invalid UTF-8, **rejects** a leading `EF BB BF`, and
+then re-encodes with [`fjs/text/utf16`](../../../text/utf16/module.f.mjs)'s
+`fromCodePointList` before the reader sees a symbol, because the reader's
+symbols are UTF-16 code units (§3, Layer 1): a four-byte scalar such as `😀`
+decodes to the one code point `0x1F600`, and the grammar must receive the
+pair `0xD83D 0xDE00`, which is what the corpus's four-byte vectors require to
+succeed. The byte path and the string path share one reader over one
+alphabet; the bridge is the decoder's, not the mapping's.
 
 That last word matters, and an earlier draft of this file had it backwards.
 "A document is UTF-8. It has no BOM" is a *rejection* rule: a BOM makes the byte

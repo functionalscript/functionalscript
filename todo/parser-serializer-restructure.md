@@ -532,21 +532,28 @@ not marginally: it has no way to express sharing at all, and it also lacks the
 cache reads `.f.js` back, and the property that matters is that parsing a
 serialized EDAG reproduces the same EDAG.
 
-**Stage 3 is a dependency of stage 4**, because DataJS's reader reuses parts
-of JSON's rather than restating them: strings are JSON's unchanged, and
-DataJS's numbers are JSON's int/frac/exp core plus a bigint suffix and
-`-Infinity` folding. Over a grammar that reuse is of *rules* rather than of
-exported scanners, so what stage 4 inherits is a grammar to extend, and stage
-4 stays close behind to keep the shared rules honest.
+**Stage 3 is a dependency of stage 4 on the token-machine route only.**
+DataJS's reader reuses parts of JSON's rather than restating them: strings
+are JSON's unchanged, and DataJS's numbers are JSON's int/frac/exp core plus
+a bigint suffix and `-Infinity` folding. Over a grammar that reuse is of
+*rules* rather than of exported scanners, and the rules are already imported
+— `fjs/ebnf/lib/datajs` exists — so the grammar route consumes nothing from
+stage 3b. The token-machine route does: its token-stream grammar extends
+JSON's and inherits the boundary resolution 3b owes. Either way stage 4 stays
+close behind 3b, to keep the shared rules honest.
 
 Stage 1b (the conformance vectors) is stage 4's other dependency, and not
 stage 3's: it is stage 4's proof source, and its corpus is stored in JSON
-exactly so it can exist before a DataJS reader does. So the dependencies are 3
-before 4 and 1b before 4 — a relationship, not a queue. An earlier draft wrote
-it as an intended order of 3, 1b, 4; that is withdrawn, and the order work is
-picked up in is the next paragraph's.
+exactly so it can exist before a DataJS reader does. So the dependencies are
+1b before 4, and 3b before 4 on the token route — a relationship, not a queue.
+An earlier draft wrote it as an intended order of 3, 1b, 4; that is withdrawn,
+and the order work is picked up in is the next paragraph's.
 
-**The execution order is 1b, then 3b, then 4.** 1b never depended on stage 3:
+**The execution order is 1b first, then 3b and 4 as stage 4's route decides.**
+Stage 4's first task — choosing that route — waits on nothing and can run
+beside 1b. On the token route stage 4's implementation follows 3b; on the
+grammar route it needs only 1b's corpus and the `fjs/ebnf` items its issue
+names, and 3b proceeds on its own P2 schedule. 1b never depended on stage 3:
 the corpus bootstraps in JSON, and it is indifferent to whether the DataJS
 reader that eventually consumes it is hand-written or generated from a
 grammar. It is P1 where 3b is P2, it needs no decision that has not been made,
