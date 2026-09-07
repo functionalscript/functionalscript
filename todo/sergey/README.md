@@ -1,6 +1,6 @@
 # Current Priority Tasks
 
-> Keep this file in the repository. It's personal notes. Don't review the file.
+> Keep this directory in the repository. It's personal notes. Don't review the file.
 
 - [ ] Browser Test
 - [ ] FunctionalScript
@@ -63,4 +63,18 @@
   typeof value?.[Symbol.iterator] === 'function'
   ```
 - [ ] If a standard property or property method is not implemented, it should be banned in the property accessor. For example, `obj.hasOwnProperty(prop)`.
-- [ ] One NiX
+- [ ] One NiX.
+- [ ] Module references:
+  - `a/module.f.js`
+    ```js
+    import { x } from './b/module.f.js'
+    ```
+  - `a/b/module.f.js`
+    ```js
+    import { y } from './c/module.js'
+    export const x = y * 2
+    ```
+  - `a/b/c/module.f.js`
+    ```js
+    export const y = 3
+    ```
