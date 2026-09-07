@@ -451,10 +451,13 @@ consumer port"), never by number, so a renumbering here cannot strand them.
 - [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — the front-end design this
   plan builds at stage 1; its Problems 2 and 9 dissolve here.
 - [layered-parser](../bnf/todo/layered-parser.md),
-  [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md),
   [207-bnf-semantic-actions](../bnf/todo/207-bnf-semantic-actions.md) — what
   the reference backend grows into, in `ebnf/ll1/` (stage 4) and the
   layered port (stage 6).
+- [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md) — the
+  classical metadata protocol, superseded for `ebnf/` by
+  [meta-ast-mapping](../ebnf/todo/meta-ast-mapping.md); kept as the record
+  of what it replaces.
 - [unicode-rules](../bnf/todo/unicode-rules.md) — stage 3, EBNF representation
   only.
 - [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)

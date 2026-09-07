@@ -290,7 +290,8 @@ and so is not part of the design:
       `Mapping`, `RewriteSet` types, with `f` contextually typed from
       `a` under them.
 - [ ] Proofs: the empty set is the identity; `parser(r, set)` agrees with
-      `rewrite`-then-parse where the three keyings agree; a two-layer
+      parse-then-`rewrite` — `rewrite(set)(r)` applied to `parser(r)`'s
+      tree — where the three keyings agree; a two-layer
       example — a tokenizer emitting `{ id: 'tok', … }` symbols with a
       payload, parsed by a
       grammar over `'tok'` whose mapping reads the
