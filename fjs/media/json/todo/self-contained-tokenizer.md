@@ -196,9 +196,14 @@ the last two decide which grammar the tokenizer runs, and over what symbols.
   both: the lone surrogate as one `c` node holding 55296, the astral character
   as two. The grammar's string rule admits every unit, since its character
   set is `0x20` to `0x10FFFF` less two. So **the reader's symbols are code
-  units**, not code points, and the mapping joins them back into a string,
-  which is today's semantics. Escapes, keywords and whitespace are ASCII and
-  unaffected.
+  units**, not code points. A string token's value is then the `c` units as
+  they are and each escape **decoded**: the grammar keeps an escape as
+  spelled — `["escape", ["c", 110]]` for `\n`, the four hex digits for
+  `\u1234` — where today's tokenizer yields the newline and U+1234, and its
+  proofs pin that. A `\uXXXX` produces one unit whatever it spells, so an
+  escaped lone surrogate stays one unit and an escaped pair stays two, which
+  is what keeps this row and the previous one consistent. Keywords and
+  whitespace are ASCII and unaffected.
 
 **So the reader is a token-stream grammar over code units, mapped to tokens.**
 The container machine stays, with both codecs and their policies untouched,
@@ -723,7 +728,9 @@ blocked. The first two items can be started today.
       [What the reader must keep](#what-the-reader-must-keep) has the measured
       table and the two resolutions. Prove that `1 2`, `[] []` and `1,2` lex
       as they do today, that `12` is one number and `truetrue` an error, that
-      `"\ud800"` is one string token, and that 20,000 nested brackets lex.
+      `"\ud800"` is one string token, that `"\n"` and `"\u1234"` decode to
+      the one unit each today's proofs pin, and that 20,000 nested brackets
+      lex.
 - [ ] Cross-check that grammar against the accepted-language probes above. It
       was written to RFC 8259 rather than against this tokenizer, so agreement
       is expected but unmeasured, and the `1n1` class is exactly where today's
@@ -734,7 +741,9 @@ blocked. The first two items can be started today.
       builds tokens ([What the reader must keep](#what-the-reader-must-keep)
       says why). This is the reader's substance and the part that does not
       exist yet. Its keys are `string`, the number tuple and the token
-      variant, held in bindings; a string token is its code units joined.
+      variant, held in bindings; a string token's value is its raw units
+      kept and its escapes decoded, one unit per `\uXXXX`, as the code-unit
+      contract above says.
       **After** `string`'s pin, per
       [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md),
       since `Checked` refuses it as a key today.
