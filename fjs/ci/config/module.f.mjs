@@ -25,7 +25,7 @@ export const images = /** @type {const} */({
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = /** @type {const} */ '0.48.0'
+export const functionalscript = /** @type {const} */ '0.49.0'
 
 // The one runtime a generated flake takes from outside the pinned snapshot.
 // Nixpkgs ships 1.3.13 — on the pin and on `master` — and two of this
@@ -92,7 +92,7 @@ export const deno = '2.8.3'
 // versions it offers rather than the latest release.
 // https://nodejs.org/en/download
 export const node = /** @type {const} */({
-    default: '26.7.0',
+    default: '26.8.1',
     node22: '22.23.2',
     node24: '24.19.0',
 })
@@ -129,7 +129,7 @@ export const typescript = /** @type {const} */({
 // `dtolnay/rust-toolchain` installs; the two are the same constant so they
 // cannot drift.
 // https://rust-lang.org/
-export const rust = '1.98.0'
+export const rust = '1.98.1'
 
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
@@ -146,7 +146,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixos-26.05',
-    commit: '062346a6d85bc4b49dfaa61c986e9c5be21217d1',
+    commit: 'c25784012c9982bca5b3e0de87e90bbdac8927d3',
 })
 
 // Wasmtime and Wasmer are installed by their own setup actions, so these are
@@ -165,7 +165,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: '996e9b0b019a4a9eb9e9a5641aefa06d801b5895',
+    commit: 'ca7f624be3935a5bc46d2c240515491ab8675503',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to
