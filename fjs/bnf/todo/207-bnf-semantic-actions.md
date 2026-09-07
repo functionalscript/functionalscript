@@ -20,12 +20,22 @@ value walks that tree afterwards, and each one writes the walk again:
 One cause: the AST is **mandatory**, **anonymous** (a node records the branch tag
 but not the rule that produced it), and **complete before anything else starts**.
 
-**Not in this list: `fjs/media/json`.** Its codec keeps a hand-written tokenizer
-and container-stack parser by decision —
+**Not in this list: `fjs/media/json`.** Not because its codec stays
+hand-written — that decision is withdrawn, and
 [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
-settles that the media codecs take no runtime dependency on `fjs/bnf`. `fjs/bnf`
-may hold JSON and DataJS grammars only as proof-covered examples. This issue
-makes those examples produce values; it does not make them a codec.
+now has JSON's reader coming from a grammar. The reason is the module: that
+grammar runs over `fjs/ebnf/`, while `fjs/bnf` may still hold JSON and DataJS
+grammars only as proof-covered examples. This issue makes those examples produce
+values; it does not make them a codec. The capability it describes is the same
+one a codec needs, and `fjs/ebnf/` already has it:
+[`fjs/ebnf/map`](../../ebnf/map/README.md) rewrites a rule's AST to values,
+keyed by the rules the author holds, and writing JSON's mapping over it is a
+task of
+[self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md),
+not of any PR.
+[#1890](https://github.com/functionalscript/functionalscript/pull/1890) adds an
+optional metadata channel on top, which buys better errors than today's and
+cannot classify a parse failure.
 
 ### Proposal
 
