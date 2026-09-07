@@ -69,7 +69,7 @@ direction rather than a retreat.
 Two earlier drafts of this section each named a blocker, and measurement
 retired both. The honest answer is that **the tokenizer has one prerequisite
 in `fjs/ebnf`, a type, and two design questions of its own** — error reporting
-and a number's boundary — plus one API property.
+and token boundaries — plus one API property.
 
 Measured against the tree as it stands:
 
