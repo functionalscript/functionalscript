@@ -89,14 +89,21 @@ The AST of a rule, before or after rewriting, is then one type beside
 `Ast<R>`:
 
 ```ts
+// `Ast<R>` with three changes: a symbol is admitted at every row, the leaf
+// rows are the symbol alone, and `M` is threaded. The helpers mirror
+// `_AnyAst`, `_TupleAst` and `_VariantAst` in `../ast/types.ts`, for the
+// reasons those exist: `Rule` is taken whole before it is taken apart, so
+// the open variant does not expand forever (TS2589), and a tuple is mapped
+// under a helper whose `R extends Tuple` lets `R[K]` be a `Rule` (TS2344).
 export type MetaAst<M extends Meta, R extends Rule> =
+    Equal<R, Rule> extends true ? _AnyMetaAst<M> :
     | MetaSymbol<M>                                           // any subtree may be a symbol
     | (
         R extends null    ? readonly [] :
         R extends number  ? never :                            // a leaf is only ever the symbol above
         R extends ''      ? readonly [] :
         R extends string  ? readonly MetaSymbol<M>[] :
-        R extends Tuple   ? { readonly [K in keyof R]: MetaAst<M, R[K]> } :
+        R extends Tuple   ? _TupleMetaAst<M, R> :
         R extends Variant ? _VariantMetaAst<M, R> :
         R extends Const<infer D> ? MetaAst<M, D> :
         R extends Set     ? never :
@@ -104,9 +111,16 @@ export type MetaAst<M extends Meta, R extends Rule> =
         never
     )
 
-// `[tag, node]`, as `_VariantAst` in `../ast/types.ts` spells it
+type _AnyMetaAst<M extends Meta> =
+    | MetaSymbol<M>
+    | readonly _AnyMetaAst<M>[]
+    | readonly [string, _AnyMetaAst<M>]
+
+type _TupleMetaAst<M extends Meta, R extends Tuple> =
+    { readonly [K in keyof R]: MetaAst<M, R[K]> }
+
 type _VariantMetaAst<M extends Meta, R extends Variant> =
-    string extends keyof R ? readonly [string, MetaAst<M, Rule>] :
+    string extends keyof R ? readonly [string, _AnyMetaAst<M>] :
     { readonly [K in keyof R]: readonly [_ToString<K>, MetaAst<M, R[K]>] }[keyof R]
 ```
 
