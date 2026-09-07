@@ -30,7 +30,8 @@ values; it does not make them a codec. The capability it describes is the same
 one a codec needs, and `fjs/ebnf/` already has it:
 [`fjs/ebnf/map`](../../ebnf/map/README.md) rewrites a rule's AST to values,
 keyed by the rules the author holds, and writing JSON's mapping over it is a
-task of [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md),
+task of
+[self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md),
 not of any PR.
 [#1890](https://github.com/functionalscript/functionalscript/pull/1890) adds an
 optional metadata channel on top, which buys better errors than today's and
