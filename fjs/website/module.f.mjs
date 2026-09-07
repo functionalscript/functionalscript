@@ -42,7 +42,7 @@ import { stylesheet } from './style/module.f.mjs'
 
 const html = htmlUtf8(
     ['title', 'Emergent Testing in the Browser'],
-    ['link', { rel: 'stylesheet', href: '/main.css' }],
+    ['link', { rel: 'stylesheet', href: '/_main.css' }],
 )(
     ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
         ['p', ['a',
@@ -291,7 +291,7 @@ const program = exitStep(mapStep(
     step(proofModules, paths => step(writeManifest(paths), () => allOk(
         writeFile('index.html', html),
         writeFile('_browser-test-entry.mjs', entry),
-        writeUtf8File('main.css', stylesheet)))),
+        writeUtf8File('_main.css', stylesheet)))),
     () => undefined))
 
 export const main = () => program

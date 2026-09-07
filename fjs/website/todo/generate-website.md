@@ -7,7 +7,7 @@
 - [ ] Generate Deno and Rust docs and publish them
 - [ ] Convert `README.md` files into HTML and publish them
 - [ ] Source code highlighting
-- [x] One `main.css` (`fjs/website/style/module.f.mjs`, written to the root and linked root-relative)
+- [x] One `main.css` (`fjs/website/style/module.f.mjs`, written to the root as `_main.css` and linked root-relative)
 - [ ] Convention for `page.f.mjs` — generates a demo webpage for the module in the same directory
 - [ ] An `index.html` per module directory, cataloguing its files,
       subdirectories, `todo/` issues and local proofs — see

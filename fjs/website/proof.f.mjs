@@ -218,8 +218,8 @@ export const proof = {
         // The stylesheet is one file at the root, linked root-relative so a
         // module page at any depth reaches the same one, and the page carries
         // no inline copy that could drift from it.
-        assertEq(textOf(generated.root['main.css'], 'the stylesheet'), stylesheet)
-        assert(source.includes('<link rel="stylesheet" href="/main.css">'), source)
+        assertEq(textOf(generated.root['_main.css'], 'the stylesheet'), stylesheet)
+        assert(source.includes('<link rel="stylesheet" href="/_main.css">'), source)
         assert(!source.includes('<style>'), source)
     },
 }

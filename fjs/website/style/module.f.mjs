@@ -1,6 +1,6 @@
 /**
  * The website's one stylesheet, held as data so the generator can write it
- * once as `main.css` and every page can link it.
+ * once as `_main.css` and every page can link it.
  *
  * It moved here from the root page's inline `<style>` unchanged: the light and
  * dark colour schemes, the page layout, and the `data-state` / `data-status`
