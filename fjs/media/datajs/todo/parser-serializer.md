@@ -148,16 +148,19 @@ seam met from the other side, and it interacts with
 
 #### 2. Tokenizer
 
-Depends on stage 3b, and **the seam it depends on is answered in code.** Stage
-3b was to export `scanString` and `scanNumber`; that design is withdrawn, and
-JSON's reader comes from a grammar over `fjs/ebnf/` instead. What DataJS reuses
-is therefore JSON's *rules* rather than its functions, by ordinary import —
+Depends on stage 3b **on the token-machine route only**, and the seam it was
+to depend on is answered in code. Stage 3b was to export `scanString` and
+`scanNumber`; that design is withdrawn, and JSON's reader comes from a grammar
+over `fjs/ebnf/` instead. What DataJS reuses is therefore JSON's *rules*
+rather than its functions, by ordinary import —
 [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) already does
 exactly that, and
 [self-contained-tokenizer](../../json/todo/self-contained-tokenizer.md) marks
-the question done. The table below states the requirement, which is unchanged.
-What is still open is §3's Layer 1: whether this codec runs that grammar or
-feeds a token machine.
+the question done — so the grammar route consumes nothing from stage 3b. The
+token-machine route does: its token-stream grammar extends JSON's and inherits
+the boundary resolution stage 3b owes. The table below states the requirement,
+which is unchanged on either. What is still open is §3's Layer 1: whether this
+codec runs that grammar or feeds a token machine.
 
 | Piece | Source |
 |---|---|
@@ -217,14 +220,22 @@ rather than widening it, and the four rows below become moot — with the same
 type prerequisite as JSON's mapping, since its `value` is a widened `Thunk`
 that `Checked` refuses as a key until
 [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)
-gives it a recursive type, and with two contracts stage 3b measured and took
-the token route to keep: `rewrite` recurses per node and overflows at 1,000
-nested arrays where JSON's parser is proven at 5,000
-([stack-safe-rewrite](../../../ebnf/map/todo/stack-safe-rewrite.md)), and a
-mapping straight to values loses the exact number lexeme, which here is what
-tells `1n` from `1`. Mapped only to a token stream, every row still stands as
-written, and both contracts are kept by construction — a token-stream
-grammar's tree is flat, which is how 3b sidesteps the first.
+gives it a recursive type; with the alphabet stage 3b settled, **UTF-16 code
+units** — over the `ll1` proofs' `stringToCodePointList`, `[dataJs, eof]`
+throws `['not a symbol', 16, …]` on `export default "\ud800";`, where over
+`stringToList` it accepts it, and the corpus requires that document to read
+as the one-unit string; and with one contract stage 3b measured that this
+route has to keep through the mapping: depth, since `rewrite` recurses per
+node and overflows at 1,000 nested arrays where JSON's parser is proven at
+5,000 ([stack-safe-rewrite](../../../ebnf/map/todo/stack-safe-rewrite.md)).
+The numeric contract it keeps on its own: `1` and `1n` parse to distinct
+branches, `optionFloatSuffix` and `n`, with every digit retained, so a mapping
+picks `Number` or `BigInt` from the branch before it discards the spelling.
+Nothing here needs JSON's `NumberPolicy` seam, which exists for two codecs
+over one grammar where this format has one numeric domain. Mapped only to a
+token stream, every row still stands as written; a token-stream grammar's
+tree is flat, which is how 3b sidesteps the depth contract rather than
+keeping it.
 
 The two routes are not variants of one design, and picking wrong wastes the
 prerequisite work. See stage 4 in
@@ -458,9 +469,12 @@ the spec judges them independently and this module provides all three.
       unchanged.
 - [ ] `fjs/media/datajs/types.ts` and `README.md`.
 - [ ] Tokenizer. On the grammar route this is `fjs/ebnf/lib/datajs` composed
-      with `eof`, since it is a prefix rule, and it already reuses JSON's rules
-      by import; on the token-machine route, a token-stream grammar extending
-      JSON's — not the exported scanners the withdrawn design promised.
+      with `eof`, since it is a prefix rule, run over **UTF-16 code units**,
+      since the corpus's lone surrogates throw under the code-point decoding
+      the `ll1` proofs use, and it already reuses JSON's rules by import; on
+      the token-machine route, a token-stream grammar extending JSON's, over
+      the same units — not the exported scanners the withdrawn design
+      promised.
 - [ ] Statement layer: environment, bound-once, declare-before-use.
 - [ ] Key policy: accept the computed `["__proto__"]`, and reject a plain
       string key decoding to `__proto__` in every spelling.

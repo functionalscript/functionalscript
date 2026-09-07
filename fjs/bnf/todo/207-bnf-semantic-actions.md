@@ -27,8 +27,14 @@ now has JSON's reader coming from a grammar. The reason is the module: that
 grammar runs over `fjs/ebnf/`, while `fjs/bnf` may still hold JSON and DataJS
 grammars only as proof-covered examples. This issue makes those examples produce
 values; it does not make them a codec. The capability it describes is the same
-one a codec needs, so the codec's version of it is being designed for `fjs/ebnf/`
-in [#1890](https://github.com/functionalscript/functionalscript/pull/1890).
+one a codec needs, and `fjs/ebnf/` already has it:
+[`fjs/ebnf/map`](../../ebnf/map/README.md) rewrites a rule's AST to values,
+keyed by the rules the author holds, and writing JSON's mapping over it is a
+task of [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md),
+not of any PR.
+[#1890](https://github.com/functionalscript/functionalscript/pull/1890) adds an
+optional metadata channel on top, which buys better errors than today's and
+cannot classify a parse failure.
 
 ### Proposal
 

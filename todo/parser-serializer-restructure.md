@@ -622,11 +622,16 @@ throughout.
    value mapping breaks two contracts today's parser keeps: depth, since
    `rewrite` recurses per node and overflows at 1,000 nested arrays where the
    parser is proven at 5,000, and the `NumberPolicy` seam that gives the
-   extended codec its `bigint`. DataJS owes both too — its values nest as
-   JSON's do, and its bigint is the same lexeme-preserving requirement. The
-   grammar route has to keep both through the mapping, on top of the
-   recursive type DataJS's widened `value` thunk needs like JSON's; the token
-   route keeps both by construction and is what today's code is shaped for.
+   extended codec its `bigint`. DataJS owes the first — its values nest as
+   JSON's do — and not the second: its grammar parses `1` and `1n` to
+   distinct branches with every digit retained, so a mapping picks `Number`
+   or `BigInt` from the branch, and the format has one numeric domain where
+   the seam exists for two codecs over one grammar. What it does share with
+   3b is the alphabet, UTF-16 code units, since its corpus carries lone
+   surrogates that code-point decoding throws on. The grammar route has to
+   keep depth through the mapping, on top of the recursive type DataJS's
+   widened `value` thunk needs like JSON's; the token route keeps it by
+   construction and is what today's code is shaped for.
    Whoever
    starts stage 4 settles this first and records it here and in
    [its own issue](../fjs/media/datajs/todo/parser-serializer.md), which says
