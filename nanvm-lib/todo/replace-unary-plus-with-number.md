@@ -14,7 +14,7 @@ chosen specifically because JS's own unary `+` throws on a `bigint` where `Numbe
 not.
 
 `nanvm-lib` still ships `Any::unary_plus()`
-(`nanvm-lib/src/vm/any/mod.rs:50`) as public API, and it is not dead in name only — it
+(`nanvm-lib/src/vm/any/mod.rs:73`) as public API, and it is not dead in name only — it
 implements the *wrong* algorithm for the role we actually want:
 
 ```rust

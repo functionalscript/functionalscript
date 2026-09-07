@@ -1,7 +1,29 @@
 ## streaming-recognizer. A payload-free, O(depth) JSON validity recognizer
 
 **Priority:** P3
-**Status:** open
+**Status:** blocked — the reader it reuses is being redesigned.
+**Blocked by:** [self-contained-tokenizer](./self-contained-tokenizer.md)
+
+> **The seam this design is built on no longer exists.** It reuses the
+> hand-written `Scan<S>` scanners that
+> [self-contained-tokenizer](./self-contained-tokenizer.md) used to promise, and
+> that design was implemented, reverted
+> ([#1895](https://github.com/functionalscript/functionalscript/pull/1895)) and
+> replaced by a reader generated from JSON's EBNF grammar. Nothing exports
+> `Scan<S>`, and nothing will.
+>
+> **Do not start the tasks below.** The `U16` signature, the scanner-transition
+> factoring and the "one state machine serves both instantiations" plan are all
+> statements about the withdrawn scanner. What survives is the *requirement* —
+> answer "is this a valid JSON document?" in O(depth) without building the
+> value — and the depth-cap design, which is about the container stack rather
+> than the lexer.
+>
+> Rebasing it means asking what a grammar-driven reader offers instead: a
+> recognizer is a parse that discards its mapping, so this may reduce to running
+> the existing grammar with no value-building map, which is closer to free than
+> the factoring below. That is the question to answer before writing any code
+> here.
 
 ### Problem
 
@@ -201,6 +223,10 @@ property, scoped to make it actually hold:
   there too, that is its own change, not this recognizer's contract.)
 
 ### Tasks
+
+**Blocked, and the first three are written against the withdrawn scanner** —
+see the note at the top. Rebase them on the grammar-driven reader before
+starting; do not follow them as they stand.
 
 - [ ] Factor the `fjs/js` string/number token ops and the `fjs/media/json` parser fold
       over their builders so one state machine serves both instantiations — the

@@ -3,7 +3,8 @@
 **Priority:** P1 — it blocks stage 4, which is P1. Raised with the stages it
 sits between; see
 [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md).
-**Status:** open
+**Status:** open — and **next**. It is P1 and gates stage 4, where stage 3b is
+P2 with an undecided design, and this is blocked on nothing.
 
 ### Problem
 
@@ -22,13 +23,24 @@ stays JSON's, but for the one enumerated `n`-deletion defect its invariants
 name — is a property of JSON, established by JSON's own
 accepted-input proofs and by those two invariants
 [self-contained-tokenizer](../../../fjs/media/json/todo/self-contained-tokenizer.md)
-states, with its character sweeps as coverage rather than proof: that design is
-explicit that no finite sweep is exhaustive. A DataJS corpus has nothing to say
-about any of it.
+states, with its character sweeps as coverage rather than proof: that file marks
+them **recorded, not promised** — a before/after record reviewed as data. A
+DataJS corpus has nothing to say about any of it.
 
-**This corpus must therefore land before or together with stage 4**, which is
-compatible with running stage 3 first: the sequence is 3, then 1b, then 4.
-Landing stage 4 without it would mean writing stage 4's proofs twice.
+**This corpus must therefore land before or together with stage 4**, and that is
+the only ordering constraint it carries. Landing stage 4 without it would mean
+writing stage 4's proofs twice.
+
+The coordinating plan's dependencies are 1b before 4, and 3b before 4 on stage
+4's token-machine route only; an earlier draft wrote that as a sequence, 3,
+then 1b, then 4, and it is not one. Stage 3b is open but P2, with its error
+shapes undecided, where this is P1 and gates stage 4 on either route — so the
+execution order is **1b first**, with 3b and 4 following as stage 4's route
+decides, and the plan's priority section and task list say so too. Nothing is
+lost by that, because 1b never depended on stage 3: the corpus bootstraps in
+JSON precisely so it can exist before any DataJS reader does, and it is
+indifferent to whether that reader ends up hand-written or generated from a
+grammar.
 
 ### Proposal
 
