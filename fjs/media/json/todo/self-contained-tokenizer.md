@@ -691,7 +691,9 @@ blocked. The first two items can be started today.
 - [ebnf-migration](../../../todo/ebnf-migration.md) — `fjs/ebnf/` beside
   `fjs/bnf/`, then retire `bnf/`. The module this now depends on.
 - [#1890](https://github.com/functionalscript/functionalscript/pull/1890) —
-  `meta-ast-mapping`, the metadata channel a reader's mapping needs.
+  `meta-ast-mapping`, the metadata channel. **Optional**: it buys errors better
+  than today's, is not needed to match the current parser's contract, and
+  cannot classify an LL(1) failure, which yields no tree to annotate.
 - [#1895](https://github.com/functionalscript/functionalscript/pull/1895) —
   the withdrawn hand-written implementation. Read it for the measurements and
   for the defect classes review found, not as a plan.

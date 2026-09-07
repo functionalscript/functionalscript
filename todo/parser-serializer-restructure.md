@@ -525,20 +525,24 @@ not marginally: it has no way to express sharing at all, and it also lacks the
 cache reads `.f.js` back, and the property that matters is that parsing a
 serialized EDAG reproduces the same EDAG.
 
-The order stays **3 then 4**, because DataJS's reader reuses parts of JSON's
-rather than restating them: strings are JSON's unchanged, and DataJS's numbers
-are JSON's int/frac/exp core plus a bigint suffix and `-Infinity` folding.
-Stage 3 is therefore the prerequisite. Over a grammar that reuse is of *rules*
-rather than of exported scanners, so what stage 4 inherits is a grammar to
-extend, and stage 4 stays close behind to keep the shared rules honest.
+**Stage 3 is a dependency of stage 4**, because DataJS's reader reuses parts
+of JSON's rather than restating them: strings are JSON's unchanged, and
+DataJS's numbers are JSON's int/frac/exp core plus a bigint suffix and
+`-Infinity` folding. Over a grammar that reuse is of *rules* rather than of
+exported scanners, so what stage 4 inherits is a grammar to extend, and stage
+4 stays close behind to keep the shared rules honest.
 
-Stage 1b (the conformance vectors) sits **between** them: it is stage 4's proof
-source, not stage 3's, and its corpus is stored in JSON exactly so it can exist
-before a DataJS reader does. So the intended order is 3, 1b, 4.
+Stage 1b (the conformance vectors) is stage 4's other dependency, and not
+stage 3's: it is stage 4's proof source, and its corpus is stored in JSON
+exactly so it can exist before a DataJS reader does. So the dependencies are 3
+before 4 and 1b before 4 — a relationship, not a queue. An earlier draft wrote
+it as an intended order of 3, 1b, 4; that is withdrawn, and the order work is
+picked up in is the next paragraph's.
 
-**1b runs first anyway.** It never depended on stage 3: the corpus bootstraps in
-JSON, and it is indifferent to whether the DataJS reader that eventually
-consumes it is hand-written or generated from a grammar. It is P1 where 3b is
+**The execution order is 1b, then 3b, then 4.** 1b never depended on stage 3:
+the corpus bootstraps in JSON, and it is indifferent to whether the DataJS
+reader that eventually consumes it is hand-written or generated from a
+grammar. It is P1 where 3b is
 P2, it needs no decision that has not been made, and running it early costs
 nothing — it still lands before stage 4, which is the only ordering constraint
 it ever carried.
