@@ -85,7 +85,8 @@ Each page holds, in order:
 - [Generate website](generate-website.md) — the umbrella list this is one line of.
 - [Source and doc view](source-and-doc-view.md) — fills slot 6 for source and docs.
 - [Demo convention](demo-convention.md) — fills slot 6 for demos.
-- [main.css](main-css.md) — the stylesheet these pages share.
+- [`fjs/website/style`](../style/module.f.mjs) — the stylesheet these pages
+  link as `/_main.css`.
 - [The two runners, and what sharing them cost](../../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost)
   — the shared test name, and why the browser suite is generated.
 - [Browser testing](../../emergent_testing/todo/browser-testing.md) — the

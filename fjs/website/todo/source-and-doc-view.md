@@ -52,7 +52,7 @@ page.
 - The page emits `<pre data-source="./module.f.mjs">`, a `<section
   data-doc="./module.f.mjs">`, and one `<script type="module">` for the runner.
 - Highlighting classes are named by token kind (`keyword`, `string`,
-  `comment`, …) and coloured in [main.css](main-css.md).
+  `comment`, …) and coloured in [`_main.css`](../style/module.f.mjs).
 
 ### Tasks
 
