@@ -215,7 +215,8 @@ nested arrays where JSON's parser is proven at 5,000
 ([stack-safe-rewrite](../../../ebnf/map/todo/stack-safe-rewrite.md)), and a
 mapping straight to values loses the exact number lexeme, which here is what
 tells `1n` from `1`. Mapped only to a token stream, every row still stands as
-written, and both contracts are kept by construction.
+written, and both contracts are kept by construction — a token-stream
+grammar's tree is flat, which is how 3b sidesteps the first.
 
 The two routes are not variants of one design, and picking wrong wastes the
 prerequisite work. See stage 4 in

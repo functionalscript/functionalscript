@@ -24,18 +24,23 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    below is reversed.
 
    **It is not blocked, though two earlier drafts of this plan said so.**
-   Measurement retired that claim: the grammar exists at `fjs/ebnf/lib/json`,
-   the LL(1) backend parses JSON with it, and `fjs/ebnf/map` is the engine that
-   rewrites a parsed tree to values. JSON's own mapping is **not written**, and
-   its typed form has one prerequisite: `value` and `string` are annotated
-   widened, so `rewrite` refuses them as keys until
-   [widened-rule-signatures](../fjs/ebnf/lib/todo/widened-rule-signatures.md)
-   gives `value` its recursive type, and `rewrite` recurses per node, so it
-   overflows at 1,000 nested arrays where today's parser is proven at 5,000 —
-   [stack-safe-rewrite](../fjs/ebnf/map/todo/stack-safe-rewrite.md). The
-   mapping builds **tokens** for the container machine, which stays: a value
-   mapping would also lose the `NumberPolicy` seam the extended codec's
-   `123n` comes from. The metadata channel in
+   Measurement retired that claim: the document grammar exists at
+   `fjs/ebnf/lib/json`, the LL(1) backend parses JSON with it, and
+   `fjs/ebnf/map` is the engine that rewrites a parsed tree. What 3b runs is
+   narrower and **not written**: a token-stream grammar over that module's
+   exported lexical rules, over UTF-16 code units, mapped to the tokens the
+   container machine consumes — the machine stays, with both codecs and
+   their `NumberPolicy` untouched. Four measured contracts decide that, in
+   the stage's issue: a value mapping would lose the seam the extended
+   codec's `123n` comes from and, through `rewrite`'s per-node recursion
+   ([stack-safe-rewrite](../fjs/ebnf/map/todo/stack-safe-rewrite.md)), the
+   depth today's parser is proven at; the public `tokenize` accepts streams
+   that are no document, which the document grammar rejects; and strings are
+   code-unit sequences, which the `ll1` proof's code-point decoding throws
+   on. Its typed mapping has one prerequisite, `string`'s pin in
+   [widened-rule-signatures](../fjs/ebnf/lib/todo/widened-rule-signatures.md),
+   and one design question of its own: the naive token grammar is not LL(1)
+   at a number's boundary. The metadata channel in
    [#1890](https://github.com/functionalscript/functionalscript/pull/1890) buys
    errors *better* than today's rather than the ones this reader owes, and it
    cannot classify a parse failure at all, since a failure yields no tree to
@@ -506,11 +511,12 @@ two — it is stage 4's proof source.
 
 **Urgency is not the same as readiness, and stage 3b now separates them.** The
 change of direction lowered its own issue to **P2**. It is still what stage 4
-waits on, and it is startable — the grammar and the mapping engine exist,
-though JSON's own mapping is not written and waits on a recursive type for
-`value` and a stack-safe `rewrite` — but what it reports on malformed input is
-undecided, and `fjs/ebnf/` is mid-migration. Design work, one type
-prerequisite and a moving dependency are poor reasons to hold the
+waits on, and it is startable — the lexical rules and the mapping engine
+exist, though its token-stream grammar is not written, must be made LL(1) at
+a number's boundary, and its mapping waits on `string`'s pin — but what it
+reports on malformed input is undecided, and `fjs/ebnf/` is mid-migration.
+Design work, one type prerequisite and a moving dependency are poor reasons
+to hold the
 front of a queue, so the P1 urgency of this plan rests on stages 1b and 4.
 
 An EDAG is an expression DAG whose sharing is *semantics*, not an encoding
@@ -698,15 +704,14 @@ throughout.
       [`self-contained-tokenizer`](../fjs/media/json/todo/self-contained-tokenizer.md),
       the defect that predates the replacement and is provable without it.
 - [ ] Stage 3b: the reader comes from a grammar over `fjs/ebnf/`, not from a
-      hand-written scanner. **Startable but not first**: the grammar exists at
-      `fjs/ebnf/lib/json` and `fjs/ebnf/map` is the engine that rewrites its
-      AST — JSON's own mapping is still to be written, builds **tokens** for
-      the container machine that stays, and needs two `fjs/ebnf` items first:
-      `value`'s recursive type from
+      hand-written scanner. **Startable but not first**: the lexical rules
+      exist at `fjs/ebnf/lib/json` and `fjs/ebnf/map` is the engine that
+      rewrites a tree — the token-stream grammar 3b runs, over UTF-16 code
+      units, is still to be written and made LL(1) at a number's boundary;
+      its mapping builds **tokens** for the container machine that stays and
+      needs `string`'s pin from
       [widened-rule-signatures](../fjs/ebnf/lib/todo/widened-rule-signatures.md)
-      and a `rewrite` that does not recurse per node,
-      [stack-safe-rewrite](../fjs/ebnf/map/todo/stack-safe-rewrite.md) — so
-      this is no longer blocked on
+      first — so this is no longer blocked on
       [#1890](https://github.com/functionalscript/functionalscript/pull/1890) —
       that channel buys better errors than today's, not the ones owed. What is
       undecided is the error shapes, and `fjs/ebnf/` is mid-migration.
