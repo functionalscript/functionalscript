@@ -9,6 +9,7 @@ import { emptyState, virtual } from '../effects/node/virtual/module.f.mjs'
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../asserts/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { maxLengthBytes, vec } from '../types/bit_vec/module.f.mjs'
+import { stylesheet } from './style/module.f.mjs'
 
 /**
  * A file in the virtual tree, from its text.
@@ -214,5 +215,11 @@ export const proof = {
         // `run` query parameter.
         assert(!entry.includes('searchParams'), entry)
         assert(entry.trim().endsWith("runButton.addEventListener('click', start)"), entry)
+        // The stylesheet is one file at the root, linked root-relative so a
+        // module page at any depth reaches the same one, and the page carries
+        // no inline copy that could drift from it.
+        assertEq(textOf(generated.root['_main.css'], 'the stylesheet'), stylesheet)
+        assert(source.includes('<link rel="stylesheet" href="/_main.css">'), source)
+        assert(!source.includes('<style>'), source)
     },
 }

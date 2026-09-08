@@ -97,7 +97,10 @@ existing CI config -> generated Node flake.nix -> existing Node job commands
 - do not add job-selection conditions, helper libraries, or shared generated Nix modules;
 - keep commands in GitHub Actions;
 - run each migrated job's complete command sequence through its flake, one
-  `nix develop --command` step per command;
+  `nix develop --command` step per command — its tool commands, that is:
+  the one runner-native maintenance step, the generated-file drift check
+  (`fjs/ci/node/module.f.mjs:140`), stays outside the shell, as
+  [migrated-job-proof](./migrated-job-proof.md) records;
 - preserve each job's current commands, order, and coverage;
 - keep `npm run gen` Nix-independent and runnable on Windows;
 - ignore per-job lock files created beside generated flakes;
@@ -194,12 +197,13 @@ files is gone.
 
 ##### Shell hooks
 
-One job declares one: `ubuntu-intel32`, pointing `cargo` at a 32-bit linker. Node
-22's kept `npm install -g functionalscript` writable and put the installed `fjs` on
-`PATH`, and went when that install did. The generator
-still emits a `shellHook` for a job that declares one, and
-`fjs/ci/nix/proof.f.mjs` holds that capability to its shape; do not introduce a
-generalized shell-setup schema until a job needs it.
+One shell declares one, for one of its systems: the shared shell on
+`x86_64-linux`, pointing `cargo` at a 32-bit linker. Node 22's kept
+`npm install -g functionalscript` writable and put the installed `fjs` on
+`PATH`, and went when that install did. The generator still emits a `shellHook`
+where a system declares one, and `fjs/ci/nix/proof.f.mjs` holds that capability
+to its shape; do not introduce a generalized shell-setup schema until a job
+needs it.
 
 #### Phase 3: validate independently
 

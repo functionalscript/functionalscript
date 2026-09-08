@@ -3,6 +3,15 @@
 **Priority:** P3
 **Status:** open
 
+For the EBNF backend the metadata algebra here — `MI`/`MO`, `translate`,
+`reduce`, `empty` — is superseded by
+[meta-ast-mapping](../../ebnf/todo/meta-ast-mapping.md): one mapping per
+rule, `(ast) => MetaSymbol`, applied by the parser as it builds each
+node, with the alphabet named in the metadata. The streaming input this
+issue proposes — a parser as a `StateFold` over one symbol at a time — is
+not addressed there and stays open for `ebnf/` too. The code this issue
+describes is the classical `bnf/` backend only.
+
 ### Problem
 
 A parser takes its whole input as one array — [`Match<M>`](../ll1/types.ts) is

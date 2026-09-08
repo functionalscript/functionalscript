@@ -1,6 +1,7 @@
 /**
  * Static website generation program: the landing page, the browser test
- * entry module, and the manifest of proof modules that page loads.
+ * entry module, the manifest of proof modules that page loads, and the one
+ * stylesheet every page links.
  *
  * **Discovery is part of the program, not a script beside it.** Which modules
  * a browser can link is decided by reading their source, which
@@ -37,22 +38,11 @@ import { at, empty as noModules, setReplace } from '../types/ordered_map/module.
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
+import { stylesheet } from './style/module.f.mjs'
 
 const html = htmlUtf8(
     ['title', 'Emergent Testing in the Browser'],
-    ['style', `
-:root { color-scheme: light dark; --bg: white; --text: black; --pass: #137333; --fail: #b3261e }
-@media (prefers-color-scheme: dark) {
-    :root { --bg: #121212; --text: #f1f1f1; --pass: #81c995; --fail: #f28b82 }
-}
-body { background-color: var(--bg); color: var(--text); font: 16px system-ui; margin: 3rem auto; max-width: 48rem; padding: 0 1rem }
-[data-state="passed"] [data-test-summary] { color: var(--pass) }
-[data-state="failed"] [data-test-summary], [data-state="infrastructure-error"] [data-test-summary] { color: var(--fail) }
-[data-test-results] { color: var(--text) }
-[data-status="passed"]::marker { color: var(--pass) }
-[data-status="failed"] { color: var(--fail) }
-pre { white-space: pre-wrap }
-`]
+    ['link', { rel: 'stylesheet', href: '/_main.css' }],
 )(
     ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
         ['p', ['a',
@@ -300,7 +290,8 @@ const proofModules = step(
 const program = exitStep(mapStep(
     step(proofModules, paths => step(writeManifest(paths), () => allOk(
         writeFile('index.html', html),
-        writeFile('_browser-test-entry.mjs', entry)))),
+        writeFile('_browser-test-entry.mjs', entry),
+        writeUtf8File('_main.css', stylesheet)))),
     () => undefined))
 
 export const main = () => program

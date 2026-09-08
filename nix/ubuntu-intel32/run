@@ -1,2 +1,0 @@
-#!/bin/sh
-exec nix develop --extra-experimental-features 'nix-command flakes' --no-update-lock-file --quiet ./nix/ubuntu-intel32 --command "$@"
