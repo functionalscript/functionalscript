@@ -21,7 +21,7 @@
         map rules. The parser is a `StateFold` over one input symbol at a time,
         RTTI-free — a validatable root output belongs to `checkMap`. Design and
         open questions:
-        [43. Stateful parser](../fjs/bnf/todo/043-stateful-parser.md).
+        [43. Stateful parser](../../fjs/bnf/todo/043-stateful-parser.md).
   - [ ] Considering a special repeat0+ rule in BNF.
 - [ ] Website Module Browsing
   - [ ] Demo pages.

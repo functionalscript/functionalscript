@@ -316,7 +316,16 @@ and so is not part of the design:
       rule mapped twice, refused at build.
 - [ ] The per-layer factory binding `MI` and `MO`; `rule(a, f)`,
       `Mapping`, `RewriteSet` types, with `f` contextually typed from
-      `a` under them.
+      `a` under them. **Watch the `Mapping<R>` alias**: TypeScript compares
+      instantiations of a generic alias by the variance of its own
+      parameter, so a `type Mapping<R extends Rule> = (ast: Ast<R, I, O>)
+      => Meta<O>` makes `Mapping<Rule>` *not* assignable to
+      `Mapping<[42, null]>`, while the identical signature written inline
+      is. That is exactly the reuse the paragraph above rests on — "a
+      mapping written against a wider rule type is sound for the concrete
+      rule's tree" — so the alias would take it away. Checked on
+      `ebnf/meta`; base `ast/types.ts` behaves the same, so it is a
+      property of the wrapping, not of this type.
 - [ ] Proofs: the empty set is the identity; `parser(r, set)` agrees with
       parse-then-`rewrite` — `rewrite(set)(r)` applied to `parser(r)`'s
       tree — where the three keyings agree; a two-layer
