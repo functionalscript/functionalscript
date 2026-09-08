@@ -26,24 +26,26 @@ import type { BoundedArray } from "../../types/array/types.ts"
 import type { Equal } from "../../types/ts/types.ts"
 import type { Const, Rule, Tuple, Variant, Set, Repeat, Option } from "../types.ts"
 
-export type Meta<M, S extends number = number> = { readonly symbol: S, readonly meta: M }
+export type Symbol = number
 
-type _AnyAst<MI> =
+export type Meta<M, S extends Symbol = Symbol> = { readonly symbol: S, readonly meta: M }
+
+type _AnyAst<MO, MI> =
+    | Meta<MO>
     | Meta<MI>
-    | readonly _AnyAst<MI>[]
-    | readonly [string, _AnyAst<MI>]
+    | readonly _AnyAst<MO, MI>[]
+    | readonly [string, _AnyAst<MO, MI>]
 
 export type Ast<MI, MO, R extends Rule> =
-    | Meta<MO>
-    | (Equal<R, Rule> extends true ? _AnyAst<MI> :
+    | (Equal<R, Rule> extends true ? _AnyAst<MO, MI> :
         // EOF: a consumed end of input has no source element, so it contributes
         // no leaf — the node is empty, as an empty string's is.
-        R extends null ? readonly[] :
+        R extends null ? Meta<MO> | readonly[] :
         // number
-        R extends number ? Meta<MI, R> :
+        R extends number ? Meta<MO> | Meta<MI, R> :
         // string
-        R extends '' ? readonly[] :
-        R extends string ? readonly Meta<MI>[] :
+        R extends '' ? Meta<MO> | readonly[] :
+        R extends string ? Meta<MO> | readonly Meta<MI>[] :
         // Tuple
         R extends Tuple ? _TupleAst<MI, MO, R> :
         // Variant
@@ -52,7 +54,7 @@ export type Ast<MI, MO, R extends Rule> =
         R extends Const<infer D> ? Ast<MI, MO, D> :
         // Set
         R extends () => readonly['set'] ? never :
-        R extends Set ? Meta<MI> :
+        R extends Set ? Meta<MO> | Meta<MI> :
         // Repeat
         R extends Repeat<infer Min, infer Max, infer D> ? _RepeatAst<MI, MO, Min, Max, D>:
         //
@@ -61,7 +63,7 @@ export type Ast<MI, MO, R extends Rule> =
 type _MI = 'mi'
 type _MO = 'mo'
 
-type _Any = Assert<Equal<Ast<_MI, _MO, Rule>, Meta<_MO> | _AnyAst<_MI>>>
+type _Any = Assert<Equal<Ast<_MI, _MO, Rule>, Meta<_MO> | _AnyAst<_MI, _MO>>>
 
 type _Number = Assert<Equal<Ast<_MI, _MO, number>, Meta<_MO> | Meta<_MI, number>>>
 type _Number0 = Assert<Equal<Ast<_MI, _MO, 42>, Meta<_MO> | Meta<_MI, 42>>>
@@ -88,7 +90,7 @@ type _String = Assert<Equal<Ast<_MI, _MO, string>, Meta<_MO> | readonly Meta<_MI
 type _String0 = Assert<Equal<Ast<_MI, _MO, 'hello'>, Meta<_MO> | readonly Meta<_MI>[]>>
 type _String1 = Assert<Equal<Ast<_MI, _MO, ''>, Meta<_MO> | readonly[]>>
 
-type _TupleAst<MI, MO, R extends Tuple> = { readonly[K in keyof R]: Ast<MI, MO, R[K]> }
+type _TupleAst<MI, MO, R extends Tuple> = Meta<MO> | { readonly[K in keyof R]: Ast<MI, MO, R[K]> }
 
 type _Tuple = Assert<Equal<Ast<_MI, _MO, [12, -1]>, Meta<_MO> | readonly[Ast<_MI, _MO, 12>, Ast<_MI, _MO, -1>]>>
 type _Tuple0 = Assert<Equal<Ast<_MI, _MO, []>, Meta<_MO> | readonly[]>>
@@ -100,8 +102,8 @@ type _PropertyName<V> =
     never
 
 type _VariantAst<MI, MO, R extends Variant> =
-    string extends keyof R ? readonly[string, Ast<MI, MO, R[string]>] :
-    {
+    string extends keyof R ? Meta<MO> | readonly[string, Ast<MI, MO, R[string]>] :
+    Meta<MO> | {
         readonly[K in keyof R]: readonly[
             _PropertyName<K>,
             Ast<MI, MO, R[K]>
@@ -121,12 +123,12 @@ type _Const0 = Assert<Equal<Ast<_MI, _MO, () => ['const', 42]>, Ast<_MI, _MO, 42
 type _Const1 = Assert<Equal<Ast<_MI, _MO, () => ['const', 'a']>, Ast<_MI, _MO, 'a'>>>
 
 type _Set = Assert<Equal<Ast<_MI, _MO, Set>, Meta<_MO> | Meta<_MI>>>
-type _Set0 = Assert<Equal<Ast<_MI, _MO, () => ['set']>, Meta<_MO> | never>>
+type _Set0 = Assert<Equal<Ast<_MI, _MO, () => ['set']>, never>>
 type _Set1 = Assert<Equal<Ast<_MI, _MO, () => ['set', number]>, Meta<_MO> | Meta<_MI>>>
 type _Set2 = Assert<Equal<Ast<_MI, _MO, () => ['set', number, -1]>, Meta<_MO> | Meta<_MI>>>
 
 type _RepeatAst<MI, MO, Min extends number, Max extends number, D extends Rule> =
-    BoundedArray<Min, Max, Ast<MI, MO, D>>
+    Meta<MO> | BoundedArray<Min, Max, Ast<MI, MO, D>>
 
 // The metadata pair is threaded by parameter, not read from the `_MI`/`_MO`
 // the rows above are written against: a nested position carries whatever pair
