@@ -12,8 +12,8 @@ trust namespace rather than to a globally allocated DNS-like namespace.
 
 The convention must work for **any programming language, hypertext format, or
 other content**. Git is only the immutable history/transport container; the
-naming model must not depend on JavaScript, Python, HTML, a package manager, or
-a particular Git hosting service.
+naming model must not depend on JavaScript, Python, HTML, a package manager, a
+Git branch name, or a particular Git hosting service.
 
 The DISOT architecture already describes paths such as:
 
@@ -24,11 +24,12 @@ The DISOT architecture already describes paths such as:
 
 where every hop is authenticated and `~` is relative to a trust anchor.
 
-The design must keep three things separate:
+The design keeps four things separate:
 
 1. **name** — human-readable and contextual;
 2. **namespace** — the identity whose namespace gives the name meaning;
-3. **hash** — the final immutable revision/content selected by resolution.
+3. **hash** — the final immutable revision/content selected by resolution;
+4. **Git refs** — mutable, disposable indexes that may help discover commits.
 
 A commit signer is deliberately **not** the namespace. A contributor may sign
 a new commit without changing the logical identity of the content or silently
@@ -76,11 +77,11 @@ A `.disot.*` file is only bytes in a Git tree until a trusted signature adopts
 it. Its presence MUST NOT by itself establish `(namespace, name)`, a lock, or
 any other DISOT semantics.
 
-In particular, a commit that **introduces** `.disot.*` is authoritative only if
-that exact commit is validly signed by a party the resolver's trust policy
-accepts as allowed to establish/control the claimed namespace/object. An
-unsigned commit, or a commit signed only by an untrusted party, cannot claim a
-trusted namespace merely by writing:
+A commit that **introduces** `.disot.*` is authoritative only if that exact
+commit is validly signed by a party the resolver's trust policy accepts as
+allowed to establish/control the claimed namespace/object. An unsigned commit,
+or a commit signed only by an untrusted party, cannot claim a trusted namespace
+merely by writing:
 
 ```json
 {
@@ -94,14 +95,10 @@ The same principle applies to later metadata changes: changing `namespace`,
 the commit. The resolver evaluates the signature(s) and its trust policy before
 accepting the changed metadata into the trusted named history.
 
-A useful consequence is that an untrusted commit may introduce `.disot.*`, and
-a later trusted descendant may leave the file unchanged and sign the new commit.
-Because the later signature covers the complete tree, that trusted descendant
-**adopts** the metadata at that point. The earlier untrusted commit does not
-become trusted retroactively; the later signed commit is the first authoritative
-DISOT revision carrying that value.
-
-Conceptually:
+An untrusted commit may introduce `.disot.*`, and a later trusted descendant may
+leave the file unchanged and sign the new commit. Because the later signature
+covers the complete tree, that trusted descendant **adopts** the metadata at
+that point. The earlier untrusted commit does not become trusted retroactively.
 
 ```text
 C0  no .disot.*
@@ -114,8 +111,6 @@ C2  same .disot.json     trusted signature      -> metadata adopted here
 Trust is subjective and policy-driven. "Trusted party" does not necessarily
 mean one hard-coded signer equal to `namespace`: delegation, key rotation,
 multiple controllers, or community trust rules may all authorize a signature.
-The format records identity and signatures; the resolver decides whether the
-signer is trusted to make the assertion.
 
 ### Shape
 
@@ -155,8 +150,9 @@ name      = parser
 => DID:Alice/parser
 ```
 
-The Git repository containing the commit is not part of that identity. The same
-commit/tree copied to another repository still describes the same object.
+The Git repository containing the commit and the Git ref used to find it are not
+part of that identity. The same commit/tree copied to another repository or
+reachable under another branch still describes the same object.
 
 ### Why `namespace`, not `root`
 
@@ -284,52 +280,101 @@ The tool does not need to discover every import/reference merely to preserve the
 namespace context: `namespace` covers unknown relative references, while lock
 entries pin the ones whose immutable resolution has been recorded.
 
-### Heads, forks, and ambiguity
+### Removing `.disot.*` archives the entity
+
+Once a trusted named history has established `(namespace, name)`, a later
+**trusted signed descendant that removes the recognized `.disot.*` file** is an
+explicit archive operation for that entity.
+
+```text
+C1  .disot.json = { namespace: DID:Alice, name: parser }   trusted
+ |
+C2  .disot.json unchanged                                 trusted
+ |
+C3  .disot.json removed                                   trusted controller
+     -> DID:Alice/parser is archived
+```
+
+The archive meaning comes from the trusted ancestry: `C3` no longer contains
+the identity file, so the entity being archived is the authoritative
+`(namespace, name)` inherited from its trusted parent history. The removal MUST
+NOT archive anything when the removing commit is unsigned or not trusted to
+control that entity.
+
+Here "author" means an identity trusted by policy to control/advance the entity,
+not merely the string in Git's `author` header. The cryptographic signature and
+trust policy are what authorize archival.
+
+Archiving does not delete history. Every previous revision remains addressable
+by its Git/content hash, and copies of the history remain valid. Archiving only
+changes mutable name resolution: the entity has no active trusted head after the
+archive commit unless a later authorized operation explicitly reactivates it.
+
+A branch deletion is **not** archival, and a branch rename is **not** a rename
+of the entity. Refs are secondary indexes; only trusted signed history and the
+presence/removal of `.disot.*` carry this semantic meaning.
+
+For an initial implementation, a removal commit with multiple authoritative
+parents may archive a name only when those parents resolve to the same
+`(namespace, name)`. If different named entities meet in one merge and the
+result has no `.disot.*`, the resolver MUST report ambiguity rather than infer
+which entity was archived.
+
+### Heads, forks, archival, and ambiguity
 
 A name may have many commits. Given known **trusted** commits whose trees
-describe the same `(namespace, name)`, a resolver considers ancestry rather
-than timestamps or arrival order:
+describe the same `(namespace, name)`, plus trusted archive descendants, a
+resolver considers ancestry rather than timestamps, refs, or arrival order:
 
 - an ancestor is an older revision, not a competing head;
-- one maximal descendant is the current unambiguous head;
-- several incomparable maximal commits are forks/concurrent heads;
-- a merge commit descending from those heads can make the history unambiguous
-  again.
+- one maximal active descendant is the current unambiguous head;
+- several incomparable maximal active commits are forks/concurrent heads;
+- a trusted merge commit descending from those heads can make the history
+  unambiguous again;
+- a trusted authorized descendant that removes `.disot.*` is an archive marker,
+  not an active head.
 
-An untrusted commit does not become an authoritative head merely because it is
-a descendant of a trusted commit. It may be retained as a candidate/contribution
-for inspection, but head selection for trusted resolution filters/evaluates
-trust before treating it as an authoritative revision.
+An untrusted commit does not become an authoritative head or archive marker
+merely because it descends from a trusted commit. It may be retained as a
+candidate/contribution for inspection, but trusted resolution evaluates trust
+before giving it semantic effect.
 
 A resolver MUST NOT choose among incomparable heads merely by commit time,
-lexicographic hash order, network arrival order, or which server answered
-first. It either applies an explicit caller trust/policy rule or reports the
-ambiguity. An exact lock binding removes the ambiguity for that dependency.
+lexicographic hash order, branch name, network arrival order, or which server
+answered first. It either applies an explicit caller trust/policy rule or
+reports the ambiguity. An exact lock binding removes the ambiguity for that
+dependency.
 
-### Git refs are projections
+### Git refs are secondary projections
 
-Git branches/refs are useful mutable indexes, but they are not authoritative
-object identity.
+Git branches/refs are useful mutable indexes for discovery and compatibility
+with existing Git tooling, but DISOT resolution MUST NOT depend on their names.
 
-A tool may reconstruct a convenient branch such as:
+A ref may point to an authoritative head, an older commit, an untrusted
+contribution, or nothing at all. Renaming or deleting a ref changes none of the
+DISOT identity/history semantics above.
+
+A tool may reconstruct convenient refs such as:
 
 ```text
 refs/heads/parser
 ```
 
-from commits whose trees say:
+from trusted history whose `.disot.*` says:
 
 ```text
 namespace = <expected namespace>
 name      = parser
 ```
 
-and whose ancestry/trust policy yields one unambiguous trusted head. If several
+and whose ancestry/trust policy yields one unambiguous active head. If several
 maximal trusted heads remain, reconstruction reports a fork rather than
-silently choosing one.
+silently choosing one. If the trusted history ends in an archive marker, the
+branch should not be reconstructed as an active entity.
 
 This keeps a repository a storage/replication container. Moving commits between
-repositories or changing ref layout does not rename the objects inside them.
+repositories, changing ref layout, renaming a branch, or deleting a branch does
+not rename or archive the objects inside them.
 
 ### Interaction with signatures and trusted timestamps
 
@@ -339,12 +384,16 @@ companion prototype), a trusted timestamp (`tstsig`), and a final conventional
 Git signature transitively authenticate the exact DISOT metadata without any
 additional Git header.
 
+The same is true of archival: a trusted signature over a commit whose tree no
+longer contains `.disot.*` authenticates that removal relative to its parent
+history.
+
 A resolver must distinguish:
 
 - **described as** — `(namespace, name)` from `.disot.*`;
 - **signed by** — identities that authenticated this exact commit;
 - **trusted as** — whether those signatures are authorized by the resolver's
-  policy to establish or advance that named object;
+  policy to establish, advance, change, or archive that named object;
 - **anchored at** — trusted timestamp evidence, if present;
 - **locked to** — immutable hashes selected for dependencies.
 
@@ -399,6 +448,13 @@ more encodings are introduced.
 - [ ] Prove a later trusted descendant can adopt unchanged metadata without
       retroactively trusting the earlier commit.
 - [ ] Apply the same trust rule to later `namespace`, `name`, and lock changes.
+- [ ] Define trusted removal of `.disot.*` from an established history as
+      archival; prove unsigned/untrusted removal has no archival effect.
+- [ ] Define merge/archive behavior: no `.disot.*` on a merge archives only when
+      its authoritative parents identify the same entity; otherwise reject the
+      semantic ambiguity.
+- [ ] Ensure branch/ref names are never inputs to DISOT identity, rename,
+      archival, or head-selection semantics; refs are reconstructible indexes.
 - [ ] Define the identity representation shared with DID signatures.
 - [ ] Define the exact textual domain of `name` and namespace path segments.
 - [ ] Implement relative-name resolution using the object's `namespace` as the
@@ -414,8 +470,11 @@ more encodings are introduced.
 - [ ] Test source-identical commits signed by different DIDs and prove their
       identity and relative-resolution context stay unchanged while `.disot.*`
       is unchanged.
+- [ ] Test branch rename/deletion and prove neither changes entity identity or
+      archival state.
 - [ ] Test ambiguous same-name trusted forks, a later trusted merge that removes
-      the ambiguity, and locks that deliberately pin either fork.
+      the ambiguity, a trusted archive commit, and locks that deliberately pin
+      historical/forked revisions.
 - [ ] Test ordinary Git rebase, cherry-pick, merge, squash, clone/fetch/push,
       pack/unpack, and garbage collection to establish exactly when tree-carried
       DISOT metadata is retained or intentionally changed; newly created
