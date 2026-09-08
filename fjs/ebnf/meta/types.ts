@@ -28,14 +28,19 @@ import type { Const, Rule, Tuple, Variant, Set, Repeat, Option } from "../types.
 
 export type Meta<M, S extends number = number> = { readonly symbol: S, readonly meta: M }
 
-type _AnyAst<MI> =
+// The widened row, and so the target of every monotonicity check: a subtree
+// under a rule known only as `Rule`. It admits `Meta<MO>` at every depth, not
+// just at the top, because a mapping may sit anywhere — a tuple holding one
+// mapped child is a tuple whose rule is still unknown.
+type _AnyAst<MI, MO> =
     | Meta<MI>
-    | readonly _AnyAst<MI>[]
-    | readonly [string, _AnyAst<MI>]
+    | Meta<MO>
+    | readonly _AnyAst<MI, MO>[]
+    | readonly [string, _AnyAst<MI, MO>]
 
 export type Ast<MI, MO, R extends Rule> =
     | Meta<MO>
-    | (Equal<R, Rule> extends true ? _AnyAst<MI> :
+    | (Equal<R, Rule> extends true ? _AnyAst<MI, MO> :
         // EOF: a consumed end of input has no source element, so it contributes
         // no leaf — the node is empty, as an empty string's is.
         R extends null ? readonly[] :
@@ -61,7 +66,7 @@ export type Ast<MI, MO, R extends Rule> =
 type _MI = 'mi'
 type _MO = 'mo'
 
-type _Any = Assert<Equal<Ast<_MI, _MO, Rule>, Meta<_MO> | _AnyAst<_MI>>>
+type _Any = Assert<Equal<Ast<_MI, _MO, Rule>, _AnyAst<_MI, _MO>>>
 
 type _Number = Assert<Equal<Ast<_MI, _MO, number>, Meta<_MO> | Meta<_MI, number>>>
 type _Number0 = Assert<Equal<Ast<_MI, _MO, 42>, Meta<_MO> | Meta<_MI, 42>>>
@@ -83,6 +88,18 @@ type _Mono2 = Assert<_Mono<-1, number>>
 type _Mono3 = Assert<_Mono<readonly[42, null], Tuple>>
 type _Mono4 = Assert<_Mono<{ readonly end: null }, Variant>>
 type _Mono5 = Assert<_Mono<number, Rule>>
+type _Mono6 = Assert<_Mono<Tuple, Rule>>
+type _Mono7 = Assert<_Mono<Variant, Rule>>
+type _Mono8 = Assert<_Mono<Set, Rule>>
+
+// The law at the widened boundary, where the target is `_AnyAst` rather than a
+// row: a mapped subtree is admitted at depth, under a tuple and under a
+// variant's tag, and not only as the whole tree.
+type _Holds<A, B> = A extends B ? true : false
+type _Mapped = Assert<_Holds<readonly[Meta<_MO>], Ast<_MI, _MO, Rule>>>
+type _Mapped0 = Assert<_Holds<readonly['a', Meta<_MO>], Ast<_MI, _MO, Rule>>>
+type _Mapped1 = Assert<_Holds<readonly[readonly[Meta<_MO>]], Ast<_MI, _MO, Rule>>>
+type _Mapped2 = Assert<_Holds<Ast<_MI, _MO, readonly[42, null]>, Ast<_MI, _MO, Rule>>>
 
 type _String = Assert<Equal<Ast<_MI, _MO, string>, Meta<_MO> | readonly Meta<_MI>[]>>
 type _String0 = Assert<Equal<Ast<_MI, _MO, 'hello'>, Meta<_MO> | readonly Meta<_MI>[]>>
