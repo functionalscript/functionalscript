@@ -239,7 +239,7 @@ Three differences from `rewrite`, all to keep:
   payload also reached directly elsewhere has its own name there, and a
   mapping keyed by it applies to that occurrence and not to the one under
   the thunk — the first bullet again. `rewrite` maps the payload first
-  and the thunk after, as two rules; the map README already reads the
+  and the thunk after, as two rules; the map proof already reads a `const`
   thunk as "the rule its payload spells", and the fold takes that
   literally.
 
