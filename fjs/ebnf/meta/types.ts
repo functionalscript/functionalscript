@@ -26,7 +26,7 @@ import type { Equal } from '../../types/ts/types.ts'
 import type { Const, Rule, Tuple, Variant, Set, Repeat, Option } from '../types.ts'
 
 export type Meta<M, S extends number = number> =
-    M extends never ? never :
+    [M] extends [never] ? never :
     { readonly symbol: S, readonly meta: M }
 
 // The widened row, and so the target of every monotonicity check: a subtree
