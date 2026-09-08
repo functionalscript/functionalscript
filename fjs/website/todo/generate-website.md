@@ -10,8 +10,9 @@
 - [ ] Source code highlighting and per-module JSDoc — see
       [source-and-doc-view](source-and-doc-view.md)
 - [x] One `main.css` (`fjs/website/style/module.f.mjs`, written to the root as `_main.css` and linked root-relative)
-- [ ] Convention for `demo.f.mjs` — an optional pure demo next to a module,
-      rendered on its page — see [demo-convention](demo-convention.md)
+- [ ] Convention for a `demo` export — an optional pure demo, discovered like a
+      proof and `demo.f.mjs` by default, rendered on its page — see
+      [demo-convention](demo-convention.md)
 - [ ] An `index.html` per module directory, cataloguing its files,
       subdirectories, `todo/` issues and the proofs of its subtree — see
       [directory-index-pages](directory-index-pages.md)
