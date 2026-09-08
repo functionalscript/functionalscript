@@ -10,11 +10,11 @@ independently in two modules, once unchecked and once checked, with no shared
 helper:
 
 ```ts
-// fjs/text/module.f.mjs:70-71 — unchecked, top module reaching into three modules
+// fjs/text/module.f.mjs:61-62 — unchecked, top module reaching into three modules
 export const utf8ToString = msbV =>
     codePointListToString(toCodePointList(u8List(msb)(msbV)))
 
-// fjs/text/utf8/module.f.mjs:293-300 — checked / Nullable, in the utf8 module
+// fjs/text/utf8/module.f.mjs:299-306 — checked / Nullable, in the utf8 module
 export const fromVec = v => {
     if ((length(v) & 0b111n) !== 0n) { return null }
     const arr = toArray(toCodePointList(u8List(msb)(v)))
@@ -28,9 +28,27 @@ export const fromVec = v => {
 Both hardcode the same core chain — `u8List(msb)` bit-unpack →
 `toCodePointList` utf8-decode → `codePointListToString` utf16 re-string —
 and `fromVec` merely wraps it with an octet-alignment check and an
-`isValidCodePoint` filter. `fjs/media/module.f.mjs:142-145` even documents that
+`isValidCodePoint` filter. `fjs/media/module.f.mjs:157-158` even documents that
 its own detector re-proves "the same two conditions `fromVec` checks, via the
 same decoder" — evidence the pipeline is being re-derived in several places.
+
+The byte-list level below the `Vec` has the same fan-out, outside `text/`:
+
+```ts
+// fjs/web/module.f.mjs:71 — tryUtf8's inner pipeline, re-derived
+const utf8Bytes = s => toArray(fromCodePointList(stringToCodePointList(s)))
+// fjs/web/module.f.mjs:77-83 — fromVec minus the alignment check, over bytes
+const utf8String = bytes => { /* toCodePointList + isValidCodePoint loop + codePointListToString */ }
+// fjs/effects/common/module.f.mjs:174-175 — utf8ToString's inner pipeline
+const utf8ListToString = bytes => codePointListToString(toCodePointList(bytes))
+```
+
+Both modules import the low-level `utf8`/`utf16` primitives directly while
+*also* importing `fjs/text`'s wrapper — reaching past the module whose
+stated job this is. `fjs/effects/node/module.f.mjs:27-29` still imports
+`toCodePointList`, `codePointListToString` and `reverse` and uses none of
+them: the residue of this block having been copied out of `effects/node`
+into `effects/common`.
 The unchecked and checked forms also live in *different* modules (top `text`
 vs `text/utf8`), so the `Vec` → string UTF-8 boundary has no single owner.
 Both are real consumers: `utf8ToString` is used by `effects/node`, `djs`,
@@ -62,6 +80,14 @@ with every importer updated in the same PR; a re-export left in
       `fromVec` and `utf8ToString` through it.
 - [ ] Decide whether `utf8ToString` moves next to `fromVec`; update importers
       if so.
+- [ ] Export the byte-list helpers in both directions, beside `fromVec`:
+      the decoder pair (unchecked and code-point-validated
+      `bytes → string`) replaces `fjs/web`'s `utf8String` and
+      `fjs/effects/common`'s `utf8ListToString`; a byte-list encoder
+      (`string → bytes`, the inner pipeline of `tryUtf8`) replaces
+      `fjs/web`'s `utf8Bytes`. Then those modules stop importing the
+      utf8/utf16 primitives directly.
+- [ ] Drop the three unused imports at `fjs/effects/node/module.f.mjs:27-29`.
 - [ ] `tsc`, `fjs t`.
 
 ### Related
@@ -69,5 +95,5 @@ with every importer updated in the same PR; a re-export left in
 - [../../todo/190-text-code-unit-string-boundary.md](../../todo/190-text-code-unit-string-boundary.md) — single-character
   `String.fromCharCode`/`codePointAt` boundary; this is the whole-`Vec`
   pipeline, a different layer.
-- `fjs/media/module.f.mjs:138-145` — the detector's documented re-proof of
+- `fjs/media/module.f.mjs:155-159` — the detector's documented re-proof of
   `fromVec`'s checks; a cleaner shared decode API may simplify it.
