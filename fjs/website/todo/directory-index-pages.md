@@ -33,8 +33,8 @@ These settle the open questions the first revision of this issue carried.
   directory without `module.f.mjs` (`fjs/crypto/`) gets no page of its own;
   whether it gets a bare listing of subdirectories so the tree is walkable
   from the root is the one question still open below.
-- **A page runs the proofs of its subtree.** The page for `fjs/types/` runs
-  every browser-linkable proof under `fjs/types/`, not only `fjs/types/proof.f.mjs`.
+- **A page runs the proofs of its subtree.** The page for `fjs/text/` runs
+  every browser-linkable proof under `fjs/text/`, not only `fjs/text/proof.f.mjs`.
   This is the existing runner with a shorter list, and the list is a slice of
   the manifest the generator already computes — sources are in path order, so a
   subtree is a contiguous run of prefix matches.

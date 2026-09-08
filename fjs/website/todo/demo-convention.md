@@ -77,9 +77,9 @@ HTML with a hand-written `.mjs` beside it.
   or a stream that keeps arriving needs a `subscriptions` field in the Elm
   style, which is a second mechanism; it is left out rather than expressed as
   an effect that never completes.
-- This replaces the `page.f.mjs` convention named in
-  [generate-website](generate-website.md) and `todo/samples.md`, which was
-  never implemented.
+- This replaces the `page.f.mjs` convention, which was never implemented. It
+  was named in [generate-website](generate-website.md), already rewritten to
+  the `demo` export, and in `todo/samples.md`, which still names it.
 
 ### Proposal
 
@@ -164,7 +164,7 @@ digest the module's own proof already asserts.
   — the rule this convention copies.
 - [`fjs/effects`](../../effects/README.md) — the effect layer `update` returns
   into, and where `NotImplemented` is defined as recoverable.
-- [Generate website](generate-website.md) — the `page.f.mjs` line this replaces.
+- [Generate website](generate-website.md) — the `demo` line this issue owns.
 - [`todo/samples.md`](../../../todo/samples.md) — samples should feed demos
   rather than duplicate them.
 - [`fjs/types/bigint/benchmark.html`](../../types/bigint/benchmark.html) — the
