@@ -3,6 +3,13 @@
 **Priority:** P3
 **Status:** open
 
+For the EBNF backend this is superseded by
+[meta-ast-mapping](../../ebnf/todo/meta-ast-mapping.md): one mapping per
+rule, `(ast) => MetaSymbol`, applied by the parser as it builds each
+node, with the alphabet named in the metadata; there is no `translate`,
+`reduce` or `empty`. This issue describes the classical `bnf/` backend
+only.
+
 ### Problem
 
 `checkMap` currently fixes every implicit rule output to an AST with unknown
