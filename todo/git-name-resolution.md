@@ -70,6 +70,53 @@ user content, while the `disot` namespace makes accidental collision much less
 likely than generic names such as `manifest.json`, `.meta.json`, or
 `package.json`.
 
+### Trust establishes metadata; presence does not
+
+A `.disot.*` file is only bytes in a Git tree until a trusted signature adopts
+it. Its presence MUST NOT by itself establish `(namespace, name)`, a lock, or
+any other DISOT semantics.
+
+In particular, a commit that **introduces** `.disot.*` is authoritative only if
+that exact commit is validly signed by a party the resolver's trust policy
+accepts as allowed to establish/control the claimed namespace/object. An
+unsigned commit, or a commit signed only by an untrusted party, cannot claim a
+trusted namespace merely by writing:
+
+```json
+{
+  "namespace": "DID:Alice",
+  "name": "parser"
+}
+```
+
+The same principle applies to later metadata changes: changing `namespace`,
+`name`, or lock data does not become authoritative merely because Git accepted
+the commit. The resolver evaluates the signature(s) and its trust policy before
+accepting the changed metadata into the trusted named history.
+
+A useful consequence is that an untrusted commit may introduce `.disot.*`, and
+a later trusted descendant may leave the file unchanged and sign the new commit.
+Because the later signature covers the complete tree, that trusted descendant
+**adopts** the metadata at that point. The earlier untrusted commit does not
+become trusted retroactively; the later signed commit is the first authoritative
+DISOT revision carrying that value.
+
+Conceptually:
+
+```text
+C0  no .disot.*
+ |
+C1  adds .disot.json     unsigned / untrusted   -> not authoritative
+ |
+C2  same .disot.json     trusted signature      -> metadata adopted here
+```
+
+Trust is subjective and policy-driven. "Trusted party" does not necessarily
+mean one hard-coded signer equal to `namespace`: delegation, key rotation,
+multiple controllers, or community trust rules may all authorize a signature.
+The format records identity and signatures; the resolver decides whether the
+signer is trusted to make the assertion.
+
 ### Shape
 
 Conceptually:
@@ -193,7 +240,8 @@ name      = parser
 Therefore existing relative references still resolve in Alice's namespace.
 This is exactly what is wanted for a contribution intended to go back to
 Alice: Bob's signature authenticates Bob's revision; it does not rename or
-re-root Alice's object.
+re-root Alice's object. Whether Bob is trusted to advance Alice's authoritative
+named history is a separate trust-policy decision.
 
 If Bob intentionally creates his own independent object, changing identity is
 an ordinary, reviewable tree change:
@@ -229,7 +277,8 @@ This also solves the fork case without parsing unknown source languages. If a
 tree already has `.disot.*`, standard Git carries the namespace and lock
 forward. If a tree has no DISOT metadata and a DISOT-aware tool wants to turn it
 into a named/signed object, the tool creates the metadata file before signing
-the resulting commit.
+the resulting commit; the new identity is accepted only when that signature is
+trusted to establish it.
 
 The tool does not need to discover every import/reference merely to preserve the
 namespace context: `namespace` covers unknown relative references, while lock
@@ -237,15 +286,20 @@ entries pin the ones whose immutable resolution has been recorded.
 
 ### Heads, forks, and ambiguity
 
-A name may have many commits. Given known commits whose trees describe the same
-`(namespace, name)`, a resolver considers ancestry rather than timestamps or
-arrival order:
+A name may have many commits. Given known **trusted** commits whose trees
+describe the same `(namespace, name)`, a resolver considers ancestry rather
+than timestamps or arrival order:
 
 - an ancestor is an older revision, not a competing head;
 - one maximal descendant is the current unambiguous head;
 - several incomparable maximal commits are forks/concurrent heads;
 - a merge commit descending from those heads can make the history unambiguous
   again.
+
+An untrusted commit does not become an authoritative head merely because it is
+a descendant of a trusted commit. It may be retained as a candidate/contribution
+for inspection, but head selection for trusted resolution filters/evaluates
+trust before treating it as an authoritative revision.
 
 A resolver MUST NOT choose among incomparable heads merely by commit time,
 lexicographic hash order, network arrival order, or which server answered
@@ -270,8 +324,9 @@ namespace = <expected namespace>
 name      = parser
 ```
 
-and whose ancestry/trust policy yields one unambiguous head. If several maximal
-heads remain, reconstruction reports a fork rather than silently choosing one.
+and whose ancestry/trust policy yields one unambiguous trusted head. If several
+maximal trusted heads remain, reconstruction reports a fork rather than
+silently choosing one.
 
 This keeps a repository a storage/replication container. Moving commits between
 repositories or changing ref layout does not rename the objects inside them.
@@ -288,6 +343,8 @@ A resolver must distinguish:
 
 - **described as** — `(namespace, name)` from `.disot.*`;
 - **signed by** — identities that authenticated this exact commit;
+- **trusted as** — whether those signatures are authorized by the resolver's
+  policy to establish or advance that named object;
 - **anchored at** — trusted timestamp evidence, if present;
 - **locked to** — immutable hashes selected for dependencies.
 
@@ -335,12 +392,19 @@ more encodings are introduced.
 - [ ] Define canonical `.disot.data.js` serialization and parsing with exactly
       the same logical value and validation semantics.
 - [ ] Reject a tree containing more than one recognized `.disot.*` file.
+- [ ] Treat `.disot.*` as untrusted data until the containing commit's
+      signature is accepted by the resolver's trust policy.
+- [ ] Require trusted adoption to introduce an authoritative `.disot.*` value;
+      prove that an unsigned/untrusted introduction establishes no identity.
+- [ ] Prove a later trusted descendant can adopt unchanged metadata without
+      retroactively trusting the earlier commit.
+- [ ] Apply the same trust rule to later `namespace`, `name`, and lock changes.
 - [ ] Define the identity representation shared with DID signatures.
 - [ ] Define the exact textual domain of `name` and namespace path segments.
 - [ ] Implement relative-name resolution using the object's `namespace` as the
       default base and exact lock bindings as overrides.
 - [ ] Implement ancestry-based head detection and explicit ambiguity on
-      incomparable forks.
+      incomparable trusted forks.
 - [ ] Enforce the fork rule: a new signer never implicitly changes
       `.disot.*`; namespace/name changes are explicit tree edits.
 - [ ] When namespace/name are intentionally changed, resolve/update the lock so
@@ -350,11 +414,12 @@ more encodings are introduced.
 - [ ] Test source-identical commits signed by different DIDs and prove their
       identity and relative-resolution context stay unchanged while `.disot.*`
       is unchanged.
-- [ ] Test ambiguous same-name forks, a later merge that removes the ambiguity,
-      and locks that deliberately pin either fork.
+- [ ] Test ambiguous same-name trusted forks, a later trusted merge that removes
+      the ambiguity, and locks that deliberately pin either fork.
 - [ ] Test ordinary Git rebase, cherry-pick, merge, squash, clone/fetch/push,
       pack/unpack, and garbage collection to establish exactly when tree-carried
-      DISOT metadata is retained or intentionally changed.
+      DISOT metadata is retained or intentionally changed; newly created
+      unsigned commits remain untrusted until signed/adopted according to policy.
 - [ ] P5: evaluate `.disot.yml` and `.disot.toml` only after the JSON/DataJS
       model is stable and a consumer actually needs another encoding.
 
