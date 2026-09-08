@@ -87,13 +87,24 @@ so only the to-string side needs threading:
 fn ordinary_to_primitive<A: IVm, T: Clone>(
     v: T,
     preferred: ToPrimitivePreferredType,
-    to_string: impl Fn(T) -> Option<Result<Primitive<A>, Any<A>>>,
+    to_string: impl FnOnce(T) -> Option<Result<Primitive<A>, Any<A>>>,
 ) -> Result<Primitive<A>, Any<A>> { /* shared number/string-first dispatch */ }
 ```
 
-The three public functions become one-line wrappers passing
-`obj_to_string` / `arr_to_string` / `fn_to_string`. This is the lowest-risk
-item — no macro, just a generic helper.
+`FnOnce`, not `Fn`: each branch calls `to_string` at most once, so the
+weaker bound admits every caller. The three public functions become
+one-line wrappers passing `obj_to_string` / `arr_to_string` /
+`fn_to_string`. This is the lowest-risk item — no macro, just a generic
+helper — and the timing matters more than the size: when user-defined
+`valueOf`/`toString` lands (the `TODO`s at `primitive_coercion.rs:34`,
+`:42`, `:51`, `:64`), the spec's method-ordering rule must otherwise
+change in three places in lockstep, and a divergence is a silent spec bug
+for one reference type only.
+
+The three `Dispatch` arms calling these (`:164-177`) also each re-spell
+`self.0.unwrap_or(ToPrimitivePreferredType::Number)` with the same
+spec-reference comment; hoist that default into one accessor on
+`PrimitiveCoercionOp` in the same change.
 
 ### 4. `IntoIterator`, `Default`, and the `ToX` constructor traits — same axis, missing from the inventory
 
@@ -119,11 +130,17 @@ and the constructor traits themselves — `ToObject` (`vm/object/to_object.rs:4-
 — are the same blanket-trait skeleton modulo wrapper/internal/item type
 (`ToString` additionally carries a `try_` variant).
 
-Since the `into_iter`/`default` bodies are already trait-method delegations,
-a sealed helper trait carrying `Internal`/`Item` (the same
-source-of-truth-table axis as items 1–2) plus one blanket
-`impl<A: IVm, W: …>` per family collapses `into_iterator.rs` and
-`default.rs` to zero hand-written impls.
+Since the `into_iter`/`default` bodies are already trait-method
+delegations, a sealed helper trait carrying `Internal`/`Item` (the same
+source-of-truth-table axis as items 1–2) centralizes the knowledge — but
+**not through a blanket impl**: `IntoIterator` and `Default` are foreign
+traits, and Rust's orphan rules reject `impl<A: IVm, W: Sealed> Default
+for W` (the self type is an uncovered type parameter, E0210), so "zero
+hand-written impls" is not reachable on this route. The honest floor is
+one concrete one-line impl per wrapper delegating to the sealed trait —
+each `Array<A>`/`Object<A>`/`String<A>` self type is local, so those are
+fine — or rung 2 of the `nanvm-lib/AGENTS.md` ladder (`build.rs` from the
+shared table), or accepting the duplication (rung 3).
 
 ### Notes
 
@@ -149,7 +166,7 @@ source-of-truth-table axis as items 1–2) plus one blanket
   `i33` asked for `Any` as a wrapper struct so operators could be implemented on
   it; `i81` generalized that to the whole family. Both landed in
   [`nanvm-lib/src/vm/`](../src/vm/mod.rs): `pub struct Any<A: IVm>(A)` at
-  `src/vm/any/mod.rs:40`, with `Array`, `Object`, `String`, `BigInt` and
+  `src/vm/any/mod.rs:63`, with `Array`, `Object`, `String`, `BigInt` and
   `Function` wrappers beside it, and the operators implemented on the wrappers
   rather than on the VM traits.
 - [65Y-nanvm-conversion-macros](./65y-nanvm-conversion-macros.md) — the
