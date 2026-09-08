@@ -3,6 +3,7 @@
  * @import { IncomingMessage, NodeOp, RequestListener } from '../types.ts'
  * @import { Effect } from '../../types.ts'
  * @import { IoChannel } from '../types.ts'
+ * @import { Key } from '../../memory/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
@@ -13,6 +14,7 @@ import { utf8, utf8ToString } from '../../../text/module.f.mjs'
 import { emptyState, virtual } from './module.f.mjs'
 import { do_ } from '../../module.f.mjs'
 import { catchStep } from '../../module.f.mjs'
+import { asNominal, create as memCreate, read as memRead, write as memWrite } from '../../memory/module.f.mjs'
 
 /**
  * Asserts that a channel error is a host failure carrying `code` — the
@@ -692,6 +694,44 @@ export const proof = {
         const root = { 'large': [chunk0, chunk1] }
         const [, result] = virtual({ ...emptyState, root })(readBytes('large', chunkSize, 1))
         assert(result[0] === 'ok')
+    },
+    // Slots, and the one input they refuse. This runner stands in for
+    // `../memory/module.mjs`, so it owes that interpreter's answers: a key it
+    // never handed out is a caller bug there and a caller bug here.
+    memory: {
+        roundTrip: () => {
+            const e = step(
+                memCreate(1),
+                key => step(memWrite(key, 42), () => memRead(key)))
+            const [state, result] = virtual(emptyState)(e)
+            assert(result[0] === 'ok', result)
+            assertEq(result[1], 42)
+            assertEq(state.memoryValues.mem0, 42, state)
+        },
+        // What makes presence the test rather than the value: a slot holding
+        // `undefined` was allocated, and reading one is not the failure below.
+        // A guard written as `=== undefined` would answer them alike.
+        holdsUndefined: () => {
+            const e = step(memCreate(undefined), key => memRead(key))
+            const [, result] = virtual(emptyState)(e)
+            assert(result[0] === 'ok', result)
+            assertEq(result[1], undefined)
+        },
+        // `mem0` is the name `memCreate` would hand out first, so these are
+        // not spellings no run could produce — they are the slot a caller
+        // forgot to allocate.
+        throw: {
+            readOfNeverCreated: () => {
+                /** @type {Key<number>} */
+                const key = asNominal('mem0')
+                virtual(emptyState)(memRead(key))
+            },
+            writeToNeverCreated: () => {
+                /** @type {Key<number>} */
+                const key = asNominal('mem0')
+                virtual(emptyState)(memWrite(key, 1))
+            },
+        },
     },
     // A server without a socket: `createServer` stores the listener and
     // `listen` hands it the requests the fixture queued, which is what makes a
