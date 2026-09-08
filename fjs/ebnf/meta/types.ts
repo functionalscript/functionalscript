@@ -1,4 +1,3 @@
-
 /**
  * `../ast/types.ts` with a metadata channel: `Ast<MI, MO, R>` is the type of
  * what matching the rule `R` produces when every input symbol carries `MI`
