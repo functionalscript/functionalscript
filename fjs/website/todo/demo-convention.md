@@ -107,9 +107,15 @@ type Demo<State, Event, O extends Operation> = {
   [`media/html`](../../media/html/module.f.mjs) tree. Interactive elements
   carry a `name` attribute; that name is what comes back in the event.
 
-The page names the module that carries the export — `./demo.f.mjs` or
-`./module.f.mjs`, whichever the scan found — in a `data-demo` attribute on the
-demo section, so the runtime never guesses a filename.
+The page names the module that carries the export in a `data-demo` attribute
+on the demo section, as a root-relative path — `/fjs/crypto/sha2/demo.f.mjs`,
+or the `module.f.mjs` beside it, whichever the scan found. Root-relative
+because the runtime is one module at `/fjs/website/demo-runtime.mjs`, and a
+relative specifier in a dynamic `import()` resolves against the importing
+module, not the page: `./demo.f.mjs` from there names a file in
+`fjs/website/`. The generator knows the repository path, so it writes it in
+full, the same way every page links `/_main.css`, and the runtime imports the
+attribute verbatim and resolves nothing.
 
 `fjs/website/demo-runtime.mjs` (impure, shared) imports the path in
 `data-demo`, renders `view(init)` into the demo section, sends `start`, then
