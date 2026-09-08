@@ -139,6 +139,32 @@ separate from `Ast<R>` for now: `Ast<R>` keeps the symbol literal, which
 and `rewrite` keeps taking it. Whether `Ast<R>` is retired once the fold
 below exists is decided then.
 
+**What shipped**, in [`../meta/types.ts`](../meta/types.ts), differs from
+the spelling above in two ways, and the rest of this issue is written
+against the older names.
+
+- The metadata is **two parameters, `MI` and `MO`**, not one `M` that is
+  their union: `Ast<MI, MO, R>`, with `Meta<MO>` admitted at every row and
+  a leaf `Meta<MI, S>`. That is what recovers the symbol literal the
+  paragraph above gives up — the leaf row is `Meta<MI, R>` for a rule `R`
+  that is a number literal, so `Ast<MI, MO, 42>` still knows the `42`,
+  and only a *mapped* position widens to `Meta<MO>`.
+
+  What it gives up in exchange is the collapse of the empty rewrite set.
+  `MetaAst<MI | never, R>` was `MetaAst<MI, R>` by definition; `Meta<never>`
+  is an uninhabited object type and not `never`, so `Ast<MI, never, R>`
+  still carries a `Meta<never>` row at every position and is not the
+  parser's own tree on the nose. Whether the empty-set identity is stated
+  as an assertion instead, or the row is written so it does collapse, is
+  open and belongs with the mappings.
+- It is **its own module**, `ebnf/meta/`, rather than more rows in
+  `ast/types.ts`; the type is named `Ast` there, and `_AnyAst`,
+  `_TupleAst`, `_VariantAst` and `_RepeatAst` mirror `ast/types.ts`'s
+  helpers for the reasons those exist.
+
+`Meta` carries no `id` yet — the alphabet discriminator, and everything
+that reads it, comes with the mappings.
+
 **The property everything rests on.** A value a mapping sees is one of
 two things, told apart by one test. Not an array: a `MetaSymbol`, and
 `meta.id` says which alphabet. An array: built by the machine from the
@@ -279,8 +305,11 @@ and so is not part of the design:
 
 ### Tasks
 
-- [ ] `Meta`, `MetaSymbol`, `MetaAst<M, R>` in `ast/types.ts` beside
-      `Ast<R>`, with the row assertions and the monotonicity law.
+- [x] The type, with the row assertions and the monotonicity law. It
+      shipped as `Meta<M, S>` and `Ast<MI, MO, R>` in
+      [`../meta/types.ts`](../meta/types.ts), not as `MetaSymbol`/`MetaAst`
+      in `ast/types.ts`; see "What shipped" above for the two deltas. The
+      `id` field, the mapping types and everything below are still open.
 - [ ] `ll1`: input `readonly MetaSymbol<MI>[]`, `symbolAt` and the input
       guard reading `.symbol`, the argument renamed away from `input`;
       frames carry their rule name; `parser(rule, set)` folding at the
