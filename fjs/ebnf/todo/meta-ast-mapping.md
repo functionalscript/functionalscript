@@ -143,16 +143,16 @@ below exists is decided then.
 the spelling above in two ways, and the rest of this issue is written
 against the older names.
 
-- The metadata is **two parameters, `MI` and `MO`**, not one `M` that is
-  their union: `Ast<MI, MO, R>`, with `Meta<MO>` admitted at every row and
-  a leaf `Meta<MI, S>`. That is what recovers the symbol literal the
-  paragraph above gives up — the leaf row is `Meta<MI, R>` for a rule `R`
-  that is a number literal, so `Ast<MI, MO, 42>` still knows the `42`,
-  and only a *mapped* position widens to `Meta<MO>`.
+- The metadata is **two parameters, `I` and `O`** (the design's `MI` and
+  `MO`), not one `M` that is their union: `Ast<I, O, R>`, with `Meta<O>`
+  admitted at every row and a leaf `Meta<I, S>`. That is what recovers the
+  symbol literal the paragraph above gives up — the leaf row is `Meta<I, R>`
+  for a rule `R` that is a number literal, so `Ast<I, O, 42>` still knows
+  the `42`, and only a *mapped* position widens to `Meta<O>`.
 
   What it gives up in exchange is the collapse of the empty rewrite set.
   `MetaAst<MI | never, R>` was `MetaAst<MI, R>` by definition; `Meta<never>`
-  is an uninhabited object type and not `never`, so `Ast<MI, never, R>`
+  is an uninhabited object type and not `never`, so `Ast<I, never, R>`
   still carries a `Meta<never>` row at every position and is not the
   parser's own tree on the nose. Whether the empty-set identity is stated
   as an assertion instead, or the row is written so it does collapse, is
@@ -306,7 +306,7 @@ and so is not part of the design:
 ### Tasks
 
 - [x] The type, with the row assertions and the monotonicity law. It
-      shipped as `Meta<M, S>` and `Ast<MI, MO, R>` in
+      shipped as `Meta<M, S>` and `Ast<I, O, R>` in
       [`../meta/types.ts`](../meta/types.ts), not as `MetaSymbol`/`MetaAst`
       in `ast/types.ts`; see "What shipped" above for the two deltas. The
       `id` field, the mapping types and everything below are still open.

@@ -1,11 +1,11 @@
 /**
- * `../ast/types.ts` with a metadata channel: `Ast<MI, MO, R>` is the type of
- * what matching the rule `R` produces when every input symbol carries `MI`
- * and a mapping may replace a subtree with a symbol carrying `MO`. One row
+ * `../ast/types.ts` with a metadata channel: `Ast<I, O, R>` is the type of
+ * what matching the rule `R` produces when every input symbol carries `I`
+ * and a mapping may replace a subtree with a symbol carrying `O`. One row
  * per form of the rule union in `../types.ts`, as there.
  *
- * A leaf is a `Meta<MI, S>` — the symbol and what the grammar ignored about
- * it — rather than the bare number, and `Meta<MO>` is admitted at every row,
+ * A leaf is a `Meta<I, S>` — the symbol and what the grammar ignored about
+ * it — rather than the bare number, and `Meta<O>` is admitted at every row,
  * since any subtree may be the result of a mapping. Everything else is the
  * shape `Ast<R>` has: the end of input has no source element and so no leaf,
  * its node empty, as an empty string's is; a string is its symbols; a tuple
@@ -28,7 +28,7 @@ import type { Const, Rule, Tuple, Variant, Set, Repeat, Option } from "../types.
 export type Meta<M, S extends number = number> = { readonly symbol: S, readonly meta: M }
 
 // The widened row, and so the target of every monotonicity check: a subtree
-// under a rule known only as `Rule`. It admits `Meta<MO>` at every depth, not
+// under a rule known only as `Rule`. It admits `Meta<O>` at every depth, not
 // just at the top, because a mapping may sit anywhere — a tuple holding one
 // mapped child is a tuple whose rule is still unknown.
 type _AnyAst<I, O> =
