@@ -159,7 +159,8 @@ slices the input at the index gets the remainder.
 ## Left for later
 
 - **Metadata.** The input carries symbols only, so the tree carries no
-  positions: [metadata](./todo/metadata.md).
+  positions and no token payloads, and a mapping cannot return any:
+  [meta-ast-mapping](../todo/meta-ast-mapping.md).
 - **What was expected.** A failure reports where, not what: the first set of
   the rule that failed there is available and not returned.
 - **A fold over the map**, should a consumer want the tree never built.
