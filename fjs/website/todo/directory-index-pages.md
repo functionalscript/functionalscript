@@ -27,12 +27,20 @@ These settle the open questions the first revision of this issue carried.
   describes is that issue's concern for automated runners; module pages do not
   depend on it, and moving the site to such a root would break every fetch
   they make, so it is not a change to make in passing.
-- **Page unit is a directory containing `module.f.mjs`.** Every such directory
-  gets an `index.html`. Other authored modules in the same directory
-  (`example.f.mjs`, `browser.mjs`) are listed on that page as files. A
-  directory without `module.f.mjs` (`fjs/crypto/`) gets no page of its own;
-  whether it gets a bare listing of subdirectories so the tree is walkable
-  from the root is the one question still open below.
+- **Every directory the walk visits gets a page.** One rule, not two: a
+  directory's `index.html` holds its breadcrumb, its subdirectories, its
+  `todo/` entries, and the proofs of its subtree, whatever it contains. A
+  directory holding a `module.f.mjs` additionally lists its files — the
+  module, `types.ts`, `proof.f.mjs`, `README.md`, and other authored modules
+  such as `example.f.mjs` or `browser.mjs` — and carries the slots the later
+  issues fill. A module-less directory (`fjs/crypto/`) therefore has a page
+  with no file list, which is what makes the tree walkable from the root:
+  every subdirectory link on every page resolves. The root page that exists
+  today is exactly this page for the repository root, running the whole
+  manifest; it becomes the first instance of the rule rather than a special
+  case beside it. Generating pages only where `module.f.mjs` exists was the
+  alternative, and it left a subdirectory list that linked to pages nobody
+  generated.
 - **A page runs the proofs of its subtree.** The page for `fjs/text/` runs
   every browser-linkable proof under `fjs/text/`, not only `fjs/text/proof.f.mjs`.
   This is the existing runner with a shorter list, and the list is a slice of
@@ -56,29 +64,34 @@ website `NodeProgram` already requires.
 
 Each page holds, in order:
 
-1. **Breadcrumb** to the root and to each ancestor that has a page.
-2. **Files** — `module.f.mjs`, `types.ts`, `proof.f.mjs`, `README.md`, and any
-   other authored module in the directory. Each is a link to its path; the
-   rendered source view is [source-and-doc-view](source-and-doc-view.md)'s job.
-3. **Subdirectories**, each a link to its own `index.html`.
+1. **Breadcrumb** to the root and to each ancestor; every one has a page.
+2. **Files**, on a directory holding `module.f.mjs` — the module, `types.ts`,
+   `proof.f.mjs`, `README.md`, and any other authored module in the
+   directory. Each is a link to its path; the rendered source view is
+   [source-and-doc-view](source-and-doc-view.md)'s job. A module-less
+   directory has no file list.
+3. **Subdirectories**, each a link to its own `index.html`, which exists.
 4. **Proofs** — the subtree's proof sources, named exactly as `fjs t` and the
    browser suite name them, with `Run` and the report UI the root page already
    has. Non-linkable proofs listed with their blocker.
 5. **`todo/`** — the open issues filed against this directory, linked by path.
-6. Slots the later issues fill: the doc view, the source view, and the demo.
+6. Slots the later issues fill, on a directory holding `module.f.mjs`: the
+   doc view, the source view, and the demo.
 
 ### Tasks
 
-- [ ] Collect, from the existing walk, the set of directories holding
-      `module.f.mjs` and, for each, its files, subdirectories and `todo/` entries.
-- [ ] Emit one `index.html` per such directory with breadcrumb, files,
-      subdirectories and `todo/` list.
+- [ ] Collect, from the existing walk, every directory it visits and, for
+      each, its subdirectories, its `todo/` entries, and — where it holds a
+      `module.f.mjs` — its files.
+- [ ] Emit one `index.html` per directory with breadcrumb, subdirectories,
+      `todo/` list, and the file list where there is one; the root page
+      becomes the root directory's instance of this.
 - [ ] Emit a per-page entry module that starts the browser runner with the
       subtree's slice of the manifest.
 - [ ] List non-linkable proofs with their blockers.
-- [ ] Decide whether module-less directories get a bare subdirectory listing.
 - [ ] Prove the generator against `effects/node/virtual` with a fixture tree
-      that has a nested module, a non-linkable proof and a `todo/` entry.
+      that has a nested module, a module-less directory above it, a
+      non-linkable proof and a `todo/` entry.
 
 ### Related
 
