@@ -165,7 +165,7 @@ canonical job asserts, as its first command, that its own shell reports the vers
 `config/module.f.mjs` records for it:
 
 ```sh
-test "$(./nix/run node --version)" = "v26.7.0"
+test "$(./nix/run node --version)" = "v26.8.1"
 test "$(./nix/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
 test "$(./nix/node22/run node --version)" = "v22.23.2"
 ```
