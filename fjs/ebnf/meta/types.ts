@@ -48,7 +48,7 @@ export type Ast<MI, MO, R extends Rule> =
         R extends number ? Meta<MI, R> :
         // string
         R extends '' ? readonly[] :
-        R extends string ? readonly Meta<MI>[] :
+        R extends string ? readonly Ast<MI, MO, number>[] :
         // Tuple
         R extends Tuple ? _TupleAst<MI, MO, R> :
         // Variant
@@ -101,8 +101,8 @@ type _Mapped0 = Assert<_Holds<readonly['a', Meta<_MO>], Ast<_MI, _MO, Rule>>>
 type _Mapped1 = Assert<_Holds<readonly[readonly[Meta<_MO>]], Ast<_MI, _MO, Rule>>>
 type _Mapped2 = Assert<_Holds<Ast<_MI, _MO, readonly[42, null]>, Ast<_MI, _MO, Rule>>>
 
-type _String = Assert<Equal<Ast<_MI, _MO, string>, Meta<_MO> | readonly Meta<_MI>[]>>
-type _String0 = Assert<Equal<Ast<_MI, _MO, 'hello'>, Meta<_MO> | readonly Meta<_MI>[]>>
+type _String = Assert<Equal<Ast<_MI, _MO, string>, Meta<_MO> | readonly Ast<_MI, _MO, number>[]>>
+type _String0 = Assert<Equal<Ast<_MI, _MO, 'hello'>, Meta<_MO> | readonly Ast<_MI, _MO, number>[]>>
 type _String1 = Assert<Equal<Ast<_MI, _MO, ''>, Meta<_MO> | readonly[]>>
 
 type _TupleAst<MI, MO, R extends Tuple> = { readonly[K in keyof R]: Ast<MI, MO, R[K]> }
