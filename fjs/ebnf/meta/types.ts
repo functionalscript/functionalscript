@@ -1,8 +1,13 @@
 /**
- * `../ast/types.ts` with a metadata channel: `Ast<I, O, R>` is the type of
+ * `../ast/types.ts` with a metadata channel: `Ast<R, I, O>` is the type of
  * what matching the rule `R` produces when every input symbol carries `I`
  * and a mapping may replace a subtree with a symbol carrying `O`. One row
  * per form of the rule union in `../types.ts`, as there.
+ *
+ * `O` defaults to `never`, and `Meta<never>` is `never`, so `Ast<R, I>` — no
+ * rule mapped — is the parser's own tree with no row left over for a result
+ * that cannot exist. The empty rewrite set is the identity by definition
+ * rather than by assertion, which is what the design asked for.
  *
  * A leaf is a `Meta<I, S>` — the symbol and what the grammar ignored about
  * it — rather than the bare number, and `Meta<O>` is admitted at every row,

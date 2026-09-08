@@ -144,19 +144,18 @@ the spelling above in two ways, and the rest of this issue is written
 against the older names.
 
 - The metadata is **two parameters, `I` and `O`** (the design's `MI` and
-  `MO`), not one `M` that is their union: `Ast<I, O, R>`, with `Meta<O>`
+  `MO`), not one `M` that is their union: `Ast<R, I, O>`, with `Meta<O>`
   admitted at every row and a leaf `Meta<I, S>`. That is what recovers the
   symbol literal the paragraph above gives up — the leaf row is `Meta<I, R>`
-  for a rule `R` that is a number literal, so `Ast<I, O, 42>` still knows
+  for a rule `R` that is a number literal, so `Ast<42, I, O>` still knows
   the `42`, and only a *mapped* position widens to `Meta<O>`.
 
-  What it gives up in exchange is the collapse of the empty rewrite set.
-  `MetaAst<MI | never, R>` was `MetaAst<MI, R>` by definition; `Meta<never>`
-  is an uninhabited object type and not `never`, so `Ast<I, never, R>`
-  still carries a `Meta<never>` row at every position and is not the
-  parser's own tree on the nose. Whether the empty-set identity is stated
-  as an assertion instead, or the row is written so it does collapse, is
-  open and belongs with the mappings.
+  The empty rewrite set stays the identity **by definition**, as above:
+  `O` defaults to `never` and `Meta` collapses on it, so `Ast<R, I>` is the
+  parser's own tree with no leftover row for a result that cannot exist.
+  It took making `Meta<never>` be `never` — an object type with a `never`
+  field is uninhabited but is not itself `never`, so the row would
+  otherwise survive at every position.
 - It is **its own module**, `ebnf/meta/`, rather than more rows in
   `ast/types.ts`; the type is named `Ast` there, and `_AnyAst`,
   `_TupleAst`, `_VariantAst` and `_RepeatAst` mirror `ast/types.ts`'s
@@ -306,7 +305,7 @@ and so is not part of the design:
 ### Tasks
 
 - [x] The type, with the row assertions and the monotonicity law. It
-      shipped as `Meta<M, S>` and `Ast<I, O, R>` in
+      shipped as `Meta<M, S>` and `Ast<R, I, O>` in
       [`../meta/types.ts`](../meta/types.ts), not as `MetaSymbol`/`MetaAst`
       in `ast/types.ts`; see "What shipped" above for the two deltas. The
       `id` field, the mapping types and everything below are still open.
