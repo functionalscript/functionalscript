@@ -2,7 +2,8 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [An `index.html` for every module directory](directory-index-pages.md#an-indexhtml-for-every-module-directory)
+**Blocked by:** [An `index.html` for every module directory](directory-index-pages.md#an-indexhtml-for-every-module-directory);
+the tokenizer prerequisite in the tasks below
 
 ### Problem
 
@@ -25,6 +26,17 @@ page.
   [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs), which emits comment
   tokens and is authored FunctionalScript, so it loads in a browser like any
   other module. Nothing is written twice.
+- **The tokenizer must first accept the sources it will show.** Today its
+  string state recognises the double quote only, and it has no template
+  literal state: `const a = 'x'` tokenizes as an `unexpected character`
+  error, the identifier `x`, and a second error, and a template literal the
+  same. Nearly every authored module uses single quotes — the tokenizer
+  itself does — so the views would highlight garbage and the doc extractor
+  would read string contents as declarations. Extending the tokenizer is the
+  prerequisite, as a PR of its own in `fjs/js/tokenizer`: single-quoted
+  strings, and template literals preserved as one token without parsing
+  `${}` substitutions, which is all a source view needs. A second lexer was
+  the alternative and is the "written twice" the bullet above rejects.
 - **The doc extractor is ours, not `deno doc`.** `deno doc --html` produces one
   site with its own navigation and styling; slicing it per page means
   post-processing its HTML, which is more machinery than the extractor. It is
@@ -56,6 +68,8 @@ page.
 
 ### Tasks
 
+- [ ] Prerequisite, in `fjs/js/tokenizer`: single-quoted strings and template
+      literals as one token each, with proofs, before anything below.
 - [ ] Confirm `fjs/js/tokenizer` is in the browser suite manifest, i.e. links
       in a browser.
 - [ ] `source-view/module.f.mjs`: tokens → highlighted `<pre>` content.
