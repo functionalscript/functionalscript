@@ -113,6 +113,30 @@ exists to refuse. Destroying covers both framings.
 [`failSafe`](../module.mjs) keeps the pre-headers case, where a status is still
 available and `500` is the answer.
 
+**And a declared length bounds the reads, rather than being a guess about
+them.** The fold above ends on an empty read, so a file that grows between the
+`stat` and the reads would stream the new entry past the length already declared
+for the old one — and nothing clamps it. Measured on the same Darwin host with
+Node 23.11.0: a response declaring 131,072 bytes and writing 1,000 more put all
+132,072 of them on the wire, and the keep-alive client failed
+`HPE_INVALID_CONSTANT` on the **in-flight** response, not merely on the next one
+— the surplus is parsed as the following status line, so the request being
+answered is lost along with the one after it. Node's declared-length check runs
+one way only: the table above is the short body, and there is no row for the
+long one.
+
+So the size that goes in the header is the bound the reads stop at. `fjs/web`'s
+fold stops at `FileStat.size` rather than at EOF, and a read that comes up short
+of that bound fails the cell — the destroy again, and the one direction Node
+would have caught anyway. The bound is a parameter of the moved loop, not a
+second loop: `fjs/cas` does not know a blob's size, keeps reading to the empty
+read, and keeps the chunked framing that goes with it. What the bound holds is
+the *framing*, not the *identity* — the bytes are still whatever the reads
+found, which under a replaced entry is a new file cut to the old one's length.
+That is [stat-then-read](../../../web/todo/stat-then-read.md), unchanged and
+already filed: binding the metadata and the reads to one handle is what answers
+it, and no length declared from a name can.
+
 **The virtual runner records what went out.** `listen` in
 [`../virtual/module.f.mjs`](../virtual/module.f.mjs) can pump the body with the
 same `virtual(s)(...)` recursion it already uses to run the listener, and
@@ -177,11 +201,13 @@ answering `413` is a listener with a size policy of its own — correctly.
 ### Tasks
 
 - [ ] Move `fjs/cas`'s `readBytes` chunk loop into `../module.f.mjs` beside
-      `writeFromStream`, with proof coverage, and read `cas` through it.
+      `writeFromStream`, with its byte bound and proof coverage, and read `cas`
+      through it.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body; the Node runner's pump
       and its destroy-on-failure; the virtual runner's `RecordedResponse`.
 - [ ] Stage 1: serve files past the cap in `fjs/web` — `Content-Length` from the
-      `stat` size, `tooLarge` and its `413` row deleted, the `isFile` guard kept.
+      `stat` size and the reads bounded by it, `tooLarge` and its `413` row
+      deleted, the `isFile` guard kept.
 - [ ] Stage 2: name the operation that pulls one request-body chunk, and answer
       what an undrained body does.
 - [ ] Stage 2: `IncomingMessage.body` as a `List`, retiring the runner's `413`.
