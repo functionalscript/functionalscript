@@ -120,14 +120,28 @@ attribute verbatim and resolves nothing.
 `fjs/website/demo-runtime.mjs` (impure, shared) imports the path in
 `data-demo`, renders `view(init)` into the demo section, sends `start`, then
 listens for `input` events on that section, maps each to an `Event`, runs
-`update`'s effect through `asyncRun` over the browser operation map, and
-re-renders with the state it yields. The map starts empty — `partialMatch`
-over no commands, so every operation answers `notImplemented` — and grows one
-handler at a time. Each handler lands with its virtual counterpart, so a
-demo's proof drives `update` against the virtual browser runner the way the
-website proof drives the generator against `effects/node/virtual`. Replacing
-the section's contents wholesale is enough until a demo is large enough to
-notice; a diff is not this issue.
+`update`'s effect through an asynchronous runner over the browser operation
+map, and re-renders with the state it yields. The map starts empty and grows
+one handler at a time, and an operation with no handler answers
+`notImplemented` through the ordinary continuation.
+
+That runner does not exist yet. `asyncRun` in
+[`fjs/effects/module.mjs`](../../effects/module.mjs) is built on the strict
+`match`, which asserts on a missing handler — the right reading for a total
+map, and the wrong one for a map that is meant to be incomplete. The partial
+reading, `partialMatch`, is only wired into the synchronous, state-threading
+`partialRun` in [`effects/mock`](../../effects/mock/module.f.mjs), which
+cannot wait for a browser operation's promise. So the demo runtime needs an
+asynchronous partial runner beside `asyncRun`: `partialMatch` over a declared
+command set, with an `onMissing` that resolves to `error(notImplemented)`.
+It is one loop plus that injector, and it belongs in `fjs/effects`, not in
+the website.
+
+Each handler lands with its virtual counterpart, so a demo's proof drives
+`update` against the virtual browser runner the way the website proof drives
+the generator against `effects/node/virtual`. Replacing the section's
+contents wholesale is enough until a demo is large enough to notice; a diff
+is not this issue.
 
 Where the operations live: a browser vocabulary in `fjs/effects/browser/`
 mirroring `effects/node/` — `types.ts` for the operations, the impure runner
@@ -150,10 +164,14 @@ digest the module's own proof already asserts.
 - [ ] Page generator: find the directory's demo module by export, refuse two,
       run the blocker analysis on it, and emit the demo section with
       `data-demo` and the runtime script — or the blocker, listed.
+- [ ] An asynchronous partial runner in `fjs/effects/module.mjs` beside
+      `asyncRun`, built on `partialMatch` with a declared command set and an
+      `onMissing` resolving to `error(notImplemented)`, proven the way
+      `effects/mock`'s `partialRun` is.
 - [ ] `fjs/website/demo-runtime.mjs`: import the `data-demo` path, render,
-      send `start`, listen, run each `update` through `asyncRun` over an empty
-      operation map, one event at a time, re-render. Report a throw as a
-      defect.
+      send `start`, listen, run each `update` through that runner over an
+      empty operation map, one event at a time, re-render. Report a throw as
+      a defect.
 - [ ] `fjs/crypto/sha2/demo.f.mjs` with `O = never`, and its `proof.f.mjs`.
 - [ ] When the first demo needs an operation: `fjs/effects/browser/` with that
       one operation, its impure handler, and its virtual counterpart, each
