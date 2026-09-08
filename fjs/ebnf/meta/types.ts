@@ -31,34 +31,34 @@ export type Meta<M, S extends number = number> = { readonly symbol: S, readonly 
 // under a rule known only as `Rule`. It admits `Meta<MO>` at every depth, not
 // just at the top, because a mapping may sit anywhere — a tuple holding one
 // mapped child is a tuple whose rule is still unknown.
-type _AnyAst<MI, MO> =
-    | Meta<MI>
-    | Meta<MO>
-    | readonly _AnyAst<MI, MO>[]
-    | readonly [string, _AnyAst<MI, MO>]
+type _AnyAst<I, O> =
+    | Meta<I> // input symbols
+    | Meta<O> // output symbols
+    | readonly _AnyAst<I, O>[] // tuples and repeats
+    | readonly [string, _AnyAst<I, O>] // variants
 
-export type Ast<MI, MO, R extends Rule> =
-    | Meta<MO>
-    | (Equal<R, Rule> extends true ? _AnyAst<MI, MO> :
+export type Ast<I, O, R extends Rule> =
+    | Meta<O>
+    | (Equal<R, Rule> extends true ? _AnyAst<I, O> :
         // EOF: a consumed end of input has no source element, so it contributes
         // no leaf — the node is empty, as an empty string's is.
         R extends null ? readonly[] :
         // number
-        R extends number ? Meta<MI, R> :
+        R extends number ? Meta<I, R> :
         // string
         R extends '' ? readonly[] :
-        R extends string ? readonly Ast<MI, MO, number>[] :
+        R extends string ? readonly Ast<I, O, number>[] :
         // Tuple
-        R extends Tuple ? _TupleAst<MI, MO, R> :
+        R extends Tuple ? _TupleAst<I, O, R> :
         // Variant
-        R extends Variant ? _VariantAst<MI, MO, R> :
+        R extends Variant ? _VariantAst<I, O, R> :
         // Const
-        R extends Const<infer D> ? Ast<MI, MO, D> :
+        R extends Const<infer D> ? Ast<I, O, D> :
         // Set
         R extends () => readonly['set'] ? never :
-        R extends Set ? Meta<MI> :
+        R extends Set ? Meta<I> :
         // Repeat
-        R extends Repeat<infer Min, infer Max, infer D> ? _RepeatAst<MI, MO, Min, Max, D>:
+        R extends Repeat<infer Min, infer Max, infer D> ? _RepeatAst<I, O, Min, Max, D>:
         //
         never)
 
@@ -104,7 +104,7 @@ type _String = Assert<Equal<Ast<_MI, _MO, string>, Meta<_MO> | readonly Ast<_MI,
 type _String0 = Assert<Equal<Ast<_MI, _MO, 'hello'>, Meta<_MO> | readonly Ast<_MI, _MO, number>[]>>
 type _String1 = Assert<Equal<Ast<_MI, _MO, ''>, Meta<_MO> | readonly[]>>
 
-type _TupleAst<MI, MO, R extends Tuple> = { readonly[K in keyof R]: Ast<MI, MO, R[K]> }
+type _TupleAst<I, O, R extends Tuple> = { readonly[K in keyof R]: Ast<I, O, R[K]> }
 
 type _Tuple = Assert<Equal<Ast<_MI, _MO, [12, -1]>, Meta<_MO> | readonly[Ast<_MI, _MO, 12>, Ast<_MI, _MO, -1>]>>
 type _Tuple0 = Assert<Equal<Ast<_MI, _MO, []>, Meta<_MO> | readonly[]>>
@@ -115,12 +115,12 @@ type _PropertyName<V> =
     V extends number ? `${V}` :
     never
 
-type _VariantAst<MI, MO, R extends Variant> =
-    string extends keyof R ? readonly[string, Ast<MI, MO, R[string]>] :
+type _VariantAst<I, O, R extends Variant> =
+    string extends keyof R ? readonly[string, Ast<I, O, R[string]>] :
     {
         readonly[K in keyof R]: readonly[
             _PropertyName<K>,
-            Ast<MI, MO, R[K]>
+            Ast<I, O, R[K]>
         ]
     }[keyof R]
 
@@ -141,8 +141,8 @@ type _Set0 = Assert<Equal<Ast<_MI, _MO, () => ['set']>, Meta<_MO> | never>>
 type _Set1 = Assert<Equal<Ast<_MI, _MO, () => ['set', number]>, Meta<_MO> | Meta<_MI>>>
 type _Set2 = Assert<Equal<Ast<_MI, _MO, () => ['set', number, -1]>, Meta<_MO> | Meta<_MI>>>
 
-type _RepeatAst<MI, MO, Min extends number, Max extends number, D extends Rule> =
-    BoundedArray<Min, Max, Ast<MI, MO, D>>
+type _RepeatAst<I, O, Min extends number, Max extends number, D extends Rule> =
+    BoundedArray<Min, Max, Ast<I, O, D>>
 
 // The metadata pair is threaded by parameter, not read from the `_MI`/`_MO`
 // the rows above are written against: a nested position carries whatever pair
