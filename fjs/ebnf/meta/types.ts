@@ -1,15 +1,22 @@
 
 /**
- * Type-level API of the EBNF AST: `Ast<R>` is the type of what matching the
- * rule `R` produces, one row per form of the rule union in `../types.ts`.
+ * `../ast/types.ts` with a metadata channel: `Ast<MI, MO, R>` is the type of
+ * what matching the rule `R` produces when every input symbol carries `MI`
+ * and a mapping may replace a subtree with a symbol carrying `MO`. One row
+ * per form of the rule union in `../types.ts`, as there.
  *
- * The end of input has no source element and so no leaf: its node is empty,
- * as an empty string's is; a symbol is itself; a string is its symbols; a
- * tuple maps its elements; a
- * variant is the branch taken, tagged by its key, and an empty one, which
- * nothing can match, is `never`; a `const` thunk is its payload; a set is
- * one symbol; and a repeat is a `BoundedArray` of its item, so every bound
- * shape is one flat array with a different `.length`.
+ * A leaf is a `Meta<MI, S>` — the symbol and what the grammar ignored about
+ * it — rather than the bare number, and `Meta<MO>` is admitted at every row,
+ * since any subtree may be the result of a mapping. Everything else is the
+ * shape `Ast<R>` has: the end of input has no source element and so no leaf,
+ * its node empty, as an empty string's is; a string is its symbols; a tuple
+ * maps its elements; a variant is the branch taken, tagged by its key, and an
+ * empty one, which nothing can match, is `never`; a `const` thunk is its
+ * payload; a set is one symbol; and a repeat is a `BoundedArray` of its item,
+ * so every bound shape is one flat array with a different `.length`.
+ *
+ * The design this is the first piece of:
+ * [meta-ast-mapping](../todo/meta-ast-mapping.md).
  *
  * @module
  */
@@ -26,8 +33,6 @@ type _AnyAst<MI> =
     | readonly _AnyAst<MI>[]
     | readonly [string, _AnyAst<MI>]
 
-type Symbol<M> = Meta<M>
-
 export type Ast<MI, MO, R extends Rule> =
     | Meta<MO>
     | (Equal<R, Rule> extends true ? _AnyAst<MI> :
@@ -40,16 +45,16 @@ export type Ast<MI, MO, R extends Rule> =
         R extends '' ? readonly[] :
         R extends string ? readonly Meta<MI>[] :
         // Tuple
-        R extends Tuple ? _TupleAst<R> :
+        R extends Tuple ? _TupleAst<MI, MO, R> :
         // Variant
-        R extends Variant ? _VariantAst<_MI, _MO, R> :
+        R extends Variant ? _VariantAst<MI, MO, R> :
         // Const
         R extends Const<infer D> ? Ast<MI, MO, D> :
         // Set
         R extends () => readonly['set'] ? never :
         R extends Set ? Meta<MI> :
         // Repeat
-        R extends Repeat<infer Min, infer Max, infer D> ? _RepeatAst<Min, Max, D>:
+        R extends Repeat<infer Min, infer Max, infer D> ? _RepeatAst<MI, MO, Min, Max, D>:
         //
         never)
 
@@ -83,7 +88,7 @@ type _String = Assert<Equal<Ast<_MI, _MO, string>, Meta<_MO> | readonly Meta<_MI
 type _String0 = Assert<Equal<Ast<_MI, _MO, 'hello'>, Meta<_MO> | readonly Meta<_MI>[]>>
 type _String1 = Assert<Equal<Ast<_MI, _MO, ''>, Meta<_MO> | readonly[]>>
 
-type _TupleAst<R extends Tuple> = { readonly[K in keyof R]: Ast<_MI, _MO, R[K]> }
+type _TupleAst<MI, MO, R extends Tuple> = { readonly[K in keyof R]: Ast<MI, MO, R[K]> }
 
 type _Tuple = Assert<Equal<Ast<_MI, _MO, [12, -1]>, Meta<_MO> | readonly[Ast<_MI, _MO, 12>, Ast<_MI, _MO, -1>]>>
 type _Tuple0 = Assert<Equal<Ast<_MI, _MO, []>, Meta<_MO> | readonly[]>>
@@ -94,16 +99,15 @@ type _PropertyName<V> =
     V extends number ? `${V}` :
     never
 
-type _VariantAst<_MI, _MO, R extends Variant> =
-    string extends keyof R ? readonly[string, Ast<_MI, _MO, R[string]>] :
+type _VariantAst<MI, MO, R extends Variant> =
+    string extends keyof R ? readonly[string, Ast<MI, MO, R[string]>] :
     {
         readonly[K in keyof R]: readonly[
             _PropertyName<K>,
-            Ast<_MI, _MO, R[K]>
+            Ast<MI, MO, R[K]>
         ]
     }[keyof R]
 
-type X0 = Ast<_MI, _MO, { readonly a: 12, readonly b: 'hello' }>
 type _Variant = Assert<Equal<Ast<_MI, _MO, { readonly a: 12, readonly b: 'hello' }>,
     Meta<_MO> | readonly['a', Ast<_MI, _MO, 12>] | readonly['b', Ast<_MI, _MO, 'hello'>]>>
 type _Variant0 = Assert<Equal<Ast<_MI, _MO, {}>, Meta<_MO>>>
@@ -121,8 +125,21 @@ type _Set0 = Assert<Equal<Ast<_MI, _MO, () => ['set']>, Meta<_MO> | never>>
 type _Set1 = Assert<Equal<Ast<_MI, _MO, () => ['set', number]>, Meta<_MO> | Meta<_MI>>>
 type _Set2 = Assert<Equal<Ast<_MI, _MO, () => ['set', number, -1]>, Meta<_MO> | Meta<_MI>>>
 
-type _RepeatAst<Min extends number, Max extends number, D extends Rule> =
-    BoundedArray<Min, Max, Ast<_MI, _MO, D>>
+type _RepeatAst<MI, MO, Min extends number, Max extends number, D extends Rule> =
+    BoundedArray<Min, Max, Ast<MI, MO, D>>
+
+// The metadata pair is threaded by parameter, not read from the `_MI`/`_MO`
+// the rows above are written against: a nested position carries whatever pair
+// the caller passed. The assertions above compare `Ast` against `Ast`, so they
+// hold either way; this one spells the expected side out.
+type _MI2 = 'mi2'
+type _MO2 = 'mo2'
+type _Threaded = Assert<Equal<
+    Ast<_MI2, _MO2, [12, { readonly a: 13 }, Option<14>]>,
+    Meta<_MO2> | readonly[
+        Meta<_MO2> | Meta<_MI2, 12>,
+        Meta<_MO2> | readonly['a', Meta<_MO2> | Meta<_MI2, 13>],
+        Meta<_MO2> | readonly[] | readonly[Meta<_MO2> | Meta<_MI2, 14>]]>>
 
 type _Repeat = Assert<Equal<Ast<_MI, _MO, Option<43>>, Meta<_MO> | readonly[] | readonly[Ast<_MI, _MO, 43>]>>
 type _Repeat0 = Assert<Equal<Ast<_MI, _MO, Repeat<0, 0, 43>>, Meta<_MO> | readonly[]>>
