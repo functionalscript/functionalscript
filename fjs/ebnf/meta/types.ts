@@ -103,6 +103,11 @@ type _Mapped2 = Assert<_Holds<Ast<_MI, _MO, readonly[42, null]>, Ast<_MI, _MO, R
 type _String = Assert<Equal<Ast<_MI, _MO, string>, Meta<_MO> | readonly Ast<_MI, _MO, number>[]>>
 type _String0 = Assert<Equal<Ast<_MI, _MO, 'hello'>, Meta<_MO> | readonly Ast<_MI, _MO, number>[]>>
 type _String1 = Assert<Equal<Ast<_MI, _MO, ''>, Meta<_MO> | readonly[]>>
+// `_String` and `_String0` compare `Ast` against `Ast`, so they hold whatever
+// the element row says. These spell it out: a mapped code point stands where
+// an unmapped one would, alone and beside one.
+type _String2 = Assert<_Holds<readonly[Meta<_MO>], Ast<_MI, _MO, 'a'>>>
+type _String3 = Assert<_Holds<readonly[Meta<_MI>, Meta<_MO>], Ast<_MI, _MO, 'ab'>>>
 
 type _TupleAst<I, O, R extends Tuple> = { readonly[K in keyof R]: Ast<I, O, R[K]> }
 
