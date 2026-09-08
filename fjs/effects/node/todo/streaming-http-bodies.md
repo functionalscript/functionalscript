@@ -116,14 +116,13 @@ available and `500` is the answer.
 **And a declared length bounds the reads, rather than being a guess about
 them.** The fold above ends on an empty read, so a file that grows between the
 `stat` and the reads would stream the new entry past the length already declared
-for the old one — and nothing clamps it. Measured on the same Darwin host with
-Node 23.11.0: a response declaring 131,072 bytes and writing 1,000 more put all
-132,072 of them on the wire, and the keep-alive client failed
-`HPE_INVALID_CONSTANT` on the **in-flight** response, not merely on the next one
-— the surplus is parsed as the following status line, so the request being
-answered is lost along with the one after it. Node's declared-length check runs
-one way only: the table above is the short body, and there is no row for the
-long one.
+for the old one — and nothing clamps it. Measured on Darwin with Node 23.11.0: a
+response declaring 131,072 bytes and writing 1,000 more put all 132,072 of them
+on the wire, and the keep-alive client failed `HPE_INVALID_CONSTANT` on the
+**in-flight** response, not merely on the next one — the surplus is parsed as
+the following status line, so the request being answered is lost along with the
+one after it. Node's declared-length check runs one way only: the table above is
+the short body, and there is no row for the long one.
 
 So the size that goes in the header is the bound the reads stop at. `fjs/web`'s
 fold stops at `FileStat.size` rather than at EOF, and a read that comes up short
