@@ -4,10 +4,13 @@
  * @module
  *
  * @import { Const, Rule, Tuple, Variant } from '../../types.ts'
+ * @import { Meta } from '../../ast/types.ts'
+ * @import { Mapping } from '../../ll1/types.ts'
  */
 
-import { assert } from "../../../asserts/module.f.mjs"
+import { assert, todo } from "../../../asserts/module.f.mjs"
 import { isFixedArray } from "../../../types/array/module.f.mjs"
+import { mapping } from "../../ll1/module.f.mjs"
 import { range, remove, repeatFrom0, unicodeMax, set, times, option, join } from "../../module.f.mjs"
 
 const isFixedArray2 =
@@ -23,6 +26,10 @@ const hex = {
     af: range('af'),
 }
 
+const hex4 = times(4)(hex)
+
+const u = /** @type {const} */(['u', hex4])
+
 /** @type {Rule} */
 export const string = [
     '"',
@@ -32,7 +39,7 @@ export const string = [
             '\\',
             {
                 c: set('"\\/bfnrt'),
-                u: ['u', times(4)(hex)],
+                u,
             }
         ],
     }),
@@ -112,3 +119,47 @@ export const createValue = (p, v) => ({
 const value = () => ['const', createValue(string, value)]
 
 export const json = /**@type {const}*/([ws, value, ws])
+
+/** @type {(json: unknown) => Meta<_Meta>} */
+const meta = json => ({ symbol: 0, meta: { json } })
+
+/** @type {(s: string) => number} */
+const cp = s => {
+    assert(s.length === 1)
+    const p = s.codePointAt(0)
+    assert(p !== undefined)
+    return p
+}
+
+const offset0 = cp('0')
+const offsetA = cp('A') - 10
+const offseta = cp('a') - 10
+
+/** @typedef {{ readonly json: unknown }} _Meta */
+
+/** @typedef {Mapping<'', _Meta>} _M */
+
+/** @type {_M} */
+const hexMap = mapping(hex, ([k, v]) => {
+    switch (k) {
+        case 'digit': return meta(v.symbol - offset0)
+        case 'AF': return meta(v.symbol - offsetA)
+        case 'af': return meta(v.symbol - offseta)
+    }
+})
+
+/** @type {_M} */
+const hex4Map = mapping(hex4, a => meta(a.reduce((r, h) => {
+    assert(typeof h === 'object' && !(h instanceof Array))
+    const h0 = h.meta.json
+    assert(typeof h0 === 'number')
+    return (r << 4) | h0
+}, 0)))
+
+/** @type {_M} */
+const uMap = mapping(u, ([, h4]) => {
+    assert(typeof h4 === 'object' && !(h4 instanceof Array))
+    const h40 = h4.meta.json
+    assert(typeof h40 === 'number')
+    return meta(String.fromCodePoint(h40))
+})
