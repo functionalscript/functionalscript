@@ -13,90 +13,96 @@ reads the source on GitHub; a reader who wants to know whether its proofs pass
 runs the whole suite. Neither is a fact the website carries, and both are facts
 it already has everything it needs to produce.
 
-Browsing is the missing half. `fjs t` answers "did everything pass" and the
-browser suite answers "does everything pass in a browser", but no view answers
-"what is in this directory, and what does it prove?" — which is the question a
-newcomer, and a maintainer looking at an unfamiliar corner, both start from.
+### Decisions
 
-### Preliminary design
+These settle the open questions the first revision of this issue carried.
 
-For every directory containing a `module.f.mjs` (and, after
-[stage 2](../../fsc/README.md#stage-2-mark-compiler-compatible-functionalscript),
-an authored `module.f.js`), generate an `index.html` next to it in the output tree.
-Each page is a catalog of that directory:
-
-- **Files** — the modules, their `types.ts`, proofs and `README.md`, each linked
-  to a rendered source view where one exists. `README.md` conversion is already
-  on [generate-website](generate-website.md); this is a consumer of it.
-- **Subdirectories** — linked to their own `index.html`, so the tree is
-  walkable in both directions. Include a breadcrumb back to the root.
-- **Local proofs** — the tests this directory's modules contribute, named the
-  way both runners name them (`fmtImport`, `emergent_testing/module.f.mjs`), and
-  runnable *here*: the browser runner already takes a list of proof sources, so
-  a directory page is that same application with the manifest narrowed to this
-  directory. That is the interesting part of this issue — a per-directory page
-  is not a new runner, it is the existing one with a smaller list.
-- **`todo/`** — the open issues filed against this directory, which are already
-  markdown next to the code and are the best available description of what is
-  unfinished in it.
-
-Generation belongs in `fjs/website/module.f.mjs` as part of the same
-`NodeProgram` that owns the rest of the build — the walk that discovers proof
-sources today already visits every directory this needs, so this is a second
-consumer of one traversal rather than a second traversal. The
-preparation-program boundary this must respect is the one `fjs/website`'s own
-`NodeProgram` already keeps: no npm script running an
-impure helper as a second entry point, and any new filesystem capability
-expressed as a Node effect with both interpretations proven.
-
-### Open questions
-
-- **Does a page run its proofs on load, or on a `Run` click?** Per
+- **Serving model stays as it is.** `wrangler.jsonc` publishes the repository
+  folder; the generator writes its output next to the source, and `.gitignore`
+  already ignores `index.html`. There is no separate output tree. A page may
+  therefore load any repository file by its path at runtime — source, proofs,
+  demos — which is what [source-and-doc-view](source-and-doc-view.md) and
+  [demo-convention](demo-convention.md) build on. The isolated HTML-and-JS root
+  that [browser-testing](../../emergent_testing/todo/browser-testing.md)
+  describes is that issue's concern for automated runners; module pages do not
+  depend on it, and moving the site to such a root would break every fetch
+  they make, so it is not a change to make in passing.
+- **Every directory the walk visits gets a page.** One rule, not two: a
+  directory's `index.html` holds its breadcrumb, its subdirectories, its
+  `todo/` entries, and the proofs of its subtree, whatever it contains. A
+  directory holding a `module.f.mjs` additionally lists its files — the
+  module, `types.ts`, `proof.f.mjs`, `README.md`, and other authored modules
+  such as `example.f.mjs` or `browser.mjs` — and carries the slots the later
+  issues fill. A module-less directory (`fjs/crypto/`) therefore has a page
+  with no file list, which is what makes the tree walkable from the root:
+  every subdirectory link on every page resolves. The root page that exists
+  today is exactly this page for the repository root, running the whole
+  manifest; it becomes the first instance of the rule rather than a special
+  case beside it. Generating pages only where `module.f.mjs` exists was the
+  alternative, and it left a subdirectory list that linked to pages nobody
+  generated.
+- **A page runs the proofs of its subtree.** The page for `fjs/text/` runs
+  every browser-linkable proof under `fjs/text/`, not only `fjs/text/proof.f.mjs`.
+  This is the existing runner with a shorter list, and the list is a slice of
+  the manifest the generator already computes — sources are in path order, so a
+  subtree is a contiguous run of prefix matches.
+- **A proof that cannot link in a browser is named, not hidden.** The
+  manifest generator already knows each proof's blockers (`node:fs`, a bare
+  specifier). The page lists such a proof with its blocker, so an empty list
+  means "no proofs here" and nothing else.
+- **A run starts on `Run`, never on load**, as
   [browser-test-controls](../../emergent_testing/todo/browser-test-controls.md)
-  a suite starts on an explicit action, and a directory page should not be an
-  exception just because it is small.
-- **What does a directory with no `proof` export show?** An empty list is a
-  worse answer than saying that the modules here are proven from elsewhere, and
-  naming where.
-- **How much of the source is rendered?** Linking to GitHub is free and
-  immediate; rendering source with highlighting is
-  [generate-website](generate-website.md)'s item and a larger change. A first
-  iteration can link out and still be useful.
-- **Where does the output tree live**, relative to the isolated browser-test
-  application root that
-  [browser-testing](../../emergent_testing/todo/browser-testing.md) describes?
-  A directory page linking to modules is a page that serves source, which that
-  issue's application root deliberately does not do. These may be two output
-  trees rather than one.
+  requires. A small page is not an exception.
 
-### Constraints
+### Proposal
 
-- The catalog is generated, never hand-maintained: a directory that gains a
-  module gains it on the page with no edit.
-- A page must name a proof exactly as `fjs t` and the browser suite name it.
-  Three spellings of one test is the problem this repository has been removing.
-- Do not build a second test runner. A directory page is the browser
-  application with a narrower manifest.
-- No repository-wide index that has to be regenerated whenever any directory
-  changes; each page describes its own directory and links to its neighbours.
+Generation is a second consumer of the walk `fjs/website/module.f.mjs` already
+performs: the traversal that finds proof sources visits every directory this
+needs. No second traversal, no npm script beside the program, and any new
+filesystem capability is a Node effect with both interpretations proven, as the
+website `NodeProgram` already requires.
+
+Each page holds, in order:
+
+1. **Breadcrumb** to the root and to each ancestor; every one has a page.
+2. **Files**, on a directory holding `module.f.mjs` — the module, `types.ts`,
+   `proof.f.mjs`, `README.md`, and any other authored module in the
+   directory. Each is a link to its path; the rendered source view is
+   [source-and-doc-view](source-and-doc-view.md)'s job. A module-less
+   directory has no file list.
+3. **Subdirectories**, each a link to its own `index.html`, which exists.
+4. **Proofs** — the subtree's proof sources, named exactly as `fjs t` and the
+   browser suite name them, with `Run` and the report UI the root page already
+   has. Non-linkable proofs listed with their blocker.
+5. **`todo/`** — the open issues filed against this directory, linked by path.
+6. Slots the later issues fill, on a directory holding `module.f.mjs`: the
+   doc view, the source view, and the demo.
 
 ### Tasks
 
-- [ ] Generate an `index.html` per module directory, from the traversal the
-      website program already performs.
-- [ ] List files, subdirectories, `todo/` issues, and a breadcrumb.
-- [ ] Run the directory's own proofs on the page, through the existing browser
-      runner with a narrowed manifest.
-- [ ] Decide the source-view question, and link out until it is answered.
+- [ ] Collect, from the existing walk, every directory it visits and, for
+      each, its subdirectories, its `todo/` entries, and — where it holds a
+      `module.f.mjs` — its files.
+- [ ] Emit one `index.html` per directory with breadcrumb, subdirectories,
+      `todo/` list, and the file list where there is one; the root page
+      becomes the root directory's instance of this.
+- [ ] Emit a per-page entry module that starts the browser runner with the
+      subtree's slice of the manifest.
+- [ ] List non-linkable proofs with their blockers.
+- [ ] Prove the generator against `effects/node/virtual` with a fixture tree
+      that has a nested module, a module-less directory above it, a
+      non-linkable proof and a `todo/` entry.
 
 ### Related
 
-- [Generate website](generate-website.md) — README conversion, source
-  highlighting and `main.css`, all of which this page consumes.
+- [Generate website](generate-website.md) — the umbrella list this is one line of.
+- [Source and doc view](source-and-doc-view.md) — fills slot 6 for source and docs.
+- [Demo convention](demo-convention.md) — fills slot 6 for demos.
+- [`fjs/website/style`](../style/module.f.mjs) — the stylesheet these pages
+  link as `/_main.css`.
 - [The two runners, and what sharing them cost](../../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost)
-  — the shared test name, and why the browser suite is generated rather than
-  prepared by a script of its own.
+  — the shared test name, and why the browser suite is generated.
 - [Browser testing](../../emergent_testing/todo/browser-testing.md) — the
-  application root and what it may serve.
+  isolated application root, deliberately not adopted here.
 - [Explicit browser test controls](../../emergent_testing/todo/browser-test-controls.md)
   — a page does not auto-start a run.
