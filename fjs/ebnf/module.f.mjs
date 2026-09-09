@@ -9,7 +9,7 @@
  * @module
  *
  * @import { RangeSet } from '../types/range_set/types.ts'
- * @import { Info, Set, Rule, Infinity, Repeat, Option, RepeatFrom, Times } from './types.ts'
+ * @import { Info, Set, Rule, Repeat, Option, RepeatFrom, Times } from './types.ts'
  */
 
 import { assert } from "../asserts/module.f.mjs"

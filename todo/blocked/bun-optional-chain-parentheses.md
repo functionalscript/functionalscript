@@ -10,9 +10,11 @@ When `a` is nullish, `(a?.b)(c)` calls `undefined` and throws. JavaScriptCore,
 and therefore `bun`, carries the short-circuit through the parentheses instead
 and evaluates the whole expression to `undefined`.
 
-Measured against Node v22.22.2 (V8) on `bun` 1.3.11 and 1.4.0 — the latter is
-the version pinned in [`fjs/ci/config/module.f.mjs`](../../fjs/ci/config/module.f.mjs),
-so this is what CI runs — with `u` nullish:
+Measured against Node v22.22.2 (V8) on `bun` 1.3.11, 1.4.0, and 1.4.2 — the
+last is the version pinned in [`fjs/ci/config/module.f.mjs`](../../fjs/ci/config/module.f.mjs),
+so this is what CI runs — with `u` nullish. All three `bun` versions agree,
+including through `eval` and `new Function`, which is why the table has one
+`bun` column rather than one per version:
 
 |expression|Node (V8)|bun (JavaScriptCore)|
 |---|---|---|
