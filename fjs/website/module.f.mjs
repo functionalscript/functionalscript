@@ -42,7 +42,7 @@ import { contains, empty as noPaths, set as addPath, values as paths } from '../
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
 import { stylesheet, stylesheetLink } from './style/module.f.mjs'
-import { page, sections } from './page/module.f.mjs'
+import { page, report, sections } from './page/module.f.mjs'
 
 /**
  * The root page: the site's own heading and the browser test runner, plus the
@@ -75,7 +75,7 @@ const rootPage = dir => htmlUtf8(
         ],
         ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
-        ['pre', ['ol', { 'data-test-results': '' }]],
+        report,
         .../** @type {readonly Node[]} */ (sections(dir)),
     ],
     ['script', { type: 'module', src: './_browser-test-entry.mjs' }]

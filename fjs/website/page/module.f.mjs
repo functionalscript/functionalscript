@@ -27,6 +27,27 @@ import { htmlUtf8 } from '../../media/html/module.f.mjs'
 import { stylesheetLink } from '../style/module.f.mjs'
 
 /**
+ * Where a run's result rows go: a disclosure, closed until a reader opens it.
+ *
+ * **Closed, because a run is read from its summary.** The list gains one row
+ * per test — 5534 on the root page — and the catalogue sits below it, so a
+ * list that opened itself would answer "did it pass" by burying everything
+ * else on the page. The summary line above already carries the verdict and
+ * the count; the rows are the detail behind it, and asking for detail is the
+ * reader's move.
+ *
+ * `[data-test-report]` and not a class: every other hook the runner and the
+ * stylesheet share is a data attribute, and this one is read by the
+ * stylesheet alone.
+ *
+ * @type {Element}
+ */
+export const report = ['details', { 'data-test-report': '' },
+    ['summary', 'Results'],
+    ['pre', ['ol', { 'data-test-results': '' }]],
+]
+
+/**
  * The page for a directory path, as a root-relative URL.
  *
  * The root's page is `/index.html` rather than `/./index.html`: `'.'` is the

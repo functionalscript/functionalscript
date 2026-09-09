@@ -41,9 +41,9 @@ export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --pass: #137333; --fail: #b3261e }
+export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --pass: #137333; --fail: #b3261e; --line: #d0d0d0 }
 @media (prefers-color-scheme: dark) {
-    :root { --bg: #121212; --text: #f1f1f1; --pass: #81c995; --fail: #f28b82 }
+    :root { --bg: #121212; --text: #f1f1f1; --pass: #81c995; --fail: #f28b82; --line: #3c3c3c }
 }
 body { background-color: var(--bg); color: var(--text); font: 16px system-ui; margin: 3rem auto; max-width: 48rem; padding: 0 1rem }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
@@ -52,4 +52,16 @@ body { background-color: var(--bg); color: var(--text); font: 16px system-ui; ma
 [data-status="passed"]::marker { color: var(--pass) }
 [data-status="failed"] { color: var(--fail) }
 pre { white-space: pre-wrap }
+/* A run appends one row per test — 5534 of them on this repository's root
+   page. Closed, the report costs the page one line, so pressing Run leaves
+   the catalogue below it exactly where it was; open, it is a window of fixed
+   height rather than five thousand rows. The summary above it carries the
+   verdict, which is what a passing run is read for. */
+[data-test-report] { margin-bottom: 1.5rem }
+[data-test-report] > summary { cursor: pointer }
+[data-test-report] > pre { border: 1px solid var(--line); border-radius: .375rem; margin: .5rem 0 0; max-height: 22rem; overflow: auto; padding: .75rem }
+/* Before the first run there is nothing to disclose. The idle state is the
+   one the page is generated in and never returns to, so this hides the report
+   exactly until it has something in it. */
+[data-state="idle"] [data-test-report] { display: none }
 `

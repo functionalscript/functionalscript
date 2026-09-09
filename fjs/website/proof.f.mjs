@@ -291,6 +291,10 @@ export const proof = {
         // The root page is the root directory's page too: it carries the same
         // catalogue every other page does.
         assert(source.includes('<h2>Directories</h2>'), source)
+        // The result rows are behind a closed disclosure, so a run costs the
+        // page one line and the catalogue below it does not move.
+        assert(source.includes('<details data-test-report=""><summary>Results</summary>'), source)
+        assert(source.includes('<ol data-test-results="">'), source)
         assert(source.includes('>Run</button>'), source)
         assert(!source.includes('Run again'), source)
         // The entry module wires the click handler and stops: it must not

@@ -6,7 +6,7 @@ import { assert, assertEq } from '../../asserts/module.f.mjs'
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
-import { page, pageHref, sections } from './module.f.mjs'
+import { page, pageHref, report, sections } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(dir)]))
@@ -53,6 +53,24 @@ export const proof = {
         todoAtRoot: () => assertEq(
             sectionsHtml({ ...empty, todo: ['a.md'] }),
             '<body><h2>Issues</h2><ul><li><a href="/todo/a.md">a.md</a></li></ul></body>'),
+    },
+    report: {
+        /**
+         * **Closed, and it stays closed until a reader opens it.** A run
+         * appends a row per test and the catalogue sits below; a report that
+         * opened itself would answer "did it pass" by burying the rest of the
+         * page. There is no `open` attribute, which is what says so.
+         */
+        closed: () => {
+            const html = concat(element(['body', report]))
+            assert(html.startsWith('<body><details data-test-report=""><summary>Results</summary>'), html)
+            assert(!html.includes('open'), html)
+        },
+        // The runner finds its list by the hook it has always used, so the
+        // disclosure around it changes nothing it does.
+        keepsTheRunnersHook: () =>
+            assert(concat(element(['body', report])).includes('<ol data-test-results="">'),
+                concat(element(['body', report]))),
     },
     page: {
         /**
