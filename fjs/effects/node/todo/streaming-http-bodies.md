@@ -107,24 +107,60 @@ the loop lives.
 `fjs/web` writes it as `length(body) >> 3n` today, which a lazy list cannot
 answer without draining. It does not have to: the size is already in hand where
 it is needed, since `readBounded` is handed a `FileStat` and the `stat` that
-produced it is the one the FIFO guard is there for anyway. A producer that does
-not know its size omits the header and Node frames the response
-`Transfer-Encoding: chunked`.
+produced it is the one the FIFO guard is there for anyway. A
+producer that does not know its size omits the header, and what Node then frames
+the response with depends on the request: `Transfer-Encoding: chunked` for one
+that will understand it, and the closing connection itself for one that will
+not.
 
 **A body cell that fails after the headers are written must destroy the socket,
-not end the response.** Measured on Darwin with Node 23.11.0 — one
-131,072-byte chunk written, then the producer failing:
+not end the response.** Measured on Darwin with Node 26.8.1 — the version
+[`fjs/ci/config/module.f.mjs`](../../../ci/config/module.f.mjs) pins, with the
+22.23.2 it pins beside it agreeing row for row — one 131,072-byte chunk written
+of a longer body, then the producer failing:
 
 | framing | `res.end()` | `res.destroy()` |
 | --- | --- | --- |
 | `Content-Length` declared | 131,072 bytes, then `ECONNRESET` | `ECONNRESET` |
 | `Transfer-Encoding: chunked` | a **clean, complete** 131,072-byte response — `res.complete` is `true` and no error is raised | `ECONNRESET` |
+| `Connection: close`, no length | a **clean, complete** 131,072-byte response | a **clean, complete** 131,072-byte response |
 
 So Node's own framing check covers the declared-length case and nothing else,
 and the case it misses is exactly the one a producer that cannot state its size
 lands in: a truncated file the client cannot tell from a whole one, which is the
 plausible wrong value [DESIGN §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
-exists to refuse. Destroying covers both framings.
+exists to refuse. Destroying covers the first two rows. It cannot cover the
+third, and the next paragraph is why.
+
+**The third framing has no terminator to withhold.** Node picks chunked only
+where the request will understand it: `ServerResponse`'s constructor sets
+`useChunkedEncodingByDefault` from the request's version and its `TE` header,
+so an HTTP/1.0 request whose response omits `Content-Length` is framed
+`Connection: close` with no `Transfer-Encoding` at all, and the EOF *is* the
+end-of-body marker. Destroying produces that same EOF. Measured the same way
+and against `curl --http1.0`, because Node's own client speaks only 1.1: 131,072
+bytes and exit `0` from `res.end()`, and 131,072 bytes and exit `0` from
+`res.destroy()` — byte for byte the same response. A `Content-Length` on the
+same HTTP/1.0 request restores the check (exit `18`), and so does an HTTP/1.0
+request carrying `TE: chunked`, which Node chunks like a 1.1 one.
+
+So the runner refuses that combination rather than answering it: a body with no
+`Content-Length`, on a request Node will not chunk, is answered `500` and the
+pump never starts. The predicate is Node's own again, as the no-body one is —
+`res.useChunkedEncodingByDefault`, which is readable before `writeHead` — rather
+than a version test written here, so a request Node would chunk is served and
+not refused. `500` rather than `505`: RFC 9110 §15.6.6 names the request's
+*major* version, which 1.0 shares with 1.1, and this server does answer HTTP/1.0
+perfectly well for a body whose size it knows. It is the pre-headers case
+`failSafe` already answers `500` in, reached before rather than after the fact.
+
+Nothing in the tree produces it — `fjs/web` declares the length from the `stat`,
+so its bodies are all first-row — which is the reason to state the refusal here
+rather than to discover it: the design admits an unsized body, and this is the
+request it may not be handed one on. The virtual runner mirrors the refusal for
+the reason it mirrors the no-body guard, and that costs its `IncomingMessage`
+the field the predicate reads: the type carries `method`, `url`, `headers` and
+`body` ([`../types.ts`](../types.ts)) and no version.
 
 **A cell is not the only way a body ends early.** The pump runs inside the
 `asyncTryCatch` that [`createServer`](../module.mjs) already wraps the listener
@@ -147,6 +183,12 @@ on the wire, and the keep-alive client failed `HPE_INVALID_CONSTANT` on the
 the following status line, so the request being answered is lost along with the
 one after it. Node's declared-length check runs one way only: the table above is
 the short body, and there is no row for the long one.
+
+Node 23.11.0 is not a version this repository pins, here or in the figures below
+it. The pinned set is 26.8.1, 24.19.0 and 22.23.2
+([`../../../ci/config/module.f.mjs`](../../../ci/config/module.f.mjs)); the
+destroy table above was re-measured on the first and the last of those and
+reproduced row for row, and these have not been.
 
 So the size that goes in the header is the bound the reads stop at. `fjs/web`'s
 fold stops at `FileStat.size` rather than at EOF, and what ends the reads short
@@ -298,9 +340,10 @@ answering `413` is a listener with a size policy of its own — correctly.
       `writeFromStream`, with its byte bound, its advance by the actual chunk
       length, and proof coverage, and read `cas` through it.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body; the Node runner's
-      pump — its `drain`/`close` discipline, the no-body guard that keeps it
-      from starting, and its destroy-on-failure in both the cell and
-      `failSafe`; the virtual runner's `RecordedResponse`, mirroring the guard.
+      pump — its `drain`/`close` discipline, the no-body guard and the
+      unframable-body refusal that keep it from starting, and its
+      destroy-on-failure in both the cell and `failSafe`; the virtual runner's
+      `RecordedResponse`, mirroring both guards.
 - [ ] Stage 1: serve files past the cap in `fjs/web` — `Content-Length` from the
       `stat` size and the reads bounded by it, `tooLarge` and its `413` row
       deleted, the `isFile` guard kept.
