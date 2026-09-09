@@ -357,7 +357,7 @@ layer's `I` and `O` alone. A recursive rule is a key by identity whatever
 its annotation, so nothing blocks; what a widened annotation costs is what
 the mapping sees — `Children<Const<Variant>, I, O>` says nothing of the
 branches — which is
-[widened-rule-signatures](../../ebnf/lib/todo/widened-rule-signatures.md).
+widened-rule-signatures (closed).
 **Answered on JSON, by that issue's "What landed":** the annotation is one
 recursive alias per grammar, of one line, and it cost one change in `Ast`
 — the variant row builds each branch through an alias so that TypeScript

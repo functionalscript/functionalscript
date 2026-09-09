@@ -6,8 +6,16 @@
  * @module
  */
 
-import type { Rule } from '../../../types.ts'
-import type { string, ws } from '../module.f.mjs'
+import type { Rule } from '../../../ebnf/types.ts'
+import type { string, ws } from '../../../ebnf/lib/json/module.f.mjs'
+
+/**
+ * The metadata of any alphabet a reader over this one may meet: a record
+ * carrying the alphabet's `id`, as `../../../ebnf/ast/README.md` has it, so
+ * that a reader generic over the output alphabet can still tell an input
+ * leaf from a mapped position.
+ */
+export type _Alphabet = { readonly id: string }
 
 /** The pair `cj` hands to `join`: an item, then its whitespace. */
 export type _Item<R extends Rule> = readonly [R, typeof ws]
