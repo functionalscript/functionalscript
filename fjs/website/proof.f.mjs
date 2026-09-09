@@ -253,6 +253,22 @@ export const proof = {
             assert(!('index.html' in /** @type {Dir} */ (dir['todo'])), 'expected no page for todo/')
         },
         /**
+         * **An issue is a markdown file.** A `todo/` may hold something else
+         * — the repository root's holds `proof.f.mjs`, an authored module the
+         * suite runs — and listing it as an issue said it was one.
+         */
+        issuesAreMarkdown: () => {
+            const [generated] = run({
+                a: {
+                    'module.f.mjs': file('export const x = 1'),
+                    todo: { 'open.md': file('## open'), 'proof.f.mjs': file('export const proof = []') },
+                },
+            })
+            const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
+            assert(page.includes('>open.md</a>'), page)
+            assert(!page.includes('>proof.f.mjs</a>'), page)
+        },
+        /**
          * **A folder inside a `todo/` is skipped too.** Excluding only the
          * directory whose own name is `todo` gave its subdirectories pages,
          * and `ancestors` put `todo` in each breadcrumb — a link to the one

@@ -336,6 +336,20 @@ const generatedName = name =>
     name === 'index.html' || name.startsWith('_') || name.startsWith('.')
 
 /**
+ * Whether a name in a `todo/` directory is an issue.
+ *
+ * An issue is a markdown file — [`todo/README.md`](../../todo/README.md) says
+ * so, one file per issue — and a `todo/` may hold something else: the
+ * repository root's holds `proof.f.mjs`, an authored module the suite runs,
+ * which the page listed as an issue because it was there rather than because
+ * it is one. The list says what it means instead of showing whatever the
+ * folder happens to contain.
+ *
+ * @type {(name: string) => boolean}
+ */
+const isIssue = name => name.endsWith('.md')
+
+/**
  * Whether a directory's contents belong on its parent's page rather than on
  * one of its own.
  *
@@ -374,7 +388,7 @@ const toDir = tree => walked => ({
     dirs: walked.dirs.filter(name => name !== 'todo'),
     todo: at(pathConcat(walked.path)('todo'))(tree)
         ?.files
-        ?.filter(name => !generatedName(name))
+        ?.filter(isIssue)
         ?? [],
 })
 
