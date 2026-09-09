@@ -468,6 +468,25 @@ never about size. `open` on a FIFO with no writer blocks forever and holds a
 thread-pool slot, and a FIFO stats as zero bytes, so no bound can stand in for
 the check.
 
+**And the module's table is not the only copy of that promise.**
+[`../../../web/README.md`](../../../web/README.md) is the guide a consumer
+reads instead of the source, and three of its passages describe the version
+stage 1 replaces: the same `413` row, the "size limit" section stating the
+131,072-byte ceiling and the `stat`-before-read that enforces it, and the
+paragraph deriving every `Content-Length` from "the body it carries" — which
+this design takes from the `fstat` instead. That last one carries a second
+claim that also stops holding: it credits Node with dropping a `HEAD` body, and
+after gate 2 the runner declines to pull one before Node is offered a byte of
+it. Deleting the `tooLarge` row and leaving those is a behavior guide that
+promises a refusal the server no longer makes; a false document is the same
+wrong answer as false code, given to whoever checks before requesting. The
+runner's `413` for an oversized *request* is not in this set — that one is
+stage 2's, and the README already names the issue that retires it. Neither is
+that file's own stat-then-read caveat, whose "oversized file becomes `500`
+instead of `413`" goes when
+[stat-then-read](../../../web/todo/stat-then-read.md) itself does, which stage 1
+waits on anyway.
+
 #### Stage 2 — the request body
 
 Nothing in the tree pulls one chunk of a request. `readBytes` is
@@ -519,7 +538,11 @@ answering `413` is a listener with a size policy of its own — correctly.
 - [ ] Stage 1: serve files past the cap in `fjs/web` — `Content-Length` from the
       `fstat` size and the reads bounded by it, both from the held handle, that
       handle given back through `release`, `tooLarge` and its `413` row deleted,
-      the `isFile` guard kept.
+      the `isFile` guard kept, and
+      [`../../../web/README.md`](../../../web/README.md) corrected with them:
+      its `413` row, its "size limit" section, and its `Content-Length`
+      paragraph's two claims — derived from the body, and Node the party that
+      drops a `HEAD` body.
 - [ ] Stage 2: name the operation that pulls one request-body chunk, and answer
       what an undrained body does.
 - [ ] Stage 2: `IncomingMessage.body` as a `List`, retiring the runner's `413`.
@@ -530,8 +553,10 @@ until a body it may not even want has finished arriving.
 
 ### Related
 
-- [`fjs/web`](../../../web/README.md) — the size limit section states the cap
-  this issue lifts.
+- [`fjs/web`](../../../web/README.md) — the behavior guide a consumer reads
+  before adopting the server. Its size-limit section states the cap this issue
+  lifts; its response table and its `Content-Length` paragraph state the rest of
+  what stage 1 replaces, and go stale with it.
 - [`fjs/cas` web-api-server](../../../cas/todo/web-api-server.md) — blocked on
   this for arbitrary-size `add`/`get`.
 - [stat-then-read](../../../web/todo/stat-then-read.md) — the handle effect, on
