@@ -4,7 +4,7 @@
  * @module
  *
  * @import { Const, Rule, Tuple, Variant } from '../../types.ts'
- * @import { Meta } from '../../ast/types.ts'
+ * @import { Ast, Children, Meta } from '../../ast/types.ts'
  * @import { Mapping } from '../../ll1/types.ts'
  */
 
@@ -30,18 +30,14 @@ const hex4 = times(4)(hex)
 
 const u = /** @type {const} */(['u', hex4])
 
+const c = set('"\\/bfnrt')
+
 /** @type {Rule} */
 export const string = [
     '"',
     repeatFrom0({
         c: remove(range(` ${unicodeMax}`), set('"\\')),
-        escape: [
-            '\\',
-            {
-                c: set('"\\/bfnrt'),
-                u,
-            }
-        ],
+        escape: ['\\', { c, u }],
     }),
     '"'
 ]
@@ -148,18 +144,29 @@ const hexMap = mapping(hex, ([k, v]) => {
     }
 })
 
+/** @type {<R extends Rule>(a: Ast<R, '', _Meta>) => Meta<_Meta>} */
+const out = a => {
+    assert(typeof a === 'object' && !(a instanceof Array))
+    assert(typeof a.meta !== 'string')
+    return a
+}
+
 /** @type {_M} */
 const hex4Map = mapping(hex4, a => meta(a.reduce((r, h) => {
-    assert(typeof h === 'object' && !(h instanceof Array))
-    const h0 = h.meta.json
+    const h0 = out(h).meta.json
     assert(typeof h0 === 'number')
     return (r << 4) | h0
 }, 0)))
 
 /** @type {_M} */
 const uMap = mapping(u, ([, h4]) => {
-    assert(typeof h4 === 'object' && !(h4 instanceof Array))
-    const h40 = h4.meta.json
+    const h40 = out(h4).meta.json
     assert(typeof h40 === 'number')
     return meta(String.fromCodePoint(h40))
+})
+
+/** @type {_M} */
+const cMap = mapping(c, x => {
+    
+    return todo()
 })
