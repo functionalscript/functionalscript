@@ -90,6 +90,23 @@ up: the leaf row is `Meta<I, R>` for a rule `R` that is a number literal, so
 `Ast<42, I, O>` still knows the `42`, and only a *mapped* position widens to
 `Meta<O>`.
 
+## A rule that names itself
+
+A grammar names itself through a thunk — JSON's `value` yields a variant
+whose `array` branch holds `value` again — and its type names itself the
+same way, `() => readonly ['const', Value<…, JsonValue>]` in
+[`../lib/json/types.ts`](../lib/json/types.ts), which TypeScript admits
+because the reference sits inside a function type. `Ast` of such a rule is
+infinite, and it stays finite to the checker because the variant row is
+built through an alias, `_Branch`, whose whole body is the tagged tuple:
+TypeScript defers a tuple that is an alias's body and expands one written
+into a mapped type's template as it builds the property, so the branch's
+node is expanded when it is read and not when the variant is. That is the
+one place a recursive rule passes through on its way back to itself in
+every grammar this module has, since a rule recurses through a choice; a
+rule that named itself through tuples alone would still expand without
+end, and is not a shape any grammar here spells.
+
 ## The property everything rests on
 
 A value a mapping sees is one of two things, told apart by one test. Not an
