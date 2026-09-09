@@ -3,27 +3,22 @@
 **Priority:** P1 — stage 4 is P1 in the coordinating issue and in the
 conformance-vector issue, which says outright that it blocks stage 4 "which is
 P1". This file is the canonical co-located issue, so it carries the same level.
-**Status:** open — **the first task is actionable now**: settling whether the
-reader is the grammar or the token machine (§3, Layer 1) depends on nothing
-outside this file, and it decides what the rest waits on. Implementation then
-waits on stage 1b's corpus, its proof source, and — on the token route — on
-[JSON's reader](../../json/todo/self-contained-tokenizer.md), whose
-token-stream grammar this codec's would extend; the grammar route waits on the
-`fjs/ebnf` items §3 names instead.
-The dependency also **changed shape**: JSON's reader will be a grammar over
-`fjs/ebnf/` rather than a hand-written scanner, so what this issue reuses is
-JSON's *rules* and not the `scanString`/`scanNumber` exports the withdrawn
-[#1895](https://github.com/functionalscript/functionalscript/pull/1895)
-provided. The requirement is unchanged — a bigint is `int 'n'` reusing JSON's
-integer part, and `NaN`/`Infinity` are words rather than number syntax — and the
-seam is now **answered in code**:
-[`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) already exists and
-imports JSON's rules directly. What is still open is §3's Layer 1 — whether this
-codec runs that grammar or the token-driven container machine.
+**Status:** wip — **the reader landed, on the grammar route.**
+[`fjs/media/datajs/parser`](../parser/module.f.mjs) folds the grammar of
+[`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) to a node per
+value as [`fjs/ebnf/ll1`](../../../ebnf/ll1/README.md) parses it, and
+resolves the names over the statements in document order; `parse(text)`
+returns `Result<Unknown, string>`. §3's open question is settled: the token-driven
+container machine is retired for this format, not widened, and the seam
+work that route owed is gone with it. What remains is the **byte path**
+(`tryParseBytes`, §Layout), the **serializer** (§4) and **normalized form**
+(§5), and the reader's proofs over the corpus once
+[stage 1b](../../../../spec/datajs/todo/conformance-vectors.md) lands — the
+reader's own proof is derived from the specification by hand today.
 
 ### Problem
 
-`fjs/media/datajs` does not exist. It is stage 4 of
+`fjs/media/datajs` holds a reader and no writer. It is stage 4 of
 [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md)
 and the deliverable EDAG is waiting for: a reader and a writer for the format
 [`spec/datajs/README.md`](../../../../spec/datajs/README.md) specifies.
@@ -39,9 +34,9 @@ below:
   `export default`, with names and a declare-before-use rule;
 - a document denotes a **DAG**, so a reference must read back as the same node,
   and a serializer must hoist a node reachable more than once;
-- JSON's parser seam is **not wide enough** to be reused as it stands, so on
-  the token-machine route — one of the two §3 leaves open — there is
-  prerequisite work on `fjs/media/json/parser` rather than work here.
+- the reader is the grammar mapped straight to values, so what it reuses of
+  JSON's reader is its `string` mapping and nothing of the token machine
+  that reader retired — §3 records the decision.
 
 ### Proposal
 
@@ -51,14 +46,15 @@ Mirrors `fjs/media/json/`:
 
 ```text
 fjs/media/datajs/
-    README.md
-    types.ts          Primitive, Unknown
+    README.md         landed
+    types.ts          Primitive, Unknown — landed
     module.f.mjs      the public API below
     proof.f.mjs
-    tokenizer/        module.f.mjs, proof.f.mjs, types.ts
-    parser/           module.f.mjs, proof.f.mjs, types.ts
+    parser/           module.f.mjs, proof.f.mjs, types.ts — landed; `parse`, over text
     serializer/       module.f.mjs, proof.f.mjs
 ```
+
+There is no `tokenizer/`: the reader is the grammar (§3).
 
 **Every entry point is fallible, and the names say so.** A caller may
 legitimately hand a reader invalid text or a serializer a value outside the
@@ -83,7 +79,7 @@ decodes with [`fjs/text/utf8`](../../../text/utf8/module.f.mjs)'s
 `toCodePointList`, refuses invalid UTF-8, **rejects** a leading `EF BB BF`, and
 then re-encodes with [`fjs/text/utf16`](../../../text/utf16/module.f.mjs)'s
 `fromCodePointList` before the reader sees a symbol, because the reader's
-symbols are UTF-16 code units (§3, Layer 1): a four-byte scalar such as `😀`
+symbols are UTF-16 code units (§3): a four-byte scalar such as `😀`
 decodes to the one code point `0x1F600`, and the grammar must receive the
 pair `0xD83D 0xDE00`, which is what the corpus's four-byte vectors require to
 succeed. The byte path and the string path share one reader over one
@@ -147,7 +143,8 @@ which are proof obligations rather than notes:
   without reading any value, and an accessor is visible as an accessor before
   anything invokes it.
 - the parser must build a member whose value is `undefined` as a present
-  property, which `setReplace` already does and which no type will check.
+  property, which it does through `Object.fromEntries` and which no type will
+  check — its proof pins it.
 
 This is [157](../../../djs/todo/157-json-djs-shared-value-machine.md)'s fourth
 seam met from the other side, and it interacts with
@@ -155,193 +152,69 @@ seam met from the other side, and it interacts with
 
 #### 2. Tokenizer
 
-Depends on stage 3b **on the token-machine route only**, and the seam it was
-to depend on is answered in code. Stage 3b was to export `scanString` and
-`scanNumber`; that design is withdrawn, and JSON's reader comes from a grammar
-over `fjs/ebnf/` instead. What DataJS reuses is therefore JSON's *rules*
-rather than its functions, by ordinary import —
-[`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) already does
-exactly that, and
-[self-contained-tokenizer](../../json/todo/self-contained-tokenizer.md) marks
-the question done — so the grammar route consumes nothing from stage 3b. The
-token-machine route does: its token-stream grammar extends JSON's and inherits
-the boundary resolution stage 3b owes. The table below states the requirement,
-which is unchanged on either. What is still open is §3's Layer 1: whether this
-codec runs that grammar or feeds a token machine.
+There is none. The reader is the grammar at
+[`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs), which imports
+JSON's rules — the string rule unchanged, the number core extended — and adds
+the rest: `id` (`'$' [A-Za-z0-9_$]*`), `;`, `=`, and the words `const`,
+`export`, `default`, `undefined`, `NaN`, `Infinity`. Three rules the spec
+states and the reader's proof pins:
 
-| Piece | Source |
-|---|---|
-| string rule | JSON's, **unchanged** — the spec's §Strings is "a JSON string, unchanged" |
-| number core | JSON's, extended |
-| everything else | new here |
-
-New lexemes: `id` (`'$' [A-Za-z0-9_$]*`), `;`, `=`, and the words `const`,
-`export`, `default`, `undefined`, `NaN`, `Infinity`. `true`, `false`, `null`
-come from JSON.
-
-Three rules that are easy to get subtly wrong, all of them stated by the spec
-and each owed a proof:
-
-- **`bigint` is its own production**, `'-'? int 'n'` — *not* a number followed
-  by `n`. `1.5n` and `1e2n` must be rejected, because JavaScript rejects them.
+- **`bigint` is its own production**, `'-'? int 'n'` — `1.5n` and `1e2n` are
+  refused, because JavaScript refuses them.
 - **`-` belongs to the token that follows it**, and only to `number`, `bigint`
   and `infinity`. `-NaN`, `-undefined`, `-true` and a bare `-` have no rule.
 - **Whitespace is required after `const`, `export` and `default`**, at three
-  positions with no condition attached to any of them, and is otherwise
-  insignificant. The four permitted characters are JSON's; every other
-  character JavaScript treats as whitespace or a line terminator (U+2028,
-  U+2029, NBSP, FF, VT, BOM) is **rejected** wherever it appears outside a
-  string.
+  positions with no condition attached, and is otherwise insignificant. The
+  four permitted characters are JSON's; every other character JavaScript
+  treats as whitespace or a line terminator (U+2028, U+2029, NBSP, FF, VT,
+  BOM) is **refused** wherever it appears outside a string.
 
-#### 3. Parser, in two layers
+#### 3. Parser
 
-**Layer 2 — statements.** New, and DataJS-only:
+**Settled: the reader is the grammar, mapped straight to values** — the
+first of the two routes this section used to leave open. The token-driven
+container machine is retired for this format rather than widened, so the
+four seams that route measured as too narrow (the `NumberPolicy` type, the
+closed `_ValueToken` set, string-only keys, and the sorting `OrderedMap`
+members accumulated in) are moot and their prerequisite work on
+`fjs/media/json/parser` is not owed.
 
-```text
-document ::= const* export
-const    ::= 'const' id '=' value ';'
-export   ::= 'export' 'default' value ';'
-```
+What landed, in [`../parser/module.f.mjs`](../parser/module.f.mjs):
 
-It carries the environment (name → node), enforces *bound at most once* and
-*declare before use*, drives the value machine once per statement, and rejects
-anything after the `export`. The environment is what makes forward and unknown
-references errors: a reference resolves by lookup, and a failed lookup is a
-parse error rather than a `null` leaf.
+- **The fold.** A rewrite set over the grammar, folded by
+  [`fjs/ebnf/ll1`](../../../ebnf/ll1/README.md) as it parses: JSON's own
+  `string` mapping, exported by JSON's reader for exactly this reuse; `number`
+  to its leaf — `Number` or `BigInt` chosen from the branch, so `1` and `1n`
+  never meet, `-0` keeps its sign and `-0n` is `0n`; and `value` to a node —
+  a leaf, a container of nodes in the order written, a reference by name, or
+  a refusal where a member's string key decodes to `__proto__`, standing in
+  the value's place. The grammar's `value` is typed `DataJsValue`, the
+  recursive alias the widened-rule-signatures issue asked for, so every
+  mapping is typed from its rule.
+- **The resolution.** The layer above the fold, holding the environment: the
+  statements are read off the document's tree in order, each `const` bound —
+  once — to its value resolved against the names before it, and the export
+  resolved against them all. A name binds after its value, so `const $0=$0;`
+  names nothing. A reference resolves to the very value its `const` bound,
+  which is what keeps the sharing (`const $0=[];export default [$0,$0];` is
+  one array twice), and every container written out is a node of its own
+  (`export default [[],[]];` is two). Resolution walks an explicit stack, so
+  it keeps the depth contract the fold keeps: 5,000 nested brackets resolve
+  with a reference at the bottom.
+- **The document.** `[dataJs, eof]`, over UTF-16 code units, so a trailing
+  symbol is refused and a lone surrogate is one unit in and one out. A parse
+  that fails reports where, `unexpected end` or `unexpected symbol at N`, as
+  JSON's does; a document the three post-recognition rules refuse reports
+  the first broken in document order.
 
-**Layer 1 — the value machine.** *Which* machine is now an open question that
-this section predates, and it has to be settled before any of the widening
-below is started.
+Member order needs no seam: `Object.fromEntries` over the entries as written
+is the order the spec restates — array-index keys first by numeric value,
+the rest in first-occurrence order, a duplicate keeping its first position and
+taking its last value — and a member holding `undefined` is a present property.
 
-The coordinating plan reversed its no-runtime-grammar rule, so DataJS's reader
-may instead be the grammar at
-[`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs), which already
-exists, already imports JSON's rules, and is proof-covered. It is a **prefix**
-rule, like JSON's: `parser(dataJs)` accepts `export default 1;garbage` at
-offset 17 and `export default 1; export default 2;` at 18, so a reader on this
-route composes `eof` or checks the end offset against the input length —
-`[dataJs, eof]` rejects both at those offsets — or it returns a plausible
-value for a document Layer 2 must reject. Mapped straight to
-values through the rewrite set [`fjs/ebnf/ll1`](../../../ebnf/ll1/README.md)
-folds, it **retires** the token-driven container machine
-rather than widening it, and the four rows below become moot — with the same
-type prerequisite as JSON's mapping, since its `value` is a widened `Thunk`
-whose mapping receives `Children<Rule, I, O>`, which pins nothing, until
-[widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)
-gives it a recursive type; with the alphabet stage 3b settled, **UTF-16 code
-units** — over the `ll1` proofs' `stringToCodePointList`, `[dataJs, eof]`
-throws `['not a symbol', 16, …]` on `export default "\ud800";`, where over
-`stringToList` it accepts it, and the corpus requires that document to read
-as the one-unit string; and with one contract stage 3b measured that this
-route keeps: depth, since the fold applies a mapping in the machine's own
-loop and the machine is proven at 5,000 nested arrays, where the separate
-rewrite it retired overflowed at 1,000.
-The numeric contract it keeps on its own: `1` and `1n` parse to distinct
-branches, `optionFloatSuffix` and `n`, with every digit retained, so a mapping
-picks `Number` or `BigInt` from the branch before it discards the spelling.
-Nothing here needs JSON's `NumberPolicy` seam, which exists for two codecs
-over one grammar where this format has one numeric domain. Mapped only to a
-token stream, every row still stands as written; a token-stream grammar's
-tree is flat, which is how 3b sidesteps the depth contract rather than
-keeping it.
-
-The two routes are not variants of one design, and picking wrong wastes the
-prerequisite work. See stage 4 in
-[parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md).
-
-What follows is the second route, which is what today's code is shaped for.
-Measured against the code as it stands, four things are too narrow:
-
-| Today | Why it does not fit |
-|---|---|
-| `NumberPolicy<P> = (token: NumberToken) => Result<P, string>` | number tokens only; DataJS adds `undefined`, `NaN`, `Infinity`, bigint, and `id` |
-| `_ValueToken = Extract<JsonToken, {kind: 'null'\|'false'\|'true'\|'string'\|'number'}>` | a closed set, and `JsonToken` has no `id`, `bigint`, `=` or `;` |
-| `parseObjectStartOp`, `parseObjectCommaOp` accept `token.kind === 'string'` | DataJS keys are a string **or** the computed `["__proto__"]` |
-| members accumulate in an `OrderedMap`, materialized by `fromMap` | that is a btree keyed by string `cmp`, so members come back **sorted**; DataJS needs first-occurrence order |
-
-so the generalization is:
-
-```ts
-/** A leaf seam: any token the machine does not treat structurally. */
-export type LeafPolicy<T, P> = (token: T) => Result<Tree<P>, string> | null
-```
-
-`null` means "not a leaf token", and the machine reports its existing
-`unexpectedToken`. JSON's instantiation accepts exactly today's five kinds;
-DataJS's accepts those plus its own leaves plus `id`.
-
-**Member order is a fourth seam, and it is a representation change rather than
-a hook.** JSON's machine accumulates members with `setReplace` into an
-`OrderedMap` and materializes them with `fromMap`. That map is a btree keyed by
-string `cmp`, so it returns members **sorted by key** — deterministic, which is
-all JSON needs, and not what DataJS requires. Measured against today's parser:
-
-| document | today | the spec |
-|---|---|---|
-| `{"b":1,"a":2}` | `a,b` | `b,a` |
-| `{"a":1,"b":2,"a":3}` | `a,b` | `a,b`, `a` first with value `3` |
-| `{"z":0,"2":0,"1":0,"y":0}` | `1,2,y,z` | `1,2,z,y` |
-
-Index keys land correctly by luck — numeric strings sort into place ahead of
-letters for these cases — and every non-index key is wrong whenever the document
-does not already list them in sorted order. DataJS's rule is **array-index keys
-by numeric value first, then the rest in first-occurrence order**, with a
-duplicate taking the last value at the first position, and no key-comparison
-function produces that: first-occurrence order is a fact about the input
-sequence, not about the keys.
-
-So the members of an object have to accumulate in an order-preserving structure
-and be materialized in that order. JSON's own accepted behavior must be pinned
-unchanged across the change — its observable key order today is the host's, and
-a proof has to say so before this moves.
-
-**The environment does not enter the machine.** An `id` resolves through the
-leaf policy, and the statement layer partially applies the current environment
-before each statement — so the value machine stays environment-free and JSON's
-instantiation is unchanged.
-
-**The key seam is multi-token, and the stage plan's one-line description of it
-is under-specified.** `["__proto__"]` is *three* tokens, and whitespace is
-insignificant between them, so `[ "__proto__" ]` is the same key. A
-`(token) => Result<string, string>` hook cannot express it. Two options:
-
-1. *(recommended)* the key seam is a small fold rather than a function —
-   `{ init, step }`, where `step` returns either a next state or a finished
-   key. JSON's is one step wide and never leaves `init`; DataJS's has the two
-   extra states. The machine's own `status` alphabet stays JSON's, and DataJS's
-   extra states live in DataJS's policy.
-2. two extra states, `'{['` and `'{["__proto__"'`, in the machine's alphabet.
-   Rejected: it puts the literal `"__proto__"` — a DataJS rule — inside JSON's
-   parser.
-
-**The seam has to reject as well as accept, and the string branch is where it
-does.** Adding the computed form is only half of `__proto__`: DataJS's key
-policy must also **refuse a plain string key that decodes to `__proto__`**,
-which JSON's one-token path would otherwise finish happily, letting the parser
-accept a document the grammar rejects and hand back a plausible wrong value.
-
-The rule is on the **decoded value, not the spelling** — `{"\u005f_proto__":1}`
-is rejected exactly as `{"__proto__":1}` is — and the seam is the right place
-for it because a `StringToken` already carries `value: string`, the decoded
-string, so the policy sees what the key *is* rather than how it was written. No
-escape enumeration, and nothing about this reaches JSON's parser.
-
-**JSON's accepted language and behavior must be pinned unchanged across the API
-change**, by proofs, in the same PR. That is the whole risk of this seam work.
-
-**Sharing.** `const $0=[];export default [$0,$0];` must read back as *one*
-array in two slots. This is automatic on a host with reference identity
-provided the leaf policy returns the bound node itself rather than a copy —
-which is a real risk, since the machine builds containers freshly via
-`toArray` and `fromMap`. The inverse is equally owed and catches the opposite
-bug: `export default [[],[]];` must yield two **distinct** nodes, which a
-reader that interns what it builds gets wrong while passing every sharing
-vector.
-
-**`-0n` is a reader rule with no serializer counterpart.** The grammar accepts
-`-0n` as an input spelling of `0n`; bigint has no negative zero, so no value
-can ever ask the serializer to emit it. The reader maps the lexeme; the
-serializer has nothing to do.
+What is not landed is the byte path of §Layout — `tryParseBytes`, refusing
+invalid UTF-8 and a leading BOM before the reader sees a unit — which the
+corpus's byte-form vectors require.
 
 #### 4. Serializer
 
@@ -467,27 +340,19 @@ the spec judges them independently and this module provides all three.
 
 ### Tasks
 
-- [ ] **First: settle whether the reader is the grammar or the token machine**
-      (§3, Layer 1). Everything below assumes the token machine, and the
-      grammar route retires rather than widens it.
-- [ ] *Token-machine route only.* Widen `fjs/media/json/parser`'s seams: leaf
-      policy, multi-token key policy, token vocabulary, and order-preserving
-      member accumulation in place of the sorting `OrderedMap`. One PR, with
-      proofs pinning JSON's accepted language and observable key order
-      unchanged.
-- [ ] `fjs/media/datajs/types.ts` and `README.md`.
-- [ ] Tokenizer. On the grammar route this is `fjs/ebnf/lib/datajs` composed
-      with `eof`, since it is a prefix rule, run over **UTF-16 code units**,
-      since the corpus's lone surrogates throw under the code-point decoding
-      the `ll1` proofs use, and it already reuses JSON's rules by import; on
-      the token-machine route, a token-stream grammar extending JSON's, over
-      the same units — not the exported scanners the withdrawn design
-      promised.
-- [ ] Statement layer: environment, bound-once, declare-before-use.
-- [ ] Key policy: accept the computed `["__proto__"]`, and reject a plain
-      string key decoding to `__proto__` in every spelling.
-- [ ] Reader proofs from the corpus, including both sharing directions and the
-      byte-path vectors (BOM, invalid UTF-8) the corpus assigns to stage 4.
+- [x] **First: settle whether the reader is the grammar or the token machine**
+      (§3). The grammar; the token machine is retired for this format.
+- [x] `fjs/media/datajs/types.ts` and `README.md`.
+- [x] Reader: `fjs/ebnf/lib/datajs` composed with `eof`, over UTF-16 code
+      units, folded to nodes; the statement layer with its environment,
+      bound-once and declare-before-use; the key rule on the decoded value.
+- [x] Reader proofs derived from the specification by hand, both sharing
+      directions included.
+- [ ] Reader proofs from the corpus once stage 1b lands, and the byte path —
+      `tryParseBytes` — with the BOM and invalid-UTF-8 vectors the corpus
+      assigns to stage 4.
+- [ ] `module.f.mjs`, the public API of §Layout, once there is more than the
+      reader to hold.
 - [ ] Pass 1: container-kind check then descriptor-first validation as each
       node is reached, occurrence counting by identity, cycle rejection,
       post-order naming — one traversal, since it is the first thing to touch
@@ -505,6 +370,6 @@ the spec judges them independently and this module provides all three.
 - [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md) — the coordinating plan; this is its stage 4.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. This issue implements it.
 - [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, the proof source. Land it first.
-- [JSON's reader](../../json/todo/self-contained-tokenizer.md) — stage 3, open with its error shapes undecided. It no longer promises the exported scanners this issue was written to reuse; over a grammar the reuse is of rules, which [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) already does by import.
+- [JSON's reader](../../json/todo/self-contained-tokenizer.md) — stage 3, open with its error shapes undecided. Over a grammar the reuse is of rules and of the `string` mapping, which [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) and [`../parser`](../parser/module.f.mjs) do by import.
 - [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. Stage 4 is its second consumer.
 - [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type; interacts with the optional index signature in §1.

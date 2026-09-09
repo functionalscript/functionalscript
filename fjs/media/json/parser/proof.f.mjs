@@ -3,18 +3,18 @@
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Equal } from '../../../types/ts/types.ts'
  * @import { Ast, Meta } from '../../../ebnf/ast/types.ts'
- * @import { Parser } from '../../../ebnf/ll1/types.ts'
+ * @import { Mapping, Parser, RewriteSet } from '../../../ebnf/ll1/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
  * @import { Unknown } from '../types.ts'
- * @import { Json, NumberPolicy, Out, ParseUnknown } from './types.ts'
+ * @import { Json, NumberPolicy, Out, ParseUnknown, Text } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
-import { json } from '../../../ebnf/lib/json/module.f.mjs'
-import { mappings, parse as parseWithPolicy } from './module.f.mjs'
+import { json, number, string } from '../../../ebnf/lib/json/module.f.mjs'
+import { lexeme, mappings, parse as parseWithPolicy, stringMapping, syntaxError } from './module.f.mjs'
 
 const { is } = Object
 const { isFinite } = Number
@@ -197,6 +197,21 @@ export const proof = {
         /** @typedef {Assert<Equal<typeof parseValue, Parser<Ast<typeof json, Utf16, Out<number>>, Utf16>>>} _Typed */
         assertStructurallySame(parseValue(units('[1]x')), ['ok', [jsonSymbol([1]), 3]])
         assertStructurallySame(parseValue(units(' "a" ')), ['ok', [jsonSymbol('a'), 5]])
+    },
+    // What a grammar built over JSON's rules folds the same way: the `string`
+    // mapping alone, folded into the rule it is keyed by; the lexeme of a
+    // node nothing under maps, a variant's tag passed over; and where a
+    // parse failed, by the index the backend reports.
+    shared: () => {
+        /** @typedef {Assert<Equal<typeof stringMapping, Mapping<Utf16, Text>>>} _String */
+        const parseString = parser(string, [stringMapping])
+        assertStructurallySame(parseString(units('"a\\u0062"')), ['ok', [{ symbol: 0, meta: { id: 'text', value: 'ab' } }, 9]])
+        /** @type {RewriteSet<Utf16, never>} */
+        const nothing = []
+        const parseNumber = parser(number, nothing)
+        assertEq(lexeme(unwrap(parseNumber(units('-1.5e+3x')))[0]), '-1.5e+3')
+        assertEq(syntaxError('abc')(3), 'unexpected end')
+        assertEq(syntaxError('abc')(1), 'unexpected symbol at 1')
     },
     // `parse` is total over strings: what it returns is a value of the
     // policy's domain or a message, and nothing it is given makes it throw.

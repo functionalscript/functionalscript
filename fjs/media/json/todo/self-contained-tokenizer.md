@@ -21,7 +21,7 @@ over **UTF-16 code units**, mapped to tokens — is what would replace it.
 Whether `tokenize` is rebuilt that way or retired is the open question, and
 the boundary and error-shape work below is owed only by rebuilding it.
 **No prerequisite left in `fjs/ebnf`:** the `string` row of
-[widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md),
+widened-rule-signatures (closed),
 which typed a mapping's parameter as `Children<Rule>` and pinned nothing,
 landed with the value mapping below.
 **Related, not blocking:**
@@ -93,7 +93,7 @@ Measured against the tree as it stands:
   folds the document grammar to a JSON value with it: `string`, `number`,
   `value` and `json` are held and exported, each mapping's function typed
   from its rule — the `string` and `value` rows of
-  [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)
+  widened-rule-signatures (closed)
   are done for this grammar — and a number outside the finite range is an
   `error` carried up through the containers, which is how a mapping
   reports what it cannot make a value of. It runs over code units, so the
@@ -757,7 +757,7 @@ blocked. The first two items can be started today.
       escapes decoded, one unit per `\uXXXX`, as the code-unit contract
       above says.
       **After** `string`'s pin, per
-      [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md),
+      widened-rule-signatures (closed),
       since `Checked` refuses it as a key today.
 - [x] ~~Decide what replaces the seam.~~ **Answered in code, and it is what the
       reversal predicted.**
