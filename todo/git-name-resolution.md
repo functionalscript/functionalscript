@@ -55,6 +55,19 @@ They are two serializations of **one logical DISOT metadata value**:
 - `.disot.json` — JSON;
 - `.disot.data.js` — DataJS.
 
+That logical value MUST identify its format explicitly:
+
+```json
+{
+  "dialect": "vnd.fjs.disot"
+}
+```
+
+`vnd.fjs.disot` follows the same vendor-style `vnd.fjs.*` dialect convention as
+other FunctionalScript formats. The dialect is part of the metadata value, not
+inferred from the filename, so every supported `.disot.*` encoding carries the
+same required `dialect` field.
+
 ### Metadata lookup boundary
 
 DISOT metadata is recognized **only at the root of the Git commit tree**.
@@ -84,6 +97,7 @@ Preferred form:
 
 ```json
 {
+  "dialect": "vnd.fjs.disot",
   "name": "/secp256k1:23a/coolJsModule"
 }
 ```
@@ -102,6 +116,7 @@ A DISOT metadata file MAY use a relative self-name:
 
 ```json
 {
+  "dialect": "vnd.fjs.disot",
   "name": "./coolJsModule"
 }
 ```
@@ -150,6 +165,7 @@ entity/project rather than one contributor:
 
 ```json
 {
+  "dialect": "vnd.fjs.disot",
   "name": "/<project-or-shared-DID>/coolJsModule"
 }
 ```
@@ -160,6 +176,7 @@ Conceptually:
 
 ```json
 {
+  "dialect": "vnd.fjs.disot",
   "name": "/DID:Alice/parser",
   "lock": {
     "json": "<immutable-hash>"
@@ -170,6 +187,8 @@ Conceptually:
 The exact lock-map schema may reuse/evolve the existing recursive lock-map work.
 The important semantics are:
 
+- `dialect` — required constant `vnd.fjs.disot`, identifying the logical DISOT
+  metadata format independently of its file encoding;
 - `name` — the entity's DISOT path, absolute in the preferred form and relative
   only under the rules above;
 - `lock` — optional exact immutable resolutions for relative dependencies,
@@ -193,8 +212,9 @@ At least two encodings can provide such evidence:
 
 1. **detached DISOT provenance/signature blocks**, for example a CAS object that
    references the exact stored object hash and carries a signature + signer DID;
-2. **Git-native embedded signatures**, such as the companion `didsig`
-   prototype, whose own specification defines the signed projection/payload.
+2. **Git-native embedded signatures**, such as the companion
+   `vnd.fjs.gpgsig` prototype, whose own specification defines the signed
+   projection/payload.
 
 These forms are interoperable at the naming layer but are not required to have
 the same wire representation or target hash. The signature verifier for each
@@ -202,14 +222,14 @@ encoding decides whether the attestation authenticates the semantic revision;
 this naming design only consumes the verified result.
 
 Detached attestations remain important because independent parties can add
-trust later without rewriting the Git commit. Embedded `didsig` is therefore a
-Git-native attestation encoding, not a replacement for detached DISOT
-provenance.
+trust later without rewriting the Git commit. Embedded `vnd.fjs.gpgsig` is
+therefore a Git-native attestation encoding, not a replacement for detached
+DISOT provenance.
 
 The same representation-independence applies to timestamp evidence: an embedded
-`tstsig` may be one encoding, while detached DISOT timestamp/provenance blocks
-may provide another. Naming semantics depend on accepted evidence, not the
-container used to carry it.
+`vnd.fjs.ttssig` may be one encoding, while detached DISOT timestamp/provenance
+blocks may provide another. Naming semantics depend on accepted evidence, not
+the container used to carry it.
 
 ### Late evidence may adopt the exact immutable revision
 
@@ -372,6 +392,7 @@ Suppose Alice has an authoritative history whose metadata says:
 
 ```json
 {
+  "dialect": "vnd.fjs.disot",
   "name": "/DID:Alice/parser"
 }
 ```
@@ -415,11 +436,11 @@ Removing the recognized root `.disot.*` from an established semantic lineage is
 the no-new-name form of relinquishment.
 
 ```text
-C1  .disot.json = { name: /DID:Alice/parser }   authoritative
+C1  .disot.json = { dialect: vnd.fjs.disot, name: /DID:Alice/parser }   authoritative
  |
-C2  .disot.json unchanged                      authoritative
+C2  .disot.json unchanged                                              authoritative
  |
-C3  root .disot.* removed                      authorized + timestamped
+C3  root .disot.* removed                                              authorized + timestamped
 ```
 
 `C3` relinquishes the inherited name **only for the lineage(s) it causally
@@ -578,16 +599,18 @@ metadata value, for example:
 ```
 
 Adding an encoding MUST NOT add semantics. Every supported representation must
-round-trip the same data model, validation rules, name meaning, and lock
-behavior. Multiple recognized `.disot.*` files at the commit root remain an
-error. Nested files with those basenames remain ordinary content.
+round-trip the same data model, including the required
+`dialect: "vnd.fjs.disot"`, validation rules, name meaning, and lock behavior.
+Multiple recognized `.disot.*` files at the commit root remain an error. Nested
+files with those basenames remain ordinary content.
 
 ### Prototype tasks
 
-- [ ] Define the canonical logical `.disot` schema with one required path-valued
-      `name` and an optional recursive `lock`.
+- [ ] Define the canonical logical `.disot` schema with required
+      `dialect: "vnd.fjs.disot"`, one required path-valued `name`, and an optional
+      recursive `lock`.
 - [ ] Define canonical `.disot.json` and `.disot.data.js` encodings with the
-      same logical semantics.
+      same logical semantics and required dialect.
 - [ ] Recognize `.disot.*` only at the commit-tree root and reject multiple
       recognized root encodings.
 - [ ] Specify canonical absolute names `/<identity>/<path...>` and relative
@@ -604,9 +627,10 @@ error. Nested files with those basenames remain ordinary content.
 - [ ] Define a representation-independent authority-attestation interface used
       by naming resolution.
 - [ ] Support detached DISOT provenance/signature blocks without rewriting Git
-      commits; treat `didsig` as an optional Git-native attestation encoding.
-- [ ] Define representation-independent trusted timestamp evidence; keep `tstsig`
-      as one optional Git-native encoding.
+      commits; treat `vnd.fjs.gpgsig` as an optional Git-native attestation
+      encoding.
+- [ ] Define representation-independent trusted timestamp evidence; keep
+      `vnd.fjs.ttssig` as one optional Git-native encoding.
 - [ ] Define late-evidence adoption: detached authority/timestamp evidence may
       make the exact immutable revision it targets authoritative without a new
       Git commit.
@@ -665,5 +689,5 @@ error. Nested files with those basenames remain ordinary content.
   the future source/content convention carries naming/resolution metadata in
   root `.disot.*` files.
 - [Git trusted timestamp signatures](./git-trusted-timestamp-signatures.md) —
-  optional Git-native `didsig` / `tstsig` encodings; naming semantics remain
-  representation-independent.
+  optional Git-native `vnd.fjs.gpgsig` / `vnd.fjs.ttssig` encodings; naming
+  semantics remain representation-independent.
