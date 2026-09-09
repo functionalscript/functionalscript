@@ -48,9 +48,13 @@ change, a pump in each runner, and one question per side that the existing code
 does not already answer.
 
 **The two sides are not equally ready, and should not land together.** The
-response side is buildable from what is in the tree today. The request side
-needs an operation that does not exist yet, so it is staged second and the
-runner keeps its `413` until it lands.
+response side is buildable from what is in the tree today, except for the one
+part of it that serves a *named* file: reading a body in chunks resolves that
+name once per chunk, which is a race the current whole-file read does not have,
+so `fjs/web` waits on the handle effect
+[stat-then-read](../../../web/todo/stat-then-read.md) designs — see "What the
+bound holds" below. The request side needs an operation that does not exist yet
+either, so it is staged second and the runner keeps its `413` until it lands.
 
 #### Stage 1 — the response body
 
@@ -107,7 +111,8 @@ the loop lives.
 `fjs/web` writes it as `length(body) >> 3n` today, which a lazy list cannot
 answer without draining. It does not have to: the size is already in hand where
 it is needed, since `readBounded` is handed a `FileStat` and the `stat` that
-produced it is the one the FIFO guard is there for anyway. A
+produced it is the one the FIFO guard is there for anyway — an `fstat` on the
+held handle, once the reads go through one, and the same value either way. A
 producer that does not know its size omits the header, and what Node then frames
 the response with depends on the request: `Transfer-Encoding: chunked` for one
 that will understand it, and the closing connection itself for one that will
@@ -198,12 +203,50 @@ the **request**: a chunk smaller than what was asked for is not itself the
 failure, and reading it as one would fail every file whose size is not a
 multiple of `chunkBytes`. The bound is a parameter of the moved loop, not a
 second loop: `fjs/cas` does not know a blob's size, keeps reading to the empty
-read, and keeps the chunked framing that goes with it. What the bound holds is
-the *framing*, not the *identity* — the bytes are still whatever the reads
-found, which under a replaced entry is a new file cut to the old one's length.
-That is [stat-then-read](../../../web/todo/stat-then-read.md), unchanged and
-already filed: binding the metadata and the reads to one handle is what answers
-it, and no length declared from a name can.
+read, and keeps the chunked framing that goes with it.
+
+**What the bound holds is the framing, and the identity it does not hold is a
+wider one than this document claimed.** It said the residual risk was
+[stat-then-read](../../../web/todo/stat-then-read.md) "unchanged and already
+filed" — a replaced entry read whole, cut to the old one's length. That was
+wrong, and the two operations are why. `readFile` resolves the name **once** and
+reads the whole body through what that resolution opened
+([`../module.mjs`](../module.mjs), `readFile`), so today's body is always one
+file's bytes, and `fjs/web` even takes its `Content-Length` from that body
+rather than from the `stat` — a substitution under the current code is a
+different file answered *coherently*. `readBytes` opens, reads one chunk and
+closes ([`../module.mjs`](../module.mjs), `readBytes`), so a loop over it
+resolves the name once **per chunk**. The loop does not inherit the race; it
+multiplies it by the number of chunks.
+
+And what comes out the other end is new in kind. Measured on Darwin with Node
+26.8.1, a 524,288-byte file replaced by a same-sized one after the first pull:
+the bounded loop returned all 524,288 bytes — exactly the `Content-Length`
+already declared — as 131,072 bytes of the first file followed by 393,216 of the
+second. The same replacement issued 5 ms into a 169 ms `readFile` of a 512 MiB
+file returned the first file entire. So the response stops being a substitution
+and becomes a **splice**: a body that never existed as any file, arriving under
+a correct length, a clean end, and nothing for a client to check it against.
+That is not a wrong status in a vanishing window, which is what stat-then-read
+costs and what makes it deferrable; it is the plausible wrong value
+[DESIGN §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) refuses,
+and [AGENTS.md §5](../../../../AGENTS.md#5-pull-requests-and-releases) does not
+let a design defer one behind a `todo/`.
+
+**So `fjs/web`'s reads go through a held handle, and stat-then-read stops being
+a neighbour of this issue and becomes a prerequisite of it.** The effect it
+designs — `open`, `fstat`, a bounded read, `close` — is what binds every chunk
+of one response to one inode, and it is the only thing that does: no length
+declared from a name can, and neither can re-`stat`ing afterwards, since a
+`FileStat` carries `size`, `isFile` and `isDirectory` and no identity to
+compare. The shared loop therefore takes its chunk source as a parameter rather
+than a path, which lets the two callers differ rather than forcing one to wait
+for the other: `fjs/cas` keeps reading by name, because a name in the store is
+its content's hash — an entry is published under it by `rename` and can only
+ever be republished with the same bytes — so whichever inode a per-chunk open
+lands on holds what the last one held, and an entry that is *gone* fails the
+cell rather than splicing. `fjs/web` has no such guarantee about a served tree,
+which is the whole difference.
 
 **The bound also decides what the loop advances by.** Both `fjs/cas` loops step
 `loop(offset + chunkBytes)` whatever the read returned, and that is sound only
@@ -338,15 +381,19 @@ answering `413` is a listener with a size policy of its own — correctly.
 
 - [ ] Move `fjs/cas`'s `readBytes` chunk loop into `../module.f.mjs` beside
       `writeFromStream`, with its byte bound, its advance by the actual chunk
-      length, and proof coverage, and read `cas` through it.
+      length, its chunk source as a parameter rather than a path, and proof
+      coverage, and read `cas` through it.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body; the Node runner's
       pump — its `drain`/`close` discipline, the no-body guard and the
       unframable-body refusal that keep it from starting, and its
       destroy-on-failure in both the cell and `failSafe`; the virtual runner's
       `RecordedResponse`, mirroring both guards.
+- [ ] Stage 1, blocked on [stat-then-read](../../../web/todo/stat-then-read.md):
+      the handle effect — `open`, `fstat`, bounded read, `close` — modelled in
+      the virtual file system, as the chunk source `fjs/web` reads through.
 - [ ] Stage 1: serve files past the cap in `fjs/web` — `Content-Length` from the
-      `stat` size and the reads bounded by it, `tooLarge` and its `413` row
-      deleted, the `isFile` guard kept.
+      `fstat` size and the reads bounded by it, both from the held handle,
+      `tooLarge` and its `413` row deleted, the `isFile` guard kept.
 - [ ] Stage 2: name the operation that pulls one request-body chunk, and answer
       what an undrained body does.
 - [ ] Stage 2: `IncomingMessage.body` as a `List`, retiring the runner's `413`.
@@ -361,6 +408,9 @@ until a body it may not even want has finished arriving.
   this issue lifts.
 - [`fjs/cas` web-api-server](../../../cas/todo/web-api-server.md) — blocked on
   this for arbitrary-size `add`/`get`.
+- [stat-then-read](../../../web/todo/stat-then-read.md) — the handle effect, on
+  which `fjs/web`'s half of stage 1 is blocked: a chunk loop over a *name*
+  resolves it once per chunk and can splice two files into one clean response.
 - `fjs/effects/node/module.f.mjs` — `writeFromStream`, the chunk-list shape a
   streamed body should follow.
 - [`fjs/effects/list`](../../list/types.ts) — `List`, and why a failure belongs
