@@ -350,7 +350,7 @@ the runner that checks and not the listener, which stays method-agnostic:
 ([`../../../web/module.f.mjs`](../../../web/module.f.mjs)) and goes on doing so,
 now that `Content-Length` comes from the `stat` rather than from the body. What
 that costs is the handle the listener opened for a body the runner then drops,
-and the next section is who gives it back.
+and the `release` below is who gives it back.
 
 **The set is Node's, not the RFC's.** `205` forbids a body too (RFC 9110
 §15.3.6) and Node sends one anyway — measured the same way, `false` on the first
