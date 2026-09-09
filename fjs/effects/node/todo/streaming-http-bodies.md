@@ -210,9 +210,49 @@ the `stat` and writes no `Transfer-Encoding` — which is the reason to state th
 here rather than to discover them: the design admits an unsized body, and these
 are the responses it may not answer one with. The virtual runner mirrors both
 for the reason it mirrors the no-body guard. The header one costs it nothing,
-being a header it already records; the length one costs its `IncomingMessage`
-the field the predicate reads, since the type carries `method`, `url`, `headers`
-and `body` ([`../types.ts`](../types.ts)) and no version.
+being a header it already records; the length one costs its `IncomingMessage` a
+field, since the type carries `method`, `url`, `headers` and `body`
+([`../types.ts`](../types.ts)) and nothing about framing.
+
+**That field is the answer, not the evidence for it.**
+
+```ts
+export type IncomingMessage = {
+    readonly method: string
+    readonly url: string
+    readonly headers: Headers
+    readonly body: Vec
+    /**
+     * Whether a body with no `Content-Length` is framed
+     * `Transfer-Encoding: chunked` for this request — the host's own answer,
+     * on the request because only the host computes it.
+     */
+    readonly chunkedResponse: boolean
+}
+```
+
+The Node runner fills it from the `res.useChunkedEncodingByDefault` that
+[`answerRequest`](../module.mjs) already has in hand, so gate 3 reads one field
+in both runners and neither derives it; a fixture states it as it states the
+method, and `State.requests`
+([`../virtual/types.ts`](../virtual/types.ts)) records it with the rest. The
+alternatives are a version — `httpVersion`, or a major/minor pair — and they
+put a second implementation of Node's rule in the tree, because the version is
+only half of what sets the flag. Node's `ServerResponse` constructor takes the
+other half from the request's `TE`, through `chunkExpression`: the same regexp
+over a header value the paragraph above declines to restate for
+`Transfer-Encoding`, and a `.f.mjs` may not write one at all
+([AGENTS.md §3](../../../../AGENTS.md#3-functionalscript-and-typescript-fjs)).
+Measured over raw request lines on Darwin with Node 26.8.1 and reproduced row
+for row on 22.23.2: HTTP/1.1 is `true` whatever its `TE` says, and HTTP/1.0 is
+`true` for `chunked`, `CHUNKED`, `gzip, chunked` and `trailers, chunked`,
+`false` for an absent `TE`, an empty one, `gzip` and `chunkedx` — and `true`
+for **`x-chunked`**, which no reading of the protocol makes chunked. A restated
+scan would have to reproduce that on purpose to keep the two runners agreeing.
+So the field is a boolean, and its name says which direction it frames: a
+*request* body may be chunked too, and this is not that. A listener may read it
+and learns only what the runner has already decided — what it may not do is act
+on it, which is gate 1.
 
 **A cell is not the only way a body ends early.** The pump runs inside the
 `asyncTryCatch` that [`createServer`](../module.mjs) already wraps the listener
@@ -370,7 +410,7 @@ runner asks them in this order and answers with the first that fires.
 2. **Will Node carry a body at all?** `HEAD`, `204`, `304`, `1xx` — the producer
    is never pulled, and the listener's status and headers go out as they stand.
 3. **Can the body that will go out be framed?** No `Content-Length` on a request
-   Node will not chunk — `500`, before the headers.
+   whose `chunkedResponse` is `false` — `500`, before the headers.
 4. None of them fires, and the pump runs.
 
 The framing header first, because it is the response being malformed rather than
@@ -525,10 +565,11 @@ answering `413` is a listener with a size policy of its own — correctly.
       `writeFromStream`, with its byte bound, its advance by the actual chunk
       length, its chunk source as a parameter rather than a path, and proof
       coverage, and read `cas` through it.
-- [ ] Stage 1: `ServerResponse<O>` with a `List` body and a `release`; the Node
-      runner's pump — its `drain`/`close` discipline, the three gates that keep
-      it from starting in their stated order, its destroy-on-failure in both the
-      cell and `failSafe`, and the `release` it runs once on every one of those
+- [ ] Stage 1: `ServerResponse<O>` with a `List` body and a `release`, and
+      `IncomingMessage.chunkedResponse` for gate 3 to read; the Node runner's
+      pump — its `drain`/`close` discipline, the three gates that keep it from
+      starting in their stated order, its destroy-on-failure in both the cell
+      and `failSafe`, and the `release` it runs once on every one of those
       exits; the virtual runner's `RecordedResponse`, mirroring the gates, their
       order, and the release.
 - [ ] Stage 1, blocked on [stat-then-read](../../../web/todo/stat-then-read.md):
