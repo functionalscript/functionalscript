@@ -222,19 +222,20 @@ offset 17 and `export default 1; export default 2;` at 18, so a reader on this
 route composes `eof` or checks the end offset against the input length —
 `[dataJs, eof]` rejects both at those offsets — or it returns a plausible
 value for a document Layer 2 must reject. Mapped straight to
-values through `fjs/ebnf/map`, it **retires** the token-driven container machine
+values through the rewrite set [`fjs/ebnf/ll1`](../../../ebnf/ll1/README.md)
+folds, it **retires** the token-driven container machine
 rather than widening it, and the four rows below become moot — with the same
 type prerequisite as JSON's mapping, since its `value` is a widened `Thunk`
-that `Checked` refuses as a key until
+whose mapping receives `Children<Rule, I, O>`, which pins nothing, until
 [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)
 gives it a recursive type; with the alphabet stage 3b settled, **UTF-16 code
 units** — over the `ll1` proofs' `stringToCodePointList`, `[dataJs, eof]`
 throws `['not a symbol', 16, …]` on `export default "\ud800";`, where over
 `stringToList` it accepts it, and the corpus requires that document to read
 as the one-unit string; and with one contract stage 3b measured that this
-route has to keep through the mapping: depth, since `rewrite` recurses per
-node and overflows at 1,000 nested arrays where JSON's parser is proven at
-5,000 ([stack-safe-rewrite](../../../ebnf/map/todo/stack-safe-rewrite.md)).
+route keeps: depth, since the fold applies a mapping in the machine's own
+loop and the machine is proven at 5,000 nested arrays, where the separate
+rewrite it retired overflowed at 1,000.
 The numeric contract it keeps on its own: `1` and `1n` parse to distinct
 branches, `optionFloatSuffix` and `n`, with every digit retained, so a mapping
 picks `Number` or `BigInt` from the branch before it discards the spelling.

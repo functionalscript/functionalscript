@@ -1,18 +1,21 @@
 /**
- * Type-level API of the LL(1) backend: what a parser takes and what it
- * returns.
+ * Type-level API of the LL(1) backend: what a parser takes, what it returns,
+ * and the rewrite set it folds.
  *
- * The input is a list of symbols, and the output is the typed AST of
- * `../ast/types.ts` — `parser(rule)` returns a `Parser<Ast<typeof rule>>`,
- * which is what `rewrite` in `../map` takes. See `./README.md` for why the
- * backend builds that tree and no other.
+ * The input is a list of {@link Meta} symbols carrying `I`, and the output is
+ * the typed AST of `../ast/types.ts`: `parser(rule, set)` returns a
+ * `Parser<Ast<typeof rule, I, O>, I>`, where `O` is what the set's mappings
+ * return. See `./README.md` for the design.
  *
  * @module
  */
 
 import type { AbstractRequiredMap } from '../../types/object/types.ts'
+import type { Phantom } from '../../types/phantom/types.ts'
 import type { RangeSet } from '../../types/range_set/types.ts'
 import type { Result } from '../../types/result/types.ts'
+import type { Children, Meta } from '../ast/types.ts'
+import type { Rule } from '../types.ts'
 
 /**
  * The first set of every rule of a set, by name: the symbols a match of the
@@ -37,10 +40,44 @@ export type FirstMap = AbstractRequiredMap<string, RangeSet>
 export type MatchResult<T> = Result<readonly [ast: T, end: number], number>
 
 /**
- * A parser over a list of symbols. The alphabet is the caller's: a text
- * parser hands over code points, a token parser its token symbols. The end of
- * input is synthesized once after the last symbol, so a grammar that ends in
- * EOF is matched against the whole input and a grammar that does not stops
- * where its rule does.
+ * A parser over a list of symbols, each carrying its metadata `I`. The
+ * alphabet is the caller's: a text parser hands over code points, a token
+ * parser its token symbols, and `I` is whatever the caller knows about each
+ * that the grammar does not. The end of input is synthesized once after the
+ * last symbol, so a grammar that ends in EOF is matched against the whole
+ * input and a grammar that does not stops where its rule does.
  */
-export type Parser<T> = (input: readonly number[]) => MatchResult<T>
+export type Parser<T, I = unknown> = (symbols: readonly Meta<I>[]) => MatchResult<T>
+
+/**
+ * One mapping: the rule the author holds, and the function the parser
+ * applies to what that rule matches, with the rules under it already mapped.
+ * The rule's type is erased here, since the function was typed from it where
+ * the mapping was made, so the set is a plain list. `I` is a phantom: it says
+ * which layer's input the function was written against, so that a mapping of
+ * one layer is not a mapping of another.
+ */
+export type Mapping<I, O> =
+    Phantom<readonly [rule: Rule, f: (children: never) => Meta<O>], I>
+
+/**
+ * The mappings a parser folds, in any order, one per rule. A list, so that it
+ * is assembled across modules — a grammar's mappings for its own scaffolding
+ * beside a consumer's — and nothing in its type depends on the whole.
+ */
+export type RewriteSet<I, O> = readonly Mapping<I, O>[]
+
+/**
+ * The constructor of a layer's mappings: `mapping` in `./module.f.mjs`, bound
+ * once to the layer's metadata types by annotating a binding of it as
+ * `Mappings<Cp, Tok>`, so that `f` is typed from the rule it is keyed by
+ * under that `I` and `O`, where a function inside a list literal gets no
+ * contextual type at all. A rule says nothing of either type, which is why
+ * they are bound where a layer begins and read from there, and why a
+ * binding rather than a call: TypeScript infers the two from the binding's
+ * annotation through the `Children` alias cheaply, where inferring them
+ * from a call's return type unrolls the alias and exceeds its instantiation
+ * limit (TS2589).
+ */
+export type Mappings<I, O> =
+    <const R extends Rule>(rule: R, f: (children: Children<R, I, O>) => Meta<O>) => Mapping<I, O>

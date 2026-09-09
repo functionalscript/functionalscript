@@ -1,13 +1,13 @@
 /**
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
- * @import { Ast } from '../ast/types.ts'
+ * @import { Ast, Meta } from '../ast/types.ts'
  * @import { Rule } from '../types.ts'
  * @import { RuleSet } from '../data/types.ts'
- * @import { Parser } from './types.ts'
+ * @import { Mappings, Parser } from './types.ts'
  */
 
-import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
@@ -15,8 +15,7 @@ import { eof, join, option, range, repeat, repeatFrom0, repeatFrom1, times } fro
 import { toData } from '../data/module.f.mjs'
 import { dataJs } from '../lib/datajs/module.f.mjs'
 import { json } from '../lib/json/module.f.mjs'
-import { rewrite } from '../map/module.f.mjs'
-import { firstMap, parser, parserRuleSet } from './module.f.mjs'
+import { firstMap, mapping, parser, parserRuleSet } from './module.f.mjs'
 
 const { keys } = Object
 
@@ -24,11 +23,25 @@ const { keys } = Object
 const c = a => a.codePointAt(0) ?? 0
 
 /**
- * The input a text parser is given: the code points of a string.
- *
- * @type {(s: string) => readonly number[]}
+ * The metadata of a code point in a text parse with nothing to say about it:
+ * the alphabet, one record shared by every leaf, so the parse allocates
+ * nothing per symbol but the leaf the input already is.
  */
-const cps = s => toArray(stringToCodePointList(s))
+const cp = /**@type {const}*/({ id: 'cp' })
+
+/** @type {(symbol: number) => Meta<typeof cp>} */
+const sym = symbol => ({ symbol, meta: cp })
+
+/** The leaf of one character. @type {(a: string) => Meta<typeof cp>} */
+const s = a => sym(c(a))
+
+/**
+ * The input a text parser is given: the code points of a string, each with
+ * the trivial metadata.
+ *
+ * @type {(s: string) => readonly Meta<typeof cp>[]}
+ */
+const cps = s => toArray(stringToCodePointList(s)).map(sym)
 
 /** @type {(a: string) => readonly ['set', number, number]} */
 const one = a => ['set', c(a), c(a) + 1]
@@ -58,8 +71,9 @@ const digits = /**@type {const}*/([c('0'), c('9') + 1])
 
 const sign = /**@type {const}*/([c('-'), c('-') + 1])
 
-// The 207 example grammar in EBNF, as `../map`'s proof spells it: a list of
-// integers, `[-12,3]`, and the map that rewrites its tree to the integers.
+// The 207 example grammar in EBNF: a list of integers, `[-12,3]`, and the
+// mappings that fold its tree to the integers — in one layer, straight from
+// the text, and in two, through a token alphabet.
 
 const digit = range('09')
 
@@ -71,16 +85,186 @@ const integer = /**@type {const}*/([optionMinus, digits1])
 
 const list = /**@type {const}*/(['[', join(',')(integer), ']'])
 
-const integers = rewrite([
-    [digit, /** @type {(d: number) => number} */ (d => d - c('0'))],
-    [digits1, /** @type {(ds: readonly [number, ...(readonly number[])]) => number} */
-        (ds => ds.reduce((n, d) => n * 10 + d, 0))],
-    [optionMinus, /** @type {(s: readonly [] | readonly [readonly number[]]) => 1 | -1} */
-        (s => s.length === 0 ? 1 : -1)],
-    [integer, /** @type {(v: readonly [1 | -1, number]) => number} */ (([s, n]) => s * n)],
-    [list, /** @type {(v: readonly [readonly number[], readonly [] | readonly [readonly [number, readonly (readonly [readonly number[], number])[]]], readonly number[]]) => readonly number[]} */
-        (([, o]) => o.length === 0 ? [] : [o[0][0], ...o[0][1].map(([, i]) => i)])],
+// The token alphabet: what the text layer emits and the list layer reads.
+
+const intToken = 0
+const openToken = 1
+const closeToken = 2
+const commaToken = 3
+
+/**
+ * A token: its kind is the symbol, and its metadata names the alphabet and
+ * carries an integer's value — `0` for a punctuation mark, which has none.
+ *
+ * @type {(symbol: number, value: number) => Meta<{ readonly id: 'tok', readonly value: number }>}
+ */
+const token = (symbol, value) => ({ symbol, meta: { id: 'tok', value } })
+
+/** @type {(value: readonly number[]) => Meta<{ readonly id: 'list', readonly value: readonly number[] }>} */
+const listToken = value => ({ symbol: 0, meta: { id: 'list', value } })
+
+/**
+ * The node at a position no mapping filled: a symbol is the only non-array
+ * in a tree, so this is the one test a mapping makes where it knows the
+ * position is unmapped — the scaffolding `join` builds, say, which it hands
+ * to nobody.
+ *
+ * @type {<T extends readonly unknown[]>(node: T | Meta<unknown>) => T}
+ */
+const unmapped = node => {
+    assert(node instanceof Array)
+    return node
+}
+
+/**
+ * The value at a position an integer mapping filled: the position was
+ * mapped, so it is a symbol and no array, and its alphabet is the token
+ * layer's, so it carries a value. The one test a mapping needs, and the
+ * `id` it reads.
+ *
+ * @type {(node:
+ *  | Meta<
+ *      | { readonly id: 'tok', readonly value: number }
+ *      | { readonly id: 'list', readonly value: readonly number[] }
+ *      | typeof cp>
+ *  | readonly unknown[]) => number}
+ */
+const intValue = node => {
+    assert(!(node instanceof Array))
+    const { meta } = node
+    assert(meta.id === 'tok')
+    return meta.value
+}
+
+/**
+ * @type {(node:
+ *  | Meta<
+ *      | { readonly id: 'tok', readonly value: number }
+ *      | { readonly id: 'list', readonly value: readonly number[] }>
+ *  | readonly unknown[]) => readonly number[]}
+ */
+const listValue = node => {
+    assert(!(node instanceof Array))
+    const { meta } = node
+    assert(meta.id === 'list')
+    return meta.value
+}
+
+/**
+ * The text layer's mappings for an integer, bound once to the layer's
+ * metadata — code points in, tokens out — so each function is typed from
+ * its rule: a digit is one symbol, `digits1` a non-empty list of positions
+ * the digit mapping filled, the sign an option, and `integer` the pair.
+ *
+ * @type {Mappings<typeof cp, { readonly id: 'tok', readonly value: number }>}
+ */
+const tok = mapping
+
+const integerMappings = [
+    tok(digit, d => token(intToken, d.symbol - c('0'))),
+    tok(digits1, ds => token(intToken, ds.reduce((n, d) => n * 10 + intValue(d), 0))),
+    tok(optionMinus, m => token(intToken, m.length === 0 ? 1 : -1)),
+    tok(integer, ([m, n]) => token(intToken, intValue(m) * intValue(n))),
+]
+
+/**
+ * One layer: the list's own mapping beside the integer's, under a wider
+ * output — a set is assembled from parts, and a part's output type is
+ * carried into the union. `join` builds the separator-item pairs inside
+ * itself and hands them to nobody, so the list reads them as they are: a
+ * comma's code points beside an already-mapped integer.
+ *
+ * @type {Mappings<typeof cp, { readonly id: 'tok', readonly value: number } | { readonly id: 'list', readonly value: readonly number[] }>}
+ */
+const lst = mapping
+
+const parseList = parser(list, [
+    ...integerMappings,
+    lst(list, ([, o]) => {
+        // The option `join` builds is empty or holds the first item beside
+        // the separator-item pairs; each item is a position the integer
+        // mapping filled, and everything around it is scaffolding no
+        // mapping did.
+        const option = unmapped(o)
+        if (option.length === 0) { return listToken([]) }
+        const [first, rest] = unmapped(option[0])
+        return listToken([intValue(first), ...unmapped(rest).map(pair => intValue(unmapped(pair)[1]))])
+    }),
 ])
+
+// Two layers: a tokenizer over the text, then the list grammar over tokens.
+
+const punctuation = /**@type {const}*/({ open: '[', close: ']', comma: ',' })
+
+const punctuationToken = /**@type {const}*/({ open: openToken, close: closeToken, comma: commaToken })
+
+/**
+ * The token layer's grammar, left-factored: an integer may only be followed
+ * by a punctuation mark or the end, since a digit after `digits1` would be
+ * a first/follow conflict — the next integer's, or one more round of this
+ * one's — which the backend refuses.
+ */
+const tokens = /**@type {const}*/([option(integer), repeatFrom0([punctuation, option(integer)])])
+
+const parseTokens = parser(tokens, [
+    ...integerMappings,
+    tok(punctuation, ([tag]) => token(punctuationToken[tag], 0)),
+])
+
+/**
+ * The boundary: every token is a mapped position, so the entry's node holds
+ * the symbols of the token alphabet, in order, between the scaffolding the
+ * left-factoring put around them — and once read out of it, they are the
+ * next layer's input as they are, no renaming and no re-tagging.
+ *
+ * @type {(node: Ast<typeof tokens, typeof cp, { readonly id: 'tok', readonly value: number }>) =>
+ *  readonly Meta<{ readonly id: 'tok', readonly value: number }>[]}
+ */
+const tokenSymbols = node => {
+    /** @type {(t: Meta<{ readonly id: 'tok', readonly value: number }> | readonly unknown[]) => Meta<{ readonly id: 'tok', readonly value: number }>} */
+    const symbol = t => {
+        assert(!(t instanceof Array))
+        return t
+    }
+    const [first, rest] = unmapped(node)
+    return [
+        ...unmapped(first).map(symbol),
+        ...unmapped(rest).flatMap(round => {
+            const [mark, integer] = unmapped(round)
+            return [symbol(mark), ...unmapped(integer).map(symbol)]
+        }),
+    ]
+}
+
+const tokenList = /**@type {const}*/([openToken, join(commaToken)(intToken), closeToken])
+
+/**
+ * The list layer's one mapping, over tokens: an integer is the value its
+ * token carries.
+ *
+ * @type {Mappings<{ readonly id: 'tok', readonly value: number }, { readonly id: 'list', readonly value: readonly number[] }>}
+ */
+const val = mapping
+
+const parseTokenList = parser(tokenList, [
+    val(tokenList, ([, o]) => {
+        // The option `join` builds is empty or holds the first item beside
+        // the separator-item pairs; each item is a position an integer
+        // token stands at, and everything around it is scaffolding no
+        // mapping did.
+        const option = unmapped(o)
+        if (option.length === 0) { return listToken([]) }
+        const [first, rest] = unmapped(option[0])
+        return listToken([intValue(first), ...unmapped(rest).map(pair => intValue(unmapped(pair)[1]))])
+    }),
+])
+
+/** @type {(text: string) => readonly number[]} */
+const integers = text => {
+    const [tokens] = unwrap(parseTokens(cps(text)))
+    const [ast] = unwrap(parseTokenList(tokenSymbols(tokens)))
+    return listValue(ast)
+}
 
 /** A JSON document is the grammar's `json` rule, then the end of input. */
 const document = /**@type {const}*/([json, eof])
@@ -94,14 +278,14 @@ const parseDataJs = parser(dataJs)
 // A JSON number is `[optionNeg, uint, ...optionFloatSuffix]`: no minus, the
 // `onenine` branch of `uint` with no further digits, no fraction, no
 // exponent.
-const one1 = /**@type {const}*/(['number', [[], ['onenine', [c('1'), []]], [], []]])
+const one1 = /**@type {const}*/(['number', [[], ['onenine', [s('1'), []]], [], []]])
 
 // `[1]`: the whitespace runs are empty; the array is its bracket, whitespace,
 // one item — the option `join` builds holds the item, its whitespace, and no
 // separator-item pairs — and its bracket.
-const array1 = /**@type {const}*/(['array', [[c('[')], [], [[[one1, []], []]], [c(']')]]])
+const array1 = /**@type {const}*/(['array', [[s('[')], [], [[[one1, []], []]], [s(']')]]])
 
-/** @type {Ast<typeof json>} */
+/** @type {Ast<typeof json, typeof cp>} */
 const json1 = [[], array1, []]
 
 export const proof = {
@@ -186,15 +370,25 @@ export const proof = {
             firstFirstConflictEof: () => firstMap(toData({ a: eof, b: [option('x'), eof] })[0]),
         },
     },
-    // A tree per form, as `Ast<R>` gives it.
+    // A tree per form, as `Ast<R, I>` gives it.
     parser: {
-        // A set's node is the symbol; a symbol outside the set fails at its
-        // index, and so does the end of input, at the length.
+        // A set's node is the input symbol, metadata and all; a symbol
+        // outside the set fails at its index, and so does the end of input,
+        // at the length.
         set: () => {
             const p = parser(digit)
-            assertStructurallySame(p([c('5')]), ['ok', [c('5'), 1]])
-            assertStructurallySame(p([c('a')]), ['error', 0])
+            assertStructurallySame(p([s('5')]), ['ok', [s('5'), 1]])
+            assertStructurallySame(p([s('a')]), ['error', 0])
             assertStructurallySame(p([]), ['error', 0])
+        },
+        // A leaf is the input's own element, so whatever the caller knows
+        // about a symbol — a position, say — is in the tree where the symbol
+        // is, and nothing was allocated to put it there.
+        metadata: () => {
+            const input = [...'ab'].map((a, pos) => ({ symbol: c(a), meta: { id: 'cp', pos } }))
+            const [ast] = unwrap(parser('ab')(input))
+            assertStructurallySame(ast, input)
+            assert(ast[0] === input[0] && ast[1] === input[1])
         },
         // The end of input is synthesized once, after the last symbol, and
         // its node is empty. It is not available before the end, and after
@@ -203,8 +397,8 @@ export const proof = {
         // zero rounds. Consuming it does not move the public index.
         eof: () => {
             assertStructurallySame(parser(eof)([]), ['ok', [[], 0]])
-            assertStructurallySame(parser(eof)([c('A')]), ['error', 0])
-            assertStructurallySame(parser([range('AA'), eof])([c('A')]), ['ok', [[c('A'), []], 1]])
+            assertStructurallySame(parser(eof)([s('A')]), ['error', 0])
+            assertStructurallySame(parser([range('AA'), eof])([s('A')]), ['ok', [[s('A'), []], 1]])
             assertStructurallySame(parser([eof, eof])([]), ['error', 0])
             assertStructurallySame(parser([eof, { a: 'A' }])([]), ['error', 0])
             assertStructurallySame(parser([eof, option('A')])([]), ['ok', [[[], []], 0]])
@@ -235,26 +429,27 @@ export const proof = {
         // lookahead is in the item's first set; and none past `max`.
         repeat: () => {
             const two = parser(times(2)(digit))
-            assertStructurallySame(two(cps('12')), ['ok', [[c('1'), c('2')], 2]])
-            assertStructurallySame(two(cps('123')), ['ok', [[c('1'), c('2')], 2]])
+            assertStructurallySame(two(cps('12')), ['ok', [[s('1'), s('2')], 2]])
+            assertStructurallySame(two(cps('123')), ['ok', [[s('1'), s('2')], 2]])
             assertStructurallySame(two(cps('1')), ['error', 1])
             assertStructurallySame(two(cps('1x')), ['error', 1])
             const oneOrTwo = parser(repeat(1, 2)(digit))
-            assertStructurallySame(oneOrTwo(cps('1x')), ['ok', [[c('1')], 1]])
-            assertStructurallySame(oneOrTwo(cps('12x')), ['ok', [[c('1'), c('2')], 2]])
+            assertStructurallySame(oneOrTwo(cps('1x')), ['ok', [[s('1')], 1]])
+            assertStructurallySame(oneOrTwo(cps('12x')), ['ok', [[s('1'), s('2')], 2]])
             const any = parser(repeatFrom0(digit))
             assertStructurallySame(any([]), ['ok', [[], 0]])
-            assertStructurallySame(any(cps('123x')), ['ok', [[c('1'), c('2'), c('3')], 3]])
+            assertStructurallySame(any(cps('123x')), ['ok', [[s('1'), s('2'), s('3')], 3]])
             assertStructurallySame(parser(repeatFrom1(digit))([]), ['error', 0])
         },
         // The rule's literal type survives the call — `R` is a `const` type
-        // parameter — so the parser is typed by the tree the rule builds.
+        // parameter — so the parser is typed by the tree the rule builds,
+        // with nothing mapped and nothing known of the input's metadata.
         // The assertion is what makes the modifier load-bearing: dropping it
         // would widen every inline rule silently and `tsc` would still pass.
         constParameter: () => {
             const p = parser({ a: 'x', b: ['y', 42] })
-            /** @typedef {Assert<Equal<typeof p, Parser<readonly ['a', readonly number[]] | readonly ['b', readonly [readonly number[], 42]]>>>} _ConstParameter */
-            assertStructurallySame(p(cps('y*')), ['ok', [['b', [cps('y'), 42]], 2]])
+            /** @typedef {Assert<Equal<typeof p, Parser<readonly ['a', readonly Meta<unknown>[]] | readonly ['b', readonly [readonly Meta<unknown>[], Meta<unknown, 42>]], unknown>>>} _ConstParameter */
+            assertStructurallySame(p(cps('y*')), ['ok', [['b', [cps('y'), sym(42)]], 2]])
         },
         // A nullable item under a bounded repeat, as `../data` promises: a
         // forced round matches empty, so `times(3)('')` matches empty three
@@ -279,17 +474,111 @@ export const proof = {
             const p = parser([times(2)('x'), 'x'])
             assertStructurallySame(p(cps('xxx')), ['ok', [[[cps('x'), cps('x')], cps('x')], 3]])
         },
-        // The tree is `Ast<R>`, so the map's rewrite takes it as it is: the
-        // example grammar parsed and rewritten is the integers.
+    },
+    // The rewrite set, folded into the parse: a mapped rule's node is handed
+    // to its mapping as it comes into existence, and what the mapping
+    // returns stands in its place.
+    mapping: {
+        // The example grammar, parsed and mapped in one layer: the list's
+        // node is the one symbol its mapping returned, carrying the integers.
+        // The parser is typed by the layer's metadata, read off the set.
         integers: () => {
-            /** @type {Parser<Ast<typeof list>>} */
-            const p = parser(list)
-            const toIntegers = integers(list)
-            const [ast] = unwrap(p(cps('[-12,3]')))
-            assertStructurallySame(toIntegers(ast), [-12, 3])
-            const [empty] = unwrap(p(cps('[]')))
-            assertStructurallySame(toIntegers(empty), [])
-            assertStructurallySame(p(cps('[1,]')), ['error', 3])
+            /** @typedef {Assert<Equal<typeof parseList, Parser<Ast<typeof list, typeof cp, { readonly id: 'tok', readonly value: number } | { readonly id: 'list', readonly value: readonly number[] }>, typeof cp>>>} _Typed */
+            const [ast] = unwrap(parseList(cps('[-12,3]')))
+            assertStructurallySame(ast, listToken([-12, 3]))
+            assertStructurallySame(listValue(unwrap(parseList(cps('[]')))[0]), [])
+            assertStructurallySame(parseList(cps('[1,]')), ['error', 3])
+        },
+        // The same, in two layers: the text layer's entry is a repetition of
+        // tokens, each round mapped, so its node is the token list the layer
+        // above reads as its input, and that layer's mapping reads the value
+        // a token carries.
+        layers: () => {
+            const [tokens] = unwrap(parseTokens(cps('[-12,3]')))
+            assertStructurallySame(tokens, [[], [
+                [token(openToken, 0), [token(intToken, -12)]],
+                [token(commaToken, 0), [token(intToken, 3)]],
+                [token(closeToken, 0), []],
+            ]])
+            assertStructurallySame(tokenSymbols(tokens), [
+                token(openToken, 0), token(intToken, -12), token(commaToken, 0), token(intToken, 3), token(closeToken, 0),
+            ])
+            assertStructurallySame(integers('[-12,3]'), [-12, 3])
+            assertStructurallySame(integers('[]'), [])
+            assertStructurallySame(integers('[7]'), [7])
+        },
+        // The empty set is the identity: nothing is mapped, so the tree is
+        // the parser's own — and the type says so by definition, `Ast<R, I>`
+        // being `Ast<R, I, never>`.
+        identity: () => {
+            const text = ' [1.5e-3, {"a\\u00e9\\n": null, "": [true, false]}, "x"] '
+            const input = cps(text)
+            assertStructurallySame(parser(json, [])(input), parseJson(input))
+            assertStructurallySame(parser(list, [])(cps('[-12,3]')), parser(list)(cps('[-12,3]')))
+        },
+        // A node comes into existence at five sites, and each hands it to
+        // its mapping: a set's leaf, the empty sequence, the end of a
+        // sequence, the variant wrap, and the closing of a repetition. Each
+        // mapping receives the node with the rules under it already mapped.
+        sites: () => {
+            const empty = ''
+            const pair = /**@type {const}*/([digit, empty])
+            const choice = { pair }
+            const rounds = times(1)(choice)
+            /** @type {(value: string) => Meta<{ readonly id: 'site', readonly value: string }>} */
+            const site = value => ({ symbol: 0, meta: { id: 'site', value } })
+            /** @type {(node: Meta<{ readonly id: 'site', readonly value: string } | typeof cp> | readonly unknown[]) => string} */
+            const at = node => {
+                assert(!(node instanceof Array))
+                assert(node.meta.id === 'site')
+                return node.meta.value
+            }
+            /** @type {Mappings<typeof cp, { readonly id: 'site', readonly value: string }>} */
+            const map = mapping
+            const p = parser(rounds, [
+                map(digit, d => site(`leaf ${d.symbol - c('0')}`)),
+                map(empty, e => site(`empty ${e.length}`)),
+                map(pair, ([d, e]) => site(`pair(${at(d)}, ${at(e)})`)),
+                map(choice, ([tag, node]) => site(`${tag}: ${at(node)}`)),
+                map(rounds, rs => site(`rounds[${rs.map(at).join(', ')}]`)),
+            ])
+            assertStructurallySame(p(cps('7')), ['ok', [site('rounds[pair: pair(leaf 7, empty 0)]'), 1]])
+        },
+        // A rule with no mapping keeps its node, the rules under it mapped;
+        // and a mapping's result may be a symbol of this layer's own input
+        // alphabet, as an unmapped leaf is.
+        partial: () => {
+            const p = parser([digit, digit], [tok(digit, d => token(intToken, d.symbol - c('0')))])
+            assertStructurallySame(p(cps('42')), ['ok', [[token(intToken, 4), token(intToken, 2)], 2]])
+            const q = parser([digit, digit], [mapping(digit, d => sym(d.symbol + 1))])
+            assertStructurallySame(q(cps('42')), ['ok', [[s('5'), s('3')], 2]])
+        },
+        // A key is the rule the author holds, by identity: a tuple spelled
+        // twice is two rules, and only the held instance is mapped.
+        identityKeyed: () => {
+            const a = /**@type {const}*/(['x'])
+            const b = /**@type {const}*/(['x'])
+            const p = parser([a, b], [mapping(a, () => sym(0))])
+            assertStructurallySame(p(cps('xx')), ['ok', [[sym(0), [cps('x')]], 2]])
+        },
+        // A string's symbol and a bare number are one rule in the data
+        // layer, so mapping the number maps the code point inside the string
+        // too. A grammar that wants them apart spells the string as a set.
+        symbolShared: () => {
+            const p = parser(['a', c('a')], [mapping(c('a'), () => sym(0))])
+            assertStructurallySame(p(cps('aa')), ['ok', [[[sym(0)], sym(0)], 2]])
+            const q = parser(['a', range('aa')], [mapping(c('a'), () => sym(0))])
+            assertStructurallySame(q(cps('aa')), ['ok', [[[sym(0)], s('a')], 2]])
+        },
+        // A `const` thunk and its payload are one rule, keyed by the thunk:
+        // the thunk's mapping receives the payload's node. The payload is
+        // held nowhere else, so it has no name and is no key, below.
+        constThunk: () => {
+            const payload = /**@type {const}*/([digit])
+            /** @type {() => readonly ['const', typeof payload]} */
+            const thunk = () => ['const', payload]
+            const p = parser(thunk, [mapping(thunk, ([d]) => d)])
+            assertStructurallySame(p(cps('7')), ['ok', [s('7'), 1]])
         },
     },
     // The `lib` grammars are LL(1), and the parser built for them stops
@@ -298,15 +587,6 @@ export const proof = {
         // A small document, pinned node by node.
         array: () => {
             assertStructurallySame(parseJson(cps('[1]')), ['ok', [json1, 3]])
-        },
-        // A larger one: the rewrite with nothing mapped is the identity, and
-        // it refuses a tree that is not the rule's, so its acceptance is a
-        // second check that every node is the one `Ast<R>` gives.
-        identity: () => {
-            const text = ' [1.5e-3, {"a\\u00e9\\n": null, "": [true, false]}, "x"] '
-            const [ast, end] = unwrap(parseJson(cps(text)))
-            assertEq(end, text.length)
-            assertStructurallySame(rewrite([])(json)(ast), ast)
         },
         // Without EOF a grammar stops where its rule does; with it the
         // trailing symbol is refused.
@@ -325,11 +605,13 @@ export const proof = {
         },
         // Nesting depth grows with the input, and the machine's stack grows
         // on the heap with it: 5000 levels of brackets, and a repetition
-        // 10000 rounds long, both match.
+        // 10000 rounds long, both match. The fold adds no depth: a mapping
+        // is applied where the node is built, in the same loop.
         deep: () => {
             const n = 5000
             assertEq(unwrap(parseDocument(cps('['.repeat(n) + ']'.repeat(n))))[1], 2 * n)
             assertEq(unwrap(parseDocument(cps(`${' '.repeat(10000)}1`)))[1], 10001)
+            assertEq(integers(`[${Array.from({ length: n }, (_, i) => i).join(',')}]`).length, n)
         },
     },
     dataJs: () => {
@@ -342,8 +624,8 @@ export const proof = {
     // sign's branch, the number's branch, and the empty EOF node.
     parserRuleSet: () => {
         const p = parserRuleSet(int, 'document')
-        assertStructurallySame(p(cps('-12')), ['ok', [[[['minus', c('-')], ['positive', [c('1'), [c('2')]]]], []], 3]])
-        assertStructurallySame(p(cps('0')), ['ok', [[[['none', []], ['zero', c('0')]], []], 1]])
+        assertStructurallySame(p(cps('-12')), ['ok', [[[['minus', s('-')], ['positive', [s('1'), [s('2')]]]], []], 3]])
+        assertStructurallySame(p(cps('0')), ['ok', [[[['none', []], ['zero', s('0')]], []], 1]])
         assertStructurallySame(p(cps('01')), ['error', 1])
         assertStructurallySame(p(cps('-')), ['error', 1])
         assertStructurallySame(p([]), ['error', 0])
@@ -353,7 +635,7 @@ export const proof = {
     dead: () => {
         /** @type {RuleSet} */
         const dead = { ...int, dead: ['sequence', 'dead'] }
-        assertStructurallySame(parserRuleSet(dead, 'document')(cps('7')), ['ok', [[[['none', []], ['positive', [c('7'), []]]], []], 1]])
+        assertStructurallySame(parserRuleSet(dead, 'document')(cps('7')), ['ok', [[[['none', []], ['positive', [s('7'), []]]], []], 1]])
         // The item of a zero-bound repeat is never entered, so it is dead
         // too, whatever it is.
         assertStructurallySame(parserRuleSet({ start: ['repeat', 0, 0, 'dead'], dead: ['sequence', 'dead'] }, 'start')([]), ['ok', [[], 0]])
@@ -381,10 +663,22 @@ export const proof = {
         firstFollowConflictUnboundedRound: () => parser([repeatFrom1('x'), 'x']),
         // A rule that is no rule reaches the lowering's refusal.
         notARule: () => parser(/** @type {Rule} */ (/** @type {unknown} */ (true))),
+        // The set is refused before any input, as the grammar is: a mapping
+        // keyed by a rule the grammar does not hold — a look-alike of one it
+        // does, or a `const` thunk's payload, which has no name of its own —
+        // and a rule mapped twice, which would let assembly order decide.
+        unknownRule: () => parser(digit, [mapping(range('09'), d => d)]),
+        constPayload: () => {
+            const payload = /**@type {const}*/([digit])
+            /** @type {() => readonly ['const', typeof payload]} */
+            const thunk = () => ['const', payload]
+            return parser(thunk, [mapping(payload, ([d]) => d)])
+        },
+        mappedTwice: () => parser(digit, [mapping(digit, d => d), mapping(digit, d => d)]),
         // The input holds ordinary symbols only: `-1` is the end of input,
         // which is synthesized after the input and not spelled in it, and a
         // fraction is no symbol.
-        eofInInput: () => parser(eof)([-1]),
-        notASymbol: () => parser(digit)([0.5]),
+        eofInInput: () => parser(eof)([sym(-1)]),
+        notASymbol: () => parser(digit)([sym(0.5)]),
     },
 }
