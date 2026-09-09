@@ -45,23 +45,27 @@ import { stylesheet, stylesheetLink } from './style/module.f.mjs'
 import { page, report, sections } from './page/module.f.mjs'
 
 /**
- * The root page: the site's own heading, the catalogue every directory page
- * carries, and the browser test runner under it.
+ * The root page: the project's name, the catalogue every directory page
+ * carries, and the browser test suite under it.
  *
  * It is the repository root's instance of the page rule rather than a page
  * beside it — the sections are the same ones {@link page} writes — but it
  * keeps its own frame, because the heading and the runner are the site's and
  * not the root directory's.
  *
- * **The catalogue comes first and the proofs last.** What a directory holds
- * is what a reader came for; a run is something they then ask for. It is also
- * the only order in which a run cannot move the catalogue, whatever the
- * report does.
+ * **The catalogue comes first and the test suite last.** What a directory
+ * holds is what a reader came for; a run is something they then ask for. It
+ * is also the only order in which a run cannot move the catalogue, whatever
+ * the report does.
+ *
+ * The heading is the project, not the suite. The suite is one section of the
+ * page — named for what it is, with the prose that introduces it inside —
+ * and the page is the repository's root.
  *
  * @type {(dir: Dir) => Vec}
  */
 const rootPage = dir => htmlUtf8(
-    ['title', 'Emergent Testing in the Browser'],
+    ['title', 'FunctionalScript'],
     stylesheetLink,
 )(
     ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
@@ -69,18 +73,18 @@ const rootPage = dir => htmlUtf8(
             { href: 'https://github.com/functionalscript/functionalscript' },
             'GitHub Repository'
         ]],
-        ['h1', 'Emergent Testing in the Browser'],
-        ['p',
-            'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
-            ['a',
-                { href: 'https://medium.com/javascript-in-plain-english/emergent-testing-in-javascript-e44760d71688' },
-                'Read “Emergent Testing in JavaScript”'
-            ],
-            '.'
-        ],
+        ['h1', 'FunctionalScript'],
         .../** @type {readonly Node[]} */ (sections(dir)),
         ['details', { 'data-section': '', open: '' },
-            ['summary', 'Proofs'],
+            ['summary', 'Emergent Testing'],
+            ['p',
+                'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
+                ['a',
+                    { href: 'https://medium.com/javascript-in-plain-english/emergent-testing-in-javascript-e44760d71688' },
+                    'Read “Emergent Testing in JavaScript”'
+                ],
+                '.'
+            ],
             ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
             ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
             report,
@@ -374,17 +378,18 @@ const isTodoDir = path => path.split('/').includes('todo')
  * What a page needs about one directory, from what the walk found in it and
  * in its `todo/`.
  *
- * **A file list only where there is a `module.f.mjs`.** A directory that
- * merely groups others has nothing a reader would open, and listing its
- * contents anyway would put the generator's own output on the page.
+ * **Every directory lists its files.** Listing them only where a
+ * `module.f.mjs` sat was a guess at which directories hold something a reader
+ * would open, and it was wrong on 42 of the 190 pages: `changelog/` has 104
+ * release notes and rendered an empty page, `nanvm-lib/src/vm/array/` five
+ * Rust sources, `fjs/types/option/` its `types.ts`. What a directory holds is
+ * what the walk found in it, minus the generator's own output.
  *
  * @type {(tree: _Tree) => (walked: _Walked) => Dir}
  */
 const toDir = tree => walked => ({
     path: walked.path,
-    files: walked.files.includes('module.f.mjs')
-        ? walked.files.filter(name => !generatedName(name))
-        : [],
+    files: walked.files.filter(name => !generatedName(name)),
     dirs: walked.dirs.filter(name => name !== 'todo'),
     todo: at(pathConcat(walked.path)('todo'))(tree)
         ?.files

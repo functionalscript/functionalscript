@@ -225,12 +225,19 @@ export const proof = {
             assert(!page.includes('>index.html</a>'), page)
             assert(!page.includes('>_main.css</a>'), page)
         },
-        // A directory that only groups others lists no files at all — there is
-        // nothing in it a reader would open.
-        aGroupingDirectoryListsNoFiles: () => {
-            const [generated] = run({ a: { b: { 'module.f.mjs': file('export const x = 1') } } })
+        /**
+         * **A directory lists its files whether or not a module sits among
+         * them.** Requiring a `module.f.mjs` was a guess at which directories
+         * hold something a reader would open, and it was wrong wherever the
+         * content is not FunctionalScript — `changelog/`, with 104 release
+         * notes, rendered an empty page.
+         */
+        listsFilesWithoutAModule: () => {
+            const [generated] = run({
+                a: { 'notes.md': file('# notes'), b: { 'module.f.mjs': file('export const x = 1') } },
+            })
             const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
-            assert(!page.includes('<summary>Files</summary>'), page)
+            assert(page.includes('>notes.md</a>'), page)
             assert(page.includes('<summary>Directories</summary>'), page)
         },
         /**
@@ -320,8 +327,7 @@ export const proof = {
         assert(Array.isArray(entryFile), 'expected the generated entry module to be a file')
         const source = page.map(value => utf8ToString(/** @type {Vec} */ (value))).join('')
         const entry = entryFile.map(value => utf8ToString(/** @type {Vec} */ (value))).join('')
-        assert(source.includes('<h1>Emergent Testing in the Browser</h1>'))
-        assert(source.includes('emergent-testing-in-javascript-e44760d71688'))
+                assert(source.includes('emergent-testing-in-javascript-e44760d71688'))
         assert(!source.includes('?sk='))
         // The page starts idle, not mid-run, and its only control is the
         // renamed `Run` — never the old `Run again` label.
@@ -329,9 +335,14 @@ export const proof = {
         // The root page is the root directory's page too: it carries the same
         // catalogue every other page does.
         assert(source.includes('<summary>Directories</summary>'), source)
-        // The catalogue is above the proofs: what the directory holds is what
+        // The catalogue is above the suite: what the directory holds is what
         // the reader came for, and a run cannot move what is above it.
-        assert(source.indexOf('<summary>Directories</summary>') < source.indexOf('<summary>Proofs</summary>'), source)
+        assert(
+            source.indexOf('<summary>Directories</summary>')
+                < source.indexOf('<summary>Emergent Testing</summary>'),
+            source)
+        // The heading is the project; the suite is one section of its page.
+        assert(source.includes('<h1>FunctionalScript</h1>'), source)
         // The report is what it always was; only the section around it folds.
         assert(source.includes('<pre><ol data-test-results=""></ol></pre>'), source)
         assert(source.includes('>Run</button>'), source)
