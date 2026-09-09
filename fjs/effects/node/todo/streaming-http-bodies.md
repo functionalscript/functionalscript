@@ -70,10 +70,16 @@ export type RequestListener<O extends Operation> =
 `ServerResponse` gains `O` because a lazy body *is* an effect, and the
 operations it performs are the listener's own — `fjs/web`'s would be
 `ReadBytes`. `CreateServer`'s `RequestListener<Operation>` spelling does not
-change: that is already the erasure
+change, and it is not erasure that keeps it there: the declaration pins
+`Operation` because a `Server` must carry no type parameter, so each runner is
+handed the widest listener the type says it may be handed and narrows it back
+to its own op-set by a cast it already writes — the virtual one to
+`_VirtualListener`, the Node one to `Erl<NodeOp>` in `answerRequest`. That
+widening is the separate cause
 [generic-operation-payload-erasure](./generic-operation-payload-erasure.md)
-describes, and both runners already narrow past it — the virtual one through
-`_VirtualListener`, the Node one by cast in `answerRequest`.
+files beside the `Pr` erasure it is named for, asking whether `CreateServer`
+can carry the listener's op-set instead. A `List` body neither raises that
+question nor answers it.
 
 The listener's channel stays `never` and the body's is `IoChannel`, and the
 difference between them is the whole of the next section. A listener that
