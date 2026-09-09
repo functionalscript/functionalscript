@@ -715,10 +715,21 @@ const map = {
             memoryValues: { ...state.memoryValues, [id]: value },
         }, ok(key)]
     },
-    memRead: key => state =>
-        [state, ok(state.memoryValues[asBase(key)])],
+    // A key `memCreate` never handed out is a caller bug, so both operations
+    // panic on one with the sentence the real interpreter already uses
+    // (`../memory/module.mjs`). Answering a read `ok(undefined)` instead made
+    // this runner disagree with the one it stands in for, and turned the bug
+    // into whatever the value's first reader did with `undefined` — a
+    // `TypeError` naming that reader's field, not the key or the missing slot.
+    // Presence is the test, not the value: `memCreate(undefined)` is legal.
+    memRead: key => state => {
+        const id = asBase(key)
+        assert(hasOwn(state.memoryValues, id), `memory key not found: ${id}`)
+        return [state, ok(state.memoryValues[id])]
+    },
     memWrite: (key, value) => state => {
         const id = asBase(key)
+        assert(hasOwn(state.memoryValues, id), `memory key not found: ${id}`)
         return [{
             ...state,
             memoryValues: { ...state.memoryValues, [id]: value },
