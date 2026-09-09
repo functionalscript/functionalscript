@@ -46,12 +46,17 @@ The input is a list of `Meta` symbols and nothing more: the alphabet is the
 caller's — code points for a text grammar, token symbols for one over
 tokens — within the domain the data layer's sets are drawn from, the
 non-negative safe integers, and the metadata is whatever the caller knows
-about each symbol that the grammar does not. An input holding a symbol
-outside the domain is refused, since `-1` in it would read as the end of
-input and nothing else in it could match a set. The end of input is
-synthesized once after the last symbol, so a grammar that ends in `eof` is
-matched against the whole input, and one that does not stops where its
-rule does, reporting the index of the first symbol it left.
+about each symbol that the grammar does not. A symbol outside the domain is
+refused where the parse reads it, since `-1` would read as the end of input
+and nothing else could match a set. The end of input is synthesized once
+after the last symbol, so a grammar that ends in `eof` is matched against
+the whole input, and one that does not stops where its rule does, reporting
+the index of the first symbol it left.
+
+A match begins at the index the caller passes — `parse(symbols, start)`,
+the beginning by default — and the indices it reports are the input's own,
+so a caller resumes where the last match ended by handing that index back.
+That is what a token layer is, below.
 
 ## The tree is `Ast<R, I, O>`
 
@@ -277,6 +282,30 @@ optional round never starts on an item whose first set is empty. An optional
 round consumes at least one symbol, which is what makes an unbounded
 repetition terminate; `validate` has already refused a nullable item under
 one.
+
+## A token layer resumes the parser
+
+A tokenizer is a one-token grammar run once per token over the one input.
+It is not `repeatFrom0(token)`: in a whole-file grammar a token's follow
+set is the next token's first set, so every greedy token — an identifier's
+letters, a number's digits, a comment's body — is a first/follow conflict
+with the token after it, and the backend refuses the grammar. The proof's
+`tokens` grammar is left-factored around exactly that, and the
+left-factoring is the whole-file design's cost, not the language's. With
+the entry a single token there is nothing required after it, the same
+grammar is LL(1), and maximal munch inside a token comes for free: an
+optional round starts whenever the lookahead is in the item's first set,
+so a repetition takes every symbol it can.
+
+So the primitive the layer needs is a parser that begins where the last
+match ended, and that is what `start` is. The loop over it is the
+consumer's: it decides what a token is once mapped, what a failed match
+becomes — an error token carrying the index, say — and where the layer's
+output goes, none of which is the backend's business. The proof's
+`mapping.resumed` is that loop, ten lines, producing the token stream the
+left-factored grammar does. A symbol is checked where it is read for the
+same reason: a scan of the whole input before each match would be paid
+once per token.
 
 ## Matching without the JS call stack
 

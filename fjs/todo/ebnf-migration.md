@@ -293,10 +293,9 @@ and what each needs are in
 [ebnf-ll1-port](../djs/todo/ebnf-ll1-port.md), stage 6's own file.
 
 So the djs port is a grammar rewrite plus a backend swap, not a swap alone,
-and the tokenizer also needs a token layer the backend does not have yet: a
-parser resumable at an index, or a fold running a one-token parser to the
-end of input, since a whole-file token grammar is not LL(1) under a
-first/follow check. Maximal munch inside a token comes for free — an
+and the tokenizer also needs a token layer: a parser resumable at an index
+— shipped, the loop over it being the consumer's — since a whole-file token
+grammar is not LL(1) under a first/follow check. Maximal munch inside a token comes for free — an
 optional round starts whenever the lookahead is in the item's first set —
 once the punctuators are a prefix tree that a helper builds from the list.
 The conflicts are where EBNF's `option` as a bounded repeat with a flat AST
@@ -395,7 +394,7 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    AST otherwise, with the differences ebnf-front-end predicts pinned
    explicitly (`option`, `repeatFrom(1)`, `join`).
 6. **Layered LL(1) and the djs port.** The token layer — the resumable
-   parser or the one-token fold — and the prefix-tree helper; the seven
+   parser, shipped — and the prefix-tree helper; the seven
    conflicts above resolved in the grammars; `djs/tokenizer` then
    `djs/parser` on `ebnf/ll1/`, as
    [ebnf-ll1-port](../djs/todo/ebnf-ll1-port.md) lays out. The first grammar to leave
