@@ -189,6 +189,86 @@ export const proof = {
             assertStructurallySame(listed(manifest), ['fjs/e.f.mjs'])
         },
     },
+    pages: {
+        /**
+         * **Every directory the walk visits gets a page**, so every
+         * subdirectory link a page writes resolves. `a/` holds no
+         * `module.f.mjs` and still has one — it is the directory that used to
+         * be linked to a page nobody generated.
+         */
+        onePerDirectory: () => {
+            const [generated] = run({
+                a: { b: { 'module.f.mjs': file('export const x = 1') } },
+            })
+            const dir = /** @type {Dir} */ (generated.root['a'])
+            assert('index.html' in generated.root, 'expected a root page')
+            assert('index.html' in dir, 'expected a page for the module-less directory')
+            assert('index.html' in /** @type {Dir} */ (dir['b']), 'expected a page for the module directory')
+        },
+        /**
+         * **A file list only where a `module.f.mjs` is**, and the generator's
+         * own output is never in it: a page that listed `index.html` or
+         * `_main.css` would be listing itself and its stylesheet as source.
+         */
+        listsAuthoredFilesOnly: () => {
+            const [generated] = run({
+                a: {
+                    'module.f.mjs': file('export const x = 1'),
+                    'types.ts': file('export type X = 1'),
+                    'notes.md': file('# notes'),
+                },
+            })
+            const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
+            assert(page.includes('>module.f.mjs</a>'), page)
+            assert(page.includes('>types.ts</a>'), page)
+            assert(page.includes('>notes.md</a>'), page)
+            assert(!page.includes('>index.html</a>'), page)
+            assert(!page.includes('>_main.css</a>'), page)
+        },
+        // A directory that only groups others lists no files at all — there is
+        // nothing in it a reader would open.
+        aGroupingDirectoryListsNoFiles: () => {
+            const [generated] = run({ a: { b: { 'module.f.mjs': file('export const x = 1') } } })
+            const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
+            assert(!page.includes('<h2>Files</h2>'), page)
+            assert(page.includes('<h2>Directories</h2>'), page)
+        },
+        /**
+         * **`todo/` is a section of its parent, not a page.** Its issues are
+         * the parent's open work, and a page of its own would hold nothing
+         * else — so it is neither generated nor linked, and no link to a
+         * missing page can exist.
+         */
+        todoIsTheParentsSection: () => {
+            const [generated] = run({
+                a: {
+                    'module.f.mjs': file('export const x = 1'),
+                    todo: { 'open.md': file('## open') },
+                },
+            })
+            const dir = /** @type {Dir} */ (generated.root['a'])
+            const page = textOf(dir['index.html'], 'the page')
+            assert(page.includes('<a href="/a/todo/open.md">open.md</a>'), page)
+            assert(!page.includes('>todo/</a>'), page)
+            assert(!('index.html' in /** @type {Dir} */ (dir['todo'])), 'expected no page for todo/')
+        },
+        // The breadcrumb walks back to the root through pages that exist.
+        breadcrumbReachesTheRoot: () => {
+            const [generated] = run({ a: { b: { 'module.f.mjs': file('export const x = 1') } } })
+            const page = textOf(
+                /** @type {Dir} */ (/** @type {Dir} */ (generated.root['a'])['b'])['index.html'],
+                'the page')
+            assert(page.includes('<a href="/index.html">root</a>'), page)
+            assert(page.includes('<a href="/a/index.html">a</a>'), page)
+        },
+        // An ignored directory is not walked, so it gets no page either.
+        ignoredDirectoriesGetNoPage: () => {
+            const [generated] = run({ node_modules: { a: { 'module.f.mjs': file('export const x = 1') } } })
+            assert(
+                !('index.html' in /** @type {Dir} */ (generated.root['node_modules'])),
+                'expected no page inside node_modules')
+        },
+    },
     run: () => {
         /** @type {Dir} */
         const root = { '.github': { workflows: {} }, fjs: { emergent_testing: {} } }
@@ -208,6 +288,9 @@ export const proof = {
         // The page starts idle, not mid-run, and its only control is the
         // renamed `Run` — never the old `Run again` label.
         assert(source.includes('data-state="idle"'), source)
+        // The root page is the root directory's page too: it carries the same
+        // catalogue every other page does.
+        assert(source.includes('<h2>Directories</h2>'), source)
         assert(source.includes('>Run</button>'), source)
         assert(!source.includes('Run again'), source)
         // The entry module wires the click handler and stops: it must not

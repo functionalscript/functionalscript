@@ -25,7 +25,10 @@
  * @import { All, ReadFile, Readdir, Write, WriteFile } from '../effects/node/types.ts'
  * @import { Effect, IoChannel } from '../effects/types.ts'
  * @import { StringSet } from '../types/string_set/types.ts'
- * @import { _Graph, _Imports } from './private.ts'
+ * @import { Vec } from '../types/bit_vec/types.ts'
+ * @import { _Graph, _Imports, _Tree, _Walked } from './private.ts'
+ * @import { Dir } from './page/types.ts'
+ * @import { Node } from '../media/html/types.ts'
  */
 
 import { htmlUtf8 } from '../media/html/module.f.mjs'
@@ -34,15 +37,27 @@ import { allOk, exitStep, isNotFound, readdir, readUtf8File, writeFile, writeUtf
 import { foldStep, forEachStep, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
-import { at, empty as noModules, setReplace } from '../types/ordered_map/module.f.mjs'
+import { at, empty as emptyMap, setReplace } from '../types/ordered_map/module.f.mjs'
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
-import { stylesheet } from './style/module.f.mjs'
+import { stylesheet, stylesheetLink } from './style/module.f.mjs'
+import { page, sections } from './page/module.f.mjs'
 
-const html = htmlUtf8(
+/**
+ * The root page: the site's own heading and the browser test runner, plus the
+ * catalogue every directory page carries.
+ *
+ * It is the repository root's instance of the page rule rather than a page
+ * beside it — the sections below are the same ones {@link page} writes — but
+ * it keeps its own frame, because the heading and the runner are the site's
+ * and not the root directory's.
+ *
+ * @type {(dir: Dir) => Vec}
+ */
+const rootPage = dir => htmlUtf8(
     ['title', 'Emergent Testing in the Browser'],
-    ['link', { rel: 'stylesheet', href: '/_main.css' }],
+    stylesheetLink,
 )(
     ['main', { 'data-browser-tests': '', 'data-state': 'idle' },
         ['p', ['a',
@@ -60,7 +75,8 @@ const html = htmlUtf8(
         ],
         ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
-        ['pre', ['ol', { 'data-test-results': '' }]]
+        ['pre', ['ol', { 'data-test-results': '' }]],
+        .../** @type {readonly Node[]} */ (sections(dir)),
     ],
     ['script', { type: 'module', src: './_browser-test-entry.mjs' }]
 )
@@ -97,27 +113,47 @@ const ignored = name =>
 const authored = path => path.endsWith('.f.mjs')
 
 /**
- * Every authored module under `dir`, walked one directory at a time.
+ * Every directory under `dir`, itself first, with everything each one holds.
  *
  * A directory at a time rather than `readdir`'s own `recursive` option,
  * because recursion there cannot be pruned: it descends into everything and
  * hands back the whole listing to filter afterwards.
  *
- * @type {(dir: string) => Effect<Readdir, readonly string[], IoChannel>}
+ * **Names are sorted here, once.** Both consumers want a stable order — a
+ * manifest that reordered itself between runs is a diff nobody made, and so
+ * is a page whose file list did — and the filesystem promises none.
+ *
+ * @type {(dir: string) => Effect<Readdir, readonly _Walked[], IoChannel>}
  */
-const walk = dir => step(readdir(dir, {}), entries => foldStep(
-    pureOk(entries),
-    /** @type {readonly string[]} */ ([]),
-    entry => found => {
-        const path = pathConcat(dir)(entry.name)
-        // `isDirectory` and not `!isFile`: a symbolic link is neither, and
-        // `readdir` on one fails with `ENOTDIR` — a build broken by a link
-        // somebody left in the tree.
-        if (!entry.isDirectory) { return pureOk(authored(path) ? [...found, path] : found) }
-        return ignored(entry.name)
-            ? pureOk(found)
-            : mapStep(walk(path), inner => [...found, ...inner])
-    }))
+const walk = dir => step(readdir(dir, {}), entries => {
+    // `isDirectory` and not `!isFile`: a symbolic link is neither, and
+    // `readdir` on one fails with `ENOTDIR` — a build broken by a link
+    // somebody left in the tree.
+    const files = entries.filter(e => !e.isDirectory).map(e => e.name).toSorted()
+    const dirs = entries
+        .filter(e => e.isDirectory && !ignored(e.name))
+        .map(e => e.name)
+        .toSorted()
+    return foldStep(
+        pureOk(dirs),
+        /** @type {readonly _Walked[]} */ ([{ path: dir, files, dirs }]),
+        name => found => mapStep(
+            walk(pathConcat(dir)(name)),
+            inner => [...found, ...inner]))
+})
+
+/** @type {(walked: _Walked) => (name: string) => string} */
+const inDir = walked => name => pathConcat(walked.path)(name)
+
+/**
+ * Every authored module the walk found, in path order.
+ *
+ * @type {(tree: readonly _Walked[]) => readonly string[]}
+ */
+const authoredModules = tree => tree
+    .flatMap(walked => walked.files.map(inDir(walked)))
+    .filter(authored)
+    .toSorted()
 
 /**
  * A specifier resolved against the module that wrote it: `./x.f.mjs` in
@@ -251,7 +287,7 @@ const manifestSource = selected => [
  * @type {(paths: readonly string[]) => Effect<ReadFile | Write | WriteFile, void, IoChannel>}
  */
 const writeManifest = paths => step(
-    readGraph(paths)(noModules),
+    readGraph(paths)(emptyMap),
     graph => {
         const classified = paths.map(path =>
             /** @type {const} */ ([path, blockersOf(graph)(path)]))
@@ -268,30 +304,94 @@ const writeManifest = paths => step(
     })
 
 /**
- * The proof modules to consider: every authored `.f.mjs` in the tree that
- * exports a `proof`, in path order.
+ * The proof modules to consider: every authored `.f.mjs` that exports a
+ * `proof`, in the path order it was given.
  *
- * The order is the manifest's, and it is the paths' rather than the walk's: a
- * directory listing is the filesystem's business, and a manifest that
- * reordered itself between runs would show up as a diff nobody made.
- *
- * @type {Effect<Readdir | ReadFile, readonly string[], IoChannel>}
+ * @type {(paths: readonly string[]) => Effect<ReadFile, readonly string[], IoChannel>}
  */
-const proofModules = step(
-    walk('.'),
-    paths => foldStep(
-        pureOk(paths.toSorted()),
-        /** @type {readonly string[]} */ ([]),
-        path => found => step(
-            readUtf8File(path),
-            source => pureOk(exportsProof(source) ? [...found, path] : found))))
+const proofModules = paths => foldStep(
+    pureOk(paths),
+    /** @type {readonly string[]} */ ([]),
+    path => found => step(
+        readUtf8File(path),
+        source => pureOk(exportsProof(source) ? [...found, path] : found)))
+
+/**
+ * Whether a name is the generator's own output rather than a file a reader
+ * would open. `index.html` and the `_`-prefixed files are written by this
+ * program, and `.gitignore` keeps them out of the tree for the same reason a
+ * page should keep them out of its listing.
+ *
+ * @type {(name: string) => boolean}
+ */
+const generatedName = name =>
+    name === 'index.html' || name.startsWith('_') || name.startsWith('.')
+
+/**
+ * Whether a directory's contents belong on its parent's page rather than on
+ * one of its own.
+ *
+ * `todo/` is the one such directory: its issues are the parent's open work,
+ * and a page of its own would hold nothing else — no module, so no file list,
+ * and no `todo/` of its own to list. It is therefore neither given a page nor
+ * offered as a subdirectory link, so no link to a missing page can exist.
+ *
+ * @type {(path: string) => boolean}
+ */
+const isTodoDir = path => path === 'todo' || path.endsWith('/todo')
+
+/**
+ * What a page needs about one directory, from what the walk found in it and
+ * in its `todo/`.
+ *
+ * **A file list only where there is a `module.f.mjs`.** A directory that
+ * merely groups others has nothing a reader would open, and listing its
+ * contents anyway would put the generator's own output on the page.
+ *
+ * @type {(tree: _Tree) => (walked: _Walked) => Dir}
+ */
+const toDir = tree => walked => ({
+    path: walked.path,
+    files: walked.files.includes('module.f.mjs')
+        ? walked.files.filter(name => !generatedName(name))
+        : [],
+    dirs: walked.dirs.filter(name => name !== 'todo'),
+    todo: at(pathConcat(walked.path)('todo'))(tree)
+        ?.files
+        ?.filter(name => !generatedName(name))
+        ?? [],
+})
+
+/**
+ * One `index.html` per directory, so the tree is walkable from the root.
+ *
+ * The root's page is the site's own — it carries the heading and the test
+ * runner — and every other directory's is {@link page}'s. Both write the same
+ * catalogue.
+ *
+ * @type {(tree: readonly _Walked[]) => Effect<WriteFile | Write, void, IoChannel>}
+ */
+const writePages = tree => {
+    const byPath = tree.reduce(
+        (map, walked) => setReplace(walked.path)(walked)(map),
+        /** @type {_Tree} */ (emptyMap))
+    const dirs = tree.filter(walked => !isTodoDir(walked.path)).map(toDir(byPath))
+    return step(
+        forEachStep(pureOk(dirs), dir => writeFile(
+            pathConcat(dir.path)('index.html'),
+            dir.path === '.' ? rootPage(dir) : page(dir))),
+        () => log(`directory pages: ${dirs.length}`))
+}
 
 /** @type {Effect<Readdir | ReadFile | WriteFile | Write | All, 0, number>} */
 const program = exitStep(mapStep(
-    step(proofModules, paths => step(writeManifest(paths), () => allOk(
-        writeFile('index.html', html),
-        writeFile('_browser-test-entry.mjs', entry),
-        writeUtf8File('_main.css', stylesheet)))),
+    step(walk('.'), tree => step(
+        proofModules(authoredModules(tree)),
+        paths => step(writeManifest(paths), () => step(
+            writePages(tree),
+            () => allOk(
+                writeFile('_browser-test-entry.mjs', entry),
+                writeUtf8File('_main.css', stylesheet)))))),
     () => undefined))
 
 export const main = () => program

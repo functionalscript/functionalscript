@@ -13,7 +13,28 @@
  * spelling of CSS with nothing to check it against.
  *
  * @module
+ *
+ * @import { Element } from '../../media/html/types.ts'
  */
+
+/**
+ * Where the generator writes the stylesheet, as the root-relative URL every
+ * page links it by.
+ *
+ * Root-relative and not `./_main.css`: pages sit at every depth of the tree
+ * and there is one stylesheet, so the href cannot depend on where the page
+ * that writes it happens to be.
+ *
+ * @type {string}
+ */
+export const stylesheetPath = '/_main.css'
+
+/**
+ * The `<link>` every page carries, so that no page spells the path itself.
+ *
+ * @type {Element}
+ */
+export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath }]
 
 /**
  * The stylesheet, verbatim.
