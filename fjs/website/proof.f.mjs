@@ -230,8 +230,8 @@ export const proof = {
         aGroupingDirectoryListsNoFiles: () => {
             const [generated] = run({ a: { b: { 'module.f.mjs': file('export const x = 1') } } })
             const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
-            assert(!page.includes('<h2>Files</h2>'), page)
-            assert(page.includes('<h2>Directories</h2>'), page)
+            assert(!page.includes('<summary>Files</summary>'), page)
+            assert(page.includes('<summary>Directories</summary>'), page)
         },
         /**
          * **`todo/` is a section of its parent, not a page.** Its issues are
@@ -290,7 +290,10 @@ export const proof = {
         assert(source.includes('data-state="idle"'), source)
         // The root page is the root directory's page too: it carries the same
         // catalogue every other page does.
-        assert(source.includes('<h2>Directories</h2>'), source)
+        assert(source.includes('<summary>Directories</summary>'), source)
+        // The catalogue is above the proofs: what the directory holds is what
+        // the reader came for, and a run cannot move what is above it.
+        assert(source.indexOf('<summary>Directories</summary>') < source.indexOf('<summary>Proofs</summary>'), source)
         // The result rows are behind a closed disclosure, so a run costs the
         // page one line and the catalogue below it does not move.
         assert(source.includes('<details data-test-report=""><summary>Results</summary>'), source)

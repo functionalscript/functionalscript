@@ -66,17 +66,26 @@ export const pageHref = path => path === '.' ? '/index.html' : `/${path}/index.h
 const fileHref = path => name => path === '.' ? `/${name}` : `/${path}/${name}`
 
 /**
- * A section with a heading, or nothing at all when the list is empty.
+ * One section of a page: a heading a reader can fold the section away under,
+ * or nothing at all when the list is empty.
  *
- * An empty section is omitted rather than rendered with an empty list, so a
- * page says only what is true of its directory: no "Files" heading over
- * nothing on a directory that groups others, and no "Issues" heading where
- * none are filed.
+ * **A disclosure rather than a heading and a list.** `details` and `summary`
+ * are the collapsible the platform already has, so folding a long list away
+ * costs the page no script — which matters here, where the whole site is
+ * static files served from the repository folder.
  *
- * @type {(heading: string) => (items: readonly Element[]) => readonly Node[]}
+ * An empty section is omitted rather than rendered collapsed, so a page says
+ * only what is true of its directory: no "Files" to open on a directory that
+ * groups others, and no "Issues" where none are filed.
+ *
+ * @type {(heading: string) => (open: boolean) => (items: readonly Element[]) => readonly Node[]}
  */
-const section = heading => items =>
-    items.length === 0 ? [] : [['h2', heading], ['ul', ...items]]
+const section = heading => open => items =>
+    items.length === 0
+        ? []
+        : [['details', { 'data-section': '', open: open ? '' : undefined },
+            ['summary', heading],
+            ['ul', ...items]]]
 
 /** @type {(href: string) => (text: string) => Element} */
 const item = href => text => ['li', ['a', { href }, text]]
@@ -85,17 +94,24 @@ const item = href => text => ['li', ['a', { href }, text]]
  * The catalogue of one directory: its files, its subdirectories, and the
  * issues filed against it.
  *
+ * **Files and directories are open, issues are closed.** The first two are
+ * what the directory *is* and are bounded by it; the issue list is not — the
+ * repository root has fifty — and a page that opened it would push whatever
+ * follows off the screen. That is a judgement per section and not a length
+ * threshold, so it holds for every directory rather than switching at some
+ * size.
+ *
  * The root page inserts these into its own frame; {@link page} wraps them in
  * one. Nothing here depends on which of the two is calling.
  *
  * @type {(dir: Dir) => readonly Node[]}
  */
 export const sections = dir => [
-    ...section('Files')(dir.files.map(name =>
+    ...section('Files')(true)(dir.files.map(name =>
         item(fileHref(dir.path)(name))(name))),
-    ...section('Directories')(dir.dirs.map(name =>
+    ...section('Directories')(true)(dir.dirs.map(name =>
         item(pageHref(dir.path === '.' ? name : `${dir.path}/${name}`))(`${name}/`))),
-    ...section('Issues')(dir.todo.map(name =>
+    ...section('Issues')(false)(dir.todo.map(name =>
         item(fileHref(dir.path)(`todo/${name}`))(name))),
 ]
 

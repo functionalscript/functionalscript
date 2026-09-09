@@ -52,6 +52,13 @@ body { background-color: var(--bg); color: var(--text); font: 16px system-ui; ma
 [data-status="passed"]::marker { color: var(--pass) }
 [data-status="failed"] { color: var(--fail) }
 pre { white-space: pre-wrap }
+/* Every section of a page is a disclosure, so a reader can fold away what
+   they are not reading — the platform's own collapsible, and no script on a
+   site that is static files. Its summary is the section's heading, and is
+   sized like one. */
+[data-section] { margin: 1.5rem 0 }
+[data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
+[data-section] > ul { margin-top: .5rem }
 /* A run appends one row per test — 5534 of them on this repository's root
    page. Closed, the report costs the page one line, so pressing Run leaves
    the catalogue below it exactly where it was; open, it is a window of fixed

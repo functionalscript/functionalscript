@@ -32,27 +32,43 @@ export const proof = {
         // same href is written wherever the page sits.
         files: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs/types/list', files: ['module.f.mjs'] }),
-            '<body><h2>Files</h2><ul><li><a href="/fjs/types/list/module.f.mjs">module.f.mjs</a></li></ul></body>'),
+            '<body><details data-section="" open=""><summary>Files</summary>'
+            + '<ul><li><a href="/fjs/types/list/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
         // A file of the root directory has no directory in its path.
         filesAtRoot: () => assertEq(
             sectionsHtml({ ...empty, files: ['module.f.mjs'] }),
-            '<body><h2>Files</h2><ul><li><a href="/module.f.mjs">module.f.mjs</a></li></ul></body>'),
+            '<body><details data-section="" open=""><summary>Files</summary>'
+            + '<ul><li><a href="/module.f.mjs">module.f.mjs</a></li></ul></details></body>'),
+        /**
+         * **Files and directories open, issues closed.** The first two are
+         * bounded by the directory; the issue list is not, and an open one
+         * would push the proofs below it off the screen.
+         */
+        issuesStartClosed: () => {
+            const html = sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'], dirs: ['types'] })
+            assert(html.includes('<details data-section=""><summary>Issues</summary>'), html)
+            assert(html.includes('<details data-section="" open=""><summary>Directories</summary>'), html)
+        },
         // A subdirectory link points at a page, and every such page exists —
         // which is what the "every directory gets one" rule buys.
         dirs: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', dirs: ['types'] }),
-            '<body><h2>Directories</h2><ul><li><a href="/fjs/types/index.html">types/</a></li></ul></body>'),
+            '<body><details data-section="" open=""><summary>Directories</summary>'
+            + '<ul><li><a href="/fjs/types/index.html">types/</a></li></ul></details></body>'),
         dirsAtRoot: () => assertEq(
             sectionsHtml({ ...empty, dirs: ['fjs'] }),
-            '<body><h2>Directories</h2><ul><li><a href="/fjs/index.html">fjs/</a></li></ul></body>'),
+            '<body><details data-section="" open=""><summary>Directories</summary>'
+            + '<ul><li><a href="/fjs/index.html">fjs/</a></li></ul></details></body>'),
         // An issue is linked inside the `todo/` it was filed in, which has no
         // page of its own.
         todo: () => assertEq(
             sectionsHtml({ ...empty, path: 'fjs', todo: ['a.md'] }),
-            '<body><h2>Issues</h2><ul><li><a href="/fjs/todo/a.md">a.md</a></li></ul></body>'),
+            '<body><details data-section=""><summary>Issues</summary>'
+            + '<ul><li><a href="/fjs/todo/a.md">a.md</a></li></ul></details></body>'),
         todoAtRoot: () => assertEq(
             sectionsHtml({ ...empty, todo: ['a.md'] }),
-            '<body><h2>Issues</h2><ul><li><a href="/todo/a.md">a.md</a></li></ul></body>'),
+            '<body><details data-section=""><summary>Issues</summary>'
+            + '<ul><li><a href="/todo/a.md">a.md</a></li></ul></details></body>'),
     },
     report: {
         /**
@@ -100,7 +116,8 @@ export const proof = {
         carriesSections: () => {
             const dir = { ...empty, path: 'fjs', dirs: ['types'] }
             assert(pageHtml(dir).includes(
-                '<h2>Directories</h2><ul><li><a href="/fjs/types/index.html">types/</a></li></ul>'),
+                '<details data-section="" open=""><summary>Directories</summary>'
+                + '<ul><li><a href="/fjs/types/index.html">types/</a></li></ul></details>'),
                 pageHtml(dir))
         },
     },

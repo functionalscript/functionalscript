@@ -45,13 +45,18 @@ import { stylesheet, stylesheetLink } from './style/module.f.mjs'
 import { page, report, sections } from './page/module.f.mjs'
 
 /**
- * The root page: the site's own heading and the browser test runner, plus the
- * catalogue every directory page carries.
+ * The root page: the site's own heading, the catalogue every directory page
+ * carries, and the browser test runner under it.
  *
  * It is the repository root's instance of the page rule rather than a page
- * beside it — the sections below are the same ones {@link page} writes — but
- * it keeps its own frame, because the heading and the runner are the site's
- * and not the root directory's.
+ * beside it — the sections are the same ones {@link page} writes — but it
+ * keeps its own frame, because the heading and the runner are the site's and
+ * not the root directory's.
+ *
+ * **The catalogue comes first and the proofs last.** What a directory holds
+ * is what a reader came for; a run is something they then ask for. It is also
+ * the only order in which a run cannot move the catalogue, whatever the
+ * report does.
  *
  * @type {(dir: Dir) => Vec}
  */
@@ -73,10 +78,13 @@ const rootPage = dir => htmlUtf8(
             ],
             '.'
         ],
-        ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
-        ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
-        report,
         .../** @type {readonly Node[]} */ (sections(dir)),
+        ['details', { 'data-section': '', open: '' },
+            ['summary', 'Proofs'],
+            ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
+            ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
+            report,
+        ],
     ],
     ['script', { type: 'module', src: './_browser-test-entry.mjs' }]
 )
