@@ -1,13 +1,18 @@
 ## stat-then-read. The entry validated is not the entry read
 
 **Priority:** P3
-**Status:** open, and **blocking**
-[streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md). That
-issue serves a file in chunks, and a chunk loop over a *name* resolves it once
-per chunk rather than once per body: a replaced entry can be spliced into a
-response that is clean, correctly sized, and made of two files. The handle
-effect below is what binds every chunk of one response to one inode, so it stops
-being a slower-guard fix and becomes a prerequisite of that feature.
+**Status:** open
+
+**It blocks
+[streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md)** —
+the direction the status line has no value for, `blocked` being the one for an
+issue *waiting on* another and nothing holding this one up
+([todo/README.md](../../../todo/README.md)). That issue serves a file in chunks,
+and a chunk loop over a *name* resolves it once per chunk rather than once per
+body: a replaced entry can be spliced into a response that is clean, correctly
+sized, and made of two files. The handle effect below is what binds every chunk
+of one response to one inode, so it stops being a slower-guard fix and becomes a
+prerequisite of that feature.
 
 ### Problem
 
