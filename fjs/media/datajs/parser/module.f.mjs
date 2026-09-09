@@ -119,7 +119,7 @@ const items = ([, , option]) => {
     return [item(first), ...unmapped(rest).map(pair => item(unmapped(pair)[1]))]
 }
 
-const protoKey = '__proto__'
+const protoKey = /** @type {const} */ ('__proto__')
 
 /**
  * The refusal of the plain spelling of the `__proto__` key, standing where

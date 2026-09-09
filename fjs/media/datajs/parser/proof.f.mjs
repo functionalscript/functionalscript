@@ -155,7 +155,7 @@ export const proof = {
         assertStructurallySame(keys(computed), ['__proto__'])
         assertEq(getPrototypeOf(computed), Object.prototype)
         assertStructurallySame(exported('{["__proto__"]:1,"a":2}'), JSON.parse('{"__proto__":1,"a":2}'))
-        const message = 'a "__proto__" key is spelled ["__proto__"]'
+        const message = /** @type {const} */ ('a "__proto__" key is spelled ["__proto__"]')
         refused('export default {"__proto__":1};', message)
         refused('export default {"\\u005f_proto__":1};', message)
         refused('export default {"__proto\\u005f_":1};', message)
@@ -292,18 +292,18 @@ export const proof = {
     // consts each naming the one before, 6000 sibling containers and an
     // array of 12000 items.
     deep: () => {
-        const n = 5000
+        const n = /** @type {const} */ (5000)
         /** @type {(depth: number, v: Unknown) => number} */
         const depthOf = (depth, v) => v instanceof Array && v.length === 1 ? depthOf(depth + 1, v[0]) : depth
         assertEq(depthOf(0, exported('['.repeat(n) + ']'.repeat(n))), n - 1)
         const bottom = parsed(`const $0=[];export default ${'['.repeat(n)}$0${']'.repeat(n)};`)
         assertEq(depthOf(0, bottom), n)
-        const s = 6000
+        const s = /** @type {const} */ (6000)
         const chain = parsed(Array.from({ length: s }, (_, i) => `const $${i}=[${i === 0 ? '' : `$${i - 1}`}];`).join('') + `export default $${s - 1};`)
         assertEq(depthOf(0, chain), s - 1)
         assertEq(asArray(exported(`[${Array(s).fill('{}').join(',')}]`)).length, s)
         assertEq(keys(asObject(exported(`{${Array.from({ length: s }, (_, i) => `"k${i}":[]`).join(',')}}`))).length, s)
-        const m = 12000
+        const m = /** @type {const} */ (12000)
         const wide = asArray(exported(`[${Array.from({ length: m }, (_, i) => i).join(',')}]`))
         assertEq(wide.length, m)
         assertEq(wide[m - 1], m - 1)
