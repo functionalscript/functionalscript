@@ -18,7 +18,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
+          "run": "test \"$(./nix/run node --version)\" = \"v26.8.1\""
         },
         {
           "run": "./nix/run npm ci"
@@ -62,7 +62,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
+          "run": "test \"$(./nix/run node --version)\" = \"v26.8.1\""
         },
         {
           "run": "./nix/run npm ci"
@@ -94,7 +94,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
+          "run": "test \"$(./nix/run node --version)\" = \"v26.8.1\""
         },
         {
           "run": "./nix/run npm ci"
@@ -126,7 +126,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
+          "run": "test \"$(./nix/run node --version)\" = \"v26.8.1\""
         },
         {
           "run": "./nix/run npm ci"
@@ -152,7 +152,7 @@
       "runs-on": "windows-2025",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.98.0",
+          "uses": "dtolnay/rust-toolchain@1.98.1",
           "with": {
             "components": "rustfmt,clippy",
             "targets": "i686-pc-windows-msvc"
@@ -161,11 +161,11 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.7.0"
+            "node-version": "26.8.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.48.0"
+          "run": "npm install -g functionalscript@0.49.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -203,7 +203,7 @@
       "runs-on": "windows-11-arm",
       "steps": [
         {
-          "uses": "dtolnay/rust-toolchain@1.98.0",
+          "uses": "dtolnay/rust-toolchain@1.98.1",
           "with": {
             "components": "rustfmt,clippy"
           }
@@ -211,11 +211,11 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.7.0"
+            "node-version": "26.8.1"
           }
         },
         {
-          "run": "npm install -g functionalscript@0.48.0"
+          "run": "npm install -g functionalscript@0.49.0"
         },
         {
           "uses": "actions/checkout@v7.0.1"
@@ -353,7 +353,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/run bun --version)\" = \"1.4.0\""
+          "run": "test \"$(./nix/run bun --version)\" = \"1.4.2\""
         },
         {
           "run": "./nix/run bun install --frozen-lockfile"
@@ -413,7 +413,7 @@
           "uses": "actions/checkout@v7.0.1"
         },
         {
-          "run": "test \"$(./nix/run node --version)\" = \"v26.7.0\""
+          "run": "test \"$(./nix/run node --version)\" = \"v26.8.1\""
         },
         {
           "run": "test \"$(./nix/run tsc --version)\" = \"Version 7.0.2\""
@@ -461,7 +461,7 @@
         {
           "uses": "actions/setup-node@v7.0.0",
           "with": {
-            "node-version": "26.7.0"
+            "node-version": "26.8.1"
           }
         },
         {

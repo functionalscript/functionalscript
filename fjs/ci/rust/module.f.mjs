@@ -136,7 +136,7 @@ export const i686System = /** @type {const} */ ('x86_64-linux')
  *
  * The target is an addition to what every system's toolchain carries rather
  * than a toolchain of its own: the shell already has `rust-overlay`'s
- * `1.98.0` with the WASM targets, and this is one more `rust-std` on the
+ * `1.98.1` with the WASM targets, and this is one more `rust-std` on the
  * platform that can link it.
  *
  * @type {{ readonly [system: string]: NixPerSystem }}
@@ -250,7 +250,7 @@ const wasmTargetCommands = target =>
  * so the targets below and `wasmTargets` above cannot come apart —
  * `../dev/module.f.mjs` takes this whole record.
  *
- * The flake names `1.98.0` in full, so no job checks the toolchain's version:
+ * The flake names `1.98.1` in full, so no job checks the toolchain's version:
  * a check could only restate the flake. The two runtimes are the opposite
  * case, and the checks below are the whole of that tie.
  *
