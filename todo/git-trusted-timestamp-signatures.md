@@ -35,11 +35,15 @@ RFC 3161 defines a `TimeStampToken` whose signed `TSTInfo` contains the
 
 Prototype two new repeatable commit headers:
 
-- `gpgsig2` — a DID-addressed author/attestor signature;
-- `tstsig` — an RFC 3161 trusted timestamp token.
+- `didsig` — a DID-addressed author/attestor signature;
+- `tstsig` — an RFC 3161 `TimeStampToken`.
 
-The names are provisional. The important part is the payload projection defined
-for each signature class.
+The names are provisional, but `didsig` deliberately does **not** begin with
+`gpgsig`: current Git's signed-payload reconstruction treats `gpgsig*` headers as
+signature material, so a name such as `gpgsig2` would be excluded from the
+payload covered by a later ordinary `gpgsig`.
+
+The important part is the payload projection defined for each signature class.
 
 #### 1. Base payload
 
@@ -55,7 +59,7 @@ committer ...
 <message>
 ```
 
-`A` MUST contain no `gpgsig`, `gpgsig-sha256`, `gpgsig2`, or `tstsig` headers.
+`A` MUST contain no `gpgsig`, `gpgsig-sha256`, `didsig`, or `tstsig` headers.
 A tool asked to create this form from an already signed/attested commit MUST
 reject it rather than silently remove signatures: removing an existing
 `gpgsig` changes the object being attested to, while adding ordinary fields to
@@ -64,33 +68,56 @@ an already-`gpgsig`-signed commit breaks normal Git signature verification.
 All ordinary commit fields, parents, and the message are frozen once signing
 starts.
 
-#### 2. DID signatures (`gpgsig2`)
+#### 2. DID signatures (`didsig`)
 
 Create zero or more independent DID signatures over the same canonical `A`:
 
 ```text
-S1 = DIDSign(did1, Hash(A))
-S2 = DIDSign(did2, Hash(A))
+S1 = DIDSign(did1, key1, Hash(A))
+S2 = DIDSign(did2, key2, Hash(A))
 ...
 ```
 
-Form `B` by adding every `gpgsig2` header to `A`:
+Form `B` by adding every `didsig` header to `A`:
 
 ```text
-B = A + gpgsig2(S1) + gpgsig2(S2) + ...
+B = A + didsig(S1) + didsig(S2) + ...
 ```
 
-All `gpgsig2` signatures therefore refer to the same base payload; they do not
-form a signature chain. The exact digest algorithm, domain separation, DID/key
-identification, signature algorithm identification, and textual encoding need
-to be specified by the prototype.
+All `didsig` signatures therefore refer to the same base payload; they do not
+form a signature chain. Each value must bind at least:
 
-Once trusted timestamping starts, `gpgsig2` headers MUST NOT be added, removed,
+- the DID;
+- the verification-method/key identifier;
+- immutable public-key material or a cryptographic fingerprint sufficient to
+  verify the signature independently of later DID resolution;
+- digest/signature algorithm identifiers;
+- the signature.
+
+The exact digest algorithm, domain separation, and textual encoding need to be
+specified by the prototype.
+
+A cryptographically valid signature by key `K` is not automatically proof that
+`K` represented DID `D` at the trusted timestamp. DID documents may rotate or
+recover keys. To report a historical claim such as "`D` signed `A` before time
+T", verification MUST also establish that `K` was authorized for `D` at the
+relevant trusted-time bound. Acceptable approaches include:
+
+- a DID method with immutable key binding;
+- historical/versioned DID resolution proving the key was authorized at that
+  time;
+- another immutable authorization proof bound into the attestation.
+
+If the DID method cannot establish contemporaneous authorization, the verifier
+may report the key signature itself but MUST NOT present it as a historically
+verified DID identity.
+
+Once trusted timestamping starts, `didsig` headers MUST NOT be added, removed,
 or changed.
 
 #### 3. Trusted timestamps (`tstsig`)
 
-Timestamp `B`, including all `gpgsig2` headers:
+Timestamp `B`, including all `didsig` headers:
 
 ```text
 H = Hash(B)
@@ -99,9 +126,12 @@ T2 = RFC3161(TSA2, H)
 ...
 ```
 
-RFC 3161 sends the digest as the request `messageImprint`; the TSA supplies the
-trusted `genTime` from its own clock and signs the resulting `TSTInfo` inside
-the returned `TimeStampToken`.
+RFC 3161 sends `H` as the request `messageImprint`. The TSA supplies `genTime`
+from its own clock and signs the resulting `TSTInfo` inside a `TimeStampToken`.
+
+An RFC 3161 `TimeStampResp` is only the protocol response wrapper. On successful
+status, the prototype MUST extract its `timeStampToken` and store exactly that
+`TimeStampToken` in `tstsig`, not the surrounding `TimeStampResp`.
 
 Form `C` by adding zero or more independent `tstsig` headers:
 
@@ -115,13 +145,21 @@ means an additional TSA token may be added later while no standard `gpgsig` has
 yet been added, because all `tstsig` fields are excluded when reconstructing
 `B`.
 
-The prototype must define a deterministic text encoding for the binary RFC 3161
-response, for example base64 DER using Git-style multiline header continuation
-lines.
+The prototype must define a deterministic text encoding for the binary
+`TimeStampToken`, for example base64 of its DER encoding using Git-style
+multiline header continuation lines.
+
+RFC 3161 time is not always an exact point. If the token (or the applicable TSA
+policy) establishes an accuracy `a`, the actual TSA time is bounded by
+`genTime ± a`. A verifier therefore MUST NOT claim that `B` existed no later
+than raw `genTime`; the conservative trusted upper bound is `genTime + a`.
+If no usable accuracy bound can be established, the verifier should expose
+`genTime` but MUST avoid claiming finer ordering precision than the TSA policy
+supports.
 
 #### 4. Existing Git signature (`gpgsig`)
 
-After all `gpgsig2` and `tstsig` headers are final, optionally add a normal Git
+After all `didsig` and `tstsig` headers are final, optionally add a normal Git
 signature using existing Git semantics:
 
 ```text
@@ -130,9 +168,9 @@ D = C + gpgsig(G)
 ```
 
 This step is deliberately last. Current Git removes the recognized `gpgsig`
-header when reconstructing its signed payload, so it verifies `G` against `C`,
-which still contains the unknown `gpgsig2` and `tstsig` headers exactly as they
-were when `G` was produced.
+header when reconstructing its signed payload, while the non-colliding `didsig`
+and `tstsig` headers remain. It therefore verifies `G` against `C`, covering the
+DID signatures and timestamp tokens exactly as they were when `G` was produced.
 
 For the initial compatibility experiment, use the standard signature shapes Git
 already supports (`gpgsig`, and `gpgsig-sha256` where applicable). Do not depend
@@ -144,29 +182,33 @@ general multi-signature facility.
 A specialized verifier reconstructs three different payloads from the final
 commit.
 
-For every `gpgsig2`:
+For every `didsig`:
 
 ```text
 remove all standard Git signature headers
 remove all tstsig headers
-remove all gpgsig2 headers
+remove all didsig headers
 => A
 ```
 
-Verify every `gpgsig2` against `Hash(A)` and its DID/key.
+Verify every `didsig` cryptographically against `Hash(A)` and its bound key.
+Separately verify the DID-to-key authorization at the relevant trusted-time
+bound before reporting a historical DID identity.
 
 For every `tstsig`:
 
 ```text
 remove all standard Git signature headers
 remove all tstsig headers
-KEEP all gpgsig2 headers
+KEEP all didsig headers
 => B
 ```
 
-Verify the RFC 3161 token and require its `messageImprint` to equal `Hash(B)`.
-The verified token's `genTime` is the trusted time. Each TSA is evaluated
-independently according to the user's trust policy.
+Verify the RFC 3161 `TimeStampToken` and require its `messageImprint` to equal
+`Hash(B)`. Report `genTime` together with the established accuracy. When an
+accuracy bound `a` exists, use `genTime + a` as the conservative "existed no
+later than" bound. Each TSA is evaluated independently according to the user's
+trust policy.
 
 For existing Git signatures:
 
@@ -185,7 +227,7 @@ A: commit payload
     |
     +-- zero or more DID signatures
     v
-B: A + gpgsig2*
+B: A + didsig*
     |
     +-- zero or more independent RFC 3161 timestamps
     v
@@ -198,9 +240,10 @@ D: final Git commit
 
 The assertions are intentionally different:
 
-- `gpgsig2`: DID X signed `A`;
-- `tstsig`: `B`, including all listed DID signatures, existed no later than the
-  token's trusted `genTime`;
+- `didsig`: key K signed `A`; DID attribution additionally requires historical
+  authorization of K for that DID;
+- `tstsig`: `B`, including all listed DID signatures, existed by the
+  token/policy's trusted upper time bound;
 - `gpgsig`: the conventional Git signer signed `C`, including all DID
   signatures and trusted timestamp tokens.
 
@@ -217,7 +260,7 @@ parent <B>
 parent <C>
 ```
 
-Those parent object IDs are part of the payload covered by `gpgsig2` and
+Those parent object IDs are part of the payload covered by `didsig` and
 `tstsig`. A single trusted timestamp on such a merge therefore anchors all of
 its parents, and recursively the histories named by those parents, under the
 usual hash-security assumptions.
@@ -235,23 +278,25 @@ patching Git itself.
 Creation should:
 
 - [ ] parse a prospective commit payload and reject pre-existing `gpgsig`,
-  `gpgsig-sha256`, `gpgsig2`, or `tstsig` when starting a new attested commit;
-- [ ] produce zero or more `gpgsig2` values over exactly `A` using DID keys;
-- [ ] produce one or more RFC 3161 requests over exactly `B` and embed the
-  returned tokens as repeatable `tstsig` headers;
+  `gpgsig-sha256`, `didsig`, or `tstsig` when starting a new attested commit;
+- [ ] produce zero or more `didsig` values over exactly `A`, binding the DID and
+  immutable verification key/fingerprint;
+- [ ] produce one or more RFC 3161 requests over exactly `B`, accept only a
+  successful response, extract its `TimeStampToken`, and embed that token as a
+  repeatable `tstsig` header;
 - [ ] optionally add an ordinary Git `gpgsig` last;
 - [ ] write the final object as a standard Git `commit` object and update a ref.
 
-Verification should report each layer separately:
+Verification should report each layer separately, for example:
 
 ```text
 DID signatures:
-  did:...   valid
-  did:...   valid
+  did:...   signature valid; historical authorization valid
+  did:...   signature valid; historical authorization unavailable
 
 Trusted timestamps:
-  TSA A     valid   <genTime>
-  TSA B     valid   <genTime>
+  TSA A     valid   genTime=<...>  accuracy=<...>  upper-bound=<...>
+  TSA B     valid   genTime=<...>  accuracy=<...>  upper-bound=<...>
 
 Git signature:
   valid
@@ -260,18 +305,24 @@ Git signature:
 Compatibility tests should cover:
 
 - [ ] `git cat-file -p`, `git show`, `git log`, `git fsck`, clone/fetch/push, and
-  garbage collection with `gpgsig2`/`tstsig` present;
+  garbage collection with `didsig`/`tstsig` present;
+- [ ] capture the exact payload stock Git passes to its verifier and confirm
+  `didsig` and `tstsig` remain covered by a later ordinary `gpgsig`;
 - [ ] `git verify-commit` on a final commit whose ordinary `gpgsig` was added
   after `tstsig`;
-- [ ] zero, one, and multiple `gpgsig2` values;
+- [ ] zero, one, and multiple `didsig` values;
+- [ ] DID key rotation/recovery cases, including rejection or downgraded identity
+  status when historical authorization cannot be established;
 - [ ] one and multiple `tstsig` values from different TSAs, all verifying the
   same reconstructed `B`;
+- [ ] RFC 3161 responses with success/failure status, absent token, and tokens
+  with/without explicit accuracy;
 - [ ] merge commits with multiple parents, including previously unsigned parent
   histories;
 - [ ] SHA-1 and SHA-256 repositories, including the existing
   `gpgsig-sha256` transition rules;
 - [ ] malformed/duplicate/unsupported signature encodings and rejection rules;
-- [ ] attempting to add `gpgsig2` or `tstsig` after an ordinary `gpgsig` has
+- [ ] attempting to add `didsig` or `tstsig` after an ordinary `gpgsig` has
   already sealed the commit.
 
 If the prototype demonstrates stable interoperability, prepare an upstream Git
