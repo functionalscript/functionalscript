@@ -139,6 +139,31 @@ separate from `Ast<R>` for now: `Ast<R>` keeps the symbol literal, which
 and `rewrite` keeps taking it. Whether `Ast<R>` is retired once the fold
 below exists is decided then.
 
+**What shipped**, in [`../meta/types.ts`](../meta/types.ts), differs from
+the spelling above in two ways, and the rest of this issue is written
+against the older names.
+
+- The metadata is **two parameters, `I` and `O`** (the design's `MI` and
+  `MO`), not one `M` that is their union: `Ast<R, I, O>`, with `Meta<O>`
+  admitted at every row and a leaf `Meta<I, S>`. That is what recovers the
+  symbol literal the paragraph above gives up — the leaf row is `Meta<I, R>`
+  for a rule `R` that is a number literal, so `Ast<42, I, O>` still knows
+  the `42`, and only a *mapped* position widens to `Meta<O>`.
+
+  The empty rewrite set stays the identity **by definition**, as above:
+  `O` defaults to `never` and `Meta` collapses on it, so `Ast<R, I>` is the
+  parser's own tree with no leftover row for a result that cannot exist.
+  It took making `Meta<never>` be `never` — an object type with a `never`
+  field is uninhabited but is not itself `never`, so the row would
+  otherwise survive at every position.
+- It is **its own module**, `ebnf/meta/`, rather than more rows in
+  `ast/types.ts`; the type is named `Ast` there, and `_AnyAst`,
+  `_TupleAst`, `_VariantAst` and `_RepeatAst` mirror `ast/types.ts`'s
+  helpers for the reasons those exist.
+
+`Meta` carries no `id` yet — the alphabet discriminator, and everything
+that reads it, comes with the mappings.
+
 **The property everything rests on.** A value a mapping sees is one of
 two things, told apart by one test. Not an array: a `MetaSymbol`, and
 `meta.id` says which alphabet. An array: built by the machine from the
@@ -279,8 +304,11 @@ and so is not part of the design:
 
 ### Tasks
 
-- [ ] `Meta`, `MetaSymbol`, `MetaAst<M, R>` in `ast/types.ts` beside
-      `Ast<R>`, with the row assertions and the monotonicity law.
+- [x] The type, with the row assertions and the monotonicity law. It
+      shipped as `Meta<M, S>` and `Ast<R, I, O>` in
+      [`../meta/types.ts`](../meta/types.ts), not as `MetaSymbol`/`MetaAst`
+      in `ast/types.ts`; see "What shipped" above for the two deltas. The
+      `id` field, the mapping types and everything below are still open.
 - [ ] `ll1`: input `readonly MetaSymbol<MI>[]`, `symbolAt` and the input
       guard reading `.symbol`, the argument renamed away from `input`;
       frames carry their rule name; `parser(rule, set)` folding at the
@@ -288,7 +316,16 @@ and so is not part of the design:
       rule mapped twice, refused at build.
 - [ ] The per-layer factory binding `MI` and `MO`; `rule(a, f)`,
       `Mapping`, `RewriteSet` types, with `f` contextually typed from
-      `a` under them.
+      `a` under them. **Watch the `Mapping<R>` alias**: TypeScript compares
+      instantiations of a generic alias by the variance of its own
+      parameter, so a `type Mapping<R extends Rule> = (ast: Ast<R, I, O>)
+      => Meta<O>` makes `Mapping<Rule>` *not* assignable to
+      `Mapping<[42, null]>`, while the identical signature written inline
+      is. That is exactly the reuse the paragraph above rests on — "a
+      mapping written against a wider rule type is sound for the concrete
+      rule's tree" — so the alias would take it away. Checked on
+      `ebnf/meta`; base `ast/types.ts` behaves the same, so it is a
+      property of the wrapping, not of this type.
 - [ ] Proofs: the empty set is the identity; `parser(r, set)` agrees with
       parse-then-`rewrite` — `rewrite(set)(r)` applied to `parser(r)`'s
       tree — where the three keyings agree; a two-layer
