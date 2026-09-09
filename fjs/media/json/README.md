@@ -1,6 +1,6 @@
 # JSON
 
-Two codecs over one tokenizer and one structural parser:
+Two codecs over one grammar and one reader:
 
 | Codec                              | Numeric leaves     | Entry point                                       |
 | ---------------------------------- | ------------------ | ------------------------------------------------- |
@@ -11,25 +11,44 @@ Two codecs over one tokenizer and one structural parser:
 JSON text
    |
    v
-tokenizer                 lexeme-first: a number token is its exact source text
+grammar                   fjs/ebnf/lib/json, read over UTF-16 code units
    |
    v
-parse(policy)             one container state machine, one numeric policy per codec
+parse(policy)             one rewrite set folded into the parse, one numeric policy per codec
    |
    +--> number            -> json.Unknown
    +--> number | bigint   -> extended.Unknown
    +--> another policy    -> that codec's own domain
 ```
 
-## Losslessness starts at the tokenizer
+The reader is [`parser/module.f.mjs`](./parser/module.f.mjs): a mapping per
+rule of the grammar, folded by [`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) as
+it parses, so that the value is built where each node is and nesting depth
+stays on the machine's own stack. A parse that fails reports where; a number
+the policy refuses is the policy's error in the number's place, and a
+container holding one is that error too. The reader is built from the
+grammar's exported rules, so what it accepts is what
+[RFC 8259](https://www.rfc-editor.org/rfc/rfc8259) spells, not what a
+JavaScript lexer happens to.
 
-`NumberToken` carries the lexeme and nothing derived from it. Scanning a
-number accumulates text only, so a syntactically valid literal always
-tokenizes: a coefficient with more digits than `number` can hold, an exponent
-past `number`'s precision, or both. Nothing narrows until a codec's numeric
-policy asks for a runtime value.
+The reader's `string` mapping is exported for a grammar built over JSON's
+rules: [`fjs/media/datajs`](../datajs/README.md) reads a DataJS string with
+it, and its numbers through JSON's integer core.
 
-What this replaced was worse than redundant. The tokenizer used to accumulate a
+[`tokenizer/module.f.mjs`](./tokenizer/module.f.mjs) is public and lexical —
+`1 2` tokenizes where it does not parse — and is no longer on `parse`'s
+path; [`todo/self-contained-tokenizer.md`](./todo/self-contained-tokenizer.md)
+holds what becomes of it.
+
+## Losslessness starts at the grammar
+
+The `number` rule's mapping hands the codec's policy the lexeme and nothing
+derived from it, so a syntactically valid literal always reaches the policy
+whole: a coefficient with more digits than `number` can hold, an exponent
+past `number`'s precision, or both. Nothing narrows until the policy asks for
+a runtime value.
+
+What the lexeme-first design replaced was worse than redundant. The tokenizer used to accumulate a
 `BigFloat` alongside the lexeme — the coefficient with bigint arithmetic per
 digit, quadratic in the digit count, and the exponent as an ordinary `number`.
 Past 2^53 that exponent silently lost digits: `1e999999999999999999999`
@@ -41,14 +60,15 @@ regardless of who reads it.
 
 ## The numeric policy is the seam, not an exact tree
 
-Each codec supplies a `NumberPolicy`: given the token, produce a leaf of that
-codec's own domain, or fail. The structural parser hands every number token to
-it and knows nothing else about numbers, so:
+Each codec supplies a `NumberPolicy`: given the lexeme, produce a leaf of that
+codec's own domain, or fail. The reader hands every number's lexeme to it and
+knows nothing else about numbers, so:
 
 - standard parsing never has to build an intermediate `bigint`;
 - extended parsing never has to go through a rounded `number`;
-- a policy can reject a token its domain cannot represent, as an ordinary
-  `Result` error rather than an escaping exception.
+- a policy can reject a number its domain cannot represent, as an ordinary
+  `Result` error rather than an escaping exception — the first in document
+  order, where a document holds several, is the parse's.
 
 The design this replaces was an intermediate tree with `NumberToken` values at
 its numeric leaves, materialized afterwards per codec. That representation is
@@ -69,13 +89,13 @@ no exponent conversion, and no `10 ** exponent`, so an input like
 
 ## Numeric policies
 
-Standard: every token becomes a `number`, the way JavaScript itself reads that
+Standard: every number becomes a `number`, the way JavaScript itself reads that
 text — `1e400` is `Infinity`, `1e-400` is `0`. The bigint-free domain has
 nothing more exact to offer.
 
 Extended: bare integer syntax becomes a `bigint`, exactly, whatever its
-magnitude; `.`/`e`/`E` syntax becomes a `number`; the exact token `-0` stays a
-`number`, since `bigint` has no negative zero. A token outside the finite
+magnitude; `.`/`e`/`E` syntax becomes a `number`; the exact lexeme `-0` stays a
+`number`, since `bigint` has no negative zero. A number outside the finite
 `number` range is a parse error rather than `Infinity` — the extended domain
 is exact where it claims to be, so it rejects instead of rounding. Ordinary
 rounding *within* the range (`1e-400` to `0`, `0.1` to the nearest double) is

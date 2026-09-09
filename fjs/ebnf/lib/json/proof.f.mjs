@@ -1,5 +1,8 @@
 /**
- * @import { Rule } from '../../types.ts'
+ * @import { Assert } from '../../../asserts/types.ts'
+ * @import { Equal } from '../../../types/ts/types.ts'
+ * @import { Ast, Children, Meta } from '../../ast/types.ts'
+ * @import { Rule, Variant } from '../../types.ts'
  */
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
@@ -13,6 +16,7 @@ import {
     optionNeg,
     string,
     uint,
+    value,
     ws,
     wsSymbol,
 } from './module.f.mjs'
@@ -167,6 +171,30 @@ export const proof = {
         assertEq(tag, 'const')
         assertStructurallySame(keys(variant), alternatives)
     },
+    // The helpers build rules as precise as ones written out, so `Ast` sees
+    // the grammar's shape rather than a tagged node of any kind: a value's
+    // node is one of its seven branches, a value inside a container is a
+    // value again, and a shape the grammar cannot produce is refused — an
+    // empty node where a value must be, or a tag the value has not, at
+    // depth as at the top. `value` names itself, so its type does too, in
+    // `./types.ts`.
+    types: () => {
+        /** @typedef {Meta<'i'>} _Leaf */
+        /** @typedef {Children<typeof value, 'i', 'o'>} _Value */
+        /** @typedef {Assert<Equal<_Value[0], 'array' | 'object' | 'string' | 'number' | 'true' | 'false' | 'null'>>} _Tags */
+        /** @typedef {Assert<Equal<Ast<typeof json, 'i'>, readonly [Ast<typeof ws, 'i'>, Ast<typeof value, 'i'>, Ast<typeof ws, 'i'>]>>} _Document */
+        /** @typedef {readonly ['null', readonly _Leaf[]]} _Null */
+        /** @typedef {readonly ['array', readonly [readonly [_Leaf], readonly [], readonly [], readonly [_Leaf]]]} _Empty */
+        /** @typedef {readonly ['array', readonly [readonly [_Leaf], readonly [], readonly [readonly [readonly [_Null, readonly []], readonly []]], readonly [_Leaf]]]} _OfNull */
+        /** @typedef {readonly ['array', readonly [readonly [_Leaf], readonly [], readonly [readonly [readonly [readonly ['nope', readonly []], readonly []], readonly []]], readonly [_Leaf]]]} _OfNope */
+        /** @typedef {Assert<_Null extends Ast<typeof value, 'i'> ? true : false>} _Accepts */
+        /** @typedef {Assert<_Empty extends Ast<typeof value, 'i'> ? true : false>} _Accepts0 */
+        /** @typedef {Assert<_OfNull extends Ast<typeof value, 'i'> ? true : false>} _Accepts1 */
+        /** @typedef {Assert<Equal<readonly ['array', readonly []] extends Ast<typeof value, 'i'> ? true : false, false>>} _Rejects */
+        /** @typedef {Assert<Equal<_OfNope extends Ast<typeof value, 'i'> ? true : false, false>>} _Rejects0 */
+        /** @typedef {Assert<Equal<readonly [readonly [], readonly [], readonly []] extends Ast<typeof json, 'i'> ? true : false, false>>} _Rejects1 */
+        assertEq(value()[1].array[2]()[3][0][0], value)
+    },
     throw: {
         // The delimiters are exactly two symbols: one leaves the closing one
         // `undefined`, and three silently drops the last.
@@ -179,9 +207,7 @@ export const proof = {
      * consumer takes `json` through the advertised type. Nothing else states
      * that — the module pins `json` as a literal rather than annotating it, so
      * a shape that drifts out of the union would otherwise be caught at the
-     * first consumer instead of here. The annotated binding is the check: a
-     * `@typedef` in a function body is not resolved unless something uses it,
-     * so an `Assert` written that way would pass whatever it claimed.
+     * first consumer instead of here. The annotated binding is the check.
      */
     contract: () => {
         /** @type {Rule} */
@@ -189,7 +215,11 @@ export const proof = {
         assertEq(rule, json)
         // `Variant` is an abstraction: an alternative that isn't there is
         // typed as a rule and is `undefined` at runtime. `types.ts` pins the
-        // type side of this; here is the value side it stands for.
-        assertEq(createValue('p', 'v').missing, undefined)
+        // type side of this; here is the value side it stands for, read
+        // through the abstraction, since the value `createValue` builds is
+        // typed by its seven tags and has no `missing`.
+        /** @type {Variant} */
+        const variant = createValue('p', 'v')
+        assertEq(variant.missing, undefined)
     },
 }

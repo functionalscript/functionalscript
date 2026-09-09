@@ -1,11 +1,14 @@
 /**
+ * @import { Assert } from '../../../asserts/types.ts'
+ * @import { Equal } from '../../../types/ts/types.ts'
+ * @import { Ast, Children, Meta } from '../../ast/types.ts'
  * @import { Rule, Thunk, Variant } from '../../types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { force } from '../../testlib.f.mjs'
 import { string, ws, wsSymbol } from '../json/module.f.mjs'
-import { dataJs } from './module.f.mjs'
+import { constStatement, dataJs, exportStatement, id, number, property, value as exportedValue } from './module.f.mjs'
 
 const { keys } = Object
 
@@ -61,9 +64,9 @@ const statementOf = s => {
 
 // `dataJs` is `[ws, const statements, export statement]`; every statement
 // ends in the one `value` thunk, reached here through the export statement.
-const [, constStatements, exportStatement] = dataJs
+const [, constStatements, lastStatement] = dataJs
 
-const valueRule = exportStatement[4]
+const valueRule = lastStatement[4]
 
 assert(typeof valueRule === 'function')
 
@@ -89,13 +92,19 @@ export const proof = {
     // `default` so `exportdefault` and `default1` are rejected.
     exportStatement: () => {
         assertStructurallySame(
-            statementOf(exportStatement),
+            statementOf(lastStatement),
             statementData(['export', ws1Data, 'default', ws1Data]))
     },
-    // A module is one whitespace run, the declarations, and the export.
+    // A module is one whitespace run, the declarations, and the export; the
+    // rules a reader keys a mapping by are the ones the module holds.
     dataJs: () => {
         assertStructurallySame(force(dataJs[0]), wsData)
         assertEq(dataJs.length, 3)
+        assertEq(constStatements()[3], constStatement)
+        assertEq(lastStatement, exportStatement)
+        assertEq(value, exportedValue)
+        assertEq(constStatement[2], id)
+        assertEq(constVariant(value).number, number)
     },
     value: {
         // The seven JSON alternatives and three more, in that order.
@@ -147,11 +156,31 @@ export const proof = {
             assert(pair instanceof Array)
             const [member] = pair
             assert(member instanceof Array)
-            const [property] = member
-            assert(typeof property === 'object' && property !== null && !(property instanceof Array))
+            const [key] = member
+            assertEq(key, property)
             assertStructurallySame(keys(property), ['string', 'proto'])
             assertEq(property.string, string)
             assertStructurallySame(property.proto, '["__proto__"]')
+        },
+        // The value is typed as the rule it spells: a mapping of it receives
+        // its ten branches, a statement's AST keeps its arity, and the
+        // document's AST refuses a shape the grammar cannot produce — an empty
+        // node where a statement must be, or a branch the value has no tag
+        // for, at depth as at the top.
+        types: () => {
+            /** @typedef {Meta<'i'>} _Leaf */
+            /** @typedef {Children<typeof value, 'i', 'o'>} _Value */
+            /** @typedef {Assert<Equal<_Value[0], 'array' | 'object' | 'string' | 'number' | 'true' | 'false' | 'null' | 'nan' | 'undefined' | 'id'>>} _Tags */
+            /** @typedef {Assert<Equal<Ast<typeof dataJs, 'i'>, readonly [Ast<typeof ws, 'i'>, readonly Ast<typeof constStatement, 'i'>[], Ast<typeof exportStatement, 'i'>]>>} _Document */
+            /** @typedef {Assert<Equal<Ast<typeof exportStatement, 'i'>, readonly [readonly _Leaf[], readonly [_Leaf, ...readonly _Leaf[]], readonly _Leaf[], readonly [_Leaf, ...readonly _Leaf[]], Ast<typeof value, 'i'>, readonly _Leaf[], readonly _Leaf[], readonly _Leaf[]]>>} _Export */
+            /** @typedef {readonly ['undefined', readonly _Leaf[]]} _Undefined */
+            /** @typedef {readonly ['array', readonly [readonly [_Leaf], readonly [], readonly [readonly [readonly [_Undefined, readonly []], readonly []]], readonly [_Leaf]]]} _OfUndefined */
+            /** @typedef {readonly ['array', readonly [readonly [_Leaf], readonly [], readonly [readonly [readonly [readonly ['nope', readonly []], readonly []], readonly []]], readonly [_Leaf]]]} _OfNope */
+            /** @typedef {Assert<_Undefined extends Ast<typeof value, 'i'> ? true : false>} _Accepts */
+            /** @typedef {Assert<_OfUndefined extends Ast<typeof value, 'i'> ? true : false>} _Accepts0 */
+            /** @typedef {Assert<Equal<_OfNope extends Ast<typeof value, 'i'> ? true : false, false>>} _Rejects */
+            /** @typedef {Assert<Equal<readonly [readonly [], readonly [], readonly []] extends Ast<typeof dataJs, 'i'> ? true : false, false>>} _Rejects0 */
+            assertEq(value()[1].array[2]()[3][0][0], value)
         },
     },
 }

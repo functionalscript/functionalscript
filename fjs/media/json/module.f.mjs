@@ -3,7 +3,7 @@
  * immutable nested updates.
  *
  * `parse` is the total, `Result`-returning `text → Unknown` entry point built
- * on this module's own tokenizer and parser.
+ * on this module's own reader over the JSON grammar.
  *
  * The JSON value types (`Unknown`, `Primitive`, `Object`, `Array`) live in
  * [`./types.ts`](./types.ts), and the rtti schemas they are pinned against in
@@ -12,8 +12,7 @@
  * This is the standard, bigint-free codec: numbers are JavaScript `number`s.
  * [`./extended/module.f.mjs`](./extended/module.f.mjs) is the sibling codec
  * that keeps JSON's bare integer syntax as `bigint`. Both are numeric policies
- * over the same tokenizer and the same structural parser — see
- * [`./README.md`](./README.md).
+ * over the same grammar and the same reader — see [`./README.md`](./README.md).
  *
  * @module
  *
@@ -25,9 +24,7 @@
 
 import { next } from '../../types/list/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
-import { stringToList } from '../../text/utf16/module.f.mjs'
-import { parse as parseTokens } from './parser/module.f.mjs'
-import { tokenize } from './tokenizer/module.f.mjs'
+import { parse as parseWith } from './parser/module.f.mjs'
 import { at } from '../../types/object/module.f.mjs'
 import { compose } from '../../types/function/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
@@ -78,22 +75,22 @@ export const serialize = treeSerialize(primitiveSerialize)
 export const stringify = sort => compose(serialize(sort))(concat)
 
 /**
- * The standard codec's numeric policy: every JSON number token becomes a
- * JavaScript `number`, read from the token's own lexeme.
+ * The standard codec's numeric policy: every JSON number becomes a
+ * JavaScript `number`, read from its own lexeme.
  *
  * It is total — no valid JSON number is rejected — so a magnitude outside the
  * finite `number` range materializes the way JavaScript itself reads that
  * text (`1e400` is `Infinity`, `1e-400` is `0`). The bigint-free domain has
  * nothing more exact to offer; the extended codec keeps such distinctions,
- * from the same token, without this one having to.
+ * from the same lexeme, without this one having to.
  *
  * @type {NumberPolicy<number>}
  */
-const numberPolicy = token => ok(parseFloat(token.value))
+const numberPolicy = lexeme => ok(parseFloat(lexeme))
 
 /**
- * Parses `text` as JSON with this module's own pure tokenizer and parser,
- * reporting failure as a `Result` rather than throwing: malformed input is
+ * Parses `text` as JSON with this module's own pure reader over the JSON
+ * grammar, reporting failure as a `Result` rather than throwing: malformed input is
  * *available* as an `error` to branch on. Whether to branch or to `unwrap` it
  * back into a panic is the caller's decision — the parser no longer makes it
  * for them.
@@ -103,4 +100,4 @@ const numberPolicy = token => ok(parseFloat(token.value))
  *
  * @type {(text: string) => Result<Unknown, string>}
  */
-export const parse = text => parseTokens(numberPolicy)(tokenize(stringToList(text)))
+export const parse = parseWith(numberPolicy)

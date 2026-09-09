@@ -25,20 +25,18 @@ Item 1 is context rather than work. **Item 2 is what to start.**
 
    **It is not blocked, though two earlier drafts of this plan said so.**
    Measurement retired that claim: the document grammar exists at
-   `fjs/ebnf/lib/json`, the LL(1) backend parses JSON with it, and
-   `fjs/ebnf/map` is the engine that rewrites a parsed tree. What 3b runs is
+   `fjs/ebnf/lib/json`, the LL(1) backend parses JSON with it and folds a
+   rewrite set into the parse. What 3b runs is
    narrower and **not written**: a token-stream grammar over that module's
    exported lexical rules, over UTF-16 code units, mapped to the tokens the
    container machine consumes — the machine stays, with both codecs and
    their `NumberPolicy` untouched. Four measured contracts decide that, in
    the stage's issue: a value mapping would lose the seam the extended
-   codec's `123n` comes from and, through `rewrite`'s per-node recursion
-   ([stack-safe-rewrite](../fjs/ebnf/map/todo/stack-safe-rewrite.md)), the
-   depth today's parser is proven at; the public `tokenize` accepts streams
+   codec's `123n` comes from; the public `tokenize` accepts streams
    that are no document, which the document grammar rejects; and strings are
    code-unit sequences, which the `ll1` proof's code-point decoding throws
    on. Its typed mapping has one prerequisite, `string`'s pin in
-   [widened-rule-signatures](../fjs/ebnf/lib/todo/widened-rule-signatures.md),
+   widened-rule-signatures (closed),
    and one design question of its own: the naive token grammar gets a
    number's and a word's boundaries wrong. The metadata channel in
    [#1890](https://github.com/functionalscript/functionalscript/pull/1890) buys
@@ -90,11 +88,12 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    The normative
    behavior is already settled in
    [`spec/datajs/README.md`](../spec/datajs/README.md); stage 4 implements that
-   spec, it does not redesign it. Its first task is a decision the stage list
-   below states: whether the reader is the grammar at `fjs/ebnf/lib/datajs`
-   mapped to values, or the token-driven container machine. Only on the second
-   route is JSON's parser seam — **not** wide enough today — prerequisite
-   work; on the first it is retired instead.
+   spec, it does not redesign it. Its first task, the decision the stage list
+   below states, is made and its reader landed: the grammar at
+   `fjs/ebnf/lib/datajs` mapped to values by `fjs/media/datajs/parser`, the
+   token-driven container machine retired for this format rather than widened,
+   so JSON's parser seam is no prerequisite. The byte path, the serializer and
+   normalized form remain.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
 4. **Then stages 5–7**, in order, as listed below.
@@ -604,12 +603,14 @@ throughout.
 4. **`fjs/media/datajs` — urgent, see above; this is what EDAG needs.** Parser
    and serializer, proofs over the spec vectors.
 
-   **Which reader stage 4 builds is an open question, and it must be settled
-   before its prerequisite work starts.** The reversal above puts DataJS's
-   reader on a grammar, and
-   [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) already exists
-   and already imports JSON's rules. The paragraph below describes the *other*
-   route, written when a hand-written token-driven parser was the plan:
+   **Settled: the reader is the grammar, and it landed** —
+   [`fjs/media/datajs/parser`](../fjs/media/datajs/parser/module.f.mjs) folds
+   [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) to a node per
+   value and resolves the names over the statements, keeping the depth
+   contract through an explicit stack; the container machine is retired for
+   this format and the quoted seam work below is not owed. What follows
+   records the question as it stood. The paragraph below describes the
+   *other* route, written when a hand-written token-driven parser was the plan:
 
    > The parser reuses JSON's container machine, and today's seam is
    > **not wide enough for that**: `NumberPolicy` receives number tokens only,
@@ -639,10 +640,8 @@ throughout.
    keep depth through the mapping, on top of the recursive type DataJS's
    widened `value` thunk needs like JSON's; the token route keeps it by
    construction and is what today's code is shaped for.
-   Whoever
-   starts stage 4 settles this first and records it here and in
-   [its own issue](../fjs/media/datajs/todo/parser-serializer.md), which says
-   the same and makes the decision its first task.
+   It is settled, above, and recorded in
+   [its own issue](../fjs/media/datajs/todo/parser-serializer.md).
 
    The serializer is unaffected either way, since nothing generates one from a
    grammar. It is the shared walker of
@@ -718,13 +717,13 @@ throughout.
       the defect that predates the replacement and is provable without it.
 - [ ] Stage 3b: the reader comes from a grammar over `fjs/ebnf/`, not from a
       hand-written scanner. **Startable but not first**: the lexical rules
-      exist at `fjs/ebnf/lib/json` and `fjs/ebnf/map` is the engine that
-      rewrites a tree — the token-stream grammar 3b runs, over UTF-16 code
+      exist at `fjs/ebnf/lib/json` and `fjs/ebnf/ll1` folds a rewrite set
+      into the parse — the token-stream grammar 3b runs, over UTF-16 code
       units, is still to be written and made to match today's at a number's
       and a word's boundaries; its mapping builds **tokens** for the container
       machine that stays and
       needs `string`'s pin from
-      [widened-rule-signatures](../fjs/ebnf/lib/todo/widened-rule-signatures.md)
+      widened-rule-signatures (closed)
       first — so this is no longer blocked on
       [#1890](https://github.com/functionalscript/functionalscript/pull/1890) —
       that channel buys better errors than today's, not the ones owed. What is
@@ -738,8 +737,9 @@ throughout.
       `fjs/ebnf/lib/datajs` already does — and what error shapes a
       grammar-driven reader should produce is the open question that issue
       lists.
-- [ ] Stage 4: `fjs/media/datajs`; file its todo. Needs stage 1b's corpus in
-      place as its proof source.
+- [ ] Stage 4: `fjs/media/datajs`; todo filed, reader landed on the grammar
+      route. The byte path, the serializer and normalized form remain, with
+      proofs over stage 1b's corpus as their source.
 - [ ] Stage 5: front-end move to `fjs/fsc`; file its todo.
 - [ ] Stage 6: normalizer + subset-law proofs; file its todo.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.

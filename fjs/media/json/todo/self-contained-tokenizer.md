@@ -1,27 +1,33 @@
 ## self-contained-tokenizer. JSON's reader comes from a grammar, not a wrapper
 
-**Priority:** P2 — lowered from P1. Stage 4 still waits on it, but the error
-shapes are undecided and `fjs/ebnf/` is mid-migration, so it is not the thing
-to pick up first.
-**Status:** open — **partly startable**. Measurement retired the two blockers
-earlier drafts claimed; see [What is actually missing](#what-is-actually-missing).
-The document grammar exists, the LL(1) backend parses JSON with it, and
-`fjs/ebnf/map` is the engine that rewrites a tree. What this stage runs is
-narrower and not yet written: a **token-stream grammar** over that module's
-exported lexical rules, over **UTF-16 code units**, mapped to the tokens the
-container machine consumes — the four contracts that decide it are under
-[What the reader must keep](#what-the-reader-must-keep). What is undecided is
-what the reader reports on malformed input, how a number's and a word's
-boundaries are made to match today's, and what a streaming consumer gets.
-**Prerequisite of one task, not of the issue:**
-[widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md) —
-its `string` row; the mapping cannot be type-checked before it.
+**Priority:** P3 — lowered from P2. The reader is the grammar's now; what
+is left is the public `tokenize`, which no longer lies on `parse`'s path.
+**Status:** open — **the value route landed as the reader.**
+[`fjs/media/json/parser`](../parser/module.f.mjs) folds the document grammar
+of [`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs) to a JSON
+value per numeric policy, both codecs' `parse` run it, and the container
+machine over a token stream that it replaced is deleted. Of the four
+contracts under [What the reader must keep](#what-the-reader-must-keep),
+three are kept through the mapping — depth, the numeric policy and strings
+as code units — and the fourth, a public `tokenize`, is kept by leaving the
+tokenizer where it is, unchanged and off `parse`'s path. A parse failure is
+reported by index, `unexpected end` or `unexpected symbol at N`, and a
+number the policy refuses is the policy's own message; the classified
+messages of today's tokenizer reach nothing but `tokenize`.
+What remains of this stage is that tokenizer: the ~100-line adapter over
+`fjs/js/tokenizer` still exists for whoever calls `tokenize`, and the
+**token-stream grammar** below — over the grammar's exported lexical rules,
+over **UTF-16 code units**, mapped to tokens — is what would replace it.
+Whether `tokenize` is rebuilt that way or retired is the open question, and
+the boundary and error-shape work below is owed only by rebuilding it.
+**No prerequisite left in `fjs/ebnf`:** the `string` row of
+widened-rule-signatures (closed),
+which typed a mapping's parameter as `Children<Rule>` and pinned nothing,
+landed with the value mapping below.
 **Related, not blocking:**
-[ebnf-migration](../../../todo/ebnf-migration.md); the metadata channel in
-[functionalscript/functionalscript#1890](https://github.com/functionalscript/functionalscript/pull/1890)
-— which buys *better* errors than today's, not the ones this reader owes; and
-[stack-safe-rewrite](../../../ebnf/map/todo/stack-safe-rewrite.md), which a
-token-stream grammar's flat tree does not reach.
+[ebnf-migration](../../../todo/ebnf-migration.md); the metadata channel of
+[`fjs/ebnf/ast`](../../../ebnf/ast/README.md) — which buys *better* errors
+than today's, not the ones this reader owes.
 
 ### The direction changed, and this issue is rewritten around it
 
@@ -79,24 +85,26 @@ Measured against the tree as it stands:
   what that grammar is built from, and they are not work this issue owes.
 - The **LL(1) backend already parses JSON with it**, as
   [`fjs/ebnf/ll1/proof.f.mjs`](../../../ebnf/ll1/proof.f.mjs) shows.
-- **The mapping engine exists; JSON's mapping does not.**
-  [`fjs/ebnf/map`](../../../ebnf/map/README.md) rewrites an AST bottom-up,
-  keyed by the rules the grammar exports, and `ll1`'s proof does it on a
-  smaller grammar. At runtime a `rewrite` keyed on the `value` thunk, reachable
-  as `json[1]`, rewrites the parsed node. **Under `tsc` it is refused**: `value`
-  is annotated `Const<Variant>` and `string` is annotated `Rule`, neither of
-  which says its parts, so `Checked` rejects both as keys — measured, along
-  with `json` itself; `digit` and `uint` are accepted. A token mapping keys
-  on `string`, a number tuple and its own token variant, and never on
-  `value`, so what it waits on is the `string` pin alone —
-  [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)'
-  `string` row; `uint`, `optionNeg`, `optionFloatSuffix` and `ws` are
-  accepted, and the token variant is refused only for holding `string`. One
-  more measured rule of the road: a repetition built in place inside the map
-  literal is refused where the same rule held in a binding is accepted, so
-  hold the rule, then key on it, which is what the map's README says. The pin
-  is prerequisite type work, not a missing capability, and it is the one
-  thing the mapping task below cannot start without.
+- **The mapping engine exists, and so does a JSON mapping — the value
+  route's, not this stage's.**
+  [`fjs/ebnf/ll1`](../../../ebnf/ll1/README.md) folds a rewrite set into
+  the parse, keyed by the identity of the rules the grammar exports, and
+  [`fjs/media/json/parser`](../parser/module.f.mjs)
+  folds the document grammar to a JSON value with it: `string`, `number`,
+  `value` and `json` are held and exported, each mapping's function typed
+  from its rule — the `string` and `value` rows of
+  widened-rule-signatures (closed)
+  are done for this grammar — and a number outside the finite range is an
+  `error` carried up through the containers, which is how a mapping
+  reports what it cannot make a value of. It runs over code units, so the
+  string contract below holds; its set is built per numeric policy, so the
+  policy contract holds too, and it is the reader both codecs run. A token
+  mapping for this stage keys on `string`, a
+  number tuple and its own token variant, and never on `value`, and its
+  typing no longer waits on anything. One more measured rule of the road: a
+  rule built in place inside the set literal is a rule the grammar does not
+  hold, refused at build, where the same rule held in a binding is the key,
+  so hold the rule, then key on it.
 - An LL(1) failure returns **an offset** — `[1,` yields `['error', 3]`.
 
 **`json` alone is a prefix parser, and a reader must not use it that way.** The
@@ -116,23 +124,21 @@ LL(1) fails there is no AST, so there are no mapped nodes to carry metadata.
 Classifying a failure is the backend's job, not the mapping's.
 
 **The bar for errors is low, which is what makes the work startable.**
-[`fjs/media/json/parser`](../parser/module.f.mjs) says in its own source that
-its single error "carries no position or metadata". So the public parser's
-contract is met by discarding the offset the backend already gives. The
-tokenizer's classified messages (`invalid number`, `invalid token`) are the
-harder half, and this issue already accepts that error shapes change once in
-the swap.
+The container machine this reader replaced reported one error that
+"carries no position or metadata"; [`fjs/media/json/parser`](../parser/module.f.mjs)
+now names the index the backend gives. The tokenizer's classified messages
+(`invalid number`, `invalid token`) are the harder half, and this issue
+already accepts that error shapes change once in the swap.
 
 So what genuinely remains, in the order it should be done:
 
 1. **Error shapes.** Decide what a grammar-driven reader reports. This is design
    work, not a dependency, and it is the last item under
    [What this still needs](#what-this-still-needs).
-2. **`string`'s pin.** The one dependency: until
-   [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)
-   lands its `string` row, the mapping can be run but not type-checked. Its
-   `value` row is not needed here, since no lexical rule names `value`. It is
-   filed P4, which understates it now that a P2 stage waits on it.
+2. **`string`'s pin** — done, with the `value` row beside it, by the value
+   mapping in
+   [`fjs/media/json/parser`](../parser/module.f.mjs):
+   a mapping of `string` is typed from the rule it decodes.
 3. **Token boundaries.** The token-stream grammar written naively is not
    LL(1) at a number, because `12` is one token where `1 2` is two and a
    nullable separator cannot decide that predictively, and it accepts
@@ -157,18 +163,19 @@ withdrawn.
 ### What the reader must keep
 
 Four contracts of today's public API, each measured, and each held to as the
-two invariants below are. The first two rule out a mapping straight to values;
-the last two decide which grammar the tokenizer runs, and over what symbols.
+two invariants below are. An earlier draft read the first two as ruling out
+a mapping straight to values; the reader that landed keeps them through one,
+as the paragraph after the rows says. The last two decide which grammar the
+tokenizer runs, and over what symbols.
 
 - **Depth.** [`fjs/media/json/parser`](../parser/module.f.mjs) walks containers
   on a heap stack, and its proof requires 5,000 nested arrays and 6,000
   sibling containers to return `ok`. `fjs/ebnf/ll1` keeps that — 6,000 nested
-  arrays parse — but `fjs/ebnf/map` recurses per node, and `rewrite([])` over
-  the *document* tree of 1,000 nested arrays throws `RangeError`
-  ([stack-safe-rewrite](../../../ebnf/map/todo/stack-safe-rewrite.md)). A
-  token-stream tree is flat, so it is not reached: 20,000 nested brackets lex
-  to 40,000 tokens and rewrite without incident, and depth stays where it is
-  kept today, in the container machine.
+  arrays parse, and the fold applies a mapping in the machine's own loop, so
+  it adds no depth (the separate rewrite it retired overflowed at 1,000). A
+  token-stream tree is flat in any case: 20,000 nested brackets lex to
+  40,000 tokens, and depth stays where it is kept today, in the container
+  machine.
 - **The numeric policy.** A number token reaches the codec's `NumberPolicy`
   with its exact lexeme, which is the parser's stated design: `extended.parse`
   reads `123` as `123n` and `9007199254740993` without rounding, where the
@@ -205,13 +212,17 @@ the last two decide which grammar the tokenizer runs, and over what symbols.
   is what keeps this row and the previous one consistent. Keywords and
   whitespace are ASCII and unaffected.
 
-**So the reader is a token-stream grammar over code units, mapped to tokens.**
-The container machine stays, with both codecs and their policies untouched,
-and it is what keeps the first two contracts; the grammar and its alphabet
-keep the last two. That is also this stage's stated scope — replacing the
-tokenizer wrapper — where a value mapping would retire the parser too. The
-value route stays open to whoever can show all four kept through a mapping;
-nothing measured says that is impossible, only that the pieces do not exist.
+**The reader is the value mapping, and the token-stream grammar is what
+`tokenize` would become.** The container machine is gone: the rewrite set in
+[`fjs/media/json/parser`](../parser/module.f.mjs) is built per policy, so
+its `number` mapping hands the policy the exact lexeme and the policy's
+error stands in the number's place, the first in document order being the
+document's — which is how the first two contracts are kept through a
+mapping, where an earlier draft of this section held that they could not
+be. The grammar and its alphabet keep the third, and `tokenize`, the
+fourth, is unchanged and no longer on `parse`'s path. The boundary rows
+below are then measurements of `tokenize` alone, owed by a token-stream
+grammar only if `tokenize` is rebuilt rather than retired.
 
 **The token-stream grammar is not written, and written naively it gets two
 boundaries wrong.** `[ws, repeat0([token, ws]), eof]`, with `token` a variant
@@ -735,17 +746,18 @@ blocked. The first two items can be started today.
       was written to RFC 8259 rather than against this tokenizer, so agreement
       is expected but unmeasured, and the `1n1` class is exactly where today's
       wrapper is known to differ from JSON.
-- [ ] Write the mapping from its AST to the **tokens** `fjs/media/json/parser`
-      consumes, which is `fjs/ebnf/map`'s `rewrite` — the shape `ll1`'s proof
-      demonstrates on a smaller grammar, building values there where this one
-      builds tokens ([What the reader must keep](#what-the-reader-must-keep)
-      says why). This is the reader's substance and the part that does not
-      exist yet. Its keys are `string`, the number tuple and the token
-      variant, held in bindings; a string token's value is its raw units
-      kept and its escapes decoded, one unit per `\uXXXX`, as the code-unit
-      contract above says.
+- [ ] Write the mapping from its AST to the **tokens** `tokenize` yields,
+      which is the rewrite set `fjs/ebnf/ll1` folds — the shape
+      its proof's `layers` entry demonstrates on a smaller grammar, a token
+      alphabet whose metadata carries each token's value
+      ([What the reader must keep](#what-the-reader-must-keep) says why).
+      This is the tokenizer's substance and the part that does not exist yet.
+      Its keys are `string`, the number tuple and the token variant, held
+      in bindings; a string token's value is its raw units kept and its
+      escapes decoded, one unit per `\uXXXX`, as the code-unit contract
+      above says.
       **After** `string`'s pin, per
-      [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md),
+      widened-rule-signatures (closed),
       since `Checked` refuses it as a key today.
 - [x] ~~Decide what replaces the seam.~~ **Answered in code, and it is what the
       reversal predicted.**
@@ -772,10 +784,11 @@ blocked. The first two items can be started today.
   rule.
 - [ebnf-migration](../../../todo/ebnf-migration.md) — `fjs/ebnf/` beside
   `fjs/bnf/`, then retire `bnf/`. The module this now depends on.
-- [#1890](https://github.com/functionalscript/functionalscript/pull/1890) —
-  `meta-ast-mapping`, the metadata channel. **Optional**: it buys errors better
-  than today's, is not needed to match the current parser's contract, and
-  cannot classify an LL(1) failure, which yields no tree to annotate.
+- [`fjs/ebnf/ast`](../../../ebnf/ast/README.md) — the metadata channel.
+  **Optional** for errors: it buys errors better than today's, is not
+  needed to match the current parser's contract, and cannot classify an
+  LL(1) failure, which yields no tree to annotate. It is where a token's
+  value lives, so the token mapping uses it either way.
 - [#1895](https://github.com/functionalscript/functionalscript/pull/1895) —
   the withdrawn hand-written implementation. Read it for the measurements and
   for the defect classes review found, not as a plan.
@@ -796,5 +809,6 @@ blocked. The first two items can be started today.
   [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) — the grammars
   this reader is to run, both already written and proof-covered, the second
   importing the first's rules.
-- [`fjs/ebnf/map`](../../../ebnf/map/README.md) — the AST-to-value rewrite a
-  reader's mapping is written in, and the layer the metadata channel extends.
+- [`fjs/ebnf/ll1`](../../../ebnf/ll1/README.md) — the rewrite set a
+  reader's mapping is written in, folded into the parse over the metadata
+  channel.

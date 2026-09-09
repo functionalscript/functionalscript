@@ -102,9 +102,9 @@ const transpileModule = path => mapStep(
  * nothing, so it needs no AST and no evaluation — `fjs/media/json` reads it
  * and the value is the result.
  *
- * That reader reports its errors without a position, so the `ParseError` has
- * no metadata and `fjs/djs`'s `compile` names the file instead of a line and
- * column.
+ * That reader reports where it failed as an offset in its message rather
+ * than as metadata, so the `ParseError` has none and `fjs/djs`'s `compile`
+ * names the file instead of a line and column.
  *
  * @type {(path: string) => Effect<ReadFile, Unknown, ParseError>}
  */
