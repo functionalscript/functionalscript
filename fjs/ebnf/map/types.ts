@@ -142,7 +142,7 @@ type _Any<M extends RuleMap> =
     | readonly [string, _Any<M>]
     | _Outputs<M>
 
-type _ToString<V> =
+type _PropertyName<V> =
     V extends string ? V :
     V extends number ? `${V}` :
     never
@@ -154,7 +154,7 @@ type _VariantChildren<R extends Variant, M extends RuleMap> =
     string extends keyof R ? readonly [string, Mapped<Rule, M>] :
     {
         readonly [K in keyof R]: readonly [
-            _ToString<K>,
+            _PropertyName<K>,
             Mapped<Exclude<R[K], undefined>, M>
         ]
     }[keyof R]
