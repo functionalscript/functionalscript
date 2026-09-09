@@ -37,10 +37,13 @@ This is the AGENTS.md rule *"when two code branches share most of their
 structure, refactor so the shared part appears once and only the difference
 lives in the conditional"* — and the difference itself (`children of a
 container`) already has two real consumers, so extraction is past the
-second-consumer bar. It is also the serializer counterpart of
-[the JSON parser's container-stack bookkeeping](../../media/json/todo/parser-container-stack-bookkeeping.md),
-which merges that parser's container-kind branches. It is a JSON-only issue now —
-the DJS parser it once paired with is a BNF grammar with no such helpers.
+second-consumer bar. It was also the serializer counterpart of a JSON parser
+issue, merging that parser's container-kind branches; that issue closed with
+the container machine it described, when
+[`fjs/media/json/parser`](../../media/json/parser/module.f.mjs) became a
+rewrite set folded into the grammar's parse, which has no such branches. It is
+a serializer-only issue now — the DJS parser it once paired with is a BNF
+grammar with no such helpers either.
 
 ### Proposal
 
@@ -75,9 +78,10 @@ No behavior change: the same child lists flow into the same folds.
 ### Related
 
 - `fjs/djs/serializer/module.f.mjs:66-73`, `:149-175`, `:80-82` (`entryValue`).
-- [the JSON parser's container-stack bookkeeping](../../media/json/todo/parser-container-stack-bookkeeping.md)
-  — the same container-kind merge, on the JSON parser. No longer a DJS counterpart:
-  the DJS parser has no container helpers to merge.
+- [`fjs/media/json/parser`](../../media/json/parser/module.f.mjs) — the JSON
+  parser whose container-kind merge was this issue's counterpart; the
+  grammar-driven reader has no container helpers to merge, and neither has
+  the DJS parser.
 - [197](./197-djs-unknown-shape-walker.md) — the eventual cross-function `Visitor` factory would
   supersede this, but it is deferred (blocked by [157](./157-json-djs-shared-value-machine.md)); this
   two-line helper is independently landable now and shrinks what 197 will

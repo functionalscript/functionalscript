@@ -11,7 +11,7 @@ property its original documents.
 
 `nullable` is a pure copy — same body, same "own entry only" rationale in
 the doc comment, which even cites `../data` as the source
-(`data/module.f.mjs:80-86` vs `ll1/module.f.mjs:51-57`):
+(`data/module.f.mjs:80-86` vs `ll1/module.f.mjs:54-60`):
 
 ```js
 const nullable = map => item => at(item)(map) !== null   // data
@@ -24,9 +24,9 @@ safety. `data`'s (`data/module.f.mjs:116-132`) is a generic
 each naming the next advances one fact per round, "so the rounds are as
 many as the rules, and a recursion that deep is a stack overflow on a few
 thousand." `ll1`'s `followMap` re-derives the same relax-until-stable as a
-**recursion** (`ll1/module.f.mjs:219-223`) and inherits exactly the
+**recursion** (`ll1/module.f.mjs:222-226`) and inherits exactly the
 overflow the original's comment warns about, on the same grammar shape.
-(`reach`, `ll1:173-175`, recurses per reached rule too — same hazard, its
+(`reach`, `ll1:176-178`, recurses per reached rule too — same hazard, its
 own fix.)
 
 ### Proposal

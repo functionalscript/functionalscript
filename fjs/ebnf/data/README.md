@@ -282,10 +282,11 @@ tuple is the one way an unvalidated value reaches it:
 
 The data form fixes the AST the way the classical one does — one node per
 rule invocation, and every backend builds it — with the repeat row
-generalized and the node itself the typed `Ast<R>` of `fjs/ebnf/ast` rather
-than the classical `{ tag, sequence }` wrapper: a symbol, an array, a
-`[tag, node]` pair, as the rows below and the `Ast<R>` table agree, so a
-backend's tree needs no conversion before the mapping layer takes it.
+generalized and the node itself the typed `Ast<R, I>` of
+[`fjs/ebnf/ast`](../ast/README.md) rather than the classical
+`{ tag, sequence }` wrapper: a symbol with its metadata, an array, a
+`[tag, node]` pair, as the rows below and the `Ast` table agree, so a
+backend's tree needs no conversion before a mapping takes it.
 
 | rule | node |
 |---|---|
@@ -301,11 +302,11 @@ rows — each bound shape is the same node with a different `.length` — and it
 is what a backend's tree is judged against. Every front-end form maps to
 exactly one data kind, so the table is a function of the form as that issue
 demands. Problem 8, how a *typed* AST (`fjs/ebnf/ast`) relates to these
-nodes, is the mapping layer's ([`../map`](../map/README.md)), not this
-one's: the data layer commits to the nodes, and the mapping is defined over
-the typed AST. The reference backend, [`../ll1`](../ll1/README.md), builds
-the typed AST directly — the rows above are `Ast<R>`'s, form by form — so
-there is no second node shape between the two.
+nodes, is that module's and the backend's, not this one's: the data layer
+commits to the nodes, [`../ast`](../ast/README.md) types them, and the
+reference backend, [`../ll1`](../ll1/README.md), builds them directly and
+folds its rewrite set through them as it does — the rows above are `Ast`'s,
+form by form — so there is no second node shape between the two.
 
 What a backend owes a bounded repeat: a round is forced while fewer than
 `min` have matched and optional until `max`, and an optional round starts
