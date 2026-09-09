@@ -15,7 +15,7 @@ went with it):
 const isSymbol = a => isSafeInteger(a) && a >= 0
 // fjs/ebnf/data/module.f.mjs:165
 const isSymbol = n => isSafeInteger(n) && n >= 0 && !sameValue(n, -0)
-// fjs/ebnf/ll1/module.f.mjs:49
+// fjs/ebnf/ll1/module.f.mjs:52
 const isSymbol = s => isSafeInteger(s) && s >= 0 && !Object.is(s, -0)
 ```
 
@@ -30,7 +30,7 @@ down, far from the call site that wrote it.
 
 EOF's *numeric sentinel* is written independently twice: `data` lowers EOF
 to the terminal range `eofSet = [-1, 0]` (`:150`) and `ll1` synthesizes the
-input symbol `eofSymbol = -1` (`:39`) — the same `-1` with no shared
+input symbol `eofSymbol = -1` (`:42`) — the same `-1` with no shared
 declaration tying them together. The front end's `eof = null`
 (`module.f.mjs:165`) is **not** a third copy: it is a deliberate public
 representation, because a `DataRule` reserves every number for ordinary
