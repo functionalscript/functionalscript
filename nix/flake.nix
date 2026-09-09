@@ -1,5 +1,5 @@
 {
-    inputs.nixpkgs.url = "github:NixOS/nixpkgs/93108a538f079596c9a16c72cf03e9322782b6dd";
+    inputs.nixpkgs.url = "github:NixOS/nixpkgs/6aefcda9401be8acc2b74244fb3b37520ea1f0a8";
     inputs.rust-overlay.url = "github:oxalica/rust-overlay/6ae57a71bcb0bebc7a66cc2bd76942c4cf649167";
     inputs.rust-overlay.inputs.nixpkgs.follows = "nixpkgs";
     outputs = { nixpkgs, rust-overlay, ... }: let
