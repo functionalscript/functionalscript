@@ -149,9 +149,12 @@ one after it. Node's declared-length check runs one way only: the table above is
 the short body, and there is no row for the long one.
 
 So the size that goes in the header is the bound the reads stop at. `fjs/web`'s
-fold stops at `FileStat.size` rather than at EOF, and a read that comes up short
-of that bound fails the cell — the destroy again, and the one direction Node
-would have caught anyway. The bound is a parameter of the moved loop, not a
+fold stops at `FileStat.size` rather than at EOF, and what ends the reads short
+of that bound — an *empty* read — fails the cell: the destroy again, and the one
+direction Node would have caught anyway. Short of the **bound**, not short of
+the **request**: a chunk smaller than what was asked for is not itself the
+failure, and reading it as one would fail every file whose size is not a
+multiple of `chunkBytes`. The bound is a parameter of the moved loop, not a
 second loop: `fjs/cas` does not know a blob's size, keeps reading to the empty
 read, and keeps the chunked framing that goes with it. What the bound holds is
 the *framing*, not the *identity* — the bytes are still whatever the reads
@@ -159,6 +162,19 @@ found, which under a replaced entry is a new file cut to the old one's length.
 That is [stat-then-read](../../../web/todo/stat-then-read.md), unchanged and
 already filed: binding the metadata and the reads to one handle is what answers
 it, and no length declared from a name can.
+
+**The bound also decides what the loop advances by.** Both `fjs/cas` loops step
+`loop(offset + chunkBytes)` whatever the read returned, and that is sound only
+because the fold ends at the next empty read: on a local regular file a short
+read *is* the last one — measured on Darwin with Node 23.11.0, every mid-file
+`readBytes` came back with its full 131,072 bytes, and the only positive short
+read that could be forced was a genuine truncation. A bounded fold does not end
+there. A short chunk stops being the last chunk, and a fixed step would step
+over whatever the read did not return — a hole in a response whose length is
+already declared. `readBytes` promises nothing better than that: it is one
+`FileHandle.read` ([`../module.mjs`](../module.mjs)), where `writeBytes` a few
+lines below loops over short writes for exactly this reason. So the moved loop
+asks for `min(chunkBytes, bound - offset)` and advances by the length it got.
 
 **The pump pulls at the socket's pace.** A lazy body removes the memory bound
 the `Vec` cap was, and nothing puts one back unless the pump asks the socket
@@ -250,8 +266,8 @@ answering `413` is a listener with a size policy of its own — correctly.
 ### Tasks
 
 - [ ] Move `fjs/cas`'s `readBytes` chunk loop into `../module.f.mjs` beside
-      `writeFromStream`, with its byte bound and proof coverage, and read `cas`
-      through it.
+      `writeFromStream`, with its byte bound, its advance by the actual chunk
+      length, and proof coverage, and read `cas` through it.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body; the Node runner's
       pump — its `drain`/`close` discipline and its destroy-on-failure in
       both the cell and `failSafe`; the virtual runner's `RecordedResponse`.
