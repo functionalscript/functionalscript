@@ -158,6 +158,9 @@ not refused. `500` rather than `505`: RFC 9110 §15.6.6 names the request's
 *major* version, which 1.0 shares with 1.1, and this server does answer HTTP/1.0
 perfectly well for a body whose size it knows. It is the pre-headers case
 `failSafe` already answers `500` in, reached before rather than after the fact.
+A response Node will carry no body for is not this case at all, and the order
+the two pre-pump guards are asked in — stated with the no-body one below — is
+what says so.
 
 Nothing in the tree produces it — `fjs/web` declares the length from the `stat`,
 so its bodies are all first-row — which is the reason to state the refusal here
@@ -310,6 +313,27 @@ suppress a body the host was about to send — the same plausible wrong answer,
 produced by the check meant to prevent one. So it is written from the host's own
 predicate: `HEAD`, `204`, `304`, `1xx`.
 
+**Both guards stand before the pump, so the order they are asked in is part of
+the design.** They overlap: a `HEAD` on an HTTP/1.0 request, answered with a
+body whose size the listener does not know, satisfies the no-body predicate and
+the unframable one at once. The runner asks them in this order and answers with
+the first that fires.
+
+1. **Will Node carry a body at all?** `HEAD`, `204`, `304`, `1xx` — the producer
+   is never pulled, and the listener's status and headers go out as they stand.
+2. **Can the body that will go out be framed?** No `Content-Length` on a request
+   Node will not chunk — `500`, before the headers, as above.
+3. Neither fires, and the pump runs.
+
+Suppression first, because the refusal exists to stop a truncated body from
+passing for a whole one, and a body Node drops is never on the wire to be
+truncated: a `HEAD` or a `304` is a complete answer whatever framing the body it
+does not carry would have had. The other order answers `500` to a request this
+server can satisfy exactly — refusing what it *can* handle, which is not what
+[DESIGN §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) asks
+for. Both runners take the guards in this order, or they disagree about a
+request neither of them has any trouble with.
+
 **The virtual runner records what went out.** `listen` in
 [`../virtual/module.f.mjs`](../virtual/module.f.mjs) can pump the body with the
 same `virtual(s)(...)` recursion it already uses to run the listener, and
@@ -385,9 +409,9 @@ answering `413` is a listener with a size policy of its own — correctly.
       coverage, and read `cas` through it.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body; the Node runner's
       pump — its `drain`/`close` discipline, the no-body guard and the
-      unframable-body refusal that keep it from starting, and its
+      unframable-body refusal that keep it from starting, in that order, and its
       destroy-on-failure in both the cell and `failSafe`; the virtual runner's
-      `RecordedResponse`, mirroring both guards.
+      `RecordedResponse`, mirroring both guards and their order.
 - [ ] Stage 1, blocked on [stat-then-read](../../../web/todo/stat-then-read.md):
       the handle effect — `open`, `fstat`, bounded read, `close` — modelled in
       the virtual file system, as the chunk source `fjs/web` reads through.
