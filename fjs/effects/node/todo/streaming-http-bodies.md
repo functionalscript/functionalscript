@@ -142,6 +142,32 @@ That is [stat-then-read](../../../web/todo/stat-then-read.md), unchanged and
 already filed: binding the metadata and the reads to one handle is what answers
 it, and no length declared from a name can.
 
+**The pump pulls at the socket's pace.** A lazy body removes the memory bound
+the `Vec` cap was, and nothing puts one back unless the pump asks the socket
+for permission to continue. `res.write` answers `false` once the response's
+buffer is full; a pump that reads that answer and pulls anyway is throttled by
+the disk rather than by the client, which is fast enough to be no throttle at
+all. Measured on Darwin with Node 23.11.0, against a client that opened the
+connection, asked, and then read nothing — chunks already in hand, so the
+socket was the only thing that could have slowed the writes: the **first**
+131,072-byte write already answered `false`, the default high-water mark being
+16 KiB, and the remaining 199 went out behind it regardless, leaving all
+26,216,371 bytes of a 25 MiB body and its framing resident in the process for
+one request. That is the streaming benefit spent in the one place it was meant
+to be collected, and one slow client is enough to spend it. So `false` parks
+the pull until `drain` — the discipline [`writeAll`](../module.mjs) already
+applies to the console streams, for this reason.
+
+**And `drain` is not the only way out of that wait.** Measured the same way
+with the pump parked: ten chunks written, 131,081 bytes queued, the client
+destroyed at 1,023 ms and `close` on the response at 1,026 ms — and the pump
+still parked three seconds later, because `drain` never comes for a socket that
+has gone. Waiting on `drain` alone does not throttle a body so much as strand
+one, holding its reads open for as long as the process lives. So `close` ends
+the pump as surely as `drain` releases it: it stops pulling, and the producer's
+reads stop with it. A client that hangs up is the ordinary case — a cancelled
+download, a closed tab — not the exceptional one.
+
 **The virtual runner records what went out.** `listen` in
 [`../virtual/module.f.mjs`](../virtual/module.f.mjs) can pump the body with the
 same `virtual(s)(...)` recursion it already uses to run the listener, and
@@ -208,8 +234,9 @@ answering `413` is a listener with a size policy of its own — correctly.
 - [ ] Move `fjs/cas`'s `readBytes` chunk loop into `../module.f.mjs` beside
       `writeFromStream`, with its byte bound and proof coverage, and read `cas`
       through it.
-- [ ] Stage 1: `ServerResponse<O>` with a `List` body; the Node runner's pump
-      and its destroy-on-failure; the virtual runner's `RecordedResponse`.
+- [ ] Stage 1: `ServerResponse<O>` with a `List` body; the Node runner's
+      pump — its `drain`/`close` discipline and its destroy-on-failure; the
+      virtual runner's `RecordedResponse`.
 - [ ] Stage 1: serve files past the cap in `fjs/web` — `Content-Length` from the
       `stat` size and the reads bounded by it, `tooLarge` and its `413` row
       deleted, the `isFile` guard kept.
