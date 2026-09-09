@@ -106,8 +106,8 @@ between them follows the framing:
   decoder, not a grammar.
 
 The loose envelope is both: the NUL is a delimiter, so a grammar reads the
-header and takes the rest as the payload, and the size is a claim about that
-rest, which the mapping of the envelope rule verifies and refuses when it does
+header and stops there, leaving the rest as the payload, and the size is a
+claim about that rest, which the reader verifies and refuses when it does
 not match ([DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 That is what Git does too: the size is a check, not what delimits the payload.
 
@@ -115,7 +115,7 @@ That is what Git does too: the size is a check, not what delimits the payload.
 |---|---|---|
 | commit, tag payload | SP, LF, an empty line | grammar |
 | tree payload | SP, NUL, then `times(n)(byte)` | grammar, parameterized by the id width |
-| loose envelope | NUL, then a size that describes the rest | grammar; the mapping checks the size |
+| loose envelope | NUL, then a size that describes the rest | grammar up to the NUL; the reader slices the rest and checks the size |
 | blob | none | none |
 | zlib stream | bit-level, length-framed | a decoder, its own issue |
 | packfile, `.idx` | varints, deltas, zlib | a decoder, later |
@@ -165,12 +165,19 @@ record shared by every leaf, and a function from the input to the symbols.
   one terminal per code point. For ASCII a code point is its byte, so
   `'tree '` and `set(' \n')` spell the right bytes and the grammars below
   use them as they are. For anything above `0x7F` the lowering is silently
-  wrong: `'é'` becomes the single byte `0xE9`, a rule that matches and means
-  nothing. The adapter therefore validates the lowered `RuleSet` before a
-  parser is built and refuses any set with a boundary above `256`, EOF's
-  `[-1, 0]` excepted — the byte counterpart of what `validate` in
-  [`fjs/ebnf/data`](../fjs/ebnf/data/README.md) refuses for every alphabet.
-  `byteParser(rule, set)` is `parser` behind that check.
+  wrong: `'é'` becomes the single byte `0xE9`, where the author may have
+  meant the two bytes UTF-8 spells it with, and the lowered set `[233, 234]`
+  cannot say which. A check on the lowered `RuleSet` alone therefore cannot
+  catch it, since the literal's origin is gone by then. What still has the
+  origin is the `names` map `toData` returns beside the set: it is keyed by
+  every rule identity the lowering met, strings and numbers included. The
+  adapter validates over those keys before a parser is built — a string key
+  must be ASCII only, a number key below `256`, and a set's boundaries at
+  most `256`, EOF's `[-1, 0]` excepted — and refuses otherwise, naming the
+  rule. A byte above `0x7F` is spelled as a number or through the adapter's
+  `byte` set, never as a string. That is the byte counterpart of what
+  `validate` in [`fjs/ebnf/data`](../fjs/ebnf/data/README.md) refuses for
+  every alphabet, and `byteParser(rule, set)` is `parser` behind it.
 
 #### 2. `fjs/git/` — the object grammars and their values
 
@@ -186,25 +193,39 @@ type Oid = Vec                                    // 20 or 32 bytes, raw
 type ObjectType = 'blob' | 'tree' | 'commit' | 'tag'
 type Ident = { name: Vec, email: Vec, time: bigint, tz: string }
 type Header = readonly [key: string, value: Vec]  // the key is ASCII
-type Commit = {
-    tree: Oid, parents: readonly Oid[], author: Ident, committer: Ident,
-    headers: readonly Header[],                   // every header, in order
-    message: Vec,
-}
+type Commit = { headers: readonly Header[], message: Vec }
+type Tag = { headers: readonly Header[], message: Vec }
 type TreeEntry = { mode: number, name: Vec, oid: Oid }
-type Tag = { object: Oid, type: ObjectType, tag: Vec, tagger: Nullable<Ident>,
-    headers: readonly Header[], message: Vec }
+
+const tree: (c: Commit) => Oid
+const parents: (c: Commit) => readonly Oid[]
+const author: (c: Commit) => Ident
+const committer: (c: Commit) => Ident
+const tagger: (t: Tag) => Nullable<Ident>
 ```
 
-`headers` keeps every header as read, the well-known ones included, because
-the signature work needs the block verbatim to reconstruct a payload, and a
-header the reader does not know must survive a read and a write unchanged.
+A commit and a tag are their header list and their message, and nothing
+else: one representation, so there is no second one for a writer to choose
+over or a caller to leave stale. `headers` keeps every header as read, the
+well-known ones included, in order and byte for byte, because the signature
+work needs the block verbatim to reconstruct a payload, and a header the
+reader does not know must survive a read and a write unchanged. The
+well-known fields are functions over the headers, total once `validate` has
+accepted the object; a change to a commit is a change to its headers, and
+the writer serializes what it is given.
 
-**The envelope.** `objectType` is a variant of four keywords with four
-distinct first bytes, so it is LL(1) as written; `size` is
-`repeatFrom1(digit)`; the payload is `repeatFrom0(byte)` to `eof`. The
-mapping decodes the size and refuses the object when it is not the payload's
-length.
+**The envelope** is `[type, ' ', repeatFrom1(digit), '\0']` and stops
+there: no `eof`, so the parser reports the index after the NUL and the
+reader slices the remainder as the payload without a grammar ever seeing
+it. That is what keeps a blob out of every parser — its payload is bytes
+the reader hands back — and it holds the size to the same standard: the
+reader compares it with the remainder's length and refuses the object on a
+mismatch. `type` is one word up to the space, `repeatFrom1(not(' '))`,
+with the mapping accepting the four types and refusing any other word — a
+variant of the four keywords is not LL(1), since `tree` and `tag` share
+their first byte, and the generic word is how the header block reads its
+keys anyway. The reader takes only a prefix of the object, long enough for
+any envelope; an envelope the prefix does not hold is refused.
 
 **The header block**, shared by commit and tag:
 
@@ -220,8 +241,9 @@ Generic on purpose, the way Git's own reader is: which keys are required,
 in what order, and what their values mean are checks on the `Header` list
 after the parse, not branches of the grammar. A variant over the known keys
 would conflict with the unknown-header branch on every first byte, and would
-refuse a commit the moment a tool adds a header — `didsig` and `tstsig`
-among them. LL(1) holds throughout: a continuation round starts on SP, and
+refuse a commit the moment a tool adds a header — the ones
+[git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
+adds among them. LL(1) holds throughout: a continuation round starts on SP, and
 what may follow the repetition is a key's first byte, which is not SP, or
 the empty line's LF; a header starts on a key byte, and what follows the
 block is LF.
@@ -230,7 +252,12 @@ block is LF.
 of the token layer in [`fjs/ebnf/ll1`](../fjs/ebnf/ll1/README.md): a grammar
 over the bytes of the value, `[repeatFrom0(not(set('<\n'))), '<',
 repeatFrom0(not(set('>\n'))), '>', ' ', digits, ' ', set('+-'),
-times(4)(digit)]`, with the name's trailing SP dropped by the mapping. It
+times(4)(digit), eof]`. The `eof` is what refuses trailing bytes, since a
+rule without it stops where it matches and leaves the rest. The SP before
+`<` cannot be a symbol of the rule — the name's repetition may end in SP,
+so `' <'` after it is a first/follow conflict the backend refuses — so the
+name is read up to `<` and the mapping requires its last byte to be SP and
+drops it, refusing a name that does not end in one. It
 is a `try*`: an ident the grammar does not cover — Git's reader is lenient
 and old history holds idents without an email or with a malformed zone —
 is refused, not repaired, and the raw header stays in `headers` either way.
@@ -301,7 +328,8 @@ approximated:
 
 - [ ] `fjs/ebnf/byte/`: `byte`, `not`, `symbols`, alphabet validation,
       `byteParser`; proof.
-- [ ] `fjs/git/object/`: the envelope grammar and mapping, size checked.
+- [ ] `fjs/git/object/`: the envelope grammar, and the reader that slices
+      the payload after the NUL and checks the size.
 - [ ] `fjs/git/header/`: the header block, shared by commit and tag.
 - [ ] `fjs/git/ident/`: the ident grammar as a `try*` over a header value.
 - [ ] `fjs/git/commit/`, `fjs/git/tag/`, `fjs/git/tree/`: grammar, mappings,
