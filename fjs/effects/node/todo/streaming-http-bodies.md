@@ -143,9 +143,10 @@ of a longer body, then the producer failing:
 | `Transfer-Encoding: chunked` | a **clean, complete** 131,072-byte response — `res.complete` is `true` and no error is raised | `ECONNRESET` |
 | `Connection: close`, no length | a **clean, complete** 131,072-byte response | a **clean, complete** 131,072-byte response |
 
-So Node's own framing check covers the declared-length case and nothing else,
-and the case it misses is exactly the one a producer that cannot state its size
-lands in: a truncated file the client cannot tell from a whole one, which is the
+So a declared length is the only framing that carries a check at all — the
+client counting the bytes the header promised it — and the case it misses is
+exactly the one a producer that cannot state its size lands in: a truncated
+file the client cannot tell from a whole one, which is the
 plausible wrong value [DESIGN §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 exists to refuse. Destroying covers the first two rows. It cannot cover the
 third, and the next paragraph is why.
@@ -284,7 +285,7 @@ writing 1,000 more put all 132,072 of them on the wire, `res.write` answered
 high-water mark, not a refusal — and `res.end()` raised nothing. The keep-alive
 client failed `HPE_INVALID_CONSTANT` on the **in-flight** response, not merely
 on the next one: the surplus is parsed as the following status line, so the
-request being answered is lost along with the one after it. Node's
+request being answered is lost along with the one after it. That
 declared-length check runs one way only. The table above is the short body;
 there is no row for the long one, and no event to put in it.
 
