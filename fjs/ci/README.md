@@ -165,7 +165,7 @@ canonical job asserts, as its first command, that its own shell reports the vers
 `config/module.f.mjs` records for it:
 
 ```sh
-test "$(./nix/run node --version)" = "v26.7.0"
+test "$(./nix/run node --version)" = "v26.8.1"
 test "$(./nix/run deno eval 'console.log(Deno.version.deno)')" = "2.8.3"
 test "$(./nix/node22/run node --version)" = "v22.23.2"
 ```
@@ -184,7 +184,7 @@ version, so unlike `pkgs.nodejs_26` they cannot be checked against the configura
 without evaluating them.
 
 The one runtime with no check is the `wasm` job's Rust, and for the reason that makes
-the others worth checking: its flake says `rust-bin.stable."1.98.0"`, naming the
+the others worth checking: its flake says `rust-bin.stable."1.98.1"`, naming the
 release in full rather than a major or nothing at all, so a check could only restate
 the flake it was meant to test.
 
