@@ -6,6 +6,15 @@ neither `read` nor `streamFile` emits an error item and stops; both loops are
 two-case, which is most of what the sketches below spend their length on. The
 duplication is still real and smaller than described.
 
+**Destination moved:**
+[streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md) puts
+the shared loop in `fjs/effects/node/module.f.mjs` beside `writeFromStream`,
+because `fjs/web` becomes a third caller and the loop stops being `fjs/cas`'s
+to own. So `read` delegating to `streamFile` is no longer the end state, and
+the deduplication happens there rather than here. What survives the move is the
+caveat below: `read` is pinned to `List<FileCasOperation, …>` by the `FileCas`
+interface either way. Retire this issue with that work.
+
 ### Problem
 
 `fjs/cas/module.f.mjs` contains two near-identical recursive chunk-reader loops
@@ -68,9 +77,10 @@ ordering).
 
 ### Tasks
 
-- [ ] Replace `fileCas.read`'s inline `loop` with a call to `streamFile`; run
-      `tsc` to see whether an explicit cast is required for the
-      `List<ReadBytes,…>` → `List<FileCasOperation,…>` conversion.
+- [ ] Point `fileCas.read` at the one shared loop — the moved one, per
+      streaming-http-bodies — and run `tsc` to see whether an explicit cast is
+      required for the `List<ReadBytes,…>` → `List<FileCasOperation,…>`
+      conversion.
 - [ ] Confirm definition ordering compiles; keep the `read` JSDoc about
       "missing shard / read error is an explicit error item, never EOF".
 - [ ] Run `tsc` and `fjs t`; confirm `fjs/cas/proof.f.mjs` still passes,
