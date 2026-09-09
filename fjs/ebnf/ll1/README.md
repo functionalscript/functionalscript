@@ -179,7 +179,11 @@ symbols of the next alphabet; a consumer reads them out of the entry's node
 — the one test, at the positions it knows were mapped — and hands them to
 the next layer's parser as they are, no rename and no re-tagging, since the
 `id` already says which alphabet they are. The proof's `layers` entry is a
-tokenizer over text feeding a list grammar over tokens.
+tokenizer over text feeding a list grammar over tokens, and
+[`../lib/json/parser`](../lib/json/parser/module.f.mjs) folds a whole
+grammar, JSON's, to a JSON value in one layer — a mapping per rule the
+grammar holds, and a `Result` in the output symbol for the one thing a
+mapping cannot make a value of.
 
 ### Why a fold, and not a rewrite over the built tree
 
