@@ -59,16 +59,13 @@ pre { white-space: pre-wrap }
 [data-section] { margin: 1.5rem 0 }
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
 [data-section] > ul { margin-top: .5rem }
-/* A run appends one row per test — 5534 of them on this repository's root
-   page. Closed, the report costs the page one line, so pressing Run leaves
-   the catalogue below it exactly where it was; open, it is a window of fixed
-   height rather than five thousand rows. The summary above it carries the
-   verdict, which is what a passing run is read for. */
-[data-test-report] { margin-bottom: 1.5rem }
-[data-test-report] > summary { cursor: pointer }
-[data-test-report] > pre { border: 1px solid var(--line); border-radius: .375rem; margin: .5rem 0 0; max-height: 22rem; overflow: auto; padding: .75rem }
-/* Before the first run there is nothing to disclose. The idle state is the
-   one the page is generated in and never returns to, so this hides the report
+/* A run appends one row per test — 5537 of them on this repository's root
+   page. The rows sit in the last section of the page, so they move nothing
+   above them; this keeps them from becoming the page, which is what is left
+   to do. */
+[data-test-report] { border: 1px solid var(--line); border-radius: .375rem; margin: .5rem 0 0; max-height: 22rem; overflow: auto; padding: .75rem }
+/* Before the first run there is nothing to show. The idle state is the one
+   the page is generated in and never returns to, so this hides the box
    exactly until it has something in it. */
 [data-state="idle"] [data-test-report] { display: none }
 `

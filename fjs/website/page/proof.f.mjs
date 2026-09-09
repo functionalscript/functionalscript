@@ -72,21 +72,15 @@ export const proof = {
     },
     report: {
         /**
-         * **Closed, and it stays closed until a reader opens it.** A run
-         * appends a row per test and the catalogue sits below; a report that
-         * opened itself would answer "did it pass" by burying the rest of the
-         * page. There is no `open` attribute, which is what says so.
+         * **No disclosure of its own.** The rows are inside the collapsible
+         * `Proofs` section and that section is last on the page, so nothing
+         * above them moves however many there are; a second disclosure here
+         * would only be a run the reader could not watch.
          */
-        closed: () => {
+        isABoxNotADisclosure: () => {
             const html = concat(element(['body', report]))
-            assert(html.startsWith('<body><details data-test-report=""><summary>Results</summary>'), html)
-            assert(!html.includes('open'), html)
+            assert(html === '<body><pre data-test-report=""><ol data-test-results=""></ol></pre></body>', html)
         },
-        // The runner finds its list by the hook it has always used, so the
-        // disclosure around it changes nothing it does.
-        keepsTheRunnersHook: () =>
-            assert(concat(element(['body', report])).includes('<ol data-test-results="">'),
-                concat(element(['body', report]))),
     },
     page: {
         /**

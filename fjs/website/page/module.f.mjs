@@ -27,24 +27,22 @@ import { htmlUtf8 } from '../../media/html/module.f.mjs'
 import { stylesheetLink } from '../style/module.f.mjs'
 
 /**
- * Where a run's result rows go: a disclosure, closed until a reader opens it.
+ * Where a run's result rows go.
  *
- * **Closed, because a run is read from its summary.** The list gains one row
- * per test — 5534 on the root page — and the catalogue sits below it, so a
- * list that opened itself would answer "did it pass" by burying everything
- * else on the page. The summary line above already carries the verdict and
- * the count; the rows are the detail behind it, and asking for detail is the
- * reader's move.
- *
- * `[data-test-report]` and not a class: every other hook the runner and the
- * stylesheet share is a data attribute, and this one is read by the
- * stylesheet alone.
+ * **A bounded box rather than a disclosure of its own.** The rows are already
+ * inside the collapsible `Proofs` section, and that section is the last on the
+ * page, so a run cannot move the catalogue however many rows it appends — and
+ * a reader who wants the page tidy folds `Proofs`. What is left to bound is
+ * the box itself: a run appends one row per test, 5537 on the root page, and
+ * a window of fixed height with its own scrollbar is what keeps that from
+ * becoming the page. Nesting a second disclosure here bought nothing that the
+ * section and the box do not already, and cost the reader a run they could
+ * not watch.
  *
  * @type {Element}
  */
-export const report = ['details', { 'data-test-report': '' },
-    ['summary', 'Results'],
-    ['pre', ['ol', { 'data-test-results': '' }]],
+export const report = ['pre', { 'data-test-report': '' },
+    ['ol', { 'data-test-results': '' }],
 ]
 
 /**

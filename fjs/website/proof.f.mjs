@@ -294,10 +294,9 @@ export const proof = {
         // The catalogue is above the proofs: what the directory holds is what
         // the reader came for, and a run cannot move what is above it.
         assert(source.indexOf('<summary>Directories</summary>') < source.indexOf('<summary>Proofs</summary>'), source)
-        // The result rows are behind a closed disclosure, so a run costs the
-        // page one line and the catalogue below it does not move.
-        assert(source.includes('<details data-test-report=""><summary>Results</summary>'), source)
-        assert(source.includes('<ol data-test-results="">'), source)
+        // The result rows are in the last section of the page, so a run moves
+        // nothing above them.
+        assert(source.includes('<pre data-test-report=""><ol data-test-results="">'), source)
         assert(source.includes('>Run</button>'), source)
         assert(!source.includes('Run again'), source)
         // The entry module wires the click handler and stops: it must not
