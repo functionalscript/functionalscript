@@ -56,20 +56,33 @@ maintained in two places that must stay in sync.
 
 **Both loops go, and neither becomes the other.** `read` calls the shared loop
 where streaming-http-bodies puts it, in `fjs/effects/node/module.f.mjs` beside
-`writeFromStream` — an import, not a local definition:
+`writeFromStream` — an import, not a local definition.
+
+**What it hands that loop is a chunk source, not a path.** The loop takes the
+read as a parameter, because `fjs/web`'s reads come from a handle it holds open
+and a path could not express them — that handle is what binds every chunk of one
+response to one inode. `fjs/cas` keeps reading by *name* under the same
+parameter, and is entitled to: a name in the store is its content's hash, so
+whichever inode a per-chunk open lands on holds what the last one held. Its
+source is therefore the `readBytes` call the loop used to make for itself:
 
 ```ts
-// `readChunks` stands in for the moved loop; naming it belongs to the issue
-// that moves it.
-read: (hash: Vec): List<FileCasOperation, Vec, IoChannel> =>
-    readChunks(join(path, toPath(hash))),
+// `readChunks` stands in for the moved loop and its chunk source for the
+// parameter that loop takes instead of a path; naming both belongs to the
+// issue that moves it, as does the bound `fjs/cas` has none of — it does not
+// know a blob's size and reads to the empty read.
+read: (hash: Vec): List<FileCasOperation, Vec, IoChannel> => {
+    const p = join(path, toPath(hash))
+    return readChunks((offset, size) => readBytes(p, offset, size))
+},
 ```
 
 `streamFile` is deleted rather than promoted. Its one caller is `casAddFile`
 (`fjs/cas/module.f.mjs:347-351`), which calls the moved loop for the same
-reason, so what is left in `fjs/cas` is two call sites and no loop. That also
-retires the ordering question the earlier proposal raised — whether `streamFile`
-has to be defined above `fileCas` — an import having no order to confirm.
+reason, with a chunk source over its own `filePath`, so what is left in
+`fjs/cas` is two call sites and no loop. That also retires the ordering question
+the earlier proposal raised — whether `streamFile` has to be defined above
+`fileCas` — an import having no order to confirm.
 
 **Caveat on the type, which the move does not touch.** `casAddFile` is *not* a
 reusable precedent here: it does not perform an `as` cast — it declares its
@@ -82,18 +95,27 @@ cannot do that: its return type is pinned to `List<FileCasOperation, …>` by th
 cast (or a small restructuring) at this call site. Verify with `tsc` before
 committing to the one-liner — if an `as` is unavoidable, weigh whether the
 deduplication is worth introducing one (`AGENTS.md` treats `as` as a last resort).
-The moved loop is a `List<ReadBytes, …>` wherever it lives, so the widening is
-the same one.
+
+**The chunk source may be what dissolves it.** A loop parameterized by its
+source is a `List<O, …>` for whatever op-set that source names, not a
+`List<ReadBytes, …>` fixed wherever it lives, so `read` can ask for the loop at
+`FileCasOperation` and hand it a source that widens into one. That widening is
+an ordinary `Effect`'s, not the recursive `List`'s — `fjs/effects/types.ts` pins
+it with the `_WidensOperations` assert — and it is the conversion TypeScript can
+do. What is not settled is inference: a call whose `O` is fixed from the
+argument rather than from the contextual return type lands back on the recursive
+conversion. So the caveat stands as a thing to check, not as a cast to plan for.
 
 ### Tasks
 
 - [ ] Point `fileCas.read` at the one shared loop — the moved one, per
-      streaming-http-bodies — and run `tsc` to see whether an explicit cast is
+      streaming-http-bodies — passing a chunk source over the shard path rather
+      than the path itself, and run `tsc` to see whether an explicit cast is
       required for the `List<ReadBytes,…>` → `List<FileCasOperation,…>`
-      conversion.
-- [ ] Delete `streamFile` and point `casAddFile` at the moved loop as well; keep
-      the `read` JSDoc about "missing shard / read error is an explicit error
-      item, never EOF".
+      conversion, or whether the source parameter has already retired it.
+- [ ] Delete `streamFile` and point `casAddFile` at the moved loop as well, with
+      a chunk source of its own; keep the `read` JSDoc about "missing shard /
+      read error is an explicit error item, never EOF".
 - [ ] Run `tsc` and `fjs t`; confirm `fjs/cas/proof.f.mjs` still passes,
       including the short-final-chunk and read-error paths.
 
