@@ -31,10 +31,11 @@ Three errors reach this branch, and none of them can point at a token:
   ([`transpiler/module.f.mjs`](../transpiler/module.f.mjs)) know the path that
   failed, but `TokenMetadata` has no shape for "this file, position unknown".
 - a `.json` input's parse error comes from
-  [`fjs/media/json/parser`](../../media/json/parser), which reports one shared
-  error value with no position at all — so a malformed JSON document is
-  reported as `a.json - error: unexpected token`, with the file right and the
-  position missing.
+  [`fjs/media/json/parser`](../../media/json/parser), which reports the index
+  of the code unit it failed at in its message and no `TokenMetadata` — so a
+  malformed JSON document is reported as
+  `a.json - error: unexpected symbol at 1`, with the file right and the
+  position an offset rather than a line and column.
 
 ### Proposal
 

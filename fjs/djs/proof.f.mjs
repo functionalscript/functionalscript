@@ -206,13 +206,14 @@ export const proof = {
             assertEq(state.root['out.json'], undefined)
         },
         // A `.json` input is read as JSON, and an identifier key is no JSON
-        // document's key — so this one fails in the JSON reader, which has no
-        // position to report and is named by its file instead.
+        // document's key — so this one fails in the JSON reader, which names
+        // the code unit it failed at rather than a line and column, and is
+        // named by its file instead.
         jsonInputIdKeyRejected: () => {
             const root = { 'proto.json': [utf8('{__proto__:5}')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
             assertEq(exitCode(code), 1)
-            assertEq(state.stderr.trim(), 'proto.json - error: unexpected token')
+            assertEq(state.stderr.trim(), 'proto.json - error: unexpected symbol at 1')
             assertEq(state.root['a.js'], undefined)
         },
         // The `.json` reader is JSON, not DJS with a JSON flag: a bigint is

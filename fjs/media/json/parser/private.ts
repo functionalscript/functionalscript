@@ -6,8 +6,8 @@
  * @module
  */
 
-import type { Rule } from '../../../types.ts'
-import type { string, ws } from '../module.f.mjs'
+import type { Rule } from '../../../ebnf/types.ts'
+import type { string, ws } from '../../../ebnf/lib/json/module.f.mjs'
 
 /** The pair `cj` hands to `join`: an item, then its whitespace. */
 export type _Item<R extends Rule> = readonly [R, typeof ws]

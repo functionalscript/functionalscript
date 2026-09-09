@@ -35,7 +35,7 @@ that fix did not reach.
 ### What landed
 
 The JSON grammar is done, in the PR that shipped
-[`../json/parser`](../json/parser/module.f.mjs): `cj`, `array`, `object` and
+[`fjs/media/json/parser`](../../../media/json/parser/module.f.mjs): `cj`, `array`, `object` and
 `createValue` take `const` type parameters and return `Container<Item>`
 and `Value<P, V>` from [`../json/types.ts`](../json/types.ts), `string` and
 `number` are pinned, and `value` is annotated `JsonValue` — a recursive
