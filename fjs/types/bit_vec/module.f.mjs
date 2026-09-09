@@ -25,7 +25,6 @@
  * @import { Fold } from '../function/operator/types.ts'
  * @import { List, Thunk } from '../list/types.ts'
  * @import { Absorbing } from '../../common/monoid/types.ts'
- * @import { Sign } from '../function/compare/types.ts'
  * @import { Nullable } from '../nullable/types.ts'
  * @import { BitOrder, PopFront, Reduce, Unpacked, Vec, _Base, _NormOp, _UnpackConcat, } from './types.ts'
  */
