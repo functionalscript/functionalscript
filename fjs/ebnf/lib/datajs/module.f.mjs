@@ -11,7 +11,8 @@
  *
  * @module
  *
- * @import { Rule, Thunk } from '../../types.ts'
+ * @import { Rule } from '../../types.ts'
+ * @import { DataJsValue } from './types.ts'
  */
 
 import { createValue, digit, optionFloatSuffix, optionNeg, string, uint, ws, wsSymbol } from '../json/module.f.mjs'
@@ -22,7 +23,11 @@ const uNumber = /**@type {const}*/({
     infinity: 'Infinity'
 })
 
-const number = /**@type {const}*/([optionNeg, uNumber])
+/**
+ * A number is JSON's with a bigint suffix on the integer form and `Infinity`
+ * as a word; the sign is shared by all three.
+ */
+export const number = /**@type {const}*/([optionNeg, uNumber])
 
 const letter = /**@type {const}*/({
     lo: range('az'),
@@ -31,15 +36,25 @@ const letter = /**@type {const}*/({
     $: '$',
 })
 
-const id = /**@type {const}*/(['$', repeatFrom0({ letter, digit })])
+/** A `const` name, and a reference to one: `$` followed by letters, digits, `_` and `$`. */
+export const id = /**@type {const}*/(['$', repeatFrom0({ letter, digit })])
 
-const property = /**@type {const}*/({
+/**
+ * An object key: a JSON string, or the one spelling of `__proto__`, which is
+ * a literal — no whitespace inside it and no escapes.
+ */
+export const property = /**@type {const}*/({
     string,
     proto: '["__proto__"]',
 })
 
-/** @type {Thunk} */
-const value = () => ['const', {
+/**
+ * A value contains values, so the rule names itself through a thunk, as
+ * JSON's does; the type names itself the same way, in `./types.ts`.
+ *
+ * @type {DataJsValue}
+ */
+export const value = () => ['const', {
     ...createValue(property, value),
     number, // replace the JSON number
     nan: 'NaN',
@@ -55,7 +70,7 @@ const ws1 = repeatFrom1(wsSymbol)
  * the AST of a statement is a tuple rather than a list.
  *
  * @type {<const V extends readonly Rule[]>(...v: V) =>
- *  readonly [...V, Thunk, typeof ws, ';', typeof ws]}
+ *  readonly [...V, DataJsValue, typeof ws, ';', typeof ws]}
  */
 const statement = (...v) => [
     ...v,
@@ -65,10 +80,17 @@ const statement = (...v) => [
     ws
 ]
 
+/** `const $name = value;` — the whitespace after `const` is mandatory. */
+export const constStatement = statement('const', ws1, id, ws, '=', ws)
+
+/** `export default value;` — with mandatory whitespace on both sides of `default`. */
+export const exportStatement = statement('export', ws1, 'default', ws1)
+
+/** A document: one whitespace run, the declarations, and the export. */
 export const dataJs = /**@type {const}*/([
     ws,
-    repeatFrom0(statement('const', ws1, id, ws, '=', ws)),
-    statement('export', ws1, 'default', ws1)
+    repeatFrom0(constStatement),
+    exportStatement
 ])
 
 // const $0={["__proto__"]:"world!"};const $1=[3,5n];export default [4,$0,$1];

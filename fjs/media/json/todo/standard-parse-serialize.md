@@ -21,13 +21,13 @@ FunctionalScript contract over reproducing host-specific edge behavior.
 ### Shared structural core
 
 The shared core exists — see [`fjs/media/json/README.md`](../README.md). One
-tokenizer keeps every number token as its exact lexeme, and one container state
-machine hands that token to the codec's own `NumberPolicy`:
+reader over the JSON grammar hands every number's exact lexeme to the codec's
+own `NumberPolicy`:
 
 ```text
-JSON text -> tokenizer -> parse(policy) -+-> json.Unknown       (number)
-                                         +-> extended.Unknown   (number | bigint)
-                                         +-> RTTI               (Ts<T>)
+JSON text -> grammar -> parse(policy) -+-> json.Unknown       (number)
+                                       +-> extended.Unknown   (number | bigint)
+                                       +-> RTTI               (Ts<T>)
 ```
 
 Standard parsing therefore materializes `json.Unknown` directly, without an

@@ -21,11 +21,24 @@ export type _FirstState = readonly [map: FirstMap, first: RangeSet]
 export type _Follows = readonly (readonly [name: string, symbols: RangeSet])[]
 
 /**
+ * A mapping's function as the machine holds it, keyed by the rule's name:
+ * what it takes is the one mapping's own, so the erased form takes nothing a
+ * caller can supply.
+ */
+export type _Mapper = (children: never) => unknown
+
+/** The rewrite set keyed by rule name, as the machine folds it. */
+export type _Mappers = ReadonlyMap<string, _Mapper>
+
+/**
  * A suspended sequence: `items[index]` is being matched, and `done` holds the
- * trees of the items before it.
+ * trees of the items before it. Every frame carries the name of the rule it
+ * is building a node for, which is what the node is mapped by when the frame
+ * closes.
  */
 export type _SequenceFrame = {
     readonly kind: 'sequence'
+    readonly name: string
     readonly items: readonly string[]
     readonly index: number
     readonly done: readonly unknown[]
@@ -34,6 +47,7 @@ export type _SequenceFrame = {
 /** A suspended variant: the branch `tag` selected is being matched. */
 export type _VariantFrame = {
     readonly kind: 'variant'
+    readonly name: string
     readonly tag: string
 }
 
@@ -46,6 +60,7 @@ export type _VariantFrame = {
  */
 export type _RepeatFrame = {
     readonly kind: 'repeat'
+    readonly name: string
     readonly min: number
     readonly max: number
     readonly item: string

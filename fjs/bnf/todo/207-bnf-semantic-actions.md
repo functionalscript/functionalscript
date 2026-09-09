@@ -28,13 +28,13 @@ grammar runs over `fjs/ebnf/`, while `fjs/bnf` may still hold JSON and DataJS
 grammars only as proof-covered examples. This issue makes those examples produce
 values; it does not make them a codec. The capability it describes is the same
 one a codec needs, and `fjs/ebnf/` already has it:
-[`fjs/ebnf/map`](../../ebnf/map/README.md) rewrites a rule's AST to values,
-keyed by the rules the author holds, and writing JSON's mapping over it is a
-task of
+[`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) folds a rewrite set into the
+parse — one mapping per rule the author holds, each returning a symbol of
+the next alphabet with the value in its metadata
+([`fjs/ebnf/ast`](../../ebnf/ast/README.md)) — and writing JSON's mapping
+over it is a task of
 [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md),
-not of any PR.
-[#1890](https://github.com/functionalscript/functionalscript/pull/1890) adds an
-optional metadata channel on top, which buys better errors than today's and
+not of any PR. The metadata channel buys better errors than today's and
 cannot classify a parse failure.
 
 ### Proposal
