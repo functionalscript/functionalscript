@@ -11,7 +11,7 @@
  *
  * ### Parse
  *
- * The split is lexical, not mathematical: **a token containing `.` or `e` /
+ * The split is lexical, not mathematical: **a lexeme containing `.` or `e` /
  * `E` is a `number`, even when its value is an integer.**
  *
  * ```text
@@ -24,7 +24,7 @@
  * so keeping it as a `number` is what preserves the sign the JSON text spells.
  *
  * The extended domain is exact where it claims to be, so it rejects rather
- * than rounds: a token whose value is outside the finite `number` range
+ * than rounds: a lexeme whose value is outside the finite `number` range
  * (`1e400`) is a parse `error`, not `Infinity`. Ordinary rounding within that
  * range is inherent to `number` and is not an error — `1e-400` is `0`, and
  * `0.1` is the nearest double, as everywhere else.
@@ -62,9 +62,7 @@
 import { concat } from '../../../types/string/module.f.mjs'
 import { compose } from '../../../types/function/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
-import { stringToList } from '../../../text/utf16/module.f.mjs'
-import { parse as parseTokens } from '../parser/module.f.mjs'
-import { tokenize } from '../tokenizer/module.f.mjs'
+import { parse as parseWith } from '../parser/module.f.mjs'
 import { isBareInteger, numberLexeme } from '../number/module.f.mjs'
 import { treeSerialize, stringSerialize, nullSerialize, boolSerialize } from '../serializer/module.f.mjs'
 
@@ -73,7 +71,7 @@ const { isFinite } = Number
 const { is } = Object
 
 /**
- * The extended numeric policy, applied to the token's exact lexeme.
+ * The extended numeric policy, applied to the number's exact lexeme.
  *
  * Bare integer syntax is materialized as `bigint` straight from that lexeme —
  * never through `number`, which would round anything above
@@ -82,7 +80,7 @@ const { is } = Object
  *
  * @type {NumberPolicy<number | bigint>}
  */
-const numberPolicy = ({ value }) => {
+const numberPolicy = value => {
     if (isBareInteger(numberLexeme(value))) {
         return ok(value === '-0' ? -0 : BigInt(value))
     }
@@ -96,7 +94,7 @@ const numberPolicy = ({ value }) => {
  *
  * @type {(text: string) => Result<Unknown, string>}
  */
-export const parse = text => parseTokens(numberPolicy)(tokenize(stringToList(text)))
+export const parse = parseWith(numberPolicy)
 
 const negativeZeroSerialize = ['-0']
 

@@ -1,17 +1,17 @@
 /**
- * Bounded lexical analysis of a JSON number token.
+ * Bounded lexical analysis of a JSON number's lexeme.
  *
- * `NumberToken.value` is the canonical lossless numeric source, and these
- * helpers read it **without narrowing it first**: every operation here costs
- * at most the length of the token, so a valid JSON number is classified
+ * The lexeme is the canonical lossless numeric source, and these helpers
+ * read it **without narrowing it first**: every operation here costs
+ * at most the length of the lexeme, so a valid JSON number is classified
  * correctly whatever its magnitude. In particular no helper builds a
  * coefficient bigint, converts an arbitrary exponent to `number`, or evaluates
  * a power such as `10 ** exponent`.
  *
  * That matters for schema-directed consumers, which have to decide questions
- * such as "is this token an integer?" *before* a materializer rounds the value
+ * such as "is this number an integer?" *before* a materializer rounds the value
  * into `number`: `1.00000000000000001` and `1` are the same `number` but
- * different tokens.
+ * different lexemes.
  *
  * @module
  *
@@ -22,9 +22,9 @@
 import { cmp } from '../../../types/function/compare/module.f.mjs'
 
 /**
- * Splits a JSON number token into its lexical parts.
+ * Splits a JSON number's lexeme into its lexical parts.
  *
- * The token is grammar-validated by the tokenizer —
+ * The lexeme is what the grammar admits —
  * `-?(0|[1-9][0-9]*)(\.[0-9]+)?([eE][+-]?[0-9]+)?` — so this is a split, not a
  * validation.
  *
