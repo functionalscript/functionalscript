@@ -4,13 +4,17 @@
 **Status:** open
 
 For the EBNF backend the metadata algebra here — `MI`/`MO`, `translate`,
-`reduce`, `empty` — is superseded by
-[meta-ast-mapping](../../ebnf/todo/meta-ast-mapping.md): one mapping per
-rule, `(ast) => MetaSymbol`, applied by the parser as it builds each
-node, with the alphabet named in the metadata. The streaming input this
+`reduce`, `empty` — is superseded by the rewrite set
+[`fjs/ebnf/ll1`](../../ebnf/ll1/README.md) folds: one mapping per rule,
+`(children) => Meta<O>`, applied by the parser as it builds each node, with
+the alphabet named in the metadata
+([`fjs/ebnf/ast`](../../ebnf/ast/README.md)). The streaming input this
 issue proposes — a parser as a `StateFold` over one symbol at a time — is
-not addressed there and stays open for `ebnf/` too. The code this issue
-describes is the classical `bnf/` backend only.
+not addressed there and stays open for `ebnf/` too, as that README's "Left
+for later" says; a repetition mapped as a fold over its rounds
+([repeat-fold-mapping](../../ebnf/ll1/todo/repeat-fold-mapping.md)) is its
+output-side counterpart. The code this issue describes is the classical
+`bnf/` backend only.
 
 ### Problem
 

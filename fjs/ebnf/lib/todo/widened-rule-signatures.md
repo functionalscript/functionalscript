@@ -5,8 +5,9 @@
 
 ### Problem
 
-`Ast<R>` in [`../../ast/types.ts`](../../ast/types.ts) is only as precise as
-the rule type it is given, and the two grammars hand it widened ones. Every
+`Ast<R, I, O>` in [`../../ast/types.ts`](../../ast/types.ts) is only as
+precise as the rule type it is given, and the two grammars hand it widened
+ones. Every
 helper is annotated with the union member it returns rather than the shape
 it builds, so the shape is gone before `Ast` sees it:
 
@@ -17,10 +18,14 @@ it builds, so the shape is gone before `Ast` sees it:
 | `string` | `Rule` | a three-element tuple |
 | `value`, in both grammars | `Const<Variant>` / `Thunk` | the grammar's own variant |
 
-So `Ast<typeof json>` is `readonly [readonly number[], readonly [string, Ast<Rule>], readonly number[]]`:
+So `Ast<typeof json, I>` is `readonly [readonly Meta<I>[], readonly [string, Ast<Rule, I>], readonly Meta<I>[]]`:
 the whitespace runs are exact, and the value in the middle is any tagged
 AST at all. A proof written against that type cannot pin a JSON value's
-shape, which is what the type is for.
+shape, which is what the type is for — and a mapping of `value` receives
+`Children<Const<Variant>, I, O>`, which says nothing of the seven branches
+it has to read. The mapping itself is not blocked: the fold in
+[`../../ll1`](../../ll1/README.md) keys a mapping by rule identity, and the
+`value` thunk is reachable as `json[1]` and `dataJs[2][4]`.
 
 The DataJS `statement` helper had the same annotation and was fixed in the
 PR that filed this issue: a `const` type parameter keeps the prefix's arity,
@@ -58,8 +63,8 @@ the answer belongs in that issue as much as here.
 
 ### Related
 
-- [`../../ast/types.ts`](../../ast/types.ts) — `Ast<R>`, and why a widened
-  `R` gives `Ast<Rule>`.
+- [`../../ast/types.ts`](../../ast/types.ts) — `Ast<R, I, O>`, and why a
+  widened `R` gives `Ast<Rule, I, O>`.
 - ebnf-front-end — Problem 7, explicit
   annotations on recursive rules.
 - [pin-literal-constants](../json/todo/pin-literal-constants.md) — the same
@@ -67,7 +72,7 @@ the answer belongs in that issue as much as here.
 - [`../datajs/module.f.mjs`](../datajs/module.f.mjs) — `statement`, the
   helper already fixed.
 - [self-contained-tokenizer](../../../media/json/todo/self-contained-tokenizer.md)
-  — stage 3b's token mapping keys on `string`, which `Checked` refuses as
-  annotated; the `string` row here is that stage's one prerequisite. The
-  `value` row is stage 4's grammar route's, and DataJS's `value` thunk is the
-  same case.
+  — stage 3b's token mapping keys on `string`, whose mapping receives
+  `Children<Rule, I, O>` as annotated; the `string` row here is what types
+  that mapping's parameter. The `value` row is stage 4's grammar route's,
+  and DataJS's `value` thunk is the same case.

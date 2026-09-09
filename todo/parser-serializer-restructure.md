@@ -25,16 +25,14 @@ Item 1 is context rather than work. **Item 2 is what to start.**
 
    **It is not blocked, though two earlier drafts of this plan said so.**
    Measurement retired that claim: the document grammar exists at
-   `fjs/ebnf/lib/json`, the LL(1) backend parses JSON with it, and
-   `fjs/ebnf/map` is the engine that rewrites a parsed tree. What 3b runs is
+   `fjs/ebnf/lib/json`, the LL(1) backend parses JSON with it and folds a
+   rewrite set into the parse. What 3b runs is
    narrower and **not written**: a token-stream grammar over that module's
    exported lexical rules, over UTF-16 code units, mapped to the tokens the
    container machine consumes — the machine stays, with both codecs and
    their `NumberPolicy` untouched. Four measured contracts decide that, in
    the stage's issue: a value mapping would lose the seam the extended
-   codec's `123n` comes from and, through `rewrite`'s per-node recursion
-   ([stack-safe-rewrite](../fjs/ebnf/map/todo/stack-safe-rewrite.md)), the
-   depth today's parser is proven at; the public `tokenize` accepts streams
+   codec's `123n` comes from; the public `tokenize` accepts streams
    that are no document, which the document grammar rejects; and strings are
    code-unit sequences, which the `ll1` proof's code-point decoding throws
    on. Its typed mapping has one prerequisite, `string`'s pin in
@@ -718,8 +716,8 @@ throughout.
       the defect that predates the replacement and is provable without it.
 - [ ] Stage 3b: the reader comes from a grammar over `fjs/ebnf/`, not from a
       hand-written scanner. **Startable but not first**: the lexical rules
-      exist at `fjs/ebnf/lib/json` and `fjs/ebnf/map` is the engine that
-      rewrites a tree — the token-stream grammar 3b runs, over UTF-16 code
+      exist at `fjs/ebnf/lib/json` and `fjs/ebnf/ll1` folds a rewrite set
+      into the parse — the token-stream grammar 3b runs, over UTF-16 code
       units, is still to be written and made to match today's at a number's
       and a word's boundaries; its mapping builds **tokens** for the container
       machine that stays and
