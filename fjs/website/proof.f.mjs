@@ -252,6 +252,28 @@ export const proof = {
             assert(!page.includes('>todo/</a>'), page)
             assert(!('index.html' in /** @type {Dir} */ (dir['todo'])), 'expected no page for todo/')
         },
+        /**
+         * **A folder inside a `todo/` is skipped too.** Excluding only the
+         * directory whose own name is `todo` gave its subdirectories pages,
+         * and `ancestors` put `todo` in each breadcrumb — a link to the one
+         * page the generator never writes. What makes an issue folder's
+         * contents its parent's business does not stop applying one level
+         * down.
+         */
+        todoSubdirectoriesAreSkippedToo: () => {
+            const [generated] = run({
+                todo: {
+                    'open.md': file('## open'),
+                    plan: { 'later.md': file('## later'), deep: { 'x.md': file('## x') } },
+                },
+            })
+            const todo = /** @type {Dir} */ (generated.root['todo'])
+            const plan = /** @type {Dir} */ (todo['plan'])
+            assert(!('index.html' in todo), 'expected no page for todo/')
+            assert(!('index.html' in plan), 'expected no page for todo/plan/')
+            assert(!('index.html' in /** @type {Dir} */ (plan['deep'])),
+                'expected no page for todo/plan/deep/')
+        },
         // The breadcrumb walks back to the root through pages that exist.
         breadcrumbReachesTheRoot: () => {
             const [generated] = run({ a: { b: { 'module.f.mjs': file('export const x = 1') } } })

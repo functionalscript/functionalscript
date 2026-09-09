@@ -344,9 +344,17 @@ const generatedName = name =>
  * and no `todo/` of its own to list. It is therefore neither given a page nor
  * offered as a subdirectory link, so no link to a missing page can exist.
  *
+ * **The whole subtree, not the directory whose own name is `todo`.** The
+ * repository root's `todo/` holds four folders of its own, and `todo/demo/`
+ * holds a fifth. Excluding only the folder named `todo` gave each of those
+ * five a page whose breadcrumb linked `/todo/index.html`, the one page the
+ * generator deliberately never writes — five broken links, and the only
+ * broken links on the site. What makes an issue folder's contents its
+ * parent's business does not stop applying one level down.
+ *
  * @type {(path: string) => boolean}
  */
-const isTodoDir = path => path === 'todo' || path.endsWith('/todo')
+const isTodoDir = path => path.split('/').includes('todo')
 
 /**
  * What a page needs about one directory, from what the walk found in it and
