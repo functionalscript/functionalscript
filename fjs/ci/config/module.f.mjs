@@ -25,7 +25,7 @@ export const images = /** @type {const} */({
 // published FunctionalScript release; do not tie it to package.json's current
 // in-repo version.
 // https://www.npmjs.com/package/functionalscript
-export const functionalscript = /** @type {const} */ '0.48.0'
+export const functionalscript = /** @type {const} */ '0.49.0'
 
 // The one runtime a generated flake takes from outside the pinned snapshot.
 // Nixpkgs ships 1.3.13 — on the pin and on `master` — and two of this
@@ -39,7 +39,7 @@ export const functionalscript = /** @type {const} */ '0.48.0'
 // package definition. Delete this and the table below the day the snapshot
 // carries a Bun this suite passes on.
 // https://bun.sh/
-export const bun = '1.4.0'
+export const bun = '1.4.2'
 
 // The archive that release publishes for each system a generated flake targets,
 // with the SHA-256 its content must have, as an SRI string.
@@ -60,19 +60,19 @@ export const bun = '1.4.0'
 export const bunSources = {
     'aarch64-linux': {
         archive: 'bun-linux-aarch64',
-        hash: 'sha256-SxozLuhhmD65O8/m93D/+U4+MbLDiL2uo8jtNeWO7Q4=',
+        hash: 'sha256-VDKLvC2cjgyfiSxUTWbFeoO4QTnjSQnl7oF1jxrI/ac=',
     },
     'x86_64-linux': {
         archive: 'bun-linux-x64',
-        hash: 'sha256-LQP7X7g6yLVnrKCigbLOGhoZ1Ij1bClo2Iw/Jekv5FI=',
+        hash: 'sha256-NjaPrvdSeHXV/6UuU81IAhdB8qg+tiCKjdZAaNQiqRM=',
     },
     'aarch64-darwin': {
         archive: 'bun-darwin-aarch64',
-        hash: 'sha256-xmnpf2Fk4cluBwF0jbmN+ndJKQjL2DlMdVcTSnNd44E=',
+        hash: 'sha256-kJh6OhbX21VtiGrD1VHnttPt8KHPQ6yu1iLoZ2vh0S8=',
     },
     'x86_64-darwin': {
         archive: 'bun-darwin-x64-baseline',
-        hash: 'sha256-2pufG0unZsbymXEfON+qmGI+HtnECJaqU9uAPFLsH6A=',
+        hash: 'sha256-utW71s8U0JgNEV9ZVMn/kE32GdXplNLaH/zNPzFjALA=',
     },
 }
 
@@ -92,7 +92,7 @@ export const deno = '2.8.3'
 // versions it offers rather than the latest release.
 // https://nodejs.org/en/download
 export const node = /** @type {const} */({
-    default: '26.7.0',
+    default: '26.8.1',
     node22: '22.23.2',
     node24: '24.19.0',
 })
@@ -129,7 +129,7 @@ export const typescript = /** @type {const} */({
 // `dtolnay/rust-toolchain` installs; the two are the same constant so they
 // cannot drift.
 // https://rust-lang.org/
-export const rust = '1.98.0'
+export const rust = '1.98.1'
 
 // Official Nixpkgs snapshot used by the generated CI flakes. `ref` is the
 // stable channel the commit is accepted from; `commit` is the exact revision
@@ -146,7 +146,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixos-26.05',
-    commit: '062346a6d85bc4b49dfaa61c986e9c5be21217d1',
+    commit: '93108a538f079596c9a16c72cf03e9322782b6dd',
 })
 
 // Wasmtime and Wasmer are installed by their own setup actions, so these are
@@ -165,7 +165,7 @@ export const rustOverlay = /** @type {const} */({
     owner: 'oxalica',
     repo: 'rust-overlay',
     ref: 'master',
-    commit: '996e9b0b019a4a9eb9e9a5641aefa06d801b5895',
+    commit: '6ae57a71bcb0bebc7a66cc2bd76942c4cf649167',
 })
 
 // Moving either `commit` above needs `npm run lock-update` (real Nix) to

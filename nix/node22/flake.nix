@@ -1,5 +1,5 @@
 {
-    inputs.nixpkgs.url = "github:NixOS/nixpkgs/062346a6d85bc4b49dfaa61c986e9c5be21217d1";
+    inputs.nixpkgs.url = "github:NixOS/nixpkgs/93108a538f079596c9a16c72cf03e9322782b6dd";
     outputs = { nixpkgs, ... }: {
         devShells.aarch64-linux.default = let
             pkgs = import nixpkgs {

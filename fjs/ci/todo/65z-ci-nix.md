@@ -52,9 +52,9 @@ So the job's flake takes its toolchain from a **second input**,
 `github:oxalica/rust-overlay`, and this issue's "one official Nixpkgs snapshot" scope
 is widened by exactly that much. What the overlay does is not a different build; it is
 a different acquisition. Rust publishes a manifest per release —
-`channel-rust-1.98.0.toml`, every component and target with a URL and a hash — and the
+`channel-rust-1.98.1.toml`, every component and target with a URL and a hash — and the
 overlay checks a generated Nix file per version into its own repository, so
-`rust-bin.stable."1.98.0".minimal.override { extensions targets }` selects among the
+`rust-bin.stable."1.98.1".minimal.override { extensions targets }` selects among the
 same tarballs `rustup` would install, pinned by hashes that live in a flake input this
 repository pins. Nixpkgs ignores that manifest and builds the compiler from source,
 which is the whole of the difference.
@@ -67,7 +67,7 @@ deliberate: `default` would add `rust-docs`, a download nothing here opens.
 
 The two runtimes stay official: `pkgs.wasmtime` and `pkgs.wasmer`, whose attributes
 carry no version, so the job checks both from inside the shell exactly as `deno` does.
-Its Rust it does not check — `stable."1.98.0"` names the release in full, so a check
+Its Rust it does not check — `stable."1.98.1"` names the release in full, so a check
 would restate the flake rather than test it. The snapshot's Wasmtime is 45.0.2, which
 predates the wasi-threads removal in 47 that
 [wasmtime-threads](../../../todo/blocked/wasmtime-threads.md) records, so the
@@ -78,9 +78,10 @@ cannot; revisit when the snapshot moves past 47.
 
 Bun was attempted, reverted, and then migrated a third way. Nixpkgs ships 1.3.13 — on
 the pin and on `master` — and two of this repository's proofs fail on it while passing
-on 1.4.0. One is a real difference in when `Symbol.species` is read rather than a slow
-machine, so no timeout or configuration change reaches it, and weakening a proof to
-move a job to Nix was never a trade worth making.
+on 1.4.0 and 1.4.2, the version now pinned. One is a real difference in when
+`Symbol.species` is read rather than a slow machine, so no timeout or configuration
+change reaches it, and weakening a proof to move a job to Nix was never a trade worth
+making.
 
 What changed is the reading of the problem. Nixpkgs fetches Bun as a **prebuilt
 archive** — `stdenvNoCC.mkDerivation`, `dontBuild = true`, unzip, `install -Dm 755`,
@@ -89,8 +90,8 @@ builds. The job's flake therefore keeps that recipe and replaces only `src`:
 
 ```nix
 pinned = pkgs.bun.overrideAttrs {
-    version = "1.4.0";
-    src = pkgs.fetchurl { url = "…/bun-v1.4.0/bun-linux-aarch64.zip"; hash = "sha256-…"; };
+    version = "1.4.2";
+    src = pkgs.fetchurl { url = "…/bun-v1.4.2/bun-linux-aarch64.zip"; hash = "sha256-…"; };
 };
 ```
 
