@@ -6,15 +6,26 @@
 ### Problem
 
 Evo revisions identify immutable snapshots and may carry lock data that binds
-relative names to immutable snapshot/content hashes, but there is no convention
-or operation for turning one resolved Evo object into an ordinary runnable
+subjects to immutable snapshot/content hashes, but there is no convention or
+operation for turning one resolved Evo object into an ordinary runnable
 product.
 
 The target is a self-contained directory tree that conventional runtimes can
 consume without knowing anything about CAS, Evo, locks, or custom module
 resolution. A root object may depend on other independently versioned objects,
-and diamond dependencies may resolve the same name to different immutable
-contents.
+and diamond dependencies may resolve the same dependency identity to different
+immutable contents in different scopes.
+
+A dependency has two distinct names in this design:
+
+- its **identity** (an Evo subject/name used for lock lookup and history);
+- its validated **relative product path**, determined by the source reference
+  and used only for placement and ordinary runtime resolution.
+
+These must not be conflated. A lock map is subject -> content; it does not define
+filesystem paths. The resolver must produce the mapping between a source
+reference/product path and the dependency subject before lock selection can be
+applied.
 
 For example, a JavaScript product rooted at `a` may materialize as:
 
@@ -32,8 +43,8 @@ a/
 ```
 
 where `a -> b -> d` and `a -> c -> d`; the two `d` directories may contain
-different snapshots/content if the effective lock scopes resolve them
-differently.
+different snapshots/content if the effective lock scopes resolve the same
+subject differently.
 
 ### Core invariant: never rewrite source objects
 
@@ -60,24 +71,46 @@ not transform a source object itself.
 Starting from one selected Evo revision:
 
 1. Resolve the root revision's `snapshot` to immutable content.
-2. Read its lock value, if any. A hash in the outer `lock` field names a shared
-   `vnd.fjs.lock` blob; a direct hash inside a lock map selects immutable
-   snapshot/content, like `snapshot`, and is **not** an Evo revision hash.
-3. Resolve every referenced name according to the resolver's dependency,
-   precedence, fallback, and scoped-lock rules. Nested lock maps preserve local
-   choices for incompatible diamonds; the materializer consumes the resulting
-   path -> immutable-content bindings and does not infer history from a lock
-   entry.
-4. Materialize every resolved source object at its corresponding path.
+2. Discover each dependency reference in the source/content format and resolve
+   it to both (a) the dependency's Evo subject/identity and (b) a normalized,
+   validated relative product path. The exact name-to-subject convention is a
+   resolver concern and must be specified before implementation; lock keys are
+   never treated as output paths.
+3. Read the applicable lock value, if any. A hash in the outer `lock` field
+   names a shared `vnd.fjs.lock` blob; a direct hash inside a lock map selects
+   immutable snapshot/content for a **subject**, like `snapshot`, and is **not**
+   an Evo revision hash.
+4. Resolve each dependency subject according to the resolver's precedence,
+   fallback, history, and scoped-lock rules. Nested lock maps preserve local
+   choices for incompatible diamonds.
+5. Materialize the selected immutable content at the dependency's validated
+   relative product path, then recurse in that dependency's own resolution
+   context.
+
+A resolved edge therefore needs to retain at least these independent facts:
+
+```text
+source reference / relative product path
+                +
+dependency subject / identity
+                +
+selected immutable content hash
+```
+
+Product paths must be relative to the containing product node and validated as
+such. An arbitrary subject string (for example `../outside`) is a valid identity
+at the revision-format level but must never become a filesystem path merely by
+being a lock key.
 
 Conceptually:
 
 ```text
-Evo revision + snapshot + lock bindings
-                 ↓
-          resolved content graph
-                 ↓
-          directory-tree product
+Evo revision + dependency identities + snapshot + lock bindings
+                              ↓
+                    resolved content graph
+                 (subject + path + content)
+                              ↓
+                    directory-tree product
 ```
 
 The resolver and the product materializer should remain separate. Evo already
@@ -132,17 +165,30 @@ for archive deduplication; hard-linked files preserve the logical paths.
 
 The same resolved tree can be published as static URLs.
 
-HTTP redirects can deduplicate identical complete subtrees by mapping multiple
-logical URL prefixes to one canonical subtree. Import maps may similarly map
-module specifiers to canonical URLs.
+HTTP redirects can canonicalize multiple logical URL prefixes onto one subtree.
+Import maps may similarly map module specifiers to canonical URLs.
 
 Both mechanisms change the effective URL used as the base for relative module
 resolution and can also collapse module identity onto the canonical URL.
 Therefore an individual non-leaf module must not be redirected or mapped in
-isolation unless its dependencies are valid at the canonical location. Whole
-identical subtrees are the safe structural unit, but canonicalization is still a
-semantic choice: use it only when sharing module identity between those logical
-locations is intended.
+isolation unless its dependencies are valid at the canonical location.
+
+Even an identical directory subtree is **not by itself sufficient** for safe
+canonicalization. Content inside it may contain references that escape the
+subtree, such as `../x.js`, `url(../image.png)`, or analogous relative links.
+Moving the effective base from `/b/d/` to `/c/d/` changes those targets. A
+redirected/mapped subtree is safe only when one of these stronger conditions is
+met:
+
+- the subtree is dependency-closed: no runtime-relevant relative reference
+  escapes it; or
+- every escaping reference resolves to equivalent content/semantics from both
+  the logical and canonical locations.
+
+Canonicalization is also a module-identity choice: use it only when sharing
+module identity between those logical locations is intended. Otherwise publish
+the distinct URL trees and rely on ordinary immutable HTTP caching rather than
+redirecting them to one URL.
 
 Web publication should preserve immutable URLs and may use long-lived cache
 headers for content-addressed resources.
@@ -152,9 +198,10 @@ headers for content-addressed resources.
 The core convention is deliberately not JavaScript-specific:
 
 > A product is a materialized snapshot of a resolved graph of independently
-> versioned immutable objects. Relative references determine positions in the
-> product tree; lock bindings determine which immutable snapshot/content objects
-> occupy those positions.
+> versioned immutable objects. Source references determine validated relative
+> product paths; dependency identities determine lock/history resolution; lock
+> bindings determine which immutable snapshot/content objects occupy those
+> paths.
 
 This allows the same Evo/CAS model to produce, without source rewriting:
 
@@ -166,23 +213,28 @@ This allows the same Evo/CAS model to produce, without source rewriting:
 ### Tasks
 
 - [ ] Specify the representation of a resolved dependency graph independently
-      of filesystem materialization, with bindings to immutable content rather
-      than revisions.
-- [ ] Define the relative-name and effective-lock resolution rules needed to
-      build that graph from an Evo revision, including the distinction between
-      an outer shared-lock hash and direct content hashes inside a lock map.
+      of filesystem materialization. Each edge must keep the source reference /
+      validated relative product path, dependency subject/identity, and selected
+      immutable content hash distinct.
+- [ ] Define how source dependency references resolve to Evo subjects and
+      relative product paths. Do not infer paths from arbitrary subject strings.
+- [ ] Define the effective-lock resolution rules, including the distinction
+      between an outer shared-lock hash and direct subject -> content hashes
+      inside a lock map.
 - [ ] Implement a filesystem materializer that preserves every source object's
       bytes exactly.
-- [ ] Add proof coverage for diamond dependencies that resolve the same name to
-      both the same and different immutable contents.
+- [ ] Add proof coverage for diamond dependencies that resolve the same subject
+      to both the same and different immutable contents.
+- [ ] Add proof coverage showing that arbitrary subjects cannot escape or choose
+      product paths.
 - [ ] Add generic immutable-tree deduplication: hard-link identical files and
       allow subtree symlinks only behind an explicit module/path-identity-safe
       policy.
 - [ ] Add a self-contained TAR/pax exporter preserving hard links and any
       intentionally present symlinks.
-- [ ] Define static-Web publication rules, including whole-subtree redirects,
-      module-identity effects, and the relative-URL consequence of
-      redirects/import-map mappings.
+- [ ] Define static-Web publication rules, including module-identity effects,
+      relative-URL rebasing, and the dependency-closure/equivalent-escape rule
+      for whole-subtree redirects or import-map mappings.
 - [ ] Document language conventions for ECMAScript, Python, and HTML relative
       references without source rewriting.
 - [ ] Reference this product-materialization convention from the Evo and lock
@@ -193,8 +245,8 @@ This allows the same Evo/CAS model to produce, without source rewriting:
 - [../README.md](../README.md) — Evo API and the current rule that Evo stores and
   reads lock references but does not itself follow them.
 - `fjs/media/revision/README.md` — revision snapshots and lock field, including
-  the rule that direct lock-map values select immutable content rather than
-  revisions.
+  the rule that direct lock-map values select immutable content by subject
+  rather than revisions or output paths.
 - `fjs/media/lock/README.md` — lock-map representation.
 - `fjs/emergent_testing/todo/65z-singleton-effect.md` — runtime module identity
   consequences of resolving multiple paths to one module.
