@@ -201,9 +201,9 @@ fjs/ebnf/
   byte/                    binary alphabet adapter, when a consumer needs it (rewrite)
   data/                    RuleSet IR with bounded Repeat, emptyTagMap (rewrite)
   matcher/                 cursor, EOF, AST, transformer tools       (retire, unless a second backend wants it — see the triage)
-  ll1/                     the reference backend                     (rewrite — shipped)
+  ast/                     the typed AST with its metadata channel   (shipped)
+  ll1/                     the reference backend, folding the rewrite set (rewrite — shipped)
   token_symbol/            multi-character token alphabet            (move)
-  map/                     the rule-keyed rewrite of the typed AST   (rewrite — shipped)
   lib/                     json, datajs                              (port)
   todo/
 ```
@@ -228,16 +228,16 @@ only because of shared machinery and do not.
 | `module.f.mjs` — `set`, `range`, `remove`, `unicodeMax` | rewrite | `module.f.mjs`: the front end's rule union already reads a `string` as a Unicode sequence ([unicode-rules](../bnf/todo/unicode-rules.md), **Amended**) |
 | `module.f.mjs` — `str`, `not`, `notSet`, `unicodeRange` | rewrite | `unicode/`, EBNF forms only — what the rule union does not already imply ([unicode-rules](../bnf/todo/unicode-rules.md)) |
 | `data/` — `RuleSet`, `emptyTagMap`, `isRepeat` | rewrite | `data/` per [ebnf-data](../ebnf/data/README.md): every rule a tagged tuple, a range-set terminal, a `Repeat` carrying `min`/`max`. The classical `toData` output is **not** a valid EBNF set — a packed range has no reading there — so `bnf/data` cannot simply repoint its IR types; the bridge from the classical set to the EBNF one is mechanical and is `bnf/data`'s to add, under the direction rule, if the comparison proofs want it |
-| `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem` | retire | the front-end lowering in `ebnf/` needs no recognition, and a hand-written or deserialized EBNF set spells the primitive; an opt-in normalizer of the right-recursive shape may be added to `ebnf/data/` by whoever wants one, but nothing plans it, and it may replace a rule only by one that sits where the original sat — `repeat(0, 0)(R)` for `[]` does not, and loses the order `Ast` is monotone in ([rule-restrictions](../ebnf/map/todo/rule-restrictions.md)) |
+| `data/` — `toData`, `toDataWithRules`, `detectRepeat`, `repeatItem` | retire | the front-end lowering in `ebnf/` needs no recognition, and a hand-written or deserialized EBNF set spells the primitive; an opt-in normalizer of the right-recursive shape may be added to `ebnf/data/` by whoever wants one, but nothing plans it, and it may replace a rule only by one that sits where the original sat — `repeat(0, 0)(R)` for `[]` does not, and loses the order `Ast` is monotone in — `_Mono` in [`ebnf/ast/types.ts`](../ebnf/ast/types.ts) pins it, and a replacement takes a rule from under a repetition it refined and puts it beside that repetition, so a consumer reasoning "a narrower rule has a narrower AST" can no longer reason through it |
 | `data/` — `GrammarData`, `RuleNameMap` | rewrite | the classical ones retire; the EBNF lowering returns its own map from EBNF rule identity to generated name beside the rule set and entry — the bridge the transformer protocol keys on through `Entry.rule`, and the "rule identity must survive" requirement in [ebnf-front-end](../bnf/todo/ebnf-front-end.md) — in whatever shape the `data/` rewrite chooses |
-| `matcher/` | retire | **Amended.** It was to be moved with the `Rule` identity of its transformer protocol retargeted to the EBNF `Rule`. [`ebnf/ll1/`](../ebnf/ll1/README.md) shipped without it: the cursor is the backend's own, the AST is `Ast<R>` from `ebnf/ast/` and needs no constructors, and the transformer protocol is `ebnf/map/`'s `rewrite`. What is left of it is shared by no one until a second backend exists, and that backend is where a `matcher/` would be extracted from `ll1/` — an option, not a task. `bnf` keeps its own copy in any case |
-| `ll1/` | rewrite | [`ebnf/ll1/`](../ebnf/ll1/README.md), shipped: a `RuleSet`-only entry (`parserRuleSet`) and a front-end one (`parser`), `firstMap` refusing left recursion and a first/first conflict by name, one flat node per repetition whatever its bounds, and the AST mapping by building `Ast<R>` values that `rewrite` takes as they are. Not shipped: layer composition, which is stage 6's, and per-layer metadata per [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md), which is [meta-ast-mapping](../ebnf/todo/meta-ast-mapping.md), designed and not yet built |
+| `matcher/` | retire | **Amended.** It was to be moved with the `Rule` identity of its transformer protocol retargeted to the EBNF `Rule`. [`ebnf/ll1/`](../ebnf/ll1/README.md) shipped without it: the cursor is the backend's own, the AST is `Ast<R, I, O>` from [`ebnf/ast/`](../ebnf/ast/README.md) and needs no constructors, and the transformer protocol is the rewrite set `ll1` folds. What is left of it is shared by no one until a second backend exists, and that backend is where a `matcher/` would be extracted from `ll1/` — an option, not a task. `bnf` keeps its own copy in any case |
+| `ll1/` | rewrite | [`ebnf/ll1/`](../ebnf/ll1/README.md), shipped: a `RuleSet`-only entry (`parserRuleSet`) and a front-end one (`parser`), `firstMap` refusing left recursion and a first/first conflict by name, one flat node per repetition whatever its bounds, and the AST mapping as a rewrite set folded into the parse, keyed by rule identity, with per-layer metadata — the `MI`/`MO` of [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md) as the `I` and `O` of `Ast<R, I, O>`. Not shipped: layer composition as a module, which is stage 6's; the proof's two-layer example is the pattern |
 | `descent/` | retire | consumers port to `ll1/` (below) |
 | `token_symbol/` | move | the layer boundary; imports `unicode/`, so it lands after it |
-| `map/types.ts` | rewrite | [`ebnf/map/`](../ebnf/map/README.md), shipped: a mapping is keyed by the rule the author holds, as the types see it, and typed against `Ast<R>` rather than `Meta`, and `rewrite` is the bottom-up rewrite of the typed AST — the AST mapping stage 4's backend consumes or reproduces |
-| `map/rtti/` | retire | its runtime check of a mapping's declared input is `Checked` in `ebnf/map/types.ts`, done by `tsc` against the typed AST, so no RTTI layer is needed and [rename-check-map](../bnf/map/rtti/todo/rename-check-map.md) has nothing to rename in `ebnf/`; it retires with `bnf/` |
+| `map/types.ts` | rewrite | **Amended.** A separate `ebnf/map/` shipped first — a bottom-up rewrite of `Ast<R>` values keyed by rules as the types see them — and was retired when the fold landed: the mapping is the rewrite set [`ebnf/ll1/`](../ebnf/ll1/README.md) folds, typed by the layer's metadata rather than per rule, and that README's "Why a fold" records what the rewrite cost and why. A mapping's function is typed from its rule in `tsc`, so no RTTI layer is needed |
+| `map/rtti/` | retire | its runtime check of a mapping's declared input is done by `tsc`, the mapping's parameter typed from its rule under the layer's metadata, so [rename-check-map](../bnf/map/rtti/todo/rename-check-map.md) has nothing to rename in `ebnf/`; it retires with `bnf/`. A build-time check of the alphabets, for a set assembled at runtime, is [mapping-precheck](../ebnf/ll1/todo/mapping-precheck.md) |
 | `lib/json`, `lib/datajs` | port | one PR for both; `join` (was `commaJoin0Plus`) changes the AST of both bracket pairs |
-| `testlib.f.mjs` — `showAst` and the root `private.ts` typing it | retire | **Amended.** It was to be moved for `ll1`'s proofs, which spell `Ast<R>` trees directly instead — the tree is data, so it is pinned as data — and take a larger one through `rewrite` with nothing mapped, which refuses a tree that is not the rule's |
+| `testlib.f.mjs` — `showAst` and the root `private.ts` typing it | retire | **Amended.** It was to be moved for `ll1`'s proofs, which spell `Ast<R, I>` trees directly instead — the tree is data, so it is pinned as data |
 | `testlib.f.mjs` — `classic`, `deterministic` | retire | `ebnf/lib` is its own fixture |
 | `README.md` | split | the AST contract, "Terminals and EOF", "Dispatch" go to `ebnf/` and its owners; the functional representation stays and dies with `bnf/` |
 
@@ -270,8 +270,9 @@ there. Nothing here orders the two plans either way. In dependency order:
 1. `bnf/lib/json` and `bnf/lib/datajs` — atomically, since `testlib`'s
    `deterministic()` delegates to `lib/json`. The originals stay in `bnf/`.
 2. `fjs/djs/tokenizer` — depends on `terminal/`, `unicode/`, `data/`,
-   `ast/` and `map/` (the tree and its mapping), `ll1/`, and on
-   [meta-ast-mapping](../ebnf/todo/meta-ast-mapping.md) for the positions it reports.
+   `ast/` and `ll1/` (the tree and its mapping), and on the metadata
+   channel of [`ebnf/ast/`](../ebnf/ast/README.md) for the positions it
+   reports.
 3. `fjs/djs/parser` — the above plus `token_symbol/`.
 
 **Neither djs grammar is LL(1) as spelled.** Checked by running both through
@@ -313,11 +314,11 @@ rewritten against the surviving backend as they move.
 | [bigint-symbols](../bnf/todo/bigint-symbols.md), [terminal-range-representation](../bnf/todo/terminal-range-representation.md), [eof-as-ordinary-symbol](../bnf/todo/eof-as-ordinary-symbol.md) | move | `ebnf/terminal/todo/` |
 | [utf8-token-symbols](../bnf/todo/utf8-token-symbols.md), [tokens-with-extra-information](../bnf/todo/tokens-with-extra-information.md) | move | `ebnf/token_symbol/todo/` |
 | [207-bnf-semantic-actions](../bnf/todo/207-bnf-semantic-actions.md), [layered-parser](../bnf/todo/layered-parser.md), [parser-structure](../bnf/todo/parser-structure.md) | move | `ebnf/todo/` — they describe the reference backend and its protocol |
-| [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md), [043-stateful-parser](../bnf/todo/043-stateful-parser.md) | keep | the classical backend's metadata protocol; for `ebnf/` that protocol is superseded by [meta-ast-mapping](../ebnf/todo/meta-ast-mapping.md), which each cites at its head. 043's streaming input — a parser as a `StateFold` over one symbol at a time — is not superseded and stays open for `ebnf/` |
+| [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md), [043-stateful-parser](../bnf/todo/043-stateful-parser.md) | keep | the classical backend's metadata protocol; for `ebnf/` that protocol is superseded by the rewrite set [`ebnf/ll1/`](../ebnf/ll1/README.md) folds over the metadata channel of [`ebnf/ast/`](../ebnf/ast/README.md), which each cites at its head. 043's streaming input — a parser as a `StateFold` over one symbol at a time — is not superseded and stays open for `ebnf/` |
 | [recognizer-backend](../bnf/todo/recognizer-backend.md), [032-stupid-parser](../bnf/todo/032-stupid-parser.md), [046-lr1-parser](../bnf/todo/046-lr1-parser.md) | move | `ebnf/todo/` — backends that do not exist yet, created at their final paths |
 | [proof-recognizer-and-fixtures](../bnf/todo/proof-recognizer-and-fixtures.md), [serialized-proof-expectations](../bnf/todo/serialized-proof-expectations.md) | move | `ebnf/todo/`, rewritten for one backend |
 | [bnf-grammar-single-owner](../bnf/todo/bnf-grammar-single-owner.md) | move | `ebnf/lib/todo/` at stage 5 |
-| [rename-check-map](../bnf/map/rtti/todo/rename-check-map.md) | retire | `ebnf/map/` has no `checkMap`; the issue describes `bnf/map/rtti`'s code and goes with it |
+| [rename-check-map](../bnf/map/rtti/todo/rename-check-map.md) | retire | `ebnf/` has no `checkMap`; the issue describes `bnf/map/rtti`'s code and goes with it |
 | grammar-bucket | retired | deleted by the PR that filed this issue; every issue that cited its stages now cites the stages here, and the "Later candidates" bullet of [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md) names this plan and `fjs/ebnf/` |
 
 #### Stages
@@ -372,14 +373,13 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    copied, taking `unicodeRange` from `ebnf/unicode/`. `ll1` rewritten against
    the new IR — shipped as [`ebnf/ll1/`](../ebnf/ll1/README.md): flat nodes
    for every bound, a conflict error that names the rule, and the AST
-   mapping of [`ebnf/map/`](../ebnf/map/README.md), which shipped ahead of
-   it as a rewrite over the typed AST. Of the two things the backend could
-   owe the map — `Ast<R>` values, which compose with `rewrite` as it is, or
-   its own fold over the same map, building no tree — it builds the values,
-   and the map's proof trees are now what the parser produces. Metadata per
-   the moved issues did not ship with it and is
-   [meta-ast-mapping](../ebnf/todo/meta-ast-mapping.md), designed there
-   as a metadata channel the parser folds a rewrite set through.
+   mapping as a rewrite set folded into the parse. Of the two things the
+   backend could owe a mapping — `Ast<R>` values for a separate rewrite to
+   take, or its own fold, building no tree — it shipped the values first,
+   with `ebnf/map/` as the rewrite, and then the fold, which retired the
+   rewrite (the triage's `map/types.ts` row, **Amended**). Metadata per the
+   moved issues shipped with the fold, as the `I` and `O` of
+   [`ebnf/ast/`](../ebnf/ast/README.md)'s `Ast<R, I, O>`.
 5. **`ebnf/lib/` and the comparison proofs.** Port `json` and `datajs` in one
    PR — the *port*, meaning the change that stops `bnf/lib/datajs` importing
    `bnf/lib/json`. An ebnf spelling written beside the untouched classical
@@ -427,12 +427,12 @@ consumer port"), never by number, so a renumbering here cannot strand them.
 - [ ] Stage 3: `ebnf/unicode/` with proof; unicode-rules' `unicode/` half
       settled, its `byte/` half owed to the first consumer that wants it.
       `ebnf/matcher/` and `showAst` retired from the stage (**Amended**).
-- [x] `ebnf/map/` with proof: the rewrite over the typed AST, keyed by the
-      rule as the types see it — a data rule by its parts, a thunk by
-      itself, a look-alike refused — its declared inputs checked by `tsc`;
+- [x] `ebnf/ast/` with the metadata channel, and `ebnf/ll1/` folding the
+      rewrite set keyed by rule identity, with proof; `ebnf/map/`, the
+      separate rewrite that shipped first, retired by it;
       rename-check-map retired with `bnf/map/rtti`.
 - [x] Stage 4: `ebnf/ll1/` with proof; the backend's side of the AST
-      mapping, as `Ast<R>` values.
+      mapping.
 - [ ] Stage 4: `ebnf/token_symbol/` with proof.
 - [ ] Stage 5: `ebnf/lib/json` and `ebnf/lib/datajs` with proofs; the
       cross-front-end comparison proof group; bnf-grammar-single-owner moved.
@@ -455,9 +455,10 @@ consumer port"), never by number, so a renumbering here cannot strand them.
   the reference backend grows into, in `ebnf/ll1/` (stage 4) and the
   layered port (stage 6).
 - [generic-parser-metadata](../bnf/todo/generic-parser-metadata.md) — the
-  classical metadata protocol, superseded for `ebnf/` by
-  [meta-ast-mapping](../ebnf/todo/meta-ast-mapping.md); kept as the record
-  of what it replaces.
+  classical metadata protocol, superseded for `ebnf/` by the metadata
+  channel of [`ebnf/ast/`](../ebnf/ast/README.md) and the rewrite set
+  [`ebnf/ll1/`](../ebnf/ll1/README.md) folds; kept as the record of what
+  it replaces.
 - [unicode-rules](../bnf/todo/unicode-rules.md) — stage 3, EBNF representation
   only.
 - [group-fs-subdirectories-by-concern](./group-fs-subdirectories-by-concern.md)

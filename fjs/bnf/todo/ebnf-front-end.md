@@ -135,7 +135,7 @@ open tail. **Amended:** this paragraph used to describe one tuple with an
 optional-element tail, `readonly [T?]`; that is not what shipped, and
 `fjs/types/array` pins the union in its own assertions —
 `BoundedArray<0, 1, T>` is `readonly [] | readonly [T]`, and
-`fjs/ebnf/ast/types.ts` asserts the same for `Ast<Repeat<0, 1, 43>>`. The
+`fjs/ebnf/ast/types.ts` asserts the same for `Ast<Option<43>, I, O>`. The
 union is the more precise type, since `.length` narrows it:
 
 | bounds | AST |
@@ -275,8 +275,8 @@ pairs, so the array and object productions change shape. A grammar adopting a
 new form is not shape-preserving either.
 
 Also: the rtti map goes away with `repeatItem` — **Amended:** there is no
-rtti map in `ebnf/`; [`fjs/ebnf/map`](../../ebnf/map/README.md) checks a
-mapping's declared input in `tsc` against the typed AST — and
+rtti map in `ebnf/`; a mapping's parameter is typed from its rule in `tsc`
+([`fjs/ebnf/ll1`](../../ebnf/ll1/README.md)) — and
 `detectRepeat` retires with the classical `data/`
 ([ebnf-migration](../../todo/ebnf-migration.md)): a hand-written or
 deserialized EBNF set spells the primitive, and an opt-in normalizer of the
@@ -350,13 +350,14 @@ either level.
 not infer a recursive thunk. Worth testing on a real grammar early: if the
 annotations are onerous, the table is documentation rather than a checked
 contract, which is a much weaker proposal. **Met again by
-[`fjs/ebnf/map`](../../ebnf/map/README.md):** a mapping's function is
-written against a declared input, since its true input depends on the whole
-map, and `rewrite` checks the declaration against the map once it is whole.
-Non-recursive grammars pay one annotation per mapping; a recursive one is
-still the untested case, and now a blocking one: a key must have a type
-that says its parts, so a recursive rule annotated `Thunk` or
-`Const<Variant>` cannot be a key until it has its recursive type.
+[`fjs/ebnf/ll1`](../../ebnf/ll1/README.md):** a mapping's function is typed
+from its rule under the layer's metadata, with no annotation per mapping,
+since every mapping returns a `Meta<O>` and so its input depends on the
+layer's `I` and `O` alone. A recursive rule is a key by identity whatever
+its annotation, so nothing blocks; what a widened annotation costs is what
+the mapping sees — `Children<Const<Variant>, I, O>` says nothing of the
+branches — which is
+[widened-rule-signatures](../../ebnf/lib/todo/widened-rule-signatures.md).
 
 **8. The tables never say how a node is represented.** Rows are written as
 structural values while today's AST is `{ tag, sequence }` nodes
@@ -365,20 +366,20 @@ cannot be written until this is settled, and it decides what "the same AST"
 means in the port claim. **Narrowed by
 [ebnf-data](../../ebnf/data/README.md):** the data layer commits to one
 node per rule invocation, with one flat node for a repetition of any
-bounds; how the typed `Ast<R>` relates to those nodes is `ebnf/map/`'s to
-settle. That layer said `{ tag, sequence }` when it landed, since the
-classical node was the only one there was; its README says `Ast<R>` now,
+bounds; how the typed AST relates to those nodes is the AST's own module's
+to settle. That layer said `{ tag, sequence }` when it landed, since the
+classical node was the only one there was; its README says `Ast` now,
 amended by the backend below, and no `{ tag, sequence }` node survives in
-`ebnf/`. **Narrowed again by
-[`fjs/ebnf/map`](../../ebnf/map/README.md):** the mapping layer is defined
-over the typed `Ast<R>` — its rows are the table above with every child
-position a hole — so what remains is the backend's: build `Ast<R>` values,
-or fold the same map into the parse and hand each mapping the children that
-README specifies. **Answered by
-[`fjs/ebnf/ll1`](../../ebnf/ll1/README.md):** the backend builds `Ast<R>`
-values — `parser(rule)` returns a `Parser<Ast<typeof rule>>` — so a node
-*is* the row's structural value, and "the same AST" in the port claim means
-the same `Ast<R>`. There is no `{ tag, sequence }` node in `ebnf/`.
+`ebnf/`. **Narrowed again by [`fjs/ebnf/ast`](../../ebnf/ast/README.md):**
+`Children<R, I, O>` is what a mapping receives — its rows are the table
+above with every child position an `Ast` — so what remains is the
+backend's: build the values, or fold the mappings into the parse and hand
+each the children that table specifies. **Answered by
+[`fjs/ebnf/ll1`](../../ebnf/ll1/README.md):** the backend builds
+`Ast<R, I, O>` values and folds its rewrite set through them as it does —
+`parser(rule, set)` returns a `Parser<Ast<typeof rule, I, O>, I>` — so a
+node *is* the row's structural value, and "the same AST" in the port claim
+means the same `Ast`. There is no `{ tag, sequence }` node in `ebnf/`.
 
 **9. Dissolved by ebnf-migration.** It was: one alphabet adapter cannot
 return both representations — `range('09')` is a packed `TerminalRange` to
@@ -417,10 +418,10 @@ three forms. It needs a data layer that can represent it.
       never rule combinators: this front end has one injection from a set to
       a rule, the `['set', …]` thunk, and no rule-level complement
       ([ebnf-range-set](./ebnf-range-set.md)).
-- [x] ~~`rtti/`: the rule-info map, without `repeatItem`~~ — retired:
-      [`fjs/ebnf/map`](../../ebnf/map/README.md) checks a mapping's declared
-      input in `tsc`, against the typed AST, so there is no runtime type
-      information to keep.
+- [x] ~~`rtti/`: the rule-info map, without `repeatItem`~~ — retired: a
+      mapping's parameter is typed from its rule in `tsc`
+      ([`fjs/ebnf/ll1`](../../ebnf/ll1/README.md)), so there is no runtime
+      type information to keep.
 - [ ] Proofs: every constructor; every `Info` form written directly; each
       bound shape, `Infinity` among them, and the degenerate `0..0` and
       `1..1`; string lowering,
