@@ -159,16 +159,56 @@ not refused. `500` rather than `505`: RFC 9110 §15.6.6 names the request's
 perfectly well for a body whose size it knows. It is the pre-headers case
 `failSafe` already answers `500` in, reached before rather than after the fact.
 A response Node will carry no body for is not this case at all, and the order
-the two pre-pump guards are asked in — stated with the no-body one below — is
-what says so.
+the pre-pump guards are asked in — stated with the no-body one below — is what
+says so.
 
-Nothing in the tree produces it — `fjs/web` declares the length from the `stat`,
-so its bodies are all first-row — which is the reason to state the refusal here
-rather than to discover it: the design admits an unsized body, and this is the
-request it may not be handed one on. The virtual runner mirrors the refusal for
-the reason it mirrors the no-body guard, and that costs its `IncomingMessage`
-the field the predicate reads: the type carries `method`, `url`, `headers` and
-`body` ([`../types.ts`](../types.ts)) and no version.
+**That predicate is Node's own only while the listener leaves the framing to
+Node.** `ServerResponse.headers` can carry a `Transfer-Encoding`, and Node takes
+the header over the default. Measured on Darwin with Node 26.8.1 and reproduced
+row for row on 22.23.2, one 131,072-byte chunk written of a longer body and then
+the producer failing, `curl` speaking the request's own version:
+
+| response headers | request | `useChunkedEncodingByDefault` | on the wire | `curl` |
+| --- | --- | --- | --- | --- |
+| none | 1.1 | `true` | chunked | exit `18` |
+| `transfer-encoding: identity` | 1.1 | `true` | close-delimited | exit **`0`**, 131,072 bytes |
+| none | 1.0 | `false` | close-delimited | exit `0`, 131,072 bytes |
+| `transfer-encoding: chunked` | 1.0 | `false` | chunked | exit `18` |
+| `content-length: 262144` | 1.0 and 1.1 | either | length-delimited | exit `18` |
+
+The flag is wrong in both directions. An `identity` on an HTTP/1.1 request
+leaves it `true` over a close-delimited response — the truncated body handed
+over as a whole one, which is the answer this refusal exists to prevent, reached
+past the guard against it. A `chunked` on an HTTP/1.0 request leaves it `false`
+over a response Node chunks, which the refusal would turn away. The value that
+is right in every row is `res.chunkedEncoding`, and `writeHead` is what sets it:
+after that call `headersSent` is `true` and there is no `500` left to send.
+(`writeHead` alone puts nothing on the wire — measured, a `writeHead` and then a
+`destroy` leaves the client an empty reply rather than a status — so reading the
+right value late does not buy a late refusal either.)
+
+**So the listener does not write `Transfer-Encoding`, and a response whose
+headers name one is refused `500` before them.** Framing is between the runner
+and the socket. What a listener writes is a description of its body,
+`Content-Length` included — that is the `fstat` size, not a statement about
+delimiters — and Node frames it from there. Interpreting a listener's
+`Transfer-Encoding` instead would mean restating Node's rule for what counts as
+chunked, and that rule is a regexp over the header value: measured the same way,
+`x-chunked` and `chunked, gzip` both make Node chunk the body, and a client
+de-chunks neither, so the restatement would be wrong in the cases it was written
+for. Refusing the header takes that whole class of disagreement out of the
+design and leaves `res.useChunkedEncodingByDefault` and the listener's
+`Content-Length` as the whole of Node's framing decision, which is what makes
+the refusal above exact rather than nearly right.
+
+Nothing in the tree produces either refusal — `fjs/web` declares its length from
+the `stat` and writes no `Transfer-Encoding` — which is the reason to state them
+here rather than to discover them: the design admits an unsized body, and these
+are the responses it may not answer one with. The virtual runner mirrors both
+for the reason it mirrors the no-body guard. The header one costs it nothing,
+being a header it already records; the length one costs its `IncomingMessage`
+the field the predicate reads, since the type carries `method`, `url`, `headers`
+and `body` ([`../types.ts`](../types.ts)) and no version.
 
 **A cell is not the only way a body ends early.** The pump runs inside the
 `asyncTryCatch` that [`createServer`](../module.mjs) already wraps the listener
@@ -313,26 +353,30 @@ suppress a body the host was about to send — the same plausible wrong answer,
 produced by the check meant to prevent one. So it is written from the host's own
 predicate: `HEAD`, `204`, `304`, `1xx`.
 
-**Both guards stand before the pump, so the order they are asked in is part of
+**Three gates stand before the pump, so the order they are asked in is part of
 the design.** They overlap: a `HEAD` on an HTTP/1.0 request, answered with a
-body whose size the listener does not know, satisfies the no-body predicate and
-the unframable one at once. The runner asks them in this order and answers with
-the first that fires.
+body whose size the listener does not know, satisfies two of them at once. A
+runner asks them in this order and answers with the first that fires.
 
-1. **Will Node carry a body at all?** `HEAD`, `204`, `304`, `1xx` — the producer
+1. **Did the listener write a `Transfer-Encoding`?** `500`, before the headers.
+   The response is one the listener had no business framing, whatever body this
+   particular request would have carried.
+2. **Will Node carry a body at all?** `HEAD`, `204`, `304`, `1xx` — the producer
    is never pulled, and the listener's status and headers go out as they stand.
-2. **Can the body that will go out be framed?** No `Content-Length` on a request
-   Node will not chunk — `500`, before the headers, as above.
-3. Neither fires, and the pump runs.
+3. **Can the body that will go out be framed?** No `Content-Length` on a request
+   Node will not chunk — `500`, before the headers.
+4. None of them fires, and the pump runs.
 
-Suppression first, because the refusal exists to stop a truncated body from
-passing for a whole one, and a body Node drops is never on the wire to be
-truncated: a `HEAD` or a `304` is a complete answer whatever framing the body it
-does not carry would have had. The other order answers `500` to a request this
-server can satisfy exactly — refusing what it *can* handle, which is not what
+The framing header first, because it is the response being malformed rather than
+this body being undeliverable; suppression before the length refusal, because
+that refusal exists to stop a truncated body from passing for a whole one and a
+body Node drops is never on the wire to be truncated. A `HEAD` or a `304` is a
+complete answer whatever framing the body it does not carry would have had, so
+the other order answers `500` to a request this server can satisfy exactly —
+refusing what it *can* handle, which is not what
 [DESIGN §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) asks
-for. Both runners take the guards in this order, or they disagree about a
-request neither of them has any trouble with.
+for. Both runners take the gates in this order, or they disagree about a request
+neither of them has any trouble with.
 
 **The virtual runner records what went out.** `listen` in
 [`../virtual/module.f.mjs`](../virtual/module.f.mjs) can pump the body with the
@@ -408,10 +452,10 @@ answering `413` is a listener with a size policy of its own — correctly.
       length, its chunk source as a parameter rather than a path, and proof
       coverage, and read `cas` through it.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body; the Node runner's
-      pump — its `drain`/`close` discipline, the no-body guard and the
-      unframable-body refusal that keep it from starting, in that order, and its
-      destroy-on-failure in both the cell and `failSafe`; the virtual runner's
-      `RecordedResponse`, mirroring both guards and their order.
+      pump — its `drain`/`close` discipline, the three gates that keep it from
+      starting in their stated order, and its destroy-on-failure in both the
+      cell and `failSafe`; the virtual runner's `RecordedResponse`, mirroring
+      the gates and their order.
 - [ ] Stage 1, blocked on [stat-then-read](../../../web/todo/stat-then-read.md):
       the handle effect — `open`, `fstat`, bounded read, `close` — modelled in
       the virtual file system, as the chunk source `fjs/web` reads through.
