@@ -125,8 +125,17 @@ and the case it misses is exactly the one a producer that cannot state its size
 lands in: a truncated file the client cannot tell from a whole one, which is the
 plausible wrong value [DESIGN §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 exists to refuse. Destroying covers both framings.
-[`failSafe`](../module.mjs) keeps the pre-headers case, where a status is still
-available and `500` is the answer.
+
+**A cell is not the only way a body ends early.** The pump runs inside the
+`asyncTryCatch` that [`createServer`](../module.mjs) already wraps the listener
+in, so a continuation that *throws* never reaches the policy above — it reaches
+[`failSafe`](../module.mjs), whose `headersSent` branch answers with `res.end()`
+because until now there was no body left to truncate. Measured the same way, one
+131,072-byte chunk written under chunked framing and then a throw: the client
+read a **clean, complete** 131,072-byte response, `res.complete` `true` and no
+error raised. That is the same lie reached by the other door, so `headersSent`
+destroys there too. What `failSafe` keeps is the pre-headers case, where a
+status is still available and `500` is the answer.
 
 **And a declared length bounds the reads, rather than being a guess about
 them.** The fold above ends on an empty read, so a file that grows between the
@@ -244,8 +253,8 @@ answering `413` is a listener with a size policy of its own — correctly.
       `writeFromStream`, with its byte bound and proof coverage, and read `cas`
       through it.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body; the Node runner's
-      pump — its `drain`/`close` discipline and its destroy-on-failure; the
-      virtual runner's `RecordedResponse`.
+      pump — its `drain`/`close` discipline and its destroy-on-failure in
+      both the cell and `failSafe`; the virtual runner's `RecordedResponse`.
 - [ ] Stage 1: serve files past the cap in `fjs/web` — `Content-Length` from the
       `stat` size and the reads bounded by it, `tooLarge` and its `413` row
       deleted, the `isFile` guard kept.
