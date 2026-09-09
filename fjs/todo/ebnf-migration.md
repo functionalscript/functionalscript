@@ -198,6 +198,7 @@ fjs/ebnf/
                            is a Unicode sequence — unicode-rules, Amended)
   terminal/                the symbol domain, EOF, integer helpers over range_set (rewrite)
   unicode/                 text adapter: str, not, unicodeRange, …   (rewrite)
+  utf16/                   the code-unit alphabet: its metadata, and a text as symbols (shipped)
   byte/                    binary alphabet adapter, when a consumer needs it (rewrite)
   data/                    RuleSet IR with bounded Repeat, emptyTagMap (rewrite)
   matcher/                 cursor, EOF, AST, transformer tools       (retire, unless a second backend wants it — see the triage)

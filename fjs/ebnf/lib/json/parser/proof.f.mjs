@@ -5,14 +5,16 @@
  * @import { Equal } from '../../../../types/ts/types.ts'
  * @import { Ast, Meta } from '../../../ast/types.ts'
  * @import { Parser } from '../../../ll1/types.ts'
- * @import { Error, Json, Out, Utf16 } from './types.ts'
+ * @import { Utf16 } from '../../../utf16/types.ts'
+ * @import { Error, Json, Out } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../../../asserts/module.f.mjs'
 import { unwrap } from '../../../../types/result/module.f.mjs'
 import { parser } from '../../../ll1/module.f.mjs'
+import { units } from '../../../utf16/module.f.mjs'
 import { json } from '../module.f.mjs'
-import { mappings, parse, units } from './module.f.mjs'
+import { mappings, parse } from './module.f.mjs'
 
 const { is } = Object
 
@@ -85,7 +87,7 @@ export const proof = {
         assertStructurallySame(parsed('{ "a" : 1 , "b" : { } }'), { a: 1, b: {} })
         assertStructurallySame(parsed('{"a": 1, "a": 2}'), { a: 2 })
         assertStructurallySame(parsed('{"": 0}'), { '': 0 })
-        assertStructurallySame(parsed('{"__proto__": 1}'), { ['__proto__']: 1 })
+        assertStructurallySame(parsed('{"__proto__": 1}'), JSON.parse('{"__proto__": 1}'))
         const document = ' [1.5e-3, {"a\\u00e9\\n": null, "": [true, false]}, "x"] '
         assertStructurallySame(parsed(document), JSON.parse(document))
     },
@@ -142,14 +144,6 @@ export const proof = {
         /** @typedef {Assert<Equal<typeof parseValue, Parser<Ast<typeof json, Utf16, Out>, Utf16>>>} _Typed */
         assertStructurallySame(parseValue(units('[1]x')), ['ok', [jsonSymbol([1]), 3]])
         assertStructurallySame(parseValue(units(' "a" ')), ['ok', [jsonSymbol('a'), 5]])
-    },
-    // The input is one symbol per code unit, each with the shared metadata,
-    // so an astral character is two and the text's length is the input's.
-    units: () => {
-        const symbols = units('a😀')
-        assertStructurallySame(symbols.map(({ symbol }) => symbol), [0x61, 0xD83D, 0xDE00])
-        assert(symbols[0].meta === symbols[1].meta)
-        assertEq(symbols[0].meta.id, 'utf16')
     },
     // `parse` is total over strings: what it returns is a value or one of
     // the two errors, and nothing it is given makes it throw.

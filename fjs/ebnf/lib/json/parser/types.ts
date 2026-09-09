@@ -1,19 +1,13 @@
 /**
- * Type-level API of the JSON reader: the two alphabets its mappings are
- * written between, and what it reports where a text is no JSON document.
+ * Type-level API of the JSON reader: the output alphabet its mappings
+ * return into — the input alphabet is `../../../utf16/types.ts` — and what
+ * it reports where a text is no JSON document.
  *
  * @module
  */
 
 import type { Unknown } from '../../../../media/json/types.ts'
 import type { Result } from '../../../../types/result/types.ts'
-
-/**
- * The input alphabet: UTF-16 code units, one symbol each, with nothing the
- * grammar ignored about them. A caller that knows more — a position, say —
- * hands over a record that carries this one's `id` beside it.
- */
-export type Utf16 = { readonly id: 'utf16' }
 
 /**
  * What the `string` rule's mapping returns: the string the rule spells,

@@ -1,12 +1,16 @@
 /**
- * Implementation-private types of the JSON reader: the rules under `string`
- * that its decoder reads, spelled from the grammar so that the decoder is
- * typed by the rule it decodes.
+ * Implementation-private types of the JSON reader: the rules its readers
+ * take apart, spelled from the grammar so that a reader is typed by the
+ * rule it reads.
  *
  * @module
  */
 
-import type { string } from '../module.f.mjs'
+import type { Rule } from '../../../types.ts'
+import type { string, ws } from '../module.f.mjs'
+
+/** The pair `cj` hands to `join`: an item, then its whitespace. */
+export type _Item<R extends Rule> = readonly [R, typeof ws]
 
 /**
  * One character of a string: the item of the repetition between the quotes,

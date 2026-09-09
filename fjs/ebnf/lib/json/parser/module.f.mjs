@@ -11,10 +11,10 @@
  * A parse that fails builds no tree and reports where; {@link parse} merges
  * the two into one `Result`.
  *
- * The input is UTF-16 code units rather than code points, which is what
- * makes a string the sequence of units it spells: a lone surrogate is one
- * unit in and one unit out, escaped or raw, as `JSON.parse` reads it, where
- * a decoder to code points would refuse it before the grammar saw it.
+ * The input is the UTF-16 alphabet of `../../../utf16`, code units rather
+ * than code points, which is what makes a string the sequence of units it
+ * spells: a lone surrogate is one unit in and one unit out, escaped or raw,
+ * as `JSON.parse` reads it.
  *
  * @module
  *
@@ -24,40 +24,24 @@
  * @import { Ast, Children, Meta } from '../../../ast/types.ts'
  * @import { Mappings, RewriteSet } from '../../../ll1/types.ts'
  * @import { Rule } from '../../../types.ts'
+ * @import { Utf16 } from '../../../utf16/types.ts'
  * @import { Container, Entry, JsonValue } from '../types.ts'
- * @import { _Character, _Escape, _HexDigit } from './private.ts'
- * @import { Error, Json, Out, OutOfRange, Text, Utf16 } from './types.ts'
+ * @import { _Character, _Escape, _HexDigit, _Item } from './private.ts'
+ * @import { Error, Json, Out, OutOfRange, Text } from './types.ts'
  */
 
 import { assert, assertNotNullish } from '../../../../asserts/module.f.mjs'
-import { listToString, stringToList } from '../../../../text/utf16/module.f.mjs'
-import { toArray } from '../../../../types/list/module.f.mjs'
+import { listToString } from '../../../../text/utf16/module.f.mjs'
 import { at } from '../../../../types/object/module.f.mjs'
 import { error, mapOk, ok, unwrap } from '../../../../types/result/module.f.mjs'
 import { eof } from '../../../module.f.mjs'
 import { mapping, parser } from '../../../ll1/module.f.mjs'
-import { json, number, string, value, ws } from '../module.f.mjs'
+import { units } from '../../../utf16/module.f.mjs'
+import { json, number, string, value } from '../module.f.mjs'
 
 const { fromCharCode } = String
 const { isFinite } = Number
 const { fromEntries } = Object
-
-/**
- * The metadata of a code unit with nothing to say about it: one frozen
- * record shared by every leaf, so the parse allocates nothing per symbol.
- */
-const utf16 = /**@type {const}*/({ id: 'utf16' })
-
-/** @type {(symbol: number) => Meta<Utf16>} */
-const unit = symbol => ({ symbol, meta: utf16 })
-
-/**
- * The input the parser is given: the UTF-16 code units of a text, each with
- * the trivial metadata.
- *
- * @type {(text: string) => readonly Meta<Utf16>[]}
- */
-export const units = text => toArray(stringToList(text)).map(unit)
 
 /** @type {(value: string) => Meta<Text>} */
 const text = value => ({ symbol: 0, meta: { id: 'text', value } })
@@ -193,7 +177,7 @@ const all = results => {
 /**
  * The item of the pair `cj` hands to `join`: the item, then its whitespace.
  *
- * @type {<R extends Rule>(node: Ast<readonly [R, typeof ws], Utf16, Out>) => Ast<R, Utf16, Out>}
+ * @type {<R extends Rule>(node: Ast<_Item<R>, Utf16, Out>) => Ast<R, Utf16, Out>}
  */
 const item = node => unmapped(node)[0]
 
