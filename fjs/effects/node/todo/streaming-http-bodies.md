@@ -342,16 +342,18 @@ keep-alive request that is the server's idle timeout — `curl` exit `18` and
 Node's own agent `ECONNRESET` after 65,536 bytes, both six seconds in, against
 1 ms for the same response on a `Connection: close` request.
 
-**And the wait is the mild half of it.** The server goes on answering that
-connection, whose framing is already wrong: two pipelined requests came back as
-131,348 bytes with the second status line at offset 65,671 — inside the first
-body's declared window — and those bytes replayed to Node's own parser, reading
-body 1 to the 131,072 it was promised, swallowed response 2 entire and then
-failed `HPE_INVALID_CONSTANT`, losing both. That is the overrun's corruption
-reached from the other side. So the count is compared at the far end too, and a
-body that ends before the length it declared destroys the socket exactly as one
-that would run past it does: the same number, the same exit, and the
-`ECONNRESET` at once rather than at the idle timeout.
+**And the wait is the mild half of it.** The server goes on answering a
+connection whose framing is already wrong. Two pipelined requests came back as
+131,342 bytes, the second status line at offset 65,671 — well inside body 1's
+declared window, which runs 135 to 131,207 — so a client reading that body to
+the 131,072 bytes it was promised takes response 2's status line, its headers
+and all but the last 135 of its body as the tail of the first one. Those 135 are
+what it then tries to read a status line from: replayed to Node's own parser,
+the stream failed `HPE_INVALID_CONSTANT` and both responses were lost. That is
+the overrun's corruption reached from the other side. So the count is compared
+at the far end too, and a body that ends before the length it declared destroys
+the socket exactly as one that would run past it does: the same number, the same
+exit, and the `ECONNRESET` at once rather than at the idle timeout.
 
 **A body the runner never pulled is not a short one.** Gate 2 suppresses before
 the pump starts, so the count never begins — and a `HEAD`, `204` or `304`
