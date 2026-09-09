@@ -53,10 +53,21 @@ than names.
 would not answer the size half, and it is a flag the effect layer has no way to
 pass.
 
+**A handle can outlive the effect that opened it, and then its `close` needs an
+owner.** `fjs/web`'s will: a streamed response is pulled by the runner's pump,
+which stops wherever it stops — a `HEAD` body it never pulls at all, a client
+that hangs up mid-download, a refusal before the headers — so the `close` can be
+neither the last cell of the body nor the reader's own business.
+[streaming-http-bodies](../../effects/node/todo/streaming-http-bodies.md) gives
+it to the runner, as a `release` the response carries beside its body. What is
+left here is the operation that `release` calls, and a virtual file system whose
+open handles a proof can count.
+
 ### Tasks
 
 - [ ] Design the handle effect: `open`, `fstat`, bounded read, close.
-- [ ] Model handles in the virtual file system, so the guard is provable.
+- [ ] Model handles in the virtual file system, so the guard is provable and an
+      unclosed handle is something a proof can fail on.
 - [ ] Read through it in `fjs/web`, retiring the `stat`-then-`readFile` pair.
 
 ### Related

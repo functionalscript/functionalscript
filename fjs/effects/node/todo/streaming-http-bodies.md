@@ -65,6 +65,8 @@ export type ServerResponse<O extends Operation> = {
     readonly status: number
     readonly headers: Headers
     readonly body: List<O, Vec, IoChannel>
+    /** Whatever the body held, given back — see "nobody closes" below. */
+    readonly release: Effect<O, null, never>
 }
 
 export type RequestListener<O extends Operation> =
@@ -73,8 +75,10 @@ export type RequestListener<O extends Operation> =
 
 `ServerResponse` gains `O` because a lazy body *is* an effect, and the
 operations it performs are the listener's own — `fjs/web`'s would be
-`ReadBytes`. `CreateServer`'s `RequestListener<Operation>` spelling does not
-change, and it is not erasure that keeps it there: the declaration pins
+`ReadBytes`. It gains `release` because a lazy body may also *hold* something,
+and the runner is the only party present at every way one ends.
+`CreateServer`'s `RequestListener<Operation>` spelling does not change, and it
+is not erasure that keeps it there: the declaration pins
 `Operation` because a `Server` must carry no type parameter, so each runner is
 handed the widest listener the type says it may be handed and narrows it back
 to its own op-set by a cast it already writes — the virtual one to
@@ -344,7 +348,9 @@ does not end. So the pump does not start where Node will not carry a body. It is
 the runner that checks and not the listener, which stays method-agnostic:
 `fjs/web` answers `HEAD` exactly like `GET`
 ([`../../../web/module.f.mjs`](../../../web/module.f.mjs)) and goes on doing so,
-now that `Content-Length` comes from the `stat` rather than from the body.
+now that `Content-Length` comes from the `stat` rather than from the body. What
+that costs is the handle the listener opened for a body the runner then drops,
+and the next section is who gives it back.
 
 **The set is Node's, not the RFC's.** `205` forbids a body too (RFC 9110
 §15.3.6) and Node sends one anyway — measured the same way, `false` on the first
@@ -378,6 +384,52 @@ refusing what it *can* handle, which is not what
 for. Both runners take the gates in this order, or they disagree about a request
 neither of them has any trouble with.
 
+**A handle the pump never finishes reading is a handle nobody closes.** Every
+exit above stops short of the far end of the body, and the far end is where a
+`close` cell would be: the gates refuse or suppress before the first pull,
+`close` on the socket ends the pump at whichever cell the client hung up on, a
+failed cell destroys, and `failSafe` destroys. Only a response that runs to its
+end reaches the cleanup, which is the one case nobody was worried about. The
+handle is open by then in any case — `fjs/web` opens it before it has a status
+to return, since the `fstat` on it is where the `Content-Length` comes from —
+so a `HEAD`, whose producer is never pulled at all, leaks one descriptor per
+request, and so does every cancelled download. Today's `readFile` and
+`readBytes` both open and close inside the one operation
+([`../module.mjs`](../module.mjs)), so neither costs anything now; a held handle
+turns both into leaks, and a leak per request is descriptor exhaustion rather
+than something to file and get to later
+([AGENTS.md §5](../../../../AGENTS.md#5-pull-requests-and-releases) on
+regressions). Whether the `isFile` guard can be that same `fstat`, when the
+`open` it follows is the thing that guard exists to prevent on a FIFO, is
+[stat-then-read](../../../web/todo/stat-then-read.md)'s question and not this
+one's.
+
+**`List` cannot be asked to clean up, and no combinator can be written that
+asks.** A cell is a `first` and a `tail` behind an `Effect`
+([`../../list/types.ts`](../../list/types.ts)): a consumer that stops pulling
+tells the producer nothing, because there is no cell left in which to tell it.
+Nor is the effect layer's `finally` the missing piece — `finallyStep` is
+declined in [`../../module.f.mjs`](../../module.f.mjs) as `resultStep` plus a
+policy, which is exactly what it is *for a composer that is still on the stack
+for both halves*. A pumped body is the other shape. When the pump gives up,
+nothing that knows a handle exists is on the stack to be given a chance.
+
+**So the response states what to release, and the runner releases it however
+the body ended.** That is the `release` field in the type above: an effect in
+the listener's own operations, run exactly once per response — after the last
+cell, after a refusal, after a suppression, after a destroy. It is required
+rather than optional, because a listener holding nothing writes the pure end and
+a field that must be written is one that cannot be forgotten, which is the whole
+of what went wrong here. The producer's own last cell does *not* close, or the
+two owners close twice. Its channel is `never` in the sense
+[`../../types.ts`](../../types.ts) gives that word — a claim that the failure is
+absorbed here — because a `close` that fails at this point has nobody left to
+tell: the response is either complete or already destroyed.
+
+`fjs/cas` holds nothing, reads by name, and releases the pure end; `fjs/web`
+releases its handle. The obligation is on the listener that opened something,
+which is the only party that knows what that was.
+
 **The virtual runner records what went out.** `listen` in
 [`../virtual/module.f.mjs`](../virtual/module.f.mjs) can pump the body with the
 same `virtual(s)(...)` recursion it already uses to run the listener, and
@@ -403,7 +455,10 @@ be able to tell it from one that stopped, and a bare chunk array cannot.
 **And `listen` mirrors the no-body predicate**, recording the skip rather than
 hiding it: a response the pump never pulled holds an empty `body` and a `null`
 `failure` — nothing went out, and nothing went wrong — which is exactly what a
-`HEAD` or a `204` is. A virtual runner that pumped where the Node one does not
+`HEAD` or a `204` is. It runs `release` there too, and `RecordedResponse` gains
+no field for it: what a proof asserts is that the virtual file system's handles
+are all closed once the request is over, which is the leak itself rather than a
+report of it. A virtual runner that pumped where the Node one does not
 would let a listener with a nonterminating body pass here and hang there.
 
 **`fjs/web` then loses its `413` rather than raising it.** `tooLarge` goes, with
@@ -451,17 +506,20 @@ answering `413` is a listener with a size policy of its own — correctly.
       `writeFromStream`, with its byte bound, its advance by the actual chunk
       length, its chunk source as a parameter rather than a path, and proof
       coverage, and read `cas` through it.
-- [ ] Stage 1: `ServerResponse<O>` with a `List` body; the Node runner's
-      pump — its `drain`/`close` discipline, the three gates that keep it from
-      starting in their stated order, and its destroy-on-failure in both the
-      cell and `failSafe`; the virtual runner's `RecordedResponse`, mirroring
-      the gates and their order.
+- [ ] Stage 1: `ServerResponse<O>` with a `List` body and a `release`; the Node
+      runner's pump — its `drain`/`close` discipline, the three gates that keep
+      it from starting in their stated order, its destroy-on-failure in both the
+      cell and `failSafe`, and the `release` it runs once on every one of those
+      exits; the virtual runner's `RecordedResponse`, mirroring the gates, their
+      order, and the release.
 - [ ] Stage 1, blocked on [stat-then-read](../../../web/todo/stat-then-read.md):
       the handle effect — `open`, `fstat`, bounded read, `close` — modelled in
-      the virtual file system, as the chunk source `fjs/web` reads through.
+      the virtual file system, as the chunk source `fjs/web` reads through, with
+      its open handles visible to a proof so an unreleased one fails a test.
 - [ ] Stage 1: serve files past the cap in `fjs/web` — `Content-Length` from the
-      `fstat` size and the reads bounded by it, both from the held handle,
-      `tooLarge` and its `413` row deleted, the `isFile` guard kept.
+      `fstat` size and the reads bounded by it, both from the held handle, that
+      handle given back through `release`, `tooLarge` and its `413` row deleted,
+      the `isFile` guard kept.
 - [ ] Stage 2: name the operation that pulls one request-body chunk, and answer
       what an undrained body does.
 - [ ] Stage 2: `IncomingMessage.body` as a `List`, retiring the runner's `413`.
@@ -481,7 +539,8 @@ until a body it may not even want has finished arriving.
   resolves it once per chunk and can splice two files into one clean response.
 - `fjs/effects/node/module.f.mjs` — `writeFromStream`, the chunk-list shape a
   streamed body should follow.
-- [`fjs/effects/list`](../../list/types.ts) — `List`, and why a failure belongs
-  to the cell rather than to the item it would otherwise be carried beside.
+- [`fjs/effects/list`](../../list/types.ts) — `List`, why a failure belongs to
+  the cell rather than to the item it would otherwise be carried beside, and the
+  cell shape that leaves a consumer no way to tell a producer it has stopped.
 - [GitHub issue #1819](https://github.com/functionalscript/functionalscript/issues/1819)
   — the report the Problem section's numbers come from.
