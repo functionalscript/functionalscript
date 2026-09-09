@@ -202,6 +202,29 @@ the pump as surely as `drain` releases it: it stops pulling, and the producer's
 reads stop with it. A client that hangs up is the ordinary case — a cancelled
 download, a closed tab — not the exceptional one.
 
+**And some responses carry no body, which takes the pace away with it.** Node
+drops the body of a `HEAD` response and of a `204`, `304`, or `1xx`, and
+`res.write` on one of those does not merely discard the bytes — it answers
+`true`. So the socket stops being a brake in exactly the cases where there is
+nothing for it to brake. Measured on Darwin with Node 23.11.0 against the same
+read-nothing client, 200 writes of 131,072 bytes each: a `GET`/`200` answered
+`false` on the **first** of them, while `HEAD`/`200`, `204`, `304` and `199`
+answered `true` on **all 200** — 26,214,400 bytes offered, and not one of them
+sent. A method-agnostic pump therefore reads a whole multi-gigabyte file at the
+speed of the disk to send nothing, and never finishes at all for a producer that
+does not end. So the pump does not start where Node will not carry a body. It is
+the runner that checks and not the listener, which stays method-agnostic:
+`fjs/web` answers `HEAD` exactly like `GET`
+([`../../../web/module.f.mjs`](../../../web/module.f.mjs)) and goes on doing so,
+now that `Content-Length` comes from the `stat` rather than from the body.
+
+**The set is Node's, not the RFC's.** `205` forbids a body too (RFC 9110
+§15.3.6) and Node sends one anyway — measured the same way, `false` on the first
+write, exactly like `200`. A guard written from the specification would
+suppress a body the host was about to send — the same plausible wrong answer,
+produced by the check meant to prevent one. So it is written from the host's own
+predicate: `HEAD`, `204`, `304`, `1xx`.
+
 **The virtual runner records what went out.** `listen` in
 [`../virtual/module.f.mjs`](../virtual/module.f.mjs) can pump the body with the
 same `virtual(s)(...)` recursion it already uses to run the listener, and
@@ -223,6 +246,12 @@ recorded response read alike — the oversized fixture `fjs/web`'s proof already
 builds for its `413` case becomes the one a streamed-body proof asserts against.
 `failure` is the socket case's counterpart: a proof asserting a whole body has to
 be able to tell it from one that stopped, and a bare chunk array cannot.
+
+**And `listen` mirrors the no-body predicate**, recording the skip rather than
+hiding it: a response the pump never pulled holds an empty `body` and a `null`
+`failure` — nothing went out, and nothing went wrong — which is exactly what a
+`HEAD` or a `204` is. A virtual runner that pumped where the Node one does not
+would let a listener with a nonterminating body pass here and hang there.
 
 **`fjs/web` then loses its `413` rather than raising it.** `tooLarge` goes, with
 the row documenting it in the module's response table — that table is what a
@@ -269,8 +298,9 @@ answering `413` is a listener with a size policy of its own — correctly.
       `writeFromStream`, with its byte bound, its advance by the actual chunk
       length, and proof coverage, and read `cas` through it.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body; the Node runner's
-      pump — its `drain`/`close` discipline and its destroy-on-failure in
-      both the cell and `failSafe`; the virtual runner's `RecordedResponse`.
+      pump — its `drain`/`close` discipline, the no-body guard that keeps it
+      from starting, and its destroy-on-failure in both the cell and
+      `failSafe`; the virtual runner's `RecordedResponse`, mirroring the guard.
 - [ ] Stage 1: serve files past the cap in `fjs/web` — `Content-Length` from the
       `stat` size and the reads bounded by it, `tooLarge` and its `413` row
       deleted, the `isFile` guard kept.
