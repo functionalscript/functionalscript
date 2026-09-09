@@ -277,19 +277,24 @@ status is still available and `500` is the answer.
 **And a declared length bounds the reads, rather than being a guess about
 them.** The fold above ends on an empty read, so a file that grows between the
 `stat` and the reads would stream the new entry past the length already declared
-for the old one — and nothing clamps it. Measured on Darwin with Node 23.11.0: a
-response declaring 131,072 bytes and writing 1,000 more put all 132,072 of them
-on the wire, and the keep-alive client failed `HPE_INVALID_CONSTANT` on the
-**in-flight** response, not merely on the next one — the surplus is parsed as
-the following status line, so the request being answered is lost along with the
-one after it. Node's declared-length check runs one way only: the table above is
-the short body, and there is no row for the long one.
+for the old one — and nothing clamps it. Measured on Darwin with Node 26.8.1 and
+reproduced figure for figure on 22.23.2: a response declaring 131,072 bytes and
+writing 1,000 more put all 132,072 of them on the wire, `res.write` answered
+`false` for the surplus exactly as it had for the chunk before it — the
+high-water mark, not a refusal — and `res.end()` raised nothing. The keep-alive
+client failed `HPE_INVALID_CONSTANT` on the **in-flight** response, not merely
+on the next one: the surplus is parsed as the following status line, so the
+request being answered is lost along with the one after it. Node's
+declared-length check runs one way only. The table above is the short body;
+there is no row for the long one, and no event to put in it.
 
-Node 23.11.0 is not a version this repository pins, here or in the figures below
-it. The pinned set is 26.8.1, 24.19.0 and 22.23.2
+Node 23.11.0 is not a version this repository pins. The pinned set is 26.8.1,
+24.19.0 and 22.23.2
 ([`../../../ci/config/module.f.mjs`](../../../ci/config/module.f.mjs)); the
-destroy table above was re-measured on the first and the last of those and
-reproduced row for row, and these have not been.
+destroy table above and the overrun figures just given were measured on the
+first and the last of those and reproduced row for row. Three figures below are
+23.11.0's alone and say so where they appear: the short-read one, the
+backpressure one, and the no-body table.
 
 So the size that goes in the header is the bound the reads stop at. `fjs/web`'s
 fold stops at `FileStat.size` rather than at EOF, and what ends the reads short
@@ -300,6 +305,35 @@ failure, and reading it as one would fail every file whose size is not a
 multiple of `chunkBytes`. The bound is a parameter of the moved loop, not a
 second loop: `fjs/cas` does not know a blob's size, keeps reading to the empty
 read, and keeps the chunked framing that goes with it.
+
+**And the runner counts, because that bound is one producer's discipline and
+`ServerResponse<O>` is everyone's.** `fjs/web` can be trusted to stop at
+`FileStat.size` because `fjs/web` writes both the header and the fold. Nothing
+in the type ties them together, and no other listener is under that discipline:
+a `Content-Length` smaller than what the lazy body goes on to produce is
+ordinary code, not an abuse, and what it buys is the measurement above — one
+response's surplus eating the next one's status line, so the request being
+answered is lost and the one behind it with it. That is the plausible wrong
+value [DESIGN §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+refuses, produced by a listener the design invites. So the pump keeps a byte
+count against the declared length, and a chunk that would carry the count past
+it is a failed cell: none of that chunk is written, and the socket is destroyed.
+That leaves the body **short** of what was declared, which is the one direction
+Node does check — the first row of the destroy table, `ECONNRESET` — so the
+client is told rather than misled. Writing the chunk's first `bound − written`
+bytes and ending cleanly is the other choice and the wrong one: a body exactly
+as long as it promised is a body every client reads as whole.
+
+**No type takes that count's place.** The alternative would be an API in which a
+declared size and a body cannot disagree, and a lazy body has no length for one
+to be checked against — finding out costs draining it, which is the thing
+streaming exists not to do. Lifting `Content-Length` out of `Headers` into a
+field of its own would sharpen what the runner *reads*, a `StringMap<string>`
+being free to say `Content-Length: none` or to say it twice in two spellings;
+it would not make the stream agree with the number, so it is not this issue's
+answer and the header stays where it is. What both that count and gate 1 need
+from `Headers` is the same thing, and it is worth saying once: a header name is
+matched the way Node matches one, case-insensitively.
 
 **What the bound holds is the framing, and the identity it does not hold is a
 wider one than this document claimed.** It said the residual risk was
@@ -490,8 +524,11 @@ export type RecordedResponse = {
     readonly headers: Headers
     readonly body: readonly Vec[]
     /** What ended the body early, or `null` for one that ran to its end. */
-    readonly failure: Nullable<IoChannel>
+    readonly failure: Nullable<IoChannel | Overrun>
 }
+
+/** A cell that would have carried the body past its declared length. */
+export type Overrun = readonly['overrun', number]
 ```
 
 `readonly Vec[]` is the shape a `Dir` already stores a file in
@@ -500,6 +537,13 @@ recorded response read alike — the oversized fixture `fjs/web`'s proof already
 builds for its `413` case becomes the one a streamed-body proof asserts against.
 `failure` is the socket case's counterpart: a proof asserting a whole body has to
 be able to tell it from one that stopped, and a bare chunk array cannot.
+
+`failure` widens past `IoChannel` because the count above is the runner's own
+refusal and not the producer's failure — the cell was fine, and a proof that
+could not tell that destroy from a clean end could not assert the count at all.
+`IoChannel` is the channel of *IO*, extended at a site with failures of its own
+([`../../types.ts`](../../types.ts)), and this is one; the number it carries is
+the length that was declared.
 
 **And `listen` mirrors the no-body predicate**, recording the skip rather than
 hiding it: a response the pump never pulled holds an empty `body` and a `null`
@@ -578,10 +622,11 @@ answering `413` is a listener with a size policy of its own — correctly.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body and a `release`, and
       `IncomingMessage.chunkedResponse` for gate 3 to read; the Node runner's
       pump — its `drain`/`close` discipline, the three gates that keep it from
-      starting in their stated order, its destroy-on-failure in both the cell
-      and `failSafe`, and the `release` it runs once on every one of those
-      exits; the virtual runner's `RecordedResponse`, mirroring the gates, their
-      order, and the release.
+      starting in their stated order, its byte count against a declared
+      `Content-Length`, its destroy-on-failure in the cell, in the count and in
+      `failSafe`, and the `release` it runs once on every one of those exits;
+      the virtual runner's `RecordedResponse` and its `Overrun`, mirroring the
+      gates, their order, the count, and the release.
 - [ ] Stage 1, blocked on [stat-then-read](../../../web/todo/stat-then-read.md):
       the handle effect — `open`, `fstat`, bounded read, `close` — modelled in
       the virtual file system, as the chunk source `fjs/web` reads through, with
