@@ -167,6 +167,6 @@ const uMap = mapping(u, ([, h4]) => {
 
 /** @type {_M} */
 const cMap = mapping(c, x => {
-    
+    x.symbol
     return todo()
 })
