@@ -146,7 +146,7 @@ export const nixpkgs = /** @type {const} */({
     owner: 'NixOS',
     repo: 'nixpkgs',
     ref: 'nixos-26.05',
-    commit: '93108a538f079596c9a16c72cf03e9322782b6dd',
+    commit: '6aefcda9401be8acc2b74244fb3b37520ea1f0a8',
 })
 
 // Wasmtime and Wasmer are installed by their own setup actions, so these are
