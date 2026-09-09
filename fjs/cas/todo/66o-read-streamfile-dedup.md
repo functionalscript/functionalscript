@@ -12,9 +12,10 @@ the shared loop in `fjs/effects/node/module.f.mjs` beside `writeFromStream`,
 because `fjs/web` becomes a third caller and the loop stops being `fjs/cas`'s
 to own. So `read` delegating to `streamFile` is no longer the end state, and
 the deduplication happens there rather than here. The Proposal below is written
-to that destination; what survives the move is the caveat with it, since `read`
-is pinned to `List<FileCasOperation, …>` by the `FileCas` interface either way.
-Retire this issue with that work.
+to that destination; what survives the move is the caveat with it — as a
+question for `tsc` rather than a cast to plan for, per the Proposal's last
+paragraph — since `read` is pinned to `List<FileCasOperation, …>` by the
+`FileCas` interface either way. Retire this issue with that work.
 
 ### Problem
 

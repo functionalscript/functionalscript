@@ -106,10 +106,19 @@ That duplication is already filed, as
 [66o-read-streamfile-dedup](../../../cas/todo/66o-read-streamfile-dedup.md),
 which used to answer it by keeping the loop in `fjs/cas` and pointing `read` at
 `streamFile`. A caller outside `fjs/cas` moves the destination, not the answer,
-so that issue now defers to this one for where the loop lands and keeps the part
-the move does not touch: `read` is pinned to `List<FileCasOperation, …>` by
-the `FileCas` interface, so it has to widen a `List<ReadBytes, …>` wherever
-the loop lives.
+so that issue now defers to this one for where the loop lands and keeps the
+question the move leaves open: `read` is pinned to `List<FileCasOperation, …>`
+by the `FileCas` interface, so a loop written elsewhere has to arrive at that
+type somehow. **The loop is generic in the op-set its chunk source names**, and
+that is what changes the somehow. A loop parameterized by its source — the shape
+"What the bound holds" below settles on, for a reason that has nothing to do
+with types — is a `List<O, …>` rather than a `List<ReadBytes, …>` fixed by where
+it lives, so `read` can ask for it at `FileCasOperation` and hand it a source
+that widens into one: an ordinary `Effect`'s widening, which
+[`../../types.ts`](../../types.ts) pins with its `_WidensOperations` assert and
+TypeScript performs. What is unsettled is inference, not the contract. 66o holds
+that as a thing for `tsc` to answer, with an explicit cast as the fallback if
+the `O` is fixed from the argument rather than from the call site.
 
 **`Content-Length` stays derivable, and stops being derived from the body.**
 `fjs/web` writes it as `length(body) >> 3n` today, which a lazy list cannot
@@ -562,9 +571,10 @@ answering `413` is a listener with a size policy of its own — correctly.
 ### Tasks
 
 - [ ] Move `fjs/cas`'s `readBytes` chunk loop into `../module.f.mjs` beside
-      `writeFromStream`, with its byte bound, its advance by the actual chunk
-      length, its chunk source as a parameter rather than a path, and proof
-      coverage, and read `cas` through it.
+      `writeFromStream`, generic in the op-set its chunk source names, with its
+      byte bound, its advance by the actual chunk length, its chunk source as a
+      parameter rather than a path, and proof coverage, and read `cas` through
+      it.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body and a `release`, and
       `IncomingMessage.chunkedResponse` for gate 3 to read; the Node runner's
       pump — its `drain`/`close` discipline, the three gates that keep it from
