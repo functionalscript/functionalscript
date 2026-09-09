@@ -1,4 +1,4 @@
-## 66O-read-streamfile-dedup. `fileCas.read` should delegate to `streamFile`
+## 66O-read-streamfile-dedup. `fileCas.read` and `streamFile` are one loop
 
 **Priority:** P3
 **Status:** open, and **closer than written**. A `List` cell can fail now, so
@@ -11,9 +11,10 @@ duplication is still real and smaller than described.
 the shared loop in `fjs/effects/node/module.f.mjs` beside `writeFromStream`,
 because `fjs/web` becomes a third caller and the loop stops being `fjs/cas`'s
 to own. So `read` delegating to `streamFile` is no longer the end state, and
-the deduplication happens there rather than here. What survives the move is the
-caveat below: `read` is pinned to `List<FileCasOperation, …>` by the `FileCas`
-interface either way. Retire this issue with that work.
+the deduplication happens there rather than here. The Proposal below is written
+to that destination; what survives the move is the caveat with it, since `read`
+is pinned to `List<FileCasOperation, …>` by the `FileCas` interface either way.
+Retire this issue with that work.
 
 ### Problem
 
@@ -53,15 +54,24 @@ maintained in two places that must stay in sync.
 
 ### Proposal
 
-`read` should delegate to `streamFile`, which already *is* the generic
-byte-streaming loop:
+**Both loops go, and neither becomes the other.** `read` calls the shared loop
+where streaming-http-bodies puts it, in `fjs/effects/node/module.f.mjs` beside
+`writeFromStream` — an import, not a local definition:
 
 ```ts
+// `readChunks` stands in for the moved loop; naming it belongs to the issue
+// that moves it.
 read: (hash: Vec): List<FileCasOperation, Vec, IoChannel> =>
-    streamFile(join(path, toPath(hash))),
+    readChunks(join(path, toPath(hash))),
 ```
 
-**Caveat on the type.** `casAddFile` (`fjs/cas/module.f.mjs:347-351`) is *not* a
+`streamFile` is deleted rather than promoted. Its one caller is `casAddFile`
+(`fjs/cas/module.f.mjs:347-351`), which calls the moved loop for the same
+reason, so what is left in `fjs/cas` is two call sites and no loop. That also
+retires the ordering question the earlier proposal raised — whether `streamFile`
+has to be defined above `fileCas` — an import having no order to confirm.
+
+**Caveat on the type, which the move does not touch.** `casAddFile` is *not* a
 reusable precedent here: it does not perform an `as` cast — it declares its
 return type as the union `Effect<O | ReadBytes, …>` and lets `cas.write`'s
 generic absorb `ReadBytes` (the word "cast" appears only in its comment). `read`
@@ -72,8 +82,8 @@ cannot do that: its return type is pinned to `List<FileCasOperation, …>` by th
 cast (or a small restructuring) at this call site. Verify with `tsc` before
 committing to the one-liner — if an `as` is unavoidable, weigh whether the
 deduplication is worth introducing one (`AGENTS.md` treats `as` as a last resort).
-`streamFile` may also need to move above the `fileCas` definition (confirm
-ordering).
+The moved loop is a `List<ReadBytes, …>` wherever it lives, so the widening is
+the same one.
 
 ### Tasks
 
@@ -81,8 +91,9 @@ ordering).
       streaming-http-bodies — and run `tsc` to see whether an explicit cast is
       required for the `List<ReadBytes,…>` → `List<FileCasOperation,…>`
       conversion.
-- [ ] Confirm definition ordering compiles; keep the `read` JSDoc about
-      "missing shard / read error is an explicit error item, never EOF".
+- [ ] Delete `streamFile` and point `casAddFile` at the moved loop as well; keep
+      the `read` JSDoc about "missing shard / read error is an explicit error
+      item, never EOF".
 - [ ] Run `tsc` and `fjs t`; confirm `fjs/cas/proof.f.mjs` still passes,
       including the short-final-chunk and read-error paths.
 

@@ -96,9 +96,9 @@ rather than being written a third time
 
 That duplication is already filed, as
 [66o-read-streamfile-dedup](../../../cas/todo/66o-read-streamfile-dedup.md),
-and answered there by keeping the loop in `fjs/cas` and pointing `read` at
+which used to answer it by keeping the loop in `fjs/cas` and pointing `read` at
 `streamFile`. A caller outside `fjs/cas` moves the destination, not the answer,
-so that issue defers to this one for where the loop lands and keeps the part
+so that issue now defers to this one for where the loop lands and keeps the part
 the move does not touch: `read` is pinned to `List<FileCasOperation, …>` by
 the `FileCas` interface, so it has to widen a `List<ReadBytes, …>` wherever
 the loop lives.
