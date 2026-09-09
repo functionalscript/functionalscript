@@ -202,18 +202,44 @@ The same representation-independence applies to timestamp evidence: an embedded
 may provide another. Naming semantics depend on accepted evidence, not the
 container used to carry it.
 
-An untrusted commit may introduce `.disot.*`, and a later authoritative
-revision may leave the metadata unchanged and adopt it. The earlier untrusted
-commit does not become trusted retroactively.
+### Late evidence may adopt the exact immutable revision
+
+Authority/trust is evaluated from the evidence currently known to the resolver.
+Detached authority or timestamp evidence may arrive **after** the Git commit it
+targets. If later evidence directly authenticates that exact immutable revision
+and satisfies the applicable authority/timestamp policy, the same existing
+revision may become authoritative without creating a new Git commit.
+
+For example:
 
 ```text
-C0  no .disot.*
- |
-C1  adds .disot.json     no accepted authority attestation
- |                       -> not authoritative
-C2  same .disot.json     accepted authority attestation
-                         -> metadata adopted here
+C1  adds .disot.json
+    no accepted authority/timestamp evidence
+    -> provisional / not authoritative
+
+later:
+    detached authority attestation -> exact C1
+    trusted timestamp evidence      -> exact C1
+
+    -> C1 becomes eligible as an authoritative shared revision
 ```
+
+This does not mutate `C1`, change its hash, or rewrite history. Only the
+resolver's evidence set has changed.
+
+A later descendant can instead adopt unchanged metadata at its own revision:
+
+```text
+C1  adds .disot.json     no accepted authority attestation
+ |
+C2  same .disot.json     accepted authority/timestamp evidence for C2
+                         -> metadata adopted at C2
+```
+
+Evidence for `C2` does **not** automatically authenticate `C1`. Evidence affects
+exactly the revision/projection it authenticates. A timestamped descendant may
+anchor the existence time of an ancestor only under the separate ancestry-based
+timestamp rules.
 
 Trust is subjective and policy-driven. Delegation, key rotation, multiple
 controllers, or community trust rules may authorize attestations.
@@ -249,8 +275,7 @@ accepted authority attestation + accepted timestamp evidence
 ```
 
 The rule applies to establishment, advancement, rename, relinquishment/archive,
-and semantic merges. Synthetic retention-only commits are not DISOT semantic
-revisions and do not need semantic authority/timestamp evidence.
+and semantic merges.
 
 ### Git-backed names vs signed DISOT directories
 
@@ -480,43 +505,39 @@ Reflogs are not sufficient because they expire.
 Live incomparable heads may temporarily require multiple reachability refs.
 Those refs still have no naming semantics.
 
-### One archive ref for many archived lineages
+### Archive-retention compaction — open optimization question
 
-Keeping one branch forever for every archived lineage would accumulate needless
-refs. Once a lineage has a valid terminal relinquishment/tombstone, DISOT may
-merge that terminal commit into a single synthetic archive-retention branch.
+One possible Git-only retention optimization is to merge terminal archived
+lineages into a common archive branch so individual retention refs can be
+deleted. This could reduce the number of long-lived refs.
 
-```text
-R0
- |
-R1 ---- archived-A-terminal
- |
-R2 ---- archived-B-terminal
- |
-R3 ---- archived-C-terminal
- ^
- refs/heads/archive
-```
+However, the current semantic format does **not** define a durable way to
+distinguish such a synthetic retention merge from a metadata-free semantic
+relinquishment/merge after the commit is transported independently of its ref.
+Adding a `type`, `retention`, dedicated marker file, or other protocol surface
+would be premature before we know this optimization is needed.
 
-Each synthetic archive commit uses the previous archive commit and one terminal
-entity commit as parents. Its tree contains **no recognized root `.disot.*`**.
-Afterward the individual archived-lineage ref may be deleted because the terminal
-commit and its ancestry remain reachable from the common archive ref.
+Therefore this optimization is **not part of the P3 semantic contract**. No
+`.disot.*` field, filename, or commit-header marker is reserved for it now.
+Implementations should keep whatever refs are required for GC safety, or use a
+storage layer with its own retention guarantees.
 
-This is retention topology only:
+If archive-ref compaction becomes necessary later, first answer:
 
-```text
-authorized/timestamped relinquishment in semantic history
-    = DISOT archival semantics
+- Do we need to distinguish retention-only commits from semantic no-metadata
+  commits after arbitrary transport?
+- Can another invariant or storage layer eliminate the need for synthetic
+  retention commits entirely?
+- If a durable distinction is necessary, what is the smallest representation
+  that does not unnecessarily expand the permanent DISOT format?
 
-synthetic merge into archive branch
-    = Git reachability only
-```
+The optimization may be dropped entirely if experience shows it is unnecessary.
 
-Archive-retention commits MUST NOT be interpreted as entities, semantic merges,
-renames, reactivations, or new archive operations. They may combine unrelated
-DISOT histories. They need no semantic authority/timestamp evidence because
-they assert nothing about DISOT.
+### Open questions
+
+- **Archive-retention classification:** Is a synthetic archive branch needed at
+  all? If yes, define a durable, transport-independent classification rule
+  before implementing it. Do not reserve a schema field or marker yet.
 
 ### Future encodings — P5
 
@@ -571,6 +592,11 @@ error. Nested files with those basenames remain ordinary content.
       commits; treat `gpgsig2` as an optional Git-native attestation encoding.
 - [ ] Define representation-independent trusted timestamp evidence; keep `tstsig`
       as one optional Git-native encoding.
+- [ ] Define late-evidence adoption: detached authority/timestamp evidence may
+      make the exact immutable revision it targets authoritative without a new
+      Git commit.
+- [ ] Prove evidence for a descendant does not automatically authenticate its
+      ancestors; ancestry-based timestamp anchoring remains a separate rule.
 - [ ] Require accepted authority evidence + accepted trusted timestamp evidence
       for externally shared authoritative semantic revisions.
 - [ ] Specify/test direct and ancestry-based timestamp anchoring according to
@@ -596,9 +622,9 @@ error. Nested files with those basenames remain ordinary content.
       incomparable authoritative forks.
 - [ ] Ensure Git ref names are never semantic inputs; use persistent refs only
       for reachability/GC protection.
-- [ ] Implement/test one synthetic archive-retention branch for terminal commits
-      from many unrelated archived lineages.
-- [ ] Prove archive-retention commits have no DISOT semantics.
+- [ ] Keep archive-retention compaction out of P3. If it proves necessary,
+      define a durable classification rule before implementing synthetic archive
+      merges; otherwise drop the optimization.
 - [ ] Test branch rename/deletion, ordinary Git rebase/cherry-pick/merge/squash,
       clone/fetch/push, pack/unpack, and garbage collection.
 - [ ] P5: evaluate `.disot.yml` and `.disot.toml` only after JSON/DataJS are
