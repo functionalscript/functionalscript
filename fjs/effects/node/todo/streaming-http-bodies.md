@@ -110,15 +110,15 @@ so that issue now defers to this one for where the loop lands and keeps the
 question the move leaves open: `read` is pinned to `List<FileCasOperation, …>`
 by the `FileCas` interface, so a loop written elsewhere has to arrive at that
 type somehow. **The loop is generic in the op-set its chunk source names**, and
-that is what changes the somehow. A loop parameterized by its source — the shape
-"What the bound holds" below settles on, for a reason that has nothing to do
-with types — is a `List<O, …>` rather than a `List<ReadBytes, …>` fixed by where
-it lives, so `read` can ask for it at `FileCasOperation` and hand it a source
-that widens into one: an ordinary `Effect`'s widening, which
+that is what changes the somehow. A loop parameterized by its source — the
+shape "What the bound holds" below settles on, for a reason that has nothing to
+do with types — is a `List<O, …>` rather than a `List<ReadBytes, …>` fixed by
+where it lives, so `read` can ask for it at `FileCasOperation` and hand it a
+source that widens into one: an ordinary `Effect`'s widening, which
 [`../../types.ts`](../../types.ts) pins with its `_WidensOperations` assert and
-TypeScript performs. What is unsettled is inference, not the contract. 66o holds
-that as a thing for `tsc` to answer, with an explicit cast as the fallback if
-the `O` is fixed from the argument rather than from the call site.
+TypeScript performs. What is unsettled is inference, not the contract. 66o
+holds that as a thing for `tsc` to answer, with an explicit cast as the
+fallback if the `O` is fixed from the argument rather than from the call site.
 
 **`Content-Length` stays derivable, and stops being derived from the body.**
 `fjs/web` writes it as `length(body) >> 3n` today, which a lazy list cannot
@@ -417,6 +417,39 @@ the pump as surely as `drain` releases it: it stops pulling, and the producer's
 reads stop with it. A client that hangs up is the ordinary case — a cancelled
 download, a closed tab — not the exceptional one.
 
+**And it can arrive before there is a pump to end.** The pump is the last thing
+a request does, and `fjs/web`'s listener opens a handle and `fstat`s it before
+it has a status to return, so the same cancelled download arriving a few
+milliseconds earlier closes the response while nothing is watching. Measured on
+Darwin with Node 26.8.1 and reproduced on 22.23.2 — the client destroyed 111 ms
+in, the listener returning at 300 — `close` fired at 112 ms, and by the time the
+listener was done `res.closed` and `res.destroyed` were both `true`. From there
+`writeHead` raised nothing and set `headersSent`; the first `res.write` answered
+`false` like any full buffer; and the wait prescribed above never ended, because
+`drain` does not come for a socket that has gone and `close` does not come
+twice. Still parked when the watchdog fired two seconds later, with no `error`
+event on the response either. Nothing ends that pump, so nothing runs `release`,
+and the handle it holds is held for the life of the process — the leak the
+`release` section below exists to prevent, reached by the one door that section
+does not name.
+
+**So closure is a value the runner records, not an edge the pump listens for.**
+[`answerRequest`](../module.mjs) is handed `res` before it calls the listener,
+which is early enough: it observes `close` once, there, and what the pump reads
+afterwards is the record. Two things follow. A response already closed when the
+listener returns is not answered at all — no `writeHead`, no gates, no pull,
+`release` and done — because a status written to a client that has gone is a
+`writeHead` that silently sets `headersSent` on a destroyed socket, and
+`headersSent` is the flag `failSafe` reads to decide a status is no longer
+available. And the park is a race between `drain` and that record rather than
+between `drain` and a second `close`, so a closure that already happened wins it
+at once instead of never arriving. Measured the same way against a pump built
+like that: `release` ran at 309 ms, the moment the listener returned, where the
+wait as prescribed ran it never. The mid-park case — the client leaving at 602
+ms with the pump already parked — released at 602 ms, which is what the edge
+listener already did for it; the record is what makes the two cases one case,
+not a second policy beside it.
+
 **And some responses carry no body, which takes the pace away with it.** Node
 drops the body of a `HEAD` response and of a `204`, `304`, or `1xx`, and
 `res.write` on one of those does not merely discard the bytes — it answers
@@ -469,10 +502,12 @@ neither of them has any trouble with.
 
 **A handle the pump never finishes reading is a handle nobody closes.** Every
 exit above stops short of the far end of the body, and the far end is where a
-`close` cell would be: the gates refuse or suppress before the first pull,
-`close` on the socket ends the pump at whichever cell the client hung up on, a
-failed cell destroys, and `failSafe` destroys. Only a response that runs to its
-end reaches the cleanup, which is the one case nobody was worried about. The
+`close` cell would be: a response closed before the pump starts is never
+answered, the gates refuse or suppress before the first pull, a recorded `close`
+ends the pump at whichever cell the client hung up on, a chunk past the declared
+length destroys, a failed cell destroys, and `failSafe` destroys. Only a
+response that runs to its end reaches the cleanup, which is the one case nobody
+was worried about. The
 handle is open by then in any case — `fjs/web` opens it before it has a status
 to return, since the `fstat` on it is where the `Content-Length` comes from —
 so a `HEAD`, whose producer is never pulled at all, leaks one descriptor per
@@ -500,14 +535,15 @@ nothing that knows a handle exists is on the stack to be given a chance.
 **So the response states what to release, and the runner releases it however
 the body ended.** That is the `release` field in the type above: an effect in
 the listener's own operations, run exactly once per response — after the last
-cell, after a refusal, after a suppression, after a destroy. It is required
-rather than optional, because a listener holding nothing writes the pure end and
-a field that must be written is one that cannot be forgotten, which is the whole
-of what went wrong here. The producer's own last cell does *not* close, or the
-two owners close twice. Its channel is `never` in the sense
-[`../../types.ts`](../../types.ts) gives that word — a claim that the failure is
-absorbed here — because a `close` that fails at this point has nobody left to
-tell: the response is either complete or already destroyed.
+cell, after a refusal, after a suppression, after a destroy, and after a
+response that was already closed before there was anything to send it. It is
+required rather than optional, because a listener holding nothing writes the
+pure end and a field that must be written is one that cannot be forgotten,
+which is the whole of what went wrong here. The producer's own last cell does
+*not* close, or the two owners close twice. Its channel is `never` in the sense
+[`../../types.ts`](../../types.ts) gives that word — a claim that the failure
+is absorbed here — because a `close` that fails at this point has nobody left
+to tell: the response is either complete or already destroyed.
 
 `fjs/cas` holds nothing, reads by name, and releases the pure end; `fjs/web`
 releases its handle. The obligation is on the listener that opened something,
@@ -621,7 +657,8 @@ answering `413` is a listener with a size policy of its own — correctly.
       it.
 - [ ] Stage 1: `ServerResponse<O>` with a `List` body and a `release`, and
       `IncomingMessage.chunkedResponse` for gate 3 to read; the Node runner's
-      pump — its `drain`/`close` discipline, the three gates that keep it from
+      pump — its `drain` park released by a recorded `close`, including one
+      that fired before the pump existed, the three gates that keep it from
       starting in their stated order, its byte count against a declared
       `Content-Length`, its destroy-on-failure in the cell, in the count and in
       `failSafe`, and the `release` it runs once on every one of those exits;
