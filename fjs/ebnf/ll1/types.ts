@@ -52,6 +52,12 @@ export type MatchResult<T> = Result<readonly [ast: T, end: number], number>
  * last match ended by handing that index back — a token layer runs a
  * one-token grammar this way, once per token, over the one input. The
  * index is refused outside `0..length`.
+ *
+ * The second parameter is read: a parser handed to an array combinator
+ * that supplies an index in that position — `inputs.map(parse)` — begins
+ * each match at the element's index rather than at the input's start.
+ * Wrap it, `inputs.map(input => parse(input))`, as with any function of
+ * an optional number.
  */
 export type Parser<T, I = unknown> = (symbols: readonly Meta<I>[], start?: number) => MatchResult<T>
 
