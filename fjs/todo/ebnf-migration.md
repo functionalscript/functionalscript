@@ -270,10 +270,13 @@ there. Nothing here orders the two plans either way. In dependency order:
 
 1. `bnf/lib/json` and `bnf/lib/datajs` — atomically, since `testlib`'s
    `deterministic()` delegates to `lib/json`. The originals stay in `bnf/`.
-2. `fjs/djs/tokenizer` — depends on `terminal/`, `unicode/`, `data/`,
-   `ast/` and `ll1/` (the tree and its mapping), and on the metadata
+2. `fjs/djs/tokenizer` — depends on `data/`, `ast/` and `ll1/` (the tree,
+   its mapping, and a parser resumable at an index), and on the metadata
    channel of [`ebnf/ast/`](../ebnf/ast/README.md) for the positions it
-   reports.
+   reports. Not on `unicode/` or `terminal/`: its complements are spelled
+   with `remove` over the full range, as
+   [ebnf-ll1-port](../djs/todo/ebnf-ll1-port.md) shows, so stage 3 does
+   not gate the port.
 3. `fjs/djs/parser` — the above plus `token_symbol/`.
 
 **Neither djs grammar is LL(1) as spelled.** An earlier measurement here
