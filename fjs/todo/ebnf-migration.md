@@ -276,27 +276,32 @@ there. Nothing here orders the two plans either way. In dependency order:
    reports.
 3. `fjs/djs/parser` — the above plus `token_symbol/`.
 
-**Neither djs grammar is LL(1) as spelled.** Checked by running both through
-`dispatchMap` and building the dispatch map of every rule's closure; the
-conflicts below are the ones whose closure fails on its own account, and each
-was confirmed independent of the others (more may surface once these are
-fixed):
+**Neither djs grammar is LL(1) as spelled.** An earlier measurement here
+ran both through the classical `dispatchMap` and found three first/first
+conflicts: the parser's statement terminator, whose branches both begin
+with trivia, and in the tokenizer the `*` shared by `end` and `more` of a
+block comment and the shared prefixes of the punctuator list. `dispatchMap`
+has no first/follow check, and `ebnf/ll1` does, so measured against the
+backend the port moves to — the classical set bridged to the EBNF form, as
+[ebnf-data](../ebnf/data/README.md) describes, and every rule's closure
+run through `parserRuleSet` — the two grammars refuse in **seven** shapes:
+those three, the tokenizer's `numError` poison branch, the whole-file
+`repeat0Plus(token)` (a greedy token against the token after it, which
+vanishes with the entry a single token), and in the parser the trailing
+comma and the module's final optional `;`. The table, the classification
+and what each needs are in
+[ebnf-ll1-port](../djs/todo/ebnf-ll1-port.md), stage 6's own file.
 
-| grammar | rules | conflicting rule | closure | nature |
-|---|---|---|---|---|
-| `djs/parser` | 91 | the statement terminator, `{ semicolon, newline }` | — | both branches begin with trivia; the comment above it says the `;` branch *rewinds* to the newline one, a backtracking design |
-| `djs/tokenizer` | 167 | `multilineContent`, the body of a `/* */` comment: `{ end: ['*', '/'], more: [char, …], unterminated }` | 12 rules | `end` and `more` both begin with `*`, so telling `*/` from a `*` inside the comment needs two symbols of lookahead |
-| `djs/tokenizer` | 167 | the punctuator variant: `=`, `==`, `===`, `=>`, `!`, `!=`, `>>>=`, … | 81 rules | shared prefixes: maximal munch, which [layered-parser](../bnf/todo/layered-parser.md) names as the one mechanism a token layer adds over recognition |
-
-So the djs port is a grammar rewrite plus a backend swap, not a swap alone.
-The parser conflict is resolved by left-factoring the trivia prefix or by
-pushing the decision into the token layer so the parser sees one lookahead
-symbol. Both tokenizer conflicts are the same shape, a choice decided by the
-symbol after a shared first one: left-factor `*` out of `end` and `more`, and
-the literal list into a prefix tree that a helper can build from the list —
-or a token layer that munches maximally handles both. They are where EBNF's
-`option` as a bounded repeat with a flat AST gets its first real test, so
-they belong in the comparison proofs before the consumers move.
+So the djs port is a grammar rewrite plus a backend swap, not a swap alone,
+and the tokenizer also needs a token layer the backend does not have yet: a
+parser resumable at an index, or a fold running a one-token parser to the
+end of input, since a whole-file token grammar is not LL(1) under a
+first/follow check. Maximal munch inside a token comes for free — an
+optional round starts whenever the lookahead is in the item's first set —
+once the punctuators are a prefix tree that a helper builds from the list.
+The conflicts are where EBNF's `option` as a bounded repeat with a flat AST
+gets its first real test, so they belong in the comparison proofs before the
+consumers move.
 
 #### Issue triage
 
@@ -389,9 +394,11 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    spellings, same `RuleSet` where the constructors are shape-preserving, same
    AST otherwise, with the differences ebnf-front-end predicts pinned
    explicitly (`option`, `repeatFrom(1)`, `join`).
-6. **Layered LL(1) and the djs port.** The token layer with maximal munch or
-   the left-factoring helper; the two conflicts above resolved in the grammars;
-   `djs/tokenizer` then `djs/parser` on `ebnf/ll1/`. The first grammar to leave
+6. **Layered LL(1) and the djs port.** The token layer — the resumable
+   parser or the one-token fold — and the prefix-tree helper; the seven
+   conflicts above resolved in the grammars; `djs/tokenizer` then
+   `djs/parser` on `ebnf/ll1/`, as
+   [ebnf-ll1-port](../djs/todo/ebnf-ll1-port.md) lays out. The first grammar to leave
    `descent` is the first evidence the backend decision holds; if it does not,
    this stage is where the plan is revised, not forced.
 
