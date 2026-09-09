@@ -1,7 +1,7 @@
 ## widened-rule-signatures. The grammar helpers widen the rules they build
 
 **Priority:** P4
-**Status:** open
+**Status:** open — done for the JSON grammar; the DataJS `value` row remains.
 
 ### Problem
 
@@ -32,14 +32,36 @@ PR that filed this issue: a `const` type parameter keeps the prefix's arity,
 so a statement's AST is a tuple rather than a list. The rows above are what
 that fix did not reach.
 
+### What landed
+
+The JSON grammar is done, in the PR that shipped
+[`../json/parser`](../json/parser/module.f.mjs): `cj`, `array`, `object` and
+`createValue` take `const` type parameters and return `Container<Item>`
+and `Value<P, V>` from [`../json/types.ts`](../json/types.ts), `string` and
+`number` are pinned, and `value` is annotated `JsonValue` — a recursive
+alias, `() => readonly ['const', Value<typeof string, JsonValue>]`, which
+TypeScript admits because the reference sits inside a function type. Its
+proof's `types` entry pins the seven tags of `Children<typeof value>`, the
+document's shape, and the refusal of a shape the grammar cannot produce, at
+depth as at the top.
+
+What the annotation cost, for Problem 7: one alias per grammar, of one
+line, and one change in `Ast` — its variant row now builds each branch
+through an alias, `_Branch`, so that TypeScript defers the branch's tuple
+instead of expanding it as it builds the variant, which is what made the
+recursive `Ast` finite; written directly into the mapped type, the tuple
+met itself (TS2615). A rule that recurses through a variant is finite
+under it; one that recursed through tuples alone would not be, and no
+grammar here spells that shape
+([`../../ast/README.md`](../../ast/README.md), "A rule that names itself").
+
 ### Proposal
 
 The first three rows are the same fix: a `const` type parameter for each
 argument that is a rule, and a return type spelled from the parameters —
 `readonly [O, typeof ws, …, C]` for `cj`, a mapped object over the argument
-types for `createValue`, and a `const` pin for `string`
-([pin-literal-constants](../json/todo/pin-literal-constants.md) is the same
-change for two literals).
+types for `createValue`, and a `const` pin for `string` — the same change
+pin-literal-constants asked for on `hex` and `number`, closed with it.
 
 The last row is not: `value` names itself, and TypeScript infers nothing
 recursive, so the thunk needs an explicit recursive type — a named alias in a
@@ -52,13 +74,13 @@ the answer belongs in that issue as much as here.
 
 ### Tasks
 
-- [ ] `const` type parameters on `cj`, `array`, `object` and `createValue`;
+- [x] `const` type parameters on `cj`, `array`, `object` and `createValue`;
       `string` pinned.
-- [ ] A recursive type for `value` in each grammar, and a proof that
-      `Ast<typeof json>` and `Ast<typeof dataJs>` reject a shape the grammar
-      cannot produce — the counterexample for a widened tuple is an empty
-      node where a statement must be.
-- [ ] Answer Problem 7 in ebnf-front-end from what the annotation cost.
+- [x] A recursive type for JSON's `value`, and a proof that
+      `Ast<typeof json>` rejects a shape the grammar cannot produce.
+- [ ] The same for DataJS's `value`, typed `Thunk` today, and a proof that
+      `Ast<typeof dataJs>` rejects an empty node where a statement must be.
+- [x] Answer Problem 7 in ebnf-front-end from what the annotation cost.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
@@ -67,8 +89,6 @@ the answer belongs in that issue as much as here.
   widened `R` gives `Ast<Rule, I, O>`.
 - ebnf-front-end — Problem 7, explicit
   annotations on recursive rules.
-- [pin-literal-constants](../json/todo/pin-literal-constants.md) — the same
-  precision loss on two literals.
 - [`../datajs/module.f.mjs`](../datajs/module.f.mjs) — `statement`, the
   helper already fixed.
 - [self-contained-tokenizer](../../../media/json/todo/self-contained-tokenizer.md)

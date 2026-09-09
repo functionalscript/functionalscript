@@ -181,14 +181,20 @@ type _PropertyName<V> =
     V extends number ? `${V}` :
     never
 
+/**
+ * The branch `K` of `R`, tagged. An alias of its own rather than the tuple
+ * written into the mapped type below, because TypeScript resolves a tuple
+ * spelled directly in a mapped type's template as it builds the property,
+ * and defers one that is an alias's whole body — which is what lets a rule
+ * that names itself through a variant have a finite `Ast`: the branch's
+ * node is expanded when it is read, not when the variant is.
+ */
+type _Branch<R extends Variant, K extends keyof R, I, O> =
+    readonly[_PropertyName<K>, Ast<R[K], I, O>]
+
 type _VariantAst<R extends Variant, I, O> =
     string extends keyof R ? readonly[string, Ast<R[string], I, O>] :
-    {
-        readonly[K in keyof R]: readonly[
-            _PropertyName<K>,
-            Ast<R[K], I, O>
-        ]
-    }[keyof R]
+    { readonly[K in keyof R]: _Branch<R, K, I, O> }[keyof R]
 
 type _Variant = Assert<Equal<Ast<{ readonly a: 12, readonly b: 'hello' }, _MI, _MO>,
     Meta<_MO> | readonly['a', Ast<12, _MI, _MO>] | readonly['b', Ast<'hello', _MI, _MO>]>>

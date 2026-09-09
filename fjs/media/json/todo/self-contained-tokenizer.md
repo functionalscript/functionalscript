@@ -13,10 +13,10 @@ container machine consumes — the four contracts that decide it are under
 [What the reader must keep](#what-the-reader-must-keep). What is undecided is
 what the reader reports on malformed input, how a number's and a word's
 boundaries are made to match today's, and what a streaming consumer gets.
-**Prerequisite of one task, not of the issue:**
-[widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md) —
-its `string` row; the mapping's parameter is typed as `Children<Rule>`
-before it, which pins nothing.
+**No prerequisite left in `fjs/ebnf`:** the `string` row of
+[widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md),
+which typed a mapping's parameter as `Children<Rule>` and pinned nothing,
+landed with the value mapping below.
 **Related, not blocking:**
 [ebnf-migration](../../../todo/ebnf-migration.md); the metadata channel of
 [`fjs/ebnf/ast`](../../../ebnf/ast/README.md) — which buys *better* errors
@@ -78,25 +78,26 @@ Measured against the tree as it stands:
   what that grammar is built from, and they are not work this issue owes.
 - The **LL(1) backend already parses JSON with it**, as
   [`fjs/ebnf/ll1/proof.f.mjs`](../../../ebnf/ll1/proof.f.mjs) shows.
-- **The mapping engine exists; JSON's mapping does not.**
+- **The mapping engine exists, and so does a JSON mapping — the value
+  route's, not this stage's.**
   [`fjs/ebnf/ll1`](../../../ebnf/ll1/README.md) folds a rewrite set into
   the parse, keyed by the identity of the rules the grammar exports, and
-  its proof does it on a smaller grammar, in one layer and in two. A
-  mapping keyed on the `value` thunk, reachable as `json[1]`, is accepted
-  as a key whatever its annotation; what the annotation decides is the
-  type its function receives — `value` is annotated `Const<Variant>` and
-  `string` is annotated `Rule`, so a mapping of either receives
-  `Children<Rule, I, O>`, which pins nothing. A token mapping keys on
-  `string`, a number tuple and its own token variant, and never on
-  `value`, so what its typing waits on is the `string` pin alone —
-  [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)'
-  `string` row; `uint`, `optionNeg`, `optionFloatSuffix` and `ws` are
-  exact. One more measured rule of the road: a rule built in place inside
-  the set literal is a rule the grammar does not hold, refused at build,
-  where the same rule held in a binding is the key, so
-  hold the rule, then key on it, which is what the map's README says. The pin
-  is prerequisite type work, not a missing capability, and it is the one
-  thing the mapping task below cannot start without.
+  [`fjs/ebnf/lib/json/parser`](../../../ebnf/lib/json/parser/module.f.mjs)
+  folds the document grammar to a JSON value with it: `string`, `number`,
+  `value` and `json` are held and exported, each mapping's function typed
+  from its rule — the `string` and `value` rows of
+  [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)
+  are done for this grammar — and a number outside the finite range is an
+  `error` carried up through the containers, which is how a mapping
+  reports what it cannot make a value of. It runs over code units, so the
+  string contract below holds; it is a value mapping, so it keeps neither
+  the numeric policy nor a public token stream, and it replaces nothing in
+  `fjs/media/json`. A token mapping for this stage keys on `string`, a
+  number tuple and its own token variant, and never on `value`, and its
+  typing no longer waits on anything. One more measured rule of the road: a
+  rule built in place inside the set literal is a rule the grammar does not
+  hold, refused at build, where the same rule held in a binding is the key,
+  so hold the rule, then key on it.
 - An LL(1) failure returns **an offset** — `[1,` yields `['error', 3]`.
 
 **`json` alone is a prefix parser, and a reader must not use it that way.** The
@@ -128,11 +129,10 @@ So what genuinely remains, in the order it should be done:
 1. **Error shapes.** Decide what a grammar-driven reader reports. This is design
    work, not a dependency, and it is the last item under
    [What this still needs](#what-this-still-needs).
-2. **`string`'s pin.** The one dependency: until
-   [widened-rule-signatures](../../../ebnf/lib/todo/widened-rule-signatures.md)
-   lands its `string` row, the mapping can be run but not type-checked. Its
-   `value` row is not needed here, since no lexical rule names `value`. It is
-   filed P4, which understates it now that a P2 stage waits on it.
+2. **`string`'s pin** — done, with the `value` row beside it, by the value
+   mapping in
+   [`fjs/ebnf/lib/json/parser`](../../../ebnf/lib/json/parser/module.f.mjs):
+   a mapping of `string` is typed from the rule it decodes.
 3. **Token boundaries.** The token-stream grammar written naively is not
    LL(1) at a number, because `12` is one token where `1 2` is two and a
    nullable separator cannot decide that predictively, and it accepts
@@ -209,8 +209,14 @@ The container machine stays, with both codecs and their policies untouched,
 and it is what keeps the first two contracts; the grammar and its alphabet
 keep the last two. That is also this stage's stated scope — replacing the
 tokenizer wrapper — where a value mapping would retire the parser too. The
-value route stays open to whoever can show all four kept through a mapping;
-nothing measured says that is impossible, only that the pieces do not exist.
+value route is built —
+[`fjs/ebnf/lib/json/parser`](../../../ebnf/lib/json/parser/module.f.mjs) —
+and keeps two of the four: depth, and strings as code units. It reads every
+number as a `number` and reports one outside the finite range as an error,
+one policy fixed rather than a policy per codec, and it has no token stream
+to make public. Whoever can show the other two kept through a mapping may
+make it the reader; until then it stands beside this stage, not in place of
+it.
 
 **The token-stream grammar is not written, and written naively it gets two
 boundaries wrong.** `[ws, repeat0([token, ws]), eof]`, with `token` a variant

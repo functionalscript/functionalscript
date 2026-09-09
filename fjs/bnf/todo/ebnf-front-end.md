@@ -358,6 +358,12 @@ its annotation, so nothing blocks; what a widened annotation costs is what
 the mapping sees — `Children<Const<Variant>, I, O>` says nothing of the
 branches — which is
 [widened-rule-signatures](../../ebnf/lib/todo/widened-rule-signatures.md).
+**Answered on JSON, by that issue's "What landed":** the annotation is one
+recursive alias per grammar, of one line, and it cost one change in `Ast`
+— the variant row builds each branch through an alias so that TypeScript
+defers the tuple rather than expanding it into itself. The table is a
+checked contract: `Children<typeof value>` names the seven branches, and
+a shape the grammar cannot produce is refused at depth.
 
 **8. The tables never say how a node is represented.** Rows are written as
 structural values while today's AST is `{ tag, sequence }` nodes
