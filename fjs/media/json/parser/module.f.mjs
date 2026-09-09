@@ -30,16 +30,21 @@
  * units it spells: a lone surrogate is one unit in and one unit out,
  * escaped or raw, as `JSON.parse` reads it.
  *
+ * A grammar built over JSON's rules folds them the same way: the
+ * `string` rule's mapping is {@link stringMapping}, {@link lexeme} is the
+ * text under a node, and {@link syntaxError} names where a parse failed.
+ * `../../datajs/parser` is the reader built over them.
+ *
  * @module
  *
  * @import { RequiredMap } from '../../../types/object/types.ts'
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Ast, Children, Meta } from '../../../ebnf/ast/types.ts'
- * @import { Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
+ * @import { Mapping, Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
  * @import { Container, Entry, JsonValue } from '../../../ebnf/lib/json/types.ts'
- * @import { _Character, _Escape, _HexDigit, _Item } from './private.ts'
+ * @import { _Alphabet, _Character, _Escape, _HexDigit, _Item } from './private.ts'
  * @import { Json, NumberPolicy, Out, ParseUnknown, Text } from './types.ts'
  */
 
@@ -77,14 +82,14 @@ const unmapped = node => {
  * The symbol at a position a mapping filled, or an input leaf: not an array,
  * and its `meta.id` says which alphabet it is.
  *
- * @type {<P>(node: Meta<Utf16 | Out<P>> | readonly unknown[]) => Meta<Utf16 | Out<P>>}
+ * @type {<O extends _Alphabet>(node: Meta<Utf16 | O> | readonly unknown[]) => Meta<Utf16 | O>}
  */
 const symbolAt = node => {
     assert(!(node instanceof Array))
     return node
 }
 
-/** @type {(node: Meta<Utf16 | Out<unknown>> | readonly unknown[]) => number} */
+/** @type {(node: Meta<Utf16 | _Alphabet> | readonly unknown[]) => number} */
 const unitAt = node => {
     const { symbol, meta } = symbolAt(node)
     assert(meta.id === 'utf16')
@@ -119,7 +124,7 @@ const simpleEscape = { '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n'
  */
 const hexBase = /**@type {const}*/({ digit: 0x30, AF: 0x41 - 10, af: 0x61 - 10 })
 
-/** @type {(node: Ast<_HexDigit, Utf16, Out<unknown>>) => number} */
+/** @type {(node: Ast<_HexDigit, Utf16, Text>) => number} */
 const hexDigit = node => {
     const [tag, digit] = unmapped(node)
     return unitAt(digit) - hexBase[tag]
@@ -130,7 +135,7 @@ const hexDigit = node => {
  * `\u` escape's the one code unit its four digits name — so an escaped
  * surrogate is one unit, as a raw one is.
  *
- * @type {(node: Ast<_Escape, Utf16, Out<unknown>>) => string}
+ * @type {(node: Ast<_Escape, Utf16, Text>) => string}
  */
 const escaped = node => {
     const escape = unmapped(node)
@@ -143,7 +148,7 @@ const escaped = node => {
  * One character of a string: a symbol as it stands, or what its escape
  * spells — the escape's node is the backslash and what follows it.
  *
- * @type {(node: Ast<_Character, Utf16, Out<unknown>>) => string}
+ * @type {(node: Ast<_Character, Utf16, Text>) => string}
  */
 const character = node => {
     const c = unmapped(node)
@@ -151,10 +156,10 @@ const character = node => {
 }
 
 /**
- * The input symbols under a node, in order — the lexeme of a rule nothing
- * under it maps. A variant's tag is not a symbol and is passed over.
+ * The input symbols under a node, in order. A variant's tag is not a symbol
+ * and is passed over.
  *
- * @type {(node: Ast<Rule, Utf16, Out<unknown>> | string) => readonly number[]}
+ * @type {(node: Ast<Rule, Utf16, _Alphabet> | string) => readonly number[]}
  */
 const unitsUnder = node =>
     typeof node === 'string' ? [] :
@@ -162,12 +167,21 @@ const unitsUnder = node =>
     [unitAt(node)]
 
 /**
+ * The text under a node: its input symbols, in order, as the string they
+ * spell — the lexeme of a rule nothing under it maps, which is how a
+ * number's reaches its policy whole.
+ *
+ * @type {(node: Ast<Rule, Utf16, { readonly id: string }>) => string}
+ */
+export const lexeme = node => listToString(unitsUnder(node))
+
+/**
  * A number is what the policy makes of its lexeme: a leaf of the policy's
  * domain, or the policy's error where the domain cannot hold it.
  *
  * @type {<P>(policy: NumberPolicy<P>) => (node: Children<typeof number, Utf16, Out<P>>) => Result<ParseUnknown<P>, string>}
  */
-const numberOf = policy => node => policy(listToString(unitsUnder(node)))
+const numberOf = policy => node => policy(lexeme(node))
 
 /**
  * Every value, or the first error among them: an item that is no JSON
@@ -244,13 +258,25 @@ const toJson = node => {
     }
 }
 
+/** @type {Mappings<Utf16, Text>} */
+const textMapping = mapping
+
+/**
+ * The mapping of the grammar's `string` rule: to the text it spells, every
+ * escape decoded. It knows no policy, so it is one mapping for every set
+ * over JSON's `string` — the sets {@link mappings} builds, and a grammar's
+ * that reuses the rule.
+ *
+ * @type {Mapping<Utf16, Text>}
+ */
+export const stringMapping = textMapping(string, ([, characters]) => text(unmapped(characters).map(character).join('')))
+
 /**
  * The rewrite set over `policy`: a string to the text it spells, a number to
  * what the policy makes of its lexeme, a value to what its branch made of
  * it, and the document to its value's symbol, so that `parser(json,
  * mappings(policy))` yields one symbol carrying the value. Keyed by the
- * rules `../../../ebnf/lib/json` holds, so it applies to that grammar and to
- * a grammar built over those rules.
+ * rules `../../../ebnf/lib/json` holds, so it applies to that grammar.
  *
  * @template P
  * @param {NumberPolicy<P>} policy
@@ -260,7 +286,7 @@ export const mappings = policy => {
     /** @type {Mappings<Utf16, Out<P>>} */
     const map = mapping
     return [
-        map(string, ([, characters]) => text(unmapped(characters).map(character).join(''))),
+        stringMapping,
         map(number, node => jsonSymbol(numberOf(policy)(node))),
         map(value, toJson),
         map(json, ([, v]) => jsonSymbol(jsonAt(v))),
@@ -280,7 +306,7 @@ const document = /**@type {const}*/([json, eof])
  *
  * @type {(text: string) => (at: number) => string}
  */
-const syntaxError = text => at =>
+export const syntaxError = text => at =>
     at === text.length ? 'unexpected end' : `unexpected symbol at ${at}`
 
 /**
