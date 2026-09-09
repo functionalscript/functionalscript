@@ -71,16 +71,12 @@ export const proof = {
             + '<ul><li><a href="/todo/a.md">a.md</a></li></ul></details></body>'),
     },
     report: {
-        /**
-         * **No disclosure of its own.** The rows are inside the collapsible
-         * `Proofs` section and that section is last on the page, so nothing
-         * above them moves however many there are; a second disclosure here
-         * would only be a run the reader could not watch.
-         */
-        isABoxNotADisclosure: () => {
-            const html = concat(element(['body', report]))
-            assert(html === '<body><pre data-test-report=""><ol data-test-results=""></ol></pre></body>', html)
-        },
+        // Unchanged from the page that had only one report: the section around
+        // it folds, what is inside it does not differ.
+        isTheListTheRunnerAppendsTo: () =>
+            assertEq(
+                concat(element(['body', report])),
+                '<body><pre><ol data-test-results=""></ol></pre></body>'),
     },
     page: {
         /**

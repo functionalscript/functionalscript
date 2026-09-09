@@ -27,23 +27,16 @@ import { htmlUtf8 } from '../../media/html/module.f.mjs'
 import { stylesheetLink } from '../style/module.f.mjs'
 
 /**
- * Where a run's result rows go.
+ * Where a run's result rows go, unchanged from the page that had only one of
+ * them: the runner appends to the list, and the list is a `pre` so a failure's
+ * stack keeps its lines.
  *
- * **A bounded box rather than a disclosure of its own.** The rows are already
- * inside the collapsible `Proofs` section, and that section is the last on the
- * page, so a run cannot move the catalogue however many rows it appends — and
- * a reader who wants the page tidy folds `Proofs`. What is left to bound is
- * the box itself: a run appends one row per test, 5537 on the root page, and
- * a window of fixed height with its own scrollbar is what keeps that from
- * becoming the page. Nesting a second disclosure here bought nothing that the
- * section and the box do not already, and cost the reader a run they could
- * not watch.
+ * It is named here because every directory page will carry one, not because
+ * it differs from the root page's.
  *
  * @type {Element}
  */
-export const report = ['pre', { 'data-test-report': '' },
-    ['ol', { 'data-test-results': '' }],
-]
+export const report = ['pre', ['ol', { 'data-test-results': '' }]]
 
 /**
  * The page for a directory path, as a root-relative URL.

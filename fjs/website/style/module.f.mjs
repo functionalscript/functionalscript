@@ -41,9 +41,9 @@ export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath
  *
  * @type {string}
  */
-export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --pass: #137333; --fail: #b3261e; --line: #d0d0d0 }
+export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text: black; --pass: #137333; --fail: #b3261e }
 @media (prefers-color-scheme: dark) {
-    :root { --bg: #121212; --text: #f1f1f1; --pass: #81c995; --fail: #f28b82; --line: #3c3c3c }
+    :root { --bg: #121212; --text: #f1f1f1; --pass: #81c995; --fail: #f28b82 }
 }
 body { background-color: var(--bg); color: var(--text); font: 16px system-ui; margin: 3rem auto; max-width: 48rem; padding: 0 1rem }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
@@ -59,13 +59,4 @@ pre { white-space: pre-wrap }
 [data-section] { margin: 1.5rem 0 }
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
 [data-section] > ul { margin-top: .5rem }
-/* A run appends one row per test — 5537 of them on this repository's root
-   page. The rows sit in the last section of the page, so they move nothing
-   above them; this keeps them from becoming the page, which is what is left
-   to do. */
-[data-test-report] { border: 1px solid var(--line); border-radius: .375rem; margin: .5rem 0 0; max-height: 22rem; overflow: auto; padding: .75rem }
-/* Before the first run there is nothing to show. The idle state is the one
-   the page is generated in and never returns to, so this hides the box
-   exactly until it has something in it. */
-[data-state="idle"] [data-test-report] { display: none }
 `

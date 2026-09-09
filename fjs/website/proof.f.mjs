@@ -294,9 +294,8 @@ export const proof = {
         // The catalogue is above the proofs: what the directory holds is what
         // the reader came for, and a run cannot move what is above it.
         assert(source.indexOf('<summary>Directories</summary>') < source.indexOf('<summary>Proofs</summary>'), source)
-        // The result rows are in the last section of the page, so a run moves
-        // nothing above them.
-        assert(source.includes('<pre data-test-report=""><ol data-test-results="">'), source)
+        // The report is what it always was; only the section around it folds.
+        assert(source.includes('<pre><ol data-test-results=""></ol></pre>'), source)
         assert(source.includes('>Run</button>'), source)
         assert(!source.includes('Run again'), source)
         // The entry module wires the click handler and stops: it must not
