@@ -213,7 +213,7 @@ At least two encodings can provide such evidence:
 1. **detached DISOT provenance/signature blocks**, for example a CAS object that
    references the exact stored object hash and carries a signature + signer DID;
 2. **Git-native embedded signatures**, such as the companion
-   `vnd.fjs.gpgsig` prototype, whose own specification defines the signed
+   `vnd.fjs.didsig` prototype, whose own specification defines the signed
    projection/payload.
 
 These forms are interoperable at the naming layer but are not required to have
@@ -222,7 +222,7 @@ encoding decides whether the attestation authenticates the semantic revision;
 this naming design only consumes the verified result.
 
 Detached attestations remain important because independent parties can add
-trust later without rewriting the Git commit. Embedded `vnd.fjs.gpgsig` is
+trust later without rewriting the Git commit. Embedded `vnd.fjs.didsig` is
 therefore a Git-native attestation encoding, not a replacement for detached
 DISOT provenance.
 
@@ -627,7 +627,7 @@ files with those basenames remain ordinary content.
 - [ ] Define a representation-independent authority-attestation interface used
       by naming resolution.
 - [ ] Support detached DISOT provenance/signature blocks without rewriting Git
-      commits; treat `vnd.fjs.gpgsig` as an optional Git-native attestation
+      commits; treat `vnd.fjs.didsig` as an optional Git-native attestation
       encoding.
 - [ ] Define representation-independent trusted timestamp evidence; keep
       `vnd.fjs.ttssig` as one optional Git-native encoding.
@@ -689,5 +689,5 @@ files with those basenames remain ordinary content.
   the future source/content convention carries naming/resolution metadata in
   root `.disot.*` files.
 - [Git trusted timestamp signatures](./git-trusted-timestamp-signatures.md) —
-  optional Git-native `vnd.fjs.gpgsig` / `vnd.fjs.ttssig` encodings; naming
+  optional Git-native `vnd.fjs.didsig` / `vnd.fjs.ttssig` encodings; naming
   semantics remain representation-independent.
