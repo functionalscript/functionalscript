@@ -15,28 +15,20 @@ other content**. Git is only an immutable history/transport container. DISOT
 semantics must not depend on JavaScript, Python, HTML, a package manager, a Git
 branch name, or a particular Git hosting service.
 
-The DISOT architecture already describes paths such as:
-
-```text
-~/Alice/Bob/plan.md
-/<identity>/Alice/Bob/plan.md
-```
-
-where every hop is authenticated and `~` is relative to a trust context.
-
 Keep these concepts separate:
 
 1. **DISOT name** — a human-readable path identifying an evolving entity;
 2. **hash** — an immutable revision/content address;
-3. **signature/trust** — who is allowed to establish, advance, rename, or
-   archive a name;
+3. **authority attestation / trust** — who is allowed to establish, advance,
+   rename, or relinquish a name;
 4. **trusted timestamp evidence** — when an authenticated revision/history is
    proven to have existed;
-5. **Git ancestry** — evolution, forks, merges, renames, and archival markers;
+5. **Git ancestry** — causal evolution, forks, merges, renames, and archival
+   markers;
 6. **Git refs** — reachability roots used only to keep Git objects from becoming
    unreachable and eligible for garbage collection.
 
-### Put DISOT metadata in the tree, not custom Git headers
+### Put DISOT metadata in the tree, not custom Git naming headers
 
 Do **not** put the DISOT name in a custom Git commit header.
 
@@ -46,9 +38,9 @@ cherry-pick, squash, or a normal `git commit` — do not know that an unknown
 header must be copied. The metadata can therefore disappear when a user works
 with standard Git tooling.
 
-Instead, keep it as an ordinary file in the commit tree. Standard Git tooling
-then treats it like the source/content it describes and normally carries it
-forward when creating a descendant commit.
+Instead, keep naming/resolution metadata as an ordinary file in the commit tree.
+Standard Git tooling then treats it like the source/content it describes and
+normally carries it forward when creating a descendant commit.
 
 The initial canonical filenames are:
 
@@ -76,19 +68,12 @@ src/.disot.json             # ordinary content
 vendor/x/.disot.data.js     # ordinary content
 ```
 
-This keeps one Git commit history from accidentally acquiring several DISOT
-entities merely because vendored, generated, archived, or arbitrary content
-contains a file with a recognized basename. A nested subtree can be treated as a
-separate DISOT entity only when it is independently committed/resolved as such.
+A nested subtree can be treated as a separate DISOT entity only when it is
+independently committed/resolved as such.
 
 The commit root SHOULD contain at most one recognized `.disot.*` metadata file.
 If more than one recognized encoding is present at the root, a resolver MUST
-reject the ambiguity rather than choose one by filename priority or assume that
-equivalent-looking files have the same semantics.
-
-The leading dot marks infrastructure metadata, while the `disot` namespace
-makes accidental collision much less likely than generic names such as
-`manifest.json`, `.meta.json`, or `package.json`.
+reject the ambiguity rather than choose one by filename priority.
 
 ### One path-valued `name`
 
@@ -105,27 +90,10 @@ Preferred form:
 The namespace is already part of the absolute path, so a separate field would
 only split a value that the resolver immediately recombines.
 
-The same DISOT name type can then be used consistently in metadata, redirects,
-resolver APIs, logs, indexes, and user interfaces.
-
-The initial P3 schema keeps `name` singular. Supporting several names for the
-same entity is a useful possible extension, for example:
-
-```json
-{
-  "name": [
-    "/secp256k1:23a/coolJsModule",
-    "/secp256k2:456/alsoCool"
-  ]
-}
-```
-
-but this is deliberately **not** part of the initial format. Names in different
-namespaces may require independent authority, and multiple names need an
-unambiguous rule for which namespace supplies the base for relative references.
-Aliases/redirects can provide additional names without making the entity itself
-multi-named. Revisit a `name` array only after those authority and resolution
-rules are specified.
+The initial P3 schema keeps `name` singular. Multiple names may be added later,
+but only after authority and relative-resolution semantics are defined for that
+case. Aliases/redirects can provide additional names without making the entity
+itself multi-named.
 
 ### Relative self-names
 
@@ -137,119 +105,45 @@ A DISOT metadata file MAY use a relative self-name:
 }
 ```
 
-When an authorized commit first establishes such a relative self-name, the
-relative name is expanded using the cryptographically authenticated DID of the
-trusted author/controller accepted for that operation. It is **not** the textual
-name or email in Git's `author` header.
+A relative self-name is a convenience for a personal namespace. When the entity
+is first established, `./name` expands using the **unique distinct DID that is
+accepted as the authority establishing that revision**. It is never derived from
+the textual Git `author` name/email.
 
 Conceptually:
 
 ```text
-trusted establishing author = secp256k1:23a
-name                        = ./coolJsModule
+unique establishing authority = secp256k1:23a
+name                          = ./coolJsModule
 
 => /secp256k1:23a/coolJsModule
 ```
 
-The resulting effective absolute name belongs to the trusted history. A later
-commit by another signer that merely carries the unchanged `.disot.*` file MUST
-NOT reinterpret `./coolJsModule` relative to the later signer. Otherwise an
-ordinary contribution would silently rename the entity.
+If more than one distinct DID is accepted as an establishing authority on the
+same first authoritative revision, `./name` is ambiguous and MUST NOT establish
+a name. The author must use an explicit absolute name instead:
 
-Relative self-names SHOULD be discouraged. They couple initial naming to the
-identity that happened to establish the entity and become especially awkward
-for shared, organizational, transferable, or multi-controller entities.
-Shared entities SHOULD use an explicit absolute name whose namespace represents
-the shared entity/project rather than one contributor:
+```text
+accepted establishing DIDs = Alice, Bob
+name                        = ./parser
+
+=> ERROR: ambiguous relative self-name
+```
+
+Multiple later attestations may accumulate trust for an already-established
+revision without reinterpreting the effective name. An unchanged `./name` is
+resolved from its original effective absolute name, not from later signers.
+
+Relative self-names SHOULD be discouraged, especially for shared,
+organizational, transferable, or multi-controller entities. Shared entities
+SHOULD use an explicit absolute name whose namespace represents the shared
+entity/project rather than one contributor:
 
 ```json
 {
   "name": "/<project-or-shared-DID>/coolJsModule"
 }
 ```
-
-Tools MAY make `./name` convenient for personal entities while warning before
-using it for an entity intended to have shared or transferable control.
-
-### Trust establishes metadata; presence does not
-
-A root `.disot.*` file is only bytes in a Git tree until authenticated trust
-adopts it. Its presence MUST NOT by itself establish a name, lock, or any other
-DISOT semantics.
-
-A commit that introduces `.disot.*` is eligible to establish the claimed name
-only when its cryptographic signature is accepted by the resolver's trust policy
-as authorized for that operation.
-
-For example, an unsigned or untrusted commit cannot claim Alice's namespace by
-writing:
-
-```json
-{
-  "name": "/DID:Alice/parser"
-}
-```
-
-The same principle applies to later metadata changes. Changing `name` or lock
-data does not become authoritative merely because Git accepted the commit. The
-resolver evaluates signatures and trust policy before accepting the change into
-the trusted named history.
-
-An untrusted commit may introduce `.disot.*`, and a later trusted descendant may
-leave the file unchanged and sign the new commit. Because the later signature
-covers the complete tree, that trusted descendant **adopts** the metadata at
-that point. The earlier untrusted commit does not become trusted retroactively.
-
-```text
-C0  no .disot.*
- |
-C1  adds .disot.json     unsigned / untrusted   -> not authoritative
- |
-C2  same .disot.json     authorized signature   -> metadata adopted here
-```
-
-Trust is subjective and policy-driven. A trusted party does not necessarily
-mean one hard-coded signer equal to the namespace DID: delegation, key rotation,
-multiple controllers, or community trust rules may authorize signatures.
-
-### Trusted timestamps are required for shared authoritative history
-
-This proposal follows the DISOT architecture rule that content shared outside
-its author's process must be **both signed and timestamped** before it is
-trusted.
-
-A locally created signed commit MAY be treated as provisional/local state by its
-author before timestamp evidence exists. It MUST NOT become an authoritative
-shared DISOT revision for another process merely because its signature verifies.
-
-For externally shared resolution, accepting a commit as an authoritative
-semantic revision therefore requires both:
-
-1. an accepted signature authorizing the relevant operation; and
-2. accepted trusted-timestamp evidence proving the authenticated commit/history
-   existed no later than the trusted time.
-
-Timestamp evidence may be **direct** (for example, a valid `tstsig` on the
-commit) or **ancestral** when the trusted-timestamp specification allows a later
-trusted timestamped descendant/merge to anchor the exact ancestor through Git
-parent hashes. A descendant can anchor an ancestor only when its cryptographic
-ancestry commits to that exact ancestor object; timestamp policy remains defined
-by the companion trusted-timestamp specification.
-
-Thus:
-
-```text
-valid authorized signature only
-    -> authenticated/provisional revision
-
-valid authorized signature + accepted timestamp evidence
-    -> eligible authoritative shared revision
-```
-
-The timestamp rule applies equally to establishment, advancement, rename,
-relinquishment/archive, and trusted merges. Synthetic retention-only commits are
-not semantic DISOT revisions and therefore do not need semantic signatures or
-timestamps.
 
 ### Shape
 
@@ -273,45 +167,168 @@ The important semantics are:
   including nested/scoped choices where one flat map is insufficient.
 
 The Git repository containing the commit and every Git ref pointing at it are
-not part of the entity identity. Copying the exact history to another repository
-or changing the ref layout changes no DISOT semantics.
+not part of the entity identity.
+
+### Authority attestations are representation-independent
+
+A root `.disot.*` file is only bytes in a Git tree until accepted authority
+attestation(s) adopt it. Its presence MUST NOT by itself establish a name, lock,
+or any other DISOT semantics.
+
+The naming layer MUST NOT require one particular signature encoding. It consumes
+verified **authority attestations**: evidence that an identity cryptographically
+authenticated the semantic Git revision and is authorized by the resolver's
+trust policy for the relevant operation.
+
+At least two encodings can provide such evidence:
+
+1. **detached DISOT provenance/signature blocks**, for example a CAS object that
+   references the exact stored object hash and carries a signature + signer DID;
+2. **Git-native embedded signatures**, such as the companion `gpgsig2`
+   prototype, whose own specification defines the signed projection/payload.
+
+These forms are interoperable at the naming layer but are not required to have
+the same wire representation or target hash. The signature verifier for each
+encoding decides whether the attestation authenticates the semantic revision;
+this naming design only consumes the verified result.
+
+Detached attestations remain important because independent parties can add
+trust later without rewriting the Git commit. Embedded `gpgsig2` is therefore a
+Git-native attestation encoding, not a replacement for detached DISOT
+provenance.
+
+The same representation-independence applies to timestamp evidence: an embedded
+`tstsig` may be one encoding, while detached DISOT timestamp/provenance blocks
+may provide another. Naming semantics depend on accepted evidence, not the
+container used to carry it.
+
+An untrusted commit may introduce `.disot.*`, and a later authoritative
+revision may leave the metadata unchanged and adopt it. The earlier untrusted
+commit does not become trusted retroactively.
+
+```text
+C0  no .disot.*
+ |
+C1  adds .disot.json     no accepted authority attestation
+ |                       -> not authoritative
+C2  same .disot.json     accepted authority attestation
+                         -> metadata adopted here
+```
+
+Trust is subjective and policy-driven. Delegation, key rotation, multiple
+controllers, or community trust rules may authorize attestations.
+
+### Trusted timestamps are required for shared authoritative history
+
+This proposal follows the DISOT architecture rule that content shared outside
+its author's process must be **both authenticated and timestamped** before it is
+trusted.
+
+A locally authenticated revision MAY be provisional/local state before trusted
+timestamp evidence exists. It MUST NOT become an authoritative shared DISOT
+revision for another process merely because an authority attestation verifies.
+
+For externally shared resolution, accepting a semantic revision therefore
+requires both:
+
+1. accepted authority attestation(s) for the relevant operation; and
+2. accepted trusted-timestamp evidence.
+
+Timestamp evidence may be direct or may come from an accepted timestamped
+descendant/merge that cryptographically commits to the exact ancestor through
+Git parent hashes, when allowed by the timestamp specification.
+
+Thus:
+
+```text
+accepted authority attestation only
+    -> authenticated/provisional revision
+
+accepted authority attestation + accepted timestamp evidence
+    -> eligible authoritative shared revision
+```
+
+The rule applies to establishment, advancement, rename, relinquishment/archive,
+and semantic merges. Synthetic retention-only commits are not DISOT semantic
+revisions and do not need semantic authority/timestamp evidence.
+
+### Git-backed names vs signed DISOT directories
+
+The older DISOT architecture describes names as signed directory mappings from a
+path segment to a hash. This Git-backed naming model deliberately changes the
+**final binding rule for Git-backed named entities**.
+
+For a Git-backed entity, an authoritative revision is established by:
+
+```text
+root .disot.* self-name
++ accepted authority attestation(s)
++ required trusted timestamp evidence
++ Git ancestry
+```
+
+A signed DISOT directory MUST NOT independently override that Git history by
+mapping the same final name to some other commit hash.
+
+Signed directories remain useful for:
+
+- trust-path traversal such as `~/Alice/...`;
+- aliases and redirects;
+- discovering candidate Git histories/commits;
+- non-Git DISOT objects that still use the directory-to-hash model.
+
+For a Git-backed final entity name, a directory mapping is therefore a discovery
+hint/index, not the authoritative revision selector. A candidate discovered
+through a directory MUST still be validated against its root `.disot.*`,
+authority evidence, timestamp evidence, and ancestry. If the directory points to
+a commit that does not validate for the requested name, the mapping does not win.
+
+This proposal therefore supersedes the old directory-to-hash final-binding rule
+**only for Git-backed named entities**. `todo/plan/architecture.md` should be
+updated when this design is adopted so both documents describe the same model.
 
 ### Relative references
 
 The namespace portion of the entity's **effective absolute name** supplies the
 default namespace for otherwise-unlocked relative references in its content.
-For example:
 
 ```text
-entity = /DID:Alice/parser
+entity              = /DID:Alice/parser
 relative dependency = ./json
 
 => /DID:Alice/json
 ```
 
-If the metadata used `./parser`, the trusted establishment step first expands it
-to `/DID:Alice/parser`; subsequent dependency resolution uses that effective
-absolute name rather than the signer of each later commit.
+If metadata used `./parser`, establishment first expands it to an effective
+absolute name. Later signers do not change that base.
 
-The resolver does not need to understand whether a relative reference was
-spelled as an ECMAScript `import`, Python import, HTML URL, CSS URL, Markdown
-link, or a reference in some future language. Language/hypertext-specific
-tooling discovers the relative reference; DISOT resolves the DISOT name.
+The resolver does not need to know whether the source spelling is an ECMAScript
+`import`, Python import, HTML URL, CSS URL, Markdown link, or a reference in a
+future language. Language/hypertext-specific tooling discovers the relative
+reference; DISOT resolves the DISOT name.
 
-The human-facing namespace syntax may also include trust-context paths such as:
+### Lock semantics
+
+The lock is a reproducibility record, not merely a cache.
 
 ```text
-~/Alice/parser
-/<identity>/Alice/parser
+relative name
+    -> effective DISOT name
+    -> exact immutable hash
 ```
 
-Discovery may use local indexes, signed directories, CAS/DISOT indexes, or
-network services. Git branch names are not a naming or discovery primitive in
-the DISOT model defined here.
+An exact applicable lock binding wins over mutable name resolution. A locked
+hash is terminal for resolution and is not reinterpreted as another mutable
+name.
+
+Changing the namespace component of an entity name may change the fallback
+meaning of relative references that are not pinned by `lock`. Tools performing
+an authorized rename/transfer should resolve/update the lock explicitly so the
+semantic effect is reviewable.
 
 ### Forks and contributions
 
-Signing a descendant does not rename the entity.
+Attesting to a descendant does not automatically rename the entity.
 
 Suppose Alice has an authoritative history whose metadata says:
 
@@ -321,26 +338,20 @@ Suppose Alice has an authoritative history whose metadata says:
 }
 ```
 
-Bob checks it out, changes source, and creates a commit signed by Bob. Unless an
-authorized operation changes `.disot.*`, the new tree still describes
-`/DID:Alice/parser`. Bob's signature authenticates Bob's revision; whether Bob
-is trusted to advance Alice's authoritative named history is a separate trust
-policy decision. For shared authoritative use, the timestamp requirement above
-also applies.
+Bob changes the source and creates/attests a descendant. Unless an authorized
+operation changes `.disot.*`, the tree still describes `/DID:Alice/parser`.
+Bob's attestation says who authenticated Bob's revision; whether Bob is trusted
+to advance Alice's authoritative history is a separate policy decision.
 
 ### A name change is two independent operations
 
-Changing `.disot.*` from one effective name to another is not automatically a
-single privileged "rename" operation. Semantically it contains two independent
+Changing `.disot.*` from one effective name to another contains two independent
 assertions:
 
 1. **relinquish/archive the old name**; and
 2. **establish the new name**.
 
-Each assertion is evaluated under the authority/trust policy of the name it
-affects.
-
-For example:
+Each assertion is evaluated under the authority policy of the name it affects.
 
 ```text
 C1  name = /DID:Alice/parser
@@ -348,66 +359,22 @@ C1  name = /DID:Alice/parser
 C2  name = /DID:Bob/my-parser
 ```
 
-The effects are:
+Effects:
 
-- if C2 is authorized for both Alice's old name and Bob's new name, C2 is a
-  rename/transfer: `/DID:Alice/parser` becomes archived and
-  `/DID:Bob/my-parser` becomes active;
-- if C2 is authorized only for Bob's new name, it establishes a new/forked
-  entity at `/DID:Bob/my-parser`, while `/DID:Alice/parser` remains active at
-  its last authoritative head;
-- if C2 is authorized only to relinquish Alice's old name, the old name becomes
-  archived but the new Bob name is not authoritatively established;
-- if C2 is authorized for neither assertion, it has no authoritative naming
-  effect.
+- authorized for both old and new names -> rename/transfer;
+- authorized only for the new name -> new/forked entity; old name remains
+  active on any unrelinquished lineage;
+- authorized only for the old name -> old lineage is relinquished; new name is
+  not established;
+- authorized for neither -> no authoritative naming effect.
 
-For shared authoritative resolution, each accepted assertion also requires the
-trusted timestamp evidence described above.
+There is **no implicit redirect**. Redirects/aliases require an explicit
+authorized representation in the namespace that owns the alias.
 
-There is **no implicit redirect** from the old name to the new name. If a
-redirect/alias is desired, it must be established explicitly under the authority
-of the namespace that owns the alias.
+### Removing `.disot.*` relinquishes the inherited name
 
-A same-namespace rename follows the same rule; it is simply common for one
-controller to be authorized for both names.
-
-Changing the namespace component may change the fallback meaning of relative
-references that are not pinned by `lock`. A tool performing an authorized rename
-or transfer should resolve/update the lock explicitly so the semantic effect is
-visible.
-
-This model also prevents a fork signer from retiring somebody else's name by
-merely editing `.disot.*` in a descendant commit.
-
-### Lock semantics
-
-The lock is a reproducibility record, not merely a cache.
-
-For each applicable relative dependency:
-
-```text
-relative name
-    -> effective DISOT name
-    -> exact immutable hash
-```
-
-an exact lock binding wins over mutable name resolution. A locked hash is
-terminal for resolution: it is not reinterpreted as another mutable name.
-
-If a tree already has `.disot.*`, standard Git normally carries the naming and
-lock context forward. If a tree has no DISOT metadata and a DISOT-aware tool
-wants to turn it into a named entity, the tool creates `.disot.*` before signing
-and timestamping/adopting the resulting commit according to trust policy.
-
-### Removing `.disot.*` archives the entity
-
-Removing the recognized root `.disot.*` file from an established semantic
-history is the special case of a name transition with **no new name**.
-
-Once a trusted history has established a DISOT name, a later authorized semantic
-descendant whose root no longer contains recognized `.disot.*` relinquishes and
-archives that old name when the required trust and timestamp evidence are
-accepted.
+Removing the recognized root `.disot.*` from an established semantic lineage is
+the no-new-name form of relinquishment.
 
 ```text
 C1  .disot.json = { name: /DID:Alice/parser }   authoritative
@@ -415,45 +382,78 @@ C1  .disot.json = { name: /DID:Alice/parser }   authoritative
 C2  .disot.json unchanged                      authoritative
  |
 C3  root .disot.* removed                      authorized + timestamped
-     -> /DID:Alice/parser is archived
 ```
 
-The archived identity comes from trusted ancestry. An unsigned/untrusted removal
-or a removal lacking the required shared timestamp evidence has no authoritative
-archival effect.
+`C3` relinquishes the inherited name **only for the lineage(s) it causally
+descends from**.
 
-Here "author" means a cryptographically authenticated identity accepted by the
-trust policy to control/advance/relinquish the entity, not the textual Git
-`author` field.
+An unauthenticated, unauthorized, or insufficiently timestamped removal has no
+authoritative archival effect.
 
 Archiving does not delete history. Earlier revisions remain immutable and
-addressable by hash. Archival only means that mutable name resolution has no
-active authoritative head after the tombstone unless a later authorized
-operation explicitly re-establishes the entity.
+addressable by hash.
+
+### Archival is ancestry-scoped, not global
+
+Relinquishment/tombstones are causal. They do not globally erase incomparable
+authoritative forks merely because they use the same DISOT name.
+
+Example:
+
+```text
+      H1 ---- T      # T relinquishes .disot.*
+     /
+A ---
+     \
+      H2             # incomparable authoritative head
+```
+
+`T` archives/relinquishes the lineage through `H1`, but it does **not** archive
+`H2`. `H2` remains an active authoritative head.
+
+To relinquish all currently known authoritative heads with one tombstone, the
+tombstone must causally descend from all of them, normally through a semantic
+merge:
+
+```text
+H1 ---\
+       M --- T
+H2 ---/
+```
+
+Alternatively each fork can be relinquished independently.
+
+Therefore the correct rule is:
+
+> A relinquishment terminates only the active head(s) in its ancestry. It has no
+> semantic effect on incomparable authoritative heads.
+
+If a previously unknown incomparable authoritative fork is discovered later, it
+may make the name active/ambiguous again under the resolver's trust policy. DISOT
+does not invent a total order from timestamps, ref names, or arrival order to
+hide that causal fact.
+
+The same ancestry scope applies to the old-name side of a rename. A rename
+commit descending from only one of several old-name heads cannot retire the
+other incomparable heads.
 
 ### Heads, forks, renames, and archival
 
-For one effective DISOT name, consider known authoritative semantic revisions,
-name-transition assertions, and tombstones by ancestry rather than commit
-timestamps, ref names, or arrival order:
+For one effective DISOT name, consider accepted semantic revisions and
+relinquishment markers by ancestry:
 
 - an ancestor is an older revision, not a competing head;
 - one maximal active descendant is an unambiguous active head;
 - several incomparable maximal active commits are forks/concurrent heads;
-- an authorized trusted merge descending from those heads may restore one
+- an authorized semantic merge descending from those heads may restore one
   unambiguous head;
-- an accepted relinquishment caused by either a name change or `.disot.*`
-  removal terminates the old name and acts as an archive marker for it.
+- an accepted relinquishment makes only the active heads in its ancestry
+  inactive for that name.
 
 A resolver MUST NOT choose among incomparable heads merely by commit time,
 lexicographic hash order, Git branch name, network arrival order, or which
-server answered first. It either applies an explicit trust/policy rule or
-reports ambiguity. An exact lock binding removes ambiguity for that dependency.
-
-An unauthenticated, unauthorized, or insufficiently timestamped shared
-descendant is not automatically an authoritative head, rename, or archive
-marker. It may be retained as a contribution/candidate but has no authoritative
-shared DISOT semantic effect until adopted according to policy.
+server answered first. It either applies explicit caller trust/policy or reports
+ambiguity. An exact lock binding removes ambiguity for that dependency.
 
 ### Git refs exist only for reachability / GC protection
 
@@ -462,48 +462,29 @@ rename signals, archive signals, discovery semantics, or semantic head
 selection.
 
 Their sole role in this Git-backed design is pragmatic: ordinary Git may prune
-unreachable objects. A DISOT implementation therefore keeps commits that must
-remain available reachable from persistent Git refs so they are not merely
-detached/unreachable objects eligible for garbage collection.
-
-Conceptually:
+unreachable objects. Commits that must remain available therefore need to stay
+reachable from persistent refs unless another storage layer guarantees
+retention.
 
 ```text
-.disot.* + trusted signed/timestamped ancestry  = DISOT semantics
-Git refs                                        = Git object retention roots only
+.disot.* + authority/timestamp evidence + ancestry = DISOT semantics
+Git refs                                            = retention roots only
 ```
 
 A ref name may be arbitrary. Renaming a ref changes nothing. Deleting a ref does
-not archive an entity; it is safe only when the commits that must be retained
-remain reachable through another ref or another storage layer provides the
-retention guarantee.
+not archive an entity; it is safe only when required commits remain reachable
+elsewhere.
 
-Reflogs are not the DISOT retention mechanism because they are temporary and may
-expire. Persistent refs provide the ordinary Git-native reachability roots.
+Reflogs are not sufficient because they expire.
 
-Live incomparable heads that must all remain available may temporarily require
-multiple reachability refs. These refs still have no naming semantics.
+Live incomparable heads may temporarily require multiple reachability refs.
+Those refs still have no naming semantics.
 
-### One archive ref for many archived entities
+### One archive ref for many archived lineages
 
-Keeping one branch/ref forever for every archived entity would accumulate
-unnecessary refs. Once an entity has a valid authoritative tombstone or other
-accepted relinquishment marker, DISOT may merge that terminal commit into a
-single synthetic **archive retention branch**.
-
-For example:
-
-```text
-Alice/foo --- A4        # A4: trusted tombstone / relinquishment
-                \
-archive-0 ------ R1
-                  \
-Bob/bar ------- B7 \
-                   R2  -> refs/heads/archive
-```
-
-A simpler implementation can extend the archive branch one terminal history at
-a time:
+Keeping one branch forever for every archived lineage would accumulate needless
+refs. Once a lineage has a valid terminal relinquishment/tombstone, DISOT may
+merge that terminal commit into a single synthetic archive-retention branch.
 
 ```text
 R0
@@ -517,67 +498,25 @@ R3 ---- archived-C-terminal
  refs/heads/archive
 ```
 
-Each synthetic archive commit uses the previous archive commit and one archived
-entity's terminal commit as parents. Its tree contains **no recognized root
-`.disot.*`**. After the merge, the individual archived-entity ref may be deleted
-because the terminal commit and its full ancestry remain reachable from the
-common archive ref.
+Each synthetic archive commit uses the previous archive commit and one terminal
+entity commit as parents. Its tree contains **no recognized root `.disot.*`**.
+Afterward the individual archived-lineage ref may be deleted because the terminal
+commit and its ancestry remain reachable from the common archive ref.
 
-This gives a strict separation:
+This is retention topology only:
 
 ```text
-authorized/timestamped relinquishment in entity history
-    = semantic archival
+authorized/timestamped relinquishment in semantic history
+    = DISOT archival semantics
 
 synthetic merge into archive branch
-    = Git reachability/retention only
+    = Git reachability only
 ```
 
-Archive-retention commits MUST NOT be interpreted as entities, renames,
-reactivations, or new archive operations. They may have parents from unrelated
-DISOT histories. Their lack of `.disot.*` is not itself a semantic tombstone,
-because they are outside the semantic continuation of any one entity and exist
-only to retain their ancestors.
-
-Consequently, a generic rule such as "any merge without `.disot.*` archives its
-parents" would be wrong. A relinquishment/tombstone is established in the
-trusted semantic history of a particular entity first; arbitrary later
-no-metadata merges are retention topology only.
-
-The archive retention commits themselves do not need semantic signatures or
-trusted timestamps because they assert nothing about DISOT. The authoritative
-terminal commits in their ancestry carry the archival semantics.
-
-If another storage layer such as CAS/DISOT guarantees retention independently of
-Git reachability, these Git retention refs may become unnecessary.
-
-### Interaction with signatures and trusted timestamps
-
-The root `.disot.*` file is part of the Git tree, and the tree hash is part of
-the commit payload. A DID signature over the commit (`gpgsig2` in the companion
-prototype) therefore authenticates the exact DISOT metadata without an
-additional Git naming header.
-
-Trusted timestamps are not merely optional metadata for shared DISOT trust.
-Following the architecture rule, externally shared semantic history requires
-accepted timestamp evidence in addition to accepted signatures. A direct
-`tstsig` is one form; an accepted timestamped descendant/merge may also anchor
-an ancestor when the trusted-timestamp specification permits it.
-
-The same applies to relinquishment/archive: the authority signature authenticates
-the transition, while trusted timestamp evidence establishes its time for shared
-trust.
-
-A resolver must distinguish:
-
-- **described as** — the `name` from root `.disot.*`, expanded to an effective
-  absolute name when necessary;
-- **signed by** — identities that authenticated the exact commit;
-- **trusted as** — whether those signatures are authorized by policy to
-  establish, advance, rename, or archive the entity;
-- **anchored at** — accepted trusted timestamp evidence, direct or ancestral;
-- **locked to** — exact immutable hashes selected for dependencies;
-- **kept reachable by** — Git refs, which have no DISOT semantics.
+Archive-retention commits MUST NOT be interpreted as entities, semantic merges,
+renames, reactivations, or new archive operations. They may combine unrelated
+DISOT histories. They need no semantic authority/timestamp evidence because
+they assert nothing about DISOT.
 
 ### Future encodings — P5
 
@@ -606,94 +545,80 @@ metadata value, for example:
 
 Adding an encoding MUST NOT add semantics. Every supported representation must
 round-trip the same data model, validation rules, name meaning, and lock
-behavior. An encoding whose native data model cannot represent the canonical
-DISOT value without ambiguity or loss should not be added merely because its
-syntax is popular.
-
-Multiple recognized `.disot.*` files at the commit root remain an error even
-after more encodings are introduced. Nested files with those basenames remain
-ordinary content.
+behavior. Multiple recognized `.disot.*` files at the commit root remain an
+error. Nested files with those basenames remain ordinary content.
 
 ### Prototype tasks
 
 - [ ] Define the canonical logical `.disot` schema with one required path-valued
       `name` and an optional recursive `lock`.
-- [ ] Define canonical `.disot.json` serialization and parsing.
-- [ ] Define canonical `.disot.data.js` serialization and parsing with exactly
-      the same logical value and validation semantics.
-- [ ] Inspect recognized `.disot.*` only at the commit-tree root; prove nested
-      files with those basenames are ordinary content.
-- [ ] Reject a commit root containing more than one recognized `.disot.*` file.
-- [ ] Specify the canonical absolute-name grammar `/<identity>/<path...>` and
-      relative self-name grammar such as `./name`.
-- [ ] Define how a newly introduced `./name` expands using the trusted
-      cryptographic author's DID and ensure later signers do not reinterpret an
-      unchanged relative self-name.
-- [ ] Make absolute names the recommended form and discourage `./name`,
-      especially for shared/transferable/multi-controller entities.
-- [ ] Keep multiple `name` values out of P3; separately specify authority and
-      relative-resolution semantics before considering a `name` array.
-- [ ] Treat root `.disot.*` as untrusted data until the containing commit's
-      signature is accepted by the resolver's trust policy.
-- [ ] Require trusted adoption to establish an authoritative `.disot.*` value;
-      prove that an unsigned/untrusted introduction establishes no identity.
-- [ ] Require accepted trusted-timestamp evidence in addition to an accepted
-      signature before an externally shared semantic revision is authoritative.
-- [ ] Specify/test direct timestamp evidence and ancestry-based timestamp
-      anchoring through exact Git parent hashes according to the companion
-      timestamp design.
-- [ ] Prove a later trusted descendant can adopt unchanged metadata without
-      retroactively trusting the earlier commit.
-- [ ] Apply the same trust/timestamp rules to advancement, name changes, trusted
-      merges, and relinquishment/archive.
-- [ ] Define a name change as independent old-name relinquishment and new-name
-      establishment assertions, each checked under its own authority policy.
-- [ ] Prove a signer authorized only for the new name cannot archive the old
-      name, and a signer authorized only for the old name cannot establish the
-      new one.
-- [ ] Define no implicit redirect on rename; redirects/aliases require their own
-      explicit authorized representation.
-- [ ] Implement relative-reference resolution from the namespace portion of the
-      entity's effective absolute name, with exact lock bindings as overrides.
+- [ ] Define canonical `.disot.json` and `.disot.data.js` encodings with the
+      same logical semantics.
+- [ ] Recognize `.disot.*` only at the commit-tree root and reject multiple
+      recognized root encodings.
+- [ ] Specify canonical absolute names `/<identity>/<path...>` and relative
+      self-names such as `./name`.
+- [ ] Require one unique distinct accepted establishing DID for `./name`; reject
+      ambiguous multi-authority establishment and require an absolute name.
+- [ ] Ensure later attestations do not reinterpret an already-established
+      relative self-name.
+- [ ] Discourage `./name` for shared/transferable/multi-controller entities.
+- [ ] Keep multiple `name` values out of P3 until authority/resolution semantics
+      are defined.
+- [ ] Define a representation-independent authority-attestation interface used
+      by naming resolution.
+- [ ] Support detached DISOT provenance/signature blocks without rewriting Git
+      commits; treat `gpgsig2` as an optional Git-native attestation encoding.
+- [ ] Define representation-independent trusted timestamp evidence; keep `tstsig`
+      as one optional Git-native encoding.
+- [ ] Require accepted authority evidence + accepted trusted timestamp evidence
+      for externally shared authoritative semantic revisions.
+- [ ] Specify/test direct and ancestry-based timestamp anchoring according to
+      the companion timestamp design.
+- [ ] Define Git-backed final-name authority as root `.disot.*` + accepted
+      authority/timestamp evidence + ancestry; signed directories are discovery,
+      alias/trust-path, or non-Git naming mechanisms and cannot override it.
+- [ ] Update `todo/plan/architecture.md` when this model is adopted so the old
+      directory-to-hash final-binding rule excludes Git-backed named entities.
+- [ ] Implement relative-reference resolution from the effective absolute name,
+      with exact lock bindings as terminal overrides.
+- [ ] Define name changes as independent old-name relinquishment and new-name
+      establishment assertions.
+- [ ] Prove authority for only the new name cannot archive the old name, and
+      authority for only the old name cannot establish the new one.
+- [ ] Define no implicit redirect on rename.
+- [ ] Define root `.disot.*` removal as no-new-name relinquishment.
+- [ ] Make relinquishment ancestry-scoped: it affects only active heads in its
+      ancestry and never incomparable authoritative heads.
+- [ ] Test a tombstone on one fork, tombstones/merge covering all forks, and a
+      later-discovered incomparable fork.
 - [ ] Implement ancestry-based active-head detection and explicit ambiguity on
       incomparable authoritative forks.
-- [ ] Define root `.disot.*` removal as the no-new-name form of authorized
-      relinquishment/archive.
-- [ ] Ensure Git ref names are never inputs to DISOT identity, rename, archival,
-      authority, discovery, or semantic head-selection logic.
-- [ ] Use persistent Git refs only as reachability roots for commits that must
-      survive ordinary Git garbage collection.
-- [ ] Implement/test a single synthetic archive retention branch that merges
-      terminal commits from many unrelated archived entities, then permits
-      removal of their individual retention refs.
-- [ ] Prove archive-retention commits containing no root `.disot.*` have no
-      DISOT entity semantics and cannot accidentally archive/merge unrelated
-      names.
-- [ ] Test branch rename/deletion and prove neither changes entity semantics when
-      required commits remain reachable elsewhere.
-- [ ] Test ambiguous authoritative forks, a later trusted semantic merge,
-      authorized renames/transfers, tombstones, archive-retention merges, and
-      locks pinning historical/forked revisions.
-- [ ] Test ordinary Git rebase, cherry-pick, merge, squash, clone/fetch/push,
-      pack/unpack, and garbage collection to establish exactly when tree-carried
-      DISOT metadata and retained history survive ordinary Git workflows.
+- [ ] Ensure Git ref names are never semantic inputs; use persistent refs only
+      for reachability/GC protection.
+- [ ] Implement/test one synthetic archive-retention branch for terminal commits
+      from many unrelated archived lineages.
+- [ ] Prove archive-retention commits have no DISOT semantics.
+- [ ] Test branch rename/deletion, ordinary Git rebase/cherry-pick/merge/squash,
+      clone/fetch/push, pack/unpack, and garbage collection.
 - [ ] P5: evaluate `.disot.yml` and `.disot.toml` only after JSON/DataJS are
       stable and a consumer actually needs another encoding.
 
 ### Related
 
 - [DISOT architecture](./plan/architecture.md) — global hashes, trust-relative
-  human-readable paths, and the signed + timestamped trust requirement.
-- [DISOT vision](./plan/vision.md) — the `~/Alice/...` web-of-trust namespace.
+  human-readable paths, signed/timestamped trust, and the older signed-directory
+  final-binding model that this Git-specific design partially supersedes.
+- [DISOT vision](./plan/vision.md) — detached CAS provenance/signature blocks and
+  the `~/Alice/...` web-of-trust namespace.
 - [Evo product materialization — PR #1902](https://github.com/functionalscript/functionalscript/pull/1902)
   — companion TODO for consuming resolved dependency graphs without rewriting
-  source objects; link to the PR until its file is present on `main`.
+  source objects.
 - [`vnd.fjs.revision`](../fjs/media/revision/README.md) — current revision and
-  recursive lock-map model; resolution policy is deliberately outside the
-  format.
+  recursive lock-map model.
 - [`vnd.fjs.lock`](../fjs/media/lock/README.md) — current shared lock-map value;
   the future source/content convention carries naming/resolution metadata in
-  root `.disot.*` files in the Git tree.
+  root `.disot.*` files.
 - [Git trusted timestamp signatures — PR #1903](https://github.com/functionalscript/functionalscript/pull/1903)
-  — companion proposal for DID signatures and trusted timestamps inside standard
-  Git commits; link to the PR until its file is present on `main`.
+  — optional Git-native DID-signature / trusted-timestamp encodings; naming
+  semantics remain representation-independent.
