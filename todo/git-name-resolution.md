@@ -32,11 +32,12 @@ Keep these concepts separate:
 
 Do **not** put the DISOT name in a custom Git commit header.
 
-A custom header is preserved while the exact commit object is transported, but
-ordinary Git operations that create a new commit — for example rebase,
-cherry-pick, squash, or a normal `git commit` — do not know that an unknown
-header must be copied. The metadata can therefore disappear when a user works
-with standard Git tooling.
+A custom header is preserved while the exact commit object is transported.
+However, many common Git operations that synthesize new commits — including a
+normal `git commit`, rebase, cherry-pick, and squash — do not preserve arbitrary
+custom headers. Some operations, such as `git commit --amend`, may preserve them.
+Therefore DISOT semantic metadata cannot rely on custom headers surviving
+ordinary Git workflows.
 
 Instead, keep naming/resolution metadata as an ordinary file in the commit tree.
 Standard Git tooling then treats it like the source/content it describes and
@@ -106,33 +107,41 @@ A DISOT metadata file MAY use a relative self-name:
 ```
 
 A relative self-name is a convenience for a personal namespace. When the entity
-is first established, `./name` expands using the **unique distinct DID that is
-accepted as the authority establishing that revision**. It is never derived from
-the textual Git `author` name/email.
+is first established, `./name` expands using the **unique cryptographically
+authenticated author DID for that revision**. The author DID comes from
+authorship evidence for the revision; it is not inferred from the set of
+identities that later authorize, endorse, or otherwise attest to the same
+revision, and it is never derived from the textual Git `author` name/email.
 
 Conceptually:
 
 ```text
-unique establishing authority = secp256k1:23a
-name                          = ./coolJsModule
+authenticated author DID = secp256k1:23a
+name                     = ./coolJsModule
 
 => /secp256k1:23a/coolJsModule
 ```
 
-If more than one distinct DID is accepted as an establishing authority on the
-same first authoritative revision, `./name` is ambiguous and MUST NOT establish
-a name. The author must use an explicit absolute name instead:
+If more than one distinct DID is accepted specifically as an author of the same
+first revision, `./name` is ambiguous and MUST NOT establish a name. The author
+must use an explicit absolute name instead:
 
 ```text
-accepted establishing DIDs = Alice, Bob
-name                        = ./parser
+authenticated author DIDs = Alice, Bob
+name                      = ./parser
 
 => ERROR: ambiguous relative self-name
 ```
 
-Multiple later attestations may accumulate trust for an already-established
-revision without reinterpreting the effective name. An unchanged `./name` is
-resolved from its original effective absolute name, not from later signers.
+Authority is evaluated separately after the relative name is expanded. For
+example, a Bob attestation may authorize or endorse a revision authored by Alice
+only if the applicable policy permits Bob to act for `/Alice/...`; it does not
+change the name base from Alice to Bob.
+
+Later authority/trust/timestamp attestations may accumulate evidence for the
+same immutable revision without reinterpreting its effective name. An unchanged
+`./name` remains relative to its authenticated author DID even when later
+evidence arrives from other identities.
 
 Relative self-names SHOULD be discouraged, especially for shared,
 organizational, transferable, or multi-controller entities. Shared entities
@@ -184,7 +193,7 @@ At least two encodings can provide such evidence:
 
 1. **detached DISOT provenance/signature blocks**, for example a CAS object that
    references the exact stored object hash and carries a signature + signer DID;
-2. **Git-native embedded signatures**, such as the companion `gpgsig2`
+2. **Git-native embedded signatures**, such as the companion `didsig`
    prototype, whose own specification defines the signed projection/payload.
 
 These forms are interoperable at the naming layer but are not required to have
@@ -193,7 +202,7 @@ encoding decides whether the attestation authenticates the semantic revision;
 this naming design only consumes the verified result.
 
 Detached attestations remain important because independent parties can add
-trust later without rewriting the Git commit. Embedded `gpgsig2` is therefore a
+trust later without rewriting the Git commit. Embedded `didsig` is therefore a
 Git-native attestation encoding, not a replacement for detached DISOT
 provenance.
 
@@ -226,6 +235,10 @@ later:
 
 This does not mutate `C1`, change its hash, or rewrite history. Only the
 resolver's evidence set has changed.
+
+For a relative self-name, late evidence does not recompute the author DID. The
+authenticated author is a property of the revision's authorship evidence, while
+later authority, endorsement, and timestamp evidence is evaluated separately.
 
 A later descendant can instead adopt unchanged metadata at its own revision:
 
@@ -579,17 +592,19 @@ error. Nested files with those basenames remain ordinary content.
       recognized root encodings.
 - [ ] Specify canonical absolute names `/<identity>/<path...>` and relative
       self-names such as `./name`.
-- [ ] Require one unique distinct accepted establishing DID for `./name`; reject
-      ambiguous multi-authority establishment and require an absolute name.
-- [ ] Ensure later attestations do not reinterpret an already-established
-      relative self-name.
+- [ ] Require one unique cryptographically authenticated author DID for
+      `./name`; reject ambiguous multi-author authorship and require an absolute
+      name.
+- [ ] Keep authorship separate from later authority/trust attestations; prove
+      late co-attestations do not reinterpret an already-established relative
+      self-name.
 - [ ] Discourage `./name` for shared/transferable/multi-controller entities.
 - [ ] Keep multiple `name` values out of P3 until authority/resolution semantics
       are defined.
 - [ ] Define a representation-independent authority-attestation interface used
       by naming resolution.
 - [ ] Support detached DISOT provenance/signature blocks without rewriting Git
-      commits; treat `gpgsig2` as an optional Git-native attestation encoding.
+      commits; treat `didsig` as an optional Git-native attestation encoding.
 - [ ] Define representation-independent trusted timestamp evidence; keep `tstsig`
       as one optional Git-native encoding.
 - [ ] Define late-evidence adoption: detached authority/timestamp evidence may
@@ -625,8 +640,12 @@ error. Nested files with those basenames remain ordinary content.
 - [ ] Keep archive-retention compaction out of P3. If it proves necessary,
       define a durable classification rule before implementing synthetic archive
       merges; otherwise drop the optimization.
-- [ ] Test branch rename/deletion, ordinary Git rebase/cherry-pick/merge/squash,
-      clone/fetch/push, pack/unpack, and garbage collection.
+- [ ] Test custom-header behavior across ordinary commit-producing operations,
+      including normal descendant commits, rebase, cherry-pick, squash, and
+      `git commit --amend`; do not rely on either universal preservation or
+      universal dropping of unknown headers.
+- [ ] Test branch rename/deletion, clone/fetch/push, pack/unpack, and garbage
+      collection.
 - [ ] P5: evaluate `.disot.yml` and `.disot.toml` only after JSON/DataJS are
       stable and a consumer actually needs another encoding.
 
@@ -645,6 +664,6 @@ error. Nested files with those basenames remain ordinary content.
 - [`vnd.fjs.lock`](../fjs/media/lock/README.md) — current shared lock-map value;
   the future source/content convention carries naming/resolution metadata in
   root `.disot.*` files.
-- [Git trusted timestamp signatures — PR #1903](https://github.com/functionalscript/functionalscript/pull/1903)
-  — optional Git-native DID-signature / trusted-timestamp encodings; naming
-  semantics remain representation-independent.
+- [Git trusted timestamp signatures](./git-trusted-timestamp-signatures.md) —
+  optional Git-native `didsig` / `tstsig` encodings; naming semantics remain
+  representation-independent.
