@@ -318,11 +318,50 @@ value [DESIGN §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
 refuses, produced by a listener the design invites. So the pump keeps a byte
 count against the declared length, and a chunk that would carry the count past
 it is a failed cell: none of that chunk is written, and the socket is destroyed.
-That leaves the body **short** of what was declared, which is the one direction
-Node does check — the first row of the destroy table, `ECONNRESET` — so the
-client is told rather than misled. Writing the chunk's first `bound − written`
-bytes and ending cleanly is the other choice and the wrong one: a body exactly
-as long as it promised is a body every client reads as whole.
+That leaves the body **short** of what was declared, over a socket no client
+can read a whole body from — the first row of the destroy table, `ECONNRESET` —
+so the client is told rather than misled. Writing the chunk's first
+`bound − written` bytes and ending cleanly is the other choice and the wrong
+one: a body exactly as long as it promised is a body every client reads as
+whole.
+
+**And the same count answers the other end, which Node does not.** A list that
+simply stops is the mirror of the chunk that overshoots, and just as ordinary: a
+listener declaring ten bytes and producing five is writing plain code, not
+abusing anything. `fjs/web`'s bounded fold catches its own version of it — a
+file that *shrank* between the `fstat` and the reads ends on the empty read the
+bound fails the cell for — but that is again one producer's discipline, and
+`ServerResponse<O>` is everyone's. Measured on Darwin with Node 26.8.1 and
+reproduced on 22.23.2, byte for byte and on the same timeout: a response
+declaring 131,072 bytes, 65,536 written, then `res.end()`. Nothing on the server
+side notices. `res.end()` raises nothing, no `error` reaches the response or its
+socket, `writableFinished` is `true`, and the socket goes back into the
+keep-alive pool. What tells the client is the connection ending, and for a
+keep-alive request that is the server's idle timeout — `curl` exit `18` and
+Node's own agent `ECONNRESET` after 65,536 bytes, both six seconds in, against
+1 ms for the same response on a `Connection: close` request.
+
+**And the wait is the mild half of it.** The server goes on answering that
+connection, whose framing is already wrong: two pipelined requests came back as
+131,348 bytes with the second status line at offset 65,671 — inside the first
+body's declared window — and those bytes replayed to Node's own parser, reading
+body 1 to the 131,072 it was promised, swallowed response 2 entire and then
+failed `HPE_INVALID_CONSTANT`, losing both. That is the overrun's corruption
+reached from the other side. So the count is compared at the far end too, and a
+body that ends before the length it declared destroys the socket exactly as one
+that would run past it does: the same number, the same exit, and the
+`ECONNRESET` at once rather than at the idle timeout.
+
+**A body the runner never pulled is not a short one.** Gate 2 suppresses before
+the pump starts, so the count never begins — and a `HEAD`, `204` or `304`
+declaring the length of the body Node will not send is a complete answer, not a
+truncated one. Measured the same way: `curl` exit `0`, and Node's agent reads
+`complete: true` both on that response and on the next request over the same
+connection. `fjs/web` answers `HEAD` exactly like `GET` and takes its
+`Content-Length` from the `fstat`, so this is the common case and not a corner
+of one. A body with no declared length has nothing to fall short of, and a pump
+ended by a recorded `close` is the client's own departure, over a socket that is
+already gone.
 
 **No type takes that count's place.** The alternative would be an API in which a
 declared size and a body cannot disagree, and a lazy body has no length for one
@@ -559,12 +598,18 @@ export type RecordedResponse = {
     readonly status: number
     readonly headers: Headers
     readonly body: readonly Vec[]
-    /** What ended the body early, or `null` for one that ran to its end. */
-    readonly failure: Nullable<IoChannel | Overrun>
+    /**
+     * What made this response incomplete, or `null` for one a client reads as
+     * whole.
+     */
+    readonly failure: Nullable<IoChannel | Overrun | Underrun>
 }
 
 /** A cell that would have carried the body past its declared length. */
 export type Overrun = readonly['overrun', number]
+
+/** A body that ended before the length it declared. */
+export type Underrun = readonly['underrun', number]
 ```
 
 `readonly Vec[]` is the shape a `Dir` already stores a file in
@@ -580,6 +625,16 @@ could not tell that destroy from a clean end could not assert the count at all.
 `IoChannel` is the channel of *IO*, extended at a site with failures of its own
 ([`../../types.ts`](../../types.ts)), and this is one; the number it carries is
 the length that was declared.
+
+`Underrun` is that same widening at the other end, and the record states it
+rather than a proof deriving it. Both figures are already there to subtract —
+the declared length in `headers`, what went out as the sum of `body` — and the
+subtraction is wrong exactly where it would matter: a `HEAD` or a `304` declares
+a length and records an empty `body`, so a proof comparing the two would fail
+the responses the gates were written to let through. What tells those apart is
+whether the pump ran at all, which the record does not say and does not need to
+once the runner states its own outcome. The number is the declared length again,
+for the same reason.
 
 **And `listen` mirrors the no-body predicate**, recording the skip rather than
 hiding it: a response the pump never pulled holds an empty `body` and a `null`
@@ -660,9 +715,10 @@ answering `413` is a listener with a size policy of its own — correctly.
       pump — its `drain` park released by a recorded `close`, including one
       that fired before the pump existed, the three gates that keep it from
       starting in their stated order, its byte count against a declared
-      `Content-Length`, its destroy-on-failure in the cell, in the count and in
-      `failSafe`, and the `release` it runs once on every one of those exits;
-      the virtual runner's `RecordedResponse` and its `Overrun`, mirroring the
+      `Content-Length` compared at both ends, its destroy-on-failure in the
+      cell, in either direction of the count and in `failSafe`, and the
+      `release` it runs once on every one of those exits; the virtual runner's
+      `RecordedResponse` with its `Overrun` and its `Underrun`, mirroring the
       gates, their order, the count, and the release.
 - [ ] Stage 1, blocked on [stat-then-read](../../../web/todo/stat-then-read.md):
       the handle effect — `open`, `fstat`, bounded read, `close` — modelled in
