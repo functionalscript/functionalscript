@@ -405,15 +405,16 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    `descent` is the first evidence the backend decision holds; if it does not,
    this stage is where the plan is revised, not forced.
 
-   The djs tokenizer's public exports that expose the descent backend —
-   `jsMatcher`, which builds a `descentParserRuleSet`, and
-   `descentParserCpOnly`, which returns a `DescentMatchResult` — are the
-   port's to replace with their LL(1) equivalents, under whatever names fit.
-   Their only importer is the tokenizer's own proof, updated in the same PR.
-   That is a change to `fjs/djs/tokenizer`'s own public API and the port
-   declares it as such; the "one breaking change" above is a statement about
-   `fjs/bnf/` paths, not about a consumer's surface where it had exposed the
-   backend it is leaving.
+   The djs tokenizer's public exports that exposed the descent backend —
+   `jsGrammar`, `jsMatcher`, which built a `descentParserRuleSet`, and
+   `descentParserCpOnly`, which returned a `DescentMatchResult` — were the
+   port's to retire, and it did, with no LL(1) equivalents: the grammar is
+   [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs) and a consumer that
+   wants it imports it there. Their only importer was the tokenizer's own
+   proof, updated in the same PR. That was a change to `fjs/djs/tokenizer`'s
+   own public API and the port declared it as such; the "one breaking
+   change" above is a statement about `fjs/bnf/` paths, not about a
+   consumer's surface where it had exposed the backend it left.
 7. **Delete `fjs/bnf/`.** With it: the retired issues, `descentEquivalence` in
    its two-backend form, and the classical half of the README split. Finish
    the issue moves, each taking its inbound links with it. Repoint every
@@ -447,8 +448,10 @@ consumer port"), never by number, so a renumbering here cannot strand them.
 - [ ] Stage 4: `ebnf/token_symbol/` with proof.
 - [ ] Stage 5: `ebnf/lib/json` and `ebnf/lib/datajs` with proofs; the
       cross-front-end comparison proof group; bnf-grammar-single-owner moved.
-- [ ] Stage 6: the token layer; the djs tokenizer and parser grammars made
-      LL(1); both ported; the descent backend without consumers.
+- [ ] Stage 6: the token layer (done: the resumable parser); the djs
+      tokenizer grammar made LL(1) and the tokenizer ported (done); the
+      parser grammar made LL(1) and the parser ported; the descent backend
+      without consumers.
 - [ ] Stage 7: delete `fjs/bnf/`; move the remaining issues; split the README;
       repoint every inbound link and reference from outside `fjs/bnf/`.
       `**BREAKING CHANGES:**`.

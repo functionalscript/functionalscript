@@ -134,8 +134,11 @@ reads values, not text.
 - [x] Tokenizer grammar in EBNF beside the classical one, LL(1), with the
       comparison proof: [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs),
       and the `ebnf` group of the classical tokenizer's proof.
-- [ ] Tokenizer on `ebnf/ll1`: mappings, the token-boundary check, error
-      tokens; `jsMatcher` and `descentParserCpOnly` replaced and declared.
+- [x] Tokenizer on `ebnf/ll1`: the grammar read one token at a time, the
+      trivia fold, the boundary check and the error tokens one layer up;
+      `jsGrammar`, `jsMatcher` and `descentParserCpOnly` retired and
+      declared. The comparison proof retired with the classical grammar;
+      the tokenizer's corpus stands unchanged as the port's proof.
 - [ ] Parser grammar LL(1): trailing trivia, right-recursive or separated
       list, the terminator per stage 5.
 - [ ] Parser on `ebnf/ll1`, on the `media/datajs` reader pattern.

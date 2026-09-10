@@ -4,19 +4,35 @@
  * @module
  */
 
-import type { Meta } from '../../bnf/matcher/types.ts'
-import type { TokenMetadata } from '../../js/tokenizer/types.ts'
-import type { List } from '../../types/list/types.ts'
-import type { CodePoint } from '../../text/utf16/types.ts'
+import type { TokenMetadata, TriviaKind } from '../../js/tokenizer/types.ts'
 
-/** A tag, the metadata of the token's first code point, and its code points. */
-export type _Token = readonly [string, TokenMetadata, readonly number[]]
+/** The kind of a token, as the grammar's `token` variant tags it, `slash`'s four resolved. */
+export type _Kind = 'number' | 'string' | 'id' | 'comment' | 'operator' | 'ws' | 'newLine'
 
-/** One item of a flattened match: a tag, or a code point with its metadata. */
-export type _FlatToken = string | Meta<TokenMetadata, CodePoint>
+/** A token the grammar read: its kind, its code points, where it began, and whether a block comment closed. */
+export type _Lexeme = {
+    readonly kind: _Kind
+    readonly text: readonly number[]
+    readonly start: TokenMetadata
+    readonly closed: boolean
+}
 
-/** A token being accumulated: its tag, start metadata, and code points so far. */
-export type _TokenScanState = readonly [string, TokenMetadata | null, List<number>]
+/** A token the grammar refused: where it began, where it failed, and whether it was a number. */
+export type _Failure = {
+    readonly number: boolean
+    readonly start: TokenMetadata
+    readonly at: TokenMetadata
+}
+
+/** The whole input read: its tokens up to a failure, if any, and the position past the input. */
+export type _Lexed = {
+    readonly lexemes: readonly _Lexeme[]
+    readonly failure: _Failure | null
+    readonly final: TokenMetadata
+}
+
+/** A run of trivia not yet emitted: its kind so far, and where it is anchored. */
+export type _Trivia = { readonly kind: TriviaKind, readonly metadata: TokenMetadata } | null
 
 /** Where a string-literal decode is: plain text, after `\`, or inside `\uXXXX`. */
 export type _StringDecodeState =
