@@ -131,8 +131,9 @@ reads values, not text.
       ticked.
 - [x] `literals`, the prefix tree over a word list, in `fjs/ebnf` with
       proof; the punctuators of JavaScript build as one LL(1) rule.
-- [ ] Tokenizer grammar in EBNF beside the classical one, LL(1), with the
-      comparison proof over the tokenizer's corpus.
+- [x] Tokenizer grammar in EBNF beside the classical one, LL(1), with the
+      comparison proof: [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs),
+      and the `ebnf` group of the classical tokenizer's proof.
 - [ ] Tokenizer on `ebnf/ll1`: mappings, the token-boundary check, error
       tokens; `jsMatcher` and `descentParserCpOnly` replaced and declared.
 - [ ] Parser grammar LL(1): trailing trivia, right-recursive or separated
