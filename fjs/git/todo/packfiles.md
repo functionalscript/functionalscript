@@ -14,7 +14,7 @@ signature issues under [`todo/`](../../../todo/) both walk clones.
 ### Proposal
 
 A packfile is length-framed throughout, so it is a decoder in the
-[`fjs/asn.1`](../../asn.1/README.md) style and not a grammar: the header
+[`fjs/asn.1`](../../asn.1/module.f.mjs) style and not a grammar: the header
 (`PACK`, a version, a count), then per object a varint type-and-size, and
 for the two delta kinds a base — an offset back into the pack, or an id —
 and a delta stream of copy and insert instructions, each entry's data a
