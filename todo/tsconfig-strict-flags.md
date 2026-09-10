@@ -17,8 +17,8 @@ every index access yield `T | undefined`, which is exactly the obligation
 [AGENTS.md](../fjs/AGENTS.md) wants discharged by `assertNotNullish` rather than
 by an unchecked cast. Its error sites cluster in the same modules where
 [inline-type-casts.md](./inline-type-casts.md) already found `assert`
-candidates: `fjs/effects/node/virtual/`, `fjs/bnf/descent/`,
-`fjs/rtti/data/`, `fjs/sul/level/hash/`.
+candidates: `fjs/effects/node/virtual/`, `fjs/rtti/data/`,
+`fjs/sul/level/hash/`.
 
 ### Measurements
 

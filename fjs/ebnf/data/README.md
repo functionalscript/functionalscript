@@ -1,28 +1,33 @@
 # The serializable EBNF grammar
 
-The `ebnf/data/` piece of [ebnf-migration](../../todo/ebnf-migration.md): the
+The `data/` layer of [`fjs/ebnf`](../README.md): the
 intermediate representation (IR) the EBNF backends consume, and the lowering
 from the front end in [`../module.f.mjs`](../module.f.mjs) into it. It settles
-the carrier question the ebnf-front-end issue (Problem 1) and the
-ebnf-range-set issue ("Decide with the bounded repeat") both deferred to this
-layer, and it absorbs the rule-visitor issue as `matchRule`. Those issues live
-under `fjs/bnf/todo/` today and are not linked from here: `ebnf/` never
-reaches into `bnf/`, a README link included, because the migration deletes
-`bnf/` at its last stage
-([ebnf-migration](../../todo/ebnf-migration.md), principle 2). Its issue
-triage moves each of them into `fjs/ebnf/`, the front-end design as
-`fjs/ebnf/README.md`.
+the carrier question the front-end design ([`../README.md`](../README.md),
+Problem 1 of the ebnf-front-end issue it absorbed) and
+[ebnf-range-set](../terminal/todo/ebnf-range-set.md) ("Decided with the
+bounded repeat") both deferred to this layer, and it absorbed the
+rule-visitor issue as `matchRule`. Those issues were filed under
+`fjs/bnf/todo/`, and this file did not link them while that module stood:
+the migration's plan kept `ebnf/` documents from linking into `bnf/`, so
+that deleting `bnf/` at its last stage would break no link — a choice of
+that plan, since a link is a reference and the direction rule reaches only
+code ([DESIGN.md §11](../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces),
+its worked example). Its issue
+triage moved them to where the links above point, and the front-end design
+became `fjs/ebnf/README.md`.
 
 - `module.f.mjs` — `matchRule`, `emptyTagMap`, `validate`, `toData`;
 - `types.ts` — the `Rule` union, `RuleSet`, `RuleVisitor`, `GrammarData`.
 
 ## Why not the classical form
 
-The classical IR in `fjs/bnf/data` is four rule kinds told apart by
-JavaScript type alone: a number is a terminal range, an
-array a sequence of rule names, an object a variant of rule names, and a
-string the name of a rule to repeat zero or more times. That property is what
-its every consumer dispatches on, and the EBNF front end breaks it twice:
+The classical IR in `fjs/bnf/data`, since deleted with that module, was
+four rule kinds told apart by JavaScript type alone: a number was a terminal
+range, an array a sequence of rule names, an object a variant of rule names,
+and a string the name of a rule to repeat zero or more times. That property
+was what its every consumer dispatched on, and the EBNF front end breaks it
+twice:
 
 - **A terminal is a set of ranges**, not one packed number. Its value is a
   `RangeSet` — a list of numbers — which is an array, the type a sequence
@@ -35,7 +40,7 @@ So the EBNF IR is a different carrier, not the classical one with two rows
 edited, and the carrier was chosen once, for both. What did not change is the
 contract on top of it — every rule of a set has a name, the AST is one node
 per rule invocation, and a repetition is one flat node whatever its bounds
-("The AST is one contract" in the classical `fjs/bnf/README.md`).
+([`../ast`](../ast/README.md)).
 
 ## The form
 
@@ -60,9 +65,10 @@ the nested rule replaced by its name — `() => ['set', 48, 58]` lowers to
 array and object, tagged because in the data form the array is no longer
 free: a tuple that begins with a tag and a list of names are both arrays, and
 nothing but a tag tells them apart. The tag words for those two are the
-transformer protocol's (`fjs/bnf/matcher/types.ts` spells its `Transformer`
-as `['sequence', …]`, `['variant', …]`, `['repeat', …]`), so a data rule and
-the transformer that maps it carry the same word.
+ones the classical transformer protocol used — the deleted
+`fjs/bnf/matcher/types.ts` spelled its `Transformer` as `['sequence', …]`,
+`['variant', …]`, `['repeat', …]` — so a data rule and the transformer that
+mapped it carried the same word while both existed.
 
 What this buys, against the alternatives that were weighed:
 
@@ -118,7 +124,10 @@ this module serializes, so the module does not wait on it; the first grammar
 *persisted* with an unbounded repeat does, and until then a persisted set is
 not to be trusted to carry one.
 
-## What differs from `bnf/data`
+## What differed from the classical `bnf/data`
+
+Kept as the record of what the carrier was chosen against; `bnf/data` is
+deleted.
 
 | | `bnf/data` | `ebnf/data` |
 |---|---|---|
@@ -131,16 +140,15 @@ not to be trusted to carry one.
 | string rules | expanded to terminals by `toData` | the same, one `['set', c, c + 1]` per code point |
 | serialization | JSON | DJS (`Infinity`) |
 
-The classical `toData` output is therefore **not** a valid EBNF rule set, and
-[ebnf-migration](../../todo/ebnf-migration.md)'s `data/` row says so: a packed
-range has no reading here, and a bare-string repeat is one kind's spelling in
-the other's position. A bridge from the classical set to this one is
-mechanical — a packed range becomes `['set', a, b + 1]` after decoding, a
-bare name `['repeat', 0, Infinity, name]`, an array `['sequence', …]`, an
-object `['variant', …]` — and is `bnf/data`'s to add under the `bnf → ebnf`
-direction rule if the cross-front-end comparison proofs (ebnf-migration,
-principle 5) want a classical grammar run through the EBNF backend. Nothing
-in `ebnf/` reads the classical form.
+The classical `toData` output was therefore **not** a valid EBNF rule set,
+and the migration's triage said so: a
+packed range had no reading here, and a bare-string repeat was one kind's
+spelling in the other's position. A bridge from the classical set to this
+one was mechanical — a packed range became `['set', a, b + 1]` after
+decoding, a bare name `['repeat', 0, Infinity, name]`, an array
+`['sequence', …]`, an object `['variant', …]` — and was built once, outside
+the tree, to measure the classical djs grammars' LL(1) conflicts before
+their port. Nothing in `ebnf/` reads the classical form.
 
 ## One discriminator: the visitor
 

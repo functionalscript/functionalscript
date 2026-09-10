@@ -16,6 +16,7 @@ brief at the top of [AGENTS.md](../AGENTS.md); everything here is their full tex
 8. [Embedded DSLs should reuse host-language syntax](#8-embedded-dsls-should-reuse-host-language-syntax)
 9. [Maximize signal-to-noise](#9-maximize-signal-to-noise)
 10. [Refuse what you cannot handle](#10-refuse-what-you-cannot-handle)
+11. [Build the replacement beside the module it replaces](#11-build-the-replacement-beside-the-module-it-replaces)
 
 ---
 
@@ -364,3 +365,98 @@ exception is the limit meant to stay: a bound chosen on purpose is part of the
 API, documented where the API is, and needs no issue. Say which of the two it
 is — "we refuse this for now" and "we refuse this by design" read identically
 at the call site.
+
+## 11. Build the replacement beside the module it replaces
+
+**When a module's design is the obstacle and the rewrite is too large for
+one PR, build the new module beside the old one, move the consumers one at a
+time, and delete the old module last.** This is [§2](#2-the-api-is-the-most-important-part-of-quality)'s
+split by scope for the case where the scope is a whole module: each
+consumer's move is one complete cutover, the old module stays live until
+the last one, and nobody's unrelated work waits on the rewrite.
+
+1. **Create the new module beside the old one.** A new name, not a rename:
+   nothing under the old path moves, so nothing that imports it changes.
+2. **Write the code there, cherry-picking from the old module what is worth
+   keeping and rethinking the rest.** Triage every piece before touching it
+   — *move*, *rewrite* or *retire* — and revise the triage as the work
+   teaches, recording each revision where the triage is. A move means the
+   behaviour is worth keeping, not that the code is.
+3. **The old module may depend on the new one, never the other way round.**
+   In any code form — a runtime import, a JSDoc `@import`, an `import type`
+   — since a type-only edge is exactly what fails the type checker once the
+   old module is deleted. A link from a document is a reference, not a
+   dependency: it does not have to hold, but it rots the same way, so name
+   what will survive. The rule is held by review, and its mechanical check
+   is the deletion itself, which compiles or does not.
+4. **Keep the old module open for use and improvement; block nobody.** The
+   two modules are not kept in sync. A feature added to the old one is
+   ported when a consumer that needs it moves, as part of that consumer's
+   port, so the porting cost is paid once, by the port that proves the
+   feature is still wanted; keep the modules similar enough in shape that
+   such a port is routine. What no port reaches is garbage, collected when
+   the old module is deleted — a reachability walk over the old module with
+   the consumers as roots, and nobody has to decide to drop anything.
+5. **Move the consumers one by one**, each port carrying the features it
+   needs and declaring its own breaking changes where the consumer's surface
+   changes.
+6. **Delete the old module**, with the issues that described only its code,
+   and repoint every reference — links and prose — to what replaced its
+   target. One `**BREAKING CHANGES:**` declaration, for the old paths that
+   were public.
+
+### The worked example: `fjs/ebnf` replacing `fjs/bnf`
+
+`fjs/bnf` was a grammar toolkit: a functional front end without a
+repetition primitive, a packed 24-bit terminal, and two backends, one of
+them backtracking. [`fjs/ebnf`](../fjs/ebnf/README.md) replaced it — a front
+end with `repeat(min, max)`, range-set terminals, one LL(1) backend folding a
+rewrite set into the parse, and the alphabets and grammars above it. The
+consumers were the `fjs/djs` tokenizer and parser. The plan was
+`fjs/todo/ebnf-migration.md`, deleted when the migration finished, and this
+section is its record. What it taught:
+
+- **The direction rule cost nothing to hold and needed no tool.** No
+  `ebnf → bnf` edge was ever written, and the deletion compiled first try.
+  The rule does not reach documents, but the plan kept `ebnf/` documents
+  from linking `bnf/` issues all the same, so that the deletion would break
+  no link; they named the issues instead, and the names went stale in prose
+  that no link checker reads. The deletion had to sweep prose as well as
+  links, and one sentence still escaped it into review.
+- **Most moves became rewrites, and the triage said so as it went.** Of the
+  modules first binned as moves, only `token_symbol/` moved. The shared
+  matcher layer retired because the new backend did not need one; the
+  separate AST rewrite shipped and was then retired by the fold that
+  replaced it; the AST printer retired because the proofs pinned trees as
+  data. What crossed was names and shape — `data/`, `ll1/`, `token_symbol/`,
+  `lib/` — and almost no code. Each revision was written into the plan's
+  tables as **Amended**, which is what let the plan stay true while the work
+  diverged from it.
+- **The garbage collection worked.** The backtracking backend, the runtime
+  check of a mapping's declared input, the test library, the lowering that
+  recognized repetition by shape: none was ported, because no consumer's
+  port reached it, and none needed a decision.
+- **The comparison that mattered was of the consumers' grammars, not of the
+  front ends.** The planned side-by-side proofs — one grammar in both
+  spellings, lowered to the same set — were never written; the classical
+  front end was gone before they were worth their cost. What found the
+  problems was measuring the old grammars against the new backend's
+  refusals: bridged into the new form, the two djs grammars refused in eight
+  shapes, each a place where the backtracking backend had been deciding by
+  trial. So each port was a grammar rewrite plus a backend swap, not a swap
+  alone; the eight are recorded in
+  [`fjs/djs/README.md`](../fjs/djs/README.md#both-grammars-are-ll1).
+- **A stricter backend can change the language.** One of the eight was the
+  parser's statement terminator, and resolving it made `;` required after
+  every statement — a change to what DJS accepts, not to any `bnf/` path.
+  The port declared it as its own breaking change, as step 5 requires; the
+  migration's one declaration covered only the deletion.
+- **The stages were dependencies, not a sequence.** The byte alphabet landed
+  for a Git consumer ahead of the text adapter it was planned beside; the
+  backend shipped before the terminal module it was to build on; the plan
+  said so from the start, "numbered for reference, not for order", and
+  nothing waited on a stage that had not shipped. Two pieces of its layout
+  are still open, as ordinary issues rather than stages —
+  [`ebnf/terminal/`](../fjs/ebnf/todo/symbol-domain-owner.md) and
+  [`ebnf/unicode/`](../fjs/ebnf/unicode/todo/unicode-rules.md) — and their
+  being open did not keep the old module alive.

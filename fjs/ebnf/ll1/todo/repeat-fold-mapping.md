@@ -21,7 +21,7 @@ fold's state rather than the rounds. The five emit sites stay; `round`
 applies `update` where the frame carries a fold and `end` where it would
 have applied the mapping. Whether the result is still one `Meta<O>`, or the
 fold's state is handed to the layer above as a stream, is the question
-[043-stateful-parser](../../../bnf/todo/043-stateful-parser.md) holds for
+[043-stateful-parser](../../todo/043-stateful-parser.md) holds for
 the input side and is not decided here.
 
 ### Tasks
@@ -35,5 +35,5 @@ the input side and is not decided here.
 
 - [`../README.md`](../README.md) — "The rewrite set, and how it is folded",
   and the frame that holds the rounds.
-- [043-stateful-parser](../../../bnf/todo/043-stateful-parser.md) — the
+- [043-stateful-parser](../../todo/043-stateful-parser.md) — the
   streaming input this would pair with.

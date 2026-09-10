@@ -1,6 +1,6 @@
 # The EBNF AST
 
-The `ebnf/ast/` piece of [ebnf-migration](../../todo/ebnf-migration.md): the
+The `ast/` layer of [`fjs/ebnf`](../README.md): the
 typed tree a backend builds for a rule, with a metadata channel. It is what
 [`../ll1`](../ll1/README.md) builds and what its rewrite set is written
 against; the data layer's README committed to the nodes, and this is their
@@ -140,15 +140,15 @@ type parameter, so that what it returns is exactly the `Ast` the caller's
 
 - **EOF** stays synthesized by the parser, its node `[]`; whether the
   caller sends it as a symbol with its own metadata is
-  [eof-as-ordinary-symbol](../../bnf/todo/eof-as-ordinary-symbol.md).
+  [eof-as-ordinary-symbol](../terminal/todo/eof-as-ordinary-symbol.md).
 - The classical stack's design for the same requirement — `MI`/`MO` with
-  `translate` and `reduce`
-  ([generic-parser-metadata](../../bnf/todo/generic-parser-metadata.md),
-  [043-stateful-parser](../../bnf/todo/043-stateful-parser.md)) — is what
-  this replaces for `ebnf/`: with the alphabet named in the metadata,
-  `translate` is not needed and `reduce` is each mapping's own fold over its
-  children. The two issues describe the classical `bnf/` backend and stay
-  as its record.
+  `translate` and `reduce` — is what this replaces for `ebnf/`: with the
+  alphabet named in the metadata, `translate` is not needed and `reduce` is
+  each mapping's own fold over its children. The issue that designed it,
+  generic-parser-metadata, was deleted with the classical backend, and this
+  paragraph is its record; [043-stateful-parser](../todo/043-stateful-parser.md)
+  keeps only the streaming half of that design, and says the algebra was
+  superseded.
 
 ## Related
 
@@ -156,7 +156,7 @@ type parameter, so that what it returns is exactly the `Ast` the caller's
   tree and folds the rewrite set through it.
 - [`../data/README.md`](../data/README.md) — the nodes a backend owes each
   data rule kind, which these rows type.
-- [tokens-with-extra-information](../../bnf/todo/tokens-with-extra-information.md)
+- [tokens-with-extra-information](../token_symbol/todo/tokens-with-extra-information.md)
   — the identifier example, as first filed.
-- [layered-parser](../../bnf/todo/layered-parser.md) — the pipeline the
+- [layered-parser](../todo/layered-parser.md) — the pipeline the
   `id` wires.

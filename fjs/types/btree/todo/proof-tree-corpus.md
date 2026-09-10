@@ -69,7 +69,7 @@ comment: reaching the branch-merge-into-`Branch5`-sibling path in
 
 So "a string B-tree keyed by `cmp`", "serialize canonically", and "the squares
 corpus" — one fixture, shared by every proof in the directory — is stated four
-times with no single definition. `fjs/bnf/testlib.f.mjs` is the precedent for
+times with no single definition. `fjs/ebnf/testlib.f.mjs` is the precedent for
 where it should live instead.
 
 #### 3. The corpus itself is shared but unstated
@@ -82,7 +82,7 @@ shared starting state has to be verified by eye.
 
 ### Proposal
 
-**1. A `fjs/types/btree/testlib.f.mjs`** — mirroring `fjs/bnf/testlib.f.mjs` —
+**1. A `fjs/types/btree/testlib.f.mjs`** — mirroring `fjs/ebnf/testlib.f.mjs` —
 holding the fixture the four proofs share:
 
 ```ts
@@ -181,8 +181,9 @@ Do **not** add a `sequential(n)` helper to the testlib for it. One consumer does
 not need an export, and a second corpus builder sitting next to `squares` with
 the same shape is precisely the confusion that produced this hazard. Give the
 loop a local name in `remove/proof.f.mjs` and a comment saying it is deliberately
-*not* the shared corpus — the same treatment `ll1:68-74`'s grammar variant gets
-in [proof-recognizer-and-fixtures](../../../bnf/todo/proof-recognizer-and-fixtures.md).
+*not* the shared corpus — the treatment
+[proof-recognizer-and-fixtures](../../../ebnf/todo/proof-recognizer-and-fixtures.md)
+gives a deliberately different grammar variant.
 Move it to the testlib only if a second consumer ever appears.
 
 Roughly 300 lines of scaffolding across the four files collapse into a table
@@ -229,8 +230,8 @@ are.
 - [66F-btree-remove-mirror-merge](./66f-btree-remove-mirror-merge.md)
   — a `btree/remove` *implementation* refactor; it would be reviewed against
   these proofs, so landing the fixture first makes that diff readable.
-- [proof-recognizer-and-fixtures](../../../bnf/todo/proof-recognizer-and-fixtures.md)
+- [proof-recognizer-and-fixtures](../../../ebnf/todo/proof-recognizer-and-fixtures.md)
   — the same "shared harness and fixtures belong in a `testlib.f.mjs`" move for
-  the bnf proofs.
-- `fjs/bnf/testlib.f.mjs` — the existing precedent for a proof-only fixture
+  the grammar proofs.
+- `fjs/ebnf/testlib.f.mjs` — the existing precedent for a proof-only fixture
   module living beside the code it exercises.

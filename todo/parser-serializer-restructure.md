@@ -43,13 +43,13 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    errors *better* than today's rather than the ones this reader owes, and it
    cannot classify a parse failure at all, since a failure yields no tree to
    annotate. What genuinely remains is a design decision — what the reader
-   reports on malformed input — plus the module's own migration,
-   [`fjs/todo/ebnf-migration.md`](../fjs/todo/ebnf-migration.md).
+   reports on malformed input; the module's own migration, which this
+   once also waited on, is done
+   ([DESIGN.md §11](../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)).
 
-   It still is not what to pick up first. It is P2, its error shapes are
-   undecided, and `fjs/ebnf/` is mid-migration, so writing a codec against it
-   now means writing against names still moving. Stage 1b is P1 and gates
-   stage 4, which is the ordering that matters.
+   It still is not what to pick up first. It is P2 and its error shapes are
+   undecided; stage 1b is P1 and gates stage 4, which is the ordering that
+   matters.
 
    The hand-written design was written, reviewed, implemented in full and
    **withdrawn** —
@@ -139,18 +139,17 @@ relationships grew rather than being designed:
   identifier keys, future expressions).
 - **`fjs/fsc`** — nearly empty: a character-classifier stub. It also held a
   dead third copy of the JSON grammar, deleted by stage 2.
-- **`fjs/bnf`** — the grammar toolkit, still evolving: a breaking
-  EOF-encoding change shipped recently
-  ([#1516](https://github.com/functionalscript/functionalscript/pull/1516)),
-  and the unicode split is still pending.
+- **`fjs/bnf`** — the classical grammar toolkit, still evolving when this
+  was written; since replaced by `fjs/ebnf` and deleted
+  ([DESIGN.md §11](../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)).
 
 Two structural problems follow:
 
 1. **The media codecs sit downstream of permanently evolving code.** JSON and
    the data format depend on the JS token vocabulary (`fjs/js/tokenizer`),
    which must grow with FunctionalScript. A frozen interchange format cannot
-   be built on a mutating lexer, and the same argument bars a runtime
-   dependency on `fjs/bnf` until that module is stable.
+   be built on a mutating lexer, and the same argument barred a runtime
+   dependency on the classical `fjs/bnf` while that module was unstable.
 2. **The data format and the compiler front end are one codebase.** The DJS
    pipeline cannot be promoted to a spec'd, "implement it in an afternoon"
    format while it also carries module framing, trivia, and the growth path of
@@ -205,16 +204,18 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
   plus a mapping.
 
   The old rule rested on the grammar module not being stable enough to depend
-  on, and that argument has not changed — `fjs/ebnf/` is mid-migration, which is
-  why stage 3b is not the thing to start first. What changed is what the
-  alternative costs: a hand-written tokenizer and container machine per format,
+  on, and that argument expired when the migration that built `fjs/ebnf/`
+  finished ([DESIGN.md §11](../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)).
+  What changed before that is what the alternative costs: a hand-written
+  tokenizer and container machine per format,
   whose defects have to be found one at a time by review, against a grammar of a
   few dozen readable lines.
 
   The reversal is also narrower than it looks: it names `fjs/ebnf/`, and
-  **`fjs/bnf` is not what a codec may depend on.** That module is the classical
-  one being retired ([ebnf-migration](../fjs/todo/ebnf-migration.md)), so the
-  old rule survives verbatim with respect to it:
+  **the classical `fjs/bnf` was never what a codec may depend on.** That
+  module was retired and deleted
+  ([DESIGN.md §11](../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)); while it lived the old
+  rule survived verbatim with respect to it:
 
   > The spec carries the grammars as BNF text; `fjs/bnf/**` may hold the JSON
   > and DataJS grammars as *proof-covered examples* cross-checked against the
@@ -223,10 +224,10 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
   > silently drifted from the other two; none may be added without proofs.
 
   The proof-coverage half binds harder now, and binds `fjs/ebnf/` too. The
-  three issues written against the withdrawn rule —
-  [bnf-grammar-single-owner](../fjs/bnf/todo/bnf-grammar-single-owner.md),
-  [207-bnf-semantic-actions](../fjs/bnf/todo/207-bnf-semantic-actions.md) and
-  [`fjs/media/datajs`](../fjs/media/datajs/todo/parser-serializer.md) — are
+  three issues written against the withdrawn rule — bnf-grammar-single-owner
+  (since retired, its grammars at `fjs/ebnf/lib`),
+  [207-bnf-semantic-actions](../fjs/ebnf/todo/207-bnf-semantic-actions.md) and
+  [`fjs/media/datajs`](../fjs/media/datajs/todo/parser-serializer.md) — were
   edited to match rather than left to be read as live instructions.
 
 ### The DataJS format (decision record)
@@ -484,7 +485,7 @@ combined marker would encode a redundant fact.
   `$`-leading names making the collision unreachable.
 - The parser's separator rule is `';'` only, and this landed ahead of the
   stage: `fjs/djs/parser`'s move to the LL(1) backend
-  ([ebnf-migration](../fjs/todo/ebnf-migration.md), stage 6) dropped the
+  ([`fjs/djs/README.md`](../fjs/djs/README.md#both-grammars-are-ll1)) dropped the
   newline terminator, since telling a newline from a `;` reached through
   newlines took unbounded lookahead, and `fjs/djs/serializer` writes the
   `;` after every statement. Stage 5 inherits the rule rather than making
@@ -516,10 +517,9 @@ waits on, and it is startable — the lexical rules and the mapping engine
 exist, though its token-stream grammar is not written, must match today's
 tokenizer at a number's and a word's boundaries, and its mapping waits on
 `string`'s pin — but what it
-reports on malformed input is undecided, and `fjs/ebnf/` is mid-migration.
-Design work, one type prerequisite and a moving dependency are poor reasons
-to hold the
-front of a queue, so the P1 urgency of this plan rests on stages 1b and 4.
+reports on malformed input is undecided. Design work and one type
+prerequisite are poor reasons to hold the front of a queue, so the P1
+urgency of this plan rests on stages 1b and 4.
 
 An EDAG is an expression DAG whose sharing is *semantics*, not an encoding
 detail: one node referenced from two operand positions is one value, and `{} ===
@@ -712,8 +712,8 @@ throughout.
       P2 with its error shapes undecided. The corpus is FunctionalScript data
       modules, so it needs no DataJS reader to exist.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
-      citations in [207](../fjs/bnf/todo/207-bnf-semantic-actions.md)
-      repointed at `fjs/bnf/testlib.f.mjs`.
+      citations in [207](../fjs/ebnf/todo/207-bnf-semantic-actions.md)
+      repointed at the classical `fjs/bnf/testlib.f.mjs`, since deleted.
 - [x] Stage 3a: drop the fabricated `string` token in the existing wrapper —
       [`self-contained-tokenizer`](../fjs/media/json/todo/self-contained-tokenizer.md),
       the defect that predates the replacement and is provable without it.
@@ -729,7 +729,7 @@ throughout.
       first — so this is no longer blocked on
       [#1890](https://github.com/functionalscript/functionalscript/pull/1890) —
       that channel buys better errors than today's, not the ones owed. What is
-      undecided is the error shapes, and `fjs/ebnf/` is mid-migration.
+      undecided is the error shapes.
       A reader must compose EOF: `json` alone accepts `[1]x`.
       What is measured and still holds is the swap's blast radius: the accepted
       language is JSON's already, but for one defect — `1n1` and its class,
@@ -759,25 +759,17 @@ throughout.
   the JSON tokenizer. Rebase the issue on this plan or fold it in.
 - [663-json-djs-tree-type](../fjs/djs/todo/663-json-djs-tree-type.md) — the
   shared `Tree<P>` instantiation targets `fjs/media/datajs`; rename paths.
-- [bnf-grammar-single-owner](../fjs/bnf/todo/bnf-grammar-single-owner.md)
-  — **re-scoped, and owed a second edit by the reversal above.** Its
-  `fjs/media/json/grammar` proposal stays withdrawn and the `fjs/bnf` grammar
-  still ships at `fjs/bnf/lib/json`, but the reason has changed: that path is
-  no longer "a media codec may not depend on a grammar module at runtime",
-  which is reversed. It is that `fjs/bnf` is the classical module being
-  retired, so a runtime grammar belongs to `fjs/ebnf/` and arrives with stage
-  3b. Until 3b lands the `fjs/bnf/lib/json` grammar remains an example
-  rather than the codec's source, so nothing in that issue's current work
-  changes — but its statement that **the media scanners stay hand-written** is
-  withdrawn and must not be built on. Lowering the example onto
-  `fjs/ebnf/unicode/` is **not** open there: it happens when the grammar is
-  ported to `fjs/ebnf/lib` ([ebnf-migration](../fjs/todo/ebnf-migration.md)'s
-  consumer port), and the classical original stays as it is until `bnf/` is
-  deleted. What remains open is the shared lexical API
-  #1817 shipped only partly — parameterizing `string` over its simple escapes,
-  exporting the digit rules, and pointing the tokenizer at them. The
-  `fjs/djs/tokenizer` pointer becomes the `fsc` tokenizer,
-  which stays grammar-based across the stage-5 rename.
+- bnf-grammar-single-owner — **retired with `fjs/bnf`**, done by the ports:
+  `fjs/ebnf/lib/js` reads its digit and string rules from `fjs/ebnf/lib/json`,
+  which is the sharing it asked for, and the post-recognition pass it left
+  unowned is implemented in `fjs/media/datajs` and `fjs/djs/parser`. Its
+  `fjs/media/json/grammar` proposal stays withdrawn; the one JSON grammar is
+  `fjs/ebnf/lib/json`, a runtime dependency of the codecs as the reversal
+  above allows, and its statement that **the media scanners stay
+  hand-written** was withdrawn before it. The shared lexical API it owed is
+  done by the ports: the tokenizer's grammar, `fjs/ebnf/lib/js`, reads its
+  digit and string rules from `fjs/ebnf/lib/json`, and that tokenizer
+  becomes the `fsc` tokenizer, grammar-based, across the stage-5 rename.
 - [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) — its
   front-end paths move `djs` → `fsc` in stage 5, while its serializer
   citation (`../serializer/module.f.mjs`) follows the serializer into

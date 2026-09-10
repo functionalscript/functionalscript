@@ -42,13 +42,18 @@ One owner for the domain predicate and the numeric EOF sentinel: `ll1`
 imports the sentinel, `data` derives its `eofSet` range from it, and each
 layer keeps its own representation on top (the front end's public `null`,
 `data`'s terminal range, `ll1`'s input symbol — those are contracts, not
-copies). [`../../todo/ebnf-migration.md`](../../todo/ebnf-migration.md)
-already reserves the module — stage 1's `terminal/` is "the symbol domain,
-EOF, integer helpers over range_set" — and this issue is the concrete
-inventory of what moves there, plus the front-end `-0` fix that should not
-wait for the migration if the migration waits. If `terminal/` is not
-imminent, the interim owner can be `data` (the strictest existing copy)
-with the other two importing it.
+copies). The migration that built `fjs/ebnf/`
+([DESIGN.md §11](../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)) reserved
+the module `terminal/` for this — "the symbol domain, EOF, integer helpers
+over range_set" — and finished without building it, so this issue is
+`terminal/`'s: the concrete inventory of what moves there, plus the
+front-end `-0` fix that should not wait for the module. What else
+`terminal/` owes is named where it is relied on: the domain set `[0]`, `eof`
+and the integer helpers over `fjs/types/range_set` values in
+[ebnf-range-set](../terminal/todo/ebnf-range-set.md), and the base
+[unicode-rules](../unicode/todo/unicode-rules.md)'s text adapter is built
+on. If `terminal/` is not imminent, the interim owner can be `data` (the
+strictest existing copy) with the other two importing it.
 
 ### Tasks
 
@@ -63,9 +68,13 @@ with the other two importing it.
 
 ### Related
 
-- [../../todo/ebnf-migration.md](../../todo/ebnf-migration.md) — stage 1's
-  `terminal/` module is the planned owner; this issue names the three
-  existing copies it replaces.
+- [ebnf-range-set](../terminal/todo/ebnf-range-set.md) — the terminal as
+  a range set, which is what `terminal/` builds its helpers over; this
+  issue names the three existing copies the module replaces.
+- [unicode-rules](../unicode/todo/unicode-rules.md) — the text adapter
+  blocked on `terminal/`.
+- [DESIGN.md §11](../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces) — the
+  migration that reserved the module.
 - [repeat-bounds.md](./repeat-bounds.md),
   [malformed-utf16-symbols.md](./malformed-utf16-symbols.md) — both add
   front-end domain checks; built on the shared predicate they strengthen

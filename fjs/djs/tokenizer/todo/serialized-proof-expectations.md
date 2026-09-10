@@ -1,0 +1,49 @@
+## Replace serialized proof expectations with structural ones
+
+**Priority:** P4
+**Status:** open
+
+### Problem
+
+Nine assertions in `fjs/djs/tokenizer/proof.f.mjs` compare
+`JSON.stringify(value)` against a JSON **string literal** instead of stating
+the expected value directly:
+
+```js
+assertEq(JSON.stringify(result), '[{"token":{"kind":"true"},"metadata":{"path":"a.js","line":1,"column":1}},…]')
+```
+
+Serialization is incidental here — the proof wants "is this the token stream
+I expect?", not "does it serialize to this text". The string form makes
+property order observable, drops `undefined`-valued properties, and forces
+the reader to parse JSON in their head to see what is being claimed. The
+same proof already uses `stringifyAsTree` where a token carries a `bigint`
+that `JSON.stringify` cannot serialize, which is a second spelling of the
+same comparison.
+
+`assertStructurallySame` (see
+`fjs/types/object/structurally_same/README.md`) is the comparison these
+sites want. The classical `fjs/bnf` proofs had sixty-five more such sites and
+an obstacle of their own — dispatch entries carrying optional properties as
+*present with value `undefined`*, which the string form hid — and went with
+that module; a token carries no such property, so the rewrite here is
+mechanical.
+
+`fjs/media/json/serializer/proof.f.mjs` compares strings too, and should
+keep doing so: serialized text is that module's contract.
+
+### Tasks
+
+- [ ] Convert the tokenizer's `JSON.stringify` and `stringifyAsTree`
+      comparisons to `assertStructurallySame` against the token values,
+      `bigint` fields included.
+- [ ] Leave `fjs/media/json/serializer/proof.f.mjs` as string comparisons —
+      serialized text is that module's contract.
+- [ ] `tsc`, `fjs t`.
+
+### Related
+
+- `fjs/types/object/structurally_same/README.md` — the comparison these sites
+  should use, and what it does and does not promise.
+- [remove-native-json](../../../media/json/todo/remove-native-json.md) —
+  counts the same sites among the repository's `JSON.stringify` uses.

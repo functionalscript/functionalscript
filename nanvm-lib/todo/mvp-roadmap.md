@@ -299,7 +299,7 @@ as a generic `Any` facility, post-MVP.
       tests it on both sides.
       Current status: [operator tables in `nanvm-lib/README.md`](../README.md).
       Spec: [operators](../../spec/todo/2340-operators.md).
-- [ ] **Parser**, using [`fjs/bnf/`](../../fjs/bnf/README.md) (FJS).
+- [ ] **Parser**, using [`fjs/ebnf/`](../../fjs/ebnf/README.md) (FJS).
 - [ ] **Incremental repository compiler coverage** — this is not an MVP gate.
       First complete the repository TypeScript-to-JavaScript Stage 1 and authored
       `.f.js` package support. Then, as compiler coverage grows, rename eligible

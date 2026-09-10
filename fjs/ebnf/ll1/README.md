@@ -1,6 +1,6 @@
 # The LL(1) backend
 
-The `ebnf/ll1/` piece of [ebnf-migration](../../todo/ebnf-migration.md): the
+The `ll1/` layer of [`fjs/ebnf`](../README.md): the
 reference backend, a predictive parser over the data
 [`RuleSet`](../data/README.md) that builds the typed AST of
 [`../ast`](../ast/README.md) and folds a rewrite set into the parse. It
@@ -346,5 +346,4 @@ slices the input at the index gets the remainder.
 - **What was expected.** A failure reports where, not what: the first set of
   the rule that failed there is available and not returned.
 - **Streaming input**, a parser as a fold over one symbol at a time, which
-  [043-stateful-parser](../../bnf/todo/043-stateful-parser.md) proposes for
-  the classical backend and stays open here.
+  [043-stateful-parser](../todo/043-stateful-parser.md) proposes.

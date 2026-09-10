@@ -611,7 +611,7 @@ value — and it has to be repeated at every call, where the modifier is written
 once. `rtti` (`or`, `array`, `record` — `option` is nullary and takes
 nothing), `rtti/validate`,
 `rtti/parse`, `types/result` (`ok`, `error`), `protocol/mcp`'s
-`toolEntry`, and `bnf`'s `option` already carry it; a new schema- or
+`toolEntry`, and `ebnf`'s `option` already carry it; a new schema- or
 literal-taking export should too.
 
 Three things bound the rule:

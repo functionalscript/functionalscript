@@ -163,7 +163,6 @@ way to refresh this file, not a partial edit.
 
 | File | Line | `@type {T}` | Why it stays |
 | --- | --- | --- | --- |
-| `fjs/bnf/descent/module.f.mjs` | 199 | `_Task` | breaks a control-flow inference cycle |
 | `fjs/cas/evo/module.f.mjs` | 466 | `Effect<MemOp, Result<Hash, string>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/cas/module.f.mjs` | 348 | `(v: Vec) => Effect<Rm, IoResult<Vec>>` | cast overrides the inferred type — needs a type/API change, not a different cast |
 | `fjs/crypto/sign/proof.f.mjs` | 65 | `any` | `any` bridge — generic erasure with no runtime counterpart; nothing for a check to check |
