@@ -2092,7 +2092,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       the three zero spellings, and the five binary64 cases; every `bigint`
       branch with the three fixed-width ceilings; and every `string` branch
       — the nine escapes, the six hex rotations, the raw `/`, BMP and astral
-      characters, the nineteen whitespace-like scalars, the four lone
+      characters, both raw endpoints of the character range, U+0020 and
+      U+10FFFF, the nineteen whitespace-like scalars, the four lone
       surrogates, the four escaped pairs and the seven adjacencies — each
       with its key twin. **Still to land: the containers and the
       document** — `array`, `object` and `key` in every alternative, empty
