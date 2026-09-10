@@ -264,10 +264,14 @@ cover, and reads everything its grammar does, an object `git fsck` would
 flag included; the writer returns it byte for byte. `validate`, one per
 object type, is where an object is refused, naming why, by the rules
 `fsck` applies: required headers and their order, a hex id of the
-repository's width, an ident where one is required, a tag name that is a
-ref name, a NUL in a header, the mode set, the entry order. What `fsck`
-only notes passes. The one check `fsck` does not make: a `mergetag` must
-be a tag the tag module vouches for, so that `mergetags` is total. The
+repository's width, an ident where one is required, a NUL in a header,
+the mode set, the entry order. Those are what `fsck` reports as an error.
+Two things it only warns of are refused as well, as this module's own
+choice, each said where it is made: a tag name no ref takes, which
+`git mktag` refuses to write, and a NUL in a commit's message, which no
+tool of Git's writes. What `fsck` only notes and Git writes passes. The
+one check `fsck` does not make: a `mergetag` must be a tag the tag module
+vouches for, so that `mergetags` is total. The
 ident reader is the exception that refuses at the grammar: Git's own reader
 is lenient and old history holds idents without an email or with a
 malformed zone, and this reader reads what `fsck` vouches for, a time Git
@@ -303,6 +307,10 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   either side of its stream — a file over the bound before inflating, a
   stream that inflates past it — and never cut short. The inflater issue
   lifts both sides.
+- **An object with no empty line.** A commit or a tag whose bytes end
+  after its last header, which Git accepts and none of its tools write,
+  is refused by the header block's grammar; reading it is a change to
+  `Payload`, [`todo/header-only-object.md`](todo/header-only-object.md).
 - **One `Meta` per byte.** The LL(1) backend takes an array of symbols,
   each an object, and streams nothing. For commits, tags and trees that is
   fine; it is the reason a blob is never handed to a parser.

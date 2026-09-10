@@ -1,14 +1,24 @@
-## Refs: `HEAD`, `refs/`, and `packed-refs`
+## Refs: `HEAD`, `refs/`, and `packed-refs`, as plumbing
 
 **Priority:** P3
 **Status:** open
 
 ### Problem
 
-An object is reached by id, and a repository is entered by name: `HEAD`,
-a branch, a tag. Nothing here reads a ref, so the readers can be handed an
-id and cannot find one. [git-name-resolution](../../../todo/git-name-resolution.md)
-starts from a name.
+An object is reached by id, and a repository is entered through its
+refs: `HEAD`, the heads under `refs/`, the tags. Nothing here reads a
+ref, so a caller must be handed an id and cannot find one.
+
+What a ref is *for* in DISOT is settled and narrow, and this issue must
+not widen it. [git-name-resolution](../../../todo/git-name-resolution.md)
+makes Git refs retention roots and nothing else: a ref keeps commits
+reachable so Git does not prune them, and a ref's *name* carries no
+DISOT meaning — not a name, not an identity, not authority, not a signal
+of rename or archive, not a way to choose among heads. DISOT semantics
+come from `.disot.*` files, authority and timestamp evidence, and
+ancestry. So a reader of refs here is plumbing: it answers which ids a
+repository keeps reachable, and where a walk may start, and it is never
+the step that resolves a DISOT name.
 
 ### Proposal
 
@@ -21,20 +31,35 @@ alphabet like the objects:
   `<hex> SP <name> LF` per ref, a `^<hex>` line after a tag naming what it
   points to.
 
-A `resolve(name)` that reads the loose file, falls back to `packed-refs`,
-and follows a symbolic ref to a bounded depth, answering the id or refusing:
-a name that is no ref name is refused by the rules
+Two functions over the effects:
+
+- `roots()`: every ref the repository holds, loose and packed, as
+  `(name, id)` pairs — the retention roots, and the set of ids a
+  candidate-commit search may start from. The names come along because
+  the files hold them, not because they mean anything; a consumer that
+  reads meaning into one is outside this design.
+- `tryResolve(ref)`: the id one ref names, a symbolic ref followed to a
+  bounded depth, or `null`. For plumbing that has a ref in hand —
+  `HEAD` for a checkout, a ref a person typed at a command line — and
+  for nothing that resolves a DISOT name.
+
+A ref name that is no ref name is refused by the rules
 [`fjs/git/tag`](../tag/module.f.mjs) already holds for a tag's name, which
 move to a shared place then. Reading is through `readFile` and `readdir`;
-writing a ref, with the lock file Git takes, is a later task.
+writing a ref, with the lock file Git takes, is a later task, and so is
+the reflog, which expires and is no retention.
 
 ### Tasks
 
 - [ ] Grammars for the three files, and their readers.
 - [ ] The ref-name rules shared with the tag module.
-- [ ] `resolve`, over the effects, with the virtual filesystem as its proof.
+- [ ] `roots` and `tryResolve`, over the effects, with the virtual
+      filesystem as their proof.
 
 ### Related
 
-- [`fjs/git/README.md`](../README.md) — the objects a ref names.
+- [git-name-resolution](../../../todo/git-name-resolution.md) — "Git refs
+  exist only for reachability / GC protection", the rule this issue is
+  bound by.
+- [`fjs/git/README.md`](../README.md) — the objects a ref keeps.
 - [object-store.md](./object-store.md) — from an id to the object.
