@@ -62,4 +62,13 @@ export const proof = {
         assertEq(tryRead(latin1('blob 99999999999999999\0')), null)  // not a safe integer
         assertEq(tryRead(latin1('blob 0000000000000000000000000000\0')), null)  // past the prefix
     },
+    // A number that is no byte is refused wherever it sits — after the
+    // prefix the parser reads, or in a payload to write — rather than read
+    // or written as a plausible object.
+    throw: {
+        readNonByte: () => tryRead([...latin1('blob 2\0'), 0, 0x100]),
+        readNonByteBeyondPrefix: () => tryRead([...latin1('blob 30\0'), ...latin1('x'.repeat(29)), 0x100]),
+        writeNonByte: () => write('blob', [0x100]),
+        writeFraction: () => write('blob', [0.5]),
+    },
 }

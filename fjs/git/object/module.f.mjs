@@ -20,10 +20,11 @@
  * @import { Envelope } from './types.ts'
  */
 
-import { byteParser, not, symbols } from '../../ebnf/byte/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
+import { byteParser, isByte, not, symbols } from '../../ebnf/byte/module.f.mjs'
 import { range, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { concat, drop, length, take, toArray } from '../../types/list/module.f.mjs'
+import { concat, drop, take, toArray } from '../../types/list/module.f.mjs'
 
 const { isSafeInteger } = Number
 
@@ -57,7 +58,23 @@ const parse = byteParser(envelope)
  * prefix does not hold is refused, since no object it could describe
  * exists.
  */
-const prefixLength = 32
+const prefixLength = /** @type {const} */ (32)
+
+/**
+ * A list a caller means as bytes, as an array, every item checked to be
+ * one: `Bytes` is a list of numbers, and a number that is no byte is a
+ * caller's mistake the format could not carry, so it is refused here
+ * rather than read or written as a plausible object.
+ *
+ * @throws If an item is not a byte.
+ *
+ * @type {(bytes: Bytes) => readonly number[]}
+ */
+const byteArray = bytes => {
+    const a = toArray(bytes)
+    assert(a.every(isByte), 'not bytes')
+    return a
+}
 
 /** @type {(leaves: readonly Meta<Byte>[]) => readonly number[]} */
 const symbolsOf = leaves => leaves.map(({ symbol }) => symbol)
@@ -94,7 +111,11 @@ const decimal = digits => {
  * does not hold, a type that is not one of the four, a size that is not
  * canonical decimal or not a safe integer, or a payload that is not as
  * long as the size claims. The payload is the input after the NUL, sliced
- * and not read.
+ * and not parsed.
+ *
+ * @throws If an item of the input is not a byte, in the envelope or after
+ * it: the input is a boundary's, and a number that is no byte is the
+ * boundary's mistake, as `symbols` treats it.
  *
  * @type {(input: Bytes) => Nullable<Envelope>}
  */
@@ -104,8 +125,8 @@ export const tryRead = input => {
     const [[w, , digits], end] = r[1]
     const type = typeOf(symbolsOf(w))
     const size = decimal(symbolsOf(digits))
-    const payload = drop(end)(input)
-    return type !== null && size !== null && length(payload) === size
+    const payload = byteArray(drop(end)(input))
+    return type !== null && size !== null && payload.length === size
         ? { type, payload }
         : null
 }
@@ -114,7 +135,11 @@ export const tryRead = input => {
  * An object's bytes: the envelope, then the payload. What Git hashes for
  * the object's id, and what it stores inflated.
  *
+ * @throws If an item of the payload is not a byte.
+ *
  * @type {(type: ObjectType, payload: Bytes) => Bytes}
  */
-export const write = (type, payload) =>
-    concat(ascii(`${type} ${length(payload)}\0`))(payload)
+export const write = (type, payload) => {
+    const p = byteArray(payload)
+    return concat(ascii(`${type} ${p.length}\0`))(p)
+}

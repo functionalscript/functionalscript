@@ -21,13 +21,13 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { byte, byteParser, not, symbols } from '../../ebnf/byte/module.f.mjs'
+import { byte, byteParser, isByte, not, symbols } from '../../ebnf/byte/module.f.mjs'
 import { eof, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { flat, flatMap, toArray } from '../../types/list/module.f.mjs'
 
-const lf = 0x0A
+const lf = /** @type {const} */ (0x0A)
 
-const sp = 0x20
+const sp = /** @type {const} */ (0x20)
 
 const key = repeatFrom1(not(set(' \n')))
 
@@ -91,26 +91,43 @@ export const tryRead = input => {
 const valueBytes = flatMap(b => b === lf ? [lf, sp] : [b])
 
 /**
+ * A list a caller means as bytes, as an array, every item checked to be
+ * one: `Bytes` is a list of numbers, and a number that is no byte would
+ * be written into an object the format cannot carry.
+ *
+ * @throws If an item is not a byte.
+ *
+ * @type {(bytes: Bytes) => readonly number[]}
+ */
+const byteArray = bytes => {
+    const a = toArray(bytes)
+    assert(a.every(isByte), 'not bytes')
+    return a
+}
+
+/**
  * @throws On a key the format cannot spell — empty, or holding SP or LF —
- * since {@link tryRead} would read what was written as a different header.
- * A key comes from a read or from a caller that built one, and the type
- * cannot say which bytes it holds, so the writer checks.
+ * since {@link tryRead} would read what was written as a different header,
+ * and on a key or a value holding a number that is no byte. A header comes
+ * from a read or from a caller that built one, and the type cannot say
+ * which numbers it holds, so the writer checks.
  *
  * @type {(h: Header) => Bytes}
  */
 const headerBytes = ([k, v]) => {
-    const key = toArray(k)
+    const key = byteArray(k)
     assert(key.length !== 0 && key.every(b => b !== sp && b !== lf), ['not a header key', key])
-    return flat([key, [sp], valueBytes(v), [lf]])
+    return flat([key, [sp], valueBytes(byteArray(v)), [lf]])
 }
 
 /**
  * A payload's bytes: every header as it was read, the empty line, and the
  * message. The inverse of {@link tryRead}, byte for byte.
  *
- * @throws On a key the format cannot spell; see {@link headerBytes}.
+ * @throws On a key the format cannot spell, and on a key, a value or a
+ * message holding a number that is no byte; see {@link headerBytes}.
  *
  * @type {(p: Payload) => Bytes}
  */
 export const write = ({ headers, message }) =>
-    flat([flat(headers.map(headerBytes)), [lf], message])
+    flat([flat(headers.map(headerBytes)), [lf], byteArray(message)])

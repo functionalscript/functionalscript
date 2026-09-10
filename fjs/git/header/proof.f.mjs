@@ -103,6 +103,10 @@ export const proof = {
             emptyKey: () => toArray(write({ headers: [[[], latin1('x')]], message: [] })),
             spaceInKey: () => toArray(write({ headers: [[latin1('a b'), latin1('x')]], message: [] })),
             lfInKey: () => toArray(write({ headers: [[latin1('a\nb'), latin1('x')]], message: [] })),
+            // A number that is no byte, wherever it sits.
+            nonByteInKey: () => toArray(write({ headers: [[[0x100], latin1('x')]], message: [] })),
+            nonByteInValue: () => toArray(write({ headers: [[latin1('k'), [0x100]]], message: [] })),
+            nonByteInMessage: () => write({ headers: [], message: [-1] }),
         },
     },
 }

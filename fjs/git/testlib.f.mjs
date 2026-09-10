@@ -12,7 +12,7 @@
  *
  * @type {(s: string) => readonly number[]}
  */
-export const latin1 = s => [...s].map(c => c.codePointAt(0) ?? 0)
+export const latin1 = s => [...s].map(c => c.charCodeAt(0))
 
 /**
  * The payload of commit `d2bc56a53b2d6d7c1dc0860dec10435ed479b22d` of this
