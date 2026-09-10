@@ -13,8 +13,9 @@ text helper.
 `fjs/bnf/testlib.f.mjs`, which owns the two JSON grammars (`classic`,
 `deterministic`) that four proof files import. Three smaller pieces of the same
 kind never made it there and are copy-pasted instead, across
-`fjs/bnf/descent/proof.f.mjs`, `fjs/bnf/ll1/proof.f.mjs`, and
-`fjs/djs/tokenizer/proof.f.mjs`.
+`fjs/bnf/descent/proof.f.mjs` and `fjs/bnf/ll1/proof.f.mjs`, with
+`fjs/djs/tokenizer/proof.f.mjs` carrying its own copy of the corpus and a
+third spelling of the recognizer.
 
 This design predates the alphabet split. Its shared `number` fixture currently
 constructs Unicode terminals with core `range('--')` / `range('09')`, and its
@@ -26,11 +27,11 @@ backends do not consume ([ebnf-range-set](./ebnf-range-set.md)). Only a
 classical fixture that still spells rules functionally keeps the classical
 helper, and it stays in `fjs/bnf/testlib.f.mjs`.
 
-#### 1. The "recognizes the whole input" helper — 8 copies
+#### 1. The "recognizes the whole input" helper — 7 copies plus 1 in a third shape
 
 Every recognizer test needs the same question answered: *did the parser accept
-and consume all of the input?* It is spelled out inline eight times, in two
-backend-specific shapes:
+and consume all of the input?* It is spelled out inline seven times in
+`fjs/bnf`, in two backend-specific shapes:
 
 ```ts
 // descent shape — fjs/bnf/descent/proof.f.mjs:202, :228, :244
@@ -53,15 +54,22 @@ differ: descent returns the record `DescentMatchResult`
 (`fjs/bnf/descent/types.ts:52-57` — `{ ast, success, idx, failure? }`),
 while ll1's `MatchResult` is still a tuple. Any adapter has to speak both.
 
-`fjs/djs/tokenizer/proof.f.mjs:33` is an eighth site in the descent shape, with
-`JSON.stringify([s, mr])` as its message instead of `mr`.
+`fjs/djs/tokenizer/proof.f.mjs`'s `covers` is the same question in a third
+shape, over the surviving backend: it resumes `fjs/ebnf/ll1`'s `parser` of
+the one-token grammar `fjs/ebnf/lib/js` from where the last token ended, and
+answers `false` at the first token the grammar refuses and `true` once the
+loop reaches the end. It is what `ll1Recognizer` below looks like once a
+grammar is read token by token rather than in one match; the tokenizer's
+`isValid` is the site to convert to the shared `assertRecognizes`. Before the
+port it was an eighth copy of the descent shape
+([ebnf-ll1-port](../../djs/todo/ebnf-ll1-port.md)).
 
 The copies have drifted in exactly the ways copies do: the start-rule name is
-`''` in seven sites and `'value'` in one; `isSuccess` is a named local in three
-ll1 sites and inline in the fourth; the failure message differs. None of these
-differences is intentional.
+`''` except where the JSON grammar's root is named `'value'`; `isSuccess` is a
+named local in three ll1 sites and inline in the fourth; the failure message
+differs, and `covers` reports none. None of these differences is intentional.
 
-The two shapes are the same predicate — *accepted, and the remainder is empty* —
+The shapes are the same predicate — *accepted, and the remainder is empty* —
 differing only in how each backend reports the remainder. That difference belongs
 in one adapter, not in eight test bodies.
 
