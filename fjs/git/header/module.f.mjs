@@ -106,6 +106,15 @@ export const valueAt = (p, i, key) => {
 }
 
 /**
+ * The values of every header whose key is `key`, in order: the headers
+ * Git reads by key rather than position, `encoding`, `gpgsig` and
+ * `mergetag` among them, wherever they sit in the list.
+ *
+ * @type {(p: Payload, key: string) => readonly Bytes[]}
+ */
+export const valuesOf = (p, key) => p.headers.flatMap(h => keyIs(h, key) ? [h[1]] : [])
+
+/**
  * Whether a NUL sits in any header, key or value: the grammar reads one,
  * since a key is any byte but SP and LF and a value any byte at all, and
  * `git fsck` refuses the object as `nulInHeader`, so the `validate` of a

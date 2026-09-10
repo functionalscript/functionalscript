@@ -6,7 +6,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { fromArrayLike, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
-import { hasNulHeader, keyIs, tryRead, valueAt, write } from './module.f.mjs'
+import { hasNulHeader, keyIs, tryRead, valueAt, valuesOf, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Payload} */
 const read = input => {
@@ -104,6 +104,17 @@ export const proof = {
         assert(hasNulHeader(read([0x61, 0x20, 0, 0x0A, 0x0A])))
         assert(hasNulHeader(read([0x61, 0, 0x20, 0x78, 0x0A, 0x0A])))
         assert(hasNulHeader(read(latin1('a x\nb y\n \0\n\n'))))
+    },
+    // Every header of a key, in order, wherever it sits; none is none.
+    valuesOf: () => {
+        const p = read(commitPayload)
+        assertStructurallySame(valuesOf(p, 'parent').map(toArray), [
+            latin1('30317689cb0aaba4f927c1980d80e286c69dce85'),
+            latin1('261b9142dfe024d8e8e009b0e97f6e52ea981c8d'),
+        ])
+        assertEq(valuesOf(p, 'gpgsig').length, 1)
+        assertStructurallySame(valuesOf(p, 'encoding'), [])
+        assertStructurallySame(valuesOf(p, 'paren'), [])
     },
     // Each refusal: no empty line before the end, a header without SP, a
     // first line beginning with SP, a header without LF.
