@@ -346,6 +346,11 @@ export const proof = {
             const page = pageAt(root, ['a'])
             assert(page.includes('./proof.f.mjs — not linkable in a browser: node:fs'), page)
             assertStructurallySame(listed(page), [])
+            // Nothing here can run, so nothing offers to run it: a run over an
+            // empty source list would report a green verdict for a subtree
+            // where nothing ran.
+            assert(!page.includes('data-test-run'), page)
+            assert(!page.includes('<script'), page)
         },
     },
     run: () => {

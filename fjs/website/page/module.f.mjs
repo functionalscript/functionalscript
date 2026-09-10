@@ -102,20 +102,35 @@ const proofItem = proof => proof.blockers.length === 0
  * Dropping it would leave an empty list ambiguous between "nothing here" and
  * "nothing that runs here", and those are different facts about a directory.
  *
+ * **The control follows what can run, not what exists.** Where every proof of
+ * a subtree is blocked, the section keeps its list and its reasons and loses
+ * the button: a run over an empty source list loads nothing, finds no
+ * failures, and is reported `passed` — a plausible wrong value for a subtree
+ * where nothing ran at all, which is the one answer this repository refuses
+ * ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+ * Reporting such a run as not-passing was the alternative; it is a change to
+ * `reportOf`, which decides `fjs t`'s verdict too, for a case the command line
+ * does not have.
+ *
  * @type {(dir: Dir) => (intro: readonly Node[]) => readonly Node[]}
  */
 export const testSection = dir => intro => {
     if (dir.proofs.length === 0) { return [] }
-    const linkable = dir.proofs.filter(proof => proof.blockers.length === 0)
-    return [['details', { 'data-section': '', open: '' },
+    /** @type {(rest: readonly Node[]) => readonly Node[]} */
+    const section = rest => [['details', { 'data-section': '', open: '' },
         ['summary', 'Emergent Testing'],
         ...intro,
+        ...rest,
+        ['ul', ...dir.proofs.map(proofItem)],
+    ]]
+    const linkable = dir.proofs.filter(proof => proof.blockers.length === 0)
+    if (linkable.length === 0) { return section([]) }
+    return section([
         ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
         ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
         report,
-        ['ul', ...dir.proofs.map(proofItem)],
         runner(linkable.map(proof => proof.name)),
-    ]]
+    ])
 }
 
 /**

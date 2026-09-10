@@ -123,13 +123,34 @@ export const proof = {
         /**
          * **A proof a browser cannot link is named with its blocker**, and
          * kept out of the sources: an empty list would leave "nothing here"
-         * and "nothing that runs here" indistinguishable.
+         * and "nothing that runs here" indistinguishable. Its neighbour still
+         * runs, so the control is still there.
          */
         namesWhatCannotRun: () => {
-            const html = concat(element(['body', ...testSection(
-                { ...empty, proofs: [{ name: './a.f.mjs', blockers: ['node:fs'] }] })([])]))
+            const html = concat(element(['body', ...testSection({ ...empty, proofs: [
+                { name: './a.f.mjs', blockers: ['node:fs'] },
+                { name: './b.f.mjs', blockers: [] },
+            ] })([])]))
             assert(html.includes('./a.f.mjs — not linkable in a browser: node:fs'), html)
             assert(!html.includes("'./a.f.mjs',"), html)
+            assert(html.includes("'./b.f.mjs',"), html)
+            assert(html.includes('data-test-run'), html)
+        },
+        /**
+         * **No control where nothing can run.** A subtree whose proofs are all
+         * blocked keeps its section and its reasons and loses the button: a
+         * run over an empty source list loads nothing, finds no failures, and
+         * is reported `passed` — a green verdict for a subtree where nothing
+         * ran at all.
+         */
+        noRunWhereNothingLinks: () => {
+            const html = concat(element(['body', ...testSection(
+                { ...empty, proofs: [{ name: './a.f.mjs', blockers: ['node:fs'] }] })([])]))
+            assert(html.includes('<summary>Emergent Testing</summary>'), html)
+            assert(html.includes('./a.f.mjs — not linkable in a browser: node:fs'), html)
+            assert(!html.includes('data-test-run'), html)
+            assert(!html.includes('data-test-results'), html)
+            assert(!html.includes('<script'), html)
         },
         // Nothing starts on load; the runner is bound to the button.
         startsOnlyOnRun: () => {
