@@ -185,7 +185,8 @@ const node = words => {
 }
 
 /**
- * One of the words, the longest that matches: the words as a prefix tree.
+ * One of the words, the longest the lookahead leads to: the words as a
+ * prefix tree.
  *
  * A variant of the words is not LL(1) where two share a first character —
  * `=`, `==` and `===` begin alike, and one symbol of lookahead cannot pick
@@ -194,6 +195,13 @@ const node = words => {
  * word ends there and longer words continue. An optional round starts
  * whenever the lookahead is in its first set, so a parse reads the longest
  * word, which is what a tokenizer means by maximal munch.
+ *
+ * Going on is decided on one symbol and never undone, as every LL(1)
+ * choice is. Where the words have a gap — `.` and `...` with no `..` —
+ * the second `.` commits to `...`, so `..x` is refused at the `x` rather
+ * than read as `.` twice: the shorter word is not a fallback, since a
+ * fallback is a second reading and this backend takes one. A grammar that
+ * wants `..` as two words says so in the list.
  *
  * What follows the rule in a grammar may not begin with a character that
  * continues a word: `literals(['a', 'ab'])` then `'b'` reads `ab` two

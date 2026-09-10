@@ -529,6 +529,13 @@ export const proof = {
             assertStructurallySame(read('!x'), ['!', 1])
             assertStructurallySame(p(cps('?')), ['error', 0])
             assertStructurallySame(p(cps('')), ['error', 0])
+            // Going on is decided on one symbol and never undone: where the
+            // words have a gap, the symbol past the gap commits to the
+            // longer word, and the shorter one is not a fallback.
+            const dots = parser(literals(['.', '...']))
+            assertStructurallySame(unwrap(dots(cps('...')))[1], 3)
+            assertStructurallySame(unwrap(dots(cps('.x')))[1], 1)
+            assertStructurallySame(dots(cps('..x')), ['error', 2])
             // The punctuators of JavaScript, sharing prefixes throughout,
             // are one LL(1) rule this way — the list a tokenizer's operator
             // variant cannot be.
