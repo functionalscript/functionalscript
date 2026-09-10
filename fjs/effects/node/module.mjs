@@ -25,6 +25,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import process from 'node:process'
+import zlib from 'node:zlib'
 import { once } from 'node:events'
 import * as testContext from 'node:test'
 
@@ -33,7 +34,8 @@ import { asyncRun } from '../module.mjs'
 import { memoryOperationMap } from './memory/module.mjs'
 import { commonOperationMap } from '../common/module.mjs'
 import {
-    emptyHost, emptyHostCode, emptyHostMessage, exitCode, toIoError, usesInlineTestContext,
+    emptyHost, emptyHostCode, emptyHostMessage, exitCode, inflateTrailingCode, inflateTrailingMessage, toIoError,
+    usesInlineTestContext,
 } from './module.f.mjs'
 import { asBase, asNominal } from '../../types/nominal/module.f.mjs'
 import { error, ok, unwrap } from '../../types/result/module.f.mjs'
@@ -343,6 +345,27 @@ const runNodeEffect = asyncRun({
         } finally {
             await fh.close()
         }
+    }),
+    // `maxOutputLength` is what makes the bound a refusal rather than a
+    // truncation: Node stops inflating and throws `ERR_BUFFER_TOO_LARGE`, so
+    // a stream that would inflate past the `Vec` cap costs the cap and not
+    // whatever it held. And zlib stops at the end of the stream, whatever
+    // follows it, so the bytes it took are counted against the bytes given:
+    // a loose object with bytes after its stream is one Git refuses as
+    // garbage at its end, and this must not hand back the object in front.
+    // A `Vec` that is not whole bytes never reaches here: the effect in
+    // `module.f.mjs` refuses it before the host is asked.
+    inflate: data => io(async () => {
+        const input = fromVec(data)
+        // `info: true` answers `{ buffer, engine }`, an overload the Node
+        // typings do not spell, so the shape is stated here, once, at the
+        // boundary.
+        const { buffer, engine } = /** @type {{ readonly buffer: Uint8Array, readonly engine: { readonly bytesWritten: number } }} */
+            (/** @type {unknown} */ (zlib.inflateSync(input, { info: true, maxOutputLength: maxFileSizeBytes })))
+        if (engine.bytesWritten !== input.length) {
+            throw Object.assign(new Error(inflateTrailingMessage(input.length - engine.bytesWritten)), { code: inflateTrailingCode })
+        }
+        return toVec(buffer)
     }),
     randomInt: async () => ok(randomInt(randomMax)),
     access: path => io(() => access(path)),
