@@ -144,6 +144,12 @@ export const proof = {
         assertEq(t, 'error')
         assertStructurallySame(result, ['notImplemented', 'inflate'])
         assertEq(inflateTrailingMessage(3), '3 bytes after the end of the zlib stream')
+        // A `Vec` that is not whole bytes is refused before any runner is
+        // asked: the virtual one, which would have said `notImplemented`,
+        // never sees it.
+        const [__, [tu, unaligned]] = virtual(emptyState)(inflate(vec(4n)(0b1010n)))
+        assert(tu === 'error', unaligned)
+        assertIoMessage(unaligned, 'invalid buffer size')
     },
     mkdir: {
         one: () => {

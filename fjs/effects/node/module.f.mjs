@@ -227,8 +227,20 @@ export const readBytes = do_('readBytes')
 
 // inflate
 
-/** @type {Func<Inflate>} */
-export const inflate = do_('inflate')
+const inflateOp = /** @type {Func<Inflate>} */ (do_('inflate'))
+
+/**
+ * Inflates a zlib stream. The stream is bytes, so a `Vec` that is not
+ * whole bytes is refused here as `invalid buffer size`, before any host
+ * sees it, as {@link writeFromStream} refuses one: a host's conversion
+ * would pad the last byte and read a stream that was never given.
+ *
+ * @type {Func<Inflate>}
+ */
+export const inflate = data =>
+    (length(data) & 0b111n) !== 0n
+        ? pureError(ioError({ message: 'invalid buffer size' }))
+        : inflateOp(data)
 
 /**
  * The code an {@link Inflate} refuses bytes after the end of the stream

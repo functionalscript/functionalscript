@@ -353,6 +353,8 @@ const runNodeEffect = asyncRun({
     // follows it, so the bytes it took are counted against the bytes given:
     // a loose object with bytes after its stream is one Git refuses as
     // garbage at its end, and this must not hand back the object in front.
+    // A `Vec` that is not whole bytes never reaches here: the effect in
+    // `module.f.mjs` refuses it before the host is asked.
     inflate: data => io(async () => {
         const input = fromVec(data)
         // `info: true` answers `{ buffer, engine }`, an overload the Node

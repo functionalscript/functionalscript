@@ -43,9 +43,18 @@ alphabet reads delimiters and DEFLATE has none — the design's table in
   32 KiB window and no more.
 - The zlib wrapper (a two-byte header, an Adler-32 trailer) over it, and
   the Adler-32 check as its own small module.
-- `fjs/git/loose` then reads through it, and `inflate` stays for a host
-  that would rather spend the native decoder; the two are the same
-  function at the type, `Bytes → Nullable<Bytes>`, one behind an effect.
+- `fjs/git/loose` then reads through it, and the `inflate` operation
+  stays, exported as it is, for a host that would rather spend the native
+  decoder. They are not one type: the decoder is a pure
+  `Bytes → Nullable<Bytes>`, refusing a malformed stream with `null` and
+  nothing else, since it has no host to fail; the operation is
+  `Vec → IoResult<Vec>` through `IoChannel`, where a malformed stream, a
+  missing capability and the 128 KiB `Vec` bound are all the channel's
+  errors. Neither replaces the other. `fjs/git/loose` is where they meet:
+  its `tryRead` folds the operation's result through the channel today,
+  and reading through the decoder is the same fold with the decoder's
+  `null` mapped to the refusal the channel already carries for a stream
+  that is no zlib, so a caller sees one error either way.
 
 The inverse, a deflater, is not needed to read a repository and is not
 part of this issue: a writer that must produce a stream can emit stored
