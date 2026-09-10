@@ -321,8 +321,10 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   consumer: the root entries of a commit's tree, and one blob under it.
 - [git-trusted-timestamp-signatures](../../todo/git-trusted-timestamp-signatures.md)
   — every header verbatim, and the writer.
-- [ebnf-migration](../todo/ebnf-migration.md) — reserved `fjs/ebnf/byte/`
-  for the first consumer that wanted it, this one.
+- [`doc/DESIGN.md`](../../doc/DESIGN.md#the-worked-example-fjsebnf-replacing-fjsbnf)
+  — the ebnf migration, which reserved `fjs/ebnf/byte/` for the first
+  consumer that wanted it, this one, and is recorded there now that its
+  plan is done.
 - [unicode-rules](../ebnf/unicode/todo/unicode-rules.md) — the byte adapter's first
   design, as the half of that issue the text half left behind.
 - [layered-parser](../ebnf/todo/layered-parser.md) — bytes as the bottom
