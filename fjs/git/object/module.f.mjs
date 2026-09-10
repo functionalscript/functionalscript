@@ -1,0 +1,163 @@
+/**
+ * The loose object envelope: `<type> SP <size> NUL`, ahead of the payload.
+ *
+ * A grammar reads the envelope and stops at the NUL, so no payload ever
+ * reaches a parser — a blob's least of all — and the reader slices what
+ * follows the NUL as the payload. The size is a claim about that payload,
+ * and the reader holds it to the claim: an object whose payload is not as
+ * long as its envelope says is refused, as Git refuses it.
+ *
+ * The object id is the hash of the whole — envelope and payload — which
+ * is why {@link write} exists beside {@link tryRead}: what is hashed or
+ * stored is the envelope's bytes ahead of the payload's.
+ *
+ * @module
+ *
+ * @import { Meta } from '../../ebnf/ast/types.ts'
+ * @import { Byte } from '../../ebnf/byte/types.ts'
+ * @import { Accumulator } from '../../types/list/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Bytes, ObjectType } from '../types.ts'
+ * @import { Envelope } from './types.ts'
+ */
+
+import { assertNotNullish } from '../../asserts/module.f.mjs'
+import { byteParser, isByte, not, symbols } from '../../ebnf/byte/module.f.mjs'
+import { range, repeatFrom1, set } from '../../ebnf/module.f.mjs'
+import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { concat, drop, take, toArray, tryFold } from '../../types/list/module.f.mjs'
+
+const { isSafeInteger } = Number
+
+/** The four types, as the envelope spells them. */
+export const objectTypes = /** @type {const} */ (['blob', 'tree', 'commit', 'tag'])
+
+/**
+ * The type as one word up to the space, and not a variant of the four:
+ * `tree` and `tag` share a first byte, so the variant is not LL(1).
+ * `literals` in `../../ebnf` would read the four as a prefix tree, at the
+ * cost of a node nested down the word's branches; the word is read the way
+ * the header block reads a key instead, so its node is flat, and the reader
+ * chooses among the four after the parse.
+ */
+const word = repeatFrom1(not(set(' ')))
+
+const size = repeatFrom1(range('09'))
+
+/**
+ * The envelope rule, up to and including the NUL and with no `eof`: a
+ * match stops at the NUL and reports the index after it, which is where
+ * the payload begins.
+ */
+export const envelope = /** @type {const} */ ([word, ' ', size, '\0'])
+
+const parse = byteParser(envelope)
+
+/**
+ * How much of an object the parser is handed. `commit`, SP, sixteen
+ * digits — `2 ** 53` has sixteen — and NUL are 24 bytes; an envelope the
+ * prefix does not hold is refused, since no object it could describe
+ * exists.
+ */
+const prefixLength = /** @type {const} */ (32)
+
+/**
+ * Counting a list of bytes: one more per item, and the fold stops at an
+ * item that is no byte. `Bytes` is a list of numbers, and a number that is
+ * no byte is a caller's mistake the format could not carry, so it is
+ * refused rather than read or written as a plausible object.
+ *
+ * @type {Accumulator<number, number, number>}
+ */
+const byteCount = {
+    init: 0,
+    update: (b, n) => isByte(b) ? n + 1 : null,
+    end: n => n,
+}
+
+/**
+ * The length of a list of bytes, walked once and never held as an array,
+ * so a payload as long as a list can be is counted as it is; `null` where
+ * an item is no byte.
+ *
+ * @type {(bytes: Bytes) => Nullable<number>}
+ */
+const byteLength = tryFold(byteCount)
+
+/**
+ * The length of a list a caller means as bytes.
+ *
+ * @throws If an item is not a byte.
+ *
+ * @type {(bytes: Bytes) => number}
+ */
+const length = bytes => assertNotNullish(byteLength(bytes), 'not bytes')
+
+/** @type {(leaves: readonly Meta<Byte>[]) => readonly number[]} */
+const symbolsOf = leaves => leaves.map(({ symbol }) => symbol)
+
+/** @type {(s: string) => readonly number[]} */
+const ascii = s => toArray(stringToCodePointList(s))
+
+/**
+ * The type a word names, or `null`: the four are ASCII, so the word is
+ * compared as the text it spells.
+ *
+ * @type {(w: readonly number[]) => Nullable<ObjectType>}
+ */
+const typeOf = w => {
+    const s = codePointListToString(w)
+    return objectTypes.find(t => t === s) ?? null
+}
+
+/**
+ * The size a digit string spells, or `null` where the spelling is not the
+ * canonical decimal Git requires — a leading zero ahead of another digit,
+ * `010`, is refused by Git's own reader — or is not a safe integer, since
+ * no object that long exists and its length could not be compared.
+ *
+ * @type {(digits: readonly number[]) => Nullable<number>}
+ */
+const decimal = digits => {
+    const n = digits.reduce((n, d) => n * 10 + d - 0x30, 0)
+    return (digits.length === 1 || digits[0] !== 0x30) && isSafeInteger(n) ? n : null
+}
+
+/**
+ * Reads an object past its envelope, or refuses it: an envelope the prefix
+ * does not hold, a type that is not one of the four, a size that is not
+ * canonical decimal or not a safe integer, or a payload that is not as
+ * long as the size claims. The payload is the input after the NUL, sliced
+ * and not parsed: walked once to count it, and handed back as the list it
+ * is, never held as an array, so an object as long as a list can be is
+ * read as it is.
+ *
+ * @throws If an item of the input is not a byte, in the envelope or after
+ * it: the input is a boundary's, and a number that is no byte is the
+ * boundary's mistake, as `symbols` treats it.
+ *
+ * @type {(input: Bytes) => Nullable<Envelope>}
+ */
+export const tryRead = input => {
+    const r = parse(symbols(take(prefixLength)(input)))
+    if (r[0] === 'error') { return null }
+    const [[w, , digits], end] = r[1]
+    const type = typeOf(symbolsOf(w))
+    const size = decimal(symbolsOf(digits))
+    const payload = drop(end)(input)
+    return type !== null && size !== null && length(payload) === size
+        ? { type, payload }
+        : null
+}
+
+/**
+ * An object's bytes: the envelope, then the payload. What Git hashes for
+ * the object's id, and what it stores inflated. The payload is counted,
+ * not held: the result is the envelope's bytes ahead of the list given.
+ *
+ * @throws If an item of the payload is not a byte.
+ *
+ * @type {(type: ObjectType, payload: Bytes) => Bytes}
+ */
+export const write = (type, payload) =>
+    concat(ascii(`${type} ${length(payload)}\0`))(payload)
