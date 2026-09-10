@@ -374,8 +374,9 @@ approximated:
 
 ### Tasks
 
-- [ ] `fjs/ebnf/byte/`: `byte`, `not`, `bytes`, `symbols`, alphabet
-      validation, `byteParser`; proof.
+- [x] `fjs/ebnf/byte/`: `byte`, `not`, `bytes`, `symbols`, alphabet
+      validation, `byteParser`; proof — shipped as
+      [`fjs/ebnf/byte/`](../fjs/ebnf/byte/README.md).
 - [ ] `fjs/git/object/`: the envelope grammar, and the reader that slices
       the payload after the NUL and checks the size.
 - [ ] `fjs/git/header/`: the header block, shared by commit and tag.
