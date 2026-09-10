@@ -1,58 +1,74 @@
 /**
- * Implementation-private types for the DJS parser.
+ * Implementation-private types for the DJS parser: the token stream the
+ * grammar reads, the positions a reader inspects, and the state of the
+ * resolution. The nodes the rewrite set builds are public, in
+ * `./types.ts`, since the set is.
  *
  * @module
  */
 
-import type { Ast, Meta } from '../../bnf/matcher/types.ts'
+import type { Meta, Unmapped } from '../../ebnf/ast/types.ts'
 import type { TokenMetadata } from '../../js/tokenizer/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
-import type { CodePoint } from '../../text/utf16/types.ts'
+import type { Result } from '../../types/result/types.ts'
 import type { AstConst, AstModuleRef } from '../ast/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
-import type { ParseError } from './types.ts'
+import type { Container, Node, Out, ParseError } from './types.ts'
 
 /**
- * The ordinary token stream a BNF parser layer consumes, with the tokenizer's
- * one physical end-of-input token split off.
+ * The ordinary token stream the grammar reads, with the tokenizer's one
+ * physical end-of-input token split off.
  */
 export type _TokenStream = {
     readonly tokens: readonly DjsTokenWithMetadata[]
     readonly eofMetadata: TokenMetadata
 }
 
-/** A node of the matched module's AST, its leaves carrying the tokens. */
-export type _Node = Ast<Meta<DjsTokenWithMetadata, CodePoint>>
+/** A position a reader inspects: a symbol of either alphabet, or a node the machine built. */
+export type _Leaf = Meta<DjsTokenWithMetadata | Out> | readonly unknown[]
 
 /**
- * A fold in progress: the names bound so far, the module specifiers and the
- * body collected so far, and the first error if one has been met.
- *
- * The error rides in the state rather than wrapping every step in a `Result`,
- * so a step reads as one expression instead of a nested match. Once set it is
- * never replaced, which is what makes the reported error the *first* one.
+ * A position holding an optional list, `[ items ]`: no round, or one
+ * holding the list's node — which its mapping replaced by a symbol.
  */
-export type _FoldState = {
-    readonly refs: OrderedMap<AstModuleRef>
-    readonly modules: readonly string[]
-    readonly consts: readonly AstConst[]
-    readonly error: ParseError | null
-}
+export type _OptionalList = Unmapped<readonly [] | readonly [_Leaf]>
 
 /**
- * A frame of `foldValue`'s explicit stack: the container being built, the
- * element nodes still to read, and what has been built so far.
- *
- * `done` is a `List` rather than an array because a frame gains one element at a
- * time: appending to an array per element would copy the whole prefix each time,
- * which is what makes the obvious spelling quadratic in an array's length.
+ * The node of a list rule, `item t [ ',' t [ items ] ]`, typed by shape as
+ * `Unmapped` describes: the item, its trivia, and optionally the comma, its
+ * trivia and the rest of the list. One reader serves both lists.
  */
-export type _FoldFrame = {
-    readonly items: readonly _Node[]
+export type _ListNode = readonly [
+    _Leaf,
+    unknown,
+    Unmapped<readonly [] | readonly [Unmapped<readonly [unknown, unknown, _OptionalList]>]>,
+]
+
+/** The names bound so far, each to the reference that names it. */
+export type _Env = OrderedMap<AstModuleRef>
+
+/**
+ * An object being closed: its properties so far, beside the resolved values
+ * of all its members, which the step reads by index.
+ */
+export type _Properties = readonly [properties: OrderedMap<AstConst>, done: readonly AstConst[]]
+
+/**
+ * A container being built: `container[1][index]` is being evaluated, and
+ * `done` holds the values of the items before it — a list, since appending
+ * to an array per item would copy the whole prefix each time.
+ */
+export type _Frame = {
+    readonly container: Container
     readonly index: number
-    readonly array: List<AstConst>
-    readonly object: OrderedMap<AstConst>
-    readonly keys: readonly(readonly[string, boolean])[]
-    readonly isArray: boolean
+    readonly done: List<AstConst>
 }
+
+/** The containers suspended around the node being evaluated, innermost on top. */
+export type _Stack = { readonly top: _Frame, readonly rest: _Stack } | null
+
+/** What to do next: evaluate a node, or hand a value — or the error — to the frame on top. */
+export type _Step = readonly ['enter', Node] | Result<AstConst, ParseError>
+
+export type _State = readonly [stack: _Stack, step: _Step]

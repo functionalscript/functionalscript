@@ -3,8 +3,8 @@
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Equal } from '../../../types/ts/types.ts'
- * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
- * @import { Items } from './types.ts'
+ * @import { DjsToken, DjsTokenWithMetadata } from '../../tokenizer/types.ts'
+ * @import { Items, _FramingKeyword, _OrdinaryTokenName } from './types.ts'
  */
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
@@ -13,10 +13,10 @@ import { repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
-import { _ordinaryTokenNames as names } from '../module.f.mjs'
 import {
-    array, constStatement, djsModule, exportStatement, identifier, importStatement, items, key, member,
-    object, primitive, sym, symbolOf, trivia, value,
+    _framingKeywords, _ordinaryTokenNames as names, _tokenKindNames, array, constStatement, djsModule,
+    exportStatement, identifier, importStatement, items, key, member, object, primitive, sym, symbolOf, trivia,
+    value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
@@ -68,10 +68,27 @@ export const proof = {
         parser(/** @type {Rule} */ (constStatement))
         parser(/** @type {Rule} */ (exportStatement))
     },
+    // The alphabet agrees with its type-level description in `./types.ts`.
+    // Compile-time checks; the function body only has to exist so the
+    // typedefs have a local scope.
+    consistency: () => {
+        /** @typedef {Assert<Equal<(typeof _tokenKindNames)[number], Exclude<DjsToken['kind'], 'eof'>>>} _KindsAreComplete */
+        /** @typedef {Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>} _KeywordsAreComplete */
+        /** @typedef {Assert<Equal<(typeof names)[number], _OrdinaryTokenName>>} _AlphabetIsComplete */
+        // `eof` is not a member of the alphabet, so a second end marker cannot
+        // be encoded rather than merely going unused — and `encode` would
+        // reject the name outright. Checked at the type level because that is
+        // where it is decidable: `includes('eof')` does not even compile
+        // against this element type.
+        /** @typedef {Assert<Equal<Extract<_OrdinaryTokenName, 'eof'>, never>>} _EofIsNotAName */
+    },
     // One symbol per name, all distinct, all above every code point; a
     // framing keyword is not an identifier's symbol, and the token rides
-    // along as metadata.
+    // along as metadata. `_AlphabetIsComplete` pins membership, but a
+    // repeated name widens to the same union and is invisible to it, and
+    // the encoding has to be injective over the list.
     alphabet: () => {
+        assertEq(new Set(names).size, names.length)
         const all = names.map(sym)
         assertEq(new Set(all).size, names.length)
         assertEq(all.every(s => s > 0x10FFFF), true)
@@ -112,10 +129,12 @@ export const proof = {
         assertStructurallySame(read('export default "abc;'), ['error', 'error'])
     },
     // `items` keeps the item's type: a tuple written at the call stays the
-    // tuple, which is what its `const` type parameter is for. Compile-time.
+    // tuple, which is what its `const` type parameter is for — and the list
+    // it builds is LL(1).
     itemsInference: () => {
         const list = items([42, 43])
         /** @typedef {Assert<Equal<typeof list, Items<readonly [42, 43]>>>} _ItemsKeepTheTuple */
+        parser(list)
     },
     // Statements end with `;`, so a repetition of any statement is LL(1)
     // too — the order is the module's rule, not lookahead's.

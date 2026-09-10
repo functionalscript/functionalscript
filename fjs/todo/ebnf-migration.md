@@ -274,8 +274,8 @@ there. Nothing here orders the two plans either way. In dependency order:
    its mapping, and a parser resumable at an index), and on the metadata
    channel of [`ebnf/ast/`](../ebnf/ast/README.md) for the positions it
    reports. Not on `unicode/` or `terminal/`: its complements are spelled
-   with `remove` over the full range, as
-   [ebnf-ll1-port](../djs/todo/ebnf-ll1-port.md) shows, so stage 3 does
+   with `remove` over the full range, as its grammar
+   [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs) shows, so stage 3 did
    not gate the port.
 3. `fjs/djs/parser` — the above plus `token_symbol/`.
 
@@ -293,8 +293,23 @@ tokenizer's `numError` poison branch, the whole-file
 `repeat0Plus(token)` (a greedy token against the token after it, which
 vanishes with the entry a single token), and in the parser the trailing
 comma and the module's final optional `;`. The table, the classification
-and what each needs are in
-[ebnf-ll1-port](../djs/todo/ebnf-ll1-port.md), stage 6's own file.
+and what each needed, measured before the port and kept here as its record
+(the port's own issue file closed with the port):
+
+| grammar | rule | refusal | class |
+|---|---|---|---|
+| tokenizer | `multilineContent`: `end: ['*', '/']` beside `more: [char, …]` | first/first on `*` | grammar: left-factor the `*` |
+| tokenizer | the `operator` variant, 56 literals | first/first on `=`, and on every shared prefix behind it | grammar: a prefix tree, built from the list — `literals` in `fjs/ebnf` |
+| tokenizer | the `token` variant: `comment`, `['/', { oneline, multiline }]`, beside `operator`, which holds `/` and `/=` | first/first on `/` | grammar: left-factor the `/`, the shape of the `*` above. Not removed by the prefix tree — checked with the operator's first set kept whole — and masking a rule by replacement erased `/` from that set, which is how the first count missed it |
+| tokenizer | `number`: `digits0`, then the `option({ bigint, frac })` | first/follow on the digits, and on `e`, `E`, `n` | the `numError` poison: `[idChar]` follows every optional part of a number, and `idChar` holds digits and letters. The number boundary is decided one layer up, over the token stream |
+| tokenizer | `jsGrammar = repeat0Plus(token)`: the `idChar` repeat of `id`, the body of a `//` comment, its `option(newLine)`, the number's `{ numError: [idChar], ok: none }` itself, its `fracPart` on `.`, the exponent's sign option on `+` and `-`, and `multilineContent` | first/follow on the next token's first set | inherent to a whole-file grammar: a greedy token against the token after it. With the entry a single `token` the seven vanish — verified on the bridged set and on a two-rule grammar. The poison is the row above seen from outside the number: nullable, so its follow set is the next token's |
+| parser | `statementEnd`: `[trivia, ';', …]` beside `[lineTrivia, 'nl', …]` | first/first on the trivia symbols | trivia leads both branches. Trivia follows every token instead, and `;` ends every statement — the newline terminator is gone, the design [parser-serializer-restructure](../../todo/parser-serializer-restructure.md)'s stage 5 decided |
+| parser | `delimited`: `repeat0Plus([',', trivia, element, trivia])` then `option([',', trivia])`, once for arrays and once for objects | first/follow on `,` | the trailing comma, which rested on a failed round rewinding; spelled right-recursively, `item t [ ',' t [ items ] ]` |
+| parser | the module's final `{ semicolon: [trivia, ';'], none: [] }`, then `trivia` | first/follow on the trivia symbols | trivia leads the option and follows it; gone with the `;` after every statement |
+
+The measurement: the classical `RuleSet` bridged to the EBNF form, every
+rule's closure run through `parserRuleSet`, each conflict masked once found
+so the next surfaced.
 
 So the djs port is a grammar rewrite plus a backend swap, not a swap alone,
 and the tokenizer also needs a token layer: a parser resumable at an index
@@ -404,13 +419,19 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    spellings, same `RuleSet` where the constructors are shape-preserving, same
    AST otherwise, with the differences ebnf-front-end predicts pinned
    explicitly (`option`, `repeatFrom(1)`, `join`).
-6. **Layered LL(1) and the djs port.** The token layer — the resumable
-   parser, shipped — and the prefix-tree helper; the eight
-   conflicts above resolved in the grammars; `djs/tokenizer` then
-   `djs/parser` on `ebnf/ll1/`, as
-   [ebnf-ll1-port](../djs/todo/ebnf-ll1-port.md) lays out. The first grammar to leave
-   `descent` is the first evidence the backend decision holds; if it does not,
-   this stage is where the plan is revised, not forced.
+6. **Layered LL(1) and the djs port.** Done. The token layer — the
+   resumable parser — and the prefix-tree helper `literals`; the eight
+   conflicts above resolved in the grammars
+   [`fjs/ebnf/lib/js`](../ebnf/lib/js/module.f.mjs) and
+   [`fjs/djs/parser/grammar`](../djs/parser/grammar/module.f.mjs);
+   `djs/tokenizer` reading the one-token grammar through the resumed
+   parser with the trivia merge and the number boundary as a fold above
+   it, and `djs/parser` reading the module grammar through a rewrite set —
+   a node per value, a record per statement — with the names resolved
+   above, on the pattern of [`media/datajs`](../media/datajs/parser/module.f.mjs).
+   `bnf/descent` has no consumer outside `fjs/bnf`. The parser port carried
+   the breaking change the terminator row above names: `;` ends every
+   statement and a newline does not, and `djs/serializer` writes it.
 
    The djs tokenizer's public exports that exposed the descent backend —
    `jsGrammar`, `jsMatcher`, which built a `descentParserRuleSet`, and
@@ -456,10 +477,9 @@ consumer port"), never by number, so a renumbering here cannot strand them.
       until [unicode-rules](../bnf/todo/unicode-rules.md)'s repoint.
 - [ ] Stage 5: `ebnf/lib/json` and `ebnf/lib/datajs` with proofs; the
       cross-front-end comparison proof group; bnf-grammar-single-owner moved.
-- [ ] Stage 6: the token layer (done: the resumable parser); the djs
-      tokenizer grammar made LL(1) and the tokenizer ported (done); the
-      parser grammar made LL(1) and the parser ported; the descent backend
-      without consumers.
+- [x] Stage 6: the token layer; the djs tokenizer grammar made LL(1) and
+      the tokenizer ported; the parser grammar made LL(1) and the parser
+      ported; the descent backend without consumers.
 - [ ] Stage 7: delete `fjs/bnf/`; move the remaining issues; split the README;
       repoint every inbound link and reference from outside `fjs/bnf/`.
       `**BREAKING CHANGES:**`.

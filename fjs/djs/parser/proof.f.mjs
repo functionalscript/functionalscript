@@ -1,20 +1,9 @@
 /**
- * @import { Assert } from '../../asserts/types.ts'
- * @import { Rule } from '../../ebnf/types.ts'
- * @import { Equal } from '../../types/ts/types.ts'
- * @import { DjsToken, DjsTokenWithMetadata } from '../tokenizer/types.ts'
- * @import { _FramingKeyword, _OrdinaryTokenName } from './types.ts'
+ * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  */
 
-import {
-    parseFromTokens,
-    _framingKeywords,
-    _ordinaryTokenNames,
-    _tokenKindNames,
-} from './module.f.mjs'
+import { parseFromTokens } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
-import { parser } from '../../ebnf/ll1/module.f.mjs'
-import { djsModule as ebnfModule, symbolOf } from './grammar/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
@@ -48,282 +37,13 @@ const repeated = element => count => `${`${element},`.repeat(count - 1)}${elemen
 const numberedMembers = count =>
     Array.from({ length: count }, (_, i) => `k${i}:${i}`).join(',')
 
-/** @type {(kind: 'ws' | 'nl' | 'null' | 'true' | 'false' | 'undefined' | 'eof', line: number) => DjsTokenWithMetadata} */
+/** @type {(kind: 'ws' | 'nl' | 'null' | 'true' | 'false' | 'undefined' | 'eof' | ';', line: number) => DjsTokenWithMetadata} */
 const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 } })
 
 /** @type {(value: string, line: number) => DjsTokenWithMetadata} */
 const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 } })
 
-// -- the EBNF module grammar reads the same documents -------------------------
-
-const parseEbnfModule = parser(/** @type {Rule} */ (ebnfModule))
-
-/**
- * The EBNF grammar's reading of a text's tokens: `ok`, or `error` at a
- * token — `terminator` where that token is the next statement's keyword or
- * the end of input, which is where the `;` the EBNF grammar requires and
- * the classical one does not would stand, a newline being trivia the
- * grammar reads past.
- *
- * @type {(s: string) => 'ok' | 'error' | 'terminator'}
- */
-const ebnfResult = s => {
-    const all = tokenizeString(s)
-    const last = all[all.length - 1]
-    // the final `eof` is split off; a lexical failure ends the stream at
-    // its error token instead, which no rule accepts
-    const tokens = last !== undefined && last.token.kind === 'eof' ? all.slice(0, -1) : all
-    if (tokens.some(({ token }) => token.kind === 'eof')) { return 'error' }
-    const result = parseEbnfModule(tokens.map(symbolOf))
-    if (result[0] === 'ok') { return 'ok' }
-    const at = tokens[result[1]]
-    if (at === undefined) { return 'terminator' }
-    const { token } = at
-    return token.kind === 'id' && (token.value === 'import' || token.value === 'const' || token.value === 'export')
-        ? 'terminator'
-        : 'error'
-}
-
-/**
- * The classical parser's reading of a text: `ok`, a `grammar` failure —
- * a token it cannot use, or the end of input — or a `fold` failure, one
- * its grammar accepted and its fold refused: a name unbound or bound
- * twice, a `__proto__` key.
- *
- * @type {(s: string) => 'ok' | 'grammar' | 'fold'}
- */
-const classicalResult = s => {
-    const result = parseFromTokens(tokenizeString(s))
-    if (result[0] === 'ok') { return 'ok' }
-    const { message } = result[1]
-    return message === 'unexpected token' || message === 'unexpected end' || message === 'missing end-of-input token'
-        ? 'grammar'
-        : 'fold'
-}
-
-/**
- * Every literal input the proofs below hand to `parseFromTokens` — the
- * parser's corpus, which the comparison runs over whole. A second list
- * rather than the proofs' own literals, which sit inside their closures;
- * it retires with the comparison when the port lands, and until then a
- * case added below is added here.
- *
- * @type {readonly string[]}
- */
-const inputs = [
-    "export default missing",
-    "const a = \"abc",
-    "const a = /* x",
-    "const export = 1\nexport default export",
-    "const from = 1\nexport default from",
-    "const import = 1\nexport default import",
-    "export default { from: 2, default: 3 }",
-    "export default { export: 1 }",
-    "export default null",
-    "export default true",
-    "export default false",
-    "export default undefined",
-    "export default 0.1",
-    "export default 1.1e+2",
-    "export default \"abc\"",
-    "export default []",
-    "export default [1]",
-    "export default [[]]",
-    "export default [0,[1,[2,[]]],3]",
-    "export default {}",
-    "export default [{}]",
-    "export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined}",
-    "export default {\"a\":{\"b\":{\"c\":[\"d\"]}}}",
-    "export default {a: 1}",
-    "export default 1234567890n",
-    "export default [1234567890n]",
-    "export default [1,]",
-    "export default {\"a\":1,}",
-    "export default {[\"a\"]:1}",
-    "export default {a:1,\"b\":2,[\"c\"]:3,}",
-    "export default { [ /* c */ \n // c \n \"a\" /* c */ \n // c \n ] : 1 }",
-    "export default {[\"__proto__\"]:{\"a\":42}}",
-    "export default {[1]:2}",
-    "export default {[",
-    "export default {[\"a\"}",
-    "export default {[\"a\"",
-    "export default {[\"a\"]}",
-    "export default {__proto__:1}",
-    "export default {\"__proto__\":1}",
-    "export default {\"a\":1,__proto__:2}",
-    "export default {\"a\":1,\"__proto__\":2}",
-    "export default",
-    "export default \"123",
-    "export default \"\t\"",
-    "export default [,]",
-    "export default [1 2]",
-    "export default [1,,2]",
-    "export default []]",
-    "export default [\"a\"",
-    "export default [,1]",
-    "export default [:]",
-    "export default ]",
-    "export default {,}",
-    "export default {1:2}",
-    "export default {\"1\"2}",
-    "export default {\"1\"::2}",
-    "export default {\"1\":2,,\"3\":4",
-    "export default {}}",
-    "export default {\"1\":2",
-    "export default {,\"1\":2}",
-    "export default }",
-    "export default [{]}",
-    "export default {[}]",
-    "export default 10-5",
-    "export",
-    "const",
-    "const x",
-    "const x 5",
-    "import",
-    "import 5",
-    "import a",
-    "import a from",
-    "export default [",
-    "export default {",
-    "export default {\"a\"",
-    "export default {\"a\":",
-    "export default {\"a\":1 2}",
-    "export default {\"a\":1,",
-    " export default [ 0 , 1 , 2 ] ",
-    " export default { \"a\" : 0 , \"b\" : 1 } ",
-    "\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n",
-    "\rexport\rdefault\r{\r\"a\"\r:\r0\r,\r\"b\"\r:\r1\r}\r",
-    "null",
-    "1",
-    "[]",
-    "{\"valid\":\"json\"}",
-    "a",
-    "",
-    "const a = 1\n",
-    "import a from \"a.f.js\" \n const b = 1 \n export default [a,b]",
-    "const b = 1 \n import a from \"a.f.js\" \n export default [a,b]",
-    "export default 1 \n const a = 2",
-    "module=null",
-    "export default a",
-    "export null",
-    "export default = null",
-    "const a = 1 \n const b = 2 \n export default 3",
-    "const a = 1 \n const b = 2 \n export default b",
-    "const a = 1 \n const b = 2 \n export default [b,a,b]",
-    "const a = 1 \n const b = 2 \n export default {\"1st\":b,\"2nd\":a,\"3rd\":b}",
-    "const a = 1 const b = 2 export default 3",
-    "const = 1 \n const b = 2 \n export default 3",
-    "const a = 1 \n const a = 2 \n export default 3",
-    "const a = 1",
-    "import a from \"test/test.f.mjs\" \n export default a",
-    "import a from \"first/test.f.mjs\" \n import b from \"second/test.f.mjs\" \n export default [b, a, b]",
-    "import a from \"test/test.f.mjs\" \n const b = null \n export default [b, a, b]",
-    "import a from \"test/test.f.mjs\" export default a",
-    "import a from \n export default a",
-    "import a \"test/test.f.mjs\" \n export default a",
-    "import from \"test/test.f.mjs\" \n export default a",
-    "import a from \"first/test.f.mjs\" \n import a from \"second/test.f.mjs\" \n export default [b, a, b]",
-    "import a from \"test/test.f.mjs\" \n const a = null \n export default null",
-    "export //comment \n default /* comment */ null //comment",
-    "export default {\"a\":1}",
-    "export default {a:1,a:2}",
-    "export default {[\"__proto__\"]: 1}",
-    "const a = 1\nexport default a",
-    "const a = 1\nconst b = 2\nexport default [a,b]",
-    "const a = a\nexport default a",
-    "import x from \"m\"\nexport default x",
-    "import x from \"m\"\nconst a = 1\nexport default a",
-    "import x from \"m\"\nimport y from \"n\"\nexport default [x,y]",
-    "// c\nexport default 1",
-    "/* c */ export default 1",
-    "\n\n export default 1 \n\n",
-    "const a = 1;\nexport default a",
-    "export default 1;",
-    "const a = 1;export default a",
-    "import x from \"m\";const a = [x];export default [x,a]",
-    "const a = 1 ; // c\nexport default a ;",
-    "export default 1\n;",
-    "const a = 1\n;\nexport default a",
-    "const $0=[1];export default [$0,$0];",
-    "42",
-    "[1,2]",
-    "{\"a\":1}",
-    "const a = 1 export default a",
-    "export default 1 2",
-    "export default {a}",
-    "export default {:1}",
-    "import x from y\nexport default x",
-    "export x from \"m\"\nexport default 1",
-    "const = 1\nexport default 1",
-    "export default 1;;",
-    "const a = 1;;\nexport default a",
-    "const a = 1;\n;export default a",
-    ";export default 1",
-    "export default ;",
-    "export default 1\nconst b = 2",
-    "import x from \"m\"",
-    "const a = 1\nconst a = 2\nexport default a",
-    "import x from \"m\"\nimport x from \"n\"\nexport default x",
-    "import x from \"m\"\nconst x = 1\nexport default x",
-    "export default zzz",
-    "const a = zzz\nexport default a",
-    "export default [zzz]",
-    "export default {a: zzz}",
-    "export default {__proto__: 1}",
-    "export default {\"__proto__\": 1}",
-    "import x from \"m\"\nimport x from \"n\"\nimport y from \"o\"\nexport default y",
-    "const a = 1\nconst a = 2\nconst b = 3\nexport default b",
-    "const a = missing x",
-    "const a = missing",
-    "export default missing 1",
-    "const a = 1\nconst a = 2 x",
-]
-
 export const proof = {
-    // The EBNF module grammar in `./grammar`, over the same token symbols,
-    // reads the corpus as this parser does, but for the one difference it
-    // declares: `;` ends every statement. What this grammar accepts, the
-    // EBNF grammar accepts, or refuses at a newline or the end of input
-    // where the `;` belongs; what this grammar refuses, the EBNF grammar
-    // refuses; what this grammar accepts and the fold above it refuses, the
-    // EBNF grammar accepts, or refuses at the terminator, since the fold is
-    // not the grammar's.
-    ebnf: {
-        corpus: () => {
-            const outcomes = inputs.map(s => {
-                const classical = classicalResult(s)
-                const ebnf = ebnfResult(s)
-                switch (classical) {
-                    case 'ok':
-                    case 'fold': { assert(ebnf === 'ok' || ebnf === 'terminator', JSON.stringify([s, classical, ebnf])); break }
-                    // a refusal is a refusal wherever it lands: a document
-                    // cut short fails at the end of input in both grammars
-                    case 'grammar': { assert(ebnf !== 'ok', s); break }
-                }
-                return ebnf
-            })
-            // every class is populated, so the comparison compares something:
-            // documents both read, documents only the `;` separates, and
-            // documents both refuse
-            assert(outcomes.includes('ok') && outcomes.includes('terminator') && outcomes.includes('error'))
-        },
-    },
-    /**
-     * The parser alphabet in `./module.f.mjs` agrees with its type-level
-     * description in `./types.ts`. These are compile-time checks; the function
-     * body only has to exist so the typedefs have a local scope.
-     */
-    consistency: () => {
-        /** @typedef {Assert<Equal<(typeof _tokenKindNames)[number], Exclude<DjsToken['kind'], 'eof'>>>} _KindsAreComplete */
-        /** @typedef {Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>} _KeywordsAreComplete */
-        /** @typedef {Assert<Equal<(typeof _ordinaryTokenNames)[number], _OrdinaryTokenName>>} _AlphabetIsComplete */
-        // `eof` is not a member of the alphabet, so a second end marker cannot
-        // be encoded rather than merely going unused — and `encode` would
-        // reject the name outright. Checked at the type level because that is
-        // where it is decidable: `includes('eof')` does not even compile
-        // against this element type.
-        /** @typedef {Assert<Equal<Extract<_OrdinaryTokenName, 'eof'>, never>>} _EofIsNotAName */
-    },
     // The corpus that proved parity against the hand-written state machine,
     // kept as fixed expectations now that the state machine is gone.
     //
@@ -334,56 +54,56 @@ export const proof = {
     parseCorpus: [
         () => {
             for (const [source, expected] of [
-                ["export default null", "[[],[null]]"],
-                ["export default true", "[[],[true]]"],
-                ["export default false", "[[],[false]]"],
-                ["export default undefined", "[[],[undefined]]"],
-                ["export default 0.1", "[[],[0.1]]"],
-                ["export default 1.1e+2", "[[],[110]]"],
-                ["export default \"abc\"", "[[],[\"abc\"]]"],
-                ["export default 1234567890n", "[[],[1234567890n]]"],
-                ["export default []", "[[],[[\"array\",[]]]]"],
-                ["export default [1]", "[[],[[\"array\",[1]]]]"],
-                ["export default [1,]", "[[],[[\"array\",[1]]]]"],
-                ["export default [[]]", "[[],[[\"array\",[[\"array\",[]]]]]]"],
-                ["export default [0,[1,[2,[]]],3]", "[[],[[\"array\",[0,[\"array\",[1,[\"array\",[2,[\"array\",[]]]]]],3]]]]"],
-                ["export default [1234567890n]", "[[],[[\"array\",[1234567890n]]]]"],
-                ["export default {}", "[[],[{}]]"],
-                ["export default {\"a\":1}", "[[],[{\"a\":1}]]"],
-                ["export default {a: 1}", "[[],[{\"a\":1}]]"],
-                ["export default {\"a\":1,}", "[[],[{\"a\":1}]]"],
-                ["export default {[\"a\"]:1}", "[[],[{\"a\":1}]]"],
-                ["export default {a:1,\"b\":2,[\"c\"]:3,}", "[[],[{\"a\":1,\"b\":2,\"c\":3}]]"],
-                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}}", "[[],[{\"a\":{\"b\":{\"c\":[\"array\",[\"d\"]]}}}]]"],
-                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined}", "[[],[{\"a\":true,\"b\":false,\"c\":null,\"d\":undefined}]]"],
-                ["export default {a:1,a:2}", "[[],[{\"a\":2}]]"],
-                ["export default {[\"__proto__\"]: 1}", "[[],[{\"__proto__\":1}]]"],
-                ["const a = 1\nexport default a", "[[],[1,[\"cref\",0]]]"],
-                ["const a = 1\nconst b = 2\nexport default [a,b]", "[[],[1,2,[\"array\",[[\"cref\",0],[\"cref\",1]]]]]"],
-                ["const a = a\nexport default a", "[[],[[\"cref\",0],[\"cref\",0]]]"],
-                ["import x from \"m\"\nexport default x", "[[\"m\"],[[\"aref\",0]]]"],
-                ["import x from \"m\"\nconst a = 1\nexport default a", "[[\"m\"],[1,[\"cref\",0]]]"],
-                ["import x from \"m\"\nimport y from \"n\"\nexport default [x,y]", "[[\"m\",\"n\"],[[\"array\",[[\"aref\",0],[\"aref\",1]]]]]"],
-                ["// c\nexport default 1", "[[],[1]]"],
-                ["/* c */ export default 1", "[[],[1]]"],
-                ["\n\n export default 1 \n\n", "[[],[1]]"],
-                ["const export = 1\nexport default export", "[[],[1,[\"cref\",0]]]"],
-                ["export default { from: 2, default: 3 }", "[[],[{\"default\":3,\"from\":2}]]"],
-                // `;` is a statement terminator alongside the newline — the
-                // acceptance DataJS's inclusion requires (spec/README.md,
-                // module structure). The last case is a normalized DataJS
-                // document verbatim: one line, `$`-names, every statement
-                // `;`-terminated.
-                ["const a = 1;\nexport default a", "[[],[1,[\"cref\",0]]]"],
+                ["export default null;", "[[],[null]]"],
+                ["export default true;", "[[],[true]]"],
+                ["export default false;", "[[],[false]]"],
+                ["export default undefined;", "[[],[undefined]]"],
+                ["export default 0.1;", "[[],[0.1]]"],
+                ["export default 1.1e+2;", "[[],[110]]"],
+                ["export default \"abc\";", "[[],[\"abc\"]]"],
+                ["export default 1234567890n;", "[[],[1234567890n]]"],
+                ["export default [];", "[[],[[\"array\",[]]]]"],
+                ["export default [1];", "[[],[[\"array\",[1]]]]"],
+                ["export default [1,];", "[[],[[\"array\",[1]]]]"],
+                ["export default [[]];", "[[],[[\"array\",[[\"array\",[]]]]]]"],
+                ["export default [0,[1,[2,[]]],3];", "[[],[[\"array\",[0,[\"array\",[1,[\"array\",[2,[\"array\",[]]]]]],3]]]]"],
+                ["export default [1234567890n];", "[[],[[\"array\",[1234567890n]]]]"],
+                ["export default {};", "[[],[{}]]"],
+                ["export default {\"a\":1};", "[[],[{\"a\":1}]]"],
+                ["export default {a: 1};", "[[],[{\"a\":1}]]"],
+                ["export default {\"a\":1,};", "[[],[{\"a\":1}]]"],
+                ["export default {[\"a\"]:1};", "[[],[{\"a\":1}]]"],
+                ["export default {a:1,\"b\":2,[\"c\"]:3,};", "[[],[{\"a\":1,\"b\":2,\"c\":3}]]"],
+                ["export default {\"a\":{\"b\":{\"c\":[\"d\"]}}};", "[[],[{\"a\":{\"b\":{\"c\":[\"array\",[\"d\"]]}}}]]"],
+                ["export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined};", "[[],[{\"a\":true,\"b\":false,\"c\":null,\"d\":undefined}]]"],
+                ["export default {a:1,a:2};", "[[],[{\"a\":2}]]"],
+                ["export default {[\"__proto__\"]: 1};", "[[],[{\"__proto__\":1}]]"],
+                ["const a = 1;\nexport default a;", "[[],[1,[\"cref\",0]]]"],
+                ["const a = 1;\nconst b = 2;\nexport default [a,b];", "[[],[1,2,[\"array\",[[\"cref\",0],[\"cref\",1]]]]]"],
+                ["const a = a;\nexport default a;", "[[],[[\"cref\",0],[\"cref\",0]]]"],
+                ["import x from \"m\";\nexport default x;", "[[\"m\"],[[\"aref\",0]]]"],
+                ["import x from \"m\";\nconst a = 1;\nexport default a;", "[[\"m\"],[1,[\"cref\",0]]]"],
+                ["import x from \"m\";\nimport y from \"n\";\nexport default [x,y];", "[[\"m\",\"n\"],[[\"array\",[[\"aref\",0],[\"aref\",1]]]]]"],
+                ["// c\nexport default 1;", "[[],[1]]"],
+                ["/* c */ export default 1;", "[[],[1]]"],
+                ["\n\n export default 1; \n\n", "[[],[1]]"],
+                ["const export = 1;\nexport default export;", "[[],[1,[\"cref\",0]]]"],
+                ["export default { from: 2, default: 3 };", "[[],[{\"default\":3,\"from\":2}]]"],
+                // `;` ends every statement and a newline does not, as DataJS
+                // has it (spec/README.md, module structure); a `;` on its own
+                // line, or several statements on one, are the same module.
+                // The last case is a normalized DataJS document verbatim:
+                // one line, `$`-names, every statement `;`-terminated.
+                ["const a = 1;\nexport default a;", "[[],[1,[\"cref\",0]]]"],
                 ["export default 1;", "[[],[1]]"],
-                ["const a = 1;export default a", "[[],[1,[\"cref\",0]]]"],
-                ["import x from \"m\";const a = [x];export default [x,a]", "[[\"m\"],[[\"array\",[[\"aref\",0]]],[\"array\",[[\"aref\",0],[\"cref\",0]]]]]"],
+                ["const a = 1;export default a;", "[[],[1,[\"cref\",0]]]"],
+                ["import x from \"m\";const a = [x];export default [x,a];", "[[\"m\"],[[\"array\",[[\"aref\",0]]],[\"array\",[[\"aref\",0],[\"cref\",0]]]]]"],
                 ["const a = 1 ; // c\nexport default a ;", "[[],[1,[\"cref\",0]]]"],
-                // whitespace may precede the `;`, newlines included — DataJS
-                // whitespace is insignificant between any two tokens, so the
-                // value and its terminator may sit on different lines
+                // whitespace may precede the `;`, newlines included — a
+                // newline is trivia, so the value and its terminator may sit
+                // on different lines
                 ["export default 1\n;", "[[],[1]]"],
-                ["const a = 1\n;\nexport default a", "[[],[1,[\"cref\",0]]]"],
+                ["const a = 1\n;\nexport default a;", "[[],[1,[\"cref\",0]]]"],
                 ["const $0=[1];export default [$0,$0];", "[[],[[\"array\",[1]],[\"array\",[[\"cref\",0],[\"cref\",0]]]]]"],
             ]) {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
@@ -419,19 +139,30 @@ export const proof = {
                 [";export default 1", "unexpected token", [1, 1]],
                 ["export default ;", "unexpected token", [1, 16]],
                 ["export default 1\nconst b = 2", "unexpected token", [2, 1]],
+                // `;` ends every statement, and neither a newline nor the end
+                // of input does: a newline is trivia, read past, so a missing
+                // `;` is found at what came instead — the next statement's
+                // keyword, or the end of input, where the `eof` token is
                 ["import x from \"m\"", "unexpected end", [1, 18]],
                 ["const a = 1", "unexpected end", [1, 12]],
-                ["const a = 1\nconst a = 2\nexport default a", "duplicate id", [2, 7]],
-                ["import x from \"m\"\nimport x from \"n\"\nexport default x", "duplicate id", [2, 8]],
-                ["import x from \"m\"\nconst x = 1\nexport default x", "duplicate id", [2, 7]],
-                ["export default zzz", "const not found", [1, 16]],
-                ["const a = zzz\nexport default a", "const not found", [1, 11]],
-                ["export default [zzz]", "const not found", [1, 17]],
-                ["export default {a: zzz}", "const not found", [1, 20]],
-                ["export default {__proto__: 1}", "__proto__ requires the computed key form", [1, 17]],
-                ["export default {\"__proto__\": 1}", "__proto__ requires the computed key form", [1, 17]],
-                ["import x from \"m\"\nimport x from \"n\"\nimport y from \"o\"\nexport default y", "duplicate id", [2, 8]],
-                ["const a = 1\nconst a = 2\nconst b = 3\nexport default b", "duplicate id", [2, 7]],
+                ["export default 1", "unexpected end", [1, 17]],
+                ["export default 1\n", "unexpected end", [2, 1]],
+                ["export default 1 // c", "unexpected end", [1, 22]],
+                ["const a = 1\nexport default a;", "unexpected token", [2, 1]],
+                ["import x from \"m\"\nexport default x;", "unexpected token", [2, 1]],
+                ["import x from \"m\"\nconst a = x;\nexport default a;", "unexpected token", [2, 1]],
+                ["const a = 1;\nconst b = 2\nexport default b;", "unexpected token", [3, 1]],
+                ["const a = 1;\nconst a = 2;\nexport default a;", "duplicate id", [2, 7]],
+                ["import x from \"m\";\nimport x from \"n\";\nexport default x;", "duplicate id", [2, 8]],
+                ["import x from \"m\";\nconst x = 1;\nexport default x;", "duplicate id", [2, 7]],
+                ["export default zzz;", "const not found", [1, 16]],
+                ["const a = zzz;\nexport default a;", "const not found", [1, 11]],
+                ["export default [zzz];", "const not found", [1, 17]],
+                ["export default {a: zzz};", "const not found", [1, 20]],
+                ["export default {__proto__: 1};", "__proto__ requires the computed key form", [1, 17]],
+                ["export default {\"__proto__\": 1};", "__proto__ requires the computed key form", [1, 17]],
+                ["import x from \"m\";\nimport x from \"n\";\nimport y from \"o\";\nexport default y;", "duplicate id", [2, 8]],
+                ["const a = 1;\nconst a = 2;\nconst b = 3;\nexport default b;", "duplicate id", [2, 7]],
             ]
             for (const [source, message, position] of cases) {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
@@ -445,33 +176,30 @@ export const proof = {
             }
         },
     ],
-    // Wide and deep values, which cost the BNF path a stack frame each until
-    // both its traversals were made iterative.
-    //
-    // A repetition is only *flat* in the AST when `toData` recognizes the
-    // right-recursive shape, and nested inside `delimited`'s option scaffolding
-    // it does not — so 5,000 siblings are 5,000 levels of tree, and a recursive
-    // walk over them overflows exactly as deep nesting would. The state machine
-    // was fixed for its own version of this; see `containerStackCost`.
+    // Wide and deep values. A list is right-recursive, so 5,000 siblings
+    // are 5,000 levels of tree: the machine builds it on a heap stack, each
+    // list node's mapping prepends one item to what its tail returned, and
+    // the resolution walks the value over a stack of its own — no walk
+    // recurses. See `containerStackCost` for the wider case.
     stackSafety: [
         () => {
-            const source = `export default [${repeated('null')(5000)}]`
+            const source = `export default [${repeated('null')(5000)}];`
             const tokens = tokenizeString(source)
             assertEq(parseFromTokens(tokens)[0], 'ok')
         },
         () => {
-            const source = `export default [${repeated('{}')(5000)}]`
+            const source = `export default [${repeated('{}')(5000)}];`
             const tokens = tokenizeString(source)
             assertEq(parseFromTokens(tokens)[0], 'ok')
         },
         () => {
-            const source = `export default ${'['.repeat(5000)}${']'.repeat(5000)}`
+            const source = `export default ${'['.repeat(5000)}${']'.repeat(5000)};`
             const tokens = tokenizeString(source)
             assertEq(parseFromTokens(tokens)[0], 'ok')
         },
         () => {
             // wide objects walk the member list rather than the element list
-            const source = `export default {${numberedMembers(5000)}}`
+            const source = `export default {${numberedMembers(5000)}};`
             const tokens = tokenizeString(source)
             assertEq(parseFromTokens(tokens)[0], 'ok')
         },
@@ -479,15 +207,10 @@ export const proof = {
     // A syntax error is reported ahead of a semantic one, wherever each sits.
     //
     // The grammar matches the whole module before the fold runs, so a malformed
-    // suffix is found before any name is resolved. The parser this replaced
-    // streamed, so it met an unresolved name first and said so. Both are true of
-    // the input; they answer different questions about it.
-    //
-    // This is the design's stated failure-parity bar rather than a departure
-    // from it — the error must "identify the furthest relevant token or EOF",
-    // and the syntax failure is the furthest relevant token. It is pinned here
-    // because it is a *change*, and because the reasoning is not recoverable
-    // from the positions alone.
+    // suffix is found before any name is resolved. The hand-written parser
+    // streamed, so it met an unresolved name first and said so. Both are true
+    // of the input; they answer different questions about it. Pinned because
+    // the reasoning is not recoverable from the positions alone.
     syntaxBeforeSemantic: [
         () => {
             /** @type {readonly(readonly[string, string, readonly[number, number]])[]} */
@@ -499,7 +222,7 @@ export const proof = {
                 // was: const not found @1:16
                 ['export default missing 1', 'unexpected token', [1, 24]],
                 // was: duplicate id @2:7
-                ['const a = 1\nconst a = 2 x', 'unexpected token', [2, 13]],
+                ['const a = 1;\nconst a = 2 x', 'unexpected token', [2, 13]],
             ]
             for (const [source, message, position] of cases) {
                 const [tag, value] = parseFromTokens(tokenizeString(source))
@@ -516,7 +239,7 @@ export const proof = {
             // with nothing malformed after it, the semantic error is still the
             // one reported — the change is which error wins, not whether names
             // are checked
-            const [tag, value] = parseFromTokens(tokenizeString('export default missing'))
+            const [tag, value] = parseFromTokens(tokenizeString('export default missing;'))
             assert(tag === 'error', tag)
             assertEq(value.message, 'const not found')
             assertEq(value.metadata?.column, 16)
@@ -525,19 +248,15 @@ export const proof = {
     // The tokenizer's EOF contract, checked through the parser rather than
     // through `splitEof` alone.
     //
-    // Two of these are a **deliberate behaviour change at cutover**: the state
-    // machine accepts a stream with no `eof`, and one with two, because it only
-    // ever asks what the next token is. The BNF path requires exactly one, in
-    // final position, because a backend synthesizes its own logical end and a
-    // second marker would be a symbol the grammar has no rule for. Neither
-    // stream can come from the tokenizer, so this tightens a contract only a
-    // hand-built list could break — but it does tighten it, and the cutover
-    // should not be where that is discovered.
+    // The parser requires exactly one `eof`, in final position, because the
+    // backend synthesizes its own logical end and a second marker would be a
+    // symbol the grammar has no rule for. Neither stream can come from the
+    // tokenizer, so only a hand-built list reaches these.
     eofContract: [
         () => {
             const wellFormed = [
                 proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
-                proofKind('ws', 1), proofKind('null', 1), proofKind('eof', 1),
+                proofKind('ws', 1), proofKind('null', 1), proofKind(';', 1), proofKind('eof', 1),
             ]
             assertEq(parseFromTokens(wellFormed)[0], 'ok')
         },
@@ -545,7 +264,7 @@ export const proof = {
             // no `eof`: the state machine read this as a complete module
             const noEof = [
                 proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
-                proofKind('ws', 1), proofKind('null', 1),
+                proofKind('ws', 1), proofKind('null', 1), proofKind(';', 1),
             ]
             const [tag, value] = parseFromTokens(noEof)
             assert(tag === 'error', tag)
@@ -555,7 +274,7 @@ export const proof = {
             // a second `eof`: likewise invisible to the state machine
             const twoEof = [
                 proofId('export', 1), proofKind('ws', 1), proofId('default', 1),
-                proofKind('ws', 1), proofKind('null', 1), proofKind('eof', 1), proofKind('eof', 2),
+                proofKind('ws', 1), proofKind('null', 1), proofKind(';', 1), proofKind('eof', 1), proofKind('eof', 2),
             ]
             const [tag, value] = parseFromTokens(twoEof)
             assert(tag === 'error', tag)
@@ -595,12 +314,12 @@ export const proof = {
     ],
     // None of the framing keywords is reserved: outside the positions that frame
     // a module, the parser accepts them as ordinary identifiers. Pinned here
-    // because the BNF replacement gives each its own token symbol, and a grammar
+    // because the grammar gives each its own token symbol, and a grammar
     // whose identifier rule accepted only the `id` symbol would stop parsing
     // every case below without any other test noticing.
     framingKeywordsAsIdentifiers: [
         () => {
-            const [tag, value] = parseFromTokens(tokenizeString('const export = 1\nexport default export'))
+            const [tag, value] = parseFromTokens(tokenizeString('const export = 1;\nexport default export;'))
             assert(tag === 'ok', tag)
             // `export` bound as a const and then referenced: the exported value
             // resolves back to that binding, so the word acted as an identifier
@@ -608,158 +327,158 @@ export const proof = {
             assertStructurallySame(value[1], [1, ['cref', 0]])
         },
         () => {
-            const [tag] = parseFromTokens(tokenizeString('const from = 1\nexport default from'))
+            const [tag] = parseFromTokens(tokenizeString('const from = 1;\nexport default from;'))
             assert(tag === 'ok', tag)
         },
         () => {
-            const [tag] = parseFromTokens(tokenizeString('const import = 1\nexport default import'))
+            const [tag] = parseFromTokens(tokenizeString('const import = 1;\nexport default import;'))
             assert(tag === 'ok', tag)
         },
         () => {
-            const [tag] = parseFromTokens(tokenizeString('export default { from: 2, default: 3 }'))
+            const [tag] = parseFromTokens(tokenizeString('export default { from: 2, default: 3 };'))
             assert(tag === 'ok', tag)
         },
         () => {
-            const [tag] = parseFromTokens(tokenizeString('export default { export: 1 }'))
+            const [tag] = parseFromTokens(tokenizeString('export default { export: 1 };'))
             assert(tag === 'ok', tag)
         },
     ],
     valid: [
         () => {
-            const tokenList = tokenizeString('export default null')
+            const tokenList = tokenizeString('export default null;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[null]]')
         },
         () => {
-            const tokenList = tokenizeString('export default true')
+            const tokenList = tokenizeString('export default true;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[true]]')
         },
         () => {
-            const tokenList = tokenizeString('export default false')
+            const tokenList = tokenizeString('export default false;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[false]]')
         },
         () => {
-            const tokenList = tokenizeString('export default undefined')
+            const tokenList = tokenizeString('export default undefined;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[undefined]]')
         },
         () => {
-            const tokenList = tokenizeString('export default 0.1')
+            const tokenList = tokenizeString('export default 0.1;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[0.1]]')
         },
         () => {
-            const tokenList = tokenizeString('export default 1.1e+2')
+            const tokenList = tokenizeString('export default 1.1e+2;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[110]]')
         },
         () => {
-            const tokenList = tokenizeString('export default "abc"')
+            const tokenList = tokenizeString('export default "abc";')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],["abc"]]')
         },
         () => {
-            const tokenList = tokenizeString('export default []')
+            const tokenList = tokenizeString('export default [];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[["array",[]]]]')
         },
         () => {
-            const tokenList = tokenizeString('export default [1]')
+            const tokenList = tokenizeString('export default [1];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[["array",[1]]]]')
         },
         () => {
-            const tokenList = tokenizeString('export default [[]]')
+            const tokenList = tokenizeString('export default [[]];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[["array",[["array",[]]]]]]')
         },
         () => {
-            const tokenList = tokenizeString('export default [0,[1,[2,[]]],3]')
+            const tokenList = tokenizeString('export default [0,[1,[2,[]]],3];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[["array",[0,["array",[1,["array",[2,["array",[]]]]]],3]]]]')
         },
         () => {
-            const tokenList = tokenizeString('export default {}')
+            const tokenList = tokenizeString('export default {};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             if (result !== '[[],[{}]]') { throw result }
         },
         () => {
-            const tokenList = tokenizeString('export default [{}]')
+            const tokenList = tokenizeString('export default [{}];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             if (result !== '[[],[["array",[{}]]]]') { throw result }
         },
         () => {
-            const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined}')
+            const tokenList = tokenizeString('export default {"a":true,"b":false,"c":null,"d":undefined};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             if (result !== '[[],[{"a":true,"b":false,"c":null,"d":undefined}]]') { throw result }
         },
         () => {
-            const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}}')
+            const tokenList = tokenizeString('export default {"a":{"b":{"c":["d"]}}};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             if (result !== '[[],[{"a":{"b":{"c":["array",["d"]]}}}]]') { throw result }
         },
         () => {
-            const tokenList = tokenizeString('export default {a: 1}')
+            const tokenList = tokenizeString('export default {a: 1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             if (result !== '[[],[{"a":1}]]') { throw result }
         },
         () => {
-            const tokenList = tokenizeString('export default 1234567890n')
+            const tokenList = tokenizeString('export default 1234567890n;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[1234567890n]]')
         },
         () => {
-            const tokenList = tokenizeString('export default [1234567890n]')
+            const tokenList = tokenizeString('export default [1234567890n];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[["array",[1234567890n]]]]')
         },
         () => {
-            const tokenList = tokenizeString('export default [1,]')
+            const tokenList = tokenizeString('export default [1,];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[["array",[1]]]]')
         },
         () => {
-            const tokenList = tokenizeString('export default {"a":1,}')
+            const tokenList = tokenizeString('export default {"a":1,};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
@@ -770,7 +489,7 @@ export const proof = {
     // the identifier and the string literal (#2470).
     computedKey: [
         () => {
-            const tokenList = tokenizeString('export default {["a"]:1}')
+            const tokenList = tokenizeString('export default {["a"]:1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
@@ -778,7 +497,7 @@ export const proof = {
         },
         () => {
             // all three spellings in one object, plus a trailing comma
-            const tokenList = tokenizeString('export default {a:1,"b":2,["c"]:3,}')
+            const tokenList = tokenizeString('export default {a:1,"b":2,["c"]:3,};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
@@ -786,7 +505,7 @@ export const proof = {
         },
         () => {
             // trivia is trivia inside the brackets too
-            const tokenList = tokenizeString('export default { [ /* c */ \n // c \n "a" /* c */ \n // c \n ] : 1 }')
+            const tokenList = tokenizeString('export default { [ /* c */ \n // c \n "a" /* c */ \n // c \n ] : 1 };')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
@@ -794,7 +513,7 @@ export const proof = {
         },
         () => {
             // the key that has no other spelling
-            const tokenList = tokenizeString('export default {["__proto__"]:{"a":42}}')
+            const tokenList = tokenizeString('export default {["__proto__"]:{"a":42}};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
@@ -843,26 +562,26 @@ export const proof = {
     // and accepts only the computed one (#2480).
     protoKey: [
         () => {
-            const tokenList = tokenizeString('export default {__proto__:1}')
+            const tokenList = tokenizeString('export default {__proto__:1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, '__proto__ requires the computed key form')
         },
         () => {
-            const tokenList = tokenizeString('export default {"__proto__":1}')
+            const tokenList = tokenizeString('export default {"__proto__":1};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, '__proto__ requires the computed key form')
         },
         () => {
             // the same two spellings after a ',', the parser's other key state
-            const tokenList = tokenizeString('export default {"a":1,__proto__:2}')
+            const tokenList = tokenizeString('export default {"a":1,__proto__:2};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, '__proto__ requires the computed key form')
         },
         () => {
-            const tokenList = tokenizeString('export default {"a":1,"__proto__":2}')
+            const tokenList = tokenizeString('export default {"a":1,"__proto__":2};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, '__proto__ requires the computed key form')
@@ -1110,9 +829,8 @@ export const proof = {
         () => {
             // `parseFromTokens` itself, called with no tokens at all. The
             // tokenizer never produces this — it always emits at least an
-            // `eof` — but the exported function's contract must still answer.
-            // Since the BNF cutover it is named for what is missing rather
-            // than for running out of input.
+            // `eof` — but the exported function's contract must still answer,
+            // and it names what is missing rather than running out of input.
             const obj = parseFromTokens([])
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'missing end-of-input token')
@@ -1132,28 +850,28 @@ export const proof = {
     ],
     validWhiteSpaces:[
         () => {
-            const tokenList = tokenizeString(' export default [ 0 , 1 , 2 ] ')
+            const tokenList = tokenizeString(' export default [ 0 , 1 , 2 ] ; ')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[["array",[0,1,2]]]]')
         },
         () => {
-            const tokenList = tokenizeString(' export default { "a" : 0 , "b" : 1 } ')
+            const tokenList = tokenizeString(' export default { "a" : 0 , "b" : 1 } ; ')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             if (result !== '[[],[{"a":0,"b":1}]]') { throw result }
         },
         () => {
-            const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n')
+            const tokenList = tokenizeString('\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n;\n')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[["array",[0,1,2]]]]')
         },
         () => {
-            const tokenList = tokenizeString('\rexport\rdefault\r{\r"a"\r:\r0\r,\r"b"\r:\r1\r}\r')
+            const tokenList = tokenizeString('\rexport\rdefault\r{\r"a"\r:\r0\r,\r"b"\r:\r1\r}\r;\r')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
@@ -1204,7 +922,7 @@ export const proof = {
         },
         () => {
             // …and neither has one that only declares constants
-            const tokenList = tokenizeString('const a = 1\n')
+            const tokenList = tokenizeString('const a = 1;\n')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected end')
@@ -1213,24 +931,24 @@ export const proof = {
     // Statements are ordered: imports, then constants, then `export default`.
     statementOrder: [
         () => {
-            const tokenList = tokenizeString('import a from "a.f.js" \n const b = 1 \n export default [a,b]')
+            const tokenList = tokenizeString('import a from "a.f.js"; \n const b = 1; \n export default [a,b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[["a.f.js"],[1,["array",[["aref",0],["cref",0]]]]]')
         },
         () => {
-            const tokenList = tokenizeString('const b = 1 \n import a from "a.f.js" \n export default [a,b]')
+            const tokenList = tokenizeString('const b = 1; \n import a from "a.f.js"; \n export default [a,b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
-            // reworded at the BNF cutover: statement ordering is shape now, so
-            // a late `import` is a token the grammar cannot use rather than a
-            // rule about ordering it could name. The position is unchanged.
+            // statement ordering is the grammar's shape, so a late `import`
+            // is a token the grammar cannot use rather than a rule about
+            // ordering it could name
             assertEq(obj[1].message, 'unexpected token')
         },
         () => {
             // nothing follows `export default` but trivia
-            const tokenList = tokenizeString('export default 1 \n const a = 2')
+            const tokenList = tokenizeString('export default 1; \n const a = 2;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token')
@@ -1246,7 +964,7 @@ export const proof = {
         },
         () => {
             // a reference the module never declared, in a value position
-            const tokenList = tokenizeString('export default a')
+            const tokenList = tokenizeString('export default a;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'const not found', obj)
@@ -1266,28 +984,28 @@ export const proof = {
     ],
     validWithConst:[
         () => {
-            const tokenList = tokenizeString('const a = 1 \n const b = 2 \n export default 3')
+            const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default 3;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[1,2,3]]')
         },
         () => {
-            const tokenList = tokenizeString('const a = 1 \n const b = 2 \n export default b')
+            const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default b;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[1,2,["cref",1]]]')
         },
         () => {
-            const tokenList = tokenizeString('const a = 1 \n const b = 2 \n export default [b,a,b]')
+            const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default [b,a,b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[1,2,["array",[["cref",1],["cref",0],["cref",1]]]]]')
         },
         () => {
-            const tokenList = tokenizeString('const a = 1 \n const b = 2 \n export default {"1st":b,"2nd":a,"3rd":b}')
+            const tokenList = tokenizeString('const a = 1; \n const b = 2; \n export default {"1st":b,"2nd":a,"3rd":b};')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
@@ -1302,21 +1020,20 @@ export const proof = {
             assertEq(obj[1].message, 'unexpected token', obj)
         },
         () => {
-            const tokenList = tokenizeString('const = 1 \n const b = 2 \n export default 3')
+            const tokenList = tokenizeString('const = 1; \n const b = 2; \n export default 3;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'unexpected token', obj)
         },
         () => {
-            const tokenList = tokenizeString('const a = 1 \n const a = 2 \n export default 3')
+            const tokenList = tokenizeString('const a = 1; \n const a = 2; \n export default 3;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'duplicate id', obj)
         },
         () => {
-            // No newline after the const's value: the parser hits `eof` while
-            // still in the newline-required state, instead of the following
-            // `nl` token every other `const` test provides.
+            // No `;` after the const's value: the end of input comes where
+            // the terminator belongs.
             const tokenList = tokenizeString('const a = 1')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
@@ -1325,21 +1042,21 @@ export const proof = {
     ],
     validWithArgs:[
         () => {
-            const tokenList = tokenizeString('import a from "test/test.f.mjs" \n export default a')
+            const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n export default a;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[["test/test.f.mjs"],[["aref",0]]]')
         },
         () => {
-            const tokenList = tokenizeString('import a from "first/test.f.mjs" \n import b from "second/test.f.mjs" \n export default [b, a, b]')
+            const tokenList = tokenizeString('import a from "first/test.f.mjs"; \n import b from "second/test.f.mjs"; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[["first/test.f.mjs","second/test.f.mjs"],[["array",[["aref",1],["aref",0],["aref",1]]]]]')
         },
         () => {
-            const tokenList = tokenizeString('import a from "test/test.f.mjs" \n const b = null \n export default [b, a, b]')
+            const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n const b = null; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
@@ -1372,13 +1089,13 @@ export const proof = {
             assertEq(obj[1].message, 'unexpected token', obj)
         },
         () => {
-            const tokenList = tokenizeString('import a from "first/test.f.mjs" \n import a from "second/test.f.mjs" \n export default [b, a, b]')
+            const tokenList = tokenizeString('import a from "first/test.f.mjs"; \n import a from "second/test.f.mjs"; \n export default [b, a, b];')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'duplicate id', obj)
         },
         () => {
-            const tokenList = tokenizeString('import a from "test/test.f.mjs" \n const a = null \n export default null')
+            const tokenList = tokenizeString('import a from "test/test.f.mjs"; \n const a = null; \n export default null;')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'error', obj)
             assertEq(obj[1].message, 'duplicate id', obj)
@@ -1386,40 +1103,40 @@ export const proof = {
     ],
     comments: [
         () => {
-            const tokenList = tokenizeString('export //comment \n default /* comment */ null //comment')
+            const tokenList = tokenizeString('export //comment \n default /* comment */ null; //comment')
             const obj = parseFromTokens(tokenList)
             assert(obj[0] === 'ok', obj)
             const result = stringifyDjsModule(obj[1])
             assertEq(result, '[[],[null]]')
         },
     ],
-    // Regression: closing a container popped the parser stack with `drop(1)`,
-    // which is lazy, so every closed container left one unforced thunk wrapping
-    // the stack. The chain was forced only at the end, costing a call-stack
-    // frame per container and overflowing at roughly 5000 of them — whether
-    // nested or flat siblings — while primitives were unbounded. `fjs/media/json`
-    // carried the same defect and was fixed in the same way.
+    // Regression, from the hand-written parser: closing a container popped its
+    // stack with `drop(1)`, which is lazy, so every closed container left one
+    // unforced thunk wrapping the stack, forced only at the end at a
+    // call-stack frame per container — overflowing at roughly 5000 of them,
+    // nested or flat, while primitives were unbounded. `fjs/media/json`
+    // carried the same defect. Kept as the bar every parser here has met.
     containerStackCost: [
         () => {
             const [tag, value] = parseFromTokens(tokenizeString(
-                `export default [${repeated('{}')(20000)}]`))
+                `export default [${repeated('{}')(20000)}];`))
             assert(tag === 'ok', tag)
             assertEq(value[1].length, 1)
         },
         () => {
             const [tag] = parseFromTokens(tokenizeString(
-                `export default [${repeated('[]')(20000)}]`))
+                `export default [${repeated('[]')(20000)}];`))
             assert(tag === 'ok', tag)
         },
         () => {
             const [tag] = parseFromTokens(tokenizeString(
-                'export default ' + '['.repeat(20000) + ']'.repeat(20000)))
+                'export default ' + '['.repeat(20000) + ']'.repeat(20000) + ';'))
             assert(tag === 'ok', tag)
         },
         () => {
             // primitives never touched the stack — the baseline that always passed
             const [tag] = parseFromTokens(tokenizeString(
-                `export default [${Array.from({ length: 20000 }, (_, i) => i).join(',')}]`))
+                `export default [${Array.from({ length: 20000 }, (_, i) => i).join(',')}];`))
             assert(tag === 'ok', tag)
         },
     ]

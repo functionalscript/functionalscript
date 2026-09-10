@@ -9,7 +9,7 @@
  *
  * Beside the classical grammar in `fjs/djs/tokenizer`, which the
  * backtracking backend reads, four things are spelled differently, each
- * a conflict `fjs/djs/todo/ebnf-ll1-port.md` measured:
+ * a conflict `fjs/todo/ebnf-migration.md` measured (its consumer port):
  *
  * - the block comment's `*` is left-factored: after a `*`, a `/` is the
  *   end, another `*` is looked at again, and anything else is content;

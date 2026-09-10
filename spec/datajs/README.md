@@ -72,9 +72,9 @@ exactly one byte sequence.
 ## Status
 
 **This document specifies a target, not the current implementation.** The
-`;` this format requires after every statement is accepted — the compiler's
-parser takes a semicolon or a newline as the statement terminator, so a
-document that stays on the finite leaves parses today; `NaN` and the
+`;` this format requires after every statement is what the compiler's
+parser requires too, so a document that stays on the finite leaves parses
+today; `NaN` and the
 infinities do not parse yet, which is the reader-side gap that remains
 (tracked with the numeric-leaf work in the restructure plan below).
 The shipped `fjs/djs` serializer also differs from
@@ -97,8 +97,8 @@ The work that closes all of it is staged in
 
 Note the two nearby uses of "DJS". [`spec/README.md`](../README.md) uses it for
 the data subset the compiler accepts **today**, which is wider than DataJS:
-it has `import`, comments, identifier keys, trailing commas, and the newline
-as a second statement terminator alongside the `;`. This document specifies **DataJS**, the narrow interchange format.
+it has `import`, comments, identifier keys and trailing commas. This
+document specifies **DataJS**, the narrow interchange format.
 "DJS" survives only as an informal abbreviation of DataJS.
 
 ## Principles

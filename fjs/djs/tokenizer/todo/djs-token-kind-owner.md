@@ -10,7 +10,7 @@ The 23-kind `DjsToken` vocabulary is enumerated three times in two modules:
 - `fjs/djs/tokenizer/types.ts:27-39` — the `DjsToken` union itself;
 - `fjs/djs/tokenizer/module.f.mjs:635-661` — `mapDjsToken`'s 23-label
   `switch (input.kind)` that narrows `JsToken` to `DjsToken`;
-- `fjs/djs/parser/module.f.mjs:98-103` — `_tokenKindNames`, the same set
+- `fjs/djs/parser/grammar/module.f.mjs` — `_tokenKindNames`, the same set
   minus `eof`.
 
 The parser's copy is at least pinned to the type
