@@ -40,11 +40,16 @@ vectors as its proof and the checked-in Git fixtures in
 carries the id Git computed, over `<type> SP <size> NUL <payload>`.
 
 Collision detection, if the policy issue asks for it, is a second step in
-the same module: `sha1dc` computes the same hash while checking each
-block's message expansion against the known disturbance vectors, and
-answers whether the input shows the structure of a known attack. The
-function's type then grows a second answer, a `Result` of the id or the
-refusal, rather than a second function.
+the same module, and a second export: `sha1dc` computes the same hash
+while checking each block's message expansion against the known
+disturbance vectors, and answers whether the input shows the structure of
+a known attack, so its `end` answers a `Result` — the id, or the refusal
+naming the block that showed it. `sha1` stays exported and stays a
+`Vec`, the hash and nothing more, since the plain function is what a
+verifier that has already decided to trust a name, and every consumer
+that only addresses, computes with; `sha1dc` is the one a verifier that
+must refuse chooses, and `oid`'s `of` takes whichever the policy issue
+picks for the store.
 
 ### Tasks
 

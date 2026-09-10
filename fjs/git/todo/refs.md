@@ -41,7 +41,15 @@ Two functions over the effects:
   reads the loose file first: a loose ref shadows the packed one of the
   same name, and only the effective value is a root. The names come
   along because the files hold them, not because they mean anything; a
-  consumer that reads meaning into one is outside this design.
+  consumer that reads meaning into one is outside this design. The id a
+  ref names is not always a commit's: a tag ref names an annotated tag
+  object, and a tag may name another tag, so a candidate-commit search
+  peels before it reads — it follows the tag's `object` through
+  [`fjs/git/tag`](../tag/module.f.mjs) until what it reaches is not a tag,
+  and starts from that if it is a commit and from nothing if it is a tree
+  or a blob. `packed-refs` may carry a `^<hex>` peeled line under a tag,
+  which is a shortcut and never the rule, since a loose tag ref has no
+  such line; the search peels through the object store either way.
 - `tryResolve(ref)`: the id one ref names — its loose file, or its
   `packed-refs` line where there is no loose file — a symbolic ref
   followed to a bounded depth, or `null`. For plumbing that has a ref in hand —

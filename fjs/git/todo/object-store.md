@@ -17,8 +17,15 @@ its entries, an entry to a blob.
 
 - `read(id)`: the loose path first, then every pack the directory holds,
   answering the `Envelope` or refusing with a channel error that names the
-  id; `alternates` and the parent of a worktree's `.git` file are found by
-  the same function, later.
+  id. Finding the directory is its own step, later: `objects/` lives in
+  the repository's common directory, which for a main worktree is `.git/`
+  and for a linked worktree is two hops away — its `.git` is a file whose
+  `gitdir:` line names the per-worktree directory under the main
+  repository's `worktrees/`, and the `commondir` file there names the
+  shared repository that owns `objects/`, `packed-refs` and the shared
+  refs. The parent of the `.git` file holds no objects and is never
+  searched. `objects/info/alternates` adds directories to search after
+  the repository's own, and is deferred the same way.
 - An id given by a caller is checked against the object read, which is
   where [SHA-1](../../crypto/todo/sha1.md) and `fjs/crypto/sha2` come in:
   a store that does not hash trusts its file names. In a SHA-1 repository
@@ -31,7 +38,10 @@ its entries, an entry to a blob.
   `fjs/git/tree`, and the blob's bytes — the three steps
   [git-name-resolution](../../../todo/git-name-resolution.md) takes, as
   functions over `read`, with the repository's id width read once from
-  `config` (`extensions.objectFormat`) and threaded through.
+  `config` and threaded through: `extensions.objectFormat = sha256` means
+  32-byte ids, and the key absent — as it is in every repository `git
+  init` writes by default, which has no `[extensions]` section — means
+  SHA-1 and 20-byte ids. Any other value is refused, as Git refuses it.
 - All of it over the effects, proven against the virtual filesystem with
   the checked-in fixtures laid out as a repository.
 
