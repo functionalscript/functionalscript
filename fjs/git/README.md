@@ -27,6 +27,9 @@ come.
   header block: `tree`, `parent`, `author` and `committer` by position,
   `encoding`, `gpgsig` and `mergetag` by key, the last read as a tag by
   the tag module, and a `validate` that refuses what `git fsck` does.
+- [`loose/`](loose/module.f.mjs) — a loose object file read through the
+  host's `inflate` effect and past its envelope: the one place a real
+  repository meets the decoder.
 - [`oid/`](oid/module.f.mjs) — an object id between its two spellings, the
   raw bytes a tree entry holds and the hex text a header holds.
 - [`tag/`](tag/module.f.mjs) — a tag as a second pass over the header
@@ -37,5 +40,6 @@ come.
   `Oid` and `OidBytes`, the one fixed-width field and its width, and
   `ObjectType`.
 
-What is not here, by design: inflating a loose object (a host effect at
-the boundary until a FunctionalScript inflater exists), SHA-1, packfiles.
+What is not here, by design: an inflater (the host's, behind an effect,
+until [`todo/inflate.md`](../../todo/inflate.md) is done), SHA-1,
+packfiles.

@@ -25,6 +25,7 @@ import crypto from 'node:crypto'
 import fs from 'node:fs'
 import os from 'node:os'
 import process from 'node:process'
+import zlib from 'node:zlib'
 import { once } from 'node:events'
 import * as testContext from 'node:test'
 
@@ -344,6 +345,11 @@ const runNodeEffect = asyncRun({
             await fh.close()
         }
     }),
+    // `maxOutputLength` is what makes the bound a refusal rather than a
+    // truncation: Node stops inflating and throws `ERR_BUFFER_TOO_LARGE`, so
+    // a stream that would inflate past the `Vec` cap costs the cap and not
+    // whatever it held.
+    inflate: data => io(async () => toVec(zlib.inflateSync(fromVec(data), { maxOutputLength: maxFileSizeBytes }))),
     randomInt: async () => ok(randomInt(randomMax)),
     access: path => io(() => access(path)),
     createExclusive: path => io(async () => {

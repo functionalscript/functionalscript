@@ -10,11 +10,11 @@ import { empty, isVec, uint, vec, vec8 } from "../../types/bit_vec/module.f.mjs"
 import { utf8, utf8ToString } from "../../text/module.f.mjs"
 import { match } from "../module.f.mjs"
 import { mapStep, step as ioStep } from "../module.f.mjs"
-import { both, errorMessage, errorSummary, exitStep, fetch, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
+import { both, errorMessage, errorSummary, exitStep, fetch, inflate, ioError, isNotFound, mkdir, now, readdir, readFile, readUtf8File, rm, sandbox, writeFile, writeUtf8File, rename, readBytes, randomInt, writeFromStream, usesInlineTestContext, versionLessThan } from "./module.f.mjs"
 import { create as memCreate, read as memRead, write as memWrite } from "../memory/module.f.mjs"
 import { empty as listEmpty, nonEmpty as listNonEmpty } from "../list/module.f.mjs"
 import { emptyState, virtual } from "./virtual/module.f.mjs"
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { ok } from '../../types/result/module.f.mjs'
 
 // Answers the one command the `map` proof below drives. Routing the loop
@@ -136,6 +136,13 @@ export const proof = {
         assert(t !== 'error', result)
         assert(isVec(result), result)
         assertEq(uint(result), 0x2An, result)
+    },
+    // The virtual runner has no inflater, and says so through the channel
+    // rather than by guessing: a program that needs one gets its control back.
+    inflate: () => {
+        const [_, [t, result]] = virtual(emptyState)(inflate(vec8(0x78n)))
+        assertEq(t, 'error')
+        assertStructurallySame(result, ['notImplemented', 'inflate'])
     },
     mkdir: {
         one: () => {

@@ -2,7 +2,7 @@
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
  * `writeFile`, `rm`, `access`, plus the `readUtf8File`/`writeUtf8File` text
  * helpers), networking (`fetch`, `createServer`, `listen`),
- * subprocess `exec`, `now` and `forever`; defines the `NodeOp`/`NodeProgram`
+ * subprocess `exec`, `inflate`, `now` and `forever`; defines the `NodeOp`/`NodeProgram`
  * types used by the Node runner.
  *
  * The console family — `write`, `log`, `error`, `errorExit`, `read`,
@@ -20,7 +20,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -145,7 +145,7 @@ export const isNotFound = ([tag, payload]) =>
 const nodeCommandSet = {
     access: null, all: null, await: null, catch: null, createExclusive: null,
     createServer: null, exec: null, fetch: null, forever: null,
-    import: null, listen: null, memCreate: null, memRead: null,
+    import: null, inflate: null, listen: null, memCreate: null, memRead: null,
     memWrite: null, mkdir: null, now: null, randomInt: null,
     read: null, readBytes: null, readFile: null, readdir: null,
     rename: null, rm: null, sandbox: null, stat: null,
@@ -224,6 +224,11 @@ export const rename = do_('rename')
 
 /** @type {Func<ReadBytes>} */
 export const readBytes = do_('readBytes')
+
+// inflate
+
+/** @type {Func<Inflate>} */
+export const inflate = do_('inflate')
 
 // randomInt
 
