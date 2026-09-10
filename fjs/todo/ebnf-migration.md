@@ -287,8 +287,9 @@ block comment and the shared prefixes of the punctuator list. `dispatchMap`
 has no first/follow check, and `ebnf/ll1` does, so measured against the
 backend the port moves to — the classical set bridged to the EBNF form, as
 [ebnf-data](../ebnf/data/README.md) describes, and every rule's closure
-run through `parserRuleSet` — the two grammars refuse in **seven** shapes:
-those three, the tokenizer's `numError` poison branch, the whole-file
+run through `parserRuleSet` — the two grammars refuse in **eight** shapes:
+those three, the `/` shared by a comment and the division operator, the
+tokenizer's `numError` poison branch, the whole-file
 `repeat0Plus(token)` (a greedy token against the token after it, which
 vanishes with the entry a single token), and in the parser the trailing
 comma and the module's final optional `;`. The table, the classification
@@ -398,7 +399,7 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    AST otherwise, with the differences ebnf-front-end predicts pinned
    explicitly (`option`, `repeatFrom(1)`, `join`).
 6. **Layered LL(1) and the djs port.** The token layer — the resumable
-   parser or the one-token fold — and the prefix-tree helper; the seven
+   parser or the one-token fold — and the prefix-tree helper; the eight
    conflicts above resolved in the grammars; `djs/tokenizer` then
    `djs/parser` on `ebnf/ll1/`, as
    [ebnf-ll1-port](../djs/todo/ebnf-ll1-port.md) lays out. The first grammar to leave
