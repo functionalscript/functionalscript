@@ -189,6 +189,131 @@ export const proof = {
             assertStructurallySame(listed(manifest), ['fjs/e.f.mjs'])
         },
     },
+    pages: {
+        /**
+         * **Every directory the walk visits gets a page**, so every
+         * subdirectory link a page writes resolves. `a/` holds no
+         * `module.f.mjs` and still has one — it is the directory that used to
+         * be linked to a page nobody generated.
+         */
+        onePerDirectory: () => {
+            const [generated] = run({
+                a: { b: { 'module.f.mjs': file('export const x = 1') } },
+            })
+            const dir = /** @type {Dir} */ (generated.root['a'])
+            assert('index.html' in generated.root, 'expected a root page')
+            assert('index.html' in dir, 'expected a page for the module-less directory')
+            assert('index.html' in /** @type {Dir} */ (dir['b']), 'expected a page for the module directory')
+        },
+        /**
+         * **A file list only where a `module.f.mjs` is**, and the generator's
+         * own output is never in it: a page that listed `index.html` or
+         * `_main.css` would be listing itself and its stylesheet as source.
+         */
+        listsAuthoredFilesOnly: () => {
+            const [generated] = run({
+                a: {
+                    'module.f.mjs': file('export const x = 1'),
+                    'types.ts': file('export type X = 1'),
+                    'notes.md': file('# notes'),
+                },
+            })
+            const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
+            assert(page.includes('>module.f.mjs</a>'), page)
+            assert(page.includes('>types.ts</a>'), page)
+            assert(page.includes('>notes.md</a>'), page)
+            assert(!page.includes('>index.html</a>'), page)
+            assert(!page.includes('>_main.css</a>'), page)
+        },
+        /**
+         * **A directory lists its files whether or not a module sits among
+         * them.** Requiring a `module.f.mjs` was a guess at which directories
+         * hold something a reader would open, and it was wrong wherever the
+         * content is not FunctionalScript — `changelog/`, with 104 release
+         * notes, rendered an empty page.
+         */
+        listsFilesWithoutAModule: () => {
+            const [generated] = run({
+                a: { 'notes.md': file('# notes'), b: { 'module.f.mjs': file('export const x = 1') } },
+            })
+            const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
+            assert(page.includes('>notes.md</a>'), page)
+            assert(page.includes('<summary>Directories</summary>'), page)
+        },
+        /**
+         * **`todo/` is a section of its parent, not a page.** Its issues are
+         * the parent's open work, and a page of its own would hold nothing
+         * else — so it is neither generated nor linked, and no link to a
+         * missing page can exist.
+         */
+        todoIsTheParentsSection: () => {
+            const [generated] = run({
+                a: {
+                    'module.f.mjs': file('export const x = 1'),
+                    todo: { 'open.md': file('## open') },
+                },
+            })
+            const dir = /** @type {Dir} */ (generated.root['a'])
+            const page = textOf(dir['index.html'], 'the page')
+            assert(page.includes('<a href="/a/todo/open.md">open.md</a>'), page)
+            assert(!page.includes('>todo/</a>'), page)
+            assert(!('index.html' in /** @type {Dir} */ (dir['todo'])), 'expected no page for todo/')
+        },
+        /**
+         * **An issue is a markdown file.** A `todo/` may hold something else
+         * — the repository root's holds `proof.f.mjs`, an authored module the
+         * suite runs — and listing it as an issue said it was one.
+         */
+        issuesAreMarkdown: () => {
+            const [generated] = run({
+                a: {
+                    'module.f.mjs': file('export const x = 1'),
+                    todo: { 'open.md': file('## open'), 'proof.f.mjs': file('export const proof = []') },
+                },
+            })
+            const page = textOf(/** @type {Dir} */ (generated.root['a'])['index.html'], 'the page')
+            assert(page.includes('>open.md</a>'), page)
+            assert(!page.includes('>proof.f.mjs</a>'), page)
+        },
+        /**
+         * **A folder inside a `todo/` is skipped too.** Excluding only the
+         * directory whose own name is `todo` gave its subdirectories pages,
+         * and `ancestors` put `todo` in each breadcrumb — a link to the one
+         * page the generator never writes. What makes an issue folder's
+         * contents its parent's business does not stop applying one level
+         * down.
+         */
+        todoSubdirectoriesAreSkippedToo: () => {
+            const [generated] = run({
+                todo: {
+                    'open.md': file('## open'),
+                    plan: { 'later.md': file('## later'), deep: { 'x.md': file('## x') } },
+                },
+            })
+            const todo = /** @type {Dir} */ (generated.root['todo'])
+            const plan = /** @type {Dir} */ (todo['plan'])
+            assert(!('index.html' in todo), 'expected no page for todo/')
+            assert(!('index.html' in plan), 'expected no page for todo/plan/')
+            assert(!('index.html' in /** @type {Dir} */ (plan['deep'])),
+                'expected no page for todo/plan/deep/')
+        },
+        // The breadcrumb walks back to the root through pages that exist.
+        breadcrumbReachesTheRoot: () => {
+            const [generated] = run({ a: { b: { 'module.f.mjs': file('export const x = 1') } } })
+            const page = textOf(
+                /** @type {Dir} */ (/** @type {Dir} */ (generated.root['a'])['b'])['index.html'],
+                'the page')
+            assert(page.includes('<a href="/index.html">root</a>'), page)
+            assert(page.includes('<a href="/a/index.html">a</a>'), page)
+        },
+        // An ignored directory is not walked, so it gets no page either.
+        ignoredDirectoriesGetNoPage: () => {
+            const [generated] = run({ node_modules: { a: { 'module.f.mjs': file('export const x = 1') } } })
+            assert(
+                !('index.html' in /** @type {Dir} */ (generated.root['node_modules'])),
+                'expected no page inside node_modules')
+        },
+    },
     run: () => {
         /** @type {Dir} */
         const root = { '.github': { workflows: {} }, fjs: { emergent_testing: {} } }
@@ -202,12 +327,24 @@ export const proof = {
         assert(Array.isArray(entryFile), 'expected the generated entry module to be a file')
         const source = page.map(value => utf8ToString(/** @type {Vec} */ (value))).join('')
         const entry = entryFile.map(value => utf8ToString(/** @type {Vec} */ (value))).join('')
-        assert(source.includes('<h1>Emergent Testing in the Browser</h1>'))
-        assert(source.includes('emergent-testing-in-javascript-e44760d71688'))
+                assert(source.includes('emergent-testing-in-javascript-e44760d71688'))
         assert(!source.includes('?sk='))
         // The page starts idle, not mid-run, and its only control is the
         // renamed `Run` — never the old `Run again` label.
         assert(source.includes('data-state="idle"'), source)
+        // The root page is the root directory's page too: it carries the same
+        // catalogue every other page does.
+        assert(source.includes('<summary>Directories</summary>'), source)
+        // The catalogue is above the suite: what the directory holds is what
+        // the reader came for, and a run cannot move what is above it.
+        assert(
+            source.indexOf('<summary>Directories</summary>')
+                < source.indexOf('<summary>Emergent Testing</summary>'),
+            source)
+        // The heading is the project; the suite is one section of its page.
+        assert(source.includes('<h1>FunctionalScript</h1>'), source)
+        // The report is what it always was; only the section around it folds.
+        assert(source.includes('<pre><ol data-test-results=""></ol></pre>'), source)
         assert(source.includes('>Run</button>'), source)
         assert(!source.includes('Run again'), source)
         // The entry module wires the click handler and stops: it must not

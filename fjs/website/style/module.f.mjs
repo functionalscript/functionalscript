@@ -13,7 +13,28 @@
  * spelling of CSS with nothing to check it against.
  *
  * @module
+ *
+ * @import { Element } from '../../media/html/types.ts'
  */
+
+/**
+ * Where the generator writes the stylesheet, as the root-relative URL every
+ * page links it by.
+ *
+ * Root-relative and not `./_main.css`: pages sit at every depth of the tree
+ * and there is one stylesheet, so the href cannot depend on where the page
+ * that writes it happens to be.
+ *
+ * @type {string}
+ */
+export const stylesheetPath = '/_main.css'
+
+/**
+ * The `<link>` every page carries, so that no page spells the path itself.
+ *
+ * @type {Element}
+ */
+export const stylesheetLink = ['link', { rel: 'stylesheet', href: stylesheetPath }]
 
 /**
  * The stylesheet, verbatim.
@@ -31,4 +52,11 @@ body { background-color: var(--bg); color: var(--text); font: 16px system-ui; ma
 [data-status="passed"]::marker { color: var(--pass) }
 [data-status="failed"] { color: var(--fail) }
 pre { white-space: pre-wrap }
+/* Every section of a page is a disclosure, so a reader can fold away what
+   they are not reading — the platform's own collapsible, and no script on a
+   site that is static files. Its summary is the section's heading, and is
+   sized like one. */
+[data-section] { margin: 1.5rem 0 }
+[data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
+[data-section] > ul { margin-top: .5rem }
 `

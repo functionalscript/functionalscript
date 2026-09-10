@@ -35,3 +35,29 @@ export type _Imports = {
  * @internal
  */
 export type _Graph = OrderedMap<_Imports>
+
+/**
+ * One directory as the walk found it: everything in it, unfiltered.
+ *
+ * The walk answers what the filesystem holds and nothing more — which files
+ * are authored modules, which directories deserve pages, and which names are
+ * generated output are all questions asked of this record afterwards, by the
+ * one consumer that cares. Two consumers already ask different questions of
+ * it: the manifest wants the `.f.mjs` files, a page wants the ones a reader
+ * would open.
+ *
+ * @internal
+ */
+export type _Walked = {
+    readonly path: string
+    readonly files: readonly string[]
+    readonly dirs: readonly string[]
+}
+
+/**
+ * Every walked directory by its path, so a directory's `todo/` can be found
+ * without walking it twice.
+ *
+ * @internal
+ */
+export type _Tree = OrderedMap<_Walked>
