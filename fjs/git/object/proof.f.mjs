@@ -1,4 +1,5 @@
 /**
+ * @import { Bytes } from '../types.ts'
  * @import { Envelope } from './types.ts'
  */
 
@@ -7,7 +8,7 @@ import { fromArrayLike, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, latin1 } from '../testlib.f.mjs'
 import { objectTypes, tryRead, write } from './module.f.mjs'
 
-/** @type {(input: readonly number[]) => Envelope} */
+/** @type {(input: Bytes) => Envelope} */
 const read = input => {
     const e = tryRead(input)
     assert(e !== null)
@@ -41,10 +42,15 @@ export const proof = {
         assertEq(e.type, 'blob')
         assertStructurallySame(toArray(e.payload), [0xFF, 0, 0x80])
     },
-    // A lazy input, as a boundary hands one over.
+    // A lazy input, as a boundary hands one over: read as the list it is,
+    // and the payload handed back is a list over it, read again as often
+    // as a consumer reads it.
     lazy: () => {
-        const e = read(toArray(fromArrayLike(new Uint8Array(latin1('tree 2\0ab')))))
+        const e = read(fromArrayLike(new Uint8Array(latin1('tree 2\0ab'))))
+        assert(!(e.payload instanceof Array))
         assertStructurallySame(toArray(e.payload), latin1('ab'))
+        assertStructurallySame(toArray(e.payload), latin1('ab'))
+        assertStructurallySame(toArray(write('tree', e.payload)), latin1('tree 2\0ab'))
     },
     // Each refusal, one per condition the reader checks.
     refused: () => {

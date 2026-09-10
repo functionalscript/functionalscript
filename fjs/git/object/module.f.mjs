@@ -15,16 +15,17 @@
  *
  * @import { Meta } from '../../ebnf/ast/types.ts'
  * @import { Byte } from '../../ebnf/byte/types.ts'
+ * @import { Accumulator } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Bytes, ObjectType } from '../types.ts'
  * @import { Envelope } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { byteParser, isByte, not, symbols } from '../../ebnf/byte/module.f.mjs'
 import { range, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { concat, drop, take, toArray } from '../../types/list/module.f.mjs'
+import { concat, drop, take, toArray, tryFold } from '../../types/list/module.f.mjs'
 
 const { isSafeInteger } = Number
 
@@ -61,20 +62,36 @@ const parse = byteParser(envelope)
 const prefixLength = /** @type {const} */ (32)
 
 /**
- * A list a caller means as bytes, as an array, every item checked to be
- * one: `Bytes` is a list of numbers, and a number that is no byte is a
- * caller's mistake the format could not carry, so it is refused here
- * rather than read or written as a plausible object.
+ * Counting a list of bytes: one more per item, and the fold stops at an
+ * item that is no byte. `Bytes` is a list of numbers, and a number that is
+ * no byte is a caller's mistake the format could not carry, so it is
+ * refused rather than read or written as a plausible object.
+ *
+ * @type {Accumulator<number, number, number>}
+ */
+const byteCount = {
+    init: 0,
+    update: (b, n) => isByte(b) ? n + 1 : null,
+    end: n => n,
+}
+
+/**
+ * The length of a list of bytes, walked once and never held as an array,
+ * so a payload as long as a list can be is counted as it is; `null` where
+ * an item is no byte.
+ *
+ * @type {(bytes: Bytes) => Nullable<number>}
+ */
+const byteLength = tryFold(byteCount)
+
+/**
+ * The length of a list a caller means as bytes.
  *
  * @throws If an item is not a byte.
  *
- * @type {(bytes: Bytes) => readonly number[]}
+ * @type {(bytes: Bytes) => number}
  */
-const byteArray = bytes => {
-    const a = toArray(bytes)
-    assert(a.every(isByte), 'not bytes')
-    return a
-}
+const length = bytes => assertNotNullish(byteLength(bytes), 'not bytes')
 
 /** @type {(leaves: readonly Meta<Byte>[]) => readonly number[]} */
 const symbolsOf = leaves => leaves.map(({ symbol }) => symbol)
@@ -111,7 +128,9 @@ const decimal = digits => {
  * does not hold, a type that is not one of the four, a size that is not
  * canonical decimal or not a safe integer, or a payload that is not as
  * long as the size claims. The payload is the input after the NUL, sliced
- * and not parsed.
+ * and not parsed: walked once to count it, and handed back as the list it
+ * is, never held as an array, so an object as long as a list can be is
+ * read as it is.
  *
  * @throws If an item of the input is not a byte, in the envelope or after
  * it: the input is a boundary's, and a number that is no byte is the
@@ -125,21 +144,20 @@ export const tryRead = input => {
     const [[w, , digits], end] = r[1]
     const type = typeOf(symbolsOf(w))
     const size = decimal(symbolsOf(digits))
-    const payload = byteArray(drop(end)(input))
-    return type !== null && size !== null && payload.length === size
+    const payload = drop(end)(input)
+    return type !== null && size !== null && length(payload) === size
         ? { type, payload }
         : null
 }
 
 /**
  * An object's bytes: the envelope, then the payload. What Git hashes for
- * the object's id, and what it stores inflated.
+ * the object's id, and what it stores inflated. The payload is counted,
+ * not held: the result is the envelope's bytes ahead of the list given.
  *
  * @throws If an item of the payload is not a byte.
  *
  * @type {(type: ObjectType, payload: Bytes) => Bytes}
  */
-export const write = (type, payload) => {
-    const p = byteArray(payload)
-    return concat(ascii(`${type} ${p.length}\0`))(p)
-}
+export const write = (type, payload) =>
+    concat(ascii(`${type} ${length(payload)}\0`))(payload)
