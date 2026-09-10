@@ -21,13 +21,33 @@ export type Dir = {
     readonly path: string
     /**
      * The authored files in this directory, by name, in the order the page
-     * lists them. Empty where the directory holds no `module.f.mjs`: a
-     * directory that only groups others has nothing to list, and the rule that
-     * gives it a page anyway is what makes every subdirectory link resolve.
+     * lists them: what the walk found, minus the generator's own output.
      */
     readonly files: readonly string[]
     /** The subdirectories that have pages of their own, by name. */
     readonly dirs: readonly string[]
     /** The issues in this directory's `todo/`, by file name. */
     readonly todo: readonly string[]
+    /**
+     * Every proof module in this directory's subtree, named as this page
+     * loads it: `./proof.f.mjs` on the directory that holds it, and
+     * `./fjs/types/list/proof.f.mjs` at the root. That is also how `fjs t`
+     * names it when run from here, which is the point — one test has one name
+     * however it is reached.
+     */
+    readonly proofs: readonly Proof[]
+}
+
+/**
+ * One proof module, and what stops a browser linking it.
+ *
+ * A proof with blockers is named on its page rather than dropped from it: an
+ * empty proof list should mean "no proofs here" and nothing else, and a proof
+ * that cannot run in a browser is still a proof of that directory.
+ */
+export type Proof = {
+    /** The page-relative specifier, which is also the name the run reports. */
+    readonly name: string
+    /** Specifiers a browser cannot resolve, empty where it can link the module. */
+    readonly blockers: readonly string[]
 }

@@ -26,58 +26,50 @@ const textOf = (entity, name) => {
 
 /**
  * Runs the whole generator over an in-memory tree — which is what moving
- * discovery into FunctionalScript bought: a directory of fixtures in, a
- * manifest out, no filesystem touched.
+ * discovery into FunctionalScript bought: a directory of fixtures in, a site
+ * out, no filesystem touched.
  *
  * @type {(tree: Dir) => readonly [State, number]}
  */
 const run = tree => {
-    // The manifest is written beside the runner that loads it, so the fixture
-    // carries that directory: the generator writes a file, it does not create
-    // the tree the repository already has.
-    /** @type {Dir} */
-    const root = {
-        ...tree,
-        fjs: { emergent_testing: {}, .../** @type {Dir} */ (tree['fjs'] ?? {}) },
-    }
-    const [generated, result] = virtual({ ...emptyState, root })(main())
+    const [generated, result] = virtual({ ...emptyState, root: tree })(main())
     return [generated, exitCode(result)]
 }
 
 /**
- * The manifest a successful run wrote, and what it said while writing it.
+ * The pages a successful run wrote, and what it said while writing them.
  *
- * @type {(tree: Dir) => { readonly manifest: string, readonly output: string }}
+ * @type {(tree: Dir) => { readonly root: Dir, readonly output: string }}
  */
 const generate = tree => {
     const [generated, code] = run(tree)
     assertEq(code, 0)
-    return {
-        manifest: textOf(
-            /** @type {Dir} */ (/** @type {Dir} */ (generated.root['fjs'])?.['emergent_testing'])
-                ?.['_browser-suite.mjs'],
-            'the manifest'),
-        output: generated.stdout,
-    }
+    return { root: generated.root, output: generated.stdout }
 }
 
 /**
- * The sources a manifest lists, in its own order.
+ * The proof sources a page's own runner script loads, in its order.
  *
- * @type {(manifest: string) => readonly string[]} */
-const listed = manifest => manifest
+ * @type {(page: string) => readonly string[]}
+ */
+const listed = page => page
     .split('\n')
     .flatMap(line => line.startsWith("    './") ? [line.slice(7, -2)] : [])
+
+/** @type {(root: Dir, path: readonly string[]) => string} */
+const pageAt = (root, path) => textOf(
+    path.reduce((at, name) => /** @type {Dir} */ (at[name]), root)['index.html'],
+    `the page for ${path.join('/')}`)
 
 export const proof = {
     main: () => {
         assertNotNullish(main(), 'expected a program effect')
     },
-    manifest: {
+    selection: {
         // Every `.f.mjs` that exports a `proof` and imports nothing a browser
         // cannot resolve, in path order — and nothing else in the tree.
         selectsProofModules: () => {
-            const { manifest, output } = generate({
+            const { root, output } = generate({
                 a: {
                     'module.f.mjs': file('export const x = 1'),
                     'proof.f.mjs': file("export const proof = { t: () => {} }"),
@@ -85,18 +77,18 @@ export const proof = {
                 'b.f.mjs': file('export const proof = []'),
                 'c.mjs': file('export const proof = []'),
             })
-            assertStructurallySame(listed(manifest), ['a/proof.f.mjs', 'b.f.mjs'])
+            assertStructurallySame(listed(pageAt(root, [])), ['a/proof.f.mjs', 'b.f.mjs'])
             assert(output.includes('browser proof modules: 2 of 2'), output)
         },
         // A module a browser cannot link is dropped rather than emitted, with
         // the reason said out loud: emitting it would fail the page *while it
         // links*, before the runner can publish a report.
         dropsWhatABrowserCannotLink: () => {
-            const { manifest, output } = generate({
+            const { root, output } = generate({
                 'a.f.mjs': file("import 'node:fs'\nexport const proof = []"),
                 'b.f.mjs': file("import 'left-pad'\nexport const proof = []"),
             })
-            assertStructurallySame(listed(manifest), [])
+            assertStructurallySame(listed(pageAt(root, [])), [])
             assert(output.includes('skipped a.f.mjs: not linkable in a browser (node:fs)'), output)
             assert(output.includes('skipped b.f.mjs: not linkable in a browser (left-pad)'), output)
             assert(output.includes('browser proof modules: 0 of 2'), output)
@@ -108,21 +100,21 @@ export const proof = {
          * own face and imports something that is not cannot be loaded either.
          */
         blockersReachThroughImports: () => {
-            const { manifest } = generate({
+            const { root } = generate({
                 'a.f.mjs': file("import './dep.f.mjs'\nexport const proof = []"),
                 'dep.f.mjs': file("import 'node:fs'\nexport const x = 1"),
             })
-            assertStructurallySame(listed(manifest), [])
+            assertStructurallySame(listed(pageAt(root, [])), [])
         },
         // An import cycle terminates: a module already read is not read again,
         // which is the same skip that keeps one module read once however many
         // others import it.
         importCycleTerminates: () => {
-            const { manifest } = generate({
+            const { root } = generate({
                 'a.f.mjs': file("import './b.f.mjs'\nexport const proof = []"),
                 'b.f.mjs': file("import './a.f.mjs'\nexport const x = 1"),
             })
-            assertStructurallySame(listed(manifest), ['a.f.mjs'])
+            assertStructurallySame(listed(pageAt(root, [])), ['a.f.mjs'])
         },
         /**
          * **A relative specifier naming no file is not a blocker.** The scan is
@@ -132,10 +124,10 @@ export const proof = {
          * nothing is what it contributes.
          */
         aSpecifierNamingNoFileIsDropped: () => {
-            const { manifest } = generate({
+            const { root } = generate({
                 'a.f.mjs': file("import './gone.f.mjs'\nexport const proof = []"),
             })
-            assertStructurallySame(listed(manifest), ['a.f.mjs'])
+            assertStructurallySame(listed(pageAt(root, [])), ['a.f.mjs'])
         },
         /**
          * **A read that failed for any other reason stops the generator.** A
@@ -166,10 +158,10 @@ export const proof = {
         // Where the sources are is the tree's business: a nested directory is
         // walked, and its path is what the manifest carries.
         walksNestedDirectories: () => {
-            const { manifest } = generate({
+            const { root } = generate({
                 fjs: { types: { list: { 'proof.f.mjs': file('export const proof = []') } } },
             })
-            assertStructurallySame(listed(manifest), ['fjs/types/list/proof.f.mjs'])
+            assertStructurallySame(listed(pageAt(root, [])), ['fjs/types/list/proof.f.mjs'])
         },
         /**
          * **Three directories are not this repository's source**, and the test
@@ -177,7 +169,7 @@ export const proof = {
          * anywhere is ignored too, which is exactly where one is found.
          */
         ignoresForeignDirectories: () => {
-            const { manifest } = generate({
+            const { root } = generate({
                 node_modules: { 'a.f.mjs': file('export const proof = []') },
                 target: { 'b.f.mjs': file('export const proof = []') },
                 '.git': { 'c.f.mjs': file('export const proof = []') },
@@ -186,7 +178,7 @@ export const proof = {
                     'e.f.mjs': file('export const proof = []'),
                 },
             })
-            assertStructurallySame(listed(manifest), ['fjs/e.f.mjs'])
+            assertStructurallySame(listed(pageAt(root, [])), ['fjs/e.f.mjs'])
         },
     },
     pages: {
@@ -313,27 +305,63 @@ export const proof = {
                 !('index.html' in /** @type {Dir} */ (generated.root['node_modules'])),
                 'expected no page inside node_modules')
         },
+        /**
+         * **A page runs the proofs of its own subtree**, named as `fjs t`
+         * names them from that directory — one test, one name, however it is
+         * reached.
+         */
+        aPageRunsItsSubtree: () => {
+            const { root } = generate({
+                a: {
+                    'proof.f.mjs': file('export const proof = []'),
+                    b: { 'proof.f.mjs': file('export const proof = []') },
+                },
+                c: { 'proof.f.mjs': file('export const proof = []') },
+            })
+            // Path order, so a subtree is a contiguous run: `a/b/` sorts
+            // before `a/proof.f.mjs`, and the page's slice keeps that order.
+            assertStructurallySame(listed(pageAt(root, [])),
+                ['a/b/proof.f.mjs', 'a/proof.f.mjs', 'c/proof.f.mjs'])
+            assertStructurallySame(listed(pageAt(root, ['a'])),
+                ['b/proof.f.mjs', 'proof.f.mjs'])
+            assertStructurallySame(listed(pageAt(root, ['a', 'b'])), ['proof.f.mjs'])
+        },
+        // A directory that proves nothing has no suite section, so no button
+        // promises a run that would do nothing.
+        aDirectoryWithoutProofsHasNoSection: () => {
+            const { root } = generate({ a: { 'notes.md': file('# notes') } })
+            const page = pageAt(root, ['a'])
+            assert(!page.includes('<summary>Emergent Testing</summary>'), page)
+            assert(!page.includes('data-test-run'), page)
+        },
+        /**
+         * **A proof a browser cannot link is named on its page with the
+         * blocker**, and left out of what the page loads: an empty list would
+         * leave "nothing here" and "nothing that runs here" indistinguishable.
+         */
+        aBlockedProofIsNamedNotHidden: () => {
+            const { root } = generate({
+                a: { 'proof.f.mjs': file("import 'node:fs'\nexport const proof = []") },
+            })
+            const page = pageAt(root, ['a'])
+            assert(page.includes('./proof.f.mjs — not linkable in a browser: node:fs'), page)
+            assertStructurallySame(listed(page), [])
+        },
     },
     run: () => {
         /** @type {Dir} */
-        const root = { '.github': { workflows: {} }, fjs: { emergent_testing: {} } }
+        const root = { '.github': { workflows: {} }, fjs: { website: { 'browser.mjs': file('export const proof = {}') } } }
         const state = { ...emptyState, root }
         const [generated, result] = virtual(state)(main())
         assertEq(exitCode(result), 0)
-        const page = assertNotNullish(generated.root['index.html'], 'expected generated HTML')
-        const entryFile = assertNotNullish(generated.root['_browser-test-entry.mjs'],
-            'expected generated entry module')
-        assert(Array.isArray(page), 'expected the generated HTML to be a file')
-        assert(Array.isArray(entryFile), 'expected the generated entry module to be a file')
-        const source = page.map(value => utf8ToString(/** @type {Vec} */ (value))).join('')
-        const entry = entryFile.map(value => utf8ToString(/** @type {Vec} */ (value))).join('')
-                assert(source.includes('emergent-testing-in-javascript-e44760d71688'))
+        const source = pageAt(generated.root, [])
+        assert(source.includes('emergent-testing-in-javascript-e44760d71688'))
         assert(!source.includes('?sk='))
         // The page starts idle, not mid-run, and its only control is the
         // renamed `Run` — never the old `Run again` label.
         assert(source.includes('data-state="idle"'), source)
-        // The root page is the root directory's page too: it carries the same
-        // catalogue every other page does.
+        assert(source.includes('>Run</button>'), source)
+        assert(!source.includes('Run again'), source)
         assert(source.includes('<summary>Directories</summary>'), source)
         // The catalogue is above the suite: what the directory holds is what
         // the reader came for, and a run cannot move what is above it.
@@ -345,18 +373,13 @@ export const proof = {
         assert(source.includes('<h1>FunctionalScript</h1>'), source)
         // The report is what it always was; only the section around it folds.
         assert(source.includes('<pre><ol data-test-results=""></ol></pre>'), source)
-        assert(source.includes('>Run</button>'), source)
-        assert(!source.includes('Run again'), source)
-        // The entry module wires the click handler and stops: it must not
-        // call `start()` on its own, whether unconditionally or behind a
-        // `run` query parameter.
-        assert(!entry.includes('searchParams'), entry)
-        assert(entry.trim().endsWith("runButton.addEventListener('click', start)"), entry)
-        // The stylesheet is one file at the root, linked root-relative so a
-        // module page at any depth reaches the same one, and the page carries
-        // no inline copy that could drift from it.
-        assertEq(textOf(generated.root['_main.css'], 'the stylesheet'), stylesheet)
-        assert(source.includes('<link rel="stylesheet" href="/_main.css">'), source)
-        assert(!source.includes('<style>'), source)
+        /**
+         * **The page runs its own proofs and starts nothing on load.** The
+         * runner is imported by an absolute path, so a page at any depth
+         * reaches the same module, and bound to the button rather than called.
+         */
+        assert(source.includes("import { startBrowserTestSources } from '/fjs/emergent_testing/browser/module.mjs'"), source)
+        assert(source.includes("addEventListener("), source)
+        assertStructurallySame(listed(source), ['fjs/website/browser.mjs'])
     },
 }
