@@ -50,7 +50,7 @@ export const proof = {
         assertStructurallySame(text(t[0]), ['40000', '.cargo', '51790504014de60f795462ec0995fd82d6caad56'])
         assertStructurallySame(text(t[15]), ['100755', 'dev.sh', '708d1660c3d411cf99ab30a30eb3fd3a9046c9a5'])
         assertStructurallySame(text(t[26]), ['100644', 'wrangler.jsonc', 'df228e2892189a7503babfdc4b6549bee875652d'])
-        assertStructurallySame([...new Set(t.map(mode))].sort(), [0o100644, 0o100755, 0o40000].sort())
+        assertStructurallySame([...new Set(t.map(mode))], [0o40000, 0o100644, 0o100755])
         assertStructurallySame(validate(t), ['ok', t])
         assertStructurallySame(toArray(write20(t)), rootTree)
     },
@@ -63,7 +63,7 @@ export const proof = {
             ['100644', 'a.txt'], ['100644', 'b.txt'], ['40000', 'dir'], ['120000', 'link'],
             ['100755', 'run.sh'], ['160000', 'sub'], ['100644', 't.txt'],
         ])
-        assertStructurallySame([...new Set(t.map(mode))].sort(), [0o100644, 0o100755, 0o120000, 0o160000, 0o40000].sort())
+        assertStructurallySame(t.map(mode), [0o100644, 0o100644, 0o40000, 0o120000, 0o100755, 0o160000, 0o100644])
         assertEq(text(t[5])[2], '9fed27590671460cacf76884f17cd2a4b17f7220')
         assertStructurallySame(validate(t), ['ok', t])
         assertStructurallySame(toArray(write20(t)), modesTree)

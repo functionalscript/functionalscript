@@ -294,8 +294,12 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   commit to a blob: [`todo/object-store.md`](todo/object-store.md).
 - **The `Vec` ceiling.** `maxLength` in `fjs/types/bit_vec` is `2^20` bits,
   128 KiB, and nothing the format leaves unbounded is safe from it, which
-  is why every unbounded field is a byte list. The one place it binds today
-  is the host's `inflate`, whose input and output are a `Vec`.
+  is why every unbounded field is a byte list. Where it binds today is the
+  boundary: the host's `inflate` takes a `Vec` and gives one, and
+  `readFile` ahead of it takes one too, so a loose object is refused on
+  either side of its stream — a file over the bound before inflating, a
+  stream that inflates past it — and never cut short. The inflater issue
+  lifts both sides.
 - **One `Meta` per byte.** The LL(1) backend takes an array of symbols,
   each an object, and streams nothing. For commits, tags and trees that is
   fine; it is the reason a blob is never handed to a parser.
