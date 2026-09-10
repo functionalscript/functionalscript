@@ -42,10 +42,12 @@ through the thunk:
 - a **string** that is not ASCII;
 - a **symbol** that is not a byte — negative, fractional, `-0`, or `256`
   and above;
-- a **set** with a boundary past `256`, or with an open tail — an odd
+- a **set** with a boundary outside `0..256`, or with an open tail — an odd
   number of boundaries runs to infinity from the last, so `['set', 256]`
-  holds every symbol above the bytes and no byte. EOF's `[-1, 0]` is within
-  both rules.
+  holds every symbol above the bytes and no byte. A boundary below `0` is
+  refused because the lowering would clip it, so `['set', -1, 2]` would
+  read as `[0, 2)`, a rule its author did not write; EOF is `null` in the
+  front end and never reaches this check as a set.
 
 What it cannot refuse is a text argument to `set` or `range` above `0x7F`.
 Both constructors lower it eagerly, so `set('é')` reaches the map as the set

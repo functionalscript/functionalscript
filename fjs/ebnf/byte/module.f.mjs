@@ -117,14 +117,16 @@ const isAscii = s => toArray(stringToCodePointList(s)).every(c => c < 0x80)
 /**
  * Refuses a rule the lowering met that reaches past the alphabet: a string
  * that is not ASCII, a symbol that is not a byte, a set with a boundary
- * past the byte universe or with an open tail — an odd number of
+ * outside `0..256` or with an open tail. A boundary below `0` is refused
+ * because the lowering clips it — `['set', -1, 2]` would lower to `[0, 2)`,
+ * a rule with a meaning its author did not write — and EOF never arrives
+ * here as a set, being `null` in the front end; an odd number of
  * boundaries runs to infinity from the last one, so `['set', 256]` holds no
  * byte and every symbol above. A tuple, a variant and a repeat carry no symbol
  * of their own, and the rules under them are met on their own. A `const`
  * thunk's payload is not: the lowering names the payload under the thunk
  * and never registers it, so the thunk *is* the payload here, and a bare
- * string or number behind one is checked as if it were the key. EOF's set,
- * `[-1, 0]`, is within every boundary a byte set has.
+ * string or number behind one is checked as if it were the key.
  *
  * @type {(rule: Rule) => void}
  */
@@ -137,7 +139,7 @@ const check = rule => {
         const info = rule()
         if (info[0] === 'set') {
             const [, ...s] = info
-            assert(s.length % 2 === 0 && s.every(b => b <= byteEnd), ['a set in a byte grammar holds bytes only', s])
+            assert(s.length % 2 === 0 && s.every(b => b >= 0 && b <= byteEnd), ['a set in a byte grammar holds bytes only', s])
         } else if (info[0] === 'const') {
             check(info[1])
         }

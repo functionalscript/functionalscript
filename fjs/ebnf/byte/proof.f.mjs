@@ -171,6 +171,8 @@ export const proof = {
             // An odd number of boundaries is open above the last one.
             openAboveBytes: () => byteParser(() => ['set', 0x100]),
             openFromZero: () => byteParser(() => ['set', 0]),
+            // A negative boundary would be clipped by the lowering.
+            negativeBoundary: () => byteParser(() => ['set', -1, 2]),
         },
     },
 }
