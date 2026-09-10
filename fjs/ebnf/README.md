@@ -27,9 +27,10 @@ front-end rules over bytes; [`utf16/`](./utf16/) takes only the `Meta`
 type from `ast/`, to tag the input it makes, and
 [`token_symbol/`](./token_symbol/README.md) imports nothing of `fjs/ebnf` —
 the one turns text into the input a parser reads, the other turns token
-names into the numbers that are one-symbol rules by being symbols. Their
-proofs run the backend over what they produce, which is use, not a
-dependency of the adapter.
+names into the numbers that are one-symbol rules by being symbols. The
+`token_symbol/` proof runs the backend over the numbers it makes, which
+is use, not a dependency of the adapter; the `utf16/` proof checks the
+units alone.
 
 It replaced the classical `fjs/bnf` — a functional front end without a
 repetition primitive, a packed 24-bit terminal, and two backends, one of
