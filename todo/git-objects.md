@@ -243,7 +243,9 @@ as bytes. A tree entry's mode is kept as the digits it was spelled with,
 since `0100644` and `100644` are one number and two spellings — Git writes
 the unpadded one and `git fsck` only warns about the other, so both exist —
 and a writer owes the spelling it read. `mode` reads the number off it, and
-`validate` is where padding is refused or allowed.
+`validate` refuses the padded spelling, as `git fsck`'s `zeroPaddedFilemode`
+flags it: the reader reads such an entry and the writer returns it byte for
+byte, and only the check that vouches for an object says no to it.
 
 A commit and a tag are their header list and their message, and nothing
 else: one representation, so there is no second one for a writer to choose
