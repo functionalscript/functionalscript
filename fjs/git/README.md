@@ -15,6 +15,10 @@ come.
   share, and the message after it: a generic grammar over `key SP value LF`
   lines with continuation, a reader to a header list, and a writer that
   returns the block byte for byte.
+- [`ident/`](ident/module.f.mjs) — an `author`, `committer` or `tagger`
+  value, `name SP <email> SP time SP tz`, read as a second pass over the
+  bytes a header holds: a `try*` reader that refuses what the grammar does
+  not cover, and a writer.
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
   and `ObjectType`.
 
