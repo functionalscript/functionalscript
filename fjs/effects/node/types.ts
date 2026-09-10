@@ -126,6 +126,21 @@ export type Rename = readonly['rename', (src: string, dst: string) => IoResult<v
 
 export type ReadBytes = readonly['readBytes', (path: string, offset: number, size: number) => IoResult<Vec>]
 
+// inflate
+
+/**
+ * Inflates one zlib stream (RFC 1950) to the bytes it holds — one, and the
+ * whole input: bytes after the end of the stream are refused, since a
+ * file that holds them is not the object its stream spells. The result is
+ * bounded as `readFile`'s is, 128 KiB, and a stream that inflates to more
+ * is refused with an error rather than cut short: the host decompresses,
+ * and only a bound it can name keeps that from being a way to fill memory.
+ * A loose Git object is one such stream, and its decoder is pure over the
+ * inflated bytes; this is the one host effect between the two until a
+ * FunctionalScript inflater exists.
+ */
+export type Inflate = readonly['inflate', (data: Vec) => IoResult<Vec>]
+
 // randomInt
 
 export type RandomInt = readonly['randomInt', () => OpResult<number>]
@@ -333,6 +348,7 @@ export type NodeOp =
     | Http
     | Forever
     | Import
+    | Inflate
     | MemOp
     | Now
     | RandomInt
