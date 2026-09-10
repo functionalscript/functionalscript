@@ -490,14 +490,16 @@ const evaluate = env => root => {
     /** @type {_State} */
     let state = [null, ['enter', root]]
     while (true) {
-        const [stack, step] = state
-        if (step[0] === 'enter') {
-            state = enter(env, stack, step[1])
-        } else if (step[0] === 'error' || stack === null) {
-            return step
+        const [stack, [tag, payload]] = state
+        if (tag === 'enter') {
+            state = enter(env, stack, payload)
+        } else if (tag === 'error') {
+            return error(payload)
+        } else if (stack === null) {
+            return ok(payload)
         } else {
             const { top, rest } = stack
-            state = round(rest, { ...top, index: top.index + 1, done: concat(top.done)([step[1]]) })
+            state = round(rest, { ...top, index: top.index + 1, done: concat(top.done)([payload]) })
         }
     }
 }
