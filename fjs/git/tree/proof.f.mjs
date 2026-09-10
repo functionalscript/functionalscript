@@ -34,9 +34,11 @@ const oid = hex => u8ListToVec(msb)(Array.from({ length: hex.length / 2 }, (_, i
 /** @type {(mode: string, name: string, id: string) => TreeEntry} */
 const entry = (mode, name, id) => ({ mode: latin1(mode), name: latin1(name), oid: oid(id) })
 
-const idA = '0'.repeat(40)
+const idA = '0a'.repeat(20)
 
 const idB = 'ff'.repeat(20)
+
+const idZero = '0'.repeat(40)
 
 export const proof = {
     // The root tree of a real commit: 27 entries in Git's order, subtrees
@@ -111,6 +113,11 @@ export const proof = {
         assertStructurallySame(validate([entry('40000', '.Git', idA)]), ['error', '.git name at 0'])
         assertStructurallySame(validate([entry('100644', '.gitmodules', idA)])[0], 'ok')
         assertStructurallySame(validate([entry('100644', '.gi', idA)])[0], 'ok')
+        // An id of all zero bytes is refused at either width; one non-zero
+        // byte is an id.
+        assertStructurallySame(validate([entry('100644', 'a', idZero)]), ['error', 'null id at 0'])
+        assertStructurallySame(validate([entry('40000', 'a', '0'.repeat(64))]), ['error', 'null id at 0'])
+        assertStructurallySame(validate([entry('100644', 'a', '0'.repeat(38) + '01')])[0], 'ok')
         // A name twice is a duplicate whatever the modes: Git refuses a
         // file and a subtree of one name, though their sort keys differ.
         assertStructurallySame(validate([entry('100644', 'a', idA), entry('100644', 'a', idB)]), ['error', 'duplicate name at 1'])

@@ -26,7 +26,7 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
-import { length as bitLength, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { length as bitLength, msb, u8List, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
 import { flat } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 
@@ -142,7 +142,8 @@ const compare = (a, b) => {
 
 /**
  * What is wrong with one entry, or `null`: the checks `git fsck` makes on
- * an entry alone.
+ * an entry alone. The id is not looked up, only an id of all zero bytes
+ * is refused, the one Git never writes and `fsck` refuses as `nullSha1`.
  *
  * @type {(e: TreeEntry) => Nullable<string>}
  */
@@ -155,6 +156,7 @@ const problem = e => {
         : name.includes(slash) ? 'slash in name'
         : name.every(b => b === dot) && name.length <= 2 ? 'dot name'
         : isDotGit(name) ? '.git name'
+        : uint(e.oid) === 0n ? 'null id'
         : null
 }
 
@@ -175,9 +177,9 @@ const pairProblem = (a, b) =>
  * Vouches for a tree as `git fsck` does, or refuses it, naming the first
  * entry it cannot vouch for and why: a zero-padded mode, a mode that is
  * none of the five Git writes, an empty name, a name holding `/`, a name
- * that is `.` or `..`, a name that is `.git` in any case, a name twice
- * whatever the modes, or entries out of the order Git requires — by name,
- * a subtree as if its name ended in `/`.
+ * that is `.` or `..`, a name that is `.git` in any case, an id of all
+ * zero bytes, a name twice whatever the modes, or entries out of the order
+ * Git requires — by name, a subtree as if its name ended in `/`.
  *
  * Separate from {@link tryRead} on purpose: a reader reads what it can,
  * and only this says no.
