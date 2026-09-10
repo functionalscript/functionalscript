@@ -139,8 +139,10 @@ reads values, not text.
       `jsGrammar`, `jsMatcher` and `descentParserCpOnly` retired and
       declared. The comparison proof retired with the classical grammar;
       the tokenizer's corpus stands unchanged as the port's proof.
-- [ ] Parser grammar LL(1): trailing trivia, right-recursive or separated
-      list, the terminator per stage 5.
+- [x] Parser grammar LL(1), beside the classical one with the comparison
+      proof: [`fjs/djs/parser/grammar`](../parser/grammar/module.f.mjs) —
+      trivia after every token, a right-recursive list, `;` after every
+      statement per stage 5 of parser-serializer-restructure.
 - [ ] Parser on `ebnf/ll1`, on the `media/datajs` reader pattern.
 - [ ] ebnf-migration stage 6 ticked; `bnf/descent` without consumers.
 
