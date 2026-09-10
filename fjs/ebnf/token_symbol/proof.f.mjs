@@ -36,7 +36,7 @@ export const proof = {
     // the one from the other with nothing between.
     rule: () => {
         const { encode } = encoding(names)
-        const tok = { id: 'tok' }
+        const tok = /** @type {const} */ ({ id: 'tok' })
         const symbols = names.map(name => ({ symbol: encode(name), meta: tok }))
         assertStructurallySame(parser([encode('>>'), encode('>>>=')])(symbols), ['ok', [[symbols[0], symbols[1]], 2]])
         assertStructurallySame(parser(encode('instanceof'))(symbols), ['error', 0])
