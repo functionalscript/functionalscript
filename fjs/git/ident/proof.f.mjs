@@ -7,7 +7,7 @@ import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { tryRead as readPayload } from '../header/module.f.mjs'
 import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
-import { tryRead, write } from './module.f.mjs'
+import { maxTime, tryRead, write } from './module.f.mjs'
 
 const sp = /** @type {const} */ (0x20)
 
@@ -44,22 +44,24 @@ export const proof = {
         roundTrip(author)
         roundTrip(committer)
     },
-    // A name may hold spaces and `>`, an email `<`; both are bytes, not
+    // A name may hold spaces, an email `@` and dots; both are bytes, not
     // text; a name may be empty, and a time may be `0`.
     forms: () => {
-        assertStructurallySame(text(read(latin1('A B> <x<y> 5 -0530'))), ['A B>', 'x<y', 5n, '-0530'])
+        assertStructurallySame(text(read(latin1('A B. <x.y@z> 5 -0530'))), ['A B.', 'x.y@z', 5n, '-0530'])
         assertStructurallySame(text(read(latin1(' <> 0 +0000'))), ['', '', 0n, '+0000'])
         const i = read([0xE9, sp, lt, 0xFF, gt, sp, ...latin1('12 +0100')])
         assertStructurallySame([toArray(i.name), toArray(i.email), i.time, i.tz], [[0xE9], [0xFF], 12n, '+0100'])
-        for (const v of ['A B> <x<y> 5 -0530', ' <> 0 +0000', 'Alice  <a@b> 1 +0000']) {
+        for (const v of ['A B. <x.y@z> 5 -0530', ' <> 0 +0000', 'Alice  <a@b> 1 +0000']) {
             roundTrip(latin1(v))
         }
     },
-    // A time past the safe integers is a bigint, read and written exactly.
+    // A time past the safe integers is a bigint, read and written exactly,
+    // up to the latest Git can hold; one second later is refused.
     bigTime: () => {
-        const i = read(latin1('a <b> 123456789012345678901234567890 +0000'))
-        assertEq(i.time, 123456789012345678901234567890n)
-        roundTrip(latin1('a <b> 123456789012345678901234567890 +0000'))
+        const i = read(latin1(`a <b> ${maxTime} +0000`))
+        assertEq(i.time, 9223372036854775807n)
+        roundTrip(latin1(`a <b> ${maxTime} +0000`))
+        assertEq(tryRead(latin1(`a <b> ${maxTime + 1n} +0000`)), null)
     },
     // Each refusal, one per condition: the SP before `<`, the brackets,
     // the time's spelling, the zone's, trailing bytes, LF anywhere.
@@ -69,6 +71,8 @@ export const proof = {
             'Alice<a@b> 1 +0000',       // no SP before `<`
             'Alice <a@b 1 +0000',       // no `>`
             'Alice a@b> 1 +0000',       // no `<`
+            'A> B <a@b> 1 +0000',       // `>` in the name
+            'Alice <a<b> 1 +0000',      // `<` in the email
             'Alice <a@b> 01 +0000',     // not canonical decimal
             'Alice <a@b> x +0000',      // not a time
             'Alice <a@b> 1 0000',       // no sign
@@ -87,10 +91,13 @@ export const proof = {
     write: {
         throw: {
             ltInName: () => write({ name: latin1('a<b'), email: [], time: 0n, tz: '+0000' }),
+            gtInName: () => write({ name: latin1('a>b'), email: [], time: 0n, tz: '+0000' }),
             lfInName: () => write({ name: latin1('a\nb'), email: [], time: 0n, tz: '+0000' }),
+            ltInEmail: () => write({ name: [], email: latin1('a<b'), time: 0n, tz: '+0000' }),
             gtInEmail: () => write({ name: [], email: latin1('a>b'), time: 0n, tz: '+0000' }),
             lfInEmail: () => write({ name: [], email: latin1('a\nb'), time: 0n, tz: '+0000' }),
             negativeTime: () => write({ name: [], email: [], time: -1n, tz: '+0000' }),
+            lateTime: () => write({ name: [], email: [], time: maxTime + 1n, tz: '+0000' }),
             zoneNoSign: () => write({ name: [], email: [], time: 0n, tz: '0000' }),
             zoneShort: () => write({ name: [], email: [], time: 0n, tz: '+000' }),
             zoneLetters: () => write({ name: [], email: [], time: 0n, tz: '+00a0' }),

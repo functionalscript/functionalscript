@@ -363,10 +363,12 @@ approximated:
   each an object, and streams nothing (its README, "Left for later"). For
   commits, tags and trees that is fine; it is the reason a blob is never
   handed to a parser.
-- **Semantic rules.** Required headers and their order, a duplicated
-  `tree`, a hex id of the wrong length, a timestamp out of range, the mode
-  set, the entry order: all after the parse, in one `validate` per object
-  type, refusing what it cannot vouch for and naming what it refused.
+- **Semantic rules.** Required headers and their order, a hex id of the
+  wrong length, a tag name that is no ref name, the mode set, the entry
+  order: all after the parse, in one `validate` per object type, refusing
+  what it cannot vouch for and naming what it refused. A timestamp out of
+  range is the ident reader's to refuse, since it is a property of the
+  ident and not of the object around it.
 - **Packfiles and `.idx`.** Length-framed throughout — varint sizes, delta
   chains, embedded zlib streams. A decoder in the `fjs/asn.1` style, and a
   later issue; most objects in a real repository live there, so the

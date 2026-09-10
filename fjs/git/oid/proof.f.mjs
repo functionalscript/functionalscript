@@ -1,5 +1,5 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { length, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { hole, latin1 } from '../testlib.f.mjs'
 import { toHex, tryFromHex } from './module.f.mjs'
@@ -26,6 +26,13 @@ export const proof = {
     capital: () => {
         const id = tryFromHex(latin1('AbCdEf' + '0'.repeat(34)))
         assertEq(id !== null && String.fromCharCode(...toArray(toHex(id))), 'abcdef' + '0'.repeat(34))
+    },
+    // As many bytes as a `Vec` holds reads; one more is refused, not thrown.
+    ceiling: () => {
+        const most = Number(maxLengthBytes)
+        const id = tryFromHex(latin1('00'.repeat(most - 1) + '01'))
+        assertEq(id !== null && length(id), maxLengthBytes * 8n)
+        assertEq(tryFromHex(latin1('00'.repeat(most + 1))), null)
     },
     // Each refusal: no digits, an odd count, a byte that is no digit.
     refused: () => {

@@ -89,6 +89,21 @@ export const proof = {
         assertStructurallySame(validate20(replaced(1, 'type commits')), ['error', 'unknown type'])
         assertStructurallySame(validate20(replaced(1, 'type Commit')), ['error', 'unknown type'])
         assertStructurallySame(validate20(replaced(2, 'tagger A <a@b> 1 +0000')), ['error', 'no tag name'])
+        assertStructurallySame(validate20(replaced(3, 'tagger A <a<b> 1 +0000')), ['error', 'not a tagger'])
+        assertStructurallySame(validate20(replaced(3, 'tagger A <a@b> 9223372036854775808 +0000')), ['error', 'not a tagger'])
+    },
+    // A tag's name is a ref name: what `git check-ref-format` takes passes,
+    // and each of its rules refuses.
+    name: () => {
+        for (const n of ['v1.0', 'release/1.0', 'a@b', 'a.b.c', 'lock', 'x.locky', 'a{b', 'a/b/c', '\xE9']) {
+            assertStructurallySame(validate20(replaced(2, `tag ${n}`))[0], 'ok')
+        }
+        for (const n of [
+            '', 'a b', 'a~b', 'a^b', 'a:b', 'a?b', 'a*b', 'a[b', 'a\\b', 'a\x01b', 'a\x7Fb',
+            'a..b', 'a@{b', '@', 'a.', '.a', 'a/.b', 'a.lock', 'a.lock/b', 'a/', '/a', 'a//b',
+        ]) {
+            assertStructurallySame(validate20(replaced(2, `tag ${n}`)), ['error', 'bad tag name'])
+        }
         assertStructurallySame(validate20(replaced(3, 'tagger A <a@b> 1 +000')), ['error', 'not a tagger'])
         assertStructurallySame(validate20(replaced(3, 'tagger A')), ['error', 'not a tagger'])
     },

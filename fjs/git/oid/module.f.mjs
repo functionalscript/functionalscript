@@ -12,10 +12,10 @@
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
-import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { msb, tryU8ListToVec, u8List } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 
-const toVec = u8ListToVec(msb)
+const toVec = tryU8ListToVec(msb)
 
 const toBytes = u8List(msb)
 
@@ -24,8 +24,9 @@ const isValue = v => v !== null
 
 /**
  * Reads an id from its hex spelling, or refuses it: a byte that is no hex
- * digit, an odd count of them, or none. Either case of letter is read, as
- * Git reads it, though Git writes the small one; {@link toHex} writes it.
+ * digit, an odd count of them, none, or more than a `Vec` holds. Either
+ * case of letter is read, as Git reads it, though Git writes the small
+ * one; {@link toHex} writes it.
  *
  * @throws If an item of the hex is not a byte.
  *
