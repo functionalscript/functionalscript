@@ -114,8 +114,8 @@ const authored = path => path.endsWith('.f.mjs')
  * hands back the whole listing to filter afterwards.
  *
  * **Names are sorted here, once.** Both consumers want a stable order — a
- * manifest that reordered itself between runs is a diff nobody made, and so
- * is a page whose file list did — and the filesystem promises none.
+ * page whose proof list reordered itself between runs is a diff nobody made,
+ * and so is one whose file list did — and the filesystem promises none.
  *
  * @type {(dir: string) => Effect<Readdir, readonly _Walked[], IoChannel>}
  */
@@ -179,7 +179,7 @@ const resolve = from => specifier => pathConcat(`${from}/..`)(specifier)
  * selected on the strength of a file nobody read — putting the page's failure
  * *while it links*, before the runner can publish a report, which is the
  * outcome this whole selection exists to prevent. So the generator refuses the
- * input it cannot handle rather than answering with a plausible manifest
+ * input it cannot handle rather than answering with a plausible proof list
  * ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)), and its
  * message is the host's own, naming the file. Dropping such a module as a
  * *blocker* instead would keep the run going, but it costs a `stat` per module
@@ -242,10 +242,12 @@ const readGraph = frontier => graph => {
  * never sees.
  *
  * Empty means the module and everything it imports are plain relative ES
- * modules, which is exactly what a browser can load. Anything else is dropped
- * from the manifest: emitting it would fail the page *while it links*, before
- * the runner can publish a report, and a proof module is valid FunctionalScript
- * whether or not a browser can link it.
+ * modules, which is exactly what a browser can load. Anything else is kept
+ * out of what a page loads — and named on it with the blocker, so that an
+ * empty list means "no proofs here" and nothing else. Loading it would fail
+ * the page *while it links*, before the runner can publish a report, and a
+ * proof module is valid FunctionalScript whether or not a browser can link
+ * it.
  *
  * @type {(graph: _Graph) => (path: string) => readonly string[]}
  */

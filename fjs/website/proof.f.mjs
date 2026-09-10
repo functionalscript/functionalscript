@@ -156,7 +156,7 @@ export const proof = {
                 `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big.mjs'\n`)
         },
         // Where the sources are is the tree's business: a nested directory is
-        // walked, and its path is what the manifest carries.
+        // walked, and its path is what the root page loads it by.
         walksNestedDirectories: () => {
             const { root } = generate({
                 fjs: { types: { list: { 'proof.f.mjs': file('export const proof = []') } } },
