@@ -3,15 +3,17 @@
 The `ebnf/data/` piece of [ebnf-migration](../../todo/ebnf-migration.md): the
 intermediate representation (IR) the EBNF backends consume, and the lowering
 from the front end in [`../module.f.mjs`](../module.f.mjs) into it. It settles
-the carrier question the ebnf-front-end issue (Problem 1) and the
-ebnf-range-set issue ("Decide with the bounded repeat") both deferred to this
-layer, and it absorbs the rule-visitor issue as `matchRule`. Those issues live
-under `fjs/bnf/todo/` today and are not linked from here: `ebnf/` never
-reaches into `bnf/`, a README link included, because the migration deletes
-`bnf/` at its last stage
+the carrier question the front-end design ([`../README.md`](../README.md),
+Problem 1 of the ebnf-front-end issue it absorbed) and
+[ebnf-range-set](../terminal/todo/ebnf-range-set.md) ("Decided with the
+bounded repeat") both deferred to this layer, and it absorbed the
+rule-visitor issue as `matchRule`. Those issues were filed under
+`fjs/bnf/todo/`, and this file did not link them while that module stood:
+`ebnf/` never reached into `bnf/`, a README link included, because the
+migration deleted `bnf/` at its last stage
 ([ebnf-migration](../../todo/ebnf-migration.md), principle 2). Its issue
-triage moves each of them into `fjs/ebnf/`, the front-end design as
-`fjs/ebnf/README.md`.
+triage moved them to where the links above point, and the front-end design
+became `fjs/ebnf/README.md`.
 
 - `module.f.mjs` — `matchRule`, `emptyTagMap`, `validate`, `toData`;
 - `types.ts` — the `Rule` union, `RuleSet`, `RuleVisitor`, `GrammarData`.
@@ -61,9 +63,10 @@ the nested rule replaced by its name — `() => ['set', 48, 58]` lowers to
 array and object, tagged because in the data form the array is no longer
 free: a tuple that begins with a tag and a list of names are both arrays, and
 nothing but a tag tells them apart. The tag words for those two are the
-transformer protocol's (`fjs/bnf/matcher/types.ts` spells its `Transformer`
-as `['sequence', …]`, `['variant', …]`, `['repeat', …]`), so a data rule and
-the transformer that maps it carry the same word.
+ones the classical transformer protocol used — the deleted
+`fjs/bnf/matcher/types.ts` spelled its `Transformer` as `['sequence', …]`,
+`['variant', …]`, `['repeat', …]` — so a data rule and the transformer that
+mapped it carried the same word while both existed.
 
 What this buys, against the alternatives that were weighed:
 

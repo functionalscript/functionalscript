@@ -29,17 +29,17 @@ that plan triaged; this file is their record.
 
 Plain values are rules directly; a thunk always returns a tagged tuple.
 Tagged tuples never appear in `Rule`, so a plain array is always a sequence.
+In the names [`types.ts`](./types.ts) exports, abridged:
 
 ```ts
-type Rule     = Const | Thunk
-type Const    = null | number | string | Sequence | Variant
-type Sequence = readonly Rule[]
+type Rule     = DataRule | Thunk
+type DataRule = null | number | string | Tuple | Variant
+type Tuple    = readonly Rule[]
 type Variant  = { readonly [k in string]: Rule }
-type Thunk    = () => Info
-type Info     =
-    | readonly ['const', Const]                 // a plain rule behind a thunk
-    | readonly ['set', ...RangeSet]             // one symbol from the set
-    | readonly ['repeat', number, number, Rule] // min..max copies
+type Thunk    = Const<DataRule> | Set | Repeat<number, number, Rule>
+type Const<R>             = () => readonly ['const', R]           // a plain rule behind a thunk
+type Set                  = () => readonly ['set', ...number[]]   // one symbol from the set
+type Repeat<Min, Max, R>  = () => readonly ['repeat', Min, Max, R] // min..max copies
 ```
 
 Three word tags, the RTTI vocabulary; discrimination is by JavaScript type at
@@ -98,25 +98,28 @@ the whole range.
 
 What matching a rule produces depends on the rule's form alone, one row per
 form, and [`ast/types.ts`](./ast/types.ts) is the type-level statement of
-the table:
+the table. `I` is the input's metadata, `O` the output alphabet's, and
+`Ast<r>` here abbreviates `Ast<r, I, O>`:
 
 | form | AST |
 |---|---|
-| `['const', c]` | `Ast<c>` |
-| `['set', …]` | one symbol leaf |
+| `['const', c]` | `Ast<c>` — the thunk and its payload are one rule |
+| `['set', …]` | `Meta<I>` — one symbol leaf |
 | `['repeat', min, max, r]` | `BoundedArray<min, max, Ast<r>>` — every length from `min` to `max`, one flat array whatever the bounds |
-| `number` | one symbol leaf |
+| `n`, a number | `Meta<I, n>` — one symbol leaf, the literal kept |
 | `null` | `readonly []` — EOF consumes no source element and contributes no leaf |
-| `string` | `readonly number[]` — one leaf per code point |
-| `Sequence` | one entry per element |
-| `Variant` | the branch taken, tagged by its key |
+| `string` | `readonly Ast<number>[]` — one leaf per code point, `''` being `readonly []` |
+| `Tuple` | a tuple, one node per element |
+| `Variant` | `[tag, node]` of the branch taken |
 
-A leaf is a `Meta<I>`: the symbol and what the grammar ignored about it,
-carried through from the input. A mapping of the rewrite set replaces any
-subtree with one `Meta<O>` — a symbol of the next alphabet, its value in
-the metadata — as the node comes into existence, so a layered parser is a
-grammar per layer and a mapping into the next alphabet
-([`ll1/`](./ll1/README.md)).
+A leaf is a `Meta<I>`, an object holding the symbol and what the grammar
+ignored about it, carried through from the input — a string's leaves
+included, which are never bare numbers. A mapping of the rewrite set
+replaces any subtree with one `Meta<O>` — a symbol of the next alphabet,
+its value in the metadata — as the node comes into existence, so a layered
+parser is a grammar per layer and a mapping into the next alphabet
+([`ll1/`](./ll1/README.md)). The rows in full, with what each admits once
+mapped, are [`ast/`](./ast/README.md)'s table.
 
 ## Terminals and EOF
 
