@@ -6,7 +6,9 @@ typed tree a backend builds for a rule, with a metadata channel. It is what
 against; the data layer's README committed to the nodes, and this is their
 type.
 
-- `types.ts` — `Meta`, `Ast`, `Children`.
+- `types.ts` — `Meta`, `Ast`, `Children`; `Unmapped` and `JoinNode`, the
+  shapes a reader of a combinator's scaffolding is typed by.
+- `module.f.mjs` — `unmapped`, `symbolAt`: the two tests a mapping makes.
 
 ## What it is
 
@@ -120,8 +122,19 @@ across rewrite sets, which change which positions are symbols and never
 what the arrays look like. A mapping therefore needs no shape asserts, only
 `meta.id` where it expects a symbol and `instanceof Array` where it knows a
 position is unmapped — the scaffolding a combinator builds and hands to
-nobody. `Children<R, I, O>` is exact: it states what can be known
-statically, and the one test recovers the rest.
+nobody. `symbolAt` and `unmapped` in `module.f.mjs` are those two tests.
+`Children<R, I, O>` is exact: it states what can be known statically, and
+the one test recovers the rest.
+
+A reader of a combinator's scaffolding — `joined` for the list `join`
+builds, `items` for the container `cj` builds — serves every grammar that
+uses the combinator, so it is generic over the alphabets; and `Children<R,
+I, O>` with `O` a type parameter is a row of deferred conditionals,
+`Meta<O>` at every mapped position, from which TypeScript infers nothing.
+Such a reader is typed by the shape of its node instead, `Unmapped<N>` at
+each position it knows to be scaffolding and the item's node as its one
+type parameter, so that what it returns is exactly the `Ast` the caller's
+`Children` carries at that position.
 
 ## Decided separately
 

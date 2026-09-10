@@ -135,8 +135,9 @@ by the machine from the rule at that position, so its shape is the rule's
 by construction. There are no shape asserts in the fold; the asserts are the
 mappings' own, on `meta.id` where a mapping expects a symbol and on
 `instanceof Array` where it knows a position is unmapped — the scaffolding a
-combinator like `join` builds and hands to nobody. [`../ast`](../ast/README.md)
-holds the argument.
+combinator like `join` builds and hands to nobody. `symbolAt` and `unmapped`
+in [`../ast/module.f.mjs`](../ast/module.f.mjs) are those two tests.
+[`../ast`](../ast/README.md) holds the argument.
 
 **The parser takes the set and folds it.** The machine builds bottom-up, and
 a node comes into existence at five sites — in `enter`, a set's leaf and the
@@ -162,7 +163,12 @@ output would depend on assembly order. Three consequences, all to keep:
   the rule you hold. A rule built inside a combinator and returned to
   nobody — the `[',', item]` pair `join` makes — is not mappable, and a
   combinator that wants its scaffolding mapped returns the mappings beside
-  the rule.
+  the rule; one whose scaffolding is only ever read returns a reader of its
+  shape instead — `joined` beside `join`, `items` beside `cj` in
+  [`../lib/json`](../lib/json/module.f.mjs). A rule a reader wants to map is
+  exported from its grammar so that it can be held: JSON's `character` and
+  `escape` are, and [`fjs/media/json/parser`](../../media/json/parser/module.f.mjs)
+  keys a mapping by each.
 - **A string's symbol and a bare number are one rule** in the data layer,
   so mapping `97` maps the code point inside `'a'` too. Documented, not
   fought: a grammar that wants them apart spells the string as a set.

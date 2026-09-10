@@ -9,10 +9,12 @@
  * @module
  *
  * @import { RangeSet } from '../types/range_set/types.ts'
- * @import { Info, Set, Rule, Repeat, Option, RepeatFrom, Times } from './types.ts'
+ * @import { JoinNode } from './ast/types.ts'
+ * @import { Info, Join, Set, Rule, Repeat, Option, RepeatFrom, Times } from './types.ts'
  */
 
 import { assert } from "../asserts/module.f.mjs"
+import { unmapped } from "./ast/module.f.mjs"
 import { codePointListToString, stringToCodePointList } from "../text/utf16/module.f.mjs"
 import { isFixedArray } from "../types/array/module.f.mjs"
 import { toArray } from "../types/list/module.f.mjs"
@@ -150,11 +152,30 @@ export const times = n => rule => () => ['repeat', n, n, rule]
 export const option = rule => () => ['repeat', 0, 1, rule]
 
 /**
+ * A list of `r`s separated by `s`, optional as a whole so that an empty
+ * list is one too.
+ *
  * @type {<const S extends Rule>(s: S) =>
  *  <const R extends Rule>(r: R) =>
- *  Option<readonly[R, RepeatFrom<0, readonly[S, R]>]>}
+ *  Join<S, R>}
  */
 export const join = s => r => option([r, repeatFrom0([s, r])])
+
+/**
+ * The items of a list `join` matched, in order, read out of the node the
+ * machine built for it: empty, or the first item beside the separator-item
+ * pairs. The pairs, and the option around them, are scaffolding `join`
+ * builds and hands to nobody, so no mapping ever fills those positions;
+ * the items may be mapped, and are returned as they stand. Typed by the
+ * shape of the node, for the reason `Unmapped` in `./ast/types.ts` gives.
+ *
+ * @type {<T>(node: JoinNode<T>) => readonly T[]}
+ */
+export const joined = node => {
+    if (node.length === 0) { return [] }
+    const [first, rest] = unmapped(node[0])
+    return [first, ...unmapped(rest).map(pair => unmapped(pair)[1])]
+}
 
 /**
  * The end of input, as a rule. A grammar that must consume the whole input

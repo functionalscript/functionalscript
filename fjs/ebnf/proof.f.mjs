@@ -1,11 +1,20 @@
 /**
+ * @import { Assert } from '../asserts/types.ts'
+ * @import { Equal } from '../types/ts/types.ts'
+ * @import { Ast } from './ast/types.ts'
+ * @import { RewriteSet } from './ll1/types.ts'
+ * @import { Utf16 } from './utf16/types.ts'
  * @import { Set } from './types.ts'
  */
 
 import { assertStructurallySame } from '../asserts/module.f.mjs'
+import { unwrap } from '../types/result/module.f.mjs'
+import { parser } from './ll1/module.f.mjs'
+import { units, utf16 } from './utf16/module.f.mjs'
 import {
     eof,
     join,
+    joined,
     option,
     range,
     rangeEncode,
@@ -163,6 +172,22 @@ export const proof = {
         assertStructurallySame(
             force(join(',')('a')),
             ['repeat', 0, 1, ['a', ['repeat', 0, Infinity, [',', 'a']]]])
+    },
+    // The items of what `join` matched, as the machine lays them out: none
+    // for the empty list, the first alone, and the first beside each pair's
+    // second — the separators between them passed over.
+    joined: () => {
+        const list = join(',')('a')
+        /** @type {RewriteSet<Utf16, never>} */
+        const nothing = []
+        const parse = parser(list, nothing)
+        /** @type {(text: string) => readonly Ast<'a', Utf16>[]} */
+        const itemsOf = text => joined(unwrap(parse(units(text)))[0])
+        /** @typedef {Assert<Equal<ReturnType<typeof itemsOf>, readonly (readonly Ast<number, Utf16>[])[]>>} _Typed */
+        const a = [{ symbol: 0x61, meta: utf16 }]
+        assertStructurallySame(itemsOf(''), [])
+        assertStructurallySame(itemsOf('a'), [a])
+        assertStructurallySame(itemsOf('a,a,a'), [a, a, a])
     },
     throw: {
         // `range` takes exactly two symbols: one is not a range, and three is

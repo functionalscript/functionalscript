@@ -65,6 +65,19 @@ actually touches its subject.
 
 ## 1. Workflow
 
+Two habits come before the procedure:
+
+- **Be proactive.** If you see something that would improve or simplify the
+  task — a better API, a step that makes another unnecessary, a design the
+  request did not ask for but would be better served by — propose it and ask,
+  rather than silently doing what was asked or silently doing something else.
+- **Reuse code; export what you need.** Do not hesitate to make something in
+  another module public when the task needs it: export it and import it,
+  rather than copying it or working around it. A copy is a second
+  implementation that will drift; an export is one. The same goes for a value
+  held inline that a consumer needs a handle on — a rule a grammar writes
+  inside another, say — export it under a name.
+
 File an issue in `todo/`, next to the code it describes, when the work is worth
 tracking — a problem statement is enough. A design is not a gate: it grows one pull request at a time — an
 underspecified `todo/`, then details and ideas, then an implementation — and
