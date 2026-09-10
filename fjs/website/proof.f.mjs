@@ -155,6 +155,22 @@ export const proof = {
                 generated.stderr,
                 `File size exceeds maximum allowed size of ${maxLengthBytes} bytes: 'big.mjs'\n`)
         },
+        /**
+         * **The browser proof takes its place in path order.** It is appended
+         * after the walk's own findings rather than discovered among them, so
+         * without a sort it lands last on every page that carries it — a list
+         * in path order except for one entry, which is the diff nobody made.
+         */
+        theBrowserProofSortsIntoPlace: () => {
+            const { root } = generate({
+                fjs: {
+                    website: { 'browser.mjs': file('export const proof = {}') },
+                    'z.f.mjs': file('export const proof = []'),
+                },
+            })
+            assertStructurallySame(listed(pageAt(root, [])),
+                ['fjs/website/browser.mjs', 'fjs/z.f.mjs'])
+        },
         // Where the sources are is the tree's business: a nested directory is
         // walked, and its path is what the root page loads it by.
         walksNestedDirectories: () => {
@@ -318,8 +334,8 @@ export const proof = {
                 },
                 c: { 'proof.f.mjs': file('export const proof = []') },
             })
-            // Path order, so a subtree is a contiguous run: `a/b/` sorts
-            // before `a/proof.f.mjs`, and the page's slice keeps that order.
+            // Path order, which the page's slice keeps: `a/b/proof.f.mjs`
+            // sorts before `a/proof.f.mjs`, on the root page and on `a`'s.
             assertStructurallySame(listed(pageAt(root, [])),
                 ['a/b/proof.f.mjs', 'a/proof.f.mjs', 'c/proof.f.mjs'])
             assertStructurallySame(listed(pageAt(root, ['a'])),

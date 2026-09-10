@@ -292,10 +292,15 @@ const browserProofOf = tree =>
  * Every proof module the site knows about, each with what stops a browser
  * linking it, in path order.
  *
- * The order is the paths' rather than the walk's: a directory listing is the
- * filesystem's business, and a list that reordered itself between runs would
- * show up as a diff nobody made. Path order is also what makes a subtree a
- * contiguous run, which is how a page takes its slice.
+ * The order is the paths' rather than the walk's, for three reasons that all
+ * come from the same place: a directory listing is the filesystem's business,
+ * and it differs between machines. Sorting makes two builds of one repository
+ * produce identical files, gives every page a list a reader can scan, and
+ * runs the proofs in the order `fjs t` runs them so the two reports line up.
+ *
+ * It is not what makes the slicing work — {@link subtree} filters by prefix
+ * and would answer the same in any order. A sorted subtree happens to be a
+ * contiguous run; nothing here depends on it.
  *
  * @type {(paths: readonly string[]) => Effect<ReadFile, readonly Proof[], IoChannel>}
  */
