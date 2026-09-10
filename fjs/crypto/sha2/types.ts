@@ -54,7 +54,15 @@ export type Base = {
  * const h = sha224.end(state) // 0x1_619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn
  * ```
  */
-export type Sha2 = {
+export type Sha2 = Hash<State>
+
+/**
+ * A hash over a state of its own: what every SHA-2 variant is, and what
+ * [`fjs/crypto/sha1`](../sha1/types.ts) is over a state of five words.
+ * `computeSync` takes any; a consumer that only sizes buffers and folds
+ * blocks, as `hmac` does, can too.
+ */
+export type Hash<S> = {
     readonly hashLength: bigint
     readonly blockLength: bigint
     /**
@@ -68,7 +76,7 @@ export type Sha2 = {
      */
     readonly hashBytes: bigint
     readonly blockBytes: bigint
-    readonly init: State
-    readonly append: Fold<Vec, State>
-    readonly end: (state: State) => Vec
+    readonly init: S
+    readonly append: Fold<Vec, S>
+    readonly end: (state: S) => Vec
 }

@@ -8,7 +8,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Fold } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Base, Sha2, State, V16, V8 } from './types.ts'
+ * @import { Base, Hash, Sha2, State, V16, V8 } from './types.ts'
  */
 
 import { divUp8, mask } from '../../types/bigint/module.f.mjs'
@@ -261,9 +261,11 @@ const sha2 = ({ append, end, chunkLength }, hash, hashLength) => ({
 })
 
 /**
- * Computes a SHA-2 hash from a list of message chunks.
+ * Computes a hash from a list of message chunks: any SHA-2 variant, or
+ * SHA-1 from [`fjs/crypto/sha1`](../sha1/module.f.mjs), which has the
+ * same shape over a state of its own.
  *
- * @type {(sha2: Sha2) => (list: List<Vec>) => Vec}
+ * @type {<S>(hash: Hash<S>) => (list: List<Vec>) => Vec}
  */
 export const computeSync = ({ append, init, end }) => {
     const f = fold(append)(init)

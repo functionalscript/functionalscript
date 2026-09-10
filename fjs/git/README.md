@@ -290,9 +290,13 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   supplies them from `node:zlib` at the host boundary, and
   [`loose/`](loose/module.f.mjs) is its caller. A FunctionalScript inflater
   is [`todo/inflate.md`](../../todo/inflate.md).
-- **A hash.** Reading an object needs none; addressing or verifying one
-  does. [`fjs/crypto/sha2`](../crypto/sha2/module.f.mjs) covers SHA-256
-  repositories; SHA-1, which every host DISOT targets uses, is
+- **An id computed.** Reading an object needs no hash; addressing or
+  verifying one does, and both hashes are here —
+  [`fjs/crypto/sha1`](../crypto/sha1/module.f.mjs) for today's
+  repositories, [`fjs/crypto/sha2`](../crypto/sha2/module.f.mjs) for
+  SHA-256 ones, each proven on the checked-in objects' ids — but nothing
+  in this module calls them yet: the function from an object to its id at
+  the repository's width is the rest of
   [`fjs/crypto/todo/sha1.md`](../crypto/todo/sha1.md), and what a trust
   layer does about a hash that can collide is
   [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).
