@@ -263,6 +263,13 @@ const map = {
         const f = i(a)
         return nullish(f) ? skip(i, k) : optionLambda(i, callValue(i, f, b), k)
     },
+    // The conditional: the condition, then exactly one arm. The other is
+    // never established, which `./proof.f.mjs`'s `lazy` and
+    // `throw.forcedConsequent`/`forcedAlternate` pin from both sides.
+    '?:': (x, [, c, t, e]) => {
+        const f = vm(x)
+        return f(c) ? f(t) : f(e)
+    },
     '??': o2lazy((a, b) => a ?? b()),
     Number: o1(Number),
     String: o1(String),

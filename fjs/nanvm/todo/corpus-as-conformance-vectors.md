@@ -78,7 +78,7 @@ first draft of this plan assumed it was. The marker defers the *assertion*:
 `emit` comments a statement out, and it is only ever handed one that already
 rendered. An unprintable id never gets that far, through two gates in turn:
 
-- `fnName(opId(g))` names the group's Rust function, and `rustName` has no
+- `fnName(groupKey(g))` names the group's Rust function, and `rustName` has no
   entry for any of the three, so `generate` throws `['no Rust for', '&&']`
   building the function header — before a single case is walked. A group whose
   `cases` array is *empty* throws just the same, which is what shows the

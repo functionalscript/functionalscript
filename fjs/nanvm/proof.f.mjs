@@ -45,7 +45,6 @@ import {
     isThrows,
     lambdaExp,
     lowerEq,
-    opId,
     orders,
     ref,
     valueExp,
@@ -120,7 +119,7 @@ const op2Js = {
 
 /** The same, for the one ternary operation. @type {{ readonly [k in OpId]?: (a: any, b: any, c: any) => unknown }} */
 const op3Js = {
-    ternary: (a, b, c) => a ? b : c,
+    '?:': (a, b, c) => a ? b : c,
 }
 
 /**
@@ -224,11 +223,11 @@ const sharedMemo = shared => shared.reduce(
     [])
 
 /**
- * A value of an escaped case, built through the same lowering and the same
- * `vm` a lowered case goes through, so there is one walk from a corpus value
- * to a JavaScript one rather than two that can disagree. No escaped operand
- * is ever a shared node — sharing exists only in `eq` and `eq` never escapes
- * — so `amnesia`'s non-preservation of identity is not in play here.
+ * A value as `crossCheck`'s reference sees it, built through the same
+ * lowering and the same `vm` a case goes through, so there is one walk from
+ * a corpus value to a JavaScript one rather than two that can disagree.
+ * Never a shared node — sharing exists only in `eq` — so `amnesia`'s
+ * non-preservation of identity is not in play here.
  *
  * @type {(v: Value) => unknown}
  */
@@ -236,17 +235,11 @@ const value = v => vm(context)(valueExp(v))
 
 /**
  * The value one argument order produces: the case's expression evaluated
- * through `amnesia`'s `vm`, or — for the one group the corpus cannot lower,
- * `ternary` — the operation applied to built values.
+ * through `amnesia`'s `vm`.
  *
  * @type {(g: Group) => (args: readonly Value[]) => unknown}
  */
-const run = g => args => {
-    const lowered = caseExp(g)(args)
-    if (lowered[0] === 'exp') { return vm(context)(lowered[1]) }
-    const [a, b, c] = args.map(value)
-    return op3(opId(g))(a, b, c)
-}
+const run = g => args => vm(context)(caseExp(g)(args))
 
 /**
  * The leaf tests of one group, keyed by case name.
@@ -285,7 +278,8 @@ const group = g => {
 
 /**
  * Replays a group's cases a second time, through the bare JavaScript
- * operator (`op1Js`/`op2Js`) instead of `amnesia`, and checks the two agree.
+ * operator (`op1Js`/`op2Js`/`op3Js`) instead of `amnesia`, and checks the
+ * two agree.
  *
  * `amnesia`'s handler and the JS operator are two independent
  * implementations of the same operation, and nothing else keeps them in
@@ -312,18 +306,17 @@ const group = g => {
  * @type {(g: Group) => object}
  */
 const crossCheck = g => {
-    if (!('op' in g)) { return {} }
     const arity = arityOf(g)
-    const table = arity === 1 ? op1Js : op2Js
+    const table = arity === 1 ? op1Js : arity === 2 ? op2Js : op3Js
     if (!(g.op in table)) { return {} }
     const id = g.op
     /** @type {(c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]} */
     const leaves = c => orders(g)(c).flatMap(([name, args]) => {
-        // A group with an `op` always lowers; the cast is that fact, which
-        // `Lowered`'s shape does not carry.
-        const e = /** @type {Exp} */ (caseExp(g)(args)[1])
-        const [ra, rb] = args.map(value)
-        const refValue = () => arity === 1 ? op1(id)(ra) : op2(id)(ra, rb)
+        const e = caseExp(g)(args)
+        const [ra, rb, rc] = args.map(value)
+        const refValue = () => arity === 1 ? op1(id)(ra)
+            : arity === 2 ? op2(id)(ra, rb)
+            : op3(id)(ra, rb, rc)
         const fn = isThrows(c.expected)
             ? () => { refValue() }
             : () => {
@@ -435,10 +428,7 @@ const edagShape = () => {
     for (const [, e] of lowerEq(data.eq).cases) { valid(e) }
     for (const g of data.groups) {
         for (const c of casesOf(g)) {
-            for (const [, args] of orders(g)(c)) {
-                const lowered = caseExp(g)(args)
-                if (lowered[0] === 'exp') { valid(lowered[1]) }
-            }
+            for (const [, args] of orders(g)(c)) { valid(caseExp(g)(args)) }
         }
     }
 }
@@ -505,8 +495,8 @@ const jsOnly = {
         /**
          * A count the operation does not take. `Case<N>` cannot carry one,
          * but `caseExp` is exported and its `args` are a plain array, so the
-         * mismatch is refused rather than lowered to a node that looks like a
-         * `Lowered` and fails the `exp` schema.
+         * mismatch is refused rather than lowered to a node that fails the
+         * `exp` schema.
          */
         wrongOperandCount: () => caseExp({ op: '*', cases: [] })([1]),
     },
@@ -516,8 +506,7 @@ export const proof = {
     eq: eqProof,
     lambda,
     ...fromEntries(data.groups.map(g => [groupKey(g), group(g)])),
-    crossCheck: fromEntries(
-        data.groups.filter(g => 'op' in g && g.op !== 'own').map(g => [groupKey(g), crossCheck(g)])),
+    crossCheck: fromEntries(data.groups.map(g => [groupKey(g), crossCheck(g)])),
     edagShape,
     nestedSharing,
     jsOnly,

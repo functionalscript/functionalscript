@@ -18,8 +18,7 @@ const valueExpr = v => nodeExpr(valueExp(v))
 /**
  * One case of every shape the printer can emit: a shared value and a
  * reference to it, a skipped case, a throwing case, an `Op12` group at unary
- * arity, a group with no canonical EDAG id, and a commutative binary
- * operator.
+ * arity, the ternary operation, and a commutative binary operator.
  *
  * @type {Data}
  */
@@ -33,7 +32,7 @@ const sample = {
     },
     groups: [
         { op: '+', arity: 1, cases: [{ name: 'bigint', args: [0n], expected: throws }] },
-        { nanvmOp: 'ternary', cases: [{ name: 'pick', args: [true, 1, 2], expected: 1 }] },
+        { op: '?:', cases: [{ name: 'pick', args: [true, 1, 2], expected: 1 }] },
         {
             op: '*',
             commutative: true,
@@ -110,6 +109,9 @@ export const proof = {
         assertEq(nodeExpr(['-', 1]), '-((1f64).to_any())')
         assertEq(nodeExpr(['+', 1]), 'Any::unary_plus((1f64).to_any())')
         assertEq(nodeExpr(['typeof', 1]), 'Any::typeof_((1f64).to_any())')
+        assertEq(
+            nodeExpr(['?:', true, 1, 2]),
+            'Any::conditional(true.to_any(), (1f64).to_any(), (2f64).to_any())')
         // The one `=>` with a spelling: the corpus's function value, printed
         // as the harness's stand-in, and atomic as an operand.
         assertEq(nodeExpr(lambdaExp()), 'function_any()')
