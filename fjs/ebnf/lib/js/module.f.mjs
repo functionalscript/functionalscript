@@ -8,8 +8,9 @@
  * what makes the grammar LL(1).
  *
  * Beside the classical grammar in `fjs/djs/tokenizer`, which the
- * backtracking backend reads, four things are spelled differently, each
- * a conflict `fjs/todo/ebnf-migration.md` measured (its consumer port):
+ * backtracking backend read, four things are spelled differently, each
+ * a conflict measured before the port and recorded in `fjs/djs/README.md`
+ * ("Both grammars are LL(1)"):
  *
  * - the block comment's `*` is left-factored: after a `*`, a `/` is the
  *   end, another `*` is looked at again, and anything else is content;
@@ -19,7 +20,7 @@
  *   `literals` from the list;
  * - a number has no poison branch: `123abc` reads as the number `123`
  *   followed by the identifier `abc`, and the layer above the tokens
- *   refuses the two for standing side by side, as the port issue says.
+ *   refuses the two for standing side by side, as that record says.
  *
  * A string is JSON's, and so is a number's unsigned part with its
  * fraction and exponent: the rules are imported from `../json`, not

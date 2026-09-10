@@ -215,7 +215,7 @@ that is what every grammar in the tree uses today.
 
 The generic `complement` is over the whole number line, which no grammar ever
 means. The terminal domain is a set value, `[0]`, owned by `fjs/ebnf/terminal/`
-([ebnf-migration](../../../todo/ebnf-migration.md), the `ebnf/terminal/` piece),
+([symbol-domain-owner](../../todo/symbol-domain-owner.md)),
 and the lowering intersects every set with it: that clips a `-Infinity` a generic
 complement produced back to `0`, drops EOF and anything below it, and so
 restores canonicity before the IR. It also requires every boundary to be a
@@ -352,9 +352,11 @@ justification is the API and the AST, which is where
   own the alphabet-scoped `not`.
 - [terminal-range-representation](./terminal-range-representation.md) — the
   bigint domain; the toggle list is the representation it was looking for.
-- [ebnf-migration](../../../todo/ebnf-migration.md) — the plan this landed
-  under. `ebnf/terminal/` owns the domain set `[0]`, `eof` and the integer
-  helpers.
+- [symbol-domain-owner](../../todo/symbol-domain-owner.md) — the
+  `ebnf/terminal/` module, which owns the domain set `[0]`, `eof` and the
+  integer helpers. The migration this landed under is
+  [DESIGN.md §11](../../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)'s worked
+  example.
 - rule-visitor (retired; shipped as `matchRule` in
   [`../../data`](../../data/module.f.mjs)) — discriminates the data
   `Rule`, so it waited on the same IR carrier decision and landed with it.

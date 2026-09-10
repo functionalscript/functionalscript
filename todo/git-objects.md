@@ -134,9 +134,9 @@ list where it does not. A text view of a message or a name is a
 layer above, through [`fjs/text/utf8`](../fjs/text/utf8/), when a consumer
 wants one and only for the encoding the object declares.
 
-This is the byte alphabet that
-[ebnf-migration](../fjs/todo/ebnf-migration.md) lists as `fjs/ebnf/byte/`,
-"when a consumer needs it", and the byte half of
+This is the byte alphabet [`fjs/ebnf/byte/`](../fjs/ebnf/byte/README.md),
+which the migration that built `fjs/ebnf/` reserved "when a consumer needs
+it", and the byte half of
 [unicode-rules](../fjs/ebnf/unicode/todo/unicode-rules.md). Git is that consumer, and
 the bottom layer [layered-parser](../fjs/ebnf/todo/layered-parser.md) draws.
 
@@ -412,8 +412,8 @@ approximated:
   root entries of a commit's tree, and one blob under it.
 - [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
   — every header verbatim, and the writer.
-- [ebnf-migration](../fjs/todo/ebnf-migration.md) — reserves
-  `fjs/ebnf/byte/` for the first consumer that wants it.
+- [`fjs/ebnf/byte/`](../fjs/ebnf/byte/README.md) — the byte alphabet,
+  landed for this consumer.
 - [unicode-rules](../fjs/ebnf/unicode/todo/unicode-rules.md) — the byte adapter's
   first design, as the half of that issue the text half left behind.
 - [layered-parser](../fjs/ebnf/todo/layered-parser.md) — bytes as the bottom

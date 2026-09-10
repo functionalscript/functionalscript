@@ -43,8 +43,9 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    errors *better* than today's rather than the ones this reader owes, and it
    cannot classify a parse failure at all, since a failure yields no tree to
    annotate. What genuinely remains is a design decision — what the reader
-   reports on malformed input — plus the module's own migration,
-   [`fjs/todo/ebnf-migration.md`](../fjs/todo/ebnf-migration.md).
+   reports on malformed input; the module's own migration, which this
+   once also waited on, is done
+   ([DESIGN.md §11](../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)).
 
    It still is not what to pick up first. It is P2, its error shapes are
    undecided, and `fjs/ebnf/` is mid-migration, so writing a codec against it
@@ -141,7 +142,7 @@ relationships grew rather than being designed:
   dead third copy of the JSON grammar, deleted by stage 2.
 - **`fjs/bnf`** — the classical grammar toolkit, still evolving when this
   was written; since replaced by `fjs/ebnf` and deleted
-  ([ebnf-migration](../fjs/todo/ebnf-migration.md)).
+  ([DESIGN.md §11](../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)).
 
 Two structural problems follow:
 
@@ -213,7 +214,7 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
   The reversal is also narrower than it looks: it names `fjs/ebnf/`, and
   **the classical `fjs/bnf` was never what a codec may depend on.** That
   module was retired and deleted
-  ([ebnf-migration](../fjs/todo/ebnf-migration.md)); while it lived the old
+  ([DESIGN.md §11](../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)); while it lived the old
   rule survived verbatim with respect to it:
 
   > The spec carries the grammars as BNF text; `fjs/bnf/**` may hold the JSON
@@ -484,7 +485,7 @@ combined marker would encode a redundant fact.
   `$`-leading names making the collision unreachable.
 - The parser's separator rule is `';'` only, and this landed ahead of the
   stage: `fjs/djs/parser`'s move to the LL(1) backend
-  ([ebnf-migration](../fjs/todo/ebnf-migration.md), stage 6) dropped the
+  ([`fjs/djs/README.md`](../fjs/djs/README.md#both-grammars-are-ll1)) dropped the
   newline terminator, since telling a newline from a `;` reached through
   newlines took unbounded lookahead, and `fjs/djs/serializer` writes the
   `;` after every statement. Stage 5 inherits the rule rather than making
@@ -759,8 +760,10 @@ throughout.
   the JSON tokenizer. Rebase the issue on this plan or fold it in.
 - [663-json-djs-tree-type](../fjs/djs/todo/663-json-djs-tree-type.md) — the
   shared `Tree<P>` instantiation targets `fjs/media/datajs`; rename paths.
-- bnf-grammar-single-owner — **retired with `fjs/bnf`**, its record in
-  [ebnf-migration](../fjs/todo/ebnf-migration.md)'s triage. Its
+- bnf-grammar-single-owner — **retired with `fjs/bnf`**, done by the ports:
+  `fjs/ebnf/lib/js` reads its digit and string rules from `fjs/ebnf/lib/json`,
+  which is the sharing it asked for, and the post-recognition pass it left
+  unowned is implemented in `fjs/media/datajs` and `fjs/djs/parser`. Its
   `fjs/media/json/grammar` proposal stays withdrawn; the one JSON grammar is
   `fjs/ebnf/lib/json`, a runtime dependency of the codecs as the reversal
   above allows, and its statement that **the media scanners stay
