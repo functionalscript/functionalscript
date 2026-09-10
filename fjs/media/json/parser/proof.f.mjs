@@ -13,8 +13,8 @@ import { assert, assertEq, assertStructurallySame } from '../../../asserts/modul
 import { error, ok, unwrap } from '../../../types/result/module.f.mjs'
 import { parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
-import { json, number, string } from '../../../ebnf/lib/json/module.f.mjs'
-import { lexeme, mappings, parse as parseWithPolicy, stringMapping, syntaxError } from './module.f.mjs'
+import { escape, json, number, string } from '../../../ebnf/lib/json/module.f.mjs'
+import { lexeme, mappings, parse as parseWithPolicy, stringMappings, syntaxError } from './module.f.mjs'
 
 const { is } = Object
 const { isFinite } = Number
@@ -198,13 +198,13 @@ export const proof = {
         assertStructurallySame(parseValue(units('[1]x')), ['ok', [jsonSymbol([1]), 3]])
         assertStructurallySame(parseValue(units(' "a" ')), ['ok', [jsonSymbol('a'), 5]])
     },
-    // What a grammar built over JSON's rules folds the same way: the `string`
-    // mapping alone, folded into the rule it is keyed by; the lexeme of a
-    // node nothing under maps, a variant's tag passed over; and where a
-    // parse failed, by the index the backend reports.
+    // What a grammar built over JSON's rules folds the same way: the
+    // `string` mappings alone, folded into the rules they are keyed by; the
+    // lexeme of a node nothing under maps, a variant's tag passed over; and
+    // where a parse failed, by the index the backend reports.
     shared: () => {
-        /** @typedef {Assert<Equal<typeof stringMapping, Mapping<Utf16, Text>>>} _String */
-        const parseString = parser(string, [stringMapping])
+        /** @typedef {Assert<Equal<typeof stringMappings, readonly Mapping<Utf16, Text>[]>>} _String */
+        const parseString = parser(string, stringMappings)
         assertStructurallySame(parseString(units('"a\\u0062"')), ['ok', [{ symbol: 0, meta: { id: 'text', value: 'ab' } }, 9]])
         /** @type {RewriteSet<Utf16, never>} */
         const nothing = []
@@ -218,5 +218,11 @@ export const proof = {
     contract: () => {
         /** @typedef {Assert<Equal<typeof parseWithPolicy, <P>(policy: NumberPolicy<P>) => (text: string) => Result<ParseUnknown<P>, string>>>} _Parse */
         assertEq(parse('[')[0], 'error')
+    },
+    throw: {
+        // The three string mappings are one unit: the backend refuses a
+        // mapping of a rule the grammar does not hold, and a grammar whose
+        // entry is `escape` holds neither `character` nor `string`.
+        stringMappingsAreOneUnit: () => parser(escape, stringMappings),
     },
 }

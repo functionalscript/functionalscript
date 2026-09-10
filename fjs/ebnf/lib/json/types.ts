@@ -12,22 +12,36 @@
  * @module
  */
 
-import type { Option, RepeatFrom, Rule } from '../../types.ts'
+import type { JoinNode, Unmapped } from '../../ast/types.ts'
+import type { Join, Rule } from '../../types.ts'
 import type { number, string, ws } from './module.f.mjs'
 
 /**
  * A comma-separated list of `Item`s inside a pair of delimiters, as `cj`
- * builds it: each item followed by whitespace, the whole list optional so
- * that an empty container is one too. The delimiters are one symbol each
- * and arrive as a string, so they are spelled `string` here.
+ * builds it: each item followed by whitespace, the list `join`ed by a comma
+ * and whitespace, and optional as a whole so that an empty container is one
+ * too. The delimiters are one symbol each and arrive as a string, so they
+ * are spelled `string` here. `items` in `./module.f.mjs` reads the items
+ * back out of the node this shape produces.
  */
 export type Container<Item extends Rule> = readonly [
     open: string,
     ws: typeof ws,
-    items: Option<readonly [
-        readonly [Item, typeof ws],
-        RepeatFrom<0, readonly [readonly [',', typeof ws], readonly [Item, typeof ws]]>]>,
+    items: Join<readonly [',', typeof ws], readonly [Item, typeof ws]>,
     close: string,
+]
+
+/**
+ * The node a {@link Container} produces, over the item node `T`, typed by
+ * shape as `JoinNode` is: the list between the delimiters, each item beside
+ * its whitespace. `items` in `./module.f.mjs` reads the items back out of
+ * it.
+ */
+export type ContainerNode<T> = readonly [
+    open: unknown,
+    ws: unknown,
+    items: Unmapped<JoinNode<Unmapped<readonly [T, unknown]>>>,
+    close: unknown,
 ]
 
 /** One `property : value` pair of an object, with whitespace around the colon. */

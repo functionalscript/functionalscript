@@ -221,6 +221,35 @@ type _Set2 = Assert<Equal<Ast<() => ['set', number, -1], _MI, _MO>, Meta<_MO> | 
 type _RepeatAst<Min extends number, Max extends number, D extends Rule, I, O> =
     BoundedArray<Min, Max, Ast<D, I, O>>
 
+/**
+ * A position a reader knows to be unmapped, typed by shape: the node `N`
+ * the machine built there, or, as far as the type can say, a symbol.
+ * `unmapped` in `./module.f.mjs` asserts the node.
+ *
+ * A reader of a combinator's scaffolding — the pairs `join` builds and
+ * hands to nobody — serves every grammar that uses the combinator, so it
+ * is generic over the metadata; and `Children<R, I, O>` with `O` a type
+ * parameter is a row of deferred conditionals, `Meta<O>` at every mapped
+ * position, from which TypeScript infers nothing. So such a reader is
+ * typed by the shape of the node instead, with the item's node as its one
+ * parameter, and the metadata is whatever the caller's `Children` carries
+ * at that position.
+ */
+export type Unmapped<N> = Meta<unknown> | N
+
+/**
+ * The node `join` in `../module.f.mjs` produces, over the item node `T`:
+ * empty, or the first item beside the separator-item pairs. `joined` reads
+ * the items back out of it.
+ */
+export type JoinNode<T> =
+    | readonly []
+    | readonly [Unmapped<readonly [T, Unmapped<readonly Unmapped<readonly [unknown, T]>[]>]>]
+
+type _JoinNode = Assert<_Holds<
+    Children<Option<readonly [42, Repeat<0, number, readonly [43, 42]>]>, _MI, _MO>,
+    JoinNode<Ast<42, _MI, _MO>>>>
+
 // The metadata pair is threaded by parameter, not read from the `_MI`/`_MO`
 // the rows above are written against: a nested position carries whatever pair
 // the caller passed. The assertions above compare `Ast` against `Ast`, so they

@@ -31,9 +31,13 @@ grammar's exported rules, so what it accepts is what
 [RFC 8259](https://www.rfc-editor.org/rfc/rfc8259) spells, not what a
 JavaScript lexer happens to.
 
-The reader's `string` mapping is exported for a grammar built over JSON's
-rules: [`fjs/media/datajs`](../datajs/README.md) reads a DataJS string with
-it, and its numbers through JSON's integer core.
+A string is folded rule by rule — an `escape` to the character it spells, a
+`character` to its text, the `string` to the text of its characters — each
+keyed by a rule the grammar exports, and the three mappings are exported as
+one unit for a grammar built over JSON's rules:
+[`fjs/media/datajs`](../datajs/README.md) reads a DataJS string with them,
+its containers through the grammar's own `items`, and its numbers through
+JSON's integer core.
 
 [`tokenizer/module.f.mjs`](./tokenizer/module.f.mjs) is public and lexical —
 `1 2` tokenizes where it does not parse — and is no longer on `parse`'s
