@@ -8,7 +8,7 @@ import { assertEq } from '../../asserts/module.f.mjs'
 import { write as writeEnvelope } from '../../git/object/module.f.mjs'
 import { commitPayload, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../../git/testlib.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { msb, repeat, u8ListToVec, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { maxLength, msb, repeat, u8ListToVec, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
 import { computeSync, sha256 } from '../sha2/module.f.mjs'
@@ -19,8 +19,10 @@ const compute = computeSync(sha1)
 /** @type {(s: string) => bigint} */
 const of = s => uint(compute([utf8(s)]))
 
+const a = vec(8n)(0x61n)
+
 /** @type {(n: bigint) => bigint} */
-const as = n => uint(compute([flip(repeat)(vec(8n)(0x61n))(n)]))
+const as = n => uint(compute([flip(repeat)(a)(n)]))
 
 const toVec = u8ListToVec(msb)
 
@@ -54,8 +56,13 @@ export const proof = {
         twoBlocks: () => assertEq(of('abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq'), 0x84983e441c3bd26ebaae4aa1f95129e5e54670f1n),
         fourBlocks: () => assertEq(of('abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu'), 0xa49b2446a02c645bf419f995b67091253a04a259n),
         fox: () => assertEq(of('The quick brown fox jumps over the lazy dog'), 0x2fd4e1c67a2d28fced849ee1bb76e7391b93eb12n),
-        // A million `a`: sixteen thousand blocks, and RFC 3174's last vector.
-        million: () => assertEq(as(1_000_000n), 0x34aa973cd4c4daa4f61eeb2bdbad27316534016fn),
+        // A million `a`: sixteen thousand blocks, and RFC 3174's last
+        // vector, given as a hundred `Vec`s of ten thousand bytes, since one
+        // `Vec` of a million is over the ceiling a `Vec` has on every host.
+        million: () => {
+            const piece = repeat(10_000n)(a)
+            assertEq(uint(compute(Array.from({ length: 100 }, () => piece))), 0x34aa973cd4c4daa4f61eeb2bdbad27316534016fn)
+        },
     },
     // Either side of the padding's edge: fifty-five bytes leave room for the
     // length in the first block, sixty-four leave none and fill it.
@@ -71,6 +78,18 @@ export const proof = {
         assertEq(uint(compute(map(utf8)(parts))), whole)
         const state = sha1.append(utf8('The quick brown fox'))(sha1.init)
         assertEq(uint(sha1.end(sha1.append(utf8(' jumps over the lazy dog'))(state))), whole)
+        // A remainder completed from the front of the next piece, the rest
+        // of the piece chunked on its own: one byte, then a hundred.
+        const one = sha1.append(a)(sha1.init)
+        assertEq(uint(sha1.end(sha1.append(repeat(100n)(a))(one))), as(101n))
+    },
+    // A remainder held, then a `Vec` as long as a `Vec` may be: the two are
+    // never joined into one, which would be over the ceiling.
+    remainderThenFull: () => {
+        const full = repeat(maxLength >> 3n)(a)
+        const state = sha1.append(a)(sha1.init)
+        assertEq(uint(sha1.end(sha1.append(full)(state))), uint(compute([a, full])))
+        assertEq(uint(compute([a, full])), uint(compute([full, a])))
     },
     // The checked-in Git objects, each with the id Git computed over
     // `<type> SP <size> NUL <payload>`: the hash gives Git's answer.

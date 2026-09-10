@@ -1,7 +1,10 @@
 /**
- * SHA-1, as FIPS 180-4 and RFC 3174 define it. It is here because every
- * Git repository in use today names its objects by it — GitHub, GitLab and
- * Radicle among the hosts — and for no other reason: its collision
+ * SHA-1, as FIPS 180-4 and RFC 3174 define it. It is here because Git
+ * names objects by it in the repository format it defaults to, which is
+ * nearly every repository in use today — GitHub, GitLab and Radicle among
+ * the hosts — and for no other reason; a SHA-256 repository, which Git
+ * can make since 2.29, is the exception [`fjs/crypto/sha2`](../sha2/module.f.mjs)
+ * covers. SHA-1's collision
  * resistance is broken, by an identical-prefix attack in 2017 (SHAttered)
  * and a chosen-prefix one in 2020, so nothing that vouches for an object
  * may rest on this hash alone. What a trust layer does about that is
@@ -28,7 +31,7 @@ import { divUp8, mask } from '../../types/bigint/module.f.mjs'
 import { chunkList, empty, length, msb, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { fold } from '../../types/list/module.f.mjs'
 
-const { concat, front } = msb
+const { concat, front, removeFront } = msb
 
 const wordLength = /** @type {const} */ (32n)
 
@@ -169,9 +172,24 @@ const appendChunk = chunk => state =>
 
 const foldChunks = fold(appendChunk)
 
-/** @type {Fold<Vec, State>} */
-const append = v => state =>
-    foldChunks({ ...state, remainder: empty })(chunks(concat(state.remainder)(v)))
+/**
+ * Data appended to the state, a block folded as soon as one is whole. A
+ * remainder already held is completed from the front of the new data as
+ * one block's integer, never as a `Vec` of the two joined: a `Vec` holds
+ * 128 KiB and `v` may be one, so the two joined would not fit, and the
+ * rest of `v` is chunked on its own.
+ *
+ * @type {Fold<Vec, State>}
+ */
+const append = v => state => {
+    const { remainder } = state
+    const rLen = length(remainder)
+    if (rLen === 0n) { return foldChunks(state)(chunks(v)) }
+    const need = chunkLength - rLen
+    if (length(v) < need) { return { ...state, remainder: concat(remainder)(v) } }
+    const block = uint(remainder) << need | front(need)(v)
+    return foldChunks({ hash: compress(state.hash)(block), len: state.len + chunkLength, remainder: empty })(chunks(removeFront(need)(v)))
+}
 
 /**
  * The most a last block holds and still has room for the `1` bit and the
