@@ -46,8 +46,20 @@ export type MatchResult<T> = Result<readonly [ast: T, end: number], number>
  * that the grammar does not. The end of input is synthesized once after the
  * last symbol, so a grammar that ends in EOF is matched against the whole
  * input and a grammar that does not stops where its rule does.
+ *
+ * A match begins at `start`, the beginning of the input by default, and
+ * the indices it reports are the input's, so a caller resumes where the
+ * last match ended by handing that index back — a token layer runs a
+ * one-token grammar this way, once per token, over the one input. The
+ * index is refused outside `0..length`.
+ *
+ * The second parameter is read: a parser handed to an array combinator
+ * that supplies an index in that position — `inputs.map(parse)` — begins
+ * each match at the element's index rather than at the input's start.
+ * Wrap it, `inputs.map(input => parse(input))`, as with any function of
+ * an optional number.
  */
-export type Parser<T, I = unknown> = (symbols: readonly Meta<I>[]) => MatchResult<T>
+export type Parser<T, I = unknown> = (symbols: readonly Meta<I>[], start?: number) => MatchResult<T>
 
 /**
  * One mapping: the rule the author holds, and the function the parser

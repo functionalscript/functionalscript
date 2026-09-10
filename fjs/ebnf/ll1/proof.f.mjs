@@ -474,6 +474,24 @@ export const proof = {
             const p = parser([times(2)('x'), 'x'])
             assertStructurallySame(p(cps('xxx')), ['ok', [[[cps('x'), cps('x')], cps('x')], 3]])
         },
+        // A match begins at the index the caller passes and reports the
+        // input's own indices, so the caller resumes where the last match
+        // ended. The end of input is at the length from anywhere: `eof`
+        // matches there and nowhere before it.
+        start: () => {
+            const p = parser(digits1)
+            assertStructurallySame(p(cps('12 34'), 3), ['ok', [[s('3'), s('4')], 5]])
+            assertStructurallySame(p(cps('12 34'), 2), ['error', 2])
+            assertStructurallySame(p(cps('12 34'), 5), ['error', 5])
+            assertStructurallySame(parser(eof)(cps('1'), 1), ['ok', [[], 1]])
+            assertStructurallySame(parser(eof)(cps('1'), 0), ['error', 0])
+        },
+        // A symbol is checked where the parse reads it, so one the match
+        // never reaches is never refused — a scan of the whole input up
+        // front would be paid once per token by a layer that resumes.
+        unread: () => {
+            assertStructurallySame(parser(digit)([s('1'), sym(0.5)]), ['ok', [s('1'), 1]])
+        },
     },
     // The rewrite set, folded into the parse: a mapped rule's node is handed
     // to its mapping as it comes into existence, and what the mapping
@@ -506,6 +524,37 @@ export const proof = {
             assertStructurallySame(integers('[-12,3]'), [-12, 3])
             assertStructurallySame(integers('[]'), [])
             assertStructurallySame(integers('[7]'), [7])
+        },
+        // The same token layer with no whole-file grammar: a one-token
+        // grammar, resumed once per token from where the last one ended.
+        // `repeatFrom0(token)` is refused — the digits of an integer may be
+        // followed by the next token's, a first/follow conflict — but one
+        // token at a time has nothing required after it, and the loop that
+        // resumes the parser is the layer, left-factoring and all.
+        resumed: () => {
+            const oneToken = { integer, punctuation }
+            const parseToken = parser(oneToken, [
+                ...integerMappings,
+                tok(punctuation, ([tag]) => token(punctuationToken[tag], 0)),
+            ])
+            /** @type {(input: readonly Meta<typeof cp>[]) => readonly Meta<{ readonly id: 'tok', readonly value: number }>[]} */
+            const lex = input => {
+                /** @type {readonly Meta<{ readonly id: 'tok', readonly value: number }>[]} */
+                let out = []
+                let pos = 0
+                while (pos < input.length) {
+                    const [ast, end] = unwrap(parseToken(input, pos))
+                    const [, symbol] = unmapped(ast)
+                    assert(!(symbol instanceof Array))
+                    out = [...out, symbol]
+                    pos = end
+                }
+                return out
+            }
+            const text = '[-12,3]'
+            assertStructurallySame(lex(cps(text)), tokenSymbols(unwrap(parseTokens(cps(text)))[0]))
+            assertStructurallySame(listValue(unwrap(parseTokenList(lex(cps(text))))[0]), [-12, 3])
+            assertStructurallySame(lex([]), [])
         },
         // The empty set is the identity: nothing is mapped, so the tree is
         // the parser's own — and the type says so by definition, `Ast<R, I>`
@@ -680,5 +729,16 @@ export const proof = {
         // fraction is no symbol.
         eofInInput: () => parser(eof)([sym(-1)]),
         notASymbol: () => parser(digit)([sym(0.5)]),
+        // Read as lookahead is read: an optional round decides on it.
+        notASymbolLookahead: () => parser(repeatFrom0(digit))([s('1'), sym(0.5)]),
+        // The start index is the input's own: not negative, not a fraction,
+        // and at most the length, where only the end of input is left.
+        startNegative: () => parser(digit)(cps('1'), -1),
+        startFraction: () => parser(digit)(cps('1'), 0.5),
+        startPastEnd: () => parser(digit)(cps('1'), 2),
+        // A whole-file token grammar: an integer's digits may be followed by
+        // the next integer's, and the backend refuses it, so a token layer
+        // resumes a one-token parser instead (`mapping.resumed`).
+        tokenRepeat: () => parser(repeatFrom0({ integer, punctuation })),
     },
 }
