@@ -2019,33 +2019,51 @@ or the spec, not only into a thread.
    vector's. Proposal: that, over the same modules the proofs import, run by the
    existing `cov` script's `node --test` and so on every CI runtime. The
    alternative is a `gen`-time check, which would run only where `gen` runs.
+6. **How the host recipes are built and proved.** Every recipe but `fn`
+   builds what FunctionalScript cannot — an accessor, a symbol key, a
+   non-enumerable or non-writable property, a `null` prototype, a frozen
+   object, a `Date`, a cycle — so `build` is host code, an impure
+   `module.mjs`. [fjs/AGENTS.md §1.6](../../../fjs/AGENTS.md) then says a
+   `proof.mjs` proves only its sibling `module.mjs` and is "not a back door
+   for proving a `.f.mjs` API against inputs the subset forbids: values built
+   by `Object.setPrototypeOf`, `Object.assign`, `defineProperty` or an
+   accessor". Read literally, that forbids proving the serializer, a
+   `.f.mjs` API, against the serializer-reject set and the host variations of
+   serializer accept — the very inputs
+   [the specification](../README.md#what-may-be-serialized) says it must
+   refuse or accept as data, and [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+   says must be refused rather than approximated. Proposal: amend §1.6 with
+   one exemption, stated there — a `proof.mjs` may prove a `.f.mjs` API
+   against host-built inputs where that API's specification names those
+   inputs as ones it refuses or accepts, so the proof is of the specified
+   contract and not of a back door. The alternative keeps §1.6 as it is and
+   leaves the recipe-bearing sets as data no FunctionalScript proof runs,
+   which is data with no consumer, since no other implementation has host
+   objects either. `build` and its proof wait on this.
 
 The steps, in order; a step is one pull request unless it says otherwise:
 
-- [ ] **The vector record and the host recipes.** Write the schema down as
-      `spec/datajs/vectors/README.md` and `types.ts` before any vector, per
-      the section above: the record a vector is — a stable `id`, a `class`
-      naming the branch it covers (one per emitting branch, production
-      alternative or class endpoint with its own code path, which the matrix
-      step needs), the document as a string or as a byte array and which
-      sets use which, the expected graph as a value or the expected bytes,
-      and the classification a reject vector carries; the DataJS subset the
-      modules are written in; how an expected graph is compared — `Object.is`
-      at the leaves, identity where sharing is asserted; and the twelve
-      `host` recipes — four leaves, eight modifiers, each modifier naming its
-      target — with their application order, the rule that a modifier is a
-      `const` and never inline, what a modifier denotes, `link` for cycles,
-      the closed value lists of `builtin`, `proto` (with `inherited`, whose
-      key may not collide with an own key of the target) and `attrs`
-      (`nonWritable`'s `key` required and naming an existing own data
-      property), and both accessor shapes, `getter` recording its invocation
-      and `setter` with no getter. Beside it,
-      `fjs/media/datajs/vectors/module.f.mjs`: `build`, from a recipe-bearing
-      value to the host input with the recipes applied in statement order,
-      and its proof — a graph with sharing and a cycle built, the sharing and
-      the cycle asserted, the getter's record asserted untouched. It lands
-      first because it is the part two consumers can silently disagree
-      about.
+- [x] **The vector record and the comparison.** The schema is
+      [`spec/datajs/vectors/README.md`](../vectors/README.md), with the
+      record types in
+      [`fjs/media/datajs/vectors/types.ts`](../../../fjs/media/datajs/vectors/types.ts):
+      per set, a stable `id`, a `class` naming the branch covered, the
+      document as a string or a byte array, the expected graph as a value
+      or the expected bytes, and the host classification a reject vector
+      carries; the DataJS subset the modules are written in; and the twelve
+      `host` recipes as types, the closed vocabulary. How an expected graph
+      is compared is `difference` in
+      [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
+      `Object.is` at the leaves, members in observable order, and the
+      containers as a bijection, so sharing is required in both directions —
+      proved, over an explicit stack, to the corpus's depth.
+- [ ] **The host recipes built.** `build` in `fjs/media/datajs/vectors/module.mjs`,
+      from a recipe-bearing input to the host value with the modifiers
+      applied in statement order — `link` for cycles, `getter` recording its
+      invocation, the closed lists of `builtin`, `proto` and `attrs` as the
+      types have them — and its proof: sharing and a cycle built and
+      asserted, the getter's record untouched by building. Waits on decision
+      6, which decides whether that proof may exist.
 - [ ] **Reader accept, code-unit form.** Derived production by production
       from the grammar as the section above lists it: every alternative,
       both ends of every character class at every fixed position, the empty
