@@ -12,9 +12,9 @@
  *   against `nanvm-lib`.
  *
  * Beside the data are the format's **constructors** (`functionValue`, `ref`,
- * `throws`), its **eliminators** (`isThrows`, `isFunctionValue`, `orders`,
- * `opId`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that turns a case into
- * the EDAG expression it denotes (`valueExp`, `caseExp`, `lowerEq`). All
+ * `throws`), its **eliminators** (`isThrows`, `orders`, `opId`, `groupKey`,
+ * `casesOf`, `arityOf`), and the **lowering** that turns a case into the
+ * EDAG expression it denotes (`lambdaExp`, `valueExp`, `caseExp`, `lowerEq`). All
  * three exist so that neither consumer has to re-implement a rule of the
  * corpus format: a rule written twice is a rule that drifts.
  *
@@ -30,7 +30,7 @@
  * @module
  *
  * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Property } from '../edag/types.ts'
- * @import { Case, Data, Eq, Expectation, FunctionValue, Group, Lowered, LoweredEq, OpId, Operand, Ref, SharedNode, Throws, Value } from './types.ts'
+ * @import { Case, Data, Eq, Expectation, FunctionValue, Group, Lowered, LoweredEq, OpId, Ref, SharedNode, Throws, Value } from './types.ts'
  *
  * @example
  *
@@ -55,7 +55,8 @@ const isOp1Id = validate(op1Id)
  * A function value.
  *
  * Every operator here coerces a function through `ToPrimitive`, which never
- * inspects it, so which function it is does not matter.
+ * inspects it, so which function it is does not matter — and so it lowers to
+ * the smallest one, {@link lambdaExp}.
  *
  * @type {FunctionValue}
  */
@@ -87,20 +88,6 @@ export const ref = name => () => ['ref', name]
 export const isThrows = v => typeof v === 'function' && v()[0] === 'throw'
 
 /**
- * `true` when an operand is `functionValue`, the one operand the corpus
- * declines to lower.
- *
- * A constant function *is* spellable — `['=>', ['[]', []], body]`, since `=>`
- * is an `Op2Id` — but establishing it would drag closure construction into
- * both consumers for cases that never inspect the function. So such a case
- * escapes to the direct-value path instead — see {@link caseExp}.
- *
- * @param {Operand} v
- * @returns {v is FunctionValue}
- */
-export const isFunctionValue = v => typeof v === 'function' && v()[0] === 'function'
-
-/**
  * `true` when a group's cases are also checked with their arguments swapped.
  *
  * Only a binary group can carry the flag; the parameter type is what lets any
@@ -118,7 +105,7 @@ const isCommutative = g => g.commutative === true
  * owner — spelled differently in the two consumers, the JavaScript and Rust
  * names for one case would silently diverge.
  *
- * @type {(g: Group) => (c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, readonly Operand[]])[]}
+ * @type {(g: Group) => (c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, readonly Value[]])[]}
  */
 export const orders = g => c => isCommutative(g)
     ? [[c.name, c.args], [`${c.name}Swapped`, c.args.toReversed()]]
@@ -183,6 +170,20 @@ export const arityOf = g => {
 // Lowering — a case as the EDAG expression it denotes.
 
 /**
+ * The expression a `functionValue` denotes: `() => undefined`, the smallest
+ * closure — an empty frame and a body that is the `undefined` node.
+ *
+ * A fresh node on every call, like every other lowered value, so two
+ * function operands are two closures and never one node reached twice.
+ * Both consumers know this shape: `amnesia` establishes it as any `=>`,
+ * and the Rust printer, which has no closures to print, renders exactly this
+ * node as the harness's one function value and refuses any other.
+ *
+ * @type {() => Exp}
+ */
+export const lambdaExp = () => ['=>', ['[]', []], ['undefined']]
+
+/**
  * Lowers a value to the EDAG expression that denotes it.
  *
  * `resolve` supplies the node a `ref` names — the *same* node for every
@@ -191,17 +192,19 @@ export const arityOf = g => {
  * fresh node, so a multiply-referenced node in a derived expression is always
  * a `ref` and never an accident of the walk.
  *
- * A `ref` is the only thunk a {@link Value} admits, which is why this walk has
- * no case for the other two: `functionValue` is a whole {@link Operand} that
- * {@link caseExp} escapes before lowering, and `throws` is an
- * {@link Expectation}. Neither is spellable here, so neither is rejected here.
+ * A {@link Value} admits two thunks, and this walk has a case for each: a
+ * `ref` resolves and a `functionValue` is {@link lambdaExp}. `throws` is an
+ * {@link Expectation}, not spellable here, so it is not rejected here either.
  *
  * @type {(resolve: (name: string) => Exp) => (v: Value) => Exp}
  */
 const constExp = resolve => {
     /** @type {(v: Value) => Exp} */
     const f = v => {
-        if (typeof v === 'function') { return resolve(v()[1]) }
+        if (typeof v === 'function') {
+            const info = v()
+            return info[0] === 'ref' ? resolve(info[1]) : lambdaExp()
+        }
         if (v === undefined) { return ['undefined'] }
         if (Array.isArray(v)) { return ['[]', v.map(f)] }
         if (typeof v === 'object' && v !== null) {
@@ -225,7 +228,7 @@ export const valueExp = constExp(name => { throw ['no shared value here', name] 
  * The expression a case denotes: the group's operation applied to its lowered
  * operands, so `mulCases[0]` is `['*', null, null]`.
  *
- * @type {(g: Group) => (args: readonly Operand[]) => Lowered}
+ * @type {(g: Group) => (args: readonly Value[]) => Lowered}
  */
 export const caseExp = g => args => {
     // The operand count comes from the group, not from the operands. A
@@ -235,10 +238,8 @@ export const caseExp = g => args => {
     // that looks like a `Lowered` and fails the `exp` schema.
     const n = arityOf(g)
     if (args.length !== n) { throw ['wrong operand count for', opId(g), args] }
-    if (!('op' in g) || args.some(isFunctionValue)) { return ['escape'] }
-    // `some` established that no operand is a `FunctionValue`; narrowing an
-    // array by a predicate over its elements is not something TypeScript does.
-    const [a, b] = /** @type {readonly Value[]} */ (args).map(valueExp)
+    if (!('op' in g)) { return ['escape'] }
+    const [a, b] = args.map(valueExp)
     // `n` decides which vocabularies the tag can be in, and the check above
     // makes that agree with the operands. The casts are that step and nothing
     // more: an `Op12Id` is legal at either count, so it is in both.
@@ -364,8 +365,6 @@ const mulCases = [
     { name: 'arrayStringTenByOne', args: [['10'], 1], expected: 10 },
     { name: 'arrayPairByOne', args: [[0, 0], 1], expected: NaN },
     { name: 'emptyObjectByOne', args: [{}, 1], expected: NaN },
-    // The one binary case that escapes: `functionValue` has no expression, so
-    // both consumers take the direct path with two operands rather than one.
     { name: 'functionByOne', args: [functionValue, 1], expected: NaN },
     { name: 'numberByBigint', args: [1, 1n], expected: throws },
 ]
@@ -394,8 +393,6 @@ const divCases = [
     { name: 'arrayStringTenDividedByFour', args: [['10'], 4], expected: 2.5 },
     { name: 'arrayPairDividedByFour', args: [[0, 0], 4], expected: NaN },
     { name: 'emptyObjectDividedByFour', args: [{}, 4], expected: NaN },
-    // The one binary case that escapes: `functionValue` has no expression, so
-    // both consumers take the direct path with two operands rather than one.
     { name: 'functionDividedByFour', args: [functionValue, 4], expected: NaN },
     { name: 'zeroDividedByOne', args: [0, 1], expected: 0 },
     { name: 'negativeZeroDividedByOne', args: [-0, 1], expected: -0 },
@@ -463,8 +460,6 @@ const expCases = [
     { name: 'arrayStringThreeToThePowerOfTwo', args: [['3'], 2], expected: 9 },
     { name: 'arrayPairToThePowerOfTwo', args: [[0, 0], 2], expected: NaN },
     { name: 'emptyObjectToThePowerOfTwo', args: [{}, 2], expected: NaN },
-    // The one binary case that escapes: `functionValue` has no expression, so
-    // both consumers take the direct path with two operands rather than one.
     { name: 'functionToThePowerOfTwo', args: [functionValue, 2], expected: NaN },
     { name: 'twoToThePowerOfTen', args: [2, 10], expected: 1024 },
     { name: 'twoToThePowerOfHalf', args: [2, 0.5], expected: 2 ** 0.5 },
@@ -563,8 +558,6 @@ const remCases = [
     { name: 'arrayStringTenModThree', args: [['10'], 3], expected: 1 },
     { name: 'arrayPairModThree', args: [[0, 0], 3], expected: NaN },
     { name: 'emptyObjectModThree', args: [{}, 3], expected: NaN },
-    // The one binary case that escapes: `functionValue` has no expression, so
-    // both consumers take the direct path with two operands rather than one.
     { name: 'functionModThree', args: [functionValue, 3], expected: NaN },
     { name: 'zeroModOne', args: [0, 1], expected: 0 },
     { name: 'negativeZeroModOne', args: [-0, 1], expected: -0 },
@@ -649,8 +642,6 @@ const lessThanCases = [
     { name: 'arrayStringThreeLessThanFive', args: [['3'], 5], expected: true },
     { name: 'arrayPairLessThanFive', args: [[0, 0], 5], expected: false },
     { name: 'emptyObjectLessThanFive', args: [{}, 5], expected: false },
-    // The one binary case that escapes: `functionValue` has no expression, so
-    // both consumers take the direct path with two operands rather than one.
     { name: 'functionLessThanFive', args: [functionValue, 5], expected: false },
     { name: 'threeLessThanFive', args: [3, 5], expected: true },
     { name: 'fiveLessThanThree', args: [5, 3], expected: false },
@@ -720,8 +711,6 @@ const lessOrEqualCases = [
     { name: 'arrayStringThreeLessOrEqualFive', args: [['3'], 5], expected: true },
     { name: 'arrayPairLessOrEqualFive', args: [[0, 0], 5], expected: false },
     { name: 'emptyObjectLessOrEqualFive', args: [{}, 5], expected: false },
-    // The one binary case that escapes: `functionValue` has no expression, so
-    // both consumers take the direct path with two operands rather than one.
     { name: 'functionLessOrEqualFive', args: [functionValue, 5], expected: false },
     { name: 'threeLessOrEqualFive', args: [3, 5], expected: true },
     { name: 'fiveLessOrEqualThree', args: [5, 3], expected: false },
@@ -795,8 +784,6 @@ const greaterThanCases = [
     { name: 'arrayStringThreeGreaterThanFive', args: [['3'], 5], expected: false },
     { name: 'arrayPairGreaterThanFive', args: [[0, 0], 5], expected: false },
     { name: 'emptyObjectGreaterThanFive', args: [{}, 5], expected: false },
-    // The one binary case that escapes: `functionValue` has no expression, so
-    // both consumers take the direct path with two operands rather than one.
     { name: 'functionGreaterThanFive', args: [functionValue, 5], expected: false },
     { name: 'threeGreaterThanFive', args: [3, 5], expected: false },
     { name: 'fiveGreaterThanThree', args: [5, 3], expected: true },
@@ -862,8 +849,6 @@ const greaterOrEqualCases = [
     { name: 'arrayStringThreeGreaterOrEqualFive', args: [['3'], 5], expected: false },
     { name: 'arrayPairGreaterOrEqualFive', args: [[0, 0], 5], expected: false },
     { name: 'emptyObjectGreaterOrEqualFive', args: [{}, 5], expected: false },
-    // The one binary case that escapes: `functionValue` has no expression, so
-    // both consumers take the direct path with two operands rather than one.
     { name: 'functionGreaterOrEqualFive', args: [functionValue, 5], expected: false },
     { name: 'threeGreaterOrEqualFive', args: [3, 5], expected: false },
     { name: 'fiveGreaterOrEqualThree', args: [5, 3], expected: true },
@@ -962,9 +947,9 @@ const notCases = [
  *
  * What these cases do *not* prove: that the discarded operand's evaluation
  * is actually skipped. `&&`/`||`/`??`/`?:` are the one place in JavaScript
- * where that is these operators' defining behaviour — but every `Operand` in
- * this corpus is `Value | FunctionValue` (see `types.ts`), and `Value` admits
- * no expression whose evaluation is observable (no side effect, no throw:
+ * where that is these operators' defining behaviour — but every operand in
+ * this corpus is a `Value` (see `types.ts`), which admits no expression
+ * whose evaluation is observable (no side effect, no throw:
  * `Throws` is legal only as an `expected`, never an operand). Both consumers
  * build every argument before dispatch — `run` in `proof.f.mjs`, `result` in
  * `rust/module.f.mjs` — so there is nothing an unevaluated operand could do
@@ -1150,9 +1135,6 @@ const bitAndCases = [
     { name: 'arrayStringTenBitAndSix', args: [['10'], 6], expected: 2 },
     { name: 'arrayPairBitAndSix', args: [[0, 0], 6], expected: 0 },
     { name: 'emptyObjectBitAndSix', args: [{}, 6], expected: 0 },
-    // The one binary case that escapes: `functionValue` has no expression,
-    // so both consumers take the direct path with two operands rather than
-    // one.
     { name: 'functionBitAndSix', args: [functionValue, 6], expected: 0 },
     { name: 'truncatesTowardZero', args: [3.9, 6], expected: 2 },
     { name: 'negativeTruncatesTowardZero', args: [-3.9, 6], expected: 4 },
@@ -1187,9 +1169,6 @@ const bitOrCases = [
     { name: 'arrayStringTenBitOrSix', args: [['10'], 6], expected: 14 },
     { name: 'arrayPairBitOrSix', args: [[0, 0], 6], expected: 6 },
     { name: 'emptyObjectBitOrSix', args: [{}, 6], expected: 6 },
-    // The one binary case that escapes: `functionValue` has no expression,
-    // so both consumers take the direct path with two operands rather than
-    // one.
     { name: 'functionBitOrSix', args: [functionValue, 6], expected: 6 },
     { name: 'truncatesTowardZero', args: [3.9, 6], expected: 7 },
     { name: 'negativeTruncatesTowardZero', args: [-3.9, 6], expected: -1 },
@@ -1224,9 +1203,6 @@ const bitXorCases = [
     { name: 'arrayStringTenBitXorSix', args: [['10'], 6], expected: 12 },
     { name: 'arrayPairBitXorSix', args: [[0, 0], 6], expected: 6 },
     { name: 'emptyObjectBitXorSix', args: [{}, 6], expected: 6 },
-    // The one binary case that escapes: `functionValue` has no expression,
-    // so both consumers take the direct path with two operands rather than
-    // one.
     { name: 'functionBitXorSix', args: [functionValue, 6], expected: 6 },
     { name: 'truncatesTowardZero', args: [3.9, 6], expected: 5 },
     { name: 'negativeTruncatesTowardZero', args: [-3.9, 6], expected: -5 },
@@ -1314,9 +1290,6 @@ const shiftLeftCases = [
     { name: 'arrayStringTenShlThree', args: [['10'], 3], expected: 80 },
     { name: 'arrayPairShlThree', args: [[0, 0], 3], expected: 0 },
     { name: 'emptyObjectShlThree', args: [{}, 3], expected: 0 },
-    // The one binary case that escapes: `functionValue` has no expression,
-    // so both consumers take the direct path with two operands rather than
-    // one.
     { name: 'functionShlThree', args: [functionValue, 3], expected: 0 },
     { name: 'truncatesTowardZero', args: [3.9, 3], expected: 24 },
     { name: 'negativeTruncatesTowardZero', args: [-3.9, 3], expected: -24 },
@@ -1367,9 +1340,6 @@ const signedRightShiftCases = [
     { name: 'arrayStringTenShrThree', args: [['10'], 3], expected: 1 },
     { name: 'arrayPairShrThree', args: [[0, 0], 3], expected: 0 },
     { name: 'emptyObjectShrThree', args: [{}, 3], expected: 0 },
-    // The one binary case that escapes: `functionValue` has no expression,
-    // so both consumers take the direct path with two operands rather than
-    // one.
     { name: 'functionShrThree', args: [functionValue, 3], expected: 0 },
     { name: 'truncatesTowardZero', args: [3.9, 3], expected: 0 },
     // Arithmetic shift sign-extends: floor(-3 / 8) is -1, not 0.
@@ -1422,9 +1392,6 @@ const unsignedRightShiftCases = [
     { name: 'arrayStringTenUshrThree', args: [['10'], 3], expected: 1 },
     { name: 'arrayPairUshrThree', args: [[0, 0], 3], expected: 0 },
     { name: 'emptyObjectUshrThree', args: [{}, 3], expected: 0 },
-    // The one binary case that escapes: `functionValue` has no expression,
-    // so both consumers take the direct path with two operands rather than
-    // one.
     { name: 'functionUshrThree', args: [functionValue, 3], expected: 0 },
     { name: 'truncatesTowardZero', args: [3.9, 3], expected: 0 },
     // `ToUint32` never reinterprets a sign bit, unlike `ToInt32`: a negative
@@ -1487,9 +1454,6 @@ const ownCases = [
     { name: 'nonObjectBooleanReceiver', args: [true, 'a'], expected: undefined },
     { name: 'nonObjectBigintReceiver', args: [5n, 'a'], expected: undefined },
     { name: 'nonObjectArrayReceiver', args: [[1, 2], 'a'], expected: undefined },
-    // The one binary case that escapes: `functionValue` has no expression,
-    // so both consumers take the direct path with two operands rather than
-    // one.
     { name: 'nonObjectFunctionReceiver', args: [functionValue, 'a'], expected: undefined },
     { name: 'nullReceiverThrows', args: [null, 'a'], expected: throws },
     { name: 'undefinedReceiverThrows', args: [undefined, 'a'], expected: throws },

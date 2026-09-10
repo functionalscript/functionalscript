@@ -16,7 +16,7 @@ last escape of its kind, now that unary plus and `typeof` are nodes:
 `'ternary'` variant carrying `Case<3>`, whose cases always take the corpus's
 "escape" path — build all three operands, apply the operation directly —
 rather than lowering to a real expression. Because there is no such thing as
-an unevaluated `Value` in the corpus (`Operand` admits no expression whose
+an unevaluated `Value` in the corpus (it admits no expression whose
 evaluation is observable), nothing there proves `?:` actually *branches*:
 the discarded arm is built right along with the selected one.
 
