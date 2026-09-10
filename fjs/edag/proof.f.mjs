@@ -619,7 +619,7 @@ export const proof = {
         missingTailIsError: () => assertNoMatch(v(['!'])),
         error: () => assertNoMatch(v(['negz', 1])),
         // `op1Id` is a real constraint, not a stand-in for `string`: an id
-        // outside its five members is rejected, both directly and as part
+        // outside its four members is rejected, both directly and as part
         // of a full `exp` value.
         unknownIdIsRejected: () => {
             assertNoMatch(vOp1Id('xyz'))
@@ -640,7 +640,7 @@ export const proof = {
     op2: {
         ok: () => {
             // Every id `op2` accepts, pinned individually: deleting any one
-            // of the twenty-two from `op2Id` reddens exactly this loop, not
+            // of the twenty-one from `op2Id` reddens exactly this loop, not
             // some other assertion that happens to still pass.
             for (const id of op2Ids) {
                 assertOk(v([id, 1, 2]))
