@@ -19,8 +19,13 @@ come.
   value, `name SP <email> SP time SP tz`, read as a second pass over the
   bytes a header holds: a `try*` reader that refuses what the grammar does
   not cover, and a writer.
+- [`tree/`](tree/module.f.mjs) — a tree's entries, `mode SP name NUL id`,
+  for a repository's id width: a reader that reads what `git fsck` would
+  flag, a `validate` that refuses it the way `fsck` does, `mode` as the
+  number an entry's digits spell, and a writer.
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
-  and `ObjectType`.
+  `Oid` and `OidBytes`, the one fixed-width field and its width, and
+  `ObjectType`.
 
 What is not here, by design: inflating a loose object (a host effect at
 the boundary until a FunctionalScript inflater exists), SHA-1, packfiles.
