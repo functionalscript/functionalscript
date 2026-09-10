@@ -395,11 +395,17 @@ approximated:
       [`fjs/git/tree/`](../fjs/git/tree/module.f.mjs); the proof reads the
       root tree of a commit of this repository and writes it back byte for
       byte.
-- [ ] `fjs/git/commit/`, `fjs/git/tag/`: known fields as functions over the
-      header list, `validate`, and the writer for each.
+- [x] `fjs/git/tag/`: known fields as functions over the header list,
+      `validate`, and the writer — shipped as
+      [`fjs/git/tag/`](../fjs/git/tag/module.f.mjs), with
+      [`fjs/git/oid/`](../fjs/git/oid/module.f.mjs) for the hex spelling
+      of an id; the proof reads a tag Git signed and writes it back byte
+      for byte.
+- [ ] `fjs/git/commit/`: known fields as functions over the header list,
+      `mergetag` through the tag reader, `validate`, and the writer.
 - [ ] Proofs over real objects: capture a handful with `git cat-file` once
-      — a merge commit with `gpgsig` and `mergetag`, a signed tag, a tree
-      with every mode, a SHA-256 object — and check them in as byte
+      — a merge commit with `gpgsig` and `mergetag`, a tree with every
+      mode, a SHA-256 object — and check them in as byte
       literals; nothing in code calls `git`.
 - [ ] Inflate at the boundary: a `.mjs` adapter over `node:zlib` as an
       effect; file the FunctionalScript inflater as its own issue.

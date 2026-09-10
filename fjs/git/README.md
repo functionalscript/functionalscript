@@ -23,6 +23,12 @@ come.
   for a repository's id width: a reader that reads what `git fsck` would
   flag, a `validate` that refuses it the way `fsck` does, `mode` as the
   number an entry's digits spell, and a writer.
+- [`oid/`](oid/module.f.mjs) — an object id between its two spellings, the
+  raw bytes a tree entry holds and the hex text a header holds.
+- [`tag/`](tag/module.f.mjs) — a tag as a second pass over the header
+  block: `object`, `type`, `tag` and `tagger` as functions over the header
+  list, read by position as Git reads them, and a `validate` that refuses
+  what `git fsck` does.
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
   `Oid` and `OidBytes`, the one fixed-width field and its width, and
   `ObjectType`.

@@ -6,7 +6,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { fromArrayLike, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
-import { tryRead, write } from './module.f.mjs'
+import { tryRead, valueAt, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Payload} */
 const read = input => {
@@ -74,6 +74,18 @@ export const proof = {
         assertStructurallySame(p.headers, [[[0xE9], [0xFF]]])
         assertStructurallySame(toArray(p.message), [0xC3, 0])
         roundTrip(input)
+    },
+    // A header by position and key: the value where both match, `null`
+    // where the key is elsewhere or the position is past the end.
+    valueAt: () => {
+        const p = read(commitPayload)
+        assertStructurallySame(valueAt(p, 0, 'tree'), latin1('c5711460da9d5ae7158a951d9d924385419b13ca'))
+        assertStructurallySame(valueAt(p, 2, 'parent'), latin1('261b9142dfe024d8e8e009b0e97f6e52ea981c8d'))
+        assertEq(valueAt(p, 1, 'tree'), null)
+        assertEq(valueAt(p, 0, 'tre'), null)
+        assertEq(valueAt(p, 0, 'trees'), null)
+        assertEq(valueAt(p, 6, 'gpgsig'), null)
+        assertEq(valueAt(read(latin1('\n')), 0, 'tree'), null)
     },
     // Each refusal: no empty line before the end, a header without SP, a
     // first line beginning with SP, a header without LF.
