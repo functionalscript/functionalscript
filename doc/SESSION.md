@@ -31,11 +31,16 @@ steps of one, and the open stacks in the tree at any time show the shape.
    of the list and the pull request is the unit of landing: a pull request
    takes one or more steps, one feature's worth, and a step that is only a
    check — `tsc` clean, the suite passing — lands with the step it checks,
-   never alone. No implementation — a
-   prototype only where nobody yet knows whether the design works, and then
-   marked as one ([REVIEW.md](./REVIEW.md#designs)). This is the design
-   increment ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)),
-   opened against `main`, and it is where the first questions go: what the
+   never alone. This is the design increment
+   ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)), and it
+   carries no implementation — a prototype only where nobody yet knows
+   whether the design works, and then marked as one
+   ([REVIEW.md](./REVIEW.md#designs)). That is §3's preference, not a rule
+   it lacks: where the design change is a one-line correction the code makes
+   obvious, and splitting costs more than it returns, the first pull request
+   is the implementation with the correction in it, and its description says
+   both are there. It is opened against `main`, and it is where the first
+   questions go: what the
    `todo/` leaves open, and which of those the owner wants settled before code
    is written.
 2. **The next pull request, on top.** Branch from the previous pull request's
