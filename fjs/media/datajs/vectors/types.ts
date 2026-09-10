@@ -81,13 +81,30 @@ export type Normalize = Base & {
  * An object whose own `host` property names a recipe is that recipe; the
  * corpus reserves the key for it, so a plain object has none, and an object
  * with a `host` outside the vocabulary is refused by `tsc` rather than read
- * as data.
+ * as data. A hole is not an input: it is an element, legal in an array
+ * only, so `Arr` admits it where `Input` does not.
  */
 export type Input =
     | Primitive
-    | readonly Input[]
-    | ({ readonly [k in string]?: Input } & { readonly host?: never })
-    | Recipe
+    | Arr
+    | Obj
+    | Fn
+    | SymbolLeaf
+    | Builtin
+    | Modifier
+
+/** An array as an input: inputs, or holes, which are legal nowhere else. */
+export type Arr = readonly (Input | Hole)[]
+
+/** A plain object as an input, with no `host` key, which is reserved for a recipe. */
+export type Obj = { readonly [k in string]?: Input } & { readonly host?: never }
+
+/**
+ * What a modifier applies to: an array, an object, or a modifier over one,
+ * since a modifier denotes its target. Nothing else has properties to add
+ * or attributes to set, so a recipe over a leaf is refused by `tsc`.
+ */
+export type Target = Arr | Obj | Modifier
 
 export type Recipe = Leaf | Modifier
 
@@ -105,7 +122,7 @@ export type Builtin =
     | { readonly host: 'builtin', readonly kind: 'date', readonly ms: number }
     | { readonly host: 'builtin', readonly kind: 'map' | 'regexp' | 'boxedNumber', readonly ms?: never }
 
-/** An array hole, legal only as an element of an array. */
+/** An array hole, an element of an `Arr` and never an `Input` of its own. */
 export type Hole = { readonly host: 'hole' }
 
 /**
@@ -128,7 +145,7 @@ export type Modifier =
 /** One more own enumerable data property on `on`. */
 export type OwnProp = {
     readonly host: 'ownProp'
-    readonly on: Input
+    readonly on: Target
     readonly key: string
     readonly value: Input
 }
@@ -136,7 +153,7 @@ export type OwnProp = {
 /** The same, non-enumerable. */
 export type NonEnumerable = {
     readonly host: 'nonEnumerable'
-    readonly on: Input
+    readonly on: Target
     readonly key: string
     readonly value: Input
 }
@@ -144,7 +161,7 @@ export type NonEnumerable = {
 /** An enumerable accessor whose getter records that it was invoked, then returns `value`. */
 export type Getter = {
     readonly host: 'getter'
-    readonly on: Input
+    readonly on: Target
     readonly key: string
     readonly value: Input
 }
@@ -152,28 +169,36 @@ export type Getter = {
 /** An enumerable accessor with a setter and no getter, which reads as `undefined`. */
 export type Setter = {
     readonly host: 'setter'
-    readonly on: Input
+    readonly on: Target
     readonly key: string
 }
 
 /** An enumerable own data property under a fresh unique symbol. */
 export type SymbolKey = {
     readonly host: 'symbolKey'
-    readonly on: Input
+    readonly on: Target
     readonly value: Input
 }
 
 /**
- * The same data under a `null` prototype, or as an `Array` subclass
- * instance; `inherited` puts one enumerable member on the subclass's
- * prototype, under a key that is not an own key of the target.
+ * The same data under a `null` prototype, which has nothing to inherit
+ * from, or an array as an `Array` subclass instance, where `inherited` puts
+ * one enumerable member on the subclass's prototype, under a key that is
+ * not an own key of the target.
  */
-export type Proto = {
-    readonly host: 'proto'
-    readonly on: Input
-    readonly to: 'null' | 'arraySubclass'
-    readonly inherited?: readonly [key: string, value: Input]
-}
+export type Proto =
+    | {
+        readonly host: 'proto'
+        readonly on: Target
+        readonly to: 'null'
+        readonly inherited?: never
+    }
+    | {
+        readonly host: 'proto'
+        readonly on: Arr | Modifier
+        readonly to: 'arraySubclass'
+        readonly inherited?: readonly [key: string, value: Input]
+    }
 
 /**
  * The same data with those attributes: the object frozen, sealed or made
@@ -183,13 +208,13 @@ export type Proto = {
 export type Attrs =
     | {
         readonly host: 'attrs'
-        readonly on: Input
+        readonly on: Target
         readonly how: 'frozen' | 'sealed' | 'nonExtensible'
         readonly key?: never
     }
     | {
         readonly host: 'attrs'
-        readonly on: Input
+        readonly on: Target
         readonly how: 'nonWritable'
         readonly key: string
     }
@@ -201,7 +226,7 @@ export type Attrs =
  */
 export type Link = {
     readonly host: 'link'
-    readonly on: Input
+    readonly on: Target
     readonly key: string | number
     readonly to: Input
 }
