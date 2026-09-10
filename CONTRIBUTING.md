@@ -12,7 +12,8 @@ FunctionalScript and TypeScript rules in [fjs/AGENTS.md](./fjs/AGENTS.md), the
 Rust ones in [nanvm-lib/AGENTS.md](./nanvm-lib/AGENTS.md), and what to do with
 the comments a review leaves on your pull request in
 [REVIEW.md](./doc/REVIEW.md), and how to review someone else's in
-[REVIEWING.md](./doc/REVIEWING.md). This file covers getting a working environment and
+[REVIEWING.md](./doc/REVIEWING.md), and how one session carries one task through
+a stack of pull requests in [SESSION.md](./doc/SESSION.md). This file covers getting a working environment and
 opening a pull request; every document links to the others rather than
 restating them, so they cannot drift apart.
 
