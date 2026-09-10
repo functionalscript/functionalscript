@@ -39,7 +39,7 @@ crash wait behind an issue naming the input that breaks it.
 ### Proposal
 
 Lower with an explicit work stack over the immutable `_State`, the shape
-`fjs/bnf/ll1`'s matcher uses for the same reason: a frame per rule being
+[`../../ll1/`](../../ll1/module.f.mjs)'s machine uses for the same reason: a frame per rule being
 lowered holding the children still to lower and the names lowered so far,
 so the JS stack stays O(1) however deep the rule. `freshFrom` takes the
 same treatment, a loop over the counter, or a per-hint counter kept in the
@@ -63,5 +63,5 @@ chain, a cost rather than a crash.
 
 - [`../module.f.mjs`](../module.f.mjs) — `lower` and the helpers it
   recurses through.
-- `fjs/bnf/ll1/module.f.mjs` — the explicit-stack matcher, the shape to
-  follow; named rather than linked, since `ebnf/` never links into `bnf/`.
+- [`../../ll1/module.f.mjs`](../../ll1/module.f.mjs) — the explicit-stack
+  machine, the shape to follow.

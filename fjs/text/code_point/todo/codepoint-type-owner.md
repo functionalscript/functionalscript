@@ -20,11 +20,9 @@ export type I32 = number   // "A singed 32-bit integer"
 
 Consequences:
 
-- Six modules that have nothing to do with UTF-16 import the generic type from
-  the UTF-16 codec: `fjs/djs/tokenizer/module.f.mjs:29`,
-  `fjs/bnf/descent/types.ts:7`, `fjs/bnf/descent/proof.f.mjs`,
-  `fjs/bnf/ll1/types.ts:7`, `fjs/bnf/ll1/module.f.mjs`,
-  `fjs/media/json/serializer/module.f.mjs:17`.
+- Modules that have nothing to do with UTF-16 import the generic type from
+  the UTF-16 codec — `fjs/media/json/serializer/module.f.mjs` today; the
+  classical `fjs/bnf` backends were four more until they were deleted.
 - At the seam the two spellings meet with no named relation:
   `utf8.toCodePointList` is typed `(input: List<U8>) => List<I32>`
   (`fjs/text/utf8/module.f.mjs:259-262`) and its output is handed to
@@ -49,7 +47,7 @@ Then:
 - retype `code_point`'s predicates and `decoder`/`eofFlush` with it;
 - `utf16/types.ts` and `utf8/types.ts` re-export or import it, dropping the
   local `CodePoint`/`I32` aliases;
-- repoint the six external importers at `text/code_point/types.ts`;
+- repoint the external importers at `text/code_point/types.ts`;
 - delete the dead `ByteOrEof`.
 
 ### Tasks
@@ -57,8 +55,8 @@ Then:
 - [ ] Add `fjs/text/code_point/types.ts` with `CodePoint` and JSDoc stating
       the error-tag convention.
 - [ ] Retype `code_point`, `utf8` (replace `I32`), `utf16`; delete `ByteOrEof`.
-- [ ] Repoint the importers in `djs/tokenizer`, `bnf/descent`, `bnf/ll1`,
-      `media/json/serializer`.
+- [ ] Repoint the surviving importer, `media/json/serializer`; the four in
+      `fjs/bnf` went with that module.
 - [ ] `tsc`, `fjs t`.
 
 ### Related

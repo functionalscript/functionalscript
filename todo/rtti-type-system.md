@@ -1786,7 +1786,7 @@ splits around inference, so the runnable order is 668's representation half
   migration; stage 11 here is what eventually retires them.
 - [fjs-nanvm-integration.md](./fjs-nanvm-integration.md) — the path to a
   compiler that parses authored FunctionalScript.
-- [`fjs/bnf/todo/layered-parser.md`](../fjs/bnf/todo/layered-parser.md) — the
+- [`fjs/ebnf/todo/layered-parser.md`](../fjs/ebnf/todo/layered-parser.md) — the
   transducer stack the tokenizer work in stage 3 belongs to.
 - [js-string-literals](../spec/todo/2460-js-string-literals.md) — the
   repository's own `.f.mjs` sources are not yet input the parser accepts.

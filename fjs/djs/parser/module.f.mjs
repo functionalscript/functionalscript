@@ -282,15 +282,15 @@ const symbol = out => ({ symbol: 0, meta: out })
  *
  * @type {(node: Children<Value, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
-const toNode = node => {
-    switch (node[0]) {
-        case 'primitive': { return symbol({ id: 'value', node: ['primitive', primitiveOf(unmapped(node[1]))] }) }
-        case 'ref': { return symbol({ id: 'value', node: ['ref', tokenAt(unmapped(node[1])[1])] }) }
+const toNode = ([tag, branch]) => {
+    switch (tag) {
+        case 'primitive': { return symbol({ id: 'value', node: ['primitive', primitiveOf(unmapped(branch))] }) }
+        case 'ref': { return symbol({ id: 'value', node: ['ref', tokenAt(unmapped(branch)[1])] }) }
         case 'array': {
-            return symbol({ id: 'value', node: ['array', toArray(valueItems(unmapped(node[1])[2]))] })
+            return symbol({ id: 'value', node: ['array', toArray(valueItems(unmapped(branch)[2]))] })
         }
         case 'object': {
-            return symbol({ id: 'value', node: ['object', toArray(memberItems(unmapped(node[1])[2]))] })
+            return symbol({ id: 'value', node: ['object', toArray(memberItems(unmapped(branch)[2]))] })
         }
     }
 }
@@ -302,18 +302,18 @@ const toNode = node => {
  *
  * @type {(node: Children<typeof key, DjsTokenWithMetadata, Out>) => readonly [DjsTokenWithMetadata, string, boolean]}
  */
-const keyOf = node => {
-    switch (node[0]) {
+const keyOf = ([tag, branch]) => {
+    switch (tag) {
         case 'plain': {
-            const t = tokenAt(unmapped(node[1])[1])
+            const t = tokenAt(unmapped(branch)[1])
             return [t, nameOf(t), false]
         }
         case 'string': {
-            const t = tokenAt(node[1])
+            const t = tokenAt(branch)
             return [t, textOf(t), false]
         }
         case 'computed': {
-            const t = tokenAt(unmapped(node[1])[2])
+            const t = tokenAt(unmapped(branch)[2])
             return [t, textOf(t), true]
         }
     }
@@ -388,9 +388,18 @@ const protoKey = '__proto__'
 /** @type {(message: string) => (t: DjsTokenWithMetadata) => ParseError} */
 const foldError = message => ({ metadata }) => ({ message, metadata })
 
+/** A plain `__proto__` key, at the key. */
+const protoKeyError = foldError('__proto__ requires the computed key form')
+
+/** A reference to a name nothing binds, at the reference. */
+const constNotFound = foldError('const not found')
+
+/** A name bound twice, at the second binding. */
+const duplicateId = foldError('duplicate id')
+
 /** @type {(container: Container, index: number) => Node} */
-const itemAt = (container, index) =>
-    container[0] === 'array' ? container[1][index] : container[1][index].value
+const itemAt = ([kind, items], index) =>
+    kind === 'array' ? items[index] : items[index].value
 
 /**
  * The error a container's item earns before its value is read, or `null`:
@@ -404,12 +413,10 @@ const itemAt = (container, index) =>
  *
  * @type {(container: Container, index: number) => ParseError | null}
  */
-const badKey = (container, index) => {
-    if (container[0] === 'array') { return null }
-    const { key, name, computed } = container[1][index]
-    return name === protoKey && !computed
-        ? foldError('__proto__ requires the computed key form')(key)
-        : null
+const badKey = ([kind, items], index) => {
+    if (kind === 'array') { return null }
+    const { key, name, computed } = items[index]
+    return name === protoKey && !computed ? protoKeyError(key) : null
 }
 
 /**
@@ -429,15 +436,15 @@ const addMember = ([properties, done], { name }, index) =>
  *
  * @type {(container: Container, done: readonly AstConst[]) => AstConst}
  */
-const close = (container, done) => {
-    if (container[0] === 'array') {
+const close = ([kind, members], done) => {
+    if (kind === 'array') {
         /** @type {AstArray} */
         const array = ['array', done]
         return array
     }
     /** @type {_Properties} */
     const start = [empty, done]
-    const [properties] = container[1].reduce(addMember, start)
+    const [properties] = members.reduce(addMember, start)
     /** @type {AstObject} */
     const object = fromMap(properties)
     return object
@@ -465,11 +472,12 @@ const round = (stack, frame) => {
  * @type {(env: _Env, stack: _Stack, node: Node) => _State}
  */
 const enter = (env, stack, node) => {
-    switch (node[0]) {
-        case 'primitive': { return [stack, ok(node[1])] }
+    const [tag, payload] = node
+    switch (tag) {
+        case 'primitive': { return [stack, ok(payload)] }
         case 'ref': {
-            const ref = at(nameOf(node[1]))(env)
-            return [stack, ref === null ? error(foldError('const not found')(node[1])) : ok(ref)]
+            const ref = at(nameOf(payload))(env)
+            return [stack, ref === null ? error(constNotFound(payload)) : ok(ref)]
         }
         default: { return round(stack, { container: node, index: 0, done: null }) }
     }
@@ -513,7 +521,7 @@ const evaluate = env => root => {
 const bind = env => (name, ref) => {
     const word = nameOf(name)
     return at(word)(env) !== null
-        ? error(foldError('duplicate id')(name))
+        ? error(duplicateId(name))
         : ok(setReplace(word)(ref)(env))
 }
 
@@ -578,16 +586,16 @@ export const parseFromTokens = tokenList => {
     const [tag, stream] = splitEof(toArray(tokenList))
     if (tag === 'error') { return error(stream) }
     const { tokens, eofMetadata } = stream
-    const match = parseModule(tokens.map(symbolOf))
-    if (match[0] === 'error') {
+    const [matched, result] = parseModule(tokens.map(symbolOf))
+    if (matched === 'error') {
         // A failure past the last token is the end of input rather than a
         // token the reader can point at.
-        const index = match[1]
-        const atEnd = index >= tokens.length
+        const atEnd = result >= tokens.length
         return error({
             message: atEnd ? 'unexpected end' : 'unexpected token',
-            metadata: atEnd ? eofMetadata : tokens[index].metadata,
+            metadata: atEnd ? eofMetadata : tokens[result].metadata,
         })
     }
-    return foldModule(moduleAt(match[1][0]))
+    const [tree] = result
+    return foldModule(moduleAt(tree))
 }

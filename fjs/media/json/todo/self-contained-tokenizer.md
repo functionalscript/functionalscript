@@ -726,9 +726,8 @@ blocked. The first two items can be started today.
       proof-covered, at
       [`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs), and
       `fjs/ebnf/ll1` already parses JSON with it. Placement is settled with it:
-      not under `fjs/bnf`, which is the module being retired and holds its JSON
-      grammar as an example only
-      ([bnf-grammar-single-owner](../../../bnf/todo/bnf-grammar-single-owner.md)).
+      `fjs/ebnf/lib`, the classical `fjs/bnf` and its example copy of the
+      grammar having been deleted.
       **Do not write a second one.** That is the *document* grammar; the
       token-stream grammar below is not a second copy but a few lines over
       the rules that module exports.
@@ -782,8 +781,8 @@ blocked. The first two items can be started today.
 - [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)
   — this is its stage 3, and the file that carries the reversed no-runtime-BNF
   rule.
-- [ebnf-migration](../../../todo/ebnf-migration.md) — `fjs/ebnf/` beside
-  `fjs/bnf/`, then retire `bnf/`. The module this now depends on.
+- [ebnf-migration](../../../todo/ebnf-migration.md) — how `fjs/ebnf/`
+  replaced `fjs/bnf/`. The module this now depends on.
 - [`fjs/ebnf/ast`](../../../ebnf/ast/README.md) — the metadata channel.
   **Optional** for errors: it buys errors better than today's, is not
   needed to match the current parser's contract, and cannot classify an
@@ -794,10 +793,11 @@ blocked. The first two items can be started today.
   for the defect classes review found, not as a plan.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — DataJS's
   grammar. Its string rule is JSON's and its number rule is JSON's unchanged.
-- [bnf-grammar-single-owner](../../../bnf/todo/bnf-grammar-single-owner.md) —
-  written when a codec grammar was an example rather than a runtime dependency;
-  edited for this direction. Its `fjs/media/json/grammar` ban survives on the
-  narrower ground that `fjs/bnf` is the module being retired.
+- bnf-grammar-single-owner (retired with `fjs/bnf`; its record is in
+  [ebnf-migration](../../../todo/ebnf-migration.md)'s triage) — written when
+  a codec grammar was an example rather than a runtime dependency. Its
+  `fjs/media/json/grammar` ban survives: the one JSON grammar is
+  [`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs).
 - [streaming-recognizer](./streaming-recognizer.md) — built on the `Scan<S>`
   seam this issue no longer promises, so it is now **blocked on this one** and
   its tasks are marked not to be started. Its requirement survives the rebase;

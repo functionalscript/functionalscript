@@ -1,7 +1,7 @@
 # RTTI serializable data form
 
 A function-free, serializable representation of RTTI schemas, modeled after
-[`fjs/bnf/data`](../../bnf/data/). `toData` converts a thunk-form `Type`
+[`fjs/ebnf/data`](../../ebnf/data/README.md). `toData` converts a thunk-form `Type`
 (from [`../module.f.mjs`](../module.f.mjs)) into this form once, lazily, when a
 consumer actually needs it.
 
@@ -75,9 +75,9 @@ accordingly. Both kinds' *schema-form* default is now the closed one, so the
 two spellings a bare container reaches are `{ prefix }` and
 `{ props, rest: never }`.
 
-**Recursion uses named references**, following `fjs/bnf/data`: a `Data` is
+**Recursion uses named references**, following `fjs/ebnf/data`: a `Data` is
 `readonly [RuleSet, Node]`, where nested positions hold either an inline
-`UnionSet` or the name of a rule. Unlike `fjs/bnf/data`, only definitions that
+`UnionSet` or the name of a rule. Unlike `fjs/ebnf/data`, only definitions that
 are actually cyclic become rules — everything else is inlined — so a
 non-recursive schema is a pure tree with an empty rule set, and structural
 identity does not depend on traversal order. Rule names come from the

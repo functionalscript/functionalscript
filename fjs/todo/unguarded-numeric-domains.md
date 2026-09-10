@@ -45,7 +45,6 @@ that asks one of them has already been told the input is fine.
 | `text/utf16`'s `fromCodePointList` | `[65.5]` | `[65.5]` | emits the fraction as a code unit |
 | `text/ascii`'s `hexDigitValue` (`../text/ascii/module.f.mjs:259`) | `53.5` | `5.5` | "the value `0..15` … or `null`" |
 | `text/ascii`'s `hexDigitCodePoint` (`:271`) | `5.5` | `53.5` | "the … code point denoting a value in `0..15`" |
-| `bnf`'s `rangeEncode` (`../bnf/module.f.mjs:77`) | `(65.5, 66)` | same as `(65, 66)` | `isValid` admits it, then `& mask` truncates |
 
 `isSupplementaryPlane` is the sharpest: it *is* the gate in front of the
 `>>`/`&` truncation in both encoders (`../text/utf8/module.f.mjs:132`,
@@ -91,8 +90,6 @@ predicates and `hexDigitValue` need no such decision — all already answer
       since its return type has no `null` today.
 - [ ] Decide what `fromCodePointList` does with a non-integer code point on
       both sides, and make `utf8` and `utf16` agree.
-- [ ] `bnf`'s `isValid`: decide whether the assertion should reject a
-      non-integer before `& mask` silently truncates it.
 - [ ] Consider one `isCodePoint` owned by `text/code_point` rather than the
       several near-copies the table above lists.
 - [ ] Re-sweep for exports built on `contains` once the above land, and record
@@ -106,5 +103,5 @@ predicates and `hexDigitValue` need no such decision — all already answer
 - The deleted `fjs/text/utf8/todo/byte-guard-accepts-non-integers.md` closed the
   UTF-8 decoder half of this class; this file keeps the rest of it tracked.
 - It lives in `fjs/todo/` rather than under any one module's `todo/` because the
-  class spans `text/`, `bnf/`, and `types/range/`, which is what
+  class spans `text/` and `types/range/`, which is what
   [todo/README.md](../../todo/README.md) reserves this directory for.

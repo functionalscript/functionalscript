@@ -346,5 +346,4 @@ slices the input at the index gets the remainder.
 - **What was expected.** A failure reports where, not what: the first set of
   the rule that failed there is available and not returned.
 - **Streaming input**, a parser as a fold over one symbol at a time, which
-  [043-stateful-parser](../../bnf/todo/043-stateful-parser.md) proposes for
-  the classical backend and stays open here.
+  [043-stateful-parser](../todo/043-stateful-parser.md) proposes.
