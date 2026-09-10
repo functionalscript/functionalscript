@@ -28,6 +28,7 @@
  *  object,
  *  op0,
  *  op1,
+ *  op12,
  *  op2,
  *  optionCall,
  *  optionDot,
@@ -50,6 +51,8 @@
  *  Op0Id,
  *  Op1,
  *  Op1Id,
+ *  Op12,
+ *  Op12Id,
  *  Op2,
  *  Op2Id,
  *  OptionCall,
@@ -67,7 +70,7 @@
 import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
-    exp, op0Id, op1Id, op2Id,
+    exp, op0Id, op1Id, op12Id, op2Id,
     optionLambda, optionPropertyLambda, propertyLambda,
 } from './module.f.mjs'
 
@@ -102,6 +105,9 @@ const vOp1Id = value => validate(op1Id)(value)
 /** @type {(value: Unknown) => readonly [string, unknown]} */
 const vOp2Id = value => validate(op2Id)(value)
 
+/** @type {(value: Unknown) => readonly [string, unknown]} */
+const vOp12Id = value => validate(op12Id)(value)
+
 /**
  * The three chain continuations, validated directly rather than only through
  * the node that owns one. Each is a state of the two hidden-control-flow bits
@@ -124,16 +130,19 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 const op0Ids = /** @type {const} */ (['undefined', 'args', 'frame'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
-const op1Ids = /** @type {const} */ (['String', 'Number', 'neg', '!', '~'])
+const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~'])
 
 /** Same purpose as `op0Ids`, for `op2`. */
 const op2Ids = /** @type {const} */ ([
     '=>', 'own',
     '===', '!==', '>', '>=', '<', '<=',
-    '+', '-', '*', '/', '%', '**',
+    '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
     '&&', '||', '??',
 ])
+
+/** Same purpose as `op0Ids`, for `op12` — each id legal at both arities. */
+const op12Ids = /** @type {const} */ (['+', '-'])
 
 /**
  * The naive desugaring of `a?.at` — the shape `?.` looks like it could lower
@@ -178,6 +187,8 @@ export const proof = {
         /** @typedef {Assert<Check<Op1, typeof op1>>} _Op1 */
         /** @typedef {Assert<Check<Op2Id, typeof op2Id>>} _Op2Id */
         /** @typedef {Assert<Check<Op2, typeof op2>>} _Op2 */
+        /** @typedef {Assert<Check<Op12Id, typeof op12Id>>} _Op12Id */
+        /** @typedef {Assert<Check<Op12, typeof op12>>} _Op12 */
     },
     primitive: {
         ok: () => {
@@ -255,7 +266,10 @@ export const proof = {
     closed: {
         extraTailIsError: () => {
             assertNoMatch(v(['args', 'extra']))
-            assertNoMatch(v(['neg', 1, 'extra']))
+            assertNoMatch(v(['!', 1, 'extra']))
+            assertNoMatch(v(['*', 1, 2, 'extra']))
+            // An `op12` has two closed arities; a third element past the
+            // longer one is still a tail.
             assertNoMatch(v(['+', 1, 2, 3]))
             assertNoMatch(v(['[]', [], 'extra']))
             assertNoMatch(v(['{}', [], 'extra']))
@@ -590,19 +604,19 @@ export const proof = {
     op1: {
         ok: () => {
             // Every id `op1` accepts, pinned individually: deleting any one
-            // of these five from `op1Id` reddens exactly this loop, not
+            // of these four from `op1Id` reddens exactly this loop, not
             // some other assertion that happens to still pass.
             for (const id of op1Ids) {
                 assertOk(v([id, 1]))
             }
-            assertOk(v(['neg', ['neg', 1]])) // an exp nested inside the operand
+            assertOk(v(['!', ['!', 1]])) // an exp nested inside the operand
             // Composes through `exp`'s recursion like any other node.
             assertOk(v(['[]', [['Number', 1]]]))
             assertOk(v(['()', ['Number', 1], 2]))
         },
         // A missing operand reads as `undefined`, no longer a valid bare
         // `exp` — see `op0`.
-        missingTailIsError: () => assertNoMatch(v(['neg'])),
+        missingTailIsError: () => assertNoMatch(v(['!'])),
         error: () => assertNoMatch(v(['negz', 1])),
         // `op1Id` is a real constraint, not a stand-in for `string`: an id
         // outside its five members is rejected, both directly and as part
@@ -626,24 +640,54 @@ export const proof = {
     op2: {
         ok: () => {
             // Every id `op2` accepts, pinned individually: deleting any one
-            // of the twenty-four from `op2Id` reddens exactly this loop, not
+            // of the twenty-two from `op2Id` reddens exactly this loop, not
             // some other assertion that happens to still pass.
             for (const id of op2Ids) {
                 assertOk(v([id, 1, 2]))
             }
-            assertOk(v(['+', ['+', 1, 2], 3])) // an exp nested inside an operand
+            assertOk(v(['*', ['*', 1, 2], 3])) // an exp nested inside an operand
         },
         // A missing operand reads as `undefined`, no longer a valid bare
         // `exp` — see `op0`. True whether one or both are missing.
         missingTailIsError: () => {
-            assertNoMatch(v(['+', 1]))
-            assertNoMatch(v(['+']))
+            assertNoMatch(v(['*', 1]))
+            assertNoMatch(v(['*']))
         },
-        error: () => assertNoMatch(v(['+z', 1, 2])),
+        error: () => assertNoMatch(v(['*z', 1, 2])),
         // Same point as `op1`'s: `op2Id` constrains membership.
         unknownIdIsRejected: () => {
             assertNoMatch(vOp2Id('xyz'))
             assertNoMatch(v(['xyz', 1, 2]))
+        },
+    },
+    // The vocabulary whose ids are legal at both arities. The node's length
+    // is what tells `['-', a]` from `['-', a, b]`, so both arms are pinned
+    // for each id, and so is the fact that neither arm is a member of the
+    // other two vocabularies.
+    op12: {
+        ok: () => {
+            for (const id of op12Ids) {
+                assertOk(v([id, 1]))
+                assertOk(v([id, 1, 2]))
+            }
+            assertOk(v(['-', ['-', 1]])) // negation of a negation
+            assertOk(v(['-', ['-', 1, 2]])) // negation of a subtraction
+            assertOk(v(['+', ['+', 1], 2])) // unary plus as a binary operand
+        },
+        // Neither arm admits a bare tag, and the longer arm is closed too —
+        // `closed.extraTailIsError` pins the three-operand case.
+        missingTailIsError: () => assertNoMatch(v(['-'])),
+        // Disjoint from `op1Id` and `op2Id`: an `op12` id is not a member of
+        // either, which is what lets those two fix an arity by membership.
+        disjoint: () => {
+            for (const id of op12Ids) {
+                assertNoMatch(vOp1Id(id))
+                assertNoMatch(vOp2Id(id))
+            }
+        },
+        unknownIdIsRejected: () => {
+            assertNoMatch(vOp12Id('xyz'))
+            assertNoMatch(vOp12Id('neg'))
         },
     },
     // The JS these nodes have to agree with, run on the host engine — the

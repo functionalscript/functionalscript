@@ -5,11 +5,12 @@
 
 > **Scope narrowed.** This issue originally proposed dropping `Any::unary_plus`
 > and moving the corpus's `unaryPlus` group to `'Number'`, on the premise that
-> the EDAG has no unary `+`. That premise is retired by
-> [op12-groups](../../fjs/edag/todo/op12-groups.md): the EDAG spells unary
-> plus as `['+', x]`, `Any::unary_plus` stays as its `nanvm-lib`
-> implementation, and the corpus group moves onto the EDAG-backed path there.
-> What is left here is the coercion that still does not exist.
+> the EDAG has no unary `+`. That premise is gone: the EDAG spells unary
+> plus as `['+', x]` (`op12Id` in
+> [`fjs/edag/module.f.mjs`](../../fjs/edag/module.f.mjs)), `Any::unary_plus`
+> is its `nanvm-lib` implementation, and the corpus group is on the
+> EDAG-backed path. What is left here is the coercion that still does not
+> exist.
 
 ### Problem
 
@@ -64,13 +65,13 @@ counterpart, and the corpus has no `Number` group to prove one against.
 - In the corpus, add a `Group1` with `op: 'Number'` beside the existing unary-plus
   group rather than replacing it. `numberCoercionCases` in
   [`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs) already lists the shared
-  argument space once for `neg` and unary `+`; a `Number` group derives from the same
+  argument space once for unary `-` and unary `+`; a `Number` group derives from the same
   list with one difference, its bigint case expecting the converted number rather than
   `throws`. The `function` case escapes either way: `functionValue` has no expression
   whichever id the group carries.
 - `fjs/nanvm/proof.f.mjs` needs no `op1Js` entry for `'Number'` — only escaped cases
   reach that table, and amnesia already evaluates the node — unless the group's
-  `functionValue` case makes one necessary, as it does for `neg`.
+  `functionValue` case makes one necessary, as it does for unary `-`.
 - `fjs/nanvm/rust/module.f.mjs`'s `op1Rust` and `rustName` tables gain the new Rust
   method and its generated function name; `fjs/nanvm/rust/proof.f.mjs`'s pinned
   expected-output strings follow.
@@ -92,8 +93,9 @@ counterpart, and the corpus has no `Number` group to prove one against.
 
 ### Related
 
-- [op12-groups](../../fjs/edag/todo/op12-groups.md) — unary `+` as an EDAG node and
-  `Any::unary_plus` as its implementation; the decision that narrowed this issue.
+- `op12Id` in [`fjs/edag/module.f.mjs`](../../fjs/edag/module.f.mjs) — unary
+  `+` as an EDAG node and `Any::unary_plus` as its implementation; the
+  decision that narrowed this issue.
 - [`edag-stage1-discussion.md`](../../todo/edag-stage1-discussion.md) — the "Number"
   row of its Operations table: the coercion that accepts bigints.
 - [`fjs/nanvm/README.md`](../../fjs/nanvm/README.md) — the corpus's canonical-id rule.

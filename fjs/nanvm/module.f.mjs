@@ -13,14 +13,15 @@
  *
  * Beside the data are the format's **constructors** (`functionValue`, `ref`,
  * `throws`), its **eliminators** (`isThrows`, `isFunctionValue`, `orders`,
- * `opId`, `casesOf`, `arityOf`), and the **lowering** that turns a case into
+ * `opId`, `groupKey`, `casesOf`, `arityOf`), and the **lowering** that turns a case into
  * the EDAG expression it denotes (`valueExp`, `caseExp`, `lowerEq`). All
  * three exist so that neither consumer has to re-implement a rule of the
  * corpus format: a rule written twice is a rule that drifts.
  *
  * Operation identity comes from [`fjs/edag`](../edag/README.md) and is not
- * restated here — a group's `op` is an `Op1Id` or an `Op2Id`, and which of
- * the two vocabularies it is in is what fixes the case's operand count.
+ * restated here — a group's `op` is an `Op1Id`, an `Op2Id`, or an `Op12Id`,
+ * and which vocabulary it is in is what fixes the case's operand count —
+ * except for an `Op12Id`, legal at both, where the group's own `arity` does.
  *
  * Cases `nanvm-lib` does not implement yet carry a `rust` reason and are
  * emitted as commented-out `TODO`s instead of being silently dropped — the
@@ -28,7 +29,7 @@
  *
  * @module
  *
- * @import { Exp, Op1, Op1Id, Op2, Op2Id, Property } from '../edag/types.ts'
+ * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Property } from '../edag/types.ts'
  * @import { Case, Data, Eq, Expectation, FunctionValue, Group, Lowered, LoweredEq, OpId, Operand, Ref, SharedNode, Throws, Value } from './types.ts'
  *
  * @example
@@ -132,6 +133,21 @@ export const orders = g => c => isCommutative(g)
 export const opId = g => 'op' in g ? g.op : g.nanvmOp
 
 /**
+ * The name both consumers file a group under: the proof's test key, and the
+ * key of the printer's Rust-name table.
+ *
+ * For every group but an `Op12` one it is the operation tag. Two `Op12`
+ * groups share a tag and differ in arity — `-` at one operand is negation, at
+ * two subtraction — so theirs carries the arity too: `'-/1'`, `'-/2'`. One
+ * owner for the spelling, as `orders` is for the `Swapped` suffix: spelled
+ * separately in the two consumers, the JavaScript and Rust names for one
+ * group would silently diverge.
+ *
+ * @type {(g: Group) => string}
+ */
+export const groupKey = g => 'arity' in g ? `${g.op}/${g.arity}` : opId(g)
+
+/**
  * A group's cases, read without first deciding which kind of group it is.
  *
  * The operand count is the point of the three group types, and it is fixed
@@ -146,17 +162,20 @@ export const casesOf = g => g.cases
  *
  * Which vocabulary the id belongs to is what fixes the count — the same rule
  * the group types carry — so this asks the schema rather than a second copy
- * of the vocabulary. A group with no canonical id is unary unless it names
- * `ternary`, the corpus's one three-operand group — the EDAG has no
- * conditional-expression node to be unary or binary *in*, so nothing there
- * fixes its count the way it fixes every other group's. It is the runtime
- * half of what `Group1`/`Group2`/`NonEdagGroup` say statically, for the
+ * of the vocabulary. An `Op12` group is the exception: its id is legal at
+ * both arities, so the group carries the count itself and is read first. A
+ * group with no canonical id is unary unless it names `ternary`, the
+ * corpus's one three-operand group — the EDAG has no conditional-expression
+ * node to be unary or binary *in*, so nothing there fixes its count the way
+ * it fixes every other group's. It is the runtime half of what
+ * `Group1`/`Group2`/`Group12`/`NonEdagGroup` say statically, for the
  * consumers that walk `data.groups` and so hold a `Group` whose arm is no
  * longer known.
  *
  * @type {(g: Group) => 1 | 2 | 3}
  */
 export const arityOf = g => {
+    if ('arity' in g) { return g.arity }
     if (!('op' in g)) { return g.nanvmOp === 'ternary' ? 3 : 1 }
     return isOp1Id(g.op)[0] === 'ok' ? 1 : 2
 }
@@ -220,12 +239,13 @@ export const caseExp = g => args => {
     // `some` established that no operand is a `FunctionValue`; narrowing an
     // array by a predicate over its elements is not something TypeScript does.
     const [a, b] = /** @type {readonly Value[]} */ (args).map(valueExp)
-    // `n` decides which vocabulary the tag is in, and the check above makes
-    // that agree with the operands. The casts are that step and nothing more.
-    /** @type {Op1 | Op2} */
+    // `n` decides which vocabularies the tag can be in, and the check above
+    // makes that agree with the operands. The casts are that step and nothing
+    // more: an `Op12Id` is legal at either count, so it is in both.
+    /** @type {Op1 | Op2 | Op12} */
     const e = n === 1
-        ? [/** @type {Op1Id} */ (g.op), a]
-        : [/** @type {Op2Id} */ (g.op), a, b]
+        ? [/** @type {Op1Id | Op12Id} */ (g.op), a]
+        : [/** @type {Op2Id | Op12Id} */ (g.op), a, b]
     return ['exp', e]
 }
 
@@ -1524,17 +1544,18 @@ export const data = {
     },
     groups: [
         {
-            // No canonical EDAG id: the EDAG has no unary `+`. Becomes the
-            // `Number` cast — a semantic change, not a rename — through
-            // `nanvm-lib/todo/replace-unary-plus-with-number.md`.
-            nanvmOp: 'unaryPlus',
+            // JS unary plus, not the `Number` cast: the two differ on a
+            // bigint, which `+` refuses and `Number` converts.
+            op: '+',
+            arity: 1,
             cases: [
                 ...numberCoercionCases(false),
                 { name: 'bigint', args: [0n], expected: throws },
             ],
         },
         {
-            op: 'neg',
+            op: '-',
+            arity: 1,
             cases: [
                 ...numberCoercionCases(true),
                 { name: 'bigintPositive', args: [1n], expected: -1n },
@@ -1545,8 +1566,8 @@ export const data = {
         { op: '*', commutative: true, cases: mulCases },
         { op: '/', cases: divCases },
         { op: '**', cases: expCases },
-        { op: '-', cases: subCases },
-        { op: '+', cases: addCases },
+        { op: '-', arity: 2, cases: subCases },
+        { op: '+', arity: 2, cases: addCases },
         { op: '%', cases: remCases },
         { op: '&', commutative: true, cases: bitAndCases },
         { op: '|', commutative: true, cases: bitOrCases },
