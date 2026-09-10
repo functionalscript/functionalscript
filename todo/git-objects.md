@@ -147,6 +147,20 @@ what turns the tree into values, one mapping per rule, as
 [`fjs/media/json/parser`](../fjs/media/json/parser/module.f.mjs) does for
 JSON.
 
+**Where LL(1) is not enough, the answer is another pass, not a stronger
+parser.** One lookahead byte cannot tell `tree` from `tag`, a known header
+from an unknown one, or a name from the space before its `<`; it does not
+have to. The first pass reads the shape every object shares and understands
+none of it — a word, a header line, a value up to its delimiter — and a
+later pass reads what the first one cut out: the header list is interpreted
+after the parse, an ident is a grammar over one header's value, and a
+`mergetag` value is a tag object read by the tag grammar. Each pass is a
+grammar over the previous pass's output, which is the layering
+[layered-parser](../fjs/bnf/todo/layered-parser.md) describes and the
+rewrite set already supports, so the machinery is one LL(1) backend applied
+more than once rather than a backend that backtracks. It is also how Git
+reads its own objects.
+
 ### Proposal
 
 #### 1. `fjs/ebnf/byte/` — the byte alphabet
