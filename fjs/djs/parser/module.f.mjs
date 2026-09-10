@@ -48,7 +48,7 @@
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
  * @import { Items, Member, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import { _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
+ * @import { _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Properties, _Stack, _State, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -413,6 +413,16 @@ const badKey = (container, index) => {
 }
 
 /**
+ * One member added to an object's properties: the value at its index among
+ * the resolved values, under its name. The values ride in the accumulator so
+ * that the step captures nothing.
+ *
+ * @type {(acc: _Properties, member: Entry, index: number) => _Properties}
+ */
+const addMember = ([properties, done], { name }, index) =>
+    [setReplace(name)(done[index])(properties), done]
+
+/**
  * A container of the values its items resolved to: an array, or an object
  * with a property per member, a repeated key keeping its first position
  * and taking its last value.
@@ -425,11 +435,11 @@ const close = (container, done) => {
         const array = ['array', done]
         return array
     }
+    /** @type {_Properties} */
+    const start = [empty, done]
+    const [properties] = container[1].reduce(addMember, start)
     /** @type {AstObject} */
-    const object = fromMap(container[1].reduce(
-        /** @type {(m: OrderedMap<AstConst>, member: Entry, index: number) => OrderedMap<AstConst>} */
-        ((m, { name }, index) => setReplace(name)(done[index])(m)),
-        empty))
+    const object = fromMap(properties)
     return object
 }
 
@@ -521,25 +531,25 @@ const foldModule = ({ imports, consts, exported }) => {
     /** @type {readonly AstConst[]} */
     let body = []
     for (const { name, module } of imports) {
-        const bound = bind(env)(name, ['aref', modules.length])
-        if (bound[0] === 'error') { return error(bound[1]) }
-        env = bound[1]
+        const [tag, bound] = bind(env)(name, ['aref', modules.length])
+        if (tag === 'error') { return error(bound) }
+        env = bound
         modules = [...modules, module]
     }
     for (const { name, value: node } of consts) {
-        const bound = bind(env)(name, ['cref', body.length])
-        if (bound[0] === 'error') { return error(bound[1]) }
-        env = bound[1]
-        const resolved = evaluate(env)(node)
-        if (resolved[0] === 'error') { return resolved }
-        body = [...body, resolved[1]]
+        const [tag, bound] = bind(env)(name, ['cref', body.length])
+        if (tag === 'error') { return error(bound) }
+        env = bound
+        const [resolved, value] = evaluate(env)(node)
+        if (resolved === 'error') { return error(value) }
+        body = [...body, value]
     }
-    const last = evaluate(env)(exported)
-    if (last[0] === 'error') { return last }
+    const [resolved, last] = evaluate(env)(exported)
+    if (resolved === 'error') { return error(last) }
     // annotated rather than inferred: a bare `[modules, body]` widens to an
     // array, because `readonly string[]` is itself assignable to `AstBody`.
     /** @type {AstModule} */
-    const astModule = [modules, [...body, last[1]]]
+    const astModule = [modules, [...body, last]]
     return ok(astModule)
 }
 

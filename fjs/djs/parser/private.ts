@@ -49,6 +49,12 @@ export type _ListNode = readonly [
 export type _Env = OrderedMap<AstModuleRef>
 
 /**
+ * An object being closed: its properties so far, beside the resolved values
+ * of all its members, which the step reads by index.
+ */
+export type _Properties = readonly [properties: OrderedMap<AstConst>, done: readonly AstConst[]]
+
+/**
  * A container being built: `container[1][index]` is being evaluated, and
  * `done` holds the values of the items before it — a list, since appending
  * to an array per item would copy the whole prefix each time.
