@@ -10,10 +10,12 @@
  * list, total on a commit {@link validate} has accepted. On one it has
  * not, an accessor panics only where the field it reads is missing or
  * malformed — `tree` on a commit whose first header is no hex id,
- * `committer` on one with none — and reads what is there otherwise. A `mergetag` value is a whole tag object less its last LF,
- * which the header's framing took, and {@link mergetags} gives the LF back
- * and hands the tag to the tag reader — one more pass over the same
- * alphabet, as the design says. A commit with a bad `tree` id or no
+ * `committer` on one with none — and reads what is there otherwise. A
+ * `mergetag` value is a whole tag object less its last LF, which the
+ * header's framing took, and {@link mergetags} gives the LF back and hands
+ * the tag to the tag reader — one more pass over the same alphabet, as
+ * the design says; a tag that never ended in LF is the one the fold
+ * cannot keep, as it cannot for Git. A commit with a bad `tree` id or no
  * `committer` is read and written byte for byte; `validate` is where it is
  * refused, as Git refuses it.
  *
@@ -159,10 +161,19 @@ const lf = /** @type {const} */ (0x0A)
 
 /**
  * A `mergetag` value as the tag's bytes: Git folds a tag into the header
- * by putting SP before each of its lines, so the LF that ends the tag ends
- * the header too, and the header's reader takes it as framing. Given back
- * here, the value is the tag object whole, and the tag reader reads it as
- * it reads the tag's own file.
+ * by putting SP before each of its lines and completing the last, so the
+ * LF that ends the tag ends the header too, and the header's reader takes
+ * it as framing. Given back here, the value is the tag object whole, and
+ * the tag reader reads it as it reads the tag's own file.
+ *
+ * One tag the fold loses: a tag whose own bytes end without LF, which
+ * `git hash-object -t tag` writes and no tool of Git's does, folds to the
+ * same header as the same tag with one, and comes back with one, so the
+ * id of what {@link mergetags} gives is not the id it had. Git's own
+ * reading of the header, in `git verify-commit` and `git log
+ * --show-signature`, hashes the value with that LF and loses the same
+ * tag the same way; the fold is Git's, and the bytes here are the bytes
+ * Git reads back.
  *
  * @type {(value: Bytes) => Bytes}
  */
