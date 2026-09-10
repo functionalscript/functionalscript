@@ -55,8 +55,8 @@ Then:
 - [ ] Add `fjs/text/code_point/types.ts` with `CodePoint` and JSDoc stating
       the error-tag convention.
 - [ ] Retype `code_point`, `utf8` (replace `I32`), `utf16`; delete `ByteOrEof`.
-- [ ] Repoint the surviving importers, `djs/tokenizer` and
-      `media/json/serializer`; the four in `fjs/bnf` went with that module.
+- [ ] Repoint the surviving importer, `media/json/serializer`; the four in
+      `fjs/bnf` went with that module.
 - [ ] `tsc`, `fjs t`.
 
 ### Related

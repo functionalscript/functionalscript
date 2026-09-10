@@ -66,7 +66,7 @@ export const charFromCode:   (code: U16)       => string   // String.fromCharCod
 export const charFromCodePoint: (cp: CodePoint) => string  // String.fromCodePoint
 ```
 
-Then `html`, `fsc`, `js/tokenizer`, and `bnf` import these instead of re-binding
+Then `html`, `fsc`, and `js/tokenizer` import these instead of re-binding
 `String.*`, and `utf16.listToString` builds on `charFromCode`. The two string
 *readers* (`ascii`'s throwing `codePointAt` and `utf16`'s lazy `charCodeAt`
 stream) can likewise be named in `fjs/text` so the JS-string boundary lives in one
@@ -91,7 +91,7 @@ namespace.
   constant-string lookup; the other streams code units lazily and ends on
   `NaN`). They share a concept, not an algorithm, so frame the reader half as
   separation-of-concerns, not a single parameterized factory.
-- Keep `fjs/text` free of cyclic deps: `ascii`, `bnf`, `fsc`, `js/tokenizer`, and
+- Keep `fjs/text` free of cyclic deps: `ascii`, `ebnf`, `fsc`, `js/tokenizer`, and
   `html` already sit above the text layer, so importing downward is clean.
 
 ### Related
