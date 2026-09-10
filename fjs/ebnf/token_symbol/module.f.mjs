@@ -27,6 +27,8 @@ import { fromUndefined } from '../../types/nullable/module.f.mjs'
  * The symbol of the first registered name: `0x110000`, one past the last
  * Unicode scalar value, so a token symbol can never be mistaken for a code
  * point of the layer below.
+ *
+ * @type {number}
  */
 export const start = 0x110000
 
