@@ -14,7 +14,7 @@ import {
 } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
-import { djsModule as ebnfModule, names as ebnfNames, symbolOf } from './grammar/module.f.mjs'
+import { djsModule as ebnfModule, symbolOf } from './grammar/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
@@ -253,9 +253,6 @@ export const proof = {
     // EBNF grammar accepts, or refuses at the terminator, since the fold is
     // not the grammar's.
     ebnf: {
-        alphabet: () => {
-            assertStructurallySame(ebnfNames, _ordinaryTokenNames)
-        },
         corpus: () => {
             const outcomes = inputs.map(s => {
                 const classical = classicalResult(s)

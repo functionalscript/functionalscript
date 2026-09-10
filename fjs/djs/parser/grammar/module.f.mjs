@@ -34,11 +34,14 @@
  *   follows, so a trailing comma is a comma nothing follows; the classical
  *   grammar rested it on a failed repetition round rewinding.
  *
- * The alphabet is one symbol per token kind, the five framing keywords
- * — which the tokenizer emits as identifiers — with symbols of their own,
- * from `fjs/ebnf/token_symbol`; `eof` has none, since the backend
+ * The alphabet is the classical parser's own, `_ordinaryTokenNames` in
+ * `../module.f.mjs` — one name per token kind, the five framing keywords
+ * with names of their own, since the tokenizer emits them as identifiers —
+ * encoded by `fjs/ebnf/token_symbol`; `eof` has none, since the backend
  * synthesizes the end of input. A symbol is a rule of one symbol, so a
- * terminal is the symbol a token is encoded to and nothing else.
+ * terminal is the symbol a token is encoded to and nothing else. The port
+ * turns the import around: the names move here, and the parser reads them
+ * from the grammar.
  *
  * @module
  *
@@ -52,25 +55,7 @@
 import { assert } from '../../../asserts/module.f.mjs'
 import { eof, option, repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
-
-/**
- * The framing keywords, which the tokenizer emits as `id` tokens carrying
- * the word. None is reserved: outside its framing position each is an
- * ordinary identifier, which {@link identifier} says.
- */
-export const framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from'])
-
-/**
- * The alphabet: one name per `DjsToken` kind except `eof`, then the
- * framing keywords. Append-only, as every registered alphabet is.
- */
-export const names = /** @type {const} */ ([
-    'true', 'false', 'null', 'undefined',
-    '{', '}', ':', ',', '[', ']', '.', '=', ';',
-    'string', 'number', 'error', 'id', 'bigint',
-    'ws', 'nl', '//', '/*',
-    ...framingKeywords,
-])
+import { _framingKeywords as framingKeywords, _ordinaryTokenNames as names } from '../module.f.mjs'
 
 const alphabet = encoding(names)
 

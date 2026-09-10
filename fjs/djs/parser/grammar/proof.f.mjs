@@ -10,9 +10,10 @@ import { repeatFrom0 } from '../../../ebnf/module.f.mjs'
 import { stringToList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
+import { _ordinaryTokenNames as names } from '../module.f.mjs'
 import {
     array, constStatement, djsModule, exportStatement, identifier, importStatement, key, member,
-    names, object, primitive, sym, symbolOf, trivia, value,
+    object, primitive, sym, symbolOf, trivia, value,
 } from './module.f.mjs'
 
 // The value names itself, and the tree of a whole module is too deep a
