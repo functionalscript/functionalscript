@@ -58,13 +58,15 @@ const children = (stack, path, expected, actual) => {
             return at(path, `expected ${expected.length} elements, got ${actual.length}`)
         }
         // an expected graph has no holes, so a hole in the actual is a
-        // difference of its own: `[undefined]` is not `new Array(1)`
-        for (let i = 0; i < expected.length; i += 1) {
-            if (!hasOwn(actual, i)) { return at(`${path}[${i}]`, `expected ${show(expected[i])}, got a hole`) }
-        }
+        // difference of its own, `[undefined]` is not `new Array(1)`, and it
+        // is reported where the walk reaches it, after the elements before
         let result = stack
         for (let i = expected.length - 1; i >= 0; i -= 1) {
-            result = { top: [`${path}[${i}]`, expected[i], actual[i]], rest: result }
+            const elementPath = `${path}[${i}]`
+            result = {
+                top: hasOwn(actual, i) ? [elementPath, expected[i], actual[i]] : [elementPath, expected[i], undefined, true],
+                rest: result,
+            }
         }
         return result
     }
@@ -90,13 +92,15 @@ const children = (stack, path, expected, actual) => {
 }
 
 /**
- * One comparison: a leaf by `Object.is`; a container by the bijection so
- * far, and, when it is new, by its children.
+ * One comparison: a hole in the actual, a difference whatever is expected;
+ * a leaf by `Object.is`; a container by the bijection so far, and, when it
+ * is new, by its children.
  *
  * @type {(state: _State, task: _Task) => _State | string}
  */
 const compare = ([stack, pairs], task) => {
-    const [path, expected, actual] = task
+    const [path, expected, actual, hole] = task
+    if (hole === true) { return at(path, `expected ${show(expected)}, got a hole`) }
     if (typeof expected !== 'object' || expected === null) {
         return is(expected, actual) ? [stack, pairs] : at(path, `expected ${show(expected)}, got ${show(actual)}`)
     }
