@@ -159,8 +159,12 @@ node's length does.
 - [ ] `fjs/nanvm/README.md`: the "Arity is not an annotation" paragraph, the
       `neg` mentions, and the `unaryPlus` exception paragraph.
 - [ ] `npm run gen`: `nanvm-lib/tests/test/generated.rs` unchanged.
-- [ ] Changelog entry for `fjs/edag` (breaking: `neg` renamed to `-`,
-      `Op1Id`/`Op2Id` members moved to `Op12Id`).
+- [ ] `**BREAKING CHANGES:**` declarations in the pull request description
+      (a pull request adds no changelog file), for both packages: `fjs/edag`
+      — `neg` renamed to `-`, `Op1Id`/`Op2Id` members moved to `Op12Id` —
+      and `fjs/nanvm` — `Group` loses the `nanvmOp: 'unaryPlus'` arm, the
+      binary `+`/`-` groups gain a required `arity`, and `rustName`'s keys
+      `unaryPlus`/`neg`/`+`/`-` become the four `groupKey` spellings.
 - [ ] `tsc`, `fjs test`, `node --test`, `cargo test`,
       `cargo clippy -- -D warnings`, `cargo fmt -- --check`.
 
