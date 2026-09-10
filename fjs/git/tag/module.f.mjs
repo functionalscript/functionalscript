@@ -26,7 +26,7 @@ import { ascii, byteArray } from '../../ebnf/byte/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { length as bitLength } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
-import { tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
+import { hasNulHeader, tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
 import { objectTypes } from '../object/module.f.mjs'
 import { tryFromHex } from '../oid/module.f.mjs'
@@ -93,10 +93,12 @@ const isComponent = component =>
 
 /**
  * Whether a name is one `refs/tags/` takes, by the rules of
- * `git check-ref-format`: no control character, no space and none of
- * `~ ^ : ? * [ \`, no `..` and no `@{`, not `@` alone, not ending in `.`,
- * and every component between slashes one {@link isComponent} takes.
- * `git fsck` refuses a tag named otherwise as `badTagName`.
+ * `git check-ref-format` over `refs/tags/<name>`: no control character,
+ * no space and none of
+ * `~ ^ : ? * [ \`, no `..` and no `@{`, not ending in `.`,
+ * and every component between slashes one {@link isComponent} takes. A
+ * name that is `@` alone passes, since the ref it names is `refs/tags/@`
+ * and not `@`. `git fsck` refuses a tag named otherwise as `badTagName`.
  *
  * @type {(name: readonly number[]) => boolean}
  */
@@ -104,7 +106,6 @@ const isTagName = name =>
     name.every(b => b >= 0x20 && b !== del && !forbidden.includes(b))
     && !holdsPair(name, dot, dot)
     && !holdsPair(name, at, brace)
-    && !(name.length === 1 && name[0] === at)
     && name[name.length - 1] !== dot
     && name.reduce(
         (cs, b) => b === slash ? [...cs, []] : [...cs.slice(0, -1), [...cs[cs.length - 1], b]],
@@ -175,12 +176,13 @@ export const tagger = t => {
 }
 
 /**
- * Vouches for a tag as `git fsck` does, or refuses it, saying why: no
- * `object` header first or one that is not a hex id of the repository's
- * width, no `type` header second or one naming none of the four types, no
- * `tag` header third or one that is not a name `refs/tags/` takes, or a
- * `tagger` header fourth that is not an ident. A missing `tagger` and a
- * header after it are what `fsck` only notes, so both pass.
+ * Vouches for a tag as `git fsck` does, or refuses it, saying why: a NUL
+ * in any header, no `object` header first or one that is not a hex id of
+ * the repository's width, no `type` header second or one naming none of
+ * the four types, no `tag` header third or one that is not a name
+ * `refs/tags/` takes, or a `tagger` header fourth that is not an ident.
+ * A missing `tagger` and a header after it are what `fsck` only notes,
+ * so both pass.
  *
  * Separate from {@link tryRead} on purpose: a reader reads what it can,
  * and only this says no.
@@ -188,6 +190,7 @@ export const tagger = t => {
  * @type {(oidBytes: OidBytes) => (t: Tag) => Result<Tag, string>}
  */
 export const validate = oidBytes => t => {
+    if (hasNulHeader(t)) { return error('NUL in header') }
     const objectValue = valueAt(t, 0, 'object')
     if (objectValue === null) { return error('no object') }
     const id = tryFromHex(objectValue)

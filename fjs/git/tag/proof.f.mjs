@@ -91,16 +91,24 @@ export const proof = {
         assertStructurallySame(validate20(replaced(2, 'tagger A <a@b> 1 +0000')), ['error', 'no tag name'])
         assertStructurallySame(validate20(replaced(3, 'tagger A <a<b> 1 +0000')), ['error', 'not a tagger'])
         assertStructurallySame(validate20(replaced(3, 'tagger A <a@b> 9223372036854775808 +0000')), ['error', 'not a tagger'])
+        // A NUL in any header, the tagger's value or a header after it, is
+        // refused before anything else is looked at; one in the message is
+        // not a header's.
+        assertStructurallySame(validate20(replaced(3, 'tagger A <a@b> 1 +0000\0')), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(tag([...lines.slice(0, 4), 'note \0', ...lines.slice(4)])), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(tag([...lines.slice(0, 4), 'no\0te x', ...lines.slice(4)])), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(tag(['', 'm\0'])), ['error', 'no object'])
+        assertStructurallySame(validate20(replaced(5, 'm\0'))[0], 'ok')
     },
     // A tag's name is a ref name: what `git check-ref-format` takes passes,
     // and each of its rules refuses.
     name: () => {
-        for (const n of ['v1.0', 'release/1.0', 'a@b', 'a.b.c', 'lock', 'x.locky', 'a{b', 'a/b/c', '\xE9']) {
+        for (const n of ['v1.0', 'release/1.0', 'a@b', 'a.b.c', 'lock', 'x.locky', 'a{b', 'a/b/c', '\xE9', '@']) {
             assertStructurallySame(validate20(replaced(2, `tag ${n}`))[0], 'ok')
         }
         for (const n of [
             '', 'a b', 'a~b', 'a^b', 'a:b', 'a?b', 'a*b', 'a[b', 'a\\b', 'a\x01b', 'a\x7Fb',
-            'a..b', 'a@{b', '@', 'a.', '.a', 'a/.b', 'a.lock', 'a.lock/b', 'a/', '/a', 'a//b',
+            'a..b', 'a@{b', 'a.', '.a', 'a/.b', 'a.lock', 'a.lock/b', 'a/', '/a', 'a//b',
         ]) {
             assertStructurallySame(validate20(replaced(2, `tag ${n}`)), ['error', 'bad tag name'])
         }

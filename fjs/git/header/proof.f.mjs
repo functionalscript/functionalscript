@@ -6,7 +6,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { fromArrayLike, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
-import { tryRead, valueAt, write } from './module.f.mjs'
+import { hasNulHeader, keyIs, tryRead, valueAt, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Payload} */
 const read = input => {
@@ -86,6 +86,24 @@ export const proof = {
         assertEq(valueAt(p, 0, 'trees'), null)
         assertEq(valueAt(p, 6, 'gpgsig'), null)
         assertEq(valueAt(read(latin1('\n')), 0, 'tree'), null)
+    },
+    // A key as bytes against a name: the same bytes, and nothing shorter,
+    // longer or other.
+    keyIs: () => {
+        assert(keyIs([latin1('tree'), []], 'tree'))
+        assert(!keyIs([latin1('tre'), []], 'tree'))
+        assert(!keyIs([latin1('trees'), []], 'tree'))
+        assert(!keyIs([latin1('tref'), []], 'tree'))
+        assert(!keyIs([[0xE9, 0x72, 0x65, 0x65], []], 'tree'))
+    },
+    // A NUL in a key or a value, wherever the header sits; none in a
+    // real commit, and one in the message is not a header's.
+    hasNulHeader: () => {
+        assert(!hasNulHeader(read(commitPayload)))
+        assert(!hasNulHeader(read(latin1('\n\0'))))
+        assert(hasNulHeader(read([0x61, 0x20, 0, 0x0A, 0x0A])))
+        assert(hasNulHeader(read([0x61, 0, 0x20, 0x78, 0x0A, 0x0A])))
+        assert(hasNulHeader(read(latin1('a x\nb y\n \0\n\n'))))
     },
     // Each refusal: no empty line before the end, a header without SP, a
     // first line beginning with SP, a header without LF.

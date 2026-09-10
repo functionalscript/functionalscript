@@ -80,6 +80,18 @@ export const tryRead = input => {
 }
 
 /**
+ * Whether a header's key is `key`, compared as bytes: the well-known keys
+ * are ASCII, and a key is bytes.
+ *
+ * @type {(h: Header, key: string) => boolean}
+ */
+export const keyIs = ([k], key) => {
+    const a = byteArray(k)
+    const b = ascii(key)
+    return a.length === b.length && a.every((x, j) => x === b[j])
+}
+
+/**
  * The value of the header at `i` where its key is `key`, or `null`: a
  * commit and a tag are read by position, as Git reads them — `tree` first
  * in one, `object` first in the other — and the same key elsewhere is a
@@ -89,11 +101,19 @@ export const tryRead = input => {
  */
 export const valueAt = (p, i, key) => {
     if (i >= p.headers.length) { return null }
-    const [k, v] = p.headers[i]
-    const a = byteArray(k)
-    const b = ascii(key)
-    return a.length === b.length && a.every((x, j) => x === b[j]) ? v : null
+    const h = p.headers[i]
+    return keyIs(h, key) ? h[1] : null
 }
+
+/**
+ * Whether a NUL sits in any header, key or value: the grammar reads one,
+ * since a key is any byte but SP and LF and a value any byte at all, and
+ * `git fsck` refuses the object as `nulInHeader`, so the `validate` of a
+ * commit and of a tag both ask.
+ *
+ * @type {(p: Payload) => boolean}
+ */
+export const hasNulHeader = p => p.headers.some(([k, v]) => byteArray(k).includes(0) || byteArray(v).includes(0))
 
 /**
  * A value's bytes as written: an LF in a value begins a continuation

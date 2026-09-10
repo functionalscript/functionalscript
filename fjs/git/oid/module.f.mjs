@@ -19,9 +19,6 @@ const toVec = tryU8ListToVec(msb)
 
 const toBytes = u8List(msb)
 
-/** @type {(v: Nullable<number>) => v is number} */
-const isValue = v => v !== null
-
 /**
  * Reads an id from its hex spelling, or refuses it: a byte that is no hex
  * digit, an odd count of them, none, or more than a `Vec` holds. Either
@@ -34,7 +31,10 @@ const isValue = v => v !== null
  */
 export const tryFromHex = hex => {
     const digits = byteArray(hex)
-    const values = digits.map(hexDigitValue).filter(isValue)
+    const values = digits.flatMap(b => {
+        const v = hexDigitValue(b)
+        return v === null ? [] : [v]
+    })
     if (values.length !== digits.length || values.length === 0 || values.length % 2 !== 0) { return null }
     return toVec(values.filter((_, i) => i % 2 === 0).map((h, i) => h * 16 + values[2 * i + 1]))
 }
