@@ -1,6 +1,6 @@
 # The LL(1) backend
 
-The `ebnf/ll1/` piece of [ebnf-migration](../../todo/ebnf-migration.md): the
+The `ll1/` layer of [`fjs/ebnf`](../README.md): the
 reference backend, a predictive parser over the data
 [`RuleSet`](../data/README.md) that builds the typed AST of
 [`../ast`](../ast/README.md) and folds a rewrite set into the parse. It

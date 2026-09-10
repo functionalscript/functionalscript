@@ -30,10 +30,12 @@ Create `fjs/common/` for cross-cutting reusable algorithms, starting by moving `
 
 ### Later candidates
 
-- No `fjs/grammar/` bucket. [ebnf-migration](./ebnf-migration.md) builds
-  `fjs/ebnf/` with the grammar machinery inside it, and retired `bnf/`; it
-  also settles that `fsc` and `js` stay out as consumers
-  (the content-facing formats go to `fjs/media/`, see below).
+- No `fjs/grammar/` bucket. The migration that built
+  [`fjs/ebnf/`](../ebnf/README.md) beside `bnf/` and retired it
+  ([DESIGN.md §11](../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)) put the
+  grammar machinery inside `ebnf/`; its README also settles that `fsc` and
+  `js` stay out as consumers (the content-facing formats go to
+  `fjs/media/`, see below).
 - Storage bucket for `cas` + `sul`; testing bucket for `asserts` + `emergent_testing`.
 
 ### 4. `fjs/media/` — content formats and media-type detection
@@ -148,7 +150,7 @@ it — see [fjs/media/revision/README.md](../media/revision/README.md) and
   media formats, not an implementation of `text/plain`. Remains top-level.
 - `js/` — `identifier` + `tokenizer` only, i.e. language tooling consumed by
   `djs`/`fsc`; a hand-written scanner, so it is a *consumer* of grammars and
-  stays out of `fjs/ebnf/` too ([ebnf-migration](./ebnf-migration.md)).
+  stays out of `fjs/ebnf/` too ([`fjs/ebnf/README.md`](../ebnf/README.md)).
 - `base64`/`basen`/`cbase32`/`base128` — transfer encodings, not media types
   (they move under `fjs/basen/`, item 1 above).
 

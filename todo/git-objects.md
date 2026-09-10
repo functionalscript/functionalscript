@@ -78,8 +78,10 @@ The four payloads:
   what delimits the entry: nothing follows it but the next entry or the end.
 
 An `ident` is `name SP < email > SP time SP tz`: the name is any bytes but
-`<` and LF and may contain spaces; the email any bytes but `>`; `time` a
-decimal Unix timestamp; `tz` a sign and four digits.
+the brackets and LF and may contain spaces; the email the same; `time` a
+decimal Unix timestamp no later than `INT64_MAX`, the latest Git can hold;
+`tz` a sign and four digits. That is what `fsck_ident` reads, and what the
+reader reads.
 
 The object formats are specified across
 [gitformat-pack](https://git-scm.com/docs/gitformat-pack),
@@ -134,9 +136,9 @@ list where it does not. A text view of a message or a name is a
 layer above, through [`fjs/text/utf8`](../fjs/text/utf8/), when a consumer
 wants one and only for the encoding the object declares.
 
-This is the byte alphabet that
-[ebnf-migration](../fjs/todo/ebnf-migration.md) lists as `fjs/ebnf/byte/`,
-"when a consumer needs it", and the byte half of
+This is the byte alphabet [`fjs/ebnf/byte/`](../fjs/ebnf/byte/README.md),
+which the migration that built `fjs/ebnf/` reserved "when a consumer needs
+it", and the byte half of
 [unicode-rules](../fjs/ebnf/unicode/todo/unicode-rules.md). Git is that consumer, and
 the bottom layer [layered-parser](../fjs/ebnf/todo/layered-parser.md) draws.
 
@@ -293,10 +295,13 @@ block is LF.
 
 **Ident** is a second layer over one header's value, the byte-level twin
 of the token layer in [`fjs/ebnf/ll1`](../fjs/ebnf/ll1/README.md): a grammar
-over the bytes of the value, `[repeatFrom0(not(set('<\n'))), '<',
-repeatFrom0(not(set('>\n'))), '>', ' ', digits, ' ', set('+-'),
-times(4)(digit), eof]`. The `eof` is what refuses trailing bytes, since a
-rule without it stops where it matches and leaves the rest. The SP before
+over the bytes of the value, `[repeatFrom0(not(set('<>\n'))), '<',
+repeatFrom0(not(set('<>\n'))), '>', ' ', digits, ' ', set('+-'),
+times(4)(digit), eof]` — a `>` in the name or a `<` in the email is a bad
+name or a bad email to `fsck_ident`, and here no ident — with the mapping
+refusing a time later than `INT64_MAX`, since the range is the ident's
+property and not the object's. The `eof` is what refuses trailing bytes,
+since a rule without it stops where it matches and leaves the rest. The SP before
 `<` cannot be a symbol of the rule — the name's repetition may end in SP,
 so `' <'` after it is a first/follow conflict the backend refuses — so the
 name is read up to `<` and the mapping requires its last byte to be SP and
@@ -363,10 +368,12 @@ approximated:
   each an object, and streams nothing (its README, "Left for later"). For
   commits, tags and trees that is fine; it is the reason a blob is never
   handed to a parser.
-- **Semantic rules.** Required headers and their order, a duplicated
-  `tree`, a hex id of the wrong length, a timestamp out of range, the mode
-  set, the entry order: all after the parse, in one `validate` per object
-  type, refusing what it cannot vouch for and naming what it refused.
+- **Semantic rules.** Required headers and their order, a hex id of the
+  wrong length, a tag name that is no ref name, the mode set, the entry
+  order: all after the parse, in one `validate` per object type, refusing
+  what it cannot vouch for and naming what it refused. A timestamp out of
+  range is the ident reader's to refuse, since it is a property of the
+  ident and not of the object around it.
 - **Packfiles and `.idx`.** Length-framed throughout — varint sizes, delta
   chains, embedded zlib streams. A decoder in the `fjs/asn.1` style, and a
   later issue; most objects in a real repository live there, so the
@@ -395,11 +402,17 @@ approximated:
       [`fjs/git/tree/`](../fjs/git/tree/module.f.mjs); the proof reads the
       root tree of a commit of this repository and writes it back byte for
       byte.
-- [ ] `fjs/git/commit/`, `fjs/git/tag/`: known fields as functions over the
-      header list, `validate`, and the writer for each.
+- [x] `fjs/git/tag/`: known fields as functions over the header list,
+      `validate`, and the writer — shipped as
+      [`fjs/git/tag/`](../fjs/git/tag/module.f.mjs), with
+      [`fjs/git/oid/`](../fjs/git/oid/module.f.mjs) for the hex spelling
+      of an id; the proof reads a tag Git signed and writes it back byte
+      for byte.
+- [ ] `fjs/git/commit/`: known fields as functions over the header list,
+      `mergetag` through the tag reader, `validate`, and the writer.
 - [ ] Proofs over real objects: capture a handful with `git cat-file` once
-      — a merge commit with `gpgsig` and `mergetag`, a signed tag, a tree
-      with every mode, a SHA-256 object — and check them in as byte
+      — a merge commit with `gpgsig` and `mergetag`, a tree with every
+      mode, a SHA-256 object — and check them in as byte
       literals; nothing in code calls `git`.
 - [ ] Inflate at the boundary: a `.mjs` adapter over `node:zlib` as an
       effect; file the FunctionalScript inflater as its own issue.
@@ -412,8 +425,8 @@ approximated:
   root entries of a commit's tree, and one blob under it.
 - [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md)
   — every header verbatim, and the writer.
-- [ebnf-migration](../fjs/todo/ebnf-migration.md) — reserves
-  `fjs/ebnf/byte/` for the first consumer that wants it.
+- [`fjs/ebnf/byte/`](../fjs/ebnf/byte/README.md) — the byte alphabet,
+  landed for this consumer.
 - [unicode-rules](../fjs/ebnf/unicode/todo/unicode-rules.md) — the byte adapter's
   first design, as the half of that issue the text half left behind.
 - [layered-parser](../fjs/ebnf/todo/layered-parser.md) — bytes as the bottom

@@ -3,9 +3,9 @@
 **Priority:** P3
 **Status:** blocked
 **Blocked by:**
-- [ebnf-migration](../../../todo/ebnf-migration.md)'s `fjs/ebnf/terminal/`,
-  which carries the terminal domain and the integer helpers over
-  `fjs/types/range_set` values
+- [symbol-domain-owner](../../todo/symbol-domain-owner.md), the
+  `fjs/ebnf/terminal/` module, which carries the terminal domain and the
+  integer helpers over `fjs/types/range_set` values
   ([ebnf-range-set](../../terminal/todo/ebnf-range-set.md)). The adapter this
   issue creates is built on those. This issue is that plan's `unicode/`
   piece; the `byte/` piece it also carried shipped as
@@ -130,7 +130,9 @@ Everything here is additive in `fjs/ebnf/`.
   shipped.
 - [`../../module.f.mjs`](../../module.f.mjs) — the shipped front end, which
   carries `range`, `set` and `unicodeMax` (**Amended** above).
-- [ebnf-migration](../../../todo/ebnf-migration.md) — its `ebnf/terminal/`
-  piece supplies the terminal domain and the integer helpers over
-  `fjs/types/range_set` and leaves to this issue, its `unicode/` piece, the
-  text-interpreting helpers the front end's rule union does not imply.
+- [symbol-domain-owner](../../todo/symbol-domain-owner.md) — the
+  `ebnf/terminal/` module, which supplies the terminal domain and the
+  integer helpers over `fjs/types/range_set`. The migration that planned
+  both ([DESIGN.md §11](../../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces))
+  left to this issue the text-interpreting helpers the front end's rule
+  union does not imply.

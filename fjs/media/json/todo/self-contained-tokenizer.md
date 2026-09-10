@@ -25,7 +25,7 @@ widened-rule-signatures (closed),
 which typed a mapping's parameter as `Children<Rule>` and pinned nothing,
 landed with the value mapping below.
 **Related, not blocking:**
-[ebnf-migration](../../../todo/ebnf-migration.md); the metadata channel of
+the metadata channel of
 [`fjs/ebnf/ast`](../../../ebnf/ast/README.md) — which buys *better* errors
 than today's, not the ones this reader owes.
 
@@ -152,10 +152,11 @@ So what genuinely remains, in the order it should be done:
    direction and is why
    [streaming-recognizer](./streaming-recognizer.md) is now blocked rather than
    merely rebased.
-5. **`fjs/ebnf/` stability.** The module is mid-migration
-   ([ebnf-migration](../../../todo/ebnf-migration.md)), so a codec written
-   against it now is written against names still in motion. This is a reason to
-   sequence carefully, not a missing capability.
+5. **`fjs/ebnf/` stability.** The module was mid-migration when this was
+   written, so a codec written against it then would have been written
+   against names still in motion. The migration is done and `fjs/bnf/`
+   deleted ([DESIGN.md §11](../../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)),
+   so this is closed.
 
 **Do not start a hand-written scanner in the meantime.** That is what was just
 withdrawn.
@@ -709,10 +710,8 @@ blocked. The first two items can be started today.
       `[json, eof]`, and the token-stream grammar composes `eof` the same way.
       Do this before anything maps an AST, or the reader silently accepts
       trailing garbage.
-- [ ] The `fjs/ebnf/` half of
-      [ebnf-migration](../../../todo/ebnf-migration.md) settles, so the codec is
-      not written against names still in motion. A sequencing concern, **not** a
-      missing capability — `ll1` parses JSON today.
+- [x] `fjs/ebnf/` settles, so the codec is not written against names still
+      in motion: the migration that built it is done and `fjs/bnf/` deleted.
 - [ ] Decide whether the reader must keep a streaming entry point. `Parser<T>`
       takes a materialized `readonly number[]` while `tokenize` is `List`-based.
       `parse(text)` is unaffected; a streaming consumer has no grammar
@@ -781,8 +780,9 @@ blocked. The first two items can be started today.
 - [parser-serializer-restructure](../../../../todo/parser-serializer-restructure.md)
   — this is its stage 3, and the file that carries the reversed no-runtime-BNF
   rule.
-- [ebnf-migration](../../../todo/ebnf-migration.md) — how `fjs/ebnf/`
-  replaced `fjs/bnf/`. The module this now depends on.
+- [`fjs/ebnf`](../../../ebnf/README.md) — the module this now depends on;
+  how it replaced `fjs/bnf/` is
+  [DESIGN.md §11](../../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces).
 - [`fjs/ebnf/ast`](../../../ebnf/ast/README.md) — the metadata channel.
   **Optional** for errors: it buys errors better than today's, is not
   needed to match the current parser's contract, and cannot classify an
@@ -793,9 +793,10 @@ blocked. The first two items can be started today.
   for the defect classes review found, not as a plan.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — DataJS's
   grammar. Its string rule is JSON's and its number rule is JSON's unchanged.
-- bnf-grammar-single-owner (retired with `fjs/bnf`; its record is in
-  [ebnf-migration](../../../todo/ebnf-migration.md)'s triage) — written when
-  a codec grammar was an example rather than a runtime dependency. Its
+- bnf-grammar-single-owner (retired with `fjs/bnf`, done by the ports:
+  `fjs/ebnf/lib/js` reads its digit and string rules from `fjs/ebnf/lib/json`,
+  the sharing it asked for) — written when a codec grammar was an example
+  rather than a runtime dependency. Its
   `fjs/media/json/grammar` ban survives: the one JSON grammar is
   [`fjs/ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs).
 - [streaming-recognizer](./streaming-recognizer.md) — built on the `Scan<S>`

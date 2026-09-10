@@ -1,6 +1,6 @@
 # The serializable EBNF grammar
 
-The `ebnf/data/` piece of [ebnf-migration](../../todo/ebnf-migration.md): the
+The `data/` layer of [`fjs/ebnf`](../README.md): the
 intermediate representation (IR) the EBNF backends consume, and the lowering
 from the front end in [`../module.f.mjs`](../module.f.mjs) into it. It settles
 the carrier question the front-end design ([`../README.md`](../README.md),
@@ -9,9 +9,11 @@ Problem 1 of the ebnf-front-end issue it absorbed) and
 bounded repeat") both deferred to this layer, and it absorbed the
 rule-visitor issue as `matchRule`. Those issues were filed under
 `fjs/bnf/todo/`, and this file did not link them while that module stood:
-`ebnf/` never reached into `bnf/`, a README link included, because the
-migration deleted `bnf/` at its last stage
-([ebnf-migration](../../todo/ebnf-migration.md), principle 2). Its issue
+the migration's plan kept `ebnf/` documents from linking into `bnf/`, so
+that deleting `bnf/` at its last stage would break no link — a choice of
+that plan, since a link is a reference and the direction rule reaches only
+code ([DESIGN.md §11](../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces),
+its worked example). Its issue
 triage moved them to where the links above point, and the front-end design
 became `fjs/ebnf/README.md`.
 
@@ -139,7 +141,7 @@ deleted.
 | serialization | JSON | DJS (`Infinity`) |
 
 The classical `toData` output was therefore **not** a valid EBNF rule set,
-and [ebnf-migration](../../todo/ebnf-migration.md)'s `data/` row says so: a
+and the migration's triage said so: a
 packed range had no reading here, and a bare-string repeat was one kind's
 spelling in the other's position. A bridge from the classical set to this
 one was mechanical — a packed range became `['set', a, b + 1]` after
