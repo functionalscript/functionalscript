@@ -1,5 +1,6 @@
 /**
  * @import { Assert } from '../../asserts/types.ts'
+ * @import { Rule } from '../../ebnf/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { DjsToken, DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { _FramingKeyword, _OrdinaryTokenName } from './types.ts'
@@ -12,6 +13,8 @@ import {
     _tokenKindNames,
 } from './module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
+import { parser } from '../../ebnf/ll1/module.f.mjs'
+import { djsModule as ebnfModule, names as ebnfNames, symbolOf } from './grammar/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
@@ -51,7 +54,227 @@ const proofKind = (kind, line) => ({ token: { kind }, metadata: { path: 'a.js', 
 /** @type {(value: string, line: number) => DjsTokenWithMetadata} */
 const proofId = (value, line) => ({ token: { kind: 'id', value }, metadata: { path: 'a.js', line, column: 1 } })
 
+// -- the EBNF module grammar reads the same documents -------------------------
+
+const parseEbnfModule = parser(/** @type {Rule} */ (ebnfModule))
+
+/**
+ * The EBNF grammar's reading of a text's tokens: `ok`, or `error` at a
+ * token — `terminator` where that token is the next statement's keyword or
+ * the end of input, which is where the `;` the EBNF grammar requires and
+ * the classical one does not would stand, a newline being trivia the
+ * grammar reads past.
+ *
+ * @type {(s: string) => 'ok' | 'error' | 'terminator'}
+ */
+const ebnfResult = s => {
+    const all = tokenizeString(s)
+    const last = all[all.length - 1]
+    // the final `eof` is split off; a lexical failure ends the stream at
+    // its error token instead, which no rule accepts
+    const tokens = last !== undefined && last.token.kind === 'eof' ? all.slice(0, -1) : all
+    if (tokens.some(({ token }) => token.kind === 'eof')) { return 'error' }
+    const result = parseEbnfModule(tokens.map(symbolOf))
+    if (result[0] === 'ok') { return 'ok' }
+    const at = tokens[result[1]]
+    if (at === undefined) { return 'terminator' }
+    const { token } = at
+    return token.kind === 'id' && (token.value === 'import' || token.value === 'const' || token.value === 'export')
+        ? 'terminator'
+        : 'error'
+}
+
+/**
+ * The classical parser's reading of a text: `ok`, a `grammar` failure —
+ * a token it cannot use, or the end of input — or a `fold` failure, one
+ * its grammar accepted and its fold refused: a name unbound or bound
+ * twice, a `__proto__` key.
+ *
+ * @type {(s: string) => 'ok' | 'grammar' | 'fold'}
+ */
+const classicalResult = s => {
+    const result = parseFromTokens(tokenizeString(s))
+    if (result[0] === 'ok') { return 'ok' }
+    const { message } = result[1]
+    return message === 'unexpected token' || message === 'unexpected end' || message === 'missing end-of-input token'
+        ? 'grammar'
+        : 'fold'
+}
+
+/**
+ * Every literal input the proofs below hand to `parseFromTokens`, in their
+ * order — the parser's corpus, which the comparison runs over whole.
+ */
+const inputs = [
+    "export default missing",
+    "const a = \"abc",
+    "const a = /* x",
+    "const export = 1\nexport default export",
+    "const from = 1\nexport default from",
+    "const import = 1\nexport default import",
+    "export default { from: 2, default: 3 }",
+    "export default { export: 1 }",
+    "export default null",
+    "export default true",
+    "export default false",
+    "export default undefined",
+    "export default 0.1",
+    "export default 1.1e+2",
+    "export default \"abc\"",
+    "export default []",
+    "export default [1]",
+    "export default [[]]",
+    "export default [0,[1,[2,[]]],3]",
+    "export default {}",
+    "export default [{}]",
+    "export default {\"a\":true,\"b\":false,\"c\":null,\"d\":undefined}",
+    "export default {\"a\":{\"b\":{\"c\":[\"d\"]}}}",
+    "export default {a: 1}",
+    "export default 1234567890n",
+    "export default [1234567890n]",
+    "export default [1,]",
+    "export default {\"a\":1,}",
+    "export default {[\"a\"]:1}",
+    "export default {a:1,\"b\":2,[\"c\"]:3,}",
+    "export default { [ /* c */ \n // c \n \"a\" /* c */ \n // c \n ] : 1 }",
+    "export default {[\"__proto__\"]:{\"a\":42}}",
+    "export default {[1]:2}",
+    "export default {[",
+    "export default {[\"a\"}",
+    "export default {[\"a\"",
+    "export default {[\"a\"]}",
+    "export default {__proto__:1}",
+    "export default {\"__proto__\":1}",
+    "export default {\"a\":1,__proto__:2}",
+    "export default {\"a\":1,\"__proto__\":2}",
+    "export default",
+    "export default \"123",
+    "export default \"\t\"",
+    "export default [,]",
+    "export default [1 2]",
+    "export default [1,,2]",
+    "export default []]",
+    "export default [\"a\"",
+    "export default [,1]",
+    "export default [:]",
+    "export default ]",
+    "export default {,}",
+    "export default {1:2}",
+    "export default {\"1\"2}",
+    "export default {\"1\"::2}",
+    "export default {\"1\":2,,\"3\":4",
+    "export default {}}",
+    "export default {\"1\":2",
+    "export default {,\"1\":2}",
+    "export default }",
+    "export default [{]}",
+    "export default {[}]",
+    "export default 10-5",
+    "export",
+    "const",
+    "const x",
+    "const x 5",
+    "import",
+    "import 5",
+    "import a",
+    "import a from",
+    "export default [",
+    "export default {",
+    "export default {\"a\"",
+    "export default {\"a\":",
+    "export default {\"a\":1 2}",
+    "export default {\"a\":1,",
+    " export default [ 0 , 1 , 2 ] ",
+    " export default { \"a\" : 0 , \"b\" : 1 } ",
+    "\nexport\ndefault\n[\n0\n,\n1\n,\n2\n]\n",
+    "\rexport\rdefault\r{\r\"a\"\r:\r0\r,\r\"b\"\r:\r1\r}\r",
+    "null",
+    "1",
+    "[]",
+    "{\"valid\":\"json\"}",
+    "a",
+    "",
+    "const a = 1\n",
+    "import a from \"a.f.js\" \n const b = 1 \n export default [a,b]",
+    "const b = 1 \n import a from \"a.f.js\" \n export default [a,b]",
+    "export default 1 \n const a = 2",
+    "module=null",
+    "export default a",
+    "export null",
+    "export default = null",
+    "const a = 1 \n const b = 2 \n export default 3",
+    "const a = 1 \n const b = 2 \n export default b",
+    "const a = 1 \n const b = 2 \n export default [b,a,b]",
+    "const a = 1 \n const b = 2 \n export default {\"1st\":b,\"2nd\":a,\"3rd\":b}",
+    "const a = 1 const b = 2 export default 3",
+    "const = 1 \n const b = 2 \n export default 3",
+    "const a = 1 \n const a = 2 \n export default 3",
+    "const a = 1",
+    "import a from \"test/test.f.mjs\" \n export default a",
+    "import a from \"first/test.f.mjs\" \n import b from \"second/test.f.mjs\" \n export default [b, a, b]",
+    "import a from \"test/test.f.mjs\" \n const b = null \n export default [b, a, b]",
+    "import a from \"test/test.f.mjs\" export default a",
+    "import a from \n export default a",
+    "import a \"test/test.f.mjs\" \n export default a",
+    "import from \"test/test.f.mjs\" \n export default a",
+    "import a from \"first/test.f.mjs\" \n import a from \"second/test.f.mjs\" \n export default [b, a, b]",
+    "import a from \"test/test.f.mjs\" \n const a = null \n export default null",
+    "export //comment \n default /* comment */ null //comment",
+    "export default {\"a\":1}",
+    "export default {a:1,a:2}",
+    "export default {[\"__proto__\"]: 1}",
+    "const a = 1\nexport default a",
+    "const a = 1\nconst b = 2\nexport default [a,b]",
+    "const a = a\nexport default a",
+    "import x from \"m\"\nexport default x",
+    "import x from \"m\"\nconst a = 1\nexport default a",
+    "import x from \"m\"\nimport y from \"n\"\nexport default [x,y]",
+    "// c\nexport default 1",
+    "/* c */ export default 1",
+    "\n\n export default 1 \n\n",
+    "const a = 1;\nexport default a",
+    "export default 1;",
+    "const a = 1;export default a",
+    "import x from \"m\";const a = [x];export default [x,a]",
+    "const a = 1 ; // c\nexport default a ;",
+    "export default 1\n;",
+    "const a = 1\n;\nexport default a",
+    "const $0=[1];export default [$0,$0];",
+    "first/test.f.mjs",
+]
+
 export const proof = {
+    // The EBNF module grammar in `./grammar`, over the same token symbols,
+    // reads the corpus as this parser does, but for the one difference it
+    // declares: `;` ends every statement. What this grammar accepts, the
+    // EBNF grammar accepts, or refuses at a newline or the end of input
+    // where the `;` belongs; what this grammar refuses, the EBNF grammar
+    // refuses; what this grammar accepts and the fold above it refuses, the
+    // EBNF grammar accepts, or refuses at the terminator, since the fold is
+    // not the grammar's.
+    ebnf: {
+        alphabet: () => {
+            assertStructurallySame(ebnfNames, _ordinaryTokenNames)
+        },
+        corpus: () => {
+            const outcomes = inputs.map(s => {
+                const classical = classicalResult(s)
+                const ebnf = ebnfResult(s)
+                switch (classical) {
+                    case 'ok':
+                    case 'fold': { assert(ebnf === 'ok' || ebnf === 'terminator', JSON.stringify([s, classical, ebnf])); break }
+                    // a refusal is a refusal wherever it lands: a document
+                    // cut short fails at the end of input in both grammars
+                    case 'grammar': { assert(ebnf !== 'ok', s); break }
+                }
+                return ebnf
+            })
+            // every class is populated, so the comparison compares something:
+            // documents both read, documents only the `;` separates, and
+            // documents both refuse
+            assert(outcomes.includes('ok') && outcomes.includes('terminator') && outcomes.includes('error'))
+        },
+    },
     /**
      * The parser alphabet in `./module.f.mjs` agrees with its type-level
      * description in `./types.ts`. These are compile-time checks; the function
