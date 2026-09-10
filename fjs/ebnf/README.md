@@ -21,9 +21,12 @@ grammars built on them:
 A module belongs here iff it defines, transforms or executes grammars over a
 symbol alphabet. `fsc` is a compiler, `js/tokenizer` a hand-written scanner
 and `djs` a language front end: all three are consumers and stay out. The
-alphabet adapters — `byte/`, `utf16/`, `token_symbol/` — depend on the front
-end and are not parts of it: each returns front-end rules over its alphabet,
-and the front end imports none of them.
+alphabet adapters are not parts of the front end, and nothing in the front
+end imports them: [`byte/`](./byte/README.md) builds on it, returning
+front-end rules over bytes; [`utf16/`](./utf16/) and
+[`token_symbol/`](./token_symbol/README.md) import no module of `fjs/ebnf`
+at all — the one turns text into the input a parser reads, the other turns
+token names into the numbers that are one-symbol rules by being symbols.
 
 It replaced the classical `fjs/bnf` — a functional front end without a
 repetition primitive, a packed 24-bit terminal, and two backends, one of
