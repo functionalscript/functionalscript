@@ -35,13 +35,25 @@ RFC 3161 defines a `TimeStampToken` whose signed `TSTInfo` contains the
 
 Prototype two new repeatable commit headers:
 
-- `didsig` — a DID-addressed author/attestor signature;
-- `tstsig` — an RFC 3161 `TimeStampToken`.
+- `vnd.fjs.didsig` — a DID-addressed author/attestor signature;
+- `vnd.fjs.ttssig` — an RFC 3161 `TimeStampToken`.
 
-The names are provisional, but `didsig` deliberately does **not** begin with
+The `vnd.fjs.*` prefix follows FunctionalScript's existing vendor-style dialect
+namespace and makes these explicitly FJS-defined extensions rather than Git
+standard headers. `vnd.fjs.didsig` deliberately does **not** begin with
 `gpgsig`: current Git's signed-payload reconstruction treats `gpgsig*` headers as
 signature material, so a name such as `gpgsig2` would be excluded from the
 payload covered by a later ordinary `gpgsig`.
+
+`didsig` is intentionally DID-native rather than GPG/OpenPGP-specific. The
+signature algorithm and key representation come from the DID verification
+method, so the format can support DID methods using `secp256k1`, P-256,
+Ed25519, or future algorithms without requiring them to map to an OpenPGP key
+or signature format. The existing Git `gpgsig` header remains the conventional
+Git-signature layer and may use whatever signature formats Git supports.
+
+`tts` means **Trusted Time-Stamp**. The doubled `t` in `ttssig` is intentional;
+`tstsig` is avoided because it visually reads as "test signature".
 
 The important part is the payload projection defined for each signature class.
 
@@ -59,16 +71,17 @@ committer ...
 <message>
 ```
 
-`A` MUST contain no `gpgsig`, `gpgsig-sha256`, `didsig`, or `tstsig` headers.
-A tool asked to create this form from an already signed/attested commit MUST
-reject it rather than silently remove signatures: removing an existing
-`gpgsig` changes the object being attested to, while adding ordinary fields to
-an already-`gpgsig`-signed commit breaks normal Git signature verification.
+`A` MUST contain no `gpgsig`, `gpgsig-sha256`, `vnd.fjs.didsig`, or
+`vnd.fjs.ttssig` headers. A tool asked to create this form from an already
+signed/attested commit MUST reject it rather than silently remove signatures:
+removing an existing `gpgsig` changes the object being attested to, while adding
+ordinary fields to an already-`gpgsig`-signed commit breaks normal Git signature
+verification.
 
 All ordinary commit fields, parents, and the message are frozen once signing
 starts.
 
-#### 2. DID signatures (`didsig`)
+#### 2. DID signatures (`vnd.fjs.didsig`)
 
 Create zero or more independent DID signatures over the same canonical `A`:
 
@@ -78,14 +91,14 @@ S2 = DIDSign(did2, key2, Hash(A))
 ...
 ```
 
-Form `B` by adding every `didsig` header to `A`:
+Form `B` by adding every `vnd.fjs.didsig` header to `A`:
 
 ```text
-B = A + didsig(S1) + didsig(S2) + ...
+B = A + vnd.fjs.didsig(S1) + vnd.fjs.didsig(S2) + ...
 ```
 
-All `didsig` signatures therefore refer to the same base payload; they do not
-form a signature chain. Each value must bind at least:
+All `vnd.fjs.didsig` signatures therefore refer to the same base payload; they
+do not form a signature chain. Each value must bind at least:
 
 - the DID;
 - the verification-method/key identifier;
@@ -112,12 +125,12 @@ If the DID method cannot establish contemporaneous authorization, the verifier
 may report the key signature itself but MUST NOT present it as a historically
 verified DID identity.
 
-Once trusted timestamping starts, `didsig` headers MUST NOT be added, removed,
-or changed.
+Once trusted timestamping starts, `vnd.fjs.didsig` headers MUST NOT be added,
+removed, or changed.
 
-#### 3. Trusted timestamps (`tstsig`)
+#### 3. Trusted timestamps (`vnd.fjs.ttssig`)
 
-Timestamp `B`, including all `didsig` headers:
+Timestamp `B`, including all `vnd.fjs.didsig` headers:
 
 ```text
 H = Hash(B)
@@ -131,19 +144,19 @@ from its own clock and signs the resulting `TSTInfo` inside a `TimeStampToken`.
 
 An RFC 3161 `TimeStampResp` is only the protocol response wrapper. On successful
 status, the prototype MUST extract its `timeStampToken` and store exactly that
-`TimeStampToken` in `tstsig`, not the surrounding `TimeStampResp`.
+`TimeStampToken` in `vnd.fjs.ttssig`, not the surrounding `TimeStampResp`.
 
-Form `C` by adding zero or more independent `tstsig` headers:
+Form `C` by adding zero or more independent `vnd.fjs.ttssig` headers:
 
 ```text
-C = B + tstsig(T1) + tstsig(T2) + ...
+C = B + vnd.fjs.ttssig(T1) + vnd.fjs.ttssig(T2) + ...
 ```
 
-Every `tstsig` MUST timestamp exactly the same `B`. Multiple TSA tokens are
-parallel witnesses, not a chain: TSA2 does not timestamp TSA1's token. This also
-means an additional TSA token may be added later while no standard `gpgsig` has
-yet been added, because all `tstsig` fields are excluded when reconstructing
-`B`.
+Every `vnd.fjs.ttssig` MUST timestamp exactly the same `B`. Multiple TSA tokens
+are parallel witnesses, not a chain: TSA2 does not timestamp TSA1's token. This
+also means an additional TSA token may be added later while no standard
+`gpgsig` has yet been added, because all `vnd.fjs.ttssig` fields are excluded
+when reconstructing `B`.
 
 The prototype must define a deterministic text encoding for the binary
 `TimeStampToken`, for example base64 of its DER encoding using Git-style
@@ -159,8 +172,8 @@ supports.
 
 #### 4. Existing Git signature (`gpgsig`)
 
-After all `didsig` and `tstsig` headers are final, optionally add a normal Git
-signature using existing Git semantics:
+After all `vnd.fjs.didsig` and `vnd.fjs.ttssig` headers are final, optionally
+add a normal Git signature using existing Git semantics:
 
 ```text
 G = GitSign(C)
@@ -168,9 +181,10 @@ D = C + gpgsig(G)
 ```
 
 This step is deliberately last. Current Git removes the recognized `gpgsig`
-header when reconstructing its signed payload, while the non-colliding `didsig`
-and `tstsig` headers remain. It therefore verifies `G` against `C`, covering the
-DID signatures and timestamp tokens exactly as they were when `G` was produced.
+header when reconstructing its signed payload, while the non-colliding
+`vnd.fjs.didsig` and `vnd.fjs.ttssig` headers remain. It therefore verifies `G`
+against `C`, covering the DID signatures and timestamp tokens exactly as they
+were when `G` was produced.
 
 For the initial compatibility experiment, use the standard signature shapes Git
 already supports (`gpgsig`, and `gpgsig-sha256` where applicable). Do not depend
@@ -182,25 +196,25 @@ general multi-signature facility.
 A specialized verifier reconstructs three different payloads from the final
 commit.
 
-For every `didsig`:
+For every `vnd.fjs.didsig`:
 
 ```text
 remove all standard Git signature headers
-remove all tstsig headers
-remove all didsig headers
+remove all vnd.fjs.ttssig headers
+remove all vnd.fjs.didsig headers
 => A
 ```
 
-Verify every `didsig` cryptographically against `Hash(A)` and its bound key.
-Separately verify the DID-to-key authorization at the relevant trusted-time
+Verify every `vnd.fjs.didsig` cryptographically against `Hash(A)` and its bound
+key. Separately verify the DID-to-key authorization at the relevant trusted-time
 bound before reporting a historical DID identity.
 
-For every `tstsig`:
+For every `vnd.fjs.ttssig`:
 
 ```text
 remove all standard Git signature headers
-remove all tstsig headers
-KEEP all didsig headers
+remove all vnd.fjs.ttssig headers
+KEEP all vnd.fjs.didsig headers
 => B
 ```
 
@@ -227,11 +241,11 @@ A: commit payload
     |
     +-- zero or more DID signatures
     v
-B: A + didsig*
+B: A + vnd.fjs.didsig*
     |
     +-- zero or more independent RFC 3161 timestamps
     v
-C: B + tstsig*
+C: B + vnd.fjs.ttssig*
     |
     +-- optional current-Git signature
     v
@@ -240,12 +254,12 @@ D: final Git commit
 
 The assertions are intentionally different:
 
-- `didsig`: key K signed `A`; DID attribution additionally requires historical
-  authorization of K for that DID;
-- `tstsig`: `B`, including all listed DID signatures, existed by the
+- `vnd.fjs.didsig`: key K signed `A`; DID attribution additionally requires
+  historical authorization of K for that DID;
+- `vnd.fjs.ttssig`: `B`, including all listed DID signatures, existed by the
   token/policy's trusted upper time bound;
-- `gpgsig`: the conventional Git signer signed `C`, including all DID
-  signatures and trusted timestamp tokens.
+- `gpgsig`: the conventional Git signer signed `C`, including all DID signatures
+  and trusted timestamp tokens.
 
 The final `gpgsig` is not claimed to have existed at the trusted time; it may be
 added afterward.
@@ -260,10 +274,10 @@ parent <B>
 parent <C>
 ```
 
-Those parent object IDs are part of the payload covered by `didsig` and
-`tstsig`. A single trusted timestamp on such a merge therefore anchors all of
-its parents, and recursively the histories named by those parents, under the
-usual hash-security assumptions.
+Those parent object IDs are part of the payload covered by `vnd.fjs.didsig` and
+`vnd.fjs.ttssig`. A single trusted timestamp on such a merge therefore anchors
+all of its parents, and recursively the histories named by those parents, under
+the usual hash-security assumptions.
 
 This does not retroactively make an unsigned parent "signed by" the merge
 signer. An aware client should distinguish direct signatures from anchoring, for
@@ -278,12 +292,14 @@ patching Git itself.
 Creation should:
 
 - [ ] parse a prospective commit payload and reject pre-existing `gpgsig`,
-  `gpgsig-sha256`, `didsig`, or `tstsig` when starting a new attested commit;
-- [ ] produce zero or more `didsig` values over exactly `A`, binding the DID and
-  immutable verification key/fingerprint;
+  `gpgsig-sha256`, `vnd.fjs.didsig`, or `vnd.fjs.ttssig` when starting a new
+  attested commit;
+- [ ] produce zero or more `vnd.fjs.didsig` values over exactly `A`, binding the
+  DID and immutable verification key/fingerprint, using the signature algorithm
+  defined by the DID verification method rather than requiring OpenPGP;
 - [ ] produce one or more RFC 3161 requests over exactly `B`, accept only a
   successful response, extract its `TimeStampToken`, and embed that token as a
-  repeatable `tstsig` header;
+  repeatable `vnd.fjs.ttssig` header;
 - [ ] optionally add an ordinary Git `gpgsig` last;
 - [ ] write the final object as a standard Git `commit` object and update a ref.
 
@@ -305,16 +321,19 @@ Git signature:
 Compatibility tests should cover:
 
 - [ ] `git cat-file -p`, `git show`, `git log`, `git fsck`, clone/fetch/push, and
-  garbage collection with `didsig`/`tstsig` present;
+  garbage collection with `vnd.fjs.didsig`/`vnd.fjs.ttssig` present;
 - [ ] capture the exact payload stock Git passes to its verifier and confirm
-  `didsig` and `tstsig` remain covered by a later ordinary `gpgsig`;
+  `vnd.fjs.didsig` and `vnd.fjs.ttssig` remain covered by a later ordinary
+  `gpgsig`;
 - [ ] `git verify-commit` on a final commit whose ordinary `gpgsig` was added
-  after `tstsig`;
-- [ ] zero, one, and multiple `didsig` values;
+  after `vnd.fjs.ttssig`;
+- [ ] zero, one, and multiple `vnd.fjs.didsig` values;
+- [ ] DID key/signature algorithms not representable as the same OpenPGP key,
+  including a `secp256k1` case;
 - [ ] DID key rotation/recovery cases, including rejection or downgraded identity
   status when historical authorization cannot be established;
-- [ ] one and multiple `tstsig` values from different TSAs, all verifying the
-  same reconstructed `B`;
+- [ ] one and multiple `vnd.fjs.ttssig` values from different TSAs, all
+  verifying the same reconstructed `B`;
 - [ ] RFC 3161 responses with success/failure status, absent token, and tokens
   with/without explicit accuracy;
 - [ ] merge commits with multiple parents, including previously unsigned parent
@@ -322,8 +341,8 @@ Compatibility tests should cover:
 - [ ] SHA-1 and SHA-256 repositories, including the existing
   `gpgsig-sha256` transition rules;
 - [ ] malformed/duplicate/unsupported signature encodings and rejection rules;
-- [ ] attempting to add `didsig` or `tstsig` after an ordinary `gpgsig` has
-  already sealed the commit.
+- [ ] attempting to add `vnd.fjs.didsig` or `vnd.fjs.ttssig` after an ordinary
+  `gpgsig` has already sealed the commit.
 
 If the prototype demonstrates stable interoperability, prepare an upstream Git
 RFC proposing the header names, canonical payload projections, encodings, and

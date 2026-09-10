@@ -24,14 +24,15 @@ conflicts ([`ebnf/ll1`](../../ebnf/ll1/README.md), "What is refused"), and
 measured with it — the classical `RuleSet` bridged to the EBNF form as
 [`ebnf/data`](../../ebnf/data/README.md) describes, `parserRuleSet` run over
 every rule's closure, each conflict masked once found so the next surfaces —
-the two grammars refuse in seven distinct shapes:
+the two grammars refuse in eight distinct shapes:
 
 | grammar | rule | refusal | class |
 |---|---|---|---|
 | tokenizer | `multilineContent`: `end: ['*', '/']` beside `more: [char, …]` | first/first on `*` | grammar: left-factor the `*` |
 | tokenizer | the `operator` variant, 56 literals | first/first on `=`, and on every shared prefix behind it | grammar: a prefix tree, built from the list |
+| tokenizer | the `token` variant: `comment`, `['/', { oneline, multiline }]`, beside `operator`, which holds `/` and `/=` | first/first on `/` | grammar: left-factor the `/`, the shape of the `*` above. Not removed by the prefix tree — checked with the operator's first set kept whole — and masking a rule by replacement erased `/` from that set, which is how the first count missed it |
 | tokenizer | `number`: `digits0`, then the `option({ bigint, frac })` | first/follow on the digits, and on `e`, `E`, `n` | the `numError` poison: `[idChar]` follows every optional part of a number, and `idChar` holds digits and letters |
-| tokenizer | `jsGrammar = repeat0Plus(token)`: the `idChar` repeat of `id`, the body of a `//` comment, and its `option(newLine)` | first/follow on the next token's first set | inherent to a whole-file grammar: a greedy token against the token after it. With the entry a single `token` the three vanish — verified on the bridged set and on a two-rule grammar |
+| tokenizer | `jsGrammar = repeat0Plus(token)`: the `idChar` repeat of `id`, the body of a `//` comment, its `option(newLine)`, and the number's `{ numError: [idChar], ok: none }` itself | first/follow on the next token's first set | inherent to a whole-file grammar: a greedy token against the token after it. With the entry a single `token` the four vanish — verified on the bridged set and on a two-rule grammar. The fourth is the poison of the row above seen from outside the number: nullable, so its follow set is the next token's |
 | parser | `statementEnd`: `[trivia, ';', …]` beside `[lineTrivia, 'nl', …]` | first/first on the trivia symbols | trivia leads both branches |
 | parser | `delimited`: `repeat0Plus([',', trivia, element, trivia])` then `option([',', trivia])`, once for arrays and once for objects | first/follow on `,` | the trailing comma, which today rests on a failed round rewinding |
 | parser | the module's final `{ semicolon: [trivia, ';'], none: [] }`, then `trivia` | first/follow on the trivia symbols | trivia leads the option and follows it |
@@ -79,8 +80,9 @@ to imports, identifier keys and trivia rather than a fresh fold.
 
 Two ports, tokenizer first, each a grammar rewrite plus a backend swap:
 
-1. **Tokenizer.** Left-factor `*` in the block comment; build the operator
-   prefix tree from the literal list with a helper; drop the `numError`
+1. **Tokenizer.** Left-factor `*` in the block comment and `/` out of
+   `comment` and `operator`; build the operator prefix tree from the
+   literal list with a helper; drop the `numError`
    poison and make the number boundary the token layer's — a number token
    directly followed by an identifier or number token, no trivia between, is
    the error `123abc` and `00` are today; spell the grammar as one `token`
@@ -109,7 +111,7 @@ proof and the parser 838 with 1,170, and both proofs pin the descent AST, so
 expect each port to rewrite its proof rather than adjust it.
 
 Nothing else in the repository parses with `fjs/bnf`. The remaining
-hand-written readers are outside this issue: `fjs/js/tokenizer` (747 lines,
+hand-written readers are outside this issue: `fjs/js/tokenizer` (751 lines,
 whose runtime importers are this tokenizer's `isKeywordToken` and
 `mergeTrivia`, and `fjs/media/json/tokenizer`, which no module imports since
 #1910) retires with the restructure plan's stage 7, and `fjs/rtti/parse`
