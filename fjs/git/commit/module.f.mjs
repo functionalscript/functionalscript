@@ -15,7 +15,7 @@
  * header's framing took, and {@link mergetags} gives the LF back and hands
  * the tag to the tag reader — one more pass over the same alphabet, as
  * the design says; a tag that never ended in LF is the one the fold
- * cannot keep, as it cannot for Git. A commit with a bad `tree` id or no
+ * cannot keep. A commit with a bad `tree` id or no
  * `committer` is read and written byte for byte; `validate` is where it is
  * refused, as Git refuses it.
  *
@@ -160,20 +160,11 @@ export const gpgsig = c => first(c, 'gpgsig')
 const lf = /** @type {const} */ (0x0A)
 
 /**
- * A `mergetag` value as the tag's bytes: Git folds a tag into the header
- * by putting SP before each of its lines and completing the last, so the
- * LF that ends the tag ends the header too, and the header's reader takes
- * it as framing. Given back here, the value is the tag object whole, and
- * the tag reader reads it as it reads the tag's own file.
- *
- * One tag the fold loses: a tag whose own bytes end without LF, which
- * `git hash-object -t tag` writes and no tool of Git's does, folds to the
- * same header as the same tag with one, and comes back with one, so the
- * id of what {@link mergetags} gives is not the id it had. Git's own
- * reading of the header, in `git verify-commit` and `git log
- * --show-signature`, hashes the value with that LF and loses the same
- * tag the same way; the fold is Git's, and the bytes here are the bytes
- * Git reads back.
+ * A `mergetag` value as the tag's bytes: the value with the LF the
+ * header's framing took, which is the tag object whole for every tag a
+ * tool of Git's writes. A tag whose own bytes never ended in LF comes
+ * back with one, and so with an id not its own; the README says why that
+ * is the fold's loss and not this reader's.
  *
  * @type {(value: Bytes) => Bytes}
  */
