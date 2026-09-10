@@ -35,7 +35,11 @@ const parentId = '30317689cb0aaba4f927c1980d80e286c69dce85'
 
 const who = 'A <a@b> 1 +0000'
 
-/** The headers every rule below starts from: a commit `git fsck` accepts. */
+/**
+ * The headers every rule below starts from: a commit `git fsck` accepts.
+ *
+ * @type {readonly string[]}
+ */
 const lines = [`tree ${treeId}`, `parent ${parentId}`, `author ${who}`, `committer ${who}`, '', 'm']
 
 /** @type {(i: number, line: string) => Commit} */

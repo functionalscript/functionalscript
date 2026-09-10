@@ -25,12 +25,11 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
-import { length as bitLength } from '../../types/bit_vec/module.f.mjs'
 import { includes } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { hasNulHeader, keyIs, tryRead as readPayload, valueAt, valuesOf, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
-import { tryFromHex } from '../oid/module.f.mjs'
+import { tryFromHex, tryFromHexOf } from '../oid/module.f.mjs'
 import { tryRead as readTag, validate as validateTag } from '../tag/module.f.mjs'
 
 /**
@@ -169,16 +168,6 @@ export const mergetags = c => valuesOf(c, 'mergetag').map(value => {
 })
 
 /**
- * Whether a header value is a hex id `oidBytes` wide.
- *
- * @type {(oidBytes: OidBytes) => (value: Bytes) => boolean}
- */
-const isId = oidBytes => value => {
-    const id = tryFromHex(value)
-    return id !== null && bitLength(id) === BigInt(oidBytes) * 8n
-}
-
-/**
  * Vouches for a commit as `git fsck` does, or refuses it, saying why: a
  * NUL in any header, no `tree` header first or one that is not a hex id
  * of the repository's width, a `parent` header that is not one, no
@@ -197,12 +186,12 @@ const isId = oidBytes => value => {
  */
 export const validate = oidBytes => c => {
     if (hasNulHeader(c)) { return error('NUL in header') }
-    const id = isId(oidBytes)
+    const id = tryFromHexOf(oidBytes)
     const treeValue = valueAt(c, 0, 'tree')
     if (treeValue === null) { return error('no tree') }
-    if (!id(treeValue)) { return error('not a tree id') }
+    if (id(treeValue) === null) { return error('not a tree id') }
     const ps = parentValues(c)
-    if (!ps.every(id)) { return error('not a parent id') }
+    if (!ps.every(v => id(v) !== null)) { return error('not a parent id') }
     const authorValue = valueAt(c, 1 + ps.length, 'author')
     if (authorValue === null) { return error('no author') }
     if (readIdent(authorValue) === null) { return error('not an author') }
