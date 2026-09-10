@@ -7,8 +7,8 @@ Token categories may map to single ASCII symbols and single-character
 operators to themselves, but a multi-character operator (`>>>=`) and a
 keyword (`instanceof`) have no such symbol. `encoding()` hands them one.
 
-The `token_symbol/` piece of [ebnf-migration](../../todo/ebnf-migration.md),
-moved from `fjs/bnf/token_symbol` with two things rethought on the way:
+The `token_symbol/` layer of [`fjs/ebnf`](../README.md), moved from the
+classical `fjs/bnf/token_symbol` with two things rethought on the way:
 
 - **A symbol is a rule.** A number is a rule of one symbol in the EBNF
   front end, so the value `encode` returns is at once what a tokenizer

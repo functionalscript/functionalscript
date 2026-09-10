@@ -30,7 +30,7 @@ t      ::= (ws | nl | comment)*
 It is LL(1): one symbol of lookahead decides every choice, and the backend
 refuses a grammar where it would not, before any input. Three things are spelled
 for that, each a conflict the backtracking grammar this replaced had
-([ebnf-migration](../../todo/ebnf-migration.md), the consumer port):
+([the record](../README.md#both-grammars-are-ll1) of all eight):
 
 - **Trivia follows a token, never leads a rule.** Every token is followed by
   `t`, so no rule begins with trivia and no two branches begin with it.

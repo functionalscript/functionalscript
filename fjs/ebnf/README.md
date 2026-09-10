@@ -18,12 +18,17 @@ grammars built on them:
   bytes, UTF-16 code units;
 - [`lib/`](./lib/) — grammars: JSON, DataJS, the JavaScript tokens.
 
+A module belongs here iff it defines, transforms or executes grammars over a
+symbol alphabet. `fsc` is a compiler, `js/tokenizer` a hand-written scanner
+and `djs` a language front end: all three are consumers and stay out. The
+alphabet adapters are dependencies of the front end, not parts of it.
+
 It replaced the classical `fjs/bnf` — a functional front end without a
 repetition primitive, a packed 24-bit terminal, and two backends, one of
 them backtracking — by the migration
-[ebnf-migration](../todo/ebnf-migration.md) records, whose last stage
-deleted it. The design decisions below were made there and in the issues
-that plan triaged; this file is their record.
+[DESIGN.md §11](../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces) records as its
+worked example, whose last stage deleted it. The design decisions below were
+made along the way and in the issues it triaged; this file is their record.
 
 ## The rule union follows RTTI
 

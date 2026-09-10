@@ -6,7 +6,7 @@
 **What this issue is now.** The transformer protocol below was designed for
 the classical `fjs/bnf` backends and shipped there as stage 1, on
 `bnf/ll1`; that module was deleted with `fjs/bnf`
-([ebnf-migration](../../todo/ebnf-migration.md), stage 7). The surviving
+([DESIGN.md §11](../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)). The surviving
 backend, [`../ll1`](../ll1/README.md), has the capability this issue asked
 for in a different shape — a rewrite set folded into the parse, one mapping
 per rule the author holds, each returning one symbol of the next alphabet

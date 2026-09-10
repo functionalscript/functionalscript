@@ -17,8 +17,8 @@
  * ```
  *
  * Three things are spelled for one symbol of lookahead, each a conflict
- * the classical grammar this replaced had, measured in
- * `fjs/todo/ebnf-migration.md` (its consumer port):
+ * the classical grammar this replaced had, measured before the port and
+ * recorded in `fjs/djs/README.md` ("Both grammars are LL(1)"):
  *
  * - **Trivia follows a token, never leads a rule.** Every token is
  *   followed by `t`, so no rule begins with trivia and no two branches
