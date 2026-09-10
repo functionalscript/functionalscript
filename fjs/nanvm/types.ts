@@ -184,14 +184,14 @@ export type Group12 =
  * The field is deliberately not `op`, so a NaNVM-only name can never mix into
  * the canonical id unions.
  *
- * - `ternary` (`?:`) — the EDAG has no conditional-expression node at all
- *   yet, so this is the corpus's one ternary group; every other `Group`
- *   variant is unary or binary because the EDAG vocabulary it draws from is.
- * - `typeof` — the EDAG has no `typeof` node either.
+ * `ternary` (`?:`) is the one left: the EDAG has no conditional-expression
+ * node at all yet, so this is the corpus's one ternary group; every other
+ * `Group` variant is unary or binary because the EDAG vocabulary it draws
+ * from is. It stays a union so the next such operation, if there is one, is
+ * an arm and not a redesign.
  */
 export type NonEdagGroup =
     | { readonly nanvmOp: 'ternary'; readonly cases: readonly Case<3>[] }
-    | { readonly nanvmOp: 'typeof'; readonly cases: readonly Case<1>[] }
 
 export type Group = Group1 | Group2 | Group12 | NonEdagGroup
 
