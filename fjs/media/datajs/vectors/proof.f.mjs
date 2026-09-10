@@ -90,6 +90,9 @@ export const proof = {
         differ({ a: undefined }, {}, 'at $: expected 1 members, got 0')
         differ([undefined], [, undefined].slice(0, 1), 'at $[0]: expected undefined, got a hole')
         differ([1, [2, 3]], [1, [2, , 4].slice(0, 2)], 'at $[1][1]: expected 3, got a hole')
+        // in document order: an earlier element's difference comes first
+        differ([1, 2], [9, , 3].slice(0, 2), 'at $[0]: expected 1, got 9')
+        differ([[1], 2], [[9], , 3].slice(0, 2), 'at $[0][0]: expected 1, got 9')
         same([undefined, 1], [undefined, 1])
     },
     // Sharing is part of the graph, in both directions: a node the expected
