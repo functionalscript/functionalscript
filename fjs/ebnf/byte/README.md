@@ -4,7 +4,7 @@ The `byte/` alphabet of [`fjs/ebnf`](../README.md): the
 adapter a grammar over bytes is written against, and the input such a
 grammar reads. It is the byte half of
 [unicode-rules](../unicode/todo/unicode-rules.md), landed for its first
-consumer, [git-objects](../../../todo/git-objects.md).
+consumer, [`fjs/git`](../../git/README.md).
 
 - `module.f.mjs` — `byte`, `not`, `bytes`, `symbols`, `meta`, `byteParser`,
   and, for a consumer that reads or writes bytes: `symbolsOf`, the bytes
