@@ -199,7 +199,7 @@ fjs/ebnf/
   terminal/                the symbol domain, EOF, integer helpers over range_set (rewrite)
   unicode/                 text adapter: str, not, unicodeRange, …   (rewrite)
   utf16/                   the code-unit alphabet: its metadata, and a text as symbols (shipped)
-  byte/                    binary alphabet adapter, when a consumer needs it (rewrite)
+  byte/                    the byte alphabet: its terminals, its metadata, and bytes as symbols (shipped)
   data/                    RuleSet IR with bounded Repeat, emptyTagMap (rewrite)
   matcher/                 cursor, EOF, AST, transformer tools       (retire, unless a second backend wants it — see the triage)
   ast/                     the typed AST with its metadata channel   (shipped)
@@ -373,9 +373,10 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    `repeatItem` as its own either way.
 3. **`ebnf/unicode/`.** The text adapter in EBNF forms, before anything that
    imports it. `ebnf/byte/`, the other half of unicode-rules, has the same
-   owner and lands whenever its first consumer wants it — the recognizer
-   backend, per that issue; nothing in this plan needs it earlier, and
-   nothing forbids it earlier. `ebnf/matcher/` was this stage's too, and is
+   owner and was to land whenever its first consumer wanted it — shipped as
+   [`ebnf/byte/`](../ebnf/byte/README.md) for
+   [git-objects](../../todo/git-objects.md), ahead of `unicode/`, since it
+   depends on nothing this stage adds. `ebnf/matcher/` was this stage's too, and is
    no longer anyone's: the backend shipped without it (the triage's
    `matcher/` row, **Amended**).
 4. **`ebnf/token_symbol/` and `ebnf/ll1/`.** `token_symbol`
@@ -437,7 +438,7 @@ consumer port"), never by number, so a renumbering here cannot strand them.
       [README](../ebnf/data/README.md); rule-visitor absorbed, 042 moved,
       665 left with `bnf/data`.
 - [ ] Stage 3: `ebnf/unicode/` with proof; unicode-rules' `unicode/` half
-      settled, its `byte/` half owed to the first consumer that wants it.
+      settled, its `byte/` half shipped as `ebnf/byte/`.
       `ebnf/matcher/` and `showAst` retired from the stage (**Amended**).
 - [x] `ebnf/ast/` with the metadata channel, and `ebnf/ll1/` folding the
       rewrite set keyed by rule identity, with proof; `ebnf/map/`, the
