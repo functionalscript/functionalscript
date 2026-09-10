@@ -445,7 +445,7 @@ consumer port"), never by number, so a renumbering here cannot strand them.
       rename-check-map retired with `bnf/map/rtti`.
 - [x] Stage 4: `ebnf/ll1/` with proof; the backend's side of the AST
       mapping.
-- [ ] Stage 4: `ebnf/token_symbol/` with proof.
+- [x] Stage 4: `ebnf/token_symbol/` with proof.
 - [ ] Stage 5: `ebnf/lib/json` and `ebnf/lib/datajs` with proofs; the
       cross-front-end comparison proof group; bnf-grammar-single-owner moved.
 - [ ] Stage 6: the token layer (done: the resumable parser); the djs

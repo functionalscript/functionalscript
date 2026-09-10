@@ -127,8 +127,8 @@ reads values, not text.
 
 - [x] `ebnf/ll1`: a parser resumable at an index, with proof; the loop over
       it is the consumer's, as that module's README says.
-- [ ] `ebnf/token_symbol/` moved, with proof; ebnf-migration's stage 4 half
-      ticked.
+- [x] `ebnf/token_symbol/` moved, with proof — a symbol is a rule, and
+      there is no capacity to check; ebnf-migration's stage 4 half ticked.
 - [x] `literals`, the prefix tree over a word list, in `fjs/ebnf` with
       proof; the punctuators of JavaScript build as one LL(1) rule.
 - [x] Tokenizer grammar in EBNF beside the classical one, LL(1), with the
