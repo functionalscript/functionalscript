@@ -357,8 +357,11 @@ justification is the API and the AST, which is where
       `remove`, `not`, `notSet`, `RangeVariant` and `removeOne` stay in
       `bnf/` untouched and go with it at the migration's stage 7.
 - [ ] The `djs` tokenizer port spells the note at
-      `fjs/djs/tokenizer/module.f.mjs:249` as `difference(unicodeRange)(newLine)`,
-      which is what it was reaching for.
+      `fjs/djs/tokenizer/module.f.mjs:249` as a difference against the
+      Unicode universe — with the front end's `remove` over
+      `range('\0' + unicodeMax)`, not with the adapter's `not`: the port
+      does not depend on `ebnf/unicode/` and does not wait on it
+      ([ebnf-ll1-port](../../djs/todo/ebnf-ll1-port.md)).
 - [ ] `tsc`, `fjs test`. Each breaking PR declares `**BREAKING CHANGES:**`
       in the `Changelog:` section of its description
       ([changelog/RELEASE.md](../../../changelog/RELEASE.md)) — the
