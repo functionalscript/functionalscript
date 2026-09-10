@@ -212,15 +212,19 @@ export const proof = {
         /**
          * An operation the printer has no `nanvm-lib` spelling for. The
          * generated file would otherwise carry a statement that does not
-         * compile, or worse, one that does and means something else.
+         * compile, or worse, one that does and means something else. `===`
+         * is such an id: `eqFn` spells it as `check_eq`, never as an
+         * expression.
          */
-        unknownOperation: () => nodeExpr(['=>', 1, 2]),
+        unknownOperation: () => nodeExpr(['===', 1, 2]),
         /**
          * A lambda other than `() => undefined`: no closure prints, so each
-         * way of not being the smallest one is refused — a frame that is not
-         * an array literal, one that is not empty, a body that is not a
-         * node, and a body that is not the `undefined` node.
+         * way of not being the smallest one is refused — a frame that is a
+         * primitive, one that is a node but not an array literal, one that is
+         * not empty, a body that is not a node, and a body that is not the
+         * `undefined` node.
          */
+        lambdaFramePrimitive: () => nodeExpr(['=>', 1, 2]),
         lambdaFrameNotArray: () => nodeExpr(['=>', ['undefined'], ['undefined']]),
         lambdaFrameNotEmpty: () => nodeExpr(['=>', ['[]', [1]], ['undefined']]),
         lambdaBodyPrimitive: () => nodeExpr(['=>', ['[]', []], 5]),
