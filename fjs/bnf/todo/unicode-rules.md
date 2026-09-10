@@ -217,14 +217,14 @@ Everything here is additive in `fjs/ebnf/`. No task removes anything from
 grammars that use them stay until `bnf/` is deleted, and the two
 `fjs/bnf/lib` grammars adopt this adapter when they are ported
 ([ebnf-migration](../../todo/ebnf-migration.md)'s consumer port), not
-here. The `fjs/djs` tokenizer does not: its port spells every complement
-with the front end's `remove` over the full range and neither depends on
-nor waits for this adapter ([ebnf-ll1-port](../../djs/todo/ebnf-ll1-port.md)).
-The `fjs/djs` parser reaches this adapter only through `fjs/ebnf/token_symbol`,
-and that module moves with its own `0x110000` start (ebnf-ll1-port, the
-`token_symbol/` bullet), so the task below that has it read `unicodeRange`
-from here is a repoint after both land, not a prerequisite of the move or of
-the parser port.
+here. The `fjs/djs` tokenizer does not: its grammar, `fjs/ebnf/lib/js`,
+spells every complement with the front end's `remove` over the full range
+and neither depends on nor waits for this adapter
+([ebnf-migration](../../todo/ebnf-migration.md), stage 6). The `fjs/djs`
+parser reaches this adapter only through `fjs/ebnf/token_symbol`, which
+has its own `0x110000` start (the same plan's stage 4), so the task below
+that has it read `unicodeRange` from here is a repoint, not a prerequisite
+of anything.
 
 - [ ] Add `fjs/ebnf/unicode/module.f.mjs` for Unicode code-point rule
       helpers, at that final path — not under `fjs/bnf/`.

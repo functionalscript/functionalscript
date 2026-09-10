@@ -71,7 +71,7 @@ simplification of the VM.
 This is a complete module:
 
 ```js
-export default 5
+export default 5;
 ```
 
 A module denotes exactly one value, and `export default` is how it says which.
@@ -81,7 +81,7 @@ follow it. A module without one is an error.
 Every module is this shape, however large the value gets:
 
 ```js
-export default { "name": "fjs", "tags": ["data", "config"] }
+export default { "name": "fjs", "tags": ["data", "config"] };
 ```
 
 `export default` alone already expresses everything JSON expresses — the value
@@ -223,7 +223,7 @@ Comments are trivia. They may appear between any two tokens and are ignored.
 // a line comment runs to the end of the line
 
 /** @type {number} */
-export default -42.5
+export default -42.5;
 ```
 
 |Form|Syntax|
@@ -235,9 +235,9 @@ Block comments carry JSDoc/TypeScript type declarations, which is why the
 language has them: a `.f.js` file is type-checked as JavaScript, and JSDoc is
 how it says what its types are.
 
-A comment ends a line's *content*, not the line itself: a statement followed
-by a line comment is still terminated by the newline
-([module structure](#module-structure)).
+A comment is trivia, as whitespace is: it neither ends a statement nor keeps
+one open, so the `;` that ends a statement may follow a comment, on the same
+line or a later one ([module structure](#module-structure)).
 
 Comments belong to the module language. A `.json` input containing one is an
 error, because JSON has no comments.
@@ -277,7 +277,7 @@ A number is written with JSON number syntax: an optional `-`, an integer part,
 an optional fraction, an optional exponent.
 
 ```js
-export default [0, -42.5, 3e2, 1E-7]
+export default [0, -42.5, 3e2, 1E-7];
 ```
 
 The syntax is JSON's, so the JavaScript spellings JSON leaves out are not
@@ -294,7 +294,7 @@ negation operator ([operators](./todo/2340-operators.md)).
 Currently we support only JSON strings:
 
 ```js
-export default "hello!"
+export default "hello!";
 ```
 
 Double quotes, and JSON's escapes — `\"`, `\\`, `\/`, `\b`, `\f`, `\n`, `\r`,
@@ -313,7 +313,7 @@ export default [
     "hello",
     42,
     [true, null],
-]
+];
 ```
 
 An array may be empty, may hold any value including another array or an
@@ -330,7 +330,7 @@ export default {
     a: "hello",
     "b": 2,
     ["c"]: [1, 2],
-}
+};
 ```
 
 An object may be empty and may end with a trailing comma, like an array. When
@@ -370,9 +370,9 @@ Only the bracketed spelling denotes a property, so it is the only one
 FunctionalScript accepts. The other two are compilation errors:
 
 ```js
-export default { __proto__: 1 }     // error
-export default { "__proto__": 1 }   // error
-export default { ["__proto__"]: 1 } // ok
+export default { __proto__: 1 };    // error
+export default { "__proto__": 1 };  // error
+export default { ["__proto__"]: 1 }; // ok
 ```
 
 **The bracketed form is the workaround**: it is how a module holds a property
@@ -426,7 +426,7 @@ JSON already round-trips, and the bracketed form is not JSON at all.
 ## Importing Other Modules
 
 ```js
-import a from "./a.f.js"
+import a from "./a.f.js";
 ```
 
 An `import` statement binds the exported value of another module to a name, so
@@ -456,9 +456,9 @@ See
 ## Shared Values, Constants
 
 ```js
-const port = 8080
-const server = { "port": port, "host": "localhost" }
-export default { "dev": server, "prod": server }
+const port = 8080;
+const server = { "port": port, "host": "localhost" };
+export default { "dev": server, "prod": server };
 ```
 
 A `const` statement names a value so that it can be *used more than once*. It
@@ -495,9 +495,9 @@ preserves is what the graph actually shares:
   with equal contents stay two objects.
 
 ```js
-const a = { "x": 1 }
-const b = [a, a]
-export default [b, b, a]
+const a = { "x": 1 };
+const b = [a, a];
+export default [b, b, a];
 ```
 
 ```js
@@ -511,40 +511,40 @@ See
 
 ## Module Structure
 
-A module is a sequence of statements. Each statement is terminated by a
-semicolon, or, absent one, by the end of the line — `export default 5` and
-`export default 5;` denote the same module, and the `;` lets several
-statements share a line. Whitespace may precede the `;`, newlines included:
-a line break before an explicit `;` is insignificant, exactly as it is in
-DataJS and JavaScript, so the newline only terminates a statement that no
-`;` follows. One terminator per statement: `;;` is an error, not an empty
-statement.
+A module is a sequence of statements, each terminated by a semicolon — the
+last one included: `export default 5;`. The `;` lets several statements share
+a line, and whitespace may precede it, newlines included: a line break before
+the `;` is insignificant, exactly as it is in DataJS and JavaScript. A
+newline does not terminate a statement — `export default 5` at the end of a
+file is an error at the end of the file, and `const a = 1` followed by
+`export default a;` on the next line is an error at `export`. One terminator
+per statement: `;;` is an error, not an empty statement.
 
 The `;` is not a stylistic allowance. [DataJS](./datajs/README.md) *requires*
 one after every statement, and every DataJS document must be a valid
 FunctionalScript module — `const $0=[1];export default [$0,$0];` is normalized
-DataJS, one line, and it parses here. JavaScript accepts both spellings with
-the same meaning, so the subset law permits both; what FunctionalScript still
-refuses from JavaScript is the empty statement and automatic semicolon
-insertion's harder cases — a statement here ends at a `;` or a newline,
-never at a spot an engine infers. Whether the newline terminator survives
-into the compiler-formatted `.f.js` output language is a stage-5 question of
-[`todo/parser-serializer-restructure.md`](../todo/parser-serializer-restructure.md),
-which argues for requiring the `;` there; this document describes what the
-parser accepts, and it accepts both.
+DataJS, one line, and it parses here. JavaScript accepts the same module with
+the same meaning, so the subset law holds; what FunctionalScript refuses from
+JavaScript is the empty statement and automatic semicolon insertion — a
+statement here ends at a `;`, never at a spot an engine infers. This is the
+rule [`todo/parser-serializer-restructure.md`](../todo/parser-serializer-restructure.md)
+settles on for the compiler-formatted `.f.js` output language (its stage 5),
+landed ahead of that stage with the parser's move to the LL(1) backend, where
+telling a newline from a `;` reached through newlines took unbounded
+lookahead. The compiler writes the `;` after every statement it emits.
 
 |Statement|Form|
 |---------|----|
-|default import|`import name from "./path"`|
-|constant|`const name = expression`|
-|default export|`export default expression`|
+|default import|`import name from "./path";`|
+|constant|`const name = expression;`|
+|default export|`export default expression;`|
 
 ```js
-import base from "./base.f.js"     // imports first
+import base from "./base.f.js";    // imports first
 
-const extra = { "debug": true }    // then constants
+const extra = { "debug": true };   // then constants
 
-export default [base, extra]       // exactly one, last
+export default [base, extra];      // exactly one, last
 ```
 
 These three forms are the whole language. A statement begins with `import`,

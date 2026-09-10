@@ -1,1 +1,1 @@
-export default "text"
+export default "text";

@@ -76,14 +76,14 @@ export const proof = {
         },
     },
     success: () => {
-        const root = { 'input.f.js': [utf8('export default 42')] }
+        const root = { 'input.f.js': [utf8('export default 42;')] }
         const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
         assertEq(exitCode(code), 0)
         const content = readOutput(state.root, 'output.f.js')
         assertEq(content, 'export default 42;')
     },
     jsonOutput: () => {
-        const root = { 'input.f.js': [utf8('export default 42')] }
+        const root = { 'input.f.js': [utf8('export default 42;')] }
         const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
         assertEq(exitCode(code), 0)
         const content = readOutput(state.root, 'output.json')
@@ -165,7 +165,7 @@ export const proof = {
         // JavaScript spelling that no JSON parser accepts.
         jsonOutput: () => {
             assertEq(
-                compileSource('export default {["__proto__"]:{"a":42}}')('output.json'),
+                compileSource('export default {["__proto__"]:{"a":42}};')('output.json'),
                 '{"__proto__":{"a":42}}')
         },
         // `fjs compile proto.json a.js` — the two languages meeting. The input
@@ -197,7 +197,7 @@ export const proof = {
         // `with { type: "json" }` (spec/todo/2140).
         jsonImportRejected: () => {
             const root = {
-                'main.f.js': [utf8('import a from "./a.json"\nexport default [a]')],
+                'main.f.js': [utf8('import a from "./a.json";\nexport default [a];')],
                 'a.json': [utf8('{"a":42}')],
             }
             const [state, code] = virtual({ ...emptyState, root })(compile(['main.f.js', 'out.json']))
@@ -228,7 +228,7 @@ export const proof = {
         // ordinary own property and the prototype is untouched. A textual test
         // alone would also pass for a spelling that merely looks right.
         value: () => {
-            const root = { 'input.f.js': [utf8('export default {["__proto__"]:{"a":42}}')] }
+            const root = { 'input.f.js': [utf8('export default {["__proto__"]:{"a":42}};')] }
             const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
             assert(result[0] === 'ok', result[1])
             const value = result[1]
@@ -239,14 +239,14 @@ export const proof = {
         // The two spellings JavaScript reads as a prototype assignment are
         // compilation errors, not silently accepted properties.
         idKeyRejected: () => {
-            const root = { 'input.f.js': [utf8('export default {__proto__:{"a":42}}')] }
+            const root = { 'input.f.js': [utf8('export default {__proto__:{"a":42}};')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
             assertEq(exitCode(code), 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
             assertEq(state.root['output.f.js'], undefined)
         },
         stringKeyRejected: () => {
-            const root = { 'input.f.js': [utf8('export default {"__proto__":{"a":42}}')] }
+            const root = { 'input.f.js': [utf8('export default {"__proto__":{"a":42}};')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
             assertEq(exitCode(code), 1)
             assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)

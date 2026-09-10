@@ -5,29 +5,27 @@
 
 ### Problem
 
-One fact — "these seven kinds are the token-shaped values" — lives in four
+One fact — "these seven kinds are the token-shaped values" — lives in two
 unlinked places across the parser:
 
-- `fjs/djs/parser/module.f.mjs:237-246` — the `primitive` grammar variant
+- `fjs/djs/parser/grammar/module.f.mjs` — the `primitive` grammar variant
   (`null/true/false/undefined/number/string/bigint`, each as `sym(...)`);
-- `fjs/djs/parser/module.f.mjs:371-381` — `tokenToValue`, a seven-arm
-  `switch (token.kind)` over the same kinds;
-- `fjs/djs/parser/module.f.mjs:385-397` — `isValueToken`, the same seven
-  `case` labels again as a type guard;
-- `fjs/djs/parser/types.ts:62-65` — `_ValueToken`, the same seven names a
-  fourth time as a string-literal union.
+- `fjs/djs/parser/module.f.mjs` — `primitiveOf`, a seven-arm `switch` over
+  the variant's branch tags.
 
-Adding a value kind (as the bigint/RTTI serialization work would) means
-editing a grammar variant, a switch, a guard, and a type. Missing the
-grammar silently makes the value unparseable; missing `isValueToken`
-silently routes the token to the identifier arm's "a reference carried no
-name" refusal. The module already demonstrates the right pattern next door:
+The switch is typed from the variant, so a branch removed from the grammar
+is a `case` `tsc` rejects; a branch *added* is a case the switch lacks,
+which `tsc` reports only as the function's end becoming reachable. Adding
+a value kind means editing the variant and the switch, and forgetting the
+switch is found at the type level only through that indirection. The
+grammar already demonstrates the right pattern next door:
 `_tokenKindNames` and `_framingKeywords` are single lists pinned to the
-type level by `Assert<Equal<...>>` in `proof.f.mjs`.
+type level by `Assert<Equal<...>>` in its proof.
 
 ### Proposal
 
-One list, everything else derived or pinned:
+One list, the variant derived from it and the switch's exhaustiveness
+asserted against it:
 
 ```js
 export const _valueKinds = /** @type {const} */ ([
@@ -35,14 +33,12 @@ export const _valueKinds = /** @type {const} */ ([
 ])
 ```
 
-- `types.ts`: `_ValueToken = Extract<DjsToken, { kind: (typeof _valueKinds)[number] }>`
-  (or an `Assert<Equal<...>>` in the proof, matching `_tokenKindNames`);
-- `isValueToken`: membership in the list;
 - `primitive`: `fromEntries(_valueKinds.map(k => [k, sym(k)]))`, if the
   object-literal form isn't clearer kept as is with an `Assert` over its
   keys;
-- `tokenToValue` keeps its switch — it is the one site with per-kind
-  behavior — and its exhaustiveness is then checked against the one list.
+- `primitiveOf` keeps its switch — it is the one site with per-kind
+  behavior — and its exhaustiveness is then checked against the one list,
+  by an `Assert` in the proof rather than by reachability.
 
 ### Tasks
 

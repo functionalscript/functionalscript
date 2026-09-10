@@ -1,38 +1,79 @@
 /**
- * DJS parser that builds structured trees from DJS tokens.
+ * The DJS module reader: the rewrite set that folds the tree of the grammar
+ * in `./grammar` into a module as the LL(1) backend builds it, and
+ * {@link parseFromTokens}, the reader over a token stream.
+ *
+ * ```text
+ * DjsToken stream ==the module grammar, one symbol per token==> tree
+ *                 ==the rewrite set: a node per value, a record per statement==> module
+ *                 ==the fold: names bound and resolved, keys checked==> AstModule
+ * ```
+ *
+ * A mapping sees one rule's node and no environment, so it builds a node
+ * per value — a primitive, a reference by the token that spells it, a
+ * container of nodes — and a record per statement, and the names are
+ * resolved where the statements are read, after the grammar has matched
+ * the whole module. Each `import` and `const` binds its name *before* its
+ * value is resolved, so `const a = a` names the constant being defined,
+ * and the export is the module's last value.
+ *
+ * The grammar sees symbols and the fold sees text, which is the line that
+ * decides where a check belongs: every check that has to read a *word* is
+ * the fold's — a reference to a name nothing binds, a name bound twice by
+ * `import` or `const`, which share one map, and a bare or string
+ * `__proto__` key, which JavaScript reads as an instruction to replace the
+ * prototype; the computed spelling `{ ["__proto__"]: v }` denotes an
+ * ordinary property and is accepted. The error reported is the first met
+ * in document order, and a match that fails builds no module: a malformed
+ * suffix is found before any name is resolved. `./README.md` holds the
+ * argument.
+ *
+ * Every walk is a mapping of one node or a loop over an explicit stack:
+ * the machine's own stack is on the heap, a list's mapping puts one item
+ * before the list its tail's mapping returned, and the resolution walks a
+ * value over a stack of frames, so nesting depth and width stay the
+ * input's.
  *
  * @module
  *
  * @import { Result } from '../../types/result/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { DjsToken, DjsTokenWithMetadata } from '../tokenizer/types.ts'
+ * @import { OrderedMap } from '../../types/ordered_map/types.ts'
+ * @import { Children, Meta } from '../../ebnf/ast/types.ts'
+ * @import { Mappings, RewriteSet } from '../../ebnf/ll1/types.ts'
+ * @import { Rule } from '../../ebnf/types.ts'
+ * @import { Primitive } from '../types.ts'
+ * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstArray, AstConst, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
- * @import { ParseError, _OrdinaryTokenName, _ValueToken } from './types.ts'
- * @import { Meta } from '../../bnf/matcher/types.ts'
- * @import { AstSequence } from '../../bnf/matcher/types.ts'
- * @import { Rule, TerminalRange } from '../../bnf/types.ts'
- * @import { DescentMatch } from '../../bnf/descent/types.ts'
- * @import { _FoldFrame, _FoldState, _Node, _TokenStream } from './private.ts'
+ * @import { ParseError } from './types.ts'
+ * @import { Items, Member, Value } from './grammar/types.ts'
+ * @import { key, primitive } from './grammar/module.f.mjs'
+ * @import {
+ *     _Const, _Container, _Env, _Frame, _Import, _Leaf, _ListNode, _Member, _Module, _Node, _OptionalList, _Out,
+ *     _Stack, _State, _TokenStream,
+ * } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
-import { fold, next, toArray, length, concat } from '../../types/list/module.f.mjs'
-import { setReplace, at } from '../../types/ordered_map/module.f.mjs'
+import { concat, toArray } from '../../types/list/module.f.mjs'
+import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { fromMap } from '../../types/object/module.f.mjs'
-import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
-import { eof, oneEncode, option, rangeDecode, repeat0Plus, unicodeRange } from '../../bnf/module.f.mjs'
-import { encoding } from '../../bnf/token_symbol/module.f.mjs'
-import { toData } from '../../bnf/data/module.f.mjs'
-import { descentParserRuleSet } from '../../bnf/descent/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
+import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
+import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
+import {
+    constStatement, djsModule, exportStatement, importStatement, member, members, symbolOf, value, values,
+} from './grammar/module.f.mjs'
 
 /**
  * Splits the tokenizer's single final physical `eof` token off a token list.
  *
- * A BNF parser backend synthesizes its own logical end-of-input, so passing the
- * tokenizer's physical `eof` through as an ordinary symbol would create a second
- * end marker. Dropping it outright would instead lose the source position that a
- * failure *at* physical end has to be reported from, so its metadata is kept
- * aside as `eofMetadata` rather than discarded or refabricated.
+ * The backend synthesizes its own logical end-of-input, so passing the
+ * tokenizer's physical `eof` through as an ordinary symbol would create a
+ * second end marker. Dropping it outright would instead lose the source
+ * position that a failure *at* physical end has to be reported from, so its
+ * metadata is kept aside as `eofMetadata` rather than discarded or
+ * refabricated.
  *
  * The tokenizer's contract is exactly one `eof`, in final position; a stream
  * carrying one anywhere else is rejected here rather than parsed.
@@ -44,18 +85,12 @@ import { descentParserRuleSet } from '../../bnf/descent/module.f.mjs'
  * Anything else missing an `eof` is a genuine contract violation and has no
  * position to report.
  *
- * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<_TokenStream, ParseError>}
+ * @type {(tokens: readonly DjsTokenWithMetadata[]) => Result<_TokenStream, ParseError>}
  */
-const splitEof = tokenList => {
-    const a = toArray(tokenList)
-    const eofIdx = a.findIndex(({ token }) => token.kind === 'eof')
+const splitEof = tokens => {
+    const eofIdx = tokens.findIndex(({ token }) => token.kind === 'eof')
     if (eofIdx === -1) {
-        // A lexical failure ends the stream at its `error` token and emits no
-        // `eof`, so the absence of one is not always a broken contract. Rejecting
-        // it as one would answer "unterminated string at 1:11" with "missing
-        // end-of-input token" and no position at all, so the error is reported
-        // where it happened — the same place the hand-written parser reports it.
-        const lastToken = a[a.length - 1]
+        const lastToken = tokens[tokens.length - 1]
         return lastToken !== undefined && lastToken.token.kind === 'error'
             // the token's own span survives into the parse error: it is the one
             // failure here that knows how far the offending source runs
@@ -66,292 +101,268 @@ const splitEof = tokenList => {
             })
             : error({ message: 'missing end-of-input token', metadata: null })
     }
-    const last = a.length - 1
+    const last = tokens.length - 1
     if (eofIdx !== last) {
-        return error({ message: 'end-of-input token is not final', metadata: a[eofIdx].metadata })
+        return error({ message: 'end-of-input token is not final', metadata: tokens[eofIdx].metadata })
     }
-    return ok({ tokens: a.slice(0, last), eofMetadata: a[last].metadata })
+    return ok({ tokens: tokens.slice(0, last), eofMetadata: tokens[last].metadata })
+}
+
+// -- reading the tree ---------------------------------------------------------
+
+/**
+ * The token at a position: an input symbol, whose metadata is the token.
+ *
+ * @type {(node: _Leaf) => DjsTokenWithMetadata}
+ */
+const tokenAt = node => {
+    const { meta } = symbolAt(node)
+    assert('token' in meta)
+    return meta
 }
 
 /**
- * The parser layer's complete finite alphabet: every token name its grammar may
- * name as a terminal, and the exact set a token-name-to-symbol mapping has to be
- * validated over before parsing.
+ * What a mapping returned at a position: an output symbol.
  *
- * `eof` is not a member — {@link splitEof} removes the tokenizer's physical
- * end-of-input token before any name is mapped, and the backend synthesizes its
- * own logical one.
- *
- * The names are the *token* vocabulary, not the tokenizer grammar's tag
- * vocabulary: only eight punctuators survive into `DjsToken`, so the JS operator
- * set the tokenizer recognizes is far larger than what reaches this layer.
- *
- * A name is not always a kind. The framing keywords arrive as `id` tokens and
- * need terminals of their own, or the grammar could not tell `export default`
- * from two arbitrary identifiers — see {@link _framingKeywords}.
- *
- * The `_…AreComplete` assertions in `./proof.f.mjs`'s `consistency` entry check
- * both halves against `DjsToken` and `_FramingKeyword` at compile time, so a
- * kind or keyword added there breaks the build rather than going unrepresented.
- * Exported with a leading `_` for that linkage — the export is not API.
+ * @type {(node: _Leaf) => _Out}
  */
-export const _tokenKindNames = /** @type {const} */ ([
-    'true', 'false', 'null', 'undefined',
-    '{', '}', ':', ',', '[', ']', '.', '=', ';',
-    'string', 'number', 'error', 'id', 'bigint',
-    'ws', 'nl', '//', '/*',
-])
+const outAt = node => {
+    const { meta } = symbolAt(node)
+    assert('id' in meta)
+    return meta
+}
 
-/**
- * The framing keywords, which the tokenizer emits as `id` tokens carrying the
- * word in `value`. Kept as its own list because the mapping has to recognize
- * exactly these values, not merely encode them.
- *
- * **A grammar over this alphabet owes them an identifier rule.** None of the
- * five is reserved: outside the framing positions the parser accepts them as
- * ordinary identifiers, so `const export = 1`, `export default export`, and
- * `{ from: 2, default: 3 }` all parse today. Once each carries its own symbol, a
- * rule whose identifier terminal is the bare `id` symbol rejects every one of
- * them. Wherever an identifier is accepted — binding names, references, object
- * keys, import names — the terminal has to be the union of `id` and these five.
- *
- * Giving a word its own symbol narrows where it is *required*, never where it is
- * *allowed*.
- */
-export const _framingKeywords = /** @type {const} */ (['import', 'const', 'export', 'default', 'from'])
+/** @type {(node: _Leaf) => _Node} */
+const nodeAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'value')
+    return out.node
+}
 
-/**
- * The complete alphabet: one name per `DjsToken` kind except `eof`, plus one per
- * framing keyword. No keyword collides with a kind, so the two lists concatenate
- * without a name being registered twice — which `encoding` would reject anyway.
- */
-export const _ordinaryTokenNames = [..._tokenKindNames, ..._framingKeywords]
+/** @type {(node: _Leaf) => List<_Node>} */
+const valuesAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'values')
+    return out.items
+}
 
-/**
- * The alphabet's encoding, built once for the module rather than per parse.
- *
- * `encoding` asserts what the mapping needs — capacity, and no repeated name —
- * so an alphabet that could not produce distinct symbols fails here at load
- * rather than midway through a parse. Symbols start at `0x110000`, one past the
- * last Unicode scalar value, so a token symbol can never be mistaken for a code
- * point of the layer below.
- */
-const tokenEncoding = encoding(_ordinaryTokenNames)
+/** @type {(node: _Leaf) => _Member} */
+const memberAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'member')
+    return out.member
+}
 
-/**
- * One ordinary token as a descent input leaf: the symbol standing for its kind,
- * paired with the whole token as metadata.
- *
- * The grammar above sees only the symbol — one per token, which is what makes a
- * token stream an alphabet — while the token's value and source position ride
- * along untouched, so nothing a diagnostic or an AST fold needs is lost.
- *
- * `eof` is not in the alphabet and `encode` would reject it. Reaching it here
- * means {@link splitEof} was skipped, which is a caller bug rather than bad
- * input, so this asserts instead of widening the result to a `Result`.
- *
- * @type {(t: DjsTokenWithMetadata) => Meta<DjsTokenWithMetadata, number>}
- */
-const tokenToSymbol = t => {
-    const { token } = t
-    // A framing keyword arrives as an `id` carrying the word, so the name comes
-    // from the value there and from the kind everywhere else. `find` rather than
-    // a set membership test because it also narrows the result to the keyword
-    // union, which is what lets `encode` be called without a cast.
-    const keyword = token.kind === 'id'
-        ? _framingKeywords.find(k => k === token.value)
-        : undefined
-    const name = keyword ?? token.kind
-    assert(name !== 'eof', ['eof token reached the parser alphabet', t])
-    return [tokenEncoding.encode(name), t]
+/** @type {(node: _Leaf) => List<_Member>} */
+const membersAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'members')
+    return out.items
+}
+
+/** @type {(node: _Leaf) => _Import} */
+const importAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'import')
+    return out.statement
+}
+
+/** @type {(node: _Leaf) => _Const} */
+const constAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'const')
+    return out.statement
+}
+
+/** @type {(node: _Leaf) => _Node} */
+const exportAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'export')
+    return out.node
+}
+
+/** @type {(node: _Leaf) => _Module} */
+const moduleAt = node => {
+    const out = outAt(node)
+    assert(out.id === 'module')
+    return out.module
 }
 
 /**
- * One token name as a grammar terminal.
+ * The word an identifier token spells. A framing keyword is an identifier
+ * too, arriving as the same `id` token.
  *
- * A symbol and a `TerminalRange` are both plain numbers, so `oneEncode` is what
- * says which one is meant — `encode` returns the bare symbol a stream carries,
- * and a rule needs the singleton range containing it.
- *
- * @type {(name: _OrdinaryTokenName) => TerminalRange}
+ * @type {(t: DjsTokenWithMetadata) => string}
  */
-const sym = name => oneEncode(tokenEncoding.encode(name))
+const nameOf = ({ token }) => {
+    assert(token.kind === 'id')
+    return token.value
+}
+
+/** @type {(t: DjsTokenWithMetadata) => string} */
+const textOf = ({ token }) => {
+    assert(token.kind === 'string')
+    return token.value
+}
 
 /**
- * Trivia is skipped between every pair of tokens, so almost every rule below is
- * interleaved with it.
+ * A primitive is what its branch spells, read off the one token the
+ * branch holds: the branch is the token's kind, so the switch is over the
+ * grammar's own list of value kinds.
+ *
+ * @type {(node: Children<typeof primitive, DjsTokenWithMetadata, _Out>) => Primitive}
  */
-const trivia = repeat0Plus({
-    ws: sym('ws'),
-    nl: sym('nl'),
-    lineComment: sym('//'),
-    blockComment: sym('/*'),
+const primitiveOf = ([tag, leaf]) => {
+    const { token } = tokenAt(leaf)
+    switch (tag) {
+        case 'null': { return null }
+        case 'true': { return true }
+        case 'false': { return false }
+        case 'undefined': { return undefined }
+        case 'number': {
+            assert(token.kind === 'number')
+            return parseFloat(token.value)
+        }
+        case 'string': {
+            assert(token.kind === 'string')
+            return token.value
+        }
+        case 'bigint': {
+            assert(token.kind === 'bigint')
+            return token.value
+        }
+    }
+}
+
+/**
+ * The items an optional list holds: none, or what the list's mapping
+ * returned.
+ *
+ * @type {<T>(itemsAt: (node: _Leaf) => List<T>) => (node: _OptionalList) => List<T>}
+ */
+const optionalItems = itemsAt => node => {
+    const rounds = unmapped(node)
+    return rounds.length === 0 ? null : itemsAt(rounds[0])
+}
+
+/**
+ * The items of a list node, `item t [ ',' t [ items ] ]`: the item, then
+ * the items the nested list's mapping already returned — so a list of any
+ * length costs one step at each of its nodes, and the tree, as deep as the
+ * list is long, is never walked.
+ *
+ * @type {<T>(itemAt: (node: _Leaf) => T, itemsAt: (node: _Leaf) => List<T>) => (node: _ListNode) => List<T>}
+ */
+const listOf = (itemAt, itemsAt) => ([item, , more]) => {
+    const rounds = unmapped(more)
+    // no round, or the one holding the comma, its trivia and the optional rest
+    const tail = rounds.length === 0 ? null : optionalItems(itemsAt)(unmapped(rounds[0])[2])
+    return { first: itemAt(item), tail }
+}
+
+/** @type {(out: _Out) => Meta<_Out>} */
+const symbol = out => ({ symbol: 0, meta: out })
+
+/**
+ * A value is the node its branch made: a primitive converted from its
+ * token, a reference by its token, and a container of the items its list
+ * returned — `[ open t [ items ] close ]`, the list at the third position.
+ *
+ * @type {(node: Children<Value, DjsTokenWithMetadata, _Out>) => Meta<_Out>}
+ */
+const toNode = node => {
+    switch (node[0]) {
+        case 'primitive': { return symbol({ id: 'value', node: ['primitive', primitiveOf(unmapped(node[1]))] }) }
+        case 'ref': { return symbol({ id: 'value', node: ['ref', tokenAt(unmapped(node[1])[1])] }) }
+        case 'array': {
+            return symbol({ id: 'value', node: ['array', toArray(optionalItems(valuesAt)(unmapped(node[1])[2]))] })
+        }
+        case 'object': {
+            return symbol({ id: 'value', node: ['object', toArray(optionalItems(membersAt)(unmapped(node[1])[2]))] })
+        }
+    }
+}
+
+/**
+ * The token a key is read from, the name it spells, and whether it is the
+ * computed spelling — `[ '[' t string t ']' ]`, the string at the third
+ * position. The distinction exists for `__proto__` alone.
+ *
+ * @type {(node: Children<typeof key, DjsTokenWithMetadata, _Out>) => readonly [DjsTokenWithMetadata, string, boolean]}
+ */
+const keyOf = node => {
+    switch (node[0]) {
+        case 'plain': {
+            const t = tokenAt(unmapped(node[1])[1])
+            return [t, nameOf(t), false]
+        }
+        case 'string': {
+            const t = tokenAt(node[1])
+            return [t, textOf(t), false]
+        }
+        case 'computed': {
+            const t = tokenAt(unmapped(node[1])[2])
+            return [t, textOf(t), true]
+        }
+    }
+}
+
+/** @type {(node: Children<typeof member, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+const toMember = ([k, , , , v]) => {
+    const [token, name, computed] = keyOf(unmapped(k))
+    return symbol({ id: 'member', member: { key: token, name, computed, value: nodeAt(v) } })
+}
+
+/** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+const toImport = ([, , name, , , , module]) =>
+    symbol({ id: 'import', statement: { name: tokenAt(unmapped(name)[1]), module: textOf(tokenAt(module)) } })
+
+/** @type {(node: Children<typeof constStatement, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+const toConst = ([, , name, , , , v]) =>
+    symbol({ id: 'const', statement: { name: tokenAt(unmapped(name)[1]), value: nodeAt(v) } })
+
+/** @type {(node: Children<typeof exportStatement, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+const toExport = ([, , , , v]) => symbol({ id: 'export', node: nodeAt(v) })
+
+/** @type {(node: Children<typeof djsModule, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+const toModule = ([, imports, consts, exported]) => symbol({
+    id: 'module',
+    module: {
+        imports: unmapped(imports).map(importAt),
+        consts: unmapped(consts).map(constAt),
+        exported: exportAt(exported),
+    },
 })
 
-/**
- * Trivia that stops at a newline, for the places a newline is not trivia: a
- * statement ends at one, so a rule that swallowed newlines as trivia everywhere
- * could not express the terminator.
- */
-const lineTrivia = repeat0Plus({
-    ws: sym('ws'),
-    lineComment: sym('//'),
-    blockComment: sym('/*'),
-})
+/** @type {Mappings<DjsTokenWithMetadata, _Out>} */
+const map = mapping
+
+/** @type {(node: Children<Items<Value>, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+const toValues = node => symbol({ id: 'values', items: listOf(nodeAt, valuesAt)(node) })
+
+/** @type {(node: Children<Items<Member>, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+const toMembers = node => symbol({ id: 'members', items: listOf(memberAt, membersAt)(node) })
 
 /**
- * What ends a statement: a `;`, or, absent one, the first newline. DataJS
- * requires the `;` and FunctionalScript must accept every DataJS document, so
- * both are terminators here — the newline is the one the hand-written
- * parser's `'nl'` state enforced, the semicolon the one `spec/README.md`'s
- * module-structure rule adds for the inclusion.
+ * The rewrite set: a value to its node, a list to its items, a member and
+ * each statement to its record, and the module to the records of its
+ * statements. Keyed by the rules `./grammar` holds, so that
+ * `parser(djsModule, mappings)` yields one symbol carrying the module.
  *
- * The `;` branch reaches through *full* trivia, newlines included: DataJS
- * whitespace is insignificant between any two tokens, so `export default 1`
- * and its `;` may sit on different lines. A newline is a terminator only when
- * no `;` follows with just trivia between — which the branch order expresses,
- * the semicolon branch rewinding to the newline one when it finds no `;`.
- * One terminator each: a second `;` is not an empty statement, it is a stray
- * token the next rule rejects.
+ * @type {RewriteSet<DjsTokenWithMetadata, _Out>}
  */
-const statementEnd = {
-    semicolon: () => [trivia, sym(';'), trivia],
-    newline: () => [lineTrivia, sym('nl'), trivia],
-}
-
-/**
- * Every word that may stand where an identifier is expected: a plain `id` and
- * each framing keyword, since none of them is reserved.
- *
- * This is the union {@link _framingKeywords} obliges the grammar to provide.
- */
-const identifier = {
-    id: sym('id'),
-    import: sym('import'),
-    const: sym('const'),
-    export: sym('export'),
-    default: sym('default'),
-    from: sym('from'),
-}
-
-/** A value that is one token. */
-const primitive = {
-    null: sym('null'),
-    true: sym('true'),
-    false: sym('false'),
-    undefined: sym('undefined'),
-    number: sym('number'),
-    string: sym('string'),
-    bigint: sym('bigint'),
-}
-
-/**
- * `open item, item, ... ,? close` with trivia everywhere and an optional
- * trailing comma, which both arrays and objects allow.
- *
- * The trailing comma works because a failed repetition round rewinds rather than
- * failing the match ([`bnf/descent`](../../bnf/descent/README.md)): on the final
- * `,` the round consumes the comma, finds `]` where an item belongs, and ends the
- * repetition back at the comma for the optional tail to take.
- *
- * @type {(open: TerminalRange, close: TerminalRange, item: Rule) => Rule}
- */
-const delimited = (open, close, item) => () => {
-    // Each element is wrapped in a one-branch variant so it carries the tag
-    // `item`. The branch is a *sequence* rather than the rule itself, because a
-    // variant used directly as another variant's branch loses its tag to
-    // whichever inner branch matches — and every element here is a variant.
-    // The tag is what lets the fold find elements by name instead of by
-    // position in the delimiter scaffolding.
-    const element = { item: [item] }
-    return [
-        open,
-        trivia,
-        option([
-            element,
-            trivia,
-            repeat0Plus([sym(','), trivia, element, trivia]),
-            option([sym(','), trivia]),
-        ]),
-        close,
-    ]
-}
-
-/** @type {Rule} */
-const value = () => ({ primitive, ref: identifier, array, object })
-
-const array = delimited(sym('['), sym(']'), value)
-
-/** A property name: bare identifier, string literal, or a computed `["a"]`. */
-const key = {
-    plain: identifier,
-    string: sym('string'),
-    computed: () => [sym('['), trivia, { name: [sym('string')] }, trivia, sym(']')],
-}
-
-/** @type {Rule} */
-const member = { member: () => [{ key: [key] }, trivia, sym(':'), trivia, { value: [value] }] }
-
-const object = delimited(sym('{'), sym('}'), member)
-
-// Each statement is tagged for the same reason an element is: the fold reads
-// the module by finding `import`/`const`/`export` nodes, not by counting past
-// the trivia and separators between them.
-const importStatement = {
-    import: () => [
-        sym('import'), trivia, { name: [identifier] },
-        trivia, sym('from'), trivia, { module: [sym('string')] },
-    ],
-}
-
-const constStatement = {
-    const: () => [
-        sym('const'), trivia, { name: [identifier] },
-        trivia, sym('='), trivia, { value: [value] },
-    ],
-}
-
-const exportStatement = {
-    export: () => [sym('export'), trivia, sym('default'), trivia, { value: [value] }],
-}
-
-/**
- * The whole module: every `import` before every `const`, one `export default`
- * last, and nothing but trivia after it.
- *
- * The ordering the hand-written parser enforces with a `consts.length === 0`
- * check is just the shape of this rule, which is the point of writing the
- * grammar down: `import* const* export`.
- *
- * Ending on `eof` is what makes a trailing stray token a failure rather than a
- * short match — the backend synthesizes that symbol after the physical input.
- *
- * @type {Rule}
- */
-const djsModule = () => [
-    trivia,
-    repeat0Plus([importStatement, statementEnd]),
-    repeat0Plus([constStatement, statementEnd]),
-    exportStatement,
-    // the export statement may end with a `;` too — reached through full
-    // trivia, like every terminator — but needs none: the end of input
-    // closes it.
-    { semicolon: () => [trivia, sym(';')], none: [] },
-    trivia,
-    eof,
+export const mappings = [
+    map(value, toNode),
+    map(values, toValues),
+    map(member, toMember),
+    map(members, toMembers),
+    map(importStatement, toImport),
+    map(constStatement, toConst),
+    map(exportStatement, toExport),
+    map(djsModule, toModule),
 ]
 
-/**
- * The module matcher and the name of the rule to start it at.
- *
- * `toData` generates rule names, so the entry name belongs to the conversion and
- * is read back from it rather than spelled here. Built once: converting the
- * grammar and computing its nullability is per-grammar work, not per-parse.
- */
-const [moduleRuleSet, moduleEntry] = toData(djsModule)
-
-/** @type {DescentMatch<DjsTokenWithMetadata>} */
-const moduleMatcher = descentParserRuleSet(moduleRuleSet)
+// -- resolving the names ------------------------------------------------------
 
 /**
  * The key of `{ __proto__: v }` and `{ "__proto__": v }`. JavaScript reads
@@ -362,347 +373,175 @@ const moduleMatcher = descentParserRuleSet(moduleRuleSet)
  */
 const protoKey = '__proto__'
 
-/**
- * Only ever called on a token `isValueToken` has already confirmed carries a
- * value, so the switch covers every `_ValueToken` case with no fallback arm.
- *
- * @type {(token: _ValueToken) => AstConst}
- */
-const tokenToValue = token => {
-    switch (token.kind) {
-        case 'null': return null
-        case 'false': return false
-        case 'true': return true
-        case 'number': return parseFloat(token.value)
-        case 'string': return token.value
-        case 'bigint': return token.value
-        case 'undefined': return undefined
-    }
-}
-/**
- * @param {DjsToken} token
- * @returns {token is _ValueToken}
- */
-const isValueToken = token => {
-    switch (token.kind) {
-        case 'null':
-        case 'false':
-        case 'true':
-        case 'number':
-        case 'string':
-        case 'bigint':
-        case 'undefined': return true
-        default: return false
-    }
-}
-// -- folding the match into an `AstModule` ----------------------------------
-
-/**
- * The token a slot holds.
- *
- * Every slot the fold reads holds exactly one token, and it is always the
- * leftmost leaf — a name, a module specifier, a primitive. Walking first
- * children rather than searching keeps this total: there is no "not found" case
- * to branch on.
- *
- * @type {(node: _Node) => DjsTokenWithMetadata}
- */
-const tokenOf = node => {
-    const first = node.sequence[0]
-    return first instanceof Array ? first[1] : tokenOf(first)
-}
-
-/**
- * A node's direct child carrying `tag`.
- *
- * Direct rather than recursive on purpose: a statement's `name` slot holds an
- * identifier whose own tag may be `const` or `import`, so a search through the
- * subtree would confuse a *word* with the statement spelling it.
- *
- * @type {(tag: string) => (node: _Node) => _Node}
- */
-const slot = tag => node => {
-    const found = node.sequence.find(c => !(c instanceof Array) && c.tag === tag)
-    assert(found !== undefined && !(found instanceof Array), ['grammar slot missing', tag])
-    return found
-}
-
-/**
- * Every node tagged `tag` under `node`, in document order.
- *
- * An array's elements are not its direct children — they sit inside the option
- * and repetition scaffolding `delimited` builds — so finding them takes a
- * search rather than a lookup.
- *
- * The search cannot stray into a nested value, and needs no guard saying so:
- * every element, member and statement is wrapped in a node carrying its own
- * tag, so the wrapper matches and the search stops there, before it could
- * descend into the array or object inside it. That is what the wrappers are
- * for.
- *
- * Iterative, over an explicit stack, for the same reason {@link foldValue} is.
- * A repetition is only *flat* in the AST when `toData` recognizes the
- * right-recursive shape and emits a `Repeat`; nested inside this grammar's
- * option scaffolding it does not, so a thousand siblings are a thousand levels
- * of tree, and recursing over them overflows exactly as deep nesting would.
- *
- * @type {(tag: string) => (node: _Node) => readonly _Node[]}
- */
-const descendantsTagged = tag => root => {
-    /** Pushes a node's children so the leftmost is visited first. */
-    /** @type {(rest: List<_Node>, sequence: AstSequence<Meta<DjsTokenWithMetadata, number>>) => List<_Node>} */
-    const pushChildren = (rest, sequence) => {
-        let stack = rest
-        let i = sequence.length
-        while (i !== 0) {
-            i = i - 1
-            const child = sequence[i]
-            if (!(child instanceof Array)) { stack = { first: child, tail: stack } }
-        }
-        return stack
-    }
-    /** @type {List<_Node>} */
-    let found = null
-    let stack = pushChildren(null, root.sequence)
-    for (;;) {
-        const top = next(stack)
-        if (top === null) { return toArray(found) }
-        const node = top.first
-        if (node.tag === tag) {
-            found = concat(found)([node])
-            stack = top.tail
-        } else {
-            stack = pushChildren(top.tail, node.sequence)
-        }
-    }
-}
-
-const valueSlot = slot('value')
-
-const nameSlot = slot('name')
-
-const moduleSlot = slot('module')
-
-const keySlot = slot('key')
-
-const itemsOf = descendantsTagged('item')
-
-const membersOf = descendantsTagged('member')
-
-/**
- * The property name a key spells, and whether it was the computed spelling.
- *
- * The distinction exists for `__proto__` alone: JavaScript reads a bare or
- * string `__proto__` as an instruction to replace the prototype, while
- * `{ ["__proto__"]: v }` denotes an ordinary property — so only the spelling
- * separates a rejected key from an accepted one.
- *
- * @type {(node: _Node) => readonly[string, boolean]}
- */
-const keyOf = node => {
-    const spelling = node.sequence[0]
-    assert(!(spelling instanceof Array), 'a key held no spelling')
-    const computed = spelling.tag === 'computed'
-    const { token } = tokenOf(computed ? nameSlot(spelling) : spelling)
-    assert('value' in token && typeof token.value === 'string', 'a key token carried no name')
-    return [token.value, computed]
-}
-
-/** @type {(message: string) => (token: DjsTokenWithMetadata) => ParseError} */
+/** @type {(message: string) => (t: DjsTokenWithMetadata) => ParseError} */
 const foldError = message => ({ metadata }) => ({ message, metadata })
 
-/**
- * Binds a name to a reference, rejecting one already bound.
- *
- * `import` and `const` share one map, so a name taken by either is taken for
- * both — the same rule the state machine gets from consulting one `refs`.
- *
- * @type {(state: _FoldState) => (node: _Node) => (ref: AstModuleRef) => _FoldState}
- */
-const bind = state => node => ref => {
-    const withMetadata = tokenOf(nameSlot(node))
-    const { token } = withMetadata
-    assert('value' in token && typeof token.value === 'string', 'a name token carried no name')
-    return at(token.value)(state.refs) !== null
-        ? { ...state, error: foldError('duplicate id')(withMetadata) }
-        : { ...state, refs: setReplace(token.value)(ref)(state.refs) }
-}
+/** @type {(container: _Container, index: number) => _Node} */
+const itemAt = (container, index) =>
+    container[0] === 'array' ? container[1][index] : container[1][index].value
 
 /**
- * The error a frame's current key earns, or `null`.
+ * The error a container's item earns before its value is read, or `null`:
+ * a plain `__proto__` key, at the key itself.
  *
- * Checked as each member is reached rather than by scanning every key first, so
- * that an earlier member's failure is reported before a later key's. Scanning
- * ahead reported `__proto__` in `{a: missing, __proto__: 1}`, where the parser
- * this replaces reports the unresolved `missing` — errors are first-to-last, and
- * a key is not special enough to jump the queue.
+ * Checked as each member is reached rather than by scanning every key
+ * first, so that an earlier member's failure is reported before a later
+ * key's: `{a: missing, __proto__: 1}` reports the unresolved `missing`.
+ * Errors are first-to-last, and a key is not special enough to jump the
+ * queue.
  *
- * @type {(frame: _FoldFrame) => ParseError | null}
+ * @type {(container: _Container, index: number) => ParseError | null}
  */
-const badKey = frame => {
-    if (frame.isArray) { return null }
-    const [name, computed] = frame.keys[frame.index]
+const badKey = (container, index) => {
+    if (container[0] === 'array') { return null }
+    const { key, name, computed } = container[1][index]
     return name === protoKey && !computed
-        // at the key itself, not at the object's `{`
-        ? foldError('__proto__ requires the computed key form')(tokenOf(keySlot(frame.items[frame.index])))
+        ? foldError('__proto__ requires the computed key form')(key)
         : null
 }
 
 /**
- * A value, resolved against the names bound so far.
+ * A container of the values its items resolved to: an array, or an object
+ * with a property per member, a repeated key keeping its first position
+ * and taking its last value.
  *
- * Iterative, over an explicit stack, because a value nests arbitrarily and the
- * call stack does not: recursion here overflows at a few thousand containers,
- * which is the defect `containerStackCost` was written to catch when the parser
- * this replaced had its own version of it.
- *
- * Returns the error channel alongside the value because a reference can fail to
- * resolve at any depth, and a container has to stop building when one does. A
- * failed fold yields `null` for the value, which is never mistaken for a
- * successful `null` — the caller reads the error, not the value.
- *
- * @type {(state: _FoldState) => (node: _Node) => readonly[AstConst, ParseError | null]}
+ * @type {(container: _Container, done: readonly AstConst[]) => AstConst}
  */
-const foldValue = state => root => {
-    /** @type {List<_FoldFrame>} */
-    let stack = null
-    let node = root
-    /** @type {AstConst} */
-    let value = null
-    // `true` while descending into `node`; `false` while handing `value` back
-    // to the frame that asked for it.
-    let descending = true
-    for (;;) {
-        if (descending) {
-            const child = node.sequence[0]
-            assert(!(child instanceof Array), 'a value slot held no value')
-            if (child.tag === 'array' || child.tag === 'object') {
-                const isArray = child.tag === 'array'
-                const items = isArray ? itemsOf(child) : membersOf(child)
-                const keys = isArray ? [] : items.map(member => keyOf(keySlot(member)))
-                /** @type {_FoldFrame} */
-                const frame = { items, index: 0, array: null, object: null, keys, isArray }
-                stack = { first: frame, tail: stack }
-                if (items.length === 0) {
-                    value = isArray ? ['array', []] : fromMap(null)
-                    stack = assertNotNullish(next(stack)).tail
-                    descending = false
-                } else {
-                    const rejected = badKey(frame)
-                    if (rejected !== null) { return [null, rejected] }
-                    node = isArray ? items[0] : valueSlot(items[0])
-                }
-            } else {
-                const withMetadata = tokenOf(child)
-                const { token } = withMetadata
-                if (isValueToken(token)) {
-                    value = tokenToValue(token)
-                } else {
-                    // anything else the value rule admits is an identifier, so
-                    // it names a `const` or an `import` — or nothing, which is
-                    // the error.
-                    assert('value' in token && typeof token.value === 'string', 'a reference carried no name')
-                    const ref = at(token.value)(state.refs)
-                    if (ref === null) { return [null, foldError('const not found')(withMetadata)] }
-                    value = ref
-                }
-                descending = false
+const close = (container, done) => {
+    if (container[0] === 'array') {
+        /** @type {AstArray} */
+        const array = ['array', done]
+        return array
+    }
+    /** @type {AstObject} */
+    const object = fromMap(container[1].reduce(
+        /** @type {(m: OrderedMap<AstConst>, member: _Member, index: number) => OrderedMap<AstConst>} */
+        ((m, { name }, index) => setReplace(name)(done[index])(m)),
+        empty))
+    return object
+}
+
+/**
+ * The value a node denotes under `env`, or the first error met in document
+ * order: a reference to a name `env` does not bind, or a plain `__proto__`
+ * key.
+ *
+ * Over an explicit stack: a frame per container being built, its items
+ * resolved in order, so that a value nested as deep as the input allows
+ * costs no call stack.
+ *
+ * @type {(env: _Env) => (root: _Node) => Result<AstConst, ParseError>}
+ */
+const evaluate = env => root => {
+    /**
+     * The next item of a container, its key checked first, or the container
+     * closed when none is left.
+     *
+     * @type {(stack: _Stack, frame: _Frame) => _State}
+     */
+    const round = (stack, frame) => {
+        const { container, index, done } = frame
+        if (index >= container[1].length) { return [stack, ok(close(container, toArray(done)))] }
+        const rejected = badKey(container, index)
+        return rejected === null
+            ? [{ top: frame, rest: stack }, ['enter', itemAt(container, index)]]
+            : [stack, error(rejected)]
+    }
+
+    /** @type {(stack: _Stack, node: _Node) => _State} */
+    const enter = (stack, node) => {
+        switch (node[0]) {
+            case 'primitive': { return [stack, ok(node[1])] }
+            case 'ref': {
+                const ref = at(nameOf(node[1]))(env)
+                return [stack, ref === null ? error(foldError('const not found')(node[1])) : ok(ref)]
             }
+            default: { return round(stack, { container: node, index: 0, done: null }) }
+        }
+    }
+
+    /** @type {_State} */
+    let state = [null, ['enter', root]]
+    while (true) {
+        const [stack, step] = state
+        if (step[0] === 'enter') {
+            state = enter(stack, step[1])
+        } else if (step[0] === 'error' || stack === null) {
+            return step
         } else {
-            /** @type {{ readonly first: _FoldFrame, readonly tail: List<_FoldFrame> } | null} */
-            const top = next(stack)
-            if (top === null) { return [value, null] }
-            /** @type {_FoldFrame} */
-            const frame = top.first
-            const index = frame.index + 1
-            const array = frame.isArray ? concat(frame.array)([value]) : frame.array
-            const object = frame.isArray
-                ? frame.object
-                : setReplace(frame.keys[frame.index][0])(value)(frame.object)
-            if (index === frame.items.length) {
-                /** @type {AstArray} */
-                const asArray = ['array', toArray(array)]
-                /** @type {AstObject} */
-                const asObject = fromMap(object)
-                value = frame.isArray ? asArray : asObject
-                stack = top.tail
-            } else {
-                const moved = { ...frame, index, array, object }
-                const rejected = badKey(moved)
-                if (rejected !== null) { return [null, rejected] }
-                stack = { first: moved, tail: top.tail }
-                node = frame.isArray ? frame.items[index] : valueSlot(frame.items[index])
-                descending = true
-            }
+            const { top, rest } = stack
+            state = round(rest, { ...top, index: top.index + 1, done: concat(top.done)([step[1]]) })
         }
     }
 }
 
 /**
- * Adds one statement's value to the body, if nothing has failed yet.
+ * Binds a name to a reference, refusing one already bound. `import` and
+ * `const` share the one map, so a name taken by either is taken for both.
  *
- * @type {(state: _FoldState) => (node: _Node) => _FoldState}
+ * @type {(env: _Env) => (name: DjsTokenWithMetadata, ref: AstModuleRef) => Result<_Env, ParseError>}
  */
-const addValue = state => node => {
-    if (state.error !== null) { return state }
-    const [value, valueError] = foldValue(state)(valueSlot(node))
-    return valueError !== null
-        ? { ...state, error: valueError }
-        : { ...state, consts: [...state.consts, value] }
+const bind = env => (name, ref) => {
+    const word = nameOf(name)
+    return at(word)(env) !== null
+        ? error(foldError('duplicate id')(name))
+        : ok(setReplace(word)(ref)(env))
 }
 
 /**
- * Folds a matched module into an `AstModule`.
+ * The statements of a module, in order: each `import` binds its name to
+ * the next argument, each `const` binds its name and then resolves its
+ * value against the names bound so far, itself included, and the export
+ * is resolved against them all.
  *
- * The statements are read positionally from the root — trivia, imports,
- * consts, the export — because the module rule is one sequence and its parts
- * cannot move. Everything below that is read by slot name instead.
- *
- * Each name is bound *before* the value that follows it is folded, which is
- * what makes `const a = a` resolve to the constant being defined rather than
- * fail. That is the state machine's order too, and the reason it is not one of
- * the divergences.
- *
- * @type {(root: _Node) => Result<AstModule, ParseError>}
+ * @type {(module: _Module) => Result<AstModule, ParseError>}
  */
-const foldModule = root => {
-    const [, imports, consts, exported] = root.sequence
-    assert(!(imports instanceof Array) && !(consts instanceof Array) && !(exported instanceof Array),
-        'the module rule did not produce its statement groups')
-    /** @type {_FoldState} */
-    let state = { refs: null, modules: [], consts: [], error: null }
-    for (const statement of descendantsTagged('import')(imports)) {
-        state = bind(state)(statement)(['aref', state.modules.length])
-        if (state.error !== null) { break }
-        const specifier = tokenOf(moduleSlot(statement))
-        assert('value' in specifier.token && typeof specifier.token.value === 'string',
-            'an import specifier carried no text')
-        state = { ...state, modules: [...state.modules, specifier.token.value] }
+const foldModule = ({ imports, consts, exported }) => {
+    /** @type {_Env} */
+    let env = empty
+    /** @type {readonly string[]} */
+    let modules = []
+    /** @type {readonly AstConst[]} */
+    let body = []
+    for (const { name, module } of imports) {
+        const bound = bind(env)(name, ['aref', modules.length])
+        if (bound[0] === 'error') { return error(bound[1]) }
+        env = bound[1]
+        modules = [...modules, module]
     }
-    for (const statement of descendantsTagged('const')(consts)) {
-        if (state.error !== null) { break }
-        state = bind(state)(statement)(['cref', state.consts.length])
-        state = addValue(state)(statement)
+    for (const { name, value: node } of consts) {
+        const bound = bind(env)(name, ['cref', body.length])
+        if (bound[0] === 'error') { return error(bound[1]) }
+        env = bound[1]
+        const resolved = evaluate(env)(node)
+        if (resolved[0] === 'error') { return resolved }
+        body = [...body, resolved[1]]
     }
-    state = addValue(state)(exported)
-    if (state.error !== null) { return error(state.error) }
-    // annotated rather than inferred: a bare `[modules, consts]` widens to an
+    const last = evaluate(env)(exported)
+    if (last[0] === 'error') { return last }
+    // annotated rather than inferred: a bare `[modules, body]` widens to an
     // array, because `readonly string[]` is itself assignable to `AstBody`.
     /** @type {AstModule} */
-    const astModule = [state.modules, state.consts]
+    const astModule = [modules, [...body, last[1]]]
     return ok(astModule)
 }
 
+// The tree of a whole module is too deep a type for `tsc` to unroll
+// through `parser`'s return type (TS2589); the rule is widened to `Rule`
+// here, and `moduleAt` reads the one symbol the match is.
+const parseModule = parser(/** @type {Rule} */ (djsModule), mappings)
+
 /**
  * Reads the token list as a FunctionalScript module: `import` statements, then
- * `const` statements, then one `export default`.
+ * `const` statements, then one `export default`, each ended by `;`.
  *
  * This is the only language the parser reads. A JSON document is data, not a
  * module, and `fjs/media/json` is its reader
  * ([spec: JSON input](../../../spec/README.md#json-input)).
  *
- * The grammar it accepts is written down, in the rules above, rather than
- * implied by the control flow of a state machine — which is what this replaced.
+ * The grammar it accepts is written down in `./grammar`, and what the
+ * grammar accepts and this refuses is the fold's: a name unbound or bound
+ * twice, and a plain `__proto__` key.
  *
  * @type {(tokenList: List<DjsTokenWithMetadata>) => Result<AstModule, ParseError>}
  */
@@ -710,129 +549,16 @@ export const parseFromTokens = tokenList => {
     const [tag, stream] = splitEof(toArray(tokenList))
     if (tag === 'error') { return error(stream) }
     const { tokens, eofMetadata } = stream
-    const { ast, success, failure } = moduleMatcher(moduleEntry, tokens.map(tokenToSymbol))
-    if (!success) {
-        const { idx } = assertNotNullish(failure)
-        // A failure past the last token is the end of input rather than a token
-        // the reader can point at, and the hand-written parser words it that
-        // way; matching it costs one comparison already being made.
-        const atEnd = idx >= tokens.length
+    const match = parseModule(tokens.map(symbolOf))
+    if (match[0] === 'error') {
+        // A failure past the last token is the end of input rather than a
+        // token the reader can point at.
+        const index = match[1]
+        const atEnd = index >= tokens.length
         return error({
             message: atEnd ? 'unexpected end' : 'unexpected token',
-            metadata: atEnd ? eofMetadata : tokens[idx].metadata,
+            metadata: atEnd ? eofMetadata : tokens[index].metadata,
         })
     }
-    return foldModule(ast)
-}
-
-/** @type {(kind: 'eof' | ',') => (line: number) => DjsTokenWithMetadata} */
-const proofToken = kind => line => ({ token: { kind }, metadata: { path: 'a.js', line, column: 1 } })
-
-const proofEof = proofToken('eof')
-
-const proofComma = proofToken(',')
-
-export const proof = {
-    ordinaryTokenNames: {
-        // `_AlphabetIsComplete` pins membership at compile time, but a repeated
-        // name widens to the same union and so is invisible to it. The check
-        // matters because the token-symbol mapping this alphabet feeds has to be
-        // injective over it — two entries for one name would break that.
-        noDuplicates: () => {
-            assertEq(new Set(_ordinaryTokenNames).size, _ordinaryTokenNames.length)
-        },
-    },
-    tokenToSymbol: {
-        // One symbol per token, distinct across the alphabet, and above every
-        // code point — the three properties that let a token stream be the
-        // alphabet of the layer above.
-        distinctAndAboveUnicode: () => {
-            const symbols = _ordinaryTokenNames.map(n => tokenEncoding.encode(n))
-            assertEq(new Set(symbols).size, _ordinaryTokenNames.length)
-            const [, unicodeLast] = rangeDecode(unicodeRange)
-            assert(symbols.every(s => s > unicodeLast), JSON.stringify(symbols))
-        },
-        // The distinction the hand-written parser makes by comparing
-        // `token.value`: a framing keyword and an ordinary identifier arrive as
-        // the same `id` kind, and the grammar can only tell them apart if they
-        // get different symbols here.
-        framingKeywordsAreNotIdentifiers: () => {
-            /** @type {(value: string) => number} */
-            const symbolOf = value =>
-                tokenToSymbol({ token: { kind: 'id', value }, metadata: { path: 'a.js', line: 1, column: 1 } })[0]
-            const id = symbolOf('foo')
-            const keywords = _framingKeywords.map(symbolOf)
-            assert(keywords.every(s => s !== id), JSON.stringify([id, keywords]))
-            assertEq(new Set(keywords).size, _framingKeywords.length)
-            assertEq(tokenEncoding.decode(symbolOf('export')), 'export')
-            assertEq(tokenEncoding.decode(id), 'id')
-        },
-        // The token rides along untouched, so a fold or a diagnostic above still
-        // has its value and its position.
-        carriesTheToken: () => {
-            /** @type {DjsTokenWithMetadata} */
-            const t = { token: { kind: 'string', value: 'v' }, metadata: { path: 'a.js', line: 7, column: 1 } }
-            const [symbol, meta] = tokenToSymbol(t)
-            assertEq(meta, t)
-            assertEq(meta.metadata.line, 7)
-            assertEq(tokenEncoding.decode(symbol), 'string')
-        },
-        throw: {
-            eofRejected: () => tokenToSymbol(proofEof(1)),
-        },
-    },
-    splitEof: {
-        // The tokenizer always ends its stream with one `eof`, so every branch
-        // but this one is reachable only from a hand-built token list.
-        final: () => {
-            const [tag, value] = splitEof([proofComma(1), proofEof(2)])
-            assert(tag === 'ok', tag)
-            assertEq(value.tokens.length, 1)
-            assertEq(value.eofMetadata.line, 2)
-        },
-        onlyEof: () => {
-            const [tag, value] = splitEof([proofEof(1)])
-            assert(tag === 'ok', tag)
-            assertEq(value.tokens.length, 0)
-            assertEq(value.eofMetadata.line, 1)
-        },
-        missing: () => {
-            const [tag, value] = splitEof([proofComma(1)])
-            assert(tag === 'error', tag)
-            assertEq(value.metadata, null)
-        },
-        // An empty stream is also missing its `eof`, and has not even a last
-        // token to blame it on. The tokenizer never produces one — an empty
-        // source still yields `eof` — so only a hand-built list reaches here.
-        empty: () => {
-            const [tag, value] = splitEof(null)
-            assert(tag === 'error', tag)
-            assertEq(value.metadata, null)
-        },
-        // The one stream with no `eof` that is not a broken contract: a lexical
-        // failure stops the tokenizer at an `error` token. The position has to
-        // survive, or "unterminated string at 1:11" would be reported as
-        // "missing end-of-input token" with nowhere to point.
-        lexicalError: () => {
-            /** @type {DjsTokenWithMetadata} */
-            const errorToken = {
-                token: { kind: 'error', message: 'unterminated string literal' },
-                metadata: { path: 'a.js', line: 3, column: 7 },
-            }
-            const [tag, value] = splitEof([errorToken])
-            assert(tag === 'error', tag)
-            assertEq(value.metadata?.line, 3)
-            assertEq(value.metadata?.column, 7)
-        },
-        notFinal: () => {
-            const [tag, value] = splitEof([proofEof(1), proofComma(2)])
-            assert(tag === 'error', tag)
-            assertEq(value.metadata?.line, 1)
-        },
-        duplicate: () => {
-            const [tag, value] = splitEof([proofEof(1), proofEof(2)])
-            assert(tag === 'error', tag)
-            assertEq(value.metadata?.line, 1)
-        },
-    },
+    return foldModule(moduleAt(match[1][0]))
 }

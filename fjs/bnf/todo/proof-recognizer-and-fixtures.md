@@ -62,7 +62,7 @@ loop reaches the end. It is what `ll1Recognizer` below looks like once a
 grammar is read token by token rather than in one match; the tokenizer's
 `isValid` is the site to convert to the shared `assertRecognizes`. Before the
 port it was an eighth copy of the descent shape
-([ebnf-ll1-port](../../djs/todo/ebnf-ll1-port.md)).
+([ebnf-migration](../../todo/ebnf-migration.md), stage 6).
 
 The copies have drifted in exactly the ways copies do: the start-rule name is
 `''` except where the JSON grammar's root is named `'value'`; `isSuccess` is a
@@ -164,7 +164,7 @@ adapter builds via `descentParserRuleSet(ruleSet)` the same way.
 That local adapter also absorbs the proof-local copy of `descentParserCpOnly`,
 which is now the only one: the DJS tokenizer's own export of that name went
 with its port to the LL(1) backend, retired with no equivalent
-([ebnf-ll1-port](../../djs/todo/ebnf-ll1-port.md)) — the tokenizer reads
+([ebnf-migration](../../todo/ebnf-migration.md), stage 6) — the tokenizer reads
 `fjs/ebnf/lib/js` one token at a time, and its proof asks the grammar what
 it covers rather than reading a match result.
 

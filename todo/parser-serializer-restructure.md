@@ -482,11 +482,13 @@ combined marker would encode a redundant fact.
   FunctionalScript accepts identifiers that do not start with `$`, so it needs
   the restriction for itself; DataJS no longer relies on inheriting it, its
   `$`-leading names making the collision unreachable.
-- The moved parser's separator rule narrows to `';'` only. The shipped
-  `fjs/djs` already accepts `;` alongside the newline (its tokenizer's
-  operator vocabulary carries `;`), so stage 5's change is dropping the
-  newline terminator, not introducing the semicolon — the breaking half of
-  the two, which is why it waits for the migration this stage owns.
+- The parser's separator rule is `';'` only, and this landed ahead of the
+  stage: `fjs/djs/parser`'s move to the LL(1) backend
+  ([ebnf-migration](../fjs/todo/ebnf-migration.md), stage 6) dropped the
+  newline terminator, since telling a newline from a `;` reached through
+  newlines took unbounded lookahead, and `fjs/djs/serializer` writes the
+  `;` after every statement. Stage 5 inherits the rule rather than making
+  the change.
 - **Whether FunctionalScript takes DataJS's positional whitespace rule is a
   stage-5 decision, and DataJS does not depend on the answer.** DataJS requires
   *more* whitespace than a merging-based rule would, so every DataJS document

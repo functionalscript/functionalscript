@@ -356,12 +356,12 @@ justification is the API and the AST, which is where
       the cross-front-end comparison proofs pin as an expected difference.
       `remove`, `not`, `notSet`, `RangeVariant` and `removeOne` stay in
       `bnf/` untouched and go with it at the migration's stage 7.
-- [ ] The `djs` tokenizer port spells the note at
-      `fjs/djs/tokenizer/module.f.mjs:249` as a difference against the
-      Unicode universe — with the front end's `remove` over
-      `range('\0' + unicodeMax)`, not with the adapter's `not`: the port
-      does not depend on `ebnf/unicode/` and does not wait on it
-      ([ebnf-ll1-port](../../djs/todo/ebnf-ll1-port.md)).
+- [x] The `djs` tokenizer's grammar, `fjs/ebnf/lib/js`, spells each
+      complement as a difference against the Unicode universe — with the
+      front end's `remove` over `range('\0' + unicodeMax)`, not with the
+      adapter's `not`: the port did not depend on `ebnf/unicode/` and did
+      not wait on it ([ebnf-migration](../../todo/ebnf-migration.md),
+      stage 6).
 - [ ] `tsc`, `fjs test`. Each breaking PR declares `**BREAKING CHANGES:**`
       in the `Changelog:` section of its description
       ([changelog/RELEASE.md](../../../changelog/RELEASE.md)) — the
