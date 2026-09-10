@@ -228,8 +228,10 @@ the parser port.
 
 - [ ] Add `fjs/ebnf/unicode/module.f.mjs` for Unicode code-point rule
       helpers, at that final path — not under `fjs/bnf/`.
-- [ ] Add `fjs/ebnf/byte/module.f.mjs` for binary byte-stream rule helpers,
-      likewise at its final path.
+- [x] Add `fjs/ebnf/byte/module.f.mjs` for binary byte-stream rule helpers,
+      likewise at its final path — shipped as
+      [`fjs/ebnf/byte/`](../../ebnf/byte/README.md), for
+      [git-objects](../../../todo/git-objects.md).
 - [ ] Have `fjs/ebnf/token_symbol` take `unicodeRange` from `fjs/ebnf/unicode`
       when it lands, so no `ebnf/` module reads text constants from a front
       end — a repoint of one constant after the adapter exists, which
@@ -260,8 +262,11 @@ the parser port.
 - [ ] Leave `fjs/bnf/todo/proof-recognizer-and-fixtures.md`'s shared fixture
       as the directly authored `RuleSet` it specifies: it imports no text
       helper, neither this adapter's nor the classical one's.
-- [ ] Add byte helper proofs for byte boundaries and representative binary
-      sequences/ranges; Unicode proofs cover string/code-point conversion and
+- [x] Add byte helper proofs for byte boundaries and representative binary
+      sequences/ranges — shipped with
+      [`fjs/ebnf/byte/`](../../ebnf/byte/proof.f.mjs), which pins the
+      alphabet's boundaries and every rule form over bytes.
+- [ ] Add Unicode proofs covering string/code-point conversion and
       boundaries; the generic `fjs/ebnf/` proofs exercise abstract symbols.
 - [ ] Document the boundary: the core is generic; `fjs/ebnf/unicode` and
       `fjs/ebnf/byte` adapt concrete alphabets to generic grammar symbols.
