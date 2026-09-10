@@ -1,6 +1,7 @@
 /**
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  * @import { Meta } from '../ast/types.ts'
  * @import { Mappings } from '../ll1/types.ts'
  * @import { Set } from '../types.ts'
@@ -13,10 +14,18 @@ import { fromArrayLike } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { eof, range, rangeEncode, repeatFrom0, repeatFrom1, set, times, unicodeMax } from '../module.f.mjs'
 import { mapping } from '../ll1/module.f.mjs'
-import { byte, byteParser, bytes, isByte, meta, not, symbols } from './module.f.mjs'
+import { byte, byteArray, byteParser, bytes, isByte, meta, not, symbols } from './module.f.mjs'
 
 /** @type {(s: string) => readonly number[]} */
 const ascii = s => [...s].map(c => c.charCodeAt(0))
+
+/**
+ * A sparse array, as it arrives from outside the type system, narrowed
+ * only at the call that must refuse it.
+ *
+ * @type {unknown}
+ */
+const hole = [, 0x61]
 
 /**
  * A word of bytes folded to one symbol carrying the bytes: the mapping a
@@ -85,6 +94,21 @@ export const proof = {
             above: () => symbols([0x100]),
             below: () => symbols([-1]),
             fraction: () => symbols([0.5]),
+            // A hole is met as `undefined`, not skipped.
+            hole: () => symbols(/** @type {List<number>} */ (hole)),
+        },
+    },
+    // The dense array `symbols` is built on: every position visited, a
+    // lazy list read through, and a hole or a non-byte refused.
+    byteArray: {
+        dense: () => {
+            assertStructurallySame(byteArray([0, 0xFF]), [0, 0xFF])
+            assertStructurallySame(byteArray(fromArrayLike(new Uint8Array([1, 2]))), [1, 2])
+            assertStructurallySame(byteArray([]), [])
+        },
+        throw: {
+            hole: () => byteArray(/** @type {List<number>} */ (hole)),
+            nonByte: () => byteArray([0x100]),
         },
     },
     byteParser: {

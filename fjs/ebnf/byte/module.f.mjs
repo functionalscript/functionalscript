@@ -57,15 +57,26 @@ export const isByte = b => isInteger(b) && b >= 0 && b < byteEnd && !sameValue(b
  */
 export const meta = { id: 'byte' }
 
+const { from } = Array
+
 /**
- * @throws If `b` is not a byte.
+ * A list of numbers a caller means as bytes, as a dense array of them:
+ * every position visited, so a hole in a sparse array is met as
+ * `undefined` and refused like any other value that is no byte, where
+ * `map` and `every` would skip it and hand a hole on.
  *
- * @type {(b: number) => Meta<Byte>}
+ * @throws If an item is not a byte.
+ *
+ * @type {(input: List<number>) => readonly number[]}
  */
-const symbol = b => {
-    assert(isByte(b), ['not a byte', b])
-    return { symbol: b, meta }
+export const byteArray = input => {
+    const a = from(toArray(input))
+    assert(a.every(isByte), ['not bytes', a])
+    return a
 }
+
+/** @type {(b: number) => Meta<Byte>} */
+const symbol = b => ({ symbol: b, meta })
 
 /**
  * The input a parser over this alphabet is given: the bytes of a list, in
@@ -79,7 +90,7 @@ const symbol = b => {
  *
  * @type {(input: List<number>) => readonly Meta<Byte>[]}
  */
-export const symbols = input => toArray(input).map(symbol)
+export const symbols = input => byteArray(input).map(symbol)
 
 /** Any one byte: the byte universe as a terminal. */
 export const byte = rangeEncode(0, 0xFF)
