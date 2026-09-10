@@ -10,7 +10,7 @@
  * list, total on a tag {@link validate} has accepted and a panic on one it
  * has not. A tag with an unknown `type`, or with no `tagger` as very old
  * tags have none, is read and written byte for byte; `validate` is where
- * it is refused, as `git fsck` refuses it.
+ * it is refused, as Git refuses it.
  *
  * @module
  *
@@ -112,7 +112,10 @@ const components = name => {
  * `~ ^ : ? * [ \`, no `..` and no `@{`, not ending in `.`,
  * and every component between slashes one {@link isComponent} takes. A
  * name that is `@` alone passes, since the ref it names is `refs/tags/@`
- * and not `@`. `git fsck` refuses a tag named otherwise as `badTagName`.
+ * and not `@`. `git fsck` only warns of a tag named otherwise, as
+ * `badTagName`, and exits clean; `git mktag`, strict by default, refuses to
+ * write it. This module refuses it too, since a name no ref takes names
+ * nothing.
  *
  * @type {(name: readonly number[]) => boolean}
  */
@@ -187,30 +190,35 @@ export const tagger = t => {
 }
 
 /**
- * Vouches for a tag as `git fsck` does, or refuses it, saying why: a NUL
- * in any header, no `object` header first or one that is not a hex id of
- * the repository's width, no `type` header second or one naming none of
- * the four types, no `tag` header third or one that is not a name
- * `refs/tags/` takes, or a `tagger` header fourth that is not an ident.
- * A missing `tagger` and a header after it are what `fsck` only notes,
- * so both pass.
+ * Vouches for a tag, or refuses it, saying why: a NUL in any header, no
+ * `object` header first or one that is not a hex id of the repository's
+ * width, no `type` header second or one naming none of the four types, no
+ * `tag` header third or one that is not a name `refs/tags/` takes, or a
+ * `tagger` header fourth that is not an ident. All but the name are what
+ * `git fsck` reports as an error; the name is one it only warns of, as
+ * `badTagName`, and `git mktag` refuses to write, and this refuses it as
+ * `mktag` does. What `fsck` only notes and Git writes passes: a missing
+ * `tagger`, a header after it.
  *
  * Separate from {@link tryRead} on purpose: a reader reads what it can,
  * and only this says no.
  *
  * @type {(oidBytes: OidBytes) => (t: Tag) => Result<Tag, string>}
  */
-export const validate = oidBytes => t => {
-    if (hasNulHeader(t)) { return error('NUL in header') }
-    const objectValue = valueAt(t, 0, 'object')
-    if (objectValue === null) { return error('no object') }
-    if (tryFromHexOf(oidBytes)(objectValue) === null) { return error('not an id') }
-    const typeValue = valueAt(t, 1, 'type')
-    if (typeValue === null) { return error('no type') }
-    if (typeOf(typeValue) === null) { return error('unknown type') }
-    const nameValue = valueAt(t, 2, 'tag')
-    if (nameValue === null) { return error('no tag name') }
-    if (!isTagName(byteArray(nameValue))) { return error('bad tag name') }
-    const taggerValue = valueAt(t, 3, 'tagger')
-    return taggerValue !== null && readIdent(taggerValue) === null ? error('not a tagger') : ok(t)
+export const validate = oidBytes => {
+    const id = tryFromHexOf(oidBytes)
+    return t => {
+        if (hasNulHeader(t)) { return error('NUL in header') }
+        const objectValue = valueAt(t, 0, 'object')
+        if (objectValue === null) { return error('no object') }
+        if (id(objectValue) === null) { return error('not an id') }
+        const typeValue = valueAt(t, 1, 'type')
+        if (typeValue === null) { return error('no type') }
+        if (typeOf(typeValue) === null) { return error('unknown type') }
+        const nameValue = valueAt(t, 2, 'tag')
+        if (nameValue === null) { return error('no tag name') }
+        if (!isTagName(byteArray(nameValue))) { return error('bad tag name') }
+        const taggerValue = valueAt(t, 3, 'tagger')
+        return taggerValue !== null && readIdent(taggerValue) === null ? error('not a tagger') : ok(t)
+    }
 }

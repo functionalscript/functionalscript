@@ -62,6 +62,11 @@ export const proof = {
         assertEq(i.time, 9223372036854775807n)
         roundTrip(latin1(`a <b> ${maxTime} +0000`))
         assertEq(tryRead(latin1(`a <b> ${maxTime + 1n} +0000`)), null)
+        // A time of many digits is refused for its length or its spelling
+        // before it is folded into a number: twenty digits, and a zero
+        // ahead of a hundred thousand nines.
+        assertEq(tryRead(latin1(`a <b> ${'1'.repeat(20)} +0000`)), null)
+        assertEq(tryRead(latin1(`a <b> 0${'9'.repeat(100000)} +0000`)), null)
     },
     // Each refusal, one per condition: the SP before `<`, the brackets,
     // the time's spelling, the zone's, trailing bytes, LF anywhere.

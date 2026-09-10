@@ -77,6 +77,9 @@ const decimal = digits => digits.reduce((n, d) => n * 10n + BigInt(d - 0x30), 0n
  */
 export const maxTime = 9223372036854775807n
 
+/** The digits {@link maxTime} has: a time spelled with more is later. */
+const maxTimeDigits = 19
+
 /**
  * Reads an ident, or refuses it: no `<` or `>`, a name that does not end
  * in SP, a `>` in the name or a `<` in the email, a time that is not
@@ -93,12 +96,15 @@ export const tryRead = value => {
     const [[n, , e, , , t, , [sign, z]]] = r[1]
     const spaced = symbolsOf(n)
     const digits = symbolsOf(t)
-    const time = decimal(digits)
-    return spaced.length !== 0 && spaced[spaced.length - 1] === sp && canonical(digits) && time <= maxTime
+    // The digits are judged before they are folded: a run of a hundred
+    // thousand is refused for its spelling or its length, never folded
+    // into the number it would be.
+    const timely = canonical(digits) && digits.length <= maxTimeDigits && decimal(digits) <= maxTime
+    return spaced.length !== 0 && spaced[spaced.length - 1] === sp && timely
         ? {
             name: spaced.slice(0, -1),
             email: symbolsOf(e),
-            time,
+            time: decimal(digits),
             tz: codePointListToString([sign.symbol, ...symbolsOf(z)]),
         }
         : null
