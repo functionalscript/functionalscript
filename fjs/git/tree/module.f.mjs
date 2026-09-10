@@ -60,31 +60,28 @@ const isMode = digits => digits.length !== 0 && digits.every(d => d >= 0x30 && d
 const octal = digits => digits.reduce((n, d) => n * 8n + BigInt(d - 0x30), 0n)
 
 /**
- * The largest mode Git reads, an `unsigned int` of 32 bits: the grammar
- * takes any run of octal digits, and one spelling more than this is a
- * mode Git wraps, not one it has.
+ * The bits of a mode Git keeps: it folds the digits into an `unsigned
+ * int`, so a run spelling more than 32 bits wraps, and `40000100644` is
+ * the mode `100644` to Git — read, and vouched for by `fsck`.
  */
-const maxMode = 0xFFFFFFFFn
+const modeBits = 0xFFFFFFFFn
 
 /**
- * The number a mode's digits spell, or `null`: not one or more octal
- * digits, or more than {@link maxMode}.
+ * The number a mode's digits spell to Git, its low 32 bits, or `null`
+ * where the digits are not one or more octal digits.
  *
  * @type {(digits: readonly number[]) => Nullable<number>}
  */
-const tryMode = digits => {
-    if (!isMode(digits)) { return null }
-    const n = octal(digits)
-    return n > maxMode ? null : Number(n)
-}
+const tryMode = digits => isMode(digits) ? Number(octal(digits) & modeBits) : null
 
 /**
  * The mode of an entry as the number its digits spell: `100644` is the
- * octal `0o100644`, the value Git keeps in memory.
+ * octal `0o100644`, the value Git keeps in memory. What Git keeps is the
+ * low 32 bits, so a longer run of digits reads as Git reads it, wrapped;
+ * {@link validate} then judges the mode Git has, as `fsck` does.
  *
- * @throws If the digits are not one or more octal digits, or spell more
- * than 32 bits: the grammar reads such an entry, and {@link validate}
- * refuses it as an unknown mode.
+ * @throws If the digits are not one or more octal digits: an entry a
+ * reader built has them, and one a caller built must.
  *
  * @type {(e: TreeEntry) => number}
  */
