@@ -39,7 +39,7 @@ Three reasons to finish the job:
 | Shape | Sites | Where | Replacement |
 | --- | --- | --- | --- |
 | **Leaf serializer** | 1 | `fjs/media/json/serializer/module.f.mjs` | FunctionalScript number formatting — blocks everything below |
-| Expected-output comparison | 73 | `fjs/bnf/ll1/proof.f.mjs` (27), `fjs/bnf/descent/proof.f.mjs` (22), `fjs/media/json/serializer/proof.f.mjs` (10), `fjs/djs/tokenizer/proof.f.mjs:886-921` (8), `fjs/bnf/data/proof.f.mjs` (4), `fjs/media/revision/proof.f.mjs:177`, `fjs/cas/evo/proof.f.mjs:68` | `stringify(identity)` |
+| Expected-output comparison | 20 | `fjs/media/json/serializer/proof.f.mjs` (10), `fjs/djs/tokenizer/proof.f.mjs` (8), `fjs/media/revision/proof.f.mjs:177`, `fjs/cas/evo/proof.f.mjs:68` — 53 more went with the classical `fjs/bnf` proofs | `stringify(identity)` |
 | Assertion messages | 33 | `fjs/djs/tokenizer/proof.f.mjs` (31), `fjs/rtti/ts/proof.f.mjs:8,12` (2) | pass the value, or `fjs/djs`'s `stringify` |
 | Source-text quoting | 5 | `fjs/emergent_testing/module.f.mjs:282,303,318`, `fjs/types/ts/module.f.mjs:36,48` | `stringSerialize` — already designed in `66c-emit-literals-via-owner-modules.md` |
 | JSON line framing | 2 | `fjs/emergent_testing/proof.f.mjs:47`, `fjs/mcp/proof.f.mjs:128` | `stringify(identity)` |
@@ -150,7 +150,7 @@ Consider a guard so it does not come back — the cheapest is a proof in
   — done: `fjs/cas/evo/proof.f.mjs` stringified two values only to compare
   them, and now uses `assertStructurallySame`. The proofs that still compare a
   `JSON.stringify` result against a JSON *string literal* are tracked in
-  [`fjs/bnf/todo/serialized-proof-expectations.md`](../../../bnf/todo/serialized-proof-expectations.md);
+  [`fjs/djs/tokenizer/todo/serialized-proof-expectations.md`](../../../djs/tokenizer/todo/serialized-proof-expectations.md);
   those are not phase-2 work either way.
 - [`fjs/effects/node/todo/readjsonfile-writejsonfile-helpers.md`](../../../effects/node/todo/readjsonfile-writejsonfile-helpers.md)
   — an on-hold design whose `writeJsonFile` half waits on phase 4.

@@ -25,8 +25,7 @@ Proof files (each binds its own alias: `jsonStr`, `str`, `stringify`,
 - `fjs/text/ascii/proof.f.mjs:6`, `fjs/text/utf8/proof.f.mjs:8`,
   `fjs/text/utf16/proof.f.mjs:18`
 - `fjs/media/json/parser/proof.f.mjs:16`, `fjs/protocol/mcp/stdio/proof.f.mjs:20`
-- `fjs/bnf/data/proof.f.mjs` (10 inline calls), `fjs/djs/parser/proof.f.mjs:309`,
-  `fjs/djs/serializer/proof.f.mjs:47`
+- `fjs/djs/parser/proof.f.mjs`, `fjs/djs/serializer/proof.f.mjs:47`
 
 Each site is one line, so no single site is a problem — the issue is that
 the canonical-serialization idiom has ~20 different local names and no

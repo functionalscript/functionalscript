@@ -31,8 +31,8 @@ Create `fjs/common/` for cross-cutting reusable algorithms, starting by moving `
 ### Later candidates
 
 - No `fjs/grammar/` bucket. [ebnf-migration](./ebnf-migration.md) builds
-  `fjs/ebnf/` beside `fjs/bnf/`, with the grammar machinery inside it, and
-  retires `bnf/`; it also settles that `fsc` and `js` stay out as consumers
+  `fjs/ebnf/` with the grammar machinery inside it, and retired `bnf/`; it
+  also settles that `fsc` and `js` stay out as consumers
   (the content-facing formats go to `fjs/media/`, see below).
 - Storage bucket for `cas` + `sul`; testing bucket for `asserts` + `emergent_testing`.
 
@@ -175,5 +175,5 @@ API (no `exports` map), so every move is a breaking change. The first wave is
       to the largest thing in `types/`.
 - [ ] Later: move `fjs/djs/` → `fjs/media/djs/`.
 - [x] Update all relative imports referencing the moved modules.
-- [ ] Update `deno.json` `exports` map and run `npm run lock-update` (no `exports` map exists in `deno.json` currently; nothing to update). **When a map is first introduced it must enumerate every `module.f.mjs` then present** — a partial map silently restricts a package that is unrestricted today. Modules proposed meanwhile are counting on this: `fjs/effects/{all,sandbox,console,test}` ([node-module-layering](../effects/todo/node-module-layering.md)) records that its registration lands here rather than in its own change. `fjs/media/json/grammar` was a second such dependent until [bnf-grammar-single-owner](../bnf/todo/bnf-grammar-single-owner.md) withdrew it: the canonical JSON grammar ships as a proof-covered example under `fjs/bnf/lib/json`, so there is no module at that path to register.
+- [ ] Update `deno.json` `exports` map and run `npm run lock-update` (no `exports` map exists in `deno.json` currently; nothing to update). **When a map is first introduced it must enumerate every `module.f.mjs` then present** — a partial map silently restricts a package that is unrestricted today. Modules proposed meanwhile are counting on this: `fjs/effects/{all,sandbox,console,test}` ([node-module-layering](../effects/todo/node-module-layering.md)) records that its registration lands here rather than in its own change. `fjs/media/json/grammar` was a second such dependent until bnf-grammar-single-owner (since retired) withdrew it: the canonical JSON grammar ships at `fjs/ebnf/lib/json`, so there is no module at that path to register.
 - [x] Verify `tsc` and `fjs t` pass.

@@ -99,7 +99,7 @@ blob costs ≈ length counting past the settling point.
 
 `magic` and `utf8` are recognizers (`δ` step + `λ` verdict on the final state),
 the exact shape a declarative BNF→DFA recognizer backend would generate — see
-[`fjs/bnf` recognizer-backend](../../bnf/todo/recognizer-backend.md). That backend
+[`fjs/ebnf` recognizer-backend](../../ebnf/todo/recognizer-backend.md). That backend
 does not exist yet, so the two factors are hand-written here: `magicStep` does
 signature elimination over the `signatures` list and `utf8Step`
 rides the existing `fjs/text/utf8` decoder. When the backend lands, these should

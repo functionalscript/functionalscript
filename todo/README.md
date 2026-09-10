@@ -102,9 +102,9 @@ may have **shipped**, like `i136` as `fjs/ci/config/module.f.mjs`; name the code
 Or it was **won't fix**, like `i171`, whose reason lives in `parseTestSet`'s
 JSDoc exactly as the won't-fix rule below requires; say so and cite that.
 
-Whichever it is, rewrite the citation to name it — `i143` and `i172` in
-`fjs/bnf/todo/207-bnf-semantic-actions.md` are the pattern — or delete the reference if the
-relationship no longer holds. Do **not** link one to a same-numbered GitHub
+Whichever it is, rewrite the citation to name it — as `i165` in
+`fjs/js/todo/174-shared-range-map-lexer.md` names layered-parser — or delete
+the reference if the relationship no longer holds. Do **not** link one to a same-numbered GitHub
 issue: that number belongs to unrelated work.
 
 The identifier stays: the target is often code, so there is nothing to make it a

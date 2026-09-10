@@ -3,7 +3,7 @@
 The `ebnf/byte/` piece of [ebnf-migration](../../todo/ebnf-migration.md): the
 adapter a grammar over bytes is written against, and the input such a
 grammar reads. It is the byte half of
-[unicode-rules](../../bnf/todo/unicode-rules.md), landed for its first
+[unicode-rules](../unicode/todo/unicode-rules.md), landed for its first
 consumer, [git-objects](../../../todo/git-objects.md).
 
 - `module.f.mjs` — `byte`, `not`, `bytes`, `symbols`, `meta`, `byteParser`,

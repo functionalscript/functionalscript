@@ -21,8 +21,8 @@ const { fromCharCode } = String
 export const listToString: (input: List<U16>) => string
     = fn(map(String.fromCharCode)) /* … */
 
-// fjs/bnf/module.f.mjs:71
-const { fromCodePoint } = String
+// fjs/ebnf/ll1/proof.f.mjs:278  — used inline
+String.fromCodePoint(node.symbol)
 ```
 
 And the inverse — index a string for a code unit / code point — is likewise

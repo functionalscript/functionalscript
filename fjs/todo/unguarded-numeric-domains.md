@@ -45,7 +45,6 @@ that asks one of them has already been told the input is fine.
 | `text/utf16`'s `fromCodePointList` | `[65.5]` | `[65.5]` | emits the fraction as a code unit |
 | `text/ascii`'s `hexDigitValue` (`../text/ascii/module.f.mjs:259`) | `53.5` | `5.5` | "the value `0..15` … or `null`" |
 | `text/ascii`'s `hexDigitCodePoint` (`:271`) | `5.5` | `53.5` | "the … code point denoting a value in `0..15`" |
-| `bnf`'s `rangeEncode` (`../bnf/module.f.mjs:77`) | `(65.5, 66)` | same as `(65, 66)` | `isValid` admits it, then `& mask` truncates |
 
 `isSupplementaryPlane` is the sharpest: it *is* the gate in front of the
 `>>`/`&` truncation in both encoders (`../text/utf8/module.f.mjs:132`,

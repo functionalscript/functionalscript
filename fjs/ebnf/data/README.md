@@ -18,11 +18,12 @@ triage moves each of them into `fjs/ebnf/`, the front-end design as
 
 ## Why not the classical form
 
-The classical IR in `fjs/bnf/data` is four rule kinds told apart by
-JavaScript type alone: a number is a terminal range, an
-array a sequence of rule names, an object a variant of rule names, and a
-string the name of a rule to repeat zero or more times. That property is what
-its every consumer dispatches on, and the EBNF front end breaks it twice:
+The classical IR in `fjs/bnf/data`, since deleted with that module, was
+four rule kinds told apart by JavaScript type alone: a number was a terminal
+range, an array a sequence of rule names, an object a variant of rule names,
+and a string the name of a rule to repeat zero or more times. That property
+was what its every consumer dispatched on, and the EBNF front end breaks it
+twice:
 
 - **A terminal is a set of ranges**, not one packed number. Its value is a
   `RangeSet` — a list of numbers — which is an array, the type a sequence
@@ -35,7 +36,7 @@ So the EBNF IR is a different carrier, not the classical one with two rows
 edited, and the carrier was chosen once, for both. What did not change is the
 contract on top of it — every rule of a set has a name, the AST is one node
 per rule invocation, and a repetition is one flat node whatever its bounds
-("The AST is one contract" in the classical `fjs/bnf/README.md`).
+([`../ast`](../ast/README.md)).
 
 ## The form
 
@@ -118,7 +119,10 @@ this module serializes, so the module does not wait on it; the first grammar
 *persisted* with an unbounded repeat does, and until then a persisted set is
 not to be trusted to carry one.
 
-## What differs from `bnf/data`
+## What differed from the classical `bnf/data`
+
+Kept as the record of what the carrier was chosen against; `bnf/data` is
+deleted.
 
 | | `bnf/data` | `ebnf/data` |
 |---|---|---|
@@ -131,16 +135,15 @@ not to be trusted to carry one.
 | string rules | expanded to terminals by `toData` | the same, one `['set', c, c + 1]` per code point |
 | serialization | JSON | DJS (`Infinity`) |
 
-The classical `toData` output is therefore **not** a valid EBNF rule set, and
-[ebnf-migration](../../todo/ebnf-migration.md)'s `data/` row says so: a packed
-range has no reading here, and a bare-string repeat is one kind's spelling in
-the other's position. A bridge from the classical set to this one is
-mechanical — a packed range becomes `['set', a, b + 1]` after decoding, a
-bare name `['repeat', 0, Infinity, name]`, an array `['sequence', …]`, an
-object `['variant', …]` — and is `bnf/data`'s to add under the `bnf → ebnf`
-direction rule if the cross-front-end comparison proofs (ebnf-migration,
-principle 5) want a classical grammar run through the EBNF backend. Nothing
-in `ebnf/` reads the classical form.
+The classical `toData` output was therefore **not** a valid EBNF rule set,
+and [ebnf-migration](../../todo/ebnf-migration.md)'s `data/` row says so: a
+packed range had no reading here, and a bare-string repeat was one kind's
+spelling in the other's position. A bridge from the classical set to this
+one was mechanical — a packed range became `['set', a, b + 1]` after
+decoding, a bare name `['repeat', 0, Infinity, name]`, an array
+`['sequence', …]`, an object `['variant', …]` — and was built once, outside
+the tree, to measure the classical djs grammars' LL(1) conflicts before
+their port. Nothing in `ebnf/` reads the classical form.
 
 ## One discriminator: the visitor
 

@@ -137,8 +137,8 @@ wants one and only for the encoding the object declares.
 This is the byte alphabet that
 [ebnf-migration](../fjs/todo/ebnf-migration.md) lists as `fjs/ebnf/byte/`,
 "when a consumer needs it", and the byte half of
-[unicode-rules](../fjs/bnf/todo/unicode-rules.md). Git is that consumer, and
-the bottom layer [layered-parser](../fjs/bnf/todo/layered-parser.md) draws.
+[unicode-rules](../fjs/ebnf/unicode/todo/unicode-rules.md). Git is that consumer, and
+the bottom layer [layered-parser](../fjs/ebnf/todo/layered-parser.md) draws.
 
 The LL(1) backend already fits the input: its symbols are non-negative safe
 integers with EOF at `-1`, so a byte is an ordinary symbol and no byte has
@@ -157,7 +157,7 @@ later pass reads what the first one cut out: the header list is interpreted
 after the parse, an ident is a grammar over one header's value, and a
 `mergetag` value is a tag object read by the tag grammar. Each pass is a
 grammar over the previous pass's output, which is the layering
-[layered-parser](../fjs/bnf/todo/layered-parser.md) describes and the
+[layered-parser](../fjs/ebnf/todo/layered-parser.md) describes and the
 rewrite set already supports, so the machinery is one LL(1) backend applied
 more than once rather than a backend that backtracks. It is also how Git
 reads its own objects.
@@ -414,9 +414,9 @@ approximated:
   — every header verbatim, and the writer.
 - [ebnf-migration](../fjs/todo/ebnf-migration.md) — reserves
   `fjs/ebnf/byte/` for the first consumer that wants it.
-- [unicode-rules](../fjs/bnf/todo/unicode-rules.md) — the byte adapter's
+- [unicode-rules](../fjs/ebnf/unicode/todo/unicode-rules.md) — the byte adapter's
   first design, as the half of that issue the text half left behind.
-- [layered-parser](../fjs/bnf/todo/layered-parser.md) — bytes as the bottom
+- [layered-parser](../fjs/ebnf/todo/layered-parser.md) — bytes as the bottom
   alphabet of the pipeline; ident and `mergetag` are layers over it.
 - [`fjs/ebnf/ll1/README.md`](../fjs/ebnf/ll1/README.md) — the backend, its
   conflicts, and the rewrite set the mappings are written against.

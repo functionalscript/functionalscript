@@ -140,7 +140,7 @@ edges play the role of our `","` operands; *sea of nodes* is the same
 family but carries control edges and a scheduling phase this design
 does not have.
 
-*AST* is now reserved for **BNF parser output** ([fjs/bnf](../fjs/bnf/README.md),
+*AST* is now reserved for **grammar parser output** ([fjs/ebnf](../fjs/ebnf/README.md),
 [fjs/djs](../fjs/djs/README.md)); the function representation is the EDAG
 everywhere else.
 

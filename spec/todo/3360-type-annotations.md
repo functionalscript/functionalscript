@@ -257,5 +257,5 @@ annotation form and how a name resolves — rather than a paraphrase of a stage.
   generates Rust from it; the same schemas would feed both.
 - [types-for-fs.md](../../todo/types-for-fs.md) — why TypeScript's own type system is not
   the target.
-- [`fjs/bnf/todo/layered-parser.md`](../../fjs/bnf/todo/layered-parser.md) — the
+- [`fjs/ebnf/todo/layered-parser.md`](../../fjs/ebnf/todo/layered-parser.md) — the
   transducer stack the tokenizer work belongs to.
