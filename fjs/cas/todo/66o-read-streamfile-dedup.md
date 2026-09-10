@@ -115,8 +115,12 @@ conversion. So the caveat stands as a thing to check, not as a cast to plan for.
       required for the `List<ReadBytes,…>` → `List<FileCasOperation,…>`
       conversion, or whether the source parameter has already retired it.
 - [ ] Delete `streamFile` and point `casAddFile` at the moved loop as well, with
-      a chunk source of its own; keep the `read` JSDoc about "missing shard /
-      read error is an explicit error item, never EOF".
+      a chunk source of its own; keep what `read`'s comment now says about a
+      missing shard or a read error — that it fails the stream, a cell's own
+      failure being one the `undefined` that ends a stream can never be
+      mistaken for. The error *item* that wording used to name went with
+      `List`'s move of the failure into the cell
+      ([`../../effects/list/types.ts`](../../effects/list/types.ts)).
 - [ ] Run `tsc` and `fjs t`; confirm `fjs/cas/proof.f.mjs` still passes,
       including the short-final-chunk and read-error paths.
 

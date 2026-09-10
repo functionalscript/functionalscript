@@ -74,8 +74,10 @@ export type RequestListener<O extends Operation> =
 ```
 
 `ServerResponse` gains `O` because a lazy body *is* an effect, and the
-operations it performs are the listener's own — `fjs/web`'s would be
-`ReadBytes`. It gains `release` because a lazy body may also *hold* something,
+operations it performs are the listener's own — `fjs/web`'s would be the
+handle effect's bounded read, and not `ReadBytes`, which takes a path and so
+resolves the name again on every chunk, for the reason "What the bound holds"
+below gives. It gains `release` because a lazy body may also *hold* something,
 and the runner is the only party present at every way one ends.
 `CreateServer`'s `RequestListener<Operation>` spelling does not change, and it
 is not erasure that keeps it there: the declaration pins
