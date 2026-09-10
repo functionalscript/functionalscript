@@ -43,9 +43,10 @@ const eofSymbol = -1
 
 /**
  * An ordinary symbol, as the sets of `../data` are drawn from: a non-negative
- * safe integer, spelled the one way. The input is refused outside that
- * domain because `-1` in it would read as the end of input, which is
- * synthesized and not spelled, and anything else in it could match no set.
+ * safe integer, spelled the one way. A symbol outside that domain is
+ * refused where the parse reads it, because `-1` would read as the end of
+ * input, which is synthesized and not spelled, and anything else could
+ * match no set.
  *
  * @type {(s: number) => boolean}
  */
@@ -327,18 +328,28 @@ const build = (ruleSet, empty, entry, mappers) => {
     const first = firstMapOf(ruleSet, isNullable)(names)
     checkFollow(ruleSet, first, isNullable, names)
     const emit = emitBy(mappers)
-    return symbols => {
-        const outside = symbols.findIndex(s => !isSymbol(s.symbol))
-        assert(outside === -1, ['not a symbol', outside, symbols[outside]])
+    return (symbols, start = 0) => {
         const { length } = symbols
+        assert(isSafeInteger(start) && start >= 0 && start <= length, ['start outside the input', start, length])
 
         /**
          * The symbol at a cursor: one read out of the input, and the end of
          * input at its end. Only meaningful while `pos <= length`.
          *
+         * A symbol is checked where it is read rather than by a scan of the
+         * whole input up front: a parser resumed at an index reads from
+         * there, and a token layer that resumes it once per token would pay
+         * the scan once per token — quadratic in the input. What the parse
+         * never reads is never checked, and never matters.
+         *
          * @type {(pos: number) => number}
          */
-        const symbolAt = pos => pos < length ? symbols[pos].symbol : eofSymbol
+        const symbolAt = pos => {
+            if (pos >= length) { return eofSymbol }
+            const { symbol } = symbols[pos]
+            assert(isSymbol(symbol), ['not a symbol', pos, symbols[pos]])
+            return symbol
+        }
 
         /**
          * Whether the symbol at `pos` is in `s`. Past the consumed end of
@@ -440,7 +451,7 @@ const build = (ruleSet, empty, entry, mappers) => {
         const physical = pos => Math.min(pos, length)
 
         /** @type {_State} */
-        let state = [null, ['enter', entry, 0]]
+        let state = [null, ['enter', entry, start]]
         while (true) {
             const [stack, step] = state
             if (step[0] === 'enter') {
