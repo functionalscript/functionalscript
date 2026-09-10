@@ -1,47 +1,52 @@
 /**
- * Experimental DJS parser implementation.
+ * The DJS tokenizer, in layers, each an LL(1) grammar or a fold over the
+ * layer below:
+ *
+ * ```text
+ * code points ==the token grammar, one token at a time==> lexemes
+ *             ==fold: trivia merged, words classified, boundaries checked==> JsToken stream
+ *             ==fold: keywords demoted, `-` folded into a number==> DjsToken stream
+ * ```
+ *
+ * The grammar is [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs), one
+ * token, read by the LL(1) backend resumed where the last token ended
+ * ([`fjs/ebnf/ll1`](../../ebnf/ll1/README.md), "A token layer resumes the
+ * parser"). A token's text is the input between where it began and where
+ * it ended, so nothing walks its tree but the one question a block comment
+ * leaves open — whether it closed — and that walk is a loop, since the
+ * comment's content is right-recursive and a comment may be long.
+ *
+ * What the grammar leaves to the fold above it: a run of whitespace and
+ * newlines is one token, `nl` where the run holds a newline and anchored
+ * at the first, `ws` otherwise; a word is a keyword or an identifier; a
+ * number is a `number` or a `bigint`; and a number directly followed by a
+ * word or a number, no trivia between — `123abc`, `1nabc`, `00` — is the
+ * error `invalid number`, at the token that should not be there. The
+ * classical grammar refused those inside the number, with a branch that
+ * consumed the offending character; an LL(1) grammar cannot, and the token
+ * stream shows the same fact one layer up.
+ *
+ * An error is the whole output: the first, in document order, of the
+ * boundary above, a block comment the input ends inside (`*​/ expected`,
+ * from its `/*` to the end of input), a number cut short (`invalid
+ * number`, at the character where digits were expected), and a token the
+ * grammar refuses (`invalid token`, from where the token began to the end
+ * of input). The grammar stops at the token it refuses, so the fold above
+ * it runs over what came before first, and the refused token is reported
+ * only where nothing before it was wrong.
  *
  * @module
  *
- * @import { Ast, AstSequence, AstTag, Meta } from '../../bnf/matcher/types.ts'
- * @import { DescentMatch, DescentMatchResult } from '../../bnf/descent/types.ts'
- * @import { DataRule, Rule } from '../../bnf/types.ts'
- * @import {
- *   JsToken,
- *   JsTokenWithMetadata,
- *   TokenMetadata,
- *   TokenPosition,
- * } from '../../js/tokenizer/types.ts'
- * @import { CodePoint } from '../../text/utf16/types.ts'
+ * @import { ErrorToken, JsToken, JsTokenWithMetadata, TokenMetadata, TokenPosition } from '../../js/tokenizer/types.ts'
  * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
  * @import { DjsToken, DjsTokenWithMetadata } from './types.ts'
- * @import { TriviaKind } from '../../js/tokenizer/types.ts'
- * @import { Nullable } from '../../types/nullable/types.ts'
- * @import {
- *   _DjsScanState,
- *   _FlatToken,
- *   _StringDecodeState,
- *   _Token,
- *   _TokenScanState,
- * } from './private.ts'
+ * @import { _DjsScanState, _Failure, _Kind, _Lexed, _Lexeme, _StringDecodeState, _Trivia } from './private.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { descentParserRuleSet } from '../../bnf/descent/module.f.mjs'
-import { toData } from '../../bnf/data/module.f.mjs'
-import {
-    eof,
-    none,
-    notSet,
-    option,
-    range,
-    remove,
-    repeat0Plus,
-    set,
-    unicodeMax,
-    unicodeRange,
-} from '../../bnf/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
+import { parser } from '../../ebnf/ll1/module.f.mjs'
+import { token } from '../../ebnf/lib/js/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 import { escapeToCodePoint } from '../../js/string_escape/module.f.mjs'
 import { isKeywordToken, mergeTrivia } from '../../js/tokenizer/module.f.mjs'
@@ -53,248 +58,71 @@ import {
 } from '../../text/ascii/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { mapUnwrap } from '../../types/nullable/module.f.mjs'
-import { concat, empty, filter, flat, flatMap, fold, map, stateScan, toArray } from '../../types/list/module.f.mjs'
+import { concat, empty, flat, fold, map, stateScan, toArray } from '../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
-import { repeat } from '../../types/array/module.f.mjs'
 
-// Builds the single-token grammar that jsGrammar's whole-file `tokens` rule repeats.
-/**
- * The whitespace characters the grammar's `ws` rule matches.
- *
- * The grammar's rule and every downstream check of a trivia tag are built from
- * this one string: the descent parser emits a range-variant branch's tag as the
- * matched character itself, so the characters the rule accepts *are* the tags it
- * produces. Spelling them a second time is what let the two drift apart.
- *
- * @type {string}
- */
-const wsChars = ' \t'
+// -- layer 1: the grammar, one token at a time ------------------------------
+
+/** The parser of one token, built once: the grammar is analysed per module, not per parse. */
+const parseToken = parser(token)
 
 /**
- * The newline characters the grammar's `newLine` rule matches, the single source
- * for that rule and its tags exactly as {@link wsChars} is.
+ * A variant's node, read untyped: its tag and the branch's node. The tree
+ * is the grammar's by construction, so a shape that is not a variant's is
+ * a broken invariant, not bad input.
  *
- * @type {string}
+ * @type {(node: unknown) => readonly [string, unknown]}
  */
-const nlChars = '\n\r'
-
-/** @type {ReadonlySet<string>} */
-const wsTags = new Set(wsChars)
-
-/** @type {ReadonlySet<string>} */
-const nlTags = new Set(nlChars)
-
-/**
- * The operator vocabulary: each key is the tag the descent parser emits for that
- * branch, and each value the characters it matches.
- *
- * At module scope because it captures nothing from `buildToken`, and because
- * `operatorTags` derives the tag set from these keys rather than re-listing them.
- */
-const operator = {
-    '.': '.',
-    '=>': '=>',
-    '===': '===',
-    '==': '==',
-    '=': '=',
-    '!==': '!==',
-    '!=': '!=',
-    '!': '!',
-    '>>>=': '>>>=',
-    '>>>': '>>>',
-    '>>=': '>>=',
-    '>>': '>>',
-    '>=': '>=',
-    '>': '>',
-    '<<=': '<<=',
-    '<<': '<<',
-    '<=': '<=',
-    '<': '<',
-    '+=': '+=',
-    '++': '++',
-    '+': '+',
-    '-=': '-=',
-    '--': '--',
-    '-': '-',
-    '**=': '**=',
-    '**': '**',
-    '*=': '*=',
-    '*': '*',
-    '/=': '/=',
-    '/': '/',
-    '%=': '%=',
-    '%': '%',
-    '&&=': '&&=',
-    '&&': '&&',
-    '&=': '&=',
-    '&': '&',
-    '||=': '||=',
-    '||': '||',
-    '|=': '|=',
-    '|': '|',
-    '^=': '^=',
-    '^': '^',
-    '~': '~',
-    '??=': '??=',
-    '??': '??',
-    '?.': '?.',
-    '?': '?',
-    '[': '[',
-    ']': ']',
-    '{': '{',
-    '}': '}',
-    '(': '(',
-    ')': ')',
-    ',': ',',
-    ':': ':',
-    ';': ';'
+const branch = node => {
+    assert(node instanceof Array && node.length === 2 && typeof node[0] === 'string', node)
+    return [node[0], node[1]]
 }
 
-/** @type {() => Rule} */
-const buildToken = () => {
+/** @type {(node: unknown) => readonly unknown[]} */
+const items = node => {
+    assert(node instanceof Array, node)
+    return node
+}
 
-    const onenine = range('19')
-
-    /** @type {Rule} */
-    const digit = range('09')
-
-    const string = [
-        '"',
-        repeat0Plus({
-            ...remove(range(` ${unicodeMax}`), set('"\\')),
-            escape: [
-                '\\',
-                {
-                    ...set('"\\bfnrt'),
-                    solidus: '/',
-                    u: [
-                        'u',
-                        ...repeat(4)({
-                            digit,
-                            AF: range('AF'),
-                            af: range('af'),
-                        })
-                    ],
-                }
-            ],
-        }),
-        '"'
-    ]
-
-    const digits0 = repeat0Plus(digit)
-
-    const digits = [digit, digits0]
-
-    const ws = set(wsChars)
-
-    const newLine = set(nlChars)
-
-    const idStart = {
-        smallLetter: range('az'),
-        bigLetter: range('AZ'),
-        lowLine: '_',
-        dollarSign: '$'
-    }
-
-    const idChar = {
-        ...idStart,
-        digit
-    }
-
-    // '.' and 'e'/'E' always succeed once seen, tagging missing digits as `numError`,
-    // so a malformed fraction/exponent (e.g. `0.`, `0e`) fails the whole number instead
-    // of silently ending it early. The sign is matched via string-literal branches
-    // (not `set('+-')`) because a range-variant branch's tag is the matched character
-    // itself, which would collide with the '+'/'-' operator tags in filterFunc.
-    const fracPart = { withDot: ['.', { valid: digits, numError: none }], noDot: none }
-    const expPart = { withExp: [set('Ee'), option({ plus: '+', minus: '-' }), { valid: digits, numError: none }], noExp: none }
-
-    // ECMAScript disallows a NumericLiteral immediately followed by an IdentifierStart
-    // or DecimalDigit (e.g. `00`, `123abc`). Consume that character into the number and
-    // tag it `numError` instead of leaving it to silently start a new token. idChar is
-    // wrapped in a sequence so this branch's own `numError` tag survives — a variant
-    // referenced directly as another variant's branch loses the outer tag to whichever
-    // of its own branches matches.
-    const number = [
-        {
-            0: '0',
-            onenine: [onenine, digits0],
-        },
-        option({
-            bigint: 'n',
-            frac: [fracPart, expPart]
-        }),
-        { numError: [idChar], ok: none }
-    ]
-
-    const id = [idStart, repeat0Plus(idChar)]
-
-    // Recursive rule: tries end (*/) first at every position so **/  → content(*) + terminator(*/).
-    // Falls back to the empty `unterminated` alternative at EOF instead of failing, so `comment`
-    // always succeeds and the descent parser never backtracks into matching '/' and '*' as
-    // separate operators. Callers detect an unterminated comment by checking for this tag.
-    /** @type {() => DataRule} */
-    const multilineContent = () => {
-        /** @type {Rule} */
-        const char = { na: notSet('*'), a: '*' }
-        /** @type {Rule} */
-        const end = ['*', '/']
-        /** @type {Rule} */
-        const more = [char, multilineContent]
-        return { end, more, unterminated: none }
-    }
-
-    const comment = ['/', {
-            // TODO: investigate why `not(commentEnd)` instead of `remove(unicodeRange, newLine)` fail tests.
-            oneline: ['/', repeat0Plus(remove(unicodeRange, newLine)), option(newLine)],
-            multiline: ['*', multilineContent]
+/**
+ * Whether a block comment's content, the node after its `/*`, reached the
+ * `*​/` that closes it before the input ended. Each node is a `*` and what
+ * follows it, or another symbol and more content, or the end: `end` after
+ * a `*` is the close, `unterminated` the end of input. A loop, not a
+ * recursion — the content nests one level per symbol.
+ *
+ * @type {(content: unknown) => boolean}
+ */
+const closed = content => {
+    let node = content
+    for (;;) {
+        const [tag, rest] = branch(node)
+        switch (tag) {
+            case 'end': { return true }
+            case 'unterminated': { return false }
+            default: { node = items(rest)[1] }
         }
-    ]
-
-    const token = {
-        number,
-        string,
-        id,
-        comment,
-        operator,
-        ws,
-        newLine,
-        eof
     }
-
-    return token
 }
-
-// The whole file's token stream as one right-recursive grammar rule. Safe at any input
-// length: descentParser matches on an explicit frame stack, not the JS call stack
-// (see fjs/bnf/descent/module.f.mjs).
-/** @type {() => Rule} */
-export const jsGrammar = () => repeat0Plus(buildToken())
 
 /**
- * The whole-file matcher together with the name of the rule to start it at.
+ * The kind of a token from its node, and whether it closed — which is a
+ * question only for a block comment, `true` for every other token. The
+ * `token` variant's tag is the kind but for `slash`, whose own tag says
+ * which of its four it was.
  *
- * `toData` generates rule names, so the entry name belongs to the conversion
- * rather than to the grammar's spelling and is read back from it here. Building
- * both from one conversion also keeps the grammar built once per matcher.
- *
- * @type {<T>() => readonly [DescentMatch<T>, string]}
+ * @type {(node: unknown) => readonly [_Kind, boolean]}
  */
-export const jsMatcher = () => {
-    const [ruleSet, entry] = toData(jsGrammar())
-    return [descentParserRuleSet(ruleSet), entry]
-}
-
-const stringify = stringifyAsTree(sort)
-
-/** @type {(cp: CodePoint) => Meta<unknown, CodePoint>} */
-const mapCodePoint = cp => [cp, undefined]
-
-/** @type {(m: DescentMatch<unknown>, name: string, cp: readonly CodePoint[]) => DescentMatchResult<unknown>} */
-export const descentParserCpOnly = (m, name, cp) => {
-    const cpm = toArray(map(mapCodePoint)(cp))
-    return m(name, cpm)
+const kindOf = node => {
+    const [tag, child] = branch(node)
+    if (tag !== 'slash') { return [/** @type {_Kind} */ (tag), true] }
+    const [sub, rest] = branch(items(child)[1])
+    switch (sub) {
+        case 'oneline': { return ['comment', true] }
+        case 'multiline': { return ['comment', closed(items(rest)[1])] }
+        default: { return ['operator', true] }
+    }
 }
 
 // Advances path/line/column by one code point, mirroring fjs/js/tokenizer's tokenizeWithPositionOp.
@@ -303,79 +131,49 @@ const advanceMetadata = cp => metadata => cp === lf
     ? { path: metadata.path, line: metadata.line + 1, column: 1 }
     : { path: metadata.path, line: metadata.line, column: metadata.column + 1 }
 
-// Pairs each code point with the metadata of its position *before* it's consumed.
-/** @type {StateScan<number, TokenMetadata, readonly [Meta<TokenMetadata, CodePoint>]>} */
-const metadataScan = (cp, metadata) => [[[cp, metadata]], advanceMetadata(cp)(metadata)]
+/** @type {(metadata: TokenMetadata) => (cp: readonly number[]) => TokenMetadata} */
+const advance = metadata => cp => fold(advanceMetadata)(metadata)(cp)
 
-/** @type {(path: string) => (cp: readonly number[]) => readonly Meta<TokenMetadata, CodePoint>[]} */
-const codePointsWithMetadata = path => cp => toArray(flat(stateScan(metadataScan)({ path, line: 1, column: 1 })(cp)))
-
-/**
- * The grammar tag of a trivia code point, as the kind `mergeTrivia` speaks in;
- * `null` for every other tag.
- *
- * @type {(tag: string) => Nullable<TriviaKind>}
- */
-const triviaKind = tag =>
-    nlTags.has(tag) ? 'nl' :
-    wsTags.has(tag) ? 'ws' :
-    null
-
-/** @type {StateScan<_FlatToken, _TokenScanState, List<_Token>>} */
-const scanFunc = (input, state) => {
-    const [stateTag, stateMetadata, stateCodePoints] = state
-    if (typeof input === 'string') {
-        // A trivia run continues: `mergeTrivia` decides the run's kind, and
-        // the pending token only has to be restarted under the incoming tag
-        // when that kind is not the one it already has (ws followed by nl).
-        const inputKind = triviaKind(input)
-        const stateKind = triviaKind(stateTag)
-        if (inputKind !== null && stateKind !== null) {
-            return [null, mergeTrivia(stateKind, inputKind) === stateKind ? state : [input, null, []]]
-        }
-        /** @type {_TokenScanState} */
-        const newState = [input, null, []]
-        if (stateTag === '') {
-            return [null, newState]
-        }
-        /** @type {_Token} */
-        const tk = [stateTag, /** @type {TokenMetadata} */ (stateMetadata), toArray(stateCodePoints)]
-        return [[tk], newState]
-    }
-    const [cp, codePointMetadata] = input
-    const startMetadata = stateMetadata === null ? codePointMetadata : stateMetadata
-    return [null, [stateTag, startMetadata, concat(stateCodePoints)([cp])]]
-}
+/** @type {(cp: number) => boolean} */
+const isDigit = cp => cp >= 0x30 && cp <= 0x39
 
 /**
- * All operator tag strings the grammar's `operator` rule produces, derived from
- * the rule itself: the descent parser emits a variant branch's key as its tag,
- * so the keys of {@link operator} *are* the tag set.
+ * Reads the whole input one token at a time, the parser resumed where the
+ * last token ended, until a token the grammar refuses. A token's text is
+ * the input it spans, and its position is carried along rather than
+ * attached to every code point.
  *
- * `'/'` is a member because division is an operator; it does not also swallow
- * the slashes of a comment, since `oneline` consumes the whole rest of the line
- * with `repeat0Plus` and the comment rule matches before the tag reaches here.
- *
- * @type {ReadonlySet<string>}
+ * @type {(path: string) => (cp: readonly number[]) => _Lexed}
  */
-const operatorTags = new Set(Object.keys(operator))
-
-/** @type {(tk: _FlatToken) => boolean} */
-const filterFunc = tk => {
-    if (tk instanceof Array)
-        return true
-    switch (tk) {
-        case 'number':
-        case 'string':
-        case 'id':
-        case 'comment':
-            return true
-        default:
-            // Trivia tags go through `triviaKind` rather than a third copy of
-            // the characters, so they cannot drift from the grammar's rules.
-            return triviaKind(tk) !== null || operatorTags.has(tk)
+const lex = path => cp => {
+    const symbols = cp.map(symbol => ({ symbol, meta: null }))
+    /** @type {List<_Lexeme>} */
+    let lexemes = empty
+    let pos = 0
+    /** @type {TokenMetadata} */
+    let metadata = { path, line: 1, column: 1 }
+    while (pos < cp.length) {
+        const match = parseToken(symbols, pos)
+        if (match[0] === 'error') {
+            /** @type {_Failure} */
+            const failure = {
+                number: isDigit(cp[pos]),
+                start: metadata,
+                at: advance(metadata)(cp.slice(pos, match[1])),
+            }
+            return { lexemes: toArray(lexemes), failure, final: advance(metadata)(cp.slice(pos)) }
+        }
+        const [node, end] = match[1]
+        const text = cp.slice(pos, end)
+        const [kind, ok] = kindOf(node)
+        lexemes = concat(lexemes)([{ kind, text, start: metadata, closed: ok }])
+        metadata = advance(metadata)(text)
+        pos = end
     }
+    return { lexemes: toArray(lexemes), failure: null, final: metadata }
 }
+
+// -- layer 2: the JsToken stream --------------------------------------------
 
 /**
  * A `\uXXXX` escape reaches the `unicode` state only after the grammar has
@@ -390,12 +188,12 @@ const stringDecodeScan = (cp, state) => {
     switch (state.kind) {
         case 'escape': {
             const codePoint = escapeToCodePoint(cp)
-            // The grammar's own `escape` rule (`buildToken`'s `string`) only ever
-            // accepts one of the eight simple escapes or `u` right after a
-            // backslash — any other character fails to parse before a token
-            // reaches this scan at all, so narrowing to those nine is provable,
-            // not merely assumed. `u` is the one the table does not answer for:
-            // the four hex digits that follow decide its meaning.
+            // The grammar's `string` rule only ever accepts one of the eight
+            // simple escapes or `u` right after a backslash — any other
+            // character fails to parse before a token reaches this scan at
+            // all, so narrowing to those nine is provable, not merely
+            // assumed. `u` is the one the table does not answer for: the
+            // four hex digits that follow decide its meaning.
             assert(codePoint !== null || cp === latinSmallLetterU, cp)
             return codePoint === null
                 ? [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
@@ -416,152 +214,28 @@ const decodeJsonString = codePoints => codePointListToString(flat(stateScan(stri
 /** @type {ReadonlySet<string>} */
 const keywordSet = new Set(keywords)
 
-/** @type {(tk: _Token) => JsToken} */
-const toJsToken = tk => {
-    const [tag, , codePoints] = tk
-    switch (tag) {
-        case '\n':
-        case '\r':
-            return { kind: 'nl' }
-        case ' ':
-        case '\t':
-            return { kind: 'ws' }
-        case 'string':
-            return { kind: 'string', value: decodeJsonString(codePoints) }
-        case 'id': {
-            const value = codePointListToString(codePoints)
-            if (keywordSet.has(value)) return /** @type {JsToken} */ ({ kind: value })
-            return { kind: 'id', value }
-        }
-        case 'number': {
-            const value = codePointListToString(codePoints)
-            if (value.endsWith('n')) return { kind: 'bigint', value: BigInt(value.slice(0, -1)) }
-            return { kind: 'number', value }
-        }
-        case 'comment':
-            if (codePoints[1] === asterisk) // block comment /*...*/
-                return { kind: '/*', value: codePointListToString(codePoints.slice(2, -2)) }
-            return { kind: '//', value: codePointListToString(codePoints.slice(2)) }
-        default:
-            return /** @type {JsToken} */ ({ kind: tag })
-    }
-}
-
-/** @type {(tk: _Token) => List<JsToken>} */
-const toJsTokens = tk => {
-    const token = toJsToken(tk)
-    if (token.kind === '/*') {
-        const hasNl = token.value.includes('\n') || token.value.includes('\r')
-        if (hasNl) return [token, { kind: 'nl' }]
-    }
-    return [token]
-}
-
-// Same as toJsTokens, but pairs each emitted token with tk's start metadata instead of
-// discarding it — used by tokenize (the metadata-aware entry point), not tokenizeString.
-/** @type {(tk: _Token) => List<JsTokenWithMetadata>} */
-const toJsTokenWithMetadata = tk => {
-    const [, metadata] = tk
-    const token = toJsToken(tk)
-    if (token.kind === '/*') {
-        const hasNl = token.value.includes('\n') || token.value.includes('\r')
-        if (hasNl) return [{ token, metadata }, { token: { kind: 'nl' }, metadata }]
-    }
-    return [{ token, metadata }]
-}
-
-/** @type {(value: Ast<Meta<TokenMetadata, CodePoint>>|Meta<TokenMetadata, CodePoint>) => List<_FlatToken>} */
-const getTokensFromAstRuleOrCodePoint = value => {
-    if (value instanceof Array)
-        return [value]
-
-    return getTokensFromAstRule(value)
-}
-
-/** @type {(seq: AstSequence<Meta<TokenMetadata, CodePoint>>) => List<_FlatToken>} */
-const getTokensFromAstSequence = seq => {
-    return flatMap(getTokensFromAstRuleOrCodePoint)(seq)
-}
-
-/** @type {(tag: AstTag) => _FlatToken} */
-const tagToToken = tag => {
-    switch (typeof tag) {
-        case 'string': return tag
-        case 'undefined': return 'undefined'
-        default: return 'true'
-    }
-}
-
-/** @type {(ast: Ast<Meta<TokenMetadata, CodePoint>>) => List<_FlatToken>} */
-const getTokensFromAstRule = ast => {
-    const token = tagToToken(ast.tag)
-    if (ast.sequence.length === 0)
-        return [token]
-
-    return { first: token, tail: getTokensFromAstSequence(ast.sequence) }
-}
-
-/** @type {(s: string) => string} */
-export const tokenizeString = s => {
-    const cp = toArray(stringToCodePointList(s))
-    if (cp.length === 0) {
-        return stringify([{ kind: 'eof' }])
-    }
-    const [m, entry] = jsMatcher()
-    const cpm = codePointsWithMetadata('')(cp)
-    const { ast, success: ok, idx: len } = m(entry, cpm)
-    if (!ok || len !== cp.length)
-        return 'error'
-
-    const flatTokens = toArray(getTokensFromAstRule(ast))
-    // multilineContent tags an unterminated block comment as 'unterminated', and number
-    // tags a malformed fraction/exponent or a disallowed trailing char as 'numError',
-    // rather than failing outright — detect them here instead.
-    if (flatTokens.includes('unterminated') || flatTokens.includes('numError')) return 'error'
-    const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
-    const tokens = flat(stateScan(scanFunc)(['', null, []])(filterTokens))
-    const jsTokens = concat(flatMap(toJsTokens)(tokens))([{ kind: 'eof' }])
-    const result = toArray(jsTokens)
-    return stringify(result)
-}
-
-// Finds `tag` in flatTokens and returns the metadata of the next code point after it.
-// numError/unterminated tags are followed by the poisoning char / EOF-hitting position
-// in the flattened AST walk order, so this pinpoints roughly where tokenization failed.
-//
-// The single call site only passes a `tag` it already confirmed via
-// `flatTokens.includes(tag)`, so `indexOf` here is never -1.
-/** @type {(tag: string, flatTokens: readonly _FlatToken[], fallback: TokenMetadata) => TokenMetadata} */
-const metadataAfterTag = (tag, flatTokens, fallback) => {
-    const idx = flatTokens.indexOf(tag)
-    const found = flatTokens.slice(idx + 1).find((/** @type {_FlatToken} */ t) => t instanceof Array)
-    return found === undefined ? fallback : found[1]
-}
-
 /**
- * Where the token carrying `errorTag` began.
+ * The token a word is: a string decoded, a word a keyword or an identifier,
+ * a number a `number` or a `bigint` by its suffix, a comment its text
+ * between the marks, an operator its own spelling.
  *
- * An unterminated construct is anchored at its opening, not at the point the
- * input ran out: the reader is being told which `"` or `/*` was never closed,
- * and the end of the file is not that. It is also what TypeScript reports for
- * the same input, and what an unterminated *string* already reports here — the
- * comment reporting the end was the odd one out.
- *
- * The search runs backwards from the error tag rather than forwards from the
- * start, so the second comment in `/* ok *\/ /* bad` is the one blamed.
- *
- * Both lookups succeed by construction — an `unterminated` tag exists only
- * inside a `comment`, and a comment always carries at least its opening `/` — so
- * this asserts rather than falling back on a position no input can produce.
- *
- * @type {(tokenTag: string, errorTag: string, flatTokens: readonly _FlatToken[]) => TokenMetadata}
+ * @type {(lexeme: _Lexeme) => JsToken}
  */
-const tokenStartOfTag = (tokenTag, errorTag, flatTokens) => {
-    const tokenIdx = flatTokens.lastIndexOf(tokenTag, flatTokens.indexOf(errorTag))
-    assert(tokenIdx !== -1, ['no enclosing token carried', errorTag])
-    const found = flatTokens.slice(tokenIdx + 1).find((/** @type {_FlatToken} */ t) => t instanceof Array)
-    assert(found !== undefined && found instanceof Array, ['enclosing token had no code points', tokenTag])
-    return found[1]
+const toJsToken = ({ kind, text }) => {
+    const value = codePointListToString(text)
+    switch (kind) {
+        case 'string': { return { kind: 'string', value: decodeJsonString(text) } }
+        case 'id': { return keywordSet.has(value) ? /** @type {JsToken} */ ({ kind: value }) : { kind: 'id', value } }
+        case 'number': {
+            return value.endsWith('n') ? { kind: 'bigint', value: BigInt(value.slice(0, -1)) } : { kind: 'number', value }
+        }
+        case 'comment': {
+            return text[1] === asterisk
+                ? { kind: '/*', value: value.slice(2, -2) }
+                : { kind: '//', value: value.slice(2) }
+        }
+        default: { return /** @type {JsToken} */ ({ kind: value }) }
+    }
 }
 
 /**
@@ -572,64 +246,108 @@ const tokenStartOfTag = (tokenTag, errorTag, flatTokens) => {
  */
 const position = ({ line, column }) => ({ line, column })
 
-/** @type {(input: List<number>) => (path: string) => List<JsTokenWithMetadata>} */
+/** @type {(token: JsToken, metadata: TokenMetadata) => JsTokenWithMetadata} */
+const at = (token, metadata) => ({ token, metadata })
+
+/**
+ * The error the whole output becomes: a lexical failure is reported alone,
+ * as the tokenizer has always reported it, with its span where it has one.
+ *
+ * @type {(message: ErrorToken['message'], metadata: TokenMetadata, end?: TokenMetadata) => readonly JsTokenWithMetadata[]}
+ */
+const failed = (message, metadata, end) => [at(end === undefined ? { kind: 'error', message } : { kind: 'error', message, end: position(end) }, metadata)]
+
+/**
+ * The token stream of a text: the tokens the grammar read, folded — a run
+ * of trivia into one token, a block comment holding a newline followed by
+ * an `nl`, as `fjs/js/tokenizer` emits it — and checked at the one
+ * boundary the grammar cannot see, a number against the token after it.
+ * The whole output is the first error where there is one.
+ *
+ * @type {(input: List<number>) => (path: string) => List<JsTokenWithMetadata>}
+ */
 export const tokenizeJs = input => path => {
-    const cp = toArray(input)
-    /** @type {TokenMetadata} */
-    const initial = { path, line: 1, column: 1 }
-    if (cp.length === 0) return [{ token: { kind: 'eof' }, metadata: initial }]
-
-    const [m, entry] = jsMatcher()
-    const cpm = codePointsWithMetadata(path)(cp)
-    const { ast, success: ok, idx: len } = m(entry, cpm)
-    const finalMetadata = fold(advanceMetadata)(initial)(cp)
-
-    if (!ok || len !== cp.length) {
-        // `len` is always `< cpm.length` (`=== cp.length`) here: `ok` false only
-        // ever happens with `len === 0` (nothing matched at position 0), and a
-        // `len !== cp.length` failure with `ok` true is by definition a partial
-        // match (`len < cp.length`) — `repeat0Plus` never fails after
-        // successfully consuming the whole input, so there is no way to reach
-        // this branch with `len === cp.length`.
-        // the span runs from where matching stopped to where the input ran out:
-        // nothing after that position could be made into a token either
-        return [{
-            token: { kind: 'error', message: 'invalid token', end: position(finalMetadata) },
-            metadata: cpm[len][1],
-        }]
+    const { lexemes, failure, final } = lex(path)(toArray(input))
+    /** @type {List<JsTokenWithMetadata>} */
+    let out = empty
+    /** @type {_Trivia} */
+    let trivia = null
+    /** @type {_Kind | null} */
+    let previous = null
+    for (const lexeme of lexemes) {
+        const { kind, start } = lexeme
+        if (kind === 'ws' || kind === 'newLine') {
+            // A run of trivia is one token, and its kind is decided by the
+            // run: a newline anywhere makes it `nl`, anchored at that newline,
+            // which is why the pending token restarts under the incoming kind
+            // when that kind is not the one it already has.
+            const incoming = kind === 'ws' ? 'ws' : 'nl'
+            trivia = trivia !== null && mergeTrivia(trivia.kind, incoming) === trivia.kind
+                ? trivia
+                : { kind: incoming, metadata: start }
+            previous = null
+            continue
+        }
+        if (trivia !== null) {
+            out = concat(out)([at({ kind: trivia.kind }, trivia.metadata)])
+            trivia = null
+        }
+        if (kind === 'comment' && !lexeme.closed) {
+            // from the `/*` that was never closed to where the input ran out
+            return failed('*/ expected', start, final)
+        }
+        if (previous === 'number' && (kind === 'id' || kind === 'number')) {
+            // ECMAScript disallows a numeric literal immediately followed by
+            // an identifier start or a digit — `123abc`, `1nabc`, `00`. The
+            // anchor is the token that should not be there, not the number's
+            // start, and there is no end for the same reason: the span a
+            // reader would want runs backwards from the anchor.
+            return failed('invalid number', start)
+        }
+        const jsToken = toJsToken(lexeme)
+        out = concat(out)([at(jsToken, start)])
+        if (jsToken.kind === '/*' && (jsToken.value.includes('\n') || jsToken.value.includes('\r'))) {
+            out = concat(out)([at({ kind: 'nl' }, start)])
+        }
+        previous = kind
     }
-
-    const flatTokens = toArray(getTokensFromAstRule(ast))
-    // The two structural errors want different anchors, because they are
-    // different questions. An unterminated comment asks "which `/*` was never
-    // closed", so it is reported at that `/*`. A malformed number asks "what is
-    // this character doing here", so it is reported at the character — `123abc`
-    // points at the `a`, not at the `1`.
-    if (flatTokens.includes('unterminated')) {
-        // from the `/*` that was never closed to where the input ran out
-        return [{
-            token: { kind: 'error', message: '*/ expected', end: position(finalMetadata) },
-            metadata: tokenStartOfTag('comment', 'unterminated', flatTokens),
-        }]
+    if (failure !== null) {
+        // The token the grammar refused comes after every token it read,
+        // so an error among those — the fold above has just looked — is
+        // reported first, and this one only where nothing came before it.
+        // A number that stands directly against the number before it is
+        // that boundary error, wherever it then failed: `01.` is refused at
+        // the `1`. A number cut short — `1.`, `0e` — fails where its digits
+        // were expected, and that character is the one to point at, with
+        // no end, since what is wrong runs backwards from there. Any other
+        // token is refused whole, from where it began to the end of input:
+        // nothing past a lexical failure is tokenized.
+        return failure.number
+            ? failed('invalid number', previous === 'number' ? failure.start : failure.at)
+            : failed('invalid token', failure.start, final)
     }
-    if (flatTokens.includes('numError')) {
-        // No `end`. This error's anchor is the character that spoiled the
-        // number, not the number's start, so the span a reader would want —
-        // `123a` for `123abc` — runs *backwards* from the anchor and cannot be
-        // expressed as an end. Giving it one means moving the anchor to the
-        // number's start, which changes a reported position for no consumer,
-        // so the anchor convention wins and this error stays a point.
-        return [{
-            token: { kind: 'error', message: 'invalid number' },
-            metadata: metadataAfterTag('numError', flatTokens, finalMetadata),
-        }]
+    if (trivia !== null) {
+        out = concat(out)([at({ kind: trivia.kind }, trivia.metadata)])
     }
-
-    const filterTokens = concat(filter(filterFunc)(flatTokens))([''])
-    const tokens = flat(stateScan(scanFunc)(['', null, []])(filterTokens))
-    const withMetadata = concat(flatMap(toJsTokenWithMetadata)(tokens))
-    return withMetadata([{ token: { kind: 'eof' }, metadata: finalMetadata }])
+    return concat(out)([at({ kind: 'eof' }, final)])
 }
+
+const stringify = stringifyAsTree(sort)
+
+/**
+ * The tokens of a text as one string, positions left out — `error` where
+ * the text does not tokenize.
+ *
+ * @type {(s: string) => string}
+ */
+export const tokenizeString = s => {
+    const tokens = toArray(tokenizeJs(stringToCodePointList(s))(''))
+    return tokens.some(({ token }) => token.kind === 'error')
+        ? 'error'
+        : stringify(tokens.map(({ token }) => token))
+}
+
+// -- layer 3: the DjsToken stream -------------------------------------------
 
 /** @type {(input: JsToken) => List<DjsToken>} */
 const mapDjsToken = input => {
@@ -673,11 +391,11 @@ const parseDjsDefaultState = input => {
 // Folds a leading '-' into the following number/bigint token, mirroring the old
 // fjs/djs/tokenizer's minus-state exactly.
 //
-// No `case '-'` here: the underlying `js/tokenizer` always merges two adjacent
-// `-` characters into a single `'--'` token (the decrement operator), so this
-// state — entered only after a single, unmerged `-` — can never itself see
-// another `'-'`-kind input. Such an input falls through to `default`, which
-// handles it exactly like any other non-number/bigint/eof token.
+// No `case '-'` here: the grammar reads two adjacent `-` characters as the
+// single `'--'` token (the decrement operator), so this state — entered only
+// after a single `-` — can never itself see another `'-'`-kind input. Such an
+// input falls through to `default`, which handles it exactly like any other
+// non-number/bigint/eof token.
 /** @type {(input: JsToken) => readonly [List<DjsToken>, _DjsScanState]} */
 const parseDjsMinusState = input => {
     switch (input.kind) {
@@ -709,18 +427,3 @@ const scanDjsTokenWithMetadata = (input, state) => {
 
 /** @type {(input: List<number>) => (path: string) => List<DjsTokenWithMetadata>} */
 export const tokenize = input => path => flat(stateScan(scanDjsTokenWithMetadata)({ kind: 'def' })(tokenizeJs(input)(path)))
-
-export const proof = {
-    // `tagToToken`'s `true` arm fires only for an `AstTag` of literal `true`.
-    // `bnf/data`'s `emptyTagOf` is the only source of that value, and
-    // `bnf/descent/module.f.mjs` reads it in exactly one place (its variant
-    // arm), always wrapped in `mrFail` — a failure. A failed variant only
-    // propagates as the overall `result` when nothing in it matches, so it
-    // never survives into a successful sequence/AST; a `true` tag therefore
-    // can never appear on a successful `descentParser` match for any
-    // grammar, `jsGrammar` included, so `tokenizeJs` can't reach this arm.
-    // Call it directly to cover that branch.
-    tagToTokenTrueTag: () => {
-        assertEq(tagToToken(true), 'true')
-    },
-}
