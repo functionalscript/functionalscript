@@ -15,10 +15,12 @@ import zlib from 'node:zlib'
 
 import { assertEq } from '../../asserts/module.f.mjs'
 import { resultMapStep } from '../module.f.mjs'
-import { maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { maxLengthBytes, msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { toVec } from '../../types/uint8array/module.f.mjs'
+import { write as writeEnvelope } from '../../git/object/module.f.mjs'
+import { tagLoose, tagPayload } from '../../git/testlib.f.mjs'
 import { inflate, inflateTrailingCode } from './module.f.mjs'
 import { runEffect } from './module.mjs'
 
@@ -45,6 +47,20 @@ export const proof = {
                 if (r[0] === 'error') { return error(1) }
                 const out = toArray(u8List(msb)(r[1]))
                 return out.length === data.length && out.every((b, i) => b === data[i]) ? ok(0) : error(2)
+            })
+            assertEq(await exitCode(program), 0)
+        },
+        // A stream another zlib wrote: the loose object file Git 2.43 wrote
+        // for the checked-in tag, inflated to the envelope the tag's bytes
+        // make, every one, so what the runner reads is what Git writes and
+        // not only what Node deflates.
+        gitWrote: async () => {
+            const envelope = toArray(writeEnvelope('tag', tagPayload))
+            /** @type {NodeProgram} */
+            const program = () => resultMapStep(inflate(u8ListToVec(msb)(tagLoose)), r => {
+                if (r[0] === 'error') { return error(1) }
+                const out = toArray(u8List(msb)(r[1]))
+                return out.length === envelope.length && out.every((b, i) => b === envelope[i]) ? ok(0) : error(2)
             })
             assertEq(await exitCode(program), 0)
         },
