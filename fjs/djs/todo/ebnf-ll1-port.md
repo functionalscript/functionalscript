@@ -82,7 +82,7 @@ Two ports, tokenizer first, each a grammar rewrite plus a backend swap:
 
 1. **Tokenizer.** Left-factor `*` in the block comment and `/` out of
    `comment` and `operator`; build the operator prefix tree from the
-   literal list with a helper; drop the `numError`
+   literal list with `literals` in `fjs/ebnf`; drop the `numError`
    poison and decide the number boundary in the layer above the tokens —
    a number or bigint token directly followed by a token that begins with
    an identifier character or a digit, no trivia between, is the error
@@ -129,6 +129,8 @@ reads values, not text.
       it is the consumer's, as that module's README says.
 - [ ] `ebnf/token_symbol/` moved, with proof; ebnf-migration's stage 4 half
       ticked.
+- [x] `literals`, the prefix tree over a word list, in `fjs/ebnf` with
+      proof; the punctuators of JavaScript build as one LL(1) rule.
 - [ ] Tokenizer grammar in EBNF beside the classical one, LL(1), with the
       comparison proof over the tokenizer's corpus.
 - [ ] Tokenizer on `ebnf/ll1`: mappings, the token-boundary check, error

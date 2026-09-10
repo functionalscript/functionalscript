@@ -11,7 +11,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
-import { eof, join, option, range, repeat, repeatFrom0, repeatFrom1, times } from '../module.f.mjs'
+import { eof, join, literals, option, range, repeat, repeatFrom0, repeatFrom1, times } from '../module.f.mjs'
 import { toData } from '../data/module.f.mjs'
 import { dataJs } from '../lib/datajs/module.f.mjs'
 import { json } from '../lib/json/module.f.mjs'
@@ -266,6 +266,25 @@ const integers = text => {
     return listValue(ast)
 }
 
+/**
+ * The word under a node: its input symbols in order, a variant's tag
+ * passed over.
+ *
+ * @type {(node: Ast<Rule, unknown> | string) => string}
+ */
+const word = node =>
+    typeof node === 'string' ? '' :
+    node instanceof Array ? node.map(word).join('') :
+    String.fromCodePoint(node.symbol)
+
+/** The punctuators of JavaScript. */
+const punctuators = [
+    '{', '}', '(', ')', '[', ']', '.', '...', ';', ',', '<', '>', '<=', '>=', '==', '!=', '===', '!==',
+    '+', '-', '*', '%', '**', '++', '--', '<<', '>>', '>>>', '&', '|', '^', '!', '~', '&&', '||', '??',
+    '?', '?.', ':', '=', '+=', '-=', '*=', '%=', '**=', '<<=', '>>=', '>>>=', '&=', '|=', '^=', '&&=',
+    '||=', '??=', '=>', '/', '/=',
+]
+
 /** A JSON document is the grammar's `json` rule, then the end of input. */
 const document = /**@type {const}*/([json, eof])
 
@@ -491,6 +510,29 @@ export const proof = {
         // front would be paid once per token by a layer that resumes.
         unread: () => {
             assertStructurallySame(parser(digit)([s('1'), sym(0.5)]), ['ok', [s('1'), 1]])
+        },
+        // A prefix tree is read greedily: an optional round starts whenever
+        // the lookahead continues a word, so the longest word matches, and
+        // a word nothing continues stops where it ends. The word read is
+        // the symbols under the node.
+        literals: () => {
+            const p = parser(literals(['=', '==', '===', '=>', '!', '!=']))
+            /** @type {(text: string) => readonly [string, number]} */
+            const read = text => {
+                const [node, end] = unwrap(p(cps(text)))
+                return [word(node), end]
+            }
+            assertStructurallySame(read('==='), ['===', 3])
+            assertStructurallySame(read('==x'), ['==', 2])
+            assertStructurallySame(read('=>='), ['=>', 2])
+            assertStructurallySame(read('!'), ['!', 1])
+            assertStructurallySame(read('!x'), ['!', 1])
+            assertStructurallySame(p(cps('?')), ['error', 0])
+            assertStructurallySame(p(cps('')), ['error', 0])
+            // The punctuators of JavaScript, sharing prefixes throughout,
+            // are one LL(1) rule this way — the list a tokenizer's operator
+            // variant cannot be.
+            assertStructurallySame(unwrap(parser(literals(punctuators))(cps('>>>=')))[1], 4)
         },
     },
     // The rewrite set, folded into the parse: a mapped rule's node is handed
@@ -740,5 +782,8 @@ export const proof = {
         // the next integer's, and the backend refuses it, so a token layer
         // resumes a one-token parser instead (`mapping.resumed`).
         tokenRepeat: () => parser(repeatFrom0({ integer, punctuation })),
+        // What follows a prefix tree may not continue one of its words: `ab`
+        // would read two ways, and the backend says so before any input.
+        literalsFollow: () => parser([literals(['a', 'ab']), 'b']),
     },
 }
