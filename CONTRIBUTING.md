@@ -72,6 +72,17 @@ nothing in this repository requires Nix.
 
 [`nix/README.md`](./nix/README.md) explains the shell and how it is generated.
 
+A [Claude Code on the web](https://code.claude.com/docs/en/claude-code-on-the-web)
+session starts inside this same shell.
+[`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh) runs when
+the session opens: it installs Nix into the container, fetches the flake's
+inputs over git (the session's GitHub proxy refuses the tarballs Nix would ask
+for), enters the shell once so that everything it needs is downloaded, and
+exports the shell's `PATH` to the session. The first session pays for the
+downloads; the container is cached afterwards, and the next one starts in
+seconds. The hook does nothing outside the web environment — locally, run
+`./dev.sh` yourself.
+
 ### Node test-runner compatibility
 
 External test registration automatically uses an inline compatibility strategy
