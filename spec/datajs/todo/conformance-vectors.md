@@ -2096,14 +2096,25 @@ The steps, in order; a step is one pull request unless it says otherwise:
       by building. Waits on decision 6, which decides whether that proof may
       exist.
 - [ ] **Reader accept, code-unit form.** Derived production by production
-      from the grammar as the section above lists it: every alternative,
-      both ends of every character class at every fixed position, the empty
-      branch of every repetition, the signed twin of every number and bigint,
-      the key twin of every string, the whitespace-like scalars inside a
-      string, the surrogate cases, the array-index key order with both sides
-      of each boundary, the shortest document and the document's own edges.
-      Proved against the reader as it lands: every document parses to a
-      graph `difference` finds no difference in.
+      from the grammar as the section above lists it, in two pull requests
+      so each stays reviewable. **The leaves — landed**, as
+      [`accept/data.f.mjs`](../vectors/accept/data.f.mjs): the word leaves
+      and both infinities; every branch of `number` with a signed twin each,
+      the three zero spellings, and the five binary64 cases; every `bigint`
+      branch with the three fixed-width ceilings; and every `string` branch
+      — the nine escapes, the six hex rotations, the raw `/`, BMP and astral
+      characters, the nineteen whitespace-like scalars, the four lone
+      surrogates, the four escaped pairs and the seven adjacencies — each
+      with its key twin. **Still to land: the containers and the
+      document** — `array`, `object` and `key` in every alternative, empty
+      and nested, the `["__proto__"]` key, duplicate keys, the array-index
+      key order with both sides of each boundary, a `const` referenced
+      once, twice and never, sharing and its unshared inverse, a name whose
+      tail is a reserved word, the four permitted whitespace characters
+      between tokens and at each of the three required positions, the
+      shortest document and the document's own edges. Proved against the
+      reader as each lands: every document parses to a graph `difference`
+      finds no difference in, and the ids are unique.
 - [ ] **Reader reject, code-unit form.** The narrowing vectors derived from
       the spec's six narrowing sources — strings, numbers, identifiers,
       whitespace, the document rule, and every production of the grammar —
