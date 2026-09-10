@@ -9,10 +9,11 @@ Problem 1 of the ebnf-front-end issue it absorbed) and
 bounded repeat") both deferred to this layer, and it absorbed the
 rule-visitor issue as `matchRule`. Those issues were filed under
 `fjs/bnf/todo/`, and this file did not link them while that module stood:
-`ebnf/` never reached into `bnf/`, a README link included, because the
-migration deleted `bnf/` at its last stage
-([DESIGN.md §11](../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces), the direction
-rule). Its issue
+the migration's plan kept `ebnf/` documents from linking into `bnf/`, so
+that deleting `bnf/` at its last stage would break no link — a choice of
+that plan, since a link is a reference and the direction rule reaches only
+code ([DESIGN.md §11](../../../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces),
+its worked example). Its issue
 triage moved them to where the links above point, and the front-end design
 became `fjs/ebnf/README.md`.
 
