@@ -130,6 +130,23 @@ export const proof = {
         assertStructurallySame(validate20(bad), ['error', 'not a mergetag'])
         const notATag = commit([...lines.slice(0, 4), 'mergetag object', ...lines.slice(4)])
         assertStructurallySame(validate20(notATag), ['error', 'not a mergetag'])
+        // A NUL in any header is refused before anything else is looked at;
+        // one in the message, after everything else.
+        assertStructurallySame(validate20(replaced(3, `committer ${who}\0`)), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(commit([...lines.slice(0, 4), 'no\0te x', ...lines.slice(4)])), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(commit(['\0 x', '', ''])), ['error', 'NUL in header'])
+        assertStructurallySame(validate20(replaced(5, 'm\0')), ['error', 'NUL in message'])
+        assertStructurallySame(validate20(commit([...lines.slice(0, 4), 'mergetag x', '', 'm\0'])), ['error', 'not a mergetag'])
+    },
+    // Git puts no bound on the parents: a merge of eight thousand is read,
+    // vouched for, and walked without a stack to run out of.
+    octopus: () => {
+        const ps = Array.from({ length: 8000 }, (_, i) => `parent ${i.toString(16).padStart(40, '0')}`)
+        const c = commit([`tree ${treeId}`, ...ps, `author ${who}`, `committer ${who}`, '', 'm'])
+        assertEq(parents(c).length, 8000)
+        assertEq(hex(parents(c)[7999]), '1f3f'.padStart(40, '0'))
+        assertEq(text(toArray(committer(c).name)), 'A')
+        assertStructurallySame(validate20(c), ['ok', c])
     },
     // The well-known fields panic on a commit `validate` refuses.
     throw: {

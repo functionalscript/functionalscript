@@ -26,8 +26,9 @@
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { length as bitLength } from '../../types/bit_vec/module.f.mjs'
+import { includes } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
-import { tryRead as readPayload, valueAt, valuesOf, write as writePayload } from '../header/module.f.mjs'
+import { hasNulHeader, keyIs, tryRead as readPayload, valueAt, valuesOf, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
 import { tryFromHex } from '../oid/module.f.mjs'
 import { tryRead as readTag, validate as validateTag } from '../tag/module.f.mjs'
@@ -50,17 +51,16 @@ export const write = writePayload
 
 /**
  * The values of the `parent` headers: from the second header on, as many
- * as are `parent` in a row.
+ * as are `parent` in a row. A scan and a slice, not a recursion: Git puts
+ * no bound on the parents, and a merge of thousands is a commit `fsck`
+ * accepts.
  *
  * @type {(c: Commit) => readonly Bytes[]}
  */
 const parentValues = c => {
-    /** @type {(i: number) => readonly Bytes[]} */
-    const from = i => {
-        const v = valueAt(c, i, 'parent')
-        return v === null ? [] : [v, ...from(i + 1)]
-    }
-    return from(1)
+    const rest = c.headers.slice(1)
+    const end = rest.findIndex(h => !keyIs(h, 'parent'))
+    return (end === -1 ? rest : rest.slice(0, end)).map(([, v]) => v)
 }
 
 /**
@@ -179,14 +179,16 @@ const isId = oidBytes => value => {
 }
 
 /**
- * Vouches for a commit as `git fsck` does, or refuses it, saying why: no
- * `tree` header first or one that is not a hex id of the repository's
- * width, a `parent` header that is not one, no `author` header after the
- * parents or no `committer` after it, or either holding what is not an
- * ident. One check `fsck` does not make, since it never looks inside:
- * a `mergetag` value must be a tag this module's sibling vouches for, so
- * that {@link mergetags} is total. What `fsck` only notes passes: any
- * other header, a message holding NUL.
+ * Vouches for a commit as `git fsck` does, or refuses it, saying why: a
+ * NUL in any header, no `tree` header first or one that is not a hex id
+ * of the repository's width, a `parent` header that is not one, no
+ * `author` header after the parents or no `committer` after it, or either
+ * holding what is not an ident, or a NUL in the message — the last a
+ * warning to `fsck` and a refusal under `--strict`, which is how Git
+ * writes an object. One check `fsck` does not make, since it never looks
+ * inside: a `mergetag` value must be a tag this module's sibling vouches
+ * for, so that {@link mergetags} is total. What `fsck` only notes passes:
+ * any other header.
  *
  * Separate from {@link tryRead} on purpose: a reader reads what it can,
  * and only this says no.
@@ -194,6 +196,7 @@ const isId = oidBytes => value => {
  * @type {(oidBytes: OidBytes) => (c: Commit) => Result<Commit, string>}
  */
 export const validate = oidBytes => c => {
+    if (hasNulHeader(c)) { return error('NUL in header') }
     const id = isId(oidBytes)
     const treeValue = valueAt(c, 0, 'tree')
     if (treeValue === null) { return error('no tree') }
@@ -207,5 +210,6 @@ export const validate = oidBytes => c => {
     if (committerValue === null) { return error('no committer') }
     if (readIdent(committerValue) === null) { return error('not a committer') }
     const tags = valuesOf(c, 'mergetag').map(readTag)
-    return tags.every(t => t !== null && validateTag(oidBytes)(t)[0] === 'ok') ? ok(c) : error('not a mergetag')
+    if (!tags.every(t => t !== null && validateTag(oidBytes)(t)[0] === 'ok')) { return error('not a mergetag') }
+    return includes(0)(c.message) ? error('NUL in message') : ok(c)
 }
