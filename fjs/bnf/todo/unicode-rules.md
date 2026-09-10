@@ -228,8 +228,10 @@ the parser port.
 
 - [ ] Add `fjs/ebnf/unicode/module.f.mjs` for Unicode code-point rule
       helpers, at that final path — not under `fjs/bnf/`.
-- [ ] Add `fjs/ebnf/byte/module.f.mjs` for binary byte-stream rule helpers,
-      likewise at its final path.
+- [x] Add `fjs/ebnf/byte/module.f.mjs` for binary byte-stream rule helpers,
+      likewise at its final path — shipped as
+      [`fjs/ebnf/byte/`](../../ebnf/byte/README.md), for
+      [git-objects](../../../todo/git-objects.md).
 - [ ] Have `fjs/ebnf/token_symbol` take `unicodeRange` from `fjs/ebnf/unicode`
       when it lands, so no `ebnf/` module reads text constants from a front
       end — a repoint of one constant after the adapter exists, which

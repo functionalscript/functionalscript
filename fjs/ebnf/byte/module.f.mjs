@@ -114,7 +114,9 @@ const isAscii = s => toArray(stringToCodePointList(s)).every(c => c < 0x80)
 /**
  * Refuses a rule the lowering met that reaches past the alphabet: a string
  * that is not ASCII, a symbol that is not a byte, a set with a boundary
- * past the byte universe. A tuple, a variant and a repeat carry no symbol
+ * past the byte universe or with an open tail — an odd number of
+ * boundaries runs to infinity from the last one, so `['set', 256]` holds no
+ * byte and every symbol above. A tuple, a variant and a repeat carry no symbol
  * of their own, and the rules under them are met on their own. A `const`
  * thunk's payload is not: the lowering names the payload under the thunk
  * and never registers it, so the thunk *is* the payload here, and a bare
@@ -132,7 +134,7 @@ const check = rule => {
         const info = rule()
         if (info[0] === 'set') {
             const [, ...s] = info
-            assert(s.every(b => b <= byteEnd), ['a set in a byte grammar holds bytes only', s])
+            assert(s.length % 2 === 0 && s.every(b => b <= byteEnd), ['a set in a byte grammar holds bytes only', s])
         } else if (info[0] === 'const') {
             check(info[1])
         }
@@ -153,8 +155,13 @@ const check = rule => {
  * cannot be seen here: `set('é')` reaches the map as the set `[233, 234]`,
  * which is `bytes(0xE9)` spelled another way, and is accepted as that.
  *
+ * The input's metadata `I` is this alphabet's, `Byte`, or a record carrying
+ * its `id` beside more — an offset, say — and never another alphabet's: a
+ * rewrite set written against another layer's input is refused at the
+ * type, so a mapping keeps to the layer it was written for.
+ *
  * @template {Rule} const R
- * @template [I=Byte]
+ * @template {Byte} [I=Byte]
  * @template [O=never]
  * @param {R} rule
  * @param {RewriteSet<I, O>} [set]

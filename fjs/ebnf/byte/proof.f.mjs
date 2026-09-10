@@ -128,6 +128,22 @@ export const proof = {
                 { id: 'word', bytes: ascii('42') },
             ])
         },
+        // The input's metadata may carry more than the alphabet's `id` — an
+        // offset here — and a rewrite set written against that record is
+        // one over this alphabet still.
+        extended: () => {
+            /** @type {Mappings<{ readonly id: 'byte', readonly offset: number }, { readonly id: 'at', readonly offset: number }>} */
+            const at = mapping
+            const w = repeatFrom1(range('az'))
+            const parse = byteParser(/** @type {const} */ ([w, eof]), [
+                at(w, bs => ({ symbol: 0, meta: { id: 'at', offset: bs[0].meta.offset } })),
+            ])
+            const [ast] = unwrap(parse(ascii('git').map((symbol, offset) => ({ symbol, meta: { id: 'byte', offset } }))))
+            assert(ast instanceof Array)
+            const [word] = ast
+            assert(!(word instanceof Array))
+            assertStructurallySame(word.meta, { id: 'at', offset: 0 })
+        },
         // A grammar that stops where its rule does reports the index it
         // left, so a reader can slice the rest.
         prefix: () => {
@@ -146,6 +162,9 @@ export const proof = {
             constSymbol: () => byteParser(() => ['const', 0x100]),
             set: () => byteParser(range(` ${unicodeMax}`)),
             rangeEncode: () => byteParser({ a: 'a', b: rangeEncode(0xFF, 0x100) }),
+            // An odd number of boundaries is open above the last one.
+            openAboveBytes: () => byteParser(() => ['set', 0x100]),
+            openFromZero: () => byteParser(() => ['set', 0]),
         },
     },
 }
