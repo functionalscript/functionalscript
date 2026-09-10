@@ -4,8 +4,9 @@
 **Status:** on-hold
 
 Only [bigint-symbols](./bigint-symbols.md) needs a wider terminal domain, and it
-is on hold, so there is nothing to choose a representation for. The current
-24-bit packed `number` stays.
+is on hold, so there is nothing to choose a representation for. The terminal
+stays what it is: a range set, a list of `number` boundaries
+([ebnf-range-set](./ebnf-range-set.md)).
 
 An investigation was carried out and closed unimplemented in
 [#1671](https://github.com/functionalscript/functionalscript/pull/1671); start

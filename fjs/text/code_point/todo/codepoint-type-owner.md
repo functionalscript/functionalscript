@@ -47,7 +47,7 @@ Then:
 - retype `code_point`'s predicates and `decoder`/`eofFlush` with it;
 - `utf16/types.ts` and `utf8/types.ts` re-export or import it, dropping the
   local `CodePoint`/`I32` aliases;
-- repoint the six external importers at `text/code_point/types.ts`;
+- repoint the external importers at `text/code_point/types.ts`;
 - delete the dead `ByteOrEof`.
 
 ### Tasks
@@ -55,8 +55,8 @@ Then:
 - [ ] Add `fjs/text/code_point/types.ts` with `CodePoint` and JSDoc stating
       the error-tag convention.
 - [ ] Retype `code_point`, `utf8` (replace `I32`), `utf16`; delete `ByteOrEof`.
-- [ ] Repoint the importers in `djs/tokenizer`, `bnf/descent`, `bnf/ll1`,
-      `media/json/serializer`.
+- [ ] Repoint the surviving importers, `djs/tokenizer` and
+      `media/json/serializer`; the four in `fjs/bnf` went with that module.
 - [ ] `tsc`, `fjs t`.
 
 ### Related

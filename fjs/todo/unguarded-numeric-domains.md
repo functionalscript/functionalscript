@@ -90,8 +90,6 @@ predicates and `hexDigitValue` need no such decision — all already answer
       since its return type has no `null` today.
 - [ ] Decide what `fromCodePointList` does with a non-integer code point on
       both sides, and make `utf8` and `utf16` agree.
-- [ ] `bnf`'s `isValid`: decide whether the assertion should reject a
-      non-integer before `& mask` silently truncates it.
 - [ ] Consider one `isCodePoint` owned by `text/code_point` rather than the
       several near-copies the table above lists.
 - [ ] Re-sweep for exports built on `contains` once the above land, and record
@@ -105,5 +103,5 @@ predicates and `hexDigitValue` need no such decision — all already answer
 - The deleted `fjs/text/utf8/todo/byte-guard-accepts-non-integers.md` closed the
   UTF-8 decoder half of this class; this file keeps the rest of it tracked.
 - It lives in `fjs/todo/` rather than under any one module's `todo/` because the
-  class spans `text/`, `bnf/`, and `types/range/`, which is what
+  class spans `text/` and `types/range/`, which is what
   [todo/README.md](../../todo/README.md) reserves this directory for.

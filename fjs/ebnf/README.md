@@ -74,19 +74,28 @@ data.
 
 ## Constructors are the API
 
-`Info` tuples are what a lowering reads, not what an author writes. One
-constructor is primitive and the familiar forms are partial applications of
-it:
+`Info` tuples are what a lowering reads, not what an author writes. Every
+repetition constructor builds the one `['repeat', min, max, rule]` tuple,
+and each spells its bounds itself:
 
 ```js
-export const repeat = (min, max) => rule => () => ['repeat', min, max, rule]
+export const repeat     = (a, b) => rule => () => ['repeat', a, b, rule]
+export const repeatFrom = n => rule => () => ['repeat', n, Infinity, rule]
+export const times      = n => rule => () => ['repeat', n, n, rule]
+export const option     = rule => () => ['repeat', 0, 1, rule]
 
-export const option      = repeat(0, 1)
-export const repeatFrom  = n => repeat(n, Infinity)
 export const repeatFrom0 = repeatFrom(0)
 export const repeatFrom1 = repeatFrom(1)
-export const times       = n => repeat(n, n)
 ```
+
+`repeatFrom` cannot be `repeat(n, Infinity)`: `repeat` refuses a bound that
+is not a literal, so that a repetition's type carries its bounds, and
+`Infinity` has no literal type — it is `number`, which is what marks a
+repetition unbounded to `BoundedArray` and to a map keyed by rule types
+([`types.ts`](./types.ts), `Infinity`). `times` and `option` are spelled the
+same way rather than as partial applications of `repeat`, each with its own
+named type, `Times<N, R>` and `Option<R>`; `repeatFrom0` and `repeatFrom1`
+are the partial applications.
 
 `join(separator)(item)` spells a separated list, taking its separator as a
 rule; `literals(words)` builds the prefix tree of a word list, so a
