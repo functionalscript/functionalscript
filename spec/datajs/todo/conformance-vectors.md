@@ -1838,10 +1838,13 @@ and a document is a string. Two things stay described rather than spelled:
   alone: a modifier's `on` is a `Target` (an array, an object or a
   modifier), a `Hole` is an element of an `Arr` and not an `Input`, and
   `proto` discriminates on `to`, so `inherited` exists only with
-  `arraySubclass` and a `null` prototype takes an object or an array
-  alike. Review found the first shape saying all three in comments while
-  admitting `on: 1`, a hole as an object member and an `inherited` member
-  with nothing to inherit from.
+  `arraySubclass`, whose `on` is an `ArrayTarget` — an array, or a
+  modifier over an `ArrayTarget`, so the narrowing holds through a chain
+  — and a `null` prototype takes an object or an array alike. Review found
+  the first shape saying all three in comments while admitting `on: 1`, a
+  hole as an object member and an `inherited` member with nothing to
+  inherit from, and the second admitting an object behind one modifier
+  where it refused it directly.
 
   **A modifier node denotes its target, modified** — the same object `on`
   denotes, not a copy. Four consequences, and they are stated because review

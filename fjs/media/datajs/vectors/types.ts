@@ -91,7 +91,7 @@ export type Input =
     | Fn
     | SymbolLeaf
     | Builtin
-    | Modifier
+    | Modifier<Target>
 
 /** An array as an input: inputs, or holes, which are legal nowhere else. */
 export type Arr = readonly (Input | Hole)[]
@@ -103,10 +103,40 @@ export type Obj = { readonly [k in string]?: Input } & { readonly host?: never }
  * What a modifier applies to: an array, an object, or a modifier over one,
  * since a modifier denotes its target. Nothing else has properties to add
  * or attributes to set, so a recipe over a leaf is refused by `tsc`.
+ * `ArrayTarget` is the same over arrays alone, the target `arraySubclass`
+ * narrows to, through a chain of modifiers as much as directly. Both spell
+ * the modifier union in place rather than as `Modifier<Target>`, since a
+ * recursive alias may recurse only through an interface, which is why the
+ * modifier shapes are interfaces.
  */
-export type Target = Arr | Obj | Modifier
+export type Target =
+    | Arr
+    | Obj
+    | OwnProp<Target>
+    | NonEnumerable<Target>
+    | Getter<Target>
+    | Setter<Target>
+    | SymbolKey<Target>
+    | ProtoNull<Target>
+    | ProtoArraySubclass
+    | AttrsOfObject<Target>
+    | AttrsOfProperty<Target>
+    | Link<Target>
 
-export type Recipe = Leaf | Modifier
+export type ArrayTarget =
+    | Arr
+    | OwnProp<ArrayTarget>
+    | NonEnumerable<ArrayTarget>
+    | Getter<ArrayTarget>
+    | Setter<ArrayTarget>
+    | SymbolKey<ArrayTarget>
+    | ProtoNull<ArrayTarget>
+    | ProtoArraySubclass
+    | AttrsOfObject<ArrayTarget>
+    | AttrsOfProperty<ArrayTarget>
+    | Link<ArrayTarget>
+
+export type Recipe = Leaf | Modifier<Target>
 
 /** A host value with no data to describe. */
 export type Leaf = Fn | SymbolLeaf | Builtin | Hole
@@ -130,53 +160,54 @@ export type Hole = { readonly host: 'hole' }
  * never a copy. A modifier is a `const` of its own in a set, and `on` names
  * an array, an object or another modifier: stacking is chaining, the inner
  * modifier applying first, and a node is the `on` of at most one modifier,
- * since the chain is the only order an exported value carries.
+ * since the chain is the only order an exported value carries. `On` is
+ * what the chain is over, a `Target` or an `ArrayTarget`.
  */
-export type Modifier =
-    | OwnProp
-    | NonEnumerable
-    | Getter
-    | Setter
-    | SymbolKey
-    | Proto
-    | Attrs
-    | Link
+export type Modifier<On> =
+    | OwnProp<On>
+    | NonEnumerable<On>
+    | Getter<On>
+    | Setter<On>
+    | SymbolKey<On>
+    | Proto<On>
+    | Attrs<On>
+    | Link<On>
 
 /** One more own enumerable data property on `on`. */
-export type OwnProp = {
+export interface OwnProp<On> {
     readonly host: 'ownProp'
-    readonly on: Target
+    readonly on: On
     readonly key: string
     readonly value: Input
 }
 
 /** The same, non-enumerable. */
-export type NonEnumerable = {
+export interface NonEnumerable<On> {
     readonly host: 'nonEnumerable'
-    readonly on: Target
+    readonly on: On
     readonly key: string
     readonly value: Input
 }
 
 /** An enumerable accessor whose getter records that it was invoked, then returns `value`. */
-export type Getter = {
+export interface Getter<On> {
     readonly host: 'getter'
-    readonly on: Target
+    readonly on: On
     readonly key: string
     readonly value: Input
 }
 
 /** An enumerable accessor with a setter and no getter, which reads as `undefined`. */
-export type Setter = {
+export interface Setter<On> {
     readonly host: 'setter'
-    readonly on: Target
+    readonly on: On
     readonly key: string
 }
 
 /** An enumerable own data property under a fresh unique symbol. */
-export type SymbolKey = {
+export interface SymbolKey<On> {
     readonly host: 'symbolKey'
-    readonly on: Target
+    readonly on: On
     readonly value: Input
 }
 
@@ -184,49 +215,54 @@ export type SymbolKey = {
  * The same data under a `null` prototype, which has nothing to inherit
  * from, or an array as an `Array` subclass instance, where `inherited` puts
  * one enumerable member on the subclass's prototype, under a key that is
- * not an own key of the target.
+ * not an own key of the target. The array is an array through any chain
+ * of modifiers over it, so `on` is an `ArrayTarget` whatever `On` is.
  */
-export type Proto =
-    | {
-        readonly host: 'proto'
-        readonly on: Target
-        readonly to: 'null'
-        readonly inherited?: never
-    }
-    | {
-        readonly host: 'proto'
-        readonly on: Arr | Modifier
-        readonly to: 'arraySubclass'
-        readonly inherited?: readonly [key: string, value: Input]
-    }
+export type Proto<On> = ProtoNull<On> | ProtoArraySubclass
+
+export interface ProtoNull<On> {
+    readonly host: 'proto'
+    readonly on: On
+    readonly to: 'null'
+    readonly inherited?: never
+}
+
+export interface ProtoArraySubclass {
+    readonly host: 'proto'
+    readonly on: ArrayTarget
+    readonly to: 'arraySubclass'
+    readonly inherited?: readonly [key: string, value: Input]
+}
 
 /**
  * The same data with those attributes: the object frozen, sealed or made
  * non-extensible, or one existing own data property, `key`, made
  * non-writable.
  */
-export type Attrs =
-    | {
-        readonly host: 'attrs'
-        readonly on: Target
-        readonly how: 'frozen' | 'sealed' | 'nonExtensible'
-        readonly key?: never
-    }
-    | {
-        readonly host: 'attrs'
-        readonly on: Target
-        readonly how: 'nonWritable'
-        readonly key: string
-    }
+export type Attrs<On> = AttrsOfObject<On> | AttrsOfProperty<On>
+
+export interface AttrsOfObject<On> {
+    readonly host: 'attrs'
+    readonly on: On
+    readonly how: 'frozen' | 'sealed' | 'nonExtensible'
+    readonly key?: never
+}
+
+export interface AttrsOfProperty<On> {
+    readonly host: 'attrs'
+    readonly on: On
+    readonly how: 'nonWritable'
+    readonly key: string
+}
 
 /**
  * The same data with one more element or enumerable own data property,
  * `key`, holding `to` — which may be `on` itself or a node above it: a
  * cycle, which a data literal cannot spell.
  */
-export type Link = {
+export interface Link<On> {
     readonly host: 'link'
-    readonly on: Target
+    readonly on: On
     readonly key: string | number
     readonly to: Input
 }
