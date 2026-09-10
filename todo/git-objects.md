@@ -129,7 +129,8 @@ valid object or substitute `U+FFFD` into it — the plausible wrong value
 [DESIGN.md §10](../doc/DESIGN.md#10-refuse-what-you-cannot-handle) forbids —
 and it would lose the bytes the trusted-timestamp work hashes. So the
 parser's symbols are bytes, `0..255`, and every value it extracts that is
-not a number is a `Vec` of bytes. A text view of a message or a name is a
+not a number is bytes — a `Vec` where the format fixes the width, a byte
+list where it does not. A text view of a message or a name is a
 layer above, through [`fjs/text/utf8`](../fjs/text/utf8/), when a consumer
 wants one and only for the encoding the object declares.
 
@@ -171,7 +172,8 @@ record shared by every leaf, and a function from the input to the symbols.
 
 - `byte` — the set `[0, 256)`, the byte universe as a range set for `not`;
   `not(s)` — the bytes not in `s`, since the front end's `remove` needs the
-  universe named and `unicodeMax` is the wrong one.
+  universe named and `unicodeMax` is the wrong one; `bytes(...)` — a set of
+  the given byte values, the constructor for a byte above `0x7F`.
 - `symbols` — `Meta<Byte>[]` from a `List<number>` of bytes, and from a `Vec`
   through `u8List(msb)`. A `List` rather than a `Vec` alone, because of the
   `Vec` ceiling below.
@@ -188,8 +190,17 @@ record shared by every leaf, and a function from the input to the symbols.
   adapter validates over those keys before a parser is built — a string key
   must be ASCII only, a number key below `256`, and a set's boundaries at
   most `256`, EOF's `[-1, 0]` excepted — and refuses otherwise, naming the
-  rule. A byte above `0x7F` is spelled as a number or through the adapter's
-  `byte` set, never as a string. That is the byte counterpart of what
+  rule. What it cannot see is a text argument to `set` or `range`: those
+  constructors build their thunk eagerly, so `set('é')` reaches the map as
+  `['set', 233, 234]` and is indistinguishable from the byte `0xE9` spelled
+  on purpose. So the check covers the string and number rules, and the rest
+  is a convention the adapter states and review holds: in a byte grammar, a
+  byte above `0x7F` is spelled as a number or through the adapter's own
+  constructors — `byte`, `not`, and a `bytes(...)` for a set of them — and
+  never through the front end's text helpers. Should the convention prove
+  too weak, the `Set` type's phantom spelling still carries the constructor
+  argument at the type level, and a type-level refusal of a non-ASCII
+  spelling is the next step. That is the byte counterpart of what
   `validate` in [`fjs/ebnf/data`](../fjs/ebnf/data/README.md) refuses for
   every alphabet, and `byteParser(rule, set)` is `parser` behind it.
 
@@ -200,23 +211,41 @@ a media type of the CAS store, and refs, packs and the object store will
 join it. The sketches below are the front end's forms; each grammar ships
 with the mappings that fold it to a value and a proof over real objects.
 
-**Values.** An id, a name, an email and a message are bytes:
+**Values.** An id, a name, an email, a header and a message are bytes, and
+which byte type a field has follows from whether the format bounds it:
 
 ```ts
+type Bytes = List<number>                         // unbounded, one byte per item
 type Oid = Vec                                    // 20 or 32 bytes, raw
 type ObjectType = 'blob' | 'tree' | 'commit' | 'tag'
-type Ident = { name: Vec, email: Vec, time: bigint, tz: string }
-type Header = readonly [key: string, value: Vec]  // the key is ASCII
-type Commit = { headers: readonly Header[], message: Vec }
-type Tag = { headers: readonly Header[], message: Vec }
-type TreeEntry = { mode: number, name: Vec, oid: Oid }
+type Ident = { name: Bytes, email: Bytes, time: bigint, tz: string }
+type Header = readonly [key: Bytes, value: Bytes]
+type Commit = { headers: readonly Header[], message: Bytes }
+type Tag = { headers: readonly Header[], message: Bytes }
+type TreeEntry = { mode: Bytes, name: Bytes, oid: Oid }
 
 const tree: (c: Commit) => Oid
 const parents: (c: Commit) => readonly Oid[]
 const author: (c: Commit) => Ident
 const committer: (c: Commit) => Ident
 const tagger: (t: Tag) => Nullable<Ident>
+const mode: (e: TreeEntry) => number
 ```
+
+A `Vec` holds at most 128 KiB (the ceiling below), so it is the type of a
+field the format bounds — an id — and a byte list is the type of one it
+does not: a message runs to the end of the object, a header value may hold
+a whole tag, and a name is whatever the file system gave. A header's key
+is bytes too, not a string: the grammar reads any byte but SP and LF, Git
+accepts what it reads, and a reader that promises the block byte for byte
+cannot then refuse a key for its spelling. The well-known keys are compared
+as bytes. A tree entry's mode is kept as the digits it was spelled with,
+since `0100644` and `100644` are one number and two spellings — Git writes
+the unpadded one and `git fsck` only warns about the other, so both exist —
+and a writer owes the spelling it read. `mode` reads the number off it, and
+`validate` refuses the padded spelling, as `git fsck`'s `zeroPaddedFilemode`
+flags it: the reader reads such an entry and the writer returns it byte for
+byte, and only the check that vouches for an object says no to it.
 
 A commit and a tag are their header list and their message, and nothing
 else: one representation, so there is no second one for a writer to choose
@@ -280,21 +309,23 @@ issue naming the object.
 
 **Tree** is `repeatFrom0(entry)` then `eof`, with
 `entry = [repeatFrom1(octal), ' ', repeatFrom1(not('\0')), '\0', times(n)(byte)]`
-for the repository's id width `n`. The mode set, the entry order Git
-requires (by name, a subtree as if its name ended in `/`), and a name
-holding `/` are `git fsck`'s checks; they belong in a `validate` over the
-entry list, separate from the grammar, so a reader can still read an object
-`fsck` would flag.
+for the repository's id width `n`. The mode set and its spelling, the entry
+order Git requires (by name, a subtree as if its name ended in `/`), and a
+name holding `/` are `git fsck`'s checks; they belong in a `validate` over
+the entry list, separate from the grammar, so a reader can still read an
+object `fsck` would flag. That is why the entry keeps the mode's digits: a
+number would make a padded mode look canonical before `validate` ever saw
+it.
 
 **Tag** is the header block with `object`, `type`, `tag` and an optional
 `tagger`. A `mergetag` header in a commit is a tag object in a value, and
 it is read by handing the value's bytes to the tag grammar — one more layer
 over the same alphabet.
 
-**The id width** is a parameter of the module — `{ oidBytes: 20n | 32n }` —
-because it changes a grammar (`times(n)(byte)` in the tree) and a check (the
-hex length in every header that names an object). A hex id of any other
-length is refused.
+**The id width** is a parameter of the module — `{ oidBytes: 20 | 32 }`, a
+number, since `times` takes its bound as one — because it changes a grammar
+(`times(n)(byte)` in the tree) and a check (the hex length in every header
+that names an object). A hex id of any other length is refused.
 
 #### 3. What the grammar does not do
 
@@ -316,12 +347,15 @@ approximated:
   Git computes it with collision detection (`sha1dc`), which a verifier may
   or may not want.
 - **The `Vec` ceiling.** `maxLength` in `fjs/types/bit_vec` is `2^20` bits,
-  128 KiB. A commit or a tag fits; a tree entry is about forty bytes, so a
-  tree of more than roughly three thousand entries does not, and a blob may
-  not either. That is why `symbols` takes a `List<number>` and a `Vec` is
-  what a *field* is, never what an object has to be. Where a field must be a
-  `Vec`, it is built with `tryU8ListToVec` and a `null` is refused, never
-  truncated ([DESIGN.md §6](../doc/DESIGN.md#6-never-precompute-a-size-to-predict-whether-something-fits)).
+  128 KiB. Nothing the format leaves unbounded is safe from it: a tree
+  entry is about forty bytes, so a tree of more than roughly three thousand
+  entries does not fit, a blob may not, and a commit message or a header
+  value may not either, since both run to a delimiter and not to a size.
+  That is why `symbols` takes a `List<number>`, why every unbounded field
+  is a byte list, and why a `Vec` is the type of a fixed-width field only.
+  Where a `Vec` is built, it is built with `tryU8ListToVec` and a `null` is
+  refused, never truncated
+  ([DESIGN.md §6](../doc/DESIGN.md#6-never-precompute-a-size-to-predict-whether-something-fits)).
 - **One `Meta` per byte.** The LL(1) backend takes an array of symbols,
   each an object, and streams nothing (its README, "Left for later"). For
   commits, tags and trees that is fine; it is the reason a blob is never
@@ -340,8 +374,8 @@ approximated:
 
 ### Tasks
 
-- [ ] `fjs/ebnf/byte/`: `byte`, `not`, `symbols`, alphabet validation,
-      `byteParser`; proof.
+- [ ] `fjs/ebnf/byte/`: `byte`, `not`, `bytes`, `symbols`, alphabet
+      validation, `byteParser`; proof.
 - [ ] `fjs/git/object/`: the envelope grammar, and the reader that slices
       the payload after the NUL and checks the size.
 - [ ] `fjs/git/header/`: the header block, shared by commit and tag.
