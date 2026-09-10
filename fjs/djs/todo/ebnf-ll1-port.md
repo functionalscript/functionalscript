@@ -86,12 +86,15 @@ Two ports, tokenizer first, each a grammar rewrite plus a backend swap:
    `comment` and `operator`; build the operator prefix tree from the
    literal list with a helper; drop the `numError`
    poison and decide the number boundary in the layer above the tokens —
-   a number token directly followed by an identifier or number token, no
-   trivia between, is the error `123abc` and `00` are today, and the token
-   stream shows it to an LL(1) grammar or a mapping over that stream, never
-   to hand-written scanning in the loop; spell the grammar as one `token`
-   and run it through the resumable parser. Every layer is an LL(1)
-   grammar and a mapping into the next alphabet; nothing else parses. Write the EBNF spelling beside
+   a number or bigint token directly followed by a token that begins with
+   an identifier character or a digit, no trivia between, is the error
+   `123abc`, `1nabc`, `1n0`, `123true` and `00` are today; at that layer a
+   keyword is an `id`, so the following token is an identifier, a number or
+   a bigint — and the token stream shows it to an LL(1) grammar or a
+   mapping over that stream, never to hand-written scanning in the loop;
+   spell the grammar as one `token` and run it through the resumable
+   parser. Every layer is an LL(1) grammar and a mapping into the next
+   alphabet; nothing else parses. Write the EBNF spelling beside
    the classical one first and pin the same token stream over the existing
    proof corpus (ebnf-migration, principle 5), then swap. `jsMatcher` and
    `descentParserCpOnly` are the descent-shaped exports the port replaces;
