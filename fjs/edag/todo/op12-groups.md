@@ -81,8 +81,11 @@ node's length does.
   [`README.md`](../../nanvm/README.md)'s "Arity is not an annotation" paragraph
   gains this one exception.
 - `arityOf` reads `g.arity` when present and falls back to the vocabulary
-  check otherwise. `caseExp` needs no change: it already builds the node from
-  `arityOf`'s answer.
+  check otherwise. `caseExp` keeps its runtime shape — it already builds the
+  node from `arityOf`'s answer — but not its types: the constructed node
+  becomes `Op1 | Op2 | Op12`, and its two casts widen to `Op1Id | Op12Id` and
+  `Op2Id | Op12Id`, since an `Op12Id` is legal at either count and the old
+  casts to `Op1Id`/`Op2Id` would be false for one.
 - The `neg` group becomes `{ op: '-', arity: 1 }` and the `unaryPlus` group
   moves off `NonEdagGroup` onto `{ op: '+', arity: 1 }`. The `'unaryPlus'`
   arm of `NonEdagGroup` and `OpId`'s member for it are deleted. `ternary` and
@@ -99,7 +102,11 @@ node's length does.
   `opId(g)`) and the printer's `rustName`. Give the key one owner — a
   `groupKey` beside `opId` in [`module.f.mjs`](../../nanvm/module.f.mjs) —
   so the JavaScript and Rust names cannot diverge, the same rule `orders`
-  follows for the `Swapped` suffix.
+  follows for the `Swapped` suffix. The spelling is observable — it is a test
+  name and a `rustName` key — so it is fixed here rather than left to the
+  implementation: an `Op12` group's key is its tag, a slash, and its arity —
+  `'+/1'`, `'-/1'`, `'+/2'`, `'-/2'` — and every other group's key is its
+  `opId` unchanged, so no existing proof or Rust-name key moves.
 - `rustName` keeps mapping the unary groups to `neg` and `unary_plus`, so
   `nanvm-lib/tests/test/generated.rs` is **byte-identical** after
   `npm run gen`. That is the acceptance check for the whole change: the
@@ -140,7 +147,8 @@ node's length does.
 - [ ] `fjs/nanvm/types.ts`: `Group12`; delete the `'unaryPlus'`
       `NonEdagGroup` arm; extend the `Case<N>`/`Group` assertions to the two
       `Group12` arms.
-- [ ] `fjs/nanvm/module.f.mjs`: `arityOf` reads `arity`; `groupKey`; move
+- [ ] `fjs/nanvm/module.f.mjs`: `arityOf` reads `arity`; `caseExp`'s node
+      type and casts admit `Op12`; `groupKey` with the four keys above; move
       the two groups.
 - [ ] `fjs/nanvm/proof.f.mjs`: `'-'` and `'+'` entries in `op1Js`; test
       objects keyed by `groupKey`.
