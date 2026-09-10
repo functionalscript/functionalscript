@@ -55,13 +55,10 @@ const covers = s => {
 }
 
 export const proof = {
-    // The EBNF token grammar in `fjs/ebnf/lib/js`, read one token at a time,
-    // yields the token stream this grammar does: kind and text agree token
-    // for token over the corpus. This is the port's readiness check
-    // (ebnf-migration, principle 5): the grammar that reads the same
-    // stream may replace this one.
     // What the grammar covers, token by token, whatever the layers above
-    // make of the tokens.
+    // make of the tokens. The token stream itself — kind, text, position —
+    // is pinned by every `tokenizeString` and `tokenize` case below, which
+    // the descent tokenizer met before the port and this one meets unchanged.
     isValid: [() => {
             /** @type {(s: string, expected: boolean) => void} */
             const expect = (s, expected) => {

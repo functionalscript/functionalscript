@@ -153,11 +153,12 @@ carry its own entry. `ll1Recognizer` builds via `parserRuleSet(ruleSet)`, which 
 already exposes, so no production API is added here; a `bnf`-local descent
 adapter builds via `descentParserRuleSet(ruleSet)` the same way.
 
-That local adapter also absorbs the proof-local copy of `descentParserCpOnly`.
-Leave the DJS tokenizer's own `descentParserCpOnly` export to the djs port:
-its proof has typed-result consumers beyond the recognition corpus, and the
-port replaces it with an LL(1) equivalent as part of that module's own API
-change ([ebnf-migration](../../todo/ebnf-migration.md), the consumer port).
+That local adapter also absorbs the proof-local copy of `descentParserCpOnly`,
+which is now the only one: the DJS tokenizer's own export of that name went
+with its port to the LL(1) backend, retired with no equivalent
+([ebnf-ll1-port](../../djs/todo/ebnf-ll1-port.md)) — the tokenizer reads
+`fjs/ebnf/lib/js` one token at a time, and its proof asks the grammar what
+it covers rather than reading a match result.
 
 `stringToCodePointList` / `toArray` / code-point mapping stay inside the Unicode
 recognizer adapter, which takes them from `fjs/text/utf16` — input decoding,
@@ -217,8 +218,8 @@ explicit named override list for the rows where token-stream acceptance differs.
       the first task removes) and no `''` default.
 - [ ] Fold the proof-local `descentParserCpOnly` / code-point adapter into a
       `bnf/descent`-local `descentRecognizer` that reuses the shared
-      `Recognizer` type and `assertRecognizes`; leave the DJS tokenizer's
-      public export to the djs port.
+      `Recognizer` type and `assertRecognizes`. The DJS tokenizer's export of
+      that name is gone with its port, so nothing else spells it.
 - [ ] Add `number` as a directly authored `RuleSet` and entry name — no
       functional `Rule`, no `toData` in the shared testlib — and add
       `jsonCases`.
