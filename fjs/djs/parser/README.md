@@ -91,9 +91,11 @@ the bar.
 
 A tree this recursive is more than `tsc` unrolls in places. The list rule's
 type leaves the rest of the list as `Rule`, since a reader takes the rest from
-the list's own mapping, one symbol by then, rather than from the type; and the
-two list readers are typed by the shape of a list node, as a reader of a
-combinator's scaffolding is. Every other reader is typed from its rule.
+the list's own mapping, one symbol by then, rather than from the type. Every
+mapping is typed from its rule; the one reader the two list mappings share is
+typed by the shape of a list node, as a reader of a combinator's scaffolding
+is. The nodes the mappings build, and the alphabet they return them in, are
+public types in `./types.ts`, as the rewrite set is.
 
 ## Framing keywords are terminals of their own
 

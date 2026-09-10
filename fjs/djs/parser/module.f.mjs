@@ -45,13 +45,10 @@
  * @import { Primitive } from '../types.ts'
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstArray, AstConst, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
- * @import { ParseError } from './types.ts'
+ * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
  * @import { Items, Member, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
- * @import {
- *     _Const, _Container, _Env, _Frame, _Import, _Leaf, _ListNode, _Member, _Module, _Node, _OptionalList, _Out,
- *     _Stack, _State, _TokenStream,
- * } from './private.ts'
+ * @import { _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
  */
 
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -124,7 +121,7 @@ const tokenAt = node => {
 /**
  * What a mapping returned at a position: an output symbol.
  *
- * @type {(node: _Leaf) => _Out}
+ * @type {(node: _Leaf) => Out}
  */
 const outAt = node => {
     const { meta } = symbolAt(node)
@@ -132,56 +129,56 @@ const outAt = node => {
     return meta
 }
 
-/** @type {(node: _Leaf) => _Node} */
+/** @type {(node: _Leaf) => Node} */
 const nodeAt = node => {
     const out = outAt(node)
     assert(out.id === 'value')
     return out.node
 }
 
-/** @type {(node: _Leaf) => List<_Node>} */
+/** @type {(node: _Leaf) => List<Node>} */
 const valuesAt = node => {
     const out = outAt(node)
     assert(out.id === 'values')
     return out.items
 }
 
-/** @type {(node: _Leaf) => _Member} */
+/** @type {(node: _Leaf) => Entry} */
 const memberAt = node => {
     const out = outAt(node)
     assert(out.id === 'member')
     return out.member
 }
 
-/** @type {(node: _Leaf) => List<_Member>} */
+/** @type {(node: _Leaf) => List<Entry>} */
 const membersAt = node => {
     const out = outAt(node)
     assert(out.id === 'members')
     return out.items
 }
 
-/** @type {(node: _Leaf) => _Import} */
+/** @type {(node: _Leaf) => Import} */
 const importAt = node => {
     const out = outAt(node)
     assert(out.id === 'import')
     return out.statement
 }
 
-/** @type {(node: _Leaf) => _Const} */
+/** @type {(node: _Leaf) => Const} */
 const constAt = node => {
     const out = outAt(node)
     assert(out.id === 'const')
     return out.statement
 }
 
-/** @type {(node: _Leaf) => _Node} */
+/** @type {(node: _Leaf) => Node} */
 const exportAt = node => {
     const out = outAt(node)
     assert(out.id === 'export')
     return out.node
 }
 
-/** @type {(node: _Leaf) => _Module} */
+/** @type {(node: _Leaf) => Module} */
 const moduleAt = node => {
     const out = outAt(node)
     assert(out.id === 'module')
@@ -210,7 +207,7 @@ const textOf = ({ token }) => {
  * branch holds: the branch is the token's kind, so the switch is over the
  * grammar's own list of value kinds.
  *
- * @type {(node: Children<typeof primitive, DjsTokenWithMetadata, _Out>) => Primitive}
+ * @type {(node: Children<typeof primitive, DjsTokenWithMetadata, Out>) => Primitive}
  */
 const primitiveOf = ([tag, leaf]) => {
     const { token } = tokenAt(leaf)
@@ -260,7 +257,7 @@ const listOf = (itemAt, itemsAt) => ([item, , more]) => {
     return { first: itemAt(item), tail }
 }
 
-/** @type {(out: _Out) => Meta<_Out>} */
+/** @type {(out: Out) => Meta<Out>} */
 const symbol = out => ({ symbol: 0, meta: out })
 
 /**
@@ -268,7 +265,7 @@ const symbol = out => ({ symbol: 0, meta: out })
  * token, a reference by its token, and a container of the items its list
  * returned — `[ open t [ items ] close ]`, the list at the third position.
  *
- * @type {(node: Children<Value, DjsTokenWithMetadata, _Out>) => Meta<_Out>}
+ * @type {(node: Children<Value, DjsTokenWithMetadata, Out>) => Meta<Out>}
  */
 const toNode = node => {
     switch (node[0]) {
@@ -288,7 +285,7 @@ const toNode = node => {
  * computed spelling — `[ '[' t string t ']' ]`, the string at the third
  * position. The distinction exists for `__proto__` alone.
  *
- * @type {(node: Children<typeof key, DjsTokenWithMetadata, _Out>) => readonly [DjsTokenWithMetadata, string, boolean]}
+ * @type {(node: Children<typeof key, DjsTokenWithMetadata, Out>) => readonly [DjsTokenWithMetadata, string, boolean]}
  */
 const keyOf = node => {
     switch (node[0]) {
@@ -307,24 +304,24 @@ const keyOf = node => {
     }
 }
 
-/** @type {(node: Children<typeof member, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+/** @type {(node: Children<typeof member, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toMember = ([k, , , , v]) => {
     const [token, name, computed] = keyOf(unmapped(k))
     return symbol({ id: 'member', member: { key: token, name, computed, value: nodeAt(v) } })
 }
 
-/** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+/** @type {(node: Children<typeof importStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toImport = ([, , name, , , , module]) =>
     symbol({ id: 'import', statement: { name: tokenAt(unmapped(name)[1]), module: textOf(tokenAt(module)) } })
 
-/** @type {(node: Children<typeof constStatement, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+/** @type {(node: Children<typeof constStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toConst = ([, , name, , , , v]) =>
     symbol({ id: 'const', statement: { name: tokenAt(unmapped(name)[1]), value: nodeAt(v) } })
 
-/** @type {(node: Children<typeof exportStatement, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+/** @type {(node: Children<typeof exportStatement, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toExport = ([, , , , v]) => symbol({ id: 'export', node: nodeAt(v) })
 
-/** @type {(node: Children<typeof djsModule, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+/** @type {(node: Children<typeof djsModule, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toModule = ([, imports, consts, exported]) => symbol({
     id: 'module',
     module: {
@@ -334,13 +331,13 @@ const toModule = ([, imports, consts, exported]) => symbol({
     },
 })
 
-/** @type {Mappings<DjsTokenWithMetadata, _Out>} */
+/** @type {Mappings<DjsTokenWithMetadata, Out>} */
 const map = mapping
 
-/** @type {(node: Children<Items<Value>, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+/** @type {(node: Children<Items<Value>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toValues = node => symbol({ id: 'values', items: listOf(nodeAt, valuesAt)(node) })
 
-/** @type {(node: Children<Items<Member>, DjsTokenWithMetadata, _Out>) => Meta<_Out>} */
+/** @type {(node: Children<Items<Member>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
 const toMembers = node => symbol({ id: 'members', items: listOf(memberAt, membersAt)(node) })
 
 /**
@@ -349,7 +346,7 @@ const toMembers = node => symbol({ id: 'members', items: listOf(memberAt, member
  * statements. Keyed by the rules `./grammar` holds, so that
  * `parser(djsModule, mappings)` yields one symbol carrying the module.
  *
- * @type {RewriteSet<DjsTokenWithMetadata, _Out>}
+ * @type {RewriteSet<DjsTokenWithMetadata, Out>}
  */
 export const mappings = [
     map(value, toNode),
@@ -376,7 +373,7 @@ const protoKey = '__proto__'
 /** @type {(message: string) => (t: DjsTokenWithMetadata) => ParseError} */
 const foldError = message => ({ metadata }) => ({ message, metadata })
 
-/** @type {(container: _Container, index: number) => _Node} */
+/** @type {(container: Container, index: number) => Node} */
 const itemAt = (container, index) =>
     container[0] === 'array' ? container[1][index] : container[1][index].value
 
@@ -390,7 +387,7 @@ const itemAt = (container, index) =>
  * Errors are first-to-last, and a key is not special enough to jump the
  * queue.
  *
- * @type {(container: _Container, index: number) => ParseError | null}
+ * @type {(container: Container, index: number) => ParseError | null}
  */
 const badKey = (container, index) => {
     if (container[0] === 'array') { return null }
@@ -405,7 +402,7 @@ const badKey = (container, index) => {
  * with a property per member, a repeated key keeping its first position
  * and taking its last value.
  *
- * @type {(container: _Container, done: readonly AstConst[]) => AstConst}
+ * @type {(container: Container, done: readonly AstConst[]) => AstConst}
  */
 const close = (container, done) => {
     if (container[0] === 'array') {
@@ -415,7 +412,7 @@ const close = (container, done) => {
     }
     /** @type {AstObject} */
     const object = fromMap(container[1].reduce(
-        /** @type {(m: OrderedMap<AstConst>, member: _Member, index: number) => OrderedMap<AstConst>} */
+        /** @type {(m: OrderedMap<AstConst>, member: Entry, index: number) => OrderedMap<AstConst>} */
         ((m, { name }, index) => setReplace(name)(done[index])(m)),
         empty))
     return object
@@ -430,7 +427,7 @@ const close = (container, done) => {
  * resolved in order, so that a value nested as deep as the input allows
  * costs no call stack.
  *
- * @type {(env: _Env) => (root: _Node) => Result<AstConst, ParseError>}
+ * @type {(env: _Env) => (root: Node) => Result<AstConst, ParseError>}
  */
 const evaluate = env => root => {
     /**
@@ -448,7 +445,7 @@ const evaluate = env => root => {
             : [stack, error(rejected)]
     }
 
-    /** @type {(stack: _Stack, node: _Node) => _State} */
+    /** @type {(stack: _Stack, node: Node) => _State} */
     const enter = (stack, node) => {
         switch (node[0]) {
             case 'primitive': { return [stack, ok(node[1])] }
@@ -494,7 +491,7 @@ const bind = env => (name, ref) => {
  * value against the names bound so far, itself included, and the export
  * is resolved against them all.
  *
- * @type {(module: _Module) => Result<AstModule, ParseError>}
+ * @type {(module: Module) => Result<AstModule, ParseError>}
  */
 const foldModule = ({ imports, consts, exported }) => {
     /** @type {_Env} */
