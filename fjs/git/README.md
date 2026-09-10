@@ -310,7 +310,7 @@ Each is a limit stated, refused where it is crossed, and none approximated:
 - **An object with no empty line.** A commit or a tag whose bytes end
   after its last header, which Git accepts and none of its tools write,
   is refused by the header block's grammar; reading it is a change to
-  `Payload`, [`todo/header-only-object.md`](todo/header-only-object.md).
+  `Payload`, [`header/todo/header-only-object.md`](header/todo/header-only-object.md).
 - **One `Meta` per byte.** The LL(1) backend takes an array of symbols,
   each an object, and streams nothing. For commits, tags and trees that is
   fine; it is the reason a blob is never handed to a parser.

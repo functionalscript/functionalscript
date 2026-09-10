@@ -54,12 +54,28 @@ covers.
    does not run it (a Radicle seed, a local clone)?
 
 2. **A second name for every object: a SHA-1 → SHA-256 mapping.** A table
-   from an object's SHA-1 id to the SHA-256 of the same bytes, so a
-   verifier that has the object checks both, and a colliding twin fails
-   the second. Git's own transition plan keeps exactly this table for
-   interoperability (`extensions.compatObjectFormat`, the loose-object and
-   pack compat indexes), which is a precedent and possibly an
-   implementation to reuse. What is open is who vouches for the table:
+   from an object's SHA-1 id to a SHA-256 name, so a verifier that has
+   the object checks both, and a colliding twin fails the second. Two
+   distinct tables answer to that description, and they are not the same:
+   - **The SHA-256 of the same bytes.** Cheap, needs nothing of Git, and
+     names the object as stored; but a tree, a commit or a tag holds
+     SHA-1 ids inside it, so this name still rests on SHA-1 one level
+     down, and a collision in a blob a tree names is not caught by the
+     tree's second name.
+   - **Git's compat mapping** (`extensions.compatObjectFormat`, the
+     loose-object and pack compat indexes, in the
+     [transition plan](https://git-scm.com/docs/hash-function-transition.html)).
+     Git translates the object first — every embedded SHA-1 id in a tree,
+     commit or tag replaced by its SHA-256 twin — and hashes the
+     translation, so the SHA-256 name is the object's name in a SHA-256
+     repository holding the same history, blobs alone being hashed as they
+     are. It is the mapping the hosts will carry once interoperability
+     lands, and a precedent and possibly an implementation to reuse; it
+     costs a walk, since an object's name depends on the names of what it
+     points to.
+   Which one DISOT wants is open; the second closes the hole in the first
+   and is what Git itself will publish. Either way, what is open is who
+   vouches for the table:
    - **Globally approved**, published and signed by a party DISOT trusts,
      so any two verifiers agree on the SHA-256 name of a SHA-1 object. Who
      is the party, how does the table grow (per push? per attestation?),

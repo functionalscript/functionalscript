@@ -33,13 +33,18 @@ alphabet like the objects:
 
 Two functions over the effects:
 
-- `roots()`: every ref the repository holds, loose and packed, as
-  `(name, id)` pairs — the retention roots, and the set of ids a
-  candidate-commit search may start from. The names come along because
-  the files hold them, not because they mean anything; a consumer that
-  reads meaning into one is outside this design.
-- `tryResolve(ref)`: the id one ref names, a symbolic ref followed to a
-  bounded depth, or `null`. For plumbing that has a ref in hand —
+- `roots()`: every ref the repository holds, as `(name, id)` pairs, one
+  per name — the retention roots, and the set of ids a candidate-commit
+  search may start from. A name may sit in both places, since
+  `pack-refs` leaves the loose file until it is safe to drop and a later
+  update writes the loose file and leaves the packed line stale, and Git
+  reads the loose file first: a loose ref shadows the packed one of the
+  same name, and only the effective value is a root. The names come
+  along because the files hold them, not because they mean anything; a
+  consumer that reads meaning into one is outside this design.
+- `tryResolve(ref)`: the id one ref names — its loose file, or its
+  `packed-refs` line where there is no loose file — a symbolic ref
+  followed to a bounded depth, or `null`. For plumbing that has a ref in hand —
   `HEAD` for a checkout, a ref a person typed at a command line — and
   for nothing that resolves a DISOT name.
 

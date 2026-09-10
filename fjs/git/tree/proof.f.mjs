@@ -59,12 +59,19 @@ export const proof = {
     // vouched for, and written back to the same bytes.
     modes: () => {
         const t = read(modesTree)
-        assertStructurallySame(t.map(e => text(e).slice(0, 2)), [
-            ['100644', 'a.txt'], ['100644', 'b.txt'], ['40000', 'dir'], ['120000', 'link'],
-            ['100755', 'run.sh'], ['160000', 'sub'], ['100644', 't.txt'],
+        // Every entry as Git wrote it: `a.txt` is the blob `hello\n`, whose
+        // id any Git computes, and `sub` names the scratch repository's
+        // commit.
+        assertStructurallySame(t.map(text), [
+            ['100644', 'a.txt', 'ce013625030ba8dba906f756967f9e9ca394464a'],
+            ['100644', 'b.txt', 'ef49dd86a6957875edcd0bff210337d6b6dd063c'],
+            ['40000', 'dir', '4997ca7a42e3ad9b729fbad3acd44fbabd07b6bd'],
+            ['120000', 'link', '8d14cbf983b3fad683171c9418998d9f68340823'],
+            ['100755', 'run.sh', 'f5bdd214e01603ecd6c83be9f66d88579c588ec6'],
+            ['160000', 'sub', '9fed27590671460cacf76884f17cd2a4b17f7220'],
+            ['100644', 't.txt', '0f62d67e76ce1255a098942495a846df0f8a2c11'],
         ])
         assertStructurallySame(t.map(mode), [0o100644, 0o100644, 0o40000, 0o120000, 0o100755, 0o160000, 0o100644])
-        assertEq(text(t[5])[2], '9fed27590671460cacf76884f17cd2a4b17f7220')
         assertStructurallySame(validate(t), ['ok', t])
         assertStructurallySame(toArray(write20(t)), modesTree)
     },
