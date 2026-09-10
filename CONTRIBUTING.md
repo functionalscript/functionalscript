@@ -74,15 +74,19 @@ nothing in this repository requires Nix.
 
 A [Claude Code on the web](https://code.claude.com/docs/en/claude-code-on-the-web)
 session starts inside this same shell.
-[`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh) runs when
-the session opens: it installs Nix into the container, fetches the flake's
-inputs over git (the session's GitHub proxy refuses the tarballs Nix would ask
-for), enters the shell once so that everything it needs is downloaded, and
-exports the shell's `PATH` to the session. The first session pays for the
-downloads; the container is cached afterwards, and the next one starts in
-seconds. The hook is for the web environment only: on a developer's machine,
-which may be Windows, it exits before doing anything, and you run `./dev.sh`
-yourself if you want the shell.
+Two scripts share the work. [`.claude/setup.sh`](./.claude/setup.sh) is the
+environment's setup script — paste it into the **Setup script** field of the
+cloud environment at [claude.ai/code](https://claude.ai/code). It runs once
+per environment: it installs Nix, fetches the flake's inputs over git (the
+session's GitHub proxy refuses the tarballs Nix would ask for) and enters the
+shell once, from a clone of `main`, so that everything the shell needs is
+downloaded. The environment is cached after it, and every session starts
+with that on disk. [`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh)
+then runs when each session opens: it installs what the environment lacks —
+nothing, once the setup script has run — runs `npm ci`, and exports the
+shell's `PATH` to the session. The hook is for the web environment only: on a
+developer's machine, which may be Windows, it exits before doing anything,
+and you run `./dev.sh` yourself if you want the shell.
 
 ### Node test-runner compatibility
 
