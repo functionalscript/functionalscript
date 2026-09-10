@@ -42,10 +42,13 @@ Beside the grammars, three things the port relies on are not in `fjs/ebnf`:
 - **A parser resumable at an index.** `Parser` takes the whole input and
   starts at `0` ([`ebnf/ll1/types.ts`](../../ebnf/ll1/types.ts)). A token
   layer over a single-token grammar has to parse the next token *from where
-  the last one ended*; slicing the input per token is quadratic. This is
-  the "token layer" of ebnf-migration's stage 6 made concrete: a start
-  index on the parser, or a fold in `ebnf/ll1` that runs a one-token parser
-  to the end of input. Maximal munch inside a token needs no mechanism of
+  the last one ended*; slicing the input per token is quadratic, and so is
+  the scan of every symbol the parser makes before each match today, so
+  that check moves to where a symbol is read
+  ([#1917](https://github.com/functionalscript/functionalscript/pull/1917)).
+  This is the "token layer" of ebnf-migration's stage 6 made concrete: a
+  start index on the parser, or a fold in `ebnf/ll1` that runs a one-token
+  parser to the end of input. Maximal munch inside a token needs no mechanism of
   its own — an optional round starts whenever the lookahead is in the
   item's first set, so identifiers, comments and numbers are munched
   maximally by construction, and operators are once they are a prefix

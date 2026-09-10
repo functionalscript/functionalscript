@@ -215,9 +215,11 @@ new module boundary and final rule discriminants before implementation starts.
 Everything here is additive in `fjs/ebnf/`. No task removes anything from
 `fjs/bnf/`: the classical helpers, the classical `string` rule case and the
 grammars that use them stay until `bnf/` is deleted, and the two
-`fjs/bnf/lib` grammars and the `fjs/djs` grammars adopt this adapter when
-they are ported ([ebnf-migration](../../todo/ebnf-migration.md)'s consumer
-port), not here.
+`fjs/bnf/lib` grammars adopt this adapter when they are ported
+([ebnf-migration](../../todo/ebnf-migration.md)'s consumer port), not
+here. The `fjs/djs` grammars do not: their port spells every complement
+with the front end's `remove` over the full range and neither depends on
+nor waits for this adapter ([ebnf-ll1-port](../../djs/todo/ebnf-ll1-port.md)).
 
 - [ ] Add `fjs/ebnf/unicode/module.f.mjs` for Unicode code-point rule
       helpers, at that final path — not under `fjs/bnf/`.
