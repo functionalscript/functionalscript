@@ -27,20 +27,31 @@ These settle the open questions the first revision of this issue carried.
   describes is that issue's concern for automated runners; module pages do not
   depend on it, and moving the site to such a root would break every fetch
   they make, so it is not a change to make in passing.
-- **Every directory the walk visits gets a page.** One rule, not two: a
-  directory's `index.html` holds its breadcrumb, its subdirectories, its
-  `todo/` entries, and the proofs of its subtree, whatever it contains. A
-  directory holding a `module.f.mjs` additionally lists its files — the
-  module, `types.ts`, `proof.f.mjs`, `README.md`, and other authored modules
-  such as `example.f.mjs` or `browser.mjs` — and carries the slots the later
-  issues fill. A module-less directory (`fjs/crypto/`) therefore has a page
-  with no file list, which is what makes the tree walkable from the root:
-  every subdirectory link on every page resolves. The root page that exists
-  today is exactly this page for the repository root, running the whole
+- **Every directory the walk visits gets a page, and every page lists what
+  its directory holds.** One rule, not two: a directory's `index.html` holds
+  its breadcrumb, its files, its subdirectories, its `todo/` entries, and the
+  proofs of its subtree, whatever it contains. That every subdirectory link
+  resolves is what makes the tree walkable from the root. The root page that
+  exists today is exactly this page for the repository root, running the whole
   manifest; it becomes the first instance of the rule rather than a special
   case beside it. Generating pages only where `module.f.mjs` exists was the
   alternative, and it left a subdirectory list that linked to pages nobody
   generated.
+
+  **A `module.f.mjs` does not gate the file list** — that was this issue's
+  first answer, and #1912 found it wrong on 42 of 190 pages. It was a guess at
+  which directories hold something a reader would open, and it misses every
+  directory whose content is not FunctionalScript: `changelog/` has 104
+  release notes and rendered an empty page, `nanvm-lib/src/vm/array/` five
+  Rust sources, `fjs/types/option/` its `types.ts`. What a page lists is what
+  the walk found, minus the generator's own output. A directory holding a
+  `module.f.mjs` is still the one that carries the slots the later issues
+  fill.
+
+  **A `todo/` subtree gets no page at all**, by path segment and not by the
+  folder's own name. Its issues are its parent's open work, so a page of its
+  own would hold nothing else; excluding only the folder named `todo` gave its
+  four subfolders pages whose breadcrumbs linked the one page never written.
 - **A page runs the proofs of its subtree.** The page for `fjs/text/` runs
   every browser-linkable proof under `fjs/text/`, not only `fjs/text/proof.f.mjs`.
   This is the existing runner with a shorter list, and the list is a slice of
@@ -65,11 +76,9 @@ website `NodeProgram` already requires.
 Each page holds, in order:
 
 1. **Breadcrumb** to the root and to each ancestor; every one has a page.
-2. **Files**, on a directory holding `module.f.mjs` — the module, `types.ts`,
-   `proof.f.mjs`, `README.md`, and any other authored module in the
-   directory. Each is a link to its path; the rendered source view is
-   [source-and-doc-view](source-and-doc-view.md)'s job. A module-less
-   directory has no file list.
+2. **Files** — everything the walk found in the directory, minus the
+   generator's own output. Each is a link to its path; the rendered source
+   view is [source-and-doc-view](source-and-doc-view.md)'s job.
 3. **Subdirectories**, each a link to its own `index.html`, which exists.
 4. **Proofs** — the subtree's proof sources, named exactly as `fjs t` and the
    browser suite name them, with `Run` and the report UI the root page already
