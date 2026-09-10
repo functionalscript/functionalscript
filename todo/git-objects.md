@@ -418,8 +418,12 @@ approximated:
       byte literals; nothing in code calls `git`. Done so far: a signed
       merge commit, a merge with `mergetag` and `gpgsig`, a signed tag, a
       root tree with three of the five modes.
-- [ ] Inflate at the boundary: a `.mjs` adapter over `node:zlib` as an
-      effect; file the FunctionalScript inflater as its own issue.
+- [x] Inflate at the boundary: `inflate` in
+      [`fjs/effects/node`](../fjs/effects/node/module.f.mjs), over
+      `node:zlib` in the runner, and
+      [`fjs/git/loose/`](../fjs/git/loose/module.f.mjs) reading a loose
+      file through it; the FunctionalScript inflater is
+      [`todo/inflate.md`](./inflate.md).
 - [ ] File SHA-1, packfiles, refs and the object-store walk as their own
       issues, each linking here.
 
