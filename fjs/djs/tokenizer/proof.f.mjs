@@ -1,14 +1,12 @@
 /**
  * @import { Ast, AstTag, Meta } from '../../bnf/matcher/types.ts'
- * @import { Ast as EbnfAst } from '../../ebnf/ast/types.ts'
- * @import { Rule } from '../../ebnf/types.ts'
  * @import { CodePoint } from '../../text/utf16/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  */
 
 import { isRepeat, toData } from '../../bnf/data/module.f.mjs'
 import { codePointListToString, stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
-import { unwrap } from '../../types/result/module.f.mjs'
+import { concat, empty, next, toArray } from '../../types/list/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { operators as ebnfOperators, token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
 import { jsGrammar, jsMatcher, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.mjs'
@@ -47,9 +45,56 @@ const text = cp => codePointListToString(cp)
 
 const [classicalMatcher, classicalEntry] = jsMatcher()
 
-/** @type {(node: Ast<Meta<unknown, CodePoint>> | Meta<unknown, CodePoint>) => readonly number[]} */
-const classicalSymbols = node =>
-    node instanceof Array ? [node[0]] : node.sequence.flatMap(classicalSymbols)
+/**
+ * The classical nodes under a node, in document order, the node itself
+ * first — a loop over an explicit stack, since a block comment's content
+ * nests one level per symbol and a comment may be long.
+ *
+ * @type {(root: Ast<Meta<unknown, CodePoint>>) => readonly Ast<Meta<unknown, CodePoint>>[]}
+ */
+const classicalNodes = root => {
+    /** @type {List<Ast<Meta<unknown, CodePoint>>>} */
+    let out = empty
+    /** @type {List<Ast<Meta<unknown, CodePoint>>>} */
+    let stack = [root]
+    for (;;) {
+        /** @type {{ readonly first: Ast<Meta<unknown, CodePoint>>, readonly tail: List<Ast<Meta<unknown, CodePoint>>> } | null} */
+        const top = next(stack)
+        if (top === null) { return toArray(out) }
+        const node = top.first
+        out = concat(out)([node])
+        /** @type {readonly Ast<Meta<unknown, CodePoint>>[]} */
+        const children = node.sequence.flatMap(child => child instanceof Array ? [] : [child])
+        stack = concat(children)(top.tail)
+    }
+}
+
+/**
+ * The input symbols under a classical node, in order: a leaf is a code
+ * point with its metadata, and a node's leaves come between its nodes'.
+ * The same loop, over leaves and nodes together.
+ *
+ * @type {(root: Ast<Meta<unknown, CodePoint>>) => readonly number[]}
+ */
+const classicalSymbols = root => {
+    /** @type {List<number>} */
+    let out = empty
+    /** @type {List<Ast<Meta<unknown, CodePoint>> | Meta<unknown, CodePoint>>} */
+    let stack = [root]
+    for (;;) {
+        /** @type {{ readonly first: Ast<Meta<unknown, CodePoint>> | Meta<unknown, CodePoint>, readonly tail: List<Ast<Meta<unknown, CodePoint>> | Meta<unknown, CodePoint>> } | null} */
+        const top = next(stack)
+        if (top === null) { return toArray(out) }
+        /** @type {Ast<Meta<unknown, CodePoint>> | Meta<unknown, CodePoint>} */
+        const node = top.first
+        if (node instanceof Array) {
+            out = concat(out)([node[0]])
+            stack = top.tail
+        } else {
+            stack = concat(node.sequence)(top.tail)
+        }
+    }
+}
 
 /**
  * The kind of a classical token, from its node's tag: a token that is a
@@ -81,9 +126,9 @@ const classicalResult = s => {
     const cp = toArray(stringToCodePointList(s))
     const { ast, success, idx } = descentParserCpOnly(classicalMatcher, classicalEntry, cp)
     if (!success || idx !== cp.length) { return ['error'] }
-    const json = JSON.stringify(ast)
-    if (json.includes('"tag":"numError","sequence":[]')) { return ['cut'] }
-    if (json.includes('"numError"')) { return ['poison'] }
+    const poison = classicalNodes(ast).filter(node => node.tag === 'numError')
+    if (poison.some(node => node.sequence.length === 0)) { return ['cut'] }
+    if (poison.length !== 0) { return ['poison'] }
     return ['ok', ast.sequence.flatMap(node => {
         assert(!(node instanceof Array))
         if (node.tag === 'eof') { return [] }
@@ -103,11 +148,35 @@ const classicalStream = s => {
     return result[1]
 }
 
-/** @type {(node: EbnfAst<Rule, unknown> | string) => readonly number[]} */
-const ebnfSymbols = node =>
-    typeof node === 'string' ? [] :
-    node instanceof Array ? node.flatMap(ebnfSymbols) :
-    [node.symbol]
+/**
+ * The input symbols under an EBNF node, in order: an array is a node the
+ * machine built, a string a variant's tag, anything else a leaf. A loop,
+ * for the reason `classicalSymbols` is one.
+ *
+ * @type {(root: unknown) => readonly number[]}
+ */
+const ebnfSymbols = root => {
+    /** @type {List<number>} */
+    let out = empty
+    /** @type {List<unknown>} */
+    let stack = [root]
+    for (;;) {
+        /** @type {{ readonly first: unknown, readonly tail: List<unknown> } | null} */
+        const top = next(stack)
+        if (top === null) { return toArray(out) }
+        /** @type {unknown} */
+        const node = top.first
+        if (node instanceof Array) {
+            stack = concat(node)(top.tail)
+        } else if (typeof node === 'string') {
+            stack = top.tail
+        } else {
+            assert(typeof node === 'object' && node !== null && 'symbol' in node && typeof node.symbol === 'number')
+            out = concat(out)([node.symbol])
+            stack = top.tail
+        }
+    }
+}
 
 /** @type {(node: unknown) => readonly [string, unknown]} */
 const ebnfBranch = node => {
@@ -341,11 +410,26 @@ const inputs = [
 ]
 
 /**
+ * The inputs the proofs build by code rather than write out: the long
+ * inputs of `largeInputs`, which pin the depth contract — a block comment
+ * of twenty thousand characters is twenty thousand nested nodes in either
+ * grammar's tree.
+ */
+const generated = [
+    `/*${'x'.repeat(20000)}*/`,
+    'x'.repeat(10000),
+    ' '.repeat(5000),
+    `"${'a'.repeat(5000)}"`,
+]
+
+/**
  * Inputs both grammars accept, over every token kind and the shapes the
  * LL(1) spelling changed: the block comment's `*`, the `/` a comment and
- * division share, the operator prefix tree, the line comment's newline.
+ * division share — inside a block comment's body too, where a plain `/`
+ * is content — the operator prefix tree, the line comment's newline.
  */
 const corpus = [
+    '/* a/b */ /* ../../x.ts */ /*/ */',
     'a b\tc\n\rd',
     'const a = [1, 2.5e-3, -1, 1n, 7E+2, 0, "s\\n\\u0041\\"", true];',
     'x/2 /= y // c\nz',
@@ -380,7 +464,7 @@ export const proof = {
         // consumed the character after a number, the EBNF grammar reads the
         // adjacent tokens the layer above will refuse.
         wholeCorpus: () => {
-            for (const s of inputs) {
+            for (const s of [...inputs, ...generated]) {
                 const classical = classicalResult(s)
                 const ebnf = ebnfResult(s)
                 switch (classical[0]) {

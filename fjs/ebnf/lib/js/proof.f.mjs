@@ -110,6 +110,10 @@ export const proof = {
             assertStructurallySame(read('/* a **/ b'), ['multiline', '/* a **/', 8])
             assertStructurallySame(read('/* x\ny*/'), ['multiline', '/* x\ny*/', 8])
             assertStructurallySame(read('/**/'), ['multiline', '/**/', 4])
+            // a `/` inside the body is content: only `*/` ends the comment
+            assertStructurallySame(read('/* a/b */'), ['multiline', '/* a/b */', 9])
+            assertStructurallySame(read('/* ../../x.ts */'), ['multiline', '/* ../../x.ts */', 16])
+            assertStructurallySame(read('/*/ */'), ['multiline', '/*/ */', 6])
         },
         // A block comment the input ends inside is read to the end and its
         // tag says so, which is how the layer above tells it from one that
