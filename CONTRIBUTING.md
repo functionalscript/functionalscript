@@ -77,8 +77,8 @@ A container without Nix — a
 environment, or any other — gets the shell from [`nix/setup.sh`](./nix/setup.sh):
 it installs Nix, fetches the flake's inputs over git (a Claude Code
 environment's GitHub proxy refuses the tarballs Nix would ask for), and enters
-the shell once from a clone of `main`, so that everything the shell needs is
-on disk. A Claude Code environment runs it once and caches the result; its
+the shell once, with the flake fetched from `main` by Nix itself, so that
+everything the shell needs is on disk. A Claude Code environment runs it once and caches the result; its
 **Setup script** field holds one line:
 
 ```bash

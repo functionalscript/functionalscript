@@ -20,27 +20,24 @@ curl -fsSL https://channels.nixos.org/nix-latest/install | sh -s -- --no-daemon 
 export USER=root
 . /root/.nix-profile/etc/profile.d/nix.sh
 
-# The shell, from a throwaway clone of main.
-git clone --depth 1 https://github.com/functionalscript/functionalscript /tmp/functionalscript
-cd /tmp/functionalscript
+# The flake, as Nix fetches it from main by itself.
+repo=https://github.com/functionalscript/functionalscript
 
 # The GitHub proxy of a Claude Code environment refuses the tarball Nix
 # fetches a locked `github:` input as; a shallow git fetch of the locked
 # revision lands in the store under the hash the lock names, and Nix uses it
 # from there.
-nix eval --raw --impure --expr '
+nix eval --raw --impure --expr "
     let
-        lock = builtins.fromJSON (builtins.readFile ./nix/flake.lock);
+        src = builtins.fetchGit { url = \"$repo\"; ref = \"main\"; shallow = true; };
+        lock = builtins.fromJSON (builtins.readFile (src + \"/nix/flake.lock\"));
         nodes = builtins.attrValues lock.nodes;
-        github = builtins.filter (n: n ? locked && n.locked.type == "github") nodes;
-        url = n: "git+https://github.com/${n.locked.owner}/${n.locked.repo}?rev=${n.locked.rev}&shallow=1\n";
+        github = builtins.filter (n: n ? locked && n.locked.type == \"github\") nodes;
+        url = n: \"git+https://github.com/\${n.locked.owner}/\${n.locked.repo}?rev=\${n.locked.rev}&shallow=1\n\";
     in
-    builtins.concatStringsSep "" (map url github)
-' | while read -r input; do
+    builtins.concatStringsSep \"\" (map url github)
+" | while read -r input; do
     nix flake prefetch --quiet "$input"
 done
 
-./nix/run true
-
-cd /
-rm -rf /tmp/functionalscript
+nix develop --quiet "git+$repo?ref=main&dir=nix&shallow=1" --command true
