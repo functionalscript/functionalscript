@@ -6,7 +6,8 @@ grammar reads. It is the byte half of
 [unicode-rules](../../bnf/todo/unicode-rules.md), landed for its first
 consumer, [git-objects](../../../todo/git-objects.md).
 
-- `module.f.mjs` — `byte`, `not`, `bytes`, `symbols`, `meta`, `byteParser`;
+- `module.f.mjs` — `byte`, `not`, `bytes`, `symbols`, `meta`, `byteParser`,
+  and `isByte`, the alphabet's membership for a consumer holding a `number`;
 - `types.ts` — `Byte`, the metadata of a byte.
 
 ## What it is

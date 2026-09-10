@@ -13,10 +13,10 @@ import { fromArrayLike } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { eof, range, rangeEncode, repeatFrom0, repeatFrom1, set, times, unicodeMax } from '../module.f.mjs'
 import { mapping } from '../ll1/module.f.mjs'
-import { byte, byteParser, bytes, meta, not, symbols } from './module.f.mjs'
+import { byte, byteParser, bytes, isByte, meta, not, symbols } from './module.f.mjs'
 
 /** @type {(s: string) => readonly number[]} */
-const ascii = s => [...s].map(c => c.codePointAt(0) ?? 0)
+const ascii = s => [...s].map(c => c.charCodeAt(0))
 
 /**
  * A word of bytes folded to one symbol carrying the bytes: the mapping a
@@ -37,6 +37,12 @@ export const proof = {
         assertStructurallySame(not(set('\0'))(), ['set', 1, 0x100])
         assertStructurallySame(not(set(' \n'))(), ['set', 0, 0x0A, 0x0B, 0x20, 0x21, 0x100])
         assertStructurallySame(not(byte)(), ['set'])
+    },
+    // The membership every check here rests on: the integers `0..255`, and
+    // no other number.
+    isByte: () => {
+        assert([0, 1, 0x7F, 0x80, 0xFF].every(isByte))
+        assert([-1, 0x100, 0.5, -0, NaN, Infinity].every(b => !isByte(b)))
     },
     bytes: {
         // One run per byte, merged where they touch, and the spelling kept

@@ -263,7 +263,7 @@ reader slices the remainder as the payload without a grammar ever seeing
 it. That is what keeps a blob out of every parser — its payload is bytes
 the reader hands back — and it holds the size to the same standard: the
 reader compares it with the remainder's length and refuses the object on a
-mismatch. `type` is one word up to the space, `repeatFrom1(not(' '))`,
+mismatch. `type` is one word up to the space, `repeatFrom1(not(set(' ')))`,
 with the mapping accepting the four types and refusing any other word — a
 variant of the four keywords is not LL(1), since `tree` and `tag` share
 their first byte, and the generic word is how the header block reads its
@@ -308,7 +308,7 @@ Which of those forms are worth accepting is decided when one is met, as an
 issue naming the object.
 
 **Tree** is `repeatFrom0(entry)` then `eof`, with
-`entry = [repeatFrom1(octal), ' ', repeatFrom1(not('\0')), '\0', times(n)(byte)]`
+`entry = [repeatFrom1(octal), ' ', repeatFrom1(not(set('\0'))), '\0', times(n)(byte)]`
 for the repository's id width `n`. The mode set and its spelling, the entry
 order Git requires (by name, a subtree as if its name ended in `/`), and a
 name holding `/` are `git fsck`'s checks; they belong in a `validate` over
