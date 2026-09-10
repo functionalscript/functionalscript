@@ -377,9 +377,13 @@ approximated:
 - [x] `fjs/ebnf/byte/`: `byte`, `not`, `bytes`, `symbols`, alphabet
       validation, `byteParser`; proof — shipped as
       [`fjs/ebnf/byte/`](../fjs/ebnf/byte/README.md).
-- [ ] `fjs/git/object/`: the envelope grammar, and the reader that slices
-      the payload after the NUL and checks the size.
-- [ ] `fjs/git/header/`: the header block, shared by commit and tag.
+- [x] `fjs/git/object/`: the envelope grammar, and the reader that slices
+      the payload after the NUL and checks the size — shipped as
+      [`fjs/git/object/`](../fjs/git/object/module.f.mjs), with the writer.
+- [x] `fjs/git/header/`: the header block, shared by commit and tag —
+      shipped as [`fjs/git/header/`](../fjs/git/header/module.f.mjs), with
+      the writer; the proof reads a real signed merge commit of this
+      repository and writes it back byte for byte.
 - [ ] `fjs/git/ident/`: the ident grammar as a `try*` over a header value.
 - [ ] `fjs/git/commit/`, `fjs/git/tag/`, `fjs/git/tree/`: grammar, mappings,
       `validate`, and the writer for each, parameterized by the id width.
