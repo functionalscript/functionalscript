@@ -5,7 +5,7 @@
 
 ### Problem
 
-The header block's grammar in [`fjs/git/header`](../header/module.f.mjs)
+The header block's grammar in [`fjs/git/header`](../module.f.mjs)
 reads `headers`, one empty line, and the message to the end, so a commit
 or a tag whose bytes end right after its last header's LF — no empty
 line, no message — is refused by `tryRead` with `null`. Git accepts such
@@ -38,5 +38,5 @@ waits for a consumer that meets such an object.
 
 ### Related
 
-- [`fjs/git/README.md`](../README.md) — the header block, and reading
+- [`fjs/git/README.md`](../../README.md) — the header block, and reading
   versus vouching.

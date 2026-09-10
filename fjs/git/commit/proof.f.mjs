@@ -7,8 +7,8 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
-import { name, object, tagger, type } from '../tag/module.f.mjs'
-import { commitPayload, latin1, mergePayload } from '../testlib.f.mjs'
+import { name, object, tagger, type, write as writeTag } from '../tag/module.f.mjs'
+import { commitPayload, latin1, mergePayload, tagPayload } from '../testlib.f.mjs'
 import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, validate, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Commit} */
@@ -90,6 +90,18 @@ export const proof = {
         assertStructurallySame(validate20(c), ['ok', c])
         assertStructurallySame(toArray(write(c)), mergePayload)
     },
+    // A tag folded into a `mergetag` header as Git folds it — SP before
+    // each line, so the tag's last LF ends the header — comes back byte
+    // for byte, all 432 of them, and not one short.
+    folded: () => {
+        const folded = `mergetag ${text(tagPayload).slice(0, -1).replaceAll('\n', '\n ')}`
+        const c = commit([...lines.slice(0, 4), folded, ...lines.slice(4)])
+        assertStructurallySame(validate20(c), ['ok', c])
+        const [t] = mergetags(c)
+        assert(t !== undefined)
+        assertStructurallySame(toArray(writeTag(t)), tagPayload)
+        assertEq(tagPayload.length, 432)
+    },
     // A root commit has no parent; `author` and `committer` sit right after
     // the tree. An `encoding` is read by key.
     root: () => {
@@ -116,6 +128,10 @@ export const proof = {
         const late = commit([...lines.slice(0, 4), `parent ${parentId}`, ...lines.slice(4)])
         assertStructurallySame(validate20(late), ['ok', late])
         assertEq(parents(late).length, 1)
+        // A header list that ends in its parents: the run reaches the end.
+        const last = commit([...lines.slice(0, 2), '', ''])
+        assertEq(parents(last).length, 1)
+        assertEq(hex(parents(last)[0]), parentId)
     },
     // Each refusal, one per rule, on a commit the reader reads.
     validate: () => {

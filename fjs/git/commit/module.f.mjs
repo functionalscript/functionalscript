@@ -7,10 +7,13 @@
  * The header block's grammar is the first pass and this module the second:
  * {@link tryRead} and {@link write} are the block's, since a commit adds
  * no syntax to it, and the well-known fields are functions over the header
- * list, total on a commit {@link validate} has accepted and a panic on one
- * it has not. A `mergetag` value is a whole tag object, and
- * {@link mergetags} hands it to the tag reader — one more pass over the
- * same alphabet, as the design says. A commit with a bad `tree` id or no
+ * list, total on a commit {@link validate} has accepted. On one it has
+ * not, an accessor panics only where the field it reads is missing or
+ * malformed — `tree` on a commit whose first header is no hex id,
+ * `committer` on one with none — and reads what is there otherwise. A `mergetag` value is a whole tag object less its last LF,
+ * which the header's framing took, and {@link mergetags} gives the LF back
+ * and hands the tag to the tag reader — one more pass over the same
+ * alphabet, as the design says. A commit with a bad `tree` id or no
  * `committer` is read and written byte for byte; `validate` is where it is
  * refused, as Git refuses it.
  *
@@ -25,7 +28,7 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
-import { includes } from '../../types/list/module.f.mjs'
+import { concat, includes } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { hasNulHeader, keyIs, tryRead as readPayload, valueAt, valuesOf, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
@@ -152,9 +155,23 @@ export const encoding = c => first(c, 'encoding')
  */
 export const gpgsig = c => first(c, 'gpgsig')
 
+const lf = /** @type {const} */ (0x0A)
+
+/**
+ * A `mergetag` value as the tag's bytes: Git folds a tag into the header
+ * by putting SP before each of its lines, so the LF that ends the tag ends
+ * the header too, and the header's reader takes it as framing. Given back
+ * here, the value is the tag object whole, and the tag reader reads it as
+ * it reads the tag's own file.
+ *
+ * @type {(value: Bytes) => Bytes}
+ */
+const tagOf = value => concat(value)([lf])
+
 /**
  * The tags the `mergetag` headers carry, one per signed tag the commit
- * merged, each a whole tag object read out of the header's value.
+ * merged, each a whole tag object read out of the header's value: the
+ * tag's bytes, byte for byte, with the LF the framing took given back.
  *
  * @throws On a commit {@link validate} refuses: a `mergetag` value that
  * is not a tag.
@@ -162,7 +179,7 @@ export const gpgsig = c => first(c, 'gpgsig')
  * @type {(c: Commit) => readonly Tag[]}
  */
 export const mergetags = c => valuesOf(c, 'mergetag').map(value => {
-    const tag = readTag(value)
+    const tag = readTag(tagOf(value))
     assert(tag !== null, ['not a mergetag', value])
     return tag
 })
@@ -201,7 +218,7 @@ export const validate = oidBytes => {
         const committerValue = valueAt(c, 2 + ps.length, 'committer')
         if (committerValue === null) { return error('no committer') }
         if (readIdent(committerValue) === null) { return error('not a committer') }
-        const tags = valuesOf(c, 'mergetag').map(readTag)
+        const tags = valuesOf(c, 'mergetag').map(value => readTag(tagOf(value)))
         if (!tags.every(t => t !== null && tagOk(t)[0] === 'ok')) { return error('not a mergetag') }
         return includes(0)(c.message) ? error('NUL in message') : ok(c)
     }
