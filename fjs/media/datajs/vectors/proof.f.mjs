@@ -2,7 +2,7 @@
  * @import { Unknown } from '../types.ts'
  */
 
-import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { assertEq } from '../../../asserts/module.f.mjs'
 import { difference } from './module.f.mjs'
 
 /** Two graphs that must compare equal. @type {(expected: Unknown, actual: Unknown) => void} */
@@ -64,8 +64,12 @@ export const proof = {
         differ({ a: 1 }, { b: 1 }, 'at $: expected member 0 to be "a", got "b"')
         differ({ a: [1, { b: 'x' }] }, { a: [1, { b: 'y' }] }, 'at $["a"][1]["b"]: expected "x", got "y"')
         // an object member holding `undefined` is present, and differs from
-        // an absent one by the count
+        // an absent one by the count; an array element holding `undefined`
+        // is present, and differs from a hole, which no expected graph has
         differ({ a: undefined }, {}, 'at $: expected 1 members, got 0')
+        differ([undefined], [, undefined].slice(0, 1), 'at $[0]: expected undefined, got a hole')
+        differ([1, [2, 3]], [1, [2, , 4].slice(0, 2)], 'at $[1][1]: expected 3, got a hole')
+        same([undefined, 1], [undefined, 1])
     },
     // Sharing is part of the graph, in both directions: a node the expected
     // graph reaches twice must be one node in the actual, and two nodes it

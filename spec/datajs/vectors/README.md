@@ -66,10 +66,13 @@ An object whose own `host` property names a recipe is that recipe, and the
 key is reserved for it. Four leaves — `fn`, `symbol`, `builtin`, `hole` —
 and eight modifiers — `ownProp`, `nonEnumerable`, `getter`, `setter`,
 `symbolKey`, `proto`, `attrs`, `link` — each modifier naming the node it
-applies to and denoting that node, modified, never a copy; a modifier is a
-`const` of its own, applied in statement order, and `link` is how a cycle
-is spelled, since a `const` cannot name itself. The vocabulary is closed:
-the types are the list. Their construction, and how the corpus proves them
+applies to and denoting that node, modified, never a copy. A modifier is a
+`const` of its own; stacking is chaining, a second modification naming the
+first as its `on` and the inner one applying first, and a node is the `on`
+of at most one modifier, since the chain is the only order an exported
+value carries; `link` is how a cycle is spelled, since a `const` cannot
+name itself. The vocabulary is closed: the types are the list, and a plain
+object may not have a `host` key. Their construction, and how the corpus proves them
 against a FunctionalScript serializer, is the open decision the issue
 records, since the repository's proof rules keep host-built values out of
 proofs of FunctionalScript APIs.

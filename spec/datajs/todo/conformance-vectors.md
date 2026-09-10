@@ -2025,9 +2025,9 @@ or the spec, not only into a thread.
    object, a `Date`, a cycle — so `build` is host code, an impure
    `module.mjs`. [fjs/AGENTS.md §1.6](../../../fjs/AGENTS.md) then says a
    `proof.mjs` proves only its sibling `module.mjs` and is "not a back door
-   for proving a `.f.mjs` API against inputs the subset forbids: values built
-   by `Object.setPrototypeOf`, `Object.assign`, `defineProperty` or an
-   accessor". Read literally, that forbids proving the serializer, a
+   for proving a `.f.mjs` API against inputs or control flow the subset
+   forbids: values built by `Object.setPrototypeOf`, `Object.assign`,
+   `defineProperty` or an accessor". Read literally, that forbids proving the serializer, a
    `.f.mjs` API, against the serializer-reject set and the host variations of
    serializer accept — the very inputs
    [the specification](../README.md#what-may-be-serialized) says it must

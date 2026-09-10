@@ -20,7 +20,7 @@
  * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
-const { is, keys } = Object
+const { is, keys, hasOwn } = Object
 
 /** @type {(path: string, what: string) => string} */
 const at = (path, what) => `at ${path}: ${what}`
@@ -56,6 +56,11 @@ const children = (stack, path, expected, actual) => {
         if (!(actual instanceof Array)) { return at(path, `expected an array, got ${show(actual)}`) }
         if (expected.length !== actual.length) {
             return at(path, `expected ${expected.length} elements, got ${actual.length}`)
+        }
+        // an expected graph has no holes, so a hole in the actual is a
+        // difference of its own: `[undefined]` is not `new Array(1)`
+        for (let i = 0; i < expected.length; i += 1) {
+            if (!hasOwn(actual, i)) { return at(`${path}[${i}]`, `expected ${show(expected[i])}, got a hole`) }
         }
         let result = stack
         for (let i = expected.length - 1; i >= 0; i -= 1) {

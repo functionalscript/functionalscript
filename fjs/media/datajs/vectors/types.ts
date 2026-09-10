@@ -79,12 +79,14 @@ export type Normalize = Base & {
  * A serializer-side input: a value of the data model, or one carrying a host
  * recipe where the corpus has to describe what no data literal can spell.
  * An object whose own `host` property names a recipe is that recipe; the
- * corpus reserves the key for it.
+ * corpus reserves the key for it, so a plain object has none, and an object
+ * with a `host` outside the vocabulary is refused by `tsc` rather than read
+ * as data.
  */
 export type Input =
     | Primitive
     | readonly Input[]
-    | { readonly [k in string]?: Input }
+    | ({ readonly [k in string]?: Input } & { readonly host?: never })
     | Recipe
 
 export type Recipe = Leaf | Modifier
@@ -110,8 +112,10 @@ export type Hole = { readonly host: 'hole' }
 
 /**
  * A host variation of the data `on` describes — the same object, modified,
- * never a copy. A modifier is a `const` of its own in a set, applied in
- * statement order, and `on` names an array, an object or another modifier.
+ * never a copy. A modifier is a `const` of its own in a set, and `on` names
+ * an array, an object or another modifier: stacking is chaining, the inner
+ * modifier applying first, and a node is the `on` of at most one modifier,
+ * since the chain is the only order an exported value carries.
  */
 export type Modifier =
     | OwnProp
