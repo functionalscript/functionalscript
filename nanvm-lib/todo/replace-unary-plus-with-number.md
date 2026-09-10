@@ -68,9 +68,12 @@ counterpart, and the corpus has no `Number` group to prove one against.
   list with one difference, its bigint case expecting the converted number rather than
   `throws`. The `function` case escapes either way: `functionValue` has no expression
   whichever id the group carries.
-- `fjs/nanvm/proof.f.mjs` needs no `op1Js` entry for `'Number'` — only escaped cases
-  reach that table, and amnesia already evaluates the node — unless the group's
-  `functionValue` case makes one necessary, as it does for `neg`.
+- `fjs/nanvm/proof.f.mjs`'s `op1Js` gains `Number: a => Number(a)`. The entry is
+  required, not optional: the group inherits `numberCoercionCases`' `function` case,
+  `caseExp` escapes it, and `run` then calls `op1('Number')`, which `lookup` refuses
+  without an entry — a throw where the case expects `NaN`. `jsOnly.throw.unusedOperation`
+  pins exactly that refusal today, so it moves to an id that still has no escaped case,
+  such as `String`.
 - `fjs/nanvm/rust/module.f.mjs`'s `op1Rust` and `rustName` tables gain the new Rust
   method and its generated function name; `fjs/nanvm/rust/proof.f.mjs`'s pinned
   expected-output strings follow.
@@ -83,6 +86,8 @@ counterpart, and the corpus has no `Number` group to prove one against.
 - [ ] Implement the real `Number(x)` coercion, including a `BigInt<A> → f64` conversion.
 - [ ] `fjs/nanvm/module.f.mjs`: add a `Group1` with `op: 'Number'`; its bigint case
       expects a converted number, not `throws`.
+- [ ] `fjs/nanvm/proof.f.mjs`: add `Number` to `op1Js`; repoint
+      `jsOnly.throw.unusedOperation` to an id with no escaped case.
 - [ ] `fjs/nanvm/rust/module.f.mjs` and `fjs/nanvm/rust/proof.f.mjs`: the emitted Rust
       call, its function name, and the pinned expected snippets.
 - [ ] `npm run gen` to regenerate `nanvm-lib/tests/test/generated.rs`.
