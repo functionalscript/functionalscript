@@ -30,10 +30,12 @@
  * units it spells: a lone surrogate is one unit in and one unit out,
  * escaped or raw, as `JSON.parse` reads it.
  *
- * A grammar built over JSON's rules folds them the same way: the
- * `string` rule's mapping is {@link stringMapping}, {@link lexeme} is the
- * text under a node, and {@link syntaxError} names where a parse failed.
- * `../../datajs/parser` is the reader built over them.
+ * A string is folded rule by rule: an `escape` to the character it
+ * spells, a `character` to its text, and the `string` to the text of its
+ * characters, so the three mappings are one unit, {@link stringMappings},
+ * that a grammar built over JSON's rules folds the same way. {@link lexeme}
+ * is the text under a node, and {@link syntaxError} names where a parse
+ * failed. `../../datajs/parser` is the reader built over them.
  *
  * @module
  *
@@ -43,8 +45,8 @@
  * @import { Mapping, Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
- * @import { Container, Entry, JsonValue } from '../../../ebnf/lib/json/types.ts'
- * @import { _Alphabet, _Character, _Escape, _HexDigit, _Item } from './private.ts'
+ * @import { hex } from '../../../ebnf/lib/json/module.f.mjs'
+ * @import { Entry, JsonValue } from '../../../ebnf/lib/json/types.ts'
  * @import { Json, NumberPolicy, Out, ParseUnknown, Text } from './types.ts'
  */
 
@@ -53,9 +55,10 @@ import { listToString } from '../../../text/utf16/module.f.mjs'
 import { at } from '../../../types/object/module.f.mjs'
 import { error, mapOk, ok, unwrap } from '../../../types/result/module.f.mjs'
 import { eof } from '../../../ebnf/module.f.mjs'
+import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
-import { json, number, string, value } from '../../../ebnf/lib/json/module.f.mjs'
+import { character, escape, items, json, number, string, value } from '../../../ebnf/lib/json/module.f.mjs'
 
 const { fromCharCode } = String
 const { fromEntries } = Object
@@ -66,30 +69,7 @@ const text = value => ({ symbol: 0, meta: { id: 'text', value } })
 /** @type {<P>(result: Result<ParseUnknown<P>, string>) => Meta<Json<P>>} */
 const jsonSymbol = result => ({ symbol: 0, meta: { id: 'json', result } })
 
-/**
- * The node at a position no mapping filled: an array the machine built, so
- * its shape is the rule's. The one test a mapping makes where it knows a
- * position is unmapped — the scaffolding `cj` builds and hands to nobody.
- *
- * @type {<T extends readonly unknown[]>(node: T | Meta<unknown>) => T}
- */
-const unmapped = node => {
-    assert(node instanceof Array)
-    return node
-}
-
-/**
- * The symbol at a position a mapping filled, or an input leaf: not an array,
- * and its `meta.id` says which alphabet it is.
- *
- * @type {<O extends _Alphabet>(node: Meta<Utf16 | O> | readonly unknown[]) => Meta<Utf16 | O>}
- */
-const symbolAt = node => {
-    assert(!(node instanceof Array))
-    return node
-}
-
-/** @type {(node: Meta<Utf16 | _Alphabet> | readonly unknown[]) => number} */
+/** @type {(node: Meta<Utf16 | { readonly id: string }> | readonly unknown[]) => number} */
 const unitAt = node => {
     const { symbol, meta } = symbolAt(node)
     assert(meta.id === 'utf16')
@@ -124,42 +104,65 @@ const simpleEscape = { '"': '"', '\\': '\\', '/': '/', b: '\b', f: '\f', n: '\n'
  */
 const hexBase = /**@type {const}*/({ digit: 0x30, AF: 0x41 - 10, af: 0x61 - 10 })
 
-/** @type {(node: Ast<_HexDigit, Utf16, Text>) => number} */
+/** @type {(node: Ast<typeof hex, Utf16, Text>) => number} */
 const hexDigit = node => {
     const [tag, digit] = unmapped(node)
     return unitAt(digit) - hexBase[tag]
 }
 
-/**
- * The character an escape spells: a simple escape's from the table, and a
- * `\u` escape's the one code unit its four digits name — so an escaped
- * surrogate is one unit, as a raw one is.
- *
- * @type {(node: Ast<_Escape, Utf16, Text>) => string}
- */
-const escaped = node => {
-    const escape = unmapped(node)
-    if (escape[0] === 'c') { return assertNotNullish(at(fromCharCode(unitAt(escape[1])))(simpleEscape)) }
-    const [, digits] = unmapped(escape[1])
-    return fromCharCode(unmapped(digits).reduce((code, digit) => code * 16 + hexDigit(digit), 0))
-}
+/** @type {Mappings<Utf16, Text>} */
+const textMapping = mapping
 
 /**
- * One character of a string: a symbol as it stands, or what its escape
- * spells — the escape's node is the backslash and what follows it.
+ * The mapping of the grammar's `escape` rule: to the character it spells —
+ * a simple escape's from the table, and a `\u` escape's the one code unit
+ * its four digits name, so an escaped surrogate is one unit, as a raw one
+ * is. The node is the backslash and what follows it.
  *
- * @type {(node: Ast<_Character, Utf16, Text>) => string}
+ * @type {Mapping<Utf16, Text>}
  */
-const character = node => {
-    const c = unmapped(node)
-    return c[0] === 'c' ? fromCharCode(unitAt(c[1])) : escaped(unmapped(c[1])[1])
-}
+const escapeMapping = textMapping(escape, ([, e]) => {
+    const branch = unmapped(e)
+    if (branch[0] === 'c') { return text(assertNotNullish(at(fromCharCode(unitAt(branch[1])))(simpleEscape))) }
+    const [, digits] = unmapped(branch[1])
+    return text(fromCharCode(unmapped(digits).reduce((code, digit) => code * 16 + hexDigit(digit), 0)))
+})
+
+/**
+ * The mapping of the grammar's `character` rule: a symbol as it stands is
+ * the text of its unit, and an escape is the text its own mapping returned.
+ *
+ * @type {Mapping<Utf16, Text>}
+ */
+const characterMapping = textMapping(character, node =>
+    node[0] === 'c' ? text(fromCharCode(unitAt(node[1]))) : symbolAt(node[1]))
+
+/**
+ * The mapping of the grammar's `string` rule: to the text of its characters,
+ * each one the text its own mapping returned.
+ *
+ * @type {Mapping<Utf16, Text>}
+ */
+const stringMapping = textMapping(string, ([, characters]) => text(unmapped(characters).map(textAt).join('')))
+
+/**
+ * The mappings of the grammar's `string` rule and the rules under it, an
+ * `escape` and a `character`, to the text the string spells with every
+ * escape decoded. They know no policy, so they are one unit for every set
+ * over JSON's `string` — the sets {@link mappings} builds, and a grammar's
+ * that reuses the rule — and a unit rather than three exports because the
+ * backend refuses a mapping of a rule the grammar does not hold, and a
+ * grammar holding `string` holds all three.
+ *
+ * @type {readonly Mapping<Utf16, Text>[]}
+ */
+export const stringMappings = [escapeMapping, characterMapping, stringMapping]
 
 /**
  * The input symbols under a node, in order. A variant's tag is not a symbol
  * and is passed over.
  *
- * @type {(node: Ast<Rule, Utf16, _Alphabet> | string) => readonly number[]}
+ * @type {(node: Ast<Rule, Utf16, { readonly id: string }> | string) => readonly number[]}
  */
 const unitsUnder = node =>
     typeof node === 'string' ? [] :
@@ -193,28 +196,6 @@ const numberOf = policy => node => policy(lexeme(node))
 const all = results => {
     const errors = results.flatMap(r => r[0] === 'error' ? [r] : [])
     return errors.length === 0 ? ok(results.map(unwrap)) : errors[0]
-}
-
-/**
- * The item of the pair `cj` hands to `join`: the item, then its whitespace.
- *
- * @type {<R extends Rule, P>(node: Ast<_Item<R>, Utf16, Out<P>>) => Ast<R, Utf16, Out<P>>}
- */
-const item = node => unmapped(node)[0]
-
-/**
- * The items of a container, as `cj` lays them out: the option `join` builds
- * is empty, or holds the first item beside the separator-item pairs, each
- * item followed by its whitespace. Everything around an item is scaffolding
- * no mapping did.
- *
- * @type {<R extends Rule, P>(node: Children<Container<R>, Utf16, Out<P>>) => readonly Ast<R, Utf16, Out<P>>[]}
- */
-const items = ([, , option]) => {
-    const o = unmapped(option)
-    if (o.length === 0) { return [] }
-    const [first, rest] = unmapped(o[0])
-    return [item(first), ...unmapped(rest).map(pair => item(unmapped(pair)[1]))]
 }
 
 /** @type {<P>(key: string) => (value: ParseUnknown<P>) => readonly [string, ParseUnknown<P>]} */
@@ -258,19 +239,6 @@ const toJson = node => {
     }
 }
 
-/** @type {Mappings<Utf16, Text>} */
-const textMapping = mapping
-
-/**
- * The mapping of the grammar's `string` rule: to the text it spells, every
- * escape decoded. It knows no policy, so it is one mapping for every set
- * over JSON's `string` — the sets {@link mappings} builds, and a grammar's
- * that reuses the rule.
- *
- * @type {Mapping<Utf16, Text>}
- */
-export const stringMapping = textMapping(string, ([, characters]) => text(unmapped(characters).map(character).join('')))
-
 /**
  * The rewrite set over `policy`: a string to the text it spells, a number to
  * what the policy makes of its lexeme, a value to what its branch made of
@@ -286,7 +254,7 @@ export const mappings = policy => {
     /** @type {Mappings<Utf16, Out<P>>} */
     const map = mapping
     return [
-        stringMapping,
+        ...stringMappings,
         map(number, node => jsonSymbol(numberOf(policy)(node))),
         map(value, toJson),
         map(json, ([, v]) => jsonSymbol(jsonAt(v))),

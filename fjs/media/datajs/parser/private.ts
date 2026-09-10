@@ -1,6 +1,6 @@
 /**
- * Implementation-private types of the DataJS reader: the rule its container
- * reader takes apart, and the state of the resolution.
+ * Implementation-private types of the DataJS reader: the state of the
+ * resolution.
  *
  * @module
  */
@@ -8,13 +8,8 @@
 import type { List } from '../../../types/list/types.ts'
 import type { OrderedMap } from '../../../types/ordered_map/types.ts'
 import type { Result } from '../../../types/result/types.ts'
-import type { Rule } from '../../../ebnf/types.ts'
-import type { ws } from '../../../ebnf/lib/json/module.f.mjs'
 import type { Unknown } from '../types.ts'
 import type { Container, Node } from './types.ts'
-
-/** The pair `cj` hands to `join`: an item, then its whitespace. */
-export type _Item<R extends Rule> = readonly [R, typeof ws]
 
 /**
  * A bound value, in a box: `at` answers `null` for a name the map does not

@@ -3,13 +3,23 @@
  * @import { Equal } from '../../../types/ts/types.ts'
  * @import { Ast, Children, Meta } from '../../ast/types.ts'
  * @import { Rule, Variant } from '../../types.ts'
+ * @import { RewriteSet } from '../../ll1/types.ts'
+ * @import { Utf16 } from '../../utf16/types.ts'
+ * @import { Container, ContainerNode } from './types.ts'
  */
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { unwrap } from '../../../types/result/module.f.mjs'
+import { parser } from '../../ll1/module.f.mjs'
+import { units, utf16 } from '../../utf16/module.f.mjs'
 import {
     array,
+    character,
     cj,
     createValue,
+    escape,
+    hex,
+    items,
     json,
     object,
     optionFloatSuffix,
@@ -94,8 +104,14 @@ export const proof = {
     // A string is quotes around any number of unescaped symbols and escapes.
     // The unescaped set is everything from a space to the last code point
     // minus the quote and the backslash — the two holes in that run are what
-    // makes it a set rather than a range.
+    // makes it a set rather than a range. The rules under it are held, so a
+    // reader can key a mapping by each: the character is the repetition's
+    // item, the escape is the character's branch, and the hex digit is what
+    // a `\u` escape repeats.
     string: () => {
+        assertEq(string[1]()[3], character)
+        assertEq(character.escape, escape)
+        assertEq(escape[1].u[1]()[3], hex)
         assertStructurallySame(force(string), [
             '"',
             ['repeat', 0, Infinity, {
@@ -118,6 +134,23 @@ export const proof = {
     // `range` does, so the two symbols cannot drift apart at a call site.
     cj: () => {
         assertStructurallySame(force(cj('()', 'x')), containerData('(', ')', 'x'))
+    },
+    // The items of a container, as the machine lays them out: none for an
+    // empty one, and otherwise each item with the whitespace and commas
+    // around it passed over. What a mapping receives for a container is a
+    // node of the shape `items` reads, whatever the alphabets.
+    items: () => {
+        /** @typedef {Assert<Children<Container<'x'>, Utf16, 'o'> extends ContainerNode<Ast<'x', Utf16, 'o'>> ? true : false>} _Shape */
+        /** @type {RewriteSet<Utf16, never>} */
+        const nothing = []
+        const parse = parser(cj('()', 'x'), nothing)
+        /** @type {(text: string) => readonly Ast<'x', Utf16>[]} */
+        const itemsOf = text => items(unwrap(parse(units(text)))[0])
+        const x = [{ symbol: 0x78, meta: utf16 }]
+        assertStructurallySame(itemsOf('()'), [])
+        assertStructurallySame(itemsOf('( )'), [])
+        assertStructurallySame(itemsOf('(x)'), [x])
+        assertStructurallySame(itemsOf('( x , x ,x )'), [x, x, x])
     },
     // A delimiter above the BMP is one symbol, not the two UTF-16 units that
     // spell it, because spreading a string walks code points.
