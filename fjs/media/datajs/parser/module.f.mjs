@@ -36,13 +36,12 @@
  * @import { Result } from '../../../types/result/types.ts'
  * @import { Ast, Children, Meta } from '../../../ebnf/ast/types.ts'
  * @import { Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
- * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
- * @import { Container as ContainerRule, Entry as EntryRule } from '../../../ebnf/lib/json/types.ts'
+ * @import { Entry as EntryRule } from '../../../ebnf/lib/json/types.ts'
  * @import { DataJsValue } from '../../../ebnf/lib/datajs/types.ts'
  * @import { constStatement, property } from '../../../ebnf/lib/datajs/module.f.mjs'
  * @import { Primitive, Unknown } from '../types.ts'
- * @import { _Binding, _Env, _Frame, _Item, _Stack, _State } from './private.ts'
+ * @import { _Binding, _Env, _Frame, _Stack, _State } from './private.ts'
  * @import { Container, Entry, Node, Out, Value } from './types.ts'
  */
 
@@ -51,37 +50,17 @@ import { concat, toArray } from '../../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../../types/ordered_map/module.f.mjs'
 import { error, ok } from '../../../types/result/module.f.mjs'
 import { eof } from '../../../ebnf/module.f.mjs'
+import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
+import { items } from '../../../ebnf/lib/json/module.f.mjs'
 import { dataJs, number, value } from '../../../ebnf/lib/datajs/module.f.mjs'
-import { lexeme, stringMapping, syntaxError } from '../../json/parser/module.f.mjs'
+import { lexeme, stringMappings, syntaxError } from '../../json/parser/module.f.mjs'
 
 const { fromEntries } = Object
 
 /** @type {(node: Node) => Meta<Value>} */
 const valueSymbol = node => ({ symbol: 0, meta: { id: 'value', node } })
-
-/**
- * The node at a position no mapping filled: an array the machine built, so
- * its shape is the rule's.
- *
- * @type {<T extends readonly unknown[]>(node: T | Meta<unknown>) => T}
- */
-const unmapped = node => {
-    assert(node instanceof Array)
-    return node
-}
-
-/**
- * The symbol at a position a mapping filled, or an input leaf: not an array,
- * and its `meta.id` says which alphabet it is.
- *
- * @type {(node: Meta<Utf16 | Out> | readonly unknown[]) => Meta<Utf16 | Out>}
- */
-const symbolAt = node => {
-    assert(!(node instanceof Array))
-    return node
-}
 
 /** @type {(node: Meta<Utf16 | Out> | readonly unknown[]) => string} */
 const textAt = node => {
@@ -95,28 +74,6 @@ const nodeAt = node => {
     const { meta } = symbolAt(node)
     assert(meta.id === 'value')
     return meta.node
-}
-
-/**
- * The item of the pair `cj` hands to `join`: the item, then its whitespace.
- *
- * @type {<R extends Rule>(node: Ast<_Item<R>, Utf16, Out>) => Ast<R, Utf16, Out>}
- */
-const item = node => unmapped(node)[0]
-
-/**
- * The items of a container, as `cj` lays them out: the option `join` builds
- * is empty, or holds the first item beside the separator-item pairs, each
- * item followed by its whitespace. Everything around an item is scaffolding
- * no mapping did.
- *
- * @type {<R extends Rule>(node: Children<ContainerRule<R>, Utf16, Out>) => readonly Ast<R, Utf16, Out>[]}
- */
-const items = ([, , option]) => {
-    const o = unmapped(option)
-    if (o.length === 0) { return [] }
-    const [first, rest] = unmapped(o[0])
-    return [item(first), ...unmapped(rest).map(pair => item(unmapped(pair)[1]))]
 }
 
 const protoKey = /** @type {const} */ ('__proto__')
@@ -187,7 +144,7 @@ const toNode = node => {
 const map = mapping
 
 /**
- * The rewrite set: JSON's `string` mapping, a number to its leaf, and a
+ * The rewrite set: JSON's `string` mappings, a number to its leaf, and a
  * value to the node its branch made. Keyed by the rules
  * `../../../ebnf/lib/datajs` and `../../../ebnf/lib/json` hold, so that
  * `parser(dataJs, mappings)` yields a document whose every value is one
@@ -196,7 +153,7 @@ const map = mapping
  * @type {RewriteSet<Utf16, Out>}
  */
 export const mappings = [
-    stringMapping,
+    ...stringMappings,
     map(number, node => valueSymbol(numberOf(node))),
     map(value, toNode),
 ]
