@@ -402,7 +402,8 @@ the last one, and nobody's unrelated work waits on the rewrite.
    changes.
 6. **Delete the old module**, with the issues that described only its code,
    and repoint every reference — links and prose — to what replaced its
-   target. One `**BREAKING CHANGES:**` declaration, for the old paths.
+   target. One `**BREAKING CHANGES:**` declaration, for the old paths that
+   were public.
 
 ### The worked example: `fjs/ebnf` replacing `fjs/bnf`
 
@@ -417,10 +418,11 @@ section is its record. What it taught:
 
 - **The direction rule cost nothing to hold and needed no tool.** No
   `ebnf → bnf` edge was ever written, and the deletion compiled first try.
-  Where the rule bit was documents: `ebnf/` READMEs could not link `bnf/`
-  issues, so they named them, and the names went stale in prose that no link
-  checker reads. The deletion had to sweep prose as well as links, and one
-  sentence still escaped it into review.
+  The rule does not reach documents, but the plan kept `ebnf/` documents
+  from linking `bnf/` issues all the same, so that the deletion would break
+  no link; they named the issues instead, and the names went stale in prose
+  that no link checker reads. The deletion had to sweep prose as well as
+  links, and one sentence still escaped it into review.
 - **Most moves became rewrites, and the triage said so as it went.** Of the
   modules first binned as moves, only `token_symbol/` moved. The shared
   matcher layer retired because the new backend did not need one; the
