@@ -2,8 +2,8 @@
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Meta } from '../ast/types.ts'
- * @import { Mappings } from '../ll1/types.ts'
+ * @import { Ast, Meta } from '../ast/types.ts'
+ * @import { Mappings, Parser } from '../ll1/types.ts'
  * @import { Set } from '../types.ts'
  * @import { Byte } from './types.ts'
  */
@@ -120,10 +120,10 @@ export const proof = {
         parse: () => {
             const key = repeatFrom1(not(set(' \n')))
             const accent = /** @type {const} */ ([bytes(0xC3), bytes(0xA9)])
-            const value = { accent, plain: ['caf', 0x65] }
+            const value = /** @type {const} */ ({ accent, plain: ['caf', 0x65] })
             const line = () => /** @type {const} */ (['const', [key, ' ', value, '\n']])
             const rest = repeatFrom0(byte)
-            const parse = byteParser(/** @type {const} */ ([line, rest, eof]))
+            const parse = byteParser([line, rest, eof])
             const r = unwrap(parse(symbols([...ascii('k '), 0xC3, 0xA9, ...ascii('\n'), 0xFF, 0])))
             assertEq(r[1], 7)
             const [[k, , [tag, v], nl], tail] = r[0]
@@ -144,7 +144,7 @@ export const proof = {
         // become one symbol of the next alphabet.
         mapped: () => {
             const w = repeatFrom1(not(set(' ')))
-            const parse = byteParser(/** @type {const} */ ([w, ' ', w, eof]), [
+            const parse = byteParser([w, ' ', w, eof], [
                 word(w, bs => ({ symbol: 0, meta: { id: 'word', bytes: bs.map(({ symbol }) => symbol) } })),
             ])
             const [ast] = unwrap(parse(symbols(ascii('tree 42'))))
@@ -165,7 +165,7 @@ export const proof = {
             /** @type {Mappings<{ readonly id: 'byte', readonly offset: number }, { readonly id: 'at', readonly offset: number }>} */
             const at = mapping
             const w = repeatFrom1(range('az'))
-            const parse = byteParser(/** @type {const} */ ([w, eof]), [
+            const parse = byteParser([w, eof], [
                 at(w, bs => ({ symbol: 0, meta: { id: 'at', offset: bs[0].meta.offset } })),
             ])
             const [ast] = unwrap(parse(ascii('git').map((symbol, offset) => ({ symbol, meta: { id: 'byte', offset } }))))
@@ -177,8 +177,13 @@ export const proof = {
         // A grammar that stops where its rule does reports the index it
         // left, so a reader can slice the rest.
         prefix: () => {
-            const parse = byteParser(/** @type {const} */ ([repeatFrom1(range('09')), '\0']))
+            const d = repeatFrom1(range('09'))
+            const parse = byteParser([d, '\0'])
             assertEq(unwrap(parse(symbols([0x31, 0x32, 0, 0xFF, 0xFF])))[1], 3)
+            // `byteParser`'s `const R` keeps the argument a tuple of literals,
+            // where a dropped modifier would widen it to an array and `tsc`
+            // would still pass; this is what makes the modifier load-bearing.
+            /** @typedef {Assert<Equal<typeof parse, Parser<Ast<readonly [typeof d, '\0'], Byte>, Byte>>>} _ConstParameter */
         },
         // Every rule the lowering met is checked, wherever it sits.
         throw: {
