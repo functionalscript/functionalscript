@@ -335,9 +335,11 @@ rewritten against the surviving backend as they move.
 Every stage is additive, `bnf/` loses nothing until stage 7, and `tsc` and
 `fjs t` pass at each. **The stages are numbered for reference, not for
 order, and they prescribe no method.** The only constraints are the
-dependencies each module names in the layout — `token_symbol/` needs
-`unicode/`, `ll1/` needs `data/` and `map/`, a ported grammar needs
-whatever it imports, a deleted `bnf/` needs no consumer left on it — and
+dependencies each module names in the layout — `ll1/` needs `data/` and
+`map/`, a ported grammar needs whatever it imports, a deleted `bnf/` needs
+no consumer left on it; `token_symbol/` needs nothing, its `0x110000`
+start being its own, and reading that from `unicode/` is a repoint
+[unicode-rules](../bnf/todo/unicode-rules.md) tracks for after stage 3 — and
 the direction rule. Any order, overlap, split or merge of the stages that
 respects those is the developer's choice, and so is how each piece is
 built: whether a "move" is a copy, a re-export or a rewrite, whether an
@@ -379,8 +381,12 @@ consumer port"), never by number, so a renumbering here cannot strand them.
    depends on nothing this stage adds. `ebnf/matcher/` was this stage's too, and is
    no longer anyone's: the backend shipped without it (the triage's
    `matcher/` row, **Amended**).
-4. **`ebnf/token_symbol/` and `ebnf/ll1/`.** `token_symbol`
-   copied, taking `unicodeRange` from `ebnf/unicode/`. `ll1` rewritten against
+4. **`ebnf/token_symbol/` and `ebnf/ll1/`.** `token_symbol` moved —
+   shipped as [`ebnf/token_symbol/`](../ebnf/token_symbol/README.md), a
+   symbol being a rule and the start `0x110000` spelled there; having it
+   read that from `ebnf/unicode/` is the repoint
+   [unicode-rules](../bnf/todo/unicode-rules.md) tracks, after stage 3,
+   which nothing waits on. `ll1` rewritten against
    the new IR — shipped as [`ebnf/ll1/`](../ebnf/ll1/README.md): flat nodes
    for every bound, a conflict error that names the rule, and the AST
    mapping as a rewrite set folded into the parse. Of the two things the
@@ -446,7 +452,8 @@ consumer port"), never by number, so a renumbering here cannot strand them.
       rename-check-map retired with `bnf/map/rtti`.
 - [x] Stage 4: `ebnf/ll1/` with proof; the backend's side of the AST
       mapping.
-- [ ] Stage 4: `ebnf/token_symbol/` with proof.
+- [x] Stage 4: `ebnf/token_symbol/` with proof; its start is its own
+      until [unicode-rules](../bnf/todo/unicode-rules.md)'s repoint.
 - [ ] Stage 5: `ebnf/lib/json` and `ebnf/lib/datajs` with proofs; the
       cross-front-end comparison proof group; bnf-grammar-single-owner moved.
 - [ ] Stage 6: the token layer (done: the resumable parser); the djs
