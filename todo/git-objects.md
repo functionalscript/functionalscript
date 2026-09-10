@@ -78,8 +78,10 @@ The four payloads:
   what delimits the entry: nothing follows it but the next entry or the end.
 
 An `ident` is `name SP < email > SP time SP tz`: the name is any bytes but
-`<` and LF and may contain spaces; the email any bytes but `>`; `time` a
-decimal Unix timestamp; `tz` a sign and four digits.
+the brackets and LF and may contain spaces; the email the same; `time` a
+decimal Unix timestamp no later than `INT64_MAX`, the latest Git can hold;
+`tz` a sign and four digits. That is what `fsck_ident` reads, and what the
+reader reads.
 
 The object formats are specified across
 [gitformat-pack](https://git-scm.com/docs/gitformat-pack),
@@ -293,10 +295,13 @@ block is LF.
 
 **Ident** is a second layer over one header's value, the byte-level twin
 of the token layer in [`fjs/ebnf/ll1`](../fjs/ebnf/ll1/README.md): a grammar
-over the bytes of the value, `[repeatFrom0(not(set('<\n'))), '<',
-repeatFrom0(not(set('>\n'))), '>', ' ', digits, ' ', set('+-'),
-times(4)(digit), eof]`. The `eof` is what refuses trailing bytes, since a
-rule without it stops where it matches and leaves the rest. The SP before
+over the bytes of the value, `[repeatFrom0(not(set('<>\n'))), '<',
+repeatFrom0(not(set('<>\n'))), '>', ' ', digits, ' ', set('+-'),
+times(4)(digit), eof]` — a `>` in the name or a `<` in the email is a bad
+name or a bad email to `fsck_ident`, and here no ident — with the mapping
+refusing a time later than `INT64_MAX`, since the range is the ident's
+property and not the object's. The `eof` is what refuses trailing bytes,
+since a rule without it stops where it matches and leaves the rest. The SP before
 `<` cannot be a symbol of the rule — the name's repetition may end in SP,
 so `' <'` after it is a first/follow conflict the backend refuses — so the
 name is read up to `<` and the mapping requires its last byte to be SP and
