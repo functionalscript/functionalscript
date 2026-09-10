@@ -47,10 +47,9 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    once also waited on, is done
    ([DESIGN.md §11](../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)).
 
-   It still is not what to pick up first. It is P2, its error shapes are
-   undecided, and `fjs/ebnf/` is mid-migration, so writing a codec against it
-   now means writing against names still moving. Stage 1b is P1 and gates
-   stage 4, which is the ordering that matters.
+   It still is not what to pick up first. It is P2 and its error shapes are
+   undecided; stage 1b is P1 and gates stage 4, which is the ordering that
+   matters.
 
    The hand-written design was written, reviewed, implemented in full and
    **withdrawn** —
@@ -205,9 +204,10 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
   plus a mapping.
 
   The old rule rested on the grammar module not being stable enough to depend
-  on, and that argument has not changed — `fjs/ebnf/` is mid-migration, which is
-  why stage 3b is not the thing to start first. What changed is what the
-  alternative costs: a hand-written tokenizer and container machine per format,
+  on, and that argument expired when the migration that built `fjs/ebnf/`
+  finished ([DESIGN.md §11](../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)).
+  What changed before that is what the alternative costs: a hand-written
+  tokenizer and container machine per format,
   whose defects have to be found one at a time by review, against a grammar of a
   few dozen readable lines.
 
@@ -517,10 +517,9 @@ waits on, and it is startable — the lexical rules and the mapping engine
 exist, though its token-stream grammar is not written, must match today's
 tokenizer at a number's and a word's boundaries, and its mapping waits on
 `string`'s pin — but what it
-reports on malformed input is undecided, and `fjs/ebnf/` is mid-migration.
-Design work, one type prerequisite and a moving dependency are poor reasons
-to hold the
-front of a queue, so the P1 urgency of this plan rests on stages 1b and 4.
+reports on malformed input is undecided. Design work and one type
+prerequisite are poor reasons to hold the front of a queue, so the P1
+urgency of this plan rests on stages 1b and 4.
 
 An EDAG is an expression DAG whose sharing is *semantics*, not an encoding
 detail: one node referenced from two operand positions is one value, and `{} ===
@@ -730,7 +729,7 @@ throughout.
       first — so this is no longer blocked on
       [#1890](https://github.com/functionalscript/functionalscript/pull/1890) —
       that channel buys better errors than today's, not the ones owed. What is
-      undecided is the error shapes, and `fjs/ebnf/` is mid-migration.
+      undecided is the error shapes.
       A reader must compose EOF: `json` alone accepts `[1]x`.
       What is measured and still holds is the swap's blast radius: the accepted
       language is JSON's already, but for one defect — `1n1` and its class,
