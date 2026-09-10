@@ -142,13 +142,13 @@ type parameter, so that what it returns is exactly the `Ast` the caller's
   caller sends it as a symbol with its own metadata is
   [eof-as-ordinary-symbol](../terminal/todo/eof-as-ordinary-symbol.md).
 - The classical stack's design for the same requirement — `MI`/`MO` with
-  `translate` and `reduce`
-  (generic-parser-metadata, retired with the classical backend, and
-  [043-stateful-parser](../todo/043-stateful-parser.md)) — is what
-  this replaces for `ebnf/`: with the alphabet named in the metadata,
-  `translate` is not needed and `reduce` is each mapping's own fold over its
-  children. The two issues describe the classical `bnf/` backend and stay
-  as its record.
+  `translate` and `reduce` — is what this replaces for `ebnf/`: with the
+  alphabet named in the metadata, `translate` is not needed and `reduce` is
+  each mapping's own fold over its children. The issue that designed it,
+  generic-parser-metadata, was deleted with the classical backend, and this
+  paragraph is its record; [043-stateful-parser](../todo/043-stateful-parser.md)
+  keeps only the streaming half of that design, and says the algebra was
+  superseded.
 
 ## Related
 
