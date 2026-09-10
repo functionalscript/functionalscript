@@ -41,8 +41,10 @@ fn bigint(self, _: BigInt<A>) -> Self::Result {
 }
 ```
 
-That is the right behavior for `['+', x]` and for the arithmetic and comparison
-operators, which legitimately reject `BigInt` mixing the same way JS does. It is
+That is the right behavior for `['+', x]` and for the arithmetic operators, which
+legitimately reject mixing a `BigInt` with a `Number` the same way JS does. (The
+relational and equality comparisons are not in that set: `1n < 2` is `true` in JS,
+and `nanvm-lib/src/vm/any/relational.rs` handles the mixed arms deliberately.) It is
 *not* what the JS global function `Number(x)` does. Per spec, `Number(x)` goes
 through `ToNumeric` and, for a `BigInt`, converts it via `BigInt::toNumber` (a possibly
 lossy double conversion) instead of throwing. **Nothing in `nanvm-lib` implements that
@@ -59,8 +61,8 @@ counterpart, and the corpus has no `Number` group to prove one against.
 - **Do not touch `NumberCoercion`/`to_number()` or `Any::unary_plus`.**
   `Any::unary_plus`'s own doc comment (`any/mod.rs:44-45`) already says `to_number` is
   used "for internals in places where ECMAScript's abstract function `ToNumber` is
-  needed" — that's the correct algorithm for unary `+` and for the arithmetic and
-  comparison operators. The two coercions differ only in their `BigInt` arm; keep both,
+  needed" — that's the correct algorithm for unary `+` and for the arithmetic
+  operators. The two coercions differ only in their `BigInt` arm; keep both,
   under names that say which is which.
 - In the corpus, add a `Group1` with `op: 'Number'` beside the existing unary-plus
   group rather than replacing it. `numberCoercionCases` in
