@@ -1,4 +1,4 @@
-## value-token-kind-list. The value-carrying token kinds are spelled four times
+## value-token-kind-list. The value-carrying token kinds are spelled twice
 
 **Priority:** P4
 **Status:** open
@@ -42,8 +42,8 @@ export const _valueKinds = /** @type {const} */ ([
 
 ### Tasks
 
-- [ ] Introduce the list; derive/pin the other three sites; add the proof
-      `Assert`.
+- [ ] Introduce the list; derive the variant from it and pin the switch
+      against it; add the proof `Assert`.
 - [ ] `tsc`, `fjs t`.
 
 ### Related
