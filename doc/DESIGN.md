@@ -372,8 +372,8 @@ at the call site.
 one PR, build the new module beside the old one, move the consumers one at a
 time, and delete the old module last.** This is [§2](#2-the-api-is-the-most-important-part-of-quality)'s
 split by scope for the case where the scope is a whole module: each
-consumer's move is one complete breaking change, the old module stays live
-until the last one, and nobody's unrelated work waits on the rewrite.
+consumer's move is one complete cutover, the old module stays live until
+the last one, and nobody's unrelated work waits on the rewrite.
 
 1. **Create the new module beside the old one.** A new name, not a rename:
    nothing under the old path moves, so nothing that imports it changes.
