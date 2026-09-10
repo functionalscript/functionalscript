@@ -2113,7 +2113,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       character class at every fixed position, the rule the hex rotations
       and the range ends follow. **The containers and the document**,
       under the same both-ends rule: `array` and `object` empty, of one,
-      two and three, nested in each other and a thousand deep, and holding
+      two and three, nested in each other, arrays a thousand deep and
+      objects three hundred deep — the depth `tsc` binds a nested object
+      literal to without overflowing — and holding
       every `value` alternative; the `["__proto__"]` key alone, among
       others, nested, and holding an object, `null` and a shared node;
       duplicate keys plain, adjacent, three times over, by an escaped
