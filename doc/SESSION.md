@@ -66,8 +66,12 @@ steps of one, and the open stacks in the tree at any time show the shape.
    which the merge commits guarantee; if it does not, something above was
    built on a lower branch that then changed, and that is a question for the
    owner, not a force-push.
-5. **While tasks remain, go to step 2.** The task is done when its last pull
-   request deletes the `todo/` and lands. It is also done when the owner says
+5. **While tasks remain, go to step 2; otherwise, go to step 3 until every
+   pull request in the stack is merged.** The last task's pull request is not
+   the end: the stack above the merged one still has branches to update,
+   comments to answer, and a lowest member to queue, and steps 3 and 4 repeat
+   until it is empty. The task is done when its last pull request, the one
+   that deletes the `todo/`, has landed. It is also done when the owner says
    so; and it pauses, rather than guesses, when the next step needs a
    decision nobody has made.
 
