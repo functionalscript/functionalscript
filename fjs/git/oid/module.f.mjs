@@ -58,13 +58,16 @@ export const tryFromHexOf = oidBytes => hex => {
  * An id's hex spelling, two small-letter digits a byte: the inverse of
  * {@link tryFromHex}, and what Git writes.
  *
- * @throws On a `Vec` that is not whole bytes: `Oid` is the type's name for
- * one that is, and a caller can build any `Vec`, so the spelling refuses
- * rather than pad the last byte and spell an id that reads back wider.
+ * @throws On a `Vec` that is not whole bytes, or is empty: `Oid` is the
+ * type's name for one that is neither, and a caller can build any `Vec`,
+ * so the spelling refuses rather than pad the last byte and spell an id
+ * that reads back wider, or spell nothing, which {@link tryFromHex} does
+ * not read.
  *
  * @type {(oid: Oid) => Bytes}
  */
 export const toHex = oid => {
-    assert(length(oid) % 8n === 0n, ['not whole bytes', oid])
+    const bits = length(oid)
+    assert(bits !== 0n && bits % 8n === 0n, ['not whole bytes', oid])
     return toArray(toBytes(oid)).flatMap(b => [hexDigitCodePoint(b >> 4), hexDigitCodePoint(b & 15)])
 }
