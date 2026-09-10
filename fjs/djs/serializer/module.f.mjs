@@ -201,7 +201,12 @@ const addRef = djs => refs => {
 
 /**
  * Serializes a value as a JavaScript module: a shared value becomes a `const`,
- * and a `__proto__` key is written in the computed form the language requires.
+ * a `__proto__` key is written in the computed form the language requires,
+ * and every statement ends with `;`, the export included — the terminator
+ * DataJS requires after each statement
+ * ([spec](../../../spec/datajs/README.md)), and the one
+ * `todo/parser-serializer-restructure.md` settles on for FunctionalScript
+ * (stage 5), so what is written here parses wherever a module is read.
  *
  * @type {(sort: _MapEntries) => (djs: Unknown) => string}
  */
@@ -214,10 +219,10 @@ export const stringify = sort => djs => {
     /** @type {(entry: Unknown) => List<string>} */
     const constSerialize = entry => {
         const refCounter = assertNotNullish(refs.get(entry))
-        return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serializeWithConst(sort)(refs)(entry)(entry), ['\n']])
+        return flat([['const c'], numberSerialize(refCounter[0]), [' = '], serializeWithConst(sort)(refs)(entry)(entry), [';\n']])
     }
     const constStrings = flatMap(constSerialize)(consts)
-    const rootStrings = listConcat(['export default '])(serializeWithConst(sort)(refs)(djs)(djs))
+    const rootStrings = flat([['export default '], serializeWithConst(sort)(refs)(djs)(djs), [';']])
     return concat(listConcat(constStrings)(rootStrings))
 }
 
