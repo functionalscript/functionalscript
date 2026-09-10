@@ -2095,11 +2095,15 @@ The steps, in order; a step is one pull request unless it says otherwise:
       the three zero spellings, and the five binary64 cases; every `bigint`
       branch with the three fixed-width ceilings; and every `string` branch
       — the nine escapes, the six hex rotations, the raw `/`, BMP and astral
-      characters, both raw endpoints of the character range, U+0020 and
-      U+10FFFF, the nineteen whitespace-like scalars, the four lone
-      surrogates, the four escaped pairs and the seven adjacencies — each
-      with its key twin. **Still to land: the containers and the
-      document** — `array`, `object` and `key` in every alternative, empty
+      characters, both ends of each of the three ranges the raw character
+      is once `"` and `\` are cut out of it (U+0020, U+0021, U+0023,
+      U+005B, U+005D and U+10FFFF), the nineteen whitespace-like scalars,
+      the four lone surrogates, the four escaped pairs and the seven
+      adjacencies — each with its key twin, and both ends of every
+      character class at every fixed position, the rule the hex rotations
+      and the range ends follow. **Still to land: the containers and the
+      document**, under the same both-ends rule for every class they
+      carry — `array`, `object` and `key` in every alternative, empty
       and nested, the `["__proto__"]` key, duplicate keys, the array-index
       key order with both sides of each boundary, a `const` referenced
       once, twice and never, sharing and its unshared inverse, a name whose
