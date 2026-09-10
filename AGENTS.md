@@ -90,7 +90,9 @@ code plus its proof, run `npm run gen` after changing source, run the check
 set above, and delete the `todo/` issue file the PR fixes, if there is one.
 
 Format, priorities, where each issue file belongs, and how GitHub-reported bugs
-become `todo/` files: [todo/README.md](./todo/README.md).
+become `todo/` files: [todo/README.md](./todo/README.md). How one session takes
+one task from its `todo/` to the last pull request merged — a stack of small
+pull requests, and a question at every step: [SESSION.md](./doc/SESSION.md).
 
 ## 2. Environment and running tests
 

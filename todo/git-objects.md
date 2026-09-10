@@ -310,9 +310,12 @@ issue naming the object.
 **Tree** is `repeatFrom0(entry)` then `eof`, with
 `entry = [repeatFrom1(octal), ' ', repeatFrom1(not(set('\0'))), '\0', times(n)(byte)]`
 for the repository's id width `n`. The mode set and its spelling, the entry
-order Git requires (by name, a subtree as if its name ended in `/`), and a
-name holding `/` are `git fsck`'s checks; they belong in a `validate` over
-the entry list, separate from the grammar, so a reader can still read an
+order Git requires (by name, a subtree as if its name ended in `/`, no
+name twice whatever the modes), a name holding `/`, `.`, `..` and `.git`
+in any case, a name over 4096 bytes, and an id of all zero bytes are
+`git fsck`'s checks; they
+belong in a `validate` over the entry list, separate from the grammar, so
+a reader can still read an
 object `fsck` would flag. That is why the entry keeps the mode's digits: a
 number would make a padded mode look canonical before `validate` ever saw
 it.
@@ -387,8 +390,13 @@ approximated:
 - [x] `fjs/git/ident/`: the ident grammar as a `try*` over a header value —
       shipped as [`fjs/git/ident/`](../fjs/git/ident/module.f.mjs), with
       the writer.
-- [ ] `fjs/git/commit/`, `fjs/git/tag/`, `fjs/git/tree/`: grammar, mappings,
-      `validate`, and the writer for each, parameterized by the id width.
+- [x] `fjs/git/tree/`: grammar, mapping, `validate`, and the writer,
+      parameterized by the id width — shipped as
+      [`fjs/git/tree/`](../fjs/git/tree/module.f.mjs); the proof reads the
+      root tree of a commit of this repository and writes it back byte for
+      byte.
+- [ ] `fjs/git/commit/`, `fjs/git/tag/`: known fields as functions over the
+      header list, `validate`, and the writer for each.
 - [ ] Proofs over real objects: capture a handful with `git cat-file` once
       — a merge commit with `gpgsig` and `mergetag`, a signed tag, a tree
       with every mode, a SHA-256 object — and check them in as byte
