@@ -384,7 +384,9 @@ approximated:
       shipped as [`fjs/git/header/`](../fjs/git/header/module.f.mjs), with
       the writer; the proof reads a real signed merge commit of this
       repository and writes it back byte for byte.
-- [ ] `fjs/git/ident/`: the ident grammar as a `try*` over a header value.
+- [x] `fjs/git/ident/`: the ident grammar as a `try*` over a header value —
+      shipped as [`fjs/git/ident/`](../fjs/git/ident/module.f.mjs), with
+      the writer.
 - [ ] `fjs/git/commit/`, `fjs/git/tag/`, `fjs/git/tree/`: grammar, mappings,
       `validate`, and the writer for each, parameterized by the id width.
 - [ ] Proofs over real objects: capture a handful with `git cat-file` once

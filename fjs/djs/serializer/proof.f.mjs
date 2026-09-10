@@ -5,6 +5,9 @@ import { setProperty } from '../../media/json/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 
 export const proof = {
+    // The module form: a shared value hoisted to a `const`, every statement
+    // ended by `;` — the export's too, as DataJS requires and as the module
+    // reader will — and one statement per line.
     stringify: [
         {
             testPrimitives: () => {
@@ -45,13 +48,13 @@ export const proof = {
                 const obj = { "a": 1, "c": 2n, "b": [undefined, null, true, false] }
                 const djs = [obj, obj, 1]
                 const res = stringify(sort)(djs)
-                if (res !== 'const c2 = {"a":1,"b":[undefined,null,true,false],"c":2n}\nexport default [c2,c2,1]') { throw res }
+                if (res !== 'const c2 = {"a":1,"b":[undefined,null,true,false],"c":2n};\nexport default [c2,c2,1];') { throw res }
             },
             testIdentity: () => {
                 const obj = { "a": 1, "c": 2n, "b": [undefined, null, true, false] }
                 const djs = [obj, obj, 1]
                 const res = stringify(identity)(djs)
-                if (res !== 'const c2 = {"a":1,"c":2n,"b":[undefined,null,true,false]}\nexport default [c2,c2,1]') { throw res }
+                if (res !== 'const c2 = {"a":1,"c":2n,"b":[undefined,null,true,false]};\nexport default [c2,c2,1];') { throw res }
             },
         }
     ],
@@ -63,12 +66,12 @@ export const proof = {
         // property, so the module emitter must use it.
         module: () => {
             const res = stringify(sort)(fromEntries([['__proto__', 3]]))
-            assertEq(res, 'export default {["__proto__"]:3}')
+            assertEq(res, 'export default {["__proto__"]:3};')
         },
         moduleShared: () => {
             const shared = fromEntries([['__proto__', 3]])
             const res = stringify(sort)([shared, shared])
-            assertEq(res, 'const c0 = {["__proto__"]:3}\nexport default [c0,c0]')
+            assertEq(res, 'const c0 = {["__proto__"]:3};\nexport default [c0,c0];')
         },
         // JSON output: `JSON.parse` has no prototype special case, so the plain
         // spelling already round-trips — and the computed form is not JSON.

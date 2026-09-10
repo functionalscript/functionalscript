@@ -4,7 +4,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { fromArrayLike, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
 import { tryRead, write } from './module.f.mjs'
 
@@ -88,6 +88,17 @@ export const proof = {
     // and comes back as it went; a key the format cannot spell is refused
     // by the writer, since it would be read as a different header.
     write: {
+        // A value and a message are written as the lists they are, never
+        // held as arrays: a lazy list goes in, and the bytes come out.
+        lazy: () => {
+            const lazy = latin1('x\ny').map(b => b)
+            const out = write({
+                headers: [[latin1('k'), fromArrayLike(new Uint8Array(lazy))]],
+                message: fromArrayLike(new Uint8Array(latin1('m'))),
+            })
+            assert(!(out instanceof Array))
+            assertStructurallySame(toArray(out), latin1('k x\n y\n\nm'))
+        },
         value: () => {
             /** @type {(v: string) => void} */
             const same = v => {

@@ -13,19 +13,16 @@
  *
  * @module
  *
- * @import { Meta } from '../../ebnf/ast/types.ts'
- * @import { Byte } from '../../ebnf/byte/types.ts'
- * @import { Accumulator } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Bytes, ObjectType } from '../types.ts'
  * @import { Envelope } from './types.ts'
  */
 
 import { assertNotNullish } from '../../asserts/module.f.mjs'
-import { byteParser, isByte, not, symbols } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { range, repeatFrom1, set } from '../../ebnf/module.f.mjs'
-import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { concat, drop, take, toArray, tryFold } from '../../types/list/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { concat, drop, take } from '../../types/list/module.f.mjs'
 
 const { isSafeInteger } = Number
 
@@ -62,42 +59,16 @@ const parse = byteParser(envelope)
 const prefixLength = /** @type {const} */ (32)
 
 /**
- * Counting a list of bytes: one more per item, and the fold stops at an
- * item that is no byte. `Bytes` is a list of numbers, and a number that is
- * no byte is a caller's mistake the format could not carry, so it is
- * refused rather than read or written as a plausible object.
- *
- * @type {Accumulator<number, number, number>}
- */
-const byteCount = {
-    init: 0,
-    update: (b, n) => isByte(b) ? n + 1 : null,
-    end: n => n,
-}
-
-/**
- * The length of a list of bytes, walked once and never held as an array,
- * so a payload as long as a list can be is counted as it is; `null` where
- * an item is no byte.
- *
- * @type {(bytes: Bytes) => Nullable<number>}
- */
-const byteLength = tryFold(byteCount)
-
-/**
- * The length of a list a caller means as bytes.
+ * The length of a list a caller means as bytes, walked once and never
+ * held: `Bytes` is a list of numbers, and a number that is no byte is a
+ * caller's mistake the format could not carry, so it is refused rather
+ * than read or written as a plausible object.
  *
  * @throws If an item is not a byte.
  *
  * @type {(bytes: Bytes) => number}
  */
 const length = bytes => assertNotNullish(byteLength(bytes), 'not bytes')
-
-/** @type {(leaves: readonly Meta<Byte>[]) => readonly number[]} */
-const symbolsOf = leaves => leaves.map(({ symbol }) => symbol)
-
-/** @type {(s: string) => readonly number[]} */
-const ascii = s => toArray(stringToCodePointList(s))
 
 /**
  * The type a word names, or `null`: the four are ASCII, so the word is

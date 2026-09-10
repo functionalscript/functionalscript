@@ -501,9 +501,9 @@ export default [b, b, a]
 ```
 
 ```js
-const c0 = {"x":1}
-const c1 = [c0,c0]
-export default [c1,c1,c0]
+const c0 = {"x":1};
+const c1 = [c0,c0];
+export default [c1,c1,c0];
 ```
 
 See
