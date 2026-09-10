@@ -66,15 +66,22 @@ An object whose own `host` property names a recipe is that recipe, and the
 key is reserved for it. Four leaves — `fn`, `symbol`, `builtin`, `hole` —
 and eight modifiers — `ownProp`, `nonEnumerable`, `getter`, `setter`,
 `symbolKey`, `proto`, `attrs`, `link` — each modifier naming the node it
-applies to and denoting that node, modified, never a copy. A modifier is a
+applies to and denoting that node, modified, never a copy. A modifier's
+target is an array, an object or a modifier over one, since nothing else
+has properties to add or attributes to set, and `arraySubclass` narrows the
+target to an array, the one shape whose prototype `inherited` reaches; a
+`hole` is an array element and never an input of its own. A modifier is a
 `const` of its own; stacking is chaining, a second modification naming the
 first as its `on` and the inner one applying first, and a node is the `on`
 of at most one modifier, since the chain is the only order an exported
 value carries; `link` is how a cycle is spelled, since a `const` cannot
-name itself. The vocabulary is closed: the types are the list, and a plain
-input object may not have a `host` key — the reservation reaches inputs
-only, and an expected graph, which carries no recipes, may spell
-`{"host":"fn"}` as the ordinary object it is. Their construction, and how the corpus proves them
+name itself. The vocabulary is closed: the types are the list, and they
+carry the placement rules, so a recipe over a leaf, a hole outside an
+array or an `inherited` member under a `null` prototype is refused by
+`tsc` rather than left to a consumer; a plain input object may not have a
+`host` key — the reservation reaches inputs only, and an expected graph,
+which carries no recipes, may spell `{"host":"fn"}` as the ordinary object
+it is. Their construction, and how the corpus proves them
 against a FunctionalScript serializer, is the open decision the issue
 records, since the repository's proof rules keep host-built values out of
 proofs of FunctionalScript APIs.

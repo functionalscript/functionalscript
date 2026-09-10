@@ -1816,7 +1816,7 @@ and a document is a string. Two things stay described rather than spelled:
   | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an **enumerable** accessor property that **records its own invocation** and then returns `value` |
   | `{"host": "setter", "on": <node>, "key": <string>}` | an **enumerable** accessor property with a **setter and no getter**, which reads as `undefined` |
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | an **enumerable** own data property under a fresh unique symbol |
-  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"[, "inherited": [<key>, <node>]]}` | the same data under a `null` prototype, or as an `Array` subclass instance — `inherited` puts one **enumerable** member, key and value, on the subclass's prototype |
+  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"[, "inherited": [<key>, <node>]]}` | the same data under a `null` prototype, or an `arr` as an `Array` subclass instance — `inherited`, legal **with `arraySubclass` only**, puts one **enumerable** member, key and value, on the subclass's prototype; a `null` prototype has nothing to inherit from |
   | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` is **required with `nonWritable` and forbidden otherwise**, and must name an **existing own data property** of the target |
   | `{"host": "link", "on": <node>, "key": <string or index>, "to": <node>}` | the same data with one more element or enumerable own data property, `key`, holding `to` — which may be `on` itself or a node above it, since a data literal cannot spell a cycle |
 
@@ -1834,7 +1834,14 @@ and a document is a string. Two things stay described rather than spelled:
   add or attributes to set, and `arraySubclass` narrows further to an `arr`.
   `hole` is the mirror constraint on the leaf side: legal only as an `arr`
   element. Stating both is what stops a vector like "freeze a number" from
-  being writable at all.
+  being writable at all, and the types carry both rather than the prose
+  alone: a modifier's `on` is a `Target` (an array, an object or a
+  modifier), a `Hole` is an element of an `Arr` and not an `Input`, and
+  `proto` discriminates on `to`, so `inherited` exists only with
+  `arraySubclass` and a `null` prototype takes an object or an array
+  alike. Review found the first shape saying all three in comments while
+  admitting `on: 1`, a hole as an object member and an `inherited` member
+  with nothing to inherit from.
 
   **A modifier node denotes its target, modified** — the same object `on`
   denotes, not a copy. Four consequences, and they are stated because review
