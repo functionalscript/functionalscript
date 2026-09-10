@@ -4,7 +4,7 @@
 
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, u8List, vec } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { cycle, take, toArray } from '../../types/list/module.f.mjs'
 import { commitPayload, hole, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../testlib.f.mjs'
 import { of, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
 
@@ -84,10 +84,11 @@ export const proof = {
             assertEq(hex(of32('blob', [])), '473a0f4c3be8a93681a267e3b1e9a7dcda1185436fe141f7749120a303721813')
             assertEq(tryFromHexOf(32)(toHex(of20('blob', []))), null)
         },
-        // A payload longer than one chunk, and longer than a `Vec` holds:
-        // the hash sees every byte whatever the pieces.
+        // A payload longer than one chunk, and longer than a `Vec` holds,
+        // given as a lazy list that is never an array: the hash sees every
+        // byte whatever the pieces.
         long: () => {
-            const payload = Array.from({ length: 200_000 }, (_, i) => i & 0xFF)
+            const payload = take(200_000)(cycle(Array.from({ length: 256 }, (_, i) => i)))
             assertEq(hex(of20('blob', payload)), 'aa0916be0c6aa2ad2eb4173843f154cb9ac1ab5a')
         },
     },

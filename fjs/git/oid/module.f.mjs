@@ -11,6 +11,7 @@
  * @module
  *
  * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  */
@@ -21,7 +22,7 @@ import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { length, msb, tryU8ListToVec, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { drop, take, toArray } from '../../types/list/module.f.mjs'
 import { write } from '../object/module.f.mjs'
 
 const toVec = tryU8ListToVec(msb)
@@ -73,13 +74,19 @@ const chunkVec = u8ListToVec(msb)
 const chunkBytes = /** @type {const} */ (65536)
 
 /**
- * A byte array as the `Vec`s the hash takes, {@link chunkBytes} at a time
- * and the last one shorter.
+ * An object's bytes as the `Vec`s the hash takes, {@link chunkBytes} at a
+ * time and the last one shorter, made as the hash asks for them: each is
+ * gathered from the front of the list and the rest of the list handed on
+ * for the next, so one chunk is held at a time and never the object as an
+ * array, and an object longer than an array would hold is hashed all the
+ * same.
  *
- * @type {(bytes: readonly number[]) => readonly Vec[]}
+ * @type {(bytes: Bytes) => List<Vec>}
  */
-const chunks = bytes =>
-    Array.from({ length: Math.ceil(bytes.length / chunkBytes) }, (_, i) => chunkVec(bytes.slice(i * chunkBytes, (i + 1) * chunkBytes)))
+const chunks = bytes => () => {
+    const head = toArray(take(chunkBytes)(bytes))
+    return head.length === 0 ? null : { first: chunkVec(head), tail: chunks(drop(chunkBytes)(bytes)) }
+}
 
 /**
  * The id Git gives an object, at the repository's width: the hash of
@@ -98,7 +105,7 @@ const chunks = bytes =>
  */
 export const of = oidBytes => {
     const hash = oidBytes === 20 ? computeSync(sha1) : computeSync(sha256)
-    return (type, payload) => hash(chunks(byteArray(write(type, payload))))
+    return (type, payload) => hash(chunks(write(type, payload)))
 }
 
 /**
