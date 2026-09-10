@@ -53,6 +53,8 @@ is two nodes. A proof compares the graph an implementation produced with
 `difference` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
 leaves by `Object.is`, so that `-0` and `0` differ and `NaN` is itself;
+an array by `Array.isArray`, the data model's boundary rather than the
+prototype chain, so an array under a `null` prototype is an array;
 objects member by member in observable order; and containers as a
 bijection, so a node the expected graph reaches twice must be one node in
 the actual, and two nodes it keeps apart may not be merged. A duplicate key
@@ -69,7 +71,8 @@ and eight modifiers — `ownProp`, `nonEnumerable`, `getter`, `setter`,
 applies to and denoting that node, modified, never a copy. A modifier's
 target is an array, an object or a modifier over one, since nothing else
 has properties to add or attributes to set, and `arraySubclass` narrows the
-target to an array, the one shape whose prototype `inherited` reaches; a
+target to an array, the one shape whose prototype `inherited` reaches,
+through a chain of modifiers as much as directly; a
 `hole` is an array element and never an input of its own. A modifier is a
 `const` of its own; stacking is chaining, a second modification naming the
 first as its `on` and the inner one applying first, and a node is the `on`

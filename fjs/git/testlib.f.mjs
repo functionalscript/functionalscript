@@ -171,3 +171,52 @@ export const tagPayload = latin1([
     '+AQ=',
     '-----END SSH SIGNATURE-----',
     '',].join('\n'))
+
+/**
+ * A merge of a signed tag, as `git cat-file commit` prints it: written by
+ * Git 2.43 in the same scratch repository as {@link tagPayload}, with the
+ * tag it merged carried whole in a `mergetag` header, one of its
+ * continuation lines empty, and the commit's own SSH signature in
+ * `gpgsig`. Its id is `9880b6949363a320bb2a534e6de86d72d2206a14`, over
+ * 1354 bytes. The lines are joined by LF, and the last one is empty
+ * because the message ends in LF.
+ *
+ * @type {readonly number[]}
+ */
+export const mergePayload = latin1([
+    'tree 3a3e4ab4cfbdacbc05f5721ad4aa7877a8004de4',
+    'parent 6f9b6538ae436d8f14a748463c8d2d348d5ed134',
+    'parent c7571226b6d0c9fe865510e72c935f157425a651',
+    'author Proof <proof@example.com> 1700000200 +0100',
+    'committer Proof <proof@example.com> 1700000200 +0100',
+    'mergetag object c7571226b6d0c9fe865510e72c935f157425a651',
+    ' type commit',
+    ' tag vt',
+    ' tagger Proof <proof@example.com> 1700000100 +0100',
+    ' ',
+    ' Topic tag',
+    ' -----BEGIN SSH SIGNATURE-----',
+    ' U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgrLzsfFISF4by8Q+FKz27YpkK1USsBB+m',
+    ' amu1QkJnbDsAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5AAAAQEuKvuyn',
+    ' 58HE2hZtPeJlmZmDOBqs1eIBIflKZ3g3/A0DUSmnv3VihiiIkcTkhcWrrtkxwfT++0eVHwpAtevU',
+    ' SQc=',
+    ' -----END SSH SIGNATURE-----',
+    'gpgsig -----BEGIN SSH SIGNATURE-----',
+    ' U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgrLzsfFISF4by8Q+FKz27YpkK1USsBB+m',
+    ' amu1QkJnbDsAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5AAAAQOkgfUZ0',
+    ' PYhR8NUO38KbMwUG6hmeXlshRAhlMR8uXXcck2TAgQ4vyj0xeLm47mHwTm0GBA0ukY2+AQEZrm9m',
+    ' UAw=',
+    ' -----END SSH SIGNATURE-----',
+    '',
+    'Merge tag \'vt\'',
+    '',
+    'Topic tag',
+    '',
+    '# -----BEGIN SSH SIGNATURE-----',
+    '# U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgrLzsfFISF4by8Q+FKz27YpkK1USsBB+m',
+    '# amu1QkJnbDsAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5AAAAQEuKvuyn',
+    '# 58HE2hZtPeJlmZmDOBqs1eIBIflKZ3g3/A0DUSmnv3VihiiIkcTkhcWrrtkxwfT++0eVHwpAtevU',
+    '# SQc=',
+    '# -----END SSH SIGNATURE-----',
+    '# gpg verification failed.',
+    '',].join('\n'))

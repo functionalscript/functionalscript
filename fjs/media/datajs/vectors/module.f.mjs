@@ -16,11 +16,18 @@
  *
  * @module
  *
- * @import { Unknown } from '../types.ts'
+ * @import { TreeArray } from '../../json/types.ts'
+ * @import { Primitive, Unknown } from '../types.ts'
  * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
 const { is, keys, hasOwn } = Object
+
+// by the data model's boundary, not the prototype chain: an array under a
+// `null` prototype is an array whose prototype is outside the model; and
+// typed over the model's own arrays, which are read-only, so that the
+// other branch narrows to the object
+const isArray = /** @type {(value: Unknown) => value is TreeArray<Primitive>} */ (Array.isArray)
 
 /** @type {(path: string, what: string) => string} */
 const at = (path, what) => `at ${path}: ${what}`
@@ -30,7 +37,7 @@ const show = value =>
     is(value, -0) ? '-0' :
     typeof value === 'bigint' ? `${value}n` :
     typeof value === 'string' ? JSON.stringify(value) :
-    value instanceof Array ? 'an array' :
+    isArray(value) ? 'an array' :
     typeof value === 'object' && value !== null ? 'an object' :
     String(value)
 
@@ -52,8 +59,8 @@ const byActual = (pairs, actual) => pairs.find(([, a]) => a === actual)
  * @type {(stack: _Stack, path: string, expected: _Container, actual: _Container) => _Stack | string}
  */
 const children = (stack, path, expected, actual) => {
-    if (expected instanceof Array) {
-        if (!(actual instanceof Array)) { return at(path, `expected an array, got ${show(actual)}`) }
+    if (isArray(expected)) {
+        if (!isArray(actual)) { return at(path, `expected an array, got ${show(actual)}`) }
         if (expected.length !== actual.length) {
             return at(path, `expected ${expected.length} elements, got ${actual.length}`)
         }
@@ -70,7 +77,7 @@ const children = (stack, path, expected, actual) => {
         }
         return result
     }
-    if (actual instanceof Array) { return at(path, `expected an object, got ${show(actual)}`) }
+    if (isArray(actual)) { return at(path, `expected an object, got ${show(actual)}`) }
     const expectedKeys = keys(expected)
     const actualKeys = keys(actual)
     if (expectedKeys.length !== actualKeys.length) {

@@ -23,6 +23,10 @@ come.
   for a repository's id width: a reader that reads what `git fsck` would
   flag, a `validate` that refuses it the way `fsck` does, `mode` as the
   number an entry's digits spell, and a writer.
+- [`commit/`](commit/module.f.mjs) — a commit as a second pass over the
+  header block: `tree`, `parent`, `author` and `committer` by position,
+  `encoding`, `gpgsig` and `mergetag` by key, the last read as a tag by
+  the tag module, and a `validate` that refuses what `git fsck` does.
 - [`oid/`](oid/module.f.mjs) — an object id between its two spellings, the
   raw bytes a tree entry holds and the hex text a header holds.
 - [`tag/`](tag/module.f.mjs) — a tag as a second pass over the header

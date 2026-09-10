@@ -22,7 +22,7 @@ const tag = lines => read(latin1(lines.join('\n')))
 /** @type {(bytes: readonly number[]) => string} */
 const text = codePointListToString
 
-const id = '9fed27590671460cacf76884f17cd2a4b17f7220'
+const id = /** @type {const} */ ('9fed27590671460cacf76884f17cd2a4b17f7220')
 
 const validate20 = validate(20)
 
