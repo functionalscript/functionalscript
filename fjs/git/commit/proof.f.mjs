@@ -29,11 +29,11 @@ const hex = id => text(toArray(toHex(id)))
 
 const validate20 = validate(20)
 
-const treeId = 'c5711460da9d5ae7158a951d9d924385419b13ca'
+const treeId = /** @type {const} */ ('c5711460da9d5ae7158a951d9d924385419b13ca')
 
-const parentId = '30317689cb0aaba4f927c1980d80e286c69dce85'
+const parentId = /** @type {const} */ ('30317689cb0aaba4f927c1980d80e286c69dce85')
 
-const who = 'A <a@b> 1 +0000'
+const who = /** @type {const} */ ('A <a@b> 1 +0000')
 
 /**
  * The headers every rule below starts from: a commit `git fsck` accepts.

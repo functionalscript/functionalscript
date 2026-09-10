@@ -12,7 +12,7 @@
  * {@link mergetags} hands it to the tag reader — one more pass over the
  * same alphabet, as the design says. A commit with a bad `tree` id or no
  * `committer` is read and written byte for byte; `validate` is where it is
- * refused, as `git fsck` refuses it.
+ * refused, as Git refuses it.
  *
  * @module
  *
@@ -172,33 +172,37 @@ export const mergetags = c => valuesOf(c, 'mergetag').map(value => {
  * NUL in any header, no `tree` header first or one that is not a hex id
  * of the repository's width, a `parent` header that is not one, no
  * `author` header after the parents or no `committer` after it, or either
- * holding what is not an ident, or a NUL in the message — the last a
- * warning to `fsck` and a refusal under `--strict`, which is how Git
- * writes an object. One check `fsck` does not make, since it never looks
- * inside: a `mergetag` value must be a tag this module's sibling vouches
- * for, so that {@link mergetags} is total. What `fsck` only notes passes:
- * any other header.
+ * holding what is not an ident, or a NUL in the message. All but the last
+ * are what `git fsck` reports as an error; a NUL in the message is one it
+ * only warns of, as `nulInCommit`, and this refuses it, since no tool of
+ * Git's writes one and a message is read as text. One check `fsck` does
+ * not make, since it never looks inside: a `mergetag` value must be a tag
+ * this module's sibling vouches for, so that {@link mergetags} is total.
+ * What `fsck` only notes and Git writes passes: any other header.
  *
  * Separate from {@link tryRead} on purpose: a reader reads what it can,
  * and only this says no.
  *
  * @type {(oidBytes: OidBytes) => (c: Commit) => Result<Commit, string>}
  */
-export const validate = oidBytes => c => {
-    if (hasNulHeader(c)) { return error('NUL in header') }
+export const validate = oidBytes => {
     const id = tryFromHexOf(oidBytes)
-    const treeValue = valueAt(c, 0, 'tree')
-    if (treeValue === null) { return error('no tree') }
-    if (id(treeValue) === null) { return error('not a tree id') }
-    const ps = parentValues(c)
-    if (!ps.every(v => id(v) !== null)) { return error('not a parent id') }
-    const authorValue = valueAt(c, 1 + ps.length, 'author')
-    if (authorValue === null) { return error('no author') }
-    if (readIdent(authorValue) === null) { return error('not an author') }
-    const committerValue = valueAt(c, 2 + ps.length, 'committer')
-    if (committerValue === null) { return error('no committer') }
-    if (readIdent(committerValue) === null) { return error('not a committer') }
-    const tags = valuesOf(c, 'mergetag').map(readTag)
-    if (!tags.every(t => t !== null && validateTag(oidBytes)(t)[0] === 'ok')) { return error('not a mergetag') }
-    return includes(0)(c.message) ? error('NUL in message') : ok(c)
+    const tagOk = validateTag(oidBytes)
+    return c => {
+        if (hasNulHeader(c)) { return error('NUL in header') }
+        const treeValue = valueAt(c, 0, 'tree')
+        if (treeValue === null) { return error('no tree') }
+        if (id(treeValue) === null) { return error('not a tree id') }
+        const ps = parentValues(c)
+        if (!ps.every(v => id(v) !== null)) { return error('not a parent id') }
+        const authorValue = valueAt(c, 1 + ps.length, 'author')
+        if (authorValue === null) { return error('no author') }
+        if (readIdent(authorValue) === null) { return error('not an author') }
+        const committerValue = valueAt(c, 2 + ps.length, 'committer')
+        if (committerValue === null) { return error('no committer') }
+        if (readIdent(committerValue) === null) { return error('not a committer') }
+        const tags = valuesOf(c, 'mergetag').map(readTag)
+        if (!tags.every(t => t !== null && tagOk(t)[0] === 'ok')) { return error('not a mergetag') }
+        return includes(0)(c.message) ? error('NUL in message') : ok(c)
+    }
 }
