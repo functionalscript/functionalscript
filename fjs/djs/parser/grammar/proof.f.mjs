@@ -129,10 +129,12 @@ export const proof = {
         assertStructurallySame(read('export default "abc;'), ['error', 'error'])
     },
     // `items` keeps the item's type: a tuple written at the call stays the
-    // tuple, which is what its `const` type parameter is for. Compile-time.
+    // tuple, which is what its `const` type parameter is for — and the list
+    // it builds is LL(1).
     itemsInference: () => {
         const list = items([42, 43])
         /** @typedef {Assert<Equal<typeof list, Items<readonly [42, 43]>>>} _ItemsKeepTheTuple */
+        parser(list)
     },
     // Statements end with `;`, so a repetition of any statement is LL(1)
     // too — the order is the module's rule, not lookahead's.
