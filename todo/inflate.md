@@ -19,7 +19,13 @@ That is the right first step and the wrong last one, for two reasons:
 - **The bound.** A `Vec` holds 128 KiB, so a loose object that inflates to
   more is refused at the boundary, where a decoder over a byte list would
   read it as it is. The objects the design types as unbounded — a message,
-  a blob — are exactly the ones that reach the bound.
+  a blob — are exactly the ones that reach the bound. And the bound binds
+  twice: the file goes in through `readFile` as a `Vec` too, so an object
+  whose zlib stream is over 128 KiB is refused before it is inflated, even
+  where its inflated bytes would fit — an incompressible blob near the
+  bound is larger compressed than plain. A decoder fed a window at a time
+  through `readBytes` lifts the input side as the byte list lifts the
+  output side.
 - **The host.** Every other reader in `fjs/git` runs anywhere
   FunctionalScript runs, the virtual runner included, which answers
   `inflate` with `notImplemented`. A repository cannot be read under it.

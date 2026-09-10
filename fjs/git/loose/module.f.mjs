@@ -6,9 +6,13 @@
  * nothing more — the one place a real repository meets the decoder.
  *
  * The bytes come back as a `Vec`, the bound every host effect here has,
- * 128 KiB: a loose object larger than that is refused by the host through
- * the channel, not cut short. A FunctionalScript inflater over a byte
- * list, which would lift the bound, is its own issue,
+ * 128 KiB, and the file goes in as one too, so a loose object is refused on
+ * either side of its stream, through the channel and never cut short: a
+ * file over the bound before it is inflated, `readFile`'s refusal, and a
+ * stream that inflates past it, `inflate`'s. The first binds an object the
+ * second would take — an incompressible blob near the bound is larger
+ * compressed than plain. A FunctionalScript inflater over a byte list,
+ * fed a window at a time, lifts both; it is its own issue,
  * [`todo/inflate.md`](../../../todo/inflate.md).
  *
  * @module
