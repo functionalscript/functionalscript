@@ -12,7 +12,7 @@ and 2 — there is no arity-3 tag at all, so `?:` cannot be expressed as an
 EDAG node today. The shared operator corpus
 ([`fjs/nanvm/module.f.mjs`](../../nanvm/module.f.mjs)) works around this the
 same way it works around `unaryPlus`
-([`replace-unary-plus-with-number.md`](../../../nanvm-lib/todo/replace-unary-plus-with-number.md)):
+([`op12-groups.md`](./op12-groups.md)):
 [`fjs/nanvm/types.ts`](../../nanvm/types.ts)'s `NonEdagGroup` gained a
 `'ternary'` variant carrying `Case<3>`, whose cases always take the corpus's
 "escape" path — build all three operands, apply the operation directly —
@@ -55,8 +55,8 @@ establishes every operand eagerly.
   [`fjs/nanvm/module.f.mjs`](../../nanvm/module.f.mjs)'s `ternaryCases` group
   from `NonEdagGroup`'s `'ternary'` escape onto a real `Group` with
   `op: '?:'` and canonical `Case<3>` lowering — the same move
-  [`replace-unary-plus-with-number.md`](../../../nanvm-lib/todo/replace-unary-plus-with-number.md)
-  proposes for `unaryPlus` → `'Number'` — retiring the `'ternary'` arm of
+  [`op12-groups.md`](./op12-groups.md) proposes for `unaryPlus` → `['+', x]` —
+  retiring the `'ternary'` arm of
   `NonEdagGroup`. This is also the point where the corpus could finally test
   the half of `?:` it cannot today: that the unselected branch is never
   evaluated.
@@ -88,8 +88,8 @@ establishes every operand eagerly.
   subject 3 — the decided design this implements.
 - [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md) —
   `?:` already listed as an allowed, priority-1 operator.
-- [`replace-unary-plus-with-number.md`](../../../nanvm-lib/todo/replace-unary-plus-with-number.md)
-  — the same `NonEdagGroup`-retirement shape, for `unaryPlus`/`'Number'`.
+- [`op12-groups.md`](./op12-groups.md) — the same `NonEdagGroup`-retirement
+  shape, for `unaryPlus`/`['+', x]`.
 - [`interpret-edag.md`](../../djs/todo/interpret-edag.md) — the eventual real
   interpreter this lazy case belongs in.
 - functionalscript/functionalscript#1867 — where `Any::conditional` and the
