@@ -84,6 +84,9 @@ const subtree = fromOctal(ascii('40000'))
 
 const dotGit = ascii('.git')
 
+/** The longest name `git fsck` accepts, in bytes. */
+const maxNameLength = 4096
+
 /** A byte with an ASCII capital folded to its small letter. @type {(b: number) => number} */
 const lower = b => b >= 0x41 && b <= 0x5A ? b + 0x20 : b
 
@@ -156,6 +159,7 @@ const problem = e => {
         : name.includes(slash) ? 'slash in name'
         : name.every(b => b === dot) && name.length <= 2 ? 'dot name'
         : isDotGit(name) ? '.git name'
+        : name.length > maxNameLength ? 'long name'
         : uint(e.oid) === 0n ? 'null id'
         : null
 }
@@ -177,9 +181,10 @@ const pairProblem = (a, b) =>
  * Vouches for a tree as `git fsck` does, or refuses it, naming the first
  * entry it cannot vouch for and why: a zero-padded mode, a mode that is
  * none of the five Git writes, an empty name, a name holding `/`, a name
- * that is `.` or `..`, a name that is `.git` in any case, an id of all
- * zero bytes, a name twice whatever the modes, or entries out of the order
- * Git requires — by name, a subtree as if its name ended in `/`.
+ * that is `.` or `..`, a name that is `.git` in any case, a name over
+ * 4096 bytes, an id of all zero bytes, a name twice whatever the modes, or
+ * entries out of the order Git requires — by name, a subtree as if its
+ * name ended in `/`.
  *
  * Separate from {@link tryRead} on purpose: a reader reads what it can,
  * and only this says no.

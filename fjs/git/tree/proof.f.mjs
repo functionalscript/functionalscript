@@ -113,6 +113,9 @@ export const proof = {
         assertStructurallySame(validate([entry('40000', '.Git', idA)]), ['error', '.git name at 0'])
         assertStructurallySame(validate([entry('100644', '.gitmodules', idA)])[0], 'ok')
         assertStructurallySame(validate([entry('100644', '.gi', idA)])[0], 'ok')
+        // A name of 4096 bytes is the longest `fsck` takes; one more is refused.
+        assertStructurallySame(validate([entry('100644', 'n'.repeat(4096), idA)])[0], 'ok')
+        assertStructurallySame(validate([entry('100644', 'n'.repeat(4097), idA)]), ['error', 'long name at 0'])
         // An id of all zero bytes is refused at either width; one non-zero
         // byte is an id.
         assertStructurallySame(validate([entry('100644', 'a', idZero)]), ['error', 'null id at 0'])

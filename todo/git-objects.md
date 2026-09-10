@@ -312,7 +312,8 @@ issue naming the object.
 for the repository's id width `n`. The mode set and its spelling, the entry
 order Git requires (by name, a subtree as if its name ended in `/`, no
 name twice whatever the modes), a name holding `/`, `.`, `..` and `.git`
-in any case, and an id of all zero bytes are `git fsck`'s checks; they
+in any case, a name over 4096 bytes, and an id of all zero bytes are
+`git fsck`'s checks; they
 belong in a `validate` over the entry list, separate from the grammar, so
 a reader can still read an
 object `fsck` would flag. That is why the entry keeps the mode's digits: a
