@@ -1,6 +1,8 @@
 #!/bin/bash
-# The setup script of the Claude Code on the web environment. Paste it into
-# the environment's "Setup script" field at claude.ai/code.
+# The setup script of the Claude Code on the web environment. The
+# environment's "Setup script" field at claude.ai/code fetches it from main:
+#
+#     curl -fsSL https://raw.githubusercontent.com/functionalscript/functionalscript/main/.claude/setup.sh | bash
 #
 # It runs once, before any session; the environment then caches the
 # filesystem, so every session starts with Nix installed and the development

@@ -75,9 +75,15 @@ nothing in this repository requires Nix.
 A [Claude Code on the web](https://code.claude.com/docs/en/claude-code-on-the-web)
 session starts inside this same shell.
 Two scripts share the work. [`.claude/setup.sh`](./.claude/setup.sh) is the
-environment's setup script — paste it into the **Setup script** field of the
-cloud environment at [claude.ai/code](https://claude.ai/code). It runs once
-per environment: it installs Nix, fetches the flake's inputs over git (the
+environment's setup script. The **Setup script** field of the cloud
+environment at [claude.ai/code](https://claude.ai/code) holds one line, which
+fetches it from `main`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/functionalscript/functionalscript/main/.claude/setup.sh | bash
+```
+
+It runs once per environment: it installs Nix, fetches the flake's inputs over git (the
 session's GitHub proxy refuses the tarballs Nix would ask for) and enters the
 shell once, from a clone of `main`, so that everything the shell needs is
 downloaded. The environment is cached after it, and every session starts
