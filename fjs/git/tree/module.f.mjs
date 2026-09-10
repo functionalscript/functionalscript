@@ -38,9 +38,9 @@ const slash = /** @type {const} */ (0x2F)
 
 const dot = /** @type {const} */ (0x2E)
 
-const octal = range('07')
+const octalDigit = range('07')
 
-const modeDigits = repeatFrom1(octal)
+const modeDigits = repeatFrom1(octalDigit)
 
 const nameBytes = repeatFrom1(not(set('\0')))
 
@@ -56,31 +56,51 @@ const toBytes = u8List(msb)
  */
 const isMode = digits => digits.length !== 0 && digits.every(d => d >= 0x30 && d <= 0x37)
 
-/** @type {(digits: readonly number[]) => number} */
-const fromOctal = digits => digits.reduce((n, d) => n * 8 + d - 0x30, 0)
+/** The number octal digits spell, exactly. @type {(digits: readonly number[]) => bigint} */
+const octal = digits => digits.reduce((n, d) => n * 8n + BigInt(d - 0x30), 0n)
+
+/**
+ * The largest mode Git reads, an `unsigned int` of 32 bits: the grammar
+ * takes any run of octal digits, and one spelling more than this is a
+ * mode Git wraps, not one it has.
+ */
+const maxMode = 0xFFFFFFFFn
+
+/**
+ * The number a mode's digits spell, or `null`: not one or more octal
+ * digits, or more than {@link maxMode}.
+ *
+ * @type {(digits: readonly number[]) => Nullable<number>}
+ */
+const tryMode = digits => {
+    if (!isMode(digits)) { return null }
+    const n = octal(digits)
+    return n > maxMode ? null : Number(n)
+}
 
 /**
  * The mode of an entry as the number its digits spell: `100644` is the
  * octal `0o100644`, the value Git keeps in memory.
  *
- * @throws If the digits are not one or more octal digits: an entry a
- * reader built has them, and one a caller built must.
+ * @throws If the digits are not one or more octal digits, or spell more
+ * than 32 bits: the grammar reads such an entry, and {@link validate}
+ * refuses it as an unknown mode.
  *
  * @type {(e: TreeEntry) => number}
  */
 export const mode = e => {
-    const digits = byteArray(e.mode)
-    assert(isMode(digits), ['not a mode', digits])
-    return fromOctal(digits)
+    const m = tryMode(byteArray(e.mode))
+    assert(m !== null, ['not a mode', e.mode])
+    return m
 }
 
 /**
  * The modes Git writes, by their canonical spelling: a file, an executable,
  * a symbolic link, a submodule, and a subtree — five digits, not six.
  */
-const modes = ['100644', '100755', '120000', '160000', '40000'].map(s => fromOctal(ascii(s)))
+const modes = ['100644', '100755', '120000', '160000', '40000'].map(s => Number(octal(ascii(s))))
 
-const subtree = fromOctal(ascii('40000'))
+const subtree = Number(octal(ascii('40000')))
 
 const dotGit = ascii('.git')
 
@@ -153,8 +173,9 @@ const compare = (a, b) => {
 const problem = e => {
     const digits = byteArray(e.mode)
     const name = byteArray(e.name)
+    const m = tryMode(digits)
     return digits.length > 1 && digits[0] === 0x30 ? 'zero-padded mode'
-        : !modes.includes(mode(e)) ? 'unknown mode'
+        : m === null || !modes.includes(m) ? 'unknown mode'
         : name.length === 0 ? 'empty name'
         : name.includes(slash) ? 'slash in name'
         : name.every(b => b === dot) && name.length <= 2 ? 'dot name'

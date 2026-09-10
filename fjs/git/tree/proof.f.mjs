@@ -72,6 +72,11 @@ export const proof = {
         assertEq(mode(entry('100644', 'a', idA)), 0o100644)
         assertEq(mode(entry('0100644', 'a', idA)), 0o100644)
         assertEq(mode(entry('40000', 'a', idA)), 0o40000)
+        // Up to 32 bits, exactly; more is no mode Git has.
+        assertEq(mode(entry('37777777777', 'a', idA)), 0xFFFFFFFF)
+        assertEq(mode(entry('0000037777777777', 'a', idA)), 0xFFFFFFFF)
+        assertStructurallySame(validate([entry('40000000000', 'a', idA)]), ['error', 'unknown mode at 0'])
+        assertStructurallySame(validate([entry('77777777777777777777', 'a', idA)]), ['error', 'unknown mode at 0'])
     },
     // The other id width: 32 bytes, and 20 is then cut short.
     sha256: () => {
@@ -149,6 +154,7 @@ export const proof = {
             nonByteInName: () => toArray(write20([{ mode: latin1('100644'), name: [0x100], oid: oid(idA) }])),
             holeInName: () => toArray(write20([{ mode: latin1('100644'), name: hole, oid: oid(idA) }])),
             modeOfNonOctal: () => mode(entry('9', 'a', idA)),
+            modeOver32Bits: () => mode(entry('40000000000', 'a', idA)),
             readHole: () => read20(hole),
         },
     },
