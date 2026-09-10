@@ -1,3 +1,11 @@
+/**
+ * Implementation-private types of the comparison: the tasks its explicit
+ * stack holds, and the pairs of containers it has matched so far, which is
+ * the bijection sharing is checked against.
+ *
+ * @module
+ */
+
 import type { Primitive, Unknown } from '../types.ts'
 import type { TreeArray, TreeObject } from '../../json/types.ts'
 

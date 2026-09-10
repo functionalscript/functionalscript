@@ -72,7 +72,9 @@ first as its `on` and the inner one applying first, and a node is the `on`
 of at most one modifier, since the chain is the only order an exported
 value carries; `link` is how a cycle is spelled, since a `const` cannot
 name itself. The vocabulary is closed: the types are the list, and a plain
-object may not have a `host` key. Their construction, and how the corpus proves them
+input object may not have a `host` key — the reservation reaches inputs
+only, and an expected graph, which carries no recipes, may spell
+`{"host":"fn"}` as the ordinary object it is. Their construction, and how the corpus proves them
 against a FunctionalScript serializer, is the open decision the issue
 records, since the repository's proof rules keep host-built values out of
 proofs of FunctionalScript APIs.

@@ -100,12 +100,10 @@ export type Fn = { readonly host: 'fn' }
 /** A fresh unique symbol, as a value. */
 export type SymbolLeaf = { readonly host: 'symbol' }
 
-/** A non-plain built-in object; `ms` is `date`'s time value. */
-export type Builtin = {
-    readonly host: 'builtin'
-    readonly kind: 'date' | 'map' | 'regexp' | 'boxedNumber'
-    readonly ms?: number
-}
+/** A non-plain built-in object: a `Date` at its time value `ms`, or one of the kinds that take no value. */
+export type Builtin =
+    | { readonly host: 'builtin', readonly kind: 'date', readonly ms: number }
+    | { readonly host: 'builtin', readonly kind: 'map' | 'regexp' | 'boxedNumber', readonly ms?: never }
 
 /** An array hole, legal only as an element of an array. */
 export type Hole = { readonly host: 'hole' }
@@ -178,16 +176,23 @@ export type Proto = {
 }
 
 /**
- * The same data with those attributes; `key` is required with
- * `nonWritable`, forbidden otherwise, and names an existing own data
- * property of the target.
+ * The same data with those attributes: the object frozen, sealed or made
+ * non-extensible, or one existing own data property, `key`, made
+ * non-writable.
  */
-export type Attrs = {
-    readonly host: 'attrs'
-    readonly on: Input
-    readonly how: 'frozen' | 'sealed' | 'nonExtensible' | 'nonWritable'
-    readonly key?: string
-}
+export type Attrs =
+    | {
+        readonly host: 'attrs'
+        readonly on: Input
+        readonly how: 'frozen' | 'sealed' | 'nonExtensible'
+        readonly key?: never
+    }
+    | {
+        readonly host: 'attrs'
+        readonly on: Input
+        readonly how: 'nonWritable'
+        readonly key: string
+    }
 
 /**
  * The same data with one more element or enumerable own data property,

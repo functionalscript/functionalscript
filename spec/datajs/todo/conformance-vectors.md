@@ -1776,7 +1776,15 @@ and a document is a string. Two things stay described rather than spelled:
   hole. Others have perfectly ordinary data and a *host variation* the encoding
   has no place for: a frozen object, a `null`-prototype array, an array
   carrying an own property beyond its elements. Either way the encoding cannot
-  state it, so each is a named recipe the consumer builds. The vocabulary is
+  state it, so each is a named recipe the consumer builds. A recipe is an
+  object whose own `host` property names one, and **the key is reserved in
+  inputs**: a plain input object never carries a `host` member, so
+  `{"host":"fn"}` as an input is the function recipe and nothing else, and a
+  vector wanting an object with that key as serializer input cannot be
+  written — no vector needs one. The reservation reaches inputs only; a
+  reader-side expected graph carries no recipes, so `{"host":"fn"}` there is
+  the ordinary object the document spells. Review found the two readings
+  possible before the key was reserved. The vocabulary is
   **closed, and closed means enumerated** — "and so on" was an open list
   wearing the word closed, which review caught. Four **leaf** recipes:
 
@@ -1789,10 +1797,13 @@ and a document is a string. Two things stay described rather than spelled:
 
   …and eight **modifier** recipes, each taking the node it applies to, so the
   property cases say which object they are about — the gap review found in
-  `getter`, which named no container. The first five can build inputs a
-  serializer must **refuse**; the last two build inputs it must **accept**, the
-  half review found missing — without them a serializer that rejects every
-  unusual prototype or descriptor passes the corpus while being nonconforming.
+  `getter`, which named no container. `ownProp`, `nonEnumerable`, `getter`,
+  `setter` and `symbolKey` can build inputs a serializer must **refuse**;
+  `proto` and `attrs` build inputs it must **accept**, the half review found
+  missing — without them a serializer that rejects every unusual prototype or
+  descriptor passes the corpus while being nonconforming; and `link` builds
+  either, a cycle it must refuse when `to` is `on` or a node above it, and
+  ordinary sharing otherwise.
   *Can*, not *must*: `ownProp` on an `obj` builds an ordinary own enumerable
   string-keyed property, which is exactly what a serializer has to accept, and
   only an extra property on an **array** is a rejection case. The recipe is a
@@ -2059,11 +2070,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       proved, over an explicit stack, to the corpus's depth.
 - [ ] **The host recipes built.** `build` in `fjs/media/datajs/vectors/module.mjs`,
       from a recipe-bearing input to the host value with the modifiers
-      applied in statement order — `link` for cycles, `getter` recording its
+      applied in chain order, the inner first, and a node named by two
+      modifiers directly refused — `link` for cycles, `getter` recording its
       invocation, the closed lists of `builtin`, `proto` and `attrs` as the
       types have them — and its proof: sharing and a cycle built and
-      asserted, the getter's record untouched by building. Waits on decision
-      6, which decides whether that proof may exist.
+      asserted, a chain applied inner-first, the getter's record untouched
+      by building. Waits on decision 6, which decides whether that proof may
+      exist.
 - [ ] **Reader accept, code-unit form.** Derived production by production
       from the grammar as the section above lists it: every alternative,
       both ends of every character class at every fixed position, the empty
