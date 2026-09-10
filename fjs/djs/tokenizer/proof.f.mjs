@@ -1,11 +1,16 @@
 /**
+ * @import { Ast, AstTag, Meta } from '../../bnf/matcher/types.ts'
+ * @import { CodePoint } from '../../text/utf16/types.ts'
+ * @import { List } from '../../types/list/types.ts'
  */
 
 import { isRepeat, toData } from '../../bnf/data/module.f.mjs'
-import { stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { codePointListToString, stringToCodePointList, stringToList } from '../../text/utf16/module.f.mjs'
+import { concat, empty, next, toArray } from '../../types/list/module.f.mjs'
+import { parser } from '../../ebnf/ll1/module.f.mjs'
+import { operators as ebnfOperators, token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
 import { jsGrammar, jsMatcher, tokenizeString, descentParserCpOnly, tokenizeJs, tokenize } from './module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { stringifyAsTree } from '../serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 
@@ -31,7 +36,473 @@ const errorAt = s => {
         : `${start}..${token.end.line}:${token.end.column}`
 }
 
+// -- the EBNF token grammar reads the same stream ----------------------------
+
+// A token as both grammars see it is a pair: its kind, and its text.
+
+/** @type {(cp: readonly number[]) => string} */
+const text = cp => codePointListToString(cp)
+
+const [classicalMatcher, classicalEntry] = jsMatcher()
+
+/**
+ * The classical nodes under a node, in document order, the node itself
+ * first — a loop over an explicit stack, since a block comment's content
+ * nests one level per symbol and a comment may be long.
+ *
+ * @type {(root: Ast<Meta<unknown, CodePoint>>) => readonly Ast<Meta<unknown, CodePoint>>[]}
+ */
+const classicalNodes = root => {
+    /** @type {List<Ast<Meta<unknown, CodePoint>>>} */
+    let out = empty
+    /** @type {List<Ast<Meta<unknown, CodePoint>>>} */
+    let stack = [root]
+    for (;;) {
+        /** @type {{ readonly first: Ast<Meta<unknown, CodePoint>>, readonly tail: List<Ast<Meta<unknown, CodePoint>>> } | null} */
+        const top = next(stack)
+        if (top === null) { return toArray(out) }
+        const node = top.first
+        out = concat(out)([node])
+        /** @type {readonly Ast<Meta<unknown, CodePoint>>[]} */
+        const children = node.sequence.flatMap(child => child instanceof Array ? [] : [child])
+        stack = concat(children)(top.tail)
+    }
+}
+
+/**
+ * The input symbols under a classical node, in order: a leaf is a code
+ * point with its metadata, and a node's leaves come between its nodes'.
+ * The same loop, over leaves and nodes together.
+ *
+ * @type {(root: Ast<Meta<unknown, CodePoint>>) => readonly number[]}
+ */
+const classicalSymbols = root => {
+    /** @type {List<number>} */
+    let out = empty
+    /** @type {List<Ast<Meta<unknown, CodePoint>> | Meta<unknown, CodePoint>>} */
+    let stack = [root]
+    for (;;) {
+        /** @type {{ readonly first: Ast<Meta<unknown, CodePoint>> | Meta<unknown, CodePoint>, readonly tail: List<Ast<Meta<unknown, CodePoint>> | Meta<unknown, CodePoint>> } | null} */
+        const top = next(stack)
+        if (top === null) { return toArray(out) }
+        /** @type {Ast<Meta<unknown, CodePoint>> | Meta<unknown, CodePoint>} */
+        const node = top.first
+        if (node instanceof Array) {
+            out = concat(out)([node[0]])
+            stack = top.tail
+        } else {
+            stack = concat(node.sequence)(top.tail)
+        }
+    }
+}
+
+/**
+ * The kind of a classical token, from its node's tag: a token that is a
+ * sequence carries its branch's name, and one that is a variant of
+ * symbols or literals carries the symbol or literal it matched.
+ *
+ * @type {(tag: AstTag) => string}
+ */
+const classicalKind = tag =>
+    tag === 'number' || tag === 'string' || tag === 'id' || tag === 'comment' ? tag :
+    tag === ' ' || tag === '\t' ? 'ws' :
+    tag === '\n' || tag === '\r' ? 'newLine' :
+    'operator'
+
+/**
+ * The classical grammar's reading of a whole text: `error` where it does
+ * not match it all; `cut` where a number's fraction or exponent had no
+ * digits, which its `numError` branch tags without consuming anything;
+ * `poison` where that branch consumed the identifier character after a
+ * number; and otherwise its tokens, kind and text each. A line comment swallows
+ * its newline, which the tokenizer splits back out below the grammar, and
+ * the EBNF grammar stops the comment before it — so it is split here too,
+ * and the streams are compared token for token. The whole-file grammar's
+ * last round is its `eof` branch, no token, and is left out.
+ *
+ * @type {(s: string) => readonly ['error'] | readonly ['cut'] | readonly ['poison'] | readonly ['ok', readonly (readonly [kind: string, text: string])[]]}
+ */
+const classicalResult = s => {
+    const cp = toArray(stringToCodePointList(s))
+    const { ast, success, idx } = descentParserCpOnly(classicalMatcher, classicalEntry, cp)
+    if (!success || idx !== cp.length) { return ['error'] }
+    const poison = classicalNodes(ast).filter(node => node.tag === 'numError')
+    if (poison.some(node => node.sequence.length === 0)) { return ['cut'] }
+    if (poison.length !== 0) { return ['poison'] }
+    return ['ok', ast.sequence.flatMap(node => {
+        assert(!(node instanceof Array))
+        if (node.tag === 'eof') { return [] }
+        const kind = classicalKind(node.tag)
+        const symbols = classicalSymbols(node)
+        const last = symbols[symbols.length - 1]
+        return kind === 'comment' && symbols[1] !== 0x2A && (last === 0x0A || last === 0x0D)
+            ? [[kind, text(symbols.slice(0, -1))], ['newLine', text(symbols.slice(-1))]]
+            : [[kind, text(symbols)]]
+    })]
+}
+
+/** @type {(s: string) => readonly (readonly [kind: string, text: string])[]} */
+const classicalStream = s => {
+    const result = classicalResult(s)
+    assert(result[0] === 'ok', s)
+    return result[1]
+}
+
+/**
+ * The input symbols under an EBNF node, in order: an array is a node the
+ * machine built, a string a variant's tag, anything else a leaf. A loop,
+ * for the reason `classicalSymbols` is one.
+ *
+ * @type {(root: unknown) => readonly number[]}
+ */
+const ebnfSymbols = root => {
+    /** @type {List<number>} */
+    let out = empty
+    /** @type {List<unknown>} */
+    let stack = [root]
+    for (;;) {
+        /** @type {{ readonly first: unknown, readonly tail: List<unknown> } | null} */
+        const top = next(stack)
+        if (top === null) { return toArray(out) }
+        /** @type {unknown} */
+        const node = top.first
+        if (node instanceof Array) {
+            stack = concat(node)(top.tail)
+        } else if (typeof node === 'string') {
+            stack = top.tail
+        } else {
+            assert(typeof node === 'object' && node !== null && 'symbol' in node && typeof node.symbol === 'number')
+            out = concat(out)([node.symbol])
+            stack = top.tail
+        }
+    }
+}
+
+/** @type {(node: unknown) => readonly [string, unknown]} */
+const ebnfBranch = node => {
+    assert(node instanceof Array && node.length === 2 && typeof node[0] === 'string')
+    return [node[0], node[1]]
+}
+
+const parseEbnfToken = parser(ebnfToken)
+
+/**
+ * The EBNF grammar's reading of a whole text: its tokens one at a time,
+ * the parser resumed where the last one ended, `slash`'s four told apart
+ * by its own tag — or `error` where a token fails, at its index.
+ *
+ * @type {(s: string) => readonly ['error', number] | readonly ['ok', readonly (readonly [kind: string, text: string])[]]}
+ */
+const ebnfResult = s => {
+    const input = toArray(stringToCodePointList(s)).map(symbol => ({ symbol, meta: null }))
+    /** @type {readonly (readonly [kind: string, text: string])[]} */
+    let out = []
+    let pos = 0
+    while (pos < input.length) {
+        const match = parseEbnfToken(input, pos)
+        if (match[0] === 'error') { return match }
+        const [node, end] = match[1]
+        const [tag, child] = ebnfBranch(node)
+        const sub = tag === 'slash' ? ebnfBranch(/** @type {readonly unknown[]} */ (child)[1])[0] : tag
+        const kind = sub === 'oneline' || sub === 'multiline' ? 'comment' : sub === 'assign' || sub === 'divide' ? 'operator' : sub
+        out = [...out, [kind, text(ebnfSymbols(node))]]
+        pos = end
+    }
+    return ['ok', out]
+}
+
+/** @type {(s: string) => readonly (readonly [kind: string, text: string])[]} */
+const ebnfStream = s => {
+    const result = ebnfResult(s)
+    assert(result[0] === 'ok', s)
+    return result[1]
+}
+
+/**
+ * Every literal input the proofs below hand to `tokenizeString`, `tokenize`
+ * or `errorAt`, in their order — the tokenizer's corpus, which the
+ * comparison runs over whole, whatever each grammar makes of a string.
+ */
+const inputs = [
+    "tr",
+    "\"tr\"",
+    "56.7e+5",
+    "56n",
+    "*",
+    "**",
+    "=>",
+    "==",
+    "===",
+    "=",
+    " ",
+    "\n",
+    "/\n",
+    "//\n",
+    "/*1*/",
+    "",
+    "{",
+    "}",
+    ":",
+    ",",
+    "[",
+    "]",
+    "ᄑ",
+    "{ \t\n\r}",
+    "\"\"",
+    "\"value\"",
+    "\"value",
+    "\"value1\" \"value2\"",
+    "\"",
+    "\"\\\\\"",
+    "\"\\\"\"",
+    "\"\\/\"",
+    "\"\\x\"",
+    "\"\\",
+    "\"\r\"",
+    "\"\n null",
+    "\"\\b\\f\\n\\r\\t\"",
+    "\"\\u1234\"",
+    "\"\\uaBcDEeFf\"",
+    "\"\\uEeFg\"",
+    "0",
+    "[0]",
+    "00",
+    "0abc,",
+    "123456789012345678901234567890",
+    "{90}",
+    "1 2",
+    "0. 2",
+    "10-0",
+    "9a:",
+    "-10",
+    "-0",
+    "-00",
+    "-.123",
+    "0.01",
+    "-0.9",
+    "-0.",
+    "-0.]",
+    "12.34",
+    "-12.00",
+    "-12.",
+    "12.]",
+    "0e1",
+    "0e+2",
+    "0e-0",
+    "12e0000",
+    "-12e-0001",
+    "-12.34e1234",
+    "0e",
+    "0e-",
+    "ABCdef1234567890$_",
+    "{ABCdef1234567890$_}",
+    "123 _123",
+    "123 $123",
+    "123_123",
+    "123$123",
+    "1234567890n",
+    "0n",
+    "[-1234567890n]",
+    "123.456n",
+    "123e456n",
+    "1234567890na",
+    "1234567890nn",
+    "=a",
+    "-",
+    "1*2",
+    "( )",
+    "== != === !== > >= < <=",
+    "+ - * / % ++ -- **",
+    "= += -= *= /= %= **=",
+    "& | ^ ~ << >> >>>",
+    "&= |= ^= <<= >>= >>>=",
+    "<<< <<<=",
+    "&& || ! ??",
+    "&&= ||= ??=",
+    "? ?. . =>",
+    "\t",
+    " \t",
+    "\r",
+    " \t\n\r ",
+    "err",
+    "{e}",
+    "tru",
+    "true",
+    "false",
+    "null",
+    "undefined",
+    "[null]",
+    "arguments",
+    "await",
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "enum",
+    "eval",
+    "export",
+    "extends",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "implements",
+    "import",
+    "in",
+    "instanceof",
+    "interface",
+    "let",
+    "new",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "return",
+    "static",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    "yield",
+    "//singleline comment",
+    "true//singleline comment\nfalse",
+    "/* multiline comment */",
+    "/* multiline comment *",
+    "/* multiline comment ",
+    "/* multiline comment \n * **/",
+    "/* multiline comment *\n * **/",
+    "//ab\n",
+    "//a//b\n",
+    "a/b",
+    "true false",
+    "a\nb",
+    "a\n\nb",
+    "/* c\n */ x",
+    "\"unterminated",
+    "x",
+    "{ \"a\": 1 }",
+    "x @",
+    "a\nb\n@",
+    "x\n\n  @y",
+    "1.",
+    "\"a\nb\"",
+    "/* c",
+    "/* ok */ /* bad",
+    "123abc",
+    ";",
+    "-1234567890n",
+    "--",
+    "---",
+    "-{",
+]
+
+/**
+ * The inputs the proofs build by code rather than write out: the long
+ * inputs of `largeInputs`, which pin the depth contract — a block comment
+ * of twenty thousand characters is twenty thousand nested nodes in either
+ * grammar's tree.
+ */
+const generated = [
+    `/*${'x'.repeat(20000)}*/`,
+    'x'.repeat(10000),
+    ' '.repeat(5000),
+    `"${'a'.repeat(5000)}"`,
+]
+
+/**
+ * Inputs both grammars accept, over every token kind and the shapes the
+ * LL(1) spelling changed: the block comment's `*`, the `/` a comment and
+ * division share — inside a block comment's body too, where a plain `/`
+ * is content — the operator prefix tree, the line comment's newline.
+ */
+const corpus = [
+    '/* a/b */ /* ../../x.ts */ /*/ */',
+    'a b\tc\n\rd',
+    'const a = [1, 2.5e-3, -1, 1n, 7E+2, 0, "s\\n\\u0041\\"", true];',
+    'x/2 /= y // c\nz',
+    'x // c\r\ny',
+    '//',
+    '/* a * b **/ c /**/ d',
+    '/* x\ny */',
+    'a.b?.c ?? d ... e',
+    '>>>= <<= !== === => ++ -- ** **= &&= ||= ??=',
+    '{}[]().,:;~^|&%!<>?=+-*',
+    '$_ab9 _ $1 tr2ue',
+    '"é😀"',
+    'x\ty  \t\tz',
+]
+
 export const proof = {
+    // The EBNF token grammar in `fjs/ebnf/lib/js`, read one token at a time,
+    // yields the token stream this grammar does: kind and text agree token
+    // for token over the corpus. This is the port's readiness check
+    // (ebnf-migration, principle 5): the grammar that reads the same
+    // stream may replace this one.
+    ebnf: {
+        sameStream: () => {
+            for (const s of corpus) {
+                assertStructurallySame(ebnfStream(s), classicalStream(s))
+            }
+        },
+        // Over the whole corpus, whatever the classical grammar makes of a
+        // string: what it reads, the EBNF grammar reads the same; what it
+        // refuses, and a number it tags cut short, the EBNF grammar refuses
+        // too, its forced digits failing; and where its poison branch
+        // consumed the character after a number, the EBNF grammar reads the
+        // adjacent tokens the layer above will refuse.
+        wholeCorpus: () => {
+            for (const s of [...inputs, ...generated]) {
+                const classical = classicalResult(s)
+                const ebnf = ebnfResult(s)
+                switch (classical[0]) {
+                    case 'ok': { assertStructurallySame(ebnf, classical); break }
+                    case 'poison': { assertEq(ebnf[0], 'ok', s); break }
+                    case 'cut':
+                    case 'error': { assertEq(ebnf[0], 'error', s); break }
+                }
+            }
+        },
+        // Where this grammar's poison branch rejects a number followed by an
+        // identifier character, the EBNF grammar reads two adjacent tokens,
+        // and the layer above the tokens refuses them for standing side by
+        // side (ebnf-ll1-port). Here the poison shows as its tag.
+        poison: () => {
+            /** @type {(s: string) => boolean} */
+            const poisoned = s => {
+                const { ast } = descentParserCpOnly(classicalMatcher, classicalEntry, toArray(stringToCodePointList(s)))
+                return JSON.stringify(ast).includes('"numError"')
+            }
+            assertStructurallySame(ebnfStream('123abc'), [['number', '123'], ['id', 'abc']])
+            assertStructurallySame(ebnfStream('00'), [['number', '0'], ['number', '0']])
+            assertStructurallySame(ebnfStream('1.5n'), [['number', '1.5'], ['id', 'n']])
+            assertStructurallySame(ebnfStream('123true'), [['number', '123'], ['id', 'true']])
+            assert(['123abc', '00', '1.5n', '123true'].every(poisoned))
+            assert(!poisoned('123 abc'))
+        },
+        // The operators this grammar names are the EBNF grammar's list plus
+        // the two `slash` holds, and each is one token in both.
+        operators: () => {
+            const all = [...ebnfOperators, '/', '/=']
+            assertEq(all.length, 56)
+            for (const op of all) {
+                assertStructurallySame(classicalStream(op), [['operator', op]])
+                assertStructurallySame(ebnfStream(op), [['operator', op]])
+            }
+        },
+    },
     // The whole-file grammar is one repetition of a token, and `toData` records
     // that rather than leaving it as the right-recursive variant `repeat0Plus`
     // builds — which is why the tokenizer reads its entry name from `jsMatcher`
