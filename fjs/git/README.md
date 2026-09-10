@@ -40,6 +40,13 @@ what a grammar can and cannot do for the formats.
 - [`loose/`](loose/module.f.mjs) — a loose object file read through the
   host's `inflate` effect and past its envelope: the one place a real
   repository meets the decoder.
+- [`config/`](config/module.f.mjs) — the repository's `config` as
+  `(section, key, value)` entries, and the id width it names:
+  `extensions.objectFormat` absent is SHA-1, `sha256` is SHA-256.
+- [`store/`](store/module.f.mjs) — from an id to the object it names,
+  checked: the loose file at the id's path, hashed with `oid`'s `of` and
+  refused where the hash is not the id; and the width from `config`.
+  Loose objects only, until packs.
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
   `Oid` and `OidBytes`, the one fixed-width field and its width, and
   `ObjectType`.
@@ -292,14 +299,12 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   supplies them from `node:zlib` at the host boundary, and
   [`loose/`](loose/module.f.mjs) is its caller. A FunctionalScript inflater
   is [`todo/inflate.md`](../../todo/inflate.md).
-- **An id checked.** Reading an object needs no hash; addressing or
-  verifying one does, and `oid`'s `of` computes it at either width —
-  [`fjs/crypto/sha1`](../crypto/sha1/module.f.mjs) for today's
-  repositories, [`fjs/crypto/sha2`](../crypto/sha2/module.f.mjs) for
-  SHA-256 ones, proven on the checked-in objects' ids — but no reader
-  here checks the id it was given against the object it read: that is
-  the store's business, [`todo/object-store.md`](todo/object-store.md),
-  and what a trust layer does about a hash that can collide is
+- **A walk, and a repository found.** `store` reads one object by id and
+  checks it; the walk from a commit to a blob by path, a linked
+  worktree's `gitdir` and `commondir`, and `alternates` are the rest of
+  [`todo/object-store.md`](todo/object-store.md). What the id check
+  means in a SHA-1 repository, and what a trust layer does about a hash
+  that can collide, is
   [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).
 - **Packfiles**, where most objects in a real clone live, so the loose
   reader alone reads a fresh clone poorly: [`todo/packfiles.md`](todo/packfiles.md).

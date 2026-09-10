@@ -55,10 +55,13 @@ its entries, an entry to a blob.
 
 ### Tasks
 
-- [ ] The id width from `config`.
-- [ ] `read(id)` over loose objects, then over packs once
-      [packfiles.md](./packfiles.md) lands.
-- [ ] The id check on read.
+- [x] The id width from `config`: [`fjs/git/config`](../config/module.f.mjs),
+      and `oidBytes` in [`fjs/git/store`](../store/module.f.mjs).
+- [x] `tryRead(id)` over loose objects, with the id check on read, in
+      `fjs/git/store`.
+- [ ] `tryRead` over packs once [packfiles.md](./packfiles.md) lands.
+- [ ] The common directory found: a linked worktree's `gitdir` and
+      `commondir`, and `alternates`.
 - [ ] The walk from a commit to a blob by path.
 
 ### Related
