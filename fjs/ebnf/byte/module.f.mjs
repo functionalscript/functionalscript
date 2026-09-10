@@ -18,7 +18,8 @@
  *
  * @module
  *
- * @import { List } from '../../types/list/types.ts'
+ * @import { Accumulator, List } from '../../types/list/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Ast, Meta } from '../ast/types.ts'
  * @import { Parser, RewriteSet } from '../ll1/types.ts'
  * @import { Rule, Set } from '../types.ts'
@@ -27,7 +28,7 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
+import { toArray, tryFold } from '../../types/list/module.f.mjs'
 import { rangeEncode, remove, union } from '../module.f.mjs'
 import { toData } from '../data/module.f.mjs'
 import { parser } from '../ll1/module.f.mjs'
@@ -91,6 +92,52 @@ const symbol = b => ({ symbol: b, meta })
  * @type {(input: List<number>) => readonly Meta<Byte>[]}
  */
 export const symbols = input => byteArray(input).map(symbol)
+
+/**
+ * The bytes under the leaves of a byte grammar's tree: what a reader takes
+ * from a node whose rule matched bytes, one per leaf.
+ *
+ * @type {(leaves: readonly Meta<Byte>[]) => readonly number[]}
+ */
+export const symbolsOf = leaves => leaves.map(({ symbol }) => symbol)
+
+/**
+ * ASCII text as the bytes it spells, for a reader or a writer that holds a
+ * keyword as a string — `'commit'`, a header's key — and needs it as bytes.
+ *
+ * @throws If `s` is not ASCII: above `0x7F` a code point and its bytes
+ * part ways, and no text spells such a byte here.
+ *
+ * @type {(s: string) => readonly number[]}
+ */
+export const ascii = s => {
+    const a = toArray(stringToCodePointList(s))
+    assert(a.every(c => c < 0x80), ['not ASCII', s])
+    return a
+}
+
+/**
+ * Counting a list of bytes: one more per item, and the fold stops at an
+ * item that is no byte.
+ *
+ * @type {Accumulator<number, number, number>}
+ */
+const byteCount = {
+    init: 0,
+    update: (b, n) => isByte(b) ? n + 1 : null,
+    end: n => n,
+}
+
+/**
+ * The length of a list of bytes, walked once and never held as an array,
+ * so a list as long as a list can be is counted as it is; `null` where an
+ * item is no byte, a hole included, since the walk meets a hole as
+ * `undefined`. For a consumer that holds a `List<number>` it means as bytes
+ * and must refuse one that is not, without holding it.
+ *
+ * @type {(input: List<number>) => Nullable<number>}
+ */
+export const byteLength = tryFold(byteCount)
 
 /** Any one byte: the byte universe as a terminal. */
 export const byte = rangeEncode(0, 0xFF)

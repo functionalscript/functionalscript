@@ -14,7 +14,7 @@ import { fromArrayLike } from '../../types/list/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { eof, range, rangeEncode, repeatFrom0, repeatFrom1, set, times, unicodeMax } from '../module.f.mjs'
 import { mapping } from '../ll1/module.f.mjs'
-import { byte, byteArray, byteParser, bytes, isByte, meta, not, symbols } from './module.f.mjs'
+import { ascii as asciiBytes, byte, byteArray, byteLength, byteParser, bytes, isByte, meta, not, symbols, symbolsOf } from './module.f.mjs'
 
 /** @type {(s: string) => readonly number[]} */
 const ascii = s => [...s].map(c => c.charCodeAt(0))
@@ -110,6 +110,32 @@ export const proof = {
             hole: () => byteArray(/** @type {List<number>} */ (hole)),
             nonByte: () => byteArray([0x100]),
         },
+    },
+    // The bytes under a tree's leaves: the inverse of `symbols`.
+    symbolsOf: () => {
+        assertStructurallySame(symbolsOf(symbols([0, 0x7F, 0xFF])), [0, 0x7F, 0xFF])
+        assertStructurallySame(symbolsOf([]), [])
+    },
+    // ASCII text as bytes, and nothing above it.
+    ascii: {
+        text: () => {
+            assertStructurallySame(asciiBytes('tree '), [0x74, 0x72, 0x65, 0x65, 0x20])
+            assertStructurallySame(asciiBytes(''), [])
+        },
+        throw: {
+            latin1: () => asciiBytes('é'),
+            astral: () => asciiBytes('😀'),
+        },
+    },
+    // A count that walks once and holds nothing, `null` at the first item
+    // that is no byte.
+    byteLength: () => {
+        assertEq(byteLength([]), 0)
+        assertEq(byteLength([0, 0xFF]), 2)
+        assertEq(byteLength(fromArrayLike(new Uint8Array(1000))), 1000)
+        assertEq(byteLength([0, 0x100, 0]), null)
+        assertEq(byteLength([0.5]), null)
+        assertEq(byteLength(/** @type {List<number>} */ (hole)), null)
     },
     byteParser: {
         // A grammar over every rule form — a string, a number, `not`,

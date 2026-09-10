@@ -13,15 +13,15 @@
  *
  * @module
  *
- * @import { Ast, Meta } from '../../ebnf/ast/types.ts'
+ * @import { Ast } from '../../ebnf/ast/types.ts'
  * @import { Byte } from '../../ebnf/byte/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Bytes } from '../types.ts'
  * @import { Header, Payload } from './types.ts'
  */
 
-import { assert } from '../../asserts/module.f.mjs'
-import { byte, byteArray, byteParser, not, symbols } from '../../ebnf/byte/module.f.mjs'
+import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { byte, byteArray, byteLength, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { flat, flatMap } from '../../types/list/module.f.mjs'
 
@@ -52,9 +52,6 @@ export const headers = repeatFrom0(header)
 export const payload = /** @type {const} */ ([headers, '\n', repeatFrom0(byte), eof])
 
 const parse = byteParser(payload)
-
-/** @type {(leaves: readonly Meta<Byte>[]) => readonly number[]} */
-const symbolsOf = leaves => leaves.map(({ symbol }) => symbol)
 
 /**
  * A header's node folded to the header: the key's bytes, and the value's,
@@ -91,19 +88,34 @@ export const tryRead = input => {
 const valueBytes = flatMap(b => b === lf ? [lf, sp] : [b])
 
 /**
+ * A list a caller means as bytes, walked once to refuse an item that is no
+ * byte, and handed back as the list it is, never held: a value may be as
+ * long as a `mergetag`'s and a message as long as its author wrote, and
+ * the writer puts neither ceiling on them that an array would.
+ *
+ * @throws If an item is not a byte.
+ *
+ * @type {(bytes: Bytes) => Bytes}
+ */
+const checked = bytes => {
+    assertNotNullish(byteLength(bytes), 'not bytes')
+    return bytes
+}
+
+/**
  * @throws On a key the format cannot spell — empty, or holding SP or LF —
  * since {@link tryRead} would read what was written as a different header,
  * and on a key or a value holding a number that is no byte, or a hole. A
  * header comes from a read or from a caller that built one, and the type
- * cannot say which numbers it holds, so the writer checks, through
- * `byteArray` from the alphabet.
+ * cannot say which numbers it holds, so the writer checks: the key as an
+ * array, since its bytes are looked at, the value as the list it is.
  *
  * @type {(h: Header) => Bytes}
  */
 const headerBytes = ([k, v]) => {
     const key = byteArray(k)
     assert(key.length !== 0 && key.every(b => b !== sp && b !== lf), ['not a header key', key])
-    return flat([key, [sp], valueBytes(byteArray(v)), [lf]])
+    return flat([key, [sp], valueBytes(checked(v)), [lf]])
 }
 
 /**
@@ -116,4 +128,4 @@ const headerBytes = ([k, v]) => {
  * @type {(p: Payload) => Bytes}
  */
 export const write = ({ headers, message }) =>
-    flat([flat(headers.map(headerBytes)), [lf], byteArray(message)])
+    flat([flat(headers.map(headerBytes)), [lf], checked(message)])

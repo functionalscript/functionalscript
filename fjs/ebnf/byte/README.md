@@ -7,9 +7,11 @@ grammar reads. It is the byte half of
 consumer, [git-objects](../../../todo/git-objects.md).
 
 - `module.f.mjs` — `byte`, `not`, `bytes`, `symbols`, `meta`, `byteParser`,
-  and, for a consumer holding numbers it means as bytes, `isByte`, the
-  alphabet's membership, and `byteArray`, a list as a dense array of bytes
-  with anything else refused, a hole included;
+  and, for a consumer that reads or writes bytes: `symbolsOf`, the bytes
+  under a tree's leaves; `ascii`, ASCII text as bytes; `isByte`, the
+  alphabet's membership; `byteArray`, a list as a dense array of bytes with
+  anything else refused, a hole included; and `byteLength`, the same check
+  as a count that walks a list once and never holds it;
 - `types.ts` — `Byte`, the metadata of a byte.
 
 ## What it is
