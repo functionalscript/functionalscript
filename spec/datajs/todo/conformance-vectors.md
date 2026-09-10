@@ -1837,11 +1837,15 @@ and a document is a string. Two things stay described rather than spelled:
     cannot reach into the graph by side effect.
   - **A modifier is a `const` of its own, never an inline literal** in an
     array, an object, or another modifier's `on`, all of which name it.
-    Without that restriction two inline modifiers on one target have no
-    relative order, and `ownProp` then `attrs: frozen` succeeds where the
-    reverse fails.
-  - **Reachable modifiers apply in statement order**, which the restriction
-    above makes total, so a target carrying several is unambiguous.
+  - **Stacking is chaining, and the chain is the order.** A node is the
+    `on` of at most one modifier; a second modification names the first
+    modifier as its `on`, and the inner one applies first — `ownProp` then
+    `attrs: frozen` is `attrs` over `ownProp` over the node, and the reverse
+    is the reverse chain. The order has to be in the structure, because an
+    imported module hands `build` the exported value and nothing else: two
+    modifiers naming one node directly would have no order a consumer could
+    read, so `build` refuses that shape. Review found the earlier rule,
+    "statement order", asking for what the value cannot carry.
 
   A cycle is a `link` whose `to` is `on` itself or a node above it — the one
   place the literal's sharing cannot serve, since a `const` cannot name itself
@@ -2049,39 +2053,55 @@ The steps, in order; a step is one pull request unless it says otherwise:
       the key twin of every string, the whitespace-like scalars inside a
       string, the surrogate cases, the array-index key order with both sides
       of each boundary, the shortest document and the document's own edges.
-      Proved against the reader as it lands.
+      Proved against the reader as it lands: every document parses to a
+      graph `difference` finds no difference in.
 - [ ] **Reader reject, code-unit form.** The narrowing vectors derived from
       the spec's six narrowing sources — strings, numbers, identifiers,
       whitespace, the document rule, and every production of the grammar —
       each carrying its classification, grammar-only or narrowing, from the
       measurement the section above records; every one checked for a second
       ground of refusal before it is committed. Proved against the reader as
-      it lands.
+      it lands: every document is refused.
 - [ ] **The byte form.** The accept table by lead partition with the
       continuation positions varied, the reject table with both ends of
       every error class, the non-continuation matrix, and the BOM as the
       first byte, each malformed sequence inside an otherwise valid string.
-      The set lands as data; its proof waits on stage 4's `tryParseBytes`,
-      and that step, not this one, runs it.
+      Every set lands with a proof that reads it, since a module without one
+      is not landed: this one's checks each record against the schema and
+      the ids for uniqueness, decodes each accept vector's bytes with
+      `fjs/text/utf8` and reads the units, and asserts each reject vector's
+      bytes are refused by the decoder or the reader; the byte path's own
+      rule, the BOM as the first byte, is asserted when stage 4's
+      `tryParseBytes` lands, which reruns the set through it.
 - [ ] **Serializer accept and graph equivalence.** Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the host variations on both container kinds, the
       escaping classes and width boundaries with key twins, `__proto__` as
       data; each vector asserting a valid document denoting the input and
-      never a spelling. Proof waits on stage 4's serializer.
+      never a spelling. Landed with a proof that reads it: the schema and
+      the ids; for graph equivalence, every `denotes` document read to a
+      graph `difference` finds no difference from the input in and every
+      `denotesNot` document read to one it does; for serializer accept, the
+      expected graph reachable from the input by dropping its recipes. The
+      serializer's own assertions arrive with stage 4 and rerun the set.
 - [ ] **Serializer reject.** The recipes below the root, on both container
       kinds as targets and as parents, the six cycles, both accessor shapes
       with the getter's invocation asserted absent, the non-`Date` built-in
-      with no own properties; each checked for one reason of refusal. Proof
-      waits on stage 4's serializer.
+      with no own properties; each checked for one reason of refusal. Landed
+      with a proof that reads it: the schema, the ids, every recipe in the
+      closed vocabulary and every modifier chain well-formed. The
+      serializer's refusals arrive with stage 4 and rerun the set.
 - [ ] **Normalize.** Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
       each digit position, the encoder's width transitions, the number
       spellings with `-0` and the thresholds and the shortest-digits rule,
-      `-0n`, the required space after every root shape; every expected byte
-      string run through the accept grammar before it is committed. Proof
-      waits on stage 4's normalized serializer.
+      `-0n`, the required space after every root shape. Landed with a proof
+      that reads it: the schema, the ids, and every expected text read by
+      the reader to a graph `difference` finds no difference from the input
+      in — which is the "run through the accept grammar" check, made a
+      proof. The normalized serializer's bytes arrive with stage 4 and rerun
+      the set.
 - [ ] **The class-by-role matrix.** Generated by `npm run gen` from the
       vectors' `class` and set into `spec/datajs/vectors/matrix.md`, rows
       the classes, columns the three roles, a cell the vector ids or an
@@ -2091,9 +2111,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
 - [ ] **The JavaScript whole-set check**, per decision 5. The
       FunctionalScript one is stage 6's, once stage 5 has taught the front
       end `;` and the special numbers.
-- [ ] **The spec's three answers**, per decisions 2, 3 and 4, in
-      `spec/datajs/README.md` — one pull request, as soon as the owner has
-      decided, since nothing above waits on it but one reject vector does.
+- [ ] **The plain-object boundary in the spec**, per decision 2, with the
+      one serializer-reject vector it unblocks; its own pull request, as
+      soon as the owner has decided.
+- [ ] **§Whitespace's enumeration in the spec**, per decision 3; its own
+      pull request.
+- [ ] **The decoder seam in the spec**, per decision 4; its own pull
+      request. The three are separate because each changes a different
+      contract and is decided on its own.
 - [ ] **Hand over.** `spec/datajs/README.md`'s Conformance section links the
       corpus instead of this file; stage 4's issue and the stage 6 task in
       [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
