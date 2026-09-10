@@ -2,8 +2,7 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [An `index.html` for every module directory](directory-index-pages.md#an-indexhtml-for-every-module-directory);
-the tokenizer prerequisite in the tasks below
+**Blocked by:** the tokenizer prerequisite in the tasks below
 
 ### Problem
 
@@ -82,8 +81,8 @@ page.
 
 ### Related
 
-- [An `index.html` for every module directory](directory-index-pages.md) —
-  the page this renders into.
+- [`fjs/website`](../README.md) — the pages this renders into, and the
+  serving model that lets one fetch its own source.
 - [Publish `deno doc` to website](publish-deno-doc-to-website.md) — the full
   type reference, deliberately not this.
 - [Generate website](generate-website.md) — "Source code highlighting" is this issue.

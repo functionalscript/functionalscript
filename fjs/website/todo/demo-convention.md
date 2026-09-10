@@ -2,7 +2,6 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [An `index.html` for every module directory](directory-index-pages.md#an-indexhtml-for-every-module-directory)
 
 ### Problem
 
@@ -182,8 +181,8 @@ digest the module's own proof already asserts.
 
 ### Related
 
-- [An `index.html` for every module directory](directory-index-pages.md) —
-  the page a demo renders into.
+- [`fjs/website`](../README.md) — the page a demo renders into, and why a
+  page may fetch a module beside it.
 - [Discovery: the `proof` export](../../emergent_testing/README.md#discovery-the-proof-export)
   — the rule this convention copies.
 - [`fjs/effects`](../../effects/README.md) — the effect layer `update` returns

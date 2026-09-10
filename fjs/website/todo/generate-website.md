@@ -17,9 +17,9 @@
 - [ ] Convention for a `demo` export — an optional pure demo, discovered like a
       proof and `demo.f.mjs` by default, rendered on its page — see
       [demo-convention](demo-convention.md)
-- [ ] An `index.html` per module directory, cataloguing its files,
-      subdirectories, `todo/` issues and the proofs of its subtree — see
-      [directory-index-pages](directory-index-pages.md)
+- [x] An `index.html` per module directory, cataloguing its files,
+      subdirectories, `todo/` issues and the proofs of its subtree
+      (`fjs/website/page/`; the design is [`../README.md`](../README.md))
 - [x] Browser test runner and proof-result UI
 - [x] Move browser-manifest preparation into the website `NodeProgram` through
       Node effects. Landed in functionalscript#1827: `browser-prepare.mjs` is

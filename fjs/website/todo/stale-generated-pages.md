@@ -55,6 +55,6 @@ already telling the developer, and `git clean -Xd` already answers it.
 
 ### Related
 
-- [An `index.html` for every module directory](directory-index-pages.md) — the
-  design that put pages next to source, and why.
+- [`fjs/website`](../README.md) — the design that put pages next to source,
+  and why.
 - [Generate website](generate-website.md) — the umbrella list.
