@@ -1,20 +1,28 @@
 /**
- * An object id between its two spellings: the raw bytes a tree entry holds
- * and the hex text a header holds. Neither knows the repository's id width;
- * a hex of any even length reads to the id it spells, and the width is a
- * check `validate` makes on the object, against the width it is given.
+ * An object id between its two spellings, and from the object it names.
+ * The spellings are the raw bytes a tree entry holds and the hex text a
+ * header holds; neither knows the repository's id width, since a hex of
+ * any even length reads to the id it spells, and the width is a check
+ * `validate` makes on the object, against the width it is given. The id
+ * itself is {@link of}: the hash of the object's bytes at the width the
+ * repository uses, SHA-1 or SHA-256, which is the one place this module
+ * knows the width means a hash.
  *
  * @module
  *
+ * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
- * @import { Bytes, Oid, OidBytes } from '../types.ts'
+ * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
+import { sha1 } from '../../crypto/sha1/module.f.mjs'
+import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
-import { length, msb, tryU8ListToVec, u8List } from '../../types/bit_vec/module.f.mjs'
+import { length, msb, tryU8ListToVec, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
+import { write } from '../object/module.f.mjs'
 
 const toVec = tryU8ListToVec(msb)
 
@@ -52,6 +60,45 @@ export const tryFromHex = hex => {
 export const tryFromHexOf = oidBytes => hex => {
     const id = tryFromHex(hex)
     return id !== null && length(id) === BigInt(oidBytes) * 8n ? id : null
+}
+
+const chunkVec = u8ListToVec(msb)
+
+/**
+ * How many bytes of an object go into one `Vec` on the way to the hash:
+ * an object is as long as its author made it and a `Vec` holds 128 KiB,
+ * so the bytes are fed to the hash a piece at a time, each well under the
+ * bound and long enough that the pieces are few.
+ */
+const chunkBytes = /** @type {const} */ (65536)
+
+/**
+ * A byte array as the `Vec`s the hash takes, {@link chunkBytes} at a time
+ * and the last one shorter.
+ *
+ * @type {(bytes: readonly number[]) => readonly Vec[]}
+ */
+const chunks = bytes =>
+    Array.from({ length: Math.ceil(bytes.length / chunkBytes) }, (_, i) => chunkVec(bytes.slice(i * chunkBytes, (i + 1) * chunkBytes)))
+
+/**
+ * The id Git gives an object, at the repository's width: the hash of
+ * `<type> SP <size> NUL <payload>`, as [`fjs/git/object`](../object/module.f.mjs)'s
+ * `write` lays it out — SHA-1 at 20 bytes, the width of every repository
+ * in use today, and SHA-256 at 32. The width is bound once, so a store
+ * that hashes every object it reads chooses the hash once.
+ *
+ * What the id vouches for is the hash's business: in a SHA-1 repository
+ * it is only as strong as SHA-1, and what a trust layer does about that
+ * is [`todo/git-sha1-collisions.md`](../../../todo/git-sha1-collisions.md).
+ *
+ * @throws If an item of the payload is not a byte, as `write` throws.
+ *
+ * @type {(oidBytes: OidBytes) => (type: ObjectType, payload: Bytes) => Oid}
+ */
+export const of = oidBytes => {
+    const hash = oidBytes === 20 ? computeSync(sha1) : computeSync(sha256)
+    return (type, payload) => hash(chunks(byteArray(write(type, payload))))
 }
 
 /**

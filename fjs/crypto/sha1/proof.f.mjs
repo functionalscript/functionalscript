@@ -1,17 +1,9 @@
-/**
- * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { List } from '../../types/list/types.ts'
- * @import { ObjectType } from '../../git/types.ts'
- */
-
 import { assertEq } from '../../asserts/module.f.mjs'
-import { write as writeEnvelope } from '../../git/object/module.f.mjs'
-import { commitPayload, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../../git/testlib.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
-import { maxLength, msb, repeat, u8ListToVec, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { maxLength, repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
-import { map, toArray } from '../../types/list/module.f.mjs'
-import { computeSync, sha256 } from '../sha2/module.f.mjs'
+import { map } from '../../types/list/module.f.mjs'
+import { computeSync } from '../sha2/module.f.mjs'
 import { sha1 } from './module.f.mjs'
 
 const compute = computeSync(sha1)
@@ -23,20 +15,6 @@ const a = vec(8n)(0x61n)
 
 /** @type {(n: bigint) => bigint} */
 const as = n => uint(compute([flip(repeat)(a)(n)]))
-
-const toVec = u8ListToVec(msb)
-
-/**
- * The id Git gives an object: the hash of the envelope ahead of the
- * payload, as {@link writeEnvelope} lays them out.
- *
- * @type {(hash: (list: List<Vec>) => Vec) => (type: ObjectType, payload: readonly number[]) => bigint}
- */
-const idOf = hash => (type, payload) => uint(hash([toVec(toArray(writeEnvelope(type, payload)))]))
-
-const gitId = idOf(compute)
-
-const gitId256 = idOf(computeSync(sha256))
 
 export const proof = {
     // The byte counts a consumer reads, pinned against the bit lengths.
@@ -91,17 +69,6 @@ export const proof = {
         assertEq(uint(sha1.end(sha1.append(full)(state))), uint(compute([a, full])))
         assertEq(uint(compute([a, full])), uint(compute([full, a])))
     },
-    // The checked-in Git objects, each with the id Git computed over
-    // `<type> SP <size> NUL <payload>`: the hash gives Git's answer.
-    git: {
-        commit: () => assertEq(gitId('commit', commitPayload), 0xd2bc56a53b2d6d7c1dc0860dec10435ed479b22dn),
-        merge: () => assertEq(gitId('commit', mergePayload), 0x9880b6949363a320bb2a534e6de86d72d2206a14n),
-        tag: () => assertEq(gitId('tag', tagPayload), 0xb79a8e25df6a75ef83c047b329e730d92ad59decn),
-        rootTree: () => assertEq(gitId('tree', rootTree), 0xb007dac9ff840a9f5f9eaa68747d0c91b44c556bn),
-        modesTree: () => assertEq(gitId('tree', modesTree), 0x5c1f5cdc3637a09fa100a2055ed273b7d91f3d80n),
-        // The other width, from `sha2`, over the objects a SHA-256
-        // repository wrote: the same envelope, the same fold, the other hash.
-        sha256Commit: () => assertEq(gitId256('commit', sha256Commit), 0x8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27fn),
-        sha256Tree: () => assertEq(gitId256('tree', sha256Tree), 0x2f1e8b790adef60b1b58a9fe37ff415972da0e5abd333e171a4f999484eb42b0n),
-    },
+    // The checked-in Git objects, with the ids Git computed, are the proof
+    // of `fjs/git/oid`'s `of`, which is where this hash meets an object.
 }

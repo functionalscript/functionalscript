@@ -42,8 +42,8 @@ blocks. The standard's
 test vectors are its proof, and the checked-in Git fixtures in
 [`fjs/git/testlib.f.mjs`](../../git/testlib.f.mjs) — each carrying the id
 Git computed over `<type> SP <size> NUL <payload>` — are the proof of the
-`oid` function that chooses the width. Landed; what remains is that function,
-and the detection.
+`oid` function that chooses the width. Both landed; what remains is the
+detection.
 
 Collision detection, if the policy issue asks for it, is a second step in
 the same module, and a second export: `sha1dc` computes the same hash
@@ -64,7 +64,7 @@ picks for the store.
 
 - [x] `fjs/crypto/sha1/module.f.mjs`, with the FIPS 180-4 vectors, and the
       checked-in fixtures' ids at both widths in its proof.
-- [ ] `fjs/git/oid`: an `of(type, payload)` that hashes an object at the
+- [x] `fjs/git/oid`: an `of(type, payload)` that hashes an object at the
       repository's width, SHA-1 or SHA-256, and the fixtures' ids as its
       proof.
 - [ ] Collision detection beside the hash, once
