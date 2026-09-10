@@ -230,6 +230,24 @@ export const readBytes = do_('readBytes')
 /** @type {Func<Inflate>} */
 export const inflate = do_('inflate')
 
+/**
+ * The code an {@link Inflate} refuses bytes after the end of the stream
+ * with. zlib's own codes name a stream that is wrong; this names one that
+ * is right and not alone, which zlib itself would read without a word,
+ * and which is corruption to the one caller that hands it a file.
+ *
+ * @type {string}
+ */
+export const inflateTrailingCode = 'ERR_TRAILING_BYTES'
+
+/**
+ * The message beside {@link inflateTrailingCode}: how many bytes followed
+ * the stream.
+ *
+ * @type {(count: number) => string}
+ */
+export const inflateTrailingMessage = count => `${count} bytes after the end of the zlib stream`
+
 // randomInt
 
 /** @type {Func<RandomInt>} */

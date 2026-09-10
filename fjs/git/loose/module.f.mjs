@@ -30,7 +30,8 @@ const toBytes = u8List(msb)
  * Reads the loose object at `path`: the file, inflated, past its envelope.
  * `null` where the inflated bytes are no object — no envelope, or a
  * payload not as long as the envelope claims; a file that cannot be read,
- * or is no zlib stream, or inflates past the bound, is the channel's.
+ * or is no zlib stream, or holds bytes after its stream, or inflates past
+ * the bound, is the channel's.
  *
  * @type {(path: string) => Effect<ReadFile | Inflate, Nullable<Envelope>, IoChannel>}
  */
