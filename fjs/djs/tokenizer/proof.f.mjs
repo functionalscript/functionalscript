@@ -688,6 +688,11 @@ export const proof = {
             if (result !== '[{"kind":"/*","value":" multiline comment "},{"kind":"eof"}]') { throw result }
         },
         () => {
+            // a `/` inside the body is content: only `*/` ends the comment
+            const result = tokenizeString('/* a/b ../../x.ts */')
+            if (result !== '[{"kind":"/*","value":" a/b ../../x.ts "},{"kind":"eof"}]') { throw result }
+        },
+        () => {
             const result = tokenizeString('/* multiline comment *')
             assertEq(result, 'error')
         },
@@ -826,6 +831,22 @@ export const proof = {
             // character, not the token start, because that is what the reader
             // has to change — and therefore no end, for the same reason as `00`
             assertEq(errorAt('123abc'), '1:4')
+        },
+        () => {
+            // errors come in document order, the boundary between a number
+            // and the token against it included, whatever that token then
+            // does: `01.` is refused at the `1`, not where its digits ran out,
+            // and `01"` at the `1`, not at the string the input ends inside;
+            // with a space between there is no boundary, and the number cut short
+            // points just past the input, as `1.` alone does
+            assertEq(errorAt('01.'), '1:2')
+            assertEq(errorAt('01"'), '1:2')
+            assertEq(errorAt('0 1.'), '1:5')
+            assertEq(errorAt('1"'), '1:2..1:3')
+            // a malformed number before an unterminated comment is the first
+            // error, where the descent tokenizer looked for the comment first
+            assertEq(errorAt('123abc /* x'), '1:4')
+            assertEq(errorAt('/* x */ 123abc'), '1:12')
         },
     ],
     // DJS-level: keyword remapping and '-'-folding on top of tokenizeJs. Doesn't re-test

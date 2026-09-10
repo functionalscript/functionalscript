@@ -26,12 +26,14 @@
  * consumed the offending character; an LL(1) grammar cannot, and the token
  * stream shows the same fact one layer up.
  *
- * An error is the whole output: the first, in document order, of a token
- * the grammar refuses (`invalid token`, from where the token began to the
- * end of input), a number cut short (`invalid number`, at the character
- * where digits were expected), a block comment the input ends inside
- * (`*​/ expected`, from its `/*` to the end of input), and the boundary
- * above.
+ * An error is the whole output: the first, in document order, of the
+ * boundary above, a block comment the input ends inside (`*​/ expected`,
+ * from its `/*` to the end of input), a number cut short (`invalid
+ * number`, at the character where digits were expected), and a token the
+ * grammar refuses (`invalid token`, from where the token began to the end
+ * of input). The grammar stops at the token it refuses, so the fold above
+ * it runs over what came before first, and the refused token is reported
+ * only where nothing before it was wrong.
  *
  * @module
  *
@@ -266,14 +268,6 @@ const failed = (message, metadata, end) => [at(end === undefined ? { kind: 'erro
  */
 export const tokenizeJs = input => path => {
     const { lexemes, failure, final } = lex(path)(toArray(input))
-    if (failure !== null) {
-        // A number cut short — `1.`, `0e` — fails where its digits were
-        // expected, and that character is the one to point at, with no
-        // end, since what is wrong runs backwards from there. Any other
-        // token is refused whole, from where it began to the end of input:
-        // nothing past a lexical failure is tokenized.
-        return failure.number ? failed('invalid number', failure.at) : failed('invalid token', failure.start, final)
-    }
     /** @type {List<JsTokenWithMetadata>} */
     let out = empty
     /** @type {_Trivia} */
@@ -316,6 +310,21 @@ export const tokenizeJs = input => path => {
             out = concat(out)([at({ kind: 'nl' }, start)])
         }
         previous = kind
+    }
+    if (failure !== null) {
+        // The token the grammar refused comes after every token it read,
+        // so an error among those — the fold above has just looked — is
+        // reported first, and this one only where nothing came before it.
+        // A number that stands directly against the number before it is
+        // that boundary error, wherever it then failed: `01.` is refused at
+        // the `1`. A number cut short — `1.`, `0e` — fails where its digits
+        // were expected, and that character is the one to point at, with
+        // no end, since what is wrong runs backwards from there. Any other
+        // token is refused whole, from where it began to the end of input:
+        // nothing past a lexical failure is tokenized.
+        return failure.number
+            ? failed('invalid number', previous === 'number' ? failure.start : failure.at)
+            : failed('invalid token', failure.start, final)
     }
     if (trivia !== null) {
         out = concat(out)([at({ kind: trivia.kind }, trivia.metadata)])
