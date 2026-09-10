@@ -17,18 +17,16 @@
  *
  * @module
  *
- * @import { Meta } from '../../ebnf/ast/types.ts'
- * @import { Byte } from '../../ebnf/byte/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Bytes } from '../types.ts'
  * @import { Ident } from './types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { byteArray, byteParser, not, symbols } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, range, repeatFrom0, repeatFrom1, set, times } from '../../ebnf/module.f.mjs'
-import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { flat, toArray } from '../../types/list/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { flat } from '../../types/list/module.f.mjs'
 
 const sp = /** @type {const} */ (0x20)
 
@@ -52,12 +50,6 @@ const zone = /** @type {const} */ ([set('+-'), times(4)(digit)])
 export const ident = /** @type {const} */ ([name, '<', email, '>', ' ', time, ' ', zone, eof])
 
 const parse = byteParser(ident)
-
-/** @type {(leaves: readonly Meta<Byte>[]) => readonly number[]} */
-const symbolsOf = leaves => leaves.map(({ symbol }) => symbol)
-
-/** @type {(s: string) => readonly number[]} */
-const ascii = s => toArray(stringToCodePointList(s))
 
 /**
  * Whether a digit string is canonical decimal — no leading zero ahead of
