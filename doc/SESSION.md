@@ -26,8 +26,12 @@ steps of one, and the open stacks in the tree at any time show the shape.
 
 1. **A small pull request with the tasks.** File the `todo/` for the task, or
    grow the one that exists: the problem, the proposal as far as it is known,
-   and a **Tasks** list in which every entry is a pull request to come
-   ([todo/README.md](../todo/README.md#issue-format)). No implementation — a
+   and a **Tasks** list of concrete steps
+   ([todo/README.md](../todo/README.md#issue-format)). The step is the unit
+   of the list and the pull request is the unit of landing: a pull request
+   takes one or more steps, one feature's worth, and a step that is only a
+   check — `tsc` clean, the suite passing — lands with the step it checks,
+   never alone. No implementation — a
    prototype only where nobody yet knows whether the design works, and then
    marked as one ([REVIEW.md](./REVIEW.md#designs)). This is the design
    increment ([DESIGN.md §3](./DESIGN.md#3-design-before-implementation)),
@@ -36,14 +40,14 @@ steps of one, and the open stacks in the tree at any time show the shape.
    is written.
 2. **The next pull request, on top.** Branch from the previous pull request's
    branch and open the pull request **against that branch**, not `main`, so
-   its diff shows only its own step. It takes one task from the list — one
-   feature, minimal change, every check passing — and its description starts
-   with what it stands on: `Stacked on #NNNN`. It ticks its task in the
-   `todo/`; the pull request that takes the last task deletes the file
-   ([AGENTS.md §1](../AGENTS.md#1-workflow)). Before starting it, propose:
-   which task next, and whether the list is still right now that the previous
-   step is built — a task the previous step made unnecessary is removed, one
-   it revealed is added, and both are the owner's call.
+   its diff shows only its own step. It takes the next step or steps from the
+   list — one feature, minimal change, every check passing — and its
+   description starts with what it stands on: `Stacked on #NNNN`. It ticks
+   what it took in the `todo/`; the pull request that takes the last step
+   deletes the file ([AGENTS.md §1](../AGENTS.md#1-workflow)). Before starting
+   it, propose: which steps next, and whether the list is still right now that
+   the previous pull request is built — a step it made unnecessary is removed,
+   one it revealed is added, and both are the owner's call.
 3. **Update the branches and answer the comments, for every pull request in
    the stack.** When `main` moves, or a lower pull request changes, merge
    upward: `main` into the lowest branch, then each branch into the one above
@@ -81,13 +85,18 @@ Anything the `todo/` leaves open where two implementers would not produce the
 same observable behavior and the same API
 ([REVIEWING.md](./REVIEWING.md#designs-and-todo-files)): a name in the API,
 the shape of a type a consumer will see, the order of tasks where the order
-matters, whether to deviate from the design and how, whether a task splits or
-two merge, and whether a corner case is refused, handled, or filed. Also
-anything a review reopens, and anything this document does not cover.
+matters, whether to deviate from the design and how, how the steps are cut
+into pull requests, and whether a corner case is refused, handled, or filed.
+Also anything a review reopens, and any choice about the stack itself — its
+order, its depth, what is queued — that this document leaves open.
 
-Not a decision: what the documents already say. Code rules, the proof
-requirement, the pull request format, and the design principles are settled,
-and asking about them is noise ([DESIGN.md §9](./DESIGN.md#9-maximize-signal-to-noise)).
+Not a decision: what the documents already say, and what nobody can observe.
+Code rules, the proof requirement, the pull request format, and the design
+principles are settled, and asking about them is noise
+([DESIGN.md §9](./DESIGN.md#9-maximize-signal-to-noise)); an implementation
+choice that changes neither behavior nor API is the implementer's room
+([REVIEWING.md](./REVIEWING.md#designs-and-todo-files)), and asking about it
+is the same noise.
 
 ## How to ask
 
