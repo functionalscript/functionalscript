@@ -132,15 +132,9 @@ export const proof = {
         differ([1, [2], 3], [1, [9], 9], 'at $[1][0]: expected 2, got 9')
         differ({ a: 1, b: [2] }, { a: 1, b: [2, 3] }, 'at $["b"]: expected 1 elements, got 2')
     },
-    // The reader accept set: every vector's id is one of a kind, every
-    // vector names its class, and the reader accepts every document to the
-    // graph the vector expects.
-    accept: {
-        ids: () => {
-            const ids = acceptSet.map(({ id }) => id)
-            assertEq(new Set(ids).size, ids.length)
-            for (const { id, class: c } of acceptSet) { assert(c !== '', `${id}: no class`) }
-        },
-        records: () => { for (const vector of acceptSet) { accepted(vector) } },
-    },
+    // The reader accept set: the reader accepts every document to the graph
+    // the vector expects. The set's shape — ids one of a kind, every vector
+    // named and classed — is proved beside the set, in
+    // `spec/datajs/vectors/accept/proof.f.mjs`.
+    accept: () => { for (const vector of acceptSet) { accepted(vector) } },
 }

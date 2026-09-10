@@ -2,7 +2,7 @@
  * Node.js effect operations: filesystem (`mkdir`, `readFile`, `readdir`,
  * `writeFile`, `rm`, `access`, plus the `readUtf8File`/`writeUtf8File` text
  * helpers), networking (`fetch`, `createServer`, `listen`),
- * subprocess `exec`, `now` and `forever`; defines the `NodeOp`/`NodeProgram`
+ * subprocess `exec`, `inflate`, `now` and `forever`; defines the `NodeOp`/`NodeProgram`
  * types used by the Node runner.
  *
  * The console family — `write`, `log`, `error`, `errorExit`, `read`,
@@ -20,7 +20,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Commands, CommandSet, Effect, Func, NotImplemented, Operation } from '../types.ts'
  * @import { List } from '../list/types.ts'
- * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
+ * @import { Access, Await, Catch, Console, CreateExclusive, CreateServer, Dirent, Engine, Env, Exec, ExecResult, Fetch, FileStat, Forever, Fs, Headers, Http, IncomingMessage, Inflate, IoChannel, IoError, IoErrorInfo, Listen, MakeDirectoryOptions, Mkdir, Now, NodeOp, NodeProgramOptions, RandomInt, Read, ReadBytes, ReadConsoles, ReadFile, Readdir, ReaddirOptions, RequestListener, Rename, Rm, Sandbox, SandboxResult, Server, ServerResponse, Stat, Test, TestContext, TestFn, Write, WriteBytes, WriteConsoles, WriteFile, _UtfList, _WriteLoop } from './types.ts'
  */
 
 import { utf8, utf8ToString } from '../../text/module.f.mjs'
@@ -145,7 +145,7 @@ export const isNotFound = ([tag, payload]) =>
 const nodeCommandSet = {
     access: null, all: null, await: null, catch: null, createExclusive: null,
     createServer: null, exec: null, fetch: null, forever: null,
-    import: null, listen: null, memCreate: null, memRead: null,
+    import: null, inflate: null, listen: null, memCreate: null, memRead: null,
     memWrite: null, mkdir: null, now: null, randomInt: null,
     read: null, readBytes: null, readFile: null, readdir: null,
     rename: null, rm: null, sandbox: null, stat: null,
@@ -224,6 +224,41 @@ export const rename = do_('rename')
 
 /** @type {Func<ReadBytes>} */
 export const readBytes = do_('readBytes')
+
+// inflate
+
+const inflateOp = /** @type {Func<Inflate>} */ (do_('inflate'))
+
+/**
+ * Inflates a zlib stream. The stream is bytes, so a `Vec` that is not
+ * whole bytes is refused here as `invalid buffer size`, before any host
+ * sees it, as {@link writeFromStream} refuses one: a host's conversion
+ * would pad the last byte and read a stream that was never given.
+ *
+ * @type {Func<Inflate>}
+ */
+export const inflate = data =>
+    (length(data) & 0b111n) !== 0n
+        ? pureError(ioError({ message: 'invalid buffer size' }))
+        : inflateOp(data)
+
+/**
+ * The code an {@link Inflate} refuses bytes after the end of the stream
+ * with. zlib's own codes name a stream that is wrong; this names one that
+ * is right and not alone, which zlib itself would read without a word,
+ * and which is corruption to the one caller that hands it a file.
+ *
+ * @type {string}
+ */
+export const inflateTrailingCode = 'ERR_TRAILING_BYTES'
+
+/**
+ * The message beside {@link inflateTrailingCode}: how many bytes followed
+ * the stream.
+ *
+ * @type {(count: number) => string}
+ */
+export const inflateTrailingMessage = count => `${count} bytes after the end of the zlib stream`
 
 // randomInt
 

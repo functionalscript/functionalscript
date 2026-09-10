@@ -20,6 +20,11 @@ evolving array when a `const` binds it and refuses every read of. A set carries 
 comments and no annotations, since the subset has neither; a consumer types
 a set at the import, with the record types in
 [`fjs/media/datajs/vectors/types.ts`](../../../fjs/media/datajs/vectors/types.ts).
+A set ships a `proof.f.mjs` beside it, as every module does, proving the
+set's shape — every vector named and classed with a non-empty string, the
+ids one of a kind, the document and the graph present — and the proof
+that runs the set against an implementation lives with that
+implementation.
 
 | set | directory | record | proved against |
 | - | - | - | - |
