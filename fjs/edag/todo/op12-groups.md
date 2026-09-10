@@ -144,6 +144,10 @@ node's length does.
 - [ ] `fjs/edag/README.md`: the node table and the vocabulary sentence.
 - [ ] `todo/edag-stage1-discussion.md`: rewrite "Negation is a word tag"
       and the operators table.
+- [ ] `fjs/djs/todo/compile-modules-to-edag.md`: its `Number` bullet says the
+      EDAG has no unary `+`; say instead that the EDAG spells it and
+      FunctionalScript does not, and that `Number` stays the language's one
+      coercion form because unary `+` throws on a bigint.
 - [ ] `fjs/nanvm/types.ts`: `Group12`; delete the `'unaryPlus'`
       `NonEdagGroup` arm; extend the `Case<N>`/`Group` assertions to the two
       `Group12` arms.
