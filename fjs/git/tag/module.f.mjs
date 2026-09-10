@@ -7,10 +7,13 @@
  * The header block's grammar is the first pass and this module the second:
  * {@link tryRead} and {@link write} are the block's, since a tag adds no
  * syntax to it, and the well-known fields are functions over the header
- * list, total on a tag {@link validate} has accepted and a panic on one it
- * has not. A tag with an unknown `type`, or with no `tagger` as very old
- * tags have none, is read and written byte for byte; `validate` is where
- * it is refused, as Git refuses it.
+ * list, total on a tag {@link validate} has accepted. On one it has not,
+ * an accessor panics only where the field it reads is missing or malformed
+ * — `object` on a tag whose first header is no hex id, `tagger` on one
+ * whose fourth is no ident — and reads what is there otherwise. A tag with an unknown
+ * `type`, or with no `tagger` as very old tags have none, is read and
+ * written byte for byte; `validate` is where it is refused, as Git refuses
+ * it.
  *
  * @module
  *
