@@ -12,6 +12,8 @@
 - [x] One `main.css` (`fjs/website/style/module.f.mjs`, written to the root as `_main.css` and linked root-relative)
 - [ ] One monospace face for the whole site — see
       [monospace-website](monospace-website.md)
+- [ ] Decide what the build owes its own leftovers — see
+      [stale-generated-pages](stale-generated-pages.md)
 - [ ] Convention for a `demo` export — an optional pure demo, discovered like a
       proof and `demo.f.mjs` by default, rendered on its page — see
       [demo-convention](demo-convention.md)
