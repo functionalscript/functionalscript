@@ -1,7 +1,10 @@
 /**
+ * @import { Assert } from '../../../asserts/types.ts'
  * @import { Meta } from '../../../ebnf/ast/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
+ * @import { Equal } from '../../../types/ts/types.ts'
  * @import { DjsTokenWithMetadata } from '../../tokenizer/types.ts'
+ * @import { Items } from './types.ts'
  */
 
 import { assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
@@ -12,7 +15,7 @@ import { toArray } from '../../../types/list/module.f.mjs'
 import { tokenize } from '../../tokenizer/module.f.mjs'
 import { _ordinaryTokenNames as names } from '../module.f.mjs'
 import {
-    array, constStatement, djsModule, exportStatement, identifier, importStatement, key, member,
+    array, constStatement, djsModule, exportStatement, identifier, importStatement, items, key, member,
     object, primitive, sym, symbolOf, trivia, value,
 } from './module.f.mjs'
 
@@ -107,6 +110,12 @@ export const proof = {
         assertStructurallySame(read('export default {1: 2};'), ['error', 'number'])
         assertStructurallySame(read('export default;'), ['error', ';'])
         assertStructurallySame(read('export default "abc;'), ['error', 'error'])
+    },
+    // `items` keeps the item's type: a tuple written at the call stays the
+    // tuple, which is what its `const` type parameter is for. Compile-time.
+    itemsInference: () => {
+        const list = items([42, 43])
+        /** @typedef {Assert<Equal<typeof list, Items<readonly [42, 43]>>>} _ItemsKeepTheTuple */
     },
     // Statements end with `;`, so a repetition of any statement is LL(1)
     // too — the order is the module's rule, not lookahead's.

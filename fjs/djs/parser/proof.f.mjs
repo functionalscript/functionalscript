@@ -102,8 +102,13 @@ const classicalResult = s => {
 }
 
 /**
- * Every literal input the proofs below hand to `parseFromTokens`, in their
- * order — the parser's corpus, which the comparison runs over whole.
+ * Every literal input the proofs below hand to `parseFromTokens` — the
+ * parser's corpus, which the comparison runs over whole. A second list
+ * rather than the proofs' own literals, which sit inside their closures;
+ * it retires with the comparison when the port lands, and until then a
+ * case added below is added here.
+ *
+ * @type {readonly string[]}
  */
 const inputs = [
     "export default missing",
@@ -240,7 +245,38 @@ const inputs = [
     "export default 1\n;",
     "const a = 1\n;\nexport default a",
     "const $0=[1];export default [$0,$0];",
-    "first/test.f.mjs",
+    "42",
+    "[1,2]",
+    "{\"a\":1}",
+    "const a = 1 export default a",
+    "export default 1 2",
+    "export default {a}",
+    "export default {:1}",
+    "import x from y\nexport default x",
+    "export x from \"m\"\nexport default 1",
+    "const = 1\nexport default 1",
+    "export default 1;;",
+    "const a = 1;;\nexport default a",
+    "const a = 1;\n;export default a",
+    ";export default 1",
+    "export default ;",
+    "export default 1\nconst b = 2",
+    "import x from \"m\"",
+    "const a = 1\nconst a = 2\nexport default a",
+    "import x from \"m\"\nimport x from \"n\"\nexport default x",
+    "import x from \"m\"\nconst x = 1\nexport default x",
+    "export default zzz",
+    "const a = zzz\nexport default a",
+    "export default [zzz]",
+    "export default {a: zzz}",
+    "export default {__proto__: 1}",
+    "export default {\"__proto__\": 1}",
+    "import x from \"m\"\nimport x from \"n\"\nimport y from \"o\"\nexport default y",
+    "const a = 1\nconst a = 2\nconst b = 3\nexport default b",
+    "const a = missing x",
+    "const a = missing",
+    "export default missing 1",
+    "const a = 1\nconst a = 2 x",
 ]
 
 export const proof = {
