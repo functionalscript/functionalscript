@@ -680,6 +680,9 @@ files with those basenames remain ordinary content.
   final-binding model that this Git-specific design partially supersedes.
 - [DISOT vision](./plan/vision.md) — detached CAS provenance/signature blocks and
   the `~/Alice/...` web-of-trust namespace.
+- [git-sha1-collisions](./git-sha1-collisions.md) — a name resolves to an
+  id, and in a SHA-1 repository what that id is trusted to mean is decided
+  there.
 - [Evo product materialization — PR #1902](https://github.com/functionalscript/functionalscript/pull/1902)
   — companion TODO for consuming resolved dependency graphs without rewriting
   source objects.

@@ -286,7 +286,10 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   is [`todo/inflate.md`](../../todo/inflate.md).
 - **A hash.** Reading an object needs none; addressing or verifying one
   does. [`fjs/crypto/sha2`](../crypto/sha2/module.f.mjs) covers SHA-256
-  repositories; SHA-1 is [`fjs/crypto/todo/sha1.md`](../crypto/todo/sha1.md).
+  repositories; SHA-1, which every host DISOT targets uses, is
+  [`fjs/crypto/todo/sha1.md`](../crypto/todo/sha1.md), and what a trust
+  layer does about a hash that can collide is
+  [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).
 - **Packfiles**, where most objects in a real clone live, so the loose
   reader alone reads a fresh clone poorly: [`todo/packfiles.md`](todo/packfiles.md).
 - **Refs**, from a name to an id: [`todo/refs.md`](todo/refs.md).

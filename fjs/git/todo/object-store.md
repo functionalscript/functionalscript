@@ -21,7 +21,12 @@ its entries, an entry to a blob.
   the same function, later.
 - An id given by a caller is checked against the object read, which is
   where [SHA-1](../../crypto/todo/sha1.md) and `fjs/crypto/sha2` come in:
-  a store that does not hash trusts its file names.
+  a store that does not hash trusts its file names. In a SHA-1 repository
+  the check is only as strong as SHA-1, and
+  [`todo/git-sha1-collisions.md`](../../../todo/git-sha1-collisions.md)
+  decides what more a read checks — collision detection, a SHA-256 twin
+  from a mapping, a field in the commit — and a read here does whatever
+  that decision says, once it is made.
 - The walk: a commit's tree by `tree`, a tree's entry by name through
   `fjs/git/tree`, and the blob's bytes — the three steps
   [git-name-resolution](../../../todo/git-name-resolution.md) takes, as
@@ -41,5 +46,7 @@ its entries, an entry to a blob.
 ### Related
 
 - [`fjs/git/README.md`](../README.md) — the readers the store feeds.
+- [`todo/git-sha1-collisions.md`](../../../todo/git-sha1-collisions.md) —
+  what an id check means in a SHA-1 repository.
 - [refs.md](./refs.md) — from a name to the id the walk starts from.
 - [packfiles.md](./packfiles.md) — where most objects are.
