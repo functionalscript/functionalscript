@@ -146,3 +146,28 @@ export const rootTree = latin1([
     '100644 tsconfig.json\0'+'\x96\x7c\x99\xa5\x70\xc2\x9c\x68\x5f\x04\xbc\xe0\xc1\x16\xa1\xad\x9c\xd1\x6c\xaf',
     '100644 wrangler.jsonc\0'+'\xdf\x22\x8e\x28\x92\x18\x9a\x75\x03\xba\xbf\xdc\x4b\x65\x49\xbe\xe8\x75\x65\x2d',
 ].join(''))
+
+/**
+ * A signed tag, as `git cat-file tag` prints it: written by Git 2.43 in a
+ * scratch repository to a commit `9fed2759`, with an SSH signature, which
+ * Git puts in the message, from the line that begins its armor to the end.
+ * Its own id is `b79a8e25df6a75ef83c047b329e730d92ad59dec`, over 432
+ * bytes. The lines are joined by LF, and the last one is empty because
+ * the message ends in LF.
+ *
+ * @type {readonly number[]}
+ */
+export const tagPayload = latin1([
+    'object 9fed27590671460cacf76884f17cd2a4b17f7220',
+    'type commit',
+    'tag v2',
+    'tagger Proof <proof@example.com> 1700000000 +0100',
+    '',
+    'Version two, signed',
+    '-----BEGIN SSH SIGNATURE-----',
+    'U1NIU0lHAAAAAQAAADMAAAALc3NoLWVkMjU1MTkAAAAgrLzsfFISF4by8Q+FKz27YpkK1USsBB+m',
+    'amu1QkJnbDsAAAADZ2l0AAAAAAAAAAZzaGE1MTIAAABTAAAAC3NzaC1lZDI1NTE5AAAAQLLP2Pwo',
+    '7fTLqYbtbFsRGZ3ELHNIT5kjEj6FSogSns1sIp24JULk3FywiQc7vbzccgscl62ImMYfbjKtTYQ4',
+    '+AQ=',
+    '-----END SSH SIGNATURE-----',
+    '',].join('\n'))
