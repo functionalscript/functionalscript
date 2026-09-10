@@ -1,13 +1,15 @@
 #!/bin/bash
-# The setup script of the Claude Code on the web environment. The
-# environment's "Setup script" field at claude.ai/code fetches it from main:
+# Sets up a container for this repository's Nix shell: a Claude Code on the
+# web environment, or any other that starts from an image without Nix. Runs
+# as root, needs nothing of the repository on disk, and leaves Nix installed
+# with the shell of ./nix downloaded, so that `./nix/run` and `./dev.sh` in a
+# checkout start at once. An environment that caches its filesystem after
+# this script keeps all of it.
 #
-#     curl -fsSL https://raw.githubusercontent.com/functionalscript/functionalscript/main/.claude/setup.sh | bash
+# The "Setup script" field of a Claude Code on the web environment fetches it
+# from main:
 #
-# It runs once, before any session; the environment then caches the
-# filesystem, so every session starts with Nix installed and the development
-# shell of ./nix already downloaded. The hook in ./hooks/session-start.sh
-# does the rest per session.
+#     curl -fsSL https://raw.githubusercontent.com/functionalscript/functionalscript/main/nix/setup.sh | bash
 set -euo pipefail
 
 # Nix, single-user, as root: the installer creates no build users, so Nix must
@@ -22,9 +24,10 @@ export USER=root
 git clone --depth 1 https://github.com/functionalscript/functionalscript /tmp/functionalscript
 cd /tmp/functionalscript
 
-# The environment's GitHub proxy refuses the tarball Nix fetches a locked
-# `github:` input as; a shallow git fetch of the locked revision lands in the
-# store under the hash the lock names, and Nix uses it from there.
+# The GitHub proxy of a Claude Code environment refuses the tarball Nix
+# fetches a locked `github:` input as; a shallow git fetch of the locked
+# revision lands in the store under the hash the lock names, and Nix uses it
+# from there.
 nix eval --raw --impure --expr '
     let
         lock = builtins.fromJSON (builtins.readFile ./nix/flake.lock);

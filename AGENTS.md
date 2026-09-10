@@ -36,10 +36,10 @@ report the PR as unready; do not treat an unavailable required check as passing.
 `tsc` is not a dependency of this package. It comes from the Nix developer
 shell (`./dev.sh`), or from a global npm install of the version
 `fjs/ci/config/module.f.mjs` pins — [CONTRIBUTING.md](./CONTRIBUTING.md) has
-both. A Claude Code on the web session already runs inside that shell:
-`.claude/hooks/session-start.sh` installs Nix and exports the shell's `PATH`
-before the session starts. `npx tsc` no longer runs the repository's compiler: with nothing to
-resolve in `node_modules` it fetches whatever the registry calls latest.
+both. A Claude Code on the web environment has Nix and the shell already
+downloaded; run every command there as `./nix/run <command>`. `npx tsc` no
+longer runs the repository's compiler: with nothing to resolve in
+`node_modules` it fetches whatever the registry calls latest.
 
 Three principles outrank everything else. **Always prefer simplicity and quality
 over optimization** — never optimize prematurely, and never at the cost of

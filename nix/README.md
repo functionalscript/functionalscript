@@ -38,10 +38,11 @@ Windows, where Nix does not, so it cannot write a lock. It writes
 `npm run lock-update` when a pinned commit moves. Forgetting is not silent — the
 next CI job into the shell fails rather than quietly resolving a new lock.
 
-This README is written by hand, and [`../dev.sh`](../dev.sh) is the one script
-here that is not generated: nothing in it varies with a job, a pin or a system,
+This README is written by hand, and so are two scripts.
+[`../dev.sh`](../dev.sh): nothing in it varies with a job, a pin or a system,
 and generating it would mean writing into the repository root of every consuming
-project.
+project. [`setup.sh`](./setup.sh): it installs Nix itself into a container that
+has none, and reads the pins from the committed lock rather than carrying them.
 
 ## Why the shells look the way they do
 

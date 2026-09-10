@@ -134,7 +134,5 @@ test-results/
 index.html
 
 .cas/
-.claude/*
-!.claude/settings.json
-!.claude/hooks/
-!.claude/setup.sh
+.claude
+

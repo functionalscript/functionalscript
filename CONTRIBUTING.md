@@ -72,27 +72,21 @@ nothing in this repository requires Nix.
 
 [`nix/README.md`](./nix/README.md) explains the shell and how it is generated.
 
-A [Claude Code on the web](https://code.claude.com/docs/en/claude-code-on-the-web)
-session starts inside this same shell.
-Two scripts share the work. [`.claude/setup.sh`](./.claude/setup.sh) is the
-environment's setup script. The **Setup script** field of the cloud
-environment at [claude.ai/code](https://claude.ai/code) holds one line, which
-fetches it from `main`:
+A container without Nix — a
+[Claude Code on the web](https://code.claude.com/docs/en/claude-code-on-the-web)
+environment, or any other — gets the shell from [`nix/setup.sh`](./nix/setup.sh):
+it installs Nix, fetches the flake's inputs over git (a Claude Code
+environment's GitHub proxy refuses the tarballs Nix would ask for), and enters
+the shell once from a clone of `main`, so that everything the shell needs is
+on disk. A Claude Code environment runs it once and caches the result; its
+**Setup script** field holds one line:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/functionalscript/functionalscript/main/.claude/setup.sh | bash
+curl -fsSL https://raw.githubusercontent.com/functionalscript/functionalscript/main/nix/setup.sh | bash
 ```
 
-It runs once per environment: it installs Nix, fetches the flake's inputs over git (the
-session's GitHub proxy refuses the tarballs Nix would ask for) and enters the
-shell once, from a clone of `main`, so that everything the shell needs is
-downloaded. The environment is cached after it, and every session starts
-with that on disk. [`.claude/hooks/session-start.sh`](./.claude/hooks/session-start.sh)
-then runs when each session opens: it installs what the environment lacks —
-nothing, once the setup script has run — runs `npm ci`, and exports the
-shell's `PATH` to the session. The hook is for the web environment only: on a
-developer's machine, which may be Windows, it exits before doing anything,
-and you run `./dev.sh` yourself if you want the shell.
+A session in that environment then runs `./nix/run <command>` for the tools,
+and `./nix/run npm ci` first for the dependencies.
 
 ### Node test-runner compatibility
 
