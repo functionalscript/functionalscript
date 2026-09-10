@@ -33,7 +33,7 @@ That is the right first step and the wrong last one, for two reasons:
 ### Proposal
 
 A DEFLATE decoder in FunctionalScript, in the style of
-[`fjs/asn.1`](../fjs/asn.1/README.md): length-framed and bit-level, a
+[`fjs/asn.1`](../fjs/asn.1/module.f.mjs): length-framed and bit-level, a
 hand-written decoder and not a grammar, since a grammar over the byte
 alphabet reads delimiters and DEFLATE has none — the design's table in
 `git-objects.md` says which side of that line each format falls on.
