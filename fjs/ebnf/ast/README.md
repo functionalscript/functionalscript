@@ -1,6 +1,6 @@
 # The EBNF AST
 
-The `ebnf/ast/` piece of [ebnf-migration](../../todo/ebnf-migration.md): the
+The `ast/` layer of [`fjs/ebnf`](../README.md): the
 typed tree a backend builds for a rule, with a metadata channel. It is what
 [`../ll1`](../ll1/README.md) builds and what its rewrite set is written
 against; the data layer's README committed to the nodes, and this is their

@@ -1,6 +1,6 @@
 # The byte alphabet
 
-The `ebnf/byte/` piece of [ebnf-migration](../../todo/ebnf-migration.md): the
+The `byte/` alphabet of [`fjs/ebnf`](../README.md): the
 adapter a grammar over bytes is written against, and the input such a
 grammar reads. It is the byte half of
 [unicode-rules](../unicode/todo/unicode-rules.md), landed for its first
