@@ -76,14 +76,25 @@ const typeOf = w => {
     return objectTypes.find(t => t === s) ?? null
 }
 
-/** @type {(digits: readonly number[]) => number} */
-const decimal = digits => digits.reduce((n, d) => n * 10 + d - 0x30, 0)
+/**
+ * The size a digit string spells, or `null` where the spelling is not the
+ * canonical decimal Git requires — a leading zero ahead of another digit,
+ * `010`, is refused by Git's own reader — or is not a safe integer, since
+ * no object that long exists and its length could not be compared.
+ *
+ * @type {(digits: readonly number[]) => Nullable<number>}
+ */
+const decimal = digits => {
+    const n = digits.reduce((n, d) => n * 10 + d - 0x30, 0)
+    return (digits.length === 1 || digits[0] !== 0x30) && isSafeInteger(n) ? n : null
+}
 
 /**
  * Reads an object past its envelope, or refuses it: an envelope the prefix
- * does not hold, a type that is not one of the four, a size that is not a
- * safe integer, or a payload that is not as long as the size claims. The
- * payload is the input after the NUL, sliced and not read.
+ * does not hold, a type that is not one of the four, a size that is not
+ * canonical decimal or not a safe integer, or a payload that is not as
+ * long as the size claims. The payload is the input after the NUL, sliced
+ * and not read.
  *
  * @type {(input: Bytes) => Nullable<Envelope>}
  */
@@ -94,7 +105,7 @@ export const tryRead = input => {
     const type = typeOf(symbolsOf(w))
     const size = decimal(symbolsOf(digits))
     const payload = drop(end)(input)
-    return type !== null && isSafeInteger(size) && length(payload) === size
+    return type !== null && size !== null && length(payload) === size
         ? { type, payload }
         : null
 }

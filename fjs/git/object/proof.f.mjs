@@ -54,6 +54,9 @@ export const proof = {
         assertEq(tryRead(latin1('blobs 0\0')), null)        // no such type
         assertEq(tryRead(latin1('Blob 0\0')), null)         // the four are lower-case
         assertEq(tryRead(latin1('blob \0')), null)          // no digits
+        assertEq(tryRead(latin1('blob 00\0')), null)        // not canonical decimal
+        assertEq(tryRead(latin1('blob 01\0x')), null)       // not canonical decimal
+        assertStructurallySame(toArray(read(latin1('blob 10\0abcdefghij')).payload), latin1('abcdefghij'))
         assertEq(tryRead(latin1('blob x\0')), null)         // not digits
         assertEq(tryRead(latin1('blob 0')), null)           // no NUL
         assertEq(tryRead(latin1('blob 99999999999999999\0')), null)  // not a safe integer

@@ -84,4 +84,25 @@ export const proof = {
         assertEq(tryRead(latin1(' x\n\n')), null)
         assertEq(tryRead(latin1('a x')), null)
     },
+    // A value may hold anything, LF at its end and SP after an LF included,
+    // and comes back as it went; a key the format cannot spell is refused
+    // by the writer, since it would be read as a different header.
+    write: {
+        value: () => {
+            /** @type {(v: string) => void} */
+            const same = v => {
+                const p = read(toArray(write({ headers: [[latin1('k'), latin1(v)]], message: [] })))
+                assertStructurallySame(text(p), [['k', v]])
+            }
+            same('x\n')
+            same('x\n y')
+            same('\n\n')
+            same('')
+        },
+        throw: {
+            emptyKey: () => toArray(write({ headers: [[[], latin1('x')]], message: [] })),
+            spaceInKey: () => toArray(write({ headers: [[latin1('a b'), latin1('x')]], message: [] })),
+            lfInKey: () => toArray(write({ headers: [[latin1('a\nb'), latin1('x')]], message: [] })),
+        },
+    },
 }

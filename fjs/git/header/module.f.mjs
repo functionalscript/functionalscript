@@ -20,9 +20,10 @@
  * @import { Header, Payload } from './types.ts'
  */
 
+import { assert } from '../../asserts/module.f.mjs'
 import { byte, byteParser, not, symbols } from '../../ebnf/byte/module.f.mjs'
 import { eof, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
-import { flat, flatMap } from '../../types/list/module.f.mjs'
+import { flat, flatMap, toArray } from '../../types/list/module.f.mjs'
 
 const lf = 0x0A
 
@@ -89,12 +90,25 @@ export const tryRead = input => {
  */
 const valueBytes = flatMap(b => b === lf ? [lf, sp] : [b])
 
-/** @type {(h: Header) => Bytes} */
-const headerBytes = ([k, v]) => flat([k, [sp], valueBytes(v), [lf]])
+/**
+ * @throws On a key the format cannot spell — empty, or holding SP or LF —
+ * since {@link tryRead} would read what was written as a different header.
+ * A key comes from a read or from a caller that built one, and the type
+ * cannot say which bytes it holds, so the writer checks.
+ *
+ * @type {(h: Header) => Bytes}
+ */
+const headerBytes = ([k, v]) => {
+    const key = toArray(k)
+    assert(key.length !== 0 && key.every(b => b !== sp && b !== lf), ['not a header key', key])
+    return flat([key, [sp], valueBytes(v), [lf]])
+}
 
 /**
  * A payload's bytes: every header as it was read, the empty line, and the
  * message. The inverse of {@link tryRead}, byte for byte.
+ *
+ * @throws On a key the format cannot spell; see {@link headerBytes}.
  *
  * @type {(p: Payload) => Bytes}
  */
