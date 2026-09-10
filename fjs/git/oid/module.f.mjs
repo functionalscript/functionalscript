@@ -10,6 +10,7 @@
  * @import { Bytes, Oid, OidBytes } from '../types.ts'
  */
 
+import { assert } from '../../asserts/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { length, msb, tryU8ListToVec, u8List } from '../../types/bit_vec/module.f.mjs'
@@ -57,6 +58,13 @@ export const tryFromHexOf = oidBytes => hex => {
  * An id's hex spelling, two small-letter digits a byte: the inverse of
  * {@link tryFromHex}, and what Git writes.
  *
+ * @throws On a `Vec` that is not whole bytes: `Oid` is the type's name for
+ * one that is, and a caller can build any `Vec`, so the spelling refuses
+ * rather than pad the last byte and spell an id that reads back wider.
+ *
  * @type {(oid: Oid) => Bytes}
  */
-export const toHex = oid => toArray(toBytes(oid)).flatMap(b => [hexDigitCodePoint(b >> 4), hexDigitCodePoint(b & 15)])
+export const toHex = oid => {
+    assert(length(oid) % 8n === 0n, ['not whole bytes', oid])
+    return toArray(toBytes(oid)).flatMap(b => [hexDigitCodePoint(b >> 4), hexDigitCodePoint(b & 15)])
+}

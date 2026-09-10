@@ -75,10 +75,10 @@ const decimal = digits => digits.reduce((n, d) => n * 10n + BigInt(d - 0x30), 0n
  * time into a signed 64-bit integer, and `git fsck` refuses a later one
  * as `badDateOverflow`.
  */
-export const maxTime = 9223372036854775807n
+export const maxTime = /** @type {const} */ (9223372036854775807n)
 
 /** The digits {@link maxTime} has: a time spelled with more is later. */
-const maxTimeDigits = 19
+const maxTimeDigits = /** @type {const} */ (19)
 
 /**
  * Reads an ident, or refuses it: no `<` or `>`, a name that does not end

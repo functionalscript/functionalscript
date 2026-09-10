@@ -1,5 +1,5 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { length, maxLengthBytes, msb, u8List, vec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { hole, latin1 } from '../testlib.f.mjs'
 import { toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
@@ -57,5 +57,8 @@ export const proof = {
     throw: {
         nonByte: () => tryFromHex([0x100, 0x30]),
         hole: () => tryFromHex(hole),
+        // A one-bit `Vec` is no id: spelled, it would pad to `80` and read
+        // back as a byte.
+        notWholeBytes: () => toHex(vec(1n)(1n)),
     },
 }
