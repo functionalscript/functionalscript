@@ -5,7 +5,7 @@
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { commitPayload, latin1 } from '../testlib.f.mjs'
+import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
 import { tryRead, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Payload} */
@@ -107,6 +107,9 @@ export const proof = {
             nonByteInKey: () => toArray(write({ headers: [[[0x100], latin1('x')]], message: [] })),
             nonByteInValue: () => toArray(write({ headers: [[latin1('k'), [0x100]]], message: [] })),
             nonByteInMessage: () => write({ headers: [], message: [-1] }),
+            // A hole is met, not skipped.
+            holeInKey: () => toArray(write({ headers: [[hole, latin1('x')]], message: [] })),
+            holeInMessage: () => write({ headers: [], message: hole }),
         },
     },
 }

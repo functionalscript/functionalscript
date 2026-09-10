@@ -21,9 +21,9 @@
  */
 
 import { assert } from '../../asserts/module.f.mjs'
-import { byte, byteParser, isByte, not, symbols } from '../../ebnf/byte/module.f.mjs'
+import { byte, byteArray, byteParser, not, symbols } from '../../ebnf/byte/module.f.mjs'
 import { eof, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
-import { flat, flatMap, toArray } from '../../types/list/module.f.mjs'
+import { flat, flatMap } from '../../types/list/module.f.mjs'
 
 const lf = /** @type {const} */ (0x0A)
 
@@ -91,26 +91,12 @@ export const tryRead = input => {
 const valueBytes = flatMap(b => b === lf ? [lf, sp] : [b])
 
 /**
- * A list a caller means as bytes, as an array, every item checked to be
- * one: `Bytes` is a list of numbers, and a number that is no byte would
- * be written into an object the format cannot carry.
- *
- * @throws If an item is not a byte.
- *
- * @type {(bytes: Bytes) => readonly number[]}
- */
-const byteArray = bytes => {
-    const a = toArray(bytes)
-    assert(a.every(isByte), 'not bytes')
-    return a
-}
-
-/**
  * @throws On a key the format cannot spell — empty, or holding SP or LF —
  * since {@link tryRead} would read what was written as a different header,
- * and on a key or a value holding a number that is no byte. A header comes
- * from a read or from a caller that built one, and the type cannot say
- * which numbers it holds, so the writer checks.
+ * and on a key or a value holding a number that is no byte, or a hole. A
+ * header comes from a read or from a caller that built one, and the type
+ * cannot say which numbers it holds, so the writer checks, through
+ * `byteArray` from the alphabet.
  *
  * @type {(h: Header) => Bytes}
  */

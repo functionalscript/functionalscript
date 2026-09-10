@@ -3,6 +3,8 @@
  * captured once with `git cat-file` and checked in as bytes.
  *
  * @module
+ *
+ * @import { Bytes } from './types.ts'
  */
 
 /**
@@ -96,3 +98,13 @@ export const commitPayload = latin1([
     '',
     'https://claude.ai/code/session_01EdU8wW4oihFS1gj4dUAcPS',
     '',].join('\n'))
+
+/**
+ * A sparse array, as it arrives from outside the type system: two
+ * positions, the first a hole. Typed as the bytes it claims to be, so a
+ * reader or a writer meets it as a caller would hand it over, and must
+ * refuse it.
+ *
+ * @type {Bytes}
+ */
+export const hole = /** @type {Bytes} */ (/** @type {unknown} */ ([, 0x61]))

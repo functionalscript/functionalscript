@@ -5,7 +5,7 @@
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { fromArrayLike, toArray } from '../../types/list/module.f.mjs'
-import { commitPayload, latin1 } from '../testlib.f.mjs'
+import { commitPayload, hole, latin1 } from '../testlib.f.mjs'
 import { objectTypes, tryRead, write } from './module.f.mjs'
 
 /** @type {(input: Bytes) => Envelope} */
@@ -76,5 +76,10 @@ export const proof = {
         readNonByteBeyondPrefix: () => tryRead([...latin1('blob 30\0'), ...latin1('x'.repeat(29)), 0x100]),
         writeNonByte: () => write('blob', [0x100]),
         writeFraction: () => write('blob', [0.5]),
+        // A hole is met, not skipped: in the prefix the parser reads, and
+        // in the payload the fold counts.
+        readHoleInPrefix: () => tryRead(hole),
+        readHoleInPayload: () => tryRead([...latin1('blob 2\0'), ...toArray(hole)]),
+        writeHole: () => write('blob', hole),
     },
 }
