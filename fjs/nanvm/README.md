@@ -72,7 +72,9 @@ the smallest closure — `['=>', ['[]', []], ['undefined']]` — which `amnesia`
 establishes like any `=>` and the Rust printer renders as the harness's one
 function value, `function_any()`; honest because no operator here inspects
 the function, and refused for any other lambda, since `nanvm-lib` has no
-closures to print.
+closures to print. The one thing the two sides do not share is a function's
+string form (engine-specific in JS, a placeholder in `nanvm-lib`), so no case
+stringifies one, nested or not — see `FunctionValue` in [`types.ts`](types.ts).
 
 ## Writing a case
 

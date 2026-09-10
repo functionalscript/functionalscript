@@ -172,7 +172,10 @@ const context = { frame: undefined, args: [] }
  * `jsOnly.throw.objectSpread`, a hand-built one of the same shape), which is
  * always a constant or a `ref` and so always `'undefined'`/`'[]'`/`'{}'` or a
  * primitive, never an operator application; and `lowerEq`'s own `['===', a,
- * b]`, the one binary node this file ever builds by hand. Nothing here is
+ * b]`, the one binary node this file ever builds by hand — plus a
+ * `functionValue`'s lowering, the `=>` node, which is a value here and not
+ * an operation: it establishes to a host closure, one per node, so two
+ * function values are two closures and a shared one is one. Nothing here is
  * ever a *unary* operator node, which is why there is no `op1` dispatch —
  * only `op2`, and only ever for `'==='`.
  *
@@ -186,6 +189,7 @@ const evaluate = memo => {
         if (shared !== undefined) { return shared[1] }
         const [id, a, b] = /** @type {readonly any[]} */ (e)
         if (id === 'undefined') { return undefined }
+        if (id === '=>') { return () => undefined }
         if (id === '[]') { return a.map(f) }
         if (id === '{}') {
             // `Properties` is `Property | Spread`. A spread read as a property
@@ -352,6 +356,21 @@ const lambda = () => {
     // Two function operands are two closures, not one node reached twice.
     const [f, g] = /** @type {readonly unknown[]} */ (value([functionValue, functionValue]))
     assert(f !== g, ['one closure reached twice'])
+    // In the `eq` section a function is a value like any other: two are two
+    // closures, one reached through `ref` is one, and a nested one is the
+    // same node inside its container's, so `evaluate` establishes all three.
+    const { shared, cases } = lowerEq({
+        shared: { fn: functionValue, holder: [ref('fn')] },
+        cases: [
+            { name: 'twoFunctions', a: functionValue, b: functionValue, eq: false },
+            { name: 'oneFunction', a: ref('fn'), b: ref('fn'), eq: true },
+            { name: 'nestedFunction', a: ref('holder'), b: [ref('fn')], eq: false },
+        ],
+    })
+    const ev = evaluate(sharedMemo(shared))
+    for (const [c, e] of cases) { assertEq(ev(e), c.eq, c.name) }
+    const [[, fn], [, holder]] = sharedMemo(shared)
+    assert(/** @type {readonly unknown[]} */ (holder)[0] === fn, ['nested function is a copy'])
 }
 
 const eqProof = (() => {

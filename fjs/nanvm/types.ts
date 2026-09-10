@@ -80,6 +80,18 @@ export type Info =
  * `() => undefined`, the smallest closure, which `amnesia` establishes and
  * the Rust printer renders as the harness's one function value. Legal
  * anywhere a {@link Value} is.
+ *
+ * One thing about a function is *not* shared data: its string form. JS
+ * gives a closure's source text, engine-specific, and `nanvm-lib`'s
+ * `fn_to_string` gives the placeholder `"function"`, so a case whose result
+ * depends on it — `String` of a function, `+` with one, or either applied to
+ * an array or object holding one, since their `ToPrimitive` stringifies the
+ * elements — would test two different values. Such a case is not written
+ * here: the `String` and binary `+` groups have no function case, and the
+ * JS-only half lives in `proof.f.mjs`'s `jsOnly.functionToString`. Every
+ * other coercion of a function, nested or not, agrees on both sides
+ * (`NaN`, `false`, `'function'`, the function itself), which is what the
+ * function cases in the other groups exercise.
  */
 export type FunctionValue = Special<readonly ['function']>
 
