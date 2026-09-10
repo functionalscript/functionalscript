@@ -80,7 +80,7 @@ export const proof = {
         const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
         assertEq(exitCode(code), 0)
         const content = readOutput(state.root, 'output.f.js')
-        assertEq(content, 'export default 42')
+        assertEq(content, 'export default 42;')
     },
     jsonOutput: () => {
         const root = { 'input.f.js': [utf8('export default 42')] }
@@ -156,7 +156,7 @@ export const proof = {
         // input spelling — so the emitter's output is an input that means the
         // same value, and compiling it again is the identity.
         moduleRoundTrip: () => {
-            const source = 'export default {["__proto__"]:{"a":42}}'
+            const source = 'export default {["__proto__"]:{"a":42}};'
             const output = compileSource(source)('output.f.js')
             assertEq(output, source)
             assertEq(compileSource(output)('output.f.js'), source)
@@ -176,7 +176,7 @@ export const proof = {
             const root = { 'proto.json': [utf8('{"__proto__":5}')] }
             const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
             assertEq(exitCode(code), 0, state.stderr)
-            assertEq(readOutput(state.root, 'a.js'), 'export default {["__proto__"]:5}')
+            assertEq(readOutput(state.root, 'a.js'), 'export default {["__proto__"]:5};')
         },
         // …and back, byte for byte: a JSON document survives the loop
         // `proto.json → a.js → out.json` with no `["__proto__"]:` artifact,
@@ -187,7 +187,7 @@ export const proof = {
             const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
             assertEq(exitCode(code), 0, state.stderr)
             const module = readOutput(state.root, 'a.js')
-            assertEq(module, 'export default {["__proto__"]:{"a":42}}')
+            assertEq(module, 'export default {["__proto__"]:{"a":42}};')
             assertEq(compileSource(module)('out.json'), document)
         },
         // The extension speaks for the file named on the command line and for

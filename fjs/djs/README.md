@@ -36,8 +36,8 @@ See [examples/input.f.mjs](./examples/input.f.mjs).
   ```
   Serialization
   ```js
-  const _0=[3]
-  export default {a:_0,b:_0}
+  const _0=[3];
+  export default {a:_0,b:_0};
   ```
 - [x] import
   ```js
