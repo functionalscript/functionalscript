@@ -10,8 +10,9 @@
  * `eof` closes the rule, so trailing bytes are refused rather than left.
  *
  * Git's own reader is lenient, and old history holds idents without an
- * email or with a malformed zone. This reader is a `try*`: an ident the
- * grammar does not cover is refused, not repaired, and the raw header
+ * email or with a malformed zone. This reader is a `try*`, and reads what
+ * `git fsck` vouches for: an ident the grammar does not cover, or whose
+ * time Git cannot hold, is refused, not repaired, and the raw header
  * stays in the header list either way. Which of those forms are worth
  * accepting is decided when one is met, as an issue naming the object.
  *
@@ -38,9 +39,16 @@ const gt = /** @type {const} */ (0x3E)
 
 const digit = range('09')
 
-const name = repeatFrom0(not(set('<\n')))
+/**
+ * A name or an email: any byte but the brackets and LF, as `git fsck`
+ * reads them — a `>` in the name or a `<` in the email is a bad name or
+ * a bad email there, and here is no ident.
+ */
+const field = repeatFrom0(not(set('<>\n')))
 
-const email = repeatFrom0(not(set('>\n')))
+const name = field
+
+const email = field
 
 const time = repeatFrom1(digit)
 
@@ -63,9 +71,20 @@ const canonical = digits => digits.length === 1 || digits[0] !== 0x30
 const decimal = digits => digits.reduce((n, d) => n * 10n + BigInt(d - 0x30), 0n)
 
 /**
+ * The latest time an ident may hold, `INT64_MAX` seconds: Git reads a
+ * time into a signed 64-bit integer, and `git fsck` refuses a later one
+ * as `badDateOverflow`.
+ */
+export const maxTime = /** @type {const} */ (9223372036854775807n)
+
+/** The digits {@link maxTime} has: a time spelled with more is later. */
+const maxTimeDigits = /** @type {const} */ (19)
+
+/**
  * Reads an ident, or refuses it: no `<` or `>`, a name that does not end
- * in SP, a time that is not canonical decimal, a zone that is not a sign
- * and four digits, or anything after the zone.
+ * in SP, a `>` in the name or a `<` in the email, a time that is not
+ * canonical decimal or is later than {@link maxTime}, a zone that is not
+ * a sign and four digits, or anything after the zone.
  *
  * @throws If an item of the value is not a byte.
  *
@@ -77,7 +96,11 @@ export const tryRead = value => {
     const [[n, , e, , , t, , [sign, z]]] = r[1]
     const spaced = symbolsOf(n)
     const digits = symbolsOf(t)
-    return spaced.length !== 0 && spaced[spaced.length - 1] === sp && canonical(digits)
+    // The digits are judged before they are folded: a run of a hundred
+    // thousand is refused for its spelling or its length, never folded
+    // into the number it would be.
+    const timely = canonical(digits) && digits.length <= maxTimeDigits && decimal(digits) <= maxTime
+    return spaced.length !== 0 && spaced[spaced.length - 1] === sp && timely
         ? {
             name: spaced.slice(0, -1),
             email: symbolsOf(e),
@@ -101,18 +124,19 @@ const isZone = tz => {
  * An ident's bytes, as a header value: the inverse of {@link tryRead},
  * byte for byte.
  *
- * @throws On an ident the format cannot spell — a name holding `<` or LF,
- * an email holding `>` or LF, a negative time, a zone that is not a sign
- * and four digits — or a name or email holding a number that is no byte.
+ * @throws On an ident the format cannot spell — a name or an email holding
+ * `<`, `>` or LF, a time negative or later than {@link maxTime}, a zone
+ * that is not a sign and four digits — or a name or email holding a
+ * number that is no byte.
  *
  * @type {(i: Ident) => Bytes}
  */
 export const write = ({ name, email, time, tz }) => {
     const n = byteArray(name)
     const e = byteArray(email)
-    assert(n.every(b => b !== lt && b !== lf), ['not a name', n])
-    assert(e.every(b => b !== gt && b !== lf), ['not an email', e])
-    assert(time >= 0n, ['not a time', time])
+    assert(n.every(b => b !== lt && b !== gt && b !== lf), ['not a name', n])
+    assert(e.every(b => b !== lt && b !== gt && b !== lf), ['not an email', e])
+    assert(time >= 0n && time <= maxTime, ['not a time', time])
     assert(isZone(tz), ['not a zone', tz])
     return flat([n, [sp, lt], e, [gt, sp], ascii(`${time} ${tz}`)])
 }
