@@ -2,7 +2,7 @@ import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { length, maxLengthBytes, msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { hole, latin1 } from '../testlib.f.mjs'
-import { toHex, tryFromHex } from './module.f.mjs'
+import { toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
 
 /** @type {(hex: string) => readonly number[]} */
 const bytes = hex => {
@@ -21,6 +21,18 @@ export const proof = {
         const sha1 = '0123456789abcdef'.repeat(2) + 'fedcba98'
         const i = tryFromHex(latin1(sha1))
         assertEq(i !== null && String.fromCharCode(...toArray(toHex(i))), sha1)
+    },
+    // At a width: the id of that width reads, any other is refused, and
+    // what is no hex at all is refused as before.
+    ofWidth: () => {
+        const sha1 = latin1('ab'.repeat(20))
+        const sha256 = latin1('ab'.repeat(32))
+        assertEq(tryFromHexOf(20)(sha1) !== null, true)
+        assertEq(tryFromHexOf(32)(sha1), null)
+        assertEq(tryFromHexOf(32)(sha256) !== null, true)
+        assertEq(tryFromHexOf(20)(sha256), null)
+        assertEq(tryFromHexOf(20)(latin1('ab'.repeat(19))), null)
+        assertEq(tryFromHexOf(20)(latin1('zz'.repeat(20))), null)
     },
     // A capital letter reads as its small one; writing spells the small one.
     capital: () => {

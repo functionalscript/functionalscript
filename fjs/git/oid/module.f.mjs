@@ -7,12 +7,12 @@
  * @module
  *
  * @import { Nullable } from '../../types/nullable/types.ts'
- * @import { Bytes, Oid } from '../types.ts'
+ * @import { Bytes, Oid, OidBytes } from '../types.ts'
  */
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
-import { msb, tryU8ListToVec, u8List } from '../../types/bit_vec/module.f.mjs'
+import { length, msb, tryU8ListToVec, u8List } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 
 const toVec = tryU8ListToVec(msb)
@@ -37,6 +37,20 @@ export const tryFromHex = hex => {
     })
     if (values.length !== digits.length || values.length === 0 || values.length % 2 !== 0) { return null }
     return toVec(values.filter((_, i) => i % 2 === 0).map((h, i) => h * 16 + values[2 * i + 1]))
+}
+
+/**
+ * {@link tryFromHex} at the repository's width: an id of any other width
+ * is refused too, which is the check every header that names an object
+ * makes, in a commit's `validate` and a tag's alike.
+ *
+ * @throws If an item of the hex is not a byte.
+ *
+ * @type {(oidBytes: OidBytes) => (hex: Bytes) => Nullable<Oid>}
+ */
+export const tryFromHexOf = oidBytes => hex => {
+    const id = tryFromHex(hex)
+    return id !== null && length(id) === BigInt(oidBytes) * 8n ? id : null
 }
 
 /**

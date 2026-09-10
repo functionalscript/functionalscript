@@ -26,7 +26,11 @@ const id = '9fed27590671460cacf76884f17cd2a4b17f7220'
 
 const validate20 = validate(20)
 
-/** The headers every rule below starts from: a tag `git fsck` accepts. */
+/**
+ * The headers every rule below starts from: a tag `git fsck` accepts.
+ *
+ * @type {readonly string[]}
+ */
 const lines = [`object ${id}`, 'type commit', 'tag v1', 'tagger A <a@b> 1 +0000', '', 'm']
 
 /** @type {(i: number, line: string) => Tag} */
@@ -114,6 +118,11 @@ export const proof = {
         }
         assertStructurallySame(validate20(replaced(3, 'tagger A <a@b> 1 +000')), ['error', 'not a tagger'])
         assertStructurallySame(validate20(replaced(3, 'tagger A')), ['error', 'not a tagger'])
+        // A name is as long as its author made it, and is checked once over,
+        // not once per byte: twenty thousand bytes, and the same with slashes.
+        assertStructurallySame(validate20(replaced(2, `tag ${'n'.repeat(20000)}`))[0], 'ok')
+        assertStructurallySame(validate20(replaced(2, `tag ${'n/'.repeat(10000)}n`))[0], 'ok')
+        assertStructurallySame(validate20(replaced(2, `tag ${'n/'.repeat(10000)}`)), ['error', 'bad tag name'])
     },
     // The well-known fields panic on a tag `validate` refuses.
     throw: {

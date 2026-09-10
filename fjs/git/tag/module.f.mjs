@@ -24,12 +24,11 @@
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
 import { ascii, byteArray } from '../../ebnf/byte/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
-import { length as bitLength } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { hasNulHeader, tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
 import { objectTypes } from '../object/module.f.mjs'
-import { tryFromHex } from '../oid/module.f.mjs'
+import { tryFromHex, tryFromHexOf } from '../oid/module.f.mjs'
 
 /**
  * Reads a tag, or refuses it: the header block's reader, since a tag is
@@ -92,6 +91,21 @@ const isComponent = component =>
     && !(component.length >= lock.length && lock.every((b, i) => component[component.length - lock.length + i] === b))
 
 /**
+ * The components of a name, between its slashes: the bytes before the
+ * first, between each two, and after the last, so a name with none is one
+ * component and `a//b` has an empty one. Sliced once each, not grown byte
+ * by byte, since a name is as long as its author made it.
+ *
+ * @type {(name: readonly number[]) => readonly (readonly number[])[]}
+ */
+const components = name => {
+    const slashes = name.flatMap((b, i) => b === slash ? [i] : [])
+    const starts = [0, ...slashes.map(i => i + 1)]
+    const ends = [...slashes, name.length]
+    return starts.map((start, i) => name.slice(start, ends[i]))
+}
+
+/**
  * Whether a name is one `refs/tags/` takes, by the rules of
  * `git check-ref-format` over `refs/tags/<name>`: no control character,
  * no space and none of
@@ -107,10 +121,7 @@ const isTagName = name =>
     && !holdsPair(name, dot, dot)
     && !holdsPair(name, at, brace)
     && name[name.length - 1] !== dot
-    && name.reduce(
-        (cs, b) => b === slash ? [...cs, []] : [...cs.slice(0, -1), [...cs[cs.length - 1], b]],
-        /** @type {readonly (readonly number[])[]} */ ([[]]),
-    ).every(isComponent)
+    && components(name).every(isComponent)
 
 /**
  * The id the `object` header names: the first header, a hex id.
@@ -193,8 +204,7 @@ export const validate = oidBytes => t => {
     if (hasNulHeader(t)) { return error('NUL in header') }
     const objectValue = valueAt(t, 0, 'object')
     if (objectValue === null) { return error('no object') }
-    const id = tryFromHex(objectValue)
-    if (id === null || bitLength(id) !== BigInt(oidBytes) * 8n) { return error('not an id') }
+    if (tryFromHexOf(oidBytes)(objectValue) === null) { return error('not an id') }
     const typeValue = valueAt(t, 1, 'type')
     if (typeValue === null) { return error('no type') }
     if (typeOf(typeValue) === null) { return error('unknown type') }
