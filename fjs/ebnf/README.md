@@ -21,7 +21,9 @@ grammars built on them:
 A module belongs here iff it defines, transforms or executes grammars over a
 symbol alphabet. `fsc` is a compiler, `js/tokenizer` a hand-written scanner
 and `djs` a language front end: all three are consumers and stay out. The
-alphabet adapters are dependencies of the front end, not parts of it.
+alphabet adapters — `byte/`, `utf16/`, `token_symbol/` — depend on the front
+end and are not parts of it: each returns front-end rules over its alphabet,
+and the front end imports none of them.
 
 It replaced the classical `fjs/bnf` — a functional front end without a
 repetition primitive, a packed 24-bit terminal, and two backends, one of
@@ -32,8 +34,10 @@ made along the way and in the issues it triaged; this file is their record.
 
 ## The rule union follows RTTI
 
-Plain values are rules directly; a thunk always returns a tagged tuple.
-Tagged tuples never appear in `Rule`, so a plain array is always a sequence.
+Plain values are rules directly; a thunk always returns a tagged tuple. A
+tagged tuple has no meaning outside a thunk: written bare it is a `Tuple`
+like any other array, a sequence whose first element is the tag's text, so a
+plain array always reads as a sequence.
 In the names [`types.ts`](./types.ts) exports, abridged:
 
 ```ts
@@ -55,10 +59,13 @@ every level.
   in `R`.
 - **`null`** is EOF, exported as `eof`. The *input* carries the end as `-1`,
   the alphabet's convention; the grammar spells it as its own value.
-- **`string`** is the text it spells, one terminal per code point, whatever
-  the alphabet: `'Hello'` matches `Hello`. An alphabet whose symbols are not
-  code points names them with a constructor, as `fjs/djs/parser` does with
-  `sym()`.
+- **`string`** is the text it spells, one terminal per **code point**:
+  `'Hello'` matches `Hello`, and a string lowers to code-point symbols
+  whatever alphabet the grammar is read over. An alphabet whose symbols are
+  something else takes strings through its adapter — [`byte/`](./byte/README.md)
+  refuses a non-ASCII string before any input, since its bytes are not the
+  string's code points — or names its symbols with a constructor, as
+  `fjs/djs/parser` does with `sym()` over token symbols.
 - **`['const', c]`** is RTTI's escape under RTTI's name, for a plain rule
   behind a thunk. Every recursive rule pays it; RTTI pays the same.
 - **`['set', …]`** is a range set of ordinary symbols — a strictly increasing
