@@ -10,7 +10,10 @@
  * the grammar covers — a padded mode, a name holding `/`, entries out of
  * order — so that an object `git fsck` would flag is still read, and the
  * writer returns it byte for byte. {@link validate} is where those are
- * refused, as `fsck` refuses them, over the entry list.
+ * refused, as `fsck` refuses them, over the entry list: the checks that
+ * hold on every platform, not the NTFS and HFS+ look-alikes of `.git`
+ * (`git~1`, `.git.`, a `.git` with ignorable code points in it) that
+ * `fsck` also refuses on behalf of a checkout there.
  *
  * @module
  *
@@ -79,6 +82,19 @@ const modes = ['100644', '100755', '120000', '160000', '40000'].map(s => fromOct
 
 const subtree = fromOctal(ascii('40000'))
 
+const dotGit = ascii('.git')
+
+/** A byte with an ASCII capital folded to its small letter. @type {(b: number) => number} */
+const lower = b => b >= 0x41 && b <= 0x5A ? b + 0x20 : b
+
+/**
+ * Whether a name is `.git` in any case: the entry a checkout must never
+ * write, refused by `git fsck` as `hasDotgit`.
+ *
+ * @type {(name: readonly number[]) => boolean}
+ */
+const isDotGit = name => name.length === dotGit.length && name.every((b, i) => lower(b) === dotGit[i])
+
 /**
  * Reads a tree of a repository with ids `oidBytes` wide, or refuses it: an
  * entry without SP or NUL, a mode that is not octal digits, an empty name,
@@ -138,15 +154,30 @@ const problem = e => {
         : name.length === 0 ? 'empty name'
         : name.includes(slash) ? 'slash in name'
         : name.every(b => b === dot) && name.length <= 2 ? 'dot name'
+        : isDotGit(name) ? '.git name'
         : null
 }
+
+/**
+ * What is wrong between an entry and the one before it, or `null`: the
+ * same name twice, a file and a subtree of one name included, since Git
+ * refuses the pair as `duplicateEntries` whatever their modes; or the
+ * order Git requires broken.
+ *
+ * @type {(a: TreeEntry, b: TreeEntry) => Nullable<string>}
+ */
+const pairProblem = (a, b) =>
+    compare(byteArray(a.name), byteArray(b.name)) === 0 ? 'duplicate name'
+        : compare(sortKey(a), sortKey(b)) >= 0 ? 'not sorted'
+        : null
 
 /**
  * Vouches for a tree as `git fsck` does, or refuses it, naming the first
  * entry it cannot vouch for and why: a zero-padded mode, a mode that is
  * none of the five Git writes, an empty name, a name holding `/`, a name
- * that is `.` or `..`, or entries out of the order Git requires — by name,
- * a subtree as if its name ended in `/`, and no name twice.
+ * that is `.` or `..`, a name that is `.git` in any case, a name twice
+ * whatever the modes, or entries out of the order Git requires — by name,
+ * a subtree as if its name ended in `/`.
  *
  * Separate from {@link tryRead} on purpose: a reader reads what it can,
  * and only this says no.
@@ -157,9 +188,9 @@ export const validate = entries => {
     const problems = entries.map(problem)
     const i = problems.findIndex(p => p !== null)
     if (i !== -1) { return error(`${problems[i]} at ${i}`) }
-    const keys = entries.map(sortKey)
-    const j = keys.findIndex((k, i) => i !== 0 && compare(keys[i - 1], k) >= 0)
-    return j === -1 ? ok(entries) : error(`not sorted at ${j}`)
+    const pairs = entries.map((e, i) => i === 0 ? null : pairProblem(entries[i - 1], e))
+    const j = pairs.findIndex(p => p !== null)
+    return j === -1 ? ok(entries) : error(`${pairs[j]} at ${j}`)
 }
 
 /**

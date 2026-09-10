@@ -105,7 +105,17 @@ export const proof = {
         assertStructurallySame(validate([entry('100644', '.', idA)]), ['error', 'dot name at 0'])
         assertStructurallySame(validate([entry('40000', '..', idA)]), ['error', 'dot name at 0'])
         assertStructurallySame(validate([entry('100644', '...', idA)])[0], 'ok')
-        assertStructurallySame(validate([entry('100644', 'a', idA), entry('100644', 'a', idB)]), ['error', 'not sorted at 1'])
+        // `.git` in any case is refused; a name it is a prefix of is not.
+        assertStructurallySame(validate([entry('40000', '.git', idA)]), ['error', '.git name at 0'])
+        assertStructurallySame(validate([entry('100644', '.GIT', idA)]), ['error', '.git name at 0'])
+        assertStructurallySame(validate([entry('40000', '.Git', idA)]), ['error', '.git name at 0'])
+        assertStructurallySame(validate([entry('100644', '.gitmodules', idA)])[0], 'ok')
+        assertStructurallySame(validate([entry('100644', '.gi', idA)])[0], 'ok')
+        // A name twice is a duplicate whatever the modes: Git refuses a
+        // file and a subtree of one name, though their sort keys differ.
+        assertStructurallySame(validate([entry('100644', 'a', idA), entry('100644', 'a', idB)]), ['error', 'duplicate name at 1'])
+        assertStructurallySame(validate([entry('100644', 'a', idA), entry('40000', 'a', idB)]), ['error', 'duplicate name at 1'])
+        assertStructurallySame(validate([entry('40000', 'a', idA), entry('100644', 'a', idB)]), ['error', 'duplicate name at 1'])
         assertStructurallySame(validate([entry('100644', 'b', idA), entry('100644', 'a', idB)]), ['error', 'not sorted at 1'])
         assertStructurallySame(validate([entry('100644', 'a', idA), entry('100644', 'ab', idB)])[0], 'ok')
         assertStructurallySame(validate([entry('100644', 'ab', idA), entry('100644', 'a', idB)]), ['error', 'not sorted at 1'])

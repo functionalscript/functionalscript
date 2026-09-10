@@ -310,8 +310,9 @@ issue naming the object.
 **Tree** is `repeatFrom0(entry)` then `eof`, with
 `entry = [repeatFrom1(octal), ' ', repeatFrom1(not(set('\0'))), '\0', times(n)(byte)]`
 for the repository's id width `n`. The mode set and its spelling, the entry
-order Git requires (by name, a subtree as if its name ended in `/`), and a
-name holding `/` are `git fsck`'s checks; they belong in a `validate` over
+order Git requires (by name, a subtree as if its name ended in `/`, no
+name twice whatever the modes), a name holding `/`, `.`, `..` and `.git`
+in any case are `git fsck`'s checks; they belong in a `validate` over
 the entry list, separate from the grammar, so a reader can still read an
 object `fsck` would flag. That is why the entry keeps the mode's digits: a
 number would make a padded mode look canonical before `validate` ever saw
