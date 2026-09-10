@@ -40,11 +40,7 @@ const errorAt = s => {
 
 // -- the EBNF token grammar reads the same stream ----------------------------
 
-/**
- * A token as both grammars see it: its kind, and its text.
- *
- * @typedef {readonly [kind: string, text: string]} _Token
- */
+// A token as both grammars see it is a pair: its kind, and its text.
 
 /** @type {(cp: readonly number[]) => string} */
 const text = cp => codePointListToString(cp)
@@ -69,20 +65,26 @@ const classicalKind = tag =>
     'operator'
 
 /**
- * The classical grammar's tokens over a whole text, kind and text each: a
- * line comment swallows its newline, which the tokenizer splits back out
- * below the grammar, and the EBNF grammar stops the comment before it — so
- * it is split here too, and the streams are compared token for token. The
- * whole-file grammar's last round is its `eof` branch, no token, and is
- * left out.
+ * The classical grammar's reading of a whole text: `error` where it does
+ * not match it all; `cut` where a number's fraction or exponent had no
+ * digits, which its `numError` branch tags without consuming anything;
+ * `poison` where that branch consumed the identifier character after a
+ * number; and otherwise its tokens, kind and text each. A line comment swallows
+ * its newline, which the tokenizer splits back out below the grammar, and
+ * the EBNF grammar stops the comment before it — so it is split here too,
+ * and the streams are compared token for token. The whole-file grammar's
+ * last round is its `eof` branch, no token, and is left out.
  *
- * @type {(s: string) => readonly _Token[]}
+ * @type {(s: string) => readonly ['error'] | readonly ['cut'] | readonly ['poison'] | readonly ['ok', readonly (readonly [kind: string, text: string])[]]}
  */
-const classicalStream = s => {
+const classicalResult = s => {
     const cp = toArray(stringToCodePointList(s))
     const { ast, success, idx } = descentParserCpOnly(classicalMatcher, classicalEntry, cp)
-    assert(success && idx === cp.length, s)
-    return ast.sequence.flatMap(node => {
+    if (!success || idx !== cp.length) { return ['error'] }
+    const json = JSON.stringify(ast)
+    if (json.includes('"tag":"numError","sequence":[]')) { return ['cut'] }
+    if (json.includes('"numError"')) { return ['poison'] }
+    return ['ok', ast.sequence.flatMap(node => {
         assert(!(node instanceof Array))
         if (node.tag === 'eof') { return [] }
         const kind = classicalKind(node.tag)
@@ -91,7 +93,14 @@ const classicalStream = s => {
         return kind === 'comment' && symbols[1] !== 0x2A && (last === 0x0A || last === 0x0D)
             ? [[kind, text(symbols.slice(0, -1))], ['newLine', text(symbols.slice(-1))]]
             : [[kind, text(symbols)]]
-    })
+    })]
+}
+
+/** @type {(s: string) => readonly (readonly [kind: string, text: string])[]} */
+const classicalStream = s => {
+    const result = classicalResult(s)
+    assert(result[0] === 'ok', s)
+    return result[1]
 }
 
 /** @type {(node: EbnfAst<Rule, unknown> | string) => readonly number[]} */
@@ -109,27 +118,227 @@ const ebnfBranch = node => {
 const parseEbnfToken = parser(ebnfToken)
 
 /**
- * The EBNF grammar's tokens over a whole text: one token at a time, the
- * parser resumed where the last one ended, `slash`'s four told apart by
- * its own tag.
+ * The EBNF grammar's reading of a whole text: its tokens one at a time,
+ * the parser resumed where the last one ended, `slash`'s four told apart
+ * by its own tag — or `error` where a token fails, at its index.
  *
- * @type {(s: string) => readonly _Token[]}
+ * @type {(s: string) => readonly ['error', number] | readonly ['ok', readonly (readonly [kind: string, text: string])[]]}
  */
-const ebnfStream = s => {
+const ebnfResult = s => {
     const input = toArray(stringToCodePointList(s)).map(symbol => ({ symbol, meta: null }))
-    /** @type {readonly _Token[]} */
+    /** @type {readonly (readonly [kind: string, text: string])[]} */
     let out = []
     let pos = 0
     while (pos < input.length) {
-        const [node, end] = unwrap(parseEbnfToken(input, pos))
+        const match = parseEbnfToken(input, pos)
+        if (match[0] === 'error') { return match }
+        const [node, end] = match[1]
         const [tag, child] = ebnfBranch(node)
         const sub = tag === 'slash' ? ebnfBranch(/** @type {readonly unknown[]} */ (child)[1])[0] : tag
         const kind = sub === 'oneline' || sub === 'multiline' ? 'comment' : sub === 'assign' || sub === 'divide' ? 'operator' : sub
         out = [...out, [kind, text(ebnfSymbols(node))]]
         pos = end
     }
-    return out
+    return ['ok', out]
 }
+
+/** @type {(s: string) => readonly (readonly [kind: string, text: string])[]} */
+const ebnfStream = s => {
+    const result = ebnfResult(s)
+    assert(result[0] === 'ok', s)
+    return result[1]
+}
+
+/**
+ * Every literal input the proofs below hand to `tokenizeString`, `tokenize`
+ * or `errorAt`, in their order — the tokenizer's corpus, which the
+ * comparison runs over whole, whatever each grammar makes of a string.
+ */
+const inputs = [
+    "tr",
+    "\"tr\"",
+    "56.7e+5",
+    "56n",
+    "*",
+    "**",
+    "=>",
+    "==",
+    "===",
+    "=",
+    " ",
+    "\n",
+    "/\n",
+    "//\n",
+    "/*1*/",
+    "",
+    "{",
+    "}",
+    ":",
+    ",",
+    "[",
+    "]",
+    "ᄑ",
+    "{ \t\n\r}",
+    "\"\"",
+    "\"value\"",
+    "\"value",
+    "\"value1\" \"value2\"",
+    "\"",
+    "\"\\\\\"",
+    "\"\\\"\"",
+    "\"\\/\"",
+    "\"\\x\"",
+    "\"\\",
+    "\"\r\"",
+    "\"\n null",
+    "\"\\b\\f\\n\\r\\t\"",
+    "\"\\u1234\"",
+    "\"\\uaBcDEeFf\"",
+    "\"\\uEeFg\"",
+    "0",
+    "[0]",
+    "00",
+    "0abc,",
+    "123456789012345678901234567890",
+    "{90}",
+    "1 2",
+    "0. 2",
+    "10-0",
+    "9a:",
+    "-10",
+    "-0",
+    "-00",
+    "-.123",
+    "0.01",
+    "-0.9",
+    "-0.",
+    "-0.]",
+    "12.34",
+    "-12.00",
+    "-12.",
+    "12.]",
+    "0e1",
+    "0e+2",
+    "0e-0",
+    "12e0000",
+    "-12e-0001",
+    "-12.34e1234",
+    "0e",
+    "0e-",
+    "ABCdef1234567890$_",
+    "{ABCdef1234567890$_}",
+    "123 _123",
+    "123 $123",
+    "123_123",
+    "123$123",
+    "1234567890n",
+    "0n",
+    "[-1234567890n]",
+    "123.456n",
+    "123e456n",
+    "1234567890na",
+    "1234567890nn",
+    "=a",
+    "-",
+    "1*2",
+    "( )",
+    "== != === !== > >= < <=",
+    "+ - * / % ++ -- **",
+    "= += -= *= /= %= **=",
+    "& | ^ ~ << >> >>>",
+    "&= |= ^= <<= >>= >>>=",
+    "<<< <<<=",
+    "&& || ! ??",
+    "&&= ||= ??=",
+    "? ?. . =>",
+    "\t",
+    " \t",
+    "\r",
+    " \t\n\r ",
+    "err",
+    "{e}",
+    "tru",
+    "true",
+    "false",
+    "null",
+    "undefined",
+    "[null]",
+    "arguments",
+    "await",
+    "break",
+    "case",
+    "catch",
+    "class",
+    "const",
+    "continue",
+    "debugger",
+    "default",
+    "delete",
+    "do",
+    "else",
+    "enum",
+    "eval",
+    "export",
+    "extends",
+    "finally",
+    "for",
+    "function",
+    "if",
+    "implements",
+    "import",
+    "in",
+    "instanceof",
+    "interface",
+    "let",
+    "new",
+    "package",
+    "private",
+    "protected",
+    "public",
+    "return",
+    "static",
+    "super",
+    "switch",
+    "this",
+    "throw",
+    "try",
+    "typeof",
+    "var",
+    "void",
+    "while",
+    "with",
+    "yield",
+    "//singleline comment",
+    "true//singleline comment\nfalse",
+    "/* multiline comment */",
+    "/* multiline comment *",
+    "/* multiline comment ",
+    "/* multiline comment \n * **/",
+    "/* multiline comment *\n * **/",
+    "//ab\n",
+    "//a//b\n",
+    "a/b",
+    "true false",
+    "a\nb",
+    "a\n\nb",
+    "/* c\n */ x",
+    "\"unterminated",
+    "x",
+    "{ \"a\": 1 }",
+    "x @",
+    "a\nb\n@",
+    "x\n\n  @y",
+    "1.",
+    "\"a\nb\"",
+    "/* c",
+    "/* ok */ /* bad",
+    "123abc",
+    ";",
+    "-1234567890n",
+    "--",
+    "---",
+    "-{",
+]
 
 /**
  * Inputs both grammars accept, over every token kind and the shapes the
@@ -162,6 +371,24 @@ export const proof = {
         sameStream: () => {
             for (const s of corpus) {
                 assertStructurallySame(ebnfStream(s), classicalStream(s))
+            }
+        },
+        // Over the whole corpus, whatever the classical grammar makes of a
+        // string: what it reads, the EBNF grammar reads the same; what it
+        // refuses, and a number it tags cut short, the EBNF grammar refuses
+        // too, its forced digits failing; and where its poison branch
+        // consumed the character after a number, the EBNF grammar reads the
+        // adjacent tokens the layer above will refuse.
+        wholeCorpus: () => {
+            for (const s of inputs) {
+                const classical = classicalResult(s)
+                const ebnf = ebnfResult(s)
+                switch (classical[0]) {
+                    case 'ok': { assertStructurallySame(ebnf, classical); break }
+                    case 'poison': { assertEq(ebnf[0], 'ok', s); break }
+                    case 'cut':
+                    case 'error': { assertEq(ebnf[0], 'error', s); break }
+                }
             }
         },
         // Where this grammar's poison branch rejects a number followed by an
