@@ -45,6 +45,7 @@
  * @import { Mapping, Mappings, RewriteSet } from '../../../ebnf/ll1/types.ts'
  * @import { Rule } from '../../../ebnf/types.ts'
  * @import { Utf16 } from '../../../ebnf/utf16/types.ts'
+ * @import { hex } from '../../../ebnf/lib/json/module.f.mjs'
  * @import { Entry, JsonValue } from '../../../ebnf/lib/json/types.ts'
  * @import { Json, NumberPolicy, Out, ParseUnknown, Text } from './types.ts'
  */
@@ -57,7 +58,7 @@ import { eof } from '../../../ebnf/module.f.mjs'
 import { symbolAt, unmapped } from '../../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../../ebnf/ll1/module.f.mjs'
 import { units } from '../../../ebnf/utf16/module.f.mjs'
-import { character, escape, hex, items, json, number, string, value } from '../../../ebnf/lib/json/module.f.mjs'
+import { character, escape, items, json, number, string, value } from '../../../ebnf/lib/json/module.f.mjs'
 
 const { fromCharCode } = String
 const { fromEntries } = Object
