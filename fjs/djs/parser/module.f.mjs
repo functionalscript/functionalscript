@@ -250,12 +250,27 @@ const optionalItems = itemsAt => node => {
  *
  * @type {<T>(itemAt: (node: _Leaf) => T, itemsAt: (node: _Leaf) => List<T>) => (node: _ListNode) => List<T>}
  */
-const listOf = (itemAt, itemsAt) => ([item, , more]) => {
-    const rounds = unmapped(more)
-    // no round, or the one holding the comma, its trivia and the optional rest
-    const tail = rounds.length === 0 ? null : optionalItems(itemsAt)(unmapped(rounds[0])[2])
-    return { first: itemAt(item), tail }
+const listOf = (itemAt, itemsAt) => {
+    const rest = optionalItems(itemsAt)
+    return ([item, , more]) => {
+        const rounds = unmapped(more)
+        // no round, or the one holding the comma, its trivia and the optional rest
+        const tail = rounds.length === 0 ? null : rest(unmapped(rounds[0])[2])
+        return { first: itemAt(item), tail }
+    }
 }
+
+/** The items an array's optional list holds. */
+const valueItems = optionalItems(valuesAt)
+
+/** The members an object's optional list holds. */
+const memberItems = optionalItems(membersAt)
+
+/** The items of a list of values, its tail already mapped. */
+const valuesOf = listOf(nodeAt, valuesAt)
+
+/** The members of a list of members, its tail already mapped. */
+const membersOf = listOf(memberAt, membersAt)
 
 /** @type {(out: Out) => Meta<Out>} */
 const symbol = out => ({ symbol: 0, meta: out })
@@ -272,10 +287,10 @@ const toNode = node => {
         case 'primitive': { return symbol({ id: 'value', node: ['primitive', primitiveOf(unmapped(node[1]))] }) }
         case 'ref': { return symbol({ id: 'value', node: ['ref', tokenAt(unmapped(node[1])[1])] }) }
         case 'array': {
-            return symbol({ id: 'value', node: ['array', toArray(optionalItems(valuesAt)(unmapped(node[1])[2]))] })
+            return symbol({ id: 'value', node: ['array', toArray(valueItems(unmapped(node[1])[2]))] })
         }
         case 'object': {
-            return symbol({ id: 'value', node: ['object', toArray(optionalItems(membersAt)(unmapped(node[1])[2]))] })
+            return symbol({ id: 'value', node: ['object', toArray(memberItems(unmapped(node[1])[2]))] })
         }
     }
 }
@@ -335,10 +350,10 @@ const toModule = ([, imports, consts, exported]) => symbol({
 const map = mapping
 
 /** @type {(node: Children<Items<Value>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toValues = node => symbol({ id: 'values', items: listOf(nodeAt, valuesAt)(node) })
+const toValues = node => symbol({ id: 'values', items: valuesOf(node) })
 
 /** @type {(node: Children<Items<Member>, DjsTokenWithMetadata, Out>) => Meta<Out>} */
-const toMembers = node => symbol({ id: 'members', items: listOf(memberAt, membersAt)(node) })
+const toMembers = node => symbol({ id: 'members', items: membersOf(node) })
 
 /**
  * The rewrite set: a value to its node, a list to its items, a member and
@@ -419,6 +434,38 @@ const close = (container, done) => {
 }
 
 /**
+ * The next item of a container, its key checked first, or the container
+ * closed when none is left.
+ *
+ * @type {(stack: _Stack, frame: _Frame) => _State}
+ */
+const round = (stack, frame) => {
+    const { container, index, done } = frame
+    if (index >= container[1].length) { return [stack, ok(close(container, toArray(done)))] }
+    const rejected = badKey(container, index)
+    return rejected === null
+        ? [{ top: frame, rest: stack }, ['enter', itemAt(container, index)]]
+        : [stack, error(rejected)]
+}
+
+/**
+ * Enters a node: a primitive is its value, a reference the binding `env`
+ * holds for its name, and a container the first round of a new frame.
+ *
+ * @type {(env: _Env, stack: _Stack, node: Node) => _State}
+ */
+const enter = (env, stack, node) => {
+    switch (node[0]) {
+        case 'primitive': { return [stack, ok(node[1])] }
+        case 'ref': {
+            const ref = at(nameOf(node[1]))(env)
+            return [stack, ref === null ? error(foldError('const not found')(node[1])) : ok(ref)]
+        }
+        default: { return round(stack, { container: node, index: 0, done: null }) }
+    }
+}
+
+/**
  * The value a node denotes under `env`, or the first error met in document
  * order: a reference to a name `env` does not bind, or a plain `__proto__`
  * key.
@@ -430,39 +477,12 @@ const close = (container, done) => {
  * @type {(env: _Env) => (root: Node) => Result<AstConst, ParseError>}
  */
 const evaluate = env => root => {
-    /**
-     * The next item of a container, its key checked first, or the container
-     * closed when none is left.
-     *
-     * @type {(stack: _Stack, frame: _Frame) => _State}
-     */
-    const round = (stack, frame) => {
-        const { container, index, done } = frame
-        if (index >= container[1].length) { return [stack, ok(close(container, toArray(done)))] }
-        const rejected = badKey(container, index)
-        return rejected === null
-            ? [{ top: frame, rest: stack }, ['enter', itemAt(container, index)]]
-            : [stack, error(rejected)]
-    }
-
-    /** @type {(stack: _Stack, node: Node) => _State} */
-    const enter = (stack, node) => {
-        switch (node[0]) {
-            case 'primitive': { return [stack, ok(node[1])] }
-            case 'ref': {
-                const ref = at(nameOf(node[1]))(env)
-                return [stack, ref === null ? error(foldError('const not found')(node[1])) : ok(ref)]
-            }
-            default: { return round(stack, { container: node, index: 0, done: null }) }
-        }
-    }
-
     /** @type {_State} */
     let state = [null, ['enter', root]]
     while (true) {
         const [stack, step] = state
         if (step[0] === 'enter') {
-            state = enter(stack, step[1])
+            state = enter(env, stack, step[1])
         } else if (step[0] === 'error' || stack === null) {
             return step
         } else {
