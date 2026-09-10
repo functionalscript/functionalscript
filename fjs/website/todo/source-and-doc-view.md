@@ -69,8 +69,8 @@ page.
 
 - [ ] Prerequisite, in `fjs/js/tokenizer`: single-quoted strings and template
       literals as one token each, with proofs, before anything below.
-- [ ] Confirm `fjs/js/tokenizer` is in the browser suite manifest, i.e. links
-      in a browser.
+- [ ] Confirm `fjs/js/tokenizer` links in a browser, i.e. that its own page
+      lists it as a proof rather than as one with a blocker.
 - [ ] `source-view/module.f.mjs`: tokens → highlighted `<pre>` content.
 - [ ] `source-view/module.f.mjs`: tokens → doc entries (`@module` block, one
       entry per `export const`).

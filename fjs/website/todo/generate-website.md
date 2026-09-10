@@ -21,7 +21,8 @@
       subdirectories, `todo/` issues and the proofs of its subtree
       (`fjs/website/page/`; the design is [`../README.md`](../README.md))
 - [x] Browser test runner and proof-result UI
-- [x] Move browser-manifest preparation into the website `NodeProgram` through
-      Node effects. Landed in functionalscript#1827: `browser-prepare.mjs` is
-      gone and `website/module.f.mjs` writes the suite manifest as part of the
-      build
+- [x] Move browser proof-source preparation into the website `NodeProgram`
+      through Node effects. Landed in functionalscript#1827: `browser-prepare.mjs`
+      is gone and `website/module.f.mjs` decides the sources as part of the
+      build. The shared manifest module it wrote has since been replaced by a
+      per-page list
