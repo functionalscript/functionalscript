@@ -64,11 +64,15 @@ every level.
   the alphabet's convention; the grammar spells it as its own value.
 - **`string`** is the text it spells, one terminal per **code point**:
   `'Hello'` matches `Hello`, and a string lowers to code-point symbols
-  whatever alphabet the grammar is read over. An alphabet whose symbols are
-  something else takes strings through its adapter — [`byte/`](./byte/README.md)
-  refuses a non-ASCII string before any input, since its bytes are not the
-  string's code points — or names its symbols with a constructor, as
-  `fjs/djs/parser` does with `sym()` over token symbols.
+  whatever alphabet the grammar is read over. Over an alphabet whose symbols
+  are something else, a string is right only where its code points are that
+  alphabet's symbols: [`byte/`](./byte/README.md) refuses a non-ASCII string
+  before any input, since its bytes are not the string's code points;
+  [`utf16/`](./utf16/) adapts the input only, so a grammar over it spells
+  a string of BMP characters as is and an astral character as its two
+  surrogate units — `'😀'` lowers to `0x1F600`, a symbol no unit is;
+  `token_symbol/` names its symbols with a constructor instead, as
+  `fjs/djs/parser` does with `sym()`.
 - **`['const', c]`** is RTTI's escape under RTTI's name, for a plain rule
   behind a thunk. Every recursive rule pays it; RTTI pays the same.
 - **`['set', …]`** is a range set of ordinary symbols — a strictly increasing
