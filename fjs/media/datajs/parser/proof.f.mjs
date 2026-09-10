@@ -212,7 +212,7 @@ export const proof = {
         refused('\ufeffexport default 1;', 'unexpected symbol at 0')
         refused('export\u00a0default 1;', 'unexpected symbol at 6')
         refused('export default\u2028 1;', 'unexpected symbol at 14')
-        refused('export default 1 ;', 'unexpected symbol at 16')
+        refused('export default 1\u2029;', 'unexpected symbol at 16')
         refused('export default 1;\f', 'unexpected symbol at 17')
         refused('export default 1;\v', 'unexpected symbol at 17')
     },
