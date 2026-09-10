@@ -3,8 +3,9 @@
 **Priority:** P1 — it blocks stage 4, which is P1. Raised with the stages it
 sits between; see
 [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md).
-**Status:** open — and **next**. It is P1 and gates stage 4, where stage 3b is
-P2 with an undecided design, and this is blocked on nothing.
+**Status:** wip — the steps are cut and the decisions put, below; the first
+step is the schema. It is P1 and gates stage 4, where stage 3b is P2 with an
+undecided design, and this is blocked on nothing.
 
 ### Problem
 
@@ -1988,113 +1989,156 @@ needs nothing beyond an engine.
 
 ### Tasks
 
-- [ ] **Emit a class-by-role matrix and check it in beside the corpus.** Rows
-      are the classes this document names, columns the three roles, and a cell
-      is a vector id or an explicit "not applicable, because…". Prose cannot do
-      this job: a class short a role has now been the finding on four
-      consecutive review rounds — the whitespace-like scalars missing from
-      serializer accept, the largest finite missing from reader accept, U+0020
-      missing from the writer boundaries, the magnitude boundaries added
-      positive-only — and each was found by a reader noticing the absence,
-      which is exactly the work a table does mechanically. The rule stated at
-      the reader's derivation (a `normalize` case owes a reader vector where a
-      plausible implementation would read the same text as a different value,
-      and a serializer vector where one would emit a document denoting a
-      different value) says *when* a cell is required; the matrix is what makes
-      an empty one visible. Generate it from the corpus rather than writing it
-      by hand, or it becomes the seventeenth stale cross-reference.
+Stage 1b ships as a stack of small pull requests
+([SESSION.md](../../../doc/SESSION.md)), each one step below, every one
+landing with `tsc` clean and the suite green. The corpus is data, so the
+reader-side sets are proved against the reader that exists —
+[`fjs/media/datajs/parser`](../../../fjs/media/datajs/parser/module.f.mjs) —
+as they land, and the writer-side sets carry their proofs when stage 4's
+serializer does; a set is not "done" until a proof reads it. The step that
+takes the last task deletes this file, its design decisions already recorded
+in the corpus's own README.
 
-      **Rows are branches, not topics.** The round after this task was written,
-      review found the five controls with simple escapes missing from
-      serializer accept while U+0000 and U+001F were present — and a matrix
-      whose row is "controls" would have shown that cell filled. A row has to
-      be as fine as the thing an implementation can get wrong on its own: one
-      per emitting branch, one per production alternative, one per class
-      endpoint that has its own code path. If two vectors in a row could be
-      handled by different code, they are two rows.
-- [ ] Write the meta-encoding down as a schema before any vector, per the
-      section above: node table, `ref` indices, the leaf tags, the `arr` form
-      with holes occupying positions, the object pair form **with unique keys
-      in observable order**, strings as UTF-16 code-unit arrays everywhere a
-      string appears, the **byte-array** document form and which vectors use
-      it, and the eleven `host` recipes — four leaves, seven
-      modifiers, each modifier naming the node it applies to — with their
-      application order, the rule that a modifier is a table entry and never
-      inline, what a modifier node denotes, `builtin`'s and `proto`'s and
-      `attrs`'s closed value lists (`proto`'s optional `inherited` key/value
-      pair, whose key may not collide with an own key of the target), and
-      and **both** accessor shapes — `getter`'s enumerable accessor with its
-      invocation record, and `setter`'s enumerable setter-only property. It is the
-      part two
-      consumers can silently disagree about, so it lands first and gets its own
-      round-trip proof — encode a graph, decode it, and assert the sharing
-      survives.
-- [ ] **Raise the plain-object boundary with the spec**, which this corpus
-      cannot settle: `README.md` rejects "any other non-plain object" and
-      exempts prototypes by naming three cases, so whether
-      `Object.create({x: 1})` is permitted is unstated. The vectors avoid the
-      question rather than answering it; the spec should answer it.
-- [ ] **Raise §Whitespace's enumeration with the spec.** Its rule — whitespace
-      is exactly JSON's four, everything else JavaScript treats as whitespace
-      is rejected — is complete and correct, but the six characters it names
-      after the colon read as that set and are not: measured against
-      ECMAScript, 21 characters qualify, and the list omits every
-      `Space_Separator` but U+00A0 (U+1680, U+2000–U+200A, U+202F, U+205F,
-      U+3000). An implementer reading the colon as the rule accepts fifteen
-      characters DataJS rejects. The corpus derives from the rule and so is
-      correct either way; the spec should either mark the list as examples or
-      complete it.
-- [ ] **Raise the decoder seam with the spec**, which this corpus cannot
-      settle: UTF-8 truncation at end of input is unreachable through a
-      document-level byte input, because any completion of the document turns
-      it into the non-continuation class and any refusal is attributable to
-      the incomplete document instead. Testing it needs an assertion on what
-      the **decoder** does with the bytes, which means requiring conforming
-      implementations to expose one — an API demand the spec should make or
-      decline, not something the corpus should impose by listing a vector that
-      only a decoder-exposing implementation can satisfy. Until then the class
-      is recorded as untestable and has no vector.
-- [ ] Choose the corpus's location. The encoding is settled above: JSON,
-      permanently, per the bootstrapping constraint.
-- [ ] Write the accept, reject, **serializer accept**, serializer reject,
-      **graph equivalence** and normalize sets covering the cases listed.
-      Check each rejection vector for a **second ground of refusal** before
-      committing it — three of the ones designed here had one, and a vector
-      refused by the cheaper rule never exercises the rule it was written for.
-      Check its **placement** too: a malformed byte sequence goes inside a
-      quoted string and a serializer-reject offender goes below the root, and
-      in both directions the placement is what makes the vector able to fail.
-      Then check the vector against a **conforming** implementation, not only
-      against a broken one: a vector that asserts more than its role requires
-      fails the very implementations it exists to confirm, which is worse than
-      one that cannot fail. The roles ask for different things — a reader for
-      the graph, a serializer for *any* valid document denoting it, a
-      normalized serializer for exact bytes — so a spelling asserted anywhere
-      but the last is a defect. One had reached the serializer set before
-      review caught it. Then ask what the **broken** implementation produces,
-      not only what a correct one does: if its output trips a *different* rule of the format —
-      an overlong that decodes to a control character, a legacy width whose
-      value exceeds U+10FFFF — the document is refused for that rule and the
-      vector passes while proving nothing.
-      Ask of every class whether an **object walker and an array walker can
-      differ on it**, and cover both kinds where they can. Four classes here
-      have needed it — cycles, where each offender sits, sharing, and the host
-      variations — and only the first was reported as a walker question; the
-      other three read as ordinary single cases until asked.
-      Run every **expected-bytes** string in the normalize set through the
-      accept grammar before committing it — normalized output is a document, so
-      the accept rules bind it, and a vector demanding a document DataJS
-      rejects fails exactly the implementations it exists to confirm. One
-      designed here spelled its object keys bare, which `key ::= string | '['
-      '"__proto__"' ']'` does not admit. The
-      serializer-accept set is the one an implementation passes by being too
-      strict, so it is the one most easily left for later and least safe to.
-- [ ] Add the **JavaScript** whole-set subset-law check. The FunctionalScript
-      one is stage 6's, once stage 5 has taught the front end `;` and the
-      special numbers — see above.
-- [ ] Point stages 4 and 6 at the corpus as their proof source. Not stage 3 —
-      see above.
-- [ ] `tsc`, `fjs test`.
+**Decisions the steps below depend on.** Each is put to the owner with the
+option the session would take first; the answer goes into the corpus README
+or the spec, not only into a thread.
+
+1. **Where the corpus lives.** `spec/datajs/vectors/`, one JSON file per set —
+   `accept.json`, `reject.json`, `serializer-accept.json`,
+   `serializer-reject.json`, `graph-equivalence.json`, `normalize.json` —
+   with a `README.md` that is the schema. Beside the spec rather than under
+   `fjs/media/datajs/`, because the corpus is the specification made
+   executable and is meant for every implementation, the Rust one included
+   ([edag-spec](../../../todo/edag-spec.md) asks for exactly such shared
+   vectors); `fjs/media/datajs/vectors/` would make it look like one
+   consumer's fixture. The alternative is the fixture location, closer to the
+   proofs that read it.
+2. **How a FunctionalScript proof reads JSON.** Nothing in the tree imports a
+   JSON file today. The first option is the standard one: `import … with
+   { type: 'json' }`, which every runtime CI runs supports, with
+   `resolveJsonModule` added to `tsconfig.json` and the schema step verifying
+   it on the `wasm` job and under `package-check`. The second is the
+   [`fjs/nanvm`](../../../fjs/nanvm/README.md) shape reversed — the JSON
+   authored, and `npm run gen` emitting an `.f.mjs` mirror for the proofs —
+   which costs a generated file per set and a stale-check, and is the
+   fallback if the first fails a runtime. Authoring the corpus as `.f.mjs`
+   and generating the JSON is not an option: it reverses the bootstrapping
+   argument this file settled on, since the JSON would no longer be the
+   source.
+3. **The plain-object boundary**, which the corpus avoids rather than
+   answers. Proposal for the spec: an object is plain iff its prototype is
+   `Object.prototype` or `null`, and an array iff `Array.isArray` holds, its
+   prototype being `Array.prototype`, `null` or an `Array` subclass's; any
+   other prototype is "any other non-plain object" and rejected, so
+   `Object.create({x: 1})` is refused. Once decided, one serializer-reject
+   vector pins it. The alternative is to admit any prototype and serialize
+   the own data, which widens the exemption list to a rule.
+4. **§Whitespace's enumeration.** Proposal for the spec: keep the rule and
+   replace the six-item colon list with the complete set it denotes — the 21
+   characters of ECMAScript's `WhiteSpace` and `LineTerminator` classes less
+   the four permitted, which is U+000B, U+000C, U+2028, U+2029, U+FEFF and the
+   sixteen `Space_Separator` characters other than U+0020 — since the corpus
+   enumerates all 21 anyway and a reader of the spec should not have to. The
+   alternative is to mark the six as illustrations and cite ECMAScript.
+5. **The decoder seam.** Proposal for the spec: decline to require that a
+   conforming implementation expose its UTF-8 decoder. Truncation at end of
+   input stays recorded here as untestable through a document, and this
+   repository's decoder proves it in
+   [`fjs/text/utf8`](../../../fjs/text/utf8/module.f.mjs)'s own proofs. The
+   alternative is a decoder-level vector set, which would be an API demand on
+   every implementation for one error class.
+6. **The whole-set JavaScript check.** A proof cannot `import()` a document
+   from inside pure FunctionalScript, so the check is a host-side test: one
+   `.mjs` under `node --test` that imports every accept document as a
+   `data:text/javascript` module and compares the graph it yields with the
+   vector's. Proposal: that, over the same JSON the proofs read, run by the
+   existing `cov` script's `node --test` and so on every CI runtime. The
+   alternative is a `gen`-time check, which would run only where `gen` runs.
+
+The steps, in order; a step is one pull request unless it says otherwise:
+
+- [ ] **The schema and the decoder.** Write the meta-encoding down as
+      `spec/datajs/vectors/README.md` before any vector, per the section
+      above: the node table with `ref` indices; the leaf tags with numbers
+      as lexemes; `arr` with holes occupying positions; the object pair form
+      with unique keys in observable order; every string as UTF-16 code
+      units; the byte-array document form and which sets use it; the eleven
+      `host` recipes — four leaves, seven modifiers, each modifier naming its
+      target — with their application order, the rule that a modifier is a
+      table entry and never inline, what a modifier node denotes, the closed
+      value lists of `builtin`, `proto` (with `inherited`, whose key may not
+      collide with an own key of the target) and `attrs` (`nonWritable`'s
+      `key` required and naming an existing own data property), and both
+      accessor shapes, `getter` recording its invocation and `setter` with no
+      getter. Two fields the matrix step needs on every vector: a stable
+      `id`, and a `class` naming the branch it covers, one per emitting
+      branch, production alternative or class endpoint with its own code
+      path. Beside it, `fjs/media/datajs/vectors/module.f.mjs`: the schema
+      as an [`fjs/rtti`](../../../fjs/rtti/README.md) type, `decode` from
+      the JSON value to the graph with the recipes applied in table order,
+      and its round-trip proof — encode a graph with sharing, decode it,
+      assert the sharing survives — plus decision 2 verified on every CI
+      runtime. It lands first because it is the part two consumers can
+      silently disagree about.
+- [ ] **Reader accept, code-unit form.** Derived production by production
+      from the grammar as the section above lists it: every alternative,
+      both ends of every character class at every fixed position, the empty
+      branch of every repetition, the signed twin of every number and bigint,
+      the key twin of every string, the whitespace-like scalars inside a
+      string, the surrogate cases, the array-index key order with both sides
+      of each boundary, the shortest document and the document's own edges.
+      Proved against the reader as it lands.
+- [ ] **Reader reject, code-unit form.** The narrowing vectors derived from
+      the spec's six narrowing sources — strings, numbers, identifiers,
+      whitespace, the document rule, and every production of the grammar —
+      each carrying its classification, grammar-only or narrowing, from the
+      measurement the section above records; every one checked for a second
+      ground of refusal before it is committed. Proved against the reader as
+      it lands.
+- [ ] **The byte form.** The accept table by lead partition with the
+      continuation positions varied, the reject table with both ends of
+      every error class, the non-continuation matrix, and the BOM as the
+      first byte, each malformed sequence inside an otherwise valid string.
+      The set lands as data; its proof waits on stage 4's `tryParseBytes`,
+      and that step, not this one, runs it.
+- [ ] **Serializer accept and graph equivalence.** Every leaf and container
+      shape of the data model, the three sharing shapes and their four
+      unshared inverses, the host variations on both container kinds, the
+      escaping classes and width boundaries with key twins, `__proto__` as
+      data; each vector asserting a valid document denoting the input and
+      never a spelling. Proof waits on stage 4's serializer.
+- [ ] **Serializer reject.** The recipes below the root, on both container
+      kinds as targets and as parents, the six cycles, both accessor shapes
+      with the getter's invocation asserted absent, the non-`Date` built-in
+      with no own properties; each checked for one reason of refusal. Proof
+      waits on stage 4's serializer.
+- [ ] **Normalize.** Graph inputs with exact bytes: hoisting in both
+      directions, post-order naming through `$10` and across all four
+      parent-child kinds, every `QuoteJSONString` branch with both ends at
+      each digit position, the encoder's width transitions, the number
+      spellings with `-0` and the thresholds and the shortest-digits rule,
+      `-0n`, the required space after every root shape; every expected byte
+      string run through the accept grammar before it is committed. Proof
+      waits on stage 4's normalized serializer.
+- [ ] **The class-by-role matrix.** Generated by `npm run gen` from the
+      vectors' `class` and set into `spec/datajs/vectors/matrix.md`, rows
+      the classes, columns the three roles, a cell the vector ids or an
+      explicit "not applicable, because…" carried in the corpus; the
+      generator refuses a class with an empty cell and no reason. Prose could
+      not do this job, which four consecutive review rounds showed.
+- [ ] **The JavaScript whole-set check**, per decision 6. The
+      FunctionalScript one is stage 6's, once stage 5 has taught the front
+      end `;` and the special numbers.
+- [ ] **The spec's three answers**, per decisions 3, 4 and 5, in
+      `spec/datajs/README.md` — one pull request, as soon as the owner has
+      decided, since nothing above waits on it but one reject vector does.
+- [ ] **Hand over.** `spec/datajs/README.md`'s Conformance section links the
+      corpus instead of this file; stage 4's issue and the stage 6 task in
+      [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
+      name the corpus as their proof source; the corpus README carries the
+      design decisions this file records that no vector states — the
+      one-reason rule, the placement rules, the derivation rules, the
+      per-role rule — and this file is deleted.
 
 ### Related
 
