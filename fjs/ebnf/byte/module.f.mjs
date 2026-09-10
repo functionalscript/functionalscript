@@ -114,9 +114,12 @@ const isAscii = s => toArray(stringToCodePointList(s)).every(c => c < 0x80)
 /**
  * Refuses a rule the lowering met that reaches past the alphabet: a string
  * that is not ASCII, a symbol that is not a byte, a set with a boundary
- * past the byte universe. A tuple, a variant, a repeat and a `const` thunk
- * carry no symbol of their own, and the rules under them are met on their
- * own. EOF's set, `[-1, 0]`, is within every boundary a byte set has.
+ * past the byte universe. A tuple, a variant and a repeat carry no symbol
+ * of their own, and the rules under them are met on their own. A `const`
+ * thunk's payload is not: the lowering names the payload under the thunk
+ * and never registers it, so the thunk *is* the payload here, and a bare
+ * string or number behind one is checked as if it were the key. EOF's set,
+ * `[-1, 0]`, is within every boundary a byte set has.
  *
  * @type {(rule: Rule) => void}
  */
@@ -130,6 +133,8 @@ const check = rule => {
         if (info[0] === 'set') {
             const [, ...s] = info
             assert(s.every(b => b <= byteEnd), ['a set in a byte grammar holds bytes only', s])
+        } else if (info[0] === 'const') {
+            check(info[1])
         }
     }
 }
@@ -141,7 +146,9 @@ const check = rule => {
  *
  * The check runs over the identity map `toData` returns, which is keyed by
  * every rule the lowering met — a string literal included, so the literal
- * is checked as the text it is, before its code points become sets. A text
+ * is checked as the text it is, before its code points become sets. The one
+ * rule the map does not key is a `const` thunk's payload, which the
+ * lowering names under the thunk; the check follows the thunk to it. A text
  * argument to `set` or `range` is lowered eagerly by its constructor and
  * cannot be seen here: `set('é')` reaches the map as the set `[233, 234]`,
  * which is `bytes(0xE9)` spelled another way, and is accepted as that.

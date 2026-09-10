@@ -140,6 +140,10 @@ export const proof = {
             stringUnderRepeat: () => byteParser(times(2)('a€')),
             symbol: () => byteParser(0x100),
             negativeSymbol: () => byteParser(['a', -1]),
+            // A `const` thunk's bare payload is never a key of the map,
+            // so the check follows the thunk to it.
+            constString: () => byteParser(() => ['const', 'é']),
+            constSymbol: () => byteParser(() => ['const', 0x100]),
             set: () => byteParser(range(` ${unicodeMax}`)),
             rangeEncode: () => byteParser({ a: 'a', b: rangeEncode(0xFF, 0x100) }),
         },
