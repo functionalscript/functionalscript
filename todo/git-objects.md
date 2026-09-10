@@ -387,8 +387,13 @@ approximated:
 - [x] `fjs/git/ident/`: the ident grammar as a `try*` over a header value —
       shipped as [`fjs/git/ident/`](../fjs/git/ident/module.f.mjs), with
       the writer.
-- [ ] `fjs/git/commit/`, `fjs/git/tag/`, `fjs/git/tree/`: grammar, mappings,
-      `validate`, and the writer for each, parameterized by the id width.
+- [x] `fjs/git/tree/`: grammar, mapping, `validate`, and the writer,
+      parameterized by the id width — shipped as
+      [`fjs/git/tree/`](../fjs/git/tree/module.f.mjs); the proof reads the
+      root tree of a commit of this repository and writes it back byte for
+      byte.
+- [ ] `fjs/git/commit/`, `fjs/git/tag/`: known fields as functions over the
+      header list, `validate`, and the writer for each.
 - [ ] Proofs over real objects: capture a handful with `git cat-file` once
       — a merge commit with `gpgsig` and `mergetag`, a signed tag, a tree
       with every mode, a SHA-256 object — and check them in as byte
