@@ -80,8 +80,9 @@ inputs over git (the session's GitHub proxy refuses the tarballs Nix would ask
 for), enters the shell once so that everything it needs is downloaded, and
 exports the shell's `PATH` to the session. The first session pays for the
 downloads; the container is cached afterwards, and the next one starts in
-seconds. The hook does nothing outside the web environment — locally, run
-`./dev.sh` yourself.
+seconds. The hook is for the web environment only: on a developer's machine,
+which may be Windows, it exits before doing anything, and you run `./dev.sh`
+yourself if you want the shell.
 
 ### Node test-runner compatibility
 

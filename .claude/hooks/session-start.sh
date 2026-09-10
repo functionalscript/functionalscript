@@ -7,6 +7,10 @@
 # sees what `./dev.sh` gives a developer and `./nix/run` gives CI. The
 # container is cached once the hook completes, so the next session skips
 # the install and the downloads.
+#
+# Only the web environment gets this. A developer's machine keeps whatever
+# it has — it may be Windows, where Nix does not run — so the hook exits
+# before doing anything when the session is not remote.
 set -euo pipefail
 
 if [ "${CLAUDE_CODE_REMOTE:-}" != "true" ]; then
