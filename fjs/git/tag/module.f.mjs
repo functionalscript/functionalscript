@@ -103,7 +103,9 @@ const isComponent = component =>
  */
 const components = name => {
     const slashes = name.flatMap((b, i) => b === slash ? [i] : [])
+    /** @type {readonly number[]} */
     const starts = [0, ...slashes.map(i => i + 1)]
+    /** @type {readonly number[]} */
     const ends = [...slashes, name.length]
     return starts.map((start, i) => name.slice(start, ends[i]))
 }
