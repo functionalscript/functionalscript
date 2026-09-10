@@ -9,6 +9,7 @@
  * @module
  *
  * @import { RangeSet } from '../types/range_set/types.ts'
+ * @import { StringMap } from '../types/object/types.ts'
  * @import { Info, Set, Rule, Repeat, Option, RepeatFrom, Times } from './types.ts'
  */
 
@@ -16,9 +17,11 @@ import { assert } from "../asserts/module.f.mjs"
 import { codePointListToString, stringToCodePointList } from "../text/utf16/module.f.mjs"
 import { isFixedArray } from "../types/array/module.f.mjs"
 import { toArray } from "../types/list/module.f.mjs"
+import { definedEntries } from "../types/object/module.f.mjs"
 import { complement, empty, fromRange, intersection, union as setUnion } from "../types/range_set/module.f.mjs"
 
 const { isSafeInteger } = Number
+const { fromEntries } = Object
 
 const isFixedArray2 =
     isFixedArray(2)
@@ -155,6 +158,73 @@ export const option = rule => () => ['repeat', 0, 1, rule]
  *  Option<readonly[R, RepeatFrom<0, readonly[S, R]>]>}
  */
 export const join = s => r => option([r, repeatFrom0([s, r])])
+
+/**
+ * The subtree of the words that begin here: each word is the tail left
+ * after the characters above, and an empty tail marks a word that ends
+ * here. At least one word, and no word twice.
+ *
+ * @type {(words: readonly (readonly number[])[]) => Rule}
+ */
+const node = words => {
+    /** @type {StringMap<readonly (readonly number[])[]>} */
+    const groups = words
+        .filter(w => w.length !== 0)
+        .reduce(
+            /** @type {(m: StringMap<readonly (readonly number[])[]>, w: readonly number[]) => StringMap<readonly (readonly number[])[]>} */
+            ((m, [c, ...tail]) => {
+                const k = codePointListToString([c])
+                return { ...m, [k]: [...(m[k] ?? []), tail] }
+            }),
+            {})
+    // A branch is its character alone where the one word through it ends
+    // right there, and the character then the subtree of what goes on.
+    const branches = fromEntries(definedEntries(groups).map(([k, tails]) =>
+        [k, tails.every(tail => tail.length === 0) ? k : [k, node(tails)]]))
+    return words.some(w => w.length === 0) ? option(branches) : branches
+}
+
+/**
+ * One of the words, the longest the lookahead leads to: the words as a
+ * prefix tree.
+ *
+ * A variant of the words is not LL(1) where two share a first character —
+ * `=`, `==` and `===` begin alike, and one symbol of lookahead cannot pick
+ * one — but it can decide whether to go on, so the tree asks that instead:
+ * each node is a variant keyed by the next character, optional where a
+ * word ends there and longer words continue. An optional round starts
+ * whenever the lookahead is in its first set, so a parse reads the longest
+ * word, which is what a tokenizer means by maximal munch.
+ *
+ * Going on is decided on one symbol and never undone, as every LL(1)
+ * choice is. Where the words have a gap — `.` and `...` with no `..` —
+ * the second `.` commits to `...`, so `..x` is refused at the `x` rather
+ * than read as `.` twice: the shorter word is not a fallback, since a
+ * fallback is a second reading and this backend takes one. A grammar that
+ * wants `..` as two words says so in the list.
+ *
+ * What follows the rule in a grammar may not begin with a character that
+ * continues a word: `literals(['a', 'ab'])` then `'b'` reads `ab` two
+ * ways, and the backend refuses it as the first/follow conflict it is. A
+ * one-token grammar has nothing after it, and that is where this belongs.
+ *
+ * The tree is the words' own structure, so the node a match builds is
+ * nested — the word's characters down its branches — and a mapping reads
+ * the word back as the symbols under the node, as `lexeme` in
+ * `fjs/media/json/parser` does.
+ *
+ * @throws On no words, on an empty word — a rule that may match nothing
+ * decides nothing, and a token is never empty — and on a word spelled
+ * twice.
+ *
+ * @type {(words: readonly string[]) => Rule}
+ */
+export const literals = words => {
+    assert(words.length !== 0)
+    assert(words.every(w => w !== ''))
+    assert(new Set(words).size === words.length)
+    return node(words.map(w => toArray(stringToCodePointList(w))))
+}
 
 /**
  * The end of input, as a rule. A grammar that must consume the whole input

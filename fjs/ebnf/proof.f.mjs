@@ -6,6 +6,7 @@ import { assertStructurallySame } from '../asserts/module.f.mjs'
 import {
     eof,
     join,
+    literals,
     option,
     range,
     rangeEncode,
@@ -164,7 +165,32 @@ export const proof = {
             force(join(',')('a')),
             ['repeat', 0, 1, ['a', ['repeat', 0, Infinity, [',', 'a']]]])
     },
+    // A word list is a prefix tree: a variant keyed by the next character,
+    // optional where a word ends and longer words go on, and a character
+    // alone where the one word through it ends right there.
+    literals: {
+        tree: () => {
+            assertStructurallySame(
+                force(literals(['=', '==', '=>', '!'])),
+                { '=': ['=', ['repeat', 0, 1, { '=': '=', '>': '>' }]], '!': '!' })
+        },
+        // Order does not matter: the tree is the words', not the list's.
+        order: () => {
+            assertStructurallySame(force(literals(['===', '=', '=='])), force(literals(['=', '==', '==='])))
+        },
+        // A branch is one word's whole tail, however long, and an astral
+        // character is one branch, not two.
+        deep: () => {
+            assertStructurallySame(force(literals(['abc'])), { a: ['a', { b: ['b', { c: 'c' }] }] })
+            assertStructurallySame(force(literals([unicodeMax])), { [unicodeMax]: unicodeMax })
+        },
+    },
     throw: {
+        // A word list holds at least one word, no empty word — a rule that
+        // may match nothing decides nothing — and no word twice.
+        literalsRejectsNone: () => literals([]),
+        literalsRejectsEmptyWord: () => literals(['a', '']),
+        literalsRejectsRepeated: () => literals(['a', 'b', 'a']),
         // `range` takes exactly two symbols: one is not a range, and three is
         // not one either.
         rangeRejectsOne: () => range('a'),
