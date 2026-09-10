@@ -74,8 +74,8 @@ Item 1 is context rather than work. **Item 2 is what to start.**
 2. **Start here: stage 1b, the conformance vectors**
    ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)).
    *Why here:* it is stage 4's proof source, so landing stage 4 first means
-   writing its proofs twice. The corpus bootstraps in JSON precisely so it can
-   exist before any DataJS reader does. It is *not* a prerequisite of stage 3,
+   writing its proofs twice. The corpus is FunctionalScript data modules the
+   engine reads, so it exists before any DataJS reader does. It is *not* a prerequisite of stage 3,
    which is JSON's own tokenizer and settles its own accepted set with JSON's
    own proofs — unchanged but for one enumerated defect, an `n` today's
    tokenizer deletes from inside a number.
@@ -544,8 +544,8 @@ JSON's and inherits the boundary resolution 3b owes. Either way stage 4 stays
 close behind 3b, to keep the shared rules honest.
 
 Stage 1b (the conformance vectors) is stage 4's other dependency, and not
-stage 3's: it is stage 4's proof source, and its corpus is stored in JSON
-exactly so it can exist before a DataJS reader does. So the dependencies are
+stage 3's: it is stage 4's proof source, and its corpus is FunctionalScript
+data modules exactly so it can exist before a DataJS reader does. So the dependencies are
 1b before 4, and 3b before 4 on the token route — a relationship, not a queue.
 An earlier draft wrote it as an intended order of 3, 1b, 4; that is withdrawn,
 and the order work is picked up in is the next paragraph's.
@@ -555,7 +555,7 @@ Stage 4's first task — choosing that route — waits on nothing and can run
 beside 1b. On the token route stage 4's implementation follows 3b; on the
 grammar route it needs only 1b's corpus and the `fjs/ebnf` items its issue
 names, and 3b proceeds on its own P2 schedule. 1b never depended on stage 3:
-the corpus bootstraps in JSON, and it is indifferent to whether the DataJS
+the corpus is a module the engine reads, and it is indifferent to whether the DataJS
 reader that eventually consumes it is hand-written or generated from a
 grammar. It is P1 where 3b is P2, it needs no decision that has not been made,
 and running it early costs nothing — it still lands before stage 4, which is
@@ -709,8 +709,8 @@ throughout.
       **before stage 4**, which consumes it, since landing stage 4 first means
       writing its proofs twice. It was sequenced after stage 3 for convenience
       rather than dependency, and it goes first because it is P1 where 3b is
-      P2 with its error shapes undecided. The corpus bootstraps in JSON so it
-      needs no DataJS reader to exist.
+      P2 with its error shapes undecided. The corpus is FunctionalScript data
+      modules, so it needs no DataJS reader to exist.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/ebnf/todo/207-bnf-semantic-actions.md)
       repointed at the classical `fjs/bnf/testlib.f.mjs`, since deleted.
