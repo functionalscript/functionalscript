@@ -28,7 +28,7 @@
  *
  * @import { Effect, IoChannel, Operation } from '../../effects/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
- * @import { Tag, TagTarget } from '../tag/types.ts'
+ * @import { TagTarget } from '../tag/types.ts'
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  * @import { TreeEntry } from '../tree/types.ts'
  * @import { _PathItem, _PathState, _PeelItem, _PeelState } from './private.ts'
@@ -39,8 +39,9 @@ import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { equal } from '../../types/list/module.f.mjs'
+import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
 import { tryTreeAt } from '../commit/module.f.mjs'
-import { tryRead as readTag, tryTarget } from '../tag/module.f.mjs'
+import { tryTargetAt } from '../tag/module.f.mjs'
 import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
 
 /**
@@ -69,7 +70,16 @@ const treeAt = (read, entriesOf) => id => mapStep(read(id), e =>
 const same = equal(strictEqual)
 
 /** The peel before it has read anything, and what a refused one answers. */
-const noTarget = /** @type {_PeelState} */ ({ seen: [], target: null })
+const noTarget = /** @type {_PeelState} */ ({ seen: empty, target: null })
+
+/**
+ * The id as the `seen` map keys one. A `Vec` is a whole number carrying its
+ * own length, so its decimal digits name it and nothing else, which is all
+ * a key has to do.
+ *
+ * @type {(id: Oid) => string}
+ */
+const seenKey = id => String(id)
 
 /**
  * One link of {@link peel}'s chain, as {@link walkStep} walks it: the state
@@ -85,36 +95,37 @@ const noTarget = /** @type {_PeelState} */ ({ seen: [], target: null })
  *
  * @template {Operation} O
  * @param {Read<O>} read
- * @param {(t: Tag) => Nullable<TagTarget>} targetOf
+ * @param {(payload: Bytes) => Nullable<TagTarget>} targetAt
  * @param {(payload: Bytes) => Nullable<Oid>} treeAt
  * @returns {(item: _PeelItem) => (state: _PeelState) => Effect<O, readonly [_PeelState, readonly _PeelItem[]], IoChannel>}
  */
-const peelStep = (read, targetOf, treeAt) => ({ id, want }) => state =>
+const peelStep = (read, targetAt, treeAt) => ({ id, want }) => state => {
+    const key = seenKey(id)
     // An id the chain has been through is a cycle, which no store that
     // checks what it reads can answer and a `Read` that does not check can.
-    state.seen.includes(id) ? pureOk([state, []]) : step(read(id), e => {
-        const seen = [...state.seen, id]
+    if (at(key)(state.seen) !== null) { return pureOk([state, []]) }
+    return mapStep(read(id), e => {
+        const seen = setReplace(key)(/** @type {const} */ (true))(state.seen)
         const stop = /** @type {readonly [_PeelState, readonly _PeelItem[]]} */ ([{ seen, target: null }, []])
-        if (e === null) { return pureOk(stop) }
-        if (want !== null && e.type !== want) { return pureOk(stop) }
+        if (e === null) { return stop }
+        if (want !== null && e.type !== want) { return stop }
         // A commit is parsed where the chain stops at one, since Git parses
         // it there too and refuses a tag whose target is no commit — where
         // it leaves a tree's entries and a blob's bytes unread.
         if (e.type !== 'tag') {
-            return pureOk(e.type === 'commit' && treeAt(e.payload) === null
+            return e.type === 'commit' && treeAt(e.payload) === null
                 ? stop
-                : [{ seen, target: { id, envelope: e } }, []])
+                : [{ seen, target: { id, envelope: e } }, []]
         }
-        const t = readTag(e.payload)
-        if (t === null) { return pureOk(stop) }
-        const next = targetOf(t)
+        const next = targetAt(e.payload)
         return next === null
-            ? pureOk(stop)
-            : pureOk(/** @type {readonly [_PeelState, readonly _PeelItem[]]} */([
+            ? stop
+            : /** @type {readonly [_PeelState, readonly _PeelItem[]]} */([
                 { seen, target: null },
                 [{ id: next.id, want: next.type }],
-            ]))
+            ])
     })
+}
 
 /**
  * Follows a tag to what it names, and that tag to what it names: the first
@@ -149,7 +160,7 @@ const peelStep = (read, targetOf, treeAt) => ({ id, want }) => state =>
  * @returns {Step<O, Target>}
  */
 export const peel = (read, oidBytes) => {
-    const f = peelStep(read, tryTarget(oidBytes), tryTreeAt(oidBytes))
+    const f = peelStep(read, tryTargetAt(oidBytes), tryTreeAt(oidBytes))
     return id => mapStep(walkStep(pureOk([{ id, want: null }]), noTarget, f), s => s.target)
 }
 
