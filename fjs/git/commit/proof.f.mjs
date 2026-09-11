@@ -9,7 +9,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { name, object, tagger, type, write as writeTag } from '../tag/module.f.mjs'
 import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.mjs'
-import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, validate, write } from './module.f.mjs'
+import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, tryTreeAt, validate, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Commit} */
 const read = input => {
@@ -146,6 +146,69 @@ export const proof = {
         const last = commit([...lines.slice(0, 2), '', ''])
         assertEq(parents(last).length, 1)
         assertEq(hex(parents(last)[0]), parentId)
+    },
+    // The tree id without the panic, at the repository's width: the id, or
+    // `null` where the first header is not `tree`, its value is no hex id,
+    // or the id is of the other width. For a caller that has not vouched
+    // for the commit, so it refuses where `tree` would panic.
+    tryTree: () => {
+        const c = commit(lines)
+        const id = tryTree(20)(c)
+        assert(id !== null)
+        assertEq(hex(id), treeId)
+        assertEq(tryTree(32)(c), null)
+        assertEq(tryTree(20)(replaced(0, 'tree zz')), null)
+        assertEq(tryTree(20)(without(0)), null)
+    },
+    // The same over bytes rather than a commit, which is the step a caller
+    // holding what a store gave takes: the tree, or `null` where the bytes
+    // are no commit at all as well as where the commit names no tree.
+    tryTreeAt: () => {
+        const at = tryTreeAt(20)
+        const id = at(latin1(lines.join('\n')))
+        assert(id !== null)
+        assertEq(hex(id), treeId)
+        assertEq(at(latin1('junk')), null)
+        // Long enough to get past the floor and still no header block, so
+        // it is the reader that refuses it rather than the length.
+        assertEq(at(latin1('j'.repeat(50))), null)
+        assertEq(at(latin1(['tree zz', ...lines.slice(1)].join('\n'))), null)
+        assertEq(tryTreeAt(32)(latin1(lines.join('\n'))), null)
+        // A `parent` header naming no id of the width refuses it too, since
+        // Git's parse reads the parents as well as the tree.
+        assertEq(at(latin1([lines[0], 'parent zz', ...lines.slice(1)].join('\n'))), null)
+        assert(at(latin1([lines[0], `parent ${treeId}`, ...lines.slice(1)].join('\n'))) !== null)
+        // What the parse does not read is not refused: a commit with no
+        // `author` and no `committer` has a tree all the same.
+        assert(at(latin1([lines[0], '', 'm', ''].join('\n'))) !== null)
+        // The floor Git's parse has before it reads the `tree` header: a
+        // payload of `hexsz + 6` bytes or fewer is refused whatever it
+        // holds, so 47 is the least a SHA-1 commit may be and 71 the least
+        // a SHA-256 one may be. `tree <id>\n` alone is one byte short of
+        // the first, and the empty line that must follow the block is the
+        // byte it is short of.
+        const bare = `tree ${treeId}\n`
+        assertEq(latin1(bare).length, 46)
+        assertEq(at(latin1(bare)), null)
+        assert(at(latin1(`${bare}\n`)) !== null)
+        const wide = `tree ${'a'.repeat(64)}\n`
+        assertEq(latin1(wide).length, 70)
+        assertEq(tryTreeAt(32)(latin1(wide)), null)
+        assert(tryTreeAt(32)(latin1(`${wide}\n`)) !== null)
+        // Git's parent walk wants a byte after the line it is reading, so a
+        // payload ending at the last `parent` line's LF is `bad parents in
+        // commit` however good that id is, and the empty line is the byte
+        // it is short of. Measured on Git 2.43.0: the 94-byte payload is
+        // refused and the 95-byte one peels to its tree.
+        const withParent = `${bare}parent ${parentId}\n`
+        assertEq(latin1(withParent).length, 94)
+        assertEq(at(latin1(withParent)), null)
+        assert(at(latin1(`${withParent}\n`)) !== null)
+        // It is the last parent the walk reached, so two of them end the
+        // same way and one ordinary header after them ends the walk
+        // instead, leaving the payload free to end at its own last LF.
+        assertEq(at(latin1(`${withParent}parent ${parentId}\n`)), null)
+        assert(at(latin1(`${withParent}author ${who}\n`)) !== null)
     },
     // Each refusal, one per rule, on a commit the reader reads.
     validate: () => {
