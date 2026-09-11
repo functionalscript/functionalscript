@@ -6,7 +6,7 @@
 ### Problem
 
 Every case in [`fjs/nanvm/`](../README.md) now denotes an EDAG expression:
-`caseExp`/`lowerEq` in [`module.f.mjs`](../module.f.mjs) derive it, the proof
+`caseExp` in [`module.f.mjs`](../module.f.mjs) derives it, the proof
 validates it against the [`fjs/edag`](../../edag/README.md) schema and
 evaluates it, and [`rust/module.f.mjs`](../rust/module.f.mjs) prints it. That
 makes the corpus the "conformance examples (test vectors) shared by the FJS and
@@ -144,5 +144,5 @@ not a second one beside it.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — positional laziness, and the future `throw` node the non-establishment
   cases need.
-- [`./unify-eq-into-a-group.md`](./unify-eq-into-a-group.md) — the one section
-  of the corpus that is not yet an ordinary group.
+- [`./comparison-cases-table.md`](./comparison-cases-table.md) — the other
+  outstanding corpus work.

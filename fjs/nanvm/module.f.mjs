@@ -14,7 +14,8 @@
  * Beside the data are the format's **constructors** (`functionValue`, `ref`,
  * `throws`), its **eliminators** (`isThrows`, `orders`, `groupKey`,
  * `casesOf`, `arityOf`), and the **lowering** that turns a case into the
- * EDAG expression it denotes (`lambdaExp`, `valueExp`, `caseExp`, `lowerEq`). All
+ * EDAG expression it denotes (`lambdaExp`, `sharedExp`, `valuesExp`,
+ * `valueExp`, `caseExp`). All
  * three exist so that neither consumer has to re-implement a rule of the
  * corpus format: a rule written twice is a rule that drifts.
  *
@@ -31,14 +32,14 @@
  * @module
  *
  * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Op3, Op3Id, Property } from '../edag/types.ts'
- * @import { Case, Data, Eq, Expectation, FunctionValue, Group, LoweredEq, Ref, SharedNode, Throws, Value } from './types.ts'
+ * @import { Case, Data, Expectation, FunctionValue, Group, Ref, SharedNode, Struct, Throws, Value } from './types.ts'
  *
  * @example
  *
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 27
+ * data.groups.length // 28
  * ```
  */
 
@@ -74,8 +75,8 @@ export const functionValue = () => ['function']
 export const throws = () => ['throw']
 
 /**
- * One of the `eq` `shared` values, so the same node — and hence the same
- * object — reaches both sides of a comparison.
+ * One of `data.shared`'s values, so the same node — and hence the same
+ * object — reaches every `ref` to that name.
  *
  * @type {(name: string) => Ref}
  */
@@ -209,8 +210,9 @@ const constExp = resolve => {
 }
 
 /**
- * The expression a value denotes, where nothing is shared. Every operand
- * outside the `eq` section, and every `expected`, is such a value.
+ * The expression a value denotes, where nothing is shared. Every `expected`
+ * is such a value: an expectation describes an outcome, and an outcome is
+ * never one of the corpus's shared objects.
  *
  * @type {(v: Value) => Exp}
  */
@@ -220,9 +222,16 @@ export const valueExp = constExp(name => { throw ['no shared value here', name] 
  * The expression a case denotes: the group's operation applied to its lowered
  * operands, so `mulCases[0]` is `['*', null, null]`.
  *
- * @type {(g: Group) => (args: readonly Value[]) => Exp}
+ * The shared nodes come first because an operand may be a `ref` to one, and
+ * two `ref`s to a name must lower to one node rather than two equal ones —
+ * which is the whole of what the `'==='` group's `byItself` cases assert.
+ * Both consumers hand over the corpus's nodes for every group alike. A
+ * group with no `ref` among its operands reaches none of them, which is what
+ * makes that uniform rather than wasteful.
+ *
+ * @type {(shared: readonly SharedNode[]) => (g: Group) => (args: readonly Value[]) => Exp}
  */
-export const caseExp = g => args => {
+export const caseExp = shared => g => args => {
     // The operand count comes from the group, not from the operands. A
     // `Case<N>` cannot carry the wrong number, but this function is exported
     // and its `args` are a plain array, so a caller can hand over a count the
@@ -230,7 +239,7 @@ export const caseExp = g => args => {
     // that fails the `exp` schema.
     const n = arityOf(g)
     if (args.length !== n) { throw ['wrong operand count for', g.op, args] }
-    const [a, b, c] = args.map(valueExp)
+    const [a, b, c] = args.map(valuesExp(shared))
     // `n` decides which vocabularies the tag can be in, and the check above
     // makes that agree with the operands. The casts are that step and nothing
     // more: an `Op12Id` is legal at either of the first two counts, so it is
@@ -245,38 +254,39 @@ export const caseExp = g => args => {
 }
 
 /**
- * Lowers the `eq` section: its `shared` values as nodes, and every case
- * beside the `'==='` expression it denotes over them.
+ * The node a shared name is bound to, among the ones bound before it.
  *
- * `eq` is the case's `expected` and so is no part of the expression; what is
- * left is an ordinary binary operation, which is why the `eq` cases validate
- * and evaluate through exactly the same path as a group's.
- *
- * @type {(eq: Eq) => LoweredEq}
+ * @type {(done: readonly SharedNode[]) => (name: string) => Exp}
  */
-export const lowerEq = eq => {
-    /** @type {(done: readonly SharedNode[]) => (name: string) => Exp} */
-    const resolve = done => name => {
-        const found = done.find(([k]) => k === name)
-        if (found === undefined) { throw ['unknown shared value', name] }
-        return found[1]
-    }
-    // Each shared value is lowered against the ones already lowered, so a
-    // `ref` inside one reaches the node an earlier entry bound and sharing
-    // nests. A name is in scope only after its own entry, which is what makes
-    // a forward reference — and with it a cycle, which no EDAG may have —
-    // unspellable rather than something to detect.
-    /** @type {readonly SharedNode[]} */
-    const shared = entries(eq.shared).reduce(
-        (/** @type {readonly SharedNode[]} */ done, [k, v]) =>
-            [...done, /** @type {SharedNode} */ ([k, constExp(resolve(done))(v)])],
-        [])
-    const operand = constExp(resolve(shared))
-    return {
-        shared,
-        cases: eq.cases.map(c => [c, ['===', operand(c.a), operand(c.b)]]),
-    }
+const resolve = done => name => {
+    const found = done.find(([k]) => k === name)
+    if (found === undefined) { throw ['unknown shared value', name] }
+    return found[1]
 }
+
+/**
+ * A corpus's shared values as nodes, in order.
+ *
+ * Each is lowered against the ones already lowered, so a `ref` inside one
+ * reaches the node an earlier entry bound and sharing nests. A name is in
+ * scope only after its own entry, which is what makes a forward reference —
+ * and with it a cycle, which no EDAG may have — unspellable rather than
+ * something to detect.
+ *
+ * @type {(shared: Struct) => readonly SharedNode[]}
+ */
+export const sharedExp = shared => entries(shared).reduce(
+    (/** @type {readonly SharedNode[]} */ done, [k, v]) =>
+        [...done, /** @type {SharedNode} */ ([k, constExp(resolve(done))(v)])],
+    [])
+
+/**
+ * The expression a value denotes, with `ref` resolving against the given
+ * shared nodes. Every operand of a case is such a value.
+ *
+ * @type {(shared: readonly SharedNode[]) => (v: Value) => Exp}
+ */
+export const valuesExp = shared => constExp(resolve(shared))
 
 /**
  * `+n` and `-n` share their whole argument space: both coerce with `ToNumber`
@@ -927,7 +937,7 @@ const notCases = [
  * itself, not a derived primitive. That is observable only for a reference
  * type (array, object, function): `Object.is`/`===` compare those by
  * identity, and the corpus lowers each operand to a node of its own (nothing
- * outside the `eq` section's `ref`s aliases two nodes), so a case whose
+ * outside a `ref` aliases two nodes), so a case whose
  * `expected` needs to be *the same* array, object, or function the operand
  * built would compare unequal to a freshly-lowered copy. Every case below is
  * chosen so a reference-typed operand is only ever on the *discarded* side —
@@ -1457,52 +1467,67 @@ const ownCases = [
     { name: 'nonStringKeyThrows', args: [{ 1: 42 }, 1], expected: throws },
 ]
 
+/**
+ * The values the corpus shares: each is one node, so two `ref`s to a name are
+ * one node reached twice and the object that node establishes is one object.
+ * Reference equality is what the `'==='` group's `byItself` cases are about,
+ * and this is the only way to write it.
+ *
+ * @type {Struct}
+ */
+const sharedValues = {
+    emptyArray: [],
+    stringArray: ['0'],
+    object: { '0': '0' },
+}
+
 /** @type {Data} */
 export const data = {
-    eq: {
-        shared: {
-            emptyArray: [],
-            stringArray: ['0'],
-            object: { '0': '0' },
-        },
-        cases: [
-            { name: 'nullByNull', a: null, b: null, eq: true },
-            { name: 'undefinedByUndefined', a: undefined, b: undefined, eq: true },
-            { name: 'nullByUndefined', a: null, b: undefined, eq: false },
-            { name: 'trueByTrue', a: true, b: true, eq: true },
-            { name: 'falseByFalse', a: false, b: false, eq: true },
-            { name: 'trueByFalse', a: true, b: false, eq: false },
-            { name: 'falseByUndefined', a: false, b: undefined, eq: false },
-            { name: 'falseByNull', a: false, b: null, eq: false },
-            { name: 'numberBySameNumber', a: 2.3, b: 2.3, eq: true },
-            { name: 'numberByOtherNumber', a: 2.3, b: -5.4, eq: false },
-            { name: 'nanByNan', a: NaN, b: NaN, eq: false },
-            { name: 'zeroByNegativeZero', a: 0, b: -0, eq: true },
-            { name: 'infinityByInfinity', a: Infinity, b: Infinity, eq: true },
-            {
-                name: 'negativeInfinityByNegativeInfinity',
-                a: -Infinity,
-                b: -Infinity,
-                eq: true,
-            },
-            { name: 'infinityByNegativeInfinity', a: Infinity, b: -Infinity, eq: false },
-            { name: 'undefinedByNan', a: undefined, b: NaN, eq: false },
-            { name: 'undefinedByZero', a: undefined, b: 0, eq: false },
-            { name: 'stringBySameString', a: 'hello', b: 'hello', eq: true },
-            { name: 'stringByOtherString', a: 'hello', b: 'world', eq: false },
-            { name: 'zeroByStringZero', a: 0, b: '0', eq: false },
-            { name: 'bigintBySameBigint', a: 12n, b: 12n, eq: true },
-            { name: 'bigintByNegatedBigint', a: 12n, b: -12n, eq: false },
-            { name: 'bigintByOtherBigint', a: 12n, b: 13n, eq: false },
-            { name: 'twelveByStringTwelve', a: 12n, b: '12', eq: false },
-            { name: 'arrayByItself', a: ref('emptyArray'), b: ref('emptyArray'), eq: true },
-            { name: 'arrayByEqualArray', a: [], b: [], eq: false },
-            { name: 'stringArrayByItself', a: ref('stringArray'), b: ref('stringArray'), eq: true },
-            { name: 'objectByItself', a: ref('object'), b: ref('object'), eq: true },
-            { name: 'objectByEqualObject', a: ref('object'), b: { '0': '0' }, eq: false },
-        ],
-    },
+    shared: sharedValues,
     groups: [
+        {
+            // Strict equality, the one group whose operands reach
+            // {@link Data.shared}. `commutative` checks each case both ways
+            // round, which is what the Rust harness's `check_eq` used to do
+            // inside one assertion.
+            op: '===',
+            commutative: true,
+            cases: [
+                { name: 'nullByNull', args: [null, null], expected: true },
+                { name: 'undefinedByUndefined', args: [undefined, undefined], expected: true },
+                { name: 'nullByUndefined', args: [null, undefined], expected: false },
+                { name: 'trueByTrue', args: [true, true], expected: true },
+                { name: 'falseByFalse', args: [false, false], expected: true },
+                { name: 'trueByFalse', args: [true, false], expected: false },
+                { name: 'falseByUndefined', args: [false, undefined], expected: false },
+                { name: 'falseByNull', args: [false, null], expected: false },
+                { name: 'numberBySameNumber', args: [2.3, 2.3], expected: true },
+                { name: 'numberByOtherNumber', args: [2.3, -5.4], expected: false },
+                { name: 'nanByNan', args: [NaN, NaN], expected: false },
+                { name: 'zeroByNegativeZero', args: [0, -0], expected: true },
+                { name: 'infinityByInfinity', args: [Infinity, Infinity], expected: true },
+                {
+                    name: 'negativeInfinityByNegativeInfinity',
+                    args: [-Infinity, -Infinity],
+                    expected: true,
+                },
+                { name: 'infinityByNegativeInfinity', args: [Infinity, -Infinity], expected: false },
+                { name: 'undefinedByNan', args: [undefined, NaN], expected: false },
+                { name: 'undefinedByZero', args: [undefined, 0], expected: false },
+                { name: 'stringBySameString', args: ['hello', 'hello'], expected: true },
+                { name: 'stringByOtherString', args: ['hello', 'world'], expected: false },
+                { name: 'zeroByStringZero', args: [0, '0'], expected: false },
+                { name: 'bigintBySameBigint', args: [12n, 12n], expected: true },
+                { name: 'bigintByNegatedBigint', args: [12n, -12n], expected: false },
+                { name: 'bigintByOtherBigint', args: [12n, 13n], expected: false },
+                { name: 'twelveByStringTwelve', args: [12n, '12'], expected: false },
+                { name: 'arrayByItself', args: [ref('emptyArray'), ref('emptyArray')], expected: true },
+                { name: 'arrayByEqualArray', args: [[], []], expected: false },
+                { name: 'stringArrayByItself', args: [ref('stringArray'), ref('stringArray')], expected: true },
+                { name: 'objectByItself', args: [ref('object'), ref('object')], expected: true },
+                { name: 'objectByEqualObject', args: [ref('object'), { '0': '0' }], expected: false },
+            ],
+        },
         {
             // JS unary plus, not the `Number` cast: the two differ on a
             // bigint, which `+` refuses and `Number` converts.
