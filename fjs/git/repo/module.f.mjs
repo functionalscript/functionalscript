@@ -225,12 +225,10 @@ const against = (dir, path) => isAbsolute(path) ? path : under(dir, path)
  * A `commondir` that is not a regular file is `null` and is never opened,
  * for the reason a `.git` that is not one is never opened — a FIFO read
  * waits for a writer a repository has no reason to have. Here that is a
- * departure from Git rather than a copy of it: Git `fopen`s this file
- * without asking `S_ISREG` first, so `git rev-parse --git-common-dir` in
- * a worktree whose `commondir` is a FIFO does not return at all, measured
- * on Git 2.43.0. A caller of this gets an answer instead, and the answer
- * is the one a readable file of that shape would have earned: no common
- * directory this can name.
+ * departure from Git rather than a copy of it, since Git opens this file
+ * without asking what it is; a caller of this gets an answer instead, and
+ * the answer is the one a readable file of that shape would have earned:
+ * no common directory this can name.
  *
  * @type {(repo: string) => Effect<ReadFile | Stat, Nullable<string>, IoChannel>}
  */
