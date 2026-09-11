@@ -1,4 +1,4 @@
-## inert-type-level-proofs. 62 `Assert<…>` typedefs in proofs check nothing
+## inert-type-level-proofs. 70 `Assert<…>` typedefs in proofs check nothing
 
 **Priority:** P2
 **Status:** open
@@ -41,26 +41,30 @@ This is the failure §1.4 already warns about in its other form: it forbids
 `true as _Predicate` because "the assertion compiles no matter what the
 predicate resolved to".
 
-**The count, measured rather than grepped.** Every single-line `Assert`
-typedef in the repository was falsified at once — its claim replaced by
-`Assert<Equal<1, 2>>`, its name kept so references still resolve — and `tsc`
-run once. A checked one reports TS2344 at its own line; an inert one says
-nothing. Of **116 across 23 files, 54 are checked and 62 are inert**, in nine
-files:
+**The count, measured rather than grepped.** Every `Assert` typedef in the
+repository was falsified — the 116 single-line ones by replacing the claim
+with `Assert<Equal<1, 2>>` and keeping the name so references still resolve,
+the 9 multi-line ones by replacing their first type argument — and `tsc` run
+over the falsified tree. A checked one reports TS2344 at its own line; an
+inert one says nothing. Of **125 across 23 files, 55 are checked and 70 are
+inert**, in ten files:
 
 | file | inert |
 | --- | --: |
 | `fjs/edag/proof.f.mjs` | 28 |
 | `fjs/rtti/ts/proof.f.mjs` | 9 |
-| `fjs/edag/amnesia/proof.f.mjs` | 8 |
+| `fjs/edag/amnesia/proof.f.mjs`, `fjs/effects/proof.f.mjs` | 8 each |
 | `fjs/types/object/proof.f.mjs`, `fjs/djs/parser/grammar/proof.f.mjs` | 4 each |
 | `fjs/ebnf/byte/proof.f.mjs` | 3 |
 | `fjs/media/json/schema/proof.f.mjs`, `fjs/media/revision/proof.f.mjs`, `fjs/rtti/proof.f.mjs` | 2 each |
 
-The earlier table counted every typedef in a proof file, including the 54 that
-work. `fjs/effects/proof.f.mjs`, `fjs/rtti/parse/proof.f.mjs`,
-`fjs/rtti/validate/proof.f.mjs` and six others named there have none inert at
-all.
+The first table counted every typedef in a proof file, including the 55 that
+work: `fjs/rtti/parse/proof.f.mjs`, `fjs/rtti/validate/proof.f.mjs`,
+`fjs/types/result/proof.f.mjs`, `fjs/types/nullable/proof.f.mjs`,
+`fjs/protocol/mcp/proof.f.mjs` and `fjs/js/keywords/proof.f.mjs` have none
+inert. `fjs/effects/proof.f.mjs` does, all eight, and every one is
+multi-line — its `signatures` entry ends with them, which is the inert shape
+exactly. §3.2 named that entry alongside `consistency` as a model to follow.
 
 Each inert one is a green leaf asserting nothing. Worse than an absent check: a leaf that
 cannot fail is indistinguishable from one that passes, and it survives the
@@ -120,8 +124,8 @@ number moved.
 - [x] Correct `fjs/AGENTS.md` §3.2 and §1.4: §3.2 no longer calls a
       function-local typedef the normal home for a proof, and §1.4 states the
       binding rule, the measured table, and where a proof belongs.
-- [ ] Move the 24 `fjs/edag/proof.f.mjs` assertions into `fjs/edag/types.ts`,
-      falsifying each once to prove the moved form fails. Three chain-state
+- [ ] Move all 28 inert `fjs/edag/proof.f.mjs` assertions into
+      `fjs/edag/types.ts`, falsifying each once to prove the moved form fails. Three chain-state
       pins are already there, added beside the unions they are about when
       `regionProductions` landed: `OptionLambda` and `PropertyLambda` are
       inside `OptionPropertyLambda`, and the wider state adds exactly three
@@ -129,9 +133,8 @@ number moved.
       `_OptionLambda` and `_OptionPropertyLambda` without replacing them —
       those pin the schema against the type, these pin the types to each
       other.
-- [ ] The same for the remaining eight files in the table, a directory at a
-      time. Six files the first count named have nothing inert and need no
-      work.
+- [ ] The same for the other nine files in the table, a directory at a time.
+      Six files the first count named have nothing inert and need no work.
 - [ ] `tsc` and `fjs test` clean after each, and the sweep's inert count
       down by the number moved.
 

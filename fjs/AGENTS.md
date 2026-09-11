@@ -110,11 +110,12 @@ constraint is never resolved. `/** @typedef {Assert<Equal<1, 2>>} _Bad */` as
 the last thing in a function body compiles. Put any statement after it and the
 same line is TS2344.
 
-So a proof entry whose body is *nothing but* typedefs checks nothing at all —
-which is what `fjs/edag/proof.f.mjs`'s `consistency` is, and why all 28 of its
-`Assert<Check<…>>` pins are green whatever they claim. Where a typedef is
-followed by an `assert` call, as in `fjs/ebnf/ll1/proof.f.mjs`'s
-`constParameter`, it is checked and does its job.
+So a proof entry that *ends* with its typedefs checks nothing from there on.
+That is what `fjs/edag/proof.f.mjs`'s `consistency` is — a body of nothing but
+typedefs, all 28 of its `Assert<Check<…>>` pins green whatever they claim —
+and `fjs/effects/proof.f.mjs`'s `signatures`, whose last eight go the same
+way. Where a typedef is followed by an `assert` call, as in
+`fjs/ebnf/ll1/proof.f.mjs`'s `constParameter`, it is checked and does its job.
 
 **Prefer module scope in a `.ts` file**, where a type alias is resolved
 whether or not anything follows or references it, so the claim cannot be
