@@ -31,10 +31,10 @@
  * @import { Tag } from '../tag/types.ts'
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  * @import { TreeEntry } from '../tree/types.ts'
- * @import { Entry, Read, Step, Target } from './types.ts'
+ * @import { Entry, PathItem, PathState, PeelItem, PeelState, Read, Step, Target } from './types.ts'
  */
 
-import { pureOk, step } from '../../effects/module.f.mjs'
+import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { tryRead as readCommit, tryTree } from '../commit/module.f.mjs'
 import { tryObject, tryRead as readTag, tryType } from '../tag/module.f.mjs'
@@ -63,31 +63,42 @@ const treeAt = (read, entriesOf) => id => step(read(id), e =>
  */
 const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
 
+/** The peel before it has read anything, and what a refused one answers. */
+const noTarget = /** @type {PeelState} */ ({ seen: [], target: null })
+
 /**
- * One step of {@link peel}, module-scoped with what it reads through given
- * rather than captured: `seen` is the ids the chain has been through and
- * `want` the type the tag that named this id declared for it, `null` at
- * the chain's head, where nothing has declared one.
+ * One link of {@link peel}'s chain, as {@link walkStep} walks it: the state
+ * after this id is read, and the id the tag it holds names, which the walk
+ * takes next. A link that refuses names none, so the walk runs out of
+ * items and ends.
+ *
+ * It is a walk rather than a recursion because a chain read through a
+ * `Read` that answers values — an in-memory store, a proof's — would
+ * otherwise be followed by {@link step} calling its own continuation, one
+ * or two frames per tag, and a two-thousand-tag chain exhausted the stack.
+ * `walkStep`'s loop is flat in the item count whatever the `Read` answers.
  *
  * @template {Operation} O
  * @param {Read<O>} read
  * @param {(t: Tag) => Nullable<Oid>} objectOf
- * @returns {(seen: readonly Oid[], want: Nullable<ObjectType>) => Step<O, Target>}
+ * @returns {(item: PeelItem) => (state: PeelState) => Effect<O, readonly [PeelState, readonly PeelItem[]], IoChannel>}
  */
-const peelFrom = (read, objectOf) => (seen, want) => id =>
+const peelStep = (read, objectOf) => ({ id, want }) => state =>
     // An id the chain has been through is a cycle, which no store that
     // checks what it reads can answer and a `Read` that does not check can.
-    seen.includes(id) ? pureOk(null) : step(read(id), e => {
-        if (e === null) { return pureOk(null) }
-        if (want !== null && e.type !== want) { return pureOk(null) }
-        if (e.type !== 'tag') { return pureOk({ id, envelope: e }) }
+    state.seen.includes(id) ? pureOk([state, []]) : step(read(id), e => {
+        const seen = [...state.seen, id]
+        const stop = /** @type {readonly [PeelState, readonly PeelItem[]]} */ ([{ seen, target: null }, []])
+        if (e === null) { return pureOk(stop) }
+        if (want !== null && e.type !== want) { return pureOk(stop) }
+        if (e.type !== 'tag') { return pureOk([{ seen, target: { id, envelope: e } }, []]) }
         const t = readTag(e.payload)
-        if (t === null) { return pureOk(null) }
+        if (t === null) { return pureOk(stop) }
         const next = objectOf(t)
         const type = tryType(t)
         return next === null || type === null
-            ? pureOk(null)
-            : peelFrom(read, objectOf)([...seen, id], type)(next)
+            ? pureOk(stop)
+            : pureOk([{ seen, target: null }, [{ id: next, want: type }]])
     })
 
 /**
@@ -116,7 +127,10 @@ const peelFrom = (read, objectOf) => (seen, want) => id =>
  * @param {OidBytes} oidBytes
  * @returns {Step<O, Target>}
  */
-export const peel = (read, oidBytes) => peelFrom(read, tryObject(oidBytes))([], null)
+export const peel = (read, oidBytes) => {
+    const f = peelStep(read, tryObject(oidBytes))
+    return id => mapStep(walkStep(pureOk([{ id, want: null }]), noTarget, f), s => s.target)
+}
 
 /**
  * The entries of the tree an id names: the id {@link peel}ed, then a
@@ -160,11 +174,14 @@ const only = (entries, want) => {
     return found.length === 1 ? found[0] : null
 }
 
+/** What a path that has run out of tree carries, and answers. */
+const lost = /** @type {PathState} */ ({ entries: null, found: null })
+
 /**
  * One component of a path matched in the entries of the tree it sits in,
- * module-scoped with the reader and the path given rather than captured:
- * the entry where the component is the last, and the tree it names walked
- * where it is not.
+ * as {@link foldStep} folds the components: the entry where the component
+ * is the last, and the tree it names read for the component after it where
+ * it is not.
  *
  * A component before the last descends only through mode `40000`, the one
  * mode a tree entry gives a subtree. An entry of another mode names a
@@ -172,17 +189,25 @@ const only = (entries, want) => {
  * whatever object its id turns out to hold — a `100644` entry whose id
  * happens to name a tree is a corrupt tree, not a directory.
  *
+ * A path that has run out of tree carries {@link lost} through the
+ * components that remain, reading nothing, so the fold answers `null`
+ * without the early exit a fold has not got.
+ *
+ * It is a fold rather than a recursion for the reason {@link peelStep} is a
+ * walk: a path read through a `Read` that answers values nested one
+ * {@link step} per component, and a path of some thousands exhausted the
+ * stack.
+ *
  * @template {Operation} O
  * @param {Step<O, readonly TreeEntry[]>} at
- * @param {readonly (readonly number[])[]} names
- * @returns {(i: number) => (entries: Nullable<readonly TreeEntry[]>) => Effect<O, Nullable<TreeEntry>, IoChannel>}
+ * @returns {(item: PathItem) => (state: PathState) => Effect<O, PathState, IoChannel>}
  */
-const componentAt = (at, names) => i => entries => {
-    if (entries === null) { return pureOk(null) }
-    const found = only(entries, names[i])
-    if (found === null) { return pureOk(null) }
-    if (i === names.length - 1) { return pureOk(found) }
-    return isSubtree(found) ? step(at(found.oid), componentAt(at, names)(i + 1)) : pureOk(null)
+const componentStep = at => ({ name, last }) => ({ entries }) => {
+    if (entries === null) { return pureOk(lost) }
+    const found = only(entries, name)
+    if (found === null) { return pureOk(lost) }
+    if (last) { return pureOk({ entries: null, found }) }
+    return isSubtree(found) ? mapStep(at(found.oid), next => ({ entries: next, found })) : pureOk(lost)
 }
 
 /**
@@ -204,9 +229,11 @@ const componentAt = (at, names) => i => entries => {
  */
 export const tryEntry = (read, oidBytes) => {
     const rootOf = tryEntries(read, oidBytes)
-    const at = treeAt(read, readTree(oidBytes))
+    const f = componentStep(treeAt(read, readTree(oidBytes)))
     return (id, path) => {
-        const names = path.map(byteArray)
-        return names.length === 0 ? pureOk(null) : step(rootOf(id), componentAt(at, names)(0))
+        const last = path.length - 1
+        const items = path.map((p, i) => ({ name: byteArray(p), last: i === last }))
+        return items.length === 0 ? pureOk(null) : step(rootOf(id), entries =>
+            mapStep(foldStep(pureOk(items), { entries, found: null }, f), s => s.found))
     }
 }

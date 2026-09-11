@@ -14,7 +14,7 @@ import { msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { write as writeEnvelope } from '../object/module.f.mjs'
-import { of, toHex } from '../oid/module.f.mjs'
+import { of, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { objectPath, tryRead as readStore } from '../store/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
 import { mode, write as writeTree } from '../tree/module.f.mjs'
@@ -286,6 +286,49 @@ export const proof = {
             payload: latin1([`object ${hex(id)}`, 'type tag', 'tag self', '', 'm', ''].join('\n')),
         })
         assertStructurallySame(run({})([])(peel(liar, 20)(commitId))[1], ['ok', null])
+    },
+    // A chain no recursion could follow, and a path no recursion could
+    // walk: the walk loops instead, so its depth costs no stack whatever
+    // the `Read` answers. Read through a `Read` that answers values, the
+    // recursion these replaced died at two thousand tags and at eight
+    // thousand components.
+    deep: () => {
+        // The `k`th id names the tag over the `k - 1`th, and `0` names the
+        // commit: a chain made of its own ids, so nothing is hashed.
+        /** @type {(k: number) => Oid} */
+        const idOf = k => {
+            const v = tryFromHex(latin1(k.toString(16).padStart(40, '0')))
+            assert(v !== null)
+            return v
+        }
+        /** @type {Read<never>} */
+        const chained = id => {
+            const k = Number.parseInt(hex(id), 16)
+            return pureOk(k === 0 ? { type: 'commit', payload: commit } : {
+                type: 'tag',
+                payload: latin1([
+                    `object ${(k - 1).toString(16).padStart(40, '0')}`,
+                    `type ${k === 1 ? 'commit' : 'tag'}`,
+                    'tag t',
+                    'tagger A <a@b> 1 +0000',
+                    '',
+                    'm',
+                    '',
+                ].join('\n')),
+            })
+        }
+        const [, peeled3000] = run({})([])(peel(chained, 20)(idOf(3000)))
+        assert(peeled3000[0] === 'ok' && peeled3000[1] !== null)
+        assertEq(hex(peeled3000[1].id), hex(idOf(0)))
+        assertEq(peeled3000[1].envelope.type, 'commit')
+        // A tree holding one subtree named `d`, which is itself: every
+        // component of the path is found and the last answers the entry.
+        const self = tree([entry('40000', 'd', rootId), entry('100644', 'f', helloId)])
+        /** @type {Read<never>} */
+        const nested = () => pureOk({ type: 'tree', payload: self })
+        const [, deepPath] = run({})([])(tryEntry(nested, 20)(rootId, Array.from({ length: 10000 }, () => name('d'))))
+        assert(deepPath[0] === 'ok' && deepPath[1] !== null)
+        assertStructurallySame(seen(deepPath[1]), [0o40000, 'd', hex(rootId)])
     },
     // The tree's entries from a commit's id, from the tree's own id, and
     // from a tag over the commit: the same four entries, as Git wrote them.
