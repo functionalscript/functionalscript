@@ -14,11 +14,11 @@ mentions it in three.
 
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
-| `reader` | `accept`, `reject` | 755 | 0 | 0 |
-| `serializer` | no set yet | 0 | 0 | 755 |
-| `normalize` | no set yet | 0 | 0 | 755 |
+| `reader` | `accept`, `reject` | 667 | 0 | 0 |
+| `serializer` | no set yet | 0 | 0 | 667 |
+| `normalize` | no set yet | 0 | 0 | 667 |
 
-755 classes.
+667 classes.
 
 | class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
@@ -91,96 +91,8 @@ mentions it in three.
 | `bigint/trailing-point/neg` | `bigint-neg-trailing-point` | *awaiting the set* | *awaiting the set* |
 | `bigint/zero` | `bigint-0` | *awaiting the set* | *awaiting the set* |
 | `bigint/zero/neg` | `bigint-neg-0` | *awaiting the set* | *awaiting the set* |
-| `byte/above-max/high` | `byte-above-max-high` | *awaiting the set* | *awaiting the set* |
-| `byte/above-max/low` | `byte-above-max-low` | *awaiting the set* | *awaiting the set* |
 | `byte/bom/first` | `byte-bom-first` | *awaiting the set* | *awaiting the set* |
-| `byte/bom/in-string` | `byte-bom-in-string` | *awaiting the set* | *awaiting the set* |
-| `byte/continuation/stray/high` | `byte-continuation-stray-high` | *awaiting the set* | *awaiting the set* |
-| `byte/continuation/stray/low` | `byte-continuation-stray-low` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/c2-df/high` | `byte-lead-c2-df-high` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/c2-df/low` | `byte-lead-c2-df-low` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/e0/high` | `byte-lead-e0-high` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/e0/low` | `byte-lead-e0-low` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/e1-ec/high` | `byte-lead-e1-ec-high` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/e1-ec/low` | `byte-lead-e1-ec-low` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/e1-ec/vary` | `byte-lead-e1-ec-vary` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/ed/high` | `byte-lead-ed-high` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/ed/low` | `byte-lead-ed-low` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/ee-ef/high` | `byte-lead-ee-ef-high` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/ee-ef/low` | `byte-lead-ee-ef-low` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/ee-ef/vary` | `byte-lead-ee-ef-vary` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/f0/high` | `byte-lead-f0-high` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/f0/low` | `byte-lead-f0-low` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/f0/vary` | `byte-lead-f0-vary` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/f1-f3/1-2/vary` | `byte-lead-f1-f3-1-2-vary` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/f1-f3/1-3/vary` | `byte-lead-f1-f3-1-3-vary` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/f1-f3/high` | `byte-lead-f1-f3-high` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/f1-f3/low` | `byte-lead-f1-f3-low` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/f4/high` | `byte-lead-f4-high` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/f4/low` | `byte-lead-f4-low` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/f4/vary` | `byte-lead-f4-vary` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/invalid/high` | `byte-lead-invalid-high` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/invalid/low` | `byte-lead-invalid-low` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/none/high` | `byte-lead-none-high` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/none/low` | `byte-lead-none-low` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/past-max/high` | `byte-lead-past-max-high` | *awaiting the set* | *awaiting the set* |
-| `byte/lead/past-max/low` | `byte-lead-past-max-low` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/c2/1/ascii` | `byte-non-continuation-c2-1-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/c2/1/lead` | `byte-non-continuation-c2-1-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/e0/1/ascii` | `byte-non-continuation-e0-1-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/e0/1/lead` | `byte-non-continuation-e0-1-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/e0/2/ascii` | `byte-non-continuation-e0-2-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/e0/2/lead` | `byte-non-continuation-e0-2-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/e1-ec/1/ascii` | `byte-non-continuation-e1-ec-1-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/e1-ec/1/lead` | `byte-non-continuation-e1-ec-1-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/e1-ec/2/ascii` | `byte-non-continuation-e1-ec-2-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/e1-ec/2/lead` | `byte-non-continuation-e1-ec-2-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/ed/1/ascii` | `byte-non-continuation-ed-1-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/ed/1/lead` | `byte-non-continuation-ed-1-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/ed/2/ascii` | `byte-non-continuation-ed-2-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/ed/2/lead` | `byte-non-continuation-ed-2-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/ee-ef/1/ascii` | `byte-non-continuation-ee-ef-1-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/ee-ef/1/lead` | `byte-non-continuation-ee-ef-1-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/ee-ef/2/ascii` | `byte-non-continuation-ee-ef-2-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/ee-ef/2/lead` | `byte-non-continuation-ee-ef-2-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f0/1/ascii` | `byte-non-continuation-f0-1-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f0/1/lead` | `byte-non-continuation-f0-1-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f0/2/ascii` | `byte-non-continuation-f0-2-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f0/2/lead` | `byte-non-continuation-f0-2-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f0/3/ascii` | `byte-non-continuation-f0-3-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f0/3/lead` | `byte-non-continuation-f0-3-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f1-f3/1/ascii` | `byte-non-continuation-f1-f3-1-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f1-f3/1/lead` | `byte-non-continuation-f1-f3-1-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f1-f3/2/ascii` | `byte-non-continuation-f1-f3-2-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f1-f3/2/lead` | `byte-non-continuation-f1-f3-2-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f1-f3/3/ascii` | `byte-non-continuation-f1-f3-3-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f1-f3/3/lead` | `byte-non-continuation-f1-f3-3-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f4/1/ascii` | `byte-non-continuation-f4-1-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f4/1/lead` | `byte-non-continuation-f4-1-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f4/2/ascii` | `byte-non-continuation-f4-2-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f4/2/lead` | `byte-non-continuation-f4-2-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f4/3/ascii` | `byte-non-continuation-f4-3-ascii` | *awaiting the set* | *awaiting the set* |
-| `byte/non-continuation/f4/3/lead` | `byte-non-continuation-f4-3-lead` | *awaiting the set* | *awaiting the set* |
-| `byte/obsolete/5/high` | `byte-obsolete-5-high` | *awaiting the set* | *awaiting the set* |
-| `byte/obsolete/5/low` | `byte-obsolete-5-low` | *awaiting the set* | *awaiting the set* |
-| `byte/obsolete/5/overlong` | `byte-obsolete-5-overlong` | *awaiting the set* | *awaiting the set* |
-| `byte/obsolete/6/high` | `byte-obsolete-6-high` | *awaiting the set* | *awaiting the set* |
-| `byte/obsolete/6/low` | `byte-obsolete-6-low` | *awaiting the set* | *awaiting the set* |
-| `byte/obsolete/6/overlong` | `byte-obsolete-6-overlong` | *awaiting the set* | *awaiting the set* |
-| `byte/one/string/high` | `byte-one-string-high` | *awaiting the set* | *awaiting the set* |
-| `byte/one/string/low` | `byte-one-string-low` | *awaiting the set* | *awaiting the set* |
-| `byte/one/tokens/cr` | `byte-one-tokens-cr` | *awaiting the set* | *awaiting the set* |
-| `byte/one/tokens/lf` | `byte-one-tokens-lf` | *awaiting the set* | *awaiting the set* |
-| `byte/one/tokens/tab` | `byte-one-tokens-tab` | *awaiting the set* | *awaiting the set* |
-| `byte/overlong/2/high` | `byte-overlong-2-high` | *awaiting the set* | *awaiting the set* |
-| `byte/overlong/2/low` | `byte-overlong-2-low` | *awaiting the set* | *awaiting the set* |
-| `byte/overlong/3/high` | `byte-overlong-3-high` | *awaiting the set* | *awaiting the set* |
-| `byte/overlong/3/low` | `byte-overlong-3-low` | *awaiting the set* | *awaiting the set* |
-| `byte/overlong/4/high` | `byte-overlong-4-high` | *awaiting the set* | *awaiting the set* |
-| `byte/overlong/4/low` | `byte-overlong-4-low` | *awaiting the set* | *awaiting the set* |
-| `byte/surrogate/high` | `byte-surrogate-high` | *awaiting the set* | *awaiting the set* |
-| `byte/surrogate/low` | `byte-surrogate-low` | *awaiting the set* | *awaiting the set* |
-| `byte/widths/mixed` | `byte-widths-mixed` | *awaiting the set* | *awaiting the set* |
+| `byte/truncated` | `byte-truncated` | *awaiting the set* | *awaiting the set* |
 | `const/declarators` | `const-declarators` | *awaiting the set* | *awaiting the set* |
 | `const/destructuring/array` | `const-destructuring-array` | *awaiting the set* | *awaiting the set* |
 | `const/destructuring/object` | `const-destructuring-object` | *awaiting the set* | *awaiting the set* |

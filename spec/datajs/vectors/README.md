@@ -2,8 +2,8 @@
 
 The machine-readable form of [the specification](../README.md)'s Conformance
 section: the documents a reader accepts and rejects with the graphs they
-denote, the inputs a serializer accepts and refuses, and the bytes a
-normalized serializer produces. An implementation states which roles it
+denote, the inputs a serializer accepts, and the bytes a normalized
+serializer produces. An implementation states which roles it
 provides and is judged on those sets alone. This file is the schema; the
 sets are the data modules beside it, one directory per set, and the issue
 that designed them is [`../todo/conformance-vectors.md`](../todo/conformance-vectors.md).
@@ -49,15 +49,19 @@ branch under it is empty.
 
 ## What a record says
 
-**A document** is a string whose code units are the document's, or, for the
-two rules only bytes can reach — a document is UTF-8, and it has no BOM —
-the bytes as a tagged hex string, `["hex", "ef bb bf …"]`, fed to the
-reader's byte-accepting path. The spelling is one: lowercase pairs
-separated by single spaces, at least one pair, which is how the issue's
-byte tables read and what `bytes` in
+**A document** is a string whose code units are the document's. DataJS works
+with correct UTF-8 and rejects everything else, so the format owes malformed
+input no taxonomy and the corpus carries no vectors for one.
+
+Two records are the exception, and they are records rather than tests: they
+say that a byte sequence is not a DataJS document, which no code-unit string
+can say. They carry their bytes as a tagged hex string,
+`["hex", "ef bb bf …"]` — lowercase pairs separated by single spaces, at
+least one pair, which `bytes` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
-decodes, refusing any other. A byte-form vector is a record of the accept
-or the reject set like any other, classed `byte/…`. A reject vector
+decodes, refusing any other spelling. They are a BOM as the document's first
+byte, and a truncated sequence at end of input, both in the reject set and
+classed `byte/…`. A reject vector
 names the one `rule` it breaks and what the `host` does with the same text,
 measured: a document JavaScript `accepts` is a narrowing vector, the only
 kind that catches a reader delegating to the host; a `syntaxError` or a

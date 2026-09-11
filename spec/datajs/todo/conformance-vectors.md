@@ -47,295 +47,48 @@ grammar.
 
 A machine-readable corpus with five parts.
 
-**Document inputs come in two forms.** Code-unit arrays carry all but two of
-the rules below, and rightly: those rules are about the token stream, and a
-corpus that made every consumer decode UTF-8 first would be testing its own
-reader. Two rules are *not* about the token stream and cannot be reached that
-way at all, so their vectors carry the **bytes** instead — as a tagged hex
-string, `["hex", "ef bb bf …"]`, lowercase pairs separated by single
-spaces, the one spelling these tables use throughout — fed to the reader's public
-byte-accepting path, which stage 4 owes:
+**A document is text, and the corpus spells it as one.** DataJS works with
+correct UTF-8 and rejects everything else, so what is *not* correct UTF-8 is
+not a taxonomy the format owes anybody: it is one word, rejected. A vector
+carries a document as a JavaScript string whose code units are the document's,
+and two vectors carry bytes instead, as a tagged hex string,
+`["hex", "ef bb bf …"]`, lowercase pairs separated by single spaces.
 
-- a document **has no BOM**, which a decoder satisfies the parser on by
-  stripping `ef bb bf` before the parser ever runs; and
-- a document **is UTF-8**, which nothing in a code-unit array can violate — so
-  vectors carry invalid UTF-8 to be refused, **one per error class and one at
-  each end of every class**, since a decoder can reject a class's lowest member
-  and accept its highest just as easily as it can reject one class and accept
-  another. Each class is a *range*, and naming a class without its endpoints
-  leaves the vector's value to whoever picks it:
+Those two are records rather than discriminators. They exist so the corpus
+*shows* that a byte sequence is not DataJS, which no code-unit document can
+say:
 
-  | class | lowest | highest |
-  | - | - | - |
-  | invalid lead byte, low | `c0` | `c1` |
-  | lead byte in no width scheme, alone | `fe` | `ff` |
-  | four-byte lead past U+10FFFF | `f5 80 80 80` (U+140000) | `f7 bf bf bf` (U+1FFFFF) |
-  | stray continuation byte | `80` | `bf` |
-  | overlong, two bytes | `c0 a0` (U+0020) | `c1 bf` (U+007F) |
-  | overlong, three bytes | `e0 80 a0` (U+0020) | `e0 9f bf` (U+07FF) |
-  | overlong, four bytes | `f0 80 80 a0` (U+0020) | `f0 8f bf bf` (U+FFFF) |
-  | obsolete five-byte form | `f8 88 80 80 80` (U+200000) | `fb bf bf bf bf` (U+3FFFFFF) |
-  | obsolete six-byte form | `fc 84 80 80 80 80` (U+4000000) | `fd bf bf bf bf bf` (U+7FFFFFFF) |
-  | five-byte form overlong into range | `f8 80 80 80 a0` (U+0020) | — |
-  | six-byte form overlong into range | `fc 80 80 80 80 a0` (U+0020) | — |
-  | encoded surrogate | `ed a0 80` (U+D800) | `ed bf bf` (U+DFFF) |
-  | above U+10FFFF | `f4 90 80 80` | `f4 bf bf bf` |
+- **a BOM as the document's first byte**, `ef bb bf` before
+  `export default 1;`. The bytes are valid UTF-8, and the rule they break is
+  the document rule's second half, "it has no BOM". JavaScript accepts the
+  same file, measured, so it is a narrowing vector.
+- **a truncated sequence at end of input**, `export default "a` followed by a
+  lone `c2`. Nothing follows the lead byte, which is what makes it truncated;
+  a byte after it would make it some other malformed shape instead.
 
-  Each overlong range's highest member sits immediately below that width's
-  valid minimum — `c1 bf` under `c2 80`, `e0 9f bf` under `e0 a0 80`,
-  `f0 8f bf bf` under `f0 90 80 80` — so the pairs bracket the transition from
-  both sides, and the same holds for the surrogate hole and the U+10FFFF edge.
+**An earlier draft of this file had ninety byte-form vectors and a theory to
+go with them.** Both ends of thirteen UTF-8 error classes, a non-continuation
+matrix indexed by the accept table's eight lead partitions with an ASCII and a
+valid-lead intruder per cell, the overlong forms per width, the obsolete five-
+and six-byte leads at both ends of every run, the two sequences that are
+overlong *into* range, and, on the accept side, both ends of all eight lead
+partitions with six more vectors to vary the continuation positions
+independently. Several review rounds went into it, each finding the previous
+one had sampled where the rule said enumerate.
 
-  **The two-byte overlong needs its own row after all.** An earlier draft
-  argued that `c0` is an invalid lead outright, so the invalid-lead class
-  carries `c0 80` already. Review showed the argument inverted: the invalid-lead
-  vector places `c0` inside a quoted string, so its next byte is the closing
-  `22`, and a decoder that *does* treat `c0` as a two-byte lead rejects that for
-  the missing continuation. It refuses the vector without ever enforcing the
-  overlong rule, which is the one thing the vector was about.
+Every one of them was about a decoder. DataJS is handed correct UTF-8, so a
+malformed sequence is not an input it processes, exactly as a `Map` is not an
+input a serializer refuses. The care was real and the subject was someone
+else's. What survives is the two records above, and they are marked as records
+rather than dressed up as tests.
 
-  **Every overlong row's true low end is a vector that cannot fail**, which is
-  the sweep that finding forced and it reaches two rows nobody reported.
-  `c0 80`, `e0 80 80` and `f0 80 80 80` all encode **U+0000**, and a decoder
-  that accepts the overlong hands the parser a code point below U+0020 — a
-  rejected raw character — so the document is refused for the *string* rule
-  while the UTF-8 rule goes unenforced. The rows now start at the overlong
-  encoding of **U+0020**, the lowest scalar a string can carry raw, and the
-  class below it is untestable through a document for the same reason
-  truncation is: the corpus records that rather than shipping vectors that
-  pass no matter what. Nor does the space between tokens help — a decoder
-  yielding U+0000 there is refused for not being permitted whitespace.
-
-  **A lead byte past `f4` needs a complete sequence, and needs it twice**, for
-  two axes that a first pass here confused and a second had to separate.
-
-  The first axis is the **lead range** a decoder's table admits, and it is the
-  `c0` finding again one row up: inside a quoted string the lone `f5` is
-  really `f5 22`, which a decoder treating `f5` as a four-byte lead rejects for
-  the missing continuation — refusing the vector without ever deciding that
-  `f5` is not a lead. So the complete sequences, both ends of every lead run
-  the width scheme distinguishes: `f5`–`f7` at four bytes, `f8`–`fb` at five,
-  `fc`–`fd` at six. `fe` and `ff` are leads in no scheme at all, so they keep
-  only the lone-byte form — and **both** of them: that run is a range like any
-  other, and the table sampled it as `f5` and `ff` until review pointed out
-  that a reader accepting a lone `fe` passes everything else here. A lone `f5`
-  is gone with it: once `f5 80 80 80` exists, the lone byte tests nothing the
-  complete sequence does not, because a decoder treating `f5` as a lead refuses
-  `f5 22` for the missing continuation — the very argument that put the
-  complete sequences in the table.
-
-  The second axis is **what the decoder does with the value it computes**, and
-  it splits into two implementations that no single vector catches:
-
-  - **No range check.** The complete sequences above all compute values past
-    U+10FFFF — measured, U+140000 through U+7FFFFFFF — so a decoder that
-    accepts the lead and never range-checks builds some string from them and
-    accepts the document. These vectors catch that.
-  - **Range check, no overlong check.** That decoder refuses everything above,
-    so only a sequence whose value lands *in* range reaches it. `f8` and `fc`
-    are the only obsolete leads that can encode one — measured: `f9`–`fb` start
-    at U+1000000 and `fd` at U+40000000, so no payload brings them back — and
-    every value they can reach is overlong by construction, the five-byte form
-    beginning at U+200000 and the six-byte at U+4000000 when written minimally.
-    Hence `f8 80 80 80 a0` and `fc 80 80 80 80 a0`, both U+0020.
-
-  A decoder keeping a legacy branch with *both* checks is the one case nothing
-  here catches, and nothing can: it accepts no five- or six-byte sequence this
-  format can express, so no input distinguishes it from a correct one.
-
-  **The previous round got this wrong in the direction this document keeps
-  getting things wrong.** It shipped only the overlong forms, on the argument
-  that `f8 88 80 80 80` "every implementation refuses for being above
-  U+10FFFF". Every *range-checking* implementation does. The sentence claimed a
-  universal from a property most implementations have, which is the same
-  overreach recorded three times above, and it cost the vector that catches the
-  commoner of the two defects.
-
-  Two classes are not ranges and keep their own vectors. A **truncated
-  sequence** (`c2` at end of input) has no vector at all — see the exemption
-  below. A valid lead followed by a **non-continuation** byte needs one per
-  position **in every width that has that position**, and the intruding byte
-  has two sub-classes, so each cell holds two vectors — the whole matrix, not a
-  diagonal of it and not one half of each cell:
-
-  | lead | position 1 | position 2 | position 3 |
-  | - | - | - | - |
-  | `c2`, for `c2`–`df` | `c2 41` / `c2 c2` | — | — |
-  | `e0` | `e0 41 80` / `e0 c2 80` | `e0 a0 41` / `e0 a0 c2` | — |
-  | `e2`, for `e1`–`ec` | `e2 41 80` / `e2 c2 80` | `e2 82 41` / `e2 82 c2` | — |
-  | `ed` | `ed 41 80` / `ed c2 80` | `ed 80 41` / `ed 80 c2` | — |
-  | `ee`, for `ee`–`ef` | `ee 41 80` / `ee c2 80` | `ee 80 41` / `ee 80 c2` | — |
-  | `f0` | `f0 41 98 80` / `f0 c2 98 80` | `f0 9f 41 80` / `f0 9f c2 80` | `f0 9f 98 41` / `f0 9f 98 c2` |
-  | `f1`, for `f1`–`f3` | `f1 41 80 80` / `f1 c2 80 80` | `f1 80 41 80` / `f1 80 c2 80` | `f1 80 80 41` / `f1 80 80 c2` |
-  | `f4` | `f4 41 80 80` / `f4 c2 80 80` | `f4 80 41 80` / `f4 80 c2 80` | `f4 80 80 41` / `f4 80 80 c2` |
-
-  **Rows are the accept table's eight parts, not the three widths.** A
-  constrained lead has its own handler, so it has its own way to be wrong: a
-  decoder that validates `e2`'s continuations correctly and writes `ed`'s
-  second-byte check as `b <= 0x9f` accepts `ed 41 80` as an ordinary scalar —
-  `0x41` passes that test — while still rejecting every encoded-surrogate
-  vector. Review found it, and the fix is the same reindexing the *accept*
-  table needed two rounds earlier: the width was never the thing a decoder
-  branches on. Keeping one indexed by parts and the other by widths was the
-  correction landing in one artifact and not its twin, which is this file's
-  most repeated failure and its first appearance between two tables in the same
-  section.
-
-  A byte is a continuation exactly when it is `10xxxxxx`, so a
-  non-continuation is either **high bit clear** (`00`–`7f`, the `41` column) or
-  **high bit set but not a continuation** (`c0`–`ff`, the `c2` column). A
-  decoder testing `b >= 0x80` where it means `0x80 <= b <= 0xBF` rejects every
-  `41` cell and accepts every `c2` one — half of every cell in this matrix
-  passing while the check it tests is wrong. Review found that after the first
-  draft filled all six positions with `41` alone.
-
-  The high-bit intruder must be a **valid lead byte**, which is why it is `c2`
-  and not `c0` or `ff`: those are invalid leads outright, measured, so a vector
-  using one has the invalid-lead class as a second ground for refusal and stops
-  testing the position it was written for. Any valid lead does equally well —
-  `c2` and `f4` differ nowhere under the one comparison that separates this
-  sub-class from the other — so one representative per cell is enough. The
-  ASCII intruder is constrained from the other direction: `00`–`1f` is a raw
-  control character and `22` and `5c` end or escape the string that carries the
-  vector, each a second ground for refusal, so the column sits in the printable
-  remainder and `41` is that. An
-  earlier draft had one cell per width — `c2 41`, `e2 82 41`, `f0 9f 98 41` —
-  which is one diagonal, and a decoder with separate per-width branches
-  passes a diagonal while failing every cell it misses. All twelve measured
-  invalid, each for "invalid continuation byte" rather than any other reason.
-
-  The non-continuation class and the truncated case are distinct failures
-  despite looking alike:
-  Python's decoder names them differently, "unexpected end of data" against
-  "invalid continuation byte". Review
-  supplied three of these seven after the first draft sampled three, which is
-  the same "enumerate, do not sample" the productions below need. Each malformed
-  sequence sits **inside an otherwise valid quoted string**, and that placement
-  is the vector. A permissive decoder replaces a bad sequence with U+FFFD, and
-  U+FFFD is an ordinary DataJS string character — so with the sequence inside a
-  string the replacement yields a **valid** document, and refusal can only be
-  for the malformed bytes. Put the same sequence between tokens or alone and
-  the replacement yields an invalid document, which the parser rejects for its
-  own reasons: the vector passes while the UTF-8 rule goes unenforced. This is
-  the one-reason rule reaching the byte form.
-
-  **Truncation at end of input has no vector, and the reason is worth more
-  than one would be.** To be truncated the lead byte must be the document's
-  last, so there is no closing quote and no `;`; adding them makes it `c2 22`,
-  the non-continuation class instead. An earlier draft exempted it from the
-  placement rule and kept it anyway, claiming the class survived and only the
-  attribution was lost. That was wrong, and review said so: a byte reader that
-  replacement-decodes the trailing lead and then rejects the unterminated
-  document passes **without checking UTF-8 at all**, so the vector cannot fail
-  and tests nothing. It is not a weakened vector, it is one of the
-  cannot-fail vectors this corpus already refuses to ship.
-
-  So the class is recorded as **untestable through a document-level byte
-  input**, and the seam that would test it — asserting what the decoder does
-  with the bytes, rather than what the reader does with the document — is
-  raised as a task rather than invented here. Whether a conforming
-  implementation must expose a decoder is an API question for the spec, not
-  one this corpus should settle by requiring it of every consumer.
-
-Byte-form vectors must **accept** as well as reject, and the accept set has a
-derivation rather than a list. **Four leads constrain their second byte** —
-`e0` admits `a0`–`bf`, `ed` admits `80`–`9f`, `f0` admits `90`–`bf`, `f4`
-admits `80`–`8f`, since outside those the sequence would be overlong, a
-surrogate, or above U+10FFFF. Those four constraints **partition the valid lead
-bytes into eight parts**, and each part is a contiguous run of scalars a
-decoder can implement, get wrong, or omit on its own. So: **both ends of every
-part**, measured.
-
-| lead | scalars | lowest | highest |
-| - | - | - | - |
-| one byte, in a string | U+0020–U+007F | `20` | `7f` |
-| one byte, between tokens | tab, LF, CR | `09`, `0a`, `0d` | — |
-| `c2`–`df` | U+0080–U+07FF | `c2 80` | `df bf` |
-| `e0` | U+0800–U+0FFF | `e0 a0 80` | `e0 bf bf` |
-| `e1`–`ec` | U+1000–U+CFFF | `e1 80 80` | `ec bf bf` |
-| `ed` | U+D000–U+D7FF | `ed 80 80` | `ed 9f bf` |
-| `ee`–`ef` | U+E000–U+FFFF | `ee 80 80` | `ef bf bf` |
-| `f0` | U+10000–U+3FFFF | `f0 90 80 80` | `f0 bf bf bf` |
-| `f1`–`f3` | U+40000–U+FFFFF | `f1 80 80 80` | `f3 bf bf bf` |
-| `f4` | U+100000–U+10FFFF | `f4 80 80 80` | `f4 8f bf bf` |
-
-The eight parts are contiguous and together cover **U+0080 through U+10FFFF
-with exactly one hole**, U+D800–U+DFFF, which is the surrogate range and the
-one place the reject side takes over. That is the check on the table: a part
-whose neighbours do not meet it is a part written wrong.
-
-**Each continuation position also has to vary independently**, and the two
-endpoints of a part do not give that on their own: a row whose accepts are
-`e1 80 80` and `ec bf bf` is passed whole by a decoder that requires the
-continuation bytes to be *equal to each other*, which then refuses valid text
-like `e1 80 bf`. Every position already sees both `80` and `bf` across the two
-endpoints — what they lack is the independence, so each part with more than one
-continuation position gets accepts making **every pair of its positions differ
-in at least one vector**: `e1 80 bf` (U+103F), `ee 80 bf` (U+E03F),
-`f0 90 80 bf` (U+1003F), `f1 80 bf 80` (U+40FC0) with `f1 80 80 bf` (U+4003F),
-and `f4 80 80 bf` (U+10003F), all measured valid.
-
-Four parts need nothing added, and the reason is the constraint that defines
-them: `e0` admits `a0`–`bf` where its second continuation admits `80`, so
-`e0 a0 80` already has two positions that differ, and `ed` and the first
-positions of `f0` and `f4` are the same. The second-byte constraints did that
-much of the work for free — the parts that needed a vector are exactly the ones
-no constraint touches, which is where this table has been short every time.
-
-**Four rounds of review each removed one way of sampling this instead of
-deriving it**, and the shape repeated at every level:
-
-- The first table used **interior** values, so a decoder rejecting a whole lead
-  range passed: `c2`, `e0` and `f0 90` at the bottom, `df`, `ef` and `f4` at
-  the top.
-- Then it had **one edge of each constrained lead** — `e0 a0 80`, `ed 9f bf`,
-  `f0 90 80 80`, `f4 8f bf bf` — so a decoder accepting only `90` after `f0`,
-  or only `8f` after `f4`, passed while refusing most of the plane. The
-  opposite edges are accepts too, and are now the other end of those rows.
-- Then it had no **surrogate hole** flanks. A hole in a range has two
-  boundaries like any other, and a decoder rejecting the whole `ed` lead range
-  refuses valid text up to U+D7FF while still rejecting the encoded surrogate
-  correctly — passing the row's endpoints and the surrogate error class alike.
-- Then, with every constrained lead covered twice over, the **unconstrained**
-  ranges had nothing: no `e1`–`ec` and no `f1`–`f3` anywhere in the set, so a
-  decoder implementing only the special branches — `e0`, `ed`, `f0`, `f4` — and
-  refusing every ordinary four-byte sequence passed the whole corpus. Review
-  found that one, and it is why the table is now indexed by **lead partition**
-  rather than by width: the width framing had no row for a range that no
-  constraint singles out, and so could not show one was missing.
-
-**The one byte range depends on where the byte is**, which is why it is two
-rows. Inside a string it starts at U+0020, because everything below is a
-rejected raw control. Between tokens, tab, LF and CR are *permitted
-whitespace*, so `09`, `0a` and `0d` are accepts — and they need byte-form
-vectors of their own, because the code-unit whitespace accepts never reach a
-decoder at all. A byte reader rejecting any of the three during decoding
-passed every other vector here. An earlier draft of this table gave one
-unqualified one-byte row starting at U+0020, which was the string rule applied
-to the whole document; the same three characters are a rejection in one context
-and an acceptance in the other, so no vector here may leave its context
-unstated.
-
-This table exists because a boundary needs a vector on each side, and the four
-rounds listed above are review saying so four times running — U+10FFFF, then
-the three minima, then the two- and three-byte maxima that were still interior
-values in the same sentence claiming to cover both ends, then the ranges no
-constraint singles out. Fixing the reported instance and not sweeping the rest
-is what turned one finding into four. One
-multibyte vector is not enough either — with only a two-byte
-one, a decoder accepting ASCII and two-byte sequences while rejecting every
-three- and four-byte sequence still passes, and the BMP and astral cases under
-`normalize` cannot help because they exercise serializer output rather than a
-reader. Every other case here is a rejection, so an implementation that
-refuses every byte document without decoding it would pass them all while
-refusing valid byte-encoded documents — which is the accept-direction rule
-below, and review found this document breaking it in the same commit that
-stated it.
-
-A vector naming a code path the corpus cannot reach is worth less than no
-vector, because it reads as coverage. Review found this document claiming a
-code-unit BOM vector "tests the decoder" one round after adding it, which it
-cannot: the corpus reader had already decoded it.
+Truncation is worth one more line, because this file argued at length that it
+could not have a vector: the lead byte must be the document's last, so the
+document has lost its closing quote and its `;` as well, and a reader that
+replacement-decodes the trailing byte refuses it as unterminated without
+checking UTF-8 at all. That argument is correct and no longer decisive. The
+vector is not there to fail a broken decoder; it is there to record that those
+bytes are not a DataJS document.
 
 The five parts:
 
@@ -344,7 +97,7 @@ The five parts:
   **Derived from the grammar: every production, and every branch of every
   production, owes an accept vector.** Review found the accept side short five
   times in three rounds — the four permitted whitespace characters, the lone
-  surrogate, the byte form, the simple escapes, and the fraction and exponent
+  surrogate, the simple escapes, and the fraction and exponent
   — always because the set had been assembled from interesting cases rather
   than read off the productions. What that derivation requires, where the
   grammar branches:
@@ -460,7 +213,8 @@ The five parts:
     habit of escaping U+2028 and U+2029 for JavaScript safety precisely a
     normalizer emitting a valid document with the wrong bytes. U+FEFF inside a
     string is one reason apart from U+FEFF as the document's first character:
-    that one is the decoder's rule, and it needs the byte form. The lone surrogate exercises
+    that one is the decoder's rule, and it is one of the corpus's two byte
+    records. The lone surrogate exercises
     `\u` alone, so a reader supporting raw text and `\u` while rejecting the
     eight simple escapes passed too. **And each lone surrogate twice**, once
     escaped and once as a raw code unit between the quotes: the two are
@@ -468,7 +222,7 @@ The five parts:
     standing for both. The raw form is spellable only because the corpus is
     JavaScript — a lone surrogate has no UTF-8 encoding, so the module's own
     source writes `\ud800` and the string it denotes holds the unit itself;
-    in the byte form the same input is the surrogate error class instead.
+    and the byte form has nothing to say about it.
     `\uXXXX`'s four hex digits are three
     ranges — `0`–`9`, `a`–`f`, `A`–`F` — in **four positions**, and the rule
     above says every endpoint in every position, which one pair of vectors
@@ -603,8 +357,8 @@ The five parts:
   one of which — high then low — is the valid pair already covered, leaving
   `\ud800\ud800`, `\udc00\ud800` and `\udc00\udc00`. Each denotes two
   unpaired units and must survive as two, with a key twin, in reader accept,
-  serializer accept and `normalize` alike. The byte form is where the mistake
-  becomes visible: `QuoteJSONString` escapes an unpaired surrogate, so all
+  serializer accept and `normalize` alike. Normalized bytes are where the
+  mistake becomes visible: `QuoteJSONString` escapes an unpaired surrogate, so all
   three come back as ASCII escape text, while the blind-pairing codec emits a
   four-byte scalar instead — measured, `\ud800\udc00` is the only one of the
   four adjacencies that becomes `f0 90 80 80`. A pair's *ends* had been
@@ -830,8 +584,7 @@ The five parts:
   "has no BOM": every document in this corpus is a code-unit array, so the
   corpus reader has already decoded it, and a UTF-8 decoder that strips a
   leading `EF BB BF` hands the parser a document with no BOM in it to find.
-  That vector has to be **bytes** — see the byte form below — and review
-  caught this document claiming otherwise one round after adding the vector. Then the array **elisions** JavaScript reads as holes
+  That vector has to be **bytes**, and it is one of the two the corpus keeps. Then the array **elisions** JavaScript reads as holes
   and the grammar `array ::= '[' (value (',' value)*)? ']'` cannot spell at
   all: `export default [,1];`, `[1,,2]` and `[1,,]`, leading, medial and
   trailing. `[1,]` is *not* one of these — it is the trailing comma above, a
@@ -1253,7 +1006,7 @@ The five parts:
     | a regexp literal, `/a/` | every one evaluates to a non-plain object, likewise |
     | an arbitrary identifier as a value, `Infinit`, and `Infinityn` | a name that is not an `id` is unbound, which is the reference rule |
     | a trailing backslash, `"\"` | the backslash escapes the quote, so the document is the unterminated-string case and nothing else |
-    | an unterminated string | it runs to end of input, so the document has lost its `;` as well — the same shape as the byte form's truncation, recorded there for the same reason |
+    | an unterminated string | it runs to end of input, so the document has lost its `;` as well — the same shape as the byte form's truncation, kept there as a record rather than as a test |
 
     The three member forms were shipped once with quoted keys, on the
     reading that the key was the only defect. It was not: quoting settles
@@ -1473,8 +1226,7 @@ The five parts:
     draft reserved them for `normalize` on the argument that emitting U+07FF in
     three bytes "still yields a valid document denoting the same string". That
     is false, and review said so: three bytes for U+07FF is `E0 9F BF`, which
-    is *overlong* and not valid UTF-8 at all — it is a row in the reject table
-    above, measured. What this role cannot see is a choice between two **valid
+    is *overlong* and not valid UTF-8 at all, measured. What this role cannot see is a choice between two **valid
     documents denoting the same graph**, which is why the escaped-versus-raw
     spelling of a surrogate pair is left to `normalize`; a width error produces
     neither, so it is visible here and everywhere else;
@@ -1842,13 +1594,14 @@ or the spec, not only into a thread.
    sixteen `Space_Separator` characters other than U+0020 — since the corpus
    enumerates all 21 anyway and a reader of the spec should not have to. The
    alternative is to mark the six as illustrations and cite ECMAScript.
-4. **The decoder seam.** Proposal for the spec: decline to require that a
-   conforming implementation expose its UTF-8 decoder. Truncation at end of
-   input stays recorded here as untestable through a document, and this
-   repository's decoder proves it in
-   [`fjs/text/utf8`](../../../fjs/text/utf8/module.f.mjs)'s own proofs. The
-   alternative is a decoder-level vector set, which would be an API demand on
-   every implementation for one error class.
+4. **The decoder seam — decided: there is none, and no set needs one.** DataJS
+   works with correct UTF-8 and rejects everything else, so a malformed
+   sequence is not an input the format processes and the corpus owes it no
+   taxonomy. Nothing is required of an implementation's decoder, exposed or
+   otherwise. The two byte records above are records that a byte sequence is
+   not a DataJS document, not tests of a decoder, and
+   [`fjs/text/utf8`](../../../fjs/text/utf8/module.f.mjs) proves its own
+   end-of-input case in its own proofs where that belongs.
 5. **The whole-set JavaScript check.** A proof cannot `import()` a document
    from inside pure FunctionalScript, so the check is a host-side test: one
    `.mjs` under `node --test` that imports every accept document as a
@@ -1939,8 +1692,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       denoting the same graph, the whole-set check decision 5 would keep.
 - [x] **Reader reject, code-unit form.** Landed as
       [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 332 code-unit
-      vectors — the byte form's 61 join them in the same file, below —
-      derived from the spec's six narrowing sources — strings, numbers,
+      vectors, joined by the two byte records below, derived from the spec's six narrowing sources — strings, numbers,
       identifiers, whitespace, the document rule, and every production of
       the grammar — each naming the one rule it breaks and carrying the
       host's verdict, measured by importing the document as an ES module
@@ -1960,33 +1712,25 @@ The steps, in order; a step is one pull request unless it says otherwise:
       spelling recorded rather than shipped.
       Proved against the reader: every document is refused; the shape,
       with the verdict among the three, is proved beside the set. The
-      document rule's own vector, U+FEFF as the first *byte*, waits for
-      the byte form; in code units it is a whitespace vector here.
-- [x] **The byte form.** Landed in the two reader sets rather than sets of
-      its own, since a byte document is a `Document` like any other: 29
-      accept records and 61 reject records, classed `byte/…`, each
-      `["hex", "…"]`, so the two sets are 364 and 393. The accept side is
-      the table by lead partition, both ends of all eight parts, the six
-      vectors that vary the continuation positions independently, the
-      one-byte range in both contexts — U+0020 and U+007F in a string,
-      tab, LF and CR between tokens — the BOM inside a string, and the
-      four widths in one string. The reject side is both ends of every
-      error class in the table, the two overlong sequences that land back
-      in range, the whole non-continuation matrix by lead
-      partition with an ASCII and a valid-lead intruder in every cell, and
-      the BOM as the first byte. Every malformed sequence sits inside an
-      otherwise valid string, and each was paired in the generator with the
-      valid sequence it corrupts, which the reader accepts, so none is
-      refusable twice. The proofs: each set's own checks the record against
-      the schema, a hex document among it, and the ids for uniqueness; the
-      reader's decodes each accept vector's bytes with `fjs/text/utf8` and
-      reads the units, and pins **which layer** refuses each reject vector —
-      the UTF-8 rule is the decoder's and those bytes decode to nothing,
-      every other rule is the reader's on the text they spell, so a vector
-      that swapped them goes red rather than passing on the other layer.
-      The byte path's own rule, the BOM as the first byte, is refused here
-      as U+FEFF is refused between tokens, and is asserted as the BOM rule
-      when stage 4's `tryParseBytes` lands and reruns the set through it.
+      document rule's own vector, U+FEFF as the first *byte*, is one of the
+      two byte records; in code units it is a whitespace vector here.
+- [x] **The byte form, cut to two records.** It landed as 29 accept and 61
+      reject records classed `byte/…`, each `["hex", "…"]`: both ends of
+      thirteen UTF-8 error classes, the non-continuation matrix by lead
+      partition with two intruders per cell, the overlong forms per width,
+      the obsolete five- and six-byte leads, and on the accept side both
+      ends of all eight lead partitions with six more for continuation
+      independence. All of it was about a decoder, and DataJS is handed
+      correct UTF-8, so none of it was an input the format processes. The
+      88 are gone and the two that say something the corpus cannot say in
+      code units stay: **`byte-bom-first`**, `ef bb bf` before
+      `export default 1;`, breaking "a document has no BOM" and accepted by
+      the host, measured; and **`byte-truncated`**, `export default "a`
+      followed by a lone `c2`, breaking "a document is UTF-8" and a host
+      syntax error, measured. Both are records that a byte sequence is not
+      a DataJS document, not tests of a decoder, and the file says so. The
+      reader's proof keeps the layer check, so a record that swapped the
+      decoder's rule for the reader's goes red.
 - [ ] **Serializer accept and graph equivalence.** Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
@@ -2021,7 +1765,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       not landed refuses nothing, since a class cannot owe a vector to a
       set that does not exist: its column says so on every row and the
       refusal arrives with the set, which is where the serializer and
-      normalize columns stand today. 755 classes, the reader role
+      normalize columns stand today. 667 classes, the reader role
       answering every one. Prose could not do this job, which four
       consecutive review rounds showed.
 - [ ] **The JavaScript whole-set check**, per decision 5. The
@@ -2054,9 +1798,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `Unknown`. Coverage stayed at 100%.
 - [ ] **§Whitespace's enumeration in the spec**, per decision 3; its own
       pull request.
-- [ ] **The decoder seam in the spec**, per decision 4; its own pull
-      request. Each is separate because each changes a different contract and
-      is decided on its own.
+- [ ] **The decoder seam in the spec**, per decision 4: say that a document
+      is correct UTF-8 and anything else is rejected, with no taxonomy of
+      malformed sequences and nothing required of a decoder. Its own pull
+      request, as each of these changes a different contract.
 - [ ] **Hand over.** `spec/datajs/README.md`'s Conformance section links the
       corpus instead of this file; stage 4's issue and the stage 6 task in
       [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
