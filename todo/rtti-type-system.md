@@ -656,7 +656,7 @@ A FunctionalScript module compiles to an [EDAG](./edag-spec.md), and source is
 serialized back **out of the graph**, by reference count, emitting only what is
 reachable —
 [`fjs/djs/serializer`](../fjs/djs/serializer/module.f.mjs) already does exactly
-this for DJS values, counting references, hoisting shared ones to `const cN`,
+this for DataJS values, counting references, hoisting shared ones to `const cN`,
 and emitting nothing for what nothing points at. A schema imported and named
 only to be mentioned in `//: myType` annotations has no edge from anything the
 program evaluates: the annotation is a comment, the compiler consumed it at
@@ -899,8 +899,9 @@ are stated instead:
         [`parse`](../fjs/rtti/parse/module.f.mjs)), so the schema as
         *executed* accepts anything, functions and symbols included. The
         printer's TypeScript `unknown` says the same. It is `Ts<>` that maps to
-        the DJS-shaped `Primitive | Array | Object` and so promises less than
-        the schema delivers. **Do not "fix" this by emitting the DJS union:**
+        the DataJS-shaped `Primitive | Array | Object` and so promises less
+        than the schema delivers. **Do not "fix" this by emitting the DataJS
+        union:**
         that would make a declaration reject values the runtime accepts —
         reversing the mismatch rather than removing it. Reconciling `Ts<>` with
         the readers, or narrowing both readers deliberately, is the real
@@ -939,7 +940,7 @@ are stated instead:
       than this epic — but an earlier draft stopped there, and a question
       deferred without a gate is one stage 11 can walk straight past. Four
       sources disagree about what an exported `unknown` promises: the module
-      and its README say DJS-compatible values; `Ts<>` excludes functions and
+      and its README say DataJS-compatible values; `Ts<>` excludes functions and
       symbols; the readers accept them
       ([`validate`](../fjs/rtti/validate/module.f.mjs) and
       [`parse`](../fjs/rtti/parse/module.f.mjs) both have
@@ -1769,7 +1770,7 @@ splits around inference, so the runnable order is 668's representation half
   arbitrary call is not.
 - [serialization](../spec/todo/serialization.md) and
   [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md) — code
-  as an FJS value, and the rollout that brings the above from DJS values to
+  as an FJS value, and the rollout that brings the above from DataJS values to
   modules.
 - [134-nominal-types-proposal](./134-nominal-types-proposal.md) — stage 9.
 
