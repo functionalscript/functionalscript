@@ -36,6 +36,7 @@
  *
  * @import { IoChannel, ReadFile, Stat } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
@@ -43,58 +44,64 @@ import { catchStep, mapStep, pureError, pureOk, step } from '../../effects/modul
 import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
 import { join } from '../../path/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
+import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { toArray } from '../../types/list/module.f.mjs'
 
 /** What a `.git` file says before the directory it names. */
 const gitdir = /** @type {const} */ ('gitdir: ')
 
 /**
- * What a file of Git's says, or `null` where its bytes are no UTF-8.
+ * A file of Git's read as Git reads one: `size` the bytes it holds after
+ * the line's end is taken off, and `text` what stands before the first NUL
+ * of those, decoded, or `null` where those bytes are no UTF-8.
  *
- * Git keeps a path as the bytes it read and hands those same bytes back to
- * the filesystem, so any byte a name may hold is a name it can follow. The
- * effects layer spells a path a string, so a path arrives here decoded and
- * leaves re-encoded, and that round trip is exact for UTF-8 and for nothing
- * else: a lone `0xff` decodes to `U+00FF` and goes back out as `0xc3 0xbf`,
- * naming a different directory that may well exist. So bytes that are no
- * UTF-8 name no directory this module can follow, and it says so rather
- * than following another.
+ * Three of Git's steps, in Git's order, and the order is what makes them
+ * agree with it.
  *
- * @type {(path: string) => Effect<ReadFile, Nullable<string>, IoChannel>}
+ * The line's end comes off the bytes first, and it is a `\n` and a `\r`
+ * and no other whitespace, so `gitdir: x  ` names the directory `x  `. The
+ * run is found once and cut once rather than a step per byte: a file's
+ * length is whatever wrote it, and Git reads a gitfile padded with two
+ * hundred thousand newlines, where a step per byte gives out an order of
+ * magnitude below the 131072 a `Vec` carries. `size` is what is left, which
+ * is the length Git asks `no path in gitfile` of.
+ *
+ * The NUL comes next, because Git reads a path out of those bytes as a C
+ * string: `gitdir: /r\\0junk` names `/r` and opens it. It comes after the
+ * line's end for a reason a case shows — `gitdir: /r\n\\0` names `/r\n`
+ * to Git, since the last byte is the NUL and no line's end is there to
+ * take off.
+ *
+ * The decoding comes last, and only of what survives, which is the point of
+ * doing it here rather than to the file whole. Git keeps a path as the
+ * bytes it read and hands those same bytes back to the filesystem, so any
+ * byte a name may hold is a name it can follow; the effects layer spells a
+ * path a string, so a path arrives decoded and leaves re-encoded, and that
+ * round trip is exact for UTF-8 and nothing else — a lone `0xff` decodes to
+ * `U+00FF` and goes back out as `0xc3 0xbf`, naming a different directory
+ * that may well exist. So bytes that are no UTF-8 name no directory here.
+ * But bytes past the first NUL are no part of the path at all, so junk
+ * there is nothing to refuse a good path over.
+ *
+ * @type {(v: Vec) => { readonly raw: number, readonly size: number, readonly text: Nullable<string> }}
  */
-const textAt = path => mapStep(readFile(path), fromVec)
-
-/**
- * The text with the line's end taken off and nothing else. Git strips a
- * trailing `\n` and `\r` from both of these files and no other whitespace,
- * so `gitdir: x  ` names the directory `x  ` and not `x`.
- *
- * The run of them is found once and cut once, rather than a step per
- * character. A file's length is whatever wrote it, not what this module
- * would like: Git reads a gitfile padded with two hundred thousand
- * newlines without complaint, and the effects layer carries a file of up
- * to a `Vec`'s 131072 bytes. A step per character is a stack frame per
- * character, and gives out an order of magnitude below either.
- *
- * @type {(text: string) => string}
- */
-const named = text => {
-    const cs = /** @type {readonly string[]} */ ([...text])
-    return cs.slice(0, cs.findLastIndex(c => c !== '\n' && c !== '\r') + 1).join('')
+const read = v => {
+    const bs = /** @type {readonly number[]} */ (toArray(u8List(msb)(v)))
+    const end = bs.slice(0, bs.findLastIndex(b => b !== 0x0A && b !== 0x0D) + 1)
+    const nul = end.indexOf(0)
+    return {
+        raw: bs.length,
+        size: end.length,
+        text: fromVec(u8ListToVec(msb)(nul === -1 ? end : end.slice(0, nul))),
+    }
 }
 
 /**
- * The path a line names: what stands before its first NUL, since a path
- * reaches the filesystem as the bytes up to one. Git takes the line's end
- * off the bytes it read and then reads a path out of them as a C string, so
- * `gitdir: /r\0junk` names `/r` and opens it, where carrying the NUL on
- * would make a path no host accepts.
+ * The same at a path, over the effects.
  *
- * @type {(line: string) => string}
+ * @type {(path: string) => Effect<ReadFile, { readonly raw: number, readonly size: number, readonly text: Nullable<string> }, IoChannel>}
  */
-const upTo = line => {
-    const i = line.indexOf('\0')
-    return i === -1 ? line : line.slice(0, i)
-}
+const readAt = path => mapStep(readFile(path), read)
 
 /** A letter, which is what a Windows drive is named by. */
 const isDriveLetter = /** @type {(c: string) => boolean} */ (
@@ -129,6 +136,26 @@ const isAbsolute = path =>
     path.startsWith('/') || (isDriveLetter(path[0]) && path[1] === ':' && path[2] === '/')
 
 /**
+ * A path below a directory. A `/` joins them, except where the directory is
+ * a bare drive, which takes what is below it with no separator at all:
+ * `C:` names the current directory on drive C and `C:.git` is the `.git`
+ * in it, where `C:/.git` is the one at the drive's root — two directories,
+ * and Windows resolves each per drive from the process. Joining the two
+ * with a `/` would quietly turn the first into the second.
+ *
+ * This is the drive reading {@link isAbsolute} takes, applied to the path
+ * the caller spells rather than the one a file holds, and it carries the
+ * same limitation: on POSIX a directory really named `C:` takes its `.git`
+ * below a separator like any other, and this would name `C:.git` instead.
+ * A POSIX directory named after a drive is not a thing that happens; a
+ * Windows caller standing on one is.
+ *
+ * @type {(dir: string, name: string) => string}
+ */
+const under = (dir, name) =>
+    dir.length === 2 && isDriveLetter(dir[0]) && dir[1] === ':' ? `${dir}${name}` : join(dir, name)
+
+/**
  * A path one of these files names, read where it was found: an absolute
  * one stands on its own and a relative one is joined to the directory the
  * file sits in.
@@ -143,7 +170,7 @@ const isAbsolute = path =>
  *
  * @type {(dir: string, path: string) => string}
  */
-const against = (dir, path) => isAbsolute(path) ? path : join(dir, path)
+const against = (dir, path) => isAbsolute(path) ? path : under(dir, path)
 
 /**
  * The directory `<repo>/commondir` names, read against `repo`, or `repo`
@@ -156,15 +183,17 @@ const against = (dir, path) => isAbsolute(path) ? path : join(dir, path)
  * Git reads the file and dies where the read gives it nothing, so the two
  * are a malformed repository and a repository whose common directory is
  * its own. Bytes that are no UTF-8 are `null` as well, for the reason
- * {@link textAt} gives.
+ * {@link read} gives.
  *
  * @type {(repo: string) => Effect<ReadFile, Nullable<string>, IoChannel>}
  */
 const commonOf = repo => catchStep(
-    mapStep(textAt(`${repo}/commondir`), text => {
-        if (text === null || text === '') { return null }
-        const line = upTo(named(text))
-        return line === '' ? repo : against(repo, line)
+    mapStep(readAt(under(repo, 'commondir')), ({ raw, text }) => {
+        // The file of no bytes is the file as it was read, before the
+        // line's end came off it: that is the one Git dies on, where a file
+        // of one newline is a repository whose common directory is its own.
+        if (raw === 0 || text === null) { return null }
+        return text === '' ? repo : against(repo, text)
     }),
     e => isNotFound(e) ? pureOk(repo) : pureError(e))
 
@@ -174,15 +203,14 @@ const commonOf = repo => catchStep(
  * it, and calls anything else `invalid gitfile format` or `no path in
  * gitfile`. A relative path is read against the directory the file sits in.
  *
- * @type {(worktree: string, text: string) => Nullable<string>}
+ * @type {(worktree: string, size: number, text: string) => Nullable<string>}
  */
-const tryGitdir = (worktree, text) => {
+const tryGitdir = (worktree, size, text) => {
     if (!text.startsWith(gitdir)) { return null }
-    const line = named(text.slice(gitdir.length))
-    // `no path in gitfile` is what Git says of the bytes it read, before a
-    // path is taken out of them, so a line that is nothing but a NUL gets
-    // past it and names the worktree itself.
-    return line === '' ? null : against(worktree, upTo(line))
+    // `no path in gitfile` is what Git asks of the bytes it read, before a
+    // path is taken out of them, so it is the size that answers it and a
+    // line that is nothing but a NUL gets past it and names the worktree.
+    return size <= gitdir.length ? null : against(worktree, text.slice(gitdir.length))
 }
 
 /**
@@ -197,8 +225,8 @@ const tryGitdir = (worktree, text) => {
  * - a `commondir` of no bytes at all, which Git dies on, where a
  *   `commondir` of one newline is a repository whose common directory is
  *   its own;
- * - bytes in either file that are no UTF-8, for the reason {@link textAt}
- *   gives.
+ * - bytes in either file, before its first NUL, that are no UTF-8, for the
+ *   reason {@link read} gives.
  *
  * A worktree with no `.git` at all is the channel's, as a directory with no
  * `config` is: both say the caller named no repository rather than that one
@@ -207,7 +235,7 @@ const tryGitdir = (worktree, text) => {
  * @type {(worktree: string) => Effect<ReadFile | Stat, Nullable<string>, IoChannel>}
  */
 export const tryCommonDir = worktree => {
-    const path = `${worktree}/.git`
+    const path = under(worktree, '.git')
     return step(stat(path), s => {
         if (s.isDirectory) { return commonOf(path) }
         // A `.git` that is neither is no gitfile and is not read. Git asks
@@ -216,8 +244,8 @@ export const tryCommonDir = worktree => {
         // writer that a worktree has no reason to have, so a malformed
         // checkout would hang the caller where Git refuses it at once.
         if (!s.isFile) { return pureOk(null) }
-        return step(textAt(path), text => {
-            const repo = text === null ? null : tryGitdir(worktree, text)
+        return step(readAt(path), ({ size, text }) => {
+            const repo = text === null ? null : tryGitdir(worktree, size, text)
             return repo === null ? pureOk(null) : commonOf(repo)
         })
     })

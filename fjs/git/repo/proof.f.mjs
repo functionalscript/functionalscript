@@ -132,6 +132,35 @@ export const proof = {
         const root = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('/m/.git\0junk\n') }, m: { '.git': repo } })
         assertEq(at(root)('w'), '/m/.git')
     },
+    // The bytes past the first NUL are no part of the path, so what they
+    // are is nothing to refuse a good path over: the decoding sees only
+    // what survives the cut. Junk that is no UTF-8 after a NUL is the case,
+    // and `gitdir: /r\xff` with the `\xff` before the NUL is still refused.
+    nulThenJunk: () => {
+        // `gitdir: /r`, a NUL, then `\xff` — 12 bytes.
+        assertEq(at({ w: { '.git': raw(96n, 0x6769746469723a202f7200ffn) }, r: repo })('w'), '/r')
+        const root = /** @type {State['root']} */ ({
+            w: { '.git': file('gitdir: /d\n') },
+            d: { commondir: raw(72n, 0x2f6d2f2e67697400ffn) },
+            m: { '.git': repo },
+        })
+        assertEq(at(root)('w'), '/m/.git')
+    },
+    // A bare drive names the current directory on that drive, and what is
+    // below it takes no separator: `C:.git` is the `.git` in it, where
+    // `C:/.git` is the one at the drive's root. The same reading of a drive
+    // the gitfile's paths get, applied to the path the caller spells.
+    bareDrive: () => {
+        assertEq(at({ 'C:.git': file('gitdir: /r\n'), r: repo })('C:'), '/r')
+        // And it is not the drive's root that is read: a `.git` sitting
+        // under `C:` is not the one `C:` names, so the read misses and the
+        // miss is the channel's.
+        const rooted = at(/** @type {State['root']} */ ({ 'C:': { '.git': repo } }))('C:')
+        assert(rooted instanceof Array && rooted[0] === 'error', rooted)
+        // A directory that is no bare drive takes its `.git` below a
+        // separator, as every other does.
+        assertEq(at({ 'C:x': { '.git': repo } })('C:x'), 'C:x/.git')
+    },
     // The line's end is a run of any length, and a file's length is
     // whatever wrote it. Git reads a gitfile padded with two hundred
     // thousand newlines; a `Vec` holds 131072 bytes, so that is as long a
