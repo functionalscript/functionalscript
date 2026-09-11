@@ -30,8 +30,9 @@ const set = /** @type {readonly Accept[]} */ (accept)
  * Whether a document holds a surrogate code unit with no partner.
  *
  * Such a document has **no UTF-8 encoding at all**, so it cannot be carried
- * to the engine by any route: a `data:` URL is percent-encoded UTF-8 or
- * base64 of the same, and a file is bytes. Encoding it anyway substitutes
+ * to the engine by any route: a `data:` URL is base64 of its UTF-8 or the
+ * percent-encoding of the same, and a file is bytes. Encoding it anyway
+ * substitutes
  * U+FFFD and quietly tests a different document, which is worse than not
  * testing it — so these are named below rather than skipped, and a ninth
  * one appearing is a failure.
@@ -68,33 +69,44 @@ const noEncoding = [
 ]
 
 /**
- * One byte as its percent escape, lowercase and always two digits.
+ * The bytes of a document, or `null` where it has none: a string through
+ * `TextEncoder`, which is its UTF-8, and a byte-form document as the bytes it
+ * already is — no encode between it and the engine, which is the point of
+ * carrying it that way and makes this the one place the corpus checks that a
+ * byte document is a JavaScript module too.
  *
- * @type {(b: number) => string}
+ * @type {(document: import('../../../../fjs/media/datajs/vectors/types.ts').Document) => readonly number[] | Uint8Array | null}
  */
-const percent = b => `%${b.toString(16).padStart(2, '0')}`
+const documentBytes = document => typeof document === 'string'
+    ? (unpaired(document) ? null : new TextEncoder().encode(document))
+    : /** @type {readonly number[]} */ (bytes(document[1]))
+
+/**
+ * Bytes as the one-character-per-byte string `btoa` takes.
+ *
+ * @type {(raw: readonly number[] | Uint8Array) => string}
+ */
+const latin1 = raw => Array.from(raw, b => String.fromCharCode(b)).join('')
 
 /**
  * A document as a module the engine can load, or `null` where it has no
  * encoding to be one.
  *
- * The URL is a `data:` one with a percent-encoded body, which is bytes
- * either way: `encodeURIComponent` writes a string's UTF-8, and a byte-form
- * document writes its own bytes through no encode at all — which is the
- * point of carrying it as bytes, and makes this the one place the corpus
- * checks that a byte document is a JavaScript module too.
+ * The body is **base64**, and that is the one spelling every runtime this
+ * suite runs on decodes. Measured: Bun hands back the URL itself as the
+ * module's default export for `data:text/javascript,` with a percent-encoded
+ * body, so a vector comparing the export against its graph fails with the
+ * URL in the message. Node and Deno take either. Base64 it is.
  *
- * Percent-encoding rather than base64 keeps the file to ECMAScript the
- * standard defines. `Buffer` is Node's, and this repository's suite runs
- * under runtimes that do not give it a global.
+ * `btoa` rather than `Buffer`, since `Buffer` is Node's and is not a global
+ * everywhere the suite runs; `TextEncoder` and `btoa` are the same Web API
+ * in all three.
  *
  * @type {(document: import('../../../../fjs/media/datajs/vectors/types.ts').Document) => string | null}
  */
 const moduleUrl = document => {
-    const body = typeof document === 'string'
-        ? (unpaired(document) ? null : encodeURIComponent(document))
-        : (/** @type {readonly number[]} */ (bytes(document[1]))).map(percent).join('')
-    return body === null ? null : `data:text/javascript,${body}`
+    const raw = documentBytes(document)
+    return raw === null ? null : `data:text/javascript;base64,${btoa(latin1(raw))}`
 }
 
 export const proof = {
