@@ -1823,9 +1823,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 130 records in
-      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 70 scope
-      records answering the 593 cells its column owes and one `['set',
+- [x] **Normalize.** Landed as 145 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 61 scope
+      records answering the 579 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
       the 50 classes this set introduced. The proof reads every text back
       through the reader, which is the run-through-the-accept-grammar check
@@ -1837,9 +1837,28 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 119,193 bytes of the bit
-      vector's 131,072, which is 90% and leaves little room for another
+      being refused outright. The matrix stands at 117,290 bytes of the bit
+      vector's 131,072, which is 89% and leaves little room for another
       column or another set of classes.
+      **Fifteen of the 145 arrived in a second round, and the reason is worth
+      recording.** The set went out with ten scope records saying the shape
+      under them "varies only in a count or a depth, which normalized layout
+      does not branch on", and review took each one apart: five of them named
+      a class that is a distinct *value* or a distinct *context*, which is a
+      thing a normalizer gets wrong on its own. A writer coercing a bigint
+      through `Number` emits `9007199254740992n` for `9007199254740993n` and
+      passed, since every bigint the set pinned was small. One hash-consing
+      structurally equal non-empty containers passed, since the only unshared
+      pair was `[[],[]]`. One treating `4294967295` as an array index emitted
+      the members in the wrong order and passed, since the key-order vector
+      used `2` and `10`. One with a separate nested-container emitter wrote
+      `[null]` for `[undefined]` and passed, since the special leaves appeared
+      only at a root. And a two-byte UTF-8 character had no raw vector at all:
+      the set went from U+007F to U+D7FF. The exemptions for all five are
+      gone, replaced by vectors carrying the same graphs the accept set
+      carries — which is the general defence, since a class the reader
+      enumerates for a reason is a class the writer can get wrong for the
+      same reason.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
