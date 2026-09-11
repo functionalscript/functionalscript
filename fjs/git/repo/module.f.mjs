@@ -1,0 +1,101 @@
+/**
+ * From a worktree to the repository directory that holds its objects: the
+ * step [`fjs/git/store`](../store/module.f.mjs) and
+ * [`fjs/git/walk`](../walk/module.f.mjs) leave to their caller, since both
+ * take that directory as it is given rather than finding it.
+ *
+ * Git reaches it by one rule whatever kind of worktree it starts from, and
+ * {@link tryCommonDir} is that rule:
+ *
+ * - `.git` in the worktree is either a directory, which is the
+ *   repository, or a file whose `gitdir: ` line names one. `git init`
+ *   makes the first; `git init --separate-git-dir` and `git worktree add`
+ *   make the second.
+ * - That directory is the repository unless it holds a `commondir` file,
+ *   whose line names the repository instead. A linked worktree's directory
+ *   sits under the main repository's `worktrees/` and has one; a main
+ *   repository has none.
+ *
+ * So `objects/`, `packed-refs` and the shared refs live at the answer, and
+ * a linked worktree's own directory — which holds its `HEAD` and its index
+ * and no objects — is passed through rather than searched. The parent of a
+ * `.git` file holds no objects either and is never looked at.
+ *
+ * The answer is where Git would look and not a promise that a repository
+ * is there: reading `config` at it is what says whether one is, and that is
+ * `fjs/git/store`'s `oidBytes`.
+ *
+ * @module
+ *
+ * @import { IoChannel, ReadFile, Stat } from '../../effects/node/types.ts'
+ * @import { Effect } from '../../effects/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ */
+
+import { catchStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { isNotFound, readUtf8File, stat } from '../../effects/node/module.f.mjs'
+import { concat } from '../../path/module.f.mjs'
+
+/** What a `.git` file says before the directory it names. */
+const gitdir = /** @type {const} */ ('gitdir: ')
+
+/**
+ * The path a one-line file of Git's names: the text with the line's end
+ * taken off and nothing else. Git strips a trailing `\n` and `\r` from
+ * both of these files and no other whitespace, so `gitdir: x  ` names the
+ * directory `x  ` and not `x`.
+ *
+ * @type {(text: string) => string}
+ */
+const named = text => text.endsWith('\n') || text.endsWith('\r')
+    ? named(text.slice(0, -1))
+    : text
+
+/**
+ * The directory `<repo>/commondir` names, read against `repo`, or `repo`
+ * itself where there is no such file. An absolute line replaces `repo` and
+ * a relative one is taken from it — `../..` under `worktrees/<name>` is the
+ * repository that owns them — and a line naming nothing is `repo`, which is
+ * the path Git builds from it.
+ *
+ * @type {(repo: string) => Effect<ReadFile, string, IoChannel>}
+ */
+const commonOf = repo => catchStep(
+    mapStep(readUtf8File(`${repo}/commondir`), text => {
+        const line = named(text)
+        return line === '' ? repo : concat(repo)(line)
+    }),
+    e => isNotFound(e) ? pureOk(repo) : pureError(e))
+
+/**
+ * The repository directory a worktree's `.git` file names, or `null` where
+ * the bytes are no such file: Git wants `gitdir: ` first and a path after
+ * it, and calls anything else `invalid gitfile format` or `no path in
+ * gitfile`. A relative path is read against the directory the file sits in.
+ *
+ * @type {(worktree: string, text: string) => Nullable<string>}
+ */
+const tryGitdir = (worktree, text) => {
+    if (!text.startsWith(gitdir)) { return null }
+    const line = named(text.slice(gitdir.length))
+    return line === '' ? null : concat(worktree)(line)
+}
+
+/**
+ * The common directory of the repository a worktree belongs to, or `null`
+ * where its `.git` is a file that is no gitfile. A worktree with no `.git`
+ * at all is the channel's, as a directory with no `config` is: both say the
+ * caller named no repository rather than that one is malformed.
+ *
+ * @type {(worktree: string) => Effect<ReadFile | Stat, Nullable<string>, IoChannel>}
+ */
+export const tryCommonDir = worktree => {
+    const path = `${worktree}/.git`
+    return step(stat(path), s => {
+        if (s.isDirectory) { return commonOf(path) }
+        return step(readUtf8File(path), text => {
+            const repo = tryGitdir(worktree, text)
+            return repo === null ? pureOk(null) : commonOf(repo)
+        })
+    })
+}

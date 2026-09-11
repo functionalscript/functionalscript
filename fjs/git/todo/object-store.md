@@ -8,13 +8,12 @@
 [`fjs/git/store`](../store/module.f.mjs) takes an id and gives the
 `Envelope` the object is, as the Proposal below asks, so the first half of
 this is done — for loose objects, and at a directory the caller spells.
-What is left is the rest of that: an id in a pack, and the
-directory found rather than given, since a caller should not have to know
-that an id `ab12…` lives at `objects/ab/12…` if it is loose and elsewhere
-if it is packed, nor which directory `objects/` sits in when a worktree is
-linked. Both consumers under [`todo/`](../../../todo/) also need a walk
-built on the store: a commit to its tree, a tree to its entries, an entry
-to a blob.
+[`fjs/git/repo`](../repo/module.f.mjs) finds that directory from a
+worktree of any kind, so a caller no longer has to know which directory
+`objects/` sits in when a worktree is linked. What is left is an id in a
+pack, since a caller should not have to know that an id `ab12…` lives at
+`objects/ab/12…` if it is loose and elsewhere if it is packed, and the
+directories `alternates` adds to the search.
 
 ### Proposal
 
@@ -63,8 +62,10 @@ to a blob.
 - [x] `tryRead(id)` over loose objects, with the id check on read, in
       `fjs/git/store`.
 - [ ] `tryRead` over packs once [packfiles.md](./packfiles.md) lands.
-- [ ] The common directory found: a linked worktree's `gitdir` and
-      `commondir`, and `alternates`.
+- [x] The common directory found: a linked worktree's `gitdir` and
+      `commondir`, in [`fjs/git/repo`](../repo/module.f.mjs).
+- [ ] `alternates`: the directories `objects/info/alternates` adds, which
+      the store searches after its own.
 - [x] The walk from a commit to a blob by path:
       [`fjs/git/walk`](../walk/module.f.mjs), `peel`, `tryEntries` and
       `tryEntry` over whatever reads objects.
