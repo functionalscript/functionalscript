@@ -2129,7 +2129,23 @@ or the spec, not only into a thread.
    model — the accessors, the symbol key, the non-enumerable property, the
    extra own property on an array, the cycle — and serializes the ones it
    keeps inside as their data: a frozen, sealed or non-writable value, and a
-   `null`-prototype object. It proves each refusal against the data a
+   `null`-prototype object. **One recipe it refuses that this specification
+   accepts**: an array under a `null` prototype, which §What may be
+   serialized serializes as its data, and which the writer meets at its
+   object branch and refuses for `length`, non-enumerable on every array. It
+   detects an array with `instanceof Array`, which
+   [`fjs/AGENTS.md`](../../../fjs/AGENTS.md) §3.1 requires of a `.f.mjs` and
+   which is `false` for that value. Either the specification's clause moves
+   or the writer does; nothing pins it today, so the divergence is written
+   here rather than found by the first vector that covers it. **One recipe it refuses that this specification
+   accepts**: an array under a `null` prototype, which §What may be serialized
+   serializes as its data, and which the writer meets at its object branch and
+   refuses for `length`, non-enumerable on every array. It detects an array
+   with `instanceof Array`, which
+   [`fjs/AGENTS.md`](../../../fjs/AGENTS.md) §3.1 requires of a `.f.mjs` and
+   which is `false` for that value. Either the specification's clause moves or
+   the writer does; nothing pins it today, so the divergence is written here
+   rather than discovered by the first vector that covers it. It proves each refusal against the data a
    host value would carry — `_memberValue` against a descriptor,
    `_elementNames` against a list of own property names, `_link` against a
    graph with a forward reference — because those are values FunctionalScript can build

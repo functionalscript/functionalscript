@@ -142,14 +142,23 @@ descriptor and over a list of names, for the same reason:
 host value can trigger has to be a function over the data that value would
 carry.
 
-Two costs are now measured rather than assumed. The read rebuilds
-`started` per container (`new Set([...prev, value])`), and `shared` counts
-occurrences with `indexOf`, so both are quadratic in the number of
-containers; and `read` and `write` recurse on the call stack, where the
-reader walks an explicit one and keeps its 5,000-level depth contract. Both
-are simple-first choices, not measurements that came out well — a document
-deep enough or wide enough to matter is what would change them, and neither
-has a vector yet.
+One cost is now measured rather than assumed: the read rebuilds `started`
+per container (`new Set([...prev, value])`), and `shared` counts occurrences
+with `indexOf`, so both are quadratic in the number of containers. That is a
+simple-first choice, and a document wide enough to matter is what would
+change it.
+
+**Depth is a defect rather than a cost.** `read` and `write` recurse on the
+call stack, where the reader walks an explicit one and keeps a 5,000-level
+depth contract — so the writer cannot write back every document the reader
+accepts. Measured: a value of 2,600 nested arrays, one `parse` itself
+returns, makes `tryStringify` throw
+`RangeError: Maximum call stack size exceeded` instead of returning an
+`error`. §Layout and API says rejection is a `try*` and not a panic, and an
+escaping exception is neither. The fix is the reader's shape, a frame per
+container on an explicit stack, in both passes; until it lands this is the
+input that breaks the writer, named here as
+[`REVIEW.md`](../../../../doc/REVIEW.md) asks of a deferred crash.
 
 This pass is the *first* thing that touches the caller's graph, so every rule
 below has to hold here rather than in the walk: counting occurrences means
@@ -410,9 +419,12 @@ invoked on the way. Decision 6 is what would close it.
       path lands beside it — and the `parse` versus `tryParse` naming with it.
 - [ ] A readable layout as the second writer, if one is wanted, and
       `tryNormalize` as the name this one takes then (§Layout and API).
-- [ ] Measure the two quadratic steps and the recursion depth of §1 against a
-      document large or deep enough to matter, and decide whether either is
-      worth changing.
+- [ ] **Walk both passes on an explicit stack**, so that a document the
+      reader accepts is one the writer can write: 2,600 nested arrays make
+      `tryStringify` throw `RangeError` today, where it owes an `error` at
+      worst (§1).
+- [ ] Measure the two quadratic steps of §1 against a document wide enough to
+      matter, and decide whether it is worth changing.
 - [ ] Delete this file in the PR that finishes it.
 
 ### Related

@@ -105,10 +105,11 @@ bytes because "a decoder satisfies the parser on [it] by stripping `EF BB BF`
 before the parser ever runs", so an implementation that strips passes every
 code-unit vector while accepting a document the spec refuses.
 
-Why the writer's three are shaped that way — chunks and their `concat`, a
-separate entry point for normalized form, `unknown` in and no `sort` seam,
-because observable key order is part of the value and not a caller's to choose —
-is [`serializer.md`](./serializer.md#layout-and-api).
+Why the writer's two are shaped that way — chunks and their `concat`,
+`unknown` in, and no `sort` seam, because observable key order is part of the
+value and not a caller's to choose — is
+[`serializer.md`](./serializer.md#layout-and-api), which also says why
+normalized form is not a third.
 
 #### 1. Value domain, and the one type-level trap
 
