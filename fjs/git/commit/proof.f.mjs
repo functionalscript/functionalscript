@@ -169,6 +169,9 @@ export const proof = {
         assert(id !== null)
         assertEq(hex(id), treeId)
         assertEq(at(latin1('junk')), null)
+        // Long enough to get past the floor and still no header block, so
+        // it is the reader that refuses it rather than the length.
+        assertEq(at(latin1('j'.repeat(50))), null)
         assertEq(at(latin1(['tree zz', ...lines.slice(1)].join('\n'))), null)
         assertEq(tryTreeAt(32)(latin1(lines.join('\n'))), null)
         // A `parent` header naming no id of the width refuses it too, since
@@ -192,6 +195,20 @@ export const proof = {
         assertEq(latin1(wide).length, 70)
         assertEq(tryTreeAt(32)(latin1(wide)), null)
         assert(tryTreeAt(32)(latin1(`${wide}\n`)) !== null)
+        // Git's parent walk wants a byte after the line it is reading, so a
+        // payload ending at the last `parent` line's LF is `bad parents in
+        // commit` however good that id is, and the empty line is the byte
+        // it is short of. Measured on Git 2.43.0: the 94-byte payload is
+        // refused and the 95-byte one peels to its tree.
+        const withParent = `${bare}parent ${parentId}\n`
+        assertEq(latin1(withParent).length, 94)
+        assertEq(at(latin1(withParent)), null)
+        assert(at(latin1(`${withParent}\n`)) !== null)
+        // It is the last parent the walk reached, so two of them end the
+        // same way and one ordinary header after them ends the walk
+        // instead, leaving the payload free to end at its own last LF.
+        assertEq(at(latin1(`${withParent}parent ${parentId}\n`)), null)
+        assert(at(latin1(`${withParent}author ${who}\n`)) !== null)
     },
     // Each refusal, one per rule, on a commit the reader reads.
     validate: () => {
