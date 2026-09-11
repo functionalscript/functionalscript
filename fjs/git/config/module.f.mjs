@@ -221,6 +221,21 @@ const digitValue = c =>
                 : 16n
 
 /**
+ * The lines of a file, as Git ends one. Git ends a line at a `\n` and folds
+ * the `\r` before it, and folds no other. A `\r` that reaches the end of
+ * the file ends nothing, so it stands in the line as the character it is:
+ * `x\r` is the bare key `x\r`, which is a bad config line for the reason
+ * `x\r= 1` is one, rather than the bare key `x`.
+ *
+ * @type {(text: string) => readonly string[]}
+ */
+const lines = text => {
+    const split = text.split('\n')
+    const last = split.length - 1
+    return split.map((line, i) => i !== last && line.endsWith('\r') ? line.slice(0, -1) : line)
+}
+
+/**
  * The number digits spell in a radix, or `null` where they are none or
  * one of them is no digit of it.
  *
@@ -405,7 +420,7 @@ export const tryEntries = raw => {
     // editor that writes one means it as text. Here it is the one character
     // a decoder leaves, so the half of one Git refuses cannot arise.
     const text = raw.startsWith(bom) ? raw.slice(bom.length) : raw
-    const [, list] = text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line).reduce(
+    const [, list] = lines(text).reduce(
         /** @type {(acc: readonly [string, Nullable<readonly Entry[]>], raw: string) => readonly [string, Nullable<readonly Entry[]>]} */
         ([section, list], raw) => {
             if (list === null) { return [section, null] }

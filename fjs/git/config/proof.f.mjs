@@ -110,6 +110,17 @@ export const proof = {
         // Between a key and its `=` it does not: that one loop of Git's asks
         // for a space or a tab by name.
         assertEq(tryEntries('[core]\nx\r= 1'), null)
+        // A `\r` ends a line only where a `\n` follows it. One that reaches
+        // the file's end ends nothing and stands in the line, so a bare key
+        // before it is the key with the `\r` in it, which is the line above
+        // one character later. A `\r` that is value whitespace is dropped
+        // either way.
+        assertEq(tryEntries('a\r'), null)
+        assertEq(tryEntries('[core]\n\tx\r'), null)
+        assertEq(tryEntries('x\r\r'), null)
+        assertEq(tryEntries('x\r\r\n'), null)
+        assertStructurallySame(tryEntries('[core]\n\tx = 1\r'), [['core', 'x', '1']])
+        assertStructurallySame(tryEntries('[core]\r\n\tx\r\n'), [['core', 'x', 'true']])
         // A `\v` and a `\f` are no whitespace at all, so they begin no
         // line and stand in a value as the characters they are.
         assertEq(tryEntries('\v[core]\nx = 1'), null)
