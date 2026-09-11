@@ -265,6 +265,34 @@ export const proof = {
         // ... and a string contributes its indices.
         same(['{}', [['...', 'ab']]], { 0: 'a', 1: 'b' })
     },
+    // `memo` — the nodes a caller established, consulted by identity. It is
+    // what lets this evaluator answer an identity question it otherwise
+    // cannot: with the node established, `['===', n, n]` is one value
+    // compared with itself, and without it two.
+    established: () => {
+        /** @type {Exp} */
+        const node = ['[]', [1, 2]]
+        // Amnesia as such: one node reached twice is two arrays.
+        eq(['===', node, node], false)
+        // Established: one value, so the comparison is an identity.
+        /** @type {readonly (readonly[Exp, unknown])[]} */
+        const one = [[node, ev(node)]]
+        assertEq(vm({ ...context, memo: one })(['===', node, node]), true)
+        // ... and it is the caller's value that comes back, not a fresh one.
+        const marker = ['marker']
+        /** @type {readonly (readonly[Exp, unknown])[]} */
+        const markerMemo = [[node, marker]]
+        assertEq(vm({ ...context, memo: markerMemo })(node), marker)
+        // A node the memo does not hold is computed as always.
+        assertStructurallySame(vm({ ...context, memo: one })(['[]', [3]]), [3])
+        // A call is a new invocation, so nothing established crosses into a
+        // body: the node inside evaluates fresh and is not the caller's value.
+        /** @type {Exp} */
+        const body = ['=>', ['[]', []], node]
+        const f = /** @type {() => unknown} */ (
+            vm({ ...context, memo: markerMemo })(body))
+        assert(f() !== marker, ['the memo crossed a call boundary'])
+    },
     // Operands are evaluated through `vm(context)`, so a node composes with
     // every other node kind and sees the same context at any depth.
     nested: () => {

@@ -13,22 +13,23 @@
  * checked, so the claim has to be a module-scope alias in a `.ts` file to be
  * one at all.
  *
- * Every lowered case runs through [`amnesia`](../edag/amnesia/module.f.mjs),
- * the repository's one real EDAG evaluator, rather than a second hand-written
+ * Every case runs through [`amnesia`](../edag/amnesia/module.f.mjs), the
+ * repository's one real EDAG evaluator, rather than a second hand-written
  * walker — so an operator's behaviour here is proven by actually executing
  * the EDAG node, the same way [`../edag/proof.f.mjs`](../edag/proof.f.mjs)
- * proves the schema against it. `eq`'s cases are the one exception: they
+ * proves the schema against it. `eq`'s cases used to be the exception: they
  * exist to check EDAG node **identity** (`arrayByItself` and friends), which
  * amnesia deliberately does not preserve — see "It forgets" in
- * [amnesia's README](../edag/amnesia/README.md) — so `evaluate` below stays a
- * small dedicated memoizing walker for that section alone. When a
- * memoizing (identity-preserving) EDAG interpreter
- * ([interpret-edag](../djs/todo/interpret-edag.md)) lands, it can absorb
- * `evaluate` too and this module reduces to lowering plus assertions.
+ * [amnesia's README](../edag/amnesia/README.md) — so this module carried a
+ * second, memoizing walker for that section alone. It does not any more:
+ * amnesia takes the nodes a caller has already established
+ * (`Context`'s `memo`), so `sharedMemo` below hands it the `eq` section's
+ * shared nodes and the cases run through the one evaluator like everything
+ * else.
  *
- * @import { Exp, Op2, Properties } from '../edag/types.ts'
+ * @import { Exp, Op2 } from '../edag/types.ts'
  * @import { Context } from '../edag/amnesia/types.ts'
- * @import { Case, EqCase, Expectation, Group, OpId, SharedNode, Value } from './types.ts'
+ * @import { Case, EqCase, Expectation, Group, SharedNode, Value } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
@@ -36,7 +37,6 @@ import { exp } from '../edag/module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 import {
-    arityOf,
     caseExp,
     casesOf,
     data,
@@ -53,53 +53,43 @@ import {
 const { fromEntries, is } = Object
 
 /**
- * The JavaScript each unary operation the corpus uses denotes, keyed by the
- * canonical EDAG id: `crossCheck`'s reference, the bare JS operator that
- * `amnesia`'s handler for the same id must agree with.
+ * The JavaScript each of the corpus's operations denotes: `crossCheck`'s
+ * reference, the bare JS operator that `amnesia`'s handler for the same node
+ * must agree with.
  *
- * No case *runs* through these any more — every lowered case runs through
- * `amnesia`'s `vm` (see `run` below) — so an entry is a claim about what an
- * id denotes and nothing else. A group whose id has no entry is silently not
- * cross-checked, which is why every operation the corpus has a group for is
- * here, and `lookup` refuses an id it does not hold rather than answering
- * for it. `+` and `-` are here at their unary arity; the binary table below
- * holds them at the other.
+ * Keyed by `groupKey`, one table for every arity — so `-` at one operand and
+ * at two are two entries, as they are two groups, and a consumer needs no
+ * arity dispatch to find the one it wants.
  *
- * The `any` parameters are the point of the exercise: these operators are
- * being applied to operand types TypeScript rejects (`-[]`, `{} * 1`), which
- * is exactly the coercion behaviour under test.
- *
- * @type {{ readonly [k in OpId]?: (a: any) => unknown }}
- */
-const op1Js = {
-    '-': a => -a,
-    '+': a => +a,
-    '!': a => !a,
-    '~': a => ~a,
-    typeof: a => typeof a,
-    String: a => String(a),
-}
-
-/**
- * The same, for the binary operations — plus `'==='`, which `evaluate` below
- * reaches directly (`eq`'s cases build it by hand in `lowerEq`, never
- * through `run`).
- *
- * `own` is deliberately absent, so `crossCheck` skips it: the plain
+ * No case *runs* through these — every case runs through `amnesia`'s `vm`
+ * (see `run` below) — so an entry is a claim about what an operation denotes
+ * and nothing else. An absent entry means that group is not cross-checked at
+ * all, which `referenceCoverage` below makes a deliberate list of exactly
+ * one rather than an oversight: `own`, whose plain
  * `Object.getOwnPropertyDescriptor` read is not a copy of `amnesia`'s
  * stricter receiver/key invariants — `nonStringKeyThrows` (`[{1: 42}, 1]`) is
  * real JS and does *not* throw through the descriptor read, only through
  * `amnesia`'s FS-specific string-key check — so the two are expected to
  * disagree there, and every `own` case is proven by `amnesia` alone.
  *
- * @type {{ readonly [k in OpId]?: (a: any, b: any) => unknown }}
+ * The `any` parameters are the point of the exercise: these operators are
+ * being applied to operand types TypeScript rejects (`-[]`, `{} * 1`), which
+ * is exactly the coercion behaviour under test.
+ *
+ * @type {{ readonly [k in string]?: (...args: readonly any[]) => unknown }}
  */
-const op2Js = {
+const js = {
+    '-/1': a => -a,
+    '+/1': a => +a,
+    '!': a => !a,
+    '~': a => ~a,
+    typeof: a => typeof a,
+    String: a => String(a),
     '*': (a, b) => a * b,
     '/': (a, b) => a / b,
     '**': (a, b) => a ** b,
-    '-': (a, b) => a - b,
-    '+': (a, b) => a + b,
+    '-/2': (a, b) => a - b,
+    '+/2': (a, b) => a + b,
     '%': (a, b) => a % b,
     '&': (a, b) => a & b,
     '|': (a, b) => a | b,
@@ -111,34 +101,25 @@ const op2Js = {
     '<=': (a, b) => a <= b,
     '>': (a, b) => a > b,
     '>=': (a, b) => a >= b,
-    '===': (a, b) => a === b,
     '&&': (a, b) => a && b,
     '||': (a, b) => a || b,
     '??': (a, b) => a ?? b,
-}
-
-/** The same, for the one ternary operation. @type {{ readonly [k in OpId]?: (a: any, b: any, c: any) => unknown }} */
-const op3Js = {
     '?:': (a, b, c) => a ? b : c,
 }
 
 /**
- * The operation an id names. An id with no entry is a gap in this module, not
- * a case to answer for with a plausible wrong value.
+ * The operation a key names. A key with no entry is a gap in this module, not
+ * a case to answer for with a plausible wrong value — so this is for the
+ * callers that require one. `crossCheck` reads {@link js} directly instead,
+ * because there an absent entry is the documented skip.
  *
- * @type {<T>(table: { readonly [k in OpId]?: T }) => (id: OpId) => T}
+ * @type {(key: string) => (...args: readonly any[]) => unknown}
  */
-const lookup = table => id => {
-    const f = table[id]
-    if (f === undefined) { throw ['no JavaScript for', id] }
+const reference = key => {
+    const f = js[key]
+    if (f === undefined) { throw ['no JavaScript for', key] }
     return f
 }
-
-const op1 = lookup(op1Js)
-
-const op2 = lookup(op2Js)
-
-const op3 = lookup(op3Js)
 
 /**
  * The evaluation context every lowered case runs `amnesia`'s `vm` under. No
@@ -151,76 +132,35 @@ const op3 = lookup(op3Js)
 const context = { frame: undefined, args: [] }
 
 /**
- * Evaluates a constant EDAG expression **with identity preserved** across a
- * shared node — what `amnesia`'s `vm` deliberately does not do (see "It
- * forgets" in [its README](../edag/amnesia/README.md)), and the one thing
- * `eq`'s cases are for: `memo` holds the nodes already evaluated for this
- * case, so a node reached from several places is one value, which is the
- * whole reason `arrayByItself` is `true` where `arrayByEqualArray` is
- * `false`. It is a list and not a `Map` because the corpus's shared nodes are
- * the three `eq` ones and nothing else: the lowering gives every other
- * operand a node of its own, so a node reached twice is always a `ref`.
+ * The shared nodes, established one value each, for `amnesia`'s `memo`.
  *
- * `amnesia`'s recursion is not pluggable — its handlers call its own `vm`
- * directly — so it cannot be handed this memo to consult mid-walk; this stays
- * a separate, smaller walker for exactly that reason, rather than the general
- * evaluator `run` uses below.
- *
- * Sees two kinds of node: a `Value`'s lowering (`eq.shared`'s nodes, and the
- * operands `eqProof` reads out of `e` below — plus, from
- * `jsOnly.throw.objectSpread`, a hand-built one of the same shape), which is
- * always a constant or a `ref` and so always `'undefined'`/`'[]'`/`'{}'` or a
- * primitive, never an operator application; and `lowerEq`'s own `['===', a,
- * b]`, the one binary node this file ever builds by hand — plus a
- * `functionValue`'s lowering, the `=>` node, which is a value here and not
- * an operation: it establishes to a host closure, one per node, so two
- * function values are two closures and a shared one is one. Nothing here is
- * ever a *unary* operator node, which is why there is no `op1` dispatch —
- * only `op2`, and only ever for `'==='`.
- *
- * @type {(memo: readonly (readonly[Exp, unknown])[]) => (e: Exp) => unknown}
- */
-const evaluate = memo => {
-    /** @type {(e: Exp) => unknown} */
-    const f = e => {
-        if (!(e instanceof Array)) { return e }
-        const shared = memo.find(([n]) => n === e)
-        if (shared !== undefined) { return shared[1] }
-        const [id, a, b] = /** @type {readonly any[]} */ (e)
-        if (id === 'undefined') { return undefined }
-        if (id === '=>') { return () => undefined }
-        if (id === '[]') { return a.map(f) }
-        if (id === '{}') {
-            // `Properties` is `Property | Spread`. A spread read as a property
-            // would take its operand as the key and its absent third element
-            // as the value, giving a silently wrong object rather than an
-            // error — the same defect the printer refuses.
-            return fromEntries(a.map((/** @type {Properties} */ p) => {
-                if (p[0] !== ':') { throw ['not a property', p] }
-                return [f(p[1]), f(p[2])]
-            }))
-        }
-        return op2(id)(f(a), f(b))
-    }
-    return f
-}
-
-/**
- * The shared nodes, evaluated to one value each.
- *
- * Each is evaluated against the ones already evaluated, so a `ref` inside a
+ * Each is evaluated against the ones already established, so a `ref` inside a
  * shared value reaches that value rather than an equal copy — the same
- * ordering the lowering used to resolve it.
+ * ordering the lowering used to resolve it, and the order `memo` requires.
  *
  * Rebuilt per case: the model's memo is per invocation and a case is one
  * invocation, so nothing here depends on two cases seeing the same object.
+ *
+ * This is the whole of what `eq`'s cases need that an ordinary case does not.
+ * Identity across a shared node is what they are for — `arrayByItself` is
+ * `true` where `arrayByEqualArray` is `false` — and `amnesia` forgets by
+ * design, so the nodes it must not recompute are handed to it rather than
+ * walked by a second evaluator here.
  *
  * @type {(shared: readonly SharedNode[]) => readonly (readonly[Exp, unknown])[]}
  */
 const sharedMemo = shared => shared.reduce(
     (/** @type {readonly (readonly[Exp, unknown])[]} */ memo, [, node]) =>
-        [...memo, /** @type {readonly[Exp, unknown]} */ ([node, evaluate(memo)(node)])],
+        [...memo, /** @type {readonly[Exp, unknown]} */
+            ([node, vm({ ...context, memo })(node)])],
     [])
+
+/**
+ * `amnesia`, with the `eq` section's shared nodes established.
+ *
+ * @type {(shared: readonly SharedNode[]) => (e: Exp) => unknown}
+ */
+const shared = s => vm({ ...context, memo: sharedMemo(s) })
 
 /**
  * A value as `crossCheck`'s reference sees it, built through the same
@@ -242,11 +182,27 @@ const value = v => vm(context)(valueExp(v))
 const run = g => args => vm(context)(caseExp(g)(args))
 
 /**
- * The leaf tests of one group, keyed by case name.
+ * One group's leaves as a proof object: the ordinary cases by name, and the
+ * throwing ones under a nested `throw` key — the framework's structural way
+ * of declaring that a test is expected to throw. A throwing leaf stops at its
+ * first exception, which is why each argument order is its own leaf, and why
+ * {@link group} and {@link crossCheck} are two trees rather than one: a leaf
+ * that asserts a throw can assert one call, so the two implementations cannot
+ * share it. Everything around that they can, which is what this is.
  *
- * Throwing cases go under a nested `throw` key — the framework's structural
- * way of declaring that a test is expected to throw. A throwing leaf stops at
- * its first exception, which is why each argument order is its own leaf.
+ * @type {(g: Group) => (leaves: (c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]) => object}
+ */
+const tree = g => leaves => {
+    const cases = casesOf(g)
+    const ok = cases.filter(c => !isThrows(c.expected)).flatMap(leaves)
+    const bad = cases.filter(c => isThrows(c.expected)).flatMap(leaves)
+    return bad.length === 0
+        ? fromEntries(ok)
+        : { ...fromEntries(ok), throw: fromEntries(bad) }
+}
+
+/**
+ * Each case run through `amnesia`, against the `expected` the corpus states.
  *
  * @type {(g: Group) => object}
  */
@@ -268,18 +224,12 @@ const group = g => {
             }
         return orders(g)(c).map(([name, args]) => [name, fn(args)])
     }
-    const cases = casesOf(g)
-    const ok = cases.filter(c => !isThrows(c.expected)).flatMap(leaves)
-    const bad = cases.filter(c => isThrows(c.expected)).flatMap(leaves)
-    return bad.length === 0
-        ? fromEntries(ok)
-        : { ...fromEntries(ok), throw: fromEntries(bad) }
+    return tree(g)(leaves)
 }
 
 /**
  * Replays a group's cases a second time, through the bare JavaScript
- * operator (`op1Js`/`op2Js`/`op3Js`) instead of `amnesia`, and checks the
- * two agree.
+ * operator ({@link js}) instead of `amnesia`, and checks the two agree.
  *
  * `amnesia`'s handler and the JS operator are two independent
  * implementations of the same operation, and nothing else keeps them in
@@ -292,11 +242,12 @@ const group = g => {
  * *value* is exactly what this catches, and would have caught it sooner had
  * one of the two reorderings landed first without the other.
  *
- * A group whose id has no reference entry is skipped — `own`, for the reason
- * at `op2Js`. Every id that has one is a bare JavaScript operator on both
- * sides, so agreement is the only correct outcome, not a coincidence of
- * scope. A function operand is compared like any other: both sides see a
- * closure, and every operator here coerces one the same way.
+ * A group with no reference entry is skipped — `own`, for the reason at
+ * {@link js}, and nothing else, which `referenceCoverage` pins. Every
+ * operation that has one is a bare JavaScript operator on both sides, so
+ * agreement is the only correct outcome, not a coincidence of scope. A
+ * function operand is compared like any other: both sides see a closure, and
+ * every operator here coerces one the same way.
  *
  * Throwing cases are checked structurally only — both sides must throw,
  * not throw the same thing — for the same reason `group` above can't
@@ -306,29 +257,40 @@ const group = g => {
  * @type {(g: Group) => object}
  */
 const crossCheck = g => {
-    const arity = arityOf(g)
-    const table = arity === 1 ? op1Js : arity === 2 ? op2Js : op3Js
-    if (!(g.op in table)) { return {} }
-    const id = g.op
+    const key = groupKey(g)
+    const f = js[key]
+    if (f === undefined) { return {} }
     /** @type {(c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]} */
-    const leaves = c => orders(g)(c).flatMap(([name, args]) => {
+    const leaves = c => orders(g)(c).map(([name, args]) => {
         const e = caseExp(g)(args)
-        const [ra, rb, rc] = args.map(value)
-        const refValue = () => arity === 1 ? op1(id)(ra)
-            : arity === 2 ? op2(id)(ra, rb)
-            : op3(id)(ra, rb, rc)
+        const refValue = () => f(...args.map(value))
         const fn = isThrows(c.expected)
             ? () => { refValue() }
             : () => {
                 const amnesiaValue = vm(context)(e)
-                assert(is(amnesiaValue, refValue()), [amnesiaValue, 'is not', refValue(), 'for', id])
+                assert(is(amnesiaValue, refValue()), [amnesiaValue, 'is not', refValue(), 'for', key])
             }
-        return [[name, fn]]
+        return [name, fn]
     })
-    const cases = casesOf(g)
-    const ok = cases.filter(c => !isThrows(c.expected)).flatMap(leaves)
-    const bad = cases.filter(c => isThrows(c.expected)).flatMap(leaves)
-    return bad.length === 0 ? fromEntries(ok) : { ...fromEntries(ok), throw: fromEntries(bad) }
+    return tree(g)(leaves)
+}
+
+/**
+ * Every group is cross-checked, save the one that deliberately is not.
+ *
+ * An absent {@link js} entry makes `crossCheck` return an empty tree, which
+ * no test failure ever reports: a group added without a reference, or one
+ * whose key is respelled, would simply stop being checked against JavaScript
+ * and nothing would say so. This is what says so — and it pins the exclusion
+ * in the other direction too, so `own` gaining an entry is also a failure
+ * here rather than a silent change of what the corpus proves.
+ */
+const referenceCoverage = () => {
+    for (const g of data.groups) {
+        const key = groupKey(g)
+        assert(key === 'own' || key in js, ['no JavaScript reference for', key])
+    }
+    assert(!('own' in js), ['own is excluded deliberately; see the js table'])
 }
 
 /**
@@ -351,8 +313,8 @@ const lambda = () => {
     assert(f !== g, ['one closure reached twice'])
     // In the `eq` section a function is a value like any other: two are two
     // closures, one reached through `ref` is one, and a nested one is the
-    // same node inside its container's, so `evaluate` establishes all three.
-    const { shared, cases } = lowerEq({
+    // same node inside its container's, so all three establish as one.
+    const { shared: nodes, cases } = lowerEq({
         shared: { fn: functionValue, holder: [ref('fn')] },
         cases: [
             { name: 'twoFunctions', a: functionValue, b: functionValue, eq: false },
@@ -360,20 +322,20 @@ const lambda = () => {
             { name: 'nestedFunction', a: ref('holder'), b: [ref('fn')], eq: false },
         ],
     })
-    const ev = evaluate(sharedMemo(shared))
+    const ev = shared(nodes)
     for (const [c, e] of cases) { assertEq(ev(e), c.eq, c.name) }
-    const [[, fn], [, holder]] = sharedMemo(shared)
+    const [[, fn], [, holder]] = sharedMemo(nodes)
     assert(/** @type {readonly unknown[]} */ (holder)[0] === fn, ['nested function is a copy'])
 }
 
 const eqProof = (() => {
-    const { shared, cases } = lowerEq(data.eq)
+    const { shared: nodes, cases } = lowerEq(data.eq)
     /** @type {(ce: readonly[EqCase, Op2]) => readonly[string, () => void]} */
     const leaf = ([c, e]) => [c.name, () => {
         // One memo for the case, so two `ref`s to a name really are one
         // object; the operands in the failure message come from the same
         // memo and so name the values the comparison actually saw.
-        const ev = evaluate(sharedMemo(shared))
+        const ev = shared(nodes)
         const [, a, b] = e
         assertEq(ev(e), c.eq, [ev(a), c.eq ? '===' : '!==', ev(b)])
         assertEq(ev(['===', b, a]), c.eq)
@@ -397,16 +359,16 @@ const eqProof = (() => {
  * `rust/proof.f.mjs` checks the printed `let` bindings.
  */
 const nestedSharing = () => {
-    const { shared } = lowerEq({
+    const { shared: nodes } = lowerEq({
         shared: { base: [], wrapper: [ref('base')] },
         cases: [],
     })
-    const [[, base], [, wrapper]] = shared
+    const [[, base], [, wrapper]] = nodes
     const items = /** @type {readonly any[]} */ (wrapper)[1]
     assertEq(items.length, 1)
     assert(items[0] === base, ['wrapper holds a copy, not the shared node'])
     // And the values the nodes evaluate to share in the same place.
-    const memo = sharedMemo(shared)
+    const memo = sharedMemo(nodes)
     const [[, baseValue], [, wrapperValue]] = memo
     assert(
         /** @type {readonly unknown[]} */ (wrapperValue)[0] === baseValue,
@@ -464,14 +426,6 @@ const jsOnly = {
         toStringNotAFunction: () => String({ toString: 'hello' }),
         toStringNotPrimitive: () => String({ toString: () => [] }),
         /**
-         * An object spread reaching the evaluator. `Properties` is
-         * `Property | Spread`, so this is a valid `Exp`; read as a property it
-         * evaluated to `{ x: undefined }` instead of failing. The corpus
-         * cannot produce one — it lowers JavaScript values — so this is the
-         * only way the branch is walked.
-         */
-        objectSpread: () => evaluate([])(['{}', [['...', 'x']]]),
-        /**
          * Only the `eq` section shares, so a `ref` anywhere else is a mistake.
          *
          * `throws` used to be refused here too. It is now unspellable where
@@ -490,8 +444,8 @@ const jsOnly = {
          */
         forwardSharedRef: () =>
             lowerEq({ shared: { a: [ref('b')], b: [] }, cases: [] }),
-        /** An id the corpus does not exercise has no JavaScript here. */
-        unusedOperation: () => op1('Number'),
+        /** An operation the corpus does not exercise has no JavaScript here. */
+        unusedOperation: () => reference('Number'),
         /**
          * A count the operation does not take. `Case<N>` cannot carry one,
          * but `caseExp` is exported and its `args` are a plain array, so the
@@ -505,6 +459,7 @@ const jsOnly = {
 export const proof = {
     eq: eqProof,
     lambda,
+    referenceCoverage,
     ...fromEntries(data.groups.map(g => [groupKey(g), group(g)])),
     crossCheck: fromEntries(data.groups.map(g => [groupKey(g), crossCheck(g)])),
     edagShape,
