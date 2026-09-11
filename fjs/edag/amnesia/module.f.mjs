@@ -293,6 +293,7 @@ const map = {
         assert(typeof b === 'string', ['own: key is not a string', b])
         return Object.getOwnPropertyDescriptor(a, b)?.value
     }),
+    typeof: o1(a => typeof a),
     undefined: () => undefined,
     '{}': (x, [, a]) => {
         const f = vm(x)

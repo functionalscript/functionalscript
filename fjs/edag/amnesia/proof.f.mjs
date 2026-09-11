@@ -128,6 +128,16 @@ export const proof = {
         eq(['~', 0], -1)
         eq(['Number', '42'], 42)
         eq(['String', 42], '42')
+        // `typeof` — one tag per kind a value can have here; `null` is
+        // `'object'` as in JS, and a closure is a host function.
+        eq(['typeof', undef], 'undefined')
+        eq(['typeof', null], 'object')
+        eq(['typeof', true], 'boolean')
+        eq(['typeof', 1], 'number')
+        eq(['typeof', 1n], 'bigint')
+        eq(['typeof', 'a'], 'string')
+        eq(['typeof', ['[]', []]], 'object')
+        eq(['typeof', identity], 'function')
     },
     // `o12` — the node's length picks the operation. The unary arms coerce
     // with `ToNumber`, so a string operand pins that they are not the binary
