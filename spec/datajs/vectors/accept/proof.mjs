@@ -20,7 +20,7 @@
  */
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
-import { difference } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
+import { bytes, difference } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
 import accept from './data.f.mjs'
 
 /** The set, typed at the import since a data module carries no annotations. */
@@ -67,9 +67,23 @@ const noEncoding = [
     'key-surrogate-lone-raw-dfff',
 ]
 
-/** A document as a module the engine can load. @type {(document: string) => string} */
-const moduleUrl = document =>
-    `data:text/javascript;base64,${Buffer.from(document, 'utf8').toString('base64')}`
+/**
+ * A document as a module the engine can load, or `null` where it has no
+ * encoding to be one.
+ *
+ * A byte-form document is already the bytes, so it goes to the engine as
+ * they are rather than through an encode — which is the point of carrying it
+ * as bytes, and makes this the one place the corpus checks that a byte
+ * document is a JavaScript module too.
+ *
+ * @type {(document: import('../../../../fjs/media/datajs/vectors/types.ts').Document) => string | null}
+ */
+const moduleUrl = document => {
+    const raw = typeof document === 'string'
+        ? (unpaired(document) ? null : Buffer.from(document, 'utf8'))
+        : Buffer.from(/** @type {readonly number[]} */ (bytes(document[1])))
+    return raw === null ? null : `data:text/javascript;base64,${raw.toString('base64')}`
+}
 
 export const proof = {
     // Every document an engine can be handed is a module, and the value it
@@ -80,10 +94,11 @@ export const proof = {
         let checked = 0
         for (const vector of set) {
             const { id, document, graph } = vector
-            if (typeof document !== 'string' || unpaired(document)) { continue }
+            const url = moduleUrl(document)
+            if (url === null) { continue }
             let loaded = undefined
             try {
-                loaded = (await import(moduleUrl(document))).default
+                loaded = (await import(url)).default
             } catch (e) {
                 assert(false, `${id}: the engine refused the document: ${String(e)}`)
             }
