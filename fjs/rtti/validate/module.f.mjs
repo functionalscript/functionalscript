@@ -226,7 +226,7 @@ const constContainerValidate =
             // keeps the two readers reporting the same error.
             //
             // Reading `length` and enumerating the keys before the members
-            // assumes those reads have no effect — true of every DJS value,
+            // assumes those reads have no effect — true of every DataJS value,
             // and the assumption the readers are written under. What that
             // gives up for a value built by arbitrary JavaScript is stated
             // in "What the readers assume of a value" in `../README.md`.
