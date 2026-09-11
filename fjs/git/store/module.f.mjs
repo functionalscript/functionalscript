@@ -11,9 +11,10 @@
  * directory as the caller gives it — `.git` for a main worktree — and
  * reads a fresh clone poorly, since `git clone` and `git gc` put most
  * objects in packs: [`todo/packfiles.md`](../todo/packfiles.md). A linked
- * worktree's `gitdir` and `commondir` files, `objects/info/alternates`,
- * and the walk from a commit to a blob are the rest of
- * [`todo/object-store.md`](../todo/object-store.md).
+ * worktree's `gitdir` and `commondir` files and `objects/info/alternates`
+ * are the rest of [`todo/object-store.md`](../todo/object-store.md).
+ * Walking from a commit to the blob a path names is
+ * [`fjs/git/walk`](../walk/module.f.mjs), over this reader or any other.
  *
  * @module
  *

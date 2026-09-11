@@ -30,6 +30,7 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
+import { byteLength } from '../../ebnf/byte/module.f.mjs'
 import { concat, includes } from '../../types/list/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { hasNulHeader, keyIs, tryRead as readPayload, valueAt, valuesOf, write as writePayload } from '../header/module.f.mjs'
@@ -81,6 +82,77 @@ export const tree = c => {
     const id = tryFromHex(value)
     assert(id !== null, ['not a tree id', value])
     return id
+}
+
+/**
+ * The id the `tree` header names, at the repository's width, or `null`
+ * where there is no `tree` header first or it is not a hex id of that
+ * width: {@link tree} without the panic, and with the width checked. For
+ * a caller holding a commit it has not vouched for — a walk over a
+ * repository reads the tree id and nothing else, and the rest of
+ * {@link validate}'s checks are not its business.
+ *
+ * @type {(oidBytes: OidBytes) => (c: Commit) => Nullable<Oid>}
+ */
+export const tryTree = oidBytes => {
+    const id = tryFromHexOf(oidBytes)
+    return c => {
+        const value = valueAt(c, 0, 'tree')
+        return value === null ? null : id(value)
+    }
+}
+
+/**
+ * The tree of bytes stored as a commit, at the repository's width, or
+ * `null` where Git would not parse them as a commit: the bytes are no
+ * header block, the `tree` header is missing or names no id of the width,
+ * or a `parent` header names none.
+ *
+ * It is one step because Git's own parse is one, and this is the whole of
+ * what that parse reads. `git cat-file -t <tag>^{}` over a tag naming such
+ * a commit answers `error: bogus commit object` for a bad tree and `error:
+ * bad parents in commit` for a bad parent, rather than the type. It reads
+ * no further: a commit with no `author` or no `committer` parses, and
+ * {@link validate} is where `fsck`'s rules are.
+ *
+ * A payload of `hexsz + 6` bytes or fewer is refused before a header is
+ * read, as Git's parse refuses one: that is the `tree` line and the empty
+ * line after the block at their shortest, so nothing under it could have
+ * been a commit.
+ *
+ * A payload that ends at its last `parent` line's LF is refused too, and
+ * for the same reason one byte further along: Git's parent walk wants a
+ * byte after the line it is reading, so it calls such a payload `bad
+ * parents in commit` however good the id on that line is. One byte more —
+ * the empty line — and the same payload is a commit it reads. The rule
+ * reaches only the parents Git walked: a header after them ends the walk,
+ * and then the payload may end where it likes.
+ *
+ * Two things refuse here that Git reads, both of them a line Git's walk
+ * stops at and never looks at: a line that is no header, and a
+ * continuation line, which folds into the value above it and spoils an id
+ * that Git never checked. Both are over-refusals and are recorded rather
+ * than fixed here —
+ * [`todo/positional-headers.md`](../todo/positional-headers.md) has the
+ * shapes and what a stopping rule would cost.
+ *
+ * @type {(oidBytes: OidBytes) => (payload: Bytes) => Nullable<Oid>}
+ */
+export const tryTreeAt = oidBytes => {
+    const treeOf = tryTree(oidBytes)
+    const id = tryFromHexOf(oidBytes)
+    const least = oidBytes * 2 + 7
+    return payload => {
+        const size = byteLength(payload)
+        if (size === null || size < least) { return null }
+        const c = tryRead(payload)
+        if (c === null) { return null }
+        const parents = parentValues(c)
+        // The payload ends at the last `parent` line's LF where the walk
+        // reached the last header and nothing followed it.
+        if (c.message === null && parents.length === c.headers.length - 1) { return null }
+        return parents.every(value => id(value) !== null) ? treeOf(c) : null
+    }
 }
 
 /**
