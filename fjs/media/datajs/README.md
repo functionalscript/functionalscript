@@ -85,18 +85,6 @@ each carry zero own property descriptors and zero own symbols, exactly as
 `{}` — a document denoting something else, silently, which is what this
 format refuses in place of `JSON.stringify`'s `null`.
 
-An array is `instanceof Array`, the spelling
-[`fjs/AGENTS.md`](../../AGENTS.md) §3.1 requires, which holds for an `Array`
-subclass instance and not for an array whose prototype has been replaced.
-The specification serializes that second one as its data, and this writer
-refuses it — loudly rather than wrongly: it reaches the object branch, where
-`length`, non-enumerable on every array, is refused before anything is
-written. FunctionalScript cannot build such a value, which is what makes
-`instanceof` reliable in the first place, so what is turned away is an input
-from outside FunctionalScript. Accepting it instead would need
-`Array.isArray`, which that rule does not allow, and
-[`todo/serializer.md`](./todo/serializer.md) carries the decision.
-
 ## What the writer emits is normalized form
 
 One line, a single space after `const`, `export` and `default` and nowhere
