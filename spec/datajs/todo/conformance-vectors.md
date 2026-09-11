@@ -1783,18 +1783,20 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a record that swapped the decoder's rule for the reader's goes red.
 - [x] **A reason answers a scope, not always a cell.** Measured before the
       serializer set was written, which is why it is a step of its own: the
-      corpus has 667 classes, a serializer can genuinely carry a vector for
+      corpus has 668 classes, a serializer can genuinely carry a vector for
       about 188 of them, and the rest arrive as empty cells the moment that
-      column gains a set — between 449 and 479 records of one sentence
-      rewritten, and the same bill again when `normalize` lands. So
+      column gains a set — some 480 records of one sentence rewritten, and the
+      same bill again when `normalize` lands. So
       `NotApplicable` carries a **scope**, tagged as `Document` is:
       `['class', c]` for one cell, `['subtree', p]` for every class under a
       prefix by path segment, and `['set', s]` for every class no set but
       that one carries. The last is the widest and the most exact, since no
-      class is carried by two sets — measured, 333 accept-only, 334
+      class is carried by two sets — measured, 334 accept-only, 334
       reject-only, none in both — so one reason covers every reject class by
-      construction rather than by inspection. 28 records answer all 479. The
-      most specific reason wins, so a family's reason takes an exception for
+      construction rather than by inspection. A prototype answered all of them
+      with 28 records; what the serializer step below actually lands is 57,
+      answering 529 cells. The most specific reason wins, so a family's reason
+      takes an exception for
       one class without either being removed. What buys the width is a rule
       the cell could not enforce, because a cell only ever sees itself: a
       scope that answers a class which **has** vectors is refused, as is one
@@ -1861,9 +1863,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 145 records in
-      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 61 scope
-      records answering the 579 cells its column owes and one `['set',
+- [x] **Normalize.** Landed as 205 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 55 scope
+      records answering the 519 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
       the 50 classes this set introduced. The proof reads every text back
       through the reader, which is the run-through-the-accept-grammar check
@@ -1875,8 +1877,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 117,290 bytes of the bit
-      vector's 131,072, which is 89% and leaves little room for another
+      being refused outright. The matrix stands at 114,778 bytes of the bit
+      vector's 131,072, which is 88% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
       recording.** The set went out with ten scope records saying the shape
@@ -1897,6 +1899,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       carries — which is the general defence, since a class the reader
       enumerates for a reason is a class the writer can get wrong for the
       same reason.
+      **A third round took the same defence four more times, sixty vectors'
+      worth, and one of them the design had already asked for.** All nineteen
+      whitespace-like scalars owe `normalize` vectors, this file says so in the
+      reader's derivation, and the reason is the sharpest case there is: a
+      writer using a JavaScript-safe escaper emits U+2028 as `\u2028`, which is
+      a valid document denoting the same string and the wrong bytes. None of
+      the nineteen had one, nor their key twins. Beside them, a writer treating
+      two adjacent surrogate units as a pair corrupts `"\ud800\ud800"` while
+      every lone-surrogate vector passes; one with a separate recursive key
+      path writes `{"__proto__":…}` inside a container and sets a prototype;
+      and one recognising an index by `String(Number(k)) === k` moves `"-1"`
+      ahead of the names. Thirty-eight, fourteen, one and seven vectors
+      respectively, and six more exemptions gone.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
@@ -1922,9 +1937,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       not landed refuses nothing, since a class cannot owe a vector to a
       set that does not exist: its column says so on every row and the
       refusal arrives with the set, which is where the serializer and
-      normalize columns stand today. 667 classes, the reader role
-      answering every one. Prose could not do this job, which four
-      consecutive review rounds showed.
+      normalize columns stand today. 668 classes as this step landed, the
+      reader role answering every one; a later set adds classes of its own
+      and one `['set', …]` reason answers the reader for all of them. Prose
+      could not do this job, which four consecutive review rounds showed.
 - [x] **The JavaScript whole-set check.** Landed as
       [`accept/proof.mjs`](../vectors/accept/proof.mjs), taking decision 5's
       proposal: a host proof under the existing `node --test`, so it runs on
@@ -1991,8 +2007,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a hole, `delete` and a `length` assignment are mutation, and `concat`,
       `slice` and `map` propagate a hole without originating one, so no
       reader can return a sparse array. What the round leaves behind is a
-      finding wider than this corpus: **twenty-eight uses of `new Array(`
-      across nine `.f.mjs` files**, one of them in a shipped module, where
+      finding wider than this corpus: **twenty-nine `new Array(` expressions
+      on twenty-eight lines across nine `.f.mjs` files**, one of them in a
+      shipped module, where
       `fjs/types/object/structurally_same/README.md` already says in so many
       words that the construct is not in the language. That sweep has its own
       issue,
@@ -2014,6 +2031,17 @@ The steps, in order; a step is one pull request unless it says otherwise:
       is correct UTF-8 and anything else is rejected, with no taxonomy of
       malformed sequences and nothing required of a decoder. Its own pull
       request, as each of these changes a different contract.
+- [ ] **Make "every set is a DataJS document" a check rather than a
+      measurement.** Review found every set ending with a trailing comma
+      before its `]`, which JavaScript takes and DataJS refuses, so no set was
+      readable by a conforming reader — a promise the corpus README makes and
+      nothing enforced. The commas are gone and each set now parses to exactly
+      the value the engine imports, sharing included, but that was measured by
+      hand. The generator is where it belongs, since it already reads the
+      corpus and already fails the build: read each set's own source, parse it
+      with the reader, and compare the graph with the imported set using
+      `difference`. Its own pull request, because it needs a failing case in
+      the matrix proof to keep coverage honest.
 - [ ] **Hand over.** `spec/datajs/README.md`'s Conformance section links the
       corpus instead of this file; stage 4's issue and the stage 6 task in
       [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
