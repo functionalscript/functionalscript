@@ -165,9 +165,11 @@ states and the reader's proof pins:
   and `infinity`. `-NaN`, `-undefined`, `-true` and a bare `-` have no rule.
 - **Whitespace is required after `const`, `export` and `default`**, at three
   positions with no condition attached, and is otherwise insignificant. The
-  four permitted characters are JSON's; every other character JavaScript
-  treats as whitespace or a line terminator (U+2028, U+2029, NBSP, FF, VT,
-  BOM) is **refused** wherever it appears outside a string.
+  four permitted characters are JSON's, and they are the whole rule: outside a
+  string literal a character is whitespace or part of a token, and one that is
+  neither is **refused**. Derive the rejected set from that rather than from a
+  list — measured against ECMAScript it is 21 characters, and every hand-written
+  list of them in this repository has been short.
 
 #### 3. Parser
 

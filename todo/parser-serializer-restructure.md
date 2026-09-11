@@ -313,8 +313,11 @@ key       ::= string | '["__proto__"]'
   without the `;`, followed by an appended line beginning with `[`, silently
   exports `1` instead of `[1]`; with the `;` it stays `[1]`.
 - **Whitespace is JSON's** — space, tab, LF, CR — insignificant between tokens.
-  The exact `["__proto__"]` key is one token and contains none. Other JS
-  whitespace (U+2028/U+2029, NBSP, FF, BOM) is rejected.
+  The exact `["__proto__"]` key is one token and contains none. Those four and
+  no others: outside a string literal a character is whitespace or part of a
+  token, and one that is neither is rejected. Naming the rejected ones is the
+  taxonomy the specification declines to carry, and the list it used to carry
+  was wrong by fifteen characters.
 - **Whitespace is required after `const`, `export` and `default`**, with no
   condition, and optional between other tokens except within `["__proto__"]`.
   Two of the three were forced
