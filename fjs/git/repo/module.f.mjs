@@ -235,7 +235,7 @@ const against = (dir, path) => isAbsolute(path) ? path : under(dir, path)
 const commonOf = repo => {
     const path = under(repo, 'commondir')
     const stated = history(stat(path))
-    const got = historyStep(stated, s => s.isFile ? readAt(path) : pureOk(null))
+    const got = historyStep(stated, ({ isFile }) => isFile ? readAt(path) : pureOk(null))
     const line = mapStep(got, ([file]) => {
         // Not a regular file, so it was not read and names nothing.
         if (file === null) { return null }
@@ -314,9 +314,9 @@ export const tryCommonDir = worktree => {
     // either kind, and reading one waits for a writer that a worktree has
     // no reason to have, so a malformed checkout would hang the caller
     // where Git refuses it at once.
-    const got = historyStep(stated, s => s.isFile ? readAt(path) : pureOk(null))
-    return step(got, ([file, s]) => {
-        if (s.isDirectory) { return commonOf(path) }
+    const got = historyStep(stated, ({ isFile }) => isFile ? readAt(path) : pureOk(null))
+    return step(got, ([file, { isDirectory }]) => {
+        if (isDirectory) { return commonOf(path) }
         if (file === null) { return pureOk(null) }
         const { size, text } = file
         const repo = text === null ? null : tryGitdir(worktree, size, text)
