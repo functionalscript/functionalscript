@@ -22,7 +22,7 @@ import { computeSync, sha256 } from '../../crypto/sha2/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { hexDigitCodePoint, hexDigitValue } from '../../text/ascii/module.f.mjs'
 import { length, msb, tryU8ListToVec, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
-import { drop, take, toArray } from '../../types/list/module.f.mjs'
+import { next, toArray } from '../../types/list/module.f.mjs'
 import { write } from '../object/module.f.mjs'
 
 const toVec = tryU8ListToVec(msb)
@@ -75,17 +75,31 @@ const chunkBytes = /** @type {const} */ (65536)
 
 /**
  * An object's bytes as the `Vec`s the hash takes, {@link chunkBytes} at a
- * time and the last one shorter, made as the hash asks for them: each is
- * gathered from the front of the list and the rest of the list handed on
- * for the next, so one chunk is held at a time and never the object as an
- * array, and an object longer than an array would hold is hashed all the
- * same.
+ * time and the last one shorter, made as the hash asks for them: one chunk
+ * is held at a time and never the object as an array, so an object longer
+ * than an array would hold is hashed all the same.
+ *
+ * The tail the gathering reached is what the next chunk starts from, not
+ * the list with a count dropped from its front: a dropped list walks the
+ * bytes it drops, and a chunk over a list dropped over a list would walk
+ * every byte before it, once per chunk, which is quadratic in the object.
+ * Every byte is walked once here.
  *
  * @type {(bytes: Bytes) => List<Vec>}
  */
 const chunks = bytes => () => {
-    const head = toArray(take(chunkBytes)(bytes))
-    return head.length === 0 ? null : { first: chunkVec(head), tail: chunks(drop(chunkBytes)(bytes)) }
+    let rest = bytes
+    let taken = 0
+    const gathered = Array.from({ length: chunkBytes }, () => {
+        const r = next(rest)
+        if (r === null) { return 0 }
+        rest = r.tail
+        taken += 1
+        return r.first
+    })
+    return taken === 0
+        ? null
+        : { first: chunkVec(taken === chunkBytes ? gathered : gathered.slice(0, taken)), tail: chunks(rest) }
 }
 
 /**
