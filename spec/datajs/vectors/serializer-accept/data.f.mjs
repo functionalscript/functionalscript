@@ -164,5 +164,7 @@ export default [
     {"id": "ser-string-raw-0021", "class": "string/raw/range/0020-0021/high", "input": "!"},
     {"id": "ser-key-raw-0021", "class": "key/string/raw/range/0020-0021/high", "input": {"!": 0}},
     {"id": "ser-string-raw-005d", "class": "string/raw/range/005d-10ffff/low", "input": "]"},
-    {"id": "ser-key-raw-005d", "class": "key/string/raw/range/005d-10ffff/low", "input": {"]": 0}}
+    {"id": "ser-key-raw-005d", "class": "key/string/raw/range/005d-10ffff/low", "input": {"]": 0}},
+    {"id": "ser-array-elements-negative-first", "class": "array/elements/negative-first", "input": [-1, -1n, -Infinity]},
+    {"id": "ser-object-key-order-boundaries", "class": "object/key-order/boundaries", "input": {"z": 0, "4294967295": 0, "4294967294": 0, "2147483648": 0, "1": 0, "01": 0, "1.0": 0, "0": 0}}
 ];

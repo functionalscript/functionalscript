@@ -1812,12 +1812,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 160 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 162 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
-      and 9 in
+      and 10 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 150 of the 674 classes the corpus held then, with 52 scope
-      records answering the 524 cells the serializer column owed; the normalize
+      covering 152 of the 674 classes the corpus held then, with 50 scope
+      records answering the 522 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1857,6 +1857,18 @@ The steps, in order; a step is one pull request unless it says otherwise:
       range endpoints: `!` and `]`, which the rule above requires at both ends
       of every character class and which four reasons had been closing with
       other characters. Four vectors, four fewer reasons.
+      And a round after that, three more of the same kind. No array in either
+      writer set began with a negative, so a writer that drops the sign only in
+      the first-element path passed; the mixed key-order input used `2` and
+      `10`, so one sorting every decimal-looking key as an index moved
+      `4294967295` ahead of `z` and passed; and all three sharing inputs used
+      non-empty nodes, so one that always emits an empty container inline
+      expanded a shared empty into two and passed. The first two are vectors.
+      The third is two: a shared empty *object* as a graph-equivalence record,
+      and the *array* in that set's proof, since `const $e = [];` is an
+      evolving `any[]` a data module cannot bind — the same limit the normalize
+      set's proof works around, and the same direction that matters, which is
+      expanding one shared empty rather than merging two distinct ones.
       One reason was corrected rather than replaced: the deep-nesting classes
       said depth is the reader's concern, which is false, since a recursive
       writer has a limit of its own and this repository records
