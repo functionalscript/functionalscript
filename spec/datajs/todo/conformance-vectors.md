@@ -223,7 +223,7 @@ The five parts:
     normalizer emitting a valid document with the wrong bytes. U+FEFF inside a
     string is one reason apart from U+FEFF as the document's first character:
     that one is the decoder's rule, and it is one of the corpus's two byte
-    records. The lone surrogate exercises
+    reject records. The lone surrogate exercises
     `\u` alone, so a reader supporting raw text and `\u` while rejecting the
     eight simple escapes passed too. **And each lone surrogate twice**, once
     escaped and once as a raw code unit between the quotes: the two are
@@ -1761,7 +1761,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       with the verdict among the three, is proved beside the set. The
       document rule's own vector, U+FEFF as the first *byte*, is one of the
       byte records; in code units it is a whitespace vector here.
-- [x] **The byte form, cut to two records.** It landed as 29 accept and 61
+- [x] **The byte form, cut to three records.** It landed as 29 accept and 61
       reject records classed `byte/…`, each `["hex", "…"]`: both ends of
       thirteen UTF-8 error classes, the non-continuation matrix by lead
       partition with two intruders per cell, the overlong forms per width,
@@ -1776,8 +1776,11 @@ The steps, in order; a step is one pull request unless it says otherwise:
       followed by a lone `c2`, breaking "a document is UTF-8" and a host
       syntax error, measured. Both are records that a byte sequence is not
       a DataJS document, not tests of a decoder, and the file says so. The
-      reader's proof keeps the layer check, so a record that swapped the
-      decoder's rule for the reader's goes red.
+      third is the accept the other two leave owing, **`byte-valid-widths`**,
+      `export default "aé€𐀀";` with its one-, two-, three- and
+      four-byte sequences, and it is a test: without it a byte path that
+      refuses every input passes. The reader's proof keeps the layer check, so
+      a record that swapped the decoder's rule for the reader's goes red.
 - [x] **A reason answers a scope, not always a cell.** Measured before the
       serializer set was written, which is why it is a step of its own: the
       corpus has 667 classes, a serializer can genuinely carry a vector for
