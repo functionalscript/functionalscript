@@ -184,8 +184,11 @@ const exprOf = caseExp(nodes)
  * A value as `crossCheck`'s reference sees it, built through the same
  * lowering and the same `vm` a case goes through, so there is one walk from
  * a corpus value to a JavaScript one rather than two that can disagree.
- * Never a shared node — sharing exists only in `eq` — so `amnesia`'s
- * non-preservation of identity is not in play here.
+ * A `ref` operand does reach a shared node, which is why the evaluator is a
+ * parameter rather than made here: `crossCheck` hands the same one to this
+ * and to the case's own expression, so the reference sees the object the
+ * case does. `amnesia`'s non-preservation of identity is the reason that
+ * matters — see the note in `crossCheck` below.
  *
  * @type {(ev: (e: Exp) => unknown) => (v: Value) => unknown}
  */

@@ -39,7 +39,7 @@
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 27
+ * data.groups.length // 28
  * ```
  */
 
@@ -75,8 +75,8 @@ export const functionValue = () => ['function']
 export const throws = () => ['throw']
 
 /**
- * One of the `eq` `shared` values, so the same node — and hence the same
- * object — reaches both sides of a comparison.
+ * One of `data.shared`'s values, so the same node — and hence the same
+ * object — reaches every `ref` to that name.
  *
  * @type {(name: string) => Ref}
  */
@@ -225,8 +225,9 @@ export const valueExp = constExp(name => { throw ['no shared value here', name] 
  * The shared nodes come first because an operand may be a `ref` to one, and
  * two `ref`s to a name must lower to one node rather than two equal ones —
  * which is the whole of what the `'==='` group's `byItself` cases assert.
- * Every other group passes `[]`, or rather passes the corpus's, and simply
- * has no operand that reaches it.
+ * Both consumers hand over the corpus's nodes for every group alike. A
+ * group with no `ref` among its operands reaches none of them, which is what
+ * makes that uniform rather than wasteful.
  *
  * @type {(shared: readonly SharedNode[]) => (g: Group) => (args: readonly Value[]) => Exp}
  */

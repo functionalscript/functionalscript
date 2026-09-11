@@ -98,8 +98,8 @@ export type Info =
 export type FunctionValue = Special<readonly ['function']>
 
 /**
- * One of the {@link Eq} `shared` values, so the *same* node — and hence the
- * same object — reaches both sides of a comparison. Legal anywhere a
+ * One of {@link Data}'s `shared` values, so the *same* node — and hence the
+ * same object — reaches every `ref` to that name. Legal anywhere a
  * {@link Value} is, nesting included: the lowering resolves it in place.
  */
 export type Ref = Special<readonly ['ref', string]>
