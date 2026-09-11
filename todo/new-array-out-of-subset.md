@@ -3,8 +3,11 @@
 **Priority:** P2 — shipped `.f.mjs` code uses constructs the subset forbids, and
 two modules in `fjs/types` currently state opposite premises about the same
 input. Nothing is broken for a caller today, which is why it is not P1.
-**Status:** open — the survey is complete and below; the first step is a
-decision, and every other step waits on it.
+**Status:** open — the survey is complete and below. The first step is a
+decision and every step that touches a hole waits on it. One does not: the
+`fjs/sul` cleanup is about `fill` and a reassigned local rather than about
+holes, so it lands first and clears the grep of the one site the decision has
+nothing to say about.
 
 ### Problem
 
