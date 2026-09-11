@@ -7,7 +7,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { hole, latin1, rootTree } from '../testlib.f.mjs'
+import { hole, latin1, modesTree, rootTree, sha256Tree } from '../testlib.f.mjs'
 import { mode, tryRead, validate, write } from './module.f.mjs'
 
 const read20 = tryRead(20)
@@ -50,9 +50,43 @@ export const proof = {
         assertStructurallySame(text(t[0]), ['40000', '.cargo', '51790504014de60f795462ec0995fd82d6caad56'])
         assertStructurallySame(text(t[15]), ['100755', 'dev.sh', '708d1660c3d411cf99ab30a30eb3fd3a9046c9a5'])
         assertStructurallySame(text(t[26]), ['100644', 'wrangler.jsonc', 'df228e2892189a7503babfdc4b6549bee875652d'])
-        assertStructurallySame([...new Set(t.map(mode))].sort(), [0o100644, 0o100755, 0o40000].sort())
+        assertStructurallySame([...new Set(t.map(mode))], [0o40000, 0o100644, 0o100755])
         assertStructurallySame(validate(t), ['ok', t])
         assertStructurallySame(toArray(write20(t)), rootTree)
+    },
+    // A tree with every mode Git writes, as Git wrote it: seven entries in
+    // Git's order, all five modes among them, the submodule's id a commit's;
+    // vouched for, and written back to the same bytes.
+    modes: () => {
+        const t = read(modesTree)
+        // Every entry as Git wrote it: `a.txt` is the blob `hello\n`, whose
+        // id any Git computes, and `sub` names the scratch repository's
+        // commit.
+        assertStructurallySame(t.map(text), [
+            ['100644', 'a.txt', 'ce013625030ba8dba906f756967f9e9ca394464a'],
+            ['100644', 'b.txt', 'ef49dd86a6957875edcd0bff210337d6b6dd063c'],
+            ['40000', 'dir', '4997ca7a42e3ad9b729fbad3acd44fbabd07b6bd'],
+            ['120000', 'link', '8d14cbf983b3fad683171c9418998d9f68340823'],
+            ['100755', 'run.sh', 'f5bdd214e01603ecd6c83be9f66d88579c588ec6'],
+            ['160000', 'sub', '9fed27590671460cacf76884f17cd2a4b17f7220'],
+            ['100644', 't.txt', '0f62d67e76ce1255a098942495a846df0f8a2c11'],
+        ])
+        assertStructurallySame(t.map(mode), [0o100644, 0o100644, 0o40000, 0o120000, 0o100755, 0o160000, 0o100644])
+        assertStructurallySame(validate(t), ['ok', t])
+        assertStructurallySame(toArray(write20(t)), modesTree)
+    },
+    // A tree Git wrote under SHA-256: two entries with 32-byte ids, read at
+    // that width, vouched for, written back, and refused at the other width.
+    sha256Git: () => {
+        const t = tryRead(32)(sha256Tree)
+        assert(t !== null)
+        assertStructurallySame(t.map(text), [
+            ['100644', 'a.txt', 'f8625e43f9e04f24291f77cdbe4c71b3c2a3b0003f60419b3ed06a058d766c8b'],
+            ['40000', 'd', '159b5a6f699657e18469156e40e1b92fca0cd55d3091cb4e630705c7fe7f7299'],
+        ])
+        assertStructurallySame(validate(t), ['ok', t])
+        assertStructurallySame(toArray(write(32)(t)), sha256Tree)
+        assertEq(read20(sha256Tree), null)
     },
     // The empty tree is no entries, and writes to no bytes.
     empty: () => {

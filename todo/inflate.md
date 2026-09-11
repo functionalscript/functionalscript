@@ -8,7 +8,7 @@
 A loose Git object is one zlib stream ([RFC 1950](https://www.rfc-editor.org/rfc/rfc1950)
 over [RFC 1951](https://www.rfc-editor.org/rfc/rfc1951)), and a packfile
 holds one per object. The decoder for Git objects
-([`todo/git-objects.md`](./git-objects.md)) is pure over the inflated
+([`fjs/git`](../fjs/git/README.md)) is pure over the inflated
 bytes, and today the inflating is the host's: `inflate` in
 [`fjs/effects/node`](../fjs/effects/node/module.f.mjs) hands a `Vec` to
 `node:zlib` and gets a `Vec` back, and
@@ -35,8 +35,8 @@ That is the right first step and the wrong last one, for two reasons:
 A DEFLATE decoder in FunctionalScript, in the style of
 [`fjs/asn.1`](../fjs/asn.1/module.f.mjs): length-framed and bit-level, a
 hand-written decoder and not a grammar, since a grammar over the byte
-alphabet reads delimiters and DEFLATE has none — the design's table in
-`git-objects.md` says which side of that line each format falls on.
+alphabet reads delimiters and DEFLATE has none — the table in
+`fjs/git/README.md` says which side of that line each format falls on.
 
 - Input a byte list, output a byte list, lazily where the format allows:
   stored blocks are copies, and the two Huffman block kinds need the
@@ -62,6 +62,6 @@ blocks, which is a framing and not a compression.
 
 ### Related
 
-- [`todo/git-objects.md`](./git-objects.md), the design this serves, and
-  its note on what a grammar does not do.
+- [`fjs/git/README.md`](../fjs/git/README.md), the design this serves,
+  and its note on what a grammar does not do.
 - `fjs/git/loose`, the module that would change.

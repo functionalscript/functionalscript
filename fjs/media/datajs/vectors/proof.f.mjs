@@ -5,7 +5,7 @@
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { parse } from '../parser/module.f.mjs'
-import { difference } from './module.f.mjs'
+import { bytes, difference } from './module.f.mjs'
 import accept from '../../../../spec/datajs/vectors/accept/data.f.mjs'
 import reject from '../../../../spec/datajs/vectors/reject/data.f.mjs'
 
@@ -64,6 +64,29 @@ const nested = (n, leaf) => {
 }
 
 export const proof = {
+    // A byte document's one spelling: lowercase pairs separated by single
+    // spaces, at least one pair. Every other spelling is refused, so that
+    // a set holds the spelling the byte tables use and no other.
+    bytes: () => {
+        same([0xef, 0xbb, 0xbf], bytes('ef bb bf'))
+        same([0], bytes('00'))
+        same([0xff, 0x7f, 0x80, 0x09, 0x0a, 0x0d, 0x20], bytes('ff 7f 80 09 0a 0d 20'))
+        assertEq(bytes(''), null)
+        assertEq(bytes('e'), null)
+        assertEq(bytes('efb'), null)
+        assertEq(bytes('efbb'), null)
+        assertEq(bytes('EF BB BF'), null)
+        assertEq(bytes('ef  bb'), null)
+        assertEq(bytes('ef bb '), null)
+        assertEq(bytes(' ef bb'), null)
+        assertEq(bytes('ef\tbb'), null)
+        assertEq(bytes('eg'), null)
+        assertEq(bytes('ge'), null)
+        assertEq(bytes('e/'), null)
+        assertEq(bytes('e:'), null)
+        assertEq(bytes('e`'), null)
+        assertEq(bytes('e@'), null)
+    },
     // A leaf is itself under `Object.is`: every kind of the data model, with
     // the two cases structural equality gets wrong — the zeros differ, and
     // `NaN` is one value.

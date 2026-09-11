@@ -358,5 +358,9 @@ verification/UI behavior.
   — existing `gpgsig` semantics.
 - [Git hash-function transition](https://git-scm.com/docs/hash-function-transition.html)
   — `gpgsig-sha256` precedent and payload-projection rules.
+- [git-sha1-collisions](./git-sha1-collisions.md) — the "usual
+  hash-security assumptions" above do not hold for SHA-1, which the hosts
+  DISOT targets all use; what the signed payload must cover so that they
+  hold anyway is decided there.
 - [RFC 3161](https://www.rfc-editor.org/rfc/rfc3161.html) — trusted timestamp
   request/response and `TimeStampToken` semantics.

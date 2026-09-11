@@ -248,3 +248,56 @@ export const tagLoose = latin1([
     '\x55\x1b\xee\x7c\x1d\x0c\x26\xfe\xeb\xbd\x09\xcb\x33\xff\xeb\xe1\x07\x68\xd6\x82',
     '\x8d',
 ].join(''))
+
+/**
+ * A tree with every mode Git writes, as `git cat-file tree` prints it:
+ * written by Git 2.43 in the scratch repository, seven entries in Git's
+ * order — two files, a subtree, a symbolic link, an executable, a
+ * submodule (a `160000` entry naming a commit) and a file — spelled as
+ * the mode, SP, name and NUL as text, then the 20-byte id as `\xNN`
+ * escapes. Its own id is `5c1f5cdc3637a09fa100a2055ed273b7d91f3d80`,
+ * over 226 bytes.
+ *
+ * @type {readonly number[]}
+ */
+export const modesTree = latin1([
+    '100644 a.txt\x00\xce\x016%\x03\x0b\xa8\xdb\xa9\x06\xf7V\x96\x7f\x9e\x9c\xa3\x94FJ',
+    '100644 b.txt\x00\xefI\xdd\x86\xa6\x95xu\xed\xcd\x0b\xff!\x037\xd6\xb6\xdd\x06<',
+    '40000 dir\x00I\x97\xcazB\xe3\xad\x9br\x9f\xba\xd3\xac\xd4O\xba\xbd\x07\xb6\xbd',
+    '120000 link\x00\x8d\x14\xcb\xf9\x83\xb3\xfa\xd6\x83\x17\x1c\x94\x18\x99\x8d\x9fh4\x08#',
+    '100755 run.sh\x00\xf5\xbd\xd2\x14\xe0\x16\x03\xec\xd6\xc8;\xe9\xf6m\x88W\x9cX\x8e\xc6',
+    '160000 sub\x00\x9f\xed\x27Y\x06qF\x0c\xac\xf7h\x84\xf1|\xd2\xa4\xb1\x7fr ',
+    '100644 t.txt\x00\x0fb\xd6~v\xce\x12U\xa0\x98\x94$\x95\xa8F\xdf\x0f\x8a,\x11',
+].join(''))
+
+/**
+ * The root commit of a repository Git 2.43 initialised with
+ * `--object-format=sha256`, as `git cat-file commit` prints it: a `tree`
+ * header naming a 32-byte id in 64 hex digits. Its own id is
+ * `8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f`,
+ * over 181 bytes. The lines are joined by LF, and the last one is empty
+ * because the message ends in LF.
+ *
+ * @type {readonly number[]}
+ */
+export const sha256Commit = latin1([
+    'tree 2f1e8b790adef60b1b58a9fe37ff415972da0e5abd333e171a4f999484eb42b0',
+    'author Proof <proof@example.com> 1700000300 +0100',
+    'committer Proof <proof@example.com> 1700000300 +0100',
+    '',
+    'sha256',
+    '',].join('\n'))
+
+/**
+ * The tree of {@link sha256Commit}, as `git cat-file tree` prints it: two
+ * entries, a file and a subtree, each id 32 raw bytes as `\xNN` escapes.
+ * Its own id is
+ * `2f1e8b790adef60b1b58a9fe37ff415972da0e5abd333e171a4f999484eb42b0`,
+ * over 85 bytes.
+ *
+ * @type {readonly number[]}
+ */
+export const sha256Tree = latin1([
+    '100644 a.txt\x00\xf8b^C\xf9\xe0O$)\x1fw\xcd\xbeLq\xb3\xc2\xa3\xb0\x00?`A\x9b>\xd0j\x05\x8dvl\x8b',
+    '40000 d\x00\x15\x9bZoi\x96W\xe1\x84i\x15n@\xe1\xb9/\xca\x0c\xd5]0\x91\xcbNc\x07\x05\xc7\xfe\x7fr\x99',
+].join(''))
