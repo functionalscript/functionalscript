@@ -45,7 +45,7 @@ grammar.
 
 ### Proposal
 
-A machine-readable corpus with six parts.
+A machine-readable corpus with five parts.
 
 **Document inputs come in two forms.** Code-unit arrays carry all but two of
 the rules below, and rightly: those rules are about the token stream, and a
@@ -337,7 +337,7 @@ vector, because it reads as coverage. Review found this document claiming a
 code-unit BOM vector "tests the decoder" one round after adding it, which it
 cannot: the corpus reader had already decoded it.
 
-The six parts:
+The five parts:
 
 - **accept** — document text plus the graph it denotes, including the sharing.
 
@@ -896,49 +896,37 @@ The six parts:
   `export default-1;`, `export default"a";` and `export default{};` — which is
   the one place this rule is stricter than JavaScript, and so the one place the
   whole-set JavaScript check cannot stand in for a vector.
-- **serializer reject** — programmatic inputs a serializer must refuse rather
-  than approximate. **What a caller can hand it is what FunctionalScript can
-  build**, and that bounds this set completely. FunctionalScript has no
+- **serializer reject** — **there is no such set, and the reason is the whole
+  of the serializer's contract.** A serializer is handed a value of the data
+  model, and the type is what says so: `tsc` checks it at the call, where the
+  cost is nothing and the answer is complete. Nothing is checked again at run
+  time, so nothing is refused, so there is nothing to write vectors for.
+
+  Two premises were wrong, one inside the other. The outer one was that a
+  serializer's input is any JavaScript value: it is not, because a serializer
+  is a FunctionalScript API and its callers are FunctionalScript, which has no
   mutation, no classes, no `Object.defineProperty`, no `Object.assign`, no
-  `Object.setPrototypeOf`, no `Object.freeze`, no `Date` and no `RegExp`, so
-  none of these can reach a serializer at all: an accessor, a non-enumerable
-  property, a symbol-keyed property, an array carrying an own property beyond
-  its elements, a cycle, a `null` prototype, an `Array` subclass, a frozen,
-  sealed or non-extensible object, and a non-writable property. Every one of
-  them needs a call the language does not have.
+  `Object.setPrototypeOf`, no `Object.freeze`, no `Date` and no `RegExp`. An
+  accessor, a non-enumerable property, a symbol-keyed property, an array
+  carrying an own property beyond its elements, a cycle, a `null` prototype,
+  an `Array` subclass and a frozen, sealed, non-extensible or non-writable
+  value can reach no serializer at all.
 
-  Earlier drafts built the whole set from exactly those cases, on the reading
-  that a serializer's input is any JavaScript value. It is not. The serializer
-  is a FunctionalScript API and its callers are FunctionalScript, so a vector
-  for an input no caller can construct is a vector that can never run —
-  coverage on paper with nothing behind it, which is the failure this corpus
-  exists to refuse, arriving from the direction nobody was watching. The
-  rounds recorded below found vectors that could not *fail*; this was a set
-  that could not be *reached*, and no amount of care inside the premise was
-  ever going to test the premise.
+  The inner one was that whatever *can* reach it must be refused at run time.
+  It need not. A `Map`, a `Set` or a function is a type error, and the
+  serializer assumes correct types rather than restating the type system's job
+  in a check every conforming implementation would have to reimplement.
 
-  What is left is the values the language has and the data model does not:
-
-  - a **function**, `() => 0`, the one case certain today. Nothing else in
-    reach carries an own property or an unusual descriptor, so no cheaper rule
-    can refuse it first: recognizing a function is the only ground there is,
-    which satisfies the one-reason rule by construction rather than by
-    placement.
-  - a **sparse-array hole**, if `[,1]` is in the subset. Open.
-  - a **symbol**, if `Symbol` is in the subset. Open.
-  - a **`Map`**, once `Map` lands. It is the one non-plain built-in
-    FunctionalScript is going to gain, so it is the only one this set will
-    ever owe a vector, and that vector arrives with the language feature.
-
-  **Every serializer-reject vector puts its offending value below the root**,
-  never as the root itself, and the placement is part of the vector exactly as
-  it is for the malformed byte sequences above. A serializer that validates its
-  argument and then recurses without validating again refuses every offender
-  handed to it directly and emits a document for the same offender one level
-  down — so a set that roots its offenders passes such an implementation
-  whole. The placements **cover both container kinds across the set** — some
-  offenders under an array element, some under an object property value —
-  since a walker can recurse into one and not the other.
+  So the meta-encoding needs no host recipes, a serializer-side input is an
+  ordinary graph, and this corpus has five parts rather than six. Earlier
+  drafts had six vectors for cycles alone, derived over several rounds from
+  which walker a visited set lives in, plus a `getter` obliged to record its
+  own invocation, a `builtin` obliged to carry no own properties, a placement
+  rule putting every offender below the root, and a one-reason rule policing
+  all of it. Every line was careful, internally consistent and reviewed. None
+  of it was ever going to run. The rounds recorded below found vectors that
+  could not *fail*; this was a set that could not be *reached*, and no amount
+  of care inside a premise tests the premise.
 
   **Derive the narrowing vectors from the spec's own narrowing rules.**
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
@@ -1288,8 +1276,9 @@ The six parts:
   now happened twice in successive rounds. Required whitespace was covered by
   the *normalize* set, which constrains emitted bytes and cannot catch a reader
   accepting a document that omits a space. Array holes were covered by
-  *serializer reject*, which takes a programmatic sparse array and cannot catch
-  a reader accepting `[1,,2]` as document text. Each rule owes a vector in
+  a *serializer reject* set, which took a programmatic sparse array and could
+  not catch a reader accepting `[1,,2]` as document text; that set is gone, and
+  the reader's vector is the only one there ever was. Each rule owes a vector in
   every direction it can be violated, and one direction's coverage reads
   exactly like the other's until someone asks which way it points.
 
@@ -1376,11 +1365,10 @@ The six parts:
   free choices ([`README.md`](../README.md)), so pinning bytes here would fail
   conforming serializers. Exact bytes are the `normalize` set's business alone.
   **Derived from the data model, as the reader's accept set is derived from
-  the grammar** — every leaf and every container shape, not only the host
-  variations below. Conformance is per role, so a serializer-only
-  implementation never runs a reader or normalize vector: one that handles
-  every recipe here while rejecting every `bigint`, `undefined`, `NaN` or
-  infinity passed the whole set. The leaves are JSON's four plus the five
+  the grammar** — every leaf and every container shape. Conformance is per
+  role, so a serializer-only implementation never runs a reader or normalize
+  vector: one that handles every container here while rejecting every
+  `bigint`, `undefined`, `NaN` or infinity passed the whole set. The leaves are JSON's four plus the five
   JavaScript adds — `undefined`, a bigint, `NaN`, `Infinity`, `-Infinity` —
   with **`0`** and `-0` beside them — positive zero is its own vector, since a
   serializer may refuse it and the ordinary positive vector may be nonzero, and
@@ -1773,25 +1761,13 @@ expected graph is the literal `{"a":3,"b":2}` — last value, first position,
 which is the rule the vector pins. An expected graph never carries a
 duplicate.
 
-**And one value the language has that a data literal cannot hold**: a
-function, the serializer-reject set's one certain case. So the encoding keeps
-exactly one recipe, an object whose own `host` property names it, with the key
-reserved in inputs — a plain input object never carries a `host` member:
+**And nothing else.** A serializer-side input is an ordinary graph, spelled by
+the same literal a reader-side expected graph is. The encoding needs no host
+recipes and reserves no key, because the one part of the corpus that wanted
+them, `serializer reject`, does not exist: a serializer is handed a value of
+the data model and its type is what says so.
 
-| recipe | builds |
-| - | - |
-| `{"host": "fn"}` | a function value, `() => 0` |
-
-The reservation reaches inputs only. A reader-side expected graph carries no
-recipes, so `{"host":"fn"}` there is the ordinary object the document spells.
-
-`build` is therefore `() => 0` behind a tag, which is FunctionalScript, so it
-is a `module.f.mjs` like anything else and no host module is involved. Two
-more recipes join it if the open questions above go that way —
-`{"host": "hole"}` for a sparse-array hole, legal only as an `arr` element,
-and `{"host": "symbol"}` for a symbol — and a `map` recipe arrives with `Map`.
-
-**Eleven recipes were cut to get here, and the size of the cut is the
+**Twelve recipes were cut to get here, and the size of the cut is the
 finding.** The vocabulary was `fn`, `symbol`, `builtin` and `hole` as leaves,
 and `ownProp`, `nonEnumerable`, `getter`, `setter`, `symbolKey`, `proto`,
 `attrs` and `link` as modifiers, with a chaining rule for stacking them, a
@@ -1800,15 +1776,13 @@ and `ownProp`, `nonEnumerable`, `getter`, `setter`, `symbolKey`, `proto`,
 obliged to name an existing own data property, a `getter` obliged to record
 its own invocation, and a `builtin` obliged to have no own properties. Every
 line of it was careful, internally consistent, reviewed over several rounds,
-and about values FunctionalScript cannot construct. Carefulness inside a
-premise does not test the premise, and this file had never asked who the
-serializer's callers are.
+and about values that reach no serializer. This file had never asked who the
+serializer's callers are, or what its type already promises.
 
 The test of this encoding is whether two independent consumers can disagree.
 They cannot: identity is a `const`, a number is a literal the engine reads,
-key order is literal order, and the one host value is a tag rather than a
-construction the reader improvises. A printer for another language
-reads the same module and prints each leaf from the value — a number by the
+key order is literal order, and there is no host value to construct at all.
+A printer for another language reads the same module and prints each leaf from the value — a number by the
 shortest round-tripping decimal, a string unit by unit — which is the one
 place the engine's formatter is involved, and the normalize set pins that
 formatter's rules on the reader's side anyway.
@@ -1859,8 +1833,8 @@ or the spec, not only into a thread.
    `Array.prototype`. An object is `typeof v === 'object' && v !== null`, and
    an array is that and `v instanceof Array`. Nothing a caller can hand a
    serializer falls outside those two, so "any other non-plain object" has no
-   case to decide and the serializer-reject vector it was to unblock does not
-   exist.
+   case to decide, and the serializer-reject vector it was to unblock does not
+   exist because that set does not either.
 3. **§Whitespace's enumeration.** Proposal for the spec: keep the rule and
    replace the six-item colon list with the complete set it denotes — the 21
    characters of ECMAScript's `WhiteSpace` and `LineTerminator` classes less
@@ -1882,14 +1856,14 @@ or the spec, not only into a thread.
    vector's. Proposal: that, over the same modules the proofs import, run by the
    existing `cov` script's `node --test` and so on every CI runtime. The
    alternative is a `gen`-time check, which would run only where `gen` runs.
-6. **How the host recipes are built and proved — decided: §1.6 stands.** The
-   question asked whether [fjs/AGENTS.md §1.6](../../../fjs/AGENTS.md) should
-   be amended so a `proof.mjs` could prove the serializer against host-built
-   inputs. It should not, and the question dissolved rather than being
-   answered: with the vocabulary cut to a function there is nothing host-built
-   left to build or to prove. `build` is `() => 0` behind a tag, which is
-   FunctionalScript, so it lives in a `module.f.mjs` and §1.6 is never
-   engaged.
+6. **How the host recipes are built and proved — decided: §1.6 stands, and
+   there are no recipes.** The question asked whether
+   [fjs/AGENTS.md §1.6](../../../fjs/AGENTS.md) should be amended so a
+   `proof.mjs` could prove the serializer against host-built inputs. It should
+   not, and the question dissolved rather than being answered: a serializer
+   takes a value of the data model and its type says so, so there is nothing
+   host-built to build, to prove, or to write a recipe for. No `build`, no
+   `module.mjs`, and §1.6 is never engaged.
 
    §1.6's own rationale had said so all along — that such cases are
    "speculation about what an *arbitrary JavaScript caller* might hand a
@@ -1905,17 +1879,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document as a string or as the bytes in a tagged hex string,
       `["hex", "ef bb bf …"]`, the expected graph as a value
       or the expected bytes, and the host classification a reject vector
-      carries; the DataJS subset the modules are written in; and the twelve
-      `host` recipes as types, the closed vocabulary. How an expected graph
+      carries; and the DataJS subset the modules are written in. The twelve
+      `host` recipes landed as types with it and are removed by the step
+      below. How an expected graph
       is compared is `difference` in
       [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
       `Object.is` at the leaves, members in observable order, and the
       containers as a bijection, so sharing is required in both directions —
       proved, over an explicit stack, to the corpus's depth.
-- [ ] **The one recipe built.** `build` in
-      [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs),
-      from `{"host":"fn"}` to `() => 0` and every other input to itself, with
-      its proof. Waits on nothing.
 - [x] **Reader accept, code-unit form.** Derived production by production
       from the grammar as the section above lists it, in two pull requests
       so each stays reviewable, both landed as
@@ -2025,10 +1996,6 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [ ] **Serializer reject.** The function leaf below the root, under an array
-      element and under an object member; the hole and the symbol if the
-      subset has them. Landed with a proof that reads it: the schema and the
-      ids. The serializer's refusals arrive with stage 4 and rerun the set.
 - [ ] **Normalize.** Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
@@ -2076,8 +2043,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `new Date`, `new Map` and `Object(1)` — none of which FunctionalScript
       has, so the proof is written in JavaScript the subset forbids and the
       checks are for inputs no caller can produce. Both go, and the recipe
-      types in
-      [`types.ts`](../../../fjs/media/datajs/vectors/types.ts) with them.
+      types in [`types.ts`](../../../fjs/media/datajs/vectors/types.ts) with
+      them, `SerializerReject` included: a serializer-side input is an
+      ordinary graph.
 - [ ] **§Whitespace's enumeration in the spec**, per decision 3; its own
       pull request.
 - [ ] **The decoder seam in the spec**, per decision 4; its own pull

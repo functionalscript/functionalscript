@@ -31,7 +31,6 @@ implementation.
 | reader accept | `accept/` | `Accept` | the reader, as the set lands |
 | reader reject | `reject/` | `Reject` | the reader, as the set lands |
 | serializer accept | `serializer-accept/` | `SerializerAccept` | the serializer, when it lands |
-| serializer reject | `serializer-reject/` | `SerializerReject` | the serializer, when it lands |
 | graph equivalence | `graph-equivalence/` | `GraphEquivalence` | the serializer, when it lands |
 | normalize | `normalize/` | `Normalize` | the normalized serializer, when it lands |
 
@@ -82,21 +81,16 @@ is a document fact and never a graph fact: the document says
 `{"a":1,"b":2,"a":3}` and the graph is `{"a":3,"b":2}`, last value in first
 position.
 
-**A serializer-side input** is a graph, or a graph carrying the one **host
-recipe** the corpus needs: an object whose own `host` property is `"fn"` is a
-function value, `() => 0`, and the key is reserved for it. A serializer's
-callers are FunctionalScript, so what it can be handed is what
-FunctionalScript can build — and the language has no mutation, no classes,
-no `Object.defineProperty`, no `Object.assign`, no `Object.setPrototypeOf`,
-no `Object.freeze`, no `Date` and no `RegExp`. An accessor, a non-enumerable
+**A serializer-side input** is an ordinary graph, spelled by the same literal
+a reader-side expected graph is. There is no set of inputs a serializer
+refuses, so the corpus describes none: a serializer is handed a value of the
+data model and the type is what says so, checked by `tsc` at the call. Its
+callers are FunctionalScript besides, which has no mutation, no classes, no
+`Object.defineProperty`, no `Object.assign`, no `Object.setPrototypeOf`, no
+`Object.freeze`, no `Date` and no `RegExp` — so an accessor, a non-enumerable
 property, a symbol key, an array carrying an extra own property, a cycle, a
-`null` prototype, an `Array` subclass and a frozen value therefore reach no
-serializer, and the corpus describes none of them: a vector for an input no
-caller can construct can never run. A function is the one value the language
-has that the data model does not; a sparse-array hole and a symbol join it if
-the subset spells them, and a `Map` when `Map` lands. The reservation reaches
-inputs only, so an expected graph, which carries no recipes, may spell
-`{"host":"fn"}` as the ordinary object it is.
+`null` prototype, an `Array` subclass and a frozen value reach no serializer
+in any case. A vector for an input no caller can construct can never run.
 
 **Normalized bytes** are the document as a string; a proof encodes it to
 compare bytes, and every string the normalized serializer emits is a valid
@@ -132,10 +126,9 @@ the refusal arrives with the set.
   exact bytes; a spelling asserted anywhere but the last fails conforming
   implementations.
 - **Be refusable for two reasons.** A reject vector is a whole document
-  valid but for the one defect it names, and a serializer-reject input
-  breaks one rule, placed so that a cheaper rule does not refuse it first: a
-  malformed byte sequence sits inside an otherwise valid string, an
-  offending value sits below the root.
+  valid but for the one defect it names, placed so that a cheaper rule does
+  not refuse it first: a malformed byte sequence sits inside an otherwise
+  valid string.
 - **Sample a range.** Both ends of every character class at every fixed
   position, the empty branch of every repetition, a signed twin for every
   number, a key twin for every string.
