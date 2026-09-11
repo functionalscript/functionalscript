@@ -114,22 +114,8 @@ exclude:
 - a leaf is `null`, a `boolean`, a `string`, a `number`, a `bigint` or
   `undefined`, and is always written inline;
 - an array is `value instanceof Array`, the spelling
-  [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 requires. It holds for an
-  `Array` subclass instance, which the specification serializes as its data,
-  and not for an array whose prototype has been replaced, which the
-  specification also serializes as its data and **this writer refuses**.
-  It refuses it rather than writing something else, which is the part that
-  matters: such a value reaches the object branch, and every array carries
-  `length` as a non-enumerable own property, so it is refused as
-  `length is a non-enumerable property` rather than written as
-  `{"0":1,"length":1}`. §3.1's realm rule is what makes `instanceof`
-  reliable — FunctionalScript never replaces a prototype, so it cannot build
-  one of these — and an input from outside FunctionalScript that the rule's
-  spelling cannot classify is refused, which is
-  [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
-  rather than an accident. Whether to accept it instead is a task below; it
-  needs a spelling §3.1 does not allow, so it is the rule's owner's call and
-  not an inline exception;
+  [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 requires, which holds for an
+  `Array` subclass instance — the specification serializes one as its data;
 - an object is `typeof 'object'`, non-null, not an array, and **plain**:
   its prototype is `Object.prototype` or `null`, which the spec permits
   explicitly;
@@ -323,13 +309,6 @@ accessor *after* reading it passes a vector that only checks the rejection.
 - [ ] Normalized form and its byte-exact proofs, the `1e20`/`1e21` and
       `1e-6`/`1e-7` thresholds included.
 - [ ] Proofs over the four writer-side sets as stage 1b lands them.
-- [ ] Decide whether a `null`-prototype array should be serialized as its
-      data, as the specification says, rather than refused for its
-      non-enumerable `length` (§1). Detecting one needs `Array.isArray`,
-      which [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 does not allow in a
-      `.f.mjs`, so the decision belongs to that rule's owner: name the
-      exception in §3.1, put the classification behind a thin `.mjs`, or
-      leave the input refused.
 - [ ] Delete this file in the PR that finishes it.
 
 ### Related
