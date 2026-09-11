@@ -170,25 +170,23 @@ exclude:
 
 - a leaf is `null`, a `boolean`, a `string`, a `number`, a `bigint` or
   `undefined`, and is always written inline;
-- an array is an array whatever its prototype — the spec serializes a
-  `null`-prototype array and an `Array` subclass instance as their data — and
-  **this is the one place the repository's own spelling does not hold**:
-  `instanceof Array`, which [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 names as
-  the spelling to use, is `false` for a `null`-prototype array, where
-  `Array.isArray` is `true`. What that costs is not a refusal but a **wrong
-  document**: the value would fall through to the plain-object branch, whose
-  prototype test `null` passes, and be written as `{"0":1}` — an object where
-  the specification says an array serializes as its data. §3.1's reason for
-  preferring `instanceof` is that the realm rule already excludes the values
-  `Array.isArray` guards against, and a prototype-replaced array is the case
-  that rule does not reach: FunctionalScript cannot build one, and a writer's
-  input comes from outside FunctionalScript. The corpus issue's decision 2 and
-  [`difference`](../vectors/module.f.mjs) both read `Array.isArray` for the
-  same reason. Moving the classification to a thin `.mjs` would answer §3.1
-  literally and cost more than it buys — the writer is business logic, which
-  [`AGENTS.md`](../../../../AGENTS.md) §3 keeps in FunctionalScript — so the
-  exception is taken here and written down; whether §3.1 should name it is a
-  question for its owner;
+- an array is `value instanceof Array`, the spelling
+  [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 requires. It holds for an
+  `Array` subclass instance, which the specification serializes as its data,
+  and not for an array whose prototype has been replaced, which the
+  specification also serializes as its data and **this writer refuses**.
+  It refuses it rather than writing something else, which is the part that
+  matters: such a value reaches the object branch, and every array carries
+  `length` as a non-enumerable own property, so it is refused as
+  `length is a non-enumerable property` rather than written as
+  `{"0":1,"length":1}`. §3.1's realm rule is what makes `instanceof`
+  reliable — FunctionalScript never replaces a prototype, so it cannot build
+  one of these — and an input from outside FunctionalScript that the rule's
+  spelling cannot classify is refused, which is
+  [DESIGN.md §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+  rather than an accident. Whether to accept it instead is a task below; it
+  needs a spelling §3.1 does not allow, so it is the rule's owner's call and
+  not an inline exception;
 - an object is `typeof 'object'`, non-null, not an array, and **plain**:
   its prototype is `Object.prototype` or `null`, which the spec permits
   explicitly;
@@ -408,6 +406,13 @@ invoked on the way. Decision 6 is what would close it.
 - [ ] Measure the two quadratic steps and the recursion depth of §1 against a
       document large or deep enough to matter, and decide whether either is
       worth changing.
+- [ ] Decide whether a `null`-prototype array should be serialized as its
+      data, as the specification says, rather than refused for its
+      non-enumerable `length` (§1). Detecting one needs `Array.isArray`,
+      which [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 does not allow in a
+      `.f.mjs`, so the decision belongs to that rule's owner: name the
+      exception in §3.1, put the classification behind a thin `.mjs`, or
+      leave the input refused.
 - [ ] Delete this file in the PR that finishes it.
 
 ### Related
