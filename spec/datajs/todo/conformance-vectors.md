@@ -2092,7 +2092,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       so each stays reviewable, both landed as
       [`accept/data.f.mjs`](../vectors/accept/data.f.mjs). **The leaves**: the word leaves
       and both infinities; every branch of `number` with a signed twin each,
-      the three zero spellings, and the five binary64 cases; every `bigint`
+      both ends of the digit class in the first digit of `frac` and of
+      `exp` and in the digits after it, in both orders, the three zero
+      spellings, and the five binary64 cases; every `bigint`
       branch with the three fixed-width ceilings; and every `string` branch
       — the nine escapes, the six hex rotations, the raw `/`, BMP and astral
       characters, both ends of each of the three ranges the raw character

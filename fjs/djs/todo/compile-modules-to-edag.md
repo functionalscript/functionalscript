@@ -68,10 +68,11 @@ EDAG rule permits:
 - a permitted **string constant** (not a prohibited prototype-chain name such as
   `constructor` or `__proto__`);
 - a **number constant**;
-- later, a `Number` node — guaranteed to yield a number, or throw. The EDAG has no
-  unary `+` operator (see `edag-stage1-discussion.md`'s "Operators" table): JS's own
-  unary `+` throws on a `bigint` rather than converting it, so `Number` is the
-  language's one numeric-coercion form.
+- later, a `Number` node — guaranteed to yield a number, or throw. The EDAG does
+  spell unary `+` (`["+", node]`, an `op12`; see `edag-stage1-discussion.md`'s
+  "Operators" table), but FunctionalScript does not parse it, and JS's own unary
+  `+` throws on a `bigint` rather than converting it, so `Number` is the language's
+  one numeric-coercion form and the only coercion an index position admits.
 
 Stage 1 does not introduce `Number`, so its parser/compiler accepts only
 the permitted string-constant and number-constant cases. A runtime-computed string,

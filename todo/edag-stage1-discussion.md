@@ -282,10 +282,14 @@ than checked**: prototype-chain lookup by a computed name — the abuse
 2330 documents (`f.constructor("…")`, `__proto__`) — has no spelling in
 the EDAG at all.
 
-The EDAG has no unary `+` operator. JS's own unary `+` would do the same
-coercion job for every type except **bigint**, where it throws instead of
-converting; `Number(x)` accepts bigints, so `["Number", node]` is the
-language's one numeric-coercion form, spelled by its JS built-in.
+The EDAG spells unary `+` as `["+", node]` — JS's own, which does the same
+coercion job as `Number(x)` for every type except **bigint**, where it throws
+instead of converting. FunctionalScript does not parse it: `["Number", node]`
+is the language's one numeric-coercion form, spelled by its JS built-in, and
+which EDAG operations the language admits as syntax is
+[operators](../spec/todo/2340-operators.md)'s decision, not the EDAG's. The
+EDAG admits an operation when it is pure — its result a function of its
+operands and nothing else — and unary `+` is.
 
 Accessing a property by a **computed string** is a different, later operation,
 `["own", object, key]` — own properties only, no prototype chain, so a
@@ -327,20 +331,21 @@ Symbol tags never collide with word tags, so both live in one namespace.
 
 #### Operators
 
-**Negation is a word tag, `"neg"`, not `"-"`'s unary arity.** An earlier
-draft of this document overloaded `"-"` by arity instead — `["-", a]`
-negation, `["-", a, b]` subtraction — the same overloading JS itself
-uses for its own `-`. The `fjs/edag` prototype decided against that: a
-tag shared between two `exp` alternatives at different arities makes a
-tuple-typed `or`'s alternative order load-bearing (trailing positions
-are open here, so the one-operand form would also match a two-operand
-value unless checked after it), and this avoids that constraint for no
-loss — `neg` simply joins `"args"`/`"own"` as a tag that doesn't reuse
-its JS spelling.
+**`+` and `-` are one tag each at two arities.** `["-", a]` is negation
+and `["-", a, b]` subtraction — the same overloading JS itself uses for
+its own `-` — and `["+", a]` is unary plus beside `["+", a, b]`. An
+earlier draft spelled negation `"neg"` instead, because rtti tuples had
+open trailing positions then: a tag shared between two `exp` alternatives
+at different arities made the `or`'s alternative order load-bearing, the
+one-operand form also matching a two-operand value unless checked after
+it. Tuples are closed now and validated by length, the chain steps already
+end by the same arity rule, and `fjs/edag` groups the two tags as
+`op12`, a vocabulary disjoint from `op1`/`op2` so those two still fix an
+arity by membership alone.
 
 |Symbols|Arity|JS|Lazy|Notes|
 |-------|-----|--|----|-----|
-|`neg`|1|`-a`|no|negation, tagged `"neg"` (see above), not `"-"`; no unary `+` — [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
+|`+` `-`|1|`+a`, `-a`|no|unary plus and negation — the arithmetic tags below at one operand (see above); unary `+` is not FunctionalScript syntax ([operators](../spec/todo/2340-operators.md)), and [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
 |`!` `~`|1|`!a`, `~a`|no|unary only|
 |`+` `-` `*` `/` `%` `**`|2|`a + b`|no|arithmetic|
 |`===` `!==` `<` `<=` `>` `>=`|2|`a === b`|no|`==` and `!=` are not allowed by [operators](../spec/todo/2340-operators.md)|
@@ -908,8 +913,8 @@ the FJS compiler would never emit. To validate:
   unrepresentable ([Operations](#operations)). `"Number"` never returns a
   string, so it can never rebuild a prohibited name at run time — unlike
   `"+"`, which concatenates at its binary arity
-  (`[".", o, ["+", "constr", "uctor"]]` would reach `Object`) and does
-  not exist at all at unary arity (above). The prohibited-name list comes
+  (`[".", o, ["+", "constr", "uctor"]]` would reach `Object`) and at
+  unary arity yields a number, never a string. The prohibited-name list comes
   from
   [property-accessor](../spec/todo/2330-property-accessor.md), and
   because the key is a *constant* the check happens once, at

@@ -49,6 +49,7 @@ import {
  *  typeof optionDot,
  *  typeof optionCall,
  *  typeof comma,
+ *  typeof op12,
  *  typeof op2,
  *  typeof op1,
  *  typeof op0,
@@ -63,6 +64,7 @@ export const _exp = () => (['or',
     optionDot,
     optionCall,
     comma,
+    op12,
     op2,
     op1,
     op0,
@@ -461,10 +463,10 @@ export const op0 = /** @type {const} */ ([op0Id])
 // Unary Operations
 
 /**
- * `String`/`Number` are casts, `neg` is arithmetic negation (a word tag —
- * `-` is binary subtraction), `!` is logical and `~` bitwise not.
+ * `String`/`Number` are casts, `!` is logical and `~` bitwise not. Negation
+ * is not here: it is `-` at unary arity, an `op12` below.
  */
-export const op1Id = or('String', 'Number', 'neg', '!', '~')
+export const op1Id = or('String', 'Number', '!', '~')
 
 export const op1 = /** @type {const} */ ([op1Id, exp])
 
@@ -485,19 +487,52 @@ export const op1 = /** @type {const} */ ([op1Id, exp])
  * cannot express — a computed key's value is only known at execution, so
  * upholding it falls to the executor (`ownJs` in `./proof.f.mjs`; the
  * Operations table in `../../todo/edag-stage1-discussion.md`). The rest
- * are the JS comparison,
- * arithmetic, bitwise, and logical operators they name — with `&&`/`||`/`??`
- * short-circuiting exactly as in JS: their right operand is conditional,
- * never established eagerly. All this laziness is positional, not nodal —
- * the same node referenced from an eager position elsewhere is still
- * evaluated there.
+ * are the JS comparison, arithmetic, bitwise, and logical operators they
+ * name — with `&&`/`||`/`??` short-circuiting exactly as in JS: their
+ * right operand is conditional, never established eagerly. All this
+ * laziness is positional, not nodal — the same node referenced from an
+ * eager position elsewhere is still evaluated there. `+` and `-` are not
+ * here: each is also a unary operator, so both are `op12` below.
  */
 export const op2Id = or(
     '=>', 'own',
     '===', '!==', '>', '>=', '<', '<=',
-    '+', '-', '*', '/', '%', '**',
+    '*', '/', '%', '**',
     '&', '|', '^', '<<', '>>', '>>>',
     '&&', '||', '??'
 )
 
 export const op2 = /** @type {const} */ ([op2Id, exp, exp])
+
+// Operations at both arities
+
+/**
+ * The two tags legal at both arities, spelled as JS spells them: `['-', a]`
+ * is negation and `['-', a, b]` subtraction, `['+', a]` is unary plus and
+ * `['+', a, b]` addition. The node's length decides which, and closedness by
+ * length is what makes that safe — each arm is an exact tuple, so a
+ * one-operand value matches only the unary arm and a two-operand value only
+ * the binary one, the same way a chain step ends at its shorter arity. An
+ * earlier draft spelled negation `neg` because tuples were open then and
+ * `['-', a]` would also have matched `['-', a, b]`; that reason is gone.
+ *
+ * The three operation vocabularies stay pairwise disjoint: no tag here is in
+ * `op1Id` or `op2Id`. A consumer that fixes an operand count from the
+ * vocabulary alone can still do so for those two, and knows this is the one
+ * vocabulary where the node decides.
+ *
+ * Unary `+` is JS unary plus — `ToNumber` on its operand — and so **throws
+ * on a bigint** where `Number` converts. The two are different operations,
+ * not two spellings of one. `Number` is FunctionalScript's coercion form and
+ * unary `+` is not FunctionalScript syntax at all
+ * (`../../spec/todo/2340-operators.md`): the EDAG spells it because it is a
+ * pure operation an executor can implement, and which of the EDAG's
+ * operations the language admits as syntax is the language's decision, not
+ * the schema's.
+ */
+export const op12Id = or('+', '-')
+
+export const op12 = or(
+    /** @type {const} */ ([op12Id, exp]),
+    /** @type {const} */ ([op12Id, exp, exp]),
+)
