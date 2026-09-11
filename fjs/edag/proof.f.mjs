@@ -30,6 +30,7 @@
  *  op1,
  *  op12,
  *  op2,
+ *  op3,
  *  optionCall,
  *  optionDot,
  *  primitive,
@@ -55,6 +56,8 @@
  *  Op12Id,
  *  Op2,
  *  Op2Id,
+ *  Op3,
+ *  Op3Id,
  *  OptionCall,
  *  OptionDot,
  *  OptionLambda,
@@ -70,7 +73,7 @@
 import { validate } from '../rtti/validate/module.f.mjs'
 import { assert, assertEq, assertStructurallySame, todo } from '../asserts/module.f.mjs'
 import {
-    exp, op0Id, op1Id, op12Id, op2Id,
+    exp, op0Id, op1Id, op12Id, op2Id, op3Id,
     optionLambda, optionPropertyLambda, propertyLambda,
 } from './module.f.mjs'
 
@@ -108,6 +111,9 @@ const vOp2Id = value => validate(op2Id)(value)
 /** @type {(value: Unknown) => readonly [string, unknown]} */
 const vOp12Id = value => validate(op12Id)(value)
 
+/** @type {(value: Unknown) => readonly [string, unknown]} */
+const vOp3Id = value => validate(op3Id)(value)
+
 /**
  * The three chain continuations, validated directly rather than only through
  * the node that owns one. Each is a state of the two hidden-control-flow bits
@@ -143,6 +149,9 @@ const op2Ids = /** @type {const} */ ([
 
 /** Same purpose as `op0Ids`, for `op12` — each id legal at both arities. */
 const op12Ids = /** @type {const} */ (['+', '-'])
+
+/** Same purpose as `op0Ids`, for `op3`. */
+const op3Ids = /** @type {const} */ (['?:'])
 
 /**
  * The naive desugaring of `a?.at` — the shape `?.` looks like it could lower
@@ -189,6 +198,8 @@ export const proof = {
         /** @typedef {Assert<Check<Op2, typeof op2>>} _Op2 */
         /** @typedef {Assert<Check<Op12Id, typeof op12Id>>} _Op12Id */
         /** @typedef {Assert<Check<Op12, typeof op12>>} _Op12 */
+        /** @typedef {Assert<Check<Op3Id, typeof op3Id>>} _Op3Id */
+        /** @typedef {Assert<Check<Op3, typeof op3>>} _Op3 */
     },
     primitive: {
         ok: () => {
@@ -271,6 +282,7 @@ export const proof = {
             // An `op12` has two closed arities; a third element past the
             // longer one is still a tail.
             assertNoMatch(v(['+', 1, 2, 3]))
+            assertNoMatch(v(['?:', 1, 2, 3, 4]))
             assertNoMatch(v(['[]', [], 'extra']))
             assertNoMatch(v(['{}', [], 'extra']))
             assertNoMatch(v(['[]', [['...', 1, 'extra']]]))
@@ -688,6 +700,29 @@ export const proof = {
         unknownIdIsRejected: () => {
             assertNoMatch(vOp12Id('xyz'))
             assertNoMatch(vOp12Id('neg'))
+        },
+    },
+    // The one three-operand vocabulary. Shape only, as everywhere in this
+    // file: that exactly one arm is established is `amnesia`'s to prove.
+    op3: {
+        ok: () => {
+            for (const id of op3Ids) {
+                assertOk(v([id, 1, 2, 3]))
+            }
+            assertOk(v(['?:', ['?:', 1, 2, 3], 4, 5])) // an exp nested in the condition
+            assertOk(v(['?:', true, ['[]', []], ['{}', []]])) // and in the arms
+        },
+        // A missing operand reads as `undefined`, no longer a valid bare
+        // `exp` — see `op0`. True however many are missing.
+        missingTailIsError: () => {
+            assertNoMatch(v(['?:', 1, 2]))
+            assertNoMatch(v(['?:', 1]))
+            assertNoMatch(v(['?:']))
+        },
+        error: () => assertNoMatch(v(['?', 1, 2, 3])),
+        unknownIdIsRejected: () => {
+            assertNoMatch(vOp3Id('xyz'))
+            assertNoMatch(v(['xyz', 1, 2, 3]))
         },
     },
     // The JS these nodes have to agree with, run on the host engine — the
