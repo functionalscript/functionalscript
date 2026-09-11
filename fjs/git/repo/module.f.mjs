@@ -40,7 +40,7 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
-import { catchStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
+import { catchStep, history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
 import { join } from '../../path/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
@@ -258,17 +258,18 @@ const tryGitdir = (worktree, size, text) => {
 export const tryCommonDir = worktree => {
     if (isBareDrive(worktree)) { return pureOk(null) }
     const path = under(worktree, '.git')
-    return step(stat(path), s => {
+    const stated = history(stat(path))
+    // Only a regular file is read. Git asks `S_ISREG` before it opens a
+    // gitfile, and the question is not idle: a FIFO stats without being
+    // either kind, and reading one waits for a writer that a worktree has
+    // no reason to have, so a malformed checkout would hang the caller
+    // where Git refuses it at once.
+    const got = historyStep(stated, s => s.isFile ? readAt(path) : pureOk(null))
+    return step(got, ([file, s]) => {
         if (s.isDirectory) { return commonOf(path) }
-        // A `.git` that is neither is no gitfile and is not read. Git asks
-        // `S_ISREG` before it opens one, and the question is not idle: a
-        // FIFO stats without being either, and reading one waits for a
-        // writer that a worktree has no reason to have, so a malformed
-        // checkout would hang the caller where Git refuses it at once.
-        if (!s.isFile) { return pureOk(null) }
-        return step(readAt(path), ({ size, text }) => {
-            const repo = text === null ? null : tryGitdir(worktree, size, text)
-            return repo === null ? pureOk(null) : commonOf(repo)
-        })
+        if (file === null) { return pureOk(null) }
+        const { size, text } = file
+        const repo = text === null ? null : tryGitdir(worktree, size, text)
+        return repo === null ? pureOk(null) : commonOf(repo)
     })
 }

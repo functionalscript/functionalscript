@@ -30,8 +30,9 @@ const repo = /** @type {State['root'][string]} */ ({ config: file('[core]\n\trep
  * @type {(root: State['root']) => (worktree: string) => unknown}
  */
 const at = root => worktree => {
-    const [, r] = virtual({ ...emptyState, root })(tryCommonDir(worktree))
-    return r[0] === 'error' ? r : r[1]
+    const [, result] = virtual({ ...emptyState, root })(tryCommonDir(worktree))
+    const [tag, value] = result
+    return tag === 'error' ? result : value
 }
 
 export const proof = {
