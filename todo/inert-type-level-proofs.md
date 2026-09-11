@@ -1,4 +1,4 @@
-## inert-type-level-proofs. 70 `Assert<…>` typedefs in proofs check nothing
+## inert-type-level-proofs. 42 `Assert<…>` typedefs in proofs check nothing
 
 **Priority:** P2
 **Status:** open
@@ -47,11 +47,11 @@ with `Assert<Equal<1, 2>>` and keeping the name so references still resolve,
 the 9 multi-line ones by replacing their first type argument — and `tsc` run
 over the falsified tree. A checked one reports TS2344 at its own line; an
 inert one says nothing. Of **125 across 23 files, 55 are checked and 70 are
-inert**, in ten files:
+inert**, in ten files. `fjs/edag/proof.f.mjs`'s 28 have since moved, leaving
+**42 in nine files**:
 
 | file | inert |
 | --- | --: |
-| `fjs/edag/proof.f.mjs` | 28 |
 | `fjs/rtti/ts/proof.f.mjs` | 9 |
 | `fjs/edag/amnesia/proof.f.mjs`, `fjs/effects/proof.f.mjs` | 8 each |
 | `fjs/types/object/proof.f.mjs`, `fjs/djs/parser/grammar/proof.f.mjs` | 4 each |
@@ -124,17 +124,21 @@ number moved.
 - [x] Correct `fjs/AGENTS.md` §3.2 and §1.4: §3.2 no longer calls a
       function-local typedef the normal home for a proof, and §1.4 states the
       binding rule, the measured table, and where a proof belongs.
-- [ ] Move all 28 inert `fjs/edag/proof.f.mjs` assertions into
-      `fjs/edag/types.ts`, falsifying each once to prove the moved form fails. Three chain-state
-      pins are already there, added beside the unions they are about when
-      `regionProductions` landed: `OptionLambda` and `PropertyLambda` are
-      inside `OptionPropertyLambda`, and the wider state adds exactly three
-      arms. Each was falsified once and went red. They overlap
-      `_OptionLambda` and `_OptionPropertyLambda` without replacing them —
-      those pin the schema against the type, these pin the types to each
-      other.
-- [ ] The same for the other nine files in the table, a directory at a time.
-      Six files the first count named have nothing inert and need no work.
+- [x] Move all 28 inert `fjs/edag/proof.f.mjs` assertions into
+      `fjs/edag/types.ts`, falsifying each once to prove the moved form
+      fails. Done: moved verbatim, all 28 flagged when falsified together,
+      and the `consistency` entry removed since it would assert nothing.
+      `types.ts` reaches the schema values through an `import type` from
+      `module.f.mjs` — a type-only cycle, no runtime import, so the file
+      stays type source. Three chain-state pins were already there, added
+      beside the unions they are about when `regionProductions` landed. They
+      overlap `_OptionLambda` and `_OptionPropertyLambda` without replacing
+      them: those pin the schema against the type, these pin the types to
+      each other.
+- [ ] The same for the nine files left in the table, a directory at a time,
+      starting with `fjs/edag/amnesia/proof.f.mjs`'s 8 to finish the
+      directory. Six files the first count named have nothing inert and need
+      no work.
 - [ ] `tsc` and `fjs test` clean after each, and the sweep's inert count
       down by the number moved.
 
