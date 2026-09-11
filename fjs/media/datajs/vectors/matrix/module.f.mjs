@@ -148,12 +148,19 @@ const digits = '0123456789'
  *
  * So prose is letters, digits and the punctuation of a sentence, and a
  * name is what an id, a class, a role or a set is spelled from. Anything
- * else is refused and named, which costs a writer one rephrasing and
- * closes the question for good.
+ * else is refused and named, which costs a writer one rephrasing.
+ *
+ * A colon is not in the list, and it is the one exclusion that is about a
+ * *pattern* rather than a character: `:warning:` is letters and colons,
+ * every one of them otherwise allowed, and renders as an icon with the
+ * words gone. The colon is what makes a shortcode a shortcode, so the
+ * shape has no spelling once the colon has none, and a semicolon does the
+ * sentence's work. Names keep theirs — a code span renders a shortcode
+ * literally, which is the whole reason names sit in one.
  *
  * @type {string}
  */
-const proseChars = `${lower}${upper}${digits} .,;:'"()/+-?!`
+const proseChars = `${lower}${upper}${digits} .,;'"()/+-?!`
 
 /** @type {string} */
 const nameChars = `${lower}${upper}${digits}/+-._:`

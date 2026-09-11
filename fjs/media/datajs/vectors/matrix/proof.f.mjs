@@ -105,12 +105,14 @@ export const proof = {
         // Two reasons for one cell leave the matrix to pick, and `reasonOf`
         // would pick the first without a word. The set's own proof checks
         // this too, but `gen` does not run it and `matrix` is exported.
+        /** @type {Corpus} */
         const twice = { ...landed, notApplicable: [
             { class: 'y', role: 'serializer', because: 'a serializer never emits it' },
             { class: 'y', role: 'serializer', because: 'and here is a different account of why' },
         ] }
         assert(failure(twice).includes('y in serializer: a second reason for a cell that already has one'), failure(twice))
         // one reason each for two cells is not a duplicate
+        /** @type {Corpus} */
         const distinct = { ...landed, notApplicable: [
             { class: 'y', role: 'serializer', because: 'a serializer never emits it' },
             { class: 'x', role: 'serializer', because: 'nor this one' },
@@ -129,7 +131,9 @@ export const proof = {
         }
         /** @type {(because: string) => Corpus} */
         const reason = because => ({ ...landed, notApplicable: [{ class: 'y', role: 'serializer', because }] })
+        /** @type {string} */
         const prose = 'is not prose the table can show as written'
+        /** @type {string} */
         const name = 'is not a name the table can show as written'
         // the structure of the table
         refuses(reason('reader | writer only'), `the reason for y in serializer: "reader | writer only" ${prose}`)
@@ -139,6 +143,12 @@ export const proof = {
         refuses(reason('<!-- not meaningful -->'), `the reason for y in serializer: "<!-- not meaningful -->" ${prose}`)
         refuses(reason('a &amp; b'), `the reason for y in serializer: "a &amp; b" ${prose}`)
         refuses(reason('see *the note*'), `the reason for y in serializer: "see *the note*" ${prose}`)
+        // a shortcode is letters and colons, every character otherwise
+        // allowed, and renders as an icon with the words gone — the one
+        // exclusion that is about a pattern rather than a character
+        refuses(reason(':warning: never emitted'), `the reason for y in serializer: ":warning: never emitted" ${prose}`)
+        // names keep their colon: a code span renders a shortcode literally
+        assert(text(one('reader', 'accept', v('a', 'ns:warning:x'))).includes('| `ns:warning:x` |'))
         refuses(one('reader', 'accept', v('a', '<b>x</b>')), `the class of a: "<b>x</b>" ${name}`)
         // a role name a code span renders literally is not refused, and the
         // header is where it would otherwise have shown as italic
@@ -153,6 +163,7 @@ export const proof = {
         refuses(reason(''), 'the reason for y in serializer: "" shows nothing at all')
         refuses(one('reader', 'accept', v('a', '')), 'the class of a: "" shows nothing at all')
         // and the punctuation of an ordinary sentence is not refused
+        /** @type {Corpus} */
         const fine = { ...landed, notApplicable: [{ class: 'y', role: 'serializer', because: "a serializer's output (see 3.1) never emits it; why would it?" }] }
         assert(text(fine).includes("not applicable: a serializer's output (see 3.1) never emits it; why would it?"))
     },
