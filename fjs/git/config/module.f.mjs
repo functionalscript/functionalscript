@@ -37,6 +37,9 @@
 /** The value Git gives a key written without one. */
 const bareValue = /** @type {const} */ ('true')
 
+/** The byte-order mark, as one character of decoded text. */
+const bom = /** @type {const} */ ('\uFEFF')
+
 /** @type {(c: string) => boolean} */
 const isAlpha = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 
@@ -133,8 +136,19 @@ const v1OnlyExtensions = ['noop-v1', 'objectformat']
  */
 const knownExtensions = [...v0Extensions, ...v1OnlyExtensions]
 
-/** The hashes `extensions.objectFormat` may name, and their id widths. */
-const formats = /** @type {Readonly<Record<string, OidBytes>>} */ ({ sha1: 20, sha256: 32 })
+/** The hash `extensions.objectFormat` names where the id is 32 bytes wide. */
+const sha256 = /** @type {const} */ ('sha256')
+
+/**
+ * Whether a value names a hash Git knows, which is what
+ * `extensions.objectFormat` must hold. A comparison and not a lookup in a
+ * map of the two: a value is any text the file holds, and `toString` or
+ * `__proto__` would find a key of `Object.prototype` in an ordinary object
+ * and pass for a hash's name.
+ *
+ * @type {(value: string) => boolean}
+ */
+const isFormat = value => value === 'sha1' || value === sha256
 
 /**
  * The version of a file that names none: what Git starts its
@@ -269,7 +283,9 @@ const tryValue = rest => {
                     : { ...acc, value: acc.value + acc.pending + e, pending: '', escape: false }
             }
             if (c === '\\') { return { ...acc, escape: true } }
-            if (c === '"') { return { ...acc, quoted: !acc.quoted } }
+            // A quote keeps the whitespace before it, as Git keeps it:
+            // `x = a ""` is the value `a ` where `x = a ` is `a`.
+            if (c === '"') { return { ...acc, value: acc.value + acc.pending, pending: '', quoted: !acc.quoted } }
             if (!acc.quoted && (c === '#' || c === ';')) { return { ...acc, done: true } }
             if (!acc.quoted && isSpace(c)) {
                 // Git writes whitespace as a space, one for one, and keeps
@@ -353,12 +369,17 @@ const tryLine = (section, raw) => {
 /**
  * Every `key = value` of the file, with the section each sits in, in
  * order, so a key set twice is read twice and the last one wins as it
- * does for Git; or `null` where a line is one Git refuses. A `\r` before
- * a line's end is the half of a Windows line ending Git also drops.
+ * does for Git; or `null` where a line is one Git refuses. A `\r` before a
+ * line's end is the half of a Windows line ending Git also drops, and a
+ * byte-order mark at the beginning is skipped as Git skips it.
  *
- * @type {(text: string) => Nullable<readonly Entry[]>}
+ * @type {(raw: string) => Nullable<readonly Entry[]>}
  */
-export const tryEntries = text => {
+export const tryEntries = raw => {
+    // A byte-order mark at the file's beginning is Git's to skip, and no
+    // editor that writes one means it as text. Here it is the one character
+    // a decoder leaves, so the half of one Git refuses cannot arise.
+    const text = raw.startsWith(bom) ? raw.slice(bom.length) : raw
     const [, list] = text.split('\n').map(line => line.endsWith('\r') ? line.slice(0, -1) : line).reduce(
         /** @type {(acc: readonly [string, Nullable<readonly Entry[]>], raw: string) => readonly [string, Nullable<readonly Entry[]>]} */
         ([section, list], raw) => {
@@ -423,7 +444,7 @@ const extensionValuesRead = entries => entries.every(entry => {
     const value = entry[2]
     return booleanExtensions.includes(ext)
         ? isBoolean(value)
-        : ext !== 'objectformat' || formats[value] !== undefined
+        : ext !== 'objectformat' || isFormat(value)
 })
 
 /**
@@ -481,6 +502,8 @@ export const tryOidBytes = text => {
     // The hash is what the last `objectFormat` names whatever the version,
     // since Git reads the key at every one — and nothing, where the format
     // Git read was thrown away.
-    const format = version === noVersion ? null : last(valuesOf(entries, 'extensions', 'objectformat'))
-    return format === null ? 20 : formats[format]
+    // Every `objectFormat` the file holds names a hash, or the file is
+    // already refused, so the last one is the repository's and 20 is both
+    // the other hash's width and what a file naming no format has.
+    return version !== noVersion && last(valuesOf(entries, 'extensions', 'objectformat')) === sha256 ? 32 : 20
 }

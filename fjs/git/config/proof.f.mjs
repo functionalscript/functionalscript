@@ -1,7 +1,9 @@
+/**
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ */
+
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { tryEntries, tryOidBytes } from './module.f.mjs'
-
-/** @import { Nullable } from '../../types/nullable/types.ts' */
 
 /** What `git init` writes, on Git 2.43 and a case-insensitive filesystem. */
 const initial = /** @type {readonly string[]} */ ([
@@ -88,6 +90,12 @@ export const proof = {
         // Git drops; one anywhere else is whitespace of the value.
         assertStructurallySame(tryEntries('[core]\r\n\tx = 1\r\n'), [['core', 'x', '1']])
         assertEq(value('a\rb'), 'a b')
+        // A byte-order mark at the beginning is skipped, as Git skips it,
+        // and only at the beginning: a second is the character it is, which
+        // begins no line Git reads.
+        assertStructurallySame(tryEntries('\uFEFF[core]\n\tx = 1'), [['core', 'x', '1']])
+        assertEq(tryEntries('\uFEFF\uFEFF[core]\n\tx = 1'), null)
+        assertEq(value('a\uFEFFb'), 'a\uFEFFb')
     },
     // Git has its own `isspace` over C's, holding a space, a tab, a newline
     // and a `\r` and no more.
@@ -137,6 +145,13 @@ export const proof = {
         // continues the value for Git and is refused here.
         assertEq(value('"unclosed'), null)
         assertEq(value('a\\'), null)
+        // A quote keeps the whitespace before it, where the line's end drops
+        // it: an empty pair of them is how a value ends in a space.
+        assertEq(value('a ""'), 'a ')
+        assertEq(value('a "" '), 'a ')
+        assertEq(value('a ""b'), 'a b')
+        assertEq(value('a" "'), 'a ')
+        assertEq(value('  ""'), '')
     },
     // A header ends at its `]` and the line goes on, as it does for Git.
     headers: () => {
@@ -260,6 +275,15 @@ export const proof = {
         assertEq(tryOidBytes('[Core]\n\tRepositoryFormatVersion = 1\n[Extensions]\n\tObjectFormat = sha256'), 32)
         assertEq(tryOidBytes(extension(1, 'objectformat', 'SHA256')), null)
         assertEq(tryOidBytes(extension(1, 'objectformat', 'sha3')), null)
+        // A value is any text the file holds, so a key of `Object.prototype`
+        // names no hash either.
+        for (const v of ['toString', '__proto__', 'constructor', 'valueOf', 'hasOwnProperty']) {
+            assertEq(tryOidBytes(extension(1, 'objectFormat', v)), null)
+        }
+        // And a format that ends in the space an empty pair of quotes keeps
+        // is a format Git does not know.
+        assertEq(tryOidBytes(extension(1, 'objectFormat', 'sha256 ""')), null)
+        assertEq(tryOidBytes('\uFEFF' + extension(1, 'objectFormat', 'sha256')), 32)
         assertEq(tryOidBytes(extension(0, 'objectformat', 'sha256')), null)
         assertEq(tryOidBytes(extension(0, 'noop-v1', 'x')), null)
         assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256\n\tobjectformat = sha1'), 20)
