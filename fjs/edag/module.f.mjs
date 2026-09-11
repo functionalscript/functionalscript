@@ -250,6 +250,29 @@ export const index = or(numberCast, string, number)
 // throw where `a?.b.c` does not.
 
 /**
+ * The productions both option states carry, listed once because
+ * `OptionPropertyLambda` extends `OptionLambda` rather than restating it —
+ * the containment its own doc states, and the reason `PropertyLambda` needs
+ * no walker of its own in [`amnesia`](./amnesia/module.f.mjs).
+ *
+ * A thunk for the same reason `_optionLambda` is one: these reference
+ * `optionLambda` and `optionPropertyLambda`, which are declared below.
+ *
+ * @type {() => readonly[
+ *  readonly['|()', typeof exp],
+ *  readonly['|()', typeof exp, typeof optionLambda],
+ *  readonly['|.', typeof index],
+ *  readonly['|.', typeof index, typeof optionPropertyLambda],
+ * ]}
+ */
+const regionProductions = () => ([
+    /** @type {const} */ (['|()', exp]),
+    /** @type {const} */ (['|()', exp, optionLambda]),
+    /** @type {const} */ (['|.', index]),
+    /** @type {const} */ (['|.', index, optionPropertyLambda]),
+])
+
+/**
  * The continuation of a step that produced a plain value **inside** an open
  * region — what `?.()` owns, and what a call step hands on.
  *
@@ -265,19 +288,9 @@ export const index = or(numberCast, string, number)
  * shorter tuple with no continuation position at all — see "Ending a chain"
  * above.
  *
- * @type {() => readonly['or',
- *  readonly['|()', typeof exp],
- *  readonly['|()', typeof exp, typeof optionLambda],
- *  readonly['|.', typeof index],
- *  readonly['|.', typeof index, typeof optionPropertyLambda],
- * ]}
+ * @type {() => readonly['or', ...ReturnType<typeof regionProductions>]}
  */
-export const _optionLambda = () => (['or',
-    /** @type {const} */ (['|()', exp]),
-    /** @type {const} */ (['|()', exp, optionLambda]),
-    /** @type {const} */ (['|.', index]),
-    /** @type {const} */ (['|.', index, optionPropertyLambda]),
-])
+export const _optionLambda = () => (['or', ...regionProductions()])
 
 /** @type {Phantom<typeof _optionLambda, OptionLambda>} */
 export const optionLambda = _optionLambda
@@ -302,21 +315,14 @@ export const optionLambda = _optionLambda
  * spells. It is also the one production with a single arity: closing the
  * region is terminal, so it never carries a continuation.
  *
- * @type {() => readonly['or',
- *  readonly['|()', typeof exp],
- *  readonly['|()', typeof exp, typeof optionLambda],
- *  readonly['|.', typeof index],
- *  readonly['|.', typeof index, typeof optionPropertyLambda],
+ * @type {() => readonly['or', ...ReturnType<typeof regionProductions>,
  *  readonly['|?.()', typeof exp],
  *  readonly['|?.()', typeof exp, typeof optionLambda],
  *  readonly['|!()', typeof exp],
  * ]}
  */
 export const _optionPropertyLambda = () => (['or',
-    /** @type {const} */ (['|()', exp]),
-    /** @type {const} */ (['|()', exp, optionLambda]),
-    /** @type {const} */ (['|.', index]),
-    /** @type {const} */ (['|.', index, optionPropertyLambda]),
+    ...regionProductions(),
     /** @type {const} */ (['|?.()', exp]),
     /** @type {const} */ (['|?.()', exp, optionLambda]),
     /** @type {const} */ (['|!()', exp]),

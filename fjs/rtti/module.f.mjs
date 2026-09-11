@@ -44,7 +44,7 @@ export const string = type0('string')
 export const bigint = type0('bigint')
 
 /**
- * Schema that validates any DJS-compatible value.
+ * Schema that validates any DataJS-compatible value.
  * @type {Unknown}
  */
 export const unknown = type0('unknown')
