@@ -70,9 +70,13 @@ to catch. `byte-valid-widths`, in the accept set, spells one character of each
 UTF-8 width and a reader owes the string those bytes denote; without it a byte
 path passes by refusing every byte sequence handed to it.
 
-The third, `byte-truncated`, is a **record rather than a test**: it says that a
-byte sequence is not a DataJS document, which no code-unit string can say, and
-no reader can fail it. The rule below says why.
+The third, `byte-truncated`, is an ordinary reject record like the other two —
+nothing in the set marks it otherwise, and nothing should, since a consumer
+reads it the same way. What differs is how much a harness can conclude from it,
+and that depends on the harness: at the document level it cannot fail, for the
+reason the rule below gives, while a harness that can see where a refusal
+happened does get an answer from it. This repository's reader proof is one, and
+pins that those bytes do not decode.
 
 A reject vector names the one `rule` it breaks and what the `host` does with
 the same text, measured: a document JavaScript `accepts` is a narrowing
@@ -144,18 +148,29 @@ the refusal arrives with the set.
   valid but for the one defect it names, placed so that a cheaper rule does
   not refuse it first.
 
-  `byte-truncated` is the one stated exception, and it is marked a record
-  rather than a test for exactly this reason. A truncated sequence must be the
-  document's last byte to be truncated, so the document has lost its closing
-  quote too, and a reader that replacement-decodes the lead byte refuses it as
-  unterminated without checking UTF-8 at all. That vector cannot fail. It is
-  kept to say that those bytes are not a DataJS document, which no code-unit
-  string can say, and it is not counted as coverage of a decoder.
+  `byte-truncated` is the one stated exception. A truncated sequence must be
+  the document's last byte to be truncated, so the document has lost its
+  closing quote too, and a reader that replacement-decodes the lead byte
+  refuses it as unterminated without checking UTF-8 at all. **A
+  document-level harness therefore cannot fail it**, and should not count it
+  as coverage of a decoder: it is kept because those bytes are not a DataJS
+  document, which no code-unit string can say.
 
-  The other two byte records are not exceptions. `byte-bom-first` has one
-  defect and discriminates: its bytes are valid UTF-8 and the document is
-  valid but for the BOM, so a reader that strips the BOM accepts it and fails
-  the vector. `byte-valid-widths` is an accept.
+  A harness that can see *where* a refusal happened concludes more, and one
+  exists: the reader proof in
+  [`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
+  reads every reject vector's `rule` and asserts the layer — the UTF-8 rule is
+  the decoder's and those bytes must decode to nothing, every other rule is the
+  reader's on the text they spell. Under that check the vector does
+  discriminate: a decoder that substitutes U+FFFD instead of refusing makes the
+  bytes decode and fails it. Nothing in the record says which kind of harness is
+  reading it, and nothing needs to — the record is an ordinary reject either
+  way.
+
+  The other two byte records are not exceptions at all. `byte-bom-first` has one
+  defect and discriminates at the document level: its bytes are valid UTF-8 and
+  the document is valid but for the BOM, so a reader that strips the BOM accepts
+  it and fails the vector. `byte-valid-widths` is an accept.
 - **Sample a range.** Both ends of every character class at every fixed
   position, the empty branch of every repetition, a signed twin for every
   number, a key twin for every string.
