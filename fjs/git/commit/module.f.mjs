@@ -120,6 +120,14 @@ export const tryTree = oidBytes => {
  * line after the block at their shortest, so nothing under it could have
  * been a commit.
  *
+ * A payload that ends at its last `parent` line's LF is refused too, and
+ * for the same reason one byte further along: Git's parent walk wants a
+ * byte after the line it is reading, so it calls such a payload `bad
+ * parents in commit` however good the id on that line is. One byte more —
+ * the empty line — and the same payload is a commit it reads. The rule
+ * reaches only the parents Git walked: a header after them ends the walk,
+ * and then the payload may end where it likes.
+ *
  * Two things refuse here that Git reads, both of them a line Git's walk
  * stops at and never looks at: a line that is no header, and a
  * continuation line, which folds into the value above it and spoils an id
@@ -138,7 +146,12 @@ export const tryTreeAt = oidBytes => {
         const size = byteLength(payload)
         if (size === null || size < least) { return null }
         const c = tryRead(payload)
-        return c === null || !parentValues(c).every(value => id(value) !== null) ? null : treeOf(c)
+        if (c === null) { return null }
+        const parents = parentValues(c)
+        // The payload ends at the last `parent` line's LF where the walk
+        // reached the last header and nothing followed it.
+        if (c.message === null && parents.length === c.headers.length - 1) { return null }
+        return parents.every(value => id(value) !== null) ? treeOf(c) : null
     }
 }
 
