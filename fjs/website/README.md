@@ -67,6 +67,52 @@ Nothing starts on load, as
 [browser-test-controls](../emergent_testing/todo/browser-test-controls.md)
 requires. A page binds the runner to its button.
 
+## A demo shows what a module does
+
+A module page can say what a module *is* and whether it *passes*. A demo is the
+third thing: a hash function is best understood by typing into a field and
+watching the digest change.
+
+**Discovery is by export, exactly as it is for a proof.** A module is a demo
+module if and only if it exports `demo`, so a demo may live in `demo.f.mjs` or
+inline beside the implementation, and no filename decides it
+([the proof export](../emergent_testing/README.md#discovery-the-proof-export)).
+Two demo modules in one directory is refused rather than resolved: a page has
+one demo section, and a precedence rule would decide silently which of them a
+reader is looking at. One a browser cannot link is dropped and said on the
+console — unlike a proof it has nowhere on the page to be listed with its
+blocker.
+
+**A demo is pure, and asks for what it needs.** It exports `init`, `update` and
+`view` ([`demo/types.ts`](./demo/types.ts)); `view` answers a `media/html` tree
+and `update` answers an `Effect`, so a demo never touches the DOM, registers a
+listener, reads a clock or fetches. One impure runtime,
+[`demo-runtime.mjs`](./demo-runtime.mjs), renders what a demo describes and
+hands each event back. A demo is therefore provable like any other `.f.mjs`,
+and its author writes no host code.
+
+`update` returns `Effect<O, State, never>`, and the `never` is a claim: a demo
+has no error display apart from what it renders, so a recoverable failure — an
+operation this runtime does not implement included — is absorbed into `State`
+where `view` can show it. The runtime's operation map is empty and grows one
+proven handler at a time, so a demo that asks for something it does not have
+gets `notImplemented` back through its own channel rather than a broken page.
+
+Events are serialized: one `update` at a time, the next queued behind it. That
+is what makes a demo's state a fold over its events in the order they happened,
+which is the property its proof relies on. `start` arrives once, after the
+first render, so a demo needing an operation before it can show anything has
+somewhere to ask without `init` becoming an effect.
+
+**A demo's output should be checkable from outside.** The first one,
+[`crypto/sha2`](../crypto/sha2/demo.f.mjs), shows a SHA-256 digest in hex and
+says it is hex, because `printf '%s' hello | sha256sum` prints the same 64
+characters. Encoding it with this repository's own cBase32 was the first
+attempt: it made the demo partly about `basen`, and left a reader no way to
+tell whether the page was right. Being checkable is not theoretical — the
+digest is padded to 64 because one in sixteen begins with a zero hex digit, and
+what found that was someone typing `1234` into the page.
+
 ## Links are root-relative
 
 `/_main.css`, `/fjs/types/index.html`, `/fjs/emergent_testing/browser/module.mjs`

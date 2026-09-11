@@ -254,8 +254,13 @@ export const proof = {
             // also what `sha256sum` prints, so the page can be checked from
             // outside this repository.
             assertEq(digest(''), 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
-            assertEq(digest('hello'), '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824')
             assertEq(digest('').length, 64)
+            assertEq(digest('hello'), '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824')
+            // `1234` hashes to `03ac…`, whose leading hex *digit* is zero:
+            // four bits, so one digest in sixteen does it. That is the input
+            // the pad exists for — without it this prints 63 characters that
+            // still look like a digest.
+            assertEq(digest('1234'), '03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4')
         },
         // Typing replaces the text; every other event leaves it alone, which
         // is what `start` is for — a first render with nothing typed yet.

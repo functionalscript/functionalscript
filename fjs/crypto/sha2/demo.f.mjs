@@ -29,8 +29,9 @@ const digits = 64
  * The hex digest of a string's UTF-8 bytes.
  *
  * Padded, because the number is what carries the digest and a number has no
- * leading zeros: one digest in 256 starts with a zero byte, and without this
- * it would be shown 63 characters long.
+ * leading zeros. One digest in sixteen begins with a zero *digit* — four bits,
+ * not eight — and would be shown 63 characters long, which still looks like a
+ * digest. Each further zero digit costs another character.
  *
  * @type {(text: string) => string}
  */
