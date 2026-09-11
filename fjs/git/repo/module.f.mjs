@@ -146,6 +146,32 @@ const isBareDrive = /** @type {(path: string) => boolean} */ (
     path => path.length === 2 && isDriveLetter(path[0]) && path[1] === ':')
 
 /**
+ * Whether a path reaches the host as it is written, which is what a string
+ * holding an unpaired surrogate does not.
+ *
+ * A path is a string here and bytes to the host, and Node spells an
+ * unpaired surrogate as U+FFFD's bytes rather than refusing it, so
+ * `'\uD800x'` and `'\uFFFDx'` name one directory between them. Two
+ * worktrees would get one answer, and the caller of the first would be
+ * handed the second's repository looking exactly like its own.
+ *
+ * Refusing is the choice a bare drive gets and for the same reason: a
+ * question this cannot put to the host is answered with `null` rather than
+ * guessed. Only a caller's `worktree` can carry one — a path taken out of
+ * a file cannot, since UTF-8 has no spelling for a surrogate and
+ * {@link read} refuses the bytes that try.
+ *
+ * A surrogate pair iterates as one character above U+FFFF, so what is left
+ * in the surrogate range is unpaired.
+ *
+ * @type {(path: string) => boolean}
+ */
+const reachesHost = path => [...path].every(c => {
+    const n = /** @type {number} */ (c.codePointAt(0))
+    return n < 0xD800 || n > 0xDFFF
+})
+
+/**
  * A path below a directory, joined by a `/`.
  *
  * A directory of no characters is no directory: what is below it is itself,
@@ -227,9 +253,12 @@ const tryGitdir = (worktree, size, text) => {
 /**
  * The common directory of the repository a worktree belongs to, or `null`
  * where the worktree is one this cannot read or what it holds is malformed.
- * Five things are that, and the last two are reached with `.git` a
+ * Six things are that, and the last two are reached with `.git` a
  * directory as readily as a file:
  *
+ * - a worktree holding an unpaired surrogate, which the host would read as
+ *   a different directory's name rather than refuse — see
+ *   {@link reachesHost};
  * - a worktree that is a bare drive, `C:`, which names the current
  *   directory on drive C to Windows and a directory called `C:` to POSIX.
  *   Its `.git` is `C:.git` on one host and `C:/.git` on the other, two
@@ -262,7 +291,7 @@ const tryGitdir = (worktree, size, text) => {
  * @type {(worktree: string) => Effect<ReadFile | Stat, Nullable<string>, IoChannel>}
  */
 export const tryCommonDir = worktree => {
-    if (isBareDrive(worktree)) { return pureOk(null) }
+    if (!reachesHost(worktree) || isBareDrive(worktree)) { return pureOk(null) }
     const path = under(worktree, '.git')
     const stated = history(stat(path))
     // Only a regular file is read. Git asks `S_ISREG` before it opens a

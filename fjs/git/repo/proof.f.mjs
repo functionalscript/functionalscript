@@ -147,6 +147,19 @@ export const proof = {
         })
         assertEq(at(root)('w'), '/m/.git')
     },
+    // A worktree holding an unpaired surrogate is refused before the host
+    // sees it. Node spells one as U+FFFD's bytes rather than refusing it,
+    // so a lone `\uD800` would reach the directory whose name really is
+    // `\uFFFD` and hand back that repository as though it were the
+    // caller's. A paired surrogate is an ordinary character and is not
+    // refused.
+    surrogate: () => {
+        const root = /** @type {State['root']} */ ({ '\uFFFDw': { '.git': repo } })
+        assertEq(at(root)('\uFFFDw'), '\uFFFDw/.git')
+        assertEq(at(root)('\uD800w'), null)
+        assertEq(at(root)('w\uDC00'), null)
+        assertEq(at({ '\u{1F600}w': { '.git': repo } })('\u{1F600}w'), '\u{1F600}w/.git')
+    },
     // A bare drive is the one path this refuses for being a path rather
     // than for what is at it. `C:` names the current directory on drive C
     // to Windows and a directory called `C:` to POSIX, so its `.git` is
