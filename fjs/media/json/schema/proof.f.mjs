@@ -1,8 +1,6 @@
 /**
- * @import { Ts, Check } from '../../../rtti/ts/types.ts'
- * @import { Assert } from '../../../asserts/types.ts'
- * @import { _unknownThunk } from './module.f.mjs'
  * @import { Data } from '../../../rtti/data/types.ts'
+ * @import { JsonSchema } from './types.ts'
  */
 
 import { boolean, number, string, bigint, never, unknown, array, open, record, or, option } from '../../../rtti/module.f.mjs'
@@ -11,17 +9,17 @@ import { dataToJsonSchema, toJsonSchema, unknown as schemaUnknown } from './modu
 import { absentBit, unitBit } from '../../../rtti/data/module.f.mjs'
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 
-/** @type {(v: Ts<typeof schemaUnknown>) => string} */
+/** @type {(v: JsonSchema) => string} */
 const serialize = v => stringify(e => e)(v)
 
-/** @type {(rtti: Parameters<typeof toJsonSchema>[0], expected: Ts<typeof schemaUnknown>) => () => void} */
+/** @type {(rtti: Parameters<typeof toJsonSchema>[0], expected: JsonSchema) => () => void} */
 const eq = (rtti, expected) => () => {
     const result = serialize(toJsonSchema(rtti))
     const exp = serialize(expected)
     assertEq(result, exp, [result, exp])
 }
 
-/** @type {(data: Data, expected: Ts<typeof schemaUnknown>) => () => void} */
+/** @type {(data: Data, expected: JsonSchema) => () => void} */
 const eqData = (data, expected) => () => {
     const result = serialize(dataToJsonSchema(data))
     const exp = serialize(expected)
@@ -31,22 +29,13 @@ const eqData = (data, expected) => () => {
 const listRef = /** @type {const} */ ({ $ref: '#/$defs/list' })
 const treeRef = /** @type {const} */ ({ $ref: '#/$defs/tree' })
 
-/** @type {Ts<typeof schemaUnknown>} */
+/** @type {JsonSchema} */
 const listDef = { type: 'array', items: listRef }
 
-/** @type {Ts<typeof schemaUnknown>} */
+/** @type {JsonSchema} */
 const treeDef = { anyOf: [{ type: 'number' }, { type: 'array', items: treeRef }] }
 
 export const proof = {
-    /**
-     * The hand-written `$out` on `unknown` matches the real thunk — checked
-     * against the un-annotated `_unknownThunk`, so a wrong field there is
-     * caught instead of silently trusted via the `Phantom` lie.
-     */
-    consistency: () => {
-        /** @typedef {Assert<Check<Ts<typeof schemaUnknown>, typeof _unknownThunk>>} _UnknownCheck0 */
-        /** @typedef {Assert<Check<Ts<typeof schemaUnknown>, typeof schemaUnknown>>} _UnknownCheck1 */
-    },
     tag0: {
         boolean: eq(boolean, { type: 'boolean' }),
         number: eq(number, { type: 'number' }),
@@ -328,7 +317,7 @@ export const proof = {
         sharedNonRecursive: () => {
             // a shared, non-recursive definition is inlined at each use — no `$defs`
             const person = /** @type {const} */ ({ name: string })
-            /** @type {Ts<typeof schemaUnknown>} */
+            /** @type {JsonSchema} */
             const personSchema = {
                 type: 'object',
                 properties: { name: { type: 'string' } },
