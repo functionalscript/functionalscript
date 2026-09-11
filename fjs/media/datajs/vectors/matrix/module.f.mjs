@@ -479,6 +479,17 @@ const summary = (corpus, role) => {
 }
 
 /**
+ * The defects a corpus has, as the failure a caller reads.
+ *
+ * @type {(failures: readonly string[]) => Result<string, string>}
+ */
+const refused = failures => error([
+    `the class-by-role matrix has ${failures.length} defects:`,
+    ...failures.map(f => `  ${f}`),
+    'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
+].join('\n'))
+
+/**
  * The matrix as the file holds it, or the classes the corpus leaves
  * unanswered. Rows are the classes, columns the roles, and a cell is the
  * vector ids, the reason there are none, or a role whose sets have not
@@ -487,12 +498,6 @@ const summary = (corpus, role) => {
  * @type {(corpus: Corpus) => Result<string, string>}
  */
 export const matrix = corpus => {
-    /** @type {(failures: readonly string[]) => Result<string, string>} */
-    const refused = failures => error([
-        `the class-by-role matrix has ${failures.length} defects:`,
-        ...failures.map(f => `  ${f}`),
-        'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
-    ].join('\n'))
     // A malformed scope is refused first and alone. Every other check reads a
     // scope as a tag and a name, so one that is neither cannot be read by them
     // at all — a one-element tuple has no name to render and no family to

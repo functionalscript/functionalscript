@@ -1882,7 +1882,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       and the *array* in that set's proof, since `const $e = [];` is an
       evolving `any[]` a data module cannot bind — the same limit the normalize
       set's proof works around, and the same direction that matters, which is
-      expanding one shared empty rather than merging two distinct ones.
+      expanding one shared empty rather than merging two distinct ones. **A
+      proof is not a vector**, as review then pointed out: it covers this
+      repository's own reader and writer and gives a third-party harness
+      nothing, since a harness serializes the inputs a set exports. That is a
+      carrier limitation rather than a missing vector, and it has
+      [an issue of its own](../vectors/todo/shared-empty-array.md) with the
+      three routes out of it.
       One reason was corrected rather than replaced: the deep-nesting classes
       said depth is the reader's concern, which is false, since a recursive
       writer has a limit of its own and this repository records
@@ -1895,7 +1901,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
       twins, `__proto__` as data; each vector asserting a valid document
-      denoting the input and never a spelling. Landed with a proof that reads
+      denoting the input and never a spelling. **Lands** with a proof that reads
       it: the schema and the ids; for graph equivalence, every `denotes`
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
@@ -1968,7 +1974,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       parent-child kinds, every `QuoteJSONString` branch with both ends at
       each digit position, the encoder's width transitions, the number
       spellings with `-0` and the thresholds and the shortest-digits rule,
-      `-0n`, the required space after every root shape. Landed with a proof
+      `-0n`, the required space after every root shape. **Lands** with a proof
       that reads it: the schema, the ids, and every expected text read by
       the reader to a graph `difference` finds no difference from the input
       in — which is the "run through the accept grammar" check, made a
