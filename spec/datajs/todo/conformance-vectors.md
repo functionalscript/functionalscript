@@ -1816,7 +1816,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
       twins, `__proto__` as data; each vector asserting a valid document
-      denoting the input and never a spelling. Landed with a proof that reads
+      denoting the input and never a spelling. **Lands** with a proof that reads
       it: the schema and the ids; for graph equivalence, every `denotes`
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
@@ -1826,7 +1826,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       parent-child kinds, every `QuoteJSONString` branch with both ends at
       each digit position, the encoder's width transitions, the number
       spellings with `-0` and the thresholds and the shortest-digits rule,
-      `-0n`, the required space after every root shape. Landed with a proof
+      `-0n`, the required space after every root shape. **Lands** with a proof
       that reads it: the schema, the ids, and every expected text read by
       the reader to a graph `difference` finds no difference from the input
       in — which is the "run through the accept grammar" check, made a
