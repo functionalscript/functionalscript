@@ -168,8 +168,17 @@ const nameChars = `${lower}${upper}${digits}/+-._:`
 /** @type {(allowed: string) => (s: string) => boolean} */
 const onlyFrom = allowed => s => [...s].every(c => allowed.includes(c))
 
-/** @type {(s: string) => boolean} */
-const isProse = onlyFrom(proseChars)
+/**
+ * Prose the cell shows as written, which for the space means *as spaced*.
+ * A table cell trims its edges and the rendering collapses a run, so
+ * `reader  only` reaches a reader as `reader only` — the words intact and
+ * the spacing not, which is still the table saying something the corpus
+ * did not. The space is the last allowed character whose *repetition*
+ * renders differently, so single-spacing closes whitespace entirely.
+ *
+ * @type {(s: string) => boolean}
+ */
+const isProse = s => onlyFrom(proseChars)(s) && s.trim() === s && !s.includes('  ')
 
 /** @type {(s: string) => boolean} */
 const isName = onlyFrom(nameChars)
