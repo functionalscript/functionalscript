@@ -5,9 +5,10 @@
 
 ### Problem
 
-[`fjs/git/store`](../store/module.f.mjs) takes an id and gives bytes, so
-the first half of this is done — for loose objects, and at a directory the
-caller spells. What is left is the rest of that: an id in a pack, and the
+[`fjs/git/store`](../store/module.f.mjs) takes an id and gives the
+`Envelope` the object is, as the Proposal below asks, so the first half of
+this is done — for loose objects, and at a directory the caller spells.
+What is left is the rest of that: an id in a pack, and the
 directory found rather than given, since a caller should not have to know
 that an id `ab12…` lives at `objects/ab/12…` if it is loose and elsewhere
 if it is packed, nor which directory `objects/` sits in when a worktree is
