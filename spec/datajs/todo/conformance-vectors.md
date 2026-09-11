@@ -897,71 +897,38 @@ The six parts:
   the one place this rule is stricter than JavaScript, and so the one place the
   whole-set JavaScript check cannot stand in for a vector.
 - **serializer reject** — programmatic inputs a serializer must refuse rather
-  than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
-  and at least one that is not — **`Map` or a boxed number**, not `RegExp`;
-  see below), a sparse-array hole, a symbol-keyed, accessor or non-enumerable
-  own property,
-  an array carrying an own property beyond its elements and `length` (`a=[1];
-  a.meta=2`), and a cycle — six of them, below. Each is a case where the
-  obvious implementation emits a valid document denoting something else.
+  than approximate. **What a caller can hand it is what FunctionalScript can
+  build**, and that bounds this set completely. FunctionalScript has no
+  mutation, no classes, no `Object.defineProperty`, no `Object.assign`, no
+  `Object.setPrototypeOf`, no `Object.freeze`, no `Date` and no `RegExp`, so
+  none of these can reach a serializer at all: an accessor, a non-enumerable
+  property, a symbol-keyed property, an array carrying an own property beyond
+  its elements, a cycle, a `null` prototype, an `Array` subclass, a frozen,
+  sealed or non-extensible object, and a non-writable property. Every one of
+  them needs a call the language does not have.
 
-  The **accessor** case is two vectors rather than one — a getter and a
-  setter-only property — because a serializer guarding on `descriptor.get`
-  alone refuses the first and silently accepts the second. The getter vector
-  asserts **two** things: that the input was refused, and that the getter was
-  never invoked.
+  Earlier drafts built the whole set from exactly those cases, on the reading
+  that a serializer's input is any JavaScript value. It is not. The serializer
+  is a FunctionalScript API and its callers are FunctionalScript, so a vector
+  for an input no caller can construct is a vector that can never run —
+  coverage on paper with nothing behind it, which is the failure this corpus
+  exists to refuse, arriving from the direction nobody was watching. The
+  rounds recorded below found vectors that could not *fail*; this was a set
+  that could not be *reached*, and no amount of care inside the premise was
+  ever going to test the premise.
 
-  The **cycle** case is six vectors: the two self-loops, and every **ordered
-  pair** of container kinds around a two-node cycle. Two axes force that shape.
+  What is left is the values the language has and the data model does not:
 
-  Cycle **length** — a self-loop (`o.self=o`) against a cycle through a second
-  container (`a.next=b; b.next=a`) — because a serializer whose only guard
-  compares a child against its immediate parent refuses every self-loop and
-  recurses forever on every pair.
-
-  Cycle **container kind**, which is not a property of the cycle but of the
-  walkers it passes through: a visited set lives in a walker, so `obj→obj`,
-  `arr→arr`, `obj→arr` and `arr→obj` are four different traversals of what is
-  otherwise one shape. The mixed pair is one cycle — `o.a=arr; arr[0]=o` —
-  entered from `o` for the first and from `arr` for the second, since the root
-  reaches one of the two nodes first and that is what a walker sees. Two implementations show the axis is real, and they fail
-  on different cells:
-
-  - **The set in one walker only.** With the immediate-parent check in both
-    walkers and a visited set in the array walker alone, the diagonal
-    *self-loop in an object* plus *pair of arrays* is refused entirely — and a
-    pair of objects hangs. The mirror implementation misses the mirror
-    diagonal. So both homogeneous pairs are required, and a diagonal will not
-    do.
-  - **The set reset at the walker boundary** — each walker keeping its ancestry
-    as a local of its own recursion and starting a fresh one when it dispatches
-    to the other kind. That refuses **both** homogeneous pairs correctly and
-    recurses forever on `obj→arr→obj`, which is why homogeneous coverage is not
-    coverage of the boundary. Review found this one, after the first draft of
-    this paragraph called the axis binary.
-
-  The remaining two cells — the second entry point of the mixed pair, and the
-  second self-loop — are symmetric completion rather than demonstration: the
-  boundary implementation hangs on a mixed cycle entered from either end, and I
-  could not name an implementation that only one of them catches. The file says
-  so rather than implying six separate demonstrations.
-
-  All six cycles sit **one level below the root** — `root=[x]` with `x` on the
-  cycle — for the reason the whole set shares, below.
-
-  **A descriptor offender needs both container kinds under it as well as over
-  it.** The placement rule below is about the offender's *parent*, and it
-  catches a serializer that recurses without re-validating; this is the other
-  end — the container the offender sits *on*. A getter, a setter-only
-  accessor, a non-enumerable property and a symbol key each exist on an array
-  as readily as on an object, measured: `defineProperty(a, "0", {get})` leaves
-  `Array.isArray` true with `length` 1, a non-enumerable index vanishes from
-  `Object.keys` while staying an own property, and a symbol sits on an array
-  like any other exotic object. A serializer that inspects descriptors in its
-  object walker but iterates array indices by value refuses every offender on
-  an object and emits a document for the same offender on an array, so each of
-  those four takes both targets. Review found it, and the placement rule as
-  written reads as though it covered this axis, which it does not.
+  - a **function**, `() => 0`, the one case certain today. Nothing else in
+    reach carries an own property or an unusual descriptor, so no cheaper rule
+    can refuse it first: recognizing a function is the only ground there is,
+    which satisfies the one-reason rule by construction rather than by
+    placement.
+  - a **sparse-array hole**, if `[,1]` is in the subset. Open.
+  - a **symbol**, if `Symbol` is in the subset. Open.
+  - a **`Map`**, once `Map` lands. It is the one non-plain built-in
+    FunctionalScript is going to gain, so it is the only one this set will
+    ever owe a vector, and that vector arrives with the language feature.
 
   **Every serializer-reject vector puts its offending value below the root**,
   never as the root itself, and the placement is part of the vector exactly as
@@ -970,18 +937,8 @@ The six parts:
   handed to it directly and emits a document for the same offender one level
   down — so a set that roots its offenders passes such an implementation
   whole. The placements **cover both container kinds across the set** — some
-  offenders under an array element, some under an object property value — since
-  a walker can recurse into one and not the other. That is a property of the
-  set, not of each vector: one offender in each kind of container pins both
-  recursion paths, so this axis multiplies the set by nothing.
-
-  **Every rejection vector must be refusable for exactly one reason.** Review
-  found three vectors that a *cheaper* rule could refuse before the rule under
-  test ran — a non-enumerable `getter`, a non-enumerable `symbolKey`, and a
-  `RegExp` carrying an own non-enumerable `lastIndex` — and in each the vector
-  passed while the implementation was wrong. A vector with a second ground for
-  refusal tests whichever ground the implementation happens to reach first,
-  which is not the one it was written for.
+  offenders under an array element, some under an object property value —
+  since a walker can recurse into one and not the other.
 
   **Derive the narrowing vectors from the spec's own narrowing rules.**
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
@@ -1539,32 +1496,23 @@ The six parts:
     set against this one afterwards, which is what should have happened when
     `__proto__` was added a round earlier.
 
-  The remaining cases are host variations. The spec is explicit that these are
-  outside the data model rather than invalid, and that rejecting them is a
-  defect rather than caution ([`README.md`](../README.md)): a `null` prototype,
-  frozen, sealed, non-extensible, and a non-writable property — **each on both
-  an object and an array** — plus an `Array` subclass, which has only the one
-  kind. `Object.freeze` produces the last two together, so a serializer that
-  rejects unusual descriptors cannot serialize a frozen value — including the
-  output of a reader that freezes what it returns, which the spec permits.
+  There are no host variations. An earlier draft asked for a `null` prototype,
+  an `Array` subclass, frozen, sealed and non-extensible objects and a
+  non-writable property, each on both container kinds, and argued at length
+  that the two walkers are separate so each variant needs both. Every one of
+  those needs `Object.setPrototypeOf`, `Object.freeze`, `Object.seal`,
+  `Object.defineProperty` or a class, and FunctionalScript has none of them,
+  so no caller can build one and no vector can run. The argument about the
+  walkers was sound and about nothing.
 
-  **Both kinds because the walkers are separate**, the third place this corpus
-  has needed that and the first where the risk is over-strictness rather than
-  non-termination: a serializer validating shape in its object walker alone
-  accepts every frozen object here and refuses the frozen array, and one
-  dispatching on the prototype rather than on `Array.isArray` refuses the
-  null-prototype array while `Array.isArray` still reports `true` for it,
-  measured. Each variant exists on an array: a frozen array's elements come
-  back `writable: false, configurable: false`, a sealed one is non-extensible
-  with configurable elements, and an element can be made non-writable on its
-  own — all measured, none of them a shape the object cases reach. What each vector asserts is
-  that the output is **valid and denotes the input's data** — the host
-  variation leaves no trace, and `graph equivalence` supplies the comparison.
+  The spec states these as inputs a serializer must accept as data
+  ([`README.md`](../README.md)), which is a rule for implementations in hosts
+  that can build them. What becomes of that text is a task below.
 - **graph equivalence** — an input graph and the documents that do and do not
   denote it, so a serializer cannot pass by emitting merely *valid* output:
   `[a,a]` with one shared `a` is not `export default [[],[]];`. **Three sharing
-  shapes, not one**, for the reason the cycle set is every ordered pair of
-  container kinds: the two references reached from an array (`[a,a]`), from two
+  shapes, not one**, because a visited set lives in a walker and the object
+  and array walkers are separate: the two references reached from an array (`[a,a]`), from two
   object properties (`{"x":a,"y":a}`), and from one of each
   (`[a]` beside `{"x":a}` under a common root). A serializer hoisting a repeat
   it meets inside one walker, but starting fresh when it dispatches to the
@@ -1747,7 +1695,7 @@ The six parts:
   interesting index is the one where the shape of the name changes, and it is
   index 10. Pin **all four
   ordered pairs** of parent and child kind, not the two homogeneous ones, for
-  the reason the cycle set covers every ordered pair rather than a diagonal —
+  the reason sharing takes all three shapes above rather than a diagonal —
   and here the mixed cells are the ones with a demonstration, which the
   homogeneous pair does not have on its own:
 
@@ -1809,7 +1757,7 @@ and the `.f.mjs` stays the single source.
 
 #### The meta-encoding, for what a data literal cannot spell
 
-A JavaScript literal spells most of what the corpus asserts, which a JSON
+A JavaScript literal spells almost everything the corpus asserts, which a JSON
 value could not: `undefined`, `NaN`, `Infinity`, `-Infinity`, `-0`, a bigint,
 a string holding a lone surrogate (`"\ud800"`), an object in observable key
 order with the `["__proto__"]` key as an own property, and sharing as one
@@ -1817,207 +1765,49 @@ order with the `["__proto__"]` key as an own property, and sharing as one
 graph equivalence exists to separate, kept apart by the literal itself. A
 vector's expected graph is therefore a **value**, compared with the reader's
 output by `Object.is` at the leaves and by identity where sharing is asserted,
-and a document is a string. Two things stay described rather than spelled:
+and a document is a string.
 
-- **A duplicate key is a document fact, not a graph fact.** The document text
-  says `{"a":1,"b":2,"a":3}` and the expected graph is the literal
-  `{"a":3,"b":2}` — last value, first position, which is the rule the vector
-  pins. An expected graph never carries a duplicate.
-- **Host-only inputs are recipes, not data.** Some of these have no value to
-  describe at all — a `Date`, a function, a symbol key, an accessor, a sparse
-  hole. Others have perfectly ordinary data and a *host variation* the encoding
-  has no place for: a frozen object, a `null`-prototype array, an array
-  carrying an own property beyond its elements. Either way the encoding cannot
-  state it, so each is a named recipe the consumer builds. A recipe is an
-  object whose own `host` property names one, and **the key is reserved in
-  inputs**: a plain input object never carries a `host` member, so
-  `{"host":"fn"}` as an input is the function recipe and nothing else, and a
-  vector wanting an object with that key as serializer input cannot be
-  written — no vector needs one. The reservation reaches inputs only; a
-  reader-side expected graph carries no recipes, so `{"host":"fn"}` there is
-  the ordinary object the document spells. Review found the two readings
-  possible before the key was reserved. The vocabulary is
-  **closed, and closed means enumerated** — "and so on" was an open list
-  wearing the word closed, which review caught. Four **leaf** recipes:
+One thing stays described rather than spelled. **A duplicate key is a document
+fact, not a graph fact.** The document text says `{"a":1,"b":2,"a":3}` and the
+expected graph is the literal `{"a":3,"b":2}` — last value, first position,
+which is the rule the vector pins. An expected graph never carries a
+duplicate.
 
-  | recipe | builds |
-  | - | - |
-  | `{"host": "fn"}` | a function value with **no own properties** — an arrow function with `name` and `length` deleted, per the one-reason rule below |
-  | `{"host": "symbol"}` | a fresh unique symbol, as a *value* |
-  | `{"host": "builtin", "kind": <kind>[, "ms": <integer>]}` | a non-plain built-in object: `date` (with `ms`), `map`, `regexp` or `boxedNumber` |
-  | `{"host": "hole"}` | an array hole — legal **only** as an `arr` element |
+**And one value the language has that a data literal cannot hold**: a
+function, the serializer-reject set's one certain case. So the encoding keeps
+exactly one recipe, an object whose own `host` property names it, with the key
+reserved in inputs — a plain input object never carries a `host` member:
 
-  …and eight **modifier** recipes, each taking the node it applies to, so the
-  property cases say which object they are about — the gap review found in
-  `getter`, which named no container. `ownProp`, `nonEnumerable`, `getter`,
-  `setter` and `symbolKey` can build inputs a serializer must **refuse**;
-  `proto` and `attrs` build inputs it must **accept**, the half review found
-  missing — without them a serializer that rejects every unusual prototype or
-  descriptor passes the corpus while being nonconforming; and `link` builds
-  either, a cycle it must refuse when `to` is `on` or a node above it, and
-  ordinary sharing otherwise.
-  *Can*, not *must*: `ownProp` on an `obj` builds an ordinary own enumerable
-  string-keyed property, which is exactly what a serializer has to accept, and
-  only an extra property on an **array** is a rejection case. The recipe is a
-  construction; the vector is the claim:
+| recipe | builds |
+| - | - |
+| `{"host": "fn"}` | a function value, `() => 0` |
 
-  | recipe | builds |
-  | - | - |
-  | `{"host": "ownProp", "on": <node>, "key": <string>, "value": <node>}` | an enumerable own data property, which is how `a=[1]; a.meta=2` is said |
-  | `{"host": "nonEnumerable", "on": <node>, "key": <string>, "value": <node>}` | the same, non-enumerable |
-  | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an **enumerable** accessor property that **records its own invocation** and then returns `value` |
-  | `{"host": "setter", "on": <node>, "key": <string>}` | an **enumerable** accessor property with a **setter and no getter**, which reads as `undefined` |
-  | `{"host": "symbolKey", "on": <node>, "value": <node>}` | an **enumerable** own data property under a fresh unique symbol |
-  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"[, "inherited": [<key>, <node>]]}` | the same data under a `null` prototype, or an `arr` as an `Array` subclass instance — `inherited`, legal **with `arraySubclass` only**, puts one **enumerable** member, key and value, on the subclass's prototype; a `null` prototype has nothing to inherit from |
-  | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` is **required with `nonWritable` and forbidden otherwise**, and must name an **existing own data property** of the target |
-  | `{"host": "link", "on": <node>, "key": <string or index>, "to": <node>}` | the same data with one more element or enumerable own data property, `key`, holding `to` — which may be `on` itself or a node above it, since a data literal cannot spell a cycle |
+The reservation reaches inputs only. A reader-side expected graph carries no
+recipes, so `{"host":"fn"}` there is the ordinary object the document spells.
 
-  `nonWritable`'s `key` carries that constraint because the recipe is otherwise
-  not a *modifier* at all: `Object.defineProperty` with an unknown key **adds**
-  a non-enumerable `undefined` property, turning a serializer-**accept** vector
-  into a serializer-reject one, while another consumer might refuse the recipe
-  outright. Naming an existing own data property is what keeps the two
-  consumers building the same graph — and keeps the vector about writability,
-  which is outside the data model, rather than about a property that should
-  not be there.
+`build` is therefore `() => 0` behind a tag, which is FunctionalScript, so it
+is a `module.f.mjs` like anything else and no host module is involved. Two
+more recipes join it if the open questions above go that way —
+`{"host": "hole"}` for a sparse-array hole, legal only as an `arr` element,
+and `{"host": "symbol"}` for a symbol — and a `map` recipe arrives with `Map`.
 
-  **Every modifier's target must be an `obj` or `arr` node** — or a modifier
-  over one, since a modifier denotes its target. Nothing else has properties to
-  add or attributes to set, and `arraySubclass` narrows further to an `arr`.
-  `hole` is the mirror constraint on the leaf side: legal only as an `arr`
-  element. Stating both is what stops a vector like "freeze a number" from
-  being writable at all, and the types carry both rather than the prose
-  alone: a modifier's `on` is a `Target` (an array, an object or a
-  modifier), a `Hole` is an element of an `Arr` and not an `Input`, and
-  `proto` discriminates on `to`, so `inherited` exists only with
-  `arraySubclass`, whose `on` is an `ArrayTarget` — an array, or a
-  modifier over an `ArrayTarget`, so the narrowing holds through a chain
-  — and a `null` prototype takes an object or an array alike. Review found
-  the first shape saying all three in comments while admitting `on: 1`, a
-  hole as an object member and an `inherited` member with nothing to
-  inherit from, and the second admitting an object behind one modifier
-  where it refused it directly.
-
-  **A modifier node denotes its target, modified** — the same object `on`
-  denotes, not a copy. Four consequences, and they are stated because review
-  found two consumers could reasonably read this differently:
-
-  - **Identity is the target's.** The modifier and its target denote one
-    object, so a vector cannot describe the target *before* the modification.
-    That is deliberate: the module is a heap, not a history.
-  - **Only what the exported value reaches is built**, modifiers included. The
-    module is data, not a program, so an unreferenced `const` is inert and
-    cannot reach into the graph by side effect.
-  - **A modifier is a `const` of its own, never an inline literal** in an
-    array, an object, or another modifier's `on`, all of which name it.
-  - **Stacking is chaining, and the chain is the order.** A node is the
-    `on` of at most one modifier; a second modification names the first
-    modifier as its `on`, and the inner one applies first — `ownProp` then
-    `attrs: frozen` is `attrs` over `ownProp` over the node, and the reverse
-    is the reverse chain. The order has to be in the structure, because an
-    imported module hands `build` the exported value and nothing else: two
-    modifiers naming one node directly would have no order a consumer could
-    read, so `build` refuses that shape. Review found the earlier rule,
-    "statement order", asking for what the value cannot carry.
-
-  A cycle is a `link` whose `to` is `on` itself or a node above it — the one
-  place the literal's sharing cannot serve, since a `const` cannot name itself
-  or a later one.
-
-  Three of these carry an obligation the recipe alone does not express, and
-  each came from review:
-
-  - **Both accessor shapes, because the spec's rule is wider than its
-    reason.** The spec rejects "an accessor property" and explains it with
-    *reading a getter is an effect* — a reason that covers only half the rule.
-    A **setter-only** accessor has nothing to read, and that is precisely what
-    makes it dangerous: measured, an enumerable setter-only property has
-    `descriptor.get === undefined` and reads as `undefined`, so a serializer
-    that guards with `if (descriptor.get)` passes it straight through and emits
-    `{"x":undefined}` — a **valid DataJS document**, since `undefined` is one of
-    this format's values, denoting something the input never was. That is
-    [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) exactly:
-    an unsupported input answered with a plausible wrong value rather than
-    refused. `JSON.stringify` shows the same shape of loss from the other end,
-    dropping the property and emitting `{}`. `setter` therefore takes no
-    `value`: there is no value to name, which is the whole point. Like every
-    other accessor recipe it is **enumerable**, or the non-enumerability rule
-    refuses it first.
-  - **`getter` must be observable, not merely present.** The spec forbids
-    reading a getter *because reading it is an effect*
-    ([`README.md`](../README.md)), so a serializer that invokes the accessor
-    while enumerating and rejects the object afterwards is wrong and would pass
-    a vector that only checked the rejection. The recipe therefore records its
-    invocation, and **the vector asserts it was never invoked** as well as that
-    the input was refused. *Enumerable* is load-bearing and easy to lose:
-    `Object.defineProperty` defaults to non-enumerable, and a non-enumerable
-    accessor is refused for *that* reason without the read path ever being
-    reached — so an implementation that eagerly reads every enumerable getter
-    would pass the invocation assertion. **`symbolKey` carries the same
-    requirement for the same reason**: built with `Object.defineProperty`
-    defaults it is non-enumerable, and a serializer refusing it for *that*
-    never has to notice the enumerable symbol-keyed property it would
-    otherwise drop silently. Two consumers would be testing two different
-    rejection paths from one vector. Rejecting for the right reason and
-    rejecting after doing the forbidden thing are different outcomes.
-  - **`arraySubclass` with `inherited` is a serializer-accept vector with
-    teeth.** A serializer that enumerates with `for...in` copies inherited
-    enumerable properties into its result, which the spec forbids: the data is
-    the object's **own** enumerable string-keyed properties. Putting one
-    enumerable member on the subclass's prototype and asserting it is *absent*
-    from the output is what catches that. The member carries its **key**, not
-    just a value, and **the key must not collide with an own key of the
-    target** — for an `arr` that rules out any index it holds, and `length`.
-    A colliding key is shadowed by the own property during `for...in`, so the
-    vector would pass against a serializer that copies inherited members: the
-    one it exists to fail. This is the only vector in the set
-    whose assertion is about a member that must **not** appear.
-
-    An earlier draft did this with an arbitrary **custom** prototype, and
-    review was right that the spec does not clearly permit one: it rejects
-    "any other non-plain object" and exempts prototypes only by naming
-    `null`-prototype objects, `null`-prototype arrays and `Array` subclasses.
-    An implementation rejecting `Object.create({x: 1})` as non-plain would be
-    reading the normative text correctly and failing the corpus. An `Array`
-    subclass is **explicitly** permitted and its prototype can carry a member,
-    so it exercises the same filtering with no spec question attached — and
-    the corpus should not be where a spec question gets silently answered.
-  - **`builtin` covers a class, not `Date`.** The spec rejects "a `Date`, or
-    any other non-plain object", and a corpus naming only `Date` is passed by
-    an implementation that special-cases `Date` and serializes an empty `Map`
-    or `RegExp` as `{}` — valid output denoting something else, which is the
-    failure the serializer-reject set exists to catch. The `kind` list is
-    closed like everything else here, and `map`, `regexp` and `boxedNumber`
-    are in it precisely because they are *not* `Date`.
-
-    **The non-`Date` case must have no own properties**, or it can be refused
-    for the wrong reason. Measured:
-
-    ```text
-    Map        no own properties
-    Date       no own properties
-    Number(1)  no own properties
-    RegExp     lastIndex, own and non-enumerable
-    ```
-
-    A serializer refuses a `RegExp` the moment it sees a non-enumerable own
-    property — a rule it needs anyway — without ever asking whether the object
-    is plain, and then still writes an empty `Map` as `{}`. So `regexp` stays
-    in the `kind` list but cannot be the case that discharges the requirement;
-    `map` or `boxedNumber` must be. Review found this, and it is the same shape
-    as the enumerable-`getter` finding: a vector refused by a cheaper rule
-    never exercises the one under test.
-
-  The list being closed is what makes it useful — a vector needing a recipe not
-  in it extends the schema and both consumers, deliberately, rather than each
-  consumer improvising. Each implements the twelve once, and the corpus stays
-  data. Nothing in the encoding marks a recipe as accept-side or reject-side;
-  which set a vector lands in is the vector's claim, not the recipe's.
+**Eleven recipes were cut to get here, and the size of the cut is the
+finding.** The vocabulary was `fn`, `symbol`, `builtin` and `hole` as leaves,
+and `ownProp`, `nonEnumerable`, `getter`, `setter`, `symbolKey`, `proto`,
+`attrs` and `link` as modifiers, with a chaining rule for stacking them, a
+`Target`/`ArrayTarget` typing so a modifier could not sit over a leaf, an
+`inherited` member legal under `arraySubclass` alone, a `nonWritable` key
+obliged to name an existing own data property, a `getter` obliged to record
+its own invocation, and a `builtin` obliged to have no own properties. Every
+line of it was careful, internally consistent, reviewed over several rounds,
+and about values FunctionalScript cannot construct. Carefulness inside a
+premise does not test the premise, and this file had never asked who the
+serializer's callers are.
 
 The test of this encoding is whether two independent consumers can disagree.
 They cannot: identity is a `const`, a number is a literal the engine reads,
-key order is literal order, and the host values are a closed vocabulary rather
-than a construction the reader improvises. A printer for another language
+key order is literal order, and the one host value is a tag rather than a
+construction the reader improvises. A printer for another language
 reads the same module and prints each leaf from the value — a number by the
 shortest round-tripping decimal, a string unit by unit — which is the one
 place the engine's formatter is involved, and the normalize set pins that
@@ -2063,18 +1853,14 @@ or the spec, not only into a thread.
    ([edag-spec](../../../todo/edag-spec.md) asks for exactly such shared
    vectors); a proof imports a set like any module, and a consumer in another
    language gets it printed by `npm run gen` when one exists.
-2. **The plain-object boundary**, which no vector answers yet. Proposal for
-   the spec: an object is plain iff its prototype is `Object.prototype` or
-   `null`, and an array iff `Array.isArray` holds, its prototype being
-   `Array.prototype`, `null` or an `Array` subclass's; any other prototype
-   is "any other non-plain object" and rejected, so `Object.create({x: 1})`
-   is refused. Once decided, one serializer-reject vector pins it. The
-   alternative is to admit any prototype and serialize the own data, which
-   widens the exemption list to a rule. Until it is decided, `difference`
-   classifies what an implementation hands it by the proposal — it has to
-   draw the line somewhere to tell a `Date` from an empty object, and the
-   proposal is the line the spec's own two spellings of an object draw —
-   in one comparison, which is what the alternative would relax.
+2. **The plain-object boundary — decided: there is no boundary to draw.**
+   FunctionalScript cannot change a prototype and has no classes, so every
+   object a caller can build is under `Object.prototype` and every array under
+   `Array.prototype`. An object is `typeof v === 'object' && v !== null`, and
+   an array is that and `v instanceof Array`. Nothing a caller can hand a
+   serializer falls outside those two, so "any other non-plain object" has no
+   case to decide and the serializer-reject vector it was to unblock does not
+   exist.
 3. **§Whitespace's enumeration.** Proposal for the spec: keep the rule and
    replace the six-item colon list with the complete set it denotes — the 21
    characters of ECMAScript's `WhiteSpace` and `LineTerminator` classes less
@@ -2096,32 +1882,19 @@ or the spec, not only into a thread.
    vector's. Proposal: that, over the same modules the proofs import, run by the
    existing `cov` script's `node --test` and so on every CI runtime. The
    alternative is a `gen`-time check, which would run only where `gen` runs.
-6. **How the host recipes are built and proved.** Every recipe but `fn`
-   builds what FunctionalScript cannot — an accessor, a symbol key, a
-   non-enumerable or non-writable property, a `null` prototype, a frozen
-   object, a `Date`, a cycle — so `build` is host code, an impure
-   `module.mjs`. [fjs/AGENTS.md §1.6](../../../fjs/AGENTS.md) then says a
-   `proof.mjs` proves only its sibling `module.mjs` and is "not a back door
-   for proving a `.f.mjs` API against inputs or control flow the subset
-   forbids: values built by `Object.setPrototypeOf`, `Object.assign`,
-   `defineProperty` or an accessor". Read literally, that forbids proving the serializer, a
-   `.f.mjs` API, against the serializer-reject set and the host variations of
-   serializer accept — the very inputs
-   [the specification](../README.md#what-may-be-serialized) says it must
-   refuse or accept as data, and [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
-   says must be refused rather than approximated. Proposal: amend §1.6 with
-   one exemption, stated there — a `proof.mjs` may prove a `.f.mjs` API
-   against host-built inputs where that API's specification names those
-   inputs as ones it refuses or accepts, so the proof is of the specified
-   contract and not of a back door. The alternative keeps §1.6 as it is and
-   leaves the recipe-bearing sets as data no FunctionalScript proof runs,
-   which is data with no consumer, since no other implementation has host
-   objects either. `build` and its proof wait on this, and so does the one
-   proof of `difference` the subset cannot write: an array or an object
-   under a `null` prototype compared as the array or object it is, since
-   `Object.setPrototypeOf` is the call §1.6 names and a mutation besides;
-   the `proto` recipes are the vectors that hold it once `build` lands.
+6. **How the host recipes are built and proved — decided: §1.6 stands.** The
+   question asked whether [fjs/AGENTS.md §1.6](../../../fjs/AGENTS.md) should
+   be amended so a `proof.mjs` could prove the serializer against host-built
+   inputs. It should not, and the question dissolved rather than being
+   answered: with the vocabulary cut to a function there is nothing host-built
+   left to build or to prove. `build` is `() => 0` behind a tag, which is
+   FunctionalScript, so it lives in a `module.f.mjs` and §1.6 is never
+   engaged.
 
+   §1.6's own rationale had said so all along — that such cases are
+   "speculation about what an *arbitrary JavaScript caller* might hand a
+   FunctionalScript function, and nobody has asked for them" — and this file
+   read it as the obstacle rather than as the answer.
 The steps, in order; a step is one pull request unless it says otherwise:
 
 - [x] **The vector record and the comparison.** The schema is
@@ -2139,15 +1912,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `Object.is` at the leaves, members in observable order, and the
       containers as a bijection, so sharing is required in both directions —
       proved, over an explicit stack, to the corpus's depth.
-- [ ] **The host recipes built.** `build` in `fjs/media/datajs/vectors/module.mjs`,
-      from a recipe-bearing input to the host value with the modifiers
-      applied in chain order, the inner first, and a node named by two
-      modifiers directly refused — `link` for cycles, `getter` recording its
-      invocation, the closed lists of `builtin`, `proto` and `attrs` as the
-      types have them — and its proof: sharing and a cycle built and
-      asserted, a chain applied inner-first, the getter's record untouched
-      by building. Waits on decision 6, which decides whether that proof may
-      exist.
+- [ ] **The one recipe built.** `build` in
+      [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs),
+      from `{"host":"fn"}` to `() => 0` and every other input to itself, with
+      its proof. Waits on nothing.
 - [x] **Reader accept, code-unit form.** Derived production by production
       from the grammar as the section above lists it, in two pull requests
       so each stays reviewable, both landed as
@@ -2250,22 +2018,17 @@ The steps, in order; a step is one pull request unless it says otherwise:
       when stage 4's `tryParseBytes` lands and reruns the set through it.
 - [ ] **Serializer accept and graph equivalence.** Every leaf and container
       shape of the data model, the three sharing shapes and their four
-      unshared inverses, the host variations on both container kinds, the
-      escaping classes and width boundaries with key twins, `__proto__` as
-      data; each vector asserting a valid document denoting the input and
-      never a spelling. Landed with a proof that reads it: the schema and
-      the ids; for graph equivalence, every `denotes` document read to a
-      graph `difference` finds no difference from the input in and every
-      `denotesNot` document read to one it does; for serializer accept, the
-      expected graph reachable from the input by dropping its recipes. The
-      serializer's own assertions arrive with stage 4 and rerun the set.
-- [ ] **Serializer reject.** The recipes below the root, on both container
-      kinds as targets and as parents, the six cycles, both accessor shapes
-      with the getter's invocation asserted absent, the non-`Date` built-in
-      with no own properties; each checked for one reason of refusal. Landed
-      with a proof that reads it: the schema, the ids, every recipe in the
-      closed vocabulary and every modifier chain well-formed. The
-      serializer's refusals arrive with stage 4 and rerun the set.
+      unshared inverses, the escaping classes and width boundaries with key
+      twins, `__proto__` as data; each vector asserting a valid document
+      denoting the input and never a spelling. Landed with a proof that reads
+      it: the schema and the ids; for graph equivalence, every `denotes`
+      document read to a graph `difference` finds no difference from the input
+      in and every `denotesNot` document read to one it does. The serializer's
+      own assertions arrive with stage 4 and rerun the set.
+- [ ] **Serializer reject.** The function leaf below the root, under an array
+      element and under an object member; the hole and the symbol if the
+      subset has them. Landed with a proof that reads it: the schema and the
+      ids. The serializer's refusals arrive with stage 4 and rerun the set.
 - [ ] **Normalize.** Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
@@ -2297,14 +2060,29 @@ The steps, in order; a step is one pull request unless it says otherwise:
 - [ ] **The JavaScript whole-set check**, per decision 5. The
       FunctionalScript one is stage 6's, once stage 5 has taught the front
       end `;` and the special numbers.
-- [ ] **The plain-object boundary in the spec**, per decision 2, with the
-      one serializer-reject vector it unblocks; its own pull request, as
-      soon as the owner has decided.
+- [ ] **The serializer's input domain in the spec.** §What may be serialized
+      names an accessor, a non-enumerable property, a symbol key, an array's
+      extra own property, a cycle and a `Date` as inputs a serializer must
+      refuse, and a `null` prototype, an `Array` subclass and a frozen value
+      as inputs it must accept as data. None of the nine is constructible in
+      FunctionalScript. Whether that section stays as a rule for
+      implementations in hosts that can build them, or goes, is the owner's;
+      its own pull request either way.
+- [ ] **The checks the data model does not need, removed.** `difference` in
+      [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
+      tests for a symbol-keyed property, an own property outside the data
+      members, an accessor and a non-plain prototype, and its proof builds
+      those with `Object.assign`, `Object.defineProperty`, `Symbol`,
+      `new Date`, `new Map` and `Object(1)` — none of which FunctionalScript
+      has, so the proof is written in JavaScript the subset forbids and the
+      checks are for inputs no caller can produce. Both go, and the recipe
+      types in
+      [`types.ts`](../../../fjs/media/datajs/vectors/types.ts) with them.
 - [ ] **§Whitespace's enumeration in the spec**, per decision 3; its own
       pull request.
 - [ ] **The decoder seam in the spec**, per decision 4; its own pull
-      request. The three are separate because each changes a different
-      contract and is decided on its own.
+      request. Each is separate because each changes a different contract and
+      is decided on its own.
 - [ ] **Hand over.** `spec/datajs/README.md`'s Conformance section links the
       corpus instead of this file; stage 4's issue and the stage 6 task in
       [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)

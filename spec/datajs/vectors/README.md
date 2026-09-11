@@ -82,32 +82,21 @@ is a document fact and never a graph fact: the document says
 `{"a":1,"b":2,"a":3}` and the graph is `{"a":3,"b":2}`, last value in first
 position.
 
-**A serializer-side input** is a graph, or a graph carrying **host
-recipes** where the corpus has to describe what no data literal can spell.
-An object whose own `host` property names a recipe is that recipe, and the
-key is reserved for it. Four leaves — `fn`, `symbol`, `builtin`, `hole` —
-and eight modifiers — `ownProp`, `nonEnumerable`, `getter`, `setter`,
-`symbolKey`, `proto`, `attrs`, `link` — each modifier naming the node it
-applies to and denoting that node, modified, never a copy. A modifier's
-target is an array, an object or a modifier over one, since nothing else
-has properties to add or attributes to set, and `arraySubclass` narrows the
-target to an array, the one shape whose prototype `inherited` reaches,
-through a chain of modifiers as much as directly; a
-`hole` is an array element and never an input of its own. A modifier is a
-`const` of its own; stacking is chaining, a second modification naming the
-first as its `on` and the inner one applying first, and a node is the `on`
-of at most one modifier, since the chain is the only order an exported
-value carries; `link` is how a cycle is spelled, since a `const` cannot
-name itself. The vocabulary is closed: the types are the list, and they
-carry the placement rules, so a recipe over a leaf, a hole outside an
-array or an `inherited` member under a `null` prototype is refused by
-`tsc` rather than left to a consumer; a plain input object may not have a
-`host` key — the reservation reaches inputs only, and an expected graph,
-which carries no recipes, may spell `{"host":"fn"}` as the ordinary object
-it is. Their construction, and how the corpus proves them
-against a FunctionalScript serializer, is the open decision the issue
-records, since the repository's proof rules keep host-built values out of
-proofs of FunctionalScript APIs.
+**A serializer-side input** is a graph, or a graph carrying the one **host
+recipe** the corpus needs: an object whose own `host` property is `"fn"` is a
+function value, `() => 0`, and the key is reserved for it. A serializer's
+callers are FunctionalScript, so what it can be handed is what
+FunctionalScript can build — and the language has no mutation, no classes,
+no `Object.defineProperty`, no `Object.assign`, no `Object.setPrototypeOf`,
+no `Object.freeze`, no `Date` and no `RegExp`. An accessor, a non-enumerable
+property, a symbol key, an array carrying an extra own property, a cycle, a
+`null` prototype, an `Array` subclass and a frozen value therefore reach no
+serializer, and the corpus describes none of them: a vector for an input no
+caller can construct can never run. A function is the one value the language
+has that the data model does not; a sparse-array hole and a symbol join it if
+the subset spells them, and a `Map` when `Map` lands. The reservation reaches
+inputs only, so an expected graph, which carries no recipes, may spell
+`{"host":"fn"}` as the ordinary object it is.
 
 **Normalized bytes** are the document as a string; a proof encodes it to
 compare bytes, and every string the normalized serializer emits is a valid
@@ -146,7 +135,7 @@ the refusal arrives with the set.
   valid but for the one defect it names, and a serializer-reject input
   breaks one rule, placed so that a cheaper rule does not refuse it first: a
   malformed byte sequence sits inside an otherwise valid string, an
-  offending host value sits below the root.
+  offending value sits below the root.
 - **Sample a range.** Both ends of every character class at every fixed
   position, the empty branch of every repetition, a signed twin for every
   number, a key twin for every string.
