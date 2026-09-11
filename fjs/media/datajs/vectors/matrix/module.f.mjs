@@ -203,9 +203,13 @@ export const write = text => step(mkdir(directory, { recursive: true }), () => w
  * non-zero with the classes named: it is a defect in the corpus, not in
  * the generator, and the message says which record would answer it.
  *
+ * It takes the options every `NodeProgram` is given and reads none of
+ * them: the corpus is an argument of `program`, not of the run, so there
+ * is nothing on the command line to vary.
+ *
  * @type {(corpus: Corpus) => NodeProgram}
  */
-export const program = corpus => () => {
+export const program = corpus => _options => {
     const text = matrix(corpus)
     return text[0] === 'error' ? errorExit(text[1]) : exitStep(write(text[1]))
 }
