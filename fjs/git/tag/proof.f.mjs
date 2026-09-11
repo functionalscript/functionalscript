@@ -104,6 +104,14 @@ export const proof = {
         assertEq(tryType(tag(lines)), 'commit')
         assertEq(tryType(replaced(1, 'tag v1')), null)
         assertEq(tryType(replaced(1, 'type commits')), null)
+        // The value is a C string to Git, so it ends at its first NUL and
+        // what follows is not read. Measured on Git 2.43.0: a tag whose
+        // type line is `type blob` and a NUL peels to the blob, and so does
+        // one with bytes after the NUL, where a value beginning with a NUL
+        // is `unknown tag type ''`.
+        assertEq(tryType(replaced(1, 'type blob\0')), 'blob')
+        assertEq(tryType(replaced(1, 'type blob\0junk')), 'blob')
+        assertEq(tryType(replaced(1, 'type \0blob')), null)
     },
     // What a tag names and what it says that object is, taken together as
     // Git's own parse takes them: the `object` header first naming an id of
