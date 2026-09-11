@@ -2095,15 +2095,55 @@ The steps, in order; a step is one pull request unless it says otherwise:
       asserted, a chain applied inner-first, the getter's record untouched
       by building. Waits on decision 6, which decides whether that proof may
       exist.
-- [ ] **Reader accept, code-unit form.** Derived production by production
-      from the grammar as the section above lists it: every alternative,
-      both ends of every character class at every fixed position, the empty
-      branch of every repetition, the signed twin of every number and bigint,
-      the key twin of every string, the whitespace-like scalars inside a
-      string, the surrogate cases, the array-index key order with both sides
-      of each boundary, the shortest document and the document's own edges.
-      Proved against the reader as it lands: every document parses to a
-      graph `difference` finds no difference in.
+- [x] **Reader accept, code-unit form.** Derived production by production
+      from the grammar as the section above lists it, in two pull requests
+      so each stays reviewable, both landed as
+      [`accept/data.f.mjs`](../vectors/accept/data.f.mjs). **The leaves**: the word leaves
+      and both infinities; every branch of `number` with a signed twin each,
+      both ends of the digit class in the first digit of `frac` and of
+      `exp` and in the digits after it, in both orders, the three zero
+      spellings, and the five binary64 cases; every `bigint`
+      branch with the three fixed-width ceilings; and every `string` branch
+      — the nine escapes, the six hex rotations, the raw `/`, BMP and astral
+      characters, both ends of each of the three ranges the raw character
+      is once `"` and `\` are cut out of it (U+0020, U+0021, U+0023,
+      U+005B, U+005D and U+10FFFF), the nineteen whitespace-like scalars,
+      the four lone surrogates, the four escaped pairs and the seven
+      adjacencies — each with its key twin, and both ends of every
+      character class at every fixed position, the rule the hex rotations
+      and the range ends follow. **The containers and the document**,
+      under the same both-ends rule: `array` and `object` empty, of one,
+      two and three, nested in each other, arrays a thousand deep and
+      objects three hundred deep — the depth `tsc` binds a nested object
+      literal to without overflowing — and holding
+      every `value` alternative; the `["__proto__"]` key alone, among
+      others, nested, and holding an object, `null` and a shared node;
+      duplicate keys plain, adjacent, three times over, by an escaped
+      spelling, of the `["__proto__"]` key, of an index, nested in an
+      object and in an array whose containing member survives, and at both
+      levels at once; the
+      array-index key order with both sides of each boundary and the
+      non-index spellings a numeric reading mistakes (`-1`, `-0`, `+1`,
+      `0x1`, `1e0`, a leading space, a value past the largest index, an
+      escaped index); a `const` referenced once, twice and never, as a
+      root, an element, a member and through a chain, bound to every leaf
+      and container, and shared through nested paths and as two nodes at
+      once; the unshared inverse, two equal nodes kept apart, from a
+      literal and from two `const`s; a name of `$` alone, each of the
+      eight endpoints of the tail class as a one-character tail (`$A`,
+      `$Z`, `$a`, `$z`, `$0`, `$9`, `$_`, `$$`) and all eight in one name,
+      a hundred characters, and a tail that is
+      a reserved word, a value word, one of this grammar's three keywords
+      or a contextual keyword, with names differing by case, length,
+      prefix and a `$`; each of the four whitespace characters at the three
+      required positions, at every optional position, and doubled, runs of
+      all four in both orders, CRLF, and the tokens whitespace may stand
+      around; the shortest document, its edges leading and trailing, the
+      one-line and readable spellings of one graph, and a hundred `const`s
+      flat and chained. Proved against the reader: every document parses
+      to a graph `difference` finds no difference in, and the ids are
+      unique; and, run locally, every document imports as an ES module
+      denoting the same graph, the whole-set check decision 5 would keep.
 - [ ] **Reader reject, code-unit form.** The narrowing vectors derived from
       the spec's six narrowing sources — strings, numbers, identifiers,
       whitespace, the document rule, and every production of the grammar —
