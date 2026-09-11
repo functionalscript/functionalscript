@@ -87,7 +87,12 @@ vector, the only kind that catches a reader delegating to the host; a
 
 **An expected graph** is a value of the data model, and sharing is part of
 it: `[$a, $a]` with one `const` is one node reached twice, and `[[], []]`
-is two nodes. A proof compares the graph an implementation produced with
+is two nodes. **One shared node has no vector in any role**: an empty array,
+which no set can bind — `const $e = [];` is an evolving `any[]` `tsc` refuses
+every read of — so a writer that expands one shared empty array into two passes
+the corpus. The limitation is
+[an issue of its own](./todo/shared-empty-array.md); the empty object shares
+normally. A proof compares the graph an implementation produced with
 `difference` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
 leaves by `Object.is`, so that `-0` and `0` differ and `NaN` is itself;

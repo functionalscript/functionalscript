@@ -1882,7 +1882,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       and the *array* in that set's proof, since `const $e = [];` is an
       evolving `any[]` a data module cannot bind — the same limit the normalize
       set's proof works around, and the same direction that matters, which is
-      expanding one shared empty rather than merging two distinct ones.
+      expanding one shared empty rather than merging two distinct ones. **A
+      proof is not a vector**, as review then pointed out: it covers this
+      repository's own reader and writer and gives a third-party harness
+      nothing, since a harness serializes the inputs a set exports. That is a
+      carrier limitation rather than a missing vector, and it has
+      [an issue of its own](../vectors/todo/shared-empty-array.md) with the
+      three routes out of it.
       One reason was corrected rather than replaced: the deep-nesting classes
       said depth is the reader's concern, which is false, since a recursive
       writer has a limit of its own and this repository records
@@ -1895,12 +1901,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
       twins, `__proto__` as data; each vector asserting a valid document
-      denoting the input and never a spelling. Landed with a proof that reads
+      denoting the input and never a spelling. **Lands** with a proof that reads
       it: the schema and the ids; for graph equivalence, every `denotes`
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 216 records in
+- [x] **Normalize.** Landed as 217 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 53 scope
       records answering the 516 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -1914,7 +1920,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 113,227 bytes of the bit
+      being refused outright. The matrix stands at 113,263 bytes of the bit
       vector's 131,072, which is 87% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -1962,13 +1968,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       from the same round: every input had a node with at most two incoming
       occurrences, so a writer that forgets an identity by the third passed,
       and both unshared pairs sat in an array, so one that hash-conses only
-      while walking object members passed.
+      while walking object members passed. And two positions after that: every
+      escape-sensitive string in the set was a root value or a root key, so a
+      writer using a JavaScript-safe escaper only for nested values emitted
+      `\u2028` for `["\u2028"]` and passed, and one with a separate recursive
+      key emitter did the same for `{"a":{"\u2028":0}}`. The two `every-value`
+      aggregates now carry a whitespace-like character, a lone surrogate and a
+      control among their leaves, and a nested key carries the first.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
       each digit position, the encoder's width transitions, the number
       spellings with `-0` and the thresholds and the shortest-digits rule,
-      `-0n`, the required space after every root shape. Landed with a proof
+      `-0n`, the required space after every root shape. **Lands** with a proof
       that reads it: the schema, the ids, and every expected text read by
       the reader to a graph `difference` finds no difference from the input
       in — which is the "run through the accept grammar" check, made a
