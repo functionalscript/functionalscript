@@ -9,7 +9,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { name, object, tagger, type, write as writeTag } from '../tag/module.f.mjs'
 import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.mjs'
-import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, validate, write } from './module.f.mjs'
+import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, tryTreeAt, validate, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Commit} */
 const read = input => {
@@ -159,6 +159,18 @@ export const proof = {
         assertEq(tryTree(32)(c), null)
         assertEq(tryTree(20)(replaced(0, 'tree zz')), null)
         assertEq(tryTree(20)(without(0)), null)
+    },
+    // The same over bytes rather than a commit, which is the step a caller
+    // holding what a store gave takes: the tree, or `null` where the bytes
+    // are no commit at all as well as where the commit names no tree.
+    tryTreeAt: () => {
+        const at = tryTreeAt(20)
+        const id = at(latin1(lines.join('\n')))
+        assert(id !== null)
+        assertEq(hex(id), treeId)
+        assertEq(at(latin1('junk')), null)
+        assertEq(at(latin1(['tree zz', ...lines.slice(1)].join('\n'))), null)
+        assertEq(tryTreeAt(32)(latin1(lines.join('\n'))), null)
     },
     // Each refusal, one per rule, on a commit the reader reads.
     validate: () => {

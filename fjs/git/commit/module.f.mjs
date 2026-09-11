@@ -102,6 +102,27 @@ export const tryTree = oidBytes => {
 }
 
 /**
+ * The tree of bytes stored as a commit, at the repository's width, or
+ * `null` where the bytes are no commit or the commit names no tree of that
+ * width: {@link tryRead} and {@link tryTree} as one step, which is what a
+ * caller holding bytes it has not vouched for wants of a commit.
+ *
+ * It is one step because Git takes it as one: parsing a commit reads its
+ * tree pointer, so `git cat-file -t <tag>^{}` over a tag naming a commit
+ * whose `tree` header is missing or is no id answers `error: bogus commit
+ * object` rather than the type.
+ *
+ * @type {(oidBytes: OidBytes) => (payload: Bytes) => Nullable<Oid>}
+ */
+export const tryTreeAt = oidBytes => {
+    const treeOf = tryTree(oidBytes)
+    return payload => {
+        const c = tryRead(payload)
+        return c === null ? null : treeOf(c)
+    }
+}
+
+/**
  * The ids the `parent` headers name, in order: none for a root commit,
  * two or more for a merge.
  *

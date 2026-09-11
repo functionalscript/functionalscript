@@ -36,7 +36,9 @@
 
 import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
-import { tryRead as readCommit, tryTree } from '../commit/module.f.mjs'
+import { strictEqual } from '../../types/function/operator/module.f.mjs'
+import { equal } from '../../types/list/module.f.mjs'
+import { tryTreeAt } from '../commit/module.f.mjs'
 import { tryObject, tryRead as readTag, tryType } from '../tag/module.f.mjs'
 import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
 
@@ -55,13 +57,15 @@ const treeAt = (read, entriesOf) => id => step(read(id), e =>
     pureOk(e === null || e.type !== 'tree' ? null : entriesOf(e.payload)))
 
 /**
- * Whether two names are the same bytes. A name is bytes the file system
- * gave, compared as they are: no case folding, no normalisation, since
- * Git compares them so and two names differing by either are two entries.
+ * Whether two names are the same bytes: `fjs/types/list`'s `equal` over
+ * `strictEqual`, which is byte-for-byte equality and nothing more. A name
+ * is bytes the file system gave, compared as they are — no case folding, no
+ * normalisation, since Git compares them so and two names differing by
+ * either are two entries.
  *
- * @type {(a: readonly number[], b: readonly number[]) => boolean}
+ * @type {(a: readonly number[]) => (b: readonly number[]) => boolean}
  */
-const same = (a, b) => a.length === b.length && a.every((x, i) => x === b[i])
+const same = equal(strictEqual)
 
 /** The peel before it has read anything, and what a refused one answers. */
 const noTarget = /** @type {PeelState} */ ({ seen: [], target: null })
@@ -81,9 +85,10 @@ const noTarget = /** @type {PeelState} */ ({ seen: [], target: null })
  * @template {Operation} O
  * @param {Read<O>} read
  * @param {(t: Tag) => Nullable<Oid>} objectOf
+ * @param {(payload: Bytes) => Nullable<Oid>} treeAt
  * @returns {(item: PeelItem) => (state: PeelState) => Effect<O, readonly [PeelState, readonly PeelItem[]], IoChannel>}
  */
-const peelStep = (read, objectOf) => ({ id, want }) => state =>
+const peelStep = (read, objectOf, treeAt) => ({ id, want }) => state =>
     // An id the chain has been through is a cycle, which no store that
     // checks what it reads can answer and a `Read` that does not check can.
     state.seen.includes(id) ? pureOk([state, []]) : step(read(id), e => {
@@ -91,7 +96,14 @@ const peelStep = (read, objectOf) => ({ id, want }) => state =>
         const stop = /** @type {readonly [PeelState, readonly PeelItem[]]} */ ([{ seen, target: null }, []])
         if (e === null) { return pureOk(stop) }
         if (want !== null && e.type !== want) { return pureOk(stop) }
-        if (e.type !== 'tag') { return pureOk([{ seen, target: { id, envelope: e } }, []]) }
+        // A commit is parsed where the chain stops at one, since Git parses
+        // it there too and refuses a tag whose target is no commit — where
+        // it leaves a tree's entries and a blob's bytes unread.
+        if (e.type !== 'tag') {
+            return pureOk(e.type === 'commit' && treeAt(e.payload) === null
+                ? stop
+                : [{ seen, target: { id, envelope: e } }, []])
+        }
         const t = readTag(e.payload)
         if (t === null) { return pureOk(stop) }
         const next = objectOf(t)
@@ -108,10 +120,18 @@ const peelStep = (read, objectOf) => ({ id, want }) => state =>
  *
  * A tag says what type its target is, and the object reached must be of
  * it, since `git cat-file -t <tag>^{}` refuses a tag whose `type` header
- * and target disagree. `null` where they do, where an object read is no
- * object of its type, where a tag's `object` header is no id of the width
- * or its `type` header names none of the four, and where the chain comes
- * back to an id it has already been through.
+ * and target disagree. `null` where they do, where a tag's bytes are no
+ * tag, where its `object` header is no id of the width or its `type` header
+ * names none of the four, and where the chain comes back to an id it has
+ * already been through.
+ *
+ * A commit the chain stops at is read too, and `null` where its bytes are
+ * no commit or it names no tree of the width: `git cat-file -t <tag>^{}`
+ * answers `error: bogus commit object` for either, since peeling parses the
+ * commit it lands on and parsing one reads its tree pointer. It parses
+ * neither a tree's entries nor a blob's bytes, and nor does this — a tree
+ * or a blob of any bytes peels, as it does for Git, and reading what such a
+ * tree holds is {@link tryEntries}.
  *
  * The chain's length is not bounded, since Git bounds it nowhere and
  * `git tag -a t9 t8` builds one of any depth. It needs no bound to end: a
@@ -128,15 +148,17 @@ const peelStep = (read, objectOf) => ({ id, want }) => state =>
  * @returns {Step<O, Target>}
  */
 export const peel = (read, oidBytes) => {
-    const f = peelStep(read, tryObject(oidBytes))
+    const f = peelStep(read, tryObject(oidBytes), tryTreeAt(oidBytes))
     return id => mapStep(walkStep(pureOk([{ id, want: null }]), noTarget, f), s => s.target)
 }
 
 /**
- * The entries of the tree an id names: the id {@link peel}ed, then a
- * commit's `tree` header read and that tree read, or the tree itself where
- * what the id names is one. `null` where the id names a blob, or the
- * objects read cannot be read as their type says.
+ * The entries of the tree an id names: the id {@link peel}ed, then the tree
+ * a commit names read, or the tree itself where what the id names is one.
+ * `null` where the id names a blob, or the objects read cannot be read as
+ * their type says. A commit {@link peel} answered has a tree already, since
+ * it refuses one without, so this reads that tree and does not judge the
+ * commit again.
  *
  * @template {Operation} O
  * @param {Read<O>} read
@@ -145,17 +167,16 @@ export const peel = (read, oidBytes) => {
  */
 export const tryEntries = (read, oidBytes) => {
     const peeled = peel(read, oidBytes)
-    const treeOf = tryTree(oidBytes)
+    const treeOf = tryTreeAt(oidBytes)
     const entriesOf = readTree(oidBytes)
     const at = treeAt(read, entriesOf)
     return id => step(peeled(id), t => {
         if (t === null) { return pureOk(null) }
         const { envelope } = t
         if (envelope.type === 'tree') { return pureOk(entriesOf(envelope.payload)) }
-        if (envelope.type !== 'commit') { return pureOk(null) }
-        const c = readCommit(envelope.payload)
-        if (c === null) { return pureOk(null) }
-        const treeId = treeOf(c)
+        // A commit peeled to has a tree, since `peel` refuses one without,
+        // so what answers `null` here is an object that is no commit: a blob.
+        const treeId = envelope.type === 'commit' ? treeOf(envelope.payload) : null
         return treeId === null ? pureOk(null) : at(treeId)
     })
 }
@@ -170,7 +191,7 @@ export const tryEntries = (read, oidBytes) => {
  * @type {(entries: readonly TreeEntry[], want: readonly number[]) => Nullable<TreeEntry>}
  */
 const only = (entries, want) => {
-    const found = entries.filter(e => same(byteArray(e.name), want))
+    const found = entries.filter(e => same(byteArray(e.name))(want))
     return found.length === 1 ? found[0] : null
 }
 

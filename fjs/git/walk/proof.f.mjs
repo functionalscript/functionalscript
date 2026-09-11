@@ -97,6 +97,18 @@ const junkCommitId = of20('commit', junk)
 
 const junkTagId = of20('tag', junk)
 
+const junkTreeId = of20('tree', junk)
+
+/** A tag declaring `commit` over bytes stored as a commit that are no commit. */
+const junkTarget = tagOf(junkCommitId, 'commit', 'junk')
+
+const junkTargetId = of20('tag', junkTarget)
+
+/** A tag declaring `tree` over bytes stored as a tree that are no tree. */
+const treeTarget = tagOf(junkTreeId, 'tree', 'tree')
+
+const treeTargetId = of20('tag', treeTarget)
+
 /** A tag naming an object the repository does not hold. */
 const danglingTag = tagOf(helloId, 'blob', 'dangling')
 
@@ -193,6 +205,9 @@ const files = Object.fromEntries([
     commitFile(blobTreeId, blobTree),
     commitFile(oddTreeId, oddTree),
     tagFile(junkTagId, junk),
+    treeFile(junkTreeId, junk),
+    tagFile(junkTargetId, junkTarget),
+    tagFile(treeTargetId, treeTarget),
     tagFile(danglingTagId, danglingTag),
     tagFile(lostTagId, lostTag),
     [at(oddId), latin1('no envelope here')],
@@ -238,6 +253,52 @@ const name = latin1
 /** @type {(e: TreeEntry) => readonly [number, string, string]} */
 const seen = e => [mode(e), codePointListToString(e.name), hex(e.oid)]
 
+/** An id the hex digits of a number spell, at 20 bytes. */
+const idOf = /** @type {(k: number) => Oid} */ (k => {
+    const v = tryFromHex(latin1(hexOf(k)))
+    assert(v !== null)
+    return v
+})
+
+/** The 40 hex digits a number spells, as an id is written. */
+const hexOf = /** @type {(k: number) => string} */ (k => k.toString(16).padStart(40, '0'))
+
+/** A tag naming an id, declaring a type for it, as the format writes one. */
+const tagAt = /** @type {(target: string, type: ObjectType) => Bytes} */ ((target, type) =>
+    latin1([`object ${target}`, `type ${type}`, 'tag t', 'tagger A <a@b> 1 +0000', '', 'm', ''].join('\n')))
+
+/**
+ * A `Read` that does not check what it answers, giving a tag that names the
+ * id it was asked for: the cycle a store that checks cannot hold.
+ *
+ * @type {Read<never>}
+ */
+const liar = id => pureOk({ type: 'tag', payload: tagAt(hex(id), 'tag') })
+
+/**
+ * A `Read` over a chain made of its own ids, so nothing is hashed: the
+ * `k`th id names the tag over the `k - 1`th, and `0` names the commit.
+ *
+ * @type {Read<never>}
+ */
+const chained = id => {
+    const k = Number.parseInt(hex(id), 16)
+    return pureOk(k === 0
+        ? { type: 'commit', payload: commit }
+        : { type: 'tag', payload: tagAt(hexOf(k - 1), k === 1 ? 'commit' : 'tag') })
+}
+
+/** A tree holding one subtree named `d`, which is the root itself. */
+const selfTree = tree([entry('40000', 'd', rootId), entry('100644', 'f', helloId)])
+
+/**
+ * A `Read` answering {@link selfTree} for every id: a path of `d` of any
+ * length is found, every component but the last a subtree.
+ *
+ * @type {Read<never>}
+ */
+const nested = () => pureOk({ type: 'tree', payload: selfTree })
+
 export const proof = {
     // An id naming no tag peels to itself, read; a tag to what it names;
     // a chain of tags to the first object that is not one.
@@ -264,6 +325,18 @@ export const proof = {
         // the object it reaches is not.
         assertStructurallySame(runHost(peeled(badTypeId))[1], ['ok', null])
         assertStructurallySame(runHost(peeled(wrongTypeId))[1], ['ok', null])
+        // A commit the chain stops at is read, so bytes stored as a commit
+        // that are no commit peel to nothing — whether a tag named them or
+        // the id was given directly, as `git cat-file -t <tag>^{}` refuses
+        // both with `bogus commit object`.
+        assertStructurallySame(runHost(peeled(junkTargetId))[1], ['ok', null])
+        assertStructurallySame(runHost(peeled(junkCommitId))[1], ['ok', null])
+        // A tree's entries are not read there, and nor are a blob's bytes:
+        // both peel whatever they hold, as they do for Git.
+        const [, badTree] = runHost(peeled(treeTargetId))
+        assert(badTree[0] === 'ok' && badTree[1] !== null)
+        assertEq(badTree[1].envelope.type, 'tree')
+        assertEq(hex(badTree[1].id), hex(junkTreeId))
         // A file whose bytes are no object at all: the store's `null`, which
         // the walk hands on.
         assertStructurallySame(runHost(peeled(oddId))[1], ['ok', null])
@@ -280,11 +353,6 @@ export const proof = {
     // which a store that checks cannot: a tag naming the id it was asked
     // for. The chain comes back to an id it has been through and stops.
     cycle: () => {
-        /** @type {Read<never>} */
-        const liar = id => pureOk({
-            type: 'tag',
-            payload: latin1([`object ${hex(id)}`, 'type tag', 'tag self', '', 'm', ''].join('\n')),
-        })
         assertStructurallySame(run({})([])(peel(liar, 20)(commitId))[1], ['ok', null])
     },
     // A chain no recursion could follow, and a path no recursion could
@@ -293,39 +361,10 @@ export const proof = {
     // recursion these replaced died at two thousand tags and at eight
     // thousand components.
     deep: () => {
-        // The `k`th id names the tag over the `k - 1`th, and `0` names the
-        // commit: a chain made of its own ids, so nothing is hashed.
-        /** @type {(k: number) => Oid} */
-        const idOf = k => {
-            const v = tryFromHex(latin1(k.toString(16).padStart(40, '0')))
-            assert(v !== null)
-            return v
-        }
-        /** @type {Read<never>} */
-        const chained = id => {
-            const k = Number.parseInt(hex(id), 16)
-            return pureOk(k === 0 ? { type: 'commit', payload: commit } : {
-                type: 'tag',
-                payload: latin1([
-                    `object ${(k - 1).toString(16).padStart(40, '0')}`,
-                    `type ${k === 1 ? 'commit' : 'tag'}`,
-                    'tag t',
-                    'tagger A <a@b> 1 +0000',
-                    '',
-                    'm',
-                    '',
-                ].join('\n')),
-            })
-        }
         const [, peeled3000] = run({})([])(peel(chained, 20)(idOf(3000)))
         assert(peeled3000[0] === 'ok' && peeled3000[1] !== null)
         assertEq(hex(peeled3000[1].id), hex(idOf(0)))
         assertEq(peeled3000[1].envelope.type, 'commit')
-        // A tree holding one subtree named `d`, which is itself: every
-        // component of the path is found and the last answers the entry.
-        const self = tree([entry('40000', 'd', rootId), entry('100644', 'f', helloId)])
-        /** @type {Read<never>} */
-        const nested = () => pureOk({ type: 'tree', payload: self })
         const [, deepPath] = run({})([])(tryEntry(nested, 20)(rootId, Array.from({ length: 10000 }, () => name('d'))))
         assert(deepPath[0] === 'ok' && deepPath[1] !== null)
         assertStructurallySame(seen(deepPath[1]), [0o40000, 'd', hex(rootId)])
