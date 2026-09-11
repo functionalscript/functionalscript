@@ -54,10 +54,8 @@ export const objectPath = dir => id => {
  * either way not the object asked for. The channel's, beside the codes
  * the host gives a file it cannot read, since a caller that asked for an
  * object by id has one question and both are its answer.
- *
- * @type {string}
  */
-export const objectIdCode = 'ERR_OBJECT_ID'
+export const objectIdCode = /** @type {const} */ ('ERR_OBJECT_ID')
 
 /**
  * The message beside {@link objectIdCode}: the path read, and the id its
