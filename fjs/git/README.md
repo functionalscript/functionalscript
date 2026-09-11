@@ -122,6 +122,13 @@ The four payloads:
   <message>                 to the end of the object, arbitrary bytes
   ```
 
+  The empty line and the message are optional together: an object whose
+  bytes end at its last header's LF is one Git accepts and none of its own
+  tools write, and `Payload`'s `message` is `null` for it. That keeps it
+  apart from an object with an empty line and an empty message, which are
+  two byte strings and so two ids, and the writer puts back whichever it
+  was given.
+
   Every header is `key SP value LF`, and a line beginning with SP continues
   the value of the header before it, LF included. That is how a multi-line
   signature is one header, and how `mergetag` carries a whole tag object as
@@ -346,10 +353,6 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   either side of its stream — a file over the bound before inflating, a
   stream that inflates past it — and never cut short. The inflater issue
   lifts both sides.
-- **An object with no empty line.** A commit or a tag whose bytes end
-  after its last header, which Git accepts and none of its tools write,
-  is refused by the header block's grammar; reading it is a change to
-  `Payload`, [`header/todo/header-only-object.md`](header/todo/header-only-object.md).
 - **One `Meta` per byte.** The LL(1) backend takes an array of symbols,
   each an object, and streams nothing. For commits, tags and trees that is
   fine; it is the reason a blob is never handed to a parser.
