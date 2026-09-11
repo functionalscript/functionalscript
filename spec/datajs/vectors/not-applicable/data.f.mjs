@@ -135,4 +135,5 @@ export default [
     {"scope": ["class", "key/string/raw/bmp"], "role": "normalize", "because": "normalized form leaves every raw character unescaped, which the raw vectors pin at both ends of that branch; these differ only in which scalar they are, and the escaping rule does not branch on that"},
     {"scope": ["class", "string/raw/astral"], "role": "normalize", "because": "normalized form leaves every raw character unescaped, which the raw vectors pin at both ends of that branch; these differ only in which scalar they are, and the escaping rule does not branch on that"},
     {"scope": ["class", "key/string/raw/astral"], "role": "normalize", "because": "normalized form leaves every raw character unescaped, which the raw vectors pin at both ends of that branch; these differ only in which scalar they are, and the escaping rule does not branch on that"},
+    {"scope": ["subtree", "byte"], "role": "serializer", "because": "a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's"},
 ];
