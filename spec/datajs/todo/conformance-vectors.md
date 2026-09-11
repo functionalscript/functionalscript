@@ -381,8 +381,12 @@ The six parts:
     is the whole of the difference. Review found it, and the unsigned two come
     with them by the signed-twin rule read the other way round. **And four
     where the denoted Number is not the decimal the text spells**, since
-    `number` names a binary64 value and not the literal: `1000000000000000128`,
-    whose value's canonical spelling is `1000000000000000100`; `5e-324`, the
+    `number` names a binary64 value and not the literal: `9007199254740993`,
+    one past the last integer binary64 spells exactly, whose value is
+    `9007199254740992` — `1000000000000000128` will not do on this side,
+    review having measured it exactly representable, so both its literals
+    denote one value and the vector cannot fail, where under `normalize`
+    that same exactness is the point; `5e-324`, the
     smallest positive subnormal, which is a *nonzero* value; `1e-999`, which
     denotes `0`; `1e999`, which denotes `Infinity`; and
     `1.7976931348623157e308`, the **largest finite**, which denotes itself and
@@ -394,7 +398,7 @@ The six parts:
     erroring on overflow — and every other number vector here is small enough
     that all four pass it. **And a signed twin of each**, which the rule two
     bullets down requires and the commit that added the four did not apply,
-    the fifth time that has happened: `-1000000000000000128`, `-5e-324`,
+    the fifth time that has happened: `-9007199254740993`, `-5e-324`,
     `-1e-999`, `-1e999` and `-1.7976931348623157e308`. Measured, the signs are
     not decoration —
     `-1e-999` denotes **`-0`** where `1e-999` denotes `0`, an `Object.is`
@@ -457,7 +461,14 @@ The six parts:
     string is one reason apart from U+FEFF as the document's first character:
     that one is the decoder's rule, and it needs the byte form. The lone surrogate exercises
     `\u` alone, so a reader supporting raw text and `\u` while rejecting the
-    eight simple escapes passed too. `\uXXXX`'s four hex digits are three
+    eight simple escapes passed too. **And each lone surrogate twice**, once
+    escaped and once as a raw code unit between the quotes: the two are
+    different paths in a code-unit reader, and review found the escaped four
+    standing for both. The raw form is spellable only because the corpus is
+    JavaScript — a lone surrogate has no UTF-8 encoding, so the module's own
+    source writes `\ud800` and the string it denotes holds the unit itself;
+    in the byte form the same input is the surrogate error class instead.
+    `\uXXXX`'s four hex digits are three
     ranges — `0`–`9`, `a`–`f`, `A`–`F` — in **four positions**, and the rule
     above says every endpoint in every position, which one pair of vectors
     cannot do: six escapes can, each position taking the six endpoints in a

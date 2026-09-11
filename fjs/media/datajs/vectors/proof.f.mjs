@@ -180,6 +180,35 @@ export const proof = {
         differ([{}], [outside(new Date(0))], 'at $[0]: expected an object, got a non-plain object')
         differ(1, outside(new Date(0)), 'at $: expected 1, got an object')
     },
+    // Only the data is in the model: an own property an expected graph does
+    // not have is a difference of the container, and an accessor is one
+    // wherever it stands — read through its descriptor, so the getter never
+    // runs while the comparison asks whether it should have been there.
+    model: () => {
+        // an array carrying an own property beyond its elements and `length`
+        differ([], outside(Object.assign([], { meta: 1 })), 'at $: expected data members only, got the own property "meta"')
+        differ([1], outside(Object.assign([1], { meta: 1 })), 'at $: expected data members only, got the own property "meta"')
+        // the same, non-enumerable, which `Object.keys` cannot see
+        differ([], outside(Object.defineProperty([], 'meta', { value: 1 })), 'at $: expected data members only, got the own property "meta"')
+        // an object's enumerable extra is already a member count apart; the
+        // one `Object.keys` cannot see is what this check is for
+        differ({}, outside(Object.assign({}, { meta: 1 })), 'at $: expected 0 members, got 1')
+        differ({}, outside(Object.defineProperty({}, 'meta', { value: 1 })), 'at $: expected data members only, got the own property "meta"')
+        // a symbol-keyed property, outside the model wherever it stands
+        differ([], outside(Object.assign([], { [Symbol('s')]: 1 })), 'at $: expected data members only, got a symbol-keyed property')
+        differ({}, outside(Object.assign({}, { [Symbol('s')]: 1 })), 'at $: expected data members only, got a symbol-keyed property')
+        // an accessor, reported where the walk reaches it and never invoked
+        let read = 0
+        const getter = (/** @type {Unknown} */ target, /** @type {string} */ k) =>
+            outside(Object.defineProperty(target, k, { get: () => { read += 1; return 1 }, enumerable: true }))
+        differ({ a: 1 }, getter({}, 'a'), 'at $["a"]: expected 1, got an accessor')
+        differ([1], getter([1], '0'), 'at $[0]: expected 1, got an accessor')
+        // a setter with no getter reads as `undefined` and is an accessor all the same
+        differ({ a: undefined }, outside(Object.defineProperty({}, 'a', { set: () => {}, enumerable: true })), 'at $["a"]: expected undefined, got an accessor')
+        // an earlier member's difference still comes first
+        differ({ a: 1, b: 2 }, getter({ a: 9 }, 'b'), 'at $["a"]: expected 1, got 9')
+        assertEq(read, 0)
+    },
     // Sharing is part of the graph, in both directions: a node the expected
     // graph reaches twice must be one node in the actual, and two nodes it
     // keeps apart may not be merged.
