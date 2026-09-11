@@ -621,7 +621,7 @@ export const proof = {
      * relative source is resolved against the document.
      *
      * The document's base is this repository's root and the source is written
-     * the way the manifest writes one — `./fjs/…`. Resolved against
+     * the way the root page writes one — `./fjs/…`. Resolved against
      * `module.mjs`'s own URL instead, it would be
      * `fjs/emergent_testing/browser/fjs/types/…` and load nothing, which is
      * exactly the 404 that resolving against the document exists to avoid. A

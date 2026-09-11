@@ -2,7 +2,7 @@
  * Static reading of authored source text: whether a module exports `proof`,
  * and which modules a browser would have to link to load it.
  *
- * The manifest generator classifies modules without importing them — that is
+ * The website generator classifies modules without importing them — that is
  * the point of reading them as text — and TypeScript 7 exposes no compiler API,
  * so both questions are answered here by reading the source as tokens, with
  * their own proofs, rather than by patterns over lines: whether a declaration
@@ -190,9 +190,9 @@ export const exportsProof = source => {
  * `from` of a declaration, or an `import` naming its module directly.
  *
  * A dynamic `import(...)` is left out, and left out structurally — its string
- * follows a `(`, not the keyword. That is the reading the manifest wants: a
- * dynamic import fails inside the test that reaches it rather than while the
- * page links. A `from` written in prose or inside a string is left out for the
+ * follows a `(`, not the keyword. That is the reading a page wants: a dynamic
+ * import fails inside the test that reaches it rather than while the page
+ * links. A `from` written in prose or inside a string is left out for the
  * same reason: neither is a sequence of tokens.
  *
  * @type {(source: string) => readonly string[]}

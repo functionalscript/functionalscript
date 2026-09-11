@@ -2,8 +2,7 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [An `index.html` for every module directory](directory-index-pages.md#an-indexhtml-for-every-module-directory);
-the tokenizer prerequisite in the tasks below
+**Blocked by:** the tokenizer prerequisite in the tasks below
 
 ### Problem
 
@@ -70,8 +69,8 @@ page.
 
 - [ ] Prerequisite, in `fjs/js/tokenizer`: single-quoted strings and template
       literals as one token each, with proofs, before anything below.
-- [ ] Confirm `fjs/js/tokenizer` is in the browser suite manifest, i.e. links
-      in a browser.
+- [ ] Confirm `fjs/js/tokenizer` links in a browser, i.e. that its own page
+      lists it as a proof rather than as one with a blocker.
 - [ ] `source-view/module.f.mjs`: tokens → highlighted `<pre>` content.
 - [ ] `source-view/module.f.mjs`: tokens → doc entries (`@module` block, one
       entry per `export const`).
@@ -82,8 +81,8 @@ page.
 
 ### Related
 
-- [An `index.html` for every module directory](directory-index-pages.md) —
-  the page this renders into.
+- [`fjs/website`](../README.md) — the pages this renders into, and the
+  serving model that lets one fetch its own source.
 - [Publish `deno doc` to website](publish-deno-doc-to-website.md) — the full
   type reference, deliberately not this.
 - [Generate website](generate-website.md) — "Source code highlighting" is this issue.
