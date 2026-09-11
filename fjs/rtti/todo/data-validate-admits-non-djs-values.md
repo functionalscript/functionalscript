@@ -84,8 +84,8 @@ so agreeing on acceptance is the contract, not an extra.
 ### Proposal
 
 **The fix depends on a decision this issue does not own.** What an exported
-`unknown` means is unsettled — the module and its README promise DJS-compatible
-values, `Ts<>` excludes functions and symbols, both thunk readers have
+`unknown` means is unsettled — the module and its README promise
+DataJS-compatible values, `Ts<>` excludes functions and symbols, both thunk readers have
 `unknown: () => ok`, and the printer emits TypeScript's unrestricted `unknown`.
 [rtti-type-system](../../../todo/rtti-type-system.md) records that
 disagreement and gates stage 11 on resolving it. Which repair is correct here
@@ -94,7 +94,7 @@ follows from it:
 - **if `unknown` keeps accepting every value**, the fall-through cannot simply
   be guarded, because it is what makes top accept a function at all — the guard
   would trade this divergence for its mirror image;
-- **if `unknown` narrows to DJS-compatible**, guarding it is right, and the
+- **if `unknown` narrows to DataJS-compatible**, guarding it is right, and the
   thunk readers narrow to match.
 
 **Beyond that split, the design needs investigation rather than a decision
@@ -107,7 +107,8 @@ short-circuits in `patternsValidate` and carries no members to walk; and what
 such a descent does on a cyclic input, since no reader has a visited-set today.
 
 On that last point, one measured fact worth having before the investigation
-starts: a cyclic value is not serializable as DJS either — `stringify` on a
+starts: a cyclic value is not serializable as DataJS either —
+[`fjs/djs/serializer`](../../djs/serializer/module.f.mjs)'s `stringify` on a
 self-referential object throws `RangeError`, because `countRefsOp` descends
 before registering the container. So "reject cycles" may be the honest answer
 rather than a limitation, and the question is whether the readers should agree

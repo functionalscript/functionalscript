@@ -11,16 +11,22 @@
  * Leaves compare by `Object.is`, so that `-0` and `0` differ and `NaN` is
  * itself, and an object's members compare in observable order.
  *
- * What it does *not* do is guard against values outside the data model. A
- * DataJS graph is JSON's containers over a handful of leaves, and every
- * implementation that produces one is written in FunctionalScript, which has
- * no mutation, no classes, no `Symbol`, no sparse array literal and none of
+ * What it does *not* do is guard against values it cannot be handed. Every
+ * implementation that produces a DataJS graph is written in FunctionalScript,
+ * which has no mutation, no classes, no `Symbol` and none of
  * `Object.defineProperty`, `Object.assign`, `Object.setPrototypeOf` or
  * `Object.freeze`. So a symbol-keyed property, an own property outside the
- * members, an accessor, a hole and a prototype other than the two a container
- * is built with are not conditions a broken implementation can reach — they
- * are conditions nothing in the language can spell. Checking for them read as
- * rigour and was dead code.
+ * members, an accessor and a prototype other than the two a container is
+ * built with are not conditions a broken implementation can reach — they are
+ * conditions nothing in the language can spell, and checking for them read as
+ * rigour while being dead code.
+ *
+ * **A hole is the exception, and it is the one the sweep got wrong.** A
+ * sparse array *literal* is outside the subset, which is not the same as a
+ * sparse array: `[7].concat(new Array(1))` builds one without mutation, and
+ * `fjs/rtti/parse` has proofs that do. So `[undefined]` and a one-element
+ * sparse array are different graphs a reader can return, only one is in the
+ * model, and a plain indexed read would answer `undefined` for both.
  *
  * The walk is over an explicit stack, so a graph nested as deep as a vector
  * allows costs no call stack.
@@ -35,7 +41,7 @@
  * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
-const { is, keys } = Object
+const { is, keys, hasOwn } = Object
 
 /** The value of a lowercase hex digit, or `-1` for any other code unit. @type {(unit: number) => number} */
 const hexDigit = unit =>
@@ -71,11 +77,9 @@ export const bytes = hex =>
         ? Array.from({ length: (hex.length + 1) / 3 }, (_, i) => hexDigit(hex.charCodeAt(i * 3)) * 16 + hexDigit(hex.charCodeAt(i * 3 + 1)))
         : null
 
-// by the data model's boundary, not the prototype chain: an array under a
-// `null` prototype is an array whose prototype is outside the model; and
 // typed over the model's own arrays, which are read-only, so that the
 // other branch narrows to the object
-const isArray = /** @type {(value: Unknown) => value is TreeArray<Primitive>} */ (Array.isArray)
+const isArray = /** @type {(value: Unknown) => value is TreeArray<Primitive>} */ (value => value instanceof Array)
 
 /**
  * Whether a value is a `Document` as the schema has one: a string, or the
@@ -133,9 +137,16 @@ const children = (stack, path, expected, actual) => {
         if (expected.length !== actual.length) {
             return at(path, `expected ${expected.length} elements, got ${actual.length}`)
         }
+        // an expected graph has no holes, so one in the actual is a
+        // difference of its own — `[undefined]` is not `new Array(1)` — and
+        // it is reported where the walk reaches it, after the elements before
         let result = stack
         for (let i = expected.length - 1; i >= 0; i -= 1) {
-            result = { top: [`${path}[${i}]`, expected[i], actual[i]], rest: result }
+            const elementPath = `${path}[${i}]`
+            result = {
+                top: hasOwn(actual, i) ? [elementPath, expected[i], actual[i]] : [elementPath, expected[i], undefined, true],
+                rest: result,
+            }
         }
         return result
     }
@@ -161,13 +172,15 @@ const children = (stack, path, expected, actual) => {
 }
 
 /**
- * One comparison: a leaf by `Object.is`; a container by the bijection so
- * far, and, when it is new, by its children.
+ * One comparison: a hole in the actual, a difference whatever is expected;
+ * a leaf by `Object.is`; a container by the bijection so far, and, when it
+ * is new, by its children.
  *
  * @type {(state: _State, task: _Task) => _State | string}
  */
 const compare = ([stack, pairs], task) => {
-    const [path, expected, actual] = task
+    const [path, expected, actual, hole] = task
+    if (hole === true) { return at(path, `expected ${show(expected)}, got a hole`) }
     if (typeof expected !== 'object' || expected === null) {
         return is(expected, actual) ? [stack, pairs] : at(path, `expected ${show(expected)}, got ${show(actual)}`)
     }

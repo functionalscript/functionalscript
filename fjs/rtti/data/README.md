@@ -36,7 +36,7 @@ are kind-wise:
 
 | kind     | representation                          | notes                                        |
 | -------- | --------------------------------------- | -------------------------------------------- |
-| `unit`   | bitset over `null, undefined, false, true`, plus the `absentBit` | `or(true, false)` is the two boolean bits — "boolean" needs no special rule; bit `16` is **absence**, rtti's `option`, which is no DJS value and so no `unitList` member |
+| `unit`   | bitset over `null, undefined, false, true`, plus the `absentBit` | `or(true, false)` is the two boolean bits — "boolean" needs no special rule; bit `16` is **absence**, rtti's `option`, which is no DataJS value and so no `unitList` member |
 | `number` | `true` (all) or sorted literals         | SameValue semantics: `-0 ≠ 0`, `NaN` allowed |
 | `string` | `true` or sorted literals               |                                              |
 | `bigint` | `true` or sorted literals               |                                              |

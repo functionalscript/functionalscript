@@ -179,12 +179,19 @@ export const proof = {
         differ({ a: 1 }, { b: 1 }, 'at $: expected member 0 to be "a", got "b"')
         differ({ a: [1, { b: 'x' }] }, { a: [1, { b: 'y' }] }, 'at $["a"][1]["b"]: expected "x", got "y"')
         // an object member holding `undefined` is present, and differs from
-        // an absent one by the count
+        // an absent one by the count; an array element holding `undefined`
+        // is present, and differs from a hole, which no expected graph has.
+        // A sparse array is not a sparse array *literal*: `concat` over
+        // `new Array` builds one inside the subset, so a reader can return
+        // it and the two must not compare equal.
         differ({ a: undefined }, {}, 'at $: expected 1 members, got 0')
         same([undefined, 1], [undefined, 1])
-        // in document order: an earlier element's difference comes first
-        differ([1, 2], [9, 3], 'at $[0]: expected 1, got 9')
-        differ([[1], 2], [[9], 3], 'at $[0][0]: expected 1, got 9')
+        differ([undefined], new Array(1), 'at $[0]: expected undefined, got a hole')
+        differ([1, [2, 3]], [1, [2].concat(new Array(1))], 'at $[1][1]: expected 3, got a hole')
+        // in document order: an earlier element's difference comes first, a
+        // hole later in the array notwithstanding
+        differ([1, 2], [9].concat(new Array(1)), 'at $[0]: expected 1, got 9')
+        differ([[1], 2], [[9]].concat(new Array(1)), 'at $[0][0]: expected 1, got 9')
         // a leaf against a container of either kind
         differ(1, {}, 'at $: expected 1, got an object')
     },

@@ -92,8 +92,13 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    below states, is made and its reader landed: the grammar at
    `fjs/ebnf/lib/datajs` mapped to values by `fjs/media/datajs/parser`, the
    token-driven container machine retired for this format rather than widened,
-   so JSON's parser seam is no prerequisite. The byte path, the serializer and
-   normalized form remain.
+   so JSON's parser seam is no prerequisite. The byte path remains there. The
+   writer is
+   [`fjs/media/datajs/todo/serializer.md`](../fjs/media/datajs/todo/serializer.md),
+   split out of it, and has landed as
+   [`fjs/media/datajs/serializer`](../fjs/media/datajs/serializer/module.f.mjs) —
+   normalized form included — leaving that issue the corpus proofs and the
+   module's own public surface.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
 4. **Then stages 5–7**, in order, as listed below.

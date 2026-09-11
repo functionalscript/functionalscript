@@ -8,6 +8,9 @@
  * approximation `TupleTs` in `../rtti/ts/types.ts` describes.
  */
 
+import type { Assert } from '../asserts/types.ts'
+import type { Equal } from '../types/ts/types.ts'
+
 // exp
 
 export type Exp =
@@ -111,13 +114,41 @@ export type OptionLambda =
  * single arity.
  */
 export type OptionPropertyLambda =
-    | readonly['|()', Exp]
-    | readonly['|()', Exp, OptionLambda]
-    | readonly['|.', Index]
-    | readonly['|.', Index, OptionPropertyLambda]
+    | OptionLambda
     | readonly['|?.()', Exp]
     | readonly['|?.()', Exp, OptionLambda]
     | readonly['|!()', Exp]
+
+// The chain states nest, and saying so beats restating the four productions
+// the two option states share — which is what both of these used to do, and
+// what `module.f.mjs`'s `regionProductions` now does once for the schema.
+//
+// These are here and not in `proof.f.mjs` because a `@typedef` there is
+// checked only where a statement follows it in the same block. That file's
+// `consistency` entry is nothing but typedefs, so all 28 of its pins are
+// green whatever they claim. A module-scope alias in a `.ts` file is
+// resolved either way; `../nanvm/types.ts` is the worked case, `../AGENTS.md`
+// §1.4 states the rule, and `../../todo/inert-type-level-proofs.md` moves
+// the rest.
+
+type _OptionInsideOptionProperty = Assert<Equal<OptionLambda extends OptionPropertyLambda ? true : false, true>>
+type _PropertyInsideOptionProperty = Assert<Equal<PropertyLambda extends OptionPropertyLambda ? true : false, true>>
+
+// ... and exactly which three productions the wider state adds, so a change
+// to one of *those three*, or a containment broken, is a type error rather
+// than a silent change of what the grammar admits.
+//
+// The shared segment is not theirs to pin, in either direction. An arm
+// gained or lost there lands on both sides of the `Exclude` and cancels, so
+// all three stay green — measured both ways, zero errors in this file. The
+// pin for the shared segment is `_OptionLambda`, the schema against the
+// type, which is inert where it sits in `proof.f.mjs`; see
+// `../../todo/inert-type-level-proofs.md`.
+type _OptionPropertyAdds = Assert<Equal<
+    Exclude<OptionPropertyLambda, OptionLambda>,
+    | readonly['|?.()', Exp]
+    | readonly['|?.()', Exp, OptionLambda]
+    | readonly['|!()', Exp]>>
 
 // call
 

@@ -1622,6 +1622,30 @@ or the spec, not only into a thread.
    "speculation about what an *arbitrary JavaScript caller* might hand a
    FunctionalScript function, and nobody has asked for them" — and this file
    read it as the obstacle rather than as the answer.
+
+   **The writer landed while this was being decided, and it does not agree.**
+   [`fjs/media/datajs/serializer`](../../../fjs/media/datajs/serializer/module.f.mjs)
+   takes `unknown` and refuses at run time: an own symbol key, an accessor, a
+   non-enumerable property, an array with a hole or an own property besides
+   its elements, a prototype that is neither `Object.prototype` nor `null`,
+   and a cycle. Its own header says of most of those that "no value
+   FunctionalScript can build carries" them, so it agrees about
+   reachability and still checks, because its parameter is `unknown` rather
+   than a graph. **One recipe it refuses that the specification accepts**: an
+   array under a `null` prototype, which §What may be serialized serializes
+   as its data, and which the writer meets at its object branch and refuses
+   for `length`, non-enumerable on every array. The specification wins where
+   the two disagree, and
+   [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md)
+   carries that.
+
+   So the two halves of this decision have to meet, and the meeting is the
+   owner's: either the writer's parameter narrows to the data model and its
+   run-time refusals go, which is what "assume correct types" means applied
+   to code; or the parameter stays `unknown` and the corpus owes a
+   serializer-reject set after all, for the values that parameter admits.
+   Until then the corpus carries none, and the task list below names the
+   reconciliation.
 The steps, in order; a step is one pull request unless it says otherwise:
 
 - [x] **The vector record and the comparison.** The schema is

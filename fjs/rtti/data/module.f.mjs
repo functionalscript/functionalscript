@@ -9,7 +9,7 @@
  * canonical ordering via {@link cmp}) reduces to kind-wise set operations.
  * {@link toData} is the single bridge from the thunk form; {@link validate}
  * is the data-driven counterpart of `../validate`. The form serializes as
- * DJS — plain JSON when no `bigint` literals are involved. See `./README.md`
+ * DataJS — plain JSON when no `bigint` literals are involved. See `./README.md`
  * for the design rationale and serialization notes, and `./types.ts` for the
  * type-level API.
  *
@@ -33,7 +33,7 @@ import { eachEntry, isArray, undeclaredMembers, verror } from '../common/module.
  * bitset stands for `unitList[i]`.
  *
  * {@link absentBit} is the one `unit` bit with no `unitList` entry: absence
- * is not a DJS value, so it has nothing to enumerate here — see the bit's
+ * is not a DataJS value, so it has nothing to enumerate here — see the bit's
  * own doc, and `UnionSet` in `./types.ts` for the serialized contract.
  */
 export const unitList = /** @type {const} */ (['null', 'undefined', 'false', 'true'])
@@ -53,7 +53,7 @@ export const unitBit = v =>
 
 /**
  * The fifth `unit` bit: **absence**, rtti's nullary `option`. Not a member
- * of {@link unitList}, because it is not a DJS value — no value reads as
+ * of {@link unitList}, because it is not a DataJS value — no value reads as
  * absent; a *container position* is absent by having no own or inherited
  * key. The set algebra does not care: union, `subset`, `cmp`, `equal` and
  * the coverage collapse are bitwise over the unit kind, so the bit rides
