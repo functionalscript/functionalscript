@@ -31,8 +31,8 @@ none of them.
 reconciliation is open.** `tryStringify` takes `unknown` and refuses several of
 those values at run time, so as long as it does, the corpus owes vectors for
 exactly what it admits. Either the parameter narrows to the data model and the
-refusals go, or the parameter stays and the fourth set comes back; the question
-is recorded in
+refusals go, or the parameter stays and the fourth set comes back — as a set,
+never as recipes. The question is recorded in
 [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md)
 under the serializer's input domain, and it is the owner's. Read the paragraph
 above as what the corpus describes today, not as a settled contract.
@@ -42,15 +42,6 @@ it, and
 [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 forbids a `proof.mjs` that proves
 a `.f.mjs` API against such inputs in any case. §4 says what that leaves
 provable in the meantime.
-
-**That last sentence is not yet true of this module's own signature, and the
-reconciliation is open.** `tryStringify` takes `unknown` and refuses several of
-those values at run time, so as long as it does, the corpus owes vectors for
-exactly what it admits. Either the parameter narrows to the data model and the
-refusals go, or the parameter stays and the fourth set comes back — as a set,
-never as recipes. The question is recorded in
-[that issue](../../../../spec/datajs/todo/conformance-vectors.md) under the
-serializer's input domain, and it is the owner's.
 
 ### Problem
 
@@ -377,7 +368,7 @@ corpus carries none — subject to the open reconciliation with this module's
 
 | set | what the proof does |
 |---|---|
-| `serializer-accept` | serialize the input, read it back, compare with [`difference`](../vectors/module.f.mjs) against the vector's **input**, which is the graph the output must denote — the record carries no separate `graph`, since with the host recipes gone the two were one value written twice — **and check the document is UTF-8**, which the round trip alone does not: the reader takes UTF-16 code units and accepts a raw lone surrogate, where a document is UTF-8 and a raw surrogate has no encoding, so a writer emitting one raw would round-trip and still not have written a document |
+| `serializer-accept` | serialize the input, read it back, compare with [`difference`](../vectors/module.f.mjs) against the vector's **input**, which is the graph the output must denote — the record's separate `graph` member goes when the set lands, since with the host recipes gone the two held one value written twice — **and check the document is UTF-8**, which the round trip alone does not: the reader takes UTF-16 code units and accepts a raw lone surrogate, where a document is UTF-8 and a raw surrogate has no encoding, so a writer emitting one raw would round-trip and still not have written a document |
 | `graph-equivalence` | **serialize the input** and compare the document's graph with the input, sharing included. Reading the canned `denotes` and `denotesNot` documents proves the reader, not the writer: a writer that inlined a shared node, or hash-consed two equal nodes into one, would pass that and fail this |
 | `normalize` | compare `tryStringify`'s output to the vector's `text`, byte for byte, since that output is normalized form |
 

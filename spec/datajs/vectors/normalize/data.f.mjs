@@ -233,5 +233,7 @@ export default [
     {"id": "norm-object-key-order-non-index-hex", "class": "object/key-order/non-index/hex", "input": {"0x1": 0, "1": 1}, "text": "export default {\"1\":1,\"0x1\":0};"},
     {"id": "norm-object-key-order-non-index-exp", "class": "object/key-order/non-index/exp", "input": {"1e0": 0, "1": 1}, "text": "export default {\"1\":1,\"1e0\":0};"},
     {"id": "norm-object-key-order-non-index-above", "class": "object/key-order/non-index/above", "input": {"4294967296": 0, "4294967294": 1}, "text": "export default {\"4294967294\":1,\"4294967296\":0};"},
-    {"id": "norm-key-proto-nested", "class": "key/proto/nested", "input": [{["__proto__"]: {["__proto__"]: 1}}], "text": "export default [{[\"__proto__\"]:{[\"__proto__\"]:1}}];"}
+    {"id": "norm-key-proto-nested", "class": "key/proto/nested", "input": [{["__proto__"]: {["__proto__"]: 1}}], "text": "export default [{[\"__proto__\"]:{[\"__proto__\"]:1}}];"},
+    {"id": "norm-number-rounding", "class": "number/binary64/rounding", "input": 9007199254740992, "text": "export default 9007199254740992;"},
+    {"id": "norm-number-neg-rounding", "class": "number/binary64/rounding/neg", "input": -9007199254740992, "text": "export default -9007199254740992;"}
 ];
