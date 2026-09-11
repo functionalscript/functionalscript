@@ -68,21 +68,33 @@ const noEncoding = [
 ]
 
 /**
+ * One byte as its percent escape, lowercase and always two digits.
+ *
+ * @type {(b: number) => string}
+ */
+const percent = b => `%${b.toString(16).padStart(2, '0')}`
+
+/**
  * A document as a module the engine can load, or `null` where it has no
  * encoding to be one.
  *
- * A byte-form document is already the bytes, so it goes to the engine as
- * they are rather than through an encode — which is the point of carrying it
- * as bytes, and makes this the one place the corpus checks that a byte
- * document is a JavaScript module too.
+ * The URL is a `data:` one with a percent-encoded body, which is bytes
+ * either way: `encodeURIComponent` writes a string's UTF-8, and a byte-form
+ * document writes its own bytes through no encode at all — which is the
+ * point of carrying it as bytes, and makes this the one place the corpus
+ * checks that a byte document is a JavaScript module too.
+ *
+ * Percent-encoding rather than base64 keeps the file to ECMAScript the
+ * standard defines. `Buffer` is Node's, and this repository's suite runs
+ * under runtimes that do not give it a global.
  *
  * @type {(document: import('../../../../fjs/media/datajs/vectors/types.ts').Document) => string | null}
  */
 const moduleUrl = document => {
-    const raw = typeof document === 'string'
-        ? (unpaired(document) ? null : Buffer.from(document, 'utf8'))
-        : Buffer.from(/** @type {readonly number[]} */ (bytes(document[1])))
-    return raw === null ? null : `data:text/javascript;base64,${raw.toString('base64')}`
+    const body = typeof document === 'string'
+        ? (unpaired(document) ? null : encodeURIComponent(document))
+        : (/** @type {readonly number[]} */ (bytes(document[1]))).map(percent).join('')
+    return body === null ? null : `data:text/javascript,${body}`
 }
 
 export const proof = {
