@@ -12,7 +12,7 @@
  * @module
  *
  * @import { Exp, Op1, Op12, Properties } from '../types.ts'
- * @import { OptionLambda, OptionPropertyLambda, PropertyLambda } from '../types.ts'
+ * @import { OptionLambda, OptionPropertyLambda } from '../types.ts'
  * @import { Context, Map, ExpOp, TagMap } from './types.ts'
  */
 
@@ -176,27 +176,6 @@ const optionPropertyLambda = (f, obj, prop, k) => {
     }
 }
 
-/**
- * A property access with **no** region around it — the continuation of a `.`
- * node. Only a call can be here, because only a call uses the receiver: `|()`
- * spends it and exits, `|?.()` spends it and opens a region that owns the
- * rest of the chain. With no region open, that guard failing is simply the
- * node's value, since `optionLambda` has no `|!()` of its own — but the walk
- * still goes through `skip`, which reaches one through a `|.`.
- *
- * @type {(f: (_: Exp) => unknown, obj: any, prop: any, k: PropertyLambda | undefined) => unknown}
- */
-const propertyLambda = (f, obj, prop, k) => {
-    if (k === undefined) { return obj[prop] }
-    const [o, e, cont] = k
-    switch (o) {
-        case '|()': return callProperty(f, obj, prop, e)
-        case '|?.()': return nullish(obj[prop])
-            ? skip(f, cont)
-            : optionLambda(f, callProperty(f, obj, prop, e), cont)
-    }
-}
-
 /**@type {Map}*/
 const map = {
     '!': o1(a => !a),
@@ -227,9 +206,23 @@ const map = {
     // value does, and the two call steps are the only things that can spend
     // it. The node is destructured, so a three-element `['.', a, k]` reads
     // its absent fourth as `undefined` without touching the prototype.
+    //
+    // Only a call can be in that continuation, because only a call uses the
+    // receiver: `|()` spends it and exits, `|?.()` spends it and opens a
+    // region that owns the rest of the chain. With no region open, that
+    // guard failing is simply the node's value, since `optionLambda` has no
+    // `|!()` of its own — but the walk still goes through `skip`, which
+    // reaches one through a `|.`.
+    //
+    // That is `PropertyLambda`, and every one of its arms is an arm of
+    // `OptionPropertyLambda`, so the walker above is this walk on a wider
+    // input rather than a different one. `|?.()` is the same arm verbatim;
+    // `|()` is terminal here, so its continuation is `undefined` and the
+    // wider walker's `optionLambda(f, v, undefined)` hands back the call's
+    // value unchanged. Its `|.` and `|!()` arms are unreachable from here.
     '.': (x, [, a, k, p]) => {
         const i = vm(x)
-        return propertyLambda(i, i(a), i(k), p)
+        return optionPropertyLambda(i, i(a), i(k), p)
     },
     '/': o2((a, b) => a / b),
     '<': o2((a, b) => a < b),
