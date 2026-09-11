@@ -60,7 +60,7 @@ beyond a literal:
   `[0, 0x110000]`, which `not` below consumes, and which
   [`../../token_symbol`](../../token_symbol/README.md) would read its start
   from rather than spelling `0x110000` itself;
-- `str` — an ordered `Sequence` of one-symbol terminals, one per code
+- `str` — an ordered `Tuple` of one-symbol terminals, one per code
   point, exactly as a bare `string` lowers;
 - `not` — difference against the Unicode universe, returning a terminal
   rule as the front end's `set`, `range`, `union` and `remove` do

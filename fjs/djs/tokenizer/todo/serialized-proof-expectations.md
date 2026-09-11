@@ -5,9 +5,10 @@
 
 ### Problem
 
-Nine assertions in `fjs/djs/tokenizer/proof.f.mjs` compare
-`JSON.stringify(value)` against a JSON **string literal** instead of stating
-the expected value directly:
+Nineteen assertions in `fjs/djs/tokenizer/proof.f.mjs` compare a
+serialization against a **string literal** instead of stating the expected
+value directly — eight through `JSON.stringify(value)`, and eleven through
+the proof's own `stringify`, the djs serializer's `stringifyAsTree`:
 
 ```js
 assertEq(JSON.stringify(result), '[{"token":{"kind":"true"},"metadata":{"path":"a.js","line":1,"column":1}},…]')

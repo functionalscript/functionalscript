@@ -21,7 +21,16 @@ grammars built on them:
 A module belongs here iff it defines, transforms or executes grammars over a
 symbol alphabet. `fsc` is a compiler, `js/tokenizer` a hand-written scanner
 and `djs` a language front end: all three are consumers and stay out. The
-alphabet adapters are dependencies of the front end, not parts of it.
+alphabet adapters are not parts of the front end, and nothing in the front
+end imports them: [`byte/`](./byte/README.md) builds on it, returning
+front-end rules over bytes; [`utf16/`](./utf16/) takes only the `Meta`
+type from `ast/`, to tag the input it makes, and
+[`token_symbol/`](./token_symbol/README.md) imports nothing of `fjs/ebnf` —
+the one turns text into the input a parser reads, the other turns token
+names into the numbers that are one-symbol rules by being symbols. The
+`token_symbol/` proof runs the backend over the numbers it makes, which
+is use, not a dependency of the adapter; the `utf16/` proof checks the
+units alone.
 
 It replaced the classical `fjs/bnf` — a functional front end without a
 repetition primitive, a packed 24-bit terminal, and two backends, one of
@@ -32,8 +41,10 @@ made along the way and in the issues it triaged; this file is their record.
 
 ## The rule union follows RTTI
 
-Plain values are rules directly; a thunk always returns a tagged tuple.
-Tagged tuples never appear in `Rule`, so a plain array is always a sequence.
+Plain values are rules directly; a thunk always returns a tagged tuple. A
+tagged tuple has no meaning outside a thunk: written bare it is a `Tuple`
+like any other array, a sequence whose first element is the tag's text, so a
+plain array always reads as a sequence.
 In the names [`types.ts`](./types.ts) exports, abridged:
 
 ```ts
@@ -55,10 +66,17 @@ every level.
   in `R`.
 - **`null`** is EOF, exported as `eof`. The *input* carries the end as `-1`,
   the alphabet's convention; the grammar spells it as its own value.
-- **`string`** is the text it spells, one terminal per code point, whatever
-  the alphabet: `'Hello'` matches `Hello`. An alphabet whose symbols are not
-  code points names them with a constructor, as `fjs/djs/parser` does with
-  `sym()`.
+- **`string`** is the text it spells, one terminal per **code point**:
+  `'Hello'` matches `Hello`, and a string lowers to code-point symbols
+  whatever alphabet the grammar is read over. Over an alphabet whose symbols
+  are something else, a string is right only where its code points are that
+  alphabet's symbols: [`byte/`](./byte/README.md) refuses a non-ASCII string
+  before any input, since its bytes are not the string's code points;
+  [`utf16/`](./utf16/) adapts the input only, so a grammar over it spells
+  a string of BMP characters as is and an astral character as its two
+  surrogate units — `'😀'` lowers to `0x1F600`, a symbol no unit is;
+  `token_symbol/` names its symbols with a constructor instead, as
+  `fjs/djs/parser` does with `sym()`.
 - **`['const', c]`** is RTTI's escape under RTTI's name, for a plain rule
   behind a thunk. Every recursive rule pays it; RTTI pays the same.
 - **`['set', …]`** is a range set of ordinary symbols — a strictly increasing
