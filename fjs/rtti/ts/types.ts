@@ -881,6 +881,12 @@ type _VariadicPrefixAdmitsItsOwnShape = Assert<readonly [1, 2, 'x'] extends Ts<_
  * {@link _VariadicPrefixRejectsMixedPrefix} (the guard),
  * {@link _OptionalMember} (the fallback) and
  * {@link _UnionKeepsBranchCorrelation} (the distribution).
+ *
+ * The first two are measured: removing the guard reports the one, replacing
+ * the peel's outermost fallback reports the other, and neither moves this row
+ * or {@link _NonFixedLength}. The third is not. Removing the distribution
+ * reports nothing in any file, so either it is redundant or what it does is
+ * unchecked — `./todo/unpinned-union-distribution.md` settles which.
  */
 type _RestTuple = Assert<Equal<Ts<readonly [RttiNumber, ...RttiString[]]>, readonly [number, ...string[]]>>
 
