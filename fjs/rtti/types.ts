@@ -51,7 +51,7 @@
 import type { Assert } from '../asserts/types.ts'
 import type { Equal } from '../types/ts/types.ts'
 import type { StringMap } from '../types/object/types.ts'
-import type { tag0List } from './module.f.mjs'
+import type { _primitive0List, _tag1List, tag0List } from './module.f.mjs'
 
 /** A constant schema: a primitive literal, a struct object, or a tuple. */
 export type Const =
@@ -77,6 +77,15 @@ export type Struct = StringMap<Type>
 export type Tuple = readonly Type[]
 
 export type Primitive0 = 'bigint' | 'boolean' | 'number' | 'string'
+
+// Written out rather than derived, so the literal list in `./module.f.mjs`
+// has to be pinned against it. `Tag0` below needs no such pin: it *is* its
+// list, read through `typeof`.
+//
+// This and `_Tag1Pinned` were `./proof.f.mjs`'s `pinnedLists` entry, a body
+// of nothing but typedefs — so neither bound to a statement and both were
+// green whatever they claimed (`../AGENTS.md` §1.4).
+type _Primitive0Pinned = Assert<Equal<Primitive0, typeof _primitive0List[number]>>
 
 /** Tags for nullary (zero-parameter) type schemas. */
 export type Tag0 = typeof tag0List[number]
@@ -145,6 +154,9 @@ export type Option = _Type0<'option'>
 
 /** Tags for unary (one-parameter) type schemas. */
 export type Tag1 = 'array' | 'record'
+
+// The same for `_tag1List`; see `_Primitive0Pinned` above.
+type _Tag1Pinned = Assert<Equal<Tag1, typeof _tag1List[number]>>
 
 /** Info tuple for a unary tag: `readonly[tag, innerType]`. */
 export type Info1<K extends Tag1, T extends Type> = K extends Tag1 ? readonly[K, T] : never

@@ -827,3 +827,123 @@ type _phantomAbsentOnlyArray = Assert<Check<
     readonly[],
     () => readonly['array', Phantom<RttiOption, AbsentOr<never>>]
 >>
+
+// ── `TupleTs`'s split, mechanism by mechanism ───────────────────────────────
+//
+// These were `./proof.f.mjs`'s `tupleTs`, a function body of nothing but
+// typedefs — so none of them bound to a statement and all nine were green
+// whatever they claimed (`../../AGENTS.md` §1.4). The schemas stay spelled as
+// types for the reason that file already gave: these are type-level facts,
+// and a value existing only to be pointed at is an unused one.
+
+/**
+ * {@link TupleTs} splits off the trailing run of positions admitting
+ * `undefined` and renders it optional, which needs a known length. A schema
+ * array of non-fixed length — what `.map()` produces — has no trailing
+ * position to split off, so it keeps its element type instead, the
+ * homomorphic mapping's answer. Pinned because a split that falls back to the
+ * empty tuple silently renders such a schema `readonly []`, and nothing else
+ * here would have caught it.
+ */
+type _NonFixedLength = Assert<Equal<Ts<readonly (RttiNumber | RttiBigint)[]>, readonly (number | bigint)[]>>
+
+// `or(option, t)` — a member that may be absent; these are the schema types
+// the spelling produces.
+type _OptionBoolean = Or<readonly [RttiOption, RttiBoolean]>
+type _OptionNumber = Or<readonly [RttiOption, RttiNumber]>
+type _OptionString = Or<readonly [RttiOption, RttiString]>
+
+/**
+ * A variadic tuple is the shape the `length` guard exists for, and the only
+ * one: its peel *succeeds*, binding the unknown-length prefix to `I`, so
+ * without the guard the reconstruction flattens it. The others below reach
+ * the fallback because their peel fails, and are held by that alone.
+ *
+ * Asserted as assignability rather than with `Equal<>`. `Equal<>` reports
+ * this shape as unchanged whether or not the guard is in place — it cannot
+ * see the difference — so an `Equal<>` pin here passes over the bug it is
+ * meant to catch. What the flattening actually costs is a string admitted in
+ * the number prefix, so that is what these state.
+ */
+type _VariadicSchema = readonly [...RttiNumber[], _OptionString]
+type _VariadicPrefixRejectsMixedPrefix = Assert<readonly [1, 'x', 2] extends Ts<_VariadicSchema> ? false : true>
+type _VariadicPrefixAdmitsItsOwnShape = Assert<readonly [1, 2, 'x'] extends Ts<_VariadicSchema> ? true : false>
+
+/**
+ * A rest element after a fixed prefix is the same shape from the other side,
+ * and is held for the same reason: `length` is `number`, so the mapping
+ * stands.
+ *
+ * This row and {@link _NonFixedLength} document intent rather than
+ * discriminate a mechanism. The guard and the fallback both answer `M` for
+ * these two shapes, so neither single mutation moves them — only removing
+ * both at once does. The rows that discriminate a mechanism are elsewhere,
+ * and each was measured with a mutation of its own:
+ *
+ * - removing the length guard reports
+ *   {@link _VariadicPrefixRejectsMixedPrefix}, alone;
+ * - replacing the peel's outermost fallback with `readonly []` reports
+ *   {@link _OptionalMember}, alone;
+ * - making the distribution non-distributive (`[T] extends [Tuple]`) reports
+ *   {@link _UnionKeepsBranchCorrelation} and {@link _UnionGuardsEachBranch},
+ *   which is one mechanism with two consequences rather than two mechanisms.
+ *
+ * None of the three moves this row or {@link _NonFixedLength}, which is the
+ * paragraph above, measured rather than argued.
+ */
+type _RestTuple = Assert<Equal<Ts<readonly [RttiNumber, ...RttiString[]]>, readonly [number, ...string[]]>>
+
+/**
+ * A schema whose own tuple type already marks a member optional is held by
+ * the *fallback* rather than the length guard: its length is `1 | 2`, not
+ * `number`, so it reaches the split, where the peel needs a required last
+ * element and finds none. An optional position is what this transform
+ * produces, so one the caller wrote is already in the target form and the
+ * mapping stands.
+ */
+type _OptionalMember = Assert<Equal<Ts<readonly [RttiNumber, RttiString?]>, readonly [number, string?]>>
+
+/**
+ * A union of tuple schemas is split per member, not once across the union.
+ * {@link _SplitTs} takes the schema and the mapping as two parameters, both
+ * naked, so a union that reaches it distributes them independently and every
+ * schema is paired with every mapping. Measured on the two branches below:
+ * per member the split answers
+ * `[number, string?] | [string, boolean?, number?]`, and across the union it
+ * also answers `[number?, string?]` and `[string, boolean, number?]` — A's
+ * schema with B's mapping, and B's with A's.
+ *
+ * The witness has to be the empty tuple. `[number?, string?]` is the only
+ * crossed arm admitting anything the per-member answer does not, and an empty
+ * array is what it admits; the other crossed arm is narrower than the arm it
+ * shadows, so no value reaches it. This row read `readonly [1, true]` while
+ * it was inert, which no arm of either answer admits, so it held both ways.
+ */
+type _BranchA = readonly [RttiNumber, _OptionString]
+type _BranchB = readonly [RttiString, _OptionBoolean, _OptionNumber]
+type _UnionKeepsBranchCorrelation = Assert<readonly [] extends TupleTs<_BranchA | _BranchB> ? false : true>
+type _UnionAdmitsItsOwnBranches = Assert<readonly [1, 'x'] extends TupleTs<_BranchA | _BranchB> ? true : false>
+
+/**
+ * The length guard is per member for the same reason. A union of a
+ * fixed-length schema and a non-fixed one has `length: number | 2`, and
+ * `number` extends that, so a guard reading the union answers "non-fixed" for
+ * both members and the fixed one keeps its mapping instead of being split —
+ * losing the trailing optional the whole transform exists to produce.
+ *
+ * Stated as the rendered type rather than as assignability, because nothing
+ * distinguishes the two answers by admission: the `readonly number[]` arm
+ * admits every short array the missing optional would have.
+ */
+type _UnionGuardsEachBranch = Assert<Equal<
+    TupleTs<_BranchA | readonly RttiNumber[]>,
+    readonly [number, string?] | readonly number[]>>
+
+type _OptionalTail = Assert<Equal<Ts<readonly [RttiNumber, RttiBigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, boolean?, string?]>>
+
+/**
+ * Only the *trailing* run: TypeScript forbids a required element after an
+ * optional one, so an interior position that admits absence stays required,
+ * with `undefined` — what reading a hole gives — in its type.
+ */
+type _InteriorStaysRequired = Assert<Equal<Ts<readonly [_OptionString, RttiNumber]>, readonly [string | undefined, number]>>
