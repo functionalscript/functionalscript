@@ -51,8 +51,10 @@ A machine-readable corpus with six parts.
 the rules below, and rightly: those rules are about the token stream, and a
 corpus that made every consumer decode UTF-8 first would be testing its own
 reader. Two rules are *not* about the token stream and cannot be reached that
-way at all, so their vectors carry a **byte array** instead, fed to the
-reader's public byte-accepting path — which stage 4 owes:
+way at all, so their vectors carry the **bytes** instead — as a tagged hex
+string, `["hex", "ef bb bf …"]`, lowercase pairs separated by single
+spaces, the spelling these tables use — fed to the reader's public
+byte-accepting path, which stage 4 owes:
 
 - a document **has no BOM**, which a decoder satisfies the parser on by
   stripping `EF BB BF` before the parser ever runs; and
@@ -325,7 +327,7 @@ one, a decoder accepting ASCII and two-byte sequences while rejecting every
 three- and four-byte sequence still passes, and the BMP and astral cases under
 `normalize` cannot help because they exercise serializer output rather than a
 reader. Every other case here is a rejection, so an implementation that
-refuses every byte array without decoding it would pass them all while
+refuses every byte document without decoding it would pass them all while
 refusing valid byte-encoded documents — which is the accept-direction rule
 below, and review found this document breaking it in the same commit that
 stated it.
@@ -1293,8 +1295,8 @@ The six parts:
   vectors for the neighbours it excludes.
 
   Stating that rule did not make it applied. The very commit that wrote it
-  added a byte-array input form with only rejecting vectors — so an
-  implementation refusing every byte array would have passed — and left the
+  added a byte input form with only rejecting vectors — so an
+  implementation refusing every byte document would have passed — and left the
   lone surrogate, which the corpus can now transport, in the `normalize` set
   alone, where a reader-only implementation never meets it. Review found both
   in the next round. A new capability owes accept vectors at the moment it is
@@ -2077,7 +2079,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       record types in
       [`fjs/media/datajs/vectors/types.ts`](../../../fjs/media/datajs/vectors/types.ts):
       per set, a stable `id`, a `class` naming the branch covered, the
-      document as a string or a byte array, the expected graph as a value
+      document as a string or as the bytes in a tagged hex string,
+      `["hex", "ef bb bf …"]`, the expected graph as a value
       or the expected bytes, and the host classification a reject vector
       carries; the DataJS subset the modules are written in; and the twelve
       `host` recipes as types, the closed vocabulary. How an expected graph
