@@ -2035,17 +2035,23 @@ The steps, in order; a step is one pull request unless it says otherwise:
       FunctionalScript. Whether that section stays as a rule for
       implementations in hosts that can build them, or goes, is the owner's;
       its own pull request either way.
-- [ ] **The checks the data model does not need, removed.** `difference` in
+- [x] **The checks the data model does not need, removed.** `difference` in
       [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
-      tests for a symbol-keyed property, an own property outside the data
-      members, an accessor and a non-plain prototype, and its proof builds
-      those with `Object.assign`, `Object.defineProperty`, `Symbol`,
-      `new Date`, `new Map` and `Object(1)` — none of which FunctionalScript
-      has, so the proof is written in JavaScript the subset forbids and the
-      checks are for inputs no caller can produce. Both go, and the recipe
-      types in [`types.ts`](../../../fjs/media/datajs/vectors/types.ts) with
-      them, `SerializerReject` included: a serializer-side input is an
-      ordinary graph.
+      tested its actual graph for a symbol-keyed property, an own property
+      outside the data members, an accessor, a hole and a prototype other
+      than `Object.prototype` or `null`. That is a different argument from
+      the caller one and worth keeping: `difference` reads the output of the
+      implementation under test, so trust is not what retires the checks —
+      unreachability is, since a FunctionalScript reader cannot spell any of
+      them however broken it is. Gone with them: `member`, `outsideTheModel`,
+      the `_Mark` and `_Member` types, the reflection imported for them, the
+      proof's `plain` and `model` groups and the `outside` escape hatch that
+      built host values with `Object.assign`, `Object.defineProperty`,
+      `Symbol`, `new Date`, `new Map` and `Object(1)` — a landed `.f.mjs`
+      written in JavaScript the subset forbids — and its four sparse-array
+      literals. `types.ts` dropped `SerializerReject` and the twelve recipes,
+      and the three surviving serializer-side records take an ordinary
+      `Unknown`. Coverage stayed at 100%.
 - [ ] **§Whitespace's enumeration in the spec**, per decision 3; its own
       pull request.
 - [ ] **The decoder seam in the spec**, per decision 4; its own pull
