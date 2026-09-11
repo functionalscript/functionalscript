@@ -54,8 +54,11 @@ is two nodes. A proof compares the graph an implementation produced with
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
 leaves by `Object.is`, so that `-0` and `0` differ and `NaN` is itself;
 an array by `Array.isArray`, the data model's boundary rather than the
-prototype chain, so an array under a `null` prototype is an array;
-objects member by member in observable order; and containers as a
+prototype chain, so an array under a `null` prototype is an array; an
+object as a plain one, under `Object.prototype` or `null`, the two a
+reader may build it with, so a `Date`, a `Map` or a boxed number with no
+members is not an empty object; objects member by member in observable
+order; and containers as a
 bijection, so a node the expected graph reaches twice must be one node in
 the actual, and two nodes it keeps apart may not be merged. A duplicate key
 is a document fact and never a graph fact: the document says

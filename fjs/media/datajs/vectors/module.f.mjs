@@ -9,7 +9,8 @@
  * equality: where the expected graph reaches one node twice the actual must
  * too, and where it reaches two distinct nodes the actual may not merge them.
  * Leaves compare by `Object.is`, so that `-0` and `0` differ and `NaN` is
- * itself, and an object's members compare in observable order.
+ * itself; an object is a plain one, under `Object.prototype` or `null`, and
+ * its members compare in observable order.
  *
  * The walk is over an explicit stack, so a graph nested as deep as a vector
  * allows costs no call stack.
@@ -21,7 +22,7 @@
  * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
-const { is, keys, hasOwn } = Object
+const { is, keys, hasOwn, getPrototypeOf, prototype: objectPrototype } = Object
 
 // by the data model's boundary, not the prototype chain: an array under a
 // `null` prototype is an array whose prototype is outside the model; and
@@ -78,6 +79,11 @@ const children = (stack, path, expected, actual) => {
         return result
     }
     if (isArray(actual)) { return at(path, `expected an object, got ${show(actual)}`) }
+    // an object of the data model is a plain one, under `Object.prototype`
+    // or `null`, the two a reader may build it with; a `Date`, a `Map` or a
+    // boxed number has no members to compare and is not data
+    const proto = getPrototypeOf(actual)
+    if (proto !== objectPrototype && proto !== null) { return at(path, 'expected an object, got a non-plain object') }
     const expectedKeys = keys(expected)
     const actualKeys = keys(actual)
     if (expectedKeys.length !== actualKeys.length) {
