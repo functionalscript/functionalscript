@@ -61,7 +61,13 @@ steps of one, and the open stacks in the tree at any time show the shape.
    ([CONTRIBUTING.md](../CONTRIBUTING.md#commit-messages)). Comments are
    answered per [REVIEW.md](./REVIEW.md), on the pull request where they were
    made: a fix on a lower branch reaches the ones above through the merge, and
-   is never made twice. A comment on a lower pull request that changes the
+   is never made twice. **If a pull request has already merged with comments
+   still unaddressed, address them in the next pull request**, following
+   [REVIEW.md](./REVIEW.md). Check the merged pull request's comments before
+   starting the next step, and link each carried comment in the next pull
+   request's description so its answer can be traced. If no pull request
+   remains in the stack, open a follow-up against `main` for those comments.
+   A comment on a lower pull request that changes the
    design changes the `todo/` first, and every pull request above it is
    re-read against the new text before anything else is pushed — this is the
    step where a stack most needs the owner: say what the comment changes for
@@ -80,7 +86,8 @@ steps of one, and the open stacks in the tree at any time show the shape.
    the end: the stack above the merged one still has branches to update,
    comments to answer, and a lowest member to queue, and steps 3 and 4 repeat
    until it is empty. The task is done when its last pull request, the one
-   that deletes the `todo/`, has landed. It is also done when the owner says
+   that deletes the `todo/`, has landed and no review comments remain
+   unaddressed, including on merged pull requests. It is also done when the owner says
    so; and it pauses, rather than guesses, when the next step needs a
    decision nobody has made.
 
