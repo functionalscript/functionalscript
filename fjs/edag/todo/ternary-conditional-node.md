@@ -11,8 +11,8 @@ functionalscript/functionalscript#1867) has no EDAG counterpart:
 and 2 — there is no arity-3 tag at all, so `?:` cannot be expressed as an
 EDAG node today. The shared operator corpus
 ([`fjs/nanvm/module.f.mjs`](../../nanvm/module.f.mjs)) works around this the
-same way it works around `unaryPlus`
-([`op12-groups.md`](./op12-groups.md)):
+same way it works around `typeof`
+([`typeof-operator.md`](./typeof-operator.md)):
 [`fjs/nanvm/types.ts`](../../nanvm/types.ts)'s `NonEdagGroup` gained a
 `'ternary'` variant carrying `Case<3>`, whose cases always take the corpus's
 "escape" path — build all three operands, apply the operation directly —
@@ -54,9 +54,9 @@ establishes every operand eagerly.
 - Once the node exists, move
   [`fjs/nanvm/module.f.mjs`](../../nanvm/module.f.mjs)'s `ternaryCases` group
   from `NonEdagGroup`'s `'ternary'` escape onto a real `Group` with
-  `op: '?:'` and canonical `Case<3>` lowering — the same move
-  [`op12-groups.md`](./op12-groups.md) proposes for `unaryPlus` → `['+', x]` —
-  retiring the `'ternary'` arm of
+  `op: '?:'` and canonical `Case<3>` lowering — the same move that took
+  unary plus off `NonEdagGroup` onto `['+', x]` (`op12Id` in
+  [`module.f.mjs`](../module.f.mjs)) — retiring the `'ternary'` arm of
   `NonEdagGroup`. This is also the point where the corpus could finally test
   the half of `?:` it cannot today: that the unselected branch is never
   evaluated.
@@ -88,8 +88,8 @@ establishes every operand eagerly.
   subject 3 — the decided design this implements.
 - [`spec/todo/2340-operators.md`](../../../spec/todo/2340-operators.md) —
   `?:` already listed as an allowed, priority-1 operator.
-- [`op12-groups.md`](./op12-groups.md) — the same `NonEdagGroup`-retirement
-  shape, for `unaryPlus`/`['+', x]`.
+- `op12Id` in [`module.f.mjs`](../module.f.mjs) — the `NonEdagGroup`
+  retirement already made, for unary plus as `['+', x]`.
 - [`interpret-edag.md`](../../djs/todo/interpret-edag.md) — the eventual real
   interpreter this lazy case belongs in.
 - functionalscript/functionalscript#1867 — where `Any::conditional` and the
