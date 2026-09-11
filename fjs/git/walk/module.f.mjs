@@ -183,6 +183,9 @@ export const peel = (read, oidBytes) => {
  * it refuses one without, so this reads that tree and does not judge the
  * commit again.
  *
+ * @throws On an id that is not `oidBytes` wide, since the walk starts at
+ * {@link peel} and that is its check.
+ *
  * @template {Operation} O
  * @param {Read<O>} read
  * @param {OidBytes} oidBytes
@@ -260,6 +263,10 @@ const componentStep = at => ({ name, last }) => ({ entries }) => {
  * The entry's own object is not read, so the caller reads the blob with
  * the same `Read` and a submodule entry comes back rather than a missing
  * object.
+ *
+ * @throws On an id that is not `oidBytes` wide, since the walk starts at
+ * {@link peel} and that is its check. A path of no components is the one
+ * that does not: it answers `null` before the id is read.
  *
  * @template {Operation} O
  * @param {Read<O>} read
