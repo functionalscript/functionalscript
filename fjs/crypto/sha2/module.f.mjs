@@ -45,11 +45,14 @@ const appendChunk = (chunkLength, compress) => chunk => state =>
         : { ...state, remainder: chunk }
 
 /**
- * The Merkle–Damgård framing every SHA shares, over a compression it is
- * given: data folded into the state a block at a time, and the last
+ * The Merkle–Damgård framing SHA-1 and SHA-2 share, over a compression it
+ * is given: data folded into the state a block at a time, and the last
  * block padded with a `1` bit, zeros, and the message length. SHA-2's
  * `base` is built on it, and so is [`fjs/crypto/sha1`](../sha1/module.f.mjs),
  * whose compression alone differs; a fix to the framing is made once.
+ * SHA-3 is not one of them: it is a sponge, absorbing and squeezing a
+ * state rather than folding blocks into a hash value, and a hash built
+ * that way is no caller of this.
  *
  * `append` never joins the remainder it holds to the new `Vec`, which may
  * be as long as a `Vec` may be: with no remainder it chunks the new data

@@ -19,11 +19,11 @@ export type V8 = FixedArray<8, bigint>
 export type V16 = FixedArray<16, bigint>
 
 /**
- * The state of a hash built on the Merkle–Damgård framing every SHA
- * shares: `hash` is the current hash value, `len` the length of the data
- * processed so far, and `remainder` the data that has not yet filled a
- * block. `H` is the hash value's own shape: eight words for SHA-2, five
- * for SHA-1.
+ * The state of a hash built on the Merkle–Damgård framing SHA-1 and
+ * SHA-2 share, and SHA-3, a sponge, does not: `hash` is the current hash
+ * value, `len` the length of the data processed so far, and `remainder`
+ * the data that has not yet filled a block. `H` is the hash value's own
+ * shape: eight words for SHA-2, five for SHA-1.
  */
 export type Framed<H> = {
     readonly hash: H

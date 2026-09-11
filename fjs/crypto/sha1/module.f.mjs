@@ -77,6 +77,9 @@ const stages = [
 
 const roundsPerStage = /** @type {const} */ (20)
 
+/** The rounds a block goes through: the four stages, twenty each. */
+const rounds = /** @type {const} */ (80)
+
 /**
  * The schedule's next sixteen words from the last sixteen: `W[t]` is
  * `W[t-3] ^ W[t-8] ^ W[t-14] ^ W[t-16]` rotated left by one, so each new
@@ -125,7 +128,8 @@ const compress = ([h0, h1, h2, h3, h4]) => u => {
     let d = h3
     let e = h4
     let w = words(u)
-    for (let t = 0; t < 80; t += 16) {
+    let t = 0
+    while (true) {
         for (let j = 0; j < 16; ++j) {
             const [f, k] = stages[Math.trunc((t + j) / roundsPerStage)]
             const temp = (rotl5(a) + f(b, c, d) + e + k + w[j]) & m
@@ -135,6 +139,10 @@ const compress = ([h0, h1, h2, h3, h4]) => u => {
             b = a
             a = temp
         }
+        t += 16
+        // The schedule is expanded for the rounds still to come and not
+        // after the last sixteen, whose words nothing reads.
+        if (t === rounds) { break }
         w = nextW(...w)
     }
     return [
