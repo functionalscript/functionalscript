@@ -13,10 +13,15 @@ that designed them is [`../todo/conformance-vectors.md`](../todo/conformance-vec
 Each set is `<set>/data.f.mjs`, a FunctionalScript data module written in
 the DataJS subset the specification describes: `const $n = …;` statements,
 one `export default`, string keys, JSON's values and the leaves DataJS adds.
-So the engine imports it today, the DataJS reader will read it once it
-exists, and a value two vectors share is one `const` — a non-empty array
-or an object, never the empty array literal, which `tsc` types as an
-evolving array when a `const` binds it and refuses every read of. A set carries no
+So the engine imports it today and the reader reads the same file as a
+document — measured, every set parses and denotes exactly the value the
+engine imports, the sharing included. **That is a rule with teeth and it was
+broken:** every set ended with a trailing comma before its `]`, which
+JavaScript takes and DataJS refuses, so no set was readable by a conforming
+reader until it was removed. A value two vectors share is one `const` — a
+non-empty array or an object, never the empty array literal, which `tsc`
+types as an evolving array when a `const` binds it and refuses every read
+of. A set carries no
 comments and no annotations, since the subset has neither; a consumer types
 a set at the import, with the record types in
 [`fjs/media/datajs/vectors/types.ts`](../../../fjs/media/datajs/vectors/types.ts).

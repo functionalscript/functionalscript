@@ -1900,6 +1900,17 @@ The steps, in order; a step is one pull request unless it says otherwise:
       is correct UTF-8 and anything else is rejected, with no taxonomy of
       malformed sequences and nothing required of a decoder. Its own pull
       request, as each of these changes a different contract.
+- [ ] **Make "every set is a DataJS document" a check rather than a
+      measurement.** Review found every set ending with a trailing comma
+      before its `]`, which JavaScript takes and DataJS refuses, so no set was
+      readable by a conforming reader — a promise the corpus README makes and
+      nothing enforced. The commas are gone and each set now parses to exactly
+      the value the engine imports, sharing included, but that was measured by
+      hand. The generator is where it belongs, since it already reads the
+      corpus and already fails the build: read each set's own source, parse it
+      with the reader, and compare the graph with the imported set using
+      `difference`. Its own pull request, because it needs a failing case in
+      the matrix proof to keep coverage honest.
 - [ ] **Hand over.** `spec/datajs/README.md`'s Conformance section links the
       corpus instead of this file; stage 4's issue and the stage 6 task in
       [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)

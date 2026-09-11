@@ -332,5 +332,5 @@ export default [
     {"id": "ws-required-default-negative-infinity", "class": "whitespace/required/default/negative-infinity", "document": "export default-Infinity;", "rule": "whitespace: required after const, export and default", "host": "accepts"},
     {"id": "ws-required-default-negative-bigint", "class": "whitespace/required/default/negative-bigint", "document": "export default-1n;", "rule": "whitespace: required after const, export and default", "host": "accepts"},
     {"id": "byte-bom-first", "class": "byte/bom/first", "document": ["hex", "ef bb bf 65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 31 3b"], "rule": "document: a document has no BOM", "host": "accepts"},
-    {"id": "byte-truncated", "class": "byte/truncated", "document": ["hex", "65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 61 c2"], "rule": "document: a document is UTF-8", "host": "syntaxError"},
+    {"id": "byte-truncated", "class": "byte/truncated", "document": ["hex", "65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 61 c2"], "rule": "document: a document is UTF-8", "host": "syntaxError"}
 ];
