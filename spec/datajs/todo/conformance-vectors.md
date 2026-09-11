@@ -1906,7 +1906,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 216 records in
+- [x] **Normalize.** Landed as 217 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 53 scope
       records answering the 516 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -1920,7 +1920,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 113,227 bytes of the bit
+      being refused outright. The matrix stands at 113,263 bytes of the bit
       vector's 131,072, which is 87% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -1968,7 +1968,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       from the same round: every input had a node with at most two incoming
       occurrences, so a writer that forgets an identity by the third passed,
       and both unshared pairs sat in an array, so one that hash-conses only
-      while walking object members passed.
+      while walking object members passed. And two positions after that: every
+      escape-sensitive string in the set was a root value or a root key, so a
+      writer using a JavaScript-safe escaper only for nested values emitted
+      `\u2028` for `["\u2028"]` and passed, and one with a separate recursive
+      key emitter did the same for `{"a":{"\u2028":0}}`. The two `every-value`
+      aggregates now carry a whitespace-like character, a lone surrogate and a
+      control among their leaves, and a nested key carries the first.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
