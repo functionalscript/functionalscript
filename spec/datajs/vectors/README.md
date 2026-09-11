@@ -47,8 +47,13 @@ branch under it is empty.
 ## What a record says
 
 **A document** is a string whose code units are the document's, or, for the
-two rules only bytes can reach — a document is UTF-8, and it has no BOM — an
-array of bytes fed to the reader's byte-accepting path. A reject vector
+two rules only bytes can reach — a document is UTF-8, and it has no BOM —
+the bytes as a tagged hex string, `["hex", "ef bb bf …"]`, fed to the
+reader's byte-accepting path. The spelling is one: lowercase pairs
+separated by single spaces, at least one pair, which is how the issue's
+byte tables read and what `bytes` in
+[`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
+decodes, refusing any other. A reject vector
 names the one `rule` it breaks and what the `host` does with the same text,
 measured: a document JavaScript `accepts` is a narrowing vector, the only
 kind that catches a reader delegating to the host; a `syntaxError` or a

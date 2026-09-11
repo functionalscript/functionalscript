@@ -14,9 +14,12 @@ import type { Primitive, Unknown } from '../types.ts'
 /**
  * A document as a vector carries it: the text, as a JavaScript string
  * whose code units are the document's, or the bytes, for the two rules only
- * bytes can reach — a document is UTF-8, and it has no BOM.
+ * bytes can reach — a document is UTF-8, and it has no BOM — as a tagged
+ * hex string, `['hex', 'ef bb bf …']`: lowercase pairs separated by single
+ * spaces and nothing else, the spelling the issue's byte tables use, which
+ * `bytes` in `module.f.mjs` decodes and refuses any other.
  */
-export type Document = string | readonly number[]
+export type Document = string | readonly ['hex', string]
 
 /**
  * What every vector carries: a stable name, and the branch of the
