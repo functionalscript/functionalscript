@@ -12,9 +12,9 @@
  * consumers read one program rather than each reading the case its own way.
  *
  * Rust naming is this module's alone and never leaks back into the shared
- * data: {@link rustName} maps a canonical operation id to a Rust identifier
- * explicitly, because `snakeCase` over a punctuation tag such as `*` produces
- * nothing usable. Literal syntax comes from
+ * data: {@link rustName} maps a group's key to a Rust identifier explicitly,
+ * because `snakeCase` over a punctuation tag such as `*` produces nothing
+ * usable. Literal syntax comes from
  * [`fjs/media/rust`](../../media/rust/module.f.mjs); what is specific to this
  * module is the `nanvm-lib` API the statements target.
  *
@@ -41,6 +41,7 @@ import {
     arityOf,
     caseExp,
     casesOf,
+    groupKey,
     isFunctionValue,
     isThrows,
     lowerEq,
@@ -71,23 +72,26 @@ export const directory = 'nanvm-lib/tests/test'
 export const path = `${directory}/generated.rs`
 
 /**
- * The Rust function name for each operation the corpus covers.
+ * The Rust function name for each group the corpus covers, keyed by
+ * `groupKey`: the operation tag, or for an `Op12` group the tag and its
+ * arity, since `-` at one operand and at two are two functions.
  *
  * Written out rather than derived: a canonical id may be punctuation, and the
  * generated function names are this printer's concern and stay stable when an
- * id is respelled.
+ * id is respelled — `neg` and `unary_plus` were named for the ids `neg` and
+ * `unaryPlus` and kept their names when those became `-` and `+`.
  *
- * @type {{ readonly [k in OpId]?: string }}
+ * @type {{ readonly [k in string]?: string }}
  */
 export const rustName = {
-    unaryPlus: 'unary_plus',
-    neg: 'neg',
+    '+/1': 'unary_plus',
+    '-/1': 'neg',
     '~': 'bitwise_not',
     '*': 'mul',
     '/': 'div',
     '**': 'pow',
-    '-': 'sub',
-    '+': 'add',
+    '-/2': 'sub',
+    '+/2': 'add',
     '%': 'rem',
     '&': 'bitand',
     '|': 'bitor',
@@ -115,8 +119,8 @@ export const rustName = {
  * @type {{ readonly [k in OpId]?: (a: string) => string }}
  */
 const op1Rust = {
-    unaryPlus: a => `Any::unary_plus(${a})`,
-    neg: a => `-(${a})`,
+    '+': a => `Any::unary_plus(${a})`,
+    '-': a => `-(${a})`,
     '!': a => `!(${a})`,
     '~': a => `Any::bitwise_not(${a})`,
     typeof: a => `Any::typeof_(${a})`,
@@ -185,10 +189,10 @@ const op3Rust = {
 }
 
 /**
- * What an id names in this printer. An id with no entry is a gap here, not a
+ * What a key names in this printer. A key with no entry is a gap here, not a
  * case to print a plausible wrong statement for.
  *
- * @type {<T>(table: { readonly [k in OpId]?: T }) => (id: OpId) => T}
+ * @type {<K extends string, T>(table: { readonly [k in K]?: T }) => (id: K) => T}
  */
 const lookup = table => id => {
     const v = table[id]
@@ -364,7 +368,7 @@ const result = g => args => {
 /** @type {(g: Group) => readonly string[]} */
 const groupFn = g => [
     '#[rustfmt::skip]',
-    `fn ${fnName(opId(g))}<A: IVm>() {`,
+    `fn ${fnName(groupKey(g))}<A: IVm>() {`,
     ...casesOf(g).flatMap(c => orders(g)(c).flatMap(
         ([name, args]) => emit(c.rust)(assertion(c.expected)(name)(result(g)(args))))),
     '}',
@@ -405,7 +409,7 @@ export const generate = data => [
     ...data.groups.flatMap(groupFn),
     'pub fn all<A: IVm>() {',
     `${indent}eq::<A>();`,
-    ...data.groups.map(g => `${indent}${fnName(opId(g))}::<A>();`),
+    ...data.groups.map(g => `${indent}${fnName(groupKey(g))}::<A>();`),
     '}',
     '',
 ].join('\n')

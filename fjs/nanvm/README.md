@@ -39,7 +39,7 @@ are the printer's own explicit map, never `snakeCase` over a canonical id.
 ## The operations come from EDAG
 
 An operation is named by its canonical [`fjs/edag`](../edag/README.md) id and
-nothing else — `neg`, `*`, `String` — imported from the schema and its
+nothing else — `-`, `*`, `String` — imported from the schema and its
 type-level API rather than restated here. That buys three things a
 NaNVM-specific vocabulary did not:
 
@@ -49,6 +49,9 @@ NaNVM-specific vocabulary did not:
   `arityOf` is the same rule at runtime, asked of the schema rather than of a
   second copy of the vocabulary — a consumer walking `data.groups` holds a
   `Group` whose arm is no longer known, and that is what it dispatches on.
+  The one exception is the `Op12Id` vocabulary, `+` and `-`, whose ids are
+  legal at both counts: a `Group12` says `arity: 1` or `arity: 2` itself, and
+  its arm fixes `Case<1>` or `Case<2>` the same way.
 - **`ref` is node sharing.** Two `ref`s to one name lower to one node reached
   twice, which is what EDAG sharing *is*. The proof memoizes nodes by identity
   within a case and the printer emits one `let` binding cloned at each
@@ -58,18 +61,20 @@ NaNVM-specific vocabulary did not:
   validates every derived expression against the schema, so an operand shape or
   validation rule changing under the corpus fails there.
 
-One group is the visible exception. `unaryPlus` has no canonical id — the EDAG
-has no unary `+` — so it is a `NonEdagGroup`, spelled `nanvmOp` rather than
-`op` precisely so a NaNVM-only name can never mix into a canonical id union. It
-becomes the `Number` cast, a semantic change rather than a rename, through
-[replace-unary-plus-with-number](../../nanvm-lib/todo/replace-unary-plus-with-number.md).
+Two groups are the visible exception. `ternary` and `typeof` have no
+canonical id yet — the EDAG has no conditional node and no `typeof` — so each
+is a `NonEdagGroup`, spelled `nanvmOp` rather than `op` precisely so a
+NaNVM-only name can never mix into a canonical id union. They move onto the
+EDAG path through
+[ternary-conditional-node](../edag/todo/ternary-conditional-node.md) and
+[typeof-operator](../edag/todo/typeof-operator.md).
 
 A case carrying a `functionValue` operand is the other. A constant function is
 writable as `['=>', ['[]', []], body]`, but establishing `=>` would drag
 closure construction into both consumers for cases that never inspect the
 function, so such a case is marked `['escape']` and takes the direct-value
-path. The escape is per case, not per group: `neg` is EDAG-backed and still
-carries one.
+path. The escape is per case, not per group: unary `-` is EDAG-backed and
+still carries one.
 
 ## Writing a case
 
@@ -87,8 +92,9 @@ The group says which operation they are operands of, and how many of them
 there are:
 
 ```js
-{ op: 'neg', cases: [...] },                       // one operand each
+{ op: '~', cases: [...] },                         // one operand each
 { op: '*', commutative: true, cases: [...] },      // two
+{ op: '-', arity: 1, cases: [...] },               // `-` is also binary, so the group says
 ```
 
 Three things a literal cannot express are written as thunks — a function in the
