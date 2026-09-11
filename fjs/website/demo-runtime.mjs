@@ -28,6 +28,58 @@ const commands = /** @type {readonly never[]} */ ([])
 const run = asyncPartialRun(commands)({})
 
 /**
+ * What the reader was doing, so re-rendering does not take it away.
+ *
+ * **Replacing the section's contents destroys the element they are typing
+ * into.** A new one takes its place with the same `name` and the right value,
+ * but focus and the caret belong to the node, not the name, so without this a
+ * demo accepts exactly one character and then drops you. That is not a
+ * refinement of wholesale replacement, it is what makes wholesale replacement
+ * usable at all.
+ *
+ * The caret is `null` on a control that has no text to put one in — a
+ * checkbox, a range — and restoring it is skipped rather than guessed.
+ *
+ * @type {(root: Element) => { readonly name: string, readonly start: number | null, readonly end: number | null } | null}
+ */
+const focused = root => {
+    const active = /** @type {HTMLInputElement | null} */ (root.ownerDocument.activeElement)
+    if (active === null || !root.contains(active) || active.name === undefined) { return null }
+    return { name: active.name, start: active.selectionStart, end: active.selectionEnd }
+}
+
+/**
+ * Puts the reader back where they were.
+ *
+ * By `name`, which is the only identity a demo gives its elements — the same
+ * name its events come back under — so a view that keeps a field across a
+ * state keeps the caret in it too.
+ *
+ * @type {(root: Element, was: ReturnType<typeof focused>) => void}
+ */
+const refocus = (root, was) => {
+    if (was === null) { return }
+    const next = /** @type {HTMLInputElement | null} */ (
+        root.querySelector(`[name="${was.name}"]`))
+    if (next === null) { return }
+    next.focus()
+    if (was.start !== null && was.end !== null && next.setSelectionRange !== undefined) {
+        next.setSelectionRange(was.start, was.end)
+    }
+}
+
+/**
+ * Renders a state, and leaves the reader where they were.
+ *
+ * @type {(root: Element, view: string) => void}
+ */
+const render = (root, view) => {
+    const was = focused(root)
+    root.innerHTML = view
+    refocus(root, was)
+}
+
+/**
  * A demo runs one event at a time.
  *
  * An operation is asynchronous, so an event can arrive while an `update` is
@@ -50,7 +102,7 @@ const stepper = (root, demo) => {
             // demo, and the page says so where its output would have gone.
             try {
                 state = unwrapState(await run(demo.update(state)(event)))
-                root.innerHTML = htmlToString(demo.view(state))
+                render(root, htmlToString(demo.view(state)))
             } catch (cause) {
                 root.textContent = `demo failed: ${cause instanceof Error ? cause.message : String(cause)}`
             }
@@ -89,7 +141,7 @@ export const startDemo = async root => {
     const module = await import(path)
     const demo = /** @type {Demo<any, DemoEvent, never>} */ (module.demo)
     const step = stepper(root, demo)
-    root.innerHTML = htmlToString(demo.view(demo.init))
+    render(root, htmlToString(demo.view(demo.init)))
     root.addEventListener('input', e => {
         const target = /** @type {HTMLInputElement} */ (e.target)
         step({ kind: 'input', name: target.name, value: target.value })
