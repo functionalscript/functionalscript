@@ -11,7 +11,6 @@ import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
 import { base32, base64, computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
 import { demo, digest } from './demo.f.mjs'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import { unwrap } from '../../types/result/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
@@ -251,9 +250,12 @@ export const proof = {
          * rather than only on a page nobody is looking at.
          */
         digest: () => {
-            assertEq(uint(computeSync(sha256)([utf8('')])), uint(sha256.end(sha256.init)))
-            assertEq(digest(''), vecToCBase32(computeSync(sha256)([utf8('')])))
-            assertEq(digest('hello'), vecToCBase32(computeSync(sha256)([utf8('hello')])))
+            // The same literal `checkEmpty` pins above, said in hex — which is
+            // also what `sha256sum` prints, so the page can be checked from
+            // outside this repository.
+            assertEq(digest(''), 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855')
+            assertEq(digest('hello'), '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824')
+            assertEq(digest('').length, 64)
         },
         // Typing replaces the text; every other event leaves it alone, which
         // is what `start` is for — a first render with nothing typed yet.

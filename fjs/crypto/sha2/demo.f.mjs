@@ -1,9 +1,12 @@
 /**
  * SHA-256 as you type: a text field, and the digest of its UTF-8 bytes.
  *
- * The encoding is cBase32, which is what the content-addressable store uses,
- * so what this shows is the name a CAS would give the text rather than a
- * generic hex dump.
+ * **The digest is shown in hex, and said to be**, because a reader can check
+ * it: `printf '%s' hello | sha256sum` prints the same 64 characters, and so
+ * does the literal in this module's own proof. An encoding of this
+ * repository's own — cBase32, the one the content-addressable store names
+ * things by — would have made the demo partly about `basen` and left its
+ * output impossible to verify from outside.
  *
  * **It needs no operations.** Hashing is a pure function of the input, so
  * `update` declares `never` and returns its next state through `pureOk`. That
@@ -15,16 +18,24 @@
  */
 
 import { computeSync, sha256 } from './module.f.mjs'
-import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { uint } from '../../types/bit_vec/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { pureOk } from '../../effects/module.f.mjs'
 
+/** A SHA-256 digest is 256 bits, which is 64 hex digits however small it is. */
+const digits = 64
+
 /**
- * The cBase32 digest of a string's UTF-8 bytes.
+ * The hex digest of a string's UTF-8 bytes.
+ *
+ * Padded, because the number is what carries the digest and a number has no
+ * leading zeros: one digest in 256 starts with a zero byte, and without this
+ * it would be shown 63 characters long.
  *
  * @type {(text: string) => string}
  */
-export const digest = text => vecToCBase32(computeSync(sha256)([utf8(text)]))
+export const digest = text =>
+    uint(computeSync(sha256)([utf8(text)])).toString(16).padStart(digits, '0')
 
 /**
  * The state is the text itself, not the digest: the digest is a function of
@@ -41,7 +52,7 @@ export const demo = {
             ['label', { for: 'text' }, 'Text '],
             ['input', { type: 'text', id: 'text', name: 'text', value: text }],
         ],
-        ['p', 'SHA-256, cBase32:'],
+        ['p', 'SHA-256, hex:'],
         ['pre', digest(text)],
     ],
 }
