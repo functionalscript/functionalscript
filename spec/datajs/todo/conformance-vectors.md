@@ -53,7 +53,7 @@ corpus that made every consumer decode UTF-8 first would be testing its own
 reader. Two rules are *not* about the token stream and cannot be reached that
 way at all, so their vectors carry the **bytes** instead — as a tagged hex
 string, `["hex", "ef bb bf …"]`, lowercase pairs separated by single
-spaces, the spelling these tables use — fed to the reader's public
+spaces, the one spelling these tables use throughout — fed to the reader's public
 byte-accepting path, which stage 4 owes:
 
 - a document **has no BOM**, which a decoder satisfies the parser on by
