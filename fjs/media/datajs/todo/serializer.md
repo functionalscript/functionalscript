@@ -346,17 +346,24 @@ written yet:
 | `graph-equivalence` | **serialize the input** and compare the document's graph with the input, sharing included. Reading the canned `denotes` and `denotesNot` documents proves the reader, not the writer: a writer that inlined a shared node, or hash-consed two equal nodes into one, would pass that and fail this |
 | `normalize` | compare `tryStringify`'s output to the vector's `text`, byte for byte, since that output is normalized form |
 
-**Every writer runs the first three sets, not only its own.** Normalized form
-is a conforming serializer before it is a normalized one, so a second writer
-— the readable layout of §Layout and API, if one lands — owes
-`serializer-accept`, `serializer-reject` and `graph-equivalence` as well as
-`normalize`. A normalized path that wrote `export default {};` for a `Date`
-would otherwise ship untested.
+**A writer owes every set its role covers, and `normalize` is the narrow
+one.** Normalized form is a conforming serializer before it is a normalized
+one, so the **normalized** writer owes `serializer-accept`,
+`serializer-reject` and `graph-equivalence` besides `normalize`: a normalized
+path that wrote `export default {};` for a `Date` would otherwise ship
+untested. A writer in any other layout — the readable default
+[the specification](../../../../spec/datajs/README.md#normalized-form)
+recommends for tooling — owes those three and **not** `normalize`, which
+compares byte for byte against the normalized text and which it fails by
+construction.
 
-Three of those read back through [`../parser`](../parser/module.f.mjs), so the
-serializer's proofs are round trips whose comparison is `difference`, the
-sharing-aware one — structural equality would pass a serializer that inlined a
-shared node. **That shape landed ahead of the sets**: the writer's proof
+Two of those read back through [`../parser`](../parser/module.f.mjs) —
+`serializer-accept` reads the document it wrote, and `graph-equivalence` has
+to parse one to compare its graph — so those two proofs are round trips whose
+comparison is `difference`, the sharing-aware one, where structural equality
+would pass a serializer that inlined a shared node. The other two read
+nothing back: `serializer-reject` asserts an `error`, and `normalize`
+compares bytes. **That shape landed ahead of the sets**: the writer's proof
 already round-trips values of its own through the reader and `difference`,
 sharing included, so what the corpus adds is coverage of the specification's
 branches rather than the machinery to check them.
