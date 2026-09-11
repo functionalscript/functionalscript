@@ -2291,7 +2291,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       not landed refuses nothing, since a class cannot owe a vector to a
       set that does not exist: its column says so on every row and the
       refusal arrives with the set, which is where the serializer and
-      normalize columns stand today. 758 classes, the reader role
+      normalize columns stand today. 755 classes, the reader role
       answering every one. Prose could not do this job, which four
       consecutive review rounds showed.
 - [ ] **The JavaScript whole-set check**, per decision 5. The

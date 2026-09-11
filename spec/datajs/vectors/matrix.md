@@ -14,11 +14,11 @@ mentions it in three.
 
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
-| `reader` | `accept`, `reject` | 758 | 0 | 0 |
-| `serializer` | no set yet | 0 | 0 | 758 |
-| `normalize` | no set yet | 0 | 0 | 758 |
+| `reader` | `accept`, `reject` | 755 | 0 | 0 |
+| `serializer` | no set yet | 0 | 0 | 755 |
+| `normalize` | no set yet | 0 | 0 | 755 |
 
-758 classes.
+755 classes.
 
 | class | reader | serializer | normalize |
 | - | - | - | - |
@@ -531,8 +531,6 @@ mentions it in three.
 | `number/zero/exp/neg` | `number-neg-0e0` | *awaiting the set* | *awaiting the set* |
 | `number/zero/frac` | `number-0.0` | *awaiting the set* | *awaiting the set* |
 | `number/zero/frac/neg` | `number-neg-0.0` | *awaiting the set* | *awaiting the set* |
-| `object/accessor/getter` | `object-getter` | *awaiting the set* | *awaiting the set* |
-| `object/accessor/setter` | `object-setter` | *awaiting the set* | *awaiting the set* |
 | `object/double-comma` | `object-double-comma` | *awaiting the set* | *awaiting the set* |
 | `object/duplicate/adjacent` | `object-duplicate-first` | *awaiting the set* | *awaiting the set* |
 | `object/duplicate/both-levels` | `object-duplicate-both-levels` | *awaiting the set* | *awaiting the set* |
@@ -560,7 +558,6 @@ mentions it in three.
 | `object/key-order/non-index/space` | `object-key-order-non-index-space` | *awaiting the set* | *awaiting the set* |
 | `object/leading-comma` | `object-leading-comma` | *awaiting the set* | *awaiting the set* |
 | `object/members/every-value` | `object-members-every-value` | *awaiting the set* | *awaiting the set* |
-| `object/method` | `object-method` | *awaiting the set* | *awaiting the set* |
 | `object/nested/array` | `object-nested-array` | *awaiting the set* | *awaiting the set* |
 | `object/nested/deep` | `object-nested-deep` | *awaiting the set* | *awaiting the set* |
 | `object/nested/empty` | `object-nested-empty` | *awaiting the set* | *awaiting the set* |
