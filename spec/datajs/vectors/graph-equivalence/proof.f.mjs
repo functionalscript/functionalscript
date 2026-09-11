@@ -79,4 +79,23 @@ export const proof = {
             }
         }
     },
+    // The one shape this carrier cannot spell, pinned here instead. A shared
+    // empty *object* is a vector above; a shared empty **array** needs
+    // `const $e = [];`, which `tsc` types as an evolving `any[]` and refuses
+    // every read of, so a data module cannot bind one. The direction matters
+    // and is not the empty inverse above: that one rules out merging two
+    // distinct empties, where this rules out expanding one shared empty into
+    // two. A writer that always emits `[]` inline does exactly that, and
+    // changes the graph's identity while emitting a valid document.
+    sharedEmptyArray: () => {
+        const child = /** @type {readonly unknown[]} */ ([])
+        const input = /** @type {Unknown} */ (/** @type {unknown} */ ([child, child]))
+        for (const document of ['const $0=[];export default [$0,$0];', 'const $0=[];const $1=[$0,$0];export default $1;']) {
+            assertEq(difference(input)(read('shared-empty-array', document)), null)
+        }
+        for (const document of ['export default [[],[]];', 'const $0=[];const $1=[];export default [$0,$1];']) {
+            assert(difference(input)(read('shared-empty-array', document)) !== null,
+                `shared-empty-array: ${JSON.stringify(document)} denotes the input after all`)
+        }
+    },
 }

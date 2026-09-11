@@ -28,6 +28,7 @@ const $n26 = {};
 const $n27 = {};
 const $n28 = {};
 const $s1 = [1, 2];
+const $n29 = [1];
 export default [
     {"id": "norm-string-escape-quote", "class": "string/escape/quote", "input": "\"", "text": "export default \"\\\"\";"},
     {"id": "norm-key-escape-quote", "class": "key/string/escape/quote", "input": {"\"": 0}, "text": "export default {\"\\\"\":0};"},
@@ -241,5 +242,8 @@ export default [
     {"id": "norm-string-raw-07ff", "class": "string/raw/bmp", "input": "\u07ff", "text": "export default \"\u07ff\";"},
     {"id": "norm-key-raw-07ff", "class": "key/string/raw/bmp", "input": {"\u07ff": 0}, "text": "export default {\"\u07ff\":0};"},
     {"id": "norm-string-raw-0800", "class": "string/raw/bmp", "input": "\u0800", "text": "export default \"\u0800\";"},
-    {"id": "norm-key-raw-0800", "class": "key/string/raw/bmp", "input": {"\u0800": 0}, "text": "export default {\"\u0800\":0};"}
+    {"id": "norm-key-raw-0800", "class": "key/string/raw/bmp", "input": {"\u0800": 0}, "text": "export default {\"\u0800\":0};"},
+    {"id": "norm-shared-three-paths", "class": "const/shared/three-paths", "input": [$n29, {"a": $n29}, {"b": [$n29]}], "text": "const $0=[1];export default [$0,{\"a\":$0},{\"b\":[$0]}];"},
+    {"id": "norm-unshared-object-parent-array", "class": "array/unshared/equal", "input": {"a": [1], "b": [1]}, "text": "export default {\"a\":[1],\"b\":[1]};"},
+    {"id": "norm-unshared-object-parent-object", "class": "object/unshared/equal", "input": {"a": {"x": 0}, "b": {"x": 0}}, "text": "export default {\"a\":{\"x\":0},\"b\":{\"x\":0}};"}
 ];

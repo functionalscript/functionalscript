@@ -66,10 +66,13 @@ discriminator:
   the byte path is most likely to have.
 - **a truncated sequence at end of input**, `export default "a` followed by a
   lone `c2`. Nothing follows the lead byte, which is what makes it truncated;
-  a byte after it would make it some other malformed shape instead. This one is
-  a **record**: no reader can fail it, for the reason set out below, and it
-  exists so the corpus *shows* that a byte sequence is not DataJS, which no
-  code-unit document can say.
+  a byte after it would make it some other malformed shape instead. **A
+  document-level harness cannot fail this one**, for the reason set out below,
+  so it exists first of all because the corpus *shows* that a byte sequence is
+  not DataJS, which no code-unit document can say. It is an ordinary reject
+  record all the same, and a harness that can see where a refusal happened does
+  get an answer from it: the reader proof here asserts the layer each `rule`
+  belongs to, and a decoder substituting U+FFFD instead of refusing fails it.
 
 The third is an **accept**, and it is there because the other two are
 rejects. Review pointed out what that leaves open: with no byte document the
@@ -93,8 +96,8 @@ one had sampled where the rule said enumerate.
 Every one of them was about a decoder. DataJS is handed correct UTF-8, so a
 malformed sequence is not an input it processes, exactly as a `Map` is not an
 input a serializer refuses. The care was real and the subject was someone
-else's. What survives is the two rejects above, of which the truncated one is
-marked a record rather than dressed up as a test.
+else's. What survives is the two rejects above, neither dressed up as more than
+it is: the truncated one says what it says at the document level and no more.
 
 Truncation is worth one more line, because this file argued at length that it
 could not have a vector: the lead byte must be the document's last, so the
@@ -1782,9 +1785,11 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `export default 1;`, breaking "a document has no BOM" and accepted by
       the host, measured; and **`byte-truncated`**, `export default "a`
       followed by a lone `c2`, breaking "a document is UTF-8" and a host
-      syntax error, measured. Only the truncated one is a record rather than a
-      test: the BOM vector has one defect and discriminates, since a reader that
-      strips the BOM accepts the document and fails it. The
+      syntax error, measured. The BOM vector has one defect and discriminates at
+      the document level, since a reader that strips the BOM accepts it and
+      fails; the truncated one cannot be failed by a document-level harness,
+      though the reader proof's layer check does catch a decoder that
+      substitutes U+FFFD for those bytes. The
       third is the accept the other two leave owing, **`byte-valid-widths`**,
       `export default "aé€𐀀";` with its one-, two-, three- and
       four-byte sequences, and it is a test: without it a byte path that
@@ -1821,12 +1826,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 160 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 162 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
-      and 9 in
+      and 10 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 150 of the 674 classes the corpus held then, with 52 scope
-      records answering the 524 cells the serializer column owed; the normalize
+      covering 152 of the 674 classes the corpus held then, with 50 scope
+      records answering the 522 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1866,6 +1871,18 @@ The steps, in order; a step is one pull request unless it says otherwise:
       range endpoints: `!` and `]`, which the rule above requires at both ends
       of every character class and which four reasons had been closing with
       other characters. Four vectors, four fewer reasons.
+      And a round after that, three more of the same kind. No array in either
+      writer set began with a negative, so a writer that drops the sign only in
+      the first-element path passed; the mixed key-order input used `2` and
+      `10`, so one sorting every decimal-looking key as an index moved
+      `4294967295` ahead of `z` and passed; and all three sharing inputs used
+      non-empty nodes, so one that always emits an empty container inline
+      expanded a shared empty into two and passed. The first two are vectors.
+      The third is two: a shared empty *object* as a graph-equivalence record,
+      and the *array* in that set's proof, since `const $e = [];` is an
+      evolving `any[]` a data module cannot bind — the same limit the normalize
+      set's proof works around, and the same direction that matters, which is
+      expanding one shared empty rather than merging two distinct ones.
       One reason was corrected rather than replaced: the deep-nesting classes
       said depth is the reader's concern, which is false, since a recursive
       writer has a limit of its own and this repository records
@@ -1883,9 +1900,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 213 records in
-      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 54 scope
-      records answering the 517 cells its column owes and one `['set',
+- [x] **Normalize.** Landed as 216 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 53 scope
+      records answering the 516 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
       the 50 classes this set introduced. The proof reads every text back
       through the reader, which is the run-through-the-accept-grammar check
@@ -1897,7 +1914,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 113,812 bytes of the bit
+      being refused outright. The matrix stands at 113,227 bytes of the bit
       vector's 131,072, which is 87% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -1941,7 +1958,11 @@ The steps, in order; a step is one pull request unless it says otherwise:
       U+0080, U+07FF and U+0800 were still missing and an encoder written
       `< 0x7ff` where it means `<= 0x7ff` still passed. Six vectors carry the
       three with key twins, so the set holds all ten endpoints this file
-      lists.
+      lists. Then three more, each the normalize twin of a serializer finding
+      from the same round: every input had a node with at most two incoming
+      occurrences, so a writer that forgets an identity by the third passed,
+      and both unshared pairs sat in an array, so one that hash-conses only
+      while walking object members passed.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at

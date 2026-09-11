@@ -377,7 +377,11 @@ export const proof = {
         // scope that is not a pair of strings would otherwise reach a
         // destructuring or a template and throw where a `Result` is owed
         refuses(with_(null), 'a reason in serializer: null is not a scope, which is a tag and a name')
-        refuses(with_(['class', 1]), 'a reason in serializer: ["class", 1] is not a tag and a name, both strings')
+        refuses(with_(['class', 1]), 'a reason in serializer: ["class", <number>] is not a tag and a name, both strings')
+        // and a value is named by its kind rather than coerced: `{"toString": 1}`
+        // is an ordinary DataJS object, and `String` on it calls a hook that is
+        // not a function and throws where a `Result` is owed
+        refuses(with_({ toString: 1 }), 'a reason in serializer: <object> is not a scope, which is a tag and a name')
     },
     // A corpus with no roles has no columns, so a row has nothing to say and
     // the header would carry an empty cell over a delimiter of one — not a
