@@ -311,13 +311,12 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   supplies them from `node:zlib` at the host boundary, and
   [`loose/`](loose/module.f.mjs) is its caller. A FunctionalScript inflater
   is [`todo/inflate.md`](../../todo/inflate.md).
-- **A repository found, and its packs.** `store` reads one object by id
-  and `walk` walks from one to a blob, but both take the repository's
-  directory as the caller gives it: finding it through a `.git` file's
-  `gitdir` and a `commondir`, and `objects/info/alternates`, are the rest
-  of [`todo/object-store.md`](todo/object-store.md), and packs are
-  [`todo/packfiles.md`](todo/packfiles.md). What the id check means in a
-  SHA-1 repository, and what a trust layer does about a hash that can
+- **A repository found.** `store` reads one object by id and `walk` walks
+  from one to a blob, but both take the repository's directory as the
+  caller gives it: finding it through a `.git` file's `gitdir` and a
+  `commondir`, and `objects/info/alternates`, are the rest of
+  [`todo/object-store.md`](todo/object-store.md). What the id check means
+  in a SHA-1 repository, and what a trust layer does about a hash that can
   collide, is
   [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).
 - **Packfiles**, where most objects in a real clone live, so the loose
