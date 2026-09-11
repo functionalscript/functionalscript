@@ -62,11 +62,12 @@ picks for the store.
 
 ### Tasks
 
-- [x] `fjs/crypto/sha1/module.f.mjs`, with the FIPS 180-4 vectors, and the
-      checked-in fixtures' ids at both widths in its proof.
+- [x] `fjs/crypto/sha1/module.f.mjs`, with the FIPS 180-4 vectors as its
+      proof; the checked-in fixtures' ids moved to `fjs/git/oid`'s proof
+      with the function below, where the hash meets an object.
 - [x] `fjs/git/oid`: an `of(type, payload)` that hashes an object at the
-      repository's width, SHA-1 or SHA-256, and the fixtures' ids as its
-      proof.
+      repository's width, SHA-1 or SHA-256, and the fixtures' ids at both
+      widths as its proof.
 - [ ] Collision detection beside the hash, once
       [`todo/git-sha1-collisions.md`](../../../todo/git-sha1-collisions.md)
       decides it is the floor; the SHAttered PDFs as the proof it refuses.
