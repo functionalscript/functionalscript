@@ -15,23 +15,19 @@
  * In the shape of [`fjs/crypto/sha2`](../sha2/module.f.mjs): `init`,
  * `append` and `end` over a `State`, so `computeSync` there computes it.
  * The framing is SHA-256's — 512-bit blocks, a `1` bit, zeros, and the
- * message length in 64 bits — and is written out again here, since
- * `sha2`'s `base` closes over its own compression; only the compression
- * differs, five words through eighty rounds in four twenties, on a
- * schedule that rotates. See RFC 3174 section 6.
+ * message length in 64 bits — and is `sha2`'s `framing`, shared, over the
+ * one thing that differs: the compression, five words through eighty
+ * rounds in four twenties, on a schedule that rotates. See RFC 3174
+ * section 6.
  *
  * @module
  *
- * @import { Vec } from '../../types/bit_vec/types.ts'
- * @import { Fold } from '../../types/function/operator/types.ts'
- * @import { Sha1, State, V5 } from './types.ts'
+ * @import { Sha1, V5 } from './types.ts'
  */
 
 import { divUp8, mask } from '../../types/bigint/module.f.mjs'
-import { chunkList, empty, length, msb, uint, vec } from '../../types/bit_vec/module.f.mjs'
-import { fold } from '../../types/list/module.f.mjs'
-
-const { concat, front, removeFront } = msb
+import { empty } from '../../types/bit_vec/module.f.mjs'
+import { framing } from '../sha2/module.f.mjs'
 
 const wordLength = /** @type {const} */ (32n)
 
@@ -44,11 +40,6 @@ const chunkLength = /** @type {const} */ (512n)
 
 /** The message length closes the last block, in this many bits. */
 const lengthLength = /** @type {const} */ (64n)
-
-const chunks = chunkList(msb)(chunkLength)
-
-/** @type {Vec} */
-const lastOne = vec(1n)(1n)
 
 /** @type {(d: bigint) => (n: bigint) => bigint} */
 const rotl = d => {
@@ -158,54 +149,13 @@ const compress = ([h0, h1, h2, h3, h4]) => u => {
 /** @type {(a: V5) => bigint} */
 const fromV5 = a => a.reduce((p, v) => p << wordLength | v)
 
-/**
- * Folds one block, or the final shorter leftover, into the state: `chunks`
- * yields blocks of exactly `chunkLength` bits except possibly the last, so
- * `remainder` only ever holds that last one.
- *
- * @type {Fold<Vec, State>}
- */
-const appendChunk = chunk => state =>
-    length(chunk) === chunkLength
-        ? { hash: compress(state.hash)(uint(chunk)), len: state.len + chunkLength, remainder: empty }
-        : { ...state, remainder: chunk }
-
-const foldChunks = fold(appendChunk)
-
-/**
- * Data appended to the state, a block folded as soon as one is whole. A
- * remainder already held is completed from the front of the new data as
- * one block's integer, never as a `Vec` of the two joined: a `Vec` holds
- * 128 KiB and `v` may be one, so the two joined would not fit, and the
- * rest of `v` is chunked on its own.
- *
- * @type {Fold<Vec, State>}
- */
-const append = v => state => {
-    const { remainder } = state
-    const rLen = length(remainder)
-    if (rLen === 0n) { return foldChunks(state)(chunks(v)) }
-    const need = chunkLength - rLen
-    if (length(v) < need) { return { ...state, remainder: concat(remainder)(v) } }
-    const block = uint(remainder) << need | front(need)(v)
-    return foldChunks({ hash: compress(state.hash)(block), len: state.len + chunkLength, remainder: empty })(chunks(removeFront(need)(v)))
-}
-
-/**
- * The most a last block holds and still has room for the `1` bit and the
- * length; a longer remainder pads into a block of its own first.
- */
-const lastChunkLength = chunkLength - 1n - lengthLength
-
-const result = vec(hashLength)
-
-/** @type {(state: State) => Vec} */
-const end = ({ hash, len, remainder }) => {
-    const rLen = length(remainder)
-    const u = front(chunkLength)(concat(remainder)(lastOne))
-    const [h, last] = rLen > lastChunkLength ? [compress(hash)(u), 0n] : [hash, u]
-    return result(fromV5(compress(h)(last | (len + rLen))))
-}
+const { append, end } = framing({
+    chunkLength,
+    lengthLength,
+    digestLength: hashLength,
+    compress,
+    digest: fromV5,
+})
 
 /**
  * SHA-1.
@@ -230,5 +180,5 @@ export const sha1 = {
         remainder: empty,
     },
     append,
-    end,
+    end: end(hashLength),
 }

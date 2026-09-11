@@ -8,7 +8,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Fold } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Base, Hash, Sha2, State, V16, V8 } from './types.ts'
+ * @import { Base, Framed, Framing, FramingInit, Hash, Sha2, State, V16, V8 } from './types.ts'
  */
 
 import { divUp8, mask } from '../../types/bigint/module.f.mjs'
@@ -22,7 +22,7 @@ import {
 } from '../../types/bit_vec/module.f.mjs'
 import { fold } from '../../types/list/module.f.mjs'
 
-const { concat, front } = msb
+const { concat, front, removeFront } = msb
 
 // `chunkList(msb)` depends on neither `chunkLength` nor `v`/`state` — shared
 // across every `base(...)` config (32-bit and 64-bit SHA-2 variants).
@@ -30,6 +30,67 @@ const chunkListMsb = chunkList(msb)
 
 /** @type {Vec} */
 const lastOne = vec(1n)(1n)
+
+/**
+ * Folds one block, or the final leftover shorter than a block, into the
+ * state: the chunks come `chunkLength` bits long except possibly the
+ * last, so `remainder` only ever holds that last one, and `empty`
+ * otherwise.
+ *
+ * @type {<H>(chunkLength: bigint, compress: (hash: H) => (block: bigint) => H) => Fold<Vec, Framed<H>>}
+ */
+const appendChunk = (chunkLength, compress) => chunk => state =>
+    length(chunk) === chunkLength
+        ? { hash: compress(state.hash)(uint(chunk)), len: state.len + chunkLength, remainder: empty }
+        : { ...state, remainder: chunk }
+
+/**
+ * The Merkle–Damgård framing every SHA shares, over a compression it is
+ * given: data folded into the state a block at a time, and the last
+ * block padded with a `1` bit, zeros, and the message length. SHA-2's
+ * `base` is built on it, and so is [`fjs/crypto/sha1`](../sha1/module.f.mjs),
+ * whose compression alone differs; a fix to the framing is made once.
+ *
+ * `append` never joins the remainder it holds to the new `Vec`, which may
+ * be as long as a `Vec` may be: with no remainder it chunks the new data
+ * as it is; with one, and the data too short to fill the block, it joins
+ * the two, which is short; otherwise it completes the block as one
+ * integer from the front of the data, compresses it, and chunks the rest
+ * on its own, so no `Vec` longer than the longer input is built.
+ *
+ * @type {<H>(init: FramingInit<H>) => Framing<H>}
+ */
+export const framing = ({ chunkLength, lengthLength, digestLength, compress, digest }) => {
+    const chunks = chunkListMsb(chunkLength)
+
+    const foldChunks = fold(appendChunk(chunkLength, compress))
+
+    // See https://www.rfc-editor.org/rfc/rfc6234#section-4
+    const lastChunkLength = chunkLength - 1n - lengthLength
+
+    return {
+        append: v => state => {
+            const { remainder } = state
+            const rLen = length(remainder)
+            if (rLen === 0n) { return foldChunks(state)(chunks(v)) }
+            const need = chunkLength - rLen
+            if (length(v) < need) { return { ...state, remainder: concat(remainder)(v) } }
+            const block = uint(remainder) << need | front(need)(v)
+            return foldChunks({ hash: compress(state.hash)(block), len: state.len + chunkLength, remainder: empty })(chunks(removeFront(need)(v)))
+        },
+        end: hashLength => {
+            const offset = digestLength - hashLength
+            const result = vec(hashLength)
+            return ({ hash, len, remainder }) => {
+                const rLen = length(remainder)
+                const u = front(chunkLength)(concat(remainder)(lastOne))
+                // last chunk overflow
+                const [h, last] = rLen > lastChunkLength ? [compress(hash)(u), 0n] : [hash, u]
+                return result(digest(compress(h)(last | (len + rLen))) >> offset)
+            }
+        },
+    }
+}
 
 /** @type {(init: {
  *   readonly logBitLen: bigint,
@@ -177,55 +238,20 @@ const base = ({ logBitLen, k, bs0, bs1, ss0, ss1 }) => {
 
     const chunkLength = bitLength << 4n // * 16
 
-    // `chunkListMsb(chunkLength)` depends on `chunkLength` but not `v`/`state`
-    // — computed once per `base(...)` config, not once per `append` call.
-    const chunkListChunkLength = chunkListMsb(chunkLength)
-
-    // Folds one block (or the final, shorter-than-`chunkLength` leftover) into
-    // `State`. `chunkList` yields chunks of exactly `chunkLength` bits except
-    // possibly the last one, which is why `remainder` only ever holds that
-    // last chunk (`empty` otherwise) — same shape as `State` itself, so no
-    // separate accumulator type is needed.
-    /** @type {Fold<Vec, State>} */
-    const appendChunk = chunk => state =>
-        length(chunk) === chunkLength
-            ? { hash: compress(state.hash)(uint(chunk)), len: state.len + chunkLength, remainder: empty }
-            : { ...state, remainder: chunk }
-
-    // `fold(appendChunk)` depends on neither `v` nor `state` — only the
-    // starting accumulator passed to it per `append` call does.
-    const foldChunks = fold(appendChunk)
-
     /** @type {(a: V8) => bigint} */
     const fromV8 = a => a.reduce((p, v) => (p << bitLength) | v)
 
-    // See https://www.rfc-editor.org/rfc/rfc6234#section-4
-    const lastChunkLength = chunkLength - 1n - (bitLength << 1n)
-
-    return {
-        bitLength,
+    // The length closing the last block is two words wide, and the digest
+    // the eight words spell is eight; see RFC 6234 section 4.
+    const { append, end } = framing({
         chunkLength,
+        lengthLength: bitLength << 1n,
+        digestLength: bitLength << 3n,
         compress,
-        fromV8,
-        append: v => state =>
-            foldChunks({ ...state, remainder: empty })(chunkListChunkLength(concat(state.remainder)(v))),
-        end: hashLength => {
-            const offset = (bitLength << 3n) - hashLength
-            const result = vec(hashLength)
-            return state => {
-                const { len, remainder } = state
-                let { hash } = state
-                const rLen = length(remainder)
-                let u = front(chunkLength)(concat(remainder)(lastOne))
-                // last chunk overflow
-                if (rLen > lastChunkLength) {
-                    hash = compress(hash)(u)
-                    u = 0n
-                }
-                return result(fromV8(compress(hash)(u | (len + rLen))) >> offset)
-            }
-        }
-    }
+        digest: fromV8,
+    })
+
+    return { bitLength, chunkLength, compress, fromV8, append, end }
 }
 
 /**
@@ -263,9 +289,10 @@ const sha2 = ({ append, end, chunkLength }, hash, hashLength) => ({
 /**
  * Computes a hash from a list of message chunks: any SHA-2 variant, or
  * SHA-1 from [`fjs/crypto/sha1`](../sha1/module.f.mjs), which has the
- * same shape over a state of its own.
+ * same shape over a state of its own, answering what the hash's `end`
+ * answers.
  *
- * @type {<S>(hash: Hash<S>) => (list: List<Vec>) => Vec}
+ * @type {<S, R>(hash: Hash<S, R>) => (list: List<Vec>) => R}
  */
 export const computeSync = ({ append, init, end }) => {
     const f = fold(append)(init)

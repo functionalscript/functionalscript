@@ -3,7 +3,7 @@
  */
 
 import { utf8 } from '../../text/module.f.mjs'
-import { repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { maxLength, repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
@@ -159,6 +159,21 @@ export const proof = {
     // engine/machine); relies on the test runner's own per-test timing to
     // catch a regression, same convention as `fjs/basen/base64/proof.f.mjs`
     // `encodeLargeVecIsSlow`.
+    // A remainder held, then a `Vec` as long as a `Vec` may be, for one
+    // variant of each word size: the framing never joins the two into one,
+    // which would be over the ceiling every host honours.
+    remainderThenFull: () => {
+        const a = vec(8n)(0x61n)
+        const full = repeat(maxLength >> 3n)(a)
+        /** @type {(sha2: Sha2) => void} */
+        const check = h => {
+            const compute = computeSync(h)
+            assertEq(uint(h.end(h.append(full)(h.append(a)(h.init)))), uint(compute([a, full])))
+            assertEq(uint(compute([a, full])), uint(compute([full, a])))
+        }
+        check(sha256)
+        check(sha512)
+    },
     appendLargeVecIsFast: () => {
         const big = repeat(100_000n)(vec(8n)(0xffn))
         let state = sha256.init
