@@ -106,7 +106,7 @@ data is always a *description*, never a value that happens to be a function:
 | Thunk | Means |
 |---|---|
 | `functionValue` | a function value, lowered to `() => undefined` (no operator here inspects which one) |
-| `ref(name)` | one of the `eq` `shared` values, so the *same* object reaches both sides |
+| `ref(name)` | one of `data.shared`'s values, so the *same* object reaches every `ref` to that name |
 | `throws` | the case must throw; valid only as `expected` |
 
 `expected` is compared with `Object.is`, so `NaN` matches `NaN` and `0` does not
