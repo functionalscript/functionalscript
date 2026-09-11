@@ -1844,8 +1844,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a hole, `delete` and a `length` assignment are mutation, and `concat`,
       `slice` and `map` propagate a hole without originating one, so no
       reader can return a sparse array. What the round leaves behind is a
-      finding wider than this corpus: **twenty-eight uses of `new Array(`
-      across nine `.f.mjs` files**, one of them in a shipped module, where
+      finding wider than this corpus: **twenty-nine `new Array(` expressions
+      on twenty-eight lines across nine `.f.mjs` files**, one of them in a
+      shipped module, where
       `fjs/types/object/structurally_same/README.md` already says in so many
       words that the construct is not in the language. That sweep has its own
       issue,
