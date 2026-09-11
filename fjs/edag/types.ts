@@ -121,7 +121,7 @@ export type OptionPropertyLambda =
 
 // The chain states nest, and saying so beats restating the four productions
 // the two option states share — which is what both of these used to do, and
-// what `module.f.mjs`'s `_regionProductions` now does once for the schema.
+// what `module.f.mjs`'s `regionProductions` now does once for the schema.
 //
 // These are here and not in `proof.f.mjs` because a `@typedef` inside a
 // function body is never checked — TypeScript does not evaluate the
@@ -134,8 +134,14 @@ type _OptionInsideOptionProperty = Assert<Equal<OptionLambda extends OptionPrope
 type _PropertyInsideOptionProperty = Assert<Equal<PropertyLambda extends OptionPropertyLambda ? true : false, true>>
 
 // ... and exactly which three productions the wider state adds, so an arm
-// gained or lost on either side is a type error rather than a silent change
-// of what the grammar admits.
+// gained on either side, or a containment broken, is a type error rather than
+// a silent change of what the grammar admits.
+//
+// An arm *removed* from the shared segment is not theirs to catch: it leaves
+// both unions at once, so `Exclude` is unchanged and all three stay green.
+// The pin for that is `_OptionLambda`, the schema against the type, which is
+// inert where it sits in `proof.f.mjs` — see
+// `../../todo/inert-type-level-proofs.md`.
 type _OptionPropertyAdds = Assert<Equal<
     Exclude<OptionPropertyLambda, OptionLambda>,
     | readonly['|?.()', Exp]

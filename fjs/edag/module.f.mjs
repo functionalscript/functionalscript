@@ -265,7 +265,7 @@ export const index = or(numberCast, string, number)
  *  readonly['|.', typeof index, typeof optionPropertyLambda],
  * ]}
  */
-const _regionProductions = () => ([
+const regionProductions = () => ([
     /** @type {const} */ (['|()', exp]),
     /** @type {const} */ (['|()', exp, optionLambda]),
     /** @type {const} */ (['|.', index]),
@@ -288,9 +288,9 @@ const _regionProductions = () => ([
  * shorter tuple with no continuation position at all — see "Ending a chain"
  * above.
  *
- * @type {() => readonly['or', ...ReturnType<typeof _regionProductions>]}
+ * @type {() => readonly['or', ...ReturnType<typeof regionProductions>]}
  */
-export const _optionLambda = () => (['or', ..._regionProductions()])
+export const _optionLambda = () => (['or', ...regionProductions()])
 
 /** @type {Phantom<typeof _optionLambda, OptionLambda>} */
 export const optionLambda = _optionLambda
@@ -315,14 +315,14 @@ export const optionLambda = _optionLambda
  * spells. It is also the one production with a single arity: closing the
  * region is terminal, so it never carries a continuation.
  *
- * @type {() => readonly['or', ...ReturnType<typeof _regionProductions>,
+ * @type {() => readonly['or', ...ReturnType<typeof regionProductions>,
  *  readonly['|?.()', typeof exp],
  *  readonly['|?.()', typeof exp, typeof optionLambda],
  *  readonly['|!()', typeof exp],
  * ]}
  */
 export const _optionPropertyLambda = () => (['or',
-    ..._regionProductions(),
+    ...regionProductions(),
     /** @type {const} */ (['|?.()', exp]),
     /** @type {const} */ (['|?.()', exp, optionLambda]),
     /** @type {const} */ (['|!()', exp]),

@@ -54,11 +54,13 @@ the rtti schema from drifting, and they would not notice if it did.
 Nothing is known to be *wrong* underneath: the claims were true when written.
 What is gone is any guarantee they still are — and the drift they would miss
 is not hypothetical in shape. Removing the `['|.', index]` production from
-`fjs/edag/module.f.mjs`'s `_optionLambda` **and** from its `@type` tuple
-together leaves `OptionLambda` declaring an arm the schema no longer accepts:
-exactly the divergence `Assert<Check<…>>` exists to catch, and `tsc -p .`
-exits 0. Consistent edits to a schema and its annotation are the likely way
-in, since an inconsistent one the annotation still catches.
+`fjs/edag/module.f.mjs`'s `regionProductions` **and** from its `@type` tuple
+together leaves `OptionLambda` and `OptionPropertyLambda` both declaring an
+arm the schema no longer accepts: exactly the divergence `Assert<Check<…>>`
+exists to catch, and `tsc -p .` exits 0. Consistent edits to a schema and its
+annotation are the likely way in, since an inconsistent one the annotation
+still catches. (Measured before that thunk existed, when the production sat
+in `_optionLambda` itself; the shape is the same either way.)
 
 ### Proposal
 
@@ -97,7 +99,7 @@ the `true as _Predicate` prohibition it matches.
 - [ ] Move the 24 `fjs/edag/proof.f.mjs` assertions into `fjs/edag/types.ts`,
       falsifying each once to prove the moved form fails. Three chain-state
       pins are already there, added beside the unions they are about when
-      `_regionProductions` landed: `OptionLambda` and `PropertyLambda` are
+      `regionProductions` landed: `OptionLambda` and `PropertyLambda` are
       inside `OptionPropertyLambda`, and the wider state adds exactly three
       arms. Each was falsified once and went red. They overlap
       `_OptionLambda` and `_OptionPropertyLambda` without replacing them —
