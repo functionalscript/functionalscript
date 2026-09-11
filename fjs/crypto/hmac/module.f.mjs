@@ -47,20 +47,32 @@ const iPad = vec8(0x36n)
  * parameterized over its state at all.
  *
  * Three things it does need of the hash, which RFC 2104 needs of one and
- * no type can say, since `Hash` spells each of them a bare `bigint`. Its
- * block is at least one bit, since a block of none is a block no message
- * is cut into and a block of fewer than none makes `repeat` shift a
- * negative count towards a zero it never reaches. Its block is a whole
- * number of bytes, since the padding is a byte repeated to the block's
- * length and a block of nine bits holds no whole number of them. And its
- * digest is no longer than its block, since a key longer than the block is
- * replaced by its digest and then padded *to* the block. Every hash here is
- * all three — the SHA-2 variants, and SHA-1 — and a hash that is not is a
- * caller's mistake rather than a message's, so it is refused here, once,
- * where the hash is given and not where each message arrives.
+ * no type can say, since `Hash` spells each of them a bare `bigint`.
  *
- * @throws On a hash whose block is not a positive whole number of bytes,
- * or whose digest is longer than its block.
+ * Its block is a whole number of bytes, since the padding is a byte
+ * repeated to the block's length and a block of nine bits holds no whole
+ * number of them.
+ *
+ * Its digest is at least one bit. A hash whose digest is none answers the
+ * same empty tag for every key and every message, which authenticates
+ * nothing while looking like a tag.
+ *
+ * And its digest is no longer than its block, since a key longer than the
+ * block is replaced by its digest and then padded *to* the block.
+ *
+ * The last two together say what a fourth condition would have: a digest
+ * that is positive and fits the block leaves no room for a block of none
+ * or of fewer than none, so the `repeat` that pads cannot be handed a
+ * negative count to shift towards a zero it never reaches. Stating it
+ * separately would have been a condition no proof could pin on its own.
+ *
+ * Every hash here is all three — the SHA-2 variants, and SHA-1 — and a hash
+ * that is not is a caller's mistake rather than a message's, so it is
+ * refused here, once, where the hash is given and not where each message
+ * arrives.
+ *
+ * @throws On a hash whose block is not a whole number of bytes, or whose
+ * digest is not positive, or whose digest is longer than its block.
  *
  * @template S
  * @param {Hash<S>} hashFunc - The hash function implementation to use.
@@ -69,8 +81,8 @@ const iPad = vec8(0x36n)
  */
 export const hmac = hashFunc => {
     const { blockLength, blockBytes, hashLength } = hashFunc
-    assert(0n < blockLength, ['block is not positive', blockLength])
     assert(blockBytes << 3n === blockLength, ['block is not whole bytes', blockLength])
+    assert(0n < hashLength, ['digest is not positive', hashLength])
     assert(hashLength <= blockLength, ['digest is longer than the block', hashLength, blockLength])
     const p = repeat(blockBytes)
     const ip = p(iPad)

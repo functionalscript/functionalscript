@@ -46,17 +46,21 @@ export const proof = {
         assertEq(uint(r), 0x60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54n)
     },
     // The shapes HMAC has no answer for, refused where the hash is given
-    // rather than where a message arrives: a block of no bits and a block
-    // of fewer than none, which no message is cut into and whose byte
-    // count `repeat` would shift towards a zero it never reaches; a block
-    // that is no whole number of bytes, which the padding is a byte
-    // repeated to; and a digest longer than the block, which a long key is
-    // replaced by and then padded to. No hash here is any of them, so each
-    // is hand-made.
+    // rather than where a message arrives. No hash here is any of them, so
+    // each is hand-made, and the fields each one leaves alone are the ones
+    // that keep the other conditions quiet, so each of the three is the
+    // only one that can refuse its own case.
+    //
+    // Below them, the two a block of none and a block of fewer than none
+    // make. Neither has an assertion of its own: a digest that is positive
+    // and fits the block already leaves no room for either, and it is that
+    // pair which refuses them. They are here because they are the shapes
+    // that would otherwise pad with the wrong length or not answer at all.
     throw: {
-        emptyBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 0n, blockBytes: 0n, hashLength: 0n })),
-        negativeBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: -8n, blockBytes: -1n, hashLength: -8n })),
-        oddBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 513n, blockBytes: 65n })),
-        wideDigest: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, hashLength: 1024n, hashBytes: 128n })),
+        oddBlock: () => hmac({ ...sha256, blockLength: 513n, blockBytes: 65n }),
+        noDigest: () => hmac({ ...sha256, hashLength: 0n, hashBytes: 0n }),
+        wideDigest: () => hmac({ ...sha256, hashLength: 1024n, hashBytes: 128n }),
+        emptyBlock: () => hmac({ ...sha256, blockLength: 0n, blockBytes: 0n, hashLength: 0n }),
+        negativeBlock: () => hmac({ ...sha256, blockLength: -8n, blockBytes: -1n, hashLength: -8n }),
     },
 }
