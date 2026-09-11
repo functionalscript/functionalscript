@@ -2152,7 +2152,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       characters, both ends of each of the three ranges the raw character
       is once `"` and `\` are cut out of it (U+0020, U+0021, U+0023,
       U+005B, U+005D and U+10FFFF), the nineteen whitespace-like scalars,
-      the four lone surrogates, the four escaped pairs and the seven
+      the four lone surrogates escaped and again raw, the four escaped
+      pairs and the seven
       adjacencies — each with its key twin, and both ends of every
       character class at every fixed position, the rule the hex rotations
       and the range ends follow. **The containers and the document**,
