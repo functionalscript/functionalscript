@@ -61,7 +61,9 @@ states admit, and it is the copy most likely to drift silently.
 
 ### Related
 
-- [property-lambda-subset.md](./property-lambda-subset.md) — the VM-side
-  copy of the same containment.
+- The `.` handler in [`../amnesia/module.f.mjs`](../amnesia/module.f.mjs)
+  (shipped) — the VM-side copy of the same containment, now gone: the handler
+  walks `optionPropertyLambda` directly, since every `PropertyLambda` arm is
+  one of its arms. This issue is the declaration-side half of that.
 - `../../../todo/edag-spec.md` — forbids duplicating EDAG definitions into
   `fjs/djs/`; this is the same principle applied inside `fjs/edag/` itself.
