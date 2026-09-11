@@ -12,7 +12,7 @@
  *   against `nanvm-lib`.
  *
  * Beside the data are the format's **constructors** (`functionValue`, `ref`,
- * `throws`), its **eliminators** (`isThrows`, `orders`, `opId`, `groupKey`,
+ * `throws`), its **eliminators** (`isThrows`, `orders`, `groupKey`,
  * `casesOf`, `arityOf`), and the **lowering** that turns a case into the
  * EDAG expression it denotes (`lambdaExp`, `valueExp`, `caseExp`, `lowerEq`). All
  * three exist so that neither consumer has to re-implement a rule of the
@@ -29,8 +29,8 @@
  *
  * @module
  *
- * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Property } from '../edag/types.ts'
- * @import { Case, Data, Eq, Expectation, FunctionValue, Group, Lowered, LoweredEq, OpId, Ref, SharedNode, Throws, Value } from './types.ts'
+ * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Op3, Op3Id, Property } from '../edag/types.ts'
+ * @import { Case, Data, Eq, Expectation, FunctionValue, Group, LoweredEq, Ref, SharedNode, Throws, Value } from './types.ts'
  *
  * @example
  *
@@ -41,13 +41,16 @@
  * ```
  */
 
-import { op1Id } from '../edag/module.f.mjs'
+import { op1Id, op3Id } from '../edag/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
 
 const { entries } = Object
 
 /** Membership in the unary vocabulary, from the schema rather than a copy. */
 const isOp1Id = validate(op1Id)
+
+/** The same, for the ternary vocabulary. */
+const isOp3Id = validate(op3Id)
 
 // Constructors — the three things a literal cannot express.
 
@@ -112,14 +115,6 @@ export const orders = g => c => isCommutative(g)
     : [[c.name, c.args]]
 
 /**
- * The operation tag both consumers dispatch on: the group's canonical EDAG
- * id, or the NaNVM-only name of a group that has none.
- *
- * @type {(g: Group) => OpId}
- */
-export const opId = g => 'op' in g ? g.op : g.nanvmOp
-
-/**
  * The name both consumers file a group under: the proof's test key, and the
  * key of the printer's Rust-name table.
  *
@@ -132,7 +127,7 @@ export const opId = g => 'op' in g ? g.op : g.nanvmOp
  *
  * @type {(g: Group) => string}
  */
-export const groupKey = g => 'arity' in g ? `${g.op}/${g.arity}` : opId(g)
+export const groupKey = g => 'arity' in g ? `${g.op}/${g.arity}` : g.op
 
 /**
  * A group's cases, read without first deciding which kind of group it is.
@@ -150,21 +145,17 @@ export const casesOf = g => g.cases
  * Which vocabulary the id belongs to is what fixes the count — the same rule
  * the group types carry — so this asks the schema rather than a second copy
  * of the vocabulary. An `Op12` group is the exception: its id is legal at
- * both arities, so the group carries the count itself and is read first. A
- * group with no canonical id is `ternary`, the corpus's one three-operand
- * group — the EDAG has no conditional-expression node to be unary or binary
- * *in*, so nothing there fixes its count the way it fixes every other
- * group's. It is the runtime half of what
- * `Group1`/`Group2`/`Group12`/`NonEdagGroup` say statically, for the
- * consumers that walk `data.groups` and so hold a `Group` whose arm is no
- * longer known.
+ * both arities, so the group carries the count itself and is read first. It
+ * is the runtime half of what `Group1`/`Group2`/`Group12`/`Group3` say
+ * statically, for the consumers that walk `data.groups` and so hold a
+ * `Group` whose arm is no longer known.
  *
  * @type {(g: Group) => 1 | 2 | 3}
  */
 export const arityOf = g => {
     if ('arity' in g) { return g.arity }
-    if (!('op' in g)) { return 3 }
-    return isOp1Id(g.op)[0] === 'ok' ? 1 : 2
+    if (isOp1Id(g.op)[0] === 'ok') { return 1 }
+    return isOp3Id(g.op)[0] === 'ok' ? 3 : 2
 }
 
 // Lowering — a case as the EDAG expression it denotes.
@@ -228,26 +219,28 @@ export const valueExp = constExp(name => { throw ['no shared value here', name] 
  * The expression a case denotes: the group's operation applied to its lowered
  * operands, so `mulCases[0]` is `['*', null, null]`.
  *
- * @type {(g: Group) => (args: readonly Value[]) => Lowered}
+ * @type {(g: Group) => (args: readonly Value[]) => Exp}
  */
 export const caseExp = g => args => {
     // The operand count comes from the group, not from the operands. A
     // `Case<N>` cannot carry the wrong number, but this function is exported
     // and its `args` are a plain array, so a caller can hand over a count the
     // operation does not take — refused here rather than answered with a node
-    // that looks like a `Lowered` and fails the `exp` schema.
+    // that fails the `exp` schema.
     const n = arityOf(g)
-    if (args.length !== n) { throw ['wrong operand count for', opId(g), args] }
-    if (!('op' in g)) { return ['escape'] }
-    const [a, b] = args.map(valueExp)
+    if (args.length !== n) { throw ['wrong operand count for', g.op, args] }
+    const [a, b, c] = args.map(valueExp)
     // `n` decides which vocabularies the tag can be in, and the check above
     // makes that agree with the operands. The casts are that step and nothing
-    // more: an `Op12Id` is legal at either count, so it is in both.
-    /** @type {Op1 | Op2 | Op12} */
+    // more: an `Op12Id` is legal at either of the first two counts, so it is
+    // in both.
+    /** @type {Op1 | Op2 | Op12 | Op3} */
     const e = n === 1
         ? [/** @type {Op1Id | Op12Id} */ (g.op), a]
-        : [/** @type {Op2Id | Op12Id} */ (g.op), a, b]
-    return ['exp', e]
+        : n === 2
+            ? [/** @type {Op2Id | Op12Id} */ (g.op), a, b]
+            : [/** @type {Op3Id} */ (g.op), a, b, c]
+    return e
 }
 
 /**
@@ -950,11 +943,14 @@ const notCases = [
  * where that is these operators' defining behaviour — but every operand in
  * this corpus is a `Value` (see `types.ts`), which admits no expression
  * whose evaluation is observable (no side effect, no throw:
- * `Throws` is legal only as an `expected`, never an operand). Both consumers
- * build every argument before dispatch — `run` in `proof.f.mjs`, `result` in
- * `rust/module.f.mjs` — so there is nothing an unevaluated operand could do
- * differently from an evaluated one for this corpus to catch. What these
- * cases prove is the other half: *which* operand comes back.
+ * `Throws` is legal only as an `expected`, never an operand). On the
+ * JavaScript side the node runs through `amnesia`, whose `&&`/`||`/`??`/`?:`
+ * are lazy — that laziness is pinned in `fjs/edag/amnesia/proof.f.mjs`, with
+ * an operand that throws when established — but a `Value` cannot observe it,
+ * and the Rust harness receives every operand already built, so there is
+ * nothing an unevaluated operand could do differently from an evaluated one
+ * for this corpus to catch. What these cases prove is the other half:
+ * *which* operand comes back.
  *
  * @type {readonly Case<2>[]}
  */
@@ -1025,7 +1021,7 @@ const nullishCases = [
 ]
 
 /**
- * `?:`, the corpus's one ternary group (see `NonEdagGroup` in `types.ts`):
+ * `?:`, the corpus's one ternary group:
  * `args` is `[condition, consequent, alternate]`, and `expected` is whichever
  * branch `ToBoolean(condition)` selects — the same coercion `!`/`&&`/`||`
  * use. Like those, this selects an operand rather than coercing it, so a
@@ -1546,7 +1542,7 @@ export const data = {
         { op: '&&', cases: andCases },
         { op: '||', cases: orCases },
         { op: '??', cases: nullishCases },
-        { nanvmOp: 'ternary', cases: ternaryCases },
+        { op: '?:', cases: ternaryCases },
         { op: 'typeof', cases: typeofCases },
         { op: 'String', cases: stringCoercionCases },
         { op: 'own', cases: ownCases },

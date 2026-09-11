@@ -45,7 +45,8 @@ NaNVM-specific vocabulary did not:
 
 - **Arity is not an annotation.** An operation's operand count is which
   vocabulary its id belongs to: an `Op1Id` group carries `Case<1>`, an `Op2Id`
-  group `Case<2>`. A unary operation given two operands is a type error.
+  group `Case<2>`, an `Op3Id` group `Case<3>`. A unary operation given two
+  operands is a type error.
   `arityOf` is the same rule at runtime, asked of the schema rather than of a
   second copy of the vocabulary — a consumer walking `data.groups` holds a
   `Group` whose arm is no longer known, and that is what it dispatches on.
@@ -61,11 +62,13 @@ NaNVM-specific vocabulary did not:
   validates every derived expression against the schema, so an operand shape or
   validation rule changing under the corpus fails there.
 
-One group is the visible exception. `ternary` has no canonical id yet — the
-EDAG has no conditional node — so it is a `NonEdagGroup`, spelled `nanvmOp`
-rather than `op` precisely so a NaNVM-only name can never mix into a canonical
-id union. It moves onto the EDAG path through
-[ternary-conditional-node](../edag/todo/ternary-conditional-node.md).
+There is no exception: every group's operation is an EDAG id, and every case
+lowers to an expression that both consumers read. What the corpus's cases
+cannot prove is that `&&`/`||`/`??`/`?:` leave their unselected operand
+unestablished — a value cannot observe its own evaluation, and the Rust
+harness receives every operand built — so that half of those operators is
+pinned by [amnesia's proof](../edag/amnesia/proof.f.mjs) alone, with an
+operand that throws when established.
 
 A `functionValue` operand is not an exception. It lowers to `() => undefined`,
 the smallest closure — `['=>', ['[]', []], ['undefined']]` — which `amnesia`

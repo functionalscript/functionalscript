@@ -43,7 +43,6 @@ import {
     groupKey,
     isThrows,
     lowerEq,
-    opId,
     orders,
     valueExp,
 } from '../module.f.mjs'
@@ -82,6 +81,7 @@ export const path = `${directory}/generated.rs`
  * @type {{ readonly [k in string]?: string }}
  */
 export const rustName = {
+    '?:': 'conditional',
     '+/1': 'unary_plus',
     '-/1': 'neg',
     '~': 'bitwise_not',
@@ -106,7 +106,6 @@ export const rustName = {
     '||': 'logical_or',
     '??': 'nullish_coalescing',
     own: 'own_property',
-    ternary: 'conditional',
     typeof: 'typeof_',
     String: 'string_coercion',
 }
@@ -183,7 +182,7 @@ const op2Rust = {
  * @type {{ readonly [k in OpId]?: (a: string, b: string, c: string) => string }}
  */
 const op3Rust = {
-    ternary: (a, b, c) => `Any::conditional(${a}, ${b}, ${c})`,
+    '?:': (a, b, c) => `Any::conditional(${a}, ${b}, ${c})`,
 }
 
 /**
@@ -266,7 +265,7 @@ const expExpr = shared => {
         if (!(e instanceof Array)) { return primitiveExpr(e) }
         const bound = shared.find(([n]) => n === e)
         if (bound !== undefined) { return bound[1] }
-        const [id, a, b] = /** @type {readonly any[]} */ (e)
+        const [id, a, b, c] = /** @type {readonly any[]} */ (e)
         if (id === 'undefined') { return 'Nullish::Undefined.to_any()' }
         if (id === '[]') {
             return a.length === 0
@@ -288,7 +287,9 @@ const expExpr = shared => {
             if (!isSmallestLambda(a, b)) { throw ['no Rust for', e] }
             return 'function_any()'
         }
-        return e.length === 2 ? op1(id)(nested(a)) : op2(id)(nested(a), nested(b))
+        return e.length === 2 ? op1(id)(nested(a))
+            : e.length === 3 ? op2(id)(nested(a), nested(b))
+            : op3(id)(nested(a), nested(b), nested(c))
     }
     /** An operand, parenthesized where its rendering would otherwise re-associate. */
     /** @type {(e: Exp) => string} */
@@ -332,15 +333,6 @@ const isSmallestLambda = (frame, body) =>
 export const nodeExpr = expExpr([])
 
 /**
- * A Rust expression for a value, as the printer meets it in the data: its
- * lowering, printed — so this printer and the JavaScript proof read one
- * derivation and not two.
- *
- * @type {(v: Value) => string}
- */
-const valueExpr = v => nodeExpr(valueExp(v))
-
-/**
  * Comments out a statement `nanvm-lib` cannot pass yet, keeping the case
  * visible in the generated file as the work still to do.
  *
@@ -362,18 +354,13 @@ const assertion = expected => name => result => isThrows(expected)
     : `check::<A>(${stringLiteral(name)}, ${result}, ${nodeExpr(valueExp(expected))});`
 
 /**
- * The statement result for one argument order: the case's expression printed,
- * or — for the one group the corpus cannot lower, `ternary` — the operation
- * applied to printed values.
+ * The statement result for one argument order: the case's expression
+ * printed — the same expression the JavaScript proof evaluates, so the two
+ * consumers read one derivation and not two.
  *
  * @type {(g: Group) => (args: readonly Value[]) => string}
  */
-const result = g => args => {
-    const lowered = caseExp(g)(args)
-    if (lowered[0] === 'exp') { return nodeExpr(lowered[1]) }
-    const [a, b, c] = args.map(valueExpr)
-    return op3(opId(g))(a, b, c)
-}
+const result = g => args => nodeExpr(caseExp(g)(args))
 
 /** @type {(g: Group) => readonly string[]} */
 const groupFn = g => [

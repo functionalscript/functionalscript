@@ -10,7 +10,7 @@
  * @import { Context } from './types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
- * @import { Array as ExpArray, Call, Dot, Index, Op1, Op12, Op2 } from '../types.ts'
+ * @import { Array as ExpArray, Call, Dot, Index, Op1, Op12, Op2, Op3 } from '../types.ts'
  * @import { Get } from './types.ts'
  */
 
@@ -95,6 +95,7 @@ export const proof = {
         /** @typedef {Assert<Equal<Get<'!'>, Op1>>} _NotIsOp1 */
         /** @typedef {Assert<Equal<Get<'+'>, Op12>>} _PlusIsOp12 */
         /** @typedef {Assert<Equal<Get<'-'>, Op12>>} _MinusIsOp12 */
+        /** @typedef {Assert<Equal<Get<'?:'>, Op3>>} _ConditionalIsOp3 */
         /** @typedef {Assert<Equal<Get<'[]'>, ExpArray>>} _BracketsIsArray */
         /** @typedef {Assert<Equal<Get<'()'>, Call>>} _CallIsCall */
         /** @typedef {Assert<Equal<Get<'.'>, Dot>>} _DotIsDot */
@@ -206,9 +207,10 @@ export const proof = {
         eq(['own', ['{}', [[':', '1', 42]]], '1'], 42)
         assert(typeof ev(['.', ['{}', []], 'toString']) === 'function')
     },
-    // `o2lazy` — the right operand is a thunk, so these three short-circuit.
-    // Each case that claims "not evaluated" uses `boom`, which throws if it
-    // is; `throw.forced` calls the same nodes with the other left operand.
+    // `o2lazy` — the right operand is a thunk, so these three short-circuit
+    // — and `?:`, which establishes its condition and then one arm. Each
+    // case that claims "not evaluated" uses `boom`, which throws if it is;
+    // `throw.forced` calls the same nodes with the other left operand.
     lazy: () => {
         eq(['&&', false, boom], false)
         eq(['&&', true, 7], 7)
@@ -216,6 +218,12 @@ export const proof = {
         eq(['||', false, 7], 7)
         eq(['??', 0, boom], 0)
         eq(['??', null, 7], 7)
+        eq(['?:', true, 7, boom], 7)
+        eq(['?:', false, boom, 7], 7)
+        // `ToBoolean` on the condition, as `&&`/`||` coerce: `0` is the
+        // alternate, an object the consequent.
+        eq(['?:', 0, boom, 8], 8)
+        eq(['?:', ['[]', []], 9, boom], 9)
     },
     // `,` — every operand evaluated in order, the last one is the value.
     comma: () => {
@@ -604,6 +612,8 @@ export const proof = {
         forcedAnd: () => ev(['&&', true, boom]),
         forcedOr: () => ev(['||', false, boom]),
         forcedCoalesce: () => ev(['??', null, boom]),
+        forcedConsequent: () => ev(['?:', true, boom, 7]),
+        forcedAlternate: () => ev(['?:', false, 7, boom]),
         // ... and `o2` forces it with no short-circuit to begin with.
         forcedEager: () => ev(['+', 1, boom]),
     },
