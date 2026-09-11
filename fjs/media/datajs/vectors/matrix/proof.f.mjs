@@ -49,6 +49,9 @@ const refuses = (c, ...expected) => {
     for (const e of expected) { assert(r.includes(e), `${e}\nnot in\n${r}`) }
 }
 
+/** The `landed` corpus with one serializer reason carrying the given scope, whatever shape it is. @type {(scope: unknown) => Corpus} */
+const withScope = scope => ({ ...landed, notApplicable: [{ scope: /** @type {Scope} */ (scope), role: 'serializer', because: 'a scope nobody defined' }] })
+
 /** The `landed` corpus with one reason for the class the serializer has no vector for. @type {(because: string) => Corpus} */
 const reason = because => ({ ...landed, notApplicable: [{ scope: /** @type {const} */ (['class', 'y']), role: 'serializer', because }] })
 
@@ -363,22 +366,20 @@ export const proof = {
     // a `set`, and a longer tuple, which nothing reads at all — each printing a
     // plausible cell for a record nobody wrote.
     malformed: () => {
-        /** @type {(scope: unknown) => Corpus} */
-        const with_ = scope => ({ ...landed, notApplicable: [{ scope: /** @type {Scope} */ (scope), role: 'serializer', because: 'a scope nobody defined' }] })
-        refuses(with_(['sett', 'accept']), 'sett accept in serializer: no such scope, so it cannot be told from a set')
+        refuses(withScope(['sett', 'accept']), 'sett accept in serializer: no such scope, so it cannot be told from a set')
         // an extra element is read by nothing, so the reason would answer as
         // though the writer had not written it
-        refuses(with_(['class', 'y', 'whatever']), 'a reason in serializer: ["class", "y", "whatever"] is not a tag and a name')
-        refuses(with_(['class']), 'a reason in serializer: ["class"] is not a tag and a name')
+        refuses(withScope(['class', 'y', 'whatever']), 'a reason in serializer: ["class", "y", "whatever"] is not a tag and a name')
+        refuses(withScope(['class']), 'a reason in serializer: ["class"] is not a tag and a name')
         // and the shape is established before anything takes it apart, since a
         // scope that is not a pair of strings would otherwise reach a
         // destructuring or a template and throw where a `Result` is owed
-        refuses(with_(null), 'a reason in serializer: null is not a scope, which is a tag and a name')
-        refuses(with_(['class', 1]), 'a reason in serializer: ["class", <number>] is not a tag and a name, both strings')
+        refuses(withScope(null), 'a reason in serializer: null is not a scope, which is a tag and a name')
+        refuses(withScope(['class', 1]), 'a reason in serializer: ["class", <number>] is not a tag and a name, both strings')
         // and a value is named by its kind rather than coerced: `{"toString": 1}`
         // is an ordinary DataJS object, and `String` on it calls a hook that is
         // not a function and throws where a `Result` is owed
-        refuses(with_({ toString: 1 }), 'a reason in serializer: <object> is not a scope, which is a tag and a name')
+        refuses(withScope({ toString: 1 }), 'a reason in serializer: <object> is not a scope, which is a tag and a name')
     },
     // A corpus with no roles has no columns, so a row has nothing to say and
     // the header would carry an empty cell over a delimiter of one — not a
