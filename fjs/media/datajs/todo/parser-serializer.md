@@ -10,11 +10,15 @@ value as [`fjs/ebnf/ll1`](../../../ebnf/ll1/README.md) parses it, and
 resolves the names over the statements in document order; `parse(text)`
 returns `Result<Unknown, string>`. §3's open question is settled: the token-driven
 container machine is retired for this format, not widened, and the seam
-work that route owed is gone with it. What remains is the **byte path**
-(`tryParseBytes`, §Layout), the **serializer** (§4) and **normalized form**
-(§5), and the reader's proofs over the corpus once
+work that route owed is gone with it. What remains here is the **byte path**
+(`tryParseBytes`, §Layout) and the reader's proofs over the corpus once
 [stage 1b](../../../../spec/datajs/todo/conformance-vectors.md) lands — the
 reader's own proof is derived from the specification by hand today.
+
+**The writer is [`serializer.md`](./serializer.md).** It was split out of this
+file, which keeps what both roles share — the value domain, the module's public
+API, and the grammar decision — and carries the reader's remaining work. Stage 4
+is the two files together.
 
 ### Problem
 
@@ -51,14 +55,15 @@ fjs/media/datajs/
     module.f.mjs      the public API below
     proof.f.mjs
     parser/           module.f.mjs, proof.f.mjs, types.ts — landed; `parse`, over text
-    serializer/       module.f.mjs, proof.f.mjs
+    serializer/       module.f.mjs, proof.f.mjs — [`serializer.md`](./serializer.md)
 ```
 
 There is no `tokenizer/`: the reader is the grammar (§3).
 
 **Every entry point is fallible, and the names say so.** A caller may
 legitimately hand a reader invalid text or a serializer a value outside the
-data model, so all of them are `try*` returning `Result` — see §4:
+data model, so all of them are `try*` returning `Result` — the writer's three
+are specified in [`serializer.md`](./serializer.md):
 
 ```ts
 export const tryParseBytes: (bytes: List<U8>) => Result<Unknown, string>
@@ -93,24 +98,10 @@ bytes because "a decoder satisfies the parser on [it] by stripping `EF BB BF`
 before the parser ever runs", so an implementation that strips passes every
 code-unit vector while accepting a document the spec refuses.
 
-**There is no `sort` seam, and that is a difference from JSON rather than an
-omission.** `fjs/media/json` takes a `_MapEntries` so a caller can canonicalize;
-DataJS cannot offer that, because **observable key order is part of the value**.
-The spec fixes it — array-index keys numerically first, then the rest in
-first-occurrence order — and lists what a serializer *is* free to choose:
-whitespace and layout, the names of the consts, and whether a singly-reachable
-value is hoisted. Key order is not on that list. A caller-supplied mapping that
-reordered non-index keys would emit a valid document denoting a **different
-object**, and return `ok` while doing it — the silently-wrong document the spec
-exists to prevent. The serializer enumerates in the mandated order and takes no
-say in it.
-
-`trySerialize` yields chunks and `tryStringify` is its `concat`, mirroring
-`fjs/media/json`'s pair minus that parameter. `tryNormalize` stays separate
-because normalized form is an optional conformance role a caller asks for. The
-input is `unknown` rather than `Unknown` precisely because rejecting what is
-outside the model is the serializer's job — a signature taking `Unknown` would
-be asserting what §4 has to check.
+Why the writer's three are shaped that way — chunks and their `concat`, a
+separate entry point for normalized form, `unknown` in and no `sort` seam,
+because observable key order is part of the value and not a caller's to choose —
+is [`serializer.md`](./serializer.md#layout-and-api).
 
 #### 1. Value domain, and the one type-level trap
 
@@ -136,8 +127,9 @@ which are proof obligations rather than notes:
 
 - the serializer must not read an object through `definedEntries`, which drops
   a member whose value is `undefined` before any other seam runs. It must not
-  read it through `entries` either — see §4: `Object.entries` invokes a getter
-  while collecting its value, which is the effect §4 rejects. **Own property
+  read it through `entries` either — see
+  [`serializer.md`](./serializer.md) §1: `Object.entries` invokes a getter
+  while collecting its value, which is the effect that file rejects. **Own property
   descriptors settle both at once**: a descriptor exists if and only if the
   property does, so present-and-`undefined` is distinguishable from absent
   without reading any value, and an accessor is visible as an accessor before
@@ -216,117 +208,11 @@ What is not landed is the byte path of §Layout — `tryParseBytes`, refusing
 invalid UTF-8 and a leading BOM before the reader sees a unit — which the
 corpus's byte-form vectors require.
 
-#### 4. Serializer
+#### 4. Serializer, and 5. normalized form
 
-Two passes, and the first is where the errors are.
-
-**Pass 1 — validate and count, in that order, in one traversal.** This pass is
-the *first* thing that touches the caller's graph, so it is where the
-descriptor-first rule of §4 has to hold — not in pass 2. Counting occurrences
-means following outgoing edges, and following an edge on an ordinary enumerator
-reads the property, which invokes an enumerable getter below the root before
-anything has had the chance to refuse it. So each node is validated from its own
-property descriptors as it is reached, and only the surviving data descriptors'
-values are followed. Validation and traversal are one walk because the traversal
-is what makes validation necessary.
-
-**Container kind is checked before descriptors, not by them.** Descriptor
-validation cannot see the difference between `{}` and a `Date`: measured, `new
-Date()`, `new Map()`, `new Set()` and `new Number(1)` each have **zero** own
-property descriptors and zero own symbols, exactly like `{}`, and each
-classifies as an object container. So descriptor-only validation finds nothing
-to refuse and pass 2 would serialize any of them as `{}` — a document denoting
-something else, silently, which is the case the spec rejects as "a leaf outside
-the leaf set — a function, a symbol, a `Date`, or any other non-plain object".
-
-The check is therefore positive and closed rather than a list of built-ins to
-exclude: a value that is `typeof 'object'` and not `null` and not an array must
-be a **plain object**, meaning its prototype is `Object.prototype` or `null` —
-the spec permits a null-prototype object explicitly and says it serializes as
-its data. Reading a prototype to classify is not replacing one, so this stays
-inside the rule in [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1.
-
-Then count **incoming reference occurrences** per object/array node, by
-reference identity.
-Primitives are never counted: the spec declines to hoist them, and counting
-them by value would raise the `0`/`-0` and `NaN` questions the `Object.is`
-guarantee forbids answering. A node with more than one occurrence is hoisted.
-
-The spec's own worked example is the test: for `root=[p,p]` with `p=[c]`, `p`
-has two occurrences and is hoisted while `c` has exactly one and stays inline
-— *even though two paths reach it*. An implementation counting root-to-node
-paths gets `c` wrong and passes the simple cases.
-
-This pass is also **where cycle rejection lives**. It has to mark nodes in
-progress regardless, or it does not terminate; the spec requires rejecting a
-cycle rather than inventing a spelling, so the marking and the rejection are
-one mechanism.
-
-Emission order is **post-order of one depth-first traversal** — arrays in
-element order, objects in observable key order, descending into a shared node
-only the first time it is met — with names `$0`, `$1`, … in emission order.
-Post-order is what puts a node's dependencies before it, which declare-before-use
-requires. The spec's example: for `root = [parent, parent, child]` with `child`
-inside `parent`, `child` is `$0` and `parent` is `$1`.
-
-**Pass 2 — the walk.** The shared walker of
-[157 §2](../../../djs/todo/157-json-djs-shared-value-machine.md) with its four
-seams: a leaf seam, a **pre-recursion** ref-lookup seam (it must run *before*
-container dispatch, or a shared array short-circuits to nothing and the
-reference is lost), a key seam, and the entry-enumeration seam of §1 above.
-Stage 4 is the consumer 157 §2 was waiting for.
-
-**Rejection is a `try*`, not a panic.** A serializer's input is caller-supplied
-and may legitimately be outside the data model, which is
-[`REVIEW.md`](../../../../doc/REVIEW.md)'s first case — refused as a `try*`, never
-asserted on. Which refusal type is a choice to make rather than blur: the
-convention names `Nullable<T>`, while `fjs/media/json/parser` next door returns
-`Result<_, string>` and carries a message. Prefer `Result` here, since the
-rejections below are distinguishable and a caller handed a cyclic value is
-owed better than `null`. Rejected: a leaf outside the leaf set, a sparse hole, a symbol
-key, an accessor property, a non-enumerable property, an array with an own
-property besides its elements and `length`, and a cycle.
-
-**Order matters: validate from descriptors, then read — and the *first*
-traversal is the one that has to do it.** Rejecting an accessor because reading
-it is an effect is worthless if the check itself reads it, and the obvious
-enumerator does exactly that — measured, `Object.entries` on an object with an
-enumerable getter invokes the getter once and hands back its value. So each node
-is read as own property descriptors plus own symbol keys; symbol keys,
-accessors and non-enumerable properties are refused from the descriptors alone;
-and only the surviving data descriptors' `value`s are read. Nothing outside the
-model is ever read.
-
-That belongs to **pass 1**, because pass 1 is what first follows an edge — a
-rule stated only for the walk would leave an enumerable getter below the root
-invoked during counting. Pass 2 then re-reads a graph pass 1 has already
-cleared. The same mechanism answers §1's present-vs-absent problem, since a
-descriptor exists exactly when the property does, so one walk serves all three.
-
-Two further lines are easy to cross and the spec draws both explicitly:
-
-- **Property attributes are not grounds for rejection.** `writable`,
-  `configurable`, and whether the object is frozen or sealed are outside the
-  data model, not errors. Rejecting them would make `Object.freeze`d values
-  unserializable — including the output of a reader that freezes what it
-  returns, which the spec permits. Only **enumerability and accessors** are
-  rejected, because they change which values appear at all.
-- **A hole is not an `undefined` element.** `undefined` is a leaf here, so
-  `0 in a` decides it and `a[0] === undefined` does not.
-
-#### 5. Normalized form
-
-A separate entry point, since it is optional and a caller asks for it.
-
-| Part | This host |
-|---|---|
-| numbers | `` `${value}` `` — on a JavaScript host that *is* ECMAScript `ToString`, which the spec restates only for hosts that disagree — with `-0` written `-0`, and `NaN`/`Infinity`/`-Infinity` as words. `fjs/media/json/extended` already has this shape, except that it writes `null` for non-finite. |
-| bigints | `` `${value}n` `` — `BigInt`'s decimal form plus the suffix; no exponent at any magnitude. |
-| strings | `stringSerialize` from [`fjs/media/json/serializer`](../../json/serializer/module.f.mjs), **unchanged** — it already reproduces `QuoteJSONString` exactly, lone surrogates included. |
-| key order | the host's own. JavaScript already orders array-index keys numerically ahead of the rest; the spec restates the rule for languages that do not. |
-
-Layout is one line, a single space after `const`, `export` and `default` and
-nowhere else, no indentation, no trailing newline.
+Both are [`serializer.md`](./serializer.md), which holds the two passes, the
+out-of-model rejections and their descriptor-first order, the hoisting and
+naming rules, and normalized form's table. Nothing of either is restated here.
 
 #### 6. Proofs
 
@@ -336,7 +222,9 @@ which is why the stage plan puts 1b before this issue: landing stage 4 first
 means writing its proofs twice.
 
 Proofs are **per role** — reader, serializer, normalized serializer — because
-the spec judges them independently and this module provides all three.
+the spec judges them independently and this module provides all three. The
+reader's two sets, `accept` and `reject`, are this file's; the writer's four are
+[`serializer.md`](./serializer.md) §4.
 
 ### Tasks
 
@@ -351,22 +239,19 @@ the spec judges them independently and this module provides all three.
 - [ ] Reader proofs from the corpus once stage 1b lands, and the byte path —
       `tryParseBytes` — with the BOM and invalid-UTF-8 vectors the corpus
       assigns to stage 4.
-- [ ] `module.f.mjs`, the public API of §Layout, once there is more than the
-      reader to hold.
-- [ ] Pass 1: container-kind check then descriptor-first validation as each
-      node is reached, occurrence counting by identity, cycle rejection,
-      post-order naming — one traversal, since it is the first thing to touch
-      the caller's graph. Prove the empty non-plain built-ins (`Date`, `Map`,
-      `Set`, boxed number), which no descriptor check can catch.
-- [ ] Serializer over the shared walker of 157 §2.
-- [ ] Out-of-model rejection as a `try*`, descriptor-first so no accessor is
-      invoked by the check that refuses it, with the attribute/enumerability
-      line and the hole-vs-`undefined` distinction proved.
-- [ ] Normalized form, and its byte-exact proofs.
-- [ ] Delete this file in the PR that finishes it.
+- [ ] The writer, in [`serializer.md`](./serializer.md) — including
+      `module.f.mjs`, the public API of §Layout, which waits for something
+      beyond the reader to hold.
+- [ ] Delete this file in the PR that finishes the reader — but not before the
+      shared material [`serializer.md`](./serializer.md) reads from it, the
+      public API of §Layout and the value domain of §1, has moved into that
+      file or into [the module's README](../README.md). Deleting it first
+      would leave the writer's issue pointing at nothing and the API contract
+      with no owner. Stage 4 is done when both files go.
 
 ### Related
 
+- [`serializer.md`](./serializer.md) — the writer, split out of this file. Stage 4 is the two together.
 - [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md) — the coordinating plan; this is its stage 4.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. This issue implements it.
 - [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, the proof source. Land it first.

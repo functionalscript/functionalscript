@@ -6,15 +6,16 @@ A type-safe schema system for describing TypeScript types at runtime and validat
 
 ## Why `fjs/rtti/` rather than `fjs/types/rtti/`
 
-`rtti` used to live under `fjs/types/`, but it is a peer of `djs` — `djs` the
-data model, `rtti` the types described over it — not a member of `types/`.
+`rtti` used to live under `fjs/types/`, but it is a peer of the modules that
+hold the data model — [DataJS](../media/datajs/README.md) the model, `rtti`
+the types described over it — not a member of `types/`.
 Nothing under `types/` imports it; every consumer (`media`, `protocol`, `mcp`,
 `edag`, `ci`, `emergent_testing`) is a peer of `types/`, the same relationship
 every outside consumer of `types/list`, `types/result` or `types/object` has.
 It does depend on several `types/*` modules (`object`, `result`, `list`,
 `array`, `ts`, `phantom`), but that is consumption, not membership — the rest
 of `fjs/` depends on those the same way. Its own outward dependencies
-(`fjs/asserts`, `fjs/js/keywords`, `fjs/djs`) point sideways to other
+(`fjs/asserts`, `fjs/js/keywords`, `fjs/media/datajs`) point sideways to other
 top-level directories rather than down to a foundation `types/` sits under,
 unlike the `types/*` modules that do reach outside (`bigint`, `bit_vec`,
 `number`, `prime_field`, `string` → `fjs/common/monoid`; `uint8array` →
@@ -79,7 +80,7 @@ against a `bigint`, which no reader over an already-materialized value can do.
 
 ## What the readers assume of a value
 
-The readers are written for **DJS values**: plain arrays and objects of
+The readers are written for **DataJS values**: plain arrays and objects of
 primitives, the values FunctionalScript itself can build. Reading a member of
 one of those has no effect, and every guarantee the readers make rests on that.
 
@@ -98,10 +99,10 @@ values the language cannot produce cost speed on every value it can — the
 prototype-chain walk for inherited indices and the presence re-check together
 accounted for roughly 40% of validation time on a graph of small containers.
 
-What holds for any DJS value: a reader returns a `Result` rather than throwing,
+What holds for any DataJS value: a reader returns a `Result` rather than throwing,
 the three readers agree, and `validate` hands back the value it was given
 rather than a reconstruction. A caller holding genuinely untrusted JavaScript
-should convert it to DJS first — or parse from text, where
+should convert it to DataJS first — or parse from text, where
 [`../media/json/todo/rtti-parse.md`](../media/json/todo/rtti-parse.md) reads
 against a schema in one pass with no intermediate value at all.
 
@@ -305,7 +306,7 @@ unary schemas (`array`, `record`) return `Info1` (a tag + inner type tuple).
 | `number`    | `['number']`         | any `number`                     |
 | `string`    | `['string']`         | any `string`                     |
 | `bigint`    | `['bigint']`         | any `bigint`                     |
-| `unknown`   | `['unknown']`        | any DJS value                    |
+| `unknown`   | `['unknown']`        | any DataJS value                 |
 | `option`    | `['option']`         | nothing — **absence**: `or(option, t)` is a member that may be left out |
 | `array(t)`  | `['array', t]`       | `readonly Ts<t>[]`               |
 | `record(t)` | `['record', t]`      | `{ readonly[K: string]: Ts<t> }` |

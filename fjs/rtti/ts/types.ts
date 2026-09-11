@@ -118,8 +118,10 @@ type _IsAbsentOnly1<T> =
 
 /**
  * The set of primitive literal types representable as rtti `Const` values.
- * Defined here rather than imported from `djs` to keep rtti free of djs dependencies
- * (djs depends on rtti, not the other way around — see [i665-rtti-defines-types]).
+ * Defined here rather than imported from the interchange format's own types
+ * (`fjs/media/datajs`) to keep rtti free of that dependency — the format's
+ * modules depend on rtti, not the other way around; see
+ * [i665-rtti-defines-types].
  */
 export type Primitive = null | boolean | number | string | undefined | bigint
 
@@ -131,13 +133,18 @@ type _Assert0 = Assert<Equal<Const, ConstObject | Primitive>>
  *
  * This is the single source of truth for the rtti value domain: every rtti
  * module (`common`, `validate`, `parse`, …) imports `Unknown`/`Primitive`
- * from here, not from `djs`, keeping `rtti` free of a `djs` dependency (djs
- * depends on rtti, not the other way around).
+ * from here, not from the interchange format's types, keeping `rtti` free of
+ * that dependency (the format's modules depend on rtti, not the other way
+ * around).
  *
- * The relationship to djs is a subset one — `djs.Unknown ⊆ rtti.Unknown` — not
- * equality: the two happen to coincide today, but `rtti.Unknown` may widen to
- * admit values djs cannot represent (e.g. functions) without djs following.
- * Do not re-point rtti imports at `djs.Unknown` on the assumption they match.
+ * The format those types belong to is
+ * [DataJS](../../media/datajs/types.ts) — `fjs/djs` is the compiler's wider
+ * subset, and its value model is the same one spelled a second time. The
+ * relationship is a subset one — `DataJS.Unknown ⊆ rtti.Unknown` — not
+ * equality: the two coincide today, which `validate` and `parse` pin in their
+ * proofs, but `rtti.Unknown` may widen to admit values DataJS cannot
+ * represent (e.g. functions) without DataJS following. Do not re-point rtti
+ * imports at `DataJS.Unknown` on the assumption they match.
  */
 export type Unknown = Primitive | Array | Object
 
