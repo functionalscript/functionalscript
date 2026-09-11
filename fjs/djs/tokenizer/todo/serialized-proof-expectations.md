@@ -47,4 +47,6 @@ keep doing so: serialized text is that module's contract.
 - `fjs/types/object/structurally_same/README.md` — the comparison these sites
   should use, and what it does and does not promise.
 - [remove-native-json](../../../media/json/todo/remove-native-json.md) —
-  counts the same sites among the repository's `JSON.stringify` uses.
+  counts the eight direct `JSON.stringify` sites among the repository's
+  `JSON.stringify` uses; the eleven through the `stringifyAsTree` alias
+  are this task's alone, since that issue counts direct calls.
