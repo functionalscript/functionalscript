@@ -419,6 +419,13 @@ invoked on the way. Decision 6 is what would close it.
       path lands beside it — and the `parse` versus `tryParse` naming with it.
 - [ ] A readable layout as the second writer, if one is wanted, and
       `tryNormalize` as the name this one takes then (§Layout and API).
+- [ ] **Close the one conformance divergence**: an array under a `null`
+      prototype, which the specification serializes as its data and which the
+      writer refuses at its object branch, for `length`. The specification
+      wins, so this is the writer's bug, and the only spelling that classifies
+      such a value is the one [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 does
+      not allow — which is the part to settle, with that rule's owner, before
+      the corpus grows the vector that finds it.
 - [ ] **Walk both passes on an explicit stack**, so that a document the
       reader accepts is one the writer can write: 2,600 nested arrays make
       `tryStringify` throw `RangeError` today, where it owes an `error` at
