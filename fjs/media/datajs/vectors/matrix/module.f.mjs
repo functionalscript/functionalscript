@@ -20,9 +20,10 @@
  * class no vector carries, is a failure too, since a stale reason is how a
  * table stops meaning anything.
  *
- * Text that would break the row it is written into fails for the same
- * reason: a `|` in a reason starts a column, and a table with a cell in
- * the wrong column reads one way and means another exactly as prose does.
+ * Text the table cannot show as written fails for the same reason: a `|`
+ * in a reason starts a column, an HTML comment in one shows nothing at
+ * all, and a table that reads differently from the data behind it reads
+ * one way and means another exactly as prose does.
  *
  * A role whose sets have not landed is the one thing that does not fail:
  * a class cannot owe a vector to a set that does not exist. Its column
@@ -127,21 +128,42 @@ const cell = (corpus, role, c) => {
         : ok(`not applicable: ${reason}`)
 }
 
+const lower = 'abcdefghijklmnopqrstuvwxyz'
+const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+const digits = '0123456789'
+
 /**
- * Text a table cell carries as written. A `|` starts a column and a line
- * break ends a row, so either one turns a cell into a shape the row was
- * not meant to have — and the generator would still report success, which
- * is the one thing this file exists to make impossible.
+ * What a cell may carry, as the characters it may be made of rather than
+ * the ones it may not.
  *
- * @type {(s: string) => boolean}
+ * Naming the forbidden ones does not end: a `|` starts a column and a
+ * line break ends a row, but `<!-- x -->` shows nothing at all, `&amp;`
+ * shows one character where the corpus wrote five, `*x*` drops its
+ * asterisks, and `[x](y)` shows half of itself. Each is the same defect —
+ * a table reading differently from the data behind it — and a list of
+ * them is only ever as long as the last person's imagination.
+ *
+ * So prose is letters, digits and the punctuation of a sentence, and a
+ * name is what an id, a class, a role or a set is spelled from. Anything
+ * else is refused and named, which costs a writer one rephrasing and
+ * closes the question for good.
  */
-const renderable = s => !s.includes('|') && !s.includes('\n') && !s.includes('\r')
+const proseChars = `${lower}${upper}${digits} .,;:'"()/+-?!`
 
-/** The same for text a code span wraps, where a backtick closes it early. @type {(s: string) => boolean} */
-const renderableCode = s => renderable(s) && !s.includes('`')
+/** @type {string} */
+const nameChars = `${lower}${upper}${digits}/+-._:`
 
-/** @type {(ok: (s: string) => boolean, what: string, s: string) => readonly string[]} */
-const check = (ok, what, s) => ok(s) ? [] : [`${what}: ${JSON.stringify(s)} would break the row it is written into`]
+/** @type {(allowed: string) => (s: string) => boolean} */
+const onlyFrom = allowed => s => [...s].every(c => allowed.includes(c))
+
+/** @type {(s: string) => boolean} */
+const isProse = onlyFrom(proseChars)
+
+/** @type {(s: string) => boolean} */
+const isName = onlyFrom(nameChars)
+
+/** @type {(ok: (s: string) => boolean, kind: string, what: string, s: string) => readonly string[]} */
+const check = (ok, kind, what, s) => ok(s) ? [] : [`${what}: ${JSON.stringify(s)} is not ${kind} the table can show as written`]
 
 /**
  * Every string the corpus puts in a cell, checked before any of them is
@@ -154,17 +176,17 @@ const check = (ok, what, s) => ok(s) ? [] : [`${what}: ${JSON.stringify(s)} woul
  */
 const unrenderable = ({ roles, notApplicable }) => [
     ...roles.flatMap(({ role, sets }) => [
-        ...check(renderableCode, `the role ${role}`, role),
+        ...check(isName, 'a name', `the role ${role}`, role),
         ...sets.flatMap(([name, vectors]) => [
-            ...check(renderableCode, `the set ${name} of ${role}`, name),
+            ...check(isName, 'a name', `the set ${name} of ${role}`, name),
             ...vectors.flatMap(({ id, class: c }) => [
-                ...check(renderableCode, `an id in ${name}`, id),
-                ...check(renderableCode, `the class of ${id}`, c),
+                ...check(isName, 'a name', `an id in ${name}`, id),
+                ...check(isName, 'a name', `the class of ${id}`, c),
             ]),
         ]),
     ]),
     ...notApplicable.flatMap(({ class: c, role, because }) =>
-        check(renderable, `the reason for ${c} in ${role}`, because)),
+        check(isProse, 'prose', `the reason for ${c} in ${role}`, because)),
 ]
 
 /** A reason naming a class or a role the corpus does not have. @type {(corpus: Corpus) => readonly string[]} */

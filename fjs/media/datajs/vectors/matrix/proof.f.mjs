@@ -99,17 +99,35 @@ export const proof = {
         assert(failure({ ...two, notApplicable: [{ class: 'x', role: 'serializer', because: 'no' }] })
             .includes('x in serializer: a reason for a role whose sets have not landed'))
     },
-    // Text that would break the row it is written into is refused before
-    // anything is written, wherever the corpus carries it: a `|` starts a
-    // column, a line break ends a row, and a backtick closes a code span.
+    // A cell may carry only what the table shows as written, and that is
+    // decided by the characters allowed rather than the ones forbidden: a
+    // `|` starts a column and a line break ends a row, but an HTML comment
+    // shows nothing at all and an entity shows one character for five.
     unrenderable: () => {
-        const reason = { ...two, notApplicable: [{ class: 'x', role: 'serializer', because: 'reader | writer only' }] }
-        assert(failure(reason).includes('the reason for x in serializer: "reader | writer only" would break the row it is written into'))
-        assert(failure(one('reader', 'accept', v('a', 'x\ny'))).includes('the class of a: "x\\ny" would break the row it is written into'))
-        assert(failure(one('reader', 'accept', v('a\rb', 'x'))).includes('an id in accept: "a\\rb" would break the row it is written into'))
-        const r = failure(one('rea`der', 'acc`ept', v('a', 'x')))
-        assert(r.includes('the role rea`der: "rea`der" would break the row it is written into'), r)
-        assert(r.includes('the set acc`ept of rea`der: "acc`ept" would break the row it is written into'), r)
+        /** @type {(c: Corpus, ...expected: readonly string[]) => void} */
+        const refuses = (c, ...expected) => {
+            const r = failure(c)
+            for (const e of expected) { assert(r.includes(e), `${e}\nnot in\n${r}`) }
+        }
+        /** @type {(because: string) => Corpus} */
+        const reason = because => ({ ...landed, notApplicable: [{ class: 'y', role: 'serializer', because }] })
+        const prose = 'is not prose the table can show as written'
+        const name = 'is not a name the table can show as written'
+        // the structure of the table
+        refuses(reason('reader | writer only'), `the reason for y in serializer: "reader | writer only" ${prose}`)
+        refuses(one('reader', 'accept', v('a', 'x\ny')), `the class of a: "x\\ny" ${name}`)
+        refuses(one('reader', 'accept', v('a\rb', 'x')), `an id in accept: "a\\rb" ${name}`)
+        // what renders as something other than itself
+        refuses(reason('<!-- not meaningful -->'), `the reason for y in serializer: "<!-- not meaningful -->" ${prose}`)
+        refuses(reason('a &amp; b'), `the reason for y in serializer: "a &amp; b" ${prose}`)
+        refuses(reason('see *the note*'), `the reason for y in serializer: "see *the note*" ${prose}`)
+        refuses(one('reader', 'accept', v('a', '<b>x</b>')), `the class of a: "<b>x</b>" ${name}`)
+        refuses(one('rea`der', 'acc`ept', v('a', 'x')),
+            `the role rea\`der: "rea\`der" ${name}`,
+            `the set acc\`ept of rea\`der: "acc\`ept" ${name}`)
+        // and the punctuation of an ordinary sentence is not refused
+        const fine = { ...landed, notApplicable: [{ class: 'y', role: 'serializer', because: "a serializer's output (see 3.1) never emits it; why would it?" }] }
+        assert(text(fine).includes("not applicable: a serializer's output (see 3.1) never emits it; why would it?"))
     },
     // Every class of the corpus is a row, and every vector's id is in it.
     corpus: () => {
