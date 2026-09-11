@@ -49,10 +49,6 @@ export default [
     {"scope": ["subtree", "key/string/surrogate/pair/mixed"], "role": "serializer", "because": "the serializer set carries a pair, and what it must not do is assert a spelling for one; the corners are the reader's readings of four escapes"},
     {"scope": ["subtree", "key/string/surrogate/pair/low-corner"], "role": "serializer", "because": "the serializer set carries a pair, and what it must not do is assert a spelling for one; the corners are the reader's readings of four escapes"},
     {"scope": ["subtree", "key/string/surrogate/pair/high-corner"], "role": "serializer", "because": "the serializer set carries a pair, and what it must not do is assert a spelling for one; the corners are the reader's readings of four escapes"},
-    {"scope": ["subtree", "string/raw/range/0020-0021/high"], "role": "serializer", "because": "the serializer set carries the low end of this range and ordinary content above it"},
-    {"scope": ["subtree", "key/string/raw/range/0020-0021/high"], "role": "serializer", "because": "the serializer set carries the low end of this range and ordinary content above it"},
-    {"scope": ["subtree", "string/raw/range/005d-10ffff/low"], "role": "serializer", "because": "the serializer set carries the high end of this range and ordinary content within it"},
-    {"scope": ["subtree", "key/string/raw/range/005d-10ffff/low"], "role": "serializer", "because": "the serializer set carries the high end of this range and ordinary content within it"},
     {"scope": ["subtree", "key/proto/value"], "role": "serializer", "because": "the serializer set carries an object with an own enumerable proto member; what that member holds is the ordinary value coverage above it"},
     {"scope": ["subtree", "byte"], "role": "serializer", "because": "a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's"}
 ];

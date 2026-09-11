@@ -1807,12 +1807,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 156 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 160 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 9 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 146 of the 674 classes the corpus held then, with 56 scope
-      records answering the 528 cells the serializer column owed; the normalize
+      covering 150 of the 674 classes the corpus held then, with 52 scope
+      records answering the 524 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1848,7 +1848,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `[a, {"a": a}, {"b": [a]}]`. And all four graph-equivalence inverses put
       the two equal nodes in an *array*, so a writer that hash-conses only while
       walking object members passed all of them; two object-parent inverses now
-      rule that out, empty and non-empty.
+      rule that out, empty and non-empty. A round after that, the last two raw
+      range endpoints: `!` and `]`, which the rule above requires at both ends
+      of every character class and which four reasons had been closing with
+      other characters. Four vectors, four fewer reasons.
       One reason was corrected rather than replaced: the deep-nesting classes
       said depth is the reader's concern, which is false, since a recursive
       writer has a limit of its own and this repository records
@@ -1891,7 +1894,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       not landed refuses nothing, since a class cannot owe a vector to a
       set that does not exist: its column says so on every row and the
       refusal arrives with the set, which is where both writer columns stood
-      when this step landed and where neither stands now. 668 classes then,
+      when this step landed; the serializer's set follows in the step below and
+      `normalize`'s in the one after. 668 classes then,
       the reader role answering every one; each writer set below brings its
       own classes, and one `['set', …]` reason answers the reader for them.
       The generated table is the current count in every case — a figure here

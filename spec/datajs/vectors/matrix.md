@@ -15,7 +15,7 @@ mentions it in three.
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
 | `reader` | `accept`, `reject` | 674 | 0 | 0 |
-| `serializer` | `serializer-accept`, `graph-equivalence` | 146 | 528 | 0 |
+| `serializer` | `serializer-accept`, `graph-equivalence` | 150 | 524 | 0 |
 | `normalize` | no set yet | 0 | 0 | 674 |
 
 674 classes.
@@ -91,9 +91,9 @@ mentions it in three.
 | `bigint/trailing-point/neg` | `bigint-neg-trailing-point` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `bigint/zero` | `bigint-0` | `ser-bigint-0` | *awaiting the set* |
 | `bigint/zero/neg` | `bigint-neg-0` | not applicable, [note 17](#notes) | *awaiting the set* |
-| `byte/bom/first` | `byte-bom-first` | not applicable, [note 56](#notes) | *awaiting the set* |
-| `byte/truncated` | `byte-truncated` | not applicable, [note 56](#notes) | *awaiting the set* |
-| `byte/valid/widths` | `byte-valid-widths` | not applicable, [note 56](#notes) | *awaiting the set* |
+| `byte/bom/first` | `byte-bom-first` | not applicable, [note 52](#notes) | *awaiting the set* |
+| `byte/truncated` | `byte-truncated` | not applicable, [note 52](#notes) | *awaiting the set* |
+| `byte/valid/widths` | `byte-valid-widths` | not applicable, [note 52](#notes) | *awaiting the set* |
 | `const/declarators` | `const-declarators` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `const/destructuring/array` | `const-destructuring-array` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `const/destructuring/object` | `const-destructuring-object` | not applicable, [note 1](#notes) | *awaiting the set* |
@@ -243,9 +243,9 @@ mentions it in three.
 | `key/proto/string/escaped` | `key-proto-string-escaped` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/proto/string/escaped-all` | `key-proto-string-escaped-all` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/proto/string/nested` | `key-proto-string-nested` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `key/proto/value/null` | `key-proto-value-null` | not applicable, [note 55](#notes) | *awaiting the set* |
-| `key/proto/value/object` | `key-proto-value-object` | not applicable, [note 55](#notes) | *awaiting the set* |
-| `key/proto/value/shared` | `key-proto-shared` | not applicable, [note 55](#notes) | *awaiting the set* |
+| `key/proto/value/null` | `key-proto-value-null` | not applicable, [note 51](#notes) | *awaiting the set* |
+| `key/proto/value/object` | `key-proto-value-object` | not applicable, [note 51](#notes) | *awaiting the set* |
+| `key/proto/value/shared` | `key-proto-shared` | not applicable, [note 51](#notes) | *awaiting the set* |
 | `key/string/continuation` | `key-continuation` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/string/continuation/crlf` | `key-continuation-crlf` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/string/empty` | `key-empty` | `ser-key-empty` | *awaiting the set* |
@@ -315,12 +315,12 @@ mentions it in three.
 | `key/string/raw-quote` | `key-raw-quote` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/string/raw/astral` | `key-raw-astral` | `ser-key-raw-10000` | *awaiting the set* |
 | `key/string/raw/bmp` | `key-raw-latin`, `key-raw-cjk` | `ser-key-raw-latin`, `ser-key-raw-0800`, `ser-key-raw-007f`, `ser-key-raw-0080`, `ser-key-raw-07ff`, `ser-key-raw-d7ff`, `ser-key-raw-e000`, `ser-key-raw-ffff` | *awaiting the set* |
-| `key/string/raw/range/0020-0021/high` | `key-raw-0021` | not applicable, [note 52](#notes) | *awaiting the set* |
+| `key/string/raw/range/0020-0021/high` | `key-raw-0021` | `ser-key-raw-0021` | *awaiting the set* |
 | `key/string/raw/range/0020-0021/low` | `key-raw-0020` | `ser-key-raw-0020` | *awaiting the set* |
 | `key/string/raw/range/0023-005b/high` | `key-raw-005b` | `ser-key-raw-005b` | *awaiting the set* |
 | `key/string/raw/range/0023-005b/low` | `key-raw-0023` | `ser-key-raw-0023` | *awaiting the set* |
 | `key/string/raw/range/005d-10ffff/high` | `key-raw-10ffff` | `ser-key-raw-10ffff` | *awaiting the set* |
-| `key/string/raw/range/005d-10ffff/low` | `key-raw-005d` | not applicable, [note 54](#notes) | *awaiting the set* |
+| `key/string/raw/range/005d-10ffff/low` | `key-raw-005d` | `ser-key-raw-005d` | *awaiting the set* |
 | `key/string/raw/slash` | `key-raw-slash` | `ser-key-raw-slash` | *awaiting the set* |
 | `key/string/raw/ws-like/00a0` | `key-raw-ws-like-00a0` | `ser-key-raw-ws-like-00a0` | *awaiting the set* |
 | `key/string/raw/ws-like/1680` | `key-raw-ws-like-1680` | `ser-key-raw-ws-like-1680` | *awaiting the set* |
@@ -566,12 +566,12 @@ mentions it in three.
 | `string/raw-quote` | `string-raw-quote` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `string/raw/astral` | `string-raw-astral` | `ser-string-raw-10000` | *awaiting the set* |
 | `string/raw/bmp` | `string-raw-latin`, `string-raw-cjk` | `ser-string-raw-latin`, `ser-string-raw-0800`, `ser-string-raw-007f`, `ser-string-raw-0080`, `ser-string-raw-07ff`, `ser-string-raw-d7ff`, `ser-string-raw-e000`, `ser-string-raw-ffff` | *awaiting the set* |
-| `string/raw/range/0020-0021/high` | `string-raw-0021` | not applicable, [note 51](#notes) | *awaiting the set* |
+| `string/raw/range/0020-0021/high` | `string-raw-0021` | `ser-string-raw-0021` | *awaiting the set* |
 | `string/raw/range/0020-0021/low` | `string-raw-0020` | `ser-string-raw-0020` | *awaiting the set* |
 | `string/raw/range/0023-005b/high` | `string-raw-005b` | `ser-string-raw-005b` | *awaiting the set* |
 | `string/raw/range/0023-005b/low` | `string-raw-0023` | `ser-string-raw-0023` | *awaiting the set* |
 | `string/raw/range/005d-10ffff/high` | `string-raw-10ffff` | `ser-string-raw-10ffff` | *awaiting the set* |
-| `string/raw/range/005d-10ffff/low` | `string-raw-005d` | not applicable, [note 53](#notes) | *awaiting the set* |
+| `string/raw/range/005d-10ffff/low` | `string-raw-005d` | `ser-string-raw-005d` | *awaiting the set* |
 | `string/raw/slash` | `string-raw-slash` | `ser-string-raw-slash` | *awaiting the set* |
 | `string/raw/ws-like/00a0` | `string-raw-ws-like-00a0` | `ser-string-raw-ws-like-00a0` | *awaiting the set* |
 | `string/raw/ws-like/1680` | `string-raw-ws-like-1680` | `ser-string-raw-ws-like-1680` | *awaiting the set* |
@@ -754,9 +754,5 @@ stands under as many rows as it is true of.
 48. **`serializer`**, subtree `key/string/surrogate/pair/mixed` — the serializer set carries a pair, and what it must not do is assert a spelling for one; the corners are the reader's readings of four escapes
 49. **`serializer`**, subtree `key/string/surrogate/pair/low-corner` — the serializer set carries a pair, and what it must not do is assert a spelling for one; the corners are the reader's readings of four escapes
 50. **`serializer`**, subtree `key/string/surrogate/pair/high-corner` — the serializer set carries a pair, and what it must not do is assert a spelling for one; the corners are the reader's readings of four escapes
-51. **`serializer`**, subtree `string/raw/range/0020-0021/high` — the serializer set carries the low end of this range and ordinary content above it
-52. **`serializer`**, subtree `key/string/raw/range/0020-0021/high` — the serializer set carries the low end of this range and ordinary content above it
-53. **`serializer`**, subtree `string/raw/range/005d-10ffff/low` — the serializer set carries the high end of this range and ordinary content within it
-54. **`serializer`**, subtree `key/string/raw/range/005d-10ffff/low` — the serializer set carries the high end of this range and ordinary content within it
-55. **`serializer`**, subtree `key/proto/value` — the serializer set carries an object with an own enumerable proto member; what that member holds is the ordinary value coverage above it
-56. **`serializer`**, subtree `byte` — a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's
+51. **`serializer`**, subtree `key/proto/value` — the serializer set carries an object with an own enumerable proto member; what that member holds is the ordinary value coverage above it
+52. **`serializer`**, subtree `byte` — a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's
