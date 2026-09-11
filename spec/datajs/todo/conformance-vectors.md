@@ -405,9 +405,10 @@ The six parts:
     difference this corpus is required to see, so a reader preserving the sign
     on the literal zero spellings `-0`, `-0.0` and `-0e0` while dropping it
     when a nonzero magnitude underflows passes every other vector here;
-    `-1e999` is `-Infinity` and `-1000000000000000100` is the rounded
-    negative. Review found `-1e-999`; the other three are the sweep for its
-    shape, which is the same sweep that had produced the four. These
+    `-1e999` is `-Infinity` and `-9007199254740992` is the rounded
+    negative, the twin of the positive case above. Review found `-1e-999`;
+    the other three are the sweep for its shape, which is the same sweep
+    that had produced the four. These
     are the reader's half of cases the `normalize` role already carries, and
     per-role conformance means a reader-only implementation never runs that
     role: **a normalize vector owes a reader vector wherever a plausible
@@ -1283,10 +1284,7 @@ The six parts:
     Two of these are worth singling out. **`value`'s** complement is
     open-ended, like the escape whitelist, so its vectors go by class rather
     than enumeration; and `-(-1)` pins the spec's own point that `-` is not an
-    operator but part of the token that follows it. **`{get "a"(){}}`**
-    evaluates to `{"a":undefined}` — an entirely ordinary graph — so nothing
-    after the parse can tell it apart from the document that spells it
-    directly.
+    operator but part of the token that follows it.
 
     **A second ground is a second *rule*, not the same rule seen from the
     value side**, and that distinction is what decides which of these
