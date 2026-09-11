@@ -2064,7 +2064,11 @@ or the spec, not only into a thread.
    contract and not of a back door. The alternative keeps §1.6 as it is and
    leaves the recipe-bearing sets as data no FunctionalScript proof runs,
    which is data with no consumer, since no other implementation has host
-   objects either. `build` and its proof wait on this.
+   objects either. `build` and its proof wait on this, and so does the one
+   proof of `difference` the subset cannot write: an array or an object
+   under a `null` prototype compared as the array or object it is, since
+   `Object.setPrototypeOf` is the call §1.6 names and a mutation besides;
+   the `proto` recipes are the vectors that hold it once `build` lands.
 
 The steps, in order; a step is one pull request unless it says otherwise:
 
