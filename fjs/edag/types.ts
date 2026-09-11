@@ -8,6 +8,9 @@
  * approximation `TupleTs` in `../rtti/ts/types.ts` describes.
  */
 
+import type { Assert } from '../asserts/types.ts'
+import type { Equal } from '../types/ts/types.ts'
+
 // exp
 
 export type Exp =
@@ -111,13 +114,31 @@ export type OptionLambda =
  * single arity.
  */
 export type OptionPropertyLambda =
-    | readonly['|()', Exp]
-    | readonly['|()', Exp, OptionLambda]
-    | readonly['|.', Index]
-    | readonly['|.', Index, OptionPropertyLambda]
+    | OptionLambda
     | readonly['|?.()', Exp]
     | readonly['|?.()', Exp, OptionLambda]
     | readonly['|!()', Exp]
+
+// The chain states nest, and saying so beats restating the four productions
+// the two option states share — which is what both of these used to do, and
+// what `module.f.mjs`'s `_regionProductions` now does once for the schema.
+//
+// These are here and not in `proof.f.mjs` for the reason
+// `../nanvm/types.ts` gives: a `@typedef` inside a function body is never
+// checked, and that file's `consistency` section is entirely such typedefs.
+// A module-scope alias in a `.ts` file is checked.
+
+type _OptionInsideOptionProperty = Assert<Equal<OptionLambda extends OptionPropertyLambda ? true : false, true>>
+type _PropertyInsideOptionProperty = Assert<Equal<PropertyLambda extends OptionPropertyLambda ? true : false, true>>
+
+// ... and exactly which three productions the wider state adds, so an arm
+// gained or lost on either side is a type error rather than a silent change
+// of what the grammar admits.
+type _OptionPropertyAdds = Assert<Equal<
+    Exclude<OptionPropertyLambda, OptionLambda>,
+    | readonly['|?.()', Exp]
+    | readonly['|?.()', Exp, OptionLambda]
+    | readonly['|!()', Exp]>>
 
 // call
 
