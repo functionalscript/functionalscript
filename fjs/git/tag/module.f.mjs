@@ -21,11 +21,12 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Ident } from '../ident/types.ts'
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
+ * @import { TagTarget } from './types.ts'
  * @import { Tag } from './types.ts'
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
-import { ascii, byteArray } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byteArray, byteLength } from '../../ebnf/byte/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { hasNulHeader, tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
@@ -53,10 +54,23 @@ export const write = writePayload
  * The type the `type` header names, or `null` when it names none of the
  * four.
  *
+ * The value ends at its first NUL, as it does for Git's own parse: `blob`
+ * followed by a NUL is the type `blob` however many bytes follow it, and a
+ * value beginning with one names nothing.
+ *
+ * {@link validate} refuses such a tag all the same, before this is
+ * reached: `fsck` calls a NUL anywhere in a header `nulInHeader`. Reading
+ * is where the two part, as it is for the shapes
+ * [`todo/positional-headers.md`](../todo/positional-headers.md) records —
+ * a walk reads the tag it was given rather than the tag that should have
+ * been written.
+ *
  * @type {(value: Bytes) => Nullable<ObjectType>}
  */
 const typeOf = value => {
-    const text = codePointListToString(byteArray(value))
+    const bs = byteArray(value)
+    const nul = bs.indexOf(0)
+    const text = codePointListToString(nul === -1 ? bs : bs.slice(0, nul))
     return objectTypes.find(t => t === text) ?? null
 }
 
@@ -148,6 +162,23 @@ export const object = t => {
 }
 
 /**
+ * The id the `object` header names, at the repository's width, or `null`
+ * where there is no `object` header first or it is not a hex id of that
+ * width: {@link object} without the panic, and with the width checked.
+ * For a caller holding a tag it has not vouched for — peeling a tag to
+ * what it names reads this id and nothing else.
+ *
+ * @type {(oidBytes: OidBytes) => (t: Tag) => Nullable<Oid>}
+ */
+export const tryObject = oidBytes => {
+    const id = tryFromHexOf(oidBytes)
+    return t => {
+        const value = valueAt(t, 0, 'object')
+        return value === null ? null : id(value)
+    }
+}
+
+/**
  * The type the `type` header names: the second header, one of the four.
  *
  * @throws On a tag {@link validate} refuses: no `type` header second, or
@@ -161,6 +192,73 @@ export const type = t => {
     const type = typeOf(value)
     assert(type !== null, ['unknown type', value])
     return type
+}
+
+/**
+ * The type the `type` header names, or `null` where there is no `type`
+ * header second or it names none of the four: {@link type} without the
+ * panic. For a caller holding a tag it has not vouched for — peeling a
+ * tag checks the object it reaches against this, since a tag that names
+ * its target's type wrongly is one Git refuses to peel.
+ *
+ * @type {(t: Tag) => Nullable<ObjectType>}
+ */
+export const tryType = t => {
+    const value = valueAt(t, 1, 'type')
+    return value === null ? null : typeOf(value)
+}
+
+/**
+ * What a tag names and what it says that object is, or `null` where Git
+ * would not parse the bytes as a tag: the `object` header first naming an
+ * id of the width, the `type` header second naming one of the four, and
+ * the `tag` header third, whatever name it holds.
+ *
+ * It is one step because Git's own parse is one, and those three headers
+ * are the whole of what it reads — a tag with no `tagger` parses, where one
+ * missing its `tag` header, or holding `type` after it, does not, and
+ * `git cat-file -t <tag>^{}` refuses to resolve such a tag at all.
+ *
+ * @type {(oidBytes: OidBytes) => (t: Tag) => Nullable<TagTarget>}
+ */
+export const tryTarget = oidBytes => {
+    const objectOf = tryObject(oidBytes)
+    return t => {
+        const id = objectOf(t)
+        const type = tryType(t)
+        return id === null || type === null || valueAt(t, 2, 'tag') === null ? null : { id, type }
+    }
+}
+
+/**
+ * The same of a tag's bytes rather than a tag: what the payload names and
+ * what it says that object is, or `null` where Git would not parse the
+ * bytes as a tag at all.
+ *
+ * A payload shorter than the hexadecimal id plus 24 is refused before a
+ * header is read, as Git's parse refuses one: that is what `object <id>`,
+ * `type <t>` and `tag ` cost at their shortest, so nothing under it could
+ * have held the three headers.
+ *
+ * One thing refuses here that Git reads: bytes after the third header that
+ * are no header at all. Git's parse stops after `tag` and never looks at
+ * them, where this reads the whole payload before taking anything by
+ * position, so a line with no `SP` in it makes the payload unreadable.
+ * That is an over-refusal and it is recorded rather than fixed here —
+ * [`todo/positional-headers.md`](../todo/positional-headers.md) has the
+ * shapes and what a stopping rule would cost.
+ *
+ * @type {(oidBytes: OidBytes) => (payload: Bytes) => Nullable<TagTarget>}
+ */
+export const tryTargetAt = oidBytes => {
+    const targetOf = tryTarget(oidBytes)
+    const least = oidBytes * 2 + 24
+    return payload => {
+        const size = byteLength(payload)
+        if (size === null || size < least) { return null }
+        const t = tryRead(payload)
+        return t === null ? null : targetOf(t)
+    }
 }
 
 /**
