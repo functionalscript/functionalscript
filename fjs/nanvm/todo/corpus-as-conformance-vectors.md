@@ -103,10 +103,13 @@ interpreter. Authoring stays single-source; only the transport is generated.
 Once the deferred `Any`/CBOR serialization exists, the same expressions can
 ship as serialized data instead. Either way this is what keeps the interpreter
 and the generated code in agreement — the point the roadmap's test-generation
-item makes — and the JavaScript side's counterpart is replacing the proof's
-inline evaluator with the EDAG interpreter
+item makes — and the JavaScript side's counterpart is replacing `amnesia`
+with the EDAG interpreter
 ([interpret-edag](../../djs/todo/interpret-edag.md)), which owes the same
-identity-memoization contract the corpus already relies on.
+identity-memoization contract the corpus already relies on. The proof's own
+inline evaluator is already gone: `amnesia` takes the corpus's shared nodes
+as `Context`'s `memo`, so what is left to migrate is the evaluator itself,
+not a second one beside it.
 
 ### Tasks
 
@@ -118,8 +121,8 @@ identity-memoization contract the corpus already relies on.
 - [ ] Add `&&`, `||`, and `??` groups with their value results, each case
       carrying a `rust` reason while `nanvm-lib` cannot yet pass it.
 - [ ] Add non-establishment cases once `['throw', exp]` is in the schema.
-- [ ] Replace the proof's inline evaluator with the `interpret-edag`
-      interpreter when it lands, and register the corpus as its test suite.
+- [ ] Replace `amnesia` with the `interpret-edag` interpreter when it lands,
+      and register the corpus as its test suite.
 - [ ] Extend the printer to construct each case's expression as an `Any` and
       hand it to the `nanvm-lib` interpreter (serialized `Any` once the
       roadmap's post-MVP serialization exists).
@@ -137,7 +140,7 @@ identity-memoization contract the corpus already relies on.
 - [`../../../nanvm-lib/todo/mvp-roadmap.md`](../../../nanvm-lib/todo/mvp-roadmap.md)
   — the interpreter and remaining-operators items this feeds.
 - [`../../djs/todo/interpret-edag.md`](../../djs/todo/interpret-edag.md) — the
-  FunctionalScript executor that replaces the proof's inline evaluator.
+  FunctionalScript executor that replaces `amnesia` here.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — positional laziness, and the future `throw` node the non-establishment
   cases need.
