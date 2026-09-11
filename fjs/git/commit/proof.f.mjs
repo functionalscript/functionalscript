@@ -171,6 +171,13 @@ export const proof = {
         assertEq(at(latin1('junk')), null)
         assertEq(at(latin1(['tree zz', ...lines.slice(1)].join('\n'))), null)
         assertEq(tryTreeAt(32)(latin1(lines.join('\n'))), null)
+        // A `parent` header naming no id of the width refuses it too, since
+        // Git's parse reads the parents as well as the tree.
+        assertEq(at(latin1([lines[0], 'parent zz', ...lines.slice(1)].join('\n'))), null)
+        assert(at(latin1([lines[0], `parent ${treeId}`, ...lines.slice(1)].join('\n'))) !== null)
+        // What the parse does not read is not refused: a commit with no
+        // `author` and no `committer` has a tree all the same.
+        assert(at(latin1([lines[0], '', 'm', ''].join('\n'))) !== null)
     },
     // Each refusal, one per rule, on a commit the reader reads.
     validate: () => {

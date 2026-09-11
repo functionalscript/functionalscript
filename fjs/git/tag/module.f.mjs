@@ -21,6 +21,7 @@
  * @import { Result } from '../../types/result/types.ts'
  * @import { Ident } from '../ident/types.ts'
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
+ * @import { TagTarget } from './types.ts'
  * @import { Tag } from './types.ts'
  */
 
@@ -192,6 +193,28 @@ export const type = t => {
 export const tryType = t => {
     const value = valueAt(t, 1, 'type')
     return value === null ? null : typeOf(value)
+}
+
+/**
+ * What a tag names and what it says that object is, or `null` where Git
+ * would not parse the bytes as a tag: the `object` header first naming an
+ * id of the width, the `type` header second naming one of the four, and
+ * the `tag` header third, whatever name it holds.
+ *
+ * It is one step because Git's own parse is one, and those three headers
+ * are the whole of what it reads — a tag with no `tagger` parses, where one
+ * missing its `tag` header, or holding `type` after it, does not, and
+ * `git cat-file -t <tag>^{}` refuses to resolve such a tag at all.
+ *
+ * @type {(oidBytes: OidBytes) => (t: Tag) => Nullable<TagTarget>}
+ */
+export const tryTarget = oidBytes => {
+    const objectOf = tryObject(oidBytes)
+    return t => {
+        const id = objectOf(t)
+        const type = tryType(t)
+        return id === null || type === null || valueAt(t, 2, 'tag') === null ? null : { id, type }
+    }
 }
 
 /**

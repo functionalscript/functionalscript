@@ -7,7 +7,7 @@ import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1, tagPayload } from '../testlib.f.mjs'
-import { name, object, tagger, tryObject, tryRead, tryType, type, validate, write } from './module.f.mjs'
+import { name, object, tagger, tryObject, tryRead, tryTarget, tryType, type, validate, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Tag} */
 const read = input => {
@@ -104,6 +104,22 @@ export const proof = {
         assertEq(tryType(tag(lines)), 'commit')
         assertEq(tryType(replaced(1, 'tag v1')), null)
         assertEq(tryType(replaced(1, 'type commits')), null)
+    },
+    // What a tag names and what it says that object is, taken together as
+    // Git's own parse takes them: the `object` header first naming an id of
+    // the width, `type` second naming one of the four, and `tag` third. A
+    // tag with no `tagger` parses, as it does for Git; one missing its `tag`
+    // header, or holding `type` after it, does not.
+    tryTarget: () => {
+        const t = tryTarget(20)(tag(lines))
+        assert(t !== null)
+        assertEq(text(toArray(toHex(t.id))), id)
+        assertEq(t.type, 'commit')
+        assertEq(tryTarget(32)(tag(lines)), null)
+        assertEq(tryTarget(20)(replaced(0, 'object zz')), null)
+        assertEq(tryTarget(20)(replaced(1, 'type commits')), null)
+        assertEq(tryTarget(20)(replaced(2, 'tagger A <a@b> 1 +0000')), null)
+        assert(tryTarget(20)(tag(lines.slice(0, 3).concat(['', 'm', '']))) !== null)
     },
     // Each refusal, one per rule, on a tag the reader reads.
     validate: () => {

@@ -103,22 +103,25 @@ export const tryTree = oidBytes => {
 
 /**
  * The tree of bytes stored as a commit, at the repository's width, or
- * `null` where the bytes are no commit or the commit names no tree of that
- * width: {@link tryRead} and {@link tryTree} as one step, which is what a
- * caller holding bytes it has not vouched for wants of a commit.
+ * `null` where Git would not parse them as a commit: the bytes are no
+ * header block, the `tree` header is missing or names no id of the width,
+ * or a `parent` header names none.
  *
- * It is one step because Git takes it as one: parsing a commit reads its
- * tree pointer, so `git cat-file -t <tag>^{}` over a tag naming a commit
- * whose `tree` header is missing or is no id answers `error: bogus commit
- * object` rather than the type.
+ * It is one step because Git's own parse is one, and this is the whole of
+ * what that parse reads. `git cat-file -t <tag>^{}` over a tag naming such
+ * a commit answers `error: bogus commit object` for a bad tree and `error:
+ * bad parents in commit` for a bad parent, rather than the type. It reads
+ * no further: a commit with no `author` or no `committer` parses, and
+ * {@link validate} is where `fsck`'s rules are.
  *
  * @type {(oidBytes: OidBytes) => (payload: Bytes) => Nullable<Oid>}
  */
 export const tryTreeAt = oidBytes => {
     const treeOf = tryTree(oidBytes)
+    const id = tryFromHexOf(oidBytes)
     return payload => {
         const c = tryRead(payload)
-        return c === null ? null : treeOf(c)
+        return c === null || !parentValues(c).every(value => id(value) !== null) ? null : treeOf(c)
     }
 }
 

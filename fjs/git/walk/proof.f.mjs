@@ -142,6 +142,21 @@ const badObject = latin1(['object zz', 'type commit', 'tag bad', '', 'm', ''].jo
 
 const badObjectId = of20('tag', badObject)
 
+/** A tag with no `tag` header, which Git's own parse refuses. */
+const nameless = latin1([`object ${hex(helloId)}`, 'type blob', 'tagger A <a@b> 1 +0000', '', 'm', ''].join('\n'))
+
+const namelessId = of20('tag', nameless)
+
+/** A commit whose `tree` is an id and whose `parent` is not. */
+const badParent = commitOf([`tree ${hex(rootId)}`, 'parent zz'])
+
+const badParentId = of20('commit', badParent)
+
+/** A tag naming that commit, which Git refuses to peel to. */
+const badParentTag = tagOf(badParentId, 'commit', 'bp')
+
+const badParentTagId = of20('tag', badParentTag)
+
 /** A tag whose `type` header names none of the four. */
 const badType = latin1([`object ${hex(commitId)}`, 'type thing', 'tag bad', '', 'm', ''].join('\n'))
 
@@ -213,6 +228,9 @@ const files = Object.fromEntries([
     [at(oddId), latin1('no envelope here')],
     tagFile(badObjectId, badObject),
     tagFile(badTypeId, badType),
+    tagFile(namelessId, nameless),
+    commitFile(badParentId, badParent),
+    tagFile(badParentTagId, badParentTag),
     tagFile(wrongTypeId, wrongType),
     treeFile(twiceId, twice),
     treeFile(lyingId, lying),
@@ -331,6 +349,13 @@ export const proof = {
         // both with `bogus commit object`.
         assertStructurallySame(runHost(peeled(junkTargetId))[1], ['ok', null])
         assertStructurallySame(runHost(peeled(junkCommitId))[1], ['ok', null])
+        // A tag Git's own parse refuses is followed no further: one with no
+        // `tag` header third, whatever its `object` and `type` say.
+        assertStructurallySame(runHost(peeled(namelessId))[1], ['ok', null])
+        // And a commit whose `parent` header names no id, which Git answers
+        // `error: bad parents in commit` for rather than the type.
+        assertStructurallySame(runHost(peeled(badParentTagId))[1], ['ok', null])
+        assertStructurallySame(runHost(peeled(badParentId))[1], ['ok', null])
         // A tree's entries are not read there, and nor are a blob's bytes:
         // both peel whatever they hold, as they do for Git.
         const [, badTree] = runHost(peeled(treeTargetId))
