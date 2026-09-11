@@ -8,8 +8,10 @@
  *
  * Operation identity and operand contract are **not** defined here: they come
  * from [`fjs/edag`](../edag/README.md), the data model of record, through
- * {@link Op1Id} and {@link Op2Id}. Everything else — case names, inputs,
- * expectations, and the test-only markers — is the corpus's own.
+ * {@link Op1Id}, {@link Op2Id}, {@link Op12Id} and {@link Op3Id} — one
+ * vocabulary per operand count, and one for the two tags legal at both of the
+ * first two. Everything else — case names, inputs, expectations, and the
+ * test-only markers — is the corpus's own.
  *
  * @module
  */
