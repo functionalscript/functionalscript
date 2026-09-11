@@ -109,12 +109,20 @@ const moduleUrl = source => `data:text/javascript,${encodeURIComponent(source)}`
 /**
  * A demo that echoes what was typed into a named field — the smallest thing
  * that renders a field, reads an event and shows a state.
+ *
+ * **A fixture imports nothing.** A `data:` module has no file of its own to
+ * resolve against, and runtimes disagree about a `file:` specifier written
+ * inside one: Node resolves it, Bun does not, so a fixture reaching for
+ * `pureOk` passed under one runner of this suite and failed under another.
+ * Spelling the `Pure` effect out — a thunk answering `ok` — keeps every
+ * fixture self-contained. It is the one place here that names the `Result`
+ * representation instead of its constructor, because it is the one place that
+ * cannot import it.
  */
 const echo = moduleUrl(`
-import { pureOk } from '${new URL('../effects/module.f.mjs', import.meta.url).href}'
 export const demo = {
     init: '',
-    update: state => event => pureOk(event.kind === 'input' ? event.value : state),
+    update: state => event => () => ['ok', event.kind === 'input' ? event.value : state],
     view: text => ['div', ['input', { name: 'text', value: text }], ['pre', text]],
 }
 `)
@@ -131,6 +139,10 @@ export const proof = {
         const d = dom(echo)
         await startDemo(d.root)
         await settle()
+        // First, because a fixture that will not load reports *through* the
+        // runtime and renders nothing — and `rendered[0] is undefined` is a
+        // poor way to learn that a runtime disagreed about a specifier.
+        assert(!d.root.textContent.startsWith('demo failed'), d.root.textContent)
         assert(d.rendered[0].includes('name="text"'), d.rendered[0])
         assert(d.rendered[0].includes('value=""'), d.rendered[0])
     },
