@@ -26,7 +26,8 @@
  *
  * A role whose sets have not landed is the one thing that does not fail:
  * a class cannot owe a vector to a set that does not exist. Its column
- * says so on every row, and the refusal arrives with the set.
+ * says so on *every* row — a reason written for it before its set exists
+ * is refused too — and the refusal arrives with the set.
  *
  * @module
  *
@@ -94,24 +95,36 @@ const reasonOf = ({ notApplicable }, role, c) => {
 }
 
 /**
- * One cell: the ids the role has for the class, the reason the corpus
- * gives for having none, that the role's sets have not landed, or the
- * failure an empty cell with no answer is.
+ * One cell: that the role's sets have not landed, the ids it has for the
+ * class, the reason the corpus gives for having none, or the failure an
+ * empty cell with no answer is.
+ *
+ * The sets come first because a role without them has nothing else to
+ * say. A reason there would render `not applicable` in a column whose own
+ * header reads `no set yet`, and a reader could not tell from the table
+ * which of the two the corpus meant — so it is a defect, not a cell. It
+ * is also a reason with nothing to be measured against: what a serializer
+ * owes is not known until the serializer set is, which is the whole sense
+ * of the refusal arriving with the set.
  *
  * @type {(corpus: Corpus, role: Role, c: string) => Result<string, string>}
  */
 const cell = (corpus, role, c) => {
-    const ids = idsOf(role, c)
     const reason = reasonOf(corpus, role.role, c)
+    if (role.sets.length === 0) {
+        return reason === null
+            ? ok('*awaiting the set*')
+            : error(`${c} in ${role.role}: a reason for a role whose sets have not landed`)
+    }
+    const ids = idsOf(role, c)
     if (ids.length !== 0) {
         return reason === null
             ? ok(ids.map(code).join(', '))
             : error(`${c} in ${role.role}: a reason for a cell that has ${ids.length} vectors`)
     }
-    if (reason !== null) { return ok(`not applicable: ${reason}`) }
-    return role.sets.length === 0
-        ? ok('*awaiting the set*')
-        : error(`${c} in ${role.role}: no vector and no reason`)
+    return reason === null
+        ? error(`${c} in ${role.role}: no vector and no reason`)
+        : ok(`not applicable: ${reason}`)
 }
 
 /**

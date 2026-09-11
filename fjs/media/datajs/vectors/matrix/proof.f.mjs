@@ -93,6 +93,11 @@ export const proof = {
             .includes('z in reader: no vector carries that class'))
         assert(failure({ ...two, notApplicable: [{ class: 'x', role: 'writer', because: 'no' }] })
             .includes('x in writer: no such role'))
+        // A reason written before its role's sets exist has nothing to be
+        // measured against, and would render `not applicable` under a column
+        // whose header reads `no set yet`.
+        assert(failure({ ...two, notApplicable: [{ class: 'x', role: 'serializer', because: 'no' }] })
+            .includes('x in serializer: a reason for a role whose sets have not landed'))
     },
     // Text that would break the row it is written into is refused before
     // anything is written, wherever the corpus carries it: a `|` starts a
