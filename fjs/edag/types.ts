@@ -161,8 +161,7 @@ export type OptionPropertyLambda =
 // followed: a `@typedef` in `proof.f.mjs` is checked only where a statement
 // follows it in the same block, and the `consistency` entry that held them
 // was nothing but typedefs. A module-scope alias in a `.ts` file is resolved
-// either way — `../AGENTS.md` §1.4 states the rule, and
-// `../../todo/inert-type-level-proofs.md` moves what is left elsewhere.
+// either way; `../AGENTS.md` §1.4 states the rule.
 
 type _OptionInsideOptionProperty = Assert<Equal<OptionLambda extends OptionPropertyLambda ? true : false, true>>
 type _PropertyInsideOptionProperty = Assert<Equal<PropertyLambda extends OptionPropertyLambda ? true : false, true>>
@@ -255,9 +254,9 @@ export type Op3 = readonly[Op3Id, Exp, Exp, Exp]
 //
 // These were `proof.f.mjs`'s `consistency` entry, whose body was nothing but
 // typedefs — so none of them bound to anything and all 28 were green whatever
-// they claimed (`../AGENTS.md` §1.4, `../../todo/inert-type-level-proofs.md`).
-// At module scope in a `.ts` file an alias is resolved on sight, so each one
-// below was falsified once and seen to fail before being restored.
+// they claimed (`../AGENTS.md` §1.4). At module scope in a `.ts` file an alias
+// is resolved on sight, so each one below was falsified once and seen to fail
+// before being restored.
 //
 // `Check3` is for the three schemas that are thunks behind a `Phantom`: it
 // checks the raw thunk as well as the wrapped export, since checking only the
