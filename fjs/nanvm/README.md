@@ -25,7 +25,7 @@ module.f.mjs ──> an EDAG exp ─┤     (amnesia)
 
 | File | Role |
 |---|---|
-| [`types.ts`](types.ts) | The shape of the data: `Value`, `Case<N>`, `Group`, `Eq`, `Data`. |
+| [`types.ts`](types.ts) | The shape of the data: `Value`, `Case<N>`, `Group`, `Data`. |
 | [`module.f.mjs`](module.f.mjs) | **The single source of truth** — every operator case as data, plus the format's constructors, eliminators, and lowering. |
 | [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
 | [`rust/module.f.mjs`](rust/module.f.mjs) | Prints each case's expression as Rust, against the `nanvm-lib` API. |

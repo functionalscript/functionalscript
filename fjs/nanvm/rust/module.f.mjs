@@ -25,7 +25,7 @@
  * @module
  *
  * @import { Exp, Primitive, Properties } from '../../edag/types.ts'
- * @import { Data, Exp as _Exp, Expectation, Group, OpId, SharedNode, Value } from '../types.ts'
+ * @import { Data, Expectation, Group, OpId, SharedNode, Value } from '../types.ts'
  *
  * @example
  *
