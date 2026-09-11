@@ -403,7 +403,41 @@ export const proof = {
                 },
             })
             assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
-            assert(output.includes('skipped the demo in a: more than one module exports one'), output)
+            assert(output.includes(
+                'skipped the demo in a: 2 modules export one (a/demo.f.mjs, a/module.f.mjs)'), output)
+        },
+        /**
+         * **A third does not slip through behind a refusal.** The decision was
+         * a fold that marked a refused directory with an absent value, and an
+         * absent value reads the same as a directory never seen — so the third
+         * demo found the slot free and took it.
+         */
+        threeAreRefused: () => {
+            const { root, output } = generate({
+                a: {
+                    'demo.f.mjs': file('export const demo = {}'),
+                    'module.f.mjs': file('export const demo = {}'),
+                    'other.f.mjs': file('export const demo = {}'),
+                },
+            })
+            assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
+            assert(output.includes('skipped the demo in a: 3 modules export one'), output)
+        },
+        /**
+         * **A demo that cannot link does not hand the slot to its neighbour.**
+         * Two modules export one, so the directory is ambiguous however few of
+         * them could run: choosing the one that happens to link is the silent
+         * precedence the rule exists to prevent.
+         */
+        aBlockedOneDoesNotYieldToItsNeighbour: () => {
+            const { root, output } = generate({
+                a: {
+                    'demo.f.mjs': file("import 'node:fs'\nexport const demo = {}"),
+                    'module.f.mjs': file('export const demo = {}'),
+                },
+            })
+            assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
+            assert(output.includes('skipped the demo in a: 2 modules export one'), output)
         },
         /**
          * **A demo a browser cannot link is no demo.** The page loads it the

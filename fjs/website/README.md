@@ -92,11 +92,16 @@ hands each event back. A demo is therefore provable like any other `.f.mjs`,
 and its author writes no host code.
 
 `update` returns `Effect<O, State, never>`, and the `never` is a claim: a demo
-has no error display apart from what it renders, so a recoverable failure — an
-operation this runtime does not implement included — is absorbed into `State`
-where `view` can show it. The runtime's operation map is empty and grows one
-proven handler at a time, so a demo that asks for something it does not have
-gets `notImplemented` back through its own channel rather than a broken page.
+has no error display apart from what it renders, so a recoverable failure is
+absorbed into `State` where `view` can show it.
+
+**No browser operation exists yet, so `O` is `never` and every demo is pure.**
+The parameter is there so the first operation is a widening rather than a
+second kind of demo. Until then the runtime runs an effect that can only be a
+value, and a demo told *no* is a path that cannot be reached: answering
+`notImplemented` needs a declared vocabulary to recognise the command against,
+and there is none. `fjs/effects/browser/` brings the first operation, the
+vocabulary, the partial runner that can decline, and the test for it together.
 
 Events are serialized: one `update` at a time, the next queued behind it. That
 is what makes a demo's state a fold over its events in the order they happened,

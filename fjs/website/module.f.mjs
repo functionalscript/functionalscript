@@ -27,6 +27,7 @@
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { _Demos, _Graph, _Imports, _Tree, _Walked } from './private.ts'
+ * @import { OrderedMap } from '../types/ordered_map/types.ts'
  * @import { Dir, Proof } from './page/types.ts'
  * @import { Node } from '../media/html/types.ts'
  */
@@ -37,7 +38,7 @@ import { allOk, exitStep, isNotFound, readdir, readUtf8File, writeFile, writeUtf
 import { foldStep, forEachStep, mapStep, pureError, pureOk, resultStep, step } from '../effects/module.f.mjs'
 import { exportsDemo, exportsProof, local, specifiers } from './browser-source/module.f.mjs'
 import { concat as pathConcat } from '../path/module.f.mjs'
-import { at, empty as emptyMap, setReplace } from '../types/ordered_map/module.f.mjs'
+import { at, empty as emptyMap, entries, setReplace } from '../types/ordered_map/module.f.mjs'
 import { contains, empty as noPaths, set as addPath, values as paths } from '../types/string_set/module.f.mjs'
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
@@ -387,39 +388,49 @@ const dirOf = path => {
  * if and only if it exports `demo`, so the convention holds whether the demo
  * lives in `demo.f.mjs` or beside the implementation in `module.f.mjs`.
  *
- * **Two in one directory is refused, not resolved.** A page has one demo
- * section, and a precedence rule would decide silently which of them a reader
- * is looking at.
+ * **The decision is made once per directory, over all of its candidates.** It
+ * was a fold with a nullable lookup standing in for a flag, and that could not
+ * hold the rule: a stored `null` and a missing key read the same through `at`,
+ * so a third demo in a directory was accepted after the second had refused it,
+ * and a blocked demo recorded nothing at all, so a linkable one beside it won.
+ * Grouping first makes the rule the shape of the code.
  *
- * **A demo a browser cannot link is no demo.** The page loads it exactly as it
- * loads a proof, so the same analysis applies — but unlike a proof it has
- * nowhere on the page to be listed with its blocker, so it is dropped and said
- * on the console instead.
+ * **Two in one directory is refused, not resolved**, whether or not both could
+ * run. A page has one demo section, and choosing between them — by order, or
+ * by which happens to link — is exactly the silent precedence the rule exists
+ * to prevent.
  *
- * Pure, and answering both halves at once, so that writing the pages stays a
- * fold over directories and the refusals are reported in one place.
+ * **A demo a browser cannot link is no demo.** The page loads it as it loads a
+ * proof, so the same analysis applies; unlike a proof it has nowhere on the
+ * page to be listed with its blocker, so it is dropped and said on the console
+ * instead.
  *
  * @type {(demos: readonly Proof[]) => readonly [_Demos, readonly string[]]}
  */
-const resolveDemos = demos => demos.reduce(
-    ([found, refused], demo) => {
-        const dir = dirOf(demo.name)
-        const already = at(dir)(found)
-        if (already !== null) {
-            return /** @type {const} */ ([
-                setReplace(dir)(/** @type {string | null} */ (null))(found),
-                [...refused, `skipped the demo in ${dir}: more than one module exports one`],
-            ])
-        }
-        if (demo.blockers.length !== 0) {
-            return /** @type {const} */ ([
-                found,
-                [...refused, `skipped ${demo.name}: a demo must link in a browser (${demo.blockers.join(', ')})`],
-            ])
-        }
-        return /** @type {const} */ ([setReplace(dir)(/** @type {string | null} */ (`/${demo.name}`))(found), refused])
-    },
-    /** @type {readonly [_Demos, readonly string[]]} */ ([emptyMap, []]))
+const resolveDemos = demos => {
+    /** @type {OrderedMap<readonly Proof[]>} */
+    const byDir = demos.reduce(
+        (map, demo) => {
+            const dir = dirOf(demo.name)
+            return setReplace(dir)(/** @type {readonly Proof[]} */ ([...(at(dir)(map) ?? []), demo]))(map)
+        },
+        /** @type {OrderedMap<readonly Proof[]>} */ (emptyMap))
+    return toArray(entries(byDir)).reduce(
+        ([found, refused], [dir, candidates]) => {
+            if (candidates.length > 1) {
+                return /** @type {const} */ ([found, [...refused,
+                    `skipped the demo in ${dir}: ${candidates.length} modules export one`
+                    + ` (${candidates.map(demo => demo.name).join(', ')})`]])
+            }
+            const only = candidates[0]
+            if (only.blockers.length !== 0) {
+                return /** @type {const} */ ([found, [...refused,
+                    `skipped ${only.name}: a demo must link in a browser (${only.blockers.join(', ')})`]])
+            }
+            return /** @type {const} */ ([setReplace(dir)(`/${only.name}`)(found), refused])
+        },
+        /** @type {readonly [_Demos, readonly string[]]} */ ([emptyMap, []]))
+}
 
 /**
  * Whether a name in a `todo/` directory is an issue.

@@ -49,10 +49,16 @@ export type DemoEvent =
  *
  * **The error channel is `never`, and that is a claim.** A demo has no error
  * display apart from what it renders, so a recoverable failure — a fetch that
- * did not arrive, an operation this runtime does not implement — is handled by
- * the demo and represented in `State`, where `view` can show it. `never` says
- * the demo absorbs every one of them before returning its next state. A throw
- * is not recoverable: it is a defect, and the runtime reports it as one.
+ * did not arrive, an operation the runtime cannot perform — is handled by the
+ * demo and represented in `State`, where `view` can show it. `never` says the
+ * demo absorbs every one of them before returning its next state. A throw is
+ * not recoverable: it is a defect, and the runtime reports it as one.
+ *
+ * **`O` is `never` today, and not by choice of each demo.** No browser
+ * operation vocabulary exists yet, so there is nothing a demo could name;
+ * every demo is pure, and the parameter is here so that the first operation is
+ * a widening rather than a second kind of demo. Until then a demo's `update`
+ * returns `pureOk`.
  */
 export type Demo<State, Event, O extends Operation = never> = {
     readonly init: State

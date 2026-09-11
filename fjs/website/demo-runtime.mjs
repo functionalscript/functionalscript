@@ -11,21 +11,27 @@
  * @import { Demo, DemoEvent } from './demo/types.ts'
  */
 
-import { asyncPartialRun } from '../effects/module.mjs'
+import { asyncRun } from '../effects/module.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 
 /**
- * The operations a demo may ask for, and the handlers this runtime has.
+ * A demo's effect, performed.
  *
- * Both are empty, and that is the starting position rather than an oversight:
- * every operation answers `notImplemented` through the demo's own channel, the
- * demo shows what it could not do, and the page keeps working. A capability is
- * added here with its virtual counterpart, one at a time, when a demo needs
- * it.
+ * **There are no browser operations yet, so there is nothing to implement.**
+ * `Demo`'s vocabulary defaults to `never`, which makes every effect a demo can
+ * build a `Pure` node: this runs it and never dispatches a command. The map is
+ * empty because an empty vocabulary needs no handlers, not because handlers
+ * are missing.
+ *
+ * **So the strict runner is the honest one today.** A partial runner exists to
+ * answer `notImplemented` for a command a runtime knows about and cannot do —
+ * and `partialMatch` checks the command against a declared vocabulary *first*,
+ * so with no vocabulary every command is a malformed node and panics rather
+ * than degrading. Nothing would be gained by dressing that up. When
+ * `fjs/effects/browser/` lands with its first operation, it brings the
+ * vocabulary, the partial runner, and a demo that can be told no.
  */
-const commands = /** @type {readonly never[]} */ ([])
-
-const run = asyncPartialRun(commands)({})
+const run = asyncRun({})
 
 /**
  * What the reader was doing, so re-rendering does not take it away.
