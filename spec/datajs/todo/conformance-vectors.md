@@ -1834,6 +1834,18 @@ The steps, in order; a step is one pull request unless it says otherwise:
       FunctionalScript. Whether that section stays as a rule for
       implementations in hosts that can build them, or goes, is the owner's;
       its own pull request either way.
+      **Review raised both halves of it, separately, and they are one
+      decision.** On the reject side, the normative text still requires
+      refusal and the writer on `main` still takes `unknown`, so removing the
+      serializer-reject set leaves the contract uncovered. On the accept side,
+      a serializer that refuses a `null`-prototype array, a frozen object and
+      an `Array` subclass now passes the corpus while the same section says
+      all three serialize as their data. Either the input narrows to the data
+      model and both sets of vectors are unspellable, or it stays `unknown`
+      and the corpus owes vectors in both directions — and the second is not
+      free: every set is a FunctionalScript data module, so a vector whose
+      input is a frozen object or an `Array` subclass has no spelling in the
+      corpus, which is the wall the removed host recipes hit.
 - [x] **The checks the data model does not need, removed.** `difference` in
       [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
       tested its actual graph for a symbol-keyed property, an own property
