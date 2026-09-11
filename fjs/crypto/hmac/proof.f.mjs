@@ -1,3 +1,7 @@
+/**
+ * @import { Hash, State } from '../sha2/types.ts'
+ */
+
 import { assertEq } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { uint, vec } from '../../types/bit_vec/module.f.mjs'
@@ -40,5 +44,14 @@ export const proof = {
         const key = vec(1048n)(BigInt('0x' + 'aa'.repeat(131)))
         const r = hmac(sha256)(key)(utf8('Test Using Larger Than Block-Size Key - Hash Key First'))
         assertEq(uint(r), 0x60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54n)
-    }
+    },
+    // The two shapes HMAC has no answer for, refused where the hash is
+    // given rather than where a message arrives: a block that is no whole
+    // number of bytes, which the padding is a byte repeated to, and a
+    // digest longer than the block, which a long key is replaced by and
+    // then padded to. No hash here is either shape, so both are hand-made.
+    throw: {
+        oddBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 9n, blockBytes: 2n })),
+        wideDigest: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, hashLength: 1024n, hashBytes: 128n })),
+    },
 }
