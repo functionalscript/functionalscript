@@ -190,6 +190,13 @@ export const proof = {
         // the answer leaves it: a caller joining `config` below an empty
         // string would read at the root instead.
         assertEq(at({ '.git': file('gitdir: \0junk\n') })(''), '.')
+        // A line naming a bare drive joins to one, and a bare drive is
+        // refused however it arrives: `C:` is the current directory on
+        // drive C to Windows and a directory called `C:` to POSIX, and a
+        // caller reading `config` below the answer would read in two
+        // places. Under any other worktree it is an ordinary relative path
+        // and is joined, which the `hosts` case pins.
+        assertEq(at({ '.git': file('gitdir: C:\n') })(''), null)
     },
     // A directory already ending in a separator does not get another. `/`
     // and `//` are two roots, a POSIX one and a UNC one, so a `.git` under

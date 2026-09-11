@@ -198,6 +198,11 @@ const reachesHost = path => [...path].every(c => {
  * a `.git` in another namespace than the one the caller asked about. `C:/`
  * is the same case on the other host.
  *
+ * The rule is not this module's alone — every consumer that spells a path
+ * below a directory it was given has it, and `fjs/git/store` builds its
+ * two by interpolation:
+ * [`todo/directory-separator.md`](../todo/directory-separator.md).
+ *
  * @type {(dir: string, name: string) => string}
  */
 const under = (dir, name) =>
@@ -226,12 +231,21 @@ const under = (dir, name) =>
  * names no path — `gitdir: ` and a NUL — which Git reads as the worktree
  * itself.
  *
- * @type {(dir: string, path: string) => string}
+ * A join that comes to a bare drive is `null`, as a worktree that is one
+ * is: `gitdir: C:` under a worktree of no characters joins to `C:`, which
+ * names the current directory on drive C to Windows and a directory
+ * called `C:` to POSIX. {@link tryCommonDir} refuses the first spelling
+ * for that reason and this is the same path arriving by another route —
+ * the answer would be `C:` and a caller reading `config` below it would
+ * read at the drive's root on one host and in a directory on the other.
+ *
+ * @type {(dir: string, path: string) => Nullable<string>}
  */
 const against = (dir, path) => {
     if (isAbsolute(path)) { return path }
     const joined = under(dir, path)
-    return joined === '' ? here : joined
+    if (joined === '') { return here }
+    return isBareDrive(joined) ? null : joined
 }
 
 /**
