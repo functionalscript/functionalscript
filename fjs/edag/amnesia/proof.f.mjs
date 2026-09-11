@@ -6,12 +6,8 @@
  * This is the executing counterpart of `../proof.f.mjs`, which pins what the
  * schema *accepts*; nothing here validates.
  *
- * @import { Exp } from '../types.ts'
+ * @import { Exp, Index } from '../types.ts'
  * @import { Context } from './types.ts'
- * @import { Assert } from '../../asserts/types.ts'
- * @import { Equal } from '../../types/ts/types.ts'
- * @import { Array as ExpArray, Call, Dot, Index, Op1, Op12, Op2, Op3 } from '../types.ts'
- * @import { Get } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -87,19 +83,6 @@ const methods = ['{}', [
 const constMethods = ['=>', ['[]', []], methods]
 
 export const proof = {
-    // `TagMap` exists so a dispatcher generic over `K` sees one handler
-    // signature; these pin the tag -> node-tuple correlation it is built on,
-    // including the tags whose node kinds are not `op1`/`op2`.
-    tagMap: () => {
-        /** @typedef {Assert<Equal<Get<'*'>, Op2>>} _MulIsOp2 */
-        /** @typedef {Assert<Equal<Get<'!'>, Op1>>} _NotIsOp1 */
-        /** @typedef {Assert<Equal<Get<'+'>, Op12>>} _PlusIsOp12 */
-        /** @typedef {Assert<Equal<Get<'-'>, Op12>>} _MinusIsOp12 */
-        /** @typedef {Assert<Equal<Get<'?:'>, Op3>>} _ConditionalIsOp3 */
-        /** @typedef {Assert<Equal<Get<'[]'>, ExpArray>>} _BracketsIsArray */
-        /** @typedef {Assert<Equal<Get<'()'>, Call>>} _CallIsCall */
-        /** @typedef {Assert<Equal<Get<'.'>, Dot>>} _DotIsDot */
-    },
     // The non-`Array` side of `vm`'s only branch: a primitive is its own
     // value, returned without ever reaching `map`.
     primitive: () => {

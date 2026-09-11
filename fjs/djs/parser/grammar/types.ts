@@ -8,9 +8,29 @@
  * @module
  */
 
+import type { Assert } from '../../../asserts/types.ts'
 import type { Option, Rule } from '../../../ebnf/types.ts'
+import type { Equal } from '../../../types/ts/types.ts'
 import type { DjsToken } from '../../tokenizer/types.ts'
-import type { identifier, key, primitive, trivia } from './module.f.mjs'
+import type {
+    _framingKeywords,
+    _ordinaryTokenNames,
+    _tokenKindNames,
+    identifier,
+    key,
+    primitive,
+    trivia,
+} from './module.f.mjs'
+
+// The alphabet the grammar is written over is described twice — as the lists
+// `./module.f.mjs` registers and as the unions below — and the four pins that
+// keep the two agreeing sit beside those unions.
+//
+// They were `./proof.f.mjs`'s `consistency` entry, a body of nothing but
+// typedefs, so none of them bound to a statement and all four were green
+// whatever they claimed (`../../../AGENTS.md` §1.4). That entry's own comment
+// said the function body existed only to give the typedefs a scope, which is
+// the shape exactly.
 
 /**
  * The words that frame a module, which the grammar has to tell apart from an
@@ -25,6 +45,8 @@ import type { identifier, key, primitive, trivia } from './module.f.mjs'
  */
 export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from'
 
+type _KeywordsAreComplete = Assert<Equal<(typeof _framingKeywords)[number], _FramingKeyword>>
+
 /**
  * A token name the grammar can name as a terminal: every `DjsToken` kind
  * except `eof`, plus the framing keywords.
@@ -37,6 +59,15 @@ export type _FramingKeyword = 'import' | 'const' | 'export' | 'default' | 'from'
  * added there cannot silently go unrepresented at the parser layer.
  */
 export type _OrdinaryTokenName = Exclude<DjsToken['kind'], 'eof'> | _FramingKeyword
+
+type _KindsAreComplete = Assert<Equal<(typeof _tokenKindNames)[number], Exclude<DjsToken['kind'], 'eof'>>>
+type _AlphabetIsComplete = Assert<Equal<(typeof _ordinaryTokenNames)[number], _OrdinaryTokenName>>
+
+// `eof` is not a member of the alphabet, so a second end marker cannot be
+// encoded rather than merely going unused — and `encode` would reject the name
+// outright. Checked at the type level because that is where it is decidable:
+// `includes('eof')` does not even compile against this element type.
+type _EofIsNotAName = Assert<Equal<Extract<_OrdinaryTokenName, 'eof'>, never>>
 
 /**
  * A comma-separated list of `Item`s, at least one, a trailing comma
