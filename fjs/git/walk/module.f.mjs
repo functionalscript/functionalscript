@@ -87,12 +87,6 @@ const seenKey = id => String(id)
  * takes next. A link that refuses names none, so the walk runs out of
  * items and ends.
  *
- * It is a walk rather than a recursion because a chain read through a
- * `Read` that answers values — an in-memory store, a proof's — would
- * otherwise be followed by {@link step} calling its own continuation, one
- * or two frames per tag, and a two-thousand-tag chain exhausted the stack.
- * `walkStep`'s loop is flat in the item count whatever the `Read` answers.
- *
  * @template {Operation} O
  * @param {Read<O>} read
  * @param {(payload: Bytes) => Nullable<TagTarget>} targetAt
@@ -225,11 +219,6 @@ const lost = /** @type {_PathState} */ ({ entries: null, found: null })
  * A path that has run out of tree carries {@link lost} through the
  * components that remain, reading nothing, so the fold answers `null`
  * without the early exit a fold has not got.
- *
- * It is a fold rather than a recursion for the reason {@link peelStep} is a
- * walk: a path read through a `Read` that answers values nested one
- * {@link step} per component, and a path of some thousands exhausted the
- * stack.
  *
  * @template {Operation} O
  * @param {Step<O, readonly TreeEntry[]>} at

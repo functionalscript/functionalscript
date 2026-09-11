@@ -27,10 +27,6 @@ export type _PeelItem = {
  * id it comes back to is refused as the cycle it is, and `target` the
  * object it stopped at, `null` until it stops at one and where it stops at
  * none.
- *
- * `seen` is a map rather than a list because the chain has no bound: a list
- * is scanned and copied whole at every link, which is quadratic in the
- * chain's length, where the map answers and grows in its logarithm.
  */
 export type _PeelState = {
     readonly seen: OrderedMap<true>
