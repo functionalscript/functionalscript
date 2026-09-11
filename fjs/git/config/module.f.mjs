@@ -375,18 +375,40 @@ const valuesOf = (entries, section, key) =>
  */
 const last = values => values.length === 0 ? null : values[values.length - 1]
 
+/** What every extension's name begins with, the dot included. */
+const extensionsPrefix = /** @type {const} */ ('extensions.')
+
+/**
+ * The extension an entry names, or `null` where it names none. Git reads
+ * the name off the whole variable — `extensions.` and everything after it
+ * — so a subsection is part of the name rather than a section of its own:
+ * `[extensions "x"]` with `noop` names the extension `x.noop`, which is
+ * none Git knows, and under version 1 Git refuses the repository for it.
+ *
+ * @type {(entry: Entry) => Nullable<string>}
+ */
+const extensionAt = ([section, key]) =>
+    section === 'extensions' ? key
+        : section.startsWith(extensionsPrefix) ? `${section.slice(extensionsPrefix.length)}.${key}`
+            : null
+
 /**
  * Whether every `[extensions]` value the file holds is one Git reads: a
  * boolean where the extension takes one, and a hash's name where the
- * extension is `objectFormat`, which is case-sensitive as Git reads it.
+ * extension is `objectFormat`, which is case-sensitive as Git reads it. An
+ * extension under a subsection is a name Git knows none of, so it has no
+ * value Git reads either and none is asked of it.
  *
  * @type {(entries: readonly Entry[]) => boolean}
  */
-const extensionValuesRead = entries => entries.every(([section, key, value]) =>
-    section !== 'extensions'
-    || (booleanExtensions.includes(key)
+const extensionValuesRead = entries => entries.every(entry => {
+    const ext = extensionAt(entry)
+    if (ext === null) { return true }
+    const value = entry[2]
+    return booleanExtensions.includes(ext)
         ? isBoolean(value)
-        : key !== 'objectformat' || formats[value] !== undefined))
+        : ext !== 'objectformat' || formats[value] !== undefined
+})
 
 /**
  * The id width the file names, or `null` where the file is one Git
@@ -408,8 +430,10 @@ const extensionValuesRead = entries => entries.every(([section, key, value]) =>
  * version 1, and `1k` is 1024. What the version then decides:
  *
  * - Over 1 refuses the file — `Expected git repo version <= 1`.
- * - 1 or more refuses a key in `[extensions]` that Git does not know —
- *   `unknown repository extension found`.
+ * - 1 or more refuses an extension Git does not know — `unknown repository
+ *   extension found`. A subsection is part of an extension's name rather
+ *   than a section of its own, so `[extensions "x"]` names no extension
+ *   Git knows whatever key it holds.
  * - 0 refuses a key Git reads only under version 1, `objectFormat` among
  *   them — `repo version is 0, but v1-only extension found`.
  * - {@link noVersion}, which a file naming no version has and a file
@@ -432,9 +456,12 @@ export const tryOidBytes = text => {
         /** @type {Nullable<bigint>} */(noVersion),
     )
     if (version === null || version > 1n) { return null }
-    const keys = entries.flatMap(([section, key]) => section === 'extensions' ? [key] : [])
-    if (version >= 1n && !keys.every(key => knownExtensions.includes(key))) { return null }
-    if (version === 0n && keys.some(key => v1OnlyExtensions.includes(key))) { return null }
+    const exts = entries.flatMap(entry => {
+        const ext = extensionAt(entry)
+        return ext === null ? [] : [ext]
+    })
+    if (version >= 1n && !exts.every(ext => knownExtensions.includes(ext))) { return null }
+    if (version === 0n && exts.some(ext => v1OnlyExtensions.includes(ext))) { return null }
     // The hash is what the last `objectFormat` names whatever the version,
     // since Git reads the key at every one — and nothing, where the format
     // Git read was thrown away.

@@ -5,13 +5,15 @@
 
 ### Problem
 
-The readers here take bytes and give values; nothing takes an id and gives
-bytes. [`fjs/git/loose`](../loose/module.f.mjs) reads one file at a path
-the caller spelled, and a caller should not have to know that an id
-`ab12…` lives at `objects/ab/12…` if it is loose and in a pack otherwise.
-Both consumers under [`todo/`](../../../todo/) need one function from an
-id to an object, and a walk built on it: a commit to its tree, a tree to
-its entries, an entry to a blob.
+[`fjs/git/store`](../store/module.f.mjs) takes an id and gives bytes, so
+the first half of this is done — for loose objects, and at a directory the
+caller spells. What is left is the rest of that: an id in a pack, and the
+directory found rather than given, since a caller should not have to know
+that an id `ab12…` lives at `objects/ab/12…` if it is loose and elsewhere
+if it is packed, nor which directory `objects/` sits in when a worktree is
+linked. Both consumers under [`todo/`](../../../todo/) also need a walk
+built on the store: a commit to its tree, a tree to its entries, an entry
+to a blob.
 
 ### Proposal
 

@@ -170,6 +170,18 @@ export const proof = {
         assertEq(tryOidBytes(extension(1, 'partialclone', 'origin')), 20)
         assertEq(tryOidBytes(extension(1, 'noop-v1', 'anything')), 20)
         assertEq(tryOidBytes(extension(0, 'frobnicate', 'yes')), 20)
+        // A subsection is part of an extension's name, not a section of
+        // its own: `[extensions "x"]` with `noop` names `x.noop`, which
+        // Git knows none of, so version 1 refuses it and version 0 ignores
+        // it — the key alone being one Git knows changes nothing. Nor is
+        // there a value to read under one: `objectFormat` there is not the
+        // key of that name, so its value is never judged and never read.
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions "x"]\n\tnoop = true'), null)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions "x"]\n\tobjectFormat = sha256'), null)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions "x"]\n\tobjectFormat = wat'), null)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 0\n[extensions "x"]\n\tnoop = true'), 20)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 0\n[extensions "x"]\n\tobjectFormat = wat'), 20)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 0\n[extensions "x"]\n\tworktreeConfig = maybe'), 20)
     },
     // An extension whose value Git reads as a boolean refuses the repository
     // where the value is none, whatever the version says.
