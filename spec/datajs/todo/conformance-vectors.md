@@ -1830,9 +1830,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       not landed refuses nothing, since a class cannot owe a vector to a
       set that does not exist: its column says so on every row and the
       refusal arrives with the set, which is where the serializer and
-      normalize columns stand today. 667 classes, the reader role
-      answering every one. Prose could not do this job, which four
-      consecutive review rounds showed.
+      normalize columns stand today. 668 classes as this step landed, the
+      reader role answering every one; a later set adds classes of its own
+      and one `['set', …]` reason answers the reader for all of them. Prose
+      could not do this job, which four consecutive review rounds showed.
 - [ ] **The JavaScript whole-set check**, per decision 5. The
       FunctionalScript one is stage 6's, once stage 5 has taught the front
       end `;` and the special numbers.
@@ -1873,8 +1874,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a hole, `delete` and a `length` assignment are mutation, and `concat`,
       `slice` and `map` propagate a hole without originating one, so no
       reader can return a sparse array. What the round leaves behind is a
-      finding wider than this corpus: **twenty-eight uses of `new Array(`
-      across nine `.f.mjs` files**, one of them in a shipped module, where
+      finding wider than this corpus: **twenty-nine `new Array(` expressions
+      on twenty-eight lines across nine `.f.mjs` files**, one of them in a
+      shipped module, where
       `fjs/types/object/structurally_same/README.md` already says in so many
       words that the construct is not in the language. That sweep has its own
       issue,
