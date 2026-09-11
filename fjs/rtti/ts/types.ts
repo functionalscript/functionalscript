@@ -877,16 +877,19 @@ type _VariadicPrefixAdmitsItsOwnShape = Assert<readonly [1, 2, 'x'] extends Ts<_
  * This row and {@link _NonFixedLength} document intent rather than
  * discriminate a mechanism. The guard and the fallback both answer `M` for
  * these two shapes, so neither single mutation moves them — only removing
- * both at once does. The rows that pin one mechanism each are
- * {@link _VariadicPrefixRejectsMixedPrefix} (the guard),
- * {@link _OptionalMember} (the fallback) and
- * {@link _UnionKeepsBranchCorrelation} (the distribution).
+ * both at once does. The rows that discriminate a mechanism are elsewhere,
+ * and each was measured with a mutation of its own:
  *
- * The first two are measured: removing the guard reports the one, replacing
- * the peel's outermost fallback reports the other, and neither moves this row
- * or {@link _NonFixedLength}. The third is not. Removing the distribution
- * reports nothing in any file, so either it is redundant or what it does is
- * unchecked — `./todo/unpinned-union-distribution.md` settles which.
+ * - removing the length guard reports
+ *   {@link _VariadicPrefixRejectsMixedPrefix}, alone;
+ * - replacing the peel's outermost fallback with `readonly []` reports
+ *   {@link _OptionalMember}, alone;
+ * - making the distribution non-distributive (`[T] extends [Tuple]`) reports
+ *   {@link _UnionKeepsBranchCorrelation} and {@link _UnionGuardsEachBranch},
+ *   which is one mechanism with two consequences rather than two mechanisms.
+ *
+ * None of the three moves this row or {@link _NonFixedLength}, which is the
+ * paragraph above, measured rather than argued.
  */
 type _RestTuple = Assert<Equal<Ts<readonly [RttiNumber, ...RttiString[]]>, readonly [number, ...string[]]>>
 
@@ -902,15 +905,39 @@ type _OptionalMember = Assert<Equal<Ts<readonly [RttiNumber, RttiString?]>, read
 
 /**
  * A union of tuple schemas is split per member, not once across the union.
- * Splitting the union lets the two halves distribute independently and the
- * spread then pairs every prefix with every suffix, so `[number, boolean]` —
- * A's prefix with B's suffix — would pass. Assignability again: this is a
- * statement about which values the union admits.
+ * {@link _SplitTs} takes the schema and the mapping as two parameters, both
+ * naked, so a union that reaches it distributes them independently and every
+ * schema is paired with every mapping. Measured on the two branches below:
+ * per member the split answers
+ * `[number, string?] | [string, boolean?, number?]`, and across the union it
+ * also answers `[number?, string?]` and `[string, boolean, number?]` — A's
+ * schema with B's mapping, and B's with A's.
+ *
+ * The witness has to be the empty tuple. `[number?, string?]` is the only
+ * crossed arm admitting anything the per-member answer does not, and an empty
+ * array is what it admits; the other crossed arm is narrower than the arm it
+ * shadows, so no value reaches it. This row read `readonly [1, true]` while
+ * it was inert, which no arm of either answer admits, so it held both ways.
  */
 type _BranchA = readonly [RttiNumber, _OptionString]
 type _BranchB = readonly [RttiString, _OptionBoolean, _OptionNumber]
-type _UnionKeepsBranchCorrelation = Assert<readonly [1, true] extends TupleTs<_BranchA | _BranchB> ? false : true>
+type _UnionKeepsBranchCorrelation = Assert<readonly [] extends TupleTs<_BranchA | _BranchB> ? false : true>
 type _UnionAdmitsItsOwnBranches = Assert<readonly [1, 'x'] extends TupleTs<_BranchA | _BranchB> ? true : false>
+
+/**
+ * The length guard is per member for the same reason. A union of a
+ * fixed-length schema and a non-fixed one has `length: number | 2`, and
+ * `number` extends that, so a guard reading the union answers "non-fixed" for
+ * both members and the fixed one keeps its mapping instead of being split —
+ * losing the trailing optional the whole transform exists to produce.
+ *
+ * Stated as the rendered type rather than as assignability, because nothing
+ * distinguishes the two answers by admission: the `readonly number[]` arm
+ * admits every short array the missing optional would have.
+ */
+type _UnionGuardsEachBranch = Assert<Equal<
+    TupleTs<_BranchA | readonly RttiNumber[]>,
+    readonly [number, string?] | readonly number[]>>
 
 type _OptionalTail = Assert<Equal<Ts<readonly [RttiNumber, RttiBigint, _OptionBoolean, _OptionString]>, readonly [number, bigint, boolean?, string?]>>
 
