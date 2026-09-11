@@ -74,7 +74,7 @@ export const proof = {
     // message whole, whatever the pieces' lengths.
     pieces: () => {
         const whole = of('The quick brown fox jumps over the lazy dog')
-        const parts = ['The', ' quick', ' brown', ' fox', ' jumps', ' over', ' the', ' lazy', ' dog']
+        const parts = /** @type {readonly string[]} */ (['The', ' quick', ' brown', ' fox', ' jumps', ' over', ' the', ' lazy', ' dog'])
         assertEq(uint(compute(map(utf8)(parts))), whole)
         const state = sha1.append(utf8('The quick brown fox'))(sha1.init)
         assertEq(uint(sha1.end(sha1.append(utf8(' jumps over the lazy dog'))(state))), whole)
