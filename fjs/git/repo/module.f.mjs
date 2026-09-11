@@ -40,6 +40,7 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  */
 
+import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { catchStep, history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
 import { join } from '../../path/module.f.mjs'
@@ -95,7 +96,7 @@ const u8ListToVecMsb = u8ListToVec(msb)
  * @type {(v: Vec) => { readonly raw: number, readonly size: number, readonly text: Nullable<string> }}
  */
 const read = v => {
-    const bs = /** @type {readonly number[]} */ (toArray(u8ListMsb(v)))
+    const bs = toArray(u8ListMsb(v))
     const end = bs.slice(0, bs.findLastIndex(b => b !== 0x0A && b !== 0x0D) + 1)
     const nul = end.indexOf(0)
     return {
@@ -170,7 +171,7 @@ const isBareDrive = /** @type {(path: string) => boolean} */ (
  * @type {(path: string) => boolean}
  */
 const reachesHost = path => [...path].every(c => {
-    const n = /** @type {number} */ (c.codePointAt(0))
+    const n = assertNotNullish(c.codePointAt(0))
     return n < 0xD800 || n > 0xDFFF
 })
 
