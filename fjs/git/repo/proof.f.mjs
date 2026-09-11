@@ -104,15 +104,41 @@ export const proof = {
     },
     // Whether a path stands on its own is the host's question and this
     // reads text, so it answers the one reading that is right wherever Git
-    // writes such a path. A drive is a root: it is what Windows Git puts in
-    // a gitfile, and no POSIX directory is named after one. A leading `\`
-    // is not: Git writes a gitfile with `/` separators on every host, so a
-    // `\` at the front is a POSIX file's name rather than Windows' other
-    // root, and POSIX Git indeed reads `\bs` against the worktree.
+    // writes such a path. A drive with a `/` after it is a root: `C:/...` is
+    // what Windows Git puts in a gitfile, and no POSIX directory is named
+    // after a drive. `C:r` is not, in either case its letter is written: it
+    // names a directory under drive C's current directory, which Windows
+    // Git never writes, and POSIX Git reads it against the worktree. A
+    // leading `\` is not either: Git writes a gitfile with `/` separators
+    // on every host, so a `\` at the front is a POSIX file's name rather
+    // than Windows' other root, and POSIX Git indeed reads `\bs` against
+    // the worktree. Nor is a plain letter, where a drive's name would have
+    // stood.
     hosts: () => {
         assertEq(at({ w: { '.git': file('gitdir: C:/r\n') }, 'C:': { r: repo } })('w'), 'C:/r')
-        assertEq(at({ w: { '.git': file('gitdir: C:r\n') }, 'C:r': repo })('w'), 'C:r')
+        assertEq(at({ w: { '.git': file('gitdir: c:/r\n') }, 'c:': { r: repo } })('w'), 'c:/r')
+        assertEq(at({ w: { '.git': file('gitdir: C:r\n'), 'C:r': repo } })('w'), 'w/C:r')
+        assertEq(at({ w: { '.git': file('gitdir: r\n'), r: repo } })('w'), 'w/r')
         assertEq(at({ w: { '.git': file('gitdir: \\bs\n'), '\\bs': repo } })('w'), 'w/\\bs')
+    },
+    // A path reaches the filesystem as the bytes before its first NUL, so
+    // that is where a line's path ends, in either file. `no path in
+    // gitfile` is what Git says of the bytes it read, before a path is
+    // taken out of them, so a line that is nothing but a NUL gets past it
+    // and names the worktree.
+    nul: () => {
+        assertEq(at({ w: { '.git': file('gitdir: /r\0junk\n') }, r: repo })('w'), '/r')
+        assertEq(at({ w: { '.git': file('gitdir: \0junk\n') } })('w'), 'w/')
+        const root = { w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('/m/.git\0junk\n') }, m: { '.git': repo } }
+        assertEq(at(root)('w'), '/m/.git')
+    },
+    // The line's end is a run of any length, and a file's length is
+    // whatever wrote it. Git reads a gitfile padded with two hundred
+    // thousand newlines; a `Vec` holds 131072 bytes, so that is as long a
+    // file as the effects layer can carry, and a hundred thousand of them
+    // is an order of magnitude past where a step per character gives out.
+    padded: () => {
+        assertEq(at({ w: { '.git': file(`gitdir: /r${'\n'.repeat(100000)}`) }, r: repo })('w'), '/r')
     },
     // A path is bytes to Git and a string to the effects layer, and the
     // round trip is exact for UTF-8 alone: a lone `0xff` would go back out

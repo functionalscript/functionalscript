@@ -64,16 +64,37 @@ const gitdir = /** @type {const} */ ('gitdir: ')
 const textAt = path => mapStep(readFile(path), fromVec)
 
 /**
- * The path a one-line file of Git's names: the text with the line's end
- * taken off and nothing else. Git strips a trailing `\n` and `\r` from
- * both of these files and no other whitespace, so `gitdir: x  ` names the
- * directory `x  ` and not `x`.
+ * The text with the line's end taken off and nothing else. Git strips a
+ * trailing `\n` and `\r` from both of these files and no other whitespace,
+ * so `gitdir: x  ` names the directory `x  ` and not `x`.
+ *
+ * The run of them is found once and cut once, rather than a step per
+ * character. A file's length is whatever wrote it, not what this module
+ * would like: Git reads a gitfile padded with two hundred thousand
+ * newlines without complaint, and the effects layer carries a file of up
+ * to a `Vec`'s 131072 bytes. A step per character is a stack frame per
+ * character, and gives out an order of magnitude below either.
  *
  * @type {(text: string) => string}
  */
-const named = text => text.endsWith('\n') || text.endsWith('\r')
-    ? named(text.slice(0, -1))
-    : text
+const named = text => {
+    const cs = [...text]
+    return cs.slice(0, cs.findLastIndex(c => c !== '\n' && c !== '\r') + 1).join('')
+}
+
+/**
+ * The path a line names: what stands before its first NUL, since a path
+ * reaches the filesystem as the bytes up to one. Git takes the line's end
+ * off the bytes it read and then reads a path out of them as a C string, so
+ * `gitdir: /r\0junk` names `/r` and opens it, where carrying the NUL on
+ * would make a path no host accepts.
+ *
+ * @type {(line: string) => string}
+ */
+const upTo = line => {
+    const i = line.indexOf('\0')
+    return i === -1 ? line : line.slice(0, i)
+}
 
 /** A letter, which is what a Windows drive is named by. */
 const isDriveLetter = /** @type {(c: string) => boolean} */ (
@@ -84,22 +105,28 @@ const isDriveLetter = /** @type {(c: string) => boolean} */ (
  * asks and what decides whether the directory the file sits in is read
  * first.
  *
- * A `/` says so on either host. A drive says so on Windows alone — Git's
- * `has_dos_drive_prefix` is nothing on POSIX, so a POSIX directory really
- * named `C:` is relative there — and it is read as a root here because it
- * is what Windows Git writes into a gitfile and a POSIX directory named
- * after a drive is not a thing that happens. This is the same reading
- * [`fjs/path`](../../path/module.f.mjs) takes of a drive, and the same
- * limitation it records.
+ * A `/` says so on either host. A drive with a `/` after it says so on
+ * Windows alone — Git's `has_dos_drive_prefix` is nothing on POSIX, so a
+ * POSIX directory really named `C:` is relative there — and it is read as a
+ * root here because `C:/…` is what Windows Git writes into a gitfile and a
+ * POSIX directory named after a drive is not a thing that happens. This is
+ * the same reading [`fjs/path`](../../path/module.f.mjs) takes of a drive,
+ * and the same limitation it records.
  *
- * A `\` is Windows' other root and is *not* read as one: Git writes a
- * gitfile with `/` separators on every host, so no gitfile begins with a
- * `\` that means a root, while a POSIX file may well be named `\x` and
- * would be lost by reading it as one.
+ * The `/` is required. `C:r` names a directory under drive C's *current*
+ * directory rather than a directory of its own, so Windows Git writes no
+ * such gitfile, and on POSIX it is an ordinary relative path Git reads
+ * against the worktree — which is what it is read as here.
+ *
+ * A `\` is Windows' other root and is *not* read as one either: Git
+ * writes a gitfile with `/` separators on every host, so no gitfile begins
+ * with a `\` that means a root, while a POSIX file may well be named
+ * `\x` and would be lost by reading it as one.
  *
  * @type {(path: string) => boolean}
  */
-const isAbsolute = path => path.startsWith('/') || (isDriveLetter(path[0]) && path[1] === ':')
+const isAbsolute = path =>
+    path.startsWith('/') || (isDriveLetter(path[0]) && path[1] === ':' && path[2] === '/')
 
 /**
  * A path one of these files names, read where it was found: an absolute
@@ -136,7 +163,7 @@ const against = (dir, path) => isAbsolute(path) ? path : join(dir, path)
 const commonOf = repo => catchStep(
     mapStep(textAt(`${repo}/commondir`), text => {
         if (text === null || text === '') { return null }
-        const line = named(text)
+        const line = upTo(named(text))
         return line === '' ? repo : against(repo, line)
     }),
     e => isNotFound(e) ? pureOk(repo) : pureError(e))
@@ -152,7 +179,10 @@ const commonOf = repo => catchStep(
 const tryGitdir = (worktree, text) => {
     if (!text.startsWith(gitdir)) { return null }
     const line = named(text.slice(gitdir.length))
-    return line === '' ? null : against(worktree, line)
+    // `no path in gitfile` is what Git says of the bytes it read, before a
+    // path is taken out of them, so a line that is nothing but a NUL gets
+    // past it and names the worktree itself.
+    return line === '' ? null : against(worktree, upTo(line))
 }
 
 /**
