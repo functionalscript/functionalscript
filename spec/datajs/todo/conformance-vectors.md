@@ -2217,13 +2217,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
 - [x] **The byte form.** Landed in the two reader sets rather than sets of
       its own, since a byte document is a `Document` like any other: 29
       accept records and 61 reject records, classed `byte/…`, each
-      `["hex", "…"]`, so the two sets are 356 and 396. The accept side is the table by lead partition, both
-      ends of all eight parts, the six vectors that vary the continuation
-      positions independently, the one-byte range in both contexts — U+0020
-      and U+007F in a string, tab, LF and CR between tokens — the BOM inside
-      a string, and the four widths in one string. The reject side is both
-      ends of every error class in the table, the two overlong sequences
-      that land back in range, the whole non-continuation matrix by lead
+      `["hex", "…"]`, so the two sets are 364 and 396. The accept side is
+      the table by lead partition, both ends of all eight parts, the six
+      vectors that vary the continuation positions independently, the
+      one-byte range in both contexts — U+0020 and U+007F in a string,
+      tab, LF and CR between tokens — the BOM inside a string, and the
+      four widths in one string. The reject side is both ends of every
+      error class in the table, the two overlong sequences that land back
+      in range, the whole non-continuation matrix by lead
       partition with an ASCII and a valid-lead intruder in every cell, and
       the BOM as the first byte. Every malformed sequence sits inside an
       otherwise valid string, and each was paired in the generator with the
