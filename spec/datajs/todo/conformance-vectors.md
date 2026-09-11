@@ -1809,9 +1809,20 @@ The steps, in order; a step is one pull request unless it says otherwise:
       outside the data members, an accessor, a hole and a prototype other
       than `Object.prototype` or `null`. That is a different argument from
       the caller one and worth keeping: `difference` reads the output of the
-      implementation under test, so trust is not what retires the checks —
-      unreachability is, since a FunctionalScript reader cannot spell any of
-      them however broken it is. Gone with them: `member`, `outsideTheModel`,
+      implementation under test, so trust is not what retires a check —
+      unreachability is, since a FunctionalScript reader cannot spell those
+      however broken it is.
+      **The hole is the exception, and the first sweep got it wrong.** A
+      sparse array *literal* is outside the subset, which is not the same as
+      a sparse array: `[7].concat(new Array(1))` builds one without
+      mutation, `fjs/rtti/parse` has proofs that do, and the writer that
+      landed on `main` refuses `new Array(1)` by name. So `[undefined]` and
+      a one-element sparse array are graphs a reader can tell apart and the
+      corpus must too; the check is back, and reading elements by index
+      would have made the two compare equal. Generalising one construct's
+      absence to a whole class is the shape this file records a dozen times,
+      committed once more by the commit that was removing its instances.
+      Gone, and staying gone: `outsideTheModel`,
       the `_Mark` and `_Member` types, the reflection imported for them, the
       proof's `plain` and `model` groups and the `outside` escape hatch that
       built host values with `Object.assign`, `Object.defineProperty`,
