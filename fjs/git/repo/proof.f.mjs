@@ -202,7 +202,8 @@ export const proof = {
             stat: () => state => [state, ok({ size: 0, isFile: false, isDirectory: false })],
             readFile: () => state => [state, error(ioError({ code: 'EBADF', message: 'read of a FIFO' }))],
         })
-        assertStructurallySame(run(host)(null)(tryCommonDir('w'))[1], ok(null))
+        const [, refused] = run(host)(null)(tryCommonDir('w'))
+        assertStructurallySame(refused, ok(null))
     },
     // A worktree with no `.git` is the channel's, as a directory with no
     // `config` is: the caller named no repository rather than a bad one.

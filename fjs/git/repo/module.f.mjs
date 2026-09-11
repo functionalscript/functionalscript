@@ -50,6 +50,12 @@ import { toArray } from '../../types/list/module.f.mjs'
 /** What a `.git` file says before the directory it names. */
 const gitdir = /** @type {const} */ ('gitdir: ')
 
+/** The byte list of a vector, most significant bit first, as Git's files are. */
+const u8ListMsb = u8List(msb)
+
+/** Its inverse, at the same byte order. */
+const u8ListToVecMsb = u8ListToVec(msb)
+
 /**
  * A file of Git's read as Git reads one: `size` the bytes it holds after
  * the line's end is taken off, and `text` what stands before the first NUL
@@ -86,13 +92,13 @@ const gitdir = /** @type {const} */ ('gitdir: ')
  * @type {(v: Vec) => { readonly raw: number, readonly size: number, readonly text: Nullable<string> }}
  */
 const read = v => {
-    const bs = /** @type {readonly number[]} */ (toArray(u8List(msb)(v)))
+    const bs = /** @type {readonly number[]} */ (toArray(u8ListMsb(v)))
     const end = bs.slice(0, bs.findLastIndex(b => b !== 0x0A && b !== 0x0D) + 1)
     const nul = end.indexOf(0)
     return {
         raw: bs.length,
         size: end.length,
-        text: fromVec(u8ListToVec(msb)(nul === -1 ? end : end.slice(0, nul))),
+        text: fromVec(u8ListToVecMsb(nul === -1 ? end : end.slice(0, nul))),
     }
 }
 
