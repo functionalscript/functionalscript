@@ -33,6 +33,9 @@ const landed = {
     notApplicable: [],
 }
 
+/** A corpus of one role, one set and one vector. @type {(role: string, name: string, vector: { id: string, class: string }) => Corpus} */
+const one = (role, name, vector) => ({ roles: [{ role, sets: [[name, [vector]]] }], notApplicable: [] })
+
 /** @type {(c: Corpus) => string} */
 const failure = c => {
     const r = matrix(c)
@@ -64,7 +67,7 @@ export const proof = {
     // generator names the ones it does not get.
     unanswered: () => {
         assertEq(failure(landed), [
-            'the class-by-role matrix has 1 unanswered cells:',
+            'the class-by-role matrix has 1 defects:',
             '  y in serializer: no vector and no reason',
             'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
         ].join('\n'))
@@ -82,7 +85,7 @@ export const proof = {
     stale: () => {
         assertEq(failure({ ...two, notApplicable: [{ class: 'x', role: 'reader', because: 'no' }] }),
             [
-                'the class-by-role matrix has 1 unanswered cells:',
+                'the class-by-role matrix has 1 defects:',
                 '  x in reader: a reason for a cell that has 2 vectors',
                 'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
             ].join('\n'))
@@ -90,6 +93,18 @@ export const proof = {
             .includes('z in reader: no vector carries that class'))
         assert(failure({ ...two, notApplicable: [{ class: 'x', role: 'writer', because: 'no' }] })
             .includes('x in writer: no such role'))
+    },
+    // Text that would break the row it is written into is refused before
+    // anything is written, wherever the corpus carries it: a `|` starts a
+    // column, a line break ends a row, and a backtick closes a code span.
+    unrenderable: () => {
+        const reason = { ...two, notApplicable: [{ class: 'x', role: 'serializer', because: 'reader | writer only' }] }
+        assert(failure(reason).includes('the reason for x in serializer: "reader | writer only" would break the row it is written into'))
+        assert(failure(one('reader', 'accept', v('a', 'x\ny'))).includes('the class of a: "x\\ny" would break the row it is written into'))
+        assert(failure(one('reader', 'accept', v('a\rb', 'x'))).includes('an id in accept: "a\\rb" would break the row it is written into'))
+        const r = failure(one('rea`der', 'acc`ept', v('a', 'x')))
+        assert(r.includes('the role rea`der: "rea`der" would break the row it is written into'), r)
+        assert(r.includes('the set acc`ept of rea`der: "acc`ept" would break the row it is written into'), r)
     },
     // Every class of the corpus is a row, and every vector's id is in it.
     corpus: () => {

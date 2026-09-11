@@ -20,6 +20,10 @@
  * class no vector carries, is a failure too, since a stale reason is how a
  * table stops meaning anything.
  *
+ * Text that would break the row it is written into fails for the same
+ * reason: a `|` in a reason starts a column, and a table with a cell in
+ * the wrong column reads one way and means another exactly as prose does.
+ *
  * A role whose sets have not landed is the one thing that does not fail:
  * a class cannot owe a vector to a set that does not exist. Its column
  * says so on every row, and the refusal arrives with the set.
@@ -110,6 +114,46 @@ const cell = (corpus, role, c) => {
         : error(`${c} in ${role.role}: no vector and no reason`)
 }
 
+/**
+ * Text a table cell carries as written. A `|` starts a column and a line
+ * break ends a row, so either one turns a cell into a shape the row was
+ * not meant to have — and the generator would still report success, which
+ * is the one thing this file exists to make impossible.
+ *
+ * @type {(s: string) => boolean}
+ */
+const renderable = s => !s.includes('|') && !s.includes('\n') && !s.includes('\r')
+
+/** The same for text a code span wraps, where a backtick closes it early. @type {(s: string) => boolean} */
+const renderableCode = s => renderable(s) && !s.includes('`')
+
+/** @type {(ok: (s: string) => boolean, what: string, s: string) => readonly string[]} */
+const check = (ok, what, s) => ok(s) ? [] : [`${what}: ${JSON.stringify(s)} would break the row it is written into`]
+
+/**
+ * Every string the corpus puts in a cell, checked before any of them is
+ * written. Refusing rather than escaping is the same answer the rest of
+ * this file gives: a reason that cannot be rendered is a defect in the
+ * corpus, named where it is, not something a generator quietly rewrites
+ * into text nobody chose.
+ *
+ * @type {(corpus: Corpus) => readonly string[]}
+ */
+const unrenderable = ({ roles, notApplicable }) => [
+    ...roles.flatMap(({ role, sets }) => [
+        ...check(renderableCode, `the role ${role}`, role),
+        ...sets.flatMap(([name, vectors]) => [
+            ...check(renderableCode, `the set ${name} of ${role}`, name),
+            ...vectors.flatMap(({ id, class: c }) => [
+                ...check(renderableCode, `an id in ${name}`, id),
+                ...check(renderableCode, `the class of ${id}`, c),
+            ]),
+        ]),
+    ]),
+    ...notApplicable.flatMap(({ class: c, role, because }) =>
+        check(renderable, `the reason for ${c} in ${role}`, because)),
+]
+
 /** A reason naming a class or a role the corpus does not have. @type {(corpus: Corpus) => readonly string[]} */
 const stale = ({ roles, notApplicable }) => {
     const classes = new Set(classesOf(roles))
@@ -151,10 +195,10 @@ const summary = (corpus, role) => {
 export const matrix = corpus => {
     const classes = classesOf(corpus.roles)
     const rows = classes.map(c => row(corpus, c))
-    const failures = [...stale(corpus), ...rows.flatMap(r => r[0] === 'error' ? r[1] : [])]
+    const failures = [...unrenderable(corpus), ...stale(corpus), ...rows.flatMap(r => r[0] === 'error' ? r[1] : [])]
     if (failures.length !== 0) {
         return error([
-            `the class-by-role matrix has ${failures.length} unanswered cells:`,
+            `the class-by-role matrix has ${failures.length} defects:`,
             ...failures.map(f => `  ${f}`),
             'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
         ].join('\n'))
