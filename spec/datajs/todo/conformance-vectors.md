@@ -66,10 +66,13 @@ discriminator:
   the byte path is most likely to have.
 - **a truncated sequence at end of input**, `export default "a` followed by a
   lone `c2`. Nothing follows the lead byte, which is what makes it truncated;
-  a byte after it would make it some other malformed shape instead. This one is
-  a **record**: no reader can fail it, for the reason set out below, and it
-  exists so the corpus *shows* that a byte sequence is not DataJS, which no
-  code-unit document can say.
+  a byte after it would make it some other malformed shape instead. **A
+  document-level harness cannot fail this one**, for the reason set out below,
+  so it exists first of all because the corpus *shows* that a byte sequence is
+  not DataJS, which no code-unit document can say. It is an ordinary reject
+  record all the same, and a harness that can see where a refusal happened does
+  get an answer from it: the reader proof here asserts the layer each `rule`
+  belongs to, and a decoder substituting U+FFFD instead of refusing fails it.
 
 The third is an **accept**, and it is there because the other two are
 rejects. Review pointed out what that leaves open: with no byte document the
@@ -93,8 +96,8 @@ one had sampled where the rule said enumerate.
 Every one of them was about a decoder. DataJS is handed correct UTF-8, so a
 malformed sequence is not an input it processes, exactly as a `Map` is not an
 input a serializer refuses. The care was real and the subject was someone
-else's. What survives is the two rejects above, of which the truncated one is
-marked a record rather than dressed up as a test.
+else's. What survives is the two rejects above, neither dressed up as more than
+it is: the truncated one says what it says at the document level and no more.
 
 Truncation is worth one more line, because this file argued at length that it
 could not have a vector: the lead byte must be the document's last, so the
@@ -1768,9 +1771,11 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `export default 1;`, breaking "a document has no BOM" and accepted by
       the host, measured; and **`byte-truncated`**, `export default "a`
       followed by a lone `c2`, breaking "a document is UTF-8" and a host
-      syntax error, measured. Only the truncated one is a record rather than a
-      test: the BOM vector has one defect and discriminates, since a reader that
-      strips the BOM accepts the document and fails it. The
+      syntax error, measured. The BOM vector has one defect and discriminates at
+      the document level, since a reader that strips the BOM accepts it and
+      fails; the truncated one cannot be failed by a document-level harness,
+      though the reader proof's layer check does catch a decoder that
+      substitutes U+FFFD for those bytes. The
       third is the accept the other two leave owing, **`byte-valid-widths`**,
       `export default "aé€𐀀";` with its one-, two-, three- and
       four-byte sequences, and it is a test: without it a byte path that

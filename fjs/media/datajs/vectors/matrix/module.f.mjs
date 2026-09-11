@@ -49,6 +49,7 @@
  * @import { Corpus, NotApplicable, Role, Scope } from './types.ts'
  */
 
+import { assertNotNullish } from '../../../../asserts/module.f.mjs'
 import { step } from '../../../../effects/module.f.mjs'
 import { errorExit, exitStep, mkdir, writeUtf8File } from '../../../../effects/node/module.f.mjs'
 import { cmp as strCmp } from '../../../../types/string/module.f.mjs'
@@ -375,14 +376,20 @@ const duplicated = ({ notApplicable }) =>
  *
  * `showScope` takes a scope apart, and the whole point of the check below is
  * that a reason may not carry one — so naming the offender cannot go through
- * it, and cannot go through `JSON.stringify` either, which throws on a bigint.
+ * it. It cannot go through `JSON.stringify` either, which throws on a bigint,
+ * nor through `String` or a template on anything but a primitive: `{"toString":
+ * 1}` is an ordinary DataJS object, and coercing it calls a hook that is not a
+ * function and throws. So everything but a string and an array is named by its
+ * `typeof` in angle brackets rather than by its value, which is what a writer
+ * needs to find the record anyway.
  *
  * @type {(x: unknown) => string}
  */
 const show = x =>
-    x instanceof Array
-        ? `[${x.map(show).join(', ')}]`
-        : typeof x === 'string' ? JSON.stringify(x) : String(x)
+    x instanceof Array ? `[${x.map(show).join(', ')}]`
+        : typeof x === 'string' ? JSON.stringify(x)
+        : x === null ? 'null'
+        : `<${typeof x}>`
 
 /**
  * A scope that is not a tag and a name: not a pair of strings at all, or a
@@ -441,7 +448,7 @@ const stale = corpus => {
         if (n.scope[0] === 'set' && !setNames.has(n.scope[1])) { return [`${where}: no set of that name`] }
         const reached = classes.filter(c => reaches(roles, n.scope, c))
         if (reached.length === 0) { return [`${where}: answers no class`] }
-        const role = /** @type {Role} */ (roles.find(r => r.role === n.role))
+        const role = assertNotNullish(roles.find(r => r.role === n.role))
         const covered = reached.filter(c => idsOf(role, c).length !== 0)
         return covered.length === 0
             ? []
