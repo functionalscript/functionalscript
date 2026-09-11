@@ -5,12 +5,15 @@
  * pins the exact text of every construct the printer can emit, so a change in
  * layout is a visible diff here and not only in the generated file.
  *
- * @import { Data } from '../types.ts'
+ * @import { Data, Value } from '../types.ts'
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { casesOf, data, functionValue, groupKey, ref, throws } from '../module.f.mjs'
-import { directory, generate, nodeExpr, path, rustName, valueExpr } from './module.f.mjs'
+import { casesOf, data, functionValue, groupKey, lambdaExp, ref, throws, valueExp } from '../module.f.mjs'
+import { directory, generate, nodeExpr, path, rustName } from './module.f.mjs'
+
+/** A value as the printer meets it: its lowering, printed. @type {(v: Value) => string} */
+const valueExpr = v => nodeExpr(valueExp(v))
 
 /**
  * One case of every shape the printer can emit: a shared value and a
@@ -30,7 +33,7 @@ const sample = {
     },
     groups: [
         { op: '+', arity: 1, cases: [{ name: 'bigint', args: [0n], expected: throws }] },
-        { nanvmOp: 'typeof', cases: [{ name: 'null', args: [null], expected: 'object' }] },
+        { nanvmOp: 'ternary', cases: [{ name: 'pick', args: [true, 1, 2], expected: 1 }] },
         {
             op: '*',
             commutative: true,
@@ -57,8 +60,8 @@ fn unary_plus<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn typeof_<A: IVm>() {
-    check::<A>("null", Any::typeof_(Nullish::Null.to_any()), string_any("object"));
+fn conditional<A: IVm>() {
+    check::<A>("pick", Any::conditional(true.to_any(), (1f64).to_any(), (2f64).to_any()), (1f64).to_any());
 }
 
 #[rustfmt::skip]
@@ -70,7 +73,7 @@ fn mul<A: IVm>() {
 pub fn all<A: IVm>() {
     eq::<A>();
     unary_plus::<A>();
-    typeof_::<A>();
+    conditional::<A>();
     mul::<A>();
 }
 `
@@ -95,6 +98,8 @@ export const proof = {
             valueExpr({ k: null }),
             '[(string_key("k"), Nullish::Null.to_any())].to_object().to_any()')
         assertEq(valueExpr(functionValue), 'function_any()')
+        // Nested, a function is the same node inside its container's.
+        assertEq(valueExpr([functionValue]), '[function_any()].to_array().to_any()')
     },
     /**
      * The operation nodes, printed straight from the EDAG rather than through
@@ -104,6 +109,11 @@ export const proof = {
     nodeExpr: () => {
         assertEq(nodeExpr(['-', 1]), '-((1f64).to_any())')
         assertEq(nodeExpr(['+', 1]), 'Any::unary_plus((1f64).to_any())')
+        assertEq(nodeExpr(['typeof', 1]), 'Any::typeof_((1f64).to_any())')
+        // The one `=>` with a spelling: the corpus's function value, printed
+        // as the harness's stand-in, and atomic as an operand.
+        assertEq(nodeExpr(lambdaExp()), 'function_any()')
+        assertEq(nodeExpr(['-', lambdaExp()]), '-(function_any())')
         assertEq(
             nodeExpr(['String', 'a']),
             'string_any("a").to_string().map(|v| v.to_any())')
@@ -202,9 +212,23 @@ export const proof = {
         /**
          * An operation the printer has no `nanvm-lib` spelling for. The
          * generated file would otherwise carry a statement that does not
-         * compile, or worse, one that does and means something else.
+         * compile, or worse, one that does and means something else. `===`
+         * is such an id: `eqFn` spells it as `check_eq`, never as an
+         * expression.
          */
-        unknownOperation: () => nodeExpr(['=>', 1, 2]),
+        unknownOperation: () => nodeExpr(['===', 1, 2]),
+        /**
+         * A lambda other than `() => undefined`: no closure prints, so each
+         * way of not being the smallest one is refused — a frame that is a
+         * primitive, one that is a node but not an array literal, one that is
+         * not empty, a body that is not a node, and a body that is not the
+         * `undefined` node.
+         */
+        lambdaFramePrimitive: () => nodeExpr(['=>', 1, 2]),
+        lambdaFrameNotArray: () => nodeExpr(['=>', ['undefined'], ['undefined']]),
+        lambdaFrameNotEmpty: () => nodeExpr(['=>', ['[]', [1]], ['undefined']]),
+        lambdaBodyPrimitive: () => nodeExpr(['=>', ['[]', []], 5]),
+        lambdaBodyNotUndefined: () => nodeExpr(['=>', ['[]', []], ['args']]),
         /** An object key the corpus cannot produce and Rust cannot spell. */
         computedKey: () => nodeExpr(['{}', [[':', ['undefined'], 1]]]),
         /**

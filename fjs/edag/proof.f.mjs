@@ -130,7 +130,7 @@ const vOptionPropertyLambda = value => validate(optionPropertyLambda)(value)
 const op0Ids = /** @type {const} */ (['undefined', 'args', 'frame'])
 
 /** Same purpose as `op0Ids`, for `op1`. */
-const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~'])
+const op1Ids = /** @type {const} */ (['String', 'Number', '!', '~', 'typeof'])
 
 /** Same purpose as `op0Ids`, for `op2`. */
 const op2Ids = /** @type {const} */ ([
@@ -604,7 +604,7 @@ export const proof = {
     op1: {
         ok: () => {
             // Every id `op1` accepts, pinned individually: deleting any one
-            // of these four from `op1Id` reddens exactly this loop, not
+            // of these five from `op1Id` reddens exactly this loop, not
             // some other assertion that happens to still pass.
             for (const id of op1Ids) {
                 assertOk(v([id, 1]))
@@ -619,7 +619,7 @@ export const proof = {
         missingTailIsError: () => assertNoMatch(v(['!'])),
         error: () => assertNoMatch(v(['negz', 1])),
         // `op1Id` is a real constraint, not a stand-in for `string`: an id
-        // outside its four members is rejected, both directly and as part
+        // outside its five members is rejected, both directly and as part
         // of a full `exp` value.
         unknownIdIsRejected: () => {
             assertNoMatch(vOp1Id('xyz'))

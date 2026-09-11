@@ -74,7 +74,7 @@ vocabularies.
 | `['?.()', exp, exp]`, `['?.()', exp, exp, optionLambda]` | optional call `exp0?.(...exp1)`, likewise |
 | `['\|()', exp, k?]`, `['\|.', index, k?]`, `['\|?.()', exp, k?]`, `['\|!()', exp]` | a chain step and, where the chain continues, its continuation — only valid in the continuation operand of a node above, or of another step |
 | `[',', exps]` | comma: establish all operands, take the value of the last |
-| `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` |
+| `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` |
 | `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
 
