@@ -69,8 +69,9 @@ export const objectIdMessage = (path, actual) => `${path} holds the object ${act
 
 /**
  * The repository's id width, from its `config`: 20 bytes for SHA-1, 32
- * for SHA-256, or `null` where the file names a format this module does
- * not know. A `config` that cannot be read is the channel's, since a
+ * for SHA-256, or `null` where the file is one Git refuses — a format it
+ * does not know, the extension under `repositoryformatversion = 0`, a bad
+ * line. A `config` that cannot be read is the channel's, since a
  * directory without one is no repository.
  *
  * @type {(dir: string) => Effect<ReadFile, Nullable<OidBytes>, IoChannel>}

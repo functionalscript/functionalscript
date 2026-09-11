@@ -42,7 +42,9 @@ what a grammar can and cannot do for the formats.
   repository meets the decoder.
 - [`config/`](config/module.f.mjs) — the repository's `config` as
   `(section, key, value)` entries, and the id width it names:
-  `extensions.objectFormat` absent is SHA-1, `sha256` is SHA-256.
+  `extensions.objectFormat` absent is SHA-1, `sha256` under
+  `repositoryformatversion = 1` is SHA-256, and what Git refuses is
+  refused.
 - [`store/`](store/module.f.mjs) — from an id to the object it names,
   checked: the loose file at the id's path, hashed with `oid`'s `of` and
   refused where the hash is not the id; and the width from `config`.
