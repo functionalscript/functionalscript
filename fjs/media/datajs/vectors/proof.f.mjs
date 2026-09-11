@@ -1,9 +1,47 @@
 /**
  * @import { Unknown } from '../types.ts'
+ * @import { Accept, Reject } from './types.ts'
  */
 
-import { assertEq } from '../../../asserts/module.f.mjs'
-import { difference } from './module.f.mjs'
+import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { parse } from '../parser/module.f.mjs'
+import { bytes, difference } from './module.f.mjs'
+import accept from '../../../../spec/datajs/vectors/accept/data.f.mjs'
+import reject from '../../../../spec/datajs/vectors/reject/data.f.mjs'
+
+/** The reader accept set, typed at the import since a set carries no annotations. */
+const acceptSet = /** @type {readonly Accept[]} */ (accept)
+
+/** The reader reject set, typed the same way. */
+const rejectSet = /** @type {readonly Reject[]} */ (reject)
+
+/**
+ * One accept vector against the reader: the document is accepted, and
+ * what it yields is the graph the vector expects, sharing included.
+ *
+ * @type {(vector: Accept) => void}
+ */
+const accepted = ({ id, document, graph }) => {
+    // the byte form waits on the reader's byte path
+    assert(typeof document === 'string', `${id}: a byte document has no reader yet`)
+    const [tag, result] = parse(document)
+    assert(tag === 'ok', `${id}: refused: ${result}`)
+    const d = difference(graph)(result)
+    assert(d === null, `${id}: ${d}`)
+}
+
+/**
+ * One reject vector against the reader: the document is refused. What the
+ * refusal says is the reader's own; the vector names the rule broken, and
+ * a document valid but for that one defect is refused for it or not at all.
+ *
+ * @type {(vector: Reject) => void}
+ */
+const rejected = ({ id, document, rule }) => {
+    assert(typeof document === 'string', `${id}: a byte document has no reader yet`)
+    const [tag] = parse(document)
+    assert(tag === 'error', `${id}: accepted, though ${rule}`)
+}
 
 /** Two graphs that must compare equal. @type {(expected: Unknown, actual: Unknown) => void} */
 const same = (expected, actual) => assertEq(difference(expected)(actual), null)
@@ -26,6 +64,29 @@ const nested = (n, leaf) => {
 }
 
 export const proof = {
+    // A byte document's one spelling: lowercase pairs separated by single
+    // spaces, at least one pair. Every other spelling is refused, so that
+    // a set holds the spelling the byte tables use and no other.
+    bytes: () => {
+        same([0xef, 0xbb, 0xbf], bytes('ef bb bf'))
+        same([0], bytes('00'))
+        same([0xff, 0x7f, 0x80, 0x09, 0x0a, 0x0d, 0x20], bytes('ff 7f 80 09 0a 0d 20'))
+        assertEq(bytes(''), null)
+        assertEq(bytes('e'), null)
+        assertEq(bytes('efb'), null)
+        assertEq(bytes('efbb'), null)
+        assertEq(bytes('EF BB BF'), null)
+        assertEq(bytes('ef  bb'), null)
+        assertEq(bytes('ef bb '), null)
+        assertEq(bytes(' ef bb'), null)
+        assertEq(bytes('ef\tbb'), null)
+        assertEq(bytes('eg'), null)
+        assertEq(bytes('ge'), null)
+        assertEq(bytes('e/'), null)
+        assertEq(bytes('e:'), null)
+        assertEq(bytes('e`'), null)
+        assertEq(bytes('e@'), null)
+    },
     // A leaf is itself under `Object.is`: every kind of the data model, with
     // the two cases structural equality gets wrong — the zeros differ, and
     // `NaN` is one value.
@@ -127,4 +188,13 @@ export const proof = {
         differ([1, [2], 3], [1, [9], 9], 'at $[1][0]: expected 2, got 9')
         differ({ a: 1, b: [2] }, { a: 1, b: [2, 3] }, 'at $["b"]: expected 1 elements, got 2')
     },
+    // The reader accept set: the reader accepts every document to the graph
+    // the vector expects. The set's shape — ids one of a kind, every vector
+    // named and classed — is proved beside the set, in
+    // `spec/datajs/vectors/accept/proof.f.mjs`.
+    accept: () => { for (const vector of acceptSet) { accepted(vector) } },
+    // The reader reject set: the reader refuses every document. The set's
+    // shape, the host verdict among it, is proved beside the set, in
+    // `spec/datajs/vectors/reject/proof.f.mjs`.
+    reject: () => { for (const vector of rejectSet) { rejected(vector) } },
 }

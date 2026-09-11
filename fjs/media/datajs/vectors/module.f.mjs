@@ -15,6 +15,9 @@
  * The walk is over an explicit stack, so a graph nested as deep as a vector
  * allows costs no call stack.
  *
+ * `bytes` is the other thing a proof over the corpus needs: the bytes a
+ * byte-form document spells, from the one hex spelling the schema admits.
+ *
  * @module
  *
  * @import { TreeArray } from '../../json/types.ts'
@@ -23,6 +26,40 @@
  */
 
 const { is, keys, hasOwn, getPrototypeOf, prototype: objectPrototype } = Object
+
+/** The value of a lowercase hex digit, or `-1` for any other code unit. @type {(unit: number) => number} */
+const hexDigit = unit =>
+    unit >= 0x30 && unit <= 0x39 ? unit - 0x30 :
+    unit >= 0x61 && unit <= 0x66 ? unit - 0x57 :
+    -1
+
+/**
+ * Whether `hex` is spelled as a byte document is: lowercase pairs separated
+ * by single spaces, at least one pair, nothing else.
+ *
+ * @type {(hex: string) => boolean}
+ */
+const isHex = hex => {
+    if (hex.length % 3 !== 2) { return false }
+    for (let i = 0; i < hex.length; i += 3) {
+        if (hexDigit(hex.charCodeAt(i)) < 0 || hexDigit(hex.charCodeAt(i + 1)) < 0) { return false }
+        if (i + 2 < hex.length && hex.charCodeAt(i + 2) !== 0x20) { return false }
+    }
+    return true
+}
+
+/**
+ * The bytes a `['hex', …]` document spells, or `null` where the string is
+ * not that spelling: lowercase pairs separated by single spaces and nothing
+ * else, the one spelling the corpus admits so that a byte vector reads as
+ * the issue's byte tables do.
+ *
+ * @type {(hex: string) => readonly number[] | null}
+ */
+export const bytes = hex =>
+    isHex(hex)
+        ? Array.from({ length: (hex.length + 1) / 3 }, (_, i) => hexDigit(hex.charCodeAt(i * 3)) * 16 + hexDigit(hex.charCodeAt(i * 3 + 1)))
+        : null
 
 // by the data model's boundary, not the prototype chain: an array under a
 // `null` prototype is an array whose prototype is outside the model; and

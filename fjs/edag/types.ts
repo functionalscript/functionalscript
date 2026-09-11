@@ -19,6 +19,7 @@ export type Exp =
     | OptionDot
     | OptionCall
     | Comma
+    | Op3
     | Op12
     | Op2
     | Op1
@@ -178,3 +179,11 @@ export type Op12Id = '+' | '-'
 export type Op12 =
     | readonly[Op12Id, Exp]
     | readonly[Op12Id, Exp, Exp]
+
+// Op3Ids — the conditional, and the first node whose operand shape is lazy
+// on its own account: the condition is established, then exactly one arm.
+// See `op3` in `module.f.mjs`.
+
+export type Op3Id = '?:'
+
+export type Op3 = readonly[Op3Id, Exp, Exp, Exp]
