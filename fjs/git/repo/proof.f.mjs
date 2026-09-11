@@ -9,12 +9,17 @@ import { ioError } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
+import { vec } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { tryCommonDir } from './module.f.mjs'
 
 /** A file of one line of text, as the virtual filesystem holds one. */
 const file = /** @type {(text: string) => readonly [import('../../types/bit_vec/types.ts').Vec]} */ (
     text => [utf8(text)])
+
+/** A file of bytes a text has no spelling for. */
+const raw = /** @type {(bits: bigint, n: bigint) => readonly [import('../../types/bit_vec/types.ts').Vec]} */ (
+    (bits, n) => [vec(bits)(n)])
 
 /** What every repository directory holds, so the shapes below read alike. */
 const repo = { config: file('[core]\n\trepositoryformatversion = 0\n'), objects: {} }
@@ -96,6 +101,27 @@ export const proof = {
         assertEq(at({ w: { '.git': file('notgitdir: /r\n') } })('w'), null)
         assertEq(at({ w: { '.git': file('gitdir: \n') } })('w'), null)
         assertEq(at({ w: { '.git': file('') } })('w'), null)
+    },
+    // Whether a path stands on its own is the host's question and this
+    // reads text, so it answers the one reading that is right wherever Git
+    // writes such a path. A drive is a root: it is what Windows Git puts in
+    // a gitfile, and no POSIX directory is named after one. A leading `\`
+    // is not: Git writes a gitfile with `/` separators on every host, so a
+    // `\` at the front is a POSIX file's name rather than Windows' other
+    // root, and POSIX Git indeed reads `\bs` against the worktree.
+    hosts: () => {
+        assertEq(at({ w: { '.git': file('gitdir: C:/r\n') }, 'C:': { r: repo } })('w'), 'C:/r')
+        assertEq(at({ w: { '.git': file('gitdir: C:r\n') }, 'C:r': repo })('w'), 'C:r')
+        assertEq(at({ w: { '.git': file('gitdir: \\bs\n'), '\\bs': repo } })('w'), 'w/\\bs')
+    },
+    // A path is bytes to Git and a string to the effects layer, and the
+    // round trip is exact for UTF-8 alone: a lone `0xff` would go back out
+    // as `0xc3 0xbf` and name another directory. So bytes that are no UTF-8
+    // name none here, in either file. `gitdir: \xff` is 9 bytes.
+    bytes: () => {
+        assertEq(at({ w: { '.git': raw(72n, 0x6769746469723a20ffn) } })('w'), null)
+        const root = { w: { '.git': file('gitdir: /d\n') }, d: { commondir: raw(8n, 0xffn) } }
+        assertEq(at(root)('w'), null)
     },
     // A worktree with no `.git` is the channel's, as a directory with no
     // `config` is: the caller named no repository rather than a bad one.

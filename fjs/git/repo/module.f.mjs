@@ -25,6 +25,13 @@
  * is there: reading `config` at it is what says whether one is, and that is
  * `fjs/git/store`'s `oidBytes`.
  *
+ * Two things about a path Git has and this does not, and both are answered
+ * by refusing rather than by guessing. A path is bytes to Git and a string
+ * to the effects layer, so one that is no UTF-8 names no directory here —
+ * see {@link textAt}. And whether a path stands on its own is the host's
+ * question, which a reader of text cannot put to it — see
+ * {@link isAbsolute}.
+ *
  * @module
  *
  * @import { IoChannel, ReadFile, Stat } from '../../effects/node/types.ts'
@@ -33,11 +40,28 @@
  */
 
 import { catchStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
-import { isNotFound, readUtf8File, stat } from '../../effects/node/module.f.mjs'
-import { join, root } from '../../path/module.f.mjs'
+import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
+import { join } from '../../path/module.f.mjs'
+import { fromVec } from '../../text/utf8/module.f.mjs'
 
 /** What a `.git` file says before the directory it names. */
 const gitdir = /** @type {const} */ ('gitdir: ')
+
+/**
+ * What a file of Git's says, or `null` where its bytes are no UTF-8.
+ *
+ * Git keeps a path as the bytes it read and hands those same bytes back to
+ * the filesystem, so any byte a name may hold is a name it can follow. The
+ * effects layer spells a path a string, so a path arrives here decoded and
+ * leaves re-encoded, and that round trip is exact for UTF-8 and for nothing
+ * else: a lone `0xff` decodes to `U+00FF` and goes back out as `0xc3 0xbf`,
+ * naming a different directory that may well exist. So bytes that are no
+ * UTF-8 name no directory this module can follow, and it says so rather
+ * than following another.
+ *
+ * @type {(path: string) => Effect<ReadFile, Nullable<string>, IoChannel>}
+ */
+const textAt = path => mapStep(readFile(path), fromVec)
 
 /**
  * The path a one-line file of Git's names: the text with the line's end
@@ -50,6 +74,32 @@ const gitdir = /** @type {const} */ ('gitdir: ')
 const named = text => text.endsWith('\n') || text.endsWith('\r')
     ? named(text.slice(0, -1))
     : text
+
+/** A letter, which is what a Windows drive is named by. */
+const isDriveLetter = /** @type {(c: string) => boolean} */ (
+    c => (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+
+/**
+ * Whether a path stands on its own, which is what Git's `is_absolute_path`
+ * asks and what decides whether the directory the file sits in is read
+ * first.
+ *
+ * A `/` says so on either host. A drive says so on Windows alone — Git's
+ * `has_dos_drive_prefix` is nothing on POSIX, so a POSIX directory really
+ * named `C:` is relative there — and it is read as a root here because it
+ * is what Windows Git writes into a gitfile and a POSIX directory named
+ * after a drive is not a thing that happens. This is the same reading
+ * [`fjs/path`](../../path/module.f.mjs) takes of a drive, and the same
+ * limitation it records.
+ *
+ * A `\` is Windows' other root and is *not* read as one: Git writes a
+ * gitfile with `/` separators on every host, so no gitfile begins with a
+ * `\` that means a root, while a POSIX file may well be named `\x` and
+ * would be lost by reading it as one.
+ *
+ * @type {(path: string) => boolean}
+ */
+const isAbsolute = path => path.startsWith('/') || (isDriveLetter(path[0]) && path[1] === ':')
 
 /**
  * A path one of these files names, read where it was found: an absolute
@@ -66,7 +116,7 @@ const named = text => text.endsWith('\n') || text.endsWith('\r')
  *
  * @type {(dir: string, path: string) => string}
  */
-const against = (dir, path) => root(path) === '' ? join(dir, path) : path
+const against = (dir, path) => isAbsolute(path) ? path : join(dir, path)
 
 /**
  * The directory `<repo>/commondir` names, read against `repo`, or `repo`
@@ -78,13 +128,14 @@ const against = (dir, path) => root(path) === '' ? join(dir, path) : path
  * A file of no bytes at all is `null`, where a file of one newline is not:
  * Git reads the file and dies where the read gives it nothing, so the two
  * are a malformed repository and a repository whose common directory is
- * its own.
+ * its own. Bytes that are no UTF-8 are `null` as well, for the reason
+ * {@link textAt} gives.
  *
  * @type {(repo: string) => Effect<ReadFile, Nullable<string>, IoChannel>}
  */
 const commonOf = repo => catchStep(
-    mapStep(readUtf8File(`${repo}/commondir`), text => {
-        if (text === '') { return null }
+    mapStep(textAt(`${repo}/commondir`), text => {
+        if (text === null || text === '') { return null }
         const line = named(text)
         return line === '' ? repo : against(repo, line)
     }),
@@ -116,8 +167,8 @@ export const tryCommonDir = worktree => {
     const path = `${worktree}/.git`
     return step(stat(path), s => {
         if (s.isDirectory) { return commonOf(path) }
-        return step(readUtf8File(path), text => {
-            const repo = tryGitdir(worktree, text)
+        return step(textAt(path), text => {
+            const repo = text === null ? null : tryGitdir(worktree, text)
             return repo === null ? pureOk(null) : commonOf(repo)
         })
     })
