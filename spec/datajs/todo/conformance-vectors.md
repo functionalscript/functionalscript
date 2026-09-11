@@ -2096,14 +2096,32 @@ The steps, in order; a step is one pull request unless it says otherwise:
       by building. Waits on decision 6, which decides whether that proof may
       exist.
 - [ ] **Reader accept, code-unit form.** Derived production by production
-      from the grammar as the section above lists it: every alternative,
-      both ends of every character class at every fixed position, the empty
-      branch of every repetition, the signed twin of every number and bigint,
-      the key twin of every string, the whitespace-like scalars inside a
-      string, the surrogate cases, the array-index key order with both sides
-      of each boundary, the shortest document and the document's own edges.
-      Proved against the reader as it lands: every document parses to a
-      graph `difference` finds no difference in.
+      from the grammar as the section above lists it, in two pull requests
+      so each stays reviewable. **The leaves — landed**, as
+      [`accept/data.f.mjs`](../vectors/accept/data.f.mjs): the word leaves
+      and both infinities; every branch of `number` with a signed twin each,
+      both ends of the digit class in the first digit of `frac` and of
+      `exp` and in the digits after it, in both orders, the three zero
+      spellings, and the five binary64 cases; every `bigint`
+      branch with the three fixed-width ceilings; and every `string` branch
+      — the nine escapes, the six hex rotations, the raw `/`, BMP and astral
+      characters, both ends of each of the three ranges the raw character
+      is once `"` and `\` are cut out of it (U+0020, U+0021, U+0023,
+      U+005B, U+005D and U+10FFFF), the nineteen whitespace-like scalars,
+      the four lone surrogates, the four escaped pairs and the seven
+      adjacencies — each with its key twin, and both ends of every
+      character class at every fixed position, the rule the hex rotations
+      and the range ends follow. **Still to land: the containers and the
+      document**, under the same both-ends rule for every class they
+      carry — `array`, `object` and `key` in every alternative, empty
+      and nested, the `["__proto__"]` key, duplicate keys, the array-index
+      key order with both sides of each boundary, a `const` referenced
+      once, twice and never, sharing and its unshared inverse, a name whose
+      tail is a reserved word, the four permitted whitespace characters
+      between tokens and at each of the three required positions, the
+      shortest document and the document's own edges. Proved against the
+      reader as each lands: every document parses to a graph `difference`
+      finds no difference in, and the ids are unique.
 - [ ] **Reader reject, code-unit form.** The narrowing vectors derived from
       the spec's six narrowing sources — strings, numbers, identifiers,
       whitespace, the document rule, and every production of the grammar —
