@@ -53,9 +53,11 @@ export const headers = repeatFrom0(header)
  * once, since Git ends a header block at a line that is no header and the
  * input's end is one of those. `git hash-object -t tag` writes a tag whose
  * last byte is its last header's LF, and `<id>^{}` follows it; a commit
- * spelled the same way gives up its tree. Both are the same object as the
- * spelling with the empty line and an empty message, so {@link write}
- * writes that one.
+ * spelled the same way gives up its tree.
+ *
+ * The two are not one object. They are two byte strings and so two ids, so
+ * a `message` of `null` keeps them apart and {@link write} puts back what
+ * was read rather than the longer of the two.
  *
  * LL(1) either way: a header begins with a key byte, which is neither SP
  * nor LF, so an LF after the block can only be the empty line and the end
@@ -79,8 +81,9 @@ const headerOf = ([k, , [first], rounds]) => [
 
 /**
  * Reads the payload of a commit or a tag, or refuses it: a header line
- * without a SP, a first line beginning with SP, no empty line before the
- * end of the input.
+ * without a SP, or a first line beginning with SP. A payload with no empty
+ * line before the end of the input is read, not refused, with `message`
+ * `null`.
  *
  * @type {(input: Bytes) => Nullable<Payload>}
  */

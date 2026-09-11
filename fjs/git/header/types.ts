@@ -22,7 +22,12 @@ export type Header = readonly [key: Bytes, value: Bytes]
  * source and the well-known fields are functions over the headers.
  *
  * `message` is `null` where the object ended at its last header's LF, with
- * no empty line after it. Git reads such an object — its parse stops at a
+ * no empty line after it. The type cannot hold a writer to that: `null` is
+ * already `List`'s empty, so `Nullable<Bytes>` is the same type as `Bytes`
+ * and nothing checks which of the two a caller means. It is the meaning
+ * that changed, and a caller that built a payload with `message: null`
+ * meaning an empty message now writes an object one byte shorter, with
+ * another id. Git reads such an object — its parse stops at a
  * line that is no header, and the end of the input is one of those — and
  * none of Git's own writers makes one, so it comes from a hand-made object
  * or another tool. It is not the same object as one with an empty line and
