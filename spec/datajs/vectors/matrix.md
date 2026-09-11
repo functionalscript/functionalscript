@@ -14,11 +14,11 @@ mentions it in three.
 
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
-| `reader` | `accept`, `reject` | 673 | 0 | 0 |
-| `serializer` | `serializer-accept`, `graph-equivalence` | 123 | 550 | 0 |
-| `normalize` | no set yet | 0 | 0 | 673 |
+| `reader` | `accept`, `reject` | 674 | 0 | 0 |
+| `serializer` | `serializer-accept`, `graph-equivalence` | 123 | 551 | 0 |
+| `normalize` | no set yet | 0 | 0 | 674 |
 
-673 classes.
+674 classes.
 
 | class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
@@ -91,8 +91,9 @@ mentions it in three.
 | `bigint/trailing-point/neg` | `bigint-neg-trailing-point` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `bigint/zero` | `bigint-0` | `ser-bigint-0` | *awaiting the set* |
 | `bigint/zero/neg` | `bigint-neg-0` | not applicable, [note 17](#notes) | *awaiting the set* |
-| `byte/bom/first` | `byte-bom-first` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `byte/truncated` | `byte-truncated` | not applicable, [note 1](#notes) | *awaiting the set* |
+| `byte/bom/first` | `byte-bom-first` | not applicable, [note 65](#notes) | *awaiting the set* |
+| `byte/truncated` | `byte-truncated` | not applicable, [note 65](#notes) | *awaiting the set* |
+| `byte/valid/widths` | `byte-valid-widths` | not applicable, [note 65](#notes) | *awaiting the set* |
 | `const/declarators` | `const-declarators` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `const/destructuring/array` | `const-destructuring-array` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `const/destructuring/object` | `const-destructuring-object` | not applicable, [note 1](#notes) | *awaiting the set* |
@@ -767,3 +768,4 @@ stands under as many rows as it is true of.
 62. **`serializer`**, subtree `key/string/raw/range/005d-10ffff/low` — the serializer set carries the high end of this range and ordinary content within it
 63. **`serializer`**, subtree `key/proto/value` — the serializer set carries an object with an own enumerable proto member; what that member holds is the ordinary value coverage above it
 64. **`serializer`**, subtree `key/proto/nested` — the serializer set carries an object with an own enumerable proto member; where it sits is the nesting coverage above it
+65. **`serializer`**, subtree `byte` — a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's
