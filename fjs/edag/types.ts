@@ -123,10 +123,12 @@ export type OptionPropertyLambda =
 // the two option states share — which is what both of these used to do, and
 // what `module.f.mjs`'s `_regionProductions` now does once for the schema.
 //
-// These are here and not in `proof.f.mjs` for the reason
-// `../nanvm/types.ts` gives: a `@typedef` inside a function body is never
-// checked, and that file's `consistency` section is entirely such typedefs.
-// A module-scope alias in a `.ts` file is checked.
+// These are here and not in `proof.f.mjs` because a `@typedef` inside a
+// function body is never checked — TypeScript does not evaluate the
+// constraint of a declaration nothing references, so that file's entire
+// `consistency` section is green whatever it claims. A module-scope alias in
+// a `.ts` file is checked; `../nanvm/types.ts` is the worked case and
+// `../../todo/inert-type-level-proofs.md` the issue that moves the rest.
 
 type _OptionInsideOptionProperty = Assert<Equal<OptionLambda extends OptionPropertyLambda ? true : false, true>>
 type _PropertyInsideOptionProperty = Assert<Equal<PropertyLambda extends OptionPropertyLambda ? true : false, true>>

@@ -52,7 +52,13 @@ refactor that makes its claim false. The `fjs/edag` ones are the sharpest loss
 the rtti schema from drifting, and they would not notice if it did.
 
 Nothing is known to be *wrong* underneath: the claims were true when written.
-What is gone is any guarantee they still are.
+What is gone is any guarantee they still are — and the drift they would miss
+is not hypothetical in shape. Removing the `['|.', index]` production from
+`fjs/edag/module.f.mjs`'s `_optionLambda` **and** from its `@type` tuple
+together leaves `OptionLambda` declaring an arm the schema no longer accepts:
+exactly the divergence `Assert<Check<…>>` exists to catch, and `tsc -p .`
+exits 0. Consistent edits to a schema and its annotation are the likely way
+in, since an inconsistent one the annotation still catches.
 
 ### Proposal
 
@@ -89,7 +95,14 @@ the `true as _Predicate` prohibition it matches.
 - [ ] Correct `fjs/AGENTS.md` §3.2 and §1.4: a compile-time proof goes at
       module scope in a `.ts` file, never in a function-local `@typedef`.
 - [ ] Move the 24 `fjs/edag/proof.f.mjs` assertions into `fjs/edag/types.ts`,
-      falsifying each once to prove the moved form fails.
+      falsifying each once to prove the moved form fails. Three chain-state
+      pins are already there, added beside the unions they are about when
+      `_regionProductions` landed: `OptionLambda` and `PropertyLambda` are
+      inside `OptionPropertyLambda`, and the wider state adds exactly three
+      arms. Each was falsified once and went red. They overlap
+      `_OptionLambda` and `_OptionPropertyLambda` without replacing them —
+      those pin the schema against the type, these pin the types to each
+      other.
 - [ ] The same for the remaining 14 files, a directory at a time.
 - [ ] `tsc` and `fjs test` clean after each.
 
