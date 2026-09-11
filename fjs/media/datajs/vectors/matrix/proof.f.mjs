@@ -1,5 +1,5 @@
 /**
- * @import { Corpus } from './types.ts'
+ * @import { Corpus, Scope } from './types.ts'
  */
 
 import { assert, assertEq } from '../../../../asserts/module.f.mjs'
@@ -188,7 +188,7 @@ export const proof = {
         // corpus happens to list them, so the same three reversed answer the
         // same two cells
         /** @type {Corpus} */
-        const reversed = { ...both, notApplicable: [...both.notApplicable].reverse() }
+        const reversed = { ...both, notApplicable: both.notApplicable.toReversed() }
         const r = text(reversed)
         assert(r.includes('| `ws/tab` | `a` | not applicable: and a class wins over both |'), r)
         assert(r.includes('| `ws/lf/run` | `b` | not applicable: the longer prefix wins over the shorter |'), r)
@@ -311,7 +311,20 @@ export const proof = {
             roles: [{ role: 'reader', sets: [['accept', [v('a', 'x')]], ['accept', [v('b', 'x')]]] }],
             notApplicable: [],
         }
-        assert(failure(twoSets).includes('the set accept of reader: named twice'))
+        assert(failure(twoSets).includes('the set accept: named twice, so a set scope cannot tell its two sets apart'))
+        // and a set name is one name across the corpus, not one per role:
+        // `setsCarrying` answers with names, so two roles holding an `accept`
+        // each would let a `['set', 'accept']` reason read as true of a class
+        // both of them carry
+        /** @type {Corpus} */
+        const sameSetTwoRoles = {
+            roles: [
+                { role: 'reader', sets: [['accept', [v('a', 'x')]]] },
+                { role: 'serializer', sets: [['accept', [v('b', 'x')]]] },
+            ],
+            notApplicable: [],
+        }
+        assert(failure(sameSetTwoRoles).includes('the set accept: named twice, so a set scope cannot tell its two sets apart'))
         /** @type {Corpus} */
         const twoIds = {
             roles: [{ role: 'reader', sets: [['accept', [v('a', 'x')]], ['reject', [v('a', 'y')]]] }],
@@ -324,9 +337,17 @@ export const proof = {
             roles: [{ role: 'reader', sets: [['a', [v('i', 'x')]], ['a', [v('j', 'x')]], ['a', [v('k', 'x')]]] }],
             notApplicable: [],
         }
-        assertEq(failure(thrice).split('the set a of reader: named twice').length - 1, 1)
+        assertEq(failure(thrice).split('the set a: named twice').length - 1, 1)
         // and the real corpus names nothing twice
         assert(matrix(corpus)[0] === 'ok')
+    },
+    // A scope tag the union does not have. The reasons are a data module, so
+    // a mistyped tag arrives as data, and `reaches` would read anything but
+    // `class` and `subtree` as a `set` — printing a plausible cell for a
+    // record nobody wrote.
+    mistagged: () => {
+        const bad = { ...landed, notApplicable: [{ scope: /** @type {Scope} */ (/** @type {unknown} */ (['sett', 'accept'])), role: 'serializer', because: 'a tag nobody defined' }] }
+        refuses(bad, 'sett accept in serializer: no such scope, so it cannot be told from a set')
     },
     // A corpus with no roles has no columns, so a row has nothing to say and
     // the header would carry an empty cell over a delimiter of one — not a

@@ -142,9 +142,11 @@ A wide scope is bought with a rule, and the rule is what keeps the table
 honest: the generator refuses a reason the moment it answers a class that
 **has** vectors for that role, so a reason cannot quietly stop being true of
 something beneath it. It refuses one that answers no class at all, one
-naming a set or a role the corpus does not have, and two of equal
-specificity answering one cell. A reason cannot outlive the gap it was
-written for.
+naming a set or a role the corpus does not have, a tag that is none of the
+three, and two of equal specificity answering one cell. A reason cannot
+outlive the gap it was written for. A set name is one name across the whole
+corpus for the same reason: a `set` scope is answered by comparing names, so
+two roles holding a set of one name would leave it unable to say which.
 
 A role whose sets have not landed refuses nothing: a class cannot owe a
 vector to a set that does not exist. Its column says so on every row, and
