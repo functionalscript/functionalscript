@@ -22,12 +22,12 @@ import type { Equal } from '../types/ts/types.ts'
 /**
  * A value under test, written as itself — anywhere, nesting included.
  *
- * `functionValue` is deliberately **not** here and `throws` is not either:
- * each is legal in exactly one position, and {@link Operand} and
- * {@link Expectation} are those positions. Admitting them everywhere is what
- * would let a corpus case be written that no consumer can lower — a
- * `functionValue` inside an array operand, or as an `eq` side — and be a type
- * error nowhere.
+ * `throws` is deliberately **not** here: it is legal in exactly one position,
+ * and {@link Expectation} is that position. Admitting it everywhere is what
+ * would let a corpus case be written that no consumer can lower and be a
+ * type error nowhere. `functionValue` *is* here — it lowers to a closure like
+ * any other value lowers to its node, so it may sit anywhere a value may,
+ * an array or object operand included.
  *
  * The shape follows `fjs/rtti`, where a constant is its own schema and a
  * thunk describes anything that needs a tag: `2.3`, `'a'`, `12n`, `[1, 2]`,
@@ -40,7 +40,7 @@ import type { Equal } from '../types/ts/types.ts'
  * expression that denotes it, so `typeof` plus `Array.isArray` recovers
  * everything a tag would have carried.
  */
-export type Value = Const | Ref
+export type Value = Const | Ref | FunctionValue
 
 /** A value that is its own description. */
 export type Const =
@@ -76,11 +76,22 @@ export type Info =
 
 /**
  * A function value. Every operator here coerces one through `ToPrimitive`,
- * which never inspects it, so there is nothing to carry.
+ * which never inspects it, so there is nothing to carry: it lowers to
+ * `() => undefined`, the smallest closure, which `amnesia` establishes and
+ * the Rust printer renders as the harness's one function value. Legal
+ * anywhere a {@link Value} is.
  *
- * Legal only as a whole {@link Operand}: it is the one operand the corpus
- * declines to lower, and the escape that handles it reads the operand, not a
- * value inside it.
+ * One thing about a function is *not* shared data: its string form. JS
+ * gives a closure's source text, engine-specific, and `nanvm-lib`'s
+ * `fn_to_string` gives the placeholder `"function"`, so a case whose result
+ * depends on it — `String` of a function, `+` with one, or either applied to
+ * an array or object holding one, since their `ToPrimitive` stringifies the
+ * elements — would test two different values. Such a case is not written
+ * here: the `String` and binary `+` groups have no function case, and the
+ * JS-only half lives in `proof.f.mjs`'s `jsOnly.functionToString`. Every
+ * other coercion of a function, nested or not, agrees on both sides
+ * (`NaN`, `false`, `'function'`, the function itself), which is what the
+ * function cases in the other groups exercise.
  */
 export type FunctionValue = Special<readonly ['function']>
 
@@ -98,18 +109,15 @@ export type Ref = Special<readonly ['ref', string]>
 export type Throws = Special<readonly ['throw']>
 
 /**
- * What a case applies its operation to: a value, or the function escape.
+ * What a case expects: a value, or `throws`.
  *
- * The escape is whole-operand by construction. A `functionValue` nested in an
- * array or an object would have to be built by a second, recursive
- * value-to-JavaScript and value-to-Rust walk in each consumer — the very
- * duplication deriving one expression removes — so the type does not admit
- * one.
+ * Not a function: `expected` is compared with `Object.is`, and a closure
+ * built by the lowering is never the same object as one built by the case,
+ * so such an expectation could not be met. Nesting is not policed the same
+ * way — an array expectation already never matches, for the same identity
+ * reason — so only the whole-value position is excluded.
  */
-export type Operand = Value | FunctionValue
-
-/** What a case expects: a value, or `throws`. */
-export type Expectation = Value | Throws
+export type Expectation = Const | Ref | Throws
 
 /**
  * The operation a group applies, as both consumers name it: a canonical EDAG
@@ -139,7 +147,7 @@ export type OpId = Op1Id | Op2Id | Op12Id | NonEdagGroup['nanvmOp']
  */
 export type Case<N extends number> = {
     readonly name: string
-    readonly args: FixedArray<N, Operand>
+    readonly args: FixedArray<N, Value>
     readonly expected: Expectation
     readonly rust?: string
 }
@@ -184,14 +192,14 @@ export type Group12 =
  * The field is deliberately not `op`, so a NaNVM-only name can never mix into
  * the canonical id unions.
  *
- * - `ternary` (`?:`) — the EDAG has no conditional-expression node at all
- *   yet, so this is the corpus's one ternary group; every other `Group`
- *   variant is unary or binary because the EDAG vocabulary it draws from is.
- * - `typeof` — the EDAG has no `typeof` node either.
+ * `ternary` (`?:`) is the one left: the EDAG has no conditional-expression
+ * node at all yet, so this is the corpus's one ternary group; every other
+ * `Group` variant is unary or binary because the EDAG vocabulary it draws
+ * from is. It stays a union so the next such operation, if there is one, is
+ * an arm and not a redesign.
  */
 export type NonEdagGroup =
     | { readonly nanvmOp: 'ternary'; readonly cases: readonly Case<3>[] }
-    | { readonly nanvmOp: 'typeof'; readonly cases: readonly Case<1>[] }
 
 export type Group = Group1 | Group2 | Group12 | NonEdagGroup
 
@@ -204,9 +212,9 @@ export type Group = Group1 | Group2 | Group12 | NonEdagGroup
 // written there passed with any claim at all. A module-scope alias in a
 // `.ts` file is checked; `../types/array/types.ts` is the precedent.
 
-type _Unary = Assert<Equal<Case<1>['args'], readonly [Operand]>>
-type _Binary = Assert<Equal<Case<2>['args'], readonly [Operand, Operand]>>
-type _Ternary = Assert<Equal<Case<3>['args'], readonly [Operand, Operand, Operand]>>
+type _Unary = Assert<Equal<Case<1>['args'], readonly [Value]>>
+type _Binary = Assert<Equal<Case<2>['args'], readonly [Value, Value]>>
+type _Ternary = Assert<Equal<Case<3>['args'], readonly [Value, Value, Value]>>
 type _NotWidened = Assert<Equal<Case<2> extends Case<1> ? true : false, false>>
 type _NotNarrowed = Assert<Equal<Case<1> extends Case<2> ? true : false, false>>
 type _Op1Groups = Assert<Equal<Group1['cases'], readonly Case<1>[]>>
@@ -216,20 +224,18 @@ type _Op12Unary = Assert<Equal<Extract<Group12, { arity: 1 }>['cases'], readonly
 type _Op12Binary = Assert<Equal<Extract<Group12, { arity: 2 }>['cases'], readonly Case<2>[]>>
 
 // Where each thunk may appear, as a type rather than as a sentence: a
-// `functionValue` is a whole operand or nothing, and `throws` is an
-// expectation or nothing.
-type _NoNestedFunction = Assert<Equal<FunctionValue extends Value ? true : false, false>>
-type _NoThrowsOperand = Assert<Equal<Throws extends Operand ? true : false, false>>
+// `functionValue` is a value like any other, `throws` is an expectation or
+// nothing, and a function is not an expectation.
+type _FunctionIsValue = Assert<Equal<FunctionValue extends Value ? true : false, true>>
+type _NoThrowsValue = Assert<Equal<Throws extends Value ? true : false, false>>
 type _NoFunctionExpected = Assert<Equal<FunctionValue extends Expectation ? true : false, false>>
 
 /**
  * What a case denotes, as the consumers receive it.
  *
  * `exp` is the EDAG expression the case is: the group's operation applied to
- * its lowered operands. `escape` marks the cases the corpus does not lower — a
- * `functionValue` operand, which `['=>', ['[]', []], body]` would spell at the
- * cost of establishing a closure in both consumers, or a
- * {@link NonEdagGroup}, which has no id to apply — so a consumer takes the
+ * its lowered operands. `escape` marks the cases the corpus cannot lower — a
+ * {@link NonEdagGroup}'s, which has no id to apply — so a consumer takes the
  * direct-value path knowingly rather than by falling through.
  */
 export type Lowered =

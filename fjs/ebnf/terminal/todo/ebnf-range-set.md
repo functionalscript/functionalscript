@@ -324,8 +324,11 @@ justification is the API and the AST, which is where
       ship in the front end and return terminal rules (**Amended** above, and
       [unicode-rules](../../unicode/todo/unicode-rules.md)) — so `not` follows
       them rather than producing a set value. `str` is not one of them
-      either: `str('true')` is an ordered `Sequence` of one-symbol terminals,
-      one per code point, exactly as a bare `string` lowers today. `byte/`'s
+      either: `str('true')` is a `Tuple` of one-symbol terminals, the
+      front-end type with sequence semantics, one per code point, exactly
+      as a bare `string` lowers today
+      ([unicode-rules](../../unicode/todo/unicode-rules.md) says the
+      same). `byte/`'s
       `not` shipped ([`../../byte`](../../byte/README.md)).
 - [x] `fjs/ebnf/ll1/`: the first sets are range sets, and a conflict error
       names the rule.
