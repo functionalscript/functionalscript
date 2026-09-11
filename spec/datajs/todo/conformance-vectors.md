@@ -588,7 +588,9 @@ The five parts:
   reasoning that an implementation reaching that class at all reaches all of
   it. Review was right that nothing guarantees it, and this paragraph carries
   the disproof in its own first sentence: **the spec's own list of these
-  characters omitted fifteen of them**. A hand-written whitespace table with a
+  characters omitted fifteen of them** — which is why that list is now
+  deleted rather than corrected, the rule naming the four accepted
+  characters and nothing else. A hand-written whitespace table with a
   hole in it is not a hypothetical here — it is the thing that made this
   section necessary — and a reader whose table stops at U+2000 accepts U+200A
   while passing every sampled vector. So: U+000B, U+000C, U+2028, U+2029,
@@ -1621,13 +1623,15 @@ or the spec, not only into a thread.
    serializer falls outside those two, so "any other non-plain object" has no
    case to decide, and the serializer-reject vector it was to unblock does not
    exist because that set does not either.
-3. **§Whitespace's enumeration.** Proposal for the spec: keep the rule and
-   replace the six-item colon list with the complete set it denotes — the 21
-   characters of ECMAScript's `WhiteSpace` and `LineTerminator` classes less
-   the four permitted, which is U+000B, U+000C, U+2028, U+2029, U+FEFF and the
-   sixteen `Space_Separator` characters other than U+0020 — since the corpus
-   enumerates all 21 anyway and a reader of the spec should not have to. The
-   alternative is to mark the six as illustrations and cite ECMAScript.
+3. **§Whitespace's enumeration — decided: enumerate what is accepted and
+   reject everything else.** The six-item list after the colon is deleted
+   rather than grown to 21. Naming four accepted characters is the whole
+   rule, and it cannot be short of anything; naming what is refused is the
+   taxonomy that same paragraph says an implementer should not have to know,
+   and it had been wrong by fifteen characters since it was written. The
+   corpus still enumerates all 21 rejects, because a reader delegating to a
+   JavaScript tokenizer over-accepts every one of them and only a vector
+   sees that.
 4. **The decoder seam — decided: there is none, and no set needs one.** DataJS
    works with correct UTF-8 and rejects everything else, so a malformed
    sequence is not an input the format processes and the corpus owes it no
@@ -2665,8 +2669,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       literals. `types.ts` dropped `SerializerReject` and the twelve recipes,
       and the three surviving serializer-side records take an ordinary
       `Unknown`. Coverage stayed at 100%.
-- [ ] **§Whitespace's enumeration in the spec**, per decision 3; its own
-      pull request.
+- [x] **§Whitespace's enumeration in the spec**, per decision 3: the
+      six-item list after the colon is gone, and the rule names the four
+      characters a reader accepts and rejects everything else. The vectors
+      needed no change — their `rule` already read "whitespace: exactly
+      space, tab, LF and CR", which is the accepting form the spec now
+      takes too.
 - [ ] **The decoder seam in the spec**, per decision 4: say that a document
       is correct UTF-8 and anything else is rejected, with no taxonomy of
       malformed sequences and nothing required of a decoder. Its own pull
