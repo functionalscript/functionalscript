@@ -89,6 +89,28 @@ export const proof = {
         assertStructurallySame(tryEntries('[core]\r\n\tx = 1\r\n'), [['core', 'x', '1']])
         assertEq(value('a\rb'), 'a b')
     },
+    // Git has its own `isspace` over C's, holding a space, a tab, a newline
+    // and a `\r` and no more.
+    whitespace: () => {
+        // A `\r` begins a line, a header and a subsection as any whitespace
+        // does.
+        assertStructurallySame(tryEntries('\ra = 1'), [['', 'a', '1']])
+        assertStructurallySame(tryEntries('\r[core]\nx = 1'), [['core', 'x', '1']])
+        assertStructurallySame(tryEntries('[core]\rx = 1'), [['core', 'x', '1']])
+        assertStructurallySame(tryEntries('[core]\n\r\tx = 1'), [['core', 'x', '1']])
+        assertStructurallySame(tryEntries('[core\r"a"]\nx = 1'), [['core.a', 'x', '1']])
+        // Between a key and its `=` it does not: that one loop of Git's asks
+        // for a space or a tab by name.
+        assertEq(tryEntries('[core]\nx\r= 1'), null)
+        // A `\v` and a `\f` are no whitespace at all, so they begin no
+        // line and stand in a value as the characters they are.
+        assertEq(tryEntries('\v[core]\nx = 1'), null)
+        assertEq(tryEntries('[core]\vx = 1'), null)
+        assertEq(tryEntries('[core\v"a"]\nx = 1'), null)
+        assertEq(tryEntries('[core]\nx\v= 1'), null)
+        assertEq(value('a\vb'), 'a\vb')
+        assertEq(value('a\fb'), 'a\fb')
+    },
     // A value as Git's own parser reads it, a character at a time.
     values: () => {
         // Quotes quote: a comment mark inside them is a character of the

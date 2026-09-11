@@ -46,26 +46,42 @@ const isDigit = c => c >= '0' && c <= '9'
 /** What Git calls a key character: what a name is made of. */
 const isKeyChar = /** @type {(c: string) => boolean} */ (c => isAlpha(c) || isDigit(c) || c === '-')
 
-/** @type {(c: string) => boolean} */
-const isSpace = c => c === ' ' || c === '\t'
-
 /**
- * Whether a character is whitespace inside a value, where Git counts a
- * `\r` as well and writes every one of them as a space.
+ * The whitespace Git's parser skips between a key and its `=`, and nothing
+ * else: that one loop asks for a space or a tab by name where the rest of
+ * the parser asks {@link isSpace}, so `x\r= 1` is a bad config line where
+ * `\rx = 1` is not.
  *
  * @type {(c: string) => boolean}
  */
-const isValueSpace = c => isSpace(c) || c === '\r'
+const isKeySpace = c => c === ' ' || c === '\t'
 
 /**
- * What is left of text once the whitespace it begins with is skipped.
+ * Whether a character is whitespace to Git, a line's end apart. Git has its
+ * own `isspace` over C's, and it holds a space, a tab, a newline and a
+ * `\r` and no more: a `\v` or a `\f` is no whitespace, so it begins no
+ * line and stands in a value as the character it is.
  *
- * @type {(text: string) => string}
+ * @type {(c: string) => boolean}
  */
-const afterSpace = text => {
-    const i = [...text].findIndex(c => !isSpace(c))
+const isSpace = c => isKeySpace(c) || c === '\r'
+
+/**
+ * What is left of text once the whitespace it begins with is skipped, by
+ * whichever class of it the caller is Git's.
+ *
+ * @type {(is: (c: string) => boolean) => (text: string) => string}
+ */
+const afterOf = is => text => {
+    const i = [...text].findIndex(c => !is(c))
     return i === -1 ? '' : text.slice(i)
 }
+
+/** What is left of text once the whitespace it begins with is skipped. */
+const afterSpace = afterOf(isSpace)
+
+/** The same, for the one loop that takes a space or a tab and no `\r`. */
+const afterKeySpace = afterOf(isKeySpace)
 
 /**
  * The longest prefix of text whose characters `is` accepts: the name Git
@@ -255,7 +271,7 @@ const tryValue = rest => {
             if (c === '\\') { return { ...acc, escape: true } }
             if (c === '"') { return { ...acc, quoted: !acc.quoted } }
             if (!acc.quoted && (c === '#' || c === ';')) { return { ...acc, done: true } }
-            if (!acc.quoted && isValueSpace(c)) {
+            if (!acc.quoted && isSpace(c)) {
                 // Git writes whitespace as a space, one for one, and keeps
                 // the run only where something that is none follows it.
                 return acc.value === '' ? acc : { ...acc, pending: `${acc.pending} ` }
@@ -328,7 +344,7 @@ const tryLine = (section, raw) => {
     // A name begins with a letter, so a line beginning with anything a
     // section, a comment and a name all may not is a bad line.
     if (key === '' || !isAlpha(key[0])) { return null }
-    const after = afterSpace(line.slice(key.length))
+    const after = afterKeySpace(line.slice(key.length))
     if (after !== '' && after[0] !== '=') { return null }
     const value = after === '' ? bareValue : tryValue(after.slice(1))
     return value === null ? null : [section, [section, key.toLowerCase(), value]]
