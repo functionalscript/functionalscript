@@ -1,6 +1,7 @@
 /**
  * @import { Inflate, ReadFile } from '../../effects/node/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
+ * @import { StringMap } from '../../types/object/types.ts'
  * @import { Oid } from '../types.ts'
  */
 
@@ -52,7 +53,7 @@ const tagEnvelope = toVec(toArray(writeEnvelope('tag', tagPayload)))
  * `sha` under SHA-256, holding its root commit. The host inflates the one
  * real stream and hands every other buffer back as it is.
  *
- * @type {Readonly<Record<string, readonly number[]>>}
+ * @type {StringMap<readonly number[]>}
  */
 const files = {
     'repo/config': latin1('[core]\n\trepositoryformatversion = 0\n'),
