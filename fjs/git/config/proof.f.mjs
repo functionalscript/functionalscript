@@ -28,7 +28,7 @@ const sha256 = /** @type {readonly string[]} */ ([
 /**
  * A file setting one key of `[extensions]` under a version.
  *
- * @type {(version: number, key: string, value: string) => string}
+ * @type {(version: number | string, key: string, value: string) => string}
  */
 const extension = (version, key, value) =>
     `[core]\n\trepositoryformatversion = ${version}\n[extensions]\n\t${key} = ${value}`
@@ -191,12 +191,33 @@ export const proof = {
             assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), null)
         }
     },
+    // The version is a number, not text, so every spelling Git's parser
+    // reads is the version it spells; and every assignment must spell one,
+    // since Git reads each as it comes to it.
+    version: () => {
+        for (const v of ['1', '01', '+1', '0x1', '0X1', '1 # c', '"1"']) {
+            assertEq(tryOidBytes(extension(v, 'objectFormat', 'sha256')), 32)
+        }
+        // Over 1 refuses the file, and so does an assignment that spells no
+        // number, however good the one after it.
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 2'), null)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1k'), null)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = abc\n\trepositoryformatversion = 1'), null)
+        // The last version wins.
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 2\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256'), 32)
+        // A file naming no version, and one naming `-1`, are the same file
+        // to Git: it gives up the format it read, so both are SHA-1.
+        assertEq(tryOidBytes('[extensions]\n\tobjectformat = sha256'), 20)
+        assertEq(tryOidBytes(extension(-1, 'objectFormat', 'sha256')), 20)
+        // Any other version below 0 keeps it, and refuses nothing.
+        assertEq(tryOidBytes(extension(-2, 'objectFormat', 'sha256')), 32)
+        assertEq(tryOidBytes(extension(-2, 'frobnicate', 'yes')), 20)
+    },
     // The width: absent is SHA-1, `sha256` under version 1 is SHA-256, and
     // what Git refuses is refused — a value in the wrong case, a value this
-    // module does not know, the extension under version 0, a version that
-    // is neither 0 nor 1, a bad line. The section and the key are
-    // case-insensitive, the last of two values wins, and the key outside
-    // `[extensions]` is another key.
+    // module does not know, the extension under version 0, a bad line. The
+    // section and the key are case-insensitive, the last of two values
+    // wins, and the key outside `[extensions]` is another key.
     oidBytes: () => {
         assertEq(tryOidBytes(initial.join('\n')), 20)
         assertEq(tryOidBytes(sha256.join('\n')), 32)
@@ -206,10 +227,16 @@ export const proof = {
         assertEq(tryOidBytes(extension(1, 'objectformat', 'SHA256')), null)
         assertEq(tryOidBytes(extension(1, 'objectformat', 'sha3')), null)
         assertEq(tryOidBytes(extension(0, 'objectformat', 'sha256')), null)
-        assertEq(tryOidBytes('[extensions]\n\tobjectformat = sha1'), null)
-        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 2'), null)
+        assertEq(tryOidBytes(extension(0, 'noop-v1', 'x')), null)
         assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256\n\tobjectformat = sha1'), 20)
         assertEq(tryOidBytes('[core]\n\tobjectformat = sha256'), 20)
         assertEq(tryOidBytes('[extensions'), null)
+        // An `objectFormat` Git does not know refuses the file wherever it
+        // sits, since Git reads each assignment as it comes to it: a good
+        // one after it does not hide it, and neither does a version that
+        // reads no format at all.
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = wat\n\tobjectformat = sha1'), null)
+        assertEq(tryOidBytes(extension(-2, 'objectFormat', 'wat')), null)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 0\n[extensions]\n\tpreciousObjects = maybe\n\tpreciousObjects = true'), null)
     },
 }

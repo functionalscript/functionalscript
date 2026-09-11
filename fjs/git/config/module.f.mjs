@@ -86,26 +86,56 @@ const keyAt = spanOf(isKeyChar)
 const sectionAt = spanOf(c => isKeyChar(c) || c === '.')
 
 /**
- * The extensions Git 2.43 knows, as it lowercases them. Under
- * `repositoryformatversion = 1` Git refuses a repository whose
- * `[extensions]` holds any other key — `unknown repository extension
- * found` — since an extension changes how the repository is read and a
- * reader that ignored one would read it wrongly; {@link tryOidBytes}
- * refuses it for the same reason. `compatobjectformat` is not among them:
- * Git 2.43 refuses it, a later Git knows it, and a newer Git knowing more
- * of them is what keeps this list a version's. Under version 0 an unknown
- * key is ignored, as Git ignores it.
+ * The extensions Git 2.43 reads whatever the version says, as it
+ * lowercases them.
  *
  * @type {readonly string[]}
  */
-const knownExtensions = [
-    'noop',
-    'noop-v1',
-    'preciousobjects',
-    'partialclone',
-    'worktreeconfig',
-    'objectformat',
-]
+const v0Extensions = ['noop', 'preciousobjects', 'partialclone', 'worktreeconfig']
+
+/**
+ * The extensions Git 2.43 reads only under `repositoryformatversion = 1`.
+ * Under version 0 a file holding one is refused — `repo version is 0, but
+ * v1-only extension found` — and `objectformat`, the key this module is
+ * for, is one of them.
+ *
+ * @type {readonly string[]}
+ */
+const v1OnlyExtensions = ['noop-v1', 'objectformat']
+
+/**
+ * The extensions Git 2.43 knows. Under `repositoryformatversion = 1` Git
+ * refuses a repository whose `[extensions]` holds any other key —
+ * `unknown repository extension found` — since an extension changes how
+ * the repository is read and a reader that ignored one would read it
+ * wrongly; {@link tryOidBytes} refuses it for the same reason.
+ * `compatobjectformat` is not among them: Git 2.43 refuses it, a later Git
+ * knows it, and a newer Git knowing more of them is what keeps this list a
+ * version's. Under version 0 an unknown key is ignored, as Git ignores it.
+ *
+ * @type {readonly string[]}
+ */
+const knownExtensions = [...v0Extensions, ...v1OnlyExtensions]
+
+/** The hashes `extensions.objectFormat` may name, and their id widths. */
+const formats = /** @type {Readonly<Record<string, OidBytes>>} */ ({ sha1: 20, sha256: 32 })
+
+/**
+ * The version of a file that names none: what Git starts its
+ * `repository_format` at and leaves there when no
+ * `core.repositoryformatversion` sets it. It is no version rather than
+ * version 0, and the difference shows — a file holding
+ * `extensions.objectFormat` and no version at all is a SHA-1 repository
+ * Git opens, where the same file saying `repositoryformatversion = 0` is
+ * one it refuses.
+ *
+ * A file that spells this number is read as though it named no version at
+ * all, since Git tells the two apart by the number and nothing else: on
+ * reading `-1` it throws the format it read away and starts again, so
+ * `repositoryformatversion = -1` beside `objectFormat = sha256` is a
+ * SHA-1 repository where `-2` beside the same key is a SHA-256 one.
+ */
+const noVersion = /** @type {const} */ (-1n)
 
 /**
  * The extensions whose value Git reads as a boolean, refusing a
@@ -161,24 +191,26 @@ const tryDigits = (digits, radix) => digits.length === 0 ? null : [...digits].re
     /** @type {Nullable<bigint>} */(0n))
 
 /**
- * Whether a value is a number as Git's parser reads one, which is C's own
- * grammar: an optional sign, then `0x` before hexadecimal digits, a
- * leading `0` before octal ones, or decimal ones, then an optional `k`,
- * `m` or `g` scaling it. `08` is no number, its `8` being no octal digit,
- * and neither is one too large for the `int` it is read into — both are
- * values Git refuses.
+ * The number a value spells as Git's parser reads one, or `null` where it
+ * spells none. The grammar is C's own: an optional sign, then `0x` before
+ * hexadecimal digits, a leading `0` before octal ones, or decimal ones,
+ * then an optional `k`, `m` or `g` scaling it. `08` spells no number, its
+ * `8` being no octal digit, and neither does one too large for the `int`
+ * it is read into — both are values Git refuses.
  *
- * @type {(value: string) => boolean}
+ * @type {(value: string) => Nullable<bigint>}
  */
-const isInt = value => {
+const tryInt = value => {
     const signed = value[0] === '+' || value[0] === '-' ? value.slice(1) : value
-    const factor = factors[signed.slice(-1).toLowerCase()]
-    const body = factor === undefined ? signed : signed.slice(0, -1)
+    const unit = factors[signed.slice(-1).toLowerCase()]
+    const body = unit === undefined ? signed : signed.slice(0, -1)
     const hex = body[0] === '0' && (body[1] === 'x' || body[1] === 'X')
     // A leading `0` is an octal digit as well as the mark of the base, so
     // it stays in the digits and `0` alone is the number it spells.
     const n = hex ? tryDigits(body.slice(2), 16n) : tryDigits(body, body[0] === '0' ? 8n : 10n)
-    return n !== null && n * (factor ?? 1n) <= maxInt
+    if (n === null) { return null }
+    const scaled = n * (unit ?? 1n)
+    return scaled > maxInt ? null : value[0] === '-' ? -scaled : scaled
 }
 
 /**
@@ -187,7 +219,7 @@ const isInt = value => {
  *
  * @type {(value: string) => boolean}
  */
-const isBoolean = value => booleans.includes(value.toLowerCase()) || isInt(value)
+const isBoolean = value => booleans.includes(value.toLowerCase()) || tryInt(value) !== null
 
 /** What a `\` before it stands for, and nothing else is an escape. */
 const escapes = /** @type {Readonly<Record<string, string>>} */ ({
@@ -326,42 +358,86 @@ export const tryEntries = text => {
 }
 
 /**
- * The last value of a key in a section, or `null` where the file sets
- * none.
+ * Every value a key is given in a section, in order. Git reads each of
+ * them as it comes to it, so a reader that judged only the last would let
+ * a value Git refuses pass behind a good one.
  *
- * @type {(entries: readonly Entry[], section: string, key: string) => Nullable<string>}
+ * @type {(entries: readonly Entry[], section: string, key: string) => readonly string[]}
  */
-const last = (entries, section, key) => {
-    const values = entries.flatMap(([s, k, value]) => s === section && k === key ? [value] : [])
-    return values.length === 0 ? null : values[values.length - 1]
-}
+const valuesOf = (entries, section, key) =>
+    entries.flatMap(([s, k, value]) => s === section && k === key ? [value] : [])
+
+/**
+ * The last of a list, or `null` where it has none: the value that wins,
+ * as the last one wins for Git.
+ *
+ * @type {(values: readonly string[]) => Nullable<string>}
+ */
+const last = values => values.length === 0 ? null : values[values.length - 1]
+
+/**
+ * Whether every `[extensions]` value the file holds is one Git reads: a
+ * boolean where the extension takes one, and a hash's name where the
+ * extension is `objectFormat`, which is case-sensitive as Git reads it.
+ *
+ * @type {(entries: readonly Entry[]) => boolean}
+ */
+const extensionValuesRead = entries => entries.every(([section, key, value]) =>
+    section !== 'extensions'
+    || (booleanExtensions.includes(key)
+        ? isBoolean(value)
+        : key !== 'objectformat' || formats[value] !== undefined))
 
 /**
  * The id width the file names, or `null` where the file is one Git
- * refuses: `extensions.objectFormat` absent — as in every repository
- * `git init` writes by default, which has no `[extensions]` section — or
- * `sha1` is 20 bytes; `sha256`, which `git init --object-format=sha256`
- * writes beside `repositoryformatversion = 1`, is 32. The value is
- * case-sensitive, as Git reads it: `SHA256` is refused. The key at all
- * needs `core.repositoryformatversion = 1`, since Git refuses the
- * extension under version 0 — `repo version is 0, but v1-only extension
- * found` — and under version 1 every key in `[extensions]` must be one
- * Git knows, since it refuses `unknown repository extension found`. A
- * version other than 0 or 1 is refused whatever else the file says, as is
- * a file with a bad line.
+ * refuses. 32 bytes needs `extensions.objectFormat = sha256` under
+ * `repositoryformatversion = 1`, which is what `git init
+ * --object-format=sha256` writes; everything else Git opens is 20, the
+ * default `git init` writes with no `[extensions]` section at all.
+ *
+ * Git reads the file a line at a time and judges each value as it comes to
+ * it, so these refusals are of any assignment and not only of the last:
+ *
+ * - A `repositoryformatversion` that spells no number, as `abc` does.
+ * - An `objectFormat` naming a hash Git does not know, `SHA256` included,
+ *   the value being case-sensitive.
+ * - A boolean extension whose value is no boolean.
+ *
+ * The version that wins is the last, as the last value wins for Git, and
+ * it is read as a number rather than as text: `01`, `+1` and `0x1` are
+ * version 1, and `1k` is 1024. What the version then decides:
+ *
+ * - Over 1 refuses the file — `Expected git repo version <= 1`.
+ * - 1 or more refuses a key in `[extensions]` that Git does not know —
+ *   `unknown repository extension found`.
+ * - 0 refuses a key Git reads only under version 1, `objectFormat` among
+ *   them — `repo version is 0, but v1-only extension found`.
+ * - {@link noVersion}, which a file naming no version has and a file
+ *   spelling `-1` has too, refuses neither and gives up the format it
+ *   read: SHA-1, whatever `objectFormat` said.
+ * - Any other version below 0, which Git allows, refuses neither and keeps
+ *   the format `objectFormat` named.
  *
  * @type {(text: string) => Nullable<OidBytes>}
  */
 export const tryOidBytes = text => {
     const entries = tryEntries(text)
     if (entries === null) { return null }
-    if (!entries.every(([section, key, value]) =>
-        section !== 'extensions' || !booleanExtensions.includes(key) || isBoolean(value))) { return null }
-    const version = last(entries, 'core', 'repositoryformatversion') ?? '0'
-    if (version !== '0' && version !== '1') { return null }
-    if (version === '1' && !entries.every(([section, key]) => section !== 'extensions' || knownExtensions.includes(key))) { return null }
-    const format = last(entries, 'extensions', 'objectformat')
-    if (format === null) { return 20 }
-    if (version !== '1') { return null }
-    return format === 'sha1' ? 20 : format === 'sha256' ? 32 : null
+    if (!extensionValuesRead(entries)) { return null }
+    // Each version spells a number or refuses the file, and the last one
+    // spells the version.
+    const version = valuesOf(entries, 'core', 'repositoryformatversion').reduce(
+        /** @type {(acc: Nullable<bigint>, value: string) => Nullable<bigint>} */
+        (acc, value) => acc === null ? null : tryInt(value),
+        /** @type {Nullable<bigint>} */(noVersion),
+    )
+    if (version === null || version > 1n) { return null }
+    const keys = entries.flatMap(([section, key]) => section === 'extensions' ? [key] : [])
+    if (version >= 1n && !keys.every(key => knownExtensions.includes(key))) { return null }
+    if (version === 0n && keys.some(key => v1OnlyExtensions.includes(key))) { return null }
+    // The hash is what the last `objectFormat` names whatever the version,
+    // since Git reads the key at every one — and nothing, where the format
+    // Git read was thrown away.
+    const format = version === noVersion ? null : last(valuesOf(entries, 'extensions', 'objectformat'))
+    return format === null ? 20 : formats[format]
 }

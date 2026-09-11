@@ -313,8 +313,9 @@ Each is a limit stated, refused where it is crossed, and none approximated:
 - **Packfiles**, where most objects in a real clone live, so the loose
   reader alone reads a fresh clone poorly: [`todo/packfiles.md`](todo/packfiles.md).
 - **Refs**, from a name to an id: [`todo/refs.md`](todo/refs.md).
-- **The object store**, from an id to the object, and the walk from a
-  commit to a blob: [`todo/object-store.md`](todo/object-store.md).
+- **The walk**, from a commit to a blob by a path: the store reads one
+  object by id, and walking from a name to the bytes it holds is the rest
+  of [`todo/object-store.md`](todo/object-store.md).
 - **The `Vec` ceiling.** `maxLength` in `fjs/types/bit_vec` is `2^20` bits,
   128 KiB, and nothing the format leaves unbounded is safe from it, which
   is why every unbounded field is a byte list. Where it binds today is the
