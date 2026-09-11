@@ -6,12 +6,21 @@ and stage 4 is the deliverable
 calls the one everything else is waiting for.
 **Status:** open — none of the writer exists. The reader landed;
 [`fjs/media/datajs`](../README.md) has no `serializer/` at all.
-**Blocked by:** nothing, for the implementation. Its **proofs** wait on the
-four writer-side sets of
+**Blocked by:** nothing, for the implementation, which proves itself against
+the specification by hand as [the reader](../parser/proof.f.mjs) does — that
+is the interim proof source, and it is why stage 1b gating stage 4 means
+"land it or write the proofs twice" rather than "do not start".
+
+Its **corpus proofs** wait on the four writer-side sets of
 [stage 1b](../../../../spec/datajs/todo/conformance-vectors.md) —
 `serializer-accept`, `serializer-reject`, `graph-equivalence`, `normalize` —
 which are typed in [`../vectors/types.ts`](../vectors/types.ts) and not yet
-written.
+written. The half of those sets whose inputs carry **host recipes** — an
+accessor, a non-enumerable property, a `null` prototype, a cycle — waits on
+that issue's **decision 6** besides: `build` is host code, and
+[`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 forbids a `proof.mjs` that proves
+a `.f.mjs` API against such inputs until the exemption it proposes is
+recorded. §4 says what that leaves provable in the meantime.
 
 ### Problem
 
@@ -109,17 +118,33 @@ exclude:
   **this is the one place the repository's own spelling does not hold**:
   `instanceof Array`, which [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 names as
   the spelling to use, is `false` for a `null`-prototype array, where
-  `Array.isArray` is `true`. The corpus issue's decision 2 and
-  [`difference`](../vectors/module.f.mjs) both read `Array.isArray`, so the
-  serializer does too, and the rule's exception is worth writing down where it
-  is taken rather than discovering twice;
+  `Array.isArray` is `true`. What that costs is not a refusal but a **wrong
+  document**: the value would fall through to the plain-object branch, whose
+  prototype test `null` passes, and be written as `{"0":1}` — an object where
+  the specification says an array serializes as its data. §3.1's reason for
+  preferring `instanceof` is that the realm rule already excludes the values
+  `Array.isArray` guards against, and a prototype-replaced array is the case
+  that rule does not reach: FunctionalScript cannot build one, and a writer's
+  input comes from outside FunctionalScript. The corpus issue's decision 2 and
+  [`difference`](../vectors/module.f.mjs) both read `Array.isArray` for the
+  same reason. Moving the classification to a thin `.mjs` would answer §3.1
+  literally and cost more than it buys — the writer is business logic, which
+  [`AGENTS.md`](../../../../AGENTS.md) §3 keeps in FunctionalScript — so the
+  exception is taken here and written down; whether §3.1 should name it is a
+  question for its owner;
 - an object is `typeof 'object'`, non-null, not an array, and **plain**:
   its prototype is `Object.prototype` or `null`, which the spec permits
   explicitly;
 - everything else is rejected, `Object.create({x: 1})` included — that
   boundary is decision 2 of
-  [the corpus issue](../../../../spec/datajs/todo/conformance-vectors.md),
-  and [`difference`](../vectors/module.f.mjs) already draws it the same way.
+  [the corpus issue](../../../../spec/datajs/todo/conformance-vectors.md)
+  and is **not settled in the specification yet**. An implementation cannot
+  leave it open, since classifying is the first thing it does, so it takes
+  decision 2's proposal, which is the line
+  [`difference`](../vectors/module.f.mjs) already draws. Taking it costs
+  nothing if the decision goes the other way: the alternative *accepts* more,
+  so what changes is one condition and one vector, and until then the
+  refusal is loud rather than a silently wrong document.
 
 Reading a prototype to classify is not replacing one, so this stays inside the
 rule in [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1.
@@ -266,8 +291,8 @@ written yet:
 | set | what the proof does |
 |---|---|
 | `serializer-accept` | serialize the input, read it back, compare with [`difference`](../vectors/module.f.mjs) against the vector's graph |
-| `serializer-reject` | assert an `error`, and that the rule it names is the one refused |
-| `graph-equivalence` | every document in `denotes` reads back equal to the input, every one in `denotesNot` does not — the sharing claims, which a single round trip cannot make |
+| `serializer-reject` | assert an `error`. The vector's `rule` is assertion context, not a message to match: the specification requires rejection and says nothing about what a refusal says, and [the reader-side proof](../vectors/proof.f.mjs) reads `rule` the same way |
+| `graph-equivalence` | **serialize the input** and compare the document's graph with the input, sharing included. Reading the canned `denotes` and `denotesNot` documents proves the reader, not the writer: a writer that inlined a shared node, or hash-consed two equal nodes into one, would pass that and fail this |
 | `normalize` | compare `tryNormalize`'s output to the vector's `text`, byte for byte |
 
 Three of those read back through [`../parser`](../parser/module.f.mjs), so the

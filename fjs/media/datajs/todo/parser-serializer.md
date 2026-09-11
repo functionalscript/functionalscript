@@ -242,8 +242,12 @@ reader's two sets, `accept` and `reject`, are this file's; the writer's four are
 - [ ] The writer, in [`serializer.md`](./serializer.md) — including
       `module.f.mjs`, the public API of §Layout, which waits for something
       beyond the reader to hold.
-- [ ] Delete this file in the PR that finishes the reader; stage 4 is done when
-      [`serializer.md`](./serializer.md) goes with it.
+- [ ] Delete this file in the PR that finishes the reader — but not before the
+      shared material [`serializer.md`](./serializer.md) reads from it, the
+      public API of §Layout and the value domain of §1, has moved into that
+      file or into [the module's README](../README.md). Deleting it first
+      would leave the writer's issue pointing at nothing and the API contract
+      with no owner. Stage 4 is done when both files go.
 
 ### Related
 
