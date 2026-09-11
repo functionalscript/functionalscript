@@ -1868,7 +1868,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       and the *array* in that set's proof, since `const $e = [];` is an
       evolving `any[]` a data module cannot bind — the same limit the normalize
       set's proof works around, and the same direction that matters, which is
-      expanding one shared empty rather than merging two distinct ones.
+      expanding one shared empty rather than merging two distinct ones. **A
+      proof is not a vector**, as review then pointed out: it covers this
+      repository's own reader and writer and gives a third-party harness
+      nothing, since a harness serializes the inputs a set exports. That is a
+      carrier limitation rather than a missing vector, and it has
+      [an issue of its own](../vectors/todo/shared-empty-array.md) with the
+      three routes out of it.
       One reason was corrected rather than replaced: the deep-nesting classes
       said depth is the reader's concern, which is false, since a recursive
       writer has a limit of its own and this repository records
