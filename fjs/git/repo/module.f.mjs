@@ -150,10 +150,18 @@ const isAbsolute = path =>
  * A POSIX directory named after a drive is not a thing that happens; a
  * Windows caller standing on one is.
  *
+ * A directory of no characters is no directory: what is below it is
+ * itself, so `under('', '.git')` is `.git` and not `/.git`. Joining those
+ * with a `/` would turn a name read against the caller's own directory
+ * into one read against the root, which is a repository the caller never
+ * asked about.
+ *
  * @type {(dir: string, name: string) => string}
  */
 const under = (dir, name) =>
-    dir.length === 2 && isDriveLetter(dir[0]) && dir[1] === ':' ? `${dir}${name}` : join(dir, name)
+    dir === '' ? name
+        : dir.length === 2 && isDriveLetter(dir[0]) && dir[1] === ':' ? `${dir}${name}`
+            : join(dir, name)
 
 /**
  * A path one of these files names, read where it was found: an absolute

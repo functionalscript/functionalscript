@@ -150,6 +150,14 @@ export const proof = {
     // below it takes no separator: `C:.git` is the `.git` in it, where
     // `C:/.git` is the one at the drive's root. The same reading of a drive
     // the gitfile's paths get, applied to the path the caller spells.
+    // A worktree of no characters is the caller's own directory, so its
+    // `.git` is `.git` and not `/.git`: joining those with a separator
+    // would read at the filesystem's root, which is a repository the
+    // caller never named.
+    here: () => {
+        assertEq(at({ '.git': repo })(''), '.git')
+        assertEq(at({ '.git': file('gitdir: r\n'), r: repo })(''), 'r')
+    },
     bareDrive: () => {
         assertEq(at({ 'C:.git': file('gitdir: /r\n'), r: repo })('C:'), '/r')
         // And it is not the drive's root that is read: a `.git` sitting
