@@ -144,5 +144,6 @@ not a second one beside it.
 - [`../../../todo/edag-stage1-discussion.md`](../../../todo/edag-stage1-discussion.md)
   — positional laziness, and the future `throw` node the non-establishment
   cases need.
-- [`./comparison-cases-table.md`](./comparison-cases-table.md) — the other
-  outstanding corpus work.
+- `comparisonCases` in [`../module.f.mjs`](../module.f.mjs) (shipped) — the
+  four relational groups derived from one table, so an argument pair reaches
+  all of them or none.
