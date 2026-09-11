@@ -1,7 +1,9 @@
 /**
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
- * @import { ReadFile, Stat } from '../../effects/node/types.ts'
+ * @import { IoChannel, ReadFile, Stat } from '../../effects/node/types.ts'
  * @import { State } from '../../effects/node/virtual/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -25,12 +27,23 @@ const raw = /** @type {(bits: bigint, n: bigint) => readonly [import('../../type
 const repo = /** @type {State['root'][string]} */ ({ config: file('[core]\n\trepositoryformatversion = 0\n'), objects: {} })
 
 /**
+ * The whole result, for the cases that say which side of the channel an
+ * answer came back on.
+ *
+ * @type {(root: State['root']) => (worktree: string) => Result<Nullable<string>, IoChannel>}
+ */
+const resultAt = root => worktree => {
+    const [, result] = virtual({ ...emptyState, root })(tryCommonDir(worktree))
+    return result
+}
+
+/**
  * The answer, or `null` where the walk refused, over a virtual filesystem.
  *
  * @type {(root: State['root']) => (worktree: string) => unknown}
  */
 const at = root => worktree => {
-    const [, result] = virtual({ ...emptyState, root })(tryCommonDir(worktree))
+    const result = resultAt(root)(worktree)
     const [tag, value] = result
     return tag === 'error' ? result : value
 }
@@ -262,8 +275,8 @@ export const proof = {
     // A `commondir` that cannot be read is the channel's too — only its
     // absence means the repository directory is the common one.
     missing: () => {
-        const r = at({ w: {} })('w')
-        assert(r instanceof Array && r[0] === 'error', r)
+        const [absent] = resultAt({ w: {} })('w')
+        assertEq(absent, 'error')
         // The virtual filesystem answers `ENOENT` for every read it cannot
         // make, so a host of this proof's own is what says a `commondir`
         // the reader is not allowed to open.
