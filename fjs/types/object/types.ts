@@ -6,8 +6,18 @@
  * @module
  */
 
+import type { Assert } from '../../asserts/types.ts'
+import type { Equal } from '../ts/types.ts'
+
+// The four pins below were `./proof.f.mjs`'s `maps` entry, a body of nothing
+// but typedefs — so none of them bound to a statement and all four were green
+// whatever they claimed (`../../AGENTS.md` §1.4). Each sits beside the type it
+// is about, where an alias is resolved on sight.
+
 /** A record over the keys of `K`, each value possibly missing at runtime. */
 export type OptionalMap<K extends string, T> = { readonly[k in K]?: T }
+
+type _OptionalIsPartial = Assert<Equal<OptionalMap<'a' | 'b', bigint>, { readonly a?: bigint, readonly b?: bigint }>>
 
 /**
  * An abstract required map used to describe APIs that accept every key in `K`.
@@ -39,8 +49,15 @@ export type RequiredMap<K extends string, T> =
     ? never
     : AbstractRequiredMap<K, T>
 
+type _RequiredIsRequired = Assert<Equal<RequiredMap<'a' | 'b', bigint>, { readonly a: bigint, readonly b: bigint }>>
+
+// The guard, which is the whole reason this is not `AbstractRequiredMap`.
+type _RequiredOverAnyStringIsNever = Assert<Equal<RequiredMap<string, bigint>, never>>
+
 /** A record with an open key set. Every value can be missing at runtime. */
 export type StringMap<T> = OptionalMap<string, T>
+
+type _StringMapIsOptional = Assert<Equal<StringMap<bigint>, { readonly [k in string]?: bigint }>>
 
 export type Entry<T> = readonly[string, T]
 
