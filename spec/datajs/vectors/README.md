@@ -35,6 +35,10 @@ implementation.
 | graph equivalence | `graph-equivalence/` | `GraphEquivalence` | the serializer, when it lands |
 | normalize | `normalize/` | `Normalize` | the normalized serializer, when it lands |
 
+One directory holds no vectors: `not-applicable/` carries the reasons the
+matrix below needs, one record per class and role a role owes no vector
+for.
+
 The export of a set is an array of records. Every record carries an `id`, a
 stable name a matrix or a failure can cite, and a `class`, the branch of the
 specification the vector covers. A class is as fine as the thing an
@@ -108,6 +112,29 @@ proofs of FunctionalScript APIs.
 **Normalized bytes** are the document as a string; a proof encodes it to
 compare bytes, and every string the normalized serializer emits is a valid
 document, so the accept grammar binds it.
+
+## The class-by-role matrix
+
+[`matrix.md`](./matrix.md) is generated from the sets by `npm run gen`, so
+it is current or the build is red. Rows are the classes, columns the three
+roles a conforming implementation may have — reader, serializer,
+normalize, since conformance is per role and a serializer-only
+implementation never runs a reader or a normalize vector. A cell is the
+vector ids that role has for that class, the reason it owes none, or a
+role whose sets have not landed.
+
+**An empty cell with no reason fails the generator**, which is the whole
+point of generating it: prose that mentions a class in two roles reads
+exactly like prose that mentions it in three, and the issue this corpus
+came from records five rounds where exactly that went unnoticed. The only
+thing that answers an empty cell is a record in `not-applicable/` giving
+the reason in words, reviewed beside the vectors like any other data. A
+reason for a cell that has vectors, or for a class no vector carries, is a
+failure too, so a reason cannot outlive the gap it was written for.
+
+A role whose sets have not landed refuses nothing: a class cannot owe a
+vector to a set that does not exist. Its column says so on every row, and
+the refusal arrives with the set.
 
 ## What a vector may not do
 
