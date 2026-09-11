@@ -1863,9 +1863,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 145 records in
-      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 61 scope
-      records answering the 579 cells its column owes and one `['set',
+- [x] **Normalize.** Landed as 205 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 55 scope
+      records answering the 519 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
       the 50 classes this set introduced. The proof reads every text back
       through the reader, which is the run-through-the-accept-grammar check
@@ -1877,8 +1877,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 117,290 bytes of the bit
-      vector's 131,072, which is 89% and leaves little room for another
+      being refused outright. The matrix stands at 114,778 bytes of the bit
+      vector's 131,072, which is 88% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
       recording.** The set went out with ten scope records saying the shape
@@ -1899,6 +1899,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       carries — which is the general defence, since a class the reader
       enumerates for a reason is a class the writer can get wrong for the
       same reason.
+      **A third round took the same defence four more times, sixty vectors'
+      worth, and one of them the design had already asked for.** All nineteen
+      whitespace-like scalars owe `normalize` vectors, this file says so in the
+      reader's derivation, and the reason is the sharpest case there is: a
+      writer using a JavaScript-safe escaper emits U+2028 as `\u2028`, which is
+      a valid document denoting the same string and the wrong bytes. None of
+      the nineteen had one, nor their key twins. Beside them, a writer treating
+      two adjacent surrogate units as a pair corrupts `"\ud800\ud800"` while
+      every lone-surrogate vector passes; one with a separate recursive key
+      path writes `{"__proto__":…}` inside a container and sets a prototype;
+      and one recognising an index by `String(Number(k)) === k` moves `"-1"`
+      ahead of the names. Thirty-eight, fourteen, one and seven vectors
+      respectively, and six more exemptions gone.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
