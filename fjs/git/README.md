@@ -58,8 +58,10 @@ what a grammar can and cannot do for the formats.
   a path naming a submodule answers that entry, and it refuses what a
   corrupt repository makes ambiguous: a tag or a commit Git's own parse
   refuses, a tag whose target is not the type it declared, a tree naming one
-  name twice, and a path descending through an entry that is no `40000`
-  subtree.
+  name twice, and a path descending through an entry whose mode is no
+  directory — the mode's `S_IFMT` bits, which is the question Git's own
+  `S_ISDIR` puts, so `40755` descends as `40000` does and `140000` does
+  not.
 
   Both of its loops are walks over the effects rather than recursions, and
   the chain of ids `peel` has already read is a map rather than a list.
@@ -146,7 +148,9 @@ The four payloads:
   ```
 
   `mode` is octal ASCII without padding — `100644`, `100755`, `120000`,
-  `160000`, and `40000` for a subtree, five digits, not six. `name` is any
+  `160000`, and `40000` for a subtree, five digits, not six. Those are the
+  modes Git writes and the ones `validate` accepts; a walk asks less of a
+  mode it did not write, since Git does. `name` is any
   bytes but NUL; a slash is forbidden by `git fsck`, not by the reader.
   `id` is the raw object id, 20 or 32 bytes, every byte value allowed, and
   it is what delimits the entry: nothing follows it but the next entry or

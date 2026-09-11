@@ -117,13 +117,17 @@ export const proof = {
         assertEq(mode(entry('77777777777777777777', 'a', idA)), 0xFFFFFFFF)
         assertStructurallySame(validate([entry('77777777777777777777', 'a', idA)]), ['error', 'unknown mode at 0'])
     },
-    // A subtree is the mode `40000` and no other, however it is spelled:
-    // what a walk descends through, where a file, an executable, a link
-    // and a submodule are where a path stops.
+    // A subtree is any mode whose kind bits say directory, which is what
+    // Git's own `S_ISDIR` asks before it descends: a file, an executable,
+    // a link and a submodule are where a path stops. Measured against Git
+    // 2.43.0, where `git cat-file -p <tree>:dir/f` reads the nested blob
+    // through every mode below that is a subtree here and through none of
+    // the others.
     isSubtree: () => {
-        assert(isSubtree(entry('40000', 'a', idA)))
-        assert(isSubtree(entry('040000', 'a', idA)))
-        for (const m of ['100644', '100755', '120000', '160000', '4000', '400000']) {
+        for (const m of ['40000', '040000', '40755', '41000', '47777', '1040000']) {
+            assert(isSubtree(entry(m, 'a', idA)))
+        }
+        for (const m of ['100644', '100755', '120000', '160000', '4000', '400000', '140000', '60000', '20000']) {
             assert(!isSubtree(entry(m, 'a', idA)))
         }
         // Digits that are no mode at all are no subtree either, rather than
