@@ -1786,6 +1786,16 @@ The steps, in order; a step is one pull request unless it says otherwise:
       scope that answers a class which **has** vectors is refused, as is one
       answering no class, one naming a set the corpus does not have, and two
       of equal specificity answering one cell.
+      Review added two more, both about a name or a tag rather than a class. A
+      set name is measured across the whole corpus and not within a role,
+      because the `set` scope is answered by comparing names: two roles each
+      holding an `accept` would let one class be named by that set twice over,
+      and `['set', 'accept']` would read as true of a class both of them carry.
+      And a tag the union does not have is refused outright, since the reasons
+      are a data module typed at the import — `['sett', 'reject']` arrives as
+      data, and the tag test that reads the three it knows would otherwise give
+      the fourth `set` semantics and print a plausible cell for a record nobody
+      wrote.
 - [x] **Serializer accept and graph equivalence.** Landed as 155 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 7 in

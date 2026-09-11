@@ -324,12 +324,20 @@ const roleless = ({ roles }) =>
  * that looks authoritative. That is the trade this file refuses, arriving
  * through the names rather than through the text.
  *
+ * A set name is measured across the whole corpus and not within a role,
+ * because `setsCarrying` answers with names: two roles each holding a set
+ * called `shared`, both carrying one class, would have that class named by
+ * one set twice over and a `['set', 'shared']` reason for a third role would
+ * read as true of it. The scope means "no set but that one carries this",
+ * which only a name meaning one set can say.
+ *
  * @type {(corpus: Corpus) => readonly string[]}
  */
 const ambiguous = ({ roles }) => [
     ...twiceNamed(roles.map(r => r.role), n => `the role ${n}: named twice, so its two columns cannot be told apart`),
-    ...roles.flatMap(({ role, sets }) =>
-        twiceNamed(sets.map(([name]) => name), n => `the set ${n} of ${role}: named twice`)),
+    ...twiceNamed(
+        roles.flatMap(({ sets }) => sets.map(([name]) => name)),
+        n => `the set ${n}: named twice, so a set scope cannot tell its two sets apart`),
     ...twiceNamed(
         roles.flatMap(({ sets }) => sets.flatMap(([, vectors]) => vectors.map(v => v.id))),
         n => `the vector id ${n}: used twice, so a cell naming it names either`),
@@ -351,6 +359,25 @@ const duplicated = ({ notApplicable }) =>
         notApplicable.findIndex(n => n.role === role && n.scope[0] === scope[0] && n.scope[1] === scope[1]) === i
             ? []
             : [`${showScope(scope)} in ${role}: a second reason for a scope that already has one`])
+
+/**
+ * A scope whose tag is none of the three.
+ *
+ * The reasons are a data module, which carries no annotations and is typed at
+ * the import, so a mistyped tag reaches here as data rather than as a `tsc`
+ * error. `reaches` reads the three tags it knows and treats the remainder as
+ * `set`, which would give `['sett', 'reject']` set semantics and print a
+ * plausible `not applicable` cell for a record nobody wrote. Naming it here
+ * refuses the corpus before a row is built, which is what every other check
+ * in this file does with a defect it finds.
+ *
+ * @type {(corpus: Corpus) => readonly string[]}
+ */
+const mistagged = ({ notApplicable }) =>
+    notApplicable.flatMap(({ scope, role }) =>
+        scope[0] === 'class' || scope[0] === 'subtree' || scope[0] === 'set'
+            ? []
+            : [`${showScope(scope)} in ${role}: no such scope, so it cannot be told from a set`])
 
 /**
  * A reason that is not true of what it answers: one naming a role, a set or
@@ -424,6 +451,7 @@ export const matrix = corpus => {
         ...roleless(corpus),
         ...unrenderable(corpus),
         ...ambiguous(corpus),
+        ...mistagged(corpus),
         ...duplicated(corpus),
         ...stale(corpus),
         ...rows.flatMap(r => r[0] === 'error' ? r[1] : []),
