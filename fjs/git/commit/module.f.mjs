@@ -120,6 +120,14 @@ export const tryTree = oidBytes => {
  * line after the block at their shortest, so nothing under it could have
  * been a commit.
  *
+ * Two things refuse here that Git reads, both of them a line Git's walk
+ * stops at and never looks at: a line that is no header, and a
+ * continuation line, which folds into the value above it and spoils an id
+ * that Git never checked. Both are over-refusals and are recorded rather
+ * than fixed here —
+ * [`todo/positional-headers.md`](../todo/positional-headers.md) has the
+ * shapes and what a stopping rule would cost.
+ *
  * @type {(oidBytes: OidBytes) => (payload: Bytes) => Nullable<Oid>}
  */
 export const tryTreeAt = oidBytes => {
