@@ -10,32 +10,29 @@
 this is done — for loose objects, and at a directory the caller spells.
 [`fjs/git/walk`](../walk/module.f.mjs) is the walk both consumers under
 [`todo/`](../../../todo/) needed — a commit to its tree, a tree to its
-entries, an entry to a blob — over whatever reads objects.
-What is left is under the store rather than over it: an id in a pack, and
-the directory found rather than given, since a caller should not have to
-know that an id `ab12…` lives at `objects/ab/12…` if it is loose and
-elsewhere if it is packed, nor which directory `objects/` sits in when a
-worktree is linked.
+entries, an entry to a blob — over whatever reads objects, and
+[`fjs/git/repo`](../repo/module.f.mjs) finds that directory from a
+worktree of any kind, so a caller no longer has to know which directory
+`objects/` sits in when a worktree is linked. What is left is under the
+store rather than over it: an id in a pack, since a caller should not have
+to know that an id `ab12…` lives at `objects/ab/12…` if it is loose and
+elsewhere if it is packed, and the directories `alternates` adds to the
+search.
 
 ### Proposal
 
 - `read(id)`: the loose path first, then every pack the directory holds,
   answering the `Envelope` or refusing with a channel error that names the
-  id. Finding the directory is its own step, later: `objects/` lives in
-  the repository's common directory, and a worktree reaches it by the
-  same rule whatever its kind. `.git` is either a directory, which is
-  the repository, or a file whose `gitdir:` line names a directory; that
-  directory is the repository unless it holds a `commondir` file, whose
-  line names the repository instead. So a main worktree made by
-  `git init` has `.git/` itself; one made with `--separate-git-dir` has a
-  `.git` file pointing straight at the repository, which has no
-  `commondir`; and a linked worktree's `.git` file points at its
-  per-worktree directory under the main repository's `worktrees/`, whose
-  `commondir` names the shared repository that owns `objects/`,
-  `packed-refs` and the shared refs. The parent of a `.git` file holds no
-  objects and is never searched. `objects/info/alternates` adds
-  directories to search after the repository's own, and is deferred the
-  same way.
+  id. Finding the directory was its own step and is done:
+  [`fjs/git/repo`](../repo/module.f.mjs)'s `tryCommonDir` takes a worktree
+  of any kind to the common directory `objects/` lives in, by the one rule
+  Git uses — `.git` is the repository or a file whose `gitdir:` line names
+  one, and that directory is the repository unless its `commondir` names
+  another. It stays a step of its own and `read` keeps taking the
+  directory: a caller that starts from a checkout puts the two together,
+  which is what [`fjs/git/README.md`](../README.md) says and what
+  `tryRead(dir, oidBytes)` is. `objects/info/alternates` adds directories
+  to search after the repository's own, and is the step that remains.
 - An id given by a caller is checked against the object read, which is
   where [SHA-1](../../crypto/todo/sha1.md) and `fjs/crypto/sha2` come in:
   a store that does not hash trusts its file names. In a SHA-1 repository
@@ -64,8 +61,10 @@ worktree is linked.
 - [x] `tryRead(id)` over loose objects, with the id check on read, in
       `fjs/git/store`.
 - [ ] `tryRead` over packs once [packfiles.md](./packfiles.md) lands.
-- [ ] The common directory found: a linked worktree's `gitdir` and
-      `commondir`, and `alternates`.
+- [x] The common directory found: a linked worktree's `gitdir` and
+      `commondir`, in [`fjs/git/repo`](../repo/module.f.mjs).
+- [ ] `alternates`: the directories `objects/info/alternates` adds, which
+      the store searches after its own.
 - [x] The walk from a commit to a blob by path:
       [`fjs/git/walk`](../walk/module.f.mjs), `peel`, `tryEntries` and
       `tryEntry` over whatever reads objects.

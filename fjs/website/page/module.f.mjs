@@ -93,6 +93,26 @@ const proofItem = proof => proof.blockers.length === 0
     : ['li', `${proof.name} — not linkable in a browser: ${proof.blockers.join(', ')}`]
 
 /**
+ * The demo section: what this module *does*, if it says.
+ *
+ * Two elements and nothing else. The section is the demo's own root, so the
+ * runtime replaces its contents wholesale on every state; the script is the
+ * page's half of the wiring, naming the module in `data-demo` so the runtime
+ * never guesses a filename.
+ *
+ * @type {(path: string) => readonly Node[]}
+ */
+export const demoSection = path => [['details', { 'data-section': '', open: '' },
+    ['summary', 'Demo'],
+    ['div', { 'data-demo': path }],
+    ['script', { type: 'module' },
+        `import { startDemo } from '/fjs/website/demo-runtime.mjs'
+
+startDemo(document.querySelector('[data-demo]'))
+`],
+]]
+
+/**
  * The suite section: what this subtree proves, and the control that runs it.
  *
  * Omitted where the subtree has no proofs, like every other empty section — a
@@ -235,6 +255,7 @@ export const page = dir => htmlUtf8(
         })],
         ['h1', dir.path],
         ...sections(dir),
+        ...(dir.demo === null ? [] : demoSection(dir.demo)),
         ...testSection(dir)([]),
     ],
 )
