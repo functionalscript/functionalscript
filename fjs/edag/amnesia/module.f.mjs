@@ -116,7 +116,7 @@ const callProperty = (f, obj, prop, e) => obj[prop](...argsOf(f, e))
  * every step is `[tag, operand, continuation]`, and a `|!()` is reachable
  * through `|.` steps from either — `(a?.(...b).c)(...d)` is exactly that.
  *
- * Like the three walkers below it reads a step by **destructuring**, never by
+ * Like the two walkers below it reads a step by **destructuring**, never by
  * index: destructuring goes through the array iterator, which stops at
  * `length`, so a short step's absent continuation reads as `undefined` and
  * never as whatever a prototype supplies at that index. An indexed `k[2]`
