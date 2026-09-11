@@ -1,28 +1,36 @@
-## inert-type-level-proofs. 89 `Assert<…>` typedefs in proofs check nothing
+## inert-type-level-proofs. 62 `Assert<…>` typedefs in proofs check nothing
 
 **Priority:** P2
 **Status:** open
 
 ### Problem
 
-[`fjs/AGENTS.md` §3.2](../fjs/AGENTS.md) names a function-local JSDoc
+[`fjs/AGENTS.md` §3.2](../fjs/AGENTS.md) named a function-local JSDoc
 `@typedef` as "the normal home for compile-time proof types", pointing at the
 `consistency` and `signatures` entries in `fjs/edag/proof.f.mjs` and
-`fjs/effects/proof.f.mjs`. **TypeScript never evaluates them.** The constraint
-of a declaration nothing references is not resolved, so an `Assert<…>` written
-this way is green whatever it claims.
+`fjs/effects/proof.f.mjs`. Many of those are green whatever they claim.
 
-Two falsifications, each with `tsc` exiting 0 and printing nothing:
+**The mechanism, corrected.** This issue first said TypeScript never evaluates
+a function-local typedef, because "the constraint of a declaration nothing
+references is not resolved". That is not it, and the real rule is narrower and
+sharper: **a JSDoc comment binds to the statement that follows it.** With no
+statement after it there is nothing to bind to, the declaration is never
+created, and its constraint is never resolved. Measured on a scratch file:
 
-```js
-// fjs/edag/proof.f.mjs:177 — claims op1Id's schema matches Op1Id
-/** @typedef {Assert<Check<Op2Id, typeof op1Id>>} _Op1Id */   // Op2Id: still passes
-```
+| form | result |
+| --- | --- |
+| `@typedef` last in a block | inert |
+| any statement after it | TS2344 |
+| three in a row, nothing after | all three inert |
+| three in a row, one statement after | all three flagged |
+| one, a statement, then a trailing one | only the first flagged |
 
-```js
-// fjs/nanvm/proof.f.mjs (before #1776 moved these) — claims a unary case has one operand
-/** @typedef {Assert<Equal<Case<1>['args'], readonly[Value, Value]>>} _Unary */  // still passes
-```
+So a proof entry whose body is *nothing but* typedefs checks nothing, and one
+whose typedefs are followed by an `assert` call works exactly as intended.
+That is the whole difference, and it explains both of the original
+falsifications and why `fjs/ebnf/ll1/proof.f.mjs`'s `constParameter` — a
+typedef followed by `assertStructurallySame` — is genuinely load-bearing:
+falsifying it gives TS2344 at its own line.
 
 The same six assertions moved to module scope in `fjs/nanvm/types.ts` fail
 loudly (`TS2344: Type 'false' does not satisfy the constraint 'true'`) on the
@@ -31,21 +39,30 @@ for.
 
 This is the failure §1.4 already warns about in its other form: it forbids
 `true as _Predicate` because "the assertion compiles no matter what the
-predicate resolved to". A function-local typedef has the identical defect and
-is currently *recommended* — which is why it has spread to **89 typedefs
-across 15 files**:
+predicate resolved to".
 
-| file | count |
-| --- | --- |
-| `fjs/edag/proof.f.mjs` | 24 |
-| `fjs/rtti/parse/proof.f.mjs`, `fjs/rtti/proof.f.mjs`, `fjs/rtti/ts/proof.f.mjs` | 9 each |
-| `fjs/effects/proof.f.mjs`, `fjs/rtti/validate/proof.f.mjs` | 8 each |
-| `fjs/edag/amnesia/proof.f.mjs` | 5 |
-| `fjs/djs/parser/proof.f.mjs`, `fjs/types/object/proof.f.mjs` | 4 each |
-| `fjs/media/json/schema/proof.f.mjs`, `fjs/media/revision/proof.f.mjs`, `fjs/types/result/proof.f.mjs` | 2 each |
-| `fjs/js/keywords/proof.f.mjs`, `fjs/protocol/mcp/proof.f.mjs`, `fjs/types/nullable/proof.f.mjs` | 1 each |
+**The count, measured rather than grepped.** Every single-line `Assert`
+typedef in the repository was falsified at once — its claim replaced by
+`Assert<Equal<1, 2>>`, its name kept so references still resolve — and `tsc`
+run once. A checked one reports TS2344 at its own line; an inert one says
+nothing. Of **116 across 23 files, 54 are checked and 62 are inert**, in nine
+files:
 
-Each is a green leaf asserting nothing. Worse than an absent check: a leaf that
+| file | inert |
+| --- | --: |
+| `fjs/edag/proof.f.mjs` | 28 |
+| `fjs/rtti/ts/proof.f.mjs` | 9 |
+| `fjs/edag/amnesia/proof.f.mjs` | 8 |
+| `fjs/types/object/proof.f.mjs`, `fjs/djs/parser/grammar/proof.f.mjs` | 4 each |
+| `fjs/ebnf/byte/proof.f.mjs` | 3 |
+| `fjs/media/json/schema/proof.f.mjs`, `fjs/media/revision/proof.f.mjs`, `fjs/rtti/proof.f.mjs` | 2 each |
+
+The earlier table counted every typedef in a proof file, including the 54 that
+work. `fjs/effects/proof.f.mjs`, `fjs/rtti/parse/proof.f.mjs`,
+`fjs/rtti/validate/proof.f.mjs` and six others named there have none inert at
+all.
+
+Each inert one is a green leaf asserting nothing. Worse than an absent check: a leaf that
 cannot fail is indistinguishable from one that passes, and it survives the
 refactor that makes its claim false. The `fjs/edag` ones are the sharpest loss
 — they are the `Assert<Check<…>>` pins that the README says keep `types.ts` and
@@ -84,18 +101,25 @@ Per file the target differs, and the choice is the work:
   call site, say — has no `types.ts` home. It needs one written, or the
   claim needs restating as something a module-scope alias can hold.
 
+**Adding a statement after the run would also work**, and is worth naming so
+it is rejected on purpose rather than missed. It leaves the claim one
+reordering away from silent again, in a file whose other entries end with
+their typedefs, so it fixes the instance and not the hazard. Take it only
+where the entry already has statements and its typedefs merely drifted to the
+end.
+
 Do it per directory, so each lands with the `tsc` run that proves the
 moved form bites: falsify each assertion once, see it fail, restore it. An
-assertion moved without that check is the same inert leaf in a new place.
-
-Then correct §3.2 — a function-local `@typedef` is fine for an ordinary
-local type and is *not* a home for a proof — and add the rule to §1.4 beside
-the `true as _Predicate` prohibition it matches.
+assertion moved without that check is the same inert leaf in a new place. The
+whole-repository sweep above is the cheap version of that check and is worth
+re-running after each directory: the inert count should fall by exactly the
+number moved.
 
 ### Tasks
 
-- [ ] Correct `fjs/AGENTS.md` §3.2 and §1.4: a compile-time proof goes at
-      module scope in a `.ts` file, never in a function-local `@typedef`.
+- [x] Correct `fjs/AGENTS.md` §3.2 and §1.4: §3.2 no longer calls a
+      function-local typedef the normal home for a proof, and §1.4 states the
+      binding rule, the measured table, and where a proof belongs.
 - [ ] Move the 24 `fjs/edag/proof.f.mjs` assertions into `fjs/edag/types.ts`,
       falsifying each once to prove the moved form fails. Three chain-state
       pins are already there, added beside the unions they are about when
@@ -105,8 +129,11 @@ the `true as _Predicate` prohibition it matches.
       `_OptionLambda` and `_OptionPropertyLambda` without replacing them —
       those pin the schema against the type, these pin the types to each
       other.
-- [ ] The same for the remaining 14 files, a directory at a time.
-- [ ] `tsc` and `fjs test` clean after each.
+- [ ] The same for the remaining eight files in the table, a directory at a
+      time. Six files the first count named have nothing inert and need no
+      work.
+- [ ] `tsc` and `fjs test` clean after each, and the sweep's inert count
+      down by the number moved.
 
 ### Related
 
