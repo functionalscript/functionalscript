@@ -157,9 +157,20 @@ const tryGitdir = (worktree, text) => {
 
 /**
  * The common directory of the repository a worktree belongs to, or `null`
- * where its `.git` is a file that is no gitfile. A worktree with no `.git`
- * at all is the channel's, as a directory with no `config` is: both say the
- * caller named no repository rather than that one is malformed.
+ * where what it finds names no directory. Three things are that, and the
+ * last two are reached with `.git` a directory as readily as a file:
+ *
+ * - a `.git` file that is no gitfile, which Git calls `invalid gitfile
+ *   format` or `no path in gitfile`;
+ * - a `commondir` of no bytes at all, which Git dies on, where a
+ *   `commondir` of one newline is a repository whose common directory is
+ *   its own;
+ * - bytes in either file that are no UTF-8, for the reason {@link textAt}
+ *   gives.
+ *
+ * A worktree with no `.git` at all is the channel's, as a directory with no
+ * `config` is: both say the caller named no repository rather than that one
+ * is malformed.
  *
  * @type {(worktree: string) => Effect<ReadFile | Stat, Nullable<string>, IoChannel>}
  */
