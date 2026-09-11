@@ -227,6 +227,14 @@ export const tryTarget = oidBytes => {
  * `type <t>` and `tag ` cost at their shortest, so nothing under it could
  * have held the three headers.
  *
+ * One thing refuses here that Git reads: bytes after the third header that
+ * are no header at all. Git's parse stops after `tag` and never looks at
+ * them, where this reads the whole payload before taking anything by
+ * position, so a line with no `SP` in it makes the payload unreadable.
+ * That is an over-refusal and it is recorded rather than fixed here —
+ * [`todo/positional-headers.md`](../todo/positional-headers.md) has the
+ * shapes and what a stopping rule would cost.
+ *
  * @type {(oidBytes: OidBytes) => (payload: Bytes) => Nullable<TagTarget>}
  */
 export const tryTargetAt = oidBytes => {
