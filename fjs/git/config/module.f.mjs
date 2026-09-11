@@ -31,6 +31,7 @@
  *
  * @module
  *
+ * @import { StringMap } from '../../types/object/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { OidBytes } from '../types.ts'
  * @import { _SubState, _ValueState } from './private.ts'
@@ -85,14 +86,26 @@ const isSpace = c => isKeySpace(c) || c === '\r'
 const isCSpace = c => isSpace(c) || c === '\n' || c === '\v' || c === '\f'
 
 /**
+ * The opposite of a character test, so a search for the first character a
+ * class does not hold is a search for one another holds. Built once where
+ * the class is bound rather than at every text.
+ *
+ * @type {(is: (c: string) => boolean) => (c: string) => boolean}
+ */
+const not = is => c => !is(c)
+
+/**
  * What is left of text once the whitespace it begins with is skipped, by
  * whichever class of it the caller is Git's.
  *
  * @type {(is: (c: string) => boolean) => (text: string) => string}
  */
-const afterOf = is => text => {
-    const i = [...text].findIndex(c => !is(c))
-    return i === -1 ? '' : text.slice(i)
+const afterOf = is => {
+    const no = not(is)
+    return text => {
+        const i = [...text].findIndex(no)
+        return i === -1 ? '' : text.slice(i)
+    }
 }
 
 /** What is left of text once the whitespace it begins with is skipped. */
@@ -111,9 +124,12 @@ const afterCSpace = afterOf(isCSpace)
  *
  * @type {(is: (c: string) => boolean) => (text: string) => string}
  */
-const spanOf = is => text => {
-    const i = [...text].findIndex(c => !is(c))
-    return i === -1 ? text : text.slice(0, i)
+const spanOf = is => {
+    const no = not(is)
+    return text => {
+        const i = [...text].findIndex(no)
+        return i === -1 ? text : text.slice(0, i)
+    }
 }
 
 /** The key a line names, up to what is no key character. */
@@ -199,7 +215,7 @@ const booleanExtensions = ['preciousobjects', 'worktreeconfig']
 const booleans = /** @type {readonly string[]} */ (['true', 'false', 'yes', 'no', 'on', 'off', ''])
 
 /** What a `k`, `m` or `g` after a number scales it by, however cased. */
-const factors = /** @type {Readonly<Record<string, bigint>>} */ ({
+const factors = /** @type {StringMap<bigint>} */ ({
     k: 1024n,
     m: 1048576n,
     g: 1073741824n,
@@ -224,6 +240,14 @@ const digitValue = c =>
                 : 16n
 
 /**
+ * One split element with the `\r` a `\n` followed taken off it, where `last`
+ * is the index of the element no `\n` followed.
+ *
+ * @type {(last: number) => (line: string, i: number) => string}
+ */
+const unCr = last => (line, i) => i !== last && line.endsWith('\r') ? line.slice(0, -1) : line
+
+/**
  * The lines of a file, as Git ends one. Git ends a line at a `\n` and folds
  * the `\r` before it, and folds no other. A `\r` that reaches the end of
  * the file ends nothing, so it stands in the line as the character it is:
@@ -234,8 +258,20 @@ const digitValue = c =>
  */
 const lines = text => {
     const split = text.split('\n')
-    const last = split.length - 1
-    return split.map((line, i) => i !== last && line.endsWith('\r') ? line.slice(0, -1) : line)
+    return split.map(unCr(split.length - 1))
+}
+
+/**
+ * One digit read into the number before it, in a radix the caller binds
+ * first. `null` stays `null`, and a character that is no digit of the radix
+ * makes it so.
+ *
+ * @type {(radix: bigint) => (acc: Nullable<bigint>, c: string) => Nullable<bigint>}
+ */
+const digitStep = radix => (acc, c) => {
+    if (acc === null) { return null }
+    const v = digitValue(c)
+    return v >= radix ? null : acc * radix + v
 }
 
 /**
@@ -244,14 +280,9 @@ const lines = text => {
  *
  * @type {(digits: string, radix: bigint) => Nullable<bigint>}
  */
-const tryDigits = (digits, radix) => digits.length === 0 ? null : [...digits].reduce(
-    /** @type {(acc: Nullable<bigint>, c: string) => Nullable<bigint>} */
-    (acc, c) => {
-        if (acc === null) { return null }
-        const v = digitValue(c)
-        return v >= radix ? null : acc * radix + v
-    },
-    /** @type {Nullable<bigint>} */(0n))
+const tryDigits = (digits, radix) => digits.length === 0
+    ? null
+    : [...digits].reduce(digitStep(radix), /** @type {Nullable<bigint>} */(0n))
 
 /**
  * The number a value spells as Git's parser reads one, or `null` where it
@@ -295,7 +326,7 @@ const tryInt = value => {
 const isBoolean = value => booleans.includes(value.toLowerCase()) || tryInt(value) !== null
 
 /** What a `\` before it stands for, and nothing else is an escape. */
-const escapes = /** @type {Readonly<Record<string, string>>} */ ({
+const escapes = /** @type {StringMap<string>} */ ({
     n: '\n',
     t: '\t',
     b: '\b',
@@ -481,14 +512,21 @@ export const tryEntries = raw => {
 }
 
 /**
+ * The value an entry holds under a section and a key, as a list of none or
+ * one, so a flatMap over the entries is the values they give that key.
+ *
+ * @type {(section: string, key: string) => (entry: Entry) => readonly string[]}
+ */
+const valueAt = (section, key) => ([s, k, value]) => s === section && k === key ? [value] : []
+
+/**
  * Every value a key is given in a section, in order. Git reads each of
  * them as it comes to it, so a reader that judged only the last would let
  * a value Git refuses pass behind a good one.
  *
  * @type {(entries: readonly Entry[], section: string, key: string) => readonly string[]}
  */
-const valuesOf = (entries, section, key) =>
-    entries.flatMap(([s, k, value]) => s === section && k === key ? [value] : [])
+const valuesOf = (entries, section, key) => entries.flatMap(valueAt(section, key))
 
 /**
  * The last of a list, or `null` where it has none: the value that wins,
