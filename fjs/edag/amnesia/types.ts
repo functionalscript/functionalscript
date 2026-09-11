@@ -46,10 +46,9 @@ export type Get<K extends ExpOp[0]> = TagMap[K]
 //
 // These were `proof.f.mjs`'s `tagMap` entry, a body of nothing but typedefs,
 // so none of them bound to a statement and all eight were green whatever they
-// claimed (`../../AGENTS.md` §1.4,
-// `../../../todo/inert-type-level-proofs.md`). At module scope in a `.ts`
-// file an alias is resolved on sight, so each one below was falsified once and
-// seen to fail before being restored.
+// claimed (`../../AGENTS.md` §1.4). At module scope in a `.ts` file an alias
+// is resolved on sight, so each one below was falsified once and seen to fail
+// before being restored.
 
 type _MulIsOp2 = Assert<Equal<Get<'*'>, Op2>>
 type _NotIsOp1 = Assert<Equal<Get<'!'>, Op1>>
