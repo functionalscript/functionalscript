@@ -58,6 +58,13 @@ export const write = writePayload
  * followed by a NUL is the type `blob` however many bytes follow it, and a
  * value beginning with one names nothing.
  *
+ * A value holding an LF is no type at all. Git reads the `type` line and
+ * then wants `tag ` on the line after it, so a continuation line folded
+ * into this value by the block's reader is a line Git would have looked
+ * for the name on. Cutting at the NUL would otherwise hide the
+ * continuation and let a tag Git refuses through, which is the one
+ * direction this must not part from Git in.
+ *
  * {@link validate} refuses such a tag all the same, before this is
  * reached: `fsck` calls a NUL anywhere in a header `nulInHeader`. Reading
  * is where the two part, as it is for the shapes
@@ -69,10 +76,14 @@ export const write = writePayload
  */
 const typeOf = value => {
     const bs = byteArray(value)
+    if (bs.includes(lf)) { return null }
     const nul = bs.indexOf(0)
     const text = codePointListToString(nul === -1 ? bs : bs.slice(0, nul))
     return objectTypes.find(t => t === text) ?? null
 }
+
+/** The byte a line ends with, and the one a folded continuation leaves in a value. */
+const lf = /** @type {const} */ (0x0A)
 
 const dot = /** @type {const} */ (0x2E)
 

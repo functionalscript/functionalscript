@@ -120,6 +120,13 @@ export const tryTree = oidBytes => {
  * line after the block at their shortest, so nothing under it could have
  * been a commit.
  *
+ * A `parent` naming the same id as the `tree` is refused. Git's parse
+ * looks each id up in one table and puts the tree in it first, so by the
+ * time the same id arrives as a parent the table already answers `tree`
+ * and the lookup fails. That is the one way a parent's *kind* decides
+ * anything: a parent naming a blob, or naming nothing at all, is a commit
+ * Git peels, since it never reads those.
+ *
  * A payload that ends at its last `parent` line's LF is refused too, and
  * for the same reason one byte further along: Git's parent walk wants a
  * byte after the line it is reading, so it calls such a payload `bad
@@ -151,7 +158,11 @@ export const tryTreeAt = oidBytes => {
         // The payload ends at the last `parent` line's LF where the walk
         // reached the last header and nothing followed it.
         if (c.message === null && parents.length === c.headers.length - 1) { return null }
-        return parents.every(value => id(value) !== null) ? treeOf(c) : null
+        if (!parents.every(value => id(value) !== null)) { return null }
+        const tree = treeOf(c)
+        // A parent naming the tree this commit names is refused, since the
+        // same parse has just registered that id as a tree.
+        return tree === null || parents.some(value => id(value) === tree) ? null : tree
     }
 }
 
