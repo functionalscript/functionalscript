@@ -70,6 +70,11 @@ what a grammar can and cannot do for the formats.
   is quadratic in a chain Git puts no bound on. A walk's loop is flat in the
   item count whatever the `Read` answers, and the map answers and grows in
   the logarithm.
+  Both readers refuse a payload under the length Git's own parse requires
+  before it reads a header — the id's hexadecimal digits plus 24 for a tag,
+  plus 6 for a commit — since that is what the headers each needs cost at
+  their shortest, and nothing shorter could have held them.
+
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
   `Oid` and `OidBytes`, the one fixed-width field and its width, and
   `ObjectType`.
