@@ -65,7 +65,9 @@ to a blob.
 - [ ] `tryRead` over packs once [packfiles.md](./packfiles.md) lands.
 - [ ] The common directory found: a linked worktree's `gitdir` and
       `commondir`, and `alternates`.
-- [ ] The walk from a commit to a blob by path.
+- [x] The walk from a commit to a blob by path:
+      [`fjs/git/walk`](../walk/module.f.mjs), `peel`, `tryEntries` and
+      `tryEntry` over whatever reads objects.
 
 ### Related
 

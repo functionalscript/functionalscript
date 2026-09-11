@@ -84,6 +84,24 @@ export const tree = c => {
 }
 
 /**
+ * The id the `tree` header names, at the repository's width, or `null`
+ * where there is no `tree` header first or it is not a hex id of that
+ * width: {@link tree} without the panic, and with the width checked. For
+ * a caller holding a commit it has not vouched for — a walk over a
+ * repository reads the tree id and nothing else, and the rest of
+ * {@link validate}'s checks are not its business.
+ *
+ * @type {(oidBytes: OidBytes) => (c: Commit) => Nullable<Oid>}
+ */
+export const tryTree = oidBytes => {
+    const id = tryFromHexOf(oidBytes)
+    return c => {
+        const value = valueAt(c, 0, 'tree')
+        return value === null ? null : id(value)
+    }
+}
+
+/**
  * The ids the `parent` headers name, in order: none for a root commit,
  * two or more for a merge.
  *

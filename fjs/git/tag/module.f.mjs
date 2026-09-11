@@ -148,6 +148,23 @@ export const object = t => {
 }
 
 /**
+ * The id the `object` header names, at the repository's width, or `null`
+ * where there is no `object` header first or it is not a hex id of that
+ * width: {@link object} without the panic, and with the width checked.
+ * For a caller holding a tag it has not vouched for — peeling a tag to
+ * what it names reads this id and nothing else.
+ *
+ * @type {(oidBytes: OidBytes) => (t: Tag) => Nullable<Oid>}
+ */
+export const tryObject = oidBytes => {
+    const id = tryFromHexOf(oidBytes)
+    return t => {
+        const value = valueAt(t, 0, 'object')
+        return value === null ? null : id(value)
+    }
+}
+
+/**
  * The type the `type` header names: the second header, one of the four.
  *
  * @throws On a tag {@link validate} refuses: no `type` header second, or
