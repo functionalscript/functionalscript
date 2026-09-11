@@ -177,7 +177,7 @@ export const proof = {
         // A `parent` header naming no id of the width refuses it too, since
         // Git's parse reads the parents as well as the tree.
         assertEq(at(latin1([lines[0], 'parent zz', ...lines.slice(1)].join('\n'))), null)
-        assert(at(latin1([lines[0], `parent ${treeId}`, ...lines.slice(1)].join('\n'))) !== null)
+        assert(at(latin1([lines[0], `parent ${parentId}`, ...lines.slice(1)].join('\n'))) !== null)
         // What the parse does not read is not refused: a commit with no
         // `author` and no `committer` has a tree all the same.
         assert(at(latin1([lines[0], '', 'm', ''].join('\n'))) !== null)
@@ -209,6 +209,12 @@ export const proof = {
         // instead, leaving the payload free to end at its own last LF.
         assertEq(at(latin1(`${withParent}parent ${parentId}\n`)), null)
         assert(at(latin1(`${withParent}author ${who}\n`)) !== null)
+        // A parent naming the tree is refused: Git looks both up in one
+        // table and the tree went in first, so the parent's lookup finds a
+        // tree where it wants a commit. Measured on Git 2.43.0, where the
+        // same commit gives `error: object <id> is a tree, not a commit`,
+        // while a parent naming a blob or naming nothing peels.
+        assertEq(at(latin1([lines[0], `parent ${treeId}`, ...lines.slice(1)].join('\n'))), null)
     },
     // Each refusal, one per rule, on a commit the reader reads.
     validate: () => {
