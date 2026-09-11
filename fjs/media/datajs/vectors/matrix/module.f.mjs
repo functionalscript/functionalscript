@@ -223,6 +223,20 @@ const twiceNamed = (names, say) =>
     names.flatMap((n, i) => i === names.indexOf(n) || i !== names.lastIndexOf(n) ? [] : [say(n)])
 
 /**
+ * A corpus with no roles at all. The table is rows of classes against
+ * columns of roles, and with no columns there is nothing for a row to say
+ * — the header would carry an empty cell over a delimiter of one, which is
+ * not a table at all, returned as though it were one.
+ *
+ * `Corpus` admits the empty list and `matrix` is exported, so the refusal
+ * belongs here rather than in the type.
+ *
+ * @type {(corpus: Corpus) => readonly string[]}
+ */
+const roleless = ({ roles }) =>
+    roles.length === 0 ? ['the corpus has no roles, so the table has no columns'] : []
+
+/**
  * A name the corpus uses for two different things.
  *
  * The table addresses a cell by its column's role and its row's class, and
@@ -274,6 +288,7 @@ const stale = ({ roles, notApplicable }) => {
 /** @type {(corpus: Corpus, c: string) => Result<readonly string[], readonly string[]>} */
 const row = (corpus, c) => {
     const cells = corpus.roles.map(role => cell(corpus, role, c))
+    /** @type {readonly string[]} */
     const failures = cells.flatMap(r => r[0] === 'error' ? [r[1]] : [])
     return failures.length === 0
         ? ok(cells.map(r => /** @type {string} */ (r[1])))
@@ -302,7 +317,15 @@ const summary = (corpus, role) => {
 export const matrix = corpus => {
     const classes = classesOf(corpus.roles)
     const rows = classes.map(c => row(corpus, c))
-    const failures = [...unrenderable(corpus), ...ambiguous(corpus), ...duplicated(corpus), ...stale(corpus), ...rows.flatMap(r => r[0] === 'error' ? r[1] : [])]
+    /** @type {readonly string[]} */
+    const failures = [
+        ...roleless(corpus),
+        ...unrenderable(corpus),
+        ...ambiguous(corpus),
+        ...duplicated(corpus),
+        ...stale(corpus),
+        ...rows.flatMap(r => r[0] === 'error' ? r[1] : []),
+    ]
     if (failures.length !== 0) {
         return error([
             `the class-by-role matrix has ${failures.length} defects:`,

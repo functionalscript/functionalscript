@@ -43,6 +43,21 @@ const failure = c => {
     return r[1]
 }
 
+/** Asserts that the matrix refuses `c`, naming each expected failure. @type {(c: Corpus, ...expected: readonly string[]) => void} */
+const refuses = (c, ...expected) => {
+    const r = failure(c)
+    for (const e of expected) { assert(r.includes(e), `${e}\nnot in\n${r}`) }
+}
+
+/** The `landed` corpus with one reason for the class the serializer has no vector for. @type {(because: string) => Corpus} */
+const reason = because => ({ ...landed, notApplicable: [{ class: 'y', role: 'serializer', because }] })
+
+/** @type {string} */
+const prose = 'is not prose the table can show as written'
+
+/** @type {string} */
+const name = 'is not a name the table can show as written'
+
 /** @type {(c: Corpus) => string} */
 const text = c => {
     const r = matrix(c)
@@ -78,6 +93,7 @@ export const proof = {
     },
     // The corpus answers it with a reason, which the cell then carries.
     notApplicable: () => {
+        /** @type {Corpus} */
         const answered = { ...landed, notApplicable: [{ class: 'y', role: 'serializer', because: 'a serializer never emits it' }] }
         const t = text(answered)
         assert(t.includes('| `y` | `c` | not applicable: a serializer never emits it |'), t)
@@ -124,17 +140,6 @@ export const proof = {
     // `|` starts a column and a line break ends a row, but an HTML comment
     // shows nothing at all and an entity shows one character for five.
     unrenderable: () => {
-        /** @type {(c: Corpus, ...expected: readonly string[]) => void} */
-        const refuses = (c, ...expected) => {
-            const r = failure(c)
-            for (const e of expected) { assert(r.includes(e), `${e}\nnot in\n${r}`) }
-        }
-        /** @type {(because: string) => Corpus} */
-        const reason = because => ({ ...landed, notApplicable: [{ class: 'y', role: 'serializer', because }] })
-        /** @type {string} */
-        const prose = 'is not prose the table can show as written'
-        /** @type {string} */
-        const name = 'is not a name the table can show as written'
         // the structure of the table
         refuses(reason('reader | writer only'), `the reason for y in serializer: "reader | writer only" ${prose}`)
         refuses(one('reader', 'accept', v('a', 'x\ny')), `the class of a: "x\\ny" ${name}`)
@@ -201,6 +206,12 @@ export const proof = {
         assertEq(failure(thrice).split('the set a of reader: named twice').length - 1, 1)
         // and the real corpus names nothing twice
         assert(matrix(corpus)[0] === 'ok')
+    },
+    // A corpus with no roles has no columns, so a row has nothing to say and
+    // the header would carry an empty cell over a delimiter of one — not a
+    // table at all, returned as though it were one.
+    roleless: () => {
+        refuses({ roles: [], notApplicable: [] }, 'the corpus has no roles, so the table has no columns')
     },
     // Every class of the corpus is a row, and every vector's id is in it.
     corpus: () => {
