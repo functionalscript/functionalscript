@@ -1769,18 +1769,20 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a record that swapped the decoder's rule for the reader's goes red.
 - [x] **A reason answers a scope, not always a cell.** Measured before the
       serializer set was written, which is why it is a step of its own: the
-      corpus has 667 classes, a serializer can genuinely carry a vector for
+      corpus has 668 classes, a serializer can genuinely carry a vector for
       about 188 of them, and the rest arrive as empty cells the moment that
-      column gains a set — between 449 and 479 records of one sentence
-      rewritten, and the same bill again when `normalize` lands. So
+      column gains a set — some 480 records of one sentence rewritten, and the
+      same bill again when `normalize` lands. So
       `NotApplicable` carries a **scope**, tagged as `Document` is:
       `['class', c]` for one cell, `['subtree', p]` for every class under a
       prefix by path segment, and `['set', s]` for every class no set but
       that one carries. The last is the widest and the most exact, since no
-      class is carried by two sets — measured, 333 accept-only, 334
+      class is carried by two sets — measured, 334 accept-only, 334
       reject-only, none in both — so one reason covers every reject class by
-      construction rather than by inspection. 28 records answer all 479. The
-      most specific reason wins, so a family's reason takes an exception for
+      construction rather than by inspection. A prototype answered all of them
+      with 28 records; what the serializer step below actually lands is 57,
+      answering 529 cells. The most specific reason wins, so a family's reason
+      takes an exception for
       one class without either being removed. What buys the width is a rule
       the cell could not enforce, because a cell only ever sees itself: a
       scope that answers a class which **has** vectors is refused, as is one

@@ -225,6 +225,23 @@ export const proof = {
         const e = text(excepted)
         assert(e.includes('| `ws/other` | `r1` | not applicable: this one for a reason of its own |'), e)
         assert(e.includes('| `document/comment` | `r2` | not applicable: a reject class is a document a reader refuses, and a serializer refuses no input |'), e)
+        // **every**, not *some*: the scope means no set *but* the named one
+        // carries the class, so a class two sets share is outside it. With
+        // `some` this corpus would print the reject reason under a cell the
+        // exclusivity argument never covered — `ws/other` is in `accept` too
+        // — and the matrix would be returned rather than refused.
+        /** @type {Corpus} */
+        const shared = {
+            roles: [
+                { role: 'reader', sets: [
+                    ['accept', [v('a', 'ws/other')]],
+                    ['reject', [v('r1', 'ws/other')]],
+                ] },
+                { role: 'serializer', sets: [['serializer-accept', [v('s', 'leaf/null')]]] },
+            ],
+            notApplicable: [{ scope: ['set', 'reject'], role: 'serializer', because: 'a reject class is a document a reader refuses, and a serializer refuses no input' }],
+        }
+        refuses(shared, 'set reject in serializer: answers no class', 'ws/other in serializer: no vector and no reason')
     },
     // A wide scope is bought with a rule: the moment it answers a class that
     // has vectors, it has stopped being true of that class and the corpus
