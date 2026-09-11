@@ -102,9 +102,20 @@ const dom = path => {
     }
 }
 
-/** A demo module, as a URL the runtime can import. */
-/** @type {(source: string) => string} */
-const moduleUrl = source => `data:text/javascript,${encodeURIComponent(source)}`
+/**
+ * A demo module, as a URL the runtime can import.
+ *
+ * **Base64, not percent-encoding.** Bun 1.4.2 reads a percent-encoded `data:`
+ * module as CommonJS the moment its payload holds a literal `.` — `event.kind`
+ * is enough, and so is `1.5` — so the namespace arrives as
+ * `__esModule`/`default` and the demo export is simply not there. Base64 has
+ * no character a path sniffer can mistake for an extension, which sidesteps
+ * the class rather than escaping the one character that triggers it. Node
+ * reads either.
+ *
+ * @type {(source: string) => string}
+ */
+const moduleUrl = source => `data:text/javascript;base64,${btoa(source)}`
 
 /**
  * A demo that echoes what was typed into a named field — the smallest thing
