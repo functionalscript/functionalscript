@@ -1776,7 +1776,15 @@ and a document is a string. Two things stay described rather than spelled:
   hole. Others have perfectly ordinary data and a *host variation* the encoding
   has no place for: a frozen object, a `null`-prototype array, an array
   carrying an own property beyond its elements. Either way the encoding cannot
-  state it, so each is a named recipe the consumer builds. The vocabulary is
+  state it, so each is a named recipe the consumer builds. A recipe is an
+  object whose own `host` property names one, and **the key is reserved in
+  inputs**: a plain input object never carries a `host` member, so
+  `{"host":"fn"}` as an input is the function recipe and nothing else, and a
+  vector wanting an object with that key as serializer input cannot be
+  written — no vector needs one. The reservation reaches inputs only; a
+  reader-side expected graph carries no recipes, so `{"host":"fn"}` there is
+  the ordinary object the document spells. Review found the two readings
+  possible before the key was reserved. The vocabulary is
   **closed, and closed means enumerated** — "and so on" was an open list
   wearing the word closed, which review caught. Four **leaf** recipes:
 
@@ -1789,10 +1797,13 @@ and a document is a string. Two things stay described rather than spelled:
 
   …and eight **modifier** recipes, each taking the node it applies to, so the
   property cases say which object they are about — the gap review found in
-  `getter`, which named no container. The first five can build inputs a
-  serializer must **refuse**; the last two build inputs it must **accept**, the
-  half review found missing — without them a serializer that rejects every
-  unusual prototype or descriptor passes the corpus while being nonconforming.
+  `getter`, which named no container. `ownProp`, `nonEnumerable`, `getter`,
+  `setter` and `symbolKey` can build inputs a serializer must **refuse**;
+  `proto` and `attrs` build inputs it must **accept**, the half review found
+  missing — without them a serializer that rejects every unusual prototype or
+  descriptor passes the corpus while being nonconforming; and `link` builds
+  either, a cycle it must refuse when `to` is `on` or a node above it, and
+  ordinary sharing otherwise.
   *Can*, not *must*: `ownProp` on an `obj` builds an ordinary own enumerable
   string-keyed property, which is exactly what a serializer has to accept, and
   only an extra property on an **array** is a rejection case. The recipe is a
@@ -1805,7 +1816,7 @@ and a document is a string. Two things stay described rather than spelled:
   | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an **enumerable** accessor property that **records its own invocation** and then returns `value` |
   | `{"host": "setter", "on": <node>, "key": <string>}` | an **enumerable** accessor property with a **setter and no getter**, which reads as `undefined` |
   | `{"host": "symbolKey", "on": <node>, "value": <node>}` | an **enumerable** own data property under a fresh unique symbol |
-  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"[, "inherited": [<key>, <node>]]}` | the same data under a `null` prototype, or as an `Array` subclass instance — `inherited` puts one **enumerable** member, key and value, on the subclass's prototype |
+  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"[, "inherited": [<key>, <node>]]}` | the same data under a `null` prototype, or an `arr` as an `Array` subclass instance — `inherited`, legal **with `arraySubclass` only**, puts one **enumerable** member, key and value, on the subclass's prototype; a `null` prototype has nothing to inherit from |
   | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` is **required with `nonWritable` and forbidden otherwise**, and must name an **existing own data property** of the target |
   | `{"host": "link", "on": <node>, "key": <string or index>, "to": <node>}` | the same data with one more element or enumerable own data property, `key`, holding `to` — which may be `on` itself or a node above it, since a data literal cannot spell a cycle |
 
@@ -1823,7 +1834,17 @@ and a document is a string. Two things stay described rather than spelled:
   add or attributes to set, and `arraySubclass` narrows further to an `arr`.
   `hole` is the mirror constraint on the leaf side: legal only as an `arr`
   element. Stating both is what stops a vector like "freeze a number" from
-  being writable at all.
+  being writable at all, and the types carry both rather than the prose
+  alone: a modifier's `on` is a `Target` (an array, an object or a
+  modifier), a `Hole` is an element of an `Arr` and not an `Input`, and
+  `proto` discriminates on `to`, so `inherited` exists only with
+  `arraySubclass`, whose `on` is an `ArrayTarget` — an array, or a
+  modifier over an `ArrayTarget`, so the narrowing holds through a chain
+  — and a `null` prototype takes an object or an array alike. Review found
+  the first shape saying all three in comments while admitting `on: 1`, a
+  hole as an object member and an `inherited` member with nothing to
+  inherit from, and the second admitting an object behind one modifier
+  where it refused it directly.
 
   **A modifier node denotes its target, modified** — the same object `on`
   denotes, not a copy. Four consequences, and they are stated because review
@@ -1990,14 +2011,18 @@ or the spec, not only into a thread.
    ([edag-spec](../../../todo/edag-spec.md) asks for exactly such shared
    vectors); a proof imports a set like any module, and a consumer in another
    language gets it printed by `npm run gen` when one exists.
-2. **The plain-object boundary**, which the corpus avoids rather than
-   answers. Proposal for the spec: an object is plain iff its prototype is
-   `Object.prototype` or `null`, and an array iff `Array.isArray` holds, its
-   prototype being `Array.prototype`, `null` or an `Array` subclass's; any
-   other prototype is "any other non-plain object" and rejected, so
-   `Object.create({x: 1})` is refused. Once decided, one serializer-reject
-   vector pins it. The alternative is to admit any prototype and serialize
-   the own data, which widens the exemption list to a rule.
+2. **The plain-object boundary**, which no vector answers yet. Proposal for
+   the spec: an object is plain iff its prototype is `Object.prototype` or
+   `null`, and an array iff `Array.isArray` holds, its prototype being
+   `Array.prototype`, `null` or an `Array` subclass's; any other prototype
+   is "any other non-plain object" and rejected, so `Object.create({x: 1})`
+   is refused. Once decided, one serializer-reject vector pins it. The
+   alternative is to admit any prototype and serialize the own data, which
+   widens the exemption list to a rule. Until it is decided, `difference`
+   classifies what an implementation hands it by the proposal — it has to
+   draw the line somewhere to tell a `Date` from an empty object, and the
+   proposal is the line the spec's own two spellings of an object draw —
+   in one comparison, which is what the alternative would relax.
 3. **§Whitespace's enumeration.** Proposal for the spec: keep the rule and
    replace the six-item colon list with the complete set it denotes — the 21
    characters of ECMAScript's `WhiteSpace` and `LineTerminator` classes less
@@ -2019,33 +2044,57 @@ or the spec, not only into a thread.
    vector's. Proposal: that, over the same modules the proofs import, run by the
    existing `cov` script's `node --test` and so on every CI runtime. The
    alternative is a `gen`-time check, which would run only where `gen` runs.
+6. **How the host recipes are built and proved.** Every recipe but `fn`
+   builds what FunctionalScript cannot — an accessor, a symbol key, a
+   non-enumerable or non-writable property, a `null` prototype, a frozen
+   object, a `Date`, a cycle — so `build` is host code, an impure
+   `module.mjs`. [fjs/AGENTS.md §1.6](../../../fjs/AGENTS.md) then says a
+   `proof.mjs` proves only its sibling `module.mjs` and is "not a back door
+   for proving a `.f.mjs` API against inputs or control flow the subset
+   forbids: values built by `Object.setPrototypeOf`, `Object.assign`,
+   `defineProperty` or an accessor". Read literally, that forbids proving the serializer, a
+   `.f.mjs` API, against the serializer-reject set and the host variations of
+   serializer accept — the very inputs
+   [the specification](../README.md#what-may-be-serialized) says it must
+   refuse or accept as data, and [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+   says must be refused rather than approximated. Proposal: amend §1.6 with
+   one exemption, stated there — a `proof.mjs` may prove a `.f.mjs` API
+   against host-built inputs where that API's specification names those
+   inputs as ones it refuses or accepts, so the proof is of the specified
+   contract and not of a back door. The alternative keeps §1.6 as it is and
+   leaves the recipe-bearing sets as data no FunctionalScript proof runs,
+   which is data with no consumer, since no other implementation has host
+   objects either. `build` and its proof wait on this, and so does the one
+   proof of `difference` the subset cannot write: an array or an object
+   under a `null` prototype compared as the array or object it is, since
+   `Object.setPrototypeOf` is the call §1.6 names and a mutation besides;
+   the `proto` recipes are the vectors that hold it once `build` lands.
 
 The steps, in order; a step is one pull request unless it says otherwise:
 
-- [ ] **The vector record and the host recipes.** Write the schema down as
-      `spec/datajs/vectors/README.md` and `types.ts` before any vector, per
-      the section above: the record a vector is — a stable `id`, a `class`
-      naming the branch it covers (one per emitting branch, production
-      alternative or class endpoint with its own code path, which the matrix
-      step needs), the document as a string or as a byte array and which
-      sets use which, the expected graph as a value or the expected bytes,
-      and the classification a reject vector carries; the DataJS subset the
-      modules are written in; how an expected graph is compared — `Object.is`
-      at the leaves, identity where sharing is asserted; and the twelve
-      `host` recipes — four leaves, eight modifiers, each modifier naming its
-      target — with their application order, the rule that a modifier is a
-      `const` and never inline, what a modifier denotes, `link` for cycles,
-      the closed value lists of `builtin`, `proto` (with `inherited`, whose
-      key may not collide with an own key of the target) and `attrs`
-      (`nonWritable`'s `key` required and naming an existing own data
-      property), and both accessor shapes, `getter` recording its invocation
-      and `setter` with no getter. Beside it,
-      `fjs/media/datajs/vectors/module.f.mjs`: `build`, from a recipe-bearing
-      value to the host input with the recipes applied in statement order,
-      and its proof — a graph with sharing and a cycle built, the sharing and
-      the cycle asserted, the getter's record asserted untouched. It lands
-      first because it is the part two consumers can silently disagree
-      about.
+- [x] **The vector record and the comparison.** The schema is
+      [`spec/datajs/vectors/README.md`](../vectors/README.md), with the
+      record types in
+      [`fjs/media/datajs/vectors/types.ts`](../../../fjs/media/datajs/vectors/types.ts):
+      per set, a stable `id`, a `class` naming the branch covered, the
+      document as a string or a byte array, the expected graph as a value
+      or the expected bytes, and the host classification a reject vector
+      carries; the DataJS subset the modules are written in; and the twelve
+      `host` recipes as types, the closed vocabulary. How an expected graph
+      is compared is `difference` in
+      [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
+      `Object.is` at the leaves, members in observable order, and the
+      containers as a bijection, so sharing is required in both directions —
+      proved, over an explicit stack, to the corpus's depth.
+- [ ] **The host recipes built.** `build` in `fjs/media/datajs/vectors/module.mjs`,
+      from a recipe-bearing input to the host value with the modifiers
+      applied in chain order, the inner first, and a node named by two
+      modifiers directly refused — `link` for cycles, `getter` recording its
+      invocation, the closed lists of `builtin`, `proto` and `attrs` as the
+      types have them — and its proof: sharing and a cycle built and
+      asserted, a chain applied inner-first, the getter's record untouched
+      by building. Waits on decision 6, which decides whether that proof may
+      exist.
 - [ ] **Reader accept, code-unit form.** Derived production by production
       from the grammar as the section above lists it: every alternative,
       both ends of every character class at every fixed position, the empty

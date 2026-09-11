@@ -23,7 +23,11 @@ Unknown                   the graph the document denotes, sharing included
 The reader is [`parser/module.f.mjs`](./parser/module.f.mjs); the value
 types are in [`types.ts`](./types.ts). What remains of the codec — the byte
 path, the serializer and normalized form — is
-[`todo/parser-serializer.md`](./todo/parser-serializer.md).
+[`todo/parser-serializer.md`](./todo/parser-serializer.md). Its proofs come
+from the conformance corpus, [`spec/datajs/vectors`](../../../spec/datajs/vectors/README.md);
+[`vectors/`](./vectors/module.f.mjs) holds the record types the corpus is
+typed with and `difference`, the sharing-aware comparison a proof over it
+uses.
 
 ## The grammar is the reader
 
