@@ -1774,7 +1774,21 @@ The steps, in order; a step is one pull request unless it says otherwise:
       scope that answers a class which **has** vectors is refused, as is one
       answering no class, one naming a set the corpus does not have, and two
       of equal specificity answering one cell.
-- [ ] **Serializer accept and graph equivalence.** Every leaf and container
+- [x] **Serializer accept and graph equivalence.** Landed as 121 records in
+      [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
+      and 7 in
+      [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
+      with 64 scope records answering the 550 cells the serializer column owes.
+      `SerializerAccept` lost its `graph` member on the way: with the recipes
+      gone a serializer-side input is an ordinary value of the data model, so
+      a second member carried the same value twice and let the two drift. The
+      matrix now names each reason once beneath the table rather than in every
+      cell it answers, which the bit vector's `maxLengthBytes` forced and
+      readability wanted anyway. Six reader vectors came with it, for classes
+      the serializer set introduced that the reader can and should carry — the
+      generic control escape at both ends with key twins, a const shared
+      across both container kinds, and two equal objects kept apart.
+      Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
       twins, `__proto__` as data; each vector asserting a valid document

@@ -107,8 +107,11 @@ it is current or the build is red. Rows are the classes, columns the three
 roles a conforming implementation may have — reader, serializer,
 normalize, since conformance is per role and a serializer-only
 implementation never runs a reader or a normalize vector. A cell is the
-vector ids that role has for that class, the reason it owes none, or a
-role whose sets have not landed.
+vector ids that role has for that class, a reference to the note saying why
+it owes none, or a role whose sets have not landed. The notes are listed
+once below the table, because one reason answers hundreds of cells and
+printing it in each would be the same sentence several hundred times over —
+unreadable, and past the bit vector's `maxLengthBytes` unwritable.
 
 **An empty cell with no reason fails the generator**, which is the whole
 point of generating it: prose that mentions a class in two roles reads
