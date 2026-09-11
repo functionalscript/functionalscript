@@ -24,10 +24,11 @@ directories `alternates` adds to the search.
   of any kind to the common directory `objects/` lives in, by the one rule
   Git uses — `.git` is the repository or a file whose `gitdir:` line names
   one, and that directory is the repository unless its `commondir` names
-  another. So `read` can be pointed at a checkout rather than at a
-  directory the caller had to know. `objects/info/alternates` adds
-  directories to search after the repository's own, and is the step that
-  remains.
+  another. It stays a step of its own and `read` keeps taking the
+  directory: a caller that starts from a checkout puts the two together,
+  which is what [`fjs/git/README.md`](../README.md) says and what
+  `tryRead(dir, oidBytes)` is. `objects/info/alternates` adds directories
+  to search after the repository's own, and is the step that remains.
 - An id given by a caller is checked against the object read, which is
   where [SHA-1](../../crypto/todo/sha1.md) and `fjs/crypto/sha2` come in:
   a store that does not hash trusts its file names. In a SHA-1 repository
