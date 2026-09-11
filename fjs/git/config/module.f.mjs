@@ -50,8 +50,12 @@ const isAlpha = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
 /** @type {(c: string) => boolean} */
 const isDigit = c => c >= '0' && c <= '9'
 
-/** What Git calls a key character: what a name is made of. */
-const isKeyChar = /** @type {(c: string) => boolean} */ (c => isAlpha(c) || isDigit(c) || c === '-')
+/**
+ * What Git calls a key character: what a name is made of.
+ *
+ * @type {(c: string) => boolean}
+ */
+const isKeyChar = c => isAlpha(c) || isDigit(c) || c === '-'
 
 /**
  * The whitespace Git's parser skips between a key and its `=`, and nothing
@@ -211,8 +215,12 @@ const noVersion = /** @type {const} */ (-1n)
  */
 const booleanExtensions = ['preciousobjects', 'worktreeconfig']
 
-/** The words Git reads as a boolean, lowercased. */
-const booleans = /** @type {readonly string[]} */ (['true', 'false', 'yes', 'no', 'on', 'off', ''])
+/**
+ * The words Git reads as a boolean, lowercased.
+ *
+ * @type {readonly string[]}
+ */
+const booleans = ['true', 'false', 'yes', 'no', 'on', 'off', '']
 
 /**
  * The radix a letter after a leading `0` names, however cased, and none
@@ -227,15 +235,21 @@ const booleans = /** @type {readonly string[]} */ (['true', 'false', 'yes', 'no'
  * does — and as a bad numeric value where it is built against a library
  * without it. There is no reading that suits both, and this takes the one
  * the measurements are of.
+ *
+ * @type {StringMap<bigint>}
  */
-const prefixes = /** @type {StringMap<bigint>} */ ({ b: 2n, x: 16n })
+const prefixes = { b: 2n, x: 16n }
 
-/** What a `k`, `m` or `g` after a number scales it by, however cased. */
-const factors = /** @type {StringMap<bigint>} */ ({
+/**
+ * What a `k`, `m` or `g` after a number scales it by, however cased.
+ *
+ * @type {StringMap<bigint>}
+ */
+const factors = {
     k: 1024n,
     m: 1048576n,
     g: 1073741824n,
-})
+}
 
 /**
  * The magnitude a number may reach: Git reads one into a C `int`, and
@@ -345,14 +359,18 @@ const tryInt = value => {
  */
 const isBoolean = value => booleans.includes(value.toLowerCase()) || tryInt(value) !== null
 
-/** What a `\` before it stands for, and nothing else is an escape. */
-const escapes = /** @type {StringMap<string>} */ ({
+/**
+ * What a `\` before it stands for, and nothing else is an escape.
+ *
+ * @type {StringMap<string>}
+ */
+const escapes = {
     n: '\n',
     t: '\t',
     b: '\b',
     '\\': '\\',
     '"': '"',
-})
+}
 
 /**
  * One character of a value, read into what the reader carries. Hoisted
@@ -382,10 +400,14 @@ const valueStep = (acc, c) => {
     return { ...acc, value: acc.value + acc.pending + c, pending: '' }
 }
 
-/** What the reader of a value starts from. */
-const valueStart = /** @type {_ValueState} */ ({
+/**
+ * What the reader of a value starts from.
+ *
+ * @type {_ValueState}
+ */
+const valueStart = {
     value: '', pending: '', quoted: false, escape: false, done: false, bad: false,
-})
+}
 
 /**
  * A value as Git reads it, or `null` where the line is one Git refuses:
@@ -426,8 +448,12 @@ const subStep = (acc, c) => {
     return c === '"' ? { ...acc, after: '' } : { ...acc, sub: acc.sub + c }
 }
 
-/** What the reader of a subsection starts from. */
-const subStart = /** @type {_SubState} */ ({ sub: '', escape: false, after: null })
+/**
+ * What the reader of a subsection starts from.
+ *
+ * @type {_SubState}
+ */
+const subStart = { sub: '', escape: false, after: null }
 
 /**
  * The subsection closing a header whose section is already read, and what
@@ -510,8 +536,12 @@ const lineStep = ([section, list], raw) => {
     return [next, entry === null ? list : [...list, entry]]
 }
 
-/** The section and the entries a file starts from: none of either. */
-const linesStart = /** @type {readonly [string, Nullable<readonly Entry[]>]} */ (['', []])
+/**
+ * The section and the entries a file starts from: none of either.
+ *
+ * @type {readonly [string, Nullable<readonly Entry[]>]}
+ */
+const linesStart = ['', []]
 
 /**
  * Every `key = value` of the file, with the section each sits in, in
@@ -573,13 +603,19 @@ const extensionAt = ([section, key]) =>
         : section.startsWith(extensionsPrefix) ? `${section.slice(extensionsPrefix.length)}.${key}`
             : null
 
-/** Whether Git 2.43 knows an extension by this name. */
-const isKnownExtension = /** @type {(ext: string) => boolean} */ (
-    ext => knownExtensions.includes(ext))
+/**
+ * Whether Git 2.43 knows an extension by this name.
+ *
+ * @type {(ext: string) => boolean}
+ */
+const isKnownExtension = ext => knownExtensions.includes(ext)
 
-/** Whether it is one Git reads only under `repositoryformatversion = 1`. */
-const isV1OnlyExtension = /** @type {(ext: string) => boolean} */ (
-    ext => v1OnlyExtensions.includes(ext))
+/**
+ * Whether it is one Git reads only under `repositoryformatversion = 1`.
+ *
+ * @type {(ext: string) => boolean}
+ */
+const isV1OnlyExtension = ext => v1OnlyExtensions.includes(ext)
 
 /**
  * Whether the value under an extension's name is one Git reads there: a

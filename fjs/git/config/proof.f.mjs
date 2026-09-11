@@ -5,8 +5,12 @@
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { tryEntries, tryOidBytes } from './module.f.mjs'
 
-/** What `git init` writes, on Git 2.43 and a case-insensitive filesystem. */
-const initial = /** @type {readonly string[]} */ ([
+/**
+ * What `git init` writes, on Git 2.43 and a case-insensitive filesystem.
+ *
+ * @type {readonly string[]}
+ */
+const initial = [
     '[core]',
     '\trepositoryformatversion = 0',
     '\tfilemode = true',
@@ -14,10 +18,14 @@ const initial = /** @type {readonly string[]} */ ([
     '\tlogallrefupdates = true',
     '\tignorecase = true',
     '\tprecomposeunicode = true',
-])
+]
 
-/** What `git init --object-format=sha256` writes. */
-const sha256 = /** @type {readonly string[]} */ ([
+/**
+ * What `git init --object-format=sha256` writes.
+ *
+ * @type {readonly string[]}
+ */
+const sha256 = [
     '[core]',
     '\trepositoryformatversion = 1',
     '\tfilemode = true',
@@ -25,7 +33,7 @@ const sha256 = /** @type {readonly string[]} */ ([
     '\tlogallrefupdates = true',
     '[extensions]',
     '\tobjectformat = sha256',
-])
+]
 
 /**
  * A file setting one key of `[extensions]` under a version.
