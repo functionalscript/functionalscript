@@ -86,6 +86,21 @@ const render = (root, view) => {
 }
 
 /**
+ * What a page shows when a demo breaks its own contract.
+ *
+ * `update` and `view` are FunctionalScript and total by construction, so one
+ * that throws is a defect in the demo — and so is a module that names no
+ * `demo`, or a path that does not load. The section says so where the demo's
+ * output would have gone, because a blank section is indistinguishable from a
+ * demo that renders nothing.
+ *
+ * @type {(root: Element, cause: unknown) => void}
+ */
+const fail = (root, cause) => {
+    root.textContent = `demo failed: ${cause instanceof Error ? cause.message : String(cause)}`
+}
+
+/**
  * A demo runs one event at a time.
  *
  * An operation is asynchronous, so an event can arrive while an `update` is
@@ -110,7 +125,7 @@ const stepper = (root, demo) => {
                 state = unwrapState(await run(demo.update(state)(event)))
                 render(root, htmlToString(demo.view(state)))
             } catch (cause) {
-                root.textContent = `demo failed: ${cause instanceof Error ? cause.message : String(cause)}`
+                fail(root, cause)
             }
         })
     }
@@ -144,15 +159,27 @@ const unwrapState = result => {
 export const startDemo = async root => {
     const path = root.getAttribute('data-demo')
     if (path === null) { return }
-    const module = await import(path)
-    const demo = /** @type {Demo<any, DemoEvent, never>} */ (module.demo)
-    const step = stepper(root, demo)
-    render(root, htmlToString(demo.view(demo.init)))
-    root.addEventListener('input', e => {
-        const target = /** @type {HTMLInputElement} */ (e.target)
-        step({ kind: 'input', name: target.name, value: target.value })
-    })
-    // After the first render, so a demo that needs an operation before it can
-    // show anything has somewhere to ask without `init` becoming an effect.
-    step({ kind: 'start' })
+    // **The first render is reported like every later one.** It runs before
+    // the queue exists, so without this a demo whose `view(init)` throws — or
+    // whose module will not load, or names no `demo` — rejects a promise the
+    // page script does not await, and the section stays blank. A blank
+    // section is the one thing it must not be, because it is what a demo that
+    // renders nothing looks like.
+    try {
+        const module = await import(path)
+        const demo = /** @type {Demo<any, DemoEvent, never>} */ (module.demo)
+        if (demo === undefined) { throw new Error(`${path} exports no demo`) }
+        const step = stepper(root, demo)
+        render(root, htmlToString(demo.view(demo.init)))
+        root.addEventListener('input', e => {
+            const target = /** @type {HTMLInputElement} */ (e.target)
+            step({ kind: 'input', name: target.name, value: target.value })
+        })
+        // After the first render, so a demo that needs an operation before it
+        // can show anything has somewhere to ask without `init` becoming an
+        // effect.
+        step({ kind: 'start' })
+    } catch (cause) {
+        fail(root, cause)
+    }
 }
