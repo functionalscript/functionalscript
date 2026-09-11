@@ -217,6 +217,20 @@ export const proof = {
         })
         const [, refused] = run(host)(null)(tryCommonDir('w'))
         assertStructurallySame(refused, ok(null))
+        // A `commondir` that is neither is not read either, and there the
+        // caution is this reader's own rather than Git's: Git `fopen`s the
+        // file without asking, so `git rev-parse --git-common-dir` in such
+        // a worktree does not return at all on Git 2.43.0. Here `.git` is
+        // the repository directory and only the `commondir` under it is
+        // the odd one.
+        const under = /** @type {MemOperationMap<ReadFile | Stat, null>} */ ({
+            stat: path => state => [state, ok(path.endsWith('commondir')
+                ? { size: 0, isFile: false, isDirectory: false }
+                : { size: 0, isFile: false, isDirectory: true })],
+            readFile: () => state => [state, error(ioError({ code: 'EBADF', message: 'read of a FIFO' }))],
+        })
+        const [, stopped] = run(under)(null)(tryCommonDir('w'))
+        assertStructurallySame(stopped, ok(null))
     },
     // A worktree with no `.git` is the channel's, as a directory with no
     // `config` is: the caller named no repository rather than a bad one.

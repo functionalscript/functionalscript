@@ -222,17 +222,34 @@ const against = (dir, path) => isAbsolute(path) ? path : under(dir, path)
  * its own. Bytes that are no UTF-8 are `null` as well, for the reason
  * {@link read} gives.
  *
- * @type {(repo: string) => Effect<ReadFile, Nullable<string>, IoChannel>}
+ * A `commondir` that is not a regular file is `null` and is never opened,
+ * for the reason a `.git` that is not one is never opened — a FIFO read
+ * waits for a writer a repository has no reason to have. Here that is a
+ * departure from Git rather than a copy of it: Git `fopen`s this file
+ * without asking `S_ISREG` first, so `git rev-parse --git-common-dir` in
+ * a worktree whose `commondir` is a FIFO does not return at all, measured
+ * on Git 2.43.0. A caller of this gets an answer instead, and the answer
+ * is the one a readable file of that shape would have earned: no common
+ * directory this can name.
+ *
+ * @type {(repo: string) => Effect<ReadFile | Stat, Nullable<string>, IoChannel>}
  */
-const commonOf = repo => catchStep(
-    mapStep(readAt(under(repo, 'commondir')), ({ raw, text }) => {
+const commonOf = repo => {
+    const path = under(repo, 'commondir')
+    const stated = history(stat(path))
+    const got = historyStep(stated, s => s.isFile ? readAt(path) : pureOk(null))
+    const line = mapStep(got, ([file]) => {
+        // Not a regular file, so it was not read and names nothing.
+        if (file === null) { return null }
+        const { raw, text } = file
         // The file of no bytes is the file as it was read, before the
         // line's end came off it: that is the one Git dies on, where a file
         // of one newline is a repository whose common directory is its own.
         if (raw === 0 || text === null) { return null }
         return text === '' ? repo : against(repo, text)
-    }),
-    e => isNotFound(e) ? pureOk(repo) : pureError(e))
+    })
+    return catchStep(line, e => isNotFound(e) ? pureOk(repo) : pureError(e))
+}
 
 /**
  * The repository directory a worktree's `.git` file names, or `null` where
