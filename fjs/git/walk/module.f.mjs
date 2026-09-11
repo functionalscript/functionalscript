@@ -40,12 +40,28 @@ import { tryRead as readTree } from '../tree/module.f.mjs'
 
 /**
  * How many tags {@link peel} follows. A tag naming a tag is ordinary and
- * a chain of a few is not, and content addressing rules out a cycle — a
- * tag naming itself would have to hold its own id — so the bound is
- * against a repository holding a chain no tool of Git's writes, not
- * against looping forever.
+ * a chain of a few is not, so a longer chain is refused as `null`, and no
+ * tool of Git's writes one. Git itself bounds nothing here, and it need
+ * not: a store that checks what it reads cannot answer a cycle, since a
+ * tag naming itself would have to hold its own id. The bound is against a
+ * `Read` that does not check, which any caller may pass, answering a tag
+ * for every id it is given.
  */
 const maxDepth = /** @type {const} */ (8)
+
+/**
+ * The entries of the tree an id names, where it names a tree: read, and
+ * `null` where the object is no tree or its bytes are no tree's. Both
+ * {@link tryEntries} and {@link tryEntry} step from an id to a tree this
+ * way, so they step it the same way.
+ *
+ * @template {Operation} O
+ * @param {Read<O>} read
+ * @param {(payload: Bytes) => Nullable<readonly TreeEntry[]>} entriesOf
+ * @returns {Step<O, readonly TreeEntry[]>}
+ */
+const treeAt = (read, entriesOf) => id => step(read(id), e =>
+    pureOk(e === null || e.type !== 'tree' ? null : entriesOf(e.payload)))
 
 /**
  * Whether two names are the same bytes. A name is bytes the file system
@@ -98,9 +114,7 @@ export const tryEntries = (read, oidBytes) => {
     const peeled = peel(read, oidBytes)
     const treeOf = tryTree(oidBytes)
     const entriesOf = readTree(oidBytes)
-    /** @type {Step<O, readonly TreeEntry[]>} */
-    const treeAt = id => step(read(id), e =>
-        pureOk(e === null || e.type !== 'tree' ? null : entriesOf(e.payload)))
+    const at = treeAt(read, entriesOf)
     return id => step(peeled(id), t => {
         if (t === null) { return pureOk(null) }
         const { envelope } = t
@@ -109,7 +123,7 @@ export const tryEntries = (read, oidBytes) => {
         const c = readCommit(envelope.payload)
         if (c === null) { return pureOk(null) }
         const treeId = treeOf(c)
-        return treeId === null ? pureOk(null) : treeAt(treeId)
+        return treeId === null ? pureOk(null) : at(treeId)
     })
 }
 
@@ -132,17 +146,19 @@ export const tryEntries = (read, oidBytes) => {
  */
 export const tryEntry = (read, oidBytes) => {
     const rootOf = tryEntries(read, oidBytes)
-    const entriesOf = readTree(oidBytes)
+    const at = treeAt(read, readTree(oidBytes))
     return (id, path) => {
         const names = path.map(byteArray)
+        const last = names.length - 1
         /** @type {(i: number) => (entries: Nullable<readonly TreeEntry[]>) => ReturnType<Entry<O>>} */
-        const go = i => entries => {
-            if (entries === null) { return pureOk(null) }
-            const found = entries.find(e => same(byteArray(e.name), names[i]))
-            if (found === undefined) { return pureOk(null) }
-            if (i + 1 === names.length) { return pureOk(found) }
-            return step(read(found.oid), e =>
-                go(i + 1)(e === null || e.type !== 'tree' ? null : entriesOf(e.payload)))
+        const go = i => {
+            const want = names[i]
+            return entries => {
+                if (entries === null) { return pureOk(null) }
+                const found = entries.find(e => same(byteArray(e.name), want))
+                if (found === undefined) { return pureOk(null) }
+                return i === last ? pureOk(found) : step(at(found.oid), go(i + 1))
+            }
         }
         return names.length === 0 ? pureOk(null) : step(rootOf(id), go(0))
     }
