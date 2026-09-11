@@ -16,7 +16,7 @@ consumers read the expression rather than each reading the case its own way.
 
 ```text
                               ┌─> proof.f.mjs ──────────────────────────> a JS engine
-module.f.mjs ──> an EDAG exp ─┤     (evaluate)
+module.f.mjs ──> an EDAG exp ─┤     (amnesia)
  (data + the     per case     └─> rust/module.f.mjs ──> generated.rs ──> nanvm-lib
   lowering)                          (print)             (generated)
 ```
