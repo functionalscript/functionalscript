@@ -53,7 +53,8 @@ reader's byte-accepting path. The spelling is one: lowercase pairs
 separated by single spaces, at least one pair, which is how the issue's
 byte tables read and what `bytes` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
-decodes, refusing any other. A reject vector
+decodes, refusing any other. A byte-form vector is a record of the accept
+or the reject set like any other, classed `byte/…`. A reject vector
 names the one `rule` it breaks and what the `host` does with the same text,
 measured: a document JavaScript `accepts` is a narrowing vector, the only
 kind that catches a reader delegating to the host; a `syntaxError` or a
