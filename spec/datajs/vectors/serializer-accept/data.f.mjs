@@ -160,5 +160,9 @@ export default [
     {"id": "ser-key-raw-e000", "class": "key/string/raw/bmp", "input": {"\ue000": 0}},
     {"id": "ser-string-raw-ffff", "class": "string/raw/bmp", "input": "\uffff"},
     {"id": "ser-key-raw-ffff", "class": "key/string/raw/bmp", "input": {"\uffff": 0}},
-    {"id": "ser-shared-three-paths", "class": "const/shared/three-paths", "input": [$s5, {"a": $s5}, {"b": [$s5]}]}
+    {"id": "ser-shared-three-paths", "class": "const/shared/three-paths", "input": [$s5, {"a": $s5}, {"b": [$s5]}]},
+    {"id": "ser-string-raw-0021", "class": "string/raw/range/0020-0021/high", "input": "!"},
+    {"id": "ser-key-raw-0021", "class": "key/string/raw/range/0020-0021/high", "input": {"!": 0}},
+    {"id": "ser-string-raw-005d", "class": "string/raw/range/005d-10ffff/low", "input": "]"},
+    {"id": "ser-key-raw-005d", "class": "key/string/raw/range/005d-10ffff/low", "input": {"]": 0}}
 ];

@@ -54,17 +54,22 @@ carries a document as a JavaScript string whose code units are the document's,
 and three vectors carry bytes instead, as a tagged hex string,
 `["hex", "ef bb bf …"]`, lowercase pairs separated by single spaces.
 
-Two of the three are records rather than discriminators. They exist so the
-corpus *shows* that a byte sequence is not DataJS, which no code-unit document
-can say:
+Two of the three are rejects, and only one of them is a record rather than a
+discriminator:
 
 - **a BOM as the document's first byte**, `ef bb bf` before
-  `export default 1;`. The bytes are valid UTF-8, and the rule they break is
-  the document rule's second half, "it has no BOM". JavaScript accepts the
-  same file, measured, so it is a narrowing vector.
+  `export default 1;`. The bytes are valid UTF-8 and the document is valid but
+  for the BOM, so the rule it breaks is the document rule's second half, "it has
+  no BOM". JavaScript accepts the same file, measured, so it is a narrowing
+  vector — and an ordinary **test**: a reader that strips the BOM accepts the
+  document and fails this vector, which review pointed out is exactly the defect
+  the byte path is most likely to have.
 - **a truncated sequence at end of input**, `export default "a` followed by a
   lone `c2`. Nothing follows the lead byte, which is what makes it truncated;
-  a byte after it would make it some other malformed shape instead.
+  a byte after it would make it some other malformed shape instead. This one is
+  a **record**: no reader can fail it, for the reason set out below, and it
+  exists so the corpus *shows* that a byte sequence is not DataJS, which no
+  code-unit document can say.
 
 The third is an **accept**, and it is there because the other two are
 rejects. Review pointed out what that leaves open: with no byte document the
@@ -88,8 +93,8 @@ one had sampled where the rule said enumerate.
 Every one of them was about a decoder. DataJS is handed correct UTF-8, so a
 malformed sequence is not an input it processes, exactly as a `Map` is not an
 input a serializer refuses. The care was real and the subject was someone
-else's. What survives is the two records above, and they are marked as records
-rather than dressed up as tests.
+else's. What survives is the two rejects above, of which the truncated one is
+marked a record rather than dressed up as a test.
 
 Truncation is worth one more line, because this file argued at length that it
 could not have a vector: the lead byte must be the document's last, so the
@@ -1777,8 +1782,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `export default 1;`, breaking "a document has no BOM" and accepted by
       the host, measured; and **`byte-truncated`**, `export default "a`
       followed by a lone `c2`, breaking "a document is UTF-8" and a host
-      syntax error, measured. Both are records that a byte sequence is not
-      a DataJS document, not tests of a decoder, and the file says so. The
+      syntax error, measured. Only the truncated one is a record rather than a
+      test: the BOM vector has one defect and discriminates, since a reader that
+      strips the BOM accepts the document and fails it. The
       third is the accept the other two leave owing, **`byte-valid-widths`**,
       `export default "aé€𐀀";` with its one-, two-, three- and
       four-byte sequences, and it is a test: without it a byte path that
@@ -1815,12 +1821,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 156 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 160 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 9 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 146 of the 674 classes the corpus held then, with 56 scope
-      records answering the 528 cells the serializer column owed; the normalize
+      covering 150 of the 674 classes the corpus held then, with 52 scope
+      records answering the 524 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1856,7 +1862,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `[a, {"a": a}, {"b": [a]}]`. And all four graph-equivalence inverses put
       the two equal nodes in an *array*, so a writer that hash-conses only while
       walking object members passed all of them; two object-parent inverses now
-      rule that out, empty and non-empty.
+      rule that out, empty and non-empty. A round after that, the last two raw
+      range endpoints: `!` and `]`, which the rule above requires at both ends
+      of every character class and which four reasons had been closing with
+      other characters. Four vectors, four fewer reasons.
       One reason was corrected rather than replaced: the deep-nesting classes
       said depth is the reader's concern, which is false, since a recursive
       writer has a limit of its own and this repository records
@@ -1874,7 +1883,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 207 records in
+- [x] **Normalize.** Landed as 213 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 54 scope
       records answering the 517 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -1888,7 +1897,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 114,357 bytes of the bit
+      being refused outright. The matrix stands at 113,812 bytes of the bit
       vector's 131,072, which is 87% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -1927,7 +1936,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       parses to `9007199254740992`, and a formatter that emits the longer
       round-tripping spelling at exactly that value passed, since the set's other
       large integer is a different number. The rounding class and its signed twin
-      now carry normalize vectors.
+      now carry normalize vectors. And the UTF-8 width endpoints once more: the
+      round that added a two-byte character added U+00E9, which is interior, so
+      U+0080, U+07FF and U+0800 were still missing and an encoder written
+      `< 0x7ff` where it means `<= 0x7ff` still passed. Six vectors carry the
+      three with key twins, so the set holds all ten endpoints this file
+      lists.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
@@ -1953,7 +1967,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       not landed refuses nothing, since a class cannot owe a vector to a
       set that does not exist: its column says so on every row and the
       refusal arrives with the set, which is where both writer columns stood
-      when this step landed and where neither stands now. 668 classes then,
+      when this step landed; the serializer's set follows in the step below and
+      `normalize`'s in the one after. 668 classes then,
       the reader role answering every one; each writer set below brings its
       own classes, and one `['set', …]` reason answers the reader for them.
       The generated table is the current count in every case — a figure here
