@@ -14,7 +14,8 @@
  * Beside the data are the format's **constructors** (`functionValue`, `ref`,
  * `throws`), its **eliminators** (`isThrows`, `orders`, `groupKey`,
  * `casesOf`, `arityOf`), and the **lowering** that turns a case into the
- * EDAG expression it denotes (`lambdaExp`, `valueExp`, `caseExp`, `lowerEq`). All
+ * EDAG expression it denotes (`lambdaExp`, `sharedExp`, `valuesExp`,
+ * `valueExp`, `caseExp`). All
  * three exist so that neither consumer has to re-implement a rule of the
  * corpus format: a rule written twice is a rule that drifts.
  *
@@ -31,14 +32,14 @@
  * @module
  *
  * @import { Exp, Op1, Op1Id, Op12, Op12Id, Op2, Op2Id, Op3, Op3Id, Property } from '../edag/types.ts'
- * @import { Case, Data, Eq, Expectation, FunctionValue, Group, LoweredEq, Ref, SharedNode, Throws, Value } from './types.ts'
+ * @import { Case, Data, Expectation, FunctionValue, Group, Ref, SharedNode, Struct, Throws, Value } from './types.ts'
  *
  * @example
  *
  * ```js
  * import { data } from './module.f.mjs'
  *
- * data.groups.length // 27
+ * data.groups.length // 28
  * ```
  */
 
@@ -74,8 +75,8 @@ export const functionValue = () => ['function']
 export const throws = () => ['throw']
 
 /**
- * One of the `eq` `shared` values, so the same node — and hence the same
- * object — reaches both sides of a comparison.
+ * One of `data.shared`'s values, so the same node — and hence the same
+ * object — reaches every `ref` to that name.
  *
  * @type {(name: string) => Ref}
  */
@@ -209,8 +210,9 @@ const constExp = resolve => {
 }
 
 /**
- * The expression a value denotes, where nothing is shared. Every operand
- * outside the `eq` section, and every `expected`, is such a value.
+ * The expression a value denotes, where nothing is shared. Every `expected`
+ * is such a value: an expectation describes an outcome, and an outcome is
+ * never one of the corpus's shared objects.
  *
  * @type {(v: Value) => Exp}
  */
@@ -220,9 +222,16 @@ export const valueExp = constExp(name => { throw ['no shared value here', name] 
  * The expression a case denotes: the group's operation applied to its lowered
  * operands, so `mulCases[0]` is `['*', null, null]`.
  *
- * @type {(g: Group) => (args: readonly Value[]) => Exp}
+ * The shared nodes come first because an operand may be a `ref` to one, and
+ * two `ref`s to a name must lower to one node rather than two equal ones —
+ * which is the whole of what the `'==='` group's `byItself` cases assert.
+ * Both consumers hand over the corpus's nodes for every group alike. A
+ * group with no `ref` among its operands reaches none of them, which is what
+ * makes that uniform rather than wasteful.
+ *
+ * @type {(shared: readonly SharedNode[]) => (g: Group) => (args: readonly Value[]) => Exp}
  */
-export const caseExp = g => args => {
+export const caseExp = shared => g => args => {
     // The operand count comes from the group, not from the operands. A
     // `Case<N>` cannot carry the wrong number, but this function is exported
     // and its `args` are a plain array, so a caller can hand over a count the
@@ -230,7 +239,7 @@ export const caseExp = g => args => {
     // that fails the `exp` schema.
     const n = arityOf(g)
     if (args.length !== n) { throw ['wrong operand count for', g.op, args] }
-    const [a, b, c] = args.map(valueExp)
+    const [a, b, c] = args.map(valuesExp(shared))
     // `n` decides which vocabularies the tag can be in, and the check above
     // makes that agree with the operands. The casts are that step and nothing
     // more: an `Op12Id` is legal at either of the first two counts, so it is
@@ -245,38 +254,39 @@ export const caseExp = g => args => {
 }
 
 /**
- * Lowers the `eq` section: its `shared` values as nodes, and every case
- * beside the `'==='` expression it denotes over them.
+ * The node a shared name is bound to, among the ones bound before it.
  *
- * `eq` is the case's `expected` and so is no part of the expression; what is
- * left is an ordinary binary operation, which is why the `eq` cases validate
- * and evaluate through exactly the same path as a group's.
- *
- * @type {(eq: Eq) => LoweredEq}
+ * @type {(done: readonly SharedNode[]) => (name: string) => Exp}
  */
-export const lowerEq = eq => {
-    /** @type {(done: readonly SharedNode[]) => (name: string) => Exp} */
-    const resolve = done => name => {
-        const found = done.find(([k]) => k === name)
-        if (found === undefined) { throw ['unknown shared value', name] }
-        return found[1]
-    }
-    // Each shared value is lowered against the ones already lowered, so a
-    // `ref` inside one reaches the node an earlier entry bound and sharing
-    // nests. A name is in scope only after its own entry, which is what makes
-    // a forward reference — and with it a cycle, which no EDAG may have —
-    // unspellable rather than something to detect.
-    /** @type {readonly SharedNode[]} */
-    const shared = entries(eq.shared).reduce(
-        (/** @type {readonly SharedNode[]} */ done, [k, v]) =>
-            [...done, /** @type {SharedNode} */ ([k, constExp(resolve(done))(v)])],
-        [])
-    const operand = constExp(resolve(shared))
-    return {
-        shared,
-        cases: eq.cases.map(c => [c, ['===', operand(c.a), operand(c.b)]]),
-    }
+const resolve = done => name => {
+    const found = done.find(([k]) => k === name)
+    if (found === undefined) { throw ['unknown shared value', name] }
+    return found[1]
 }
+
+/**
+ * A corpus's shared values as nodes, in order.
+ *
+ * Each is lowered against the ones already lowered, so a `ref` inside one
+ * reaches the node an earlier entry bound and sharing nests. A name is in
+ * scope only after its own entry, which is what makes a forward reference —
+ * and with it a cycle, which no EDAG may have — unspellable rather than
+ * something to detect.
+ *
+ * @type {(shared: Struct) => readonly SharedNode[]}
+ */
+export const sharedExp = shared => entries(shared).reduce(
+    (/** @type {readonly SharedNode[]} */ done, [k, v]) =>
+        [...done, /** @type {SharedNode} */ ([k, constExp(resolve(done))(v)])],
+    [])
+
+/**
+ * The expression a value denotes, with `ref` resolving against the given
+ * shared nodes. Every operand of a case is such a value.
+ *
+ * @type {(shared: readonly SharedNode[]) => (v: Value) => Exp}
+ */
+export const valuesExp = shared => constExp(resolve(shared))
 
 /**
  * `+n` and `-n` share their whole argument space: both coerce with `ToNumber`
@@ -610,6 +620,111 @@ const addCases = [
 ]
 
 /**
+ * The argument space `<`, `<=`, `>` and `>=` share, and each relation's
+ * answer to every row.
+ *
+ * The four are pinned to one another by invariants no code states: `>` is the
+ * reversed `<` and `>=` the reversed `<=`, and each loose relation differs
+ * from its strict one only at equality. Spelled out as four lists, those
+ * invariants could drift apart unseen, and an argument pair added to one list
+ * and missed in another narrowed the generated Rust suite too, since the
+ * printer walks the same cases. Here a row's four answers sit side by side,
+ * so a deliberate asymmetry is legible and an accidental one is hard to
+ * write.
+ *
+ * `left` and `right` are the halves of a case's name, which each relation's
+ * own word goes between: `null` + `LessThan` + `Five`. This is the move
+ * {@link numberCoercionCases} already makes for `+n` and `-n` and no
+ * cleverer than it: the four answers stay four independent booleans rather
+ * than one derived ordering, because a relation that does *not* follow the
+ * rule is exactly what these cases exist to catch.
+ *
+ * @type {readonly {
+ *     readonly left: string,
+ *     readonly right: string,
+ *     readonly args: Case<2>['args'],
+ *     readonly lt: boolean,
+ *     readonly le: boolean,
+ *     readonly gt: boolean,
+ *     readonly ge: boolean,
+ * }[]}
+ */
+const comparisonCases = [
+    { left: 'null', right: 'Five', args: [null, 5], lt: true, le: true, gt: false, ge: false },
+    { left: 'undefined', right: 'Five', args: [undefined, 5], lt: false, le: false, gt: false, ge: false },
+    { left: 'true', right: 'Five', args: [true, 5], lt: true, le: true, gt: false, ge: false },
+    { left: 'false', right: 'Five', args: [false, 5], lt: true, le: true, gt: false, ge: false },
+    { left: 'stringThree', right: 'Five', args: ['3', 5], lt: true, le: true, gt: false, ge: false },
+    { left: 'stringLetter', right: 'Five', args: ['a', 5], lt: false, le: false, gt: false, ge: false },
+    { left: 'emptyArray', right: 'Five', args: [[], 5], lt: true, le: true, gt: false, ge: false },
+    { left: 'arrayThree', right: 'Five', args: [[3], 5], lt: true, le: true, gt: false, ge: false },
+    { left: 'arrayStringThree', right: 'Five', args: [['3'], 5], lt: true, le: true, gt: false, ge: false },
+    { left: 'arrayPair', right: 'Five', args: [[0, 0], 5], lt: false, le: false, gt: false, ge: false },
+    { left: 'emptyObject', right: 'Five', args: [{}, 5], lt: false, le: false, gt: false, ge: false },
+    { left: 'function', right: 'Five', args: [functionValue, 5], lt: false, le: false, gt: false, ge: false },
+    { left: 'three', right: 'Five', args: [3, 5], lt: true, le: true, gt: false, ge: false },
+    { left: 'five', right: 'Three', args: [5, 3], lt: false, le: false, gt: true, ge: true },
+    // Equal operands: `false` in the strict columns, `true` in the loose
+    // ones. The next two say the same of `0` and `-0`.
+    { left: 'five', right: 'Five', args: [5, 5], lt: false, le: true, gt: false, ge: true },
+    { left: 'zero', right: 'NegativeZero', args: [0, -0], lt: false, le: true, gt: false, ge: true },
+    { left: 'negativeZero', right: 'Zero', args: [-0, 0], lt: false, le: true, gt: false, ge: true },
+    // `NaN` anywhere is `false` in all four columns — the rows a negated
+    // reverse would get wrong, and why `le` is not `!gt`.
+    { left: 'nan', right: 'One', args: [NaN, 1], lt: false, le: false, gt: false, ge: false },
+    { left: 'one', right: 'Nan', args: [1, NaN], lt: false, le: false, gt: false, ge: false },
+    { left: 'nan', right: 'Nan', args: [NaN, NaN], lt: false, le: false, gt: false, ge: false },
+    { left: 'infinity', right: 'One', args: [Infinity, 1], lt: false, le: false, gt: true, ge: true },
+    { left: 'one', right: 'Infinity', args: [1, Infinity], lt: true, le: true, gt: false, ge: false },
+    { left: 'negativeInfinity', right: 'Infinity', args: [-Infinity, Infinity], lt: true, le: true, gt: false, ge: false },
+    // Equal infinities, loose-only again.
+    { left: 'infinity', right: 'Infinity', args: [Infinity, Infinity], lt: false, le: true, gt: false, ge: true },
+    { left: 'stringTen', right: 'StringNine', args: ['10', '9'], lt: true, le: true, gt: false, ge: false },
+    { left: 'stringNine', right: 'StringTen', args: ['9', '10'], lt: false, le: false, gt: true, ge: true },
+    { left: 'stringA', right: 'StringB', args: ['a', 'b'], lt: true, le: true, gt: false, ge: false },
+    { left: 'emptyString', right: 'StringA', args: ['', 'a'], lt: true, le: true, gt: false, ge: false },
+    { left: 'stringAb', right: 'StringAbc', args: ['ab', 'abc'], lt: true, le: true, gt: false, ge: false },
+    { left: 'stringAbc', right: 'StringAb', args: ['abc', 'ab'], lt: false, le: false, gt: true, ge: true },
+    { left: 'stringUppercaseB', right: 'StringA', args: ['B', 'a'], lt: true, le: true, gt: false, ge: false },
+    { left: 'stringTen', right: 'Nine', args: ['10', 9], lt: false, le: false, gt: true, ge: true },
+    { left: 'nine', right: 'StringTen', args: [9, '10'], lt: true, le: true, gt: false, ge: false },
+    { left: 'stringAbc', right: 'Five', args: ['abc', 5], lt: false, le: false, gt: false, ge: false },
+    { left: 'five', right: 'StringAbc', args: [5, 'abc'], lt: false, le: false, gt: false, ge: false },
+    { left: 'negativeFiveBig', right: 'ThreeBig', args: [-5n, 3n], lt: true, le: true, gt: false, ge: false },
+    // Equal bigints, loose-only again.
+    { left: 'threeBig', right: 'ThreeBig', args: [3n, 3n], lt: false, le: true, gt: false, ge: true },
+    { left: 'threeBig', right: 'NegativeFiveBig', args: [3n, -5n], lt: false, le: false, gt: true, ge: true },
+    // The relations compare a `Number` and a `BigInt` directly rather than
+    // throwing — the opposite of `numberByBigint` in every arithmetic group
+    // above.
+    { left: 'fiveBig', right: 'FiveHalf', args: [5n, 5.5], lt: true, le: true, gt: false, ge: false },
+    // An equal-valued mixed number/bigint pair: loose-only, as for `5 <= 5`.
+    { left: 'fiveBig', right: 'Five', args: [5n, 5], lt: false, le: true, gt: false, ge: true },
+    { left: 'five', right: 'FiveBig', args: [5, 5n], lt: false, le: true, gt: false, ge: true },
+    { left: 'fiveBig', right: 'Nan', args: [5n, NaN], lt: false, le: false, gt: false, ge: false },
+    { left: 'nan', right: 'FiveBig', args: [NaN, 5n], lt: false, le: false, gt: false, ge: false },
+    { left: 'fiveBig', right: 'Infinity', args: [5n, Infinity], lt: true, le: true, gt: false, ge: false },
+    { left: 'negativeInfinity', right: 'FiveBig', args: [-Infinity, 5n], lt: true, le: true, gt: false, ge: false },
+    { left: 'infinity', right: 'FiveBig', args: [Infinity, 5n], lt: false, le: false, gt: true, ge: true },
+    { left: 'stringTen', right: 'TwentyBig', args: ['10', 20n], lt: true, le: true, gt: false, ge: false },
+    { left: 'twentyBig', right: 'StringThirty', args: [20n, '30'], lt: true, le: true, gt: false, ge: false },
+    { left: 'stringAbc', right: 'TwentyBig', args: ['abc', 20n], lt: false, le: false, gt: false, ge: false },
+    { left: 'twentyBig', right: 'StringAbc', args: [20n, 'abc'], lt: false, le: false, gt: false, ge: false },
+]
+
+/**
+ * One relation's cases: every row above, named with the relation's word
+ * between the two halves and answered from its own column.
+ *
+ * @type {(infix: string) => (relation: 'lt' | 'le' | 'gt' | 'ge') => readonly Case<2>[]}
+ */
+const relationCases = infix => relation => comparisonCases.map(r => ({
+    name: `${r.left}${infix}${r.right}`,
+    args: r.args,
+    expected: r[relation],
+}))
+
+/**
  * `<` never throws, unlike the arithmetic operators: it `ToPrimitive`s both
  * operands (never `ToNumeric` directly), and if *both* results are strings
  * compares them lexicographically by UTF-16 code unit rather than
@@ -621,63 +736,8 @@ const addCases = [
  * or a string that fails `StringToBigInt` against a `BigInt` — is `false` in
  * *both* directions, the one asymmetry the corpus's fixed left/right cases
  * exist to cover since `<` is not commutative the way `*` is.
- *
- * @type {readonly Case<2>[]}
  */
-const lessThanCases = [
-    { name: 'nullLessThanFive', args: [null, 5], expected: true },
-    { name: 'undefinedLessThanFive', args: [undefined, 5], expected: false },
-    { name: 'trueLessThanFive', args: [true, 5], expected: true },
-    { name: 'falseLessThanFive', args: [false, 5], expected: true },
-    { name: 'stringThreeLessThanFive', args: ['3', 5], expected: true },
-    { name: 'stringLetterLessThanFive', args: ['a', 5], expected: false },
-    { name: 'emptyArrayLessThanFive', args: [[], 5], expected: true },
-    { name: 'arrayThreeLessThanFive', args: [[3], 5], expected: true },
-    { name: 'arrayStringThreeLessThanFive', args: [['3'], 5], expected: true },
-    { name: 'arrayPairLessThanFive', args: [[0, 0], 5], expected: false },
-    { name: 'emptyObjectLessThanFive', args: [{}, 5], expected: false },
-    { name: 'functionLessThanFive', args: [functionValue, 5], expected: false },
-    { name: 'threeLessThanFive', args: [3, 5], expected: true },
-    { name: 'fiveLessThanThree', args: [5, 3], expected: false },
-    { name: 'fiveLessThanFive', args: [5, 5], expected: false },
-    { name: 'zeroLessThanNegativeZero', args: [0, -0], expected: false },
-    { name: 'negativeZeroLessThanZero', args: [-0, 0], expected: false },
-    { name: 'nanLessThanOne', args: [NaN, 1], expected: false },
-    { name: 'oneLessThanNan', args: [1, NaN], expected: false },
-    { name: 'nanLessThanNan', args: [NaN, NaN], expected: false },
-    { name: 'infinityLessThanOne', args: [Infinity, 1], expected: false },
-    { name: 'oneLessThanInfinity', args: [1, Infinity], expected: true },
-    { name: 'negativeInfinityLessThanInfinity', args: [-Infinity, Infinity], expected: true },
-    { name: 'infinityLessThanInfinity', args: [Infinity, Infinity], expected: false },
-    { name: 'stringTenLessThanStringNine', args: ['10', '9'], expected: true },
-    { name: 'stringNineLessThanStringTen', args: ['9', '10'], expected: false },
-    { name: 'stringALessThanStringB', args: ['a', 'b'], expected: true },
-    { name: 'emptyStringLessThanStringA', args: ['', 'a'], expected: true },
-    { name: 'stringAbLessThanStringAbc', args: ['ab', 'abc'], expected: true },
-    { name: 'stringAbcLessThanStringAb', args: ['abc', 'ab'], expected: false },
-    { name: 'stringUppercaseBLessThanStringA', args: ['B', 'a'], expected: true },
-    { name: 'stringTenLessThanNine', args: ['10', 9], expected: false },
-    { name: 'nineLessThanStringTen', args: [9, '10'], expected: true },
-    { name: 'stringAbcLessThanFive', args: ['abc', 5], expected: false },
-    { name: 'fiveLessThanStringAbc', args: [5, 'abc'], expected: false },
-    { name: 'negativeFiveBigLessThanThreeBig', args: [-5n, 3n], expected: true },
-    { name: 'threeBigLessThanThreeBig', args: [3n, 3n], expected: false },
-    { name: 'threeBigLessThanNegativeFiveBig', args: [3n, -5n], expected: false },
-    // `<` compares a `Number` and a `BigInt` directly rather than throwing —
-    // the opposite of `numberByBigint` in every arithmetic group above.
-    { name: 'fiveBigLessThanFiveHalf', args: [5n, 5.5], expected: true },
-    { name: 'fiveBigLessThanFive', args: [5n, 5], expected: false },
-    { name: 'fiveLessThanFiveBig', args: [5, 5n], expected: false },
-    { name: 'fiveBigLessThanNan', args: [5n, NaN], expected: false },
-    { name: 'nanLessThanFiveBig', args: [NaN, 5n], expected: false },
-    { name: 'fiveBigLessThanInfinity', args: [5n, Infinity], expected: true },
-    { name: 'negativeInfinityLessThanFiveBig', args: [-Infinity, 5n], expected: true },
-    { name: 'infinityLessThanFiveBig', args: [Infinity, 5n], expected: false },
-    { name: 'stringTenLessThanTwentyBig', args: ['10', 20n], expected: true },
-    { name: 'twentyBigLessThanStringThirty', args: [20n, '30'], expected: true },
-    { name: 'stringAbcLessThanTwentyBig', args: ['abc', 20n], expected: false },
-    { name: 'twentyBigLessThanStringAbc', args: [20n, 'abc'], expected: false },
-]
+const lessThanCases = relationCases('LessThan')('lt')
 
 /**
  * `<=` shares `<`'s coercion (`ToPrimitive`, then lexicographic string
@@ -686,211 +746,32 @@ const lessThanCases = [
  * `NaN` involved anywhere still gives `false`, not the `true` a plain
  * negation of `<`'s `false` would: `y < x` being `false` because one side is
  * `NaN` does not make `x <= y` `true`. That is why `1 <= NaN`, `NaN <= 1`,
- * and `5n <= NaN` are all `false` below, alongside the cases that *do* flip
- * from `<` — equal operands, equal-valued mixed number/bigint pairs, and
+ * and `5n <= NaN` are all `false` in the table, alongside the rows that *do*
+ * flip from `<` — equal operands, equal-valued mixed number/bigint pairs, and
  * `Infinity <= Infinity` — which are exactly where `<` was `false` for a
  * reason other than `NaN`.
- *
- * @type {readonly Case<2>[]}
  */
-const lessOrEqualCases = [
-    { name: 'nullLessOrEqualFive', args: [null, 5], expected: true },
-    { name: 'undefinedLessOrEqualFive', args: [undefined, 5], expected: false },
-    { name: 'trueLessOrEqualFive', args: [true, 5], expected: true },
-    { name: 'falseLessOrEqualFive', args: [false, 5], expected: true },
-    { name: 'stringThreeLessOrEqualFive', args: ['3', 5], expected: true },
-    { name: 'stringLetterLessOrEqualFive', args: ['a', 5], expected: false },
-    { name: 'emptyArrayLessOrEqualFive', args: [[], 5], expected: true },
-    { name: 'arrayThreeLessOrEqualFive', args: [[3], 5], expected: true },
-    { name: 'arrayStringThreeLessOrEqualFive', args: [['3'], 5], expected: true },
-    { name: 'arrayPairLessOrEqualFive', args: [[0, 0], 5], expected: false },
-    { name: 'emptyObjectLessOrEqualFive', args: [{}, 5], expected: false },
-    { name: 'functionLessOrEqualFive', args: [functionValue, 5], expected: false },
-    { name: 'threeLessOrEqualFive', args: [3, 5], expected: true },
-    { name: 'fiveLessOrEqualThree', args: [5, 3], expected: false },
-    // Equal operands: where `<` was `false`, `<=` flips to `true`.
-    { name: 'fiveLessOrEqualFive', args: [5, 5], expected: true },
-    { name: 'zeroLessOrEqualNegativeZero', args: [0, -0], expected: true },
-    { name: 'negativeZeroLessOrEqualZero', args: [-0, 0], expected: true },
-    // `NaN` involved anywhere stays `false` — the one case negating `<`
-    // would get wrong.
-    { name: 'nanLessOrEqualOne', args: [NaN, 1], expected: false },
-    { name: 'oneLessOrEqualNan', args: [1, NaN], expected: false },
-    { name: 'nanLessOrEqualNan', args: [NaN, NaN], expected: false },
-    { name: 'infinityLessOrEqualOne', args: [Infinity, 1], expected: false },
-    { name: 'oneLessOrEqualInfinity', args: [1, Infinity], expected: true },
-    { name: 'negativeInfinityLessOrEqualInfinity', args: [-Infinity, Infinity], expected: true },
-    // Equal infinities: another `<`-`false` case that flips to `true`.
-    { name: 'infinityLessOrEqualInfinity', args: [Infinity, Infinity], expected: true },
-    { name: 'stringTenLessOrEqualStringNine', args: ['10', '9'], expected: true },
-    { name: 'stringNineLessOrEqualStringTen', args: ['9', '10'], expected: false },
-    { name: 'stringALessOrEqualStringB', args: ['a', 'b'], expected: true },
-    { name: 'emptyStringLessOrEqualStringA', args: ['', 'a'], expected: true },
-    { name: 'stringAbLessOrEqualStringAbc', args: ['ab', 'abc'], expected: true },
-    { name: 'stringAbcLessOrEqualStringAb', args: ['abc', 'ab'], expected: false },
-    { name: 'stringUppercaseBLessOrEqualStringA', args: ['B', 'a'], expected: true },
-    { name: 'stringTenLessOrEqualNine', args: ['10', 9], expected: false },
-    { name: 'nineLessOrEqualStringTen', args: [9, '10'], expected: true },
-    { name: 'stringAbcLessOrEqualFive', args: ['abc', 5], expected: false },
-    { name: 'fiveLessOrEqualStringAbc', args: [5, 'abc'], expected: false },
-    { name: 'negativeFiveBigLessOrEqualThreeBig', args: [-5n, 3n], expected: true },
-    // Equal bigints: a third `<`-`false` case that flips to `true`.
-    { name: 'threeBigLessOrEqualThreeBig', args: [3n, 3n], expected: true },
-    { name: 'threeBigLessOrEqualNegativeFiveBig', args: [3n, -5n], expected: false },
-    // `<=` compares a `Number` and a `BigInt` directly rather than throwing —
-    // the opposite of `numberByBigint` in every arithmetic group above.
-    { name: 'fiveBigLessOrEqualFiveHalf', args: [5n, 5.5], expected: true },
-    // Equal-valued mixed number/bigint pair: another flip from `<`'s `false`.
-    { name: 'fiveBigLessOrEqualFive', args: [5n, 5], expected: true },
-    { name: 'fiveLessOrEqualFiveBig', args: [5, 5n], expected: true },
-    { name: 'fiveBigLessOrEqualNan', args: [5n, NaN], expected: false },
-    { name: 'nanLessOrEqualFiveBig', args: [NaN, 5n], expected: false },
-    { name: 'fiveBigLessOrEqualInfinity', args: [5n, Infinity], expected: true },
-    { name: 'negativeInfinityLessOrEqualFiveBig', args: [-Infinity, 5n], expected: true },
-    { name: 'infinityLessOrEqualFiveBig', args: [Infinity, 5n], expected: false },
-    { name: 'stringTenLessOrEqualTwentyBig', args: ['10', 20n], expected: true },
-    { name: 'twentyBigLessOrEqualStringThirty', args: [20n, '30'], expected: true },
-    { name: 'stringAbcLessOrEqualTwentyBig', args: ['abc', 20n], expected: false },
-    { name: 'twentyBigLessOrEqualStringAbc', args: [20n, 'abc'], expected: false },
-]
+const lessOrEqualCases = relationCases('LessOrEqual')('le')
 
 /**
  * `>` never throws, the same as `<`, and is defined as the reversed `<`:
- * `x > y` is `y < x`. So every case here is a `<` case with its operands
- * swapped and its same boolean kept — including the coercion family, where
- * the left operand still carries the coercion under test and `5` moves to
- * the right so `x > 5` reads the same way `x < 5` did — and the *NaN* rule
- * carries over unchanged: `NaN` anywhere is `false` in both directions, so
- * reversing never turns a `<`-`false` into a `>`-`true` the way it does for
- * an ordinary (non-`NaN`) unequal pair.
- *
- * @type {readonly Case<2>[]}
+ * `x > y` is `y < x`. So a row's `gt` is its `lt` read with the operands the
+ * other way round. One argument order serves all four relations, which is
+ * what keeps the coercion rows comparable: the operand under test stays on
+ * the left and `5` on the right, so `x > 5` asks about the same coercion
+ * `x < 5` did. The *NaN* rule carries over unchanged — `NaN` anywhere is
+ * `false` in both directions, so reversing never turns an `lt` `false` into a
+ * `gt` `true` the way it does for an ordinary (non-`NaN`) unequal pair.
  */
-const greaterThanCases = [
-    { name: 'nullGreaterThanFive', args: [null, 5], expected: false },
-    { name: 'undefinedGreaterThanFive', args: [undefined, 5], expected: false },
-    { name: 'trueGreaterThanFive', args: [true, 5], expected: false },
-    { name: 'falseGreaterThanFive', args: [false, 5], expected: false },
-    { name: 'stringThreeGreaterThanFive', args: ['3', 5], expected: false },
-    { name: 'stringLetterGreaterThanFive', args: ['a', 5], expected: false },
-    { name: 'emptyArrayGreaterThanFive', args: [[], 5], expected: false },
-    { name: 'arrayThreeGreaterThanFive', args: [[3], 5], expected: false },
-    { name: 'arrayStringThreeGreaterThanFive', args: [['3'], 5], expected: false },
-    { name: 'arrayPairGreaterThanFive', args: [[0, 0], 5], expected: false },
-    { name: 'emptyObjectGreaterThanFive', args: [{}, 5], expected: false },
-    { name: 'functionGreaterThanFive', args: [functionValue, 5], expected: false },
-    { name: 'threeGreaterThanFive', args: [3, 5], expected: false },
-    { name: 'fiveGreaterThanThree', args: [5, 3], expected: true },
-    { name: 'fiveGreaterThanFive', args: [5, 5], expected: false },
-    { name: 'zeroGreaterThanNegativeZero', args: [0, -0], expected: false },
-    { name: 'negativeZeroGreaterThanZero', args: [-0, 0], expected: false },
-    { name: 'nanGreaterThanOne', args: [NaN, 1], expected: false },
-    { name: 'oneGreaterThanNan', args: [1, NaN], expected: false },
-    { name: 'nanGreaterThanNan', args: [NaN, NaN], expected: false },
-    { name: 'infinityGreaterThanOne', args: [Infinity, 1], expected: true },
-    { name: 'oneGreaterThanInfinity', args: [1, Infinity], expected: false },
-    { name: 'negativeInfinityGreaterThanInfinity', args: [-Infinity, Infinity], expected: false },
-    { name: 'infinityGreaterThanInfinity', args: [Infinity, Infinity], expected: false },
-    { name: 'stringTenGreaterThanStringNine', args: ['10', '9'], expected: false },
-    { name: 'stringNineGreaterThanStringTen', args: ['9', '10'], expected: true },
-    { name: 'stringAGreaterThanStringB', args: ['a', 'b'], expected: false },
-    { name: 'emptyStringGreaterThanStringA', args: ['', 'a'], expected: false },
-    { name: 'stringAbGreaterThanStringAbc', args: ['ab', 'abc'], expected: false },
-    { name: 'stringAbcGreaterThanStringAb', args: ['abc', 'ab'], expected: true },
-    { name: 'stringUppercaseBGreaterThanStringA', args: ['B', 'a'], expected: false },
-    { name: 'stringTenGreaterThanNine', args: ['10', 9], expected: true },
-    { name: 'nineGreaterThanStringTen', args: [9, '10'], expected: false },
-    { name: 'stringAbcGreaterThanFive', args: ['abc', 5], expected: false },
-    { name: 'fiveGreaterThanStringAbc', args: [5, 'abc'], expected: false },
-    { name: 'negativeFiveBigGreaterThanThreeBig', args: [-5n, 3n], expected: false },
-    { name: 'threeBigGreaterThanThreeBig', args: [3n, 3n], expected: false },
-    { name: 'threeBigGreaterThanNegativeFiveBig', args: [3n, -5n], expected: true },
-    // `>` compares a `Number` and a `BigInt` directly rather than throwing —
-    // the opposite of `numberByBigint` in every arithmetic group above.
-    { name: 'fiveBigGreaterThanFiveHalf', args: [5n, 5.5], expected: false },
-    { name: 'fiveBigGreaterThanFive', args: [5n, 5], expected: false },
-    { name: 'fiveGreaterThanFiveBig', args: [5, 5n], expected: false },
-    { name: 'fiveBigGreaterThanNan', args: [5n, NaN], expected: false },
-    { name: 'nanGreaterThanFiveBig', args: [NaN, 5n], expected: false },
-    { name: 'fiveBigGreaterThanInfinity', args: [5n, Infinity], expected: false },
-    { name: 'negativeInfinityGreaterThanFiveBig', args: [-Infinity, 5n], expected: false },
-    { name: 'infinityGreaterThanFiveBig', args: [Infinity, 5n], expected: true },
-    { name: 'stringTenGreaterThanTwentyBig', args: ['10', 20n], expected: false },
-    { name: 'twentyBigGreaterThanStringThirty', args: [20n, '30'], expected: false },
-    { name: 'stringAbcGreaterThanTwentyBig', args: ['abc', 20n], expected: false },
-    { name: 'twentyBigGreaterThanStringAbc', args: [20n, 'abc'], expected: false },
-]
+const greaterThanCases = relationCases('GreaterThan')('gt')
 
 /**
- * `>=` is the reversed `<=`: `x >= y` is `y <= x`. So every case here is a
- * `<=` case with its operands swapped and its same boolean kept, the same
- * relationship `>` has to `<` — including which cases flip relative to `>`
- * (equal operands, equal-valued mixed number/bigint pairs, equal infinities,
- * now giving `true`) and which stay `false` throughout because `NaN` is
- * involved, exactly as for `<=`.
- *
- * @type {readonly Case<2>[]}
+ * `>=` is the reversed `<=`: `x >= y` is `y <= x`, the same relationship `>`
+ * has to `<`. So `ge` flips from `gt` on exactly the rows `le` flips from
+ * `lt` — equal operands, equal-valued mixed number/bigint pairs, equal
+ * infinities — and stays `false` throughout wherever `NaN` is involved.
  */
-const greaterOrEqualCases = [
-    { name: 'nullGreaterOrEqualFive', args: [null, 5], expected: false },
-    { name: 'undefinedGreaterOrEqualFive', args: [undefined, 5], expected: false },
-    { name: 'trueGreaterOrEqualFive', args: [true, 5], expected: false },
-    { name: 'falseGreaterOrEqualFive', args: [false, 5], expected: false },
-    { name: 'stringThreeGreaterOrEqualFive', args: ['3', 5], expected: false },
-    { name: 'stringLetterGreaterOrEqualFive', args: ['a', 5], expected: false },
-    { name: 'emptyArrayGreaterOrEqualFive', args: [[], 5], expected: false },
-    { name: 'arrayThreeGreaterOrEqualFive', args: [[3], 5], expected: false },
-    { name: 'arrayStringThreeGreaterOrEqualFive', args: [['3'], 5], expected: false },
-    { name: 'arrayPairGreaterOrEqualFive', args: [[0, 0], 5], expected: false },
-    { name: 'emptyObjectGreaterOrEqualFive', args: [{}, 5], expected: false },
-    { name: 'functionGreaterOrEqualFive', args: [functionValue, 5], expected: false },
-    { name: 'threeGreaterOrEqualFive', args: [3, 5], expected: false },
-    { name: 'fiveGreaterOrEqualThree', args: [5, 3], expected: true },
-    // Equal operands: where `>` was `false`, `>=` flips to `true`.
-    { name: 'fiveGreaterOrEqualFive', args: [5, 5], expected: true },
-    { name: 'zeroGreaterOrEqualNegativeZero', args: [0, -0], expected: true },
-    { name: 'negativeZeroGreaterOrEqualZero', args: [-0, 0], expected: true },
-    // `NaN` involved anywhere stays `false` — the one case negating `>`
-    // would get wrong.
-    { name: 'nanGreaterOrEqualOne', args: [NaN, 1], expected: false },
-    { name: 'oneGreaterOrEqualNan', args: [1, NaN], expected: false },
-    { name: 'nanGreaterOrEqualNan', args: [NaN, NaN], expected: false },
-    { name: 'infinityGreaterOrEqualOne', args: [Infinity, 1], expected: true },
-    { name: 'oneGreaterOrEqualInfinity', args: [1, Infinity], expected: false },
-    { name: 'negativeInfinityGreaterOrEqualInfinity', args: [-Infinity, Infinity], expected: false },
-    // Equal infinities: another `>`-`false` case that flips to `true`.
-    { name: 'infinityGreaterOrEqualInfinity', args: [Infinity, Infinity], expected: true },
-    { name: 'stringTenGreaterOrEqualStringNine', args: ['10', '9'], expected: false },
-    { name: 'stringNineGreaterOrEqualStringTen', args: ['9', '10'], expected: true },
-    { name: 'stringAGreaterOrEqualStringB', args: ['a', 'b'], expected: false },
-    { name: 'emptyStringGreaterOrEqualStringA', args: ['', 'a'], expected: false },
-    { name: 'stringAbGreaterOrEqualStringAbc', args: ['ab', 'abc'], expected: false },
-    { name: 'stringAbcGreaterOrEqualStringAb', args: ['abc', 'ab'], expected: true },
-    { name: 'stringUppercaseBGreaterOrEqualStringA', args: ['B', 'a'], expected: false },
-    { name: 'stringTenGreaterOrEqualNine', args: ['10', 9], expected: true },
-    { name: 'nineGreaterOrEqualStringTen', args: [9, '10'], expected: false },
-    { name: 'stringAbcGreaterOrEqualFive', args: ['abc', 5], expected: false },
-    { name: 'fiveGreaterOrEqualStringAbc', args: [5, 'abc'], expected: false },
-    { name: 'negativeFiveBigGreaterOrEqualThreeBig', args: [-5n, 3n], expected: false },
-    // Equal bigints: a third `>`-`false` case that flips to `true`.
-    { name: 'threeBigGreaterOrEqualThreeBig', args: [3n, 3n], expected: true },
-    { name: 'threeBigGreaterOrEqualNegativeFiveBig', args: [3n, -5n], expected: true },
-    // `>=` compares a `Number` and a `BigInt` directly rather than throwing —
-    // the opposite of `numberByBigint` in every arithmetic group above.
-    { name: 'fiveBigGreaterOrEqualFiveHalf', args: [5n, 5.5], expected: false },
-    // Equal-valued mixed number/bigint pair: another flip from `>`'s `false`.
-    { name: 'fiveBigGreaterOrEqualFive', args: [5n, 5], expected: true },
-    { name: 'fiveGreaterOrEqualFiveBig', args: [5, 5n], expected: true },
-    { name: 'fiveBigGreaterOrEqualNan', args: [5n, NaN], expected: false },
-    { name: 'nanGreaterOrEqualFiveBig', args: [NaN, 5n], expected: false },
-    { name: 'fiveBigGreaterOrEqualInfinity', args: [5n, Infinity], expected: false },
-    { name: 'negativeInfinityGreaterOrEqualFiveBig', args: [-Infinity, 5n], expected: false },
-    { name: 'infinityGreaterOrEqualFiveBig', args: [Infinity, 5n], expected: true },
-    { name: 'stringTenGreaterOrEqualTwentyBig', args: ['10', 20n], expected: false },
-    { name: 'twentyBigGreaterOrEqualStringThirty', args: [20n, '30'], expected: false },
-    { name: 'stringAbcGreaterOrEqualTwentyBig', args: ['abc', 20n], expected: false },
-    { name: 'twentyBigGreaterOrEqualStringAbc', args: [20n, 'abc'], expected: false },
-]
+const greaterOrEqualCases = relationCases('GreaterOrEqual')('ge')
 
 /**
  * `!` coerces its operand with `ToBoolean` and negates — the value never
@@ -927,7 +808,7 @@ const notCases = [
  * itself, not a derived primitive. That is observable only for a reference
  * type (array, object, function): `Object.is`/`===` compare those by
  * identity, and the corpus lowers each operand to a node of its own (nothing
- * outside the `eq` section's `ref`s aliases two nodes), so a case whose
+ * outside a `ref` aliases two nodes), so a case whose
  * `expected` needs to be *the same* array, object, or function the operand
  * built would compare unequal to a freshly-lowered copy. Every case below is
  * chosen so a reference-typed operand is only ever on the *discarded* side —
@@ -1457,52 +1338,67 @@ const ownCases = [
     { name: 'nonStringKeyThrows', args: [{ 1: 42 }, 1], expected: throws },
 ]
 
+/**
+ * The values the corpus shares: each is one node, so two `ref`s to a name are
+ * one node reached twice and the object that node establishes is one object.
+ * Reference equality is what the `'==='` group's `byItself` cases are about,
+ * and this is the only way to write it.
+ *
+ * @type {Struct}
+ */
+const sharedValues = {
+    emptyArray: [],
+    stringArray: ['0'],
+    object: { '0': '0' },
+}
+
 /** @type {Data} */
 export const data = {
-    eq: {
-        shared: {
-            emptyArray: [],
-            stringArray: ['0'],
-            object: { '0': '0' },
-        },
-        cases: [
-            { name: 'nullByNull', a: null, b: null, eq: true },
-            { name: 'undefinedByUndefined', a: undefined, b: undefined, eq: true },
-            { name: 'nullByUndefined', a: null, b: undefined, eq: false },
-            { name: 'trueByTrue', a: true, b: true, eq: true },
-            { name: 'falseByFalse', a: false, b: false, eq: true },
-            { name: 'trueByFalse', a: true, b: false, eq: false },
-            { name: 'falseByUndefined', a: false, b: undefined, eq: false },
-            { name: 'falseByNull', a: false, b: null, eq: false },
-            { name: 'numberBySameNumber', a: 2.3, b: 2.3, eq: true },
-            { name: 'numberByOtherNumber', a: 2.3, b: -5.4, eq: false },
-            { name: 'nanByNan', a: NaN, b: NaN, eq: false },
-            { name: 'zeroByNegativeZero', a: 0, b: -0, eq: true },
-            { name: 'infinityByInfinity', a: Infinity, b: Infinity, eq: true },
-            {
-                name: 'negativeInfinityByNegativeInfinity',
-                a: -Infinity,
-                b: -Infinity,
-                eq: true,
-            },
-            { name: 'infinityByNegativeInfinity', a: Infinity, b: -Infinity, eq: false },
-            { name: 'undefinedByNan', a: undefined, b: NaN, eq: false },
-            { name: 'undefinedByZero', a: undefined, b: 0, eq: false },
-            { name: 'stringBySameString', a: 'hello', b: 'hello', eq: true },
-            { name: 'stringByOtherString', a: 'hello', b: 'world', eq: false },
-            { name: 'zeroByStringZero', a: 0, b: '0', eq: false },
-            { name: 'bigintBySameBigint', a: 12n, b: 12n, eq: true },
-            { name: 'bigintByNegatedBigint', a: 12n, b: -12n, eq: false },
-            { name: 'bigintByOtherBigint', a: 12n, b: 13n, eq: false },
-            { name: 'twelveByStringTwelve', a: 12n, b: '12', eq: false },
-            { name: 'arrayByItself', a: ref('emptyArray'), b: ref('emptyArray'), eq: true },
-            { name: 'arrayByEqualArray', a: [], b: [], eq: false },
-            { name: 'stringArrayByItself', a: ref('stringArray'), b: ref('stringArray'), eq: true },
-            { name: 'objectByItself', a: ref('object'), b: ref('object'), eq: true },
-            { name: 'objectByEqualObject', a: ref('object'), b: { '0': '0' }, eq: false },
-        ],
-    },
+    shared: sharedValues,
     groups: [
+        {
+            // Strict equality, the one group whose operands reach
+            // {@link Data.shared}. `commutative` checks each case both ways
+            // round, which is what the Rust harness's `check_eq` used to do
+            // inside one assertion.
+            op: '===',
+            commutative: true,
+            cases: [
+                { name: 'nullByNull', args: [null, null], expected: true },
+                { name: 'undefinedByUndefined', args: [undefined, undefined], expected: true },
+                { name: 'nullByUndefined', args: [null, undefined], expected: false },
+                { name: 'trueByTrue', args: [true, true], expected: true },
+                { name: 'falseByFalse', args: [false, false], expected: true },
+                { name: 'trueByFalse', args: [true, false], expected: false },
+                { name: 'falseByUndefined', args: [false, undefined], expected: false },
+                { name: 'falseByNull', args: [false, null], expected: false },
+                { name: 'numberBySameNumber', args: [2.3, 2.3], expected: true },
+                { name: 'numberByOtherNumber', args: [2.3, -5.4], expected: false },
+                { name: 'nanByNan', args: [NaN, NaN], expected: false },
+                { name: 'zeroByNegativeZero', args: [0, -0], expected: true },
+                { name: 'infinityByInfinity', args: [Infinity, Infinity], expected: true },
+                {
+                    name: 'negativeInfinityByNegativeInfinity',
+                    args: [-Infinity, -Infinity],
+                    expected: true,
+                },
+                { name: 'infinityByNegativeInfinity', args: [Infinity, -Infinity], expected: false },
+                { name: 'undefinedByNan', args: [undefined, NaN], expected: false },
+                { name: 'undefinedByZero', args: [undefined, 0], expected: false },
+                { name: 'stringBySameString', args: ['hello', 'hello'], expected: true },
+                { name: 'stringByOtherString', args: ['hello', 'world'], expected: false },
+                { name: 'zeroByStringZero', args: [0, '0'], expected: false },
+                { name: 'bigintBySameBigint', args: [12n, 12n], expected: true },
+                { name: 'bigintByNegatedBigint', args: [12n, -12n], expected: false },
+                { name: 'bigintByOtherBigint', args: [12n, 13n], expected: false },
+                { name: 'twelveByStringTwelve', args: [12n, '12'], expected: false },
+                { name: 'arrayByItself', args: [ref('emptyArray'), ref('emptyArray')], expected: true },
+                { name: 'arrayByEqualArray', args: [[], []], expected: false },
+                { name: 'stringArrayByItself', args: [ref('stringArray'), ref('stringArray')], expected: true },
+                { name: 'objectByItself', args: [ref('object'), ref('object')], expected: true },
+                { name: 'objectByEqualObject', args: [ref('object'), { '0': '0' }], expected: false },
+            ],
+        },
         {
             // JS unary plus, not the `Number` cast: the two differ on a
             // bigint, which `+` refuses and `Number` converts.
