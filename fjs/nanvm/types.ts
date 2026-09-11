@@ -15,7 +15,7 @@
  */
 
 import type { Assert } from '../asserts/types.ts'
-import type { Exp, Op12Id, Op1Id, Op2, Op2Id } from '../edag/types.ts'
+import type { Exp, Op12Id, Op1Id, Op2, Op2Id, Op3Id } from '../edag/types.ts'
 import type { FixedArray } from '../types/array/types.ts'
 import type { Equal } from '../types/ts/types.ts'
 
@@ -119,11 +119,8 @@ export type Throws = Special<readonly ['throw']>
  */
 export type Expectation = Const | Ref | Throws
 
-/**
- * The operation a group applies, as both consumers name it: a canonical EDAG
- * id, or the NaNVM-only name of a group that has none.
- */
-export type OpId = Op1Id | Op2Id | Op12Id | NonEdagGroup['nanvmOp']
+/** The operation a group applies: a canonical EDAG id, and nothing else. */
+export type OpId = Op1Id | Op2Id | Op12Id | Op3Id
 
 /**
  * One operator test case, over `N` operands.
@@ -186,22 +183,13 @@ export type Group12 =
     | { readonly op: Op12Id; readonly arity: 1; readonly cases: readonly Case<1>[] }
     | { readonly op: Op12Id; readonly arity: 2; readonly cases: readonly Case<2>[] }
 
-/**
- * The visible exception: an operation with no canonical EDAG id yet.
- *
- * The field is deliberately not `op`, so a NaNVM-only name can never mix into
- * the canonical id unions.
- *
- * `ternary` (`?:`) is the one left: the EDAG has no conditional-expression
- * node at all yet, so this is the corpus's one ternary group; every other
- * `Group` variant is unary or binary because the EDAG vocabulary it draws
- * from is. It stays a union so the next such operation, if there is one, is
- * an arm and not a redesign.
- */
-export type NonEdagGroup =
-    | { readonly nanvmOp: 'ternary'; readonly cases: readonly Case<3>[] }
+/** The cases of one ternary EDAG operation — `?:`, the only one there is. */
+export type Group3 = {
+    readonly op: Op3Id
+    readonly cases: readonly Case<3>[]
+}
 
-export type Group = Group1 | Group2 | Group12 | NonEdagGroup
+export type Group = Group1 | Group2 | Group12 | Group3
 
 // An operand count is a type error rather than a case that runs: a group's
 // count is which EDAG vocabulary its id is in, and `Case<N>` carries it.
@@ -219,6 +207,7 @@ type _NotWidened = Assert<Equal<Case<2> extends Case<1> ? true : false, false>>
 type _NotNarrowed = Assert<Equal<Case<1> extends Case<2> ? true : false, false>>
 type _Op1Groups = Assert<Equal<Group1['cases'], readonly Case<1>[]>>
 type _Op2Groups = Assert<Equal<Group2['cases'], readonly Case<2>[]>>
+type _Op3Groups = Assert<Equal<Group3['cases'], readonly Case<3>[]>>
 // An `Op12` group's arm, not its id, fixes the count — and each arm does.
 type _Op12Unary = Assert<Equal<Extract<Group12, { arity: 1 }>['cases'], readonly Case<1>[]>>
 type _Op12Binary = Assert<Equal<Extract<Group12, { arity: 2 }>['cases'], readonly Case<2>[]>>
@@ -229,18 +218,6 @@ type _Op12Binary = Assert<Equal<Extract<Group12, { arity: 2 }>['cases'], readonl
 type _FunctionIsValue = Assert<Equal<FunctionValue extends Value ? true : false, true>>
 type _NoThrowsValue = Assert<Equal<Throws extends Value ? true : false, false>>
 type _NoFunctionExpected = Assert<Equal<FunctionValue extends Expectation ? true : false, false>>
-
-/**
- * What a case denotes, as the consumers receive it.
- *
- * `exp` is the EDAG expression the case is: the group's operation applied to
- * its lowered operands. `escape` marks the cases the corpus cannot lower — a
- * {@link NonEdagGroup}'s, which has no id to apply — so a consumer takes the
- * direct-value path knowingly rather than by falling through.
- */
-export type Lowered =
-    | readonly ['exp', Exp]
-    | readonly ['escape']
 
 /** One strict-equality (`===`) case; `eq` is the expected result. */
 export type EqCase = {

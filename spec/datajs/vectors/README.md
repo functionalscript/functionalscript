@@ -14,10 +14,17 @@ Each set is `<set>/data.f.mjs`, a FunctionalScript data module written in
 the DataJS subset the specification describes: `const $n = …;` statements,
 one `export default`, string keys, JSON's values and the leaves DataJS adds.
 So the engine imports it today, the DataJS reader will read it once it
-exists, and a value two vectors share is one `const`. A set carries no
+exists, and a value two vectors share is one `const` — a non-empty array
+or an object, never the empty array literal, which `tsc` types as an
+evolving array when a `const` binds it and refuses every read of. A set carries no
 comments and no annotations, since the subset has neither; a consumer types
 a set at the import, with the record types in
 [`fjs/media/datajs/vectors/types.ts`](../../../fjs/media/datajs/vectors/types.ts).
+A set ships a `proof.f.mjs` beside it, as every module does, proving the
+set's shape — every vector named and classed with a non-empty string, the
+ids one of a kind, the document and the graph present — and the proof
+that runs the set against an implementation lives with that
+implementation.
 
 | set | directory | record | proved against |
 | - | - | - | - |

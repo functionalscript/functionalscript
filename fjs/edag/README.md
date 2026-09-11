@@ -50,13 +50,14 @@ are compared in [execution-models.md](execution-models.md).
 A node is a primitive or a tagged tuple `[tag, ...operands]`. In the schema
 and the type-level API, operation nodes are grouped by their `exp`-operand
 count — `op0` (`undefined`, `args`, `frame`), `op1` (unary), `op2` (binary),
-and `op12` for the two tags legal at both counts (`+`, `-`)
+`op3` (the conditional), and `op12` for the two tags legal at both of the
+first two counts (`+`, `-`)
 — not by semantic category. The four chain nodes follow a different rule and
 are their own kinds, because what distinguishes them is the hidden control
 flow they own rather than how many operands they take; see
 [Chains](#chains). This table is an overview; the contract of
 record for each node is the JSDoc in [module.f.mjs](module.f.mjs) — on the
-node's export and, for the operations, on the `op0Id`/`op1Id`/`op2Id`/`op12Id`
+node's export and, for the operations, on the `op0Id`/`op1Id`/`op2Id`/`op12Id`/`op3Id`
 vocabularies.
 
 | form | meaning |
@@ -77,6 +78,7 @@ vocabularies.
 | `[id, exp]` | unary operation, `id` one of `String` `Number` `!` `~` `typeof` |
 | `[id, exp, exp]` | binary operation, `id` one of `=>` `own` `===` `!==` `>` `>=` `<` `<=` `*` `/` `%` `**` `&` `\|` `^` `<<` `>>` `>>>` `&&` `\|\|` `??` |
 | `[id, exp]`, `[id, exp, exp]` | `id` one of `+` `-`: unary plus or negation, addition or subtraction — one tag at two arities, the node's length deciding, as a chain step's does; unary `+` is JS's and throws on a bigint where `Number` converts |
+| `['?:', exp, exp, exp]` | conditional: the condition, then exactly one arm — the one `ToBoolean` selects; the other is never established |
 
 Where a form is listed twice above, the two are the node's arities: the
 shorter one ends the chain and the longer one hands it on, and the schema is

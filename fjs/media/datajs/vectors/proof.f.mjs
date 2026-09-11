@@ -1,9 +1,30 @@
 /**
  * @import { Unknown } from '../types.ts'
+ * @import { Accept } from './types.ts'
  */
 
-import { assertEq } from '../../../asserts/module.f.mjs'
+import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { parse } from '../parser/module.f.mjs'
 import { bytes, difference } from './module.f.mjs'
+import accept from '../../../../spec/datajs/vectors/accept/data.f.mjs'
+
+/** The reader accept set, typed at the import since a set carries no annotations. */
+const acceptSet = /** @type {readonly Accept[]} */ (accept)
+
+/**
+ * One accept vector against the reader: the document is accepted, and
+ * what it yields is the graph the vector expects, sharing included.
+ *
+ * @type {(vector: Accept) => void}
+ */
+const accepted = ({ id, document, graph }) => {
+    // the byte form waits on the reader's byte path
+    assert(typeof document === 'string', `${id}: a byte document has no reader yet`)
+    const [tag, result] = parse(document)
+    assert(tag === 'ok', `${id}: refused: ${result}`)
+    const d = difference(graph)(result)
+    assert(d === null, `${id}: ${d}`)
+}
 
 /** Two graphs that must compare equal. @type {(expected: Unknown, actual: Unknown) => void} */
 const same = (expected, actual) => assertEq(difference(expected)(actual), null)
@@ -150,4 +171,9 @@ export const proof = {
         differ([1, [2], 3], [1, [9], 9], 'at $[1][0]: expected 2, got 9')
         differ({ a: 1, b: [2] }, { a: 1, b: [2, 3] }, 'at $["b"]: expected 1 elements, got 2')
     },
+    // The reader accept set: the reader accepts every document to the graph
+    // the vector expects. The set's shape — ids one of a kind, every vector
+    // named and classed — is proved beside the set, in
+    // `spec/datajs/vectors/accept/proof.f.mjs`.
+    accept: () => { for (const vector of acceptSet) { accepted(vector) } },
 }

@@ -49,6 +49,7 @@ import {
  *  typeof optionDot,
  *  typeof optionCall,
  *  typeof comma,
+ *  typeof op3,
  *  typeof op12,
  *  typeof op2,
  *  typeof op1,
@@ -64,6 +65,7 @@ export const _exp = () => (['or',
     optionDot,
     optionCall,
     comma,
+    op3,
     op12,
     op2,
     op1,
@@ -542,3 +544,19 @@ export const op12 = or(
     /** @type {const} */ ([op12Id, exp]),
     /** @type {const} */ ([op12Id, exp, exp]),
 )
+
+// Ternary Operations
+
+/**
+ * `?:` is the conditional: `['?:', c, t, e]` establishes `c`, then exactly
+ * one of `t` and `e` — the one `ToBoolean(c)` selects — and is that arm's
+ * value. The laziness is positional, as `&&`/`||`/`??`'s is: the unselected
+ * arm is not established *here*, and the same node reached from an eager
+ * position elsewhere still is. It is subject 3 of
+ * `../../todo/edag-stage1-discussion.md`, "Lazy operators and the branch
+ * extension path", implemented — as a vocabulary of its own, since `op1` and
+ * `op2` each fix one operand count and `op12` fixes two.
+ */
+export const op3Id = or('?:')
+
+export const op3 = /** @type {const} */ ([op3Id, exp, exp, exp])
