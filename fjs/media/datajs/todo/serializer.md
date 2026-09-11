@@ -64,9 +64,10 @@ fjs/media/datajs/
         private.ts    landed — the read's own state
 ```
 
-Three of the five entry points
+Two of the four entry points
 [`parser-serializer.md`](./parser-serializer.md#layout) lists are this
-file's. **Two landed, and the third is deliberately not a function:**
+file's, and both landed. A third, `tryNormalize`, is deliberately not a
+function:
 
 ```ts
 export const trySerialize: (value: unknown) => Result<List<string>, string>

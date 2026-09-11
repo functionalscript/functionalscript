@@ -2125,7 +2125,11 @@ or the spec, not only into a thread.
    **The writer landed without waiting on this, and the answer decides what
    is still unproved rather than whether it works.**
    [`fjs/media/datajs/serializer`](../../../fjs/media/datajs/serializer/module.f.mjs)
-   refuses every input above, and proves each refusal against the data a
+   refuses every recipe above that the specification puts outside the data
+   model — the accessors, the symbol key, the non-enumerable property, the
+   extra own property on an array, the cycle — and serializes the ones it
+   keeps inside as their data: a frozen, sealed or non-writable value, and a
+   `null`-prototype object. It proves each refusal against the data a
    host value would carry — `_memberValue` against a descriptor,
    `_elementNames` against a list of own property names, `_link` against a
    graph with a forward reference — because those are values FunctionalScript can build

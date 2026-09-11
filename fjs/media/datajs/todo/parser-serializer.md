@@ -22,10 +22,13 @@ is the two files together.
 
 ### Problem
 
-`fjs/media/datajs` holds a reader and no writer. It is stage 4 of
+`fjs/media/datajs` is stage 4 of
 [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md)
 and the deliverable EDAG is waiting for: a reader and a writer for the format
-[`spec/datajs/README.md`](../../../../spec/datajs/README.md) specifies.
+[`spec/datajs/README.md`](../../../../spec/datajs/README.md) specifies. Both
+exist now — the reader over the grammar, the writer in
+[`serializer.md`](./serializer.md) — and what this file carries is what the
+reader still owes.
 
 The spec is finished and normative. **This issue implements it and does not
 redesign it.** Where the two disagree the spec wins, and a disagreement is a bug
@@ -62,7 +65,7 @@ There is no `tokenizer/`: the reader is the grammar (§3).
 
 **Every entry point is fallible, and the names say so.** A caller may
 legitimately hand a reader invalid text or a serializer a value outside the
-data model, so all of them are `try*` returning `Result` — the writer's three
+data model, so all of them are `try*` returning `Result` — the writer's two
 are specified in [`serializer.md`](./serializer.md):
 
 ```ts
