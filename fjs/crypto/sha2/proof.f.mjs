@@ -1,9 +1,9 @@
 /**
- * @import { Sha2 } from './types.ts'
+ * @import { Hash, Sha2 } from './types.ts'
  */
 
 import { utf8 } from '../../text/module.f.mjs'
-import { repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { maxLength, msb, repeat, u8ListToVec, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
@@ -20,6 +20,39 @@ const checkBytes = ({ hashLength, blockLength, hashBytes, blockBytes }) => (h, b
     assertEq(blockBytes, b)
     assertEq(hashBytes, hashLength >> 3n)
     assertEq(blockBytes, blockLength >> 3n)
+}
+
+const toVec = u8ListToVec(msb)
+
+/**
+ * A message whose every byte differs from its neighbours, long enough to
+ * fill three blocks of whatever hash reads it.
+ *
+ * @type {(bytes: number) => readonly number[]}
+ */
+const varied = bytes => Array.from({ length: bytes * 3 }, (_, i) => (i * 37 + 11) & 0xFF)
+
+/**
+ * The digest of a message split in two is the digest of the message,
+ * wherever the split falls: before the first block is full, at its edge,
+ * and past it. A split before an edge leaves a remainder the next piece
+ * completes the block from, which is the one place the framing assembles a
+ * block out of two halves — and only a message that differs across the
+ * seam can tell the halves apart, so this is what pins the order they go
+ * in. Every other proof reaching that line repeats one byte, where the two
+ * halves are the same bytes either way round.
+ *
+ * @template S
+ * @param {Hash<S>} h
+ * @returns {void}
+ */
+const seam = h => {
+    const bytes = Number(h.blockBytes)
+    const msg = varied(bytes)
+    const whole = uint(computeSync(h)([toVec(msg)]))
+    for (const at of [1, bytes >> 1, bytes - 1, bytes, bytes + 1, bytes * 2 - 1]) {
+        assertEq(uint(computeSync(h)([toVec(msg.slice(0, at)), toVec(msg.slice(at))])), whole, at)
+    }
 }
 
 /** @type {(sha2: Sha2) => (x: bigint) => void} */
@@ -159,6 +192,27 @@ export const proof = {
     // engine/machine); relies on the test runner's own per-test timing to
     // catch a regression, same convention as `fjs/basen/base64/proof.f.mjs`
     // `encodeLargeVecIsSlow`.
+    // A remainder held, then a `Vec` as long as a `Vec` may be, for one
+    // variant of each word size: the framing never joins the two into one,
+    // which would be over the ceiling every host honours.
+    remainderThenFull: () => {
+        const a = vec(8n)(0x61n)
+        const full = repeat(maxLength >> 3n)(a)
+        /** @type {(sha2: Sha2) => void} */
+        const check = h => {
+            const compute = computeSync(h)
+            assertEq(uint(h.end(h.append(full)(h.append(a)(h.init)))), uint(compute([a, full])))
+            assertEq(uint(compute([a, full])), uint(compute([full, a])))
+        }
+        check(sha256)
+        check(sha512)
+    },
+    // The block a held remainder is completed into, pinned: one variant of
+    // each word size, over a message no two bytes of which are alike.
+    seam: () => {
+        seam(sha256)
+        seam(sha512)
+    },
     appendLargeVecIsFast: () => {
         const big = repeat(100_000n)(vec(8n)(0xffn))
         let state = sha256.init

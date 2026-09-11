@@ -25,7 +25,7 @@
  * @module
  *
  * @import { Exp, Primitive, Properties } from '../../edag/types.ts'
- * @import { Data, Eq, Expectation, Group, OpId, SharedNode, Value } from '../types.ts'
+ * @import { Data, Expectation, Group, OpId, SharedNode, Value } from '../types.ts'
  *
  * @example
  *
@@ -42,8 +42,8 @@ import {
     casesOf,
     groupKey,
     isThrows,
-    lowerEq,
     orders,
+    sharedExp,
     valueExp,
 } from '../module.f.mjs'
 import {
@@ -106,6 +106,7 @@ export const rustName = {
     '||': 'logical_or',
     '??': 'nullish_coalescing',
     own: 'own_property',
+    '===': 'eq',
     typeof: 'typeof_',
     String: 'string_coercion',
 }
@@ -172,6 +173,10 @@ const op2Rust = {
     '||': (a, b) => `Any::logical_or(${a}, ${b})`,
     '??': (a, b) => `Any::nullish_coalescing(${a}, ${b})`,
     own: (a, b) => `Any::own_property(${a}, ${b})`,
+    // `==` on `Any` *is* JavaScript's `===`, but it yields a `bool` and so
+    // pins neither operand's `A`, and `check` takes the `Result` every other
+    // operator returns — both of which `strict_eq` in the harness settles.
+    '===': (a, b) => `strict_eq(${a}, ${b})`,
 }
 
 /**
@@ -325,7 +330,8 @@ const isSmallestLambda = (frame, body) =>
     && body instanceof Array && body[0] === 'undefined'
 
 /**
- * The same, for a node nothing shares — every node outside the `eq` section,
+ * The same, for a node nothing shares — every node in a group that reaches
+ * no shared value,
  * and every `expected`.
  *
  * @type {(e: Exp) => string}
@@ -354,59 +360,67 @@ const assertion = expected => name => result => isThrows(expected)
     : `check::<A>(${stringLiteral(name)}, ${result}, ${nodeExpr(valueExp(expected))});`
 
 /**
- * The statement result for one argument order: the case's expression
- * printed — the same expression the JavaScript proof evaluates, so the two
- * consumers read one derivation and not two.
+ * `true` when `e` reaches `n` — the arrays are the graph, so this is the
+ * whole of "does this expression use that node".
  *
- * @type {(g: Group) => (args: readonly Value[]) => string}
+ * @type {(e: unknown, n: Exp) => boolean}
  */
-const result = g => args => nodeExpr(caseExp(g)(args))
+const reaches = (e, n) =>
+    e === n || (e instanceof Array && e.some(x => reaches(x, n)))
 
-/** @type {(g: Group) => readonly string[]} */
-const groupFn = g => [
-    '#[rustfmt::skip]',
-    `fn ${fnName(groupKey(g))}<A: IVm>() {`,
-    ...casesOf(g).flatMap(c => orders(g)(c).flatMap(
-        ([name, args]) => emit(c.rust)(assertion(c.expected)(name)(result(g)(args))))),
-    '}',
-    '',
-]
+/**
+ * The shared nodes one group's statements need bound, in order.
+ *
+ * Reaching the node is the whole test, with no transitive step to take: a
+ * node shared *through* another — `wrapper` holding `base` — is that node by
+ * identity, so it is literally inside the same expression and `reaches`
+ * finds it there. A group that reaches none gets no bindings, which is every
+ * group but `'==='`, and is why their printed functions are what they were.
+ *
+ * @type {(shared: readonly SharedNode[]) => (g: Group) => readonly SharedNode[]}
+ */
+const usedShared = shared => g => {
+    const exps = casesOf(g).flatMap(
+        c => orders(g)(c).map(([, args]) => caseExp(shared)(g)(args)))
+    return shared.filter(([, n]) => exps.some(e => reaches(e, n)))
+}
 
-/** @type {(eq: Eq) => readonly string[]} */
-const eqFn = eq => {
-    const { shared, cases } = lowerEq(eq)
+/** @type {(shared: readonly SharedNode[]) => (g: Group) => readonly string[]} */
+const groupFn = shared => g => {
+    const used = usedShared(shared)(g)
     /** @type {(s: SharedNode) => readonly[Exp, string]} */
     const binding = ([k, node]) => [node, `${snakeCase(k)}.clone()`]
-    const operand = expExpr(shared.map(binding))
     return [
         '#[rustfmt::skip]',
-        'fn eq<A: IVm>() {',
+        `fn ${fnName(groupKey(g))}<A: IVm>() {`,
         // An initializer is printed against the bindings established before
         // it, so a `ref` to an earlier shared value clones that binding
         // rather than constructing a second object. Printed without them the
         // Rust heap graph would not be the graph the nodes describe.
-        ...shared.map(([k, node], i) =>
+        ...used.map(([k, node], i) =>
             `${indent}let ${snakeCase(k)}: Any<A> = ${
-                expExpr(shared.slice(0, i).map(binding))(node)};`),
-        ...cases.flatMap(([c, [, a, b]]) => emit(c.rust)(
-            `check_eq::<A>(${stringLiteral(c.name)}, ${operand(a)}, ${operand(b)}, ${c.eq});`)),
+                expExpr(used.slice(0, i).map(binding))(node)};`),
+        ...casesOf(g).flatMap(c => orders(g)(c).flatMap(([name, args]) =>
+            emit(c.rust)(assertion(c.expected)(name)(
+                expExpr(used.map(binding))(caseExp(shared)(g)(args)))))),
         '}',
         '',
     ]
 }
 
 /** @type {(data: Data) => string} */
-export const generate = data => [
-    '// @generated by `npm run gen` from `fjs/nanvm/module.f.mjs`.',
-    '// Do not edit: change the shared operator test data and regenerate.',
-    '',
-    'use super::harness::*;',
-    '',
-    ...eqFn(data.eq),
-    ...data.groups.flatMap(groupFn),
-    'pub fn all<A: IVm>() {',
-    `${indent}eq::<A>();`,
-    ...data.groups.map(g => `${indent}${fnName(groupKey(g))}::<A>();`),
-    '}',
-    '',
-].join('\n')
+export const generate = data => {
+    const shared = sharedExp(data.shared)
+    return [
+        '// @generated by `npm run gen` from `fjs/nanvm/module.f.mjs`.',
+        '// Do not edit: change the shared operator test data and regenerate.',
+        '',
+        'use super::harness::*;',
+        '',
+        ...data.groups.flatMap(groupFn(shared)),
+        'pub fn all<A: IVm>() {',
+        ...data.groups.map(g => `${indent}${fnName(groupKey(g))}::<A>();`),
+        '}',
+        '',
+    ].join('\n')
+}

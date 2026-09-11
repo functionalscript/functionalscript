@@ -16,7 +16,7 @@ consumers read the expression rather than each reading the case its own way.
 
 ```text
                               ┌─> proof.f.mjs ──────────────────────────> a JS engine
-module.f.mjs ──> an EDAG exp ─┤     (evaluate)
+module.f.mjs ──> an EDAG exp ─┤     (amnesia)
  (data + the     per case     └─> rust/module.f.mjs ──> generated.rs ──> nanvm-lib
   lowering)                          (print)             (generated)
 ```
@@ -25,7 +25,7 @@ module.f.mjs ──> an EDAG exp ─┤     (evaluate)
 
 | File | Role |
 |---|---|
-| [`types.ts`](types.ts) | The shape of the data: `Value`, `Case<N>`, `Group`, `Eq`, `Data`. |
+| [`types.ts`](types.ts) | The shape of the data: `Value`, `Case<N>`, `Group`, `Data`. |
 | [`module.f.mjs`](module.f.mjs) | **The single source of truth** — every operator case as data, plus the format's constructors, eliminators, and lowering. |
 | [`proof.f.mjs`](proof.f.mjs) | Evaluates each case's expression on a JavaScript engine. |
 | [`rust/module.f.mjs`](rust/module.f.mjs) | Prints each case's expression as Rust, against the `nanvm-lib` API. |
@@ -106,7 +106,7 @@ data is always a *description*, never a value that happens to be a function:
 | Thunk | Means |
 |---|---|
 | `functionValue` | a function value, lowered to `() => undefined` (no operator here inspects which one) |
-| `ref(name)` | one of the `eq` `shared` values, so the *same* object reaches both sides |
+| `ref(name)` | one of `data.shared`'s values, so the *same* object reaches every `ref` to that name |
 | `throws` | the case must throw; valid only as `expected` |
 
 `expected` is compared with `Object.is`, so `NaN` matches `NaN` and `0` does not
