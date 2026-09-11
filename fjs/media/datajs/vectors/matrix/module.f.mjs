@@ -350,23 +350,29 @@ const duplicated = ({ notApplicable }) =>
             : [`${showScope(scope)} in ${role}: a second reason for a scope that already has one`])
 
 /**
- * A scope whose tag is none of the three.
+ * A scope that is not one of the three: a tag the union does not have, or a
+ * tuple longer or shorter than the pair.
  *
  * The reasons are a data module, which carries no annotations and is typed at
- * the import, so a mistyped tag reaches here as data rather than as a `tsc`
- * error. `reaches` reads the three tags it knows and treats the remainder as
- * `set`, which would give `['sett', 'reject']` set semantics and print a
- * plausible `not applicable` cell for a record nobody wrote. Naming it here
- * refuses the corpus before a row is built, which is what every other check
- * in this file does with a defect it finds.
+ * the import, so either arrives here as data rather than as a `tsc` error. A
+ * tag is read by name and the remainder treated as `set`, which would give
+ * `['sett', 'reject']` set semantics and print a plausible `not applicable`
+ * cell for a record nobody wrote; a third element is read by nothing at all,
+ * so `['class', 'y', 'whatever']` would answer as though the extra were not
+ * there, discarding what a writer meant by it. Naming both here refuses the
+ * corpus before a row is built, which is what every other check in this file
+ * does with a defect it finds.
  *
  * @type {(corpus: Corpus) => readonly string[]}
  */
-const mistagged = ({ notApplicable }) =>
-    notApplicable.flatMap(({ scope, role }) =>
-        scope[0] === 'class' || scope[0] === 'subtree' || scope[0] === 'set'
+const malformed = ({ notApplicable }) =>
+    notApplicable.flatMap(({ scope, role }) => {
+        const where = `${showScope(scope)} in ${role}`
+        if (scope.length !== 2) { return [`${where}: a scope is a tag and a name, and this one has ${scope.length}`] }
+        return scope[0] === 'class' || scope[0] === 'subtree' || scope[0] === 'set'
             ? []
-            : [`${showScope(scope)} in ${role}: no such scope, so it cannot be told from a set`])
+            : [`${where}: no such scope, so it cannot be told from a set`]
+    })
 
 /**
  * A reason that is not true of what it answers: one naming a role, a set or
@@ -433,6 +439,19 @@ const summary = (corpus, role) => {
  * @type {(corpus: Corpus) => Result<string, string>}
  */
 export const matrix = corpus => {
+    /** @type {(failures: readonly string[]) => Result<string, string>} */
+    const refused = failures => error([
+        `the class-by-role matrix has ${failures.length} defects:`,
+        ...failures.map(f => `  ${f}`),
+        'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
+    ].join('\n'))
+    // A malformed scope is refused first and alone. Every other check reads a
+    // scope as a tag and a name, so one that is neither cannot be read by them
+    // at all — a one-element tuple has no name to render and no family to
+    // measure. Reporting it beside failures derived from reading it would be
+    // reporting the same defect twice over.
+    const bad = malformed(corpus)
+    if (bad.length !== 0) { return refused(bad) }
     const classes = classesOf(corpus.roles)
     const rows = classes.map(c => row(corpus, c))
     /** @type {readonly string[]} */
@@ -440,18 +459,11 @@ export const matrix = corpus => {
         ...roleless(corpus),
         ...unrenderable(corpus),
         ...ambiguous(corpus),
-        ...mistagged(corpus),
         ...duplicated(corpus),
         ...stale(corpus),
         ...rows.flatMap(r => r[0] === 'error' ? r[1] : []),
     ]
-    if (failures.length !== 0) {
-        return error([
-            `the class-by-role matrix has ${failures.length} defects:`,
-            ...failures.map(f => `  ${f}`),
-            'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
-        ].join('\n'))
-    }
+    if (failures.length !== 0) { return refused(failures) }
     // in code spans, as every other name in the table is: a role named
     // `_reader_` is a name `isName` admits, and raw in a header it would
     // render as an italic `reader` — the table saying one thing and the

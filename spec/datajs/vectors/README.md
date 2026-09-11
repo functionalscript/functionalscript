@@ -40,8 +40,10 @@ implementation.
 | normalize | `normalize/` | `Normalize` | the normalized serializer, when it lands |
 
 One directory holds no vectors: `not-applicable/` carries the reasons the
-matrix below needs, one record per class and role a role owes no vector
-for.
+matrix below needs. A record answers a **scope** rather than a single cell —
+one class, a subtree of them, or every class no set but one carries — so the
+several hundred cells a role owes nothing to are answered by a few dozen
+records. The rules that keep a wide scope honest are below, under the matrix.
 
 The export of a set is an array of records. Every record carries an `id`, a
 stable name a matrix or a failure can cite, and a `class`, the branch of the
