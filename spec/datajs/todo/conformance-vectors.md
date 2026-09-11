@@ -2126,12 +2126,12 @@ or the spec, not only into a thread.
    is still unproved rather than whether it works.**
    [`fjs/media/datajs/serializer`](../../../fjs/media/datajs/serializer/module.f.mjs)
    refuses every input above, and proves each refusal against the data a
-   host value would carry — `memberValue` against a descriptor, `elementNames`
-   against a list of own property names, `link` against a graph with a
-   forward reference — because those are values FunctionalScript can build
+   host value would carry — `_memberValue` against a descriptor,
+   `_elementNames` against a list of own property names, `_link` against a
+   graph with a forward reference — because those are values FunctionalScript can build
    where the objects carrying them are not. What no proof there can reach is
    the plumbing between them: that an object with an enumerable getter
-   reaches `memberValue` at all, and that nothing invokes the getter on the
+   reaches `_memberValue` at all, and that nothing invokes the getter on the
    way. That is what the exemption would buy, and it is the narrower claim
    to weigh against §1.6 than "the serializer cannot be proved".
 

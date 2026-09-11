@@ -134,7 +134,7 @@ graph by the only thing a cycle leaves behind in it, a reference that points
 forwards. That is what makes the refusal provable at all. A cycle is not a
 value FunctionalScript can build, so a check inside the read could never be
 reached from a proof, where a graph carrying a forward reference is ordinary
-data. The same move made `memberValue` and `elementNames` functions over a
+data. The same move made `_memberValue` and `_elementNames` functions over a
 descriptor and over a list of names, for the same reason:
 [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 keeps host-built inputs out of a
 `.f.mjs` proof, and §1.2 wants every branch covered, so a rule that only a
@@ -362,7 +362,7 @@ carry — a descriptor, a list of own property names, a graph with a forward
 reference — which is what §1 above records and what the exports of
 [`../serializer`](../serializer/module.f.mjs) are shaped for. What that
 leaves unproved is the *plumbing* between them: that an object with an
-enumerable getter reaches `memberValue` at all, and that no getter is
+enumerable getter reaches `_memberValue` at all, and that no getter is
 invoked on the way. Decision 6 is what would close it.
 
 ### Tasks
