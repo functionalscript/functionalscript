@@ -140,6 +140,32 @@ write** — falsify it once, see it fail, restore it. A form copied from
 somewhere that works is not evidence, since what decides it is what follows
 the line, not the line.
 
+**That check is the first of two, and it is the weaker one.** Falsifying the
+claim asks whether the compiler evaluates the line at all. It says nothing
+about whether the line would notice the thing it is about breaking, and an
+assertion can pass the first test and fail the second: its claim resolves, its
+claim is true, and breaking the mechanism it names leaves it green.
+`fjs/rtti/ts/types.ts`'s `_UnionKeepsBranchCorrelation` was exactly that. It
+tested a value no answer admitted, correct one or broken one, so it held either
+way while reading as the pin for `TupleTs`'s per-member split.
+
+So **where an assertion's comment credits it with a mechanism, break that
+mechanism once and see the assertion report.** One mutation of the
+implementation, `tsc`, and read which line comes back: the named one, or
+nothing, which means the assertion is about something else than its comment
+says. Either fix the assertion or fix the comment; a row whose prose claims
+more than it holds is worse than one that claims nothing, because a reader
+stops looking. The three mutations behind
+[`fjs/rtti/ts/types.ts`](./rtti/ts/types.ts)'s `_RestTuple` header are the
+worked example, and the third of them is what caught that dead witness.
+
+This is a rule for an assertion you write or touch, not a standing audit. No
+sweep over the existing ones is planned: there is no enumeration of
+"mechanisms" to work through, so it is judgement per assertion with no
+definition of done, and [`../AGENTS.md` §6](../AGENTS.md#6-external-tools)
+prefers an honest unenforced rule to machinery that cannot say when it is
+finished.
+
 Some facts have nowhere else to be checked and so *require* an assertion. A
 `const` type parameter is the standing example: dropping the modifier widens
 every call site silently and `tsc` still passes, so the assertion is the only
