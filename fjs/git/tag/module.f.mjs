@@ -54,10 +54,27 @@ export const write = writePayload
  * The type the `type` header names, or `null` when it names none of the
  * four.
  *
+ * The value is read to its first NUL and no further, because that is what
+ * Git reads: `parse_tag_buffer` copies the bytes of the line into a C
+ * string and hands it to `type_from_string_gently`, whose length is the
+ * `strlen` of it. So `type blob` followed by a NUL is the type `blob` to
+ * Git however many bytes follow the NUL, and a value beginning with one
+ * names no type at all. Measured on Git 2.43.0 with
+ * `git hash-object --literally` and `git cat-file -t <tag>^{}`.
+ *
+ * {@link validate} refuses such a tag all the same, before this is
+ * reached: `fsck` calls a NUL anywhere in a header `nulInHeader`. Reading
+ * is where the two part, as it is for the shapes
+ * [`todo/positional-headers.md`](../todo/positional-headers.md) records —
+ * a walk reads the tag it was given rather than the tag that should have
+ * been written.
+ *
  * @type {(value: Bytes) => Nullable<ObjectType>}
  */
 const typeOf = value => {
-    const text = codePointListToString(byteArray(value))
+    const bs = byteArray(value)
+    const nul = bs.indexOf(0)
+    const text = codePointListToString(nul === -1 ? bs : bs.slice(0, nul))
     return objectTypes.find(t => t === text) ?? null
 }
 
