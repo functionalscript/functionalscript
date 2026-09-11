@@ -34,9 +34,11 @@ first either way, since every candidate there needs it.
 ### Proposal
 
 `fjs/crypto/sha1/`, in the shape of `sha2`: not a bare function but a
-hash in `sha2`'s `Hash<S>` shape, a state object with `init`, `append`
-and `end`, so that `computeSync` there folds a list of `Vec`s through it;
-`end` answers the 20-byte `Vec`, over the padded blocks. The standard's
+hash in `sha2`'s `Hash<S, R>` shape — a state object with `init`,
+`append` and `end`, `S` its state and `R` what `end` answers — so that
+`computeSync` there folds a list of `Vec`s through it and answers the
+`R`; for `sha1`, `end` answers the 20-byte `Vec`, over the padded
+blocks. The standard's
 test vectors are its proof, and the checked-in Git fixtures in
 [`fjs/git/testlib.f.mjs`](../../git/testlib.f.mjs) — each carrying the id
 Git computed over `<type> SP <size> NUL <payload>` — are the proof of the
@@ -46,11 +48,12 @@ Collision detection, if the policy issue asks for it, is a second step in
 the same module, and a second export: `sha1dc` computes the same hash
 while checking each block's message expansion against the known
 disturbance vectors, and answers whether the input shows the structure of
-a known attack. It is a second state object of the same shape, whose
-`end` answers a `Result` — the id as a 20-byte `Vec`, or the refusal
-naming the block that showed the attack — so `computeSync` folds it too.
-`sha1` stays exported and its `end` stays a `Vec`, the hash and nothing
-more, since the plain function is what a
+a known attack. It is a second state object of the same shape, a
+`Hash<S, Result<Vec, Attack>>` whose `end` answers the id as a 20-byte
+`Vec` or the refusal naming the block that showed the attack, so
+`computeSync` folds it too and answers that `Result`. `sha1` stays
+exported as a `Hash<S, Vec>`, the hash and nothing more, since the plain
+function is what a
 verifier that has already decided to trust a name, and every consumer
 that only addresses, computes with; `sha1dc` is the one a verifier that
 must refuse chooses, and `oid`'s `of` takes whichever the policy issue

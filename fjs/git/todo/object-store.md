@@ -18,14 +18,20 @@ its entries, an entry to a blob.
 - `read(id)`: the loose path first, then every pack the directory holds,
   answering the `Envelope` or refusing with a channel error that names the
   id. Finding the directory is its own step, later: `objects/` lives in
-  the repository's common directory, which for a main worktree is `.git/`
-  and for a linked worktree is two hops away — its `.git` is a file whose
-  `gitdir:` line names the per-worktree directory under the main
-  repository's `worktrees/`, and the `commondir` file there names the
-  shared repository that owns `objects/`, `packed-refs` and the shared
-  refs. The parent of the `.git` file holds no objects and is never
-  searched. `objects/info/alternates` adds directories to search after
-  the repository's own, and is deferred the same way.
+  the repository's common directory, and a worktree reaches it by the
+  same rule whatever its kind. `.git` is either a directory, which is
+  the repository, or a file whose `gitdir:` line names a directory; that
+  directory is the repository unless it holds a `commondir` file, whose
+  line names the repository instead. So a main worktree made by
+  `git init` has `.git/` itself; one made with `--separate-git-dir` has a
+  `.git` file pointing straight at the repository, which has no
+  `commondir`; and a linked worktree's `.git` file points at its
+  per-worktree directory under the main repository's `worktrees/`, whose
+  `commondir` names the shared repository that owns `objects/`,
+  `packed-refs` and the shared refs. The parent of a `.git` file holds no
+  objects and is never searched. `objects/info/alternates` adds
+  directories to search after the repository's own, and is deferred the
+  same way.
 - An id given by a caller is checked against the object read, which is
   where [SHA-1](../../crypto/todo/sha1.md) and `fjs/crypto/sha2` come in:
   a store that does not hash trusts its file names. In a SHA-1 repository
@@ -39,9 +45,11 @@ its entries, an entry to a blob.
   [git-name-resolution](../../../todo/git-name-resolution.md) takes, as
   functions over `read`, with the repository's id width read once from
   `config` and threaded through: `extensions.objectFormat = sha256` means
-  32-byte ids, and the key absent — as it is in every repository `git
-  init` writes by default, which has no `[extensions]` section — means
-  SHA-1 and 20-byte ids. Any other value is refused, as Git refuses it.
+  32-byte ids, and `sha1`, or the key absent — as it is in every
+  repository `git init` writes by default, which has no `[extensions]`
+  section — means SHA-1 and 20-byte ids, since Git accepts the explicit
+  spelling and `git rev-parse --show-object-format` prints it. Any other
+  value is refused, as Git refuses it.
 - All of it over the effects, proven against the virtual filesystem with
   the checked-in fixtures laid out as a repository.
 

@@ -102,12 +102,20 @@ covers.
 
 4. **What the trusted timestamp already anchors.** An RFC 3161 request
    carries a `messageImprint` hashed with an algorithm the requester
-   chooses, SHA-256 in practice, over the commit payload `B`; so the
-   timestamp already binds the SHA-256 of the commit's bytes, headers
-   included. The weak links are the ids *inside* those bytes — the SHA-1 of
-   the tree and the parents. Is 3 therefore the right shape, since it makes
-   the SHA-1 references inside the payload carry SHA-256 twins that the
-   existing timestamp then covers for free?
+   chooses, over the commit payload `B`. The companion design,
+   [git-trusted-timestamp-signatures](./git-trusted-timestamp-signatures.md),
+   writes `H = Hash(B)` and verifies `Hash(B)` without naming the hash, so
+   whether the timestamp binds the commit's bytes with a collision-resistant
+   digest is a dependency this issue has on that one, not a fact it can
+   use: if the contract there requires SHA-256, or another digest with
+   collision resistance, the timestamp binds the commit's bytes, headers
+   included, and the weak links are only the ids *inside* those bytes —
+   the SHA-1 of the tree and the parents — which makes 3 the right shape,
+   since the SHA-256 twins it carries in the payload are then covered by
+   the existing timestamp for free. If the contract leaves the digest to
+   the requester, a request made with SHA-1 binds nothing more than the
+   name does, and 3 gains nothing. Open, then, on that side: require
+   SHA-256 in the timestamp contract.
 
 5. **Which attack, exactly, is being closed.** Under known attacks, only
    content the attacker authored can collide. Is the policy then "objects
