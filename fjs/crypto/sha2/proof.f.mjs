@@ -244,10 +244,12 @@ export const proof = {
     },
     demo: {
         /**
-         * **The digest the demo shows is this module's own.** `""` is the
-         * vector `empty` already pins above, said in the encoding a CAS names
-         * things by, so a change to either the hash or the encoding lands here
-         * rather than only on a page nobody is looking at.
+         * **The digest the demo shows is this module's own.** The empty
+         * string's is the value `checkEmpty` already pins above, written in
+         * hex — which is also what `sha256sum` prints, so the page can be
+         * checked from outside this repository. A change to the hash or to
+         * the way the demo renders it lands here rather than only on a page
+         * nobody is looking at.
          */
         digest: () => {
             // The same literal `checkEmpty` pins above, said in hex — which is
