@@ -17,13 +17,27 @@ proves itself against the specification by hand, as
 and it is why stage 1b gating stage 4 means "land it or write the proofs
 twice" rather than "do not start".
 
-Its **corpus proofs** have their sets. Stage 1b wrote three writer-side sets,
-not four — `serializer-accept`, `graph-equivalence` and `normalize`, typed in
-[`../vectors/types.ts`](../vectors/types.ts). There is no `serializer-reject`
+Its **corpus proofs** have their sets. Stage 1b's writer side is three sets,
+not four — `serializer-accept`, `graph-equivalence` and `normalize`, all three
+typed in [`../vectors/types.ts`](../vectors/types.ts); the first two are in the
+tree and `normalize` lands with the step that writes it. There is no
+`serializer-reject`
 and there are no **host recipes**: a serializer is handed a value of the data
 model and its type is the contract, so an accessor, a non-enumerable property,
 a `null` prototype and a cycle reach no serializer and the corpus describes
-none of them. That retired the issue's **decision 6** rather than answering
+none of them.
+
+**That last sentence is not yet true of this module's own signature, and the
+reconciliation is open.** `tryStringify` takes `unknown` and refuses several of
+those values at run time, so as long as it does, the corpus owes vectors for
+exactly what it admits. Either the parameter narrows to the data model and the
+refusals go, or the parameter stays and the fourth set comes back; the question
+is recorded in
+[`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md)
+under the serializer's input domain, and it is the owner's. Read the paragraph
+above as what the corpus describes today, not as a settled contract.
+
+That retired the issue's **decision 6** rather than answering
 it, and
 [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 forbids a `proof.mjs` that proves
 a `.f.mjs` API against such inputs until the exemption it proposes is
@@ -346,10 +360,11 @@ spec judges them independently, and the proof source is the corpus rather than
 the reader: proving the writer against the reader proves them against each
 other, which is the drift the corpus exists to stop.
 
-Three sets, all typed in [`../vectors/types.ts`](../vectors/types.ts) and all
-written. There is no `serializer-reject`: a serializer is handed a value of
-the data model and its type is the contract, so there is no set of inputs it
-refuses, and the corpus carries none.
+Three sets, all typed in [`../vectors/types.ts`](../vectors/types.ts). There is
+no `serializer-reject`: a serializer is handed a value of the data model and
+its type is the contract, so there is no set of inputs it refuses, and the
+corpus carries none — subject to the open reconciliation with this module's
+`unknown` parameter noted at the top of this file.
 
 | set | what the proof does |
 |---|---|
@@ -412,8 +427,10 @@ invoked on the way. Decision 6 is what would close it.
       line and the hole-versus-`undefined` distinction proved.
 - [x] Normalized form and its byte-exact proofs, the `1e20`/`1e21` and
       `1e-6`/`1e-7` thresholds included.
-- [ ] Proofs over the four writer-side sets as stage 1b lands them, and the
-      host-input half of them once that issue's decision 6 is answered.
+- [ ] Proofs over the three writer-side sets as stage 1b lands them. There is
+      no fourth and no host-input half: decision 6 was retired rather than
+      answered, and if the open `unknown` question is settled the other way it
+      comes back as a set, not as recipes.
 - [ ] `module.f.mjs`, the public API of
       [`parser-serializer.md`](./parser-serializer.md#layout), once the byte
       path lands beside it — and the `parse` versus `tryParse` naming with it.
