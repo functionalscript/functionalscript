@@ -31,7 +31,8 @@
  *
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { OidBytes } from '../types.ts'
- * @import { Entry, SubState, ValueState } from './types.ts'
+ * @import { _SubState, _ValueState } from './private.ts'
+ * @import { Entry } from './types.ts'
  */
 
 /** The value Git gives a key written without one. */
@@ -301,6 +302,39 @@ const escapes = /** @type {Readonly<Record<string, string>>} */ ({
 })
 
 /**
+ * One character of a value, read into what the reader carries. Hoisted
+ * because it closes over nothing: the whole of what it knows is the state
+ * handed to it and the character after it.
+ *
+ * @type {(acc: _ValueState, c: string) => _ValueState}
+ */
+const valueStep = (acc, c) => {
+    if (acc.bad || acc.done) { return acc }
+    if (acc.escape) {
+        const e = escapes[c]
+        return e === undefined
+            ? { ...acc, bad: true }
+            : { ...acc, value: acc.value + acc.pending + e, pending: '', escape: false }
+    }
+    if (c === '\\') { return { ...acc, escape: true } }
+    // A quote keeps the whitespace before it, as Git keeps it:
+    // `x = a ""` is the value `a ` where `x = a ` is `a`.
+    if (c === '"') { return { ...acc, value: acc.value + acc.pending, pending: '', quoted: !acc.quoted } }
+    if (!acc.quoted && (c === '#' || c === ';')) { return { ...acc, done: true } }
+    if (!acc.quoted && isSpace(c)) {
+        // Git writes whitespace as a space, one for one, and keeps the run
+        // only where something that is none follows it.
+        return acc.value === '' ? acc : { ...acc, pending: `${acc.pending} ` }
+    }
+    return { ...acc, value: acc.value + acc.pending + c, pending: '' }
+}
+
+/** What the reader of a value starts from. */
+const valueStart = /** @type {_ValueState} */ ({
+    value: '', pending: '', quoted: false, escape: false, done: false, bad: false,
+})
+
+/**
  * A value as Git reads it, or `null` where the line is one Git refuses:
  * the text after `=`, its quotes taken as quoting rather than characters,
  * its escapes read, a comment outside quotes ending it, and the
@@ -320,30 +354,7 @@ const escapes = /** @type {Readonly<Record<string, string>>} */ ({
  * @type {(rest: string) => Nullable<string>}
  */
 const tryValue = rest => {
-    const end = [...rest].reduce(
-        /** @type {(acc: ValueState, c: string) => ValueState} */
-        (acc, c) => {
-            if (acc.bad || acc.done) { return acc }
-            if (acc.escape) {
-                const e = escapes[c]
-                return e === undefined
-                    ? { ...acc, bad: true }
-                    : { ...acc, value: acc.value + acc.pending + e, pending: '', escape: false }
-            }
-            if (c === '\\') { return { ...acc, escape: true } }
-            // A quote keeps the whitespace before it, as Git keeps it:
-            // `x = a ""` is the value `a ` where `x = a ` is `a`.
-            if (c === '"') { return { ...acc, value: acc.value + acc.pending, pending: '', quoted: !acc.quoted } }
-            if (!acc.quoted && (c === '#' || c === ';')) { return { ...acc, done: true } }
-            if (!acc.quoted && isSpace(c)) {
-                // Git writes whitespace as a space, one for one, and keeps
-                // the run only where something that is none follows it.
-                return acc.value === '' ? acc : { ...acc, pending: `${acc.pending} ` }
-            }
-            return { ...acc, value: acc.value + acc.pending + c, pending: '' }
-        },
-        { value: '', pending: '', quoted: false, escape: false, done: false, bad: false },
-    )
+    const end = [...rest].reduce(valueStep, valueStart)
     if (end.bad || end.quoted || end.escape) { return null }
     const nul = end.value.indexOf('\0')
     return nul === -1 ? end.value : end.value.slice(0, nul)
@@ -362,14 +373,14 @@ const trySub = (section, rest) => {
     const open = afterSpace(rest)
     if (open[0] !== '"') { return null }
     const { sub, after } = [...open.slice(1)].reduce(
-        /** @type {(acc: SubState, c: string) => SubState} */
+        /** @type {(acc: _SubState, c: string) => _SubState} */
         (acc, c) => {
             if (acc.after !== null) { return { ...acc, after: acc.after + c } }
             if (acc.escape) { return { sub: acc.sub + c, escape: false, after: null } }
             if (c === '\\') { return { ...acc, escape: true } }
             return c === '"' ? { ...acc, after: '' } : { ...acc, sub: acc.sub + c }
         },
-        /** @type {SubState} */({ sub: '', escape: false, after: null }),
+        /** @type {_SubState} */({ sub: '', escape: false, after: null }),
     )
     return after === null || after[0] !== ']' ? null : [`${section}.${sub}`, after.slice(1)]
 }
