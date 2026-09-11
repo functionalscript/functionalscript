@@ -73,12 +73,11 @@ is two nodes. A proof compares the graph an implementation produced with
 `difference` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
 leaves by `Object.is`, so that `-0` and `0` differ and `NaN` is itself;
-an array by `Array.isArray`, the data model's boundary rather than the
-prototype chain, so an array under a `null` prototype is an array; an
-object as a plain one, under `Object.prototype` or `null`, the two a
-reader may build it with, so a `Date`, a `Map` or a boxed number with no
-members is not an empty object; objects member by member in observable
-order; and containers as a
+an array by `instanceof Array`, the spelling FunctionalScript uses; an
+object by its members and nothing else, since no implementation written in
+the subset can hand back a `Date`, a `Map` or a boxed number — there is no
+way to build one — so the comparison does not look for what cannot arrive;
+objects member by member in observable order; and containers as a
 bijection, so a node the expected graph reaches twice must be one node in
 the actual, and two nodes it keeps apart may not be merged. A duplicate key
 is a document fact and never a graph fact: the document says
@@ -155,8 +154,16 @@ the refusal arrives with the set.
   implementations.
 - **Be refusable for two reasons.** A reject vector is a whole document
   valid but for the one defect it names, placed so that a cheaper rule does
-  not refuse it first: a malformed byte sequence sits inside an otherwise
-  valid string.
+  not refuse it first.
+
+  The two byte records are the stated exception, and they are marked as
+  records rather than tests for exactly this reason. A truncated sequence
+  must be the document's last byte to be truncated, so the document has lost
+  its closing quote too, and a reader that replacement-decodes the lead byte
+  refuses it as unterminated without checking UTF-8 at all. That vector
+  cannot fail. It is kept to say that those bytes are not a DataJS document,
+  which no code-unit string can say, and it is not counted as coverage of a
+  decoder.
 - **Sample a range.** Both ends of every character class at every fixed
   position, the empty branch of every repetition, a signed twin for every
   number, a key twin for every string.
