@@ -1,15 +1,19 @@
 /**
  * @import { Unknown } from '../types.ts'
- * @import { Accept } from './types.ts'
+ * @import { Accept, Reject } from './types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { parse } from '../parser/module.f.mjs'
 import { difference } from './module.f.mjs'
 import accept from '../../../../spec/datajs/vectors/accept/data.f.mjs'
+import reject from '../../../../spec/datajs/vectors/reject/data.f.mjs'
 
 /** The reader accept set, typed at the import since a set carries no annotations. */
 const acceptSet = /** @type {readonly Accept[]} */ (accept)
+
+/** The reader reject set, typed the same way. */
+const rejectSet = /** @type {readonly Reject[]} */ (reject)
 
 /**
  * One accept vector against the reader: the document is accepted, and
@@ -24,6 +28,19 @@ const accepted = ({ id, document, graph }) => {
     assert(tag === 'ok', `${id}: refused: ${result}`)
     const d = difference(graph)(result)
     assert(d === null, `${id}: ${d}`)
+}
+
+/**
+ * One reject vector against the reader: the document is refused. What the
+ * refusal says is the reader's own; the vector names the rule broken, and
+ * a document valid but for that one defect is refused for it or not at all.
+ *
+ * @type {(vector: Reject) => void}
+ */
+const rejected = ({ id, document, rule }) => {
+    assert(typeof document === 'string', `${id}: a byte document has no reader yet`)
+    const [tag] = parse(document)
+    assert(tag === 'error', `${id}: accepted, though ${rule}`)
 }
 
 /** Two graphs that must compare equal. @type {(expected: Unknown, actual: Unknown) => void} */
@@ -153,4 +170,8 @@ export const proof = {
     // named and classed — is proved beside the set, in
     // `spec/datajs/vectors/accept/proof.f.mjs`.
     accept: () => { for (const vector of acceptSet) { accepted(vector) } },
+    // The reader reject set: the reader refuses every document. The set's
+    // shape, the host verdict among it, is proved beside the set, in
+    // `spec/datajs/vectors/reject/proof.f.mjs`.
+    reject: () => { for (const vector of rejectSet) { rejected(vector) } },
 }
