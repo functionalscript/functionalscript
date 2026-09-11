@@ -78,7 +78,7 @@ const textAt = path => mapStep(readFile(path), fromVec)
  * @type {(text: string) => string}
  */
 const named = text => {
-    const cs = [...text]
+    const cs = /** @type {readonly string[]} */ ([...text])
     return cs.slice(0, cs.findLastIndex(c => c !== '\n' && c !== '\r') + 1).join('')
 }
 
@@ -187,9 +187,11 @@ const tryGitdir = (worktree, text) => {
 
 /**
  * The common directory of the repository a worktree belongs to, or `null`
- * where what it finds names no directory. Three things are that, and the
+ * where what it finds names no directory. Four things are that, and the
  * last two are reached with `.git` a directory as readily as a file:
  *
+ * - a `.git` that is neither a directory nor a regular file — a FIFO, a
+ *   socket, a device — which Git will not open as a gitfile;
  * - a `.git` file that is no gitfile, which Git calls `invalid gitfile
  *   format` or `no path in gitfile`;
  * - a `commondir` of no bytes at all, which Git dies on, where a
@@ -208,6 +210,12 @@ export const tryCommonDir = worktree => {
     const path = `${worktree}/.git`
     return step(stat(path), s => {
         if (s.isDirectory) { return commonOf(path) }
+        // A `.git` that is neither is no gitfile and is not read. Git asks
+        // `S_ISREG` before it opens one, and the question is not idle: a
+        // FIFO stats without being either, and reading one waits for a
+        // writer that a worktree has no reason to have, so a malformed
+        // checkout would hang the caller where Git refuses it at once.
+        if (!s.isFile) { return pureOk(null) }
         return step(textAt(path), text => {
             const repo = text === null ? null : tryGitdir(worktree, text)
             return repo === null ? pureOk(null) : commonOf(repo)

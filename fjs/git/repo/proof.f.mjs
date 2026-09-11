@@ -22,7 +22,7 @@ const raw = /** @type {(bits: bigint, n: bigint) => readonly [import('../../type
     (bits, n) => [vec(bits)(n)])
 
 /** What every repository directory holds, so the shapes below read alike. */
-const repo = { config: file('[core]\n\trepositoryformatversion = 0\n'), objects: {} }
+const repo = /** @type {State['root'][string]} */ ({ config: file('[core]\n\trepositoryformatversion = 0\n'), objects: {} })
 
 /**
  * The answer, or `null` where the walk refused, over a virtual filesystem.
@@ -43,7 +43,7 @@ export const proof = {
     // `git init --separate-git-dir`: `.git` is a file naming the
     // repository, which holds no `commondir` either.
     separate: () => {
-        const root = { w: { '.git': file('gitdir: /r\n') }, r: repo }
+        const root = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: /r\n') }, r: repo })
         assertEq(at(root)('w'), '/r')
     },
     // `git worktree add`: `.git` names the worktree's own directory under
@@ -51,10 +51,10 @@ export const proof = {
     // repository that owns `objects/`. The worktree's directory holds no
     // objects and is passed through.
     linked: () => {
-        const root = {
+        const root = /** @type {State['root']} */ ({
             m: { '.git': { ...repo, worktrees: { l: { commondir: file('../..\n'), HEAD: file('ref: refs/heads/x\n') } } } },
             w: { '.git': file('gitdir: /m/.git/worktrees/l\n') },
-        }
+        })
         assertEq(at(root)('w'), '/m/.git/worktrees/l/../..')
     },
     // A `gitdir:` line is read against the directory the file sits in where
@@ -64,23 +64,23 @@ export const proof = {
     // out of what the link points at, and name a directory that need not
     // exist.
     relative: () => {
-        const root = { w: { '.git': file('gitdir: ../r\n') }, r: repo }
+        const root = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: ../r\n') }, r: repo })
         assertEq(at(root)('w'), 'w/../r')
     },
     // A `commondir` line is read against the repository directory, and an
     // absolute one replaces it.
     common: () => {
-        const abs = { w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('/m/.git\n') }, m: { '.git': repo } }
+        const abs = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('/m/.git\n') }, m: { '.git': repo } })
         assertEq(at(abs)('w'), '/m/.git')
         // A line naming nothing is the repository directory, which is the
         // path Git builds from it; a file of no bytes at all is `null`,
         // since Git dies where the read gives it nothing.
-        const none = { w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('\n') } }
+        const none = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('\n') } })
         assertEq(at(none)('w'), '/d')
-        const empty = { w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('') } }
+        const empty = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('') } })
         assertEq(at(empty)('w'), null)
         // A relative line is joined to the repository directory, unfolded.
-        const rel = { w: { '.git': file('gitdir: /m/.git/worktrees/l\n') }, m: { '.git': { ...repo, worktrees: { l: { commondir: file('../..\n') } } } } }
+        const rel = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: /m/.git/worktrees/l\n') }, m: { '.git': { ...repo, worktrees: { l: { commondir: file('../..\n') } } } } })
         assertEq(at(rel)('w'), '/m/.git/worktrees/l/../..')
     },
     // Only the line's end comes off, as Git takes only that. A file written
@@ -129,7 +129,7 @@ export const proof = {
     nul: () => {
         assertEq(at({ w: { '.git': file('gitdir: /r\0junk\n') }, r: repo })('w'), '/r')
         assertEq(at({ w: { '.git': file('gitdir: \0junk\n') } })('w'), 'w/')
-        const root = { w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('/m/.git\0junk\n') }, m: { '.git': repo } }
+        const root = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('/m/.git\0junk\n') }, m: { '.git': repo } })
         assertEq(at(root)('w'), '/m/.git')
     },
     // The line's end is a run of any length, and a file's length is
@@ -146,8 +146,23 @@ export const proof = {
     // name none here, in either file. `gitdir: \xff` is 9 bytes.
     bytes: () => {
         assertEq(at({ w: { '.git': raw(72n, 0x6769746469723a20ffn) } })('w'), null)
-        const root = { w: { '.git': file('gitdir: /d\n') }, d: { commondir: raw(8n, 0xffn) } }
+        const root = /** @type {State['root']} */ ({ w: { '.git': file('gitdir: /d\n') }, d: { commondir: raw(8n, 0xffn) } })
         assertEq(at(root)('w'), null)
+    },
+    // A `.git` that is neither a directory nor a regular file is no
+    // gitfile and is not read. Git asks `S_ISREG` before it opens one, and
+    // a FIFO is the reason: it stats as neither, and a read of one waits
+    // for a writer a worktree has no reason to have, so a checkout with one
+    // would hang a caller where Git refuses it at once. The virtual
+    // filesystem holds files and directories and nothing else, so the stat
+    // comes from a host of this proof's own, whose `readFile` fails the
+    // proof if it is ever reached.
+    special: () => {
+        const host = /** @type {MemOperationMap<ReadFile | Stat, null>} */ ({
+            stat: () => state => [state, ok({ size: 0, isFile: false, isDirectory: false })],
+            readFile: () => state => [state, error(ioError({ code: 'EBADF', message: 'read of a FIFO' }))],
+        })
+        assertStructurallySame(run(host)(null)(tryCommonDir('w'))[1], ok(null))
     },
     // A worktree with no `.git` is the channel's, as a directory with no
     // `config` is: the caller named no repository rather than a bad one.
