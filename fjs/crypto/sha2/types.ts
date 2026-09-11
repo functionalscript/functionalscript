@@ -19,14 +19,45 @@ export type V8 = FixedArray<8, bigint>
 export type V16 = FixedArray<16, bigint>
 
 /**
- * State of the SHA-2 algorithm: `hash` is the current hash value, `len` the
- * length of the data processed so far, and `remainder` the data that has not
- * yet been processed.
+ * The state of a hash built on the Merkle–Damgård framing SHA-1 and
+ * SHA-2 share, and SHA-3, a sponge, does not: `hash` is the current hash
+ * value, `len` the length of the data processed so far, and `remainder`
+ * the data that has not yet filled a block. `H` is the hash value's own
+ * shape: eight words for SHA-2, five for SHA-1.
  */
-export type State = {
-    readonly hash: V8
+export type Framed<H> = {
+    readonly hash: H
     readonly len: bigint
     readonly remainder: Vec
+}
+
+/**
+ * State of the SHA-2 algorithm: {@link Framed} over its eight words.
+ */
+export type State = Framed<V8>
+
+/**
+ * What a hash gives {@link Framing} to be framed: its block length, the
+ * width of the message length that closes the last block, the width of
+ * the digest its hash value spells, the compression of one block into
+ * the hash value, and the hash value as that digest.
+ */
+export type FramingInit<H> = {
+    readonly chunkLength: bigint
+    readonly lengthLength: bigint
+    readonly digestLength: bigint
+    readonly compress: (hash: H) => (block: bigint) => H
+    readonly digest: (hash: H) => bigint
+}
+
+/**
+ * The framing, built: `append` folds data into the state a block at a
+ * time, and `end` pads the last block and closes it with the length,
+ * answering `hashLength` bits of the digest, the high ones.
+ */
+export type Framing<H> = {
+    readonly append: Fold<Vec, Framed<H>>
+    readonly end: (hashLength: bigint) => (state: Framed<H>) => Vec
 }
 
 export type Base = {
@@ -54,7 +85,18 @@ export type Base = {
  * const h = sha224.end(state) // 0x1_619cba8e8e05826e9b8c519c0a5c68f4fb653e8a3d8aa04bb2c8cd4cn
  * ```
  */
-export type Sha2 = {
+export type Sha2 = Hash<State>
+
+/**
+ * A hash over a state of its own, answering `R` at its end: what every
+ * SHA-2 variant is, over its state and a `Vec`, and what
+ * [`fjs/crypto/sha1`](../sha1/types.ts) is over a state of five words. `R`
+ * is a `Vec` unless a hash has more to say than the digest — a detector
+ * that answers the digest or a refusal answers a `Result` — and
+ * `computeSync` takes any, answering its `R`; a consumer that only sizes
+ * buffers and folds blocks, as `hmac` does, can too.
+ */
+export type Hash<S, R = Vec> = {
     readonly hashLength: bigint
     readonly blockLength: bigint
     /**
@@ -68,7 +110,7 @@ export type Sha2 = {
      */
     readonly hashBytes: bigint
     readonly blockBytes: bigint
-    readonly init: State
-    readonly append: Fold<Vec, State>
-    readonly end: (state: State) => Vec
+    readonly init: S
+    readonly append: Fold<Vec, S>
+    readonly end: (state: S) => R
 }
