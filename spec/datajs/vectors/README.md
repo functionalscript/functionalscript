@@ -53,19 +53,23 @@ branch under it is empty.
 with correct UTF-8 and rejects everything else, so the format owes malformed
 input no taxonomy and the corpus carries no vectors for one.
 
-Two records are the exception, and they are records rather than tests: they
-say that a byte sequence is not a DataJS document, which no code-unit string
-can say. They carry their bytes as a tagged hex string,
+Three records carry bytes instead of code units, as a tagged hex string,
 `["hex", "ef bb bf …"]` — lowercase pairs separated by single spaces, at
 least one pair, which `bytes` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
-decodes, refusing any other spelling. They are a BOM as the document's first
-byte, and a truncated sequence at end of input, both in the reject set and
-classed `byte/…`. A reject vector
-names the one `rule` it breaks and what the `host` does with the same text,
-measured: a document JavaScript `accepts` is a narrowing vector, the only
-kind that catches a reader delegating to the host; a `syntaxError` or a
-`runtimeError` tests the corpus's own grammar.
+decodes, refusing any other spelling. All three are classed `byte/…`, and a
+consumer that reads the byte form reads all three. Two are in the reject set
+and are records rather than tests — a BOM as the document's first byte, and a
+truncated sequence at end of input — saying that a byte sequence is not a
+DataJS document, which no code-unit string can say. The third is in the accept
+set and is a test: `byte-valid-widths` spells one character of each UTF-8
+width, and a reader owes the string those bytes denote. Without it a byte
+path passes by refusing every byte sequence handed to it.
+
+A reject vector names the one `rule` it breaks and what the `host` does with
+the same text, measured: a document JavaScript `accepts` is a narrowing
+vector, the only kind that catches a reader delegating to the host; a
+`syntaxError` or a `runtimeError` tests the corpus's own grammar.
 
 **An expected graph** is a value of the data model, and sharing is part of
 it: `[$a, $a]` with one `const` is one node reached twice, and `[[], []]`
@@ -156,14 +160,14 @@ the refusal arrives with the set.
   valid but for the one defect it names, placed so that a cheaper rule does
   not refuse it first.
 
-  The two byte records are the stated exception, and they are marked as
-  records rather than tests for exactly this reason. A truncated sequence
+  The two byte reject records are the stated exception, and they are marked
+  as records rather than tests for exactly this reason. A truncated sequence
   must be the document's last byte to be truncated, so the document has lost
   its closing quote too, and a reader that replacement-decodes the lead byte
   refuses it as unterminated without checking UTF-8 at all. That vector
   cannot fail. It is kept to say that those bytes are not a DataJS document,
   which no code-unit string can say, and it is not counted as coverage of a
-  decoder.
+  decoder. The byte accept record is a test and does count.
 - **Sample a range.** Both ends of every character class at every fixed
   position, the empty branch of every repetition, a signed twin for every
   number, a key twin for every string.
