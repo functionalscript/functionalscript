@@ -2119,8 +2119,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       root, an element, a member and through a chain, bound to every leaf
       and container, and shared through nested paths and as two nodes at
       once; the unshared inverse, two equal nodes kept apart, from a
-      literal and from two `const`s; a name of `$` alone, `$$`, every
-      endpoint of the tail class, a hundred characters, and a tail that is
+      literal and from two `const`s; a name of `$` alone, each of the
+      eight endpoints of the tail class as a one-character tail (`$A`,
+      `$Z`, `$a`, `$z`, `$0`, `$9`, `$_`, `$$`) and all eight in one name,
+      a hundred characters, and a tail that is
       a reserved word, a value word, one of this grammar's three keywords
       or a contextual keyword, with names differing by case, length,
       prefix and a `$`; each of the four whitespace characters at the three
