@@ -304,6 +304,12 @@ the computed form — in two places, which is exactly the drift 157 exists to
 stop. It is recorded there as the count that extraction now has to answer
 for, and named from the spelling here.
 
+**Writing its own is the last of the three, not a free choice.** A third copy
+of the walker is the duplication 157 exists to remove, so taking it owes two
+things: the reason reuse was worse, measured against the seams above rather
+than asserted, and an entry in 157 naming what the copy costs, so the
+extraction that follows knows what it is buying back.
+
 #### 3. Normalized form
 
 One specific serializer, chosen so that a value has exactly one byte spelling.
@@ -335,10 +341,17 @@ written yet:
 
 | set | what the proof does |
 |---|---|
-| `serializer-accept` | serialize the input, read it back, compare with [`difference`](../vectors/module.f.mjs) against the vector's graph |
+| `serializer-accept` | serialize the input, read it back, compare with [`difference`](../vectors/module.f.mjs) against the vector's graph — **and check the document is UTF-8**, which the round trip alone does not: the reader takes UTF-16 code units and accepts a raw lone surrogate, where a document is UTF-8 and a raw surrogate has no encoding, so a writer emitting one raw would round-trip and still not have written a document |
 | `serializer-reject` | assert an `error`. The vector's `rule` is assertion context, not a message to match: the specification requires rejection and says nothing about what a refusal says, and [the reader-side proof](../vectors/proof.f.mjs) reads `rule` the same way |
 | `graph-equivalence` | **serialize the input** and compare the document's graph with the input, sharing included. Reading the canned `denotes` and `denotesNot` documents proves the reader, not the writer: a writer that inlined a shared node, or hash-consed two equal nodes into one, would pass that and fail this |
 | `normalize` | compare `tryStringify`'s output to the vector's `text`, byte for byte, since that output is normalized form |
+
+**Every writer runs the first three sets, not only its own.** Normalized form
+is a conforming serializer before it is a normalized one, so a second writer
+— the readable layout of §Layout and API, if one lands — owes
+`serializer-accept`, `serializer-reject` and `graph-equivalence` as well as
+`normalize`. A normalized path that wrote `export default {};` for a `Date`
+would otherwise ship untested.
 
 Three of those read back through [`../parser`](../parser/module.f.mjs), so the
 serializer's proofs are round trips whose comparison is `difference`, the
