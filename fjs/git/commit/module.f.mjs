@@ -115,14 +115,10 @@ export const tryTree = oidBytes => {
  * no further: a commit with no `author` or no `committer` parses, and
  * {@link validate} is where `fsck`'s rules are.
  *
- * The bytes are where the length is, and Git has a floor on it. Its parse
- * refuses a payload of `hexsz + 6` bytes or fewer before it reads the
- * `tree` header, so 47 bytes is the least a SHA-1 commit may be and 71 the
- * least a SHA-256 one may be — measured on Git 2.43.0, where the 46-byte
- * `tree <id>\n` over a real tree is `bogus commit object` and the same
- * bytes with the empty line after them give up their tree. The floor is
- * the `tree` line plus the empty line that must follow the block, so
- * nothing it refuses could have been a commit.
+ * A payload of `hexsz + 6` bytes or fewer is refused before a header is
+ * read, as Git's parse refuses one: that is the `tree` line and the empty
+ * line after the block at their shortest, so nothing under it could have
+ * been a commit.
  *
  * @type {(oidBytes: OidBytes) => (payload: Bytes) => Nullable<Oid>}
  */

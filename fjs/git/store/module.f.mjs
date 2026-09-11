@@ -24,8 +24,9 @@
  * @import { Inflate, IoChannel, ReadFile } from '../../effects/node/types.ts'
  * @import { Effect } from '../../effects/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Result } from '../../types/result/types.ts'
  * @import { Envelope } from '../object/types.ts'
- * @import { Oid, OidBytes } from '../types.ts'
+ * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  */
 
 import { assert } from '../../asserts/module.f.mjs'
@@ -82,6 +83,25 @@ export const objectIdMessage = (path, actual) => `${path} holds the object ${act
 export const oidBytes = dir => mapStep(readUtf8File(`${dir}/config`), tryOidBytes)
 
 /**
+ * What a loose read answers, checked against the id it was asked for: the
+ * object where its bytes hash to that id, `null` where they are no object,
+ * and {@link objectIdCode} where they hash to another id, with the path
+ * read and the id they have. An error from the read is passed on as it is.
+ *
+ * The id, the path and the hash come first so that the step itself closes
+ * over nothing.
+ *
+ * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, p: string, id: Oid) => (r: Result<Nullable<Envelope>, IoChannel>) => Result<Nullable<Envelope>, IoChannel>}
+ */
+const checkedAt = (idOf, p, id) => r => {
+    if (r[0] === 'error') { return r }
+    const e = r[1]
+    if (e === null) { return ok(null) }
+    const actual = idOf(e.type, e.payload)
+    return actual === id ? ok(e) : error(ioError({ code: objectIdCode, message: objectIdMessage(p, hex(actual)) }))
+}
+
+/**
  * Reads the object an id names, at the repository's width, and checks it:
  * the loose file at {@link objectPath}, inflated and past its envelope,
  * then hashed, and given back only where the hash is the id. `null` where
@@ -104,12 +124,6 @@ export const tryRead = (dir, oidBytes) => {
     return id => {
         assert(length(id) === bits, ['not an id of the width', id])
         const p = path(id)
-        return resultMapStep(readLoose(p), r => {
-            if (r[0] === 'error') { return r }
-            const e = r[1]
-            if (e === null) { return ok(null) }
-            const actual = idOf(e.type, e.payload)
-            return actual === id ? ok(e) : error(ioError({ code: objectIdCode, message: objectIdMessage(p, hex(actual)) }))
-        })
+        return resultMapStep(readLoose(p), checkedAt(idOf, p, id))
     }
 }

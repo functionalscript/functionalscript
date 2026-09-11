@@ -42,12 +42,13 @@ This is an over-refusal and only that: an object Git reads that this does
 not. It accepts nothing Git refuses, which is why it is recorded rather
 than rushed.
 
-The parents part the same way and further. Git's loop stops at the first
-line that is not `parent `, so a commit whose parent lines are interrupted
-— by a continuation, or by any other header — has, to Git, only the parents
-before the interruption, and whatever stands after them is never read as a
-parent at all. `tryTreeAt` checks every `parent` header in the list, so it
-refuses ids Git never looks at.
+The parents part the same way, and only the same way. An ordinary header
+between two `parent` lines is no mismatch: `parentValues` finds the first
+header that is not `parent` and slices the run before it, which is where
+Git's loop stops too. A continuation is the one line the two disagree
+about, because it does not arrive as a header at all — it has already been
+folded into the `parent` value above it, so the run does not end where Git
+ends it and `tryTreeAt` checks an id Git never looks at.
 
 ### Proposal
 
@@ -69,10 +70,12 @@ three headers by position and this matches it already, and a continuation
 after `object` or `type` makes the value no id and no type, which is a
 refusal both agree on.
 
-Either way the proof wants the shapes this cannot express today: a
-continuation after `tree`, a continuation between two `parent` lines, and
-a header between two `parent` lines, each checked against
-`git cat-file -t <id>^{}` on a repository the proof builds.
+Either way the proof wants the two shapes this cannot express today: a
+continuation after `tree`, and a continuation between two `parent` lines,
+each checked against `git cat-file -t <id>^{}` on a repository the proof
+builds. A header between two `parent` lines is not one of them — that
+already agrees, and a proof asking for it would invite someone to change
+behaviour that is right.
 
 ### Related
 

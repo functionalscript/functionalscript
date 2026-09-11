@@ -89,7 +89,7 @@ export const tryRead = input => {
     if (r[0] === 'error') { return null }
     const [[hs, tail]] = r[1]
     const [rest] = tail
-    return { headers: hs.map(headerOf), message: rest === undefined ? [] : symbolsOf(rest[1]) }
+    return { headers: hs.map(headerOf), message: rest === undefined ? null : symbolsOf(rest[1]) }
 }
 
 /**
@@ -177,13 +177,18 @@ const headerBytes = ([k, v]) => {
 }
 
 /**
- * A payload's bytes: every header as it was read, the empty line, and the
- * message. The inverse of {@link tryRead}, byte for byte.
+ * A payload's bytes: every header as it was read, then the empty line and
+ * the message, or nothing where the message is `null`. The inverse of
+ * {@link tryRead}, byte for byte, which is why the `null` is carried: an
+ * object that ended at its last header's LF is written back ending there,
+ * and one with an empty line and an empty message keeps both.
  *
  * @throws On a key the format cannot spell, and on a key, a value or a
  * message holding a number that is no byte; see {@link headerBytes}.
  *
  * @type {(p: Payload) => Bytes}
  */
-export const write = ({ headers, message }) =>
-    flat([flat(headers.map(headerBytes)), [lf], checked(message)])
+export const write = ({ headers, message }) => flat([
+    flat(headers.map(headerBytes)),
+    message === null ? [] : flat([[lf], checked(message)]),
+])

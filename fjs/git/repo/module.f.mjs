@@ -220,9 +220,9 @@ const tryGitdir = (worktree, size, text) => {
 
 /**
  * The common directory of the repository a worktree belongs to, or `null`
- * where the path it is given, or what it finds, names no directory. Five
- * things are that, and the last two are reached with `.git` a directory as
- * readily as a file:
+ * where the worktree is one this cannot read or what it holds is malformed.
+ * Five things are that, and the last two are reached with `.git` a
+ * directory as readily as a file:
  *
  * - a worktree that is a bare drive, `C:`, which names the current
  *   directory on drive C to Windows and a directory called `C:` to POSIX.
@@ -242,6 +242,16 @@ const tryGitdir = (worktree, size, text) => {
  * A worktree with no `.git` at all is the channel's, as a directory with no
  * `config` is: both say the caller named no repository rather than that one
  * is malformed.
+ *
+ * `null` is not an existence check, and the three answers are not three
+ * verdicts on whether a repository is there. This reads two files and
+ * spells a path out of them, so the answer is the path Git would look at.
+ * A directory that is not there is the channel's where it is the worktree's
+ * own `.git`, since the read of it fails, and is simply the path where it
+ * is what a `gitdir:` line named, since the `commondir` under it is absent
+ * exactly as it is absent under a main repository. Whether a repository is
+ * at the answer is what reading `config` there says, and that is
+ * `fjs/git/store`'s `oidBytes`.
  *
  * @type {(worktree: string) => Effect<ReadFile | Stat, Nullable<string>, IoChannel>}
  */

@@ -222,15 +222,10 @@ export const tryTarget = oidBytes => {
  * what it says that object is, or `null` where Git would not parse the
  * bytes as a tag at all.
  *
- * The bytes are where the length is, and Git has a floor on it. Its parse
- * refuses a payload shorter than the hexadecimal id plus 24 before it looks
- * at a single header, so a SHA-1 tag under 64 bytes and a SHA-256 tag under
- * 88 are refused whatever they hold — measured on Git 2.43.0, where a
- * 63-byte tag over a valid target is `Not a valid object name` and the same
- * tag one byte longer peels. The floor is what `object <id>\n` and
- * `type <t>\n` and `tag \n` cost at their shortest, so nothing it refuses
- * could have held the three headers; refusing on the length is Git's way of
- * saying so once.
+ * A payload shorter than the hexadecimal id plus 24 is refused before a
+ * header is read, as Git's parse refuses one: that is what `object <id>`,
+ * `type <t>` and `tag ` cost at their shortest, so nothing under it could
+ * have held the three headers.
  *
  * @type {(oidBytes: OidBytes) => (payload: Bytes) => Nullable<TagTarget>}
  */

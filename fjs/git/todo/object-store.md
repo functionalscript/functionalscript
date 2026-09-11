@@ -19,21 +19,15 @@ directories `alternates` adds to the search.
 
 - `read(id)`: the loose path first, then every pack the directory holds,
   answering the `Envelope` or refusing with a channel error that names the
-  id. Finding the directory is its own step, later: `objects/` lives in
-  the repository's common directory, and a worktree reaches it by the
-  same rule whatever its kind. `.git` is either a directory, which is
-  the repository, or a file whose `gitdir:` line names a directory; that
-  directory is the repository unless it holds a `commondir` file, whose
-  line names the repository instead. So a main worktree made by
-  `git init` has `.git/` itself; one made with `--separate-git-dir` has a
-  `.git` file pointing straight at the repository, which has no
-  `commondir`; and a linked worktree's `.git` file points at its
-  per-worktree directory under the main repository's `worktrees/`, whose
-  `commondir` names the shared repository that owns `objects/`,
-  `packed-refs` and the shared refs. The parent of a `.git` file holds no
-  objects and is never searched. `objects/info/alternates` adds
-  directories to search after the repository's own, and is deferred the
-  same way.
+  id. Finding the directory was its own step and is done:
+  [`fjs/git/repo`](../repo/module.f.mjs)'s `tryCommonDir` takes a worktree
+  of any kind to the common directory `objects/` lives in, by the one rule
+  Git uses — `.git` is the repository or a file whose `gitdir:` line names
+  one, and that directory is the repository unless its `commondir` names
+  another. So `read` can be pointed at a checkout rather than at a
+  directory the caller had to know. `objects/info/alternates` adds
+  directories to search after the repository's own, and is the step that
+  remains.
 - An id given by a caller is checked against the object read, which is
   where [SHA-1](../../crypto/todo/sha1.md) and `fjs/crypto/sha2` come in:
   a store that does not hash trusts its file names. In a SHA-1 repository
