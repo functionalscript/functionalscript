@@ -1820,11 +1820,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a hole, `delete` and a `length` assignment are mutation, and `concat`,
       `slice` and `map` propagate a hole without originating one, so no
       reader can return a sparse array. What the round leaves behind is a
-      finding wider than this corpus: **fifteen `.f.mjs` files use
-      `new Array(`**, `fjs/media/datajs/serializer/proof.f.mjs` among them,
-      and `fjs/types/object/structurally_same/README.md` already says in so
-      many words that the construct is not in the language. That is a sweep
-      for its own issue, not for this one.
+      finding wider than this corpus: **twenty-eight uses of `new Array(`
+      across nine `.f.mjs` files**, one of them in a shipped module, where
+      `fjs/types/object/structurally_same/README.md` already says in so many
+      words that the construct is not in the language. That sweep has its own
+      issue,
+      [new-array-out-of-subset](../../../todo/new-array-out-of-subset.md),
+      whose last task waits on this file's open question about the
+      serializer's `unknown` parameter.
       Gone, and staying gone: `outsideTheModel`,
       the `_Mark` and `_Member` types, the reflection imported for them, the
       proof's `plain` and `model` groups and the `outside` escape hatch that
