@@ -3,6 +3,7 @@
  */
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
+import { bytes } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
 import reject from './data.f.mjs'
 
 /** The set, typed at the import since a data module carries no annotations. */
@@ -35,12 +36,13 @@ export const proof = {
         const ids = set.map(vector => named(vector, 'id'))
         assertEq(new Set(ids).size, ids.length)
     },
-    // Every vector carries its document as a string, since this set is the
-    // code-unit form, and the host's measured verdict as one of the three.
+    // Every vector carries its document as a string or as bytes in the one
+    // hex spelling, and the host's measured verdict as one of the three.
     records: () => {
         for (const vector of set) {
             const id = named(vector, 'id')
-            assert(typeof vector.document === 'string', `${id}: the document is not a string`)
+            const { document } = vector
+            assert(typeof document === 'string' || (document[0] === 'hex' && bytes(document[1]) !== null), `${id}: the document is neither a string nor bytes in the one hex spelling`)
             assert(hosts.includes(vector.host), `${id}: the host verdict is not one of the three`)
         }
     },

@@ -1,9 +1,11 @@
 /**
  * @import { Unknown } from '../types.ts'
- * @import { Accept, Reject } from './types.ts'
+ * @import { Accept, Document, Reject } from './types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { fromVec } from '../../../text/utf8/module.f.mjs'
+import { msb, u8ListToVec } from '../../../types/bit_vec/module.f.mjs'
 import { parse } from '../parser/module.f.mjs'
 import { bytes, difference } from './module.f.mjs'
 import accept from '../../../../spec/datajs/vectors/accept/data.f.mjs'
@@ -16,19 +18,39 @@ const acceptSet = /** @type {readonly Accept[]} */ (accept)
 const rejectSet = /** @type {readonly Reject[]} */ (reject)
 
 /**
+ * The text a document carries: the string itself, or its bytes decoded as
+ * UTF-8, `null` where they are not UTF-8. The reader has no byte path yet,
+ * so the corpus decodes with `fjs/text/utf8` and reads the units; a BOM as
+ * the first byte reaches the reader as U+FEFF, which it refuses as
+ * whitespace, and the document rule's own refusal is asserted once stage
+ * 4's byte-accepting parser lands and reruns the set through it.
+ *
+ * @type {(id: string, document: Document) => string | null}
+ */
+const text = (id, document) => {
+    if (typeof document === 'string') { return document }
+    const b = bytes(document[1])
+    assert(b !== null, `${id}: the hex spelling is not the one the schema admits`)
+    return fromVec(u8ListToVec(msb)(b))
+}
+
+/**
  * One accept vector against the reader: the document is accepted, and
  * what it yields is the graph the vector expects, sharing included.
  *
  * @type {(vector: Accept) => void}
  */
 const accepted = ({ id, document, graph }) => {
-    // the byte form waits on the reader's byte path
-    assert(typeof document === 'string', `${id}: a byte document has no reader yet`)
-    const [tag, result] = parse(document)
+    const t = text(id, document)
+    assert(t !== null, `${id}: not UTF-8`)
+    const [tag, result] = parse(t)
     assert(tag === 'ok', `${id}: refused: ${result}`)
     const d = difference(graph)(result)
     assert(d === null, `${id}: ${d}`)
 }
+
+/** The one rule a byte document breaks before any reader sees it, as the set spells it. */
+const utf8Rule = 'document: a document is UTF-8'
 
 /**
  * One reject vector against the reader: the document is refused. What the
@@ -38,8 +60,15 @@ const accepted = ({ id, document, graph }) => {
  * @type {(vector: Reject) => void}
  */
 const rejected = ({ id, document, rule }) => {
-    assert(typeof document === 'string', `${id}: a byte document has no reader yet`)
-    const [tag] = parse(document)
+    const t = text(id, document)
+    // Which layer refuses it is the rule's, not a free choice: the UTF-8
+    // rule is the decoder's, and those bytes decode to nothing; every other
+    // rule is the reader's, on the text the bytes or the units spell. A
+    // vector that swapped them would be refused all the same and test the
+    // other layer, so the proof pins the layer before the refusal.
+    assert((t === null) === (rule === utf8Rule), `${id}: ${t === null ? 'the decoder refused it, though' : 'it decodes, though'} ${rule}`)
+    if (t === null) { return }
+    const [tag] = parse(t)
     assert(tag === 'error', `${id}: accepted, though ${rule}`)
 }
 

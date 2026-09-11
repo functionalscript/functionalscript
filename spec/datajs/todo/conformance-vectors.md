@@ -2166,17 +2166,30 @@ The steps, in order; a step is one pull request unless it says otherwise:
       with the verdict among the three, is proved beside the set. The
       document rule's own vector, U+FEFF as the first *byte*, waits for
       the byte form; in code units it is a whitespace vector here.
-- [ ] **The byte form.** The accept table by lead partition with the
-      continuation positions varied, the reject table with both ends of
-      every error class, the non-continuation matrix, and the BOM as the
-      first byte, each malformed sequence inside an otherwise valid string.
-      Every set lands with a proof that reads it, since a module without one
-      is not landed: this one's checks each record against the schema and
-      the ids for uniqueness, decodes each accept vector's bytes with
-      `fjs/text/utf8` and reads the units, and asserts each reject vector's
-      bytes are refused by the decoder or the reader; the byte path's own
-      rule, the BOM as the first byte, is asserted when stage 4's
-      `tryParseBytes` lands, which reruns the set through it.
+- [x] **The byte form.** Landed in the two reader sets rather than sets of
+      its own, since a byte document is a `Document` like any other: 29
+      accept records and 61 reject records, classed `byte/…`, each
+      `["hex", "…"]`. The accept side is the table by lead partition, both
+      ends of all eight parts, the six vectors that vary the continuation
+      positions independently, the one-byte range in both contexts — U+0020
+      and U+007F in a string, tab, LF and CR between tokens — the BOM inside
+      a string, and the four widths in one string. The reject side is both
+      ends of every error class in the table, the two overlong sequences
+      that land back in range, the whole non-continuation matrix by lead
+      partition with an ASCII and a valid-lead intruder in every cell, and
+      the BOM as the first byte. Every malformed sequence sits inside an
+      otherwise valid string, and each was paired in the generator with the
+      valid sequence it corrupts, which the reader accepts, so none is
+      refusable twice. The proofs: each set's own checks the record against
+      the schema, a hex document among it, and the ids for uniqueness; the
+      reader's decodes each accept vector's bytes with `fjs/text/utf8` and
+      reads the units, and pins **which layer** refuses each reject vector —
+      the UTF-8 rule is the decoder's and those bytes decode to nothing,
+      every other rule is the reader's on the text they spell, so a vector
+      that swapped them goes red rather than passing on the other layer.
+      The byte path's own rule, the BOM as the first byte, is refused here
+      as U+FEFF is refused between tokens, and is asserted as the BOM rule
+      when stage 4's `tryParseBytes` lands and reruns the set through it.
 - [ ] **Serializer accept and graph equivalence.** Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the host variations on both container kinds, the
