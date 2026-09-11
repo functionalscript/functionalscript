@@ -1856,9 +1856,30 @@ The steps, in order; a step is one pull request unless it says otherwise:
       normalize columns stand today. 667 classes, the reader role
       answering every one. Prose could not do this job, which four
       consecutive review rounds showed.
-- [ ] **The JavaScript whole-set check**, per decision 5. The
-      FunctionalScript one is stage 6's, once stage 5 has taught the front
-      end `;` and the special numbers.
+- [x] **The JavaScript whole-set check.** Landed as
+      [`accept/proof.mjs`](../vectors/accept/proof.mjs), taking decision 5's
+      proposal: a host proof under the existing `node --test`, so it runs on
+      every CI runtime rather than only where `gen` does. Every accept
+      document is imported as a `data:text/javascript` module and the value
+      it exports compared with `difference`, so sharing counts — an engine
+      graph that inlined a shared node denotes something else and is caught.
+      It is host code because it has to be: a proof in the subset cannot
+      call dynamic `import`, which is why it sits beside `proof.f.mjs`
+      rather than in it, and it is not §1.6's back door, since what it
+      proves is a property of the corpus's data rather than a
+      FunctionalScript API.
+      **Eight of the 341 cannot be carried to an engine at all**, and they
+      are named rather than skipped. A document holding an unpaired
+      surrogate has no UTF-8 encoding, so no `data:` URL and no file can
+      hold it; encoding it anyway substitutes U+FFFD and quietly checks a
+      different document. The eight are the raw lone surrogates and their
+      key twins, listed by id, so a ninth appearing is a failure rather than
+      a silent fall in the count. The corpus can hold them at all only
+      because it is JavaScript, where the data module writes the escape and
+      the string denotes the unit.
+      333 checked, every one denoting the graph its vector asserts. The
+      FunctionalScript half of the law is stage 6's, once stage 5 has taught
+      the front end `;` and the special numbers.
 - [ ] **The serializer's input domain in the spec.** §What may be serialized
       names an accessor, a non-enumerable property, a symbol key, an array's
       extra own property, a cycle and a `Date` as inputs a serializer must
