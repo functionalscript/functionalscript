@@ -2135,13 +2135,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       unique; and, run locally, every document imports as an ES module
       denoting the same graph, the whole-set check decision 5 would keep.
 - [x] **Reader reject, code-unit form.** Landed as
-      [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 313 vectors
+      [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 339 vectors
       derived from the spec's six narrowing sources — strings, numbers,
       identifiers, whitespace, the document rule, and every production of
       the grammar — each naming the one rule it breaks and carrying the
       host's verdict, measured by importing the document as an ES module
       in Node while the set was generated: 198 the host accepts, the
-      narrowing vectors, 103 syntax errors and 12 runtime errors, the
+      narrowing vectors, 130 syntax errors and 11 runtime errors, the
       grammar-only ones; the required-separator vectors split the way the
       section above measured them. Every one was checked for a second
       ground of refusal by pairing it, in the generator, with the same
