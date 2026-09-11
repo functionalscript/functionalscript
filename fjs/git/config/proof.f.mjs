@@ -65,12 +65,31 @@ export const proof = {
         // the comment.
         assertStructurallySame(tryEntries('a = 1 # x ; y\nb = 2 ; x # y'), [['', 'a', '1'], ['', 'b', '2']])
     },
-    // A bad config line refuses the file whole: a `[` without its `]`, a
-    // `=` with no key before it, and either after good lines.
+    // A bad config line refuses the file whole, as Git refuses one: a `[`
+    // without its `]`, a `=` with no name before it, a name holding what no
+    // name may hold, a name that does not begin with a letter, a section
+    // name the same, and any of them after good lines.
     bad: () => {
         assertEq(tryEntries('[extensions'), null)
         assertEq(tryEntries('= 1'), null)
+        assertEq(tryEntries('bad key = yes'), null)
+        assertEq(tryEntries('a.b = 1'), null)
+        assertEq(tryEntries('1st = 1'), null)
+        assertEq(tryEntries('-x = 1'), null)
+        assertEq(tryEntries('[a b]\n\tx = 1'), null)
+        assertEq(tryEntries('[]\n\tx = 1'), null)
         assertEq(tryEntries('[core]\n\tbare = false\n[extensions\n\tobjectformat = sha256'), null)
+        // A name of letters, digits and `-`, and a subsection of anything:
+        // both read.
+        assertStructurallySame(tryEntries('[branch "feature/x y"]\n\tmerge-base-2 = 1'), [['branch.feature/x y', 'merge-base-2', '1']])
+    },
+    // An extension Git does not know refuses the repository under version 1,
+    // as Git refuses it; under version 0 it is ignored, as Git ignores it.
+    extensions: () => {
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tfrobnicate = yes'), null)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256\n\tfrobnicate = yes'), null)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tworktreeconfig = true'), 20)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 0\n[extensions]\n\tfrobnicate = yes'), 20)
     },
     // The width: absent is SHA-1, `sha256` under version 1 is SHA-256, and
     // what Git refuses is refused — a value in the wrong case, a value this

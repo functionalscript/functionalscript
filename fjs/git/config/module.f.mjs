@@ -22,6 +22,57 @@
 /** The value Git gives a key written without one. */
 const bare = /** @type {const} */ ('true')
 
+/** @type {(c: string) => boolean} */
+const isAlpha = c => (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+
+/** @type {(c: string) => boolean} */
+const isDigit = c => c >= '0' && c <= '9'
+
+/**
+ * Whether a variable's name is one Git's parser reads: a letter, then
+ * letters, digits and `-`. A name with anything else in it — a space, as
+ * in `bad key = yes`, a dot, a quote — ends the name where Git's parser
+ * expects whitespace or `=`, and Git says `bad config line`.
+ *
+ * @type {(name: string) => boolean}
+ */
+const isName = name =>
+    name.length !== 0
+    && isAlpha(name[0])
+    && [...name].every(c => isAlpha(c) || isDigit(c) || c === '-')
+
+/**
+ * Whether a section's name is one Git's parser reads: letters, digits,
+ * `-` and `.`, at least one. The subsection in quotes after it is any
+ * text and is not this check's.
+ *
+ * @type {(name: string) => boolean}
+ */
+const isSection = name =>
+    name.length !== 0
+    && [...name].every(c => isAlpha(c) || isDigit(c) || c === '-' || c === '.')
+
+/**
+ * The extensions Git 2.43 knows. Under `repositoryformatversion = 1` Git
+ * refuses a repository whose `[extensions]` holds any other key —
+ * `unknown repository extension found` — since an extension changes how
+ * the repository is read and a reader that ignored one would read it
+ * wrongly; {@link tryOidBytes} refuses it for the same reason, and a
+ * newer Git knowing more of them is what keeps this list a version's.
+ * Under version 0 an unknown key is ignored, as Git ignores it.
+ *
+ * @type {readonly string[]}
+ */
+const knownExtensions = [
+    'noop',
+    'noop-v1',
+    'preciousobjects',
+    'partialclone',
+    'worktreeconfig',
+    'objectformat',
+    'compatobjectformat',
+]
+
 /**
  * Where a comment begins in a line, or the line's length where none does:
  * `#` or `;`, whichever comes first.
@@ -64,13 +115,17 @@ export const tryEntries = text => {
             const line = raw.slice(0, commentAt(raw)).trim()
             if (line === '') { return [section, list] }
             if (line[0] === '[') {
-                return line[line.length - 1] === ']' ? [sectionName(line.slice(1, -1)), list] : [section, null]
+                if (line[line.length - 1] !== ']') { return [section, null] }
+                const inside = line.slice(1, -1)
+                const quote = inside.indexOf('"')
+                const name = (quote === -1 ? inside : inside.slice(0, quote)).trim()
+                return isSection(name) ? [sectionName(inside), list] : [section, null]
             }
             const eq = line.indexOf('=')
-            const key = (eq === -1 ? line : line.slice(0, eq)).trim().toLowerCase()
-            if (key === '') { return [section, null] }
+            const key = (eq === -1 ? line : line.slice(0, eq)).trim()
+            if (!isName(key)) { return [section, null] }
             const value = eq === -1 ? bare : line.slice(eq + 1).trim()
-            return [section, [...list, [section, key, value]]]
+            return [section, [...list, [section, key.toLowerCase(), value]]]
         },
         /** @type {readonly [string, Nullable<readonly Entry[]>]} */ (['', []]),
     )
@@ -97,8 +152,10 @@ const last = (entries, section, key) => {
  * case-sensitive, as Git reads it: `SHA256` is refused. The key at all
  * needs `core.repositoryformatversion = 1`, since Git refuses the
  * extension under version 0 — `repo version is 0, but v1-only extension
- * found` — and a version other than 0 or 1 is refused whatever else the
- * file says, as is a file with a bad line.
+ * found` — and under version 1 every key in `[extensions]` must be one
+ * Git knows, since it refuses `unknown repository extension found`. A
+ * version other than 0 or 1 is refused whatever else the file says, as is
+ * a file with a bad line.
  *
  * @type {(text: string) => Nullable<OidBytes>}
  */
@@ -107,6 +164,7 @@ export const tryOidBytes = text => {
     if (entries === null) { return null }
     const version = last(entries, 'core', 'repositoryformatversion') ?? '0'
     if (version !== '0' && version !== '1') { return null }
+    if (version === '1' && !entries.every(([section, key]) => section !== 'extensions' || knownExtensions.includes(key))) { return null }
     const format = last(entries, 'extensions', 'objectformat')
     if (format === null) { return 20 }
     if (version !== '1') { return null }
