@@ -8,7 +8,7 @@ import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { name, object, tagger, type, write as writeTag } from '../tag/module.f.mjs'
-import { commitPayload, latin1, mergePayload, tagPayload } from '../testlib.f.mjs'
+import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.mjs'
 import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, validate, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Commit} */
@@ -101,6 +101,20 @@ export const proof = {
         assert(t !== undefined)
         assertStructurallySame(toArray(writeTag(t)), tagPayload)
         assertEq(tagPayload.length, 432)
+    },
+    // A root commit Git wrote under SHA-256: its tree a 32-byte id, vouched
+    // for at that width and refused at the other, written back byte for byte.
+    sha256Git: () => {
+        const c = read(sha256Commit)
+        assertEq(hex(tree(c)), '2f1e8b790adef60b1b58a9fe37ff415972da0e5abd333e171a4f999484eb42b0')
+        assertStructurallySame(parents(c), [])
+        const by = author(c)
+        assertStructurallySame([text(toArray(by.name)), text(toArray(by.email)), by.time, by.tz], ['Proof', 'proof@example.com', 1700000300n, '+0100'])
+        assertStructurallySame(committer(c), by)
+        assertEq(text(toArray(c.message)), 'sha256\n')
+        assertStructurallySame(validate(32)(c), ['ok', c])
+        assertStructurallySame(validate20(c), ['error', 'not a tree id'])
+        assertStructurallySame(toArray(write(c)), sha256Commit)
     },
     // A root commit has no parent; `author` and `committer` sit right after
     // the tree. An `encoding` is read by key.

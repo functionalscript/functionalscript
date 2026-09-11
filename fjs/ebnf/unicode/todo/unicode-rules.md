@@ -92,7 +92,7 @@ Everything here is additive in `fjs/ebnf/`.
       as one terminal, the universe's boundaries, a complement's.
 - [x] Add `fjs/ebnf/byte/module.f.mjs` for binary byte-stream rule helpers —
       shipped as [`../../byte`](../../byte/README.md), for
-      [git-objects](../../../../todo/git-objects.md), with proofs of the
+      [`fjs/git`](../../../git/README.md), with proofs of the
       alphabet's boundaries and every rule form over bytes.
 - [ ] Have `fjs/ebnf/token_symbol` take `unicodeRange` from `fjs/ebnf/unicode`
       when it lands, so no `ebnf/` module reads text constants from a front
