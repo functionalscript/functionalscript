@@ -220,8 +220,9 @@ export const proof = {
                 ? error(ioError({ code: 'EACCES', message: 'permission denied' }))
                 : ok(utf8('gitdir: /d\n'))],
         })
-        const denied = run(host)(null)(tryCommonDir('w'))[1]
-        assert(denied[0] === 'error')
-        assertStructurallySame(denied[1], ['ioError', { code: 'EACCES', message: 'permission denied' }])
+        const [, denied] = run(host)(null)(tryCommonDir('w'))
+        const [tag, e] = denied
+        assert(tag === 'error', denied)
+        assertStructurallySame(e, ['ioError', { code: 'EACCES', message: 'permission denied' }])
     },
 }
