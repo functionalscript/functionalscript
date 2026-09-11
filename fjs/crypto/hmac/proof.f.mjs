@@ -45,12 +45,17 @@ export const proof = {
         const r = hmac(sha256)(key)(utf8('Test Using Larger Than Block-Size Key - Hash Key First'))
         assertEq(uint(r), 0x60e431591ee0b67f0d8a26aacbf5b77f8e0bc6213728c5140546040f0ee37f54n)
     },
-    // The two shapes HMAC has no answer for, refused where the hash is
-    // given rather than where a message arrives: a block that is no whole
-    // number of bytes, which the padding is a byte repeated to, and a
-    // digest longer than the block, which a long key is replaced by and
-    // then padded to. No hash here is either shape, so both are hand-made.
+    // The shapes HMAC has no answer for, refused where the hash is given
+    // rather than where a message arrives: a block of no bits and a block
+    // of fewer than none, which no message is cut into and whose byte
+    // count `repeat` would shift towards a zero it never reaches; a block
+    // that is no whole number of bytes, which the padding is a byte
+    // repeated to; and a digest longer than the block, which a long key is
+    // replaced by and then padded to. No hash here is any of them, so each
+    // is hand-made.
     throw: {
+        emptyBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 0n, blockBytes: 0n, hashLength: 0n })),
+        negativeBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: -8n, blockBytes: -1n, hashLength: -8n })),
         oddBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 9n, blockBytes: 2n })),
         wideDigest: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, hashLength: 1024n, hashBytes: 128n })),
     },
