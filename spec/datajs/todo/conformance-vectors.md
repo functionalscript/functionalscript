@@ -1812,16 +1812,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       implementation under test, so trust is not what retires a check —
       unreachability is, since a FunctionalScript reader cannot spell those
       however broken it is.
-      **The hole is the exception, and the first sweep got it wrong.** A
-      sparse array *literal* is outside the subset, which is not the same as
-      a sparse array: `[7].concat(new Array(1))` builds one without
-      mutation, `fjs/rtti/parse` has proofs that do, and the writer that
-      landed on `main` refuses `new Array(1)` by name. So `[undefined]` and
-      a one-element sparse array are graphs a reader can tell apart and the
-      corpus must too; the check is back, and reading elements by index
-      would have made the two compare equal. Generalising one construct's
-      absence to a whole class is the shape this file records a dozen times,
-      committed once more by the commit that was removing its instances.
+      **The hole took two passes and is on that list too.** Review argued it
+      was reachable, since `[7].concat(new Array(1))` builds a sparse array
+      without mutation and `fjs/rtti/parse` has proofs that do; the branch
+      was restored on that argument and then removed again, because
+      `new Array(n)` is not FunctionalScript. An array literal cannot spell
+      a hole, `delete` and a `length` assignment are mutation, and `concat`,
+      `slice` and `map` propagate a hole without originating one, so no
+      reader can return a sparse array. What the round leaves behind is a
+      finding wider than this corpus: **fifteen `.f.mjs` files use
+      `new Array(`**, `fjs/media/datajs/serializer/proof.f.mjs` among them,
+      and `fjs/types/object/structurally_same/README.md` already says in so
+      many words that the construct is not in the language. That is a sweep
+      for its own issue, not for this one.
       Gone, and staying gone: `outsideTheModel`,
       the `_Mark` and `_Member` types, the reflection imported for them, the
       proof's `plain` and `model` groups and the `outside` escape hatch that

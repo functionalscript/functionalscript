@@ -21,12 +21,11 @@
  * conditions nothing in the language can spell, and checking for them read as
  * rigour while being dead code.
  *
- * **A hole is the exception, and it is the one the sweep got wrong.** A
- * sparse array *literal* is outside the subset, which is not the same as a
- * sparse array: `[7].concat(new Array(1))` builds one without mutation, and
- * `fjs/rtti/parse` has proofs that do. So `[undefined]` and a one-element
- * sparse array are different graphs a reader can return, only one is in the
- * model, and a plain indexed read would answer `undefined` for both.
+ * A hole is on that list too, and it took two passes. An array literal cannot
+ * spell one, `new Array(n)` is not FunctionalScript, and `delete` and a
+ * `length` assignment are mutation; `concat`, `slice` and `map` propagate a
+ * hole but cannot originate one. So no reader can return a sparse array, and
+ * elements are read by index.
  *
  * The walk is over an explicit stack, so a graph nested as deep as a vector
  * allows costs no call stack.
@@ -41,7 +40,7 @@
  * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
-const { is, keys, hasOwn } = Object
+const { is, keys } = Object
 
 /** The value of a lowercase hex digit, or `-1` for any other code unit. @type {(unit: number) => number} */
 const hexDigit = unit =>
@@ -137,16 +136,9 @@ const children = (stack, path, expected, actual) => {
         if (expected.length !== actual.length) {
             return at(path, `expected ${expected.length} elements, got ${actual.length}`)
         }
-        // an expected graph has no holes, so one in the actual is a
-        // difference of its own — `[undefined]` is not `new Array(1)` — and
-        // it is reported where the walk reaches it, after the elements before
         let result = stack
         for (let i = expected.length - 1; i >= 0; i -= 1) {
-            const elementPath = `${path}[${i}]`
-            result = {
-                top: hasOwn(actual, i) ? [elementPath, expected[i], actual[i]] : [elementPath, expected[i], undefined, true],
-                rest: result,
-            }
+            result = { top: [`${path}[${i}]`, expected[i], actual[i]], rest: result }
         }
         return result
     }
@@ -172,15 +164,13 @@ const children = (stack, path, expected, actual) => {
 }
 
 /**
- * One comparison: a hole in the actual, a difference whatever is expected;
- * a leaf by `Object.is`; a container by the bijection so far, and, when it
- * is new, by its children.
+ * One comparison: a leaf by `Object.is`; a container by the bijection so
+ * far, and, when it is new, by its children.
  *
  * @type {(state: _State, task: _Task) => _State | string}
  */
 const compare = ([stack, pairs], task) => {
-    const [path, expected, actual, hole] = task
-    if (hole === true) { return at(path, `expected ${show(expected)}, got a hole`) }
+    const [path, expected, actual] = task
     if (typeof expected !== 'object' || expected === null) {
         return is(expected, actual) ? [stack, pairs] : at(path, `expected ${show(expected)}, got ${show(actual)}`)
     }
