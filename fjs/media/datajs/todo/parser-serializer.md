@@ -22,10 +22,13 @@ is the two files together.
 
 ### Problem
 
-`fjs/media/datajs` holds a reader and no writer. It is stage 4 of
+`fjs/media/datajs` is stage 4 of
 [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md)
 and the deliverable EDAG is waiting for: a reader and a writer for the format
-[`spec/datajs/README.md`](../../../../spec/datajs/README.md) specifies.
+[`spec/datajs/README.md`](../../../../spec/datajs/README.md) specifies. Both
+exist now — the reader over the grammar, the writer in
+[`serializer.md`](./serializer.md) — and what this file carries is what the
+reader still owes.
 
 The spec is finished and normative. **This issue implements it and does not
 redesign it.** Where the two disagree the spec wins, and a disagreement is a bug
@@ -55,14 +58,14 @@ fjs/media/datajs/
     module.f.mjs      the public API below
     proof.f.mjs
     parser/           module.f.mjs, proof.f.mjs, types.ts — landed; `parse`, over text
-    serializer/       module.f.mjs, proof.f.mjs — [`serializer.md`](./serializer.md)
+    serializer/       module.f.mjs, proof.f.mjs, types.ts — landed; `trySerialize`, `tryStringify` — [`serializer.md`](./serializer.md)
 ```
 
 There is no `tokenizer/`: the reader is the grammar (§3).
 
 **Every entry point is fallible, and the names say so.** A caller may
 legitimately hand a reader invalid text or a serializer a value outside the
-data model, so all of them are `try*` returning `Result` — the writer's three
+data model, so all of them are `try*` returning `Result` — the writer's two
 are specified in [`serializer.md`](./serializer.md):
 
 ```ts
@@ -70,8 +73,12 @@ export const tryParseBytes: (bytes: List<U8>) => Result<Unknown, string>
 export const tryParse:      (text: string)    => Result<Unknown, string>
 export const trySerialize:  (value: unknown)  => Result<List<string>, string>
 export const tryStringify:  (value: unknown)  => Result<string, string>
-export const tryNormalize:  (value: unknown)  => Result<string, string>
 ```
+
+There is no `tryNormalize` beside them: the writer that landed **is** the
+normalized one, so the name waits for a second writer to tell apart from —
+[`serializer.md`](./serializer.md#layout-and-api) is where that is decided
+and why.
 
 **The byte path is not a convenience, it is a conformance obligation.** Two
 document rules cannot be reached from a code-unit array at all — a document has
@@ -98,10 +105,11 @@ bytes because "a decoder satisfies the parser on [it] by stripping `EF BB BF`
 before the parser ever runs", so an implementation that strips passes every
 code-unit vector while accepting a document the spec refuses.
 
-Why the writer's three are shaped that way — chunks and their `concat`, a
-separate entry point for normalized form, `unknown` in and no `sort` seam,
-because observable key order is part of the value and not a caller's to choose —
-is [`serializer.md`](./serializer.md#layout-and-api).
+Why the writer's two are shaped that way — chunks and their `concat`,
+`unknown` in, and no `sort` seam, because observable key order is part of the
+value and not a caller's to choose — is
+[`serializer.md`](./serializer.md#layout-and-api), which also says why
+normalized form is not a third.
 
 #### 1. Value domain, and the one type-level trap
 
