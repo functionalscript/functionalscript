@@ -45,13 +45,17 @@ export const stylesheet = `:root { color-scheme: light dark; --bg: white; --text
 @media (prefers-color-scheme: dark) {
     :root { --bg: #121212; --text: #f1f1f1; --pass: #81c995; --fail: #f28b82 }
 }
-body { background-color: var(--bg); color: var(--text); font: 16px system-ui; margin: 3rem auto; max-width: 48rem; padding: 0 1rem }
+body { background-color: var(--bg); color: var(--text); font: 16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin: 3rem auto; max-width: 48rem; padding: 0 1rem }
 [data-state="passed"] [data-test-summary] { color: var(--pass) }
 [data-state="failed"] [data-test-summary], [data-state="infrastructure-error"] [data-test-summary] { color: var(--fail) }
 [data-test-results] { color: var(--text) }
 [data-status="passed"]::marker { color: var(--pass) }
 [data-status="failed"] { color: var(--fail) }
-pre { white-space: pre-wrap }
+/* A browser's own rule for pre names a monospace family, and naming one is
+   what triggers the legacy shrink to 13.33px. Inheriting takes the page's
+   face and size instead, so a test name and the path above it are set in one
+   font rather than two that nearly match. */
+pre { font: inherit; white-space: pre-wrap }
 /* Every section of a page is a disclosure, so a reader can fold away what
    they are not reading — the platform's own collapsible, and no script on a
    site that is static files. Its summary is the section's heading, and is

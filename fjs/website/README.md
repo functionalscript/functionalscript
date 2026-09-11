@@ -75,6 +75,28 @@ is built from the repository path and never from where the page sits. The
 exception is a page's own proof sources, which are relative *by design*: that
 is what makes their names the ones `fjs t` uses.
 
+## One face, the whole site
+
+Everything is set in a monospace stack, `ui-monospace` first so each platform
+supplies its own UI monospace face rather than a terminal default. Nearly every
+word on this site is an identifier — a file name, a directory, a module path, a
+breadcrumb, a test name — and the report was already monospace because a test
+name is a path. Setting one face is what stops the site being two.
+
+`pre` is given `font: inherit` rather than left to the browser. A browser's own
+rule names a monospace family, and naming one is what triggers the legacy
+shrink to 13.33px, so a report would otherwise be set in a nearly-matching face
+at a nearly-matching size.
+
+The `48rem` measure is kept. In a monospace face at 16px it holds about eighty
+characters, which is the width this repository's source is written to.
+
+**Prose is not exempt, and there is no prose yet.** Rendering `README.md` files
+is still on [`todo/`](./todo/generate-website.md), and a long paragraph is
+slower to read in a monospace face than a proportional one. Whoever builds that
+will see it on their own page and can decide then whether rendered prose keeps
+a face of its own; deciding it now, for pages that do not exist, is guessing.
+
 ## Discovery is part of the program
 
 Which modules a browser can link is decided by reading their source, and
