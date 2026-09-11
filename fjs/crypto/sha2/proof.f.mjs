@@ -1,4 +1,5 @@
 /**
+ * @import { DemoEvent } from '../../website/demo/types.ts'
  * @import { Hash, Sha2 } from './types.ts'
  * @import { Vec } from '../../types/bit_vec/types.ts'
  */
@@ -6,9 +7,14 @@
 import { utf8 } from '../../text/module.f.mjs'
 import { maxLength, msb, repeat, u8ListToVec, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
-import { assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
 import { base32, base64, computeSync, sha224, sha256, sha384, sha512, sha512x224, sha512x256 } from './module.f.mjs'
+import { demo, digest } from './demo.f.mjs'
+import { vecToCBase32 } from '../../basen/cbase32/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
+import { unwrap } from '../../types/result/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
 
 /**
  * Every SHA-2 length is a whole number of bytes, so the rounded-up byte count
@@ -236,5 +242,48 @@ export const proof = {
         const h = sha256.end(state)
         const x = 0xbe87f6dbe42cdf682276fbecab3636fbfcaa008cf454d635dd77872b50d940aan
         assertEq(uint(h), x, h)
+    },
+    demo: {
+        /**
+         * **The digest the demo shows is this module's own.** `""` is the
+         * vector `empty` already pins above, said in the encoding a CAS names
+         * things by, so a change to either the hash or the encoding lands here
+         * rather than only on a page nobody is looking at.
+         */
+        digest: () => {
+            assertEq(uint(computeSync(sha256)([utf8('')])), uint(sha256.end(sha256.init)))
+            assertEq(digest(''), vecToCBase32(computeSync(sha256)([utf8('')])))
+            assertEq(digest('hello'), vecToCBase32(computeSync(sha256)([utf8('hello')])))
+        },
+        // Typing replaces the text; every other event leaves it alone, which
+        // is what `start` is for — a first render with nothing typed yet.
+        update: () => {
+            /**
+             * **`runPure` and not a call.** An effect is a `Pure` thunk or a
+             * `Do` node, and only the first is callable; `[r]` says this demo
+             * reached a value without asking for an operation, which is what
+             * `O = never` claims.
+             *
+             * @type {(event: DemoEvent) => (state: string) => string}
+             */
+            const step = event => state => unwrap(assertNotNullish(
+                runPure(demo.update(state)(event))[0],
+                'expected the demo to reach a value without asking for an operation'))
+            assertEq(step({ kind: 'input', name: 'text', value: 'hello' })(''), 'hello')
+            assertEq(step({ kind: 'start' })('kept'), 'kept')
+        },
+        /**
+         * **The field carries a `name`, and that is the contract.** It is what
+         * comes back as the event's `name`, so a demo tells its fields apart
+         * without ever holding a DOM node.
+         */
+        view: () => {
+            const empty = htmlToString(demo.view(demo.init))
+            assert(empty.includes('name="text"'), empty)
+            assert(empty.includes(digest('')), empty)
+            const typed = htmlToString(demo.view('hello'))
+            assert(typed.includes('value="hello"'), typed)
+            assert(typed.includes(digest('hello')), typed)
+        },
     },
 }

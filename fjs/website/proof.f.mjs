@@ -369,6 +369,73 @@ export const proof = {
             assert(!page.includes('<script'), page)
         },
     },
+    demos: {
+        /**
+         * **A demo is found by its export, not its filename**, so it may live
+         * in `demo.f.mjs` or beside the implementation, exactly as a proof may.
+         */
+        foundByExport: () => {
+            const { root } = generate({
+                a: { 'demo.f.mjs': file('export const demo = {}') },
+                b: { 'module.f.mjs': file('export const x = 1\nexport const demo = {}') },
+            })
+            assert(pageAt(root, ['a']).includes('data-demo="/a/demo.f.mjs"'), pageAt(root, ['a']))
+            assert(pageAt(root, ['b']).includes('data-demo="/b/module.f.mjs"'), pageAt(root, ['b']))
+        },
+        // A directory with no demo module has no demo section, like every
+        // other empty section.
+        omittedWithoutOne: () => {
+            const { root } = generate({ a: { 'module.f.mjs': file('export const x = 1') } })
+            const page = pageAt(root, ['a'])
+            assert(!page.includes('<summary>Demo</summary>'), page)
+            assert(!page.includes('data-demo'), page)
+        },
+        /**
+         * **Two demos in one directory is refused, not resolved.** A page has
+         * one demo section, and a precedence rule would decide silently which
+         * of them a reader is looking at.
+         */
+        twoIsRefused: () => {
+            const { root, output } = generate({
+                a: {
+                    'demo.f.mjs': file('export const demo = {}'),
+                    'module.f.mjs': file('export const demo = {}'),
+                },
+            })
+            assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
+            assert(output.includes('skipped the demo in a: more than one module exports one'), output)
+        },
+        /**
+         * **A demo a browser cannot link is no demo.** The page loads it the
+         * way it loads a proof, so the same analysis applies — and unlike a
+         * proof it has nowhere on the page to be listed with its blocker, so
+         * it is dropped and said out loud.
+         */
+        oneThatCannotLinkIsDropped: () => {
+            const { root, output } = generate({
+                a: { 'demo.f.mjs': file("import 'node:fs'\nexport const demo = {}") },
+            })
+            assert(!pageAt(root, ['a']).includes('data-demo'), pageAt(root, ['a']))
+            assert(output.includes('skipped a/demo.f.mjs: a demo must link in a browser (node:fs)'), output)
+        },
+        /**
+         * **A demo at the repository root belongs to the root page.** Its
+         * path has no directory in it, which is the one case where a module's
+         * own directory has to be named rather than sliced off.
+         */
+        oneAtTheRoot: () => {
+            const { root } = generate({ 'demo.f.mjs': file('export const demo = {}') })
+            assert(pageAt(root, []).includes('data-demo="/demo.f.mjs"'), pageAt(root, []))
+        },
+        // The path is root-relative and whole, because the runtime that imports
+        // it is one module at a fixed depth and resolves nothing itself.
+        pathIsRootRelative: () => {
+            const { root } = generate({ a: { b: { 'demo.f.mjs': file('export const demo = {}') } } })
+            const page = pageAt(root, ['a', 'b'])
+            assert(page.includes('data-demo="/a/b/demo.f.mjs"'), page)
+            assert(page.includes("import { startDemo } from '/fjs/website/demo-runtime.mjs'"), page)
+        },
+    },
     run: () => {
         /** @type {Dir} */
         const root = { '.github': { workflows: {} }, fjs: { website: { 'browser.mjs': file('export const proof = {}') } } }

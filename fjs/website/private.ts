@@ -63,3 +63,14 @@ export type _Walked = {
  * @internal
  */
 export type _Tree = OrderedMap<_Walked>
+
+/**
+ * Each directory's demo module, by directory path, as the page loads it.
+ *
+ * A recorded `null` is a directory whose demo was refused — two modules
+ * exported one — and it is recorded rather than absent so a later one cannot
+ * quietly win.
+ *
+ * @internal
+ */
+export type _Demos = OrderedMap<string | null>
