@@ -703,7 +703,7 @@ own.
 ### What this still needs
 
 Renamed from "What unblocks this", because measurement showed most of it is not
-blocked. The first two items can be started today.
+blocked. The first item can be started today, and the second is done.
 
 - [ ] Compose EOF, or check the end offset against the input length. `json`
       alone is a **prefix** rule: `parser(json)` accepts `[1]x`. A document is
