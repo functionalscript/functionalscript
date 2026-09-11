@@ -130,6 +130,26 @@ export const proof = {
         assertEq(value('a\vb'), 'a\vb')
         assertEq(value('a\fb'), 'a\fb')
     },
+    // A value ends at its first NUL, because Git builds it and hands it on
+    // as a C string. The NUL is no whitespace, so it commits the run
+    // before it, and the cut then leaves that run at the end where a
+    // line's end would have dropped it. In a name a NUL is no key
+    // character at all, so it is a bad config line.
+    nul: () => {
+        assertEq(value('a\0b'), 'a')
+        assertEq(value('a   \0b'), 'a   ')
+        assertEq(value('\0b'), '')
+        assertEq(value('"a \0b"'), 'a ')
+        assertEq(value('a\0b   '), 'a')
+        assertEq(tryEntries('[c]\n\tx\0'), null)
+        assertEq(tryEntries('[c]\n\tx\0y = 1'), null)
+        assertEq(tryEntries('[c\0d]\n\tx = 1'), null)
+        assertEq(tryEntries('\0[c]\n\tx = 1'), null)
+        // A format the NUL cuts short is the format before it, which is
+        // the one Git reads.
+        assertEq(tryOidBytes(extension(1, 'objectFormat', 'sha256\0junk')), 32)
+        assertEq(tryOidBytes(extension(1, 'objectFormat', 'sha256 \0junk')), null)
+    },
     // A value as Git's own parser reads it, a character at a time.
     values: () => {
         // Quotes quote: a comment mark inside them is a character of the

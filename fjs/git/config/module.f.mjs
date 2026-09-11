@@ -309,6 +309,14 @@ const escapes = /** @type {Readonly<Record<string, string>>} */ ({
  * between two of its characters — is written as spaces, one for one, as
  * Git writes it.
  *
+ * Then it ends at its first NUL, and only then, because Git builds the
+ * value and hands it on as a C string. So `x = a\0b` is `a`, and
+ * `x = a   \0b` is `a   ` — the NUL is no whitespace, so it commits the
+ * run before it, and the cut leaves that run at the end where a line's
+ * end would have dropped it. A NUL in a name is not this: it is no key
+ * character, so it is a bad config line, which the name reader already
+ * says.
+ *
  * @type {(rest: string) => Nullable<string>}
  */
 const tryValue = rest => {
@@ -336,7 +344,9 @@ const tryValue = rest => {
         },
         { value: '', pending: '', quoted: false, escape: false, done: false, bad: false },
     )
-    return end.bad || end.quoted || end.escape ? null : end.value
+    if (end.bad || end.quoted || end.escape) { return null }
+    const nul = end.value.indexOf('\0')
+    return nul === -1 ? end.value : end.value.slice(0, nul)
 }
 
 /**
