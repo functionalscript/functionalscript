@@ -1122,7 +1122,10 @@ The five parts:
   at all, and refusing it requires recognizing a function. `symbol` needs no
   such care: it has none to begin with.
 - **serializer accept** — programmatic inputs a serializer must **not** refuse,
-  each with the **graph its output must denote**. Not the exact document:
+  each with the **graph its output must denote**, which is the input itself
+  rather than a second member: a serializer-side input is an ordinary value of
+  the data model, so the two would hold one value and drift. Not the exact
+  document:
   whitespace, layout, const names and the hoisting of singly-reached values are
   free choices ([`README.md`](../README.md)), so pinning bytes here would fail
   conforming serializers. Exact bytes are the `normalize` set's business alone.
