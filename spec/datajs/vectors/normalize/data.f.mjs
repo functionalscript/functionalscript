@@ -27,7 +27,6 @@ const $n25 = {};
 const $n26 = {};
 const $n27 = {};
 const $n28 = {};
-const $s0 = [0];
 const $s1 = [1, 2];
 export default [
     {"id": "norm-string-escape-quote", "class": "string/escape/quote", "input": "\"", "text": "export default \"\\\"\";"},

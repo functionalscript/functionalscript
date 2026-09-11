@@ -1427,11 +1427,16 @@ The five parts:
   in any document that runs at all, and no vector has to pin it. Pin a graph whose consts reach
   **`$10`** — eleven distinct shared containers, `root=[a,a,b,b,…,k,k]` with
   each of the eleven an empty **object**, since a shared empty *array* is
-  unspellable: measured, `const $e = [];` in a data module is `TS7034`, an
-  evolving `any[]`, and every read of it `TS7005`, which is the rule the
-  corpus README already states. Sharing needs a binding, so an empty array
-  can be a root or an inline descendant and never a shared node. Its exact
-  output is
+  unspellable **in a data module**: measured, `const $e = [];` there is
+  `TS7034`, an evolving `any[]`, and every read of it `TS7005`, which is the
+  rule the corpus README already states. Sharing needs a binding, so the
+  carrier can put an empty array at a root or inline and never at both ends
+  of a reference. The *value* is ordinary, and the boundary is real — a
+  normalizer that hoists it wrongly is wrong about a graph a caller can
+  build — so it is pinned in the set's own proof, which may carry an
+  annotation where a data module may not. Review caught this being written
+  down as a property of the value rather than of the carrier. The eleven
+  objects' exact output is
   `const $0=[];const $1=[];const $2=[];const $3=[];const $4=[];const $5=[];const $6=[];const $7=[];const $8=[];const $9=[];const $10=[];export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10];`
   — because `$0`, `$1`, … is a *counter*, and every vector above stops at
   `$1`. A normalizer deriving the name from a single digit passes all of them

@@ -6,6 +6,7 @@
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
 import { difference } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
 import { parse } from '../../../../fjs/media/datajs/parser/module.f.mjs'
+import { tryStringify } from '../../../../fjs/media/datajs/serializer/module.f.mjs'
 import normalize from './data.f.mjs'
 
 /** The set, typed at the import since a data module carries no annotations. */
@@ -93,5 +94,32 @@ export const proof = {
             if (want === null) { continue }
             assertEq(vector.text, want, named(vector, 'id'))
         }
+    },
+    // And the claim itself, against the normalizer that exists: every input
+    // stringifies to exactly the text the vector pins. The issue expected
+    // this to wait for stage 4; stage 4 has landed, so the set is a test of
+    // the shipped writer rather than a record waiting for one.
+    shipped: () => {
+        for (const vector of set) {
+            const id = named(vector, 'id')
+            const [tag, out] = tryStringify(vector.input)
+            assert(tag === 'ok', `${id}: the writer refused the input: ${String(out)}`)
+            assertEq(out, vector.text, id)
+        }
+    },
+    // The one input this carrier cannot spell. A shared node needs a `const`
+    // to be shared by, and `const $e = [];` in a data module is an evolving
+    // `any[]` that `tsc` refuses every read of — so the corpus can put an
+    // empty array at a root or inline, and never at both ends of a
+    // reference. The value is ordinary all the same, and the boundary is
+    // real: a normalizer that hoists it wrongly, or names it out of
+    // post-order, is wrong about a graph a caller can build. A proof may
+    // carry an annotation where a data module may not, so it is pinned here.
+    sharedEmptyArray: () => {
+        const child = /** @type {readonly unknown[]} */ ([])
+        const parent = [child]
+        const [tag, out] = tryStringify([parent, parent, child])
+        assert(tag === 'ok', `the writer refused a shared empty array: ${String(out)}`)
+        assertEq(out, 'const $0=[];const $1=[$0];export default [$1,$1,$0];')
     },
 }
