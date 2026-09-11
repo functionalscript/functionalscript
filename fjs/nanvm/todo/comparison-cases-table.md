@@ -9,9 +9,7 @@
 `lessThanCases` (`:620`), `lessOrEqualCases` (`:691`), `greaterThanCases`
 (`:766`), `greaterOrEqualCases` (`:833`). The `args` sequences are
 byte-identical across all four; only the mechanical name infix and the
-`expected` booleans differ. Even the explanatory comments are copies — the
-"the one binary case that escapes: `functionValue` has no expression" note
-appears in all four groups.
+`expected` booleans differ.
 
 The four relations are pinned to each other by real invariants no code
 states (`>` is reversed `<`; `<=`/`>=` differ from `<`/`>` only at equality

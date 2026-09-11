@@ -347,6 +347,7 @@ arity by membership alone.
 |-------|-----|--|----|-----|
 |`+` `-`|1|`+a`, `-a`|no|unary plus and negation — the arithmetic tags below at one operand (see above); unary `+` is not FunctionalScript syntax ([operators](../spec/todo/2340-operators.md)), and [property-accessor](../spec/todo/2330-property-accessor.md)'s run-time-index coercion is `"Number"`, not an operator|
 |`!` `~`|1|`!a`, `~a`|no|unary only|
+|`typeof`|1|`typeof a`|no|the type tag of a value, a fresh string; an EDAG operation that is not FunctionalScript syntax ([operators](../spec/todo/2340-operators.md))|
 |`+` `-` `*` `/` `%` `**`|2|`a + b`|no|arithmetic|
 |`===` `!==` `<` `<=` `>` `>=`|2|`a === b`|no|`==` and `!=` are not allowed by [operators](../spec/todo/2340-operators.md)|
 |`&` `\|` `^` `<<` `>>` `>>>`|2|`a & b`|no|bitwise|
