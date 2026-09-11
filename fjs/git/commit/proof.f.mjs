@@ -9,7 +9,7 @@ import { toArray } from '../../types/list/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { name, object, tagger, type, write as writeTag } from '../tag/module.f.mjs'
 import { commitPayload, latin1, mergePayload, sha256Commit, tagPayload } from '../testlib.f.mjs'
-import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, validate, write } from './module.f.mjs'
+import { author, committer, encoding, gpgsig, mergetags, parents, tree, tryRead, tryTree, validate, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Commit} */
 const read = input => {
@@ -146,6 +146,19 @@ export const proof = {
         const last = commit([...lines.slice(0, 2), '', ''])
         assertEq(parents(last).length, 1)
         assertEq(hex(parents(last)[0]), parentId)
+    },
+    // The tree id without the panic, at the repository's width: the id, or
+    // `null` where the first header is not `tree`, its value is no hex id,
+    // or the id is of the other width. For a caller that has not vouched
+    // for the commit, so it refuses where `tree` would panic.
+    tryTree: () => {
+        const c = commit(lines)
+        const id = tryTree(20)(c)
+        assert(id !== null)
+        assertEq(hex(id), treeId)
+        assertEq(tryTree(32)(c), null)
+        assertEq(tryTree(20)(replaced(0, 'tree zz')), null)
+        assertEq(tryTree(20)(without(0)), null)
     },
     // Each refusal, one per rule, on a commit the reader reads.
     validate: () => {

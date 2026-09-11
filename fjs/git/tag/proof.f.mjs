@@ -7,7 +7,7 @@ import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1, tagPayload } from '../testlib.f.mjs'
-import { name, object, tagger, tryRead, type, validate, write } from './module.f.mjs'
+import { name, object, tagger, tryObject, tryRead, type, validate, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Tag} */
 const read = input => {
@@ -81,6 +81,20 @@ export const proof = {
         const capital = replaced(0, `object ${id.toUpperCase()}`)
         assertStructurallySame(validate20(capital), ['ok', capital])
         assertEq(text(toArray(toHex(object(capital)))), id)
+    },
+    // The id the tag names without the panic, at the repository's width:
+    // the id, or `null` where the first header is not `object`, its value
+    // is no hex id, or the id is of the other width. For a caller peeling
+    // a tag it has not vouched for, so it refuses where `object` would
+    // panic.
+    tryObject: () => {
+        const t = tag(lines)
+        const o = tryObject(20)(t)
+        assert(o !== null)
+        assertEq(text(toArray(toHex(o))), id)
+        assertEq(tryObject(32)(t), null)
+        assertEq(tryObject(20)(replaced(0, 'object zz')), null)
+        assertEq(tryObject(20)(replaced(0, 'type commit')), null)
     },
     // Each refusal, one per rule, on a tag the reader reads.
     validate: () => {
