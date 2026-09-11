@@ -150,6 +150,23 @@ this sub-task actually has to answer. Three of them — key, pre-recursion,
 entry enumeration — are already parameters of `buildSerialize` or forced by it,
 so the shared walker would carry most of DJS's shape either way.
 
+**There are three walkers now, and the key seam has two implementations.**
+[`fjs/media/datajs/serializer`](../../media/datajs/serializer/module.f.mjs)
+wrote its own rather than reuse `buildSerialize`, which takes the key and
+ref seams as parameters but hardcodes the other two: its leaf spelling is a
+`switch` in the function body, where DataJS writes `NaN` and the infinities
+as words rather than JSON's `null`, and its entry enumeration is `entries`,
+where DataJS reads own property descriptors so that an accessor is never
+invoked and a member holding `undefined` is kept. Widening another module's
+function by two parameters — and moving `_KeySerialize` out of its
+`private.ts` to keep the signature publishable — was more than that pull
+request was about.
+
+What it left behind is the thing this issue is for: `jsKeySerialize` here
+and `keySerialize` there are the same rule, `__proto__` written as the
+computed form `["__proto__"]`, written twice. That is the drift risk, and
+it is the concrete cost the extraction below now buys back.
+
 ### 3. Tokenizer minus-rewriter
 
 > Stale: the old state-machine `fjs/djs/tokenizer` this item describes was
@@ -172,7 +189,12 @@ line numbers changed. Any extraction here must first re-measure the current code
 - [x] Collapse the two DJS serializer variants through an optional ref hook —
       landed as `buildSerialize` in `fjs/djs/serializer/module.f.mjs`.
 - [ ] Extract the serializer walker independently, shared between JSON's
-      `serialize` and DJS's `buildSerialize`, where useful.
+      `serialize`, DJS's `buildSerialize` and DataJS's walk — three consumers
+      now, and the leaf and entry-enumeration seams have to be parameters for
+      the third.
+- [ ] Whether the walker is extracted or not, give the `__proto__` key
+      spelling one home: `jsKeySerialize` here and `keySerialize` in
+      `fjs/media/datajs/serializer` are the same rule written twice.
 - [ ] Re-measure the current tokenizer minus-folding duplication before extracting
       it; do not implement the stale line-number design blindly.
 - [ ] Preserve current behavior/proof coverage for both JSON and DJS.

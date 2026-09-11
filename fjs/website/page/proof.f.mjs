@@ -2,11 +2,11 @@
  * @import { Dir } from './types.ts'
  */
 
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
-import { page, pageHref, report, sections } from './module.f.mjs'
+import { page, pageHref, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(dir)]))
@@ -15,7 +15,7 @@ const sectionsHtml = dir => concat(element(['body', ...sections(dir)]))
 const pageHtml = dir => utf8ToString(page(dir))
 
 /** @type {Dir} */
-const empty = { path: '.', files: [], dirs: [], todo: [] }
+const empty = { path: '.', files: [], dirs: [], todo: [], proofs: [] }
 
 export const proof = {
     pageHref: {
@@ -70,13 +70,101 @@ export const proof = {
             '<body><details data-section=""><summary>Issues</summary>'
             + '<ul><li><a href="/todo/a.md">a.md</a></li></ul></details></body>'),
     },
-    report: {
-        // Unchanged from the page that had only one report: the section around
-        // it folds, what is inside it does not differ.
-        isTheListTheRunnerAppendsTo: () =>
-            assertEq(
-                concat(element(['body', report])),
-                '<body><pre><ol data-test-results=""></ol></pre></body>'),
+    subtree: {
+        /**
+         * **The name is page-relative**, so a proof is called what `fjs t`
+         * calls it when run from the page's own directory.
+         */
+        rebasesToThePage: () => assertStructurallySame(
+            subtree('fjs/types/list')([{ name: 'fjs/types/list/proof.f.mjs', blockers: [] }]),
+            [{ name: './proof.f.mjs', blockers: [] }]),
+        // At the root the prefix is empty, so a name keeps its whole path.
+        rootKeepsThePath: () => assertStructurallySame(
+            subtree('.')([{ name: 'fjs/a/proof.f.mjs', blockers: [] }]),
+            [{ name: './fjs/a/proof.f.mjs', blockers: [] }]),
+        // The whole subtree, not the directory's own proof alone.
+        takesTheWholeSubtree: () => assertStructurallySame(
+            subtree('fjs')([
+                { name: 'fjs/proof.f.mjs', blockers: [] },
+                { name: 'fjs/a/b/proof.f.mjs', blockers: [] },
+            ]),
+            [
+                { name: './proof.f.mjs', blockers: [] },
+                { name: './a/b/proof.f.mjs', blockers: [] },
+            ]),
+        /**
+         * **The test is on the separator.** Without it `fjs/types` would
+         * claim `fjs/types_old/`, a different directory whose page exists in
+         * its own right.
+         */
+        aLongerNameIsNotASubtree: () => assertStructurallySame(
+            subtree('fjs/types')([{ name: 'fjs/types_old/proof.f.mjs', blockers: [] }]),
+            []),
+        // A blocker travels with the proof it belongs to.
+        keepsBlockers: () => assertStructurallySame(
+            subtree('a')([{ name: 'a/proof.f.mjs', blockers: ['node:fs'] }]),
+            [{ name: './proof.f.mjs', blockers: ['node:fs'] }]),
+    },
+    testSection: {
+        // A directory that proves nothing gets no section: a `Run` button
+        // over nothing is a control that lies about what it will do.
+        omittedWithoutProofs: () =>
+            assertStructurallySame(testSection(empty)([]), []),
+        // The control, the report and the list the run reports against.
+        namesItsProofsAndBindsRun: () => {
+            const html = concat(element(['body', ...testSection(
+                { ...empty, proofs: [{ name: './proof.f.mjs', blockers: [] }] })([])]))
+            assert(html.includes('<summary>Emergent Testing</summary>'), html)
+            assert(html.includes('<li>./proof.f.mjs</li>'), html)
+            assert(html.includes('data-test-run'), html)
+            assert(html.includes('<ol data-test-results="">'), html)
+            assert(html.includes("'./proof.f.mjs',"), html)
+        },
+        /**
+         * **A proof a browser cannot link is named with its blocker**, and
+         * kept out of the sources: an empty list would leave "nothing here"
+         * and "nothing that runs here" indistinguishable. Its neighbour still
+         * runs, so the control is still there.
+         */
+        namesWhatCannotRun: () => {
+            const html = concat(element(['body', ...testSection({ ...empty, proofs: [
+                { name: './a.f.mjs', blockers: ['node:fs'] },
+                { name: './b.f.mjs', blockers: [] },
+            ] })([])]))
+            assert(html.includes('./a.f.mjs — not linkable in a browser: node:fs'), html)
+            assert(!html.includes("'./a.f.mjs',"), html)
+            assert(html.includes("'./b.f.mjs',"), html)
+            assert(html.includes('data-test-run'), html)
+        },
+        /**
+         * **No control where nothing can run.** A subtree whose proofs are all
+         * blocked keeps its section and its reasons and loses the button: a
+         * run over an empty source list loads nothing, finds no failures, and
+         * is reported `passed` — a green verdict for a subtree where nothing
+         * ran at all.
+         */
+        noRunWhereNothingLinks: () => {
+            const html = concat(element(['body', ...testSection(
+                { ...empty, proofs: [{ name: './a.f.mjs', blockers: ['node:fs'] }] })([])]))
+            assert(html.includes('<summary>Emergent Testing</summary>'), html)
+            assert(html.includes('./a.f.mjs — not linkable in a browser: node:fs'), html)
+            assert(!html.includes('data-test-run'), html)
+            assert(!html.includes('data-test-results'), html)
+            assert(!html.includes('<script'), html)
+        },
+        // Nothing starts on load; the runner is bound to the button.
+        startsOnlyOnRun: () => {
+            const html = concat(element(['body', ...testSection(
+                { ...empty, proofs: [{ name: './proof.f.mjs', blockers: [] }] })([])]))
+            assert(html.includes("addEventListener(\n    'click',"), html)
+            assert(!html.includes('startBrowserTestSources(root, sources)\n'), html)
+        },
+        // The root page hands in the prose that introduces the suite.
+        carriesAnIntro: () => {
+            const html = concat(element(['body', ...testSection(
+                { ...empty, proofs: [{ name: './p.f.mjs', blockers: [] }] })([['p', 'why']])]))
+            assert(html.includes('<p>why</p>'), html)
+        },
     },
     page: {
         /**

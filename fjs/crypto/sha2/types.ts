@@ -93,8 +93,14 @@ export type Sha2 = Hash<State>
  * [`fjs/crypto/sha1`](../sha1/types.ts) is over a state of five words. `R`
  * is a `Vec` unless a hash has more to say than the digest — a detector
  * that answers the digest or a refusal answers a `Result` — and
- * `computeSync` takes any, answering its `R`; a consumer that only sizes
- * buffers and folds blocks, as `hmac` does, can too.
+ * `computeSync` takes any, answering its `R`.
+ *
+ * A consumer that only sizes buffers and folds blocks takes any hash whose
+ * `R` is a `Vec`, whatever its state: [`fjs/crypto/hmac`](../hmac/module.f.mjs)
+ * is one, so `hmac(sha1)` is HMAC-SHA1 and `hmac(sha256)` is HMAC-SHA256,
+ * the RFC 2202 and RFC 4231 vectors for both in its proof. A consumer that
+ * reads the digest itself needs `R` to be a `Vec`, which is why the
+ * parameter has that default and not the other way round.
  */
 export type Hash<S, R = Vec> = {
     readonly hashLength: bigint
