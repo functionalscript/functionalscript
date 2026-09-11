@@ -54,17 +54,17 @@ const { fromEntries, is } = Object
 
 /**
  * The JavaScript each unary operation the corpus uses denotes, keyed by the
- * canonical EDAG id — plus `typeof`, the one unary operation with no such id.
+ * canonical EDAG id.
  *
  * Only lowered cases used to reach these; now that they run through
  * `amnesia`'s `vm` instead (see `run` below), an entry is needed only for an
- * id `run`'s escape branch can still reach: a `NonEdagGroup` (`typeof` here,
- * `ternary` in `op3Js`), which always escapes, or an ordinary group with at
- * least one `functionValue`-operand case. An id neither covers would be a
- * line no case runs, and `lookup` refuses an id it does not hold rather than
- * answering for it — `String`, for one, has no such case and so no entry
- * here. `+` and `-` are here at their unary arity; the binary table below
- * holds them at the other.
+ * id `run`'s escape branch can still reach: a group with at least one
+ * `functionValue`-operand case. (The one `NonEdagGroup` left, `ternary`,
+ * always escapes and is `op3Js`'s.) An id with no such case would be a line
+ * no case runs, and `lookup` refuses an id it does not hold rather than
+ * answering for it — `String`, for one, has none and so no entry here. `+`
+ * and `-` are here at their unary arity; the binary table below holds them
+ * at the other.
  *
  * The `any` parameters are the point of the exercise: these operators are
  * being applied to operand types TypeScript rejects (`-[]`, `{} * 1`), which

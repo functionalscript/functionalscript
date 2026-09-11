@@ -30,7 +30,7 @@ const sample = {
     },
     groups: [
         { op: '+', arity: 1, cases: [{ name: 'bigint', args: [0n], expected: throws }] },
-        { nanvmOp: 'typeof', cases: [{ name: 'null', args: [null], expected: 'object' }] },
+        { nanvmOp: 'ternary', cases: [{ name: 'pick', args: [true, 1, 2], expected: 1 }] },
         {
             op: '*',
             commutative: true,
@@ -57,8 +57,8 @@ fn unary_plus<A: IVm>() {
 }
 
 #[rustfmt::skip]
-fn typeof_<A: IVm>() {
-    check::<A>("null", Any::typeof_(Nullish::Null.to_any()), string_any("object"));
+fn conditional<A: IVm>() {
+    check::<A>("pick", Any::conditional(true.to_any(), (1f64).to_any(), (2f64).to_any()), (1f64).to_any());
 }
 
 #[rustfmt::skip]
@@ -70,7 +70,7 @@ fn mul<A: IVm>() {
 pub fn all<A: IVm>() {
     eq::<A>();
     unary_plus::<A>();
-    typeof_::<A>();
+    conditional::<A>();
     mul::<A>();
 }
 `
@@ -104,6 +104,7 @@ export const proof = {
     nodeExpr: () => {
         assertEq(nodeExpr(['-', 1]), '-((1f64).to_any())')
         assertEq(nodeExpr(['+', 1]), 'Any::unary_plus((1f64).to_any())')
+        assertEq(nodeExpr(['typeof', 1]), 'Any::typeof_((1f64).to_any())')
         assertEq(
             nodeExpr(['String', 'a']),
             'string_any("a").to_string().map(|v| v.to_any())')

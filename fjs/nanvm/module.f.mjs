@@ -164,10 +164,10 @@ export const casesOf = g => g.cases
  * the group types carry — so this asks the schema rather than a second copy
  * of the vocabulary. An `Op12` group is the exception: its id is legal at
  * both arities, so the group carries the count itself and is read first. A
- * group with no canonical id is unary unless it names `ternary`, the
- * corpus's one three-operand group — the EDAG has no conditional-expression
- * node to be unary or binary *in*, so nothing there fixes its count the way
- * it fixes every other group's. It is the runtime half of what
+ * group with no canonical id is `ternary`, the corpus's one three-operand
+ * group — the EDAG has no conditional-expression node to be unary or binary
+ * *in*, so nothing there fixes its count the way it fixes every other
+ * group's. It is the runtime half of what
  * `Group1`/`Group2`/`Group12`/`NonEdagGroup` say statically, for the
  * consumers that walk `data.groups` and so hold a `Group` whose arm is no
  * longer known.
@@ -176,7 +176,7 @@ export const casesOf = g => g.cases
  */
 export const arityOf = g => {
     if ('arity' in g) { return g.arity }
-    if (!('op' in g)) { return g.nanvmOp === 'ternary' ? 3 : 1 }
+    if (!('op' in g)) { return 3 }
     return isOp1Id(g.op)[0] === 'ok' ? 1 : 2
 }
 
@@ -1070,10 +1070,9 @@ const ternaryCases = [
 ]
 
 /**
- * `typeof`, another of the corpus's groups with no canonical EDAG id (see
- * `NonEdagGroup` in `types.ts`) — it returns a tag naming the operand's own
- * kind, so unlike `!`/`&&`/`||`/`??`/`?:` there is no identity concern here:
- * the result is always a fresh string, never the operand itself.
+ * `typeof` returns a tag naming the operand's own kind, so unlike
+ * `!`/`&&`/`||`/`??`/`?:` there is no identity concern here: the result is
+ * always a fresh string, never the operand itself.
  *
  * @type {readonly Case<1>[]}
  */
@@ -1584,7 +1583,7 @@ export const data = {
         { op: '||', cases: orCases },
         { op: '??', cases: nullishCases },
         { nanvmOp: 'ternary', cases: ternaryCases },
-        { nanvmOp: 'typeof', cases: typeofCases },
+        { op: 'typeof', cases: typeofCases },
         { op: 'String', cases: stringCoercionCases },
         { op: 'own', cases: ownCases },
     ],

@@ -61,13 +61,11 @@ NaNVM-specific vocabulary did not:
   validates every derived expression against the schema, so an operand shape or
   validation rule changing under the corpus fails there.
 
-Two groups are the visible exception. `ternary` and `typeof` have no
-canonical id yet — the EDAG has no conditional node and no `typeof` — so each
-is a `NonEdagGroup`, spelled `nanvmOp` rather than `op` precisely so a
-NaNVM-only name can never mix into a canonical id union. They move onto the
-EDAG path through
-[ternary-conditional-node](../edag/todo/ternary-conditional-node.md) and
-[typeof-operator](../edag/todo/typeof-operator.md).
+One group is the visible exception. `ternary` has no canonical id yet — the
+EDAG has no conditional node — so it is a `NonEdagGroup`, spelled `nanvmOp`
+rather than `op` precisely so a NaNVM-only name can never mix into a canonical
+id union. It moves onto the EDAG path through
+[ternary-conditional-node](../edag/todo/ternary-conditional-node.md).
 
 A case carrying a `functionValue` operand is the other. A constant function is
 writable as `['=>', ['[]', []], body]`, but establishing `=>` would drag

@@ -30,6 +30,7 @@
 |           |`!`      |1          |
 |Conditional|`?:`     |1          |
 |Comma      |`,`      |1          |
+|Type       |`typeof` |EDAG only  |
 
 The [comma operator](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/Comma_operator) is allowed. It was previously rejected on the grounds that it is useful only when we want to mutate — but that is not its only use. In a pure language the sole side effect a discarded operand can have is *throwing*, which makes `,` the assertion form:
 
@@ -44,6 +45,12 @@ Asserts express **internal contract breaches**, not input validation: untrusted 
 This does not weaken the position on mutation: [let](./3220-let.md) remains the only case where an object can be mutated, and keeping its life-time tracking simple is unaffected by a comma operator whose operands are pure.
 
 Depends on [export default](../README.md#exporting-a-value) and [undefined](../README.md#supported-value-types).
+
+`typeof` is an EDAG operation (`op1Id` in
+[`fjs/edag/module.f.mjs`](../../fjs/edag/module.f.mjs)) that FunctionalScript
+does not parse. The EDAG admits every pure operation and the language spells a
+subset of them; unary `+` is the other operation on that side of the line.
+Whether `typeof` becomes syntax, and at what priority, is open.
 
 For mutating operators, see [assignments](./3430-assignments.md).
 
