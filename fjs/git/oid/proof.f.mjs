@@ -1,14 +1,25 @@
+/**
+ * @import { Oid } from '../types.ts'
+ */
+
 import { assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { empty, length, maxLengthBytes, msb, u8List, vec } from '../../types/bit_vec/module.f.mjs'
-import { toArray } from '../../types/list/module.f.mjs'
-import { hole, latin1 } from '../testlib.f.mjs'
-import { toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
+import { cycle, take, toArray } from '../../types/list/module.f.mjs'
+import { commitPayload, hole, latin1, mergePayload, modesTree, rootTree, sha256Commit, sha256Tree, tagPayload } from '../testlib.f.mjs'
+import { of, toHex, tryFromHex, tryFromHexOf } from './module.f.mjs'
 
 /** @type {(hex: string) => readonly number[]} */
 const bytes = hex => {
     const id = tryFromHex(latin1(hex))
     return id === null ? [] : toArray(u8List(msb)(id))
 }
+
+/** @type {(id: Oid) => string} */
+const hex = id => String.fromCharCode(...toArray(toHex(id)))
+
+const of20 = of(20)
+
+const of32 = of(32)
 
 export const proof = {
     // A 20-byte id and a 32-byte one, and back to the same text.
@@ -54,9 +65,37 @@ export const proof = {
         assertEq(tryFromHex(latin1('0 ')), null)
         assertEq(tryFromHex([0x30, 0xE9]), null)
     },
+    // The checked-in Git objects, each with the id Git computed: SHA-1 at
+    // 20 bytes over the five a SHA-1 repository wrote, SHA-256 at 32 over
+    // the two a SHA-256 one wrote, and each refused at the other width by
+    // the reader, since the hash at the other width is some other id.
+    of: {
+        commit: () => assertEq(hex(of20('commit', commitPayload)), 'd2bc56a53b2d6d7c1dc0860dec10435ed479b22d'),
+        merge: () => assertEq(hex(of20('commit', mergePayload)), '9880b6949363a320bb2a534e6de86d72d2206a14'),
+        tag: () => assertEq(hex(of20('tag', tagPayload)), 'b79a8e25df6a75ef83c047b329e730d92ad59dec'),
+        rootTree: () => assertEq(hex(of20('tree', rootTree)), 'b007dac9ff840a9f5f9eaa68747d0c91b44c556b'),
+        modesTree: () => assertEq(hex(of20('tree', modesTree)), '5c1f5cdc3637a09fa100a2055ed273b7d91f3d80'),
+        sha256Commit: () => assertEq(hex(of32('commit', sha256Commit)), '8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f'),
+        sha256Tree: () => assertEq(hex(of32('tree', sha256Tree)), '2f1e8b790adef60b1b58a9fe37ff415972da0e5abd333e171a4f999484eb42b0'),
+        // The empty blob, the one id every Git user has seen, and a width
+        // is a width: the same bytes at the other give the other's id.
+        emptyBlob: () => {
+            assertEq(hex(of20('blob', [])), 'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391')
+            assertEq(hex(of32('blob', [])), '473a0f4c3be8a93681a267e3b1e9a7dcda1185436fe141f7749120a303721813')
+            assertEq(tryFromHexOf(32)(toHex(of20('blob', []))), null)
+        },
+        // A payload longer than one chunk, and longer than a `Vec` holds,
+        // given as a lazy list that is never an array: the hash sees every
+        // byte whatever the pieces.
+        long: () => {
+            const payload = take(200_000)(cycle(Array.from({ length: 256 }, (_, i) => i)))
+            assertEq(hex(of20('blob', payload)), 'aa0916be0c6aa2ad2eb4173843f154cb9ac1ab5a')
+        },
+    },
     throw: {
         nonByte: () => tryFromHex([0x100, 0x30]),
         hole: () => tryFromHex(hole),
+        notAByteInPayload: () => of20('blob', [0x100]),
         // A one-bit `Vec` is no id: spelled, it would pad to `80` and read
         // back as a byte.
         notWholeBytes: () => toHex(vec(1n)(1n)),

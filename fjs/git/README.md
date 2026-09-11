@@ -34,7 +34,9 @@ what a grammar can and cannot do for the formats.
   `mergetag` by key, the last read as a tag by the tag module, and a
   `validate`.
 - [`oid/`](oid/module.f.mjs) — an object id between its two spellings, the
-  raw bytes a tree entry holds and the hex text a header holds.
+  raw bytes a tree entry holds and the hex text a header holds, and `of`,
+  the id an object has at the repository's width: SHA-1 at 20 bytes,
+  SHA-256 at 32.
 - [`loose/`](loose/module.f.mjs) — a loose object file read through the
   host's `inflate` effect and past its envelope: the one place a real
   repository meets the decoder.
@@ -290,15 +292,14 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   supplies them from `node:zlib` at the host boundary, and
   [`loose/`](loose/module.f.mjs) is its caller. A FunctionalScript inflater
   is [`todo/inflate.md`](../../todo/inflate.md).
-- **An id computed.** Reading an object needs no hash; addressing or
-  verifying one does, and both hashes are here —
+- **An id checked.** Reading an object needs no hash; addressing or
+  verifying one does, and `oid`'s `of` computes it at either width —
   [`fjs/crypto/sha1`](../crypto/sha1/module.f.mjs) for today's
   repositories, [`fjs/crypto/sha2`](../crypto/sha2/module.f.mjs) for
-  SHA-256 ones, each proven on the checked-in objects' ids — but nothing
-  in this module calls them yet: the function from an object to its id at
-  the repository's width is the rest of
-  [`fjs/crypto/todo/sha1.md`](../crypto/todo/sha1.md), and what a trust
-  layer does about a hash that can collide is
+  SHA-256 ones, proven on the checked-in objects' ids — but no reader
+  here checks the id it was given against the object it read: that is
+  the store's business, [`todo/object-store.md`](todo/object-store.md),
+  and what a trust layer does about a hash that can collide is
   [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).
 - **Packfiles**, where most objects in a real clone live, so the loose
   reader alone reads a fresh clone poorly: [`todo/packfiles.md`](todo/packfiles.md).
