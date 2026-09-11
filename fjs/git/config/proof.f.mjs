@@ -234,6 +234,15 @@ export const proof = {
         for (const v of ['0', '1', '-1', '+5', '017', '-017', '0x1f', '0X1f', '0xFF', '1k', '1K', '1m', '1g', '2097151k', '2147483647', '-2147483647']) {
             assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), 20)
         }
+        // A boolean reads a number the same way, whitespace and all, where
+        // a word beside one is compared as it is written and stays no
+        // boolean at all.
+        for (const v of ['" 1"', '"\t0"', '"\f-1"']) {
+            assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), 20)
+        }
+        for (const v of ['" true"', '"true "', '" yes"']) {
+            assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), null)
+        }
         // `8` is no octal digit, `0x` and `k` spell no number, and a number
         // too large for the `int` Git reads it into is none either.
         for (const v of ['08', '0x', 'k', '-', '1kb', '8g', '2097152k', '2147483648', '-2147483648', '9999999999999999999999']) {
@@ -247,6 +256,19 @@ export const proof = {
         for (const v of ['1', '01', '+1', '0x1', '0X1', '1 # c', '"1"']) {
             assertEq(tryOidBytes(extension(v, 'objectFormat', 'sha256')), 32)
         }
+        // The conversion skips the whitespace the value begins with, which
+        // only a quoted value keeps, and the class is the C library's:
+        // wider than the parser's by a `\v` and a `\f`. It comes off the
+        // front alone, so a trailing space is read as a unit and refuses
+        // the file.
+        for (const v of ['" 1"', '"\t1"', '"\v1"', '"\f1"', '"\r1"', '"  +1"', '" 0x1"']) {
+            assertEq(tryOidBytes(extension(v, 'objectFormat', 'sha256')), 32)
+        }
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = "1 "'), null)
+        assertEq(tryOidBytes('[core]\n\trepositoryformatversion = " "'), null)
+        // A signed number is signed after the whitespace, so `" -1"` is the
+        // version that gives up the format it read.
+        assertEq(tryOidBytes(extension('" -1"', 'objectFormat', 'sha256')), 20)
         // Over 1 refuses the file, and so does an assignment that spells no
         // number, however good the one after it.
         assertEq(tryOidBytes('[core]\n\trepositoryformatversion = 2'), null)
