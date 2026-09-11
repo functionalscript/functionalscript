@@ -1,9 +1,9 @@
 /**
- * @import { Sha2 } from './types.ts'
+ * @import { Hash, Sha2 } from './types.ts'
  */
 
 import { utf8 } from '../../text/module.f.mjs'
-import { maxLength, repeat, uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { maxLength, msb, repeat, u8ListToVec, uint, vec } from '../../types/bit_vec/module.f.mjs'
 import { flip } from '../../types/function/module.f.mjs'
 import { assertEq } from '../../asserts/module.f.mjs'
 import { map } from '../../types/list/module.f.mjs'
@@ -20,6 +20,39 @@ const checkBytes = ({ hashLength, blockLength, hashBytes, blockBytes }) => (h, b
     assertEq(blockBytes, b)
     assertEq(hashBytes, hashLength >> 3n)
     assertEq(blockBytes, blockLength >> 3n)
+}
+
+const toVec = u8ListToVec(msb)
+
+/**
+ * A message whose every byte differs from its neighbours, long enough to
+ * fill three blocks of whatever hash reads it.
+ *
+ * @type {(bytes: number) => readonly number[]}
+ */
+const varied = bytes => Array.from({ length: bytes * 3 }, (_, i) => (i * 37 + 11) & 0xFF)
+
+/**
+ * The digest of a message split in two is the digest of the message,
+ * wherever the split falls: before the first block is full, at its edge,
+ * and past it. A split before an edge leaves a remainder the next piece
+ * completes the block from, which is the one place the framing assembles a
+ * block out of two halves — and only a message that differs across the
+ * seam can tell the halves apart, so this is what pins the order they go
+ * in. Every other proof reaching that line repeats one byte, where the two
+ * halves are the same bytes either way round.
+ *
+ * @template S
+ * @param {Hash<S>} h
+ * @returns {void}
+ */
+const seam = h => {
+    const bytes = Number(h.blockBytes)
+    const msg = varied(bytes)
+    const whole = uint(computeSync(h)([toVec(msg)]))
+    for (const at of [1, bytes >> 1, bytes - 1, bytes, bytes + 1, bytes * 2 - 1]) {
+        assertEq(uint(computeSync(h)([toVec(msg.slice(0, at)), toVec(msg.slice(at))])), whole, at)
+    }
 }
 
 /** @type {(sha2: Sha2) => (x: bigint) => void} */
@@ -173,6 +206,12 @@ export const proof = {
         }
         check(sha256)
         check(sha512)
+    },
+    // The block a held remainder is completed into, pinned: one variant of
+    // each word size, over a message no two bytes of which are alike.
+    seam: () => {
+        seam(sha256)
+        seam(sha512)
     },
     appendLargeVecIsFast: () => {
         const big = repeat(100_000n)(vec(8n)(0xffn))
