@@ -135,33 +135,30 @@ const isDriveLetter = /** @type {(c: string) => boolean} */ (
 const isAbsolute = path =>
     path.startsWith('/') || (isDriveLetter(path[0]) && path[1] === ':' && path[2] === '/')
 
+/** A path that is a drive and nothing after it. */
+const isBareDrive = /** @type {(path: string) => boolean} */ (
+    path => path.length === 2 && isDriveLetter(path[0]) && path[1] === ':')
+
 /**
- * A path below a directory. A `/` joins them, except where the directory is
- * a bare drive, which takes what is below it with no separator at all:
- * `C:` names the current directory on drive C and `C:.git` is the `.git`
- * in it, where `C:/.git` is the one at the drive's root — two directories,
- * and Windows resolves each per drive from the process. Joining the two
- * with a `/` would quietly turn the first into the second.
+ * A path below a directory, joined by a `/`.
  *
- * This is the drive reading {@link isAbsolute} takes, applied to the path
- * the caller spells rather than the one a file holds, and it carries the
- * same limitation: on POSIX a directory really named `C:` takes its `.git`
- * below a separator like any other, and this would name `C:.git` instead.
- * A POSIX directory named after a drive is not a thing that happens; a
- * Windows caller standing on one is.
+ * A directory of no characters is no directory: what is below it is itself,
+ * so `under('', '.git')` is `.git` and not `/.git`. Joining those with a
+ * `/` would turn a name read against the caller's own directory into one
+ * read against the root, which is a repository the caller never asked
+ * about.
  *
- * A directory of no characters is no directory: what is below it is
- * itself, so `under('', '.git')` is `.git` and not `/.git`. Joining those
- * with a `/` would turn a name read against the caller's own directory
- * into one read against the root, which is a repository the caller never
- * asked about.
+ * A bare drive is not handled here at all, because it cannot be: `C:` names
+ * the current directory on drive C to Windows and a directory called `C:`
+ * to POSIX, and `C:.git` and `C:/.git` are the right answers on one host
+ * each. {@link tryCommonDir} refuses such a worktree rather than picking
+ * one, and no other path this joins below can be one — a `gitdir` line of
+ * `C:` is relative, since {@link isAbsolute} wants the `/`, so it is read
+ * against the worktree and arrives here already joined.
  *
  * @type {(dir: string, name: string) => string}
  */
-const under = (dir, name) =>
-    dir === '' ? name
-        : dir.length === 2 && isDriveLetter(dir[0]) && dir[1] === ':' ? `${dir}${name}`
-            : join(dir, name)
+const under = (dir, name) => dir === '' ? name : join(dir, name)
 
 /**
  * A path one of these files names, read where it was found: an absolute
@@ -223,9 +220,15 @@ const tryGitdir = (worktree, size, text) => {
 
 /**
  * The common directory of the repository a worktree belongs to, or `null`
- * where what it finds names no directory. Four things are that, and the
- * last two are reached with `.git` a directory as readily as a file:
+ * where the path it is given, or what it finds, names no directory. Five
+ * things are that, and the last two are reached with `.git` a directory as
+ * readily as a file:
  *
+ * - a worktree that is a bare drive, `C:`, which names the current
+ *   directory on drive C to Windows and a directory called `C:` to POSIX.
+ *   Its `.git` is `C:.git` on one host and `C:/.git` on the other, two
+ *   directories and not two spellings, and a reader of text cannot ask
+ *   which host it is on;
  * - a `.git` that is neither a directory nor a regular file — a FIFO, a
  *   socket, a device — which Git will not open as a gitfile;
  * - a `.git` file that is no gitfile, which Git calls `invalid gitfile
@@ -243,6 +246,7 @@ const tryGitdir = (worktree, size, text) => {
  * @type {(worktree: string) => Effect<ReadFile | Stat, Nullable<string>, IoChannel>}
  */
 export const tryCommonDir = worktree => {
+    if (isBareDrive(worktree)) { return pureOk(null) }
     const path = under(worktree, '.git')
     return step(stat(path), s => {
         if (s.isDirectory) { return commonOf(path) }

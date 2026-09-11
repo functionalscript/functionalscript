@@ -178,6 +178,20 @@ export const proof = {
         // What the parse does not read is not refused: a commit with no
         // `author` and no `committer` has a tree all the same.
         assert(at(latin1([lines[0], '', 'm', ''].join('\n'))) !== null)
+        // The floor Git's parse has before it reads the `tree` header: a
+        // payload of `hexsz + 6` bytes or fewer is refused whatever it
+        // holds, so 47 is the least a SHA-1 commit may be and 71 the least
+        // a SHA-256 one may be. `tree <id>\n` alone is one byte short of
+        // the first, and the empty line that must follow the block is the
+        // byte it is short of.
+        const bare = `tree ${treeId}\n`
+        assertEq(latin1(bare).length, 46)
+        assertEq(at(latin1(bare)), null)
+        assert(at(latin1(`${bare}\n`)) !== null)
+        const wide = `tree ${'a'.repeat(64)}\n`
+        assertEq(latin1(wide).length, 70)
+        assertEq(tryTreeAt(32)(latin1(wide)), null)
+        assert(tryTreeAt(32)(latin1(`${wide}\n`)) !== null)
     },
     // Each refusal, one per rule, on a commit the reader reads.
     validate: () => {

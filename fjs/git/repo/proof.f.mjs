@@ -146,10 +146,23 @@ export const proof = {
         })
         assertEq(at(root)('w'), '/m/.git')
     },
-    // A bare drive names the current directory on that drive, and what is
-    // below it takes no separator: `C:.git` is the `.git` in it, where
-    // `C:/.git` is the one at the drive's root. The same reading of a drive
-    // the gitfile's paths get, applied to the path the caller spells.
+    // A bare drive is the one path this refuses for being a path rather
+    // than for what is at it. `C:` names the current directory on drive C
+    // to Windows and a directory called `C:` to POSIX, so its `.git` is
+    // `C:.git` on one host and `C:/.git` on the other — two directories,
+    // not two spellings, and a reader of text cannot ask which host it is
+    // on. Either guess could name a repository the caller did not mean, so
+    // neither is made.
+    bareDrive: () => {
+        assertEq(at({ 'C:.git': file('gitdir: /r\n'), r: repo })('C:'), null)
+        assertEq(at(/** @type {State['root']} */ ({ 'C:': { '.git': repo } }))('C:'), null)
+        assertEq(at({ 'c:.git': file('gitdir: /r\n'), r: repo })('c:'), null)
+        // A drive with anything after it is an ordinary path again, and a
+        // `gitdir` line of a bare drive is relative, so it is read against
+        // the worktree like any other.
+        assertEq(at({ 'C:x': { '.git': repo } })('C:x'), 'C:x/.git')
+        assertEq(at({ w: { '.git': file('gitdir: C:\n'), 'C:': repo } })('w'), 'w/C:')
+    },
     // A worktree of no characters is the caller's own directory, so its
     // `.git` is `.git` and not `/.git`: joining those with a separator
     // would read at the filesystem's root, which is a repository the
@@ -157,17 +170,6 @@ export const proof = {
     here: () => {
         assertEq(at({ '.git': repo })(''), '.git')
         assertEq(at({ '.git': file('gitdir: r\n'), r: repo })(''), 'r')
-    },
-    bareDrive: () => {
-        assertEq(at({ 'C:.git': file('gitdir: /r\n'), r: repo })('C:'), '/r')
-        // And it is not the drive's root that is read: a `.git` sitting
-        // under `C:` is not the one `C:` names, so the read misses and the
-        // miss is the channel's.
-        const rooted = at(/** @type {State['root']} */ ({ 'C:': { '.git': repo } }))('C:')
-        assert(rooted instanceof Array && rooted[0] === 'error', rooted)
-        // A directory that is no bare drive takes its `.git` below a
-        // separator, as every other does.
-        assertEq(at({ 'C:x': { '.git': repo } })('C:x'), 'C:x/.git')
     },
     // The line's end is a run of any length, and a file's length is
     // whatever wrote it. Git reads a gitfile padded with two hundred
