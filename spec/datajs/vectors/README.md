@@ -65,13 +65,16 @@ Three records carry bytes instead of code units, as a tagged hex string,
 least one pair, which `bytes` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
 decodes, refusing any other spelling. All three are classed `byte/…`, and a
-consumer that reads the byte form reads all three. Two are in the reject set
-and are records rather than tests — a BOM as the document's first byte, and a
-truncated sequence at end of input — saying that a byte sequence is not a
-DataJS document, which no code-unit string can say. The third is in the accept
-set and is a test: `byte-valid-widths` spells one character of each UTF-8
-width, and a reader owes the string those bytes denote. Without it a byte
+consumer that reads the byte form reads all three. Two of them are tests like
+any other. `byte-bom-first` puts a BOM before an otherwise valid document, and
+a reader that strips the BOM accepts it, which is the defect the vector exists
+to catch. `byte-valid-widths`, in the accept set, spells one character of each
+UTF-8 width and a reader owes the string those bytes denote; without it a byte
 path passes by refusing every byte sequence handed to it.
+
+The third, `byte-truncated`, is a **record rather than a test**: it says that a
+byte sequence is not a DataJS document, which no code-unit string can say, and
+no reader can fail it. The rule below says why.
 
 A reject vector names the one `rule` it breaks and what the `host` does with
 the same text, measured: a document JavaScript `accepts` is a narrowing
@@ -172,14 +175,18 @@ the refusal arrives with the set.
   valid but for the one defect it names, placed so that a cheaper rule does
   not refuse it first.
 
-  The two byte reject records are the stated exception, and they are marked
-  as records rather than tests for exactly this reason. A truncated sequence
-  must be the document's last byte to be truncated, so the document has lost
-  its closing quote too, and a reader that replacement-decodes the lead byte
-  refuses it as unterminated without checking UTF-8 at all. That vector
-  cannot fail. It is kept to say that those bytes are not a DataJS document,
-  which no code-unit string can say, and it is not counted as coverage of a
-  decoder. The byte accept record is a test and does count.
+  `byte-truncated` is the one stated exception, and it is marked a record
+  rather than a test for exactly this reason. A truncated sequence must be the
+  document's last byte to be truncated, so the document has lost its closing
+  quote too, and a reader that replacement-decodes the lead byte refuses it as
+  unterminated without checking UTF-8 at all. That vector cannot fail. It is
+  kept to say that those bytes are not a DataJS document, which no code-unit
+  string can say, and it is not counted as coverage of a decoder.
+
+  The other two byte records are not exceptions. `byte-bom-first` has one
+  defect and discriminates: its bytes are valid UTF-8 and the document is
+  valid but for the BOM, so a reader that strips the BOM accepts it and fails
+  the vector. `byte-valid-widths` is an accept.
 - **Sample a range.** Both ends of every character class at every fixed
   position, the empty branch of every repetition, a signed twin for every
   number, a key twin for every string.
