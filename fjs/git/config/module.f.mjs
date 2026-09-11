@@ -70,6 +70,18 @@ const isKeySpace = c => c === ' ' || c === '\t'
 const isSpace = c => isKeySpace(c) || c === '\r'
 
 /**
+ * Whether a character is whitespace to the C library, which is a wider
+ * class than {@link isSpace} by a `\v` and a `\f`. It is not the parser's
+ * class and is asked nowhere the parser reads: a number is converted by
+ * `strtoimax`, and that skips whatever the library calls space before the
+ * sign, so `repositoryformatversion = "\v1"` is version 1 to Git where a
+ * `\v` anywhere else in a value is a character of it.
+ *
+ * @type {(c: string) => boolean}
+ */
+const isCSpace = c => isSpace(c) || c === '\n' || c === '\v' || c === '\f'
+
+/**
  * What is left of text once the whitespace it begins with is skipped, by
  * whichever class of it the caller is Git's.
  *
@@ -85,6 +97,9 @@ const afterSpace = afterOf(isSpace)
 
 /** The same, for the one loop that takes a space or a tab and no `\r`. */
 const afterKeySpace = afterOf(isKeySpace)
+
+/** The same, for the conversion that skips the C library's whitespace. */
+const afterCSpace = afterOf(isCSpace)
 
 /**
  * The longest prefix of text whose characters `is` accepts: the name Git
@@ -222,16 +237,26 @@ const tryDigits = (digits, radix) => digits.length === 0 ? null : [...digits].re
 
 /**
  * The number a value spells as Git's parser reads one, or `null` where it
- * spells none. The grammar is C's own: an optional sign, then `0x` before
- * hexadecimal digits, a leading `0` before octal ones, or decimal ones,
- * then an optional `k`, `m` or `g` scaling it. `08` spells no number, its
- * `8` being no octal digit, and neither does one too large for the `int`
- * it is read into — both are values Git refuses.
+ * spells none. The grammar is C's own, since `strtoimax` is what reads it:
+ * whitespace, then an optional sign, then `0x` before hexadecimal digits, a
+ * leading `0` before octal ones, or decimal ones, then an optional `k`, `m`
+ * or `g` scaling it. `08` spells no number, its `8` being no octal digit,
+ * and neither does one too large for the `int` it is read into — both are
+ * values Git refuses.
+ *
+ * The whitespace is the conversion's and not the parser's, so it is
+ * {@link isCSpace} that says what it is, and it comes off the front only:
+ * `" 1"` is 1 to Git where `"1 "` is a `bad numeric config value`, its
+ * space being read as a unit and found to be none. Only a quoted value
+ * carries any, the parser having dropped what surrounded an unquoted one,
+ * and nothing but the number reads a value this way — `" true"` stays a
+ * `bad boolean config value`, since a word is compared as it is written.
  *
  * @type {(value: string) => Nullable<bigint>}
  */
 const tryInt = value => {
-    const signed = value[0] === '+' || value[0] === '-' ? value.slice(1) : value
+    const text = afterCSpace(value)
+    const signed = text[0] === '+' || text[0] === '-' ? text.slice(1) : text
     const unit = factors[signed.slice(-1).toLowerCase()]
     const body = unit === undefined ? signed : signed.slice(0, -1)
     const hex = body[0] === '0' && (body[1] === 'x' || body[1] === 'X')
@@ -240,7 +265,7 @@ const tryInt = value => {
     const n = hex ? tryDigits(body.slice(2), 16n) : tryDigits(body, body[0] === '0' ? 8n : 10n)
     if (n === null) { return null }
     const scaled = n * (unit ?? 1n)
-    return scaled > maxInt ? null : value[0] === '-' ? -scaled : scaled
+    return scaled > maxInt ? null : text[0] === '-' ? -scaled : scaled
 }
 
 /**

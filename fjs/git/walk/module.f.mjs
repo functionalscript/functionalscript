@@ -31,7 +31,8 @@
  * @import { Tag, TagTarget } from '../tag/types.ts'
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  * @import { TreeEntry } from '../tree/types.ts'
- * @import { Entry, PathItem, PathState, PeelItem, PeelState, Read, Step, Target } from './types.ts'
+ * @import { _PathItem, _PathState, _PeelItem, _PeelState } from './private.ts'
+ * @import { Entry, Read, Step, Target } from './types.ts'
  */
 
 import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.mjs'
@@ -68,7 +69,7 @@ const treeAt = (read, entriesOf) => id => mapStep(read(id), e =>
 const same = equal(strictEqual)
 
 /** The peel before it has read anything, and what a refused one answers. */
-const noTarget = /** @type {PeelState} */ ({ seen: [], target: null })
+const noTarget = /** @type {_PeelState} */ ({ seen: [], target: null })
 
 /**
  * One link of {@link peel}'s chain, as {@link walkStep} walks it: the state
@@ -86,14 +87,14 @@ const noTarget = /** @type {PeelState} */ ({ seen: [], target: null })
  * @param {Read<O>} read
  * @param {(t: Tag) => Nullable<TagTarget>} targetOf
  * @param {(payload: Bytes) => Nullable<Oid>} treeAt
- * @returns {(item: PeelItem) => (state: PeelState) => Effect<O, readonly [PeelState, readonly PeelItem[]], IoChannel>}
+ * @returns {(item: _PeelItem) => (state: _PeelState) => Effect<O, readonly [_PeelState, readonly _PeelItem[]], IoChannel>}
  */
 const peelStep = (read, targetOf, treeAt) => ({ id, want }) => state =>
     // An id the chain has been through is a cycle, which no store that
     // checks what it reads can answer and a `Read` that does not check can.
     state.seen.includes(id) ? pureOk([state, []]) : step(read(id), e => {
         const seen = [...state.seen, id]
-        const stop = /** @type {readonly [PeelState, readonly PeelItem[]]} */ ([{ seen, target: null }, []])
+        const stop = /** @type {readonly [_PeelState, readonly _PeelItem[]]} */ ([{ seen, target: null }, []])
         if (e === null) { return pureOk(stop) }
         if (want !== null && e.type !== want) { return pureOk(stop) }
         // A commit is parsed where the chain stops at one, since Git parses
@@ -109,7 +110,7 @@ const peelStep = (read, targetOf, treeAt) => ({ id, want }) => state =>
         const next = targetOf(t)
         return next === null
             ? pureOk(stop)
-            : pureOk(/** @type {readonly [PeelState, readonly PeelItem[]]} */([
+            : pureOk(/** @type {readonly [_PeelState, readonly _PeelItem[]]} */([
                 { seen, target: null },
                 [{ id: next.id, want: next.type }],
             ]))
@@ -196,7 +197,7 @@ const only = (entries, want) => {
 }
 
 /** What a path that has run out of tree carries, and answers. */
-const lost = /** @type {PathState} */ ({ entries: null, found: null })
+const lost = /** @type {_PathState} */ ({ entries: null, found: null })
 
 /**
  * One component of a path matched in the entries of the tree it sits in,
@@ -221,7 +222,7 @@ const lost = /** @type {PathState} */ ({ entries: null, found: null })
  *
  * @template {Operation} O
  * @param {Step<O, readonly TreeEntry[]>} at
- * @returns {(item: PathItem) => (state: PathState) => Effect<O, PathState, IoChannel>}
+ * @returns {(item: _PathItem) => (state: _PathState) => Effect<O, _PathState, IoChannel>}
  */
 const componentStep = at => ({ name, last }) => ({ entries }) => {
     if (entries === null) { return pureOk(lost) }
