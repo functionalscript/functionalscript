@@ -136,10 +136,13 @@ prototype chain to delegate to in the first place.
 ## Not implemented
 
 Every node in the schema now evaluates. The three chain nodes that own a
-continuation walk it with one function per lambda type — `propertyLambda`,
-`optionLambda`, `optionPropertyLambda` — and a short-circuited region is the
-single `skip`, shared by all three, whose one exception is the `|!()` step the
-parentheses put outside the region (["Chains"](../README.md#chains)).
+continuation walk it with two functions, `optionLambda` and
+`optionPropertyLambda`, rather than one per lambda type: a `.` node's
+`PropertyLambda` is an `OptionPropertyLambda` whose two extra arms the schema
+refuses under a `.`, so the wider walker *is* the narrower walk. A short-circuited
+region is the single `skip`, shared by both, whose one exception is the `|!()`
+step the parentheses put outside the region
+(["Chains"](../README.md#chains)).
 `['self']` is not in the schema yet, so a function reaches itself only by being
 passed as an argument.
 
