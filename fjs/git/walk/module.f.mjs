@@ -9,8 +9,8 @@
  *
  * Nothing here panics on what it read. An object the store gave back is
  * bytes from a file, so the walk reads a field of one only through an
- * accessor that refuses — `tryTree` of a commit, `tryObject` and `tryType`
- * of a tag — and answers `null` where the objects cannot take it further:
+ * accessor that refuses — `tryTreeAt` of a commit, `tryTarget` of a tag —
+ * and answers `null` where the objects cannot take it further:
  * bytes that are no object of their type, a commit whose `tree` header is
  * no id of the width, a tag whose target is not the type it declared, a
  * name no entry has or two entries have, a path that runs into anything
@@ -28,7 +28,7 @@
  *
  * @import { Effect, IoChannel, Operation } from '../../effects/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
- * @import { Tag } from '../tag/types.ts'
+ * @import { Tag, TagTarget } from '../tag/types.ts'
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  * @import { TreeEntry } from '../tree/types.ts'
  * @import { Entry, PathItem, PathState, PeelItem, PeelState, Read, Step, Target } from './types.ts'
@@ -39,7 +39,7 @@ import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { equal } from '../../types/list/module.f.mjs'
 import { tryTreeAt } from '../commit/module.f.mjs'
-import { tryObject, tryRead as readTag, tryType } from '../tag/module.f.mjs'
+import { tryRead as readTag, tryTarget } from '../tag/module.f.mjs'
 import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
 
 /**
@@ -53,8 +53,8 @@ import { isSubtree, tryRead as readTree } from '../tree/module.f.mjs'
  * @param {(payload: Bytes) => Nullable<readonly TreeEntry[]>} entriesOf
  * @returns {Step<O, readonly TreeEntry[]>}
  */
-const treeAt = (read, entriesOf) => id => step(read(id), e =>
-    pureOk(e === null || e.type !== 'tree' ? null : entriesOf(e.payload)))
+const treeAt = (read, entriesOf) => id => mapStep(read(id), e =>
+    e === null || e.type !== 'tree' ? null : entriesOf(e.payload))
 
 /**
  * Whether two names are the same bytes: `fjs/types/list`'s `equal` over
@@ -84,11 +84,11 @@ const noTarget = /** @type {PeelState} */ ({ seen: [], target: null })
  *
  * @template {Operation} O
  * @param {Read<O>} read
- * @param {(t: Tag) => Nullable<Oid>} objectOf
+ * @param {(t: Tag) => Nullable<TagTarget>} targetOf
  * @param {(payload: Bytes) => Nullable<Oid>} treeAt
  * @returns {(item: PeelItem) => (state: PeelState) => Effect<O, readonly [PeelState, readonly PeelItem[]], IoChannel>}
  */
-const peelStep = (read, objectOf, treeAt) => ({ id, want }) => state =>
+const peelStep = (read, targetOf, treeAt) => ({ id, want }) => state =>
     // An id the chain has been through is a cycle, which no store that
     // checks what it reads can answer and a `Read` that does not check can.
     state.seen.includes(id) ? pureOk([state, []]) : step(read(id), e => {
@@ -106,11 +106,13 @@ const peelStep = (read, objectOf, treeAt) => ({ id, want }) => state =>
         }
         const t = readTag(e.payload)
         if (t === null) { return pureOk(stop) }
-        const next = objectOf(t)
-        const type = tryType(t)
-        return next === null || type === null
+        const next = targetOf(t)
+        return next === null
             ? pureOk(stop)
-            : pureOk([{ seen, target: null }, [{ id: next, want: type }]])
+            : pureOk(/** @type {readonly [PeelState, readonly PeelItem[]]} */([
+                { seen, target: null },
+                [{ id: next.id, want: next.type }],
+            ]))
     })
 
 /**
@@ -120,18 +122,16 @@ const peelStep = (read, objectOf, treeAt) => ({ id, want }) => state =>
  *
  * A tag says what type its target is, and the object reached must be of
  * it, since `git cat-file -t <tag>^{}` refuses a tag whose `type` header
- * and target disagree. `null` where they do, where a tag's bytes are no
- * tag, where its `object` header is no id of the width or its `type` header
- * names none of the four, and where the chain comes back to an id it has
- * already been through.
+ * and target disagree. `null` where they do, where the tag is one Git's own
+ * parse refuses — `tryTarget` reads those three headers — and where the
+ * chain comes back to an id it has already been through.
  *
- * A commit the chain stops at is read too, and `null` where its bytes are
- * no commit or it names no tree of the width: `git cat-file -t <tag>^{}`
- * answers `error: bogus commit object` for either, since peeling parses the
- * commit it lands on and parsing one reads its tree pointer. It parses
- * neither a tree's entries nor a blob's bytes, and nor does this — a tree
- * or a blob of any bytes peels, as it does for Git, and reading what such a
- * tree holds is {@link tryEntries}.
+ * A commit the chain stops at is read too, and `null` where Git's parse
+ * refuses it: `tryTreeAt` is that parse, and `git cat-file -t <tag>^{}`
+ * answers `error: bogus commit object` or `error: bad parents in commit`
+ * rather than the type. It parses neither a tree's entries nor a blob's
+ * bytes, and nor does this — a tree or a blob of any bytes peels, as it
+ * does for Git, and reading what such a tree holds is {@link tryEntries}.
  *
  * The chain's length is not bounded, since Git bounds it nowhere and
  * `git tag -a t9 t8` builds one of any depth. It needs no bound to end: a
@@ -148,7 +148,7 @@ const peelStep = (read, objectOf, treeAt) => ({ id, want }) => state =>
  * @returns {Step<O, Target>}
  */
 export const peel = (read, oidBytes) => {
-    const f = peelStep(read, tryObject(oidBytes), tryTreeAt(oidBytes))
+    const f = peelStep(read, tryTarget(oidBytes), tryTreeAt(oidBytes))
     return id => mapStep(walkStep(pureOk([{ id, want: null }]), noTarget, f), s => s.target)
 }
 
@@ -254,7 +254,8 @@ export const tryEntry = (read, oidBytes) => {
     return (id, path) => {
         const last = path.length - 1
         const items = path.map((p, i) => ({ name: byteArray(p), last: i === last }))
-        return items.length === 0 ? pureOk(null) : step(rootOf(id), entries =>
-            mapStep(foldStep(pureOk(items), { entries, found: null }, f), s => s.found))
+        if (items.length === 0) { return pureOk(null) }
+        const walked = step(rootOf(id), entries => foldStep(pureOk(items), { entries, found: null }, f))
+        return mapStep(walked, s => s.found)
     }
 }
