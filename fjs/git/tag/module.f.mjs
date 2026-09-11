@@ -181,6 +181,20 @@ export const type = t => {
 }
 
 /**
+ * The type the `type` header names, or `null` where there is no `type`
+ * header second or it names none of the four: {@link type} without the
+ * panic. For a caller holding a tag it has not vouched for — peeling a
+ * tag checks the object it reaches against this, since a tag that names
+ * its target's type wrongly is one Git refuses to peel.
+ *
+ * @type {(t: Tag) => Nullable<ObjectType>}
+ */
+export const tryType = t => {
+    const value = valueAt(t, 1, 'type')
+    return value === null ? null : typeOf(value)
+}
+
+/**
  * The tag's name, the value of the `tag` header: the third header, bytes
  * as the format leaves them.
  *

@@ -99,6 +99,18 @@ const modes = ['100644', '100755', '120000', '160000', '40000'].map(s => Number(
 
 const subtree = Number(octal(ascii('40000')))
 
+/**
+ * Whether an entry names a subtree, which is the mode `40000` and no
+ * other: a walk descends through this entry and through no other, since
+ * an entry of another mode names a file, a link or another repository's
+ * commit, whatever object its id turns out to hold. The zero-padded
+ * `040000` spells the same number and is the same subtree, as it is for
+ * Git, which only warns about the spelling.
+ *
+ * @type {(e: TreeEntry) => boolean}
+ */
+export const isSubtree = e => tryMode(byteArray(e.mode)) === subtree
+
 const dotGit = ascii('.git')
 
 /** The longest name `git fsck` accepts, in bytes. */
