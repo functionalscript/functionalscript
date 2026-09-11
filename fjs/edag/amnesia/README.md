@@ -49,15 +49,6 @@ vm(context)(['===', shared, shared])   // false — the model says true
 ```
 
 One node reached from two operand positions is one value; here it is two
-— unless the caller says otherwise. `Context`'s `memo` carries nodes whose
-values are already established, consulted by identity before anything is
-computed, which is [execution-models](../execution-models.md)'s §2.2 with the
-analysis done by the caller. It does not make this the model: nothing is
-remembered that the caller did not supply, and nothing crosses a call
-boundary. It is enough for a caller that knows which of its nodes are shared,
-which is how `fjs/nanvm`'s equality cases ask an identity question of an
-evaluator that otherwise forgets.
-
 arrays, so identity comparisons silently give the wrong answer. The cost
 compounds in the same way. A chain of 22 shared additions,
 `['+', x, x]` over the same `x`, is 23 distinct nodes:
@@ -72,6 +63,24 @@ Exponential in depth, and the leaf alone is visited 4,194,304 times.
 same reason, which is where the word for it comes from. The models that do
 preserve identity, and what each is for, are in
 [execution-models.md](../execution-models.md).
+
+### ... unless the caller says otherwise
+
+`Context`'s `memo` carries nodes whose values are already established,
+consulted by identity before anything is computed — which is
+[execution-models](../execution-models.md)'s §2.2 with the analysis done by
+the caller rather than by a pass here. It does not make this the model:
+nothing is remembered that the caller did not supply, nothing is added while
+walking, and nothing crosses a call boundary, since a call is a new
+invocation. It is enough for a caller that knows which of its own nodes are
+shared, which is how `fjs/nanvm`'s `'==='` cases ask an identity question of
+an evaluator that otherwise forgets.
+
+```js
+const shared = ['[]', [1, 2]]
+const memo = [[shared, vm(context)(shared)]]
+vm({ ...context, memo })(['===', shared, shared])   // true
+```
 
 ### It hands out the host
 

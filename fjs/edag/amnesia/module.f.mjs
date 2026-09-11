@@ -2,10 +2,12 @@
  * A tree-walking evaluator for `exp`: `vm(context)(e)` returns a primitive
  * unchanged and dispatches a tagged tuple through one handler per tag.
  *
- * It remembers no node values — every incoming edge evaluates its target
- * again — so it is the Amnesia model of
+ * It remembers no node values of its own — every incoming edge evaluates its
+ * target again — so it is the Amnesia model of
  * [execution-models.md](../execution-models.md), for proving semantics and
- * not for running FunctionalScript. See [README.md](./README.md).
+ * not for running FunctionalScript. A caller that has established some nodes
+ * itself may hand them over as `Context`'s `memo`, which is the one thing
+ * this walk does not recompute. See [README.md](./README.md).
  *
  * @module
  *
