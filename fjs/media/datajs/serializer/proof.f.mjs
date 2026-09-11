@@ -138,6 +138,17 @@ export const proof = {
         denotes({ 2: 0, 1: 0, b: emptyArray, ['__proto__']: null })
         denotes([-0, NaN, Infinity, '\ud800', true])
         denotes(emptyArray)
+        // a `const` holding the computed key, which is the one place the
+        // spelling has to survive a statement rather than the export
+        const proto = { ['__proto__']: 1 }
+        denotes([proto, proto])
+        // the spellings a number reaches that are not plain digits: both
+        // exponent forms, a denormal, and the largest double. The reader
+        // takes JSON's number grammar, so what the writer emits at these
+        // magnitudes is exactly what has to parse back.
+        denotes([1e21, 1e-7, 5e-324, 1.7976931348623157e308])
+        denotes([1e20, 1e-6])
+        denotes([10n ** 30n, -(10n ** 30n)])
     },
     // A caller may hand a writer a value outside the data model, and the
     // specification refuses it rather than approximating it — where
