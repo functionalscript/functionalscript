@@ -67,6 +67,57 @@ Nothing starts on load, as
 [browser-test-controls](../emergent_testing/todo/browser-test-controls.md)
 requires. A page binds the runner to its button.
 
+## A demo shows what a module does
+
+A module page can say what a module *is* and whether it *passes*. A demo is the
+third thing: a hash function is best understood by typing into a field and
+watching the digest change.
+
+**Discovery is by export, exactly as it is for a proof.** A module is a demo
+module if and only if it exports `demo`, so a demo may live in `demo.f.mjs` or
+inline beside the implementation, and no filename decides it
+([the proof export](../emergent_testing/README.md#discovery-the-proof-export)).
+Two demo modules in one directory is refused rather than resolved: a page has
+one demo section, and a precedence rule would decide silently which of them a
+reader is looking at. One a browser cannot link is dropped and said on the
+console — unlike a proof it has nowhere on the page to be listed with its
+blocker.
+
+**A demo is pure, and asks for what it needs.** It exports `init`, `update` and
+`view` ([`demo/types.ts`](./demo/types.ts)); `view` answers a `media/html` tree
+and `update` answers an `Effect`, so a demo never touches the DOM, registers a
+listener, reads a clock or fetches. One impure runtime,
+[`demo-runtime.mjs`](./demo-runtime.mjs), renders what a demo describes and
+hands each event back. A demo is therefore provable like any other `.f.mjs`,
+and its author writes no host code.
+
+`update` returns `Effect<O, State, never>`, and the `never` is a claim: a demo
+has no error display apart from what it renders, so a recoverable failure is
+absorbed into `State` where `view` can show it.
+
+**No browser operation exists yet, so `O` is `never` and every demo is pure.**
+The parameter is there so the first operation is a widening rather than a
+second kind of demo. Until then the runtime runs an effect that can only be a
+value, and a demo told *no* is a path that cannot be reached: answering
+`notImplemented` needs a declared vocabulary to recognise the command against,
+and there is none. `fjs/effects/browser/` brings the first operation, the
+vocabulary, the partial runner that can decline, and the test for it together.
+
+Events are serialized: one `update` at a time, the next queued behind it. That
+is what makes a demo's state a fold over its events in the order they happened,
+which is the property its proof relies on. `start` arrives once, after the
+first render, so a demo needing an operation before it can show anything has
+somewhere to ask without `init` becoming an effect.
+
+**A demo's output should be checkable from outside.** The first one,
+[`crypto/sha2`](../crypto/sha2/demo.f.mjs), shows a SHA-256 digest in hex and
+says it is hex, because `printf '%s' hello | sha256sum` prints the same 64
+characters. Encoding it with this repository's own cBase32 was the first
+attempt: it made the demo partly about `basen`, and left a reader no way to
+tell whether the page was right. Being checkable is not theoretical — the
+digest is padded to 64 because one in sixteen begins with a zero hex digit, and
+what found that was someone typing `1234` into the page.
+
 ## Links are root-relative
 
 `/_main.css`, `/fjs/types/index.html`, `/fjs/emergent_testing/browser/module.mjs`
@@ -83,13 +134,14 @@ word on this site is an identifier — a file name, a directory, a module path, 
 breadcrumb, a test name — and the report was already monospace because a test
 name is a path. Setting one face is what stops the site being two.
 
-**Two elements do not inherit it on their own**, and both are given
+**Some elements do not inherit it on their own**, and each is given
 `font: inherit`. A browser's rule for `pre` names a monospace family, and
 naming one is what triggers the legacy shrink to 13.33px, so a report would
 otherwise be set in a nearly-matching face at a nearly-matching size. A form
 control is given the platform's UI face outright, so `Run` was Arial at
-13.33px on a page otherwise set in monospace at 16px. Inheriting is what makes
-"one face" true of the whole page rather than only of its text.
+13.33px on a page otherwise set in monospace at 16px, and a demo's field was
+the same the moment the first demo landed. Inheriting is what makes "one face"
+true of the whole page rather than only of its text.
 
 The `48rem` measure is kept. In a monospace face at 16px it holds about eighty
 characters, which is the width this repository's source is written to.

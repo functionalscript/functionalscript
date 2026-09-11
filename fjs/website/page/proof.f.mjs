@@ -6,7 +6,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { element } from '../../media/html/module.f.mjs'
 import { concat } from '../../types/string/module.f.mjs'
 import { utf8ToString } from '../../text/module.f.mjs'
-import { page, pageHref, sections, subtree, testSection } from './module.f.mjs'
+import { demoSection, page, pageHref, sections, subtree, testSection } from './module.f.mjs'
 
 /** @type {(dir: Dir) => string} */
 const sectionsHtml = dir => concat(element(['body', ...sections(dir)]))
@@ -15,7 +15,7 @@ const sectionsHtml = dir => concat(element(['body', ...sections(dir)]))
 const pageHtml = dir => utf8ToString(page(dir))
 
 /** @type {Dir} */
-const empty = { path: '.', files: [], dirs: [], todo: [], proofs: [] }
+const empty = { path: '.', files: [], dirs: [], todo: [], proofs: [], demo: null }
 
 export const proof = {
     pageHref: {
@@ -166,6 +166,17 @@ export const proof = {
             assert(html.includes('<p>why</p>'), html)
         },
     },
+    demoSection: {
+        // The section is the demo's own root — the runtime replaces its
+        // contents on every state — and the script names the module rather
+        // than letting the runtime guess a filename.
+        namesTheModuleAndStartsIt: () => {
+            const html = concat(element(['body', ...demoSection('/a/demo.f.mjs')]))
+            assert(html.includes('<summary>Demo</summary>'), html)
+            assert(html.includes('<div data-demo="/a/demo.f.mjs">'), html)
+            assert(html.includes("import { startDemo } from '/fjs/website/demo-runtime.mjs'"), html)
+        },
+    },
     page: {
         /**
          * The breadcrumb names every ancestor and stops before the directory
@@ -189,6 +200,11 @@ export const proof = {
             const html = pageHtml({ ...empty, path: 'fjs' })
             assert(html.includes('<title>fjs</title>'), html)
             assert(html.includes('<link rel="stylesheet" href="/_main.css">'), html)
+        },
+        // A page with a demo carries it between the catalogue and the suite.
+        carriesADemo: () => {
+            const html = pageHtml({ ...empty, path: 'a', demo: '/a/demo.f.mjs' })
+            assert(html.includes('data-demo="/a/demo.f.mjs"'), html)
         },
         // The catalogue is the same one the root page carries.
         carriesSections: () => {
