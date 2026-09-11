@@ -19,9 +19,10 @@
  * corpus format: a rule written twice is a rule that drifts.
  *
  * Operation identity comes from [`fjs/edag`](../edag/README.md) and is not
- * restated here — a group's `op` is an `Op1Id`, an `Op2Id`, or an `Op12Id`,
- * and which vocabulary it is in is what fixes the case's operand count —
- * except for an `Op12Id`, legal at both, where the group's own `arity` does.
+ * restated here — a group's `op` is an `Op1Id`, an `Op2Id`, an `Op12Id`, or
+ * an `Op3Id`, and which vocabulary it is in is what fixes the case's operand
+ * count — except for an `Op12Id`, legal at both of the first two counts,
+ * where the group's own `arity` does.
  *
  * Cases `nanvm-lib` does not implement yet carry a `rust` reason and are
  * emitted as commented-out `TODO`s instead of being silently dropped — the
