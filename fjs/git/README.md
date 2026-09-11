@@ -60,6 +60,16 @@ what a grammar can and cannot do for the formats.
   refuses, a tag whose target is not the type it declared, a tree naming one
   name twice, and a path descending through an entry that is no `40000`
   subtree.
+
+  Both of its loops are walks over the effects rather than recursions, and
+  the chain of ids `peel` has already read is a map rather than a list.
+  Neither is a matter of taste. A `Read` that answers values — an in-memory
+  store, a proof's — makes `step` call its own continuation, so a recursion
+  costs a frame or two per link and a deep chain or a long path exhausts the
+  stack; and a list of ids is scanned and copied whole at every link, which
+  is quadratic in a chain Git puts no bound on. A walk's loop is flat in the
+  item count whatever the `Read` answers, and the map answers and grows in
+  the logarithm.
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
   `Oid` and `OidBytes`, the one fixed-width field and its width, and
   `ObjectType`.
