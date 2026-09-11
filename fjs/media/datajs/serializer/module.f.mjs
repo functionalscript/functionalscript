@@ -23,7 +23,7 @@
  * enumerator reads the property — which invokes an enumerable getter, the
  * very effect the data model refuses. So `read` takes each container as its
  * own property descriptors and follows only the values of the descriptors
- * that survive [`memberValue`](#memberValue). That also answers a question
+ * that survive [`_memberValue`](#_memberValue). That also answers a question
  * no type can: a descriptor exists exactly when the property does, so a
  * member holding `undefined` is a member, where an enumerator that drops it
  * would write a different object.
@@ -37,11 +37,14 @@
  * it is the one whose bytes are pinned.
  *
  * The rules the specification states are each a function over data here —
- * `memberValue`, `elementNames`, `link` — and exported. That is what makes
+ * `_memberValue`, `_elementNames`, `_link` — and exported. That is what makes
  * them provable: no value FunctionalScript can build carries an accessor, a
  * non-enumerable property, an own property on an array besides its
  * elements, or a cycle, so a refusal reached only through such a value
- * could not be proved through this module's entry points at all.
+ * could not be proved through this module's entry points at all. The three
+ * carry the `_` prefix because that export is linkage rather than API
+ * ([`fjs/AGENTS.md`](../../../AGENTS.md) §3.2): `trySerialize` and
+ * `tryStringify` are what this module promises.
  *
  * @module
  *
@@ -143,7 +146,7 @@ const keySerialize = key => key === protoKey
  *
  * @type {(key: string, descriptor: PropertyDescriptor) => Result<unknown, string>}
  */
-export const memberValue = (key, descriptor) =>
+export const _memberValue = (key, descriptor) =>
     descriptor.enumerable !== true ? error(`${key} is a non-enumerable property`) :
     !('value' in descriptor) ? error(`${key} is an accessor property`) :
     ok(descriptor.value)
@@ -156,13 +159,13 @@ export const memberValue = (key, descriptor) =>
  * here too. The specification refuses both, the second because array syntax
  * holds elements and has nowhere to put `const a=[1]; a.meta=2`'s `meta`.
  *
- * Exported for the same reason as {@link memberValue}: an array carrying an
+ * Exported for the same reason as {@link _memberValue}: an array carrying an
  * own property besides its elements is not a value FunctionalScript can
  * build, but the names it would have are.
  *
  * @type {(names: readonly string[], length: number) => boolean}
  */
-export const elementNames = (names, length) =>
+export const _elementNames = (names, length) =>
     names.length === length + 1
     && names.every((name, i) => name === (i === length ? 'length' : `${i}`))
 
@@ -201,7 +204,7 @@ const readMembers = descriptors => walk => {
         const step = okThen(
             /** @type {(value: unknown) => Result<_Step, string>} */
             (value => read(value)(state))
-        )(memberValue(key, descriptor))
+        )(_memberValue(key, descriptor))
         if (step[0] === 'error') { return step }
         const [next, value] = step[1]
         state = next
@@ -228,7 +231,7 @@ const readNode = value => walk => {
     if (isArray(value)) {
         const { length } = value
         const names = getOwnPropertyNames(value)
-        if (!elementNames(names, length)) {
+        if (!_elementNames(names, length)) {
             return error('an array with a hole or an own property besides its elements')
         }
         /** @type {readonly (readonly [string, PropertyDescriptor])[]} */
@@ -295,7 +298,7 @@ const nodeRefs = node => nodeValues(node).flatMap(value => value[0] === 'ref' ? 
  *
  * @type {(finished: readonly _Read[], root: _Value<object>) => Result<_Graph, string>}
  */
-export const link = (finished, root) => {
+export const _link = (finished, root) => {
     const position = new Map(finished.map(
         /** @type {(entry: _Read, i: number) => readonly [object, number]} */
         (([value], i) => [value, i])
@@ -394,7 +397,7 @@ const write = graph => {
  */
 export const trySerialize = value => okThen(
     /** @type {(step: _Step) => Result<List<string>, string>} */
-    (([walk, root]) => mapOk(write)(link(toArray(walk.finished), root)))
+    (([walk, root]) => mapOk(write)(_link(toArray(walk.finished), root)))
 )(read(value)(start))
 
 /**

@@ -70,8 +70,12 @@ export const tryParseBytes: (bytes: List<U8>) => Result<Unknown, string>
 export const tryParse:      (text: string)    => Result<Unknown, string>
 export const trySerialize:  (value: unknown)  => Result<List<string>, string>
 export const tryStringify:  (value: unknown)  => Result<string, string>
-export const tryNormalize:  (value: unknown)  => Result<string, string>
 ```
+
+There is no `tryNormalize` beside them: the writer that landed **is** the
+normalized one, so the name waits for a second writer to tell apart from —
+[`serializer.md`](./serializer.md#layout-and-api) is where that is decided
+and why.
 
 **The byte path is not a convenience, it is a conformance obligation.** Two
 document rules cannot be reached from a code-unit array at all — a document has

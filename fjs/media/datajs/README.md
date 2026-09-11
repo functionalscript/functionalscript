@@ -61,8 +61,10 @@ That is also what makes the rules provable. No value FunctionalScript can
 build carries an accessor, a non-enumerable property, an own property on an
 array besides its elements, or a cycle, so each of those refusals is a
 function over the descriptors, the names or the graph such a value *would*
-have — `memberValue`, `elementNames` and `link`, exported and proved
-against that data directly.
+have — `_memberValue`, `_elementNames` and `_link`, exported and proved
+against that data directly. They carry the `_` prefix because that export is
+linkage rather than API: `trySerialize` and `tryStringify` are what the
+module promises.
 
 ## Nothing is read before it is known to be data
 

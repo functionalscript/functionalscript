@@ -8,7 +8,7 @@ import { invert, unwrap } from '../../../types/result/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { parse } from '../parser/module.f.mjs'
 import { difference } from '../vectors/module.f.mjs'
-import { elementNames, link, memberValue, trySerialize, tryStringify } from './module.f.mjs'
+import { _elementNames, _link, _memberValue, trySerialize, tryStringify } from './module.f.mjs'
 
 /** The document a value is written as. @type {(value: unknown) => string} */
 const text = value => unwrap(tryStringify(value))
@@ -100,6 +100,12 @@ export const proof = {
     // `__proto__` has one spelling, the computed form. The plain string
     // form is a prototype assignment in JavaScript, and the reader refuses
     // it, so a document spelling it that way would not read back.
+    //
+    // `{ ['__proto__']: 1 }` is the member, not a prototype: a computed key
+    // defines an own data property, which is why `fjs/AGENTS.md` §3.1 makes
+    // it the spelling to write. `{ __proto__: 1 }` would be the assignment,
+    // and on a number it would be a no-op rather than the member this
+    // writer has to emit.
     protoKey: () => assertEq(text({ ['__proto__']: 1 }), 'export default {["__proto__"]:1};'),
     sharing: {
         // A node two references reach is a `const`; one reference leaves it
@@ -139,7 +145,8 @@ export const proof = {
         denotes([-0, NaN, Infinity, '\ud800', true])
         denotes(emptyArray)
         // a `const` holding the computed key, which is the one place the
-        // spelling has to survive a statement rather than the export
+        // spelling has to survive a statement rather than the export. The
+        // computed form is an own data property, as `protoKey` above notes.
         const proto = { ['__proto__']: 1 }
         denotes([proto, proto])
         // the spellings a number reaches that are not plain digits: both
@@ -191,25 +198,25 @@ export const proof = {
     // would have are ordinary data, and are what these read.
     rules: {
         memberValue: () => {
-            assertEq(unwrap(memberValue('a', { value: 1, enumerable: true })), 1)
+            assertEq(unwrap(_memberValue('a', { value: 1, enumerable: true })), 1)
             // an attribute outside the data model is not grounds for a
             // refusal: a frozen object's members are non-writable and
             // non-configurable, and a reader may freeze what it returns
-            assertEq(unwrap(memberValue('a', { value: 1, enumerable: true, writable: false, configurable: false })), 1)
-            assertEq(unwrap(invert(memberValue('a', { get: () => 1, enumerable: true }))), 'a is an accessor property')
-            assertEq(unwrap(invert(memberValue('a', { set: () => {}, enumerable: true }))), 'a is an accessor property')
-            assertEq(unwrap(invert(memberValue('a', { value: 1, enumerable: false }))), 'a is a non-enumerable property')
+            assertEq(unwrap(_memberValue('a', { value: 1, enumerable: true, writable: false, configurable: false })), 1)
+            assertEq(unwrap(invert(_memberValue('a', { get: () => 1, enumerable: true }))), 'a is an accessor property')
+            assertEq(unwrap(invert(_memberValue('a', { set: () => {}, enumerable: true }))), 'a is an accessor property')
+            assertEq(unwrap(invert(_memberValue('a', { value: 1, enumerable: false }))), 'a is a non-enumerable property')
         },
         elementNames: () => {
-            assert(elementNames(['length'], 0))
-            assert(elementNames(['0', '1', 'length'], 2))
+            assert(_elementNames(['length'], 0))
+            assert(_elementNames(['0', '1', 'length'], 2))
             // a hole leaves a name out
-            assert(!elementNames(['length'], 1))
-            assert(!elementNames(['0', 'length'], 2))
+            assert(!_elementNames(['length'], 1))
+            assert(!_elementNames(['0', 'length'], 2))
             // any other own property adds one, enumerable or not
-            assert(!elementNames(['0', 'length', 'meta'], 1))
+            assert(!_elementNames(['0', 'length', 'meta'], 1))
             // and `length` is where an array carries it
-            assert(!elementNames(['0', '1'], 2))
+            assert(!_elementNames(['0', '1'], 2))
         },
         link: () => {
             const a = {}
@@ -221,12 +228,12 @@ export const proof = {
                 [a, { kind: 'array', items: [['leaf', 1]] }],
                 [b, { kind: 'object', members: [['k', refA], ['n', ['leaf', null]]] }],
             ]
-            const graph = unwrap(link(acyclic, ['ref', b]))
+            const graph = unwrap(_link(acyclic, ['ref', b]))
             assertEq(graph.nodes.length, 2)
             assertEq(graph.root[1], 1)
             // a node referring to itself, which is what `const $0=[$0];`
             // would be — a document that parses and denotes nothing
-            assertEq(unwrap(invert(link([[a, { kind: 'array', items: [refA] }]], refA))), 'a cycle')
+            assertEq(unwrap(invert(_link([[a, { kind: 'array', items: [refA] }]], refA))), 'a cycle')
             // and a cycle through two nodes, where every reference but one
             // points backwards
             /** @type {readonly _Read[]} */
@@ -234,7 +241,7 @@ export const proof = {
                 [b, { kind: 'array', items: [['ref', a]] }],
                 [a, { kind: 'array', items: [['ref', b]] }],
             ]
-            assertEq(unwrap(invert(link(mutual, refA))), 'a cycle')
+            assertEq(unwrap(invert(_link(mutual, refA))), 'a cycle')
         },
     },
     // The chunks are the document; `tryStringify` is their `concat`.

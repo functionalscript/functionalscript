@@ -79,11 +79,18 @@ settled; the writer is reached at `serializer/module.f.mjs` today, as the
 reader is at `parser/module.f.mjs`.
 
 `trySerialize` yields chunks and `tryStringify` is its `concat`, mirroring
-[`fjs/media/json`](../../json/module.f.mjs)'s pair. `tryNormalize` stays
-separate because normalized form is an optional conformance role a caller asks
-for. The input is `unknown` rather than [`Unknown`](../types.ts) precisely
-because rejecting what is outside the model is the serializer's job — a
-signature taking `Unknown` would be asserting what §1 has to check.
+[`fjs/media/json`](../../json/module.f.mjs)'s pair. The input is `unknown`
+rather than [`Unknown`](../types.ts) precisely because rejecting what is
+outside the model is the serializer's job — a signature taking `Unknown`
+would be asserting what §1 has to check.
+
+Three more names are exported and are **not** API: `_memberValue`,
+`_elementNames` and `_link`, the rules of §1 as functions over the data a
+host value would carry. The `_` prefix is the repository's mark for a name
+whose export is linkage rather than contract
+([`fjs/AGENTS.md`](../../../AGENTS.md) §3.2), which is what these are: the
+proof reaches them because no FunctionalScript value can reach the refusals
+they make.
 
 **Rejection is a `try*`, not a panic.** A serializer's input is
 caller-supplied and may legitimately be outside the data model, which is
@@ -321,7 +328,7 @@ written yet:
 | `serializer-accept` | serialize the input, read it back, compare with [`difference`](../vectors/module.f.mjs) against the vector's graph |
 | `serializer-reject` | assert an `error`, and that the rule it names is the one refused |
 | `graph-equivalence` | every document in `denotes` reads back equal to the input, every one in `denotesNot` does not — the sharing claims, which a single round trip cannot make |
-| `normalize` | compare `tryNormalize`'s output to the vector's `text`, byte for byte |
+| `normalize` | compare `tryStringify`'s output to the vector's `text`, byte for byte, since that output is normalized form |
 
 Three of those read back through [`../parser`](../parser/module.f.mjs), so the
 serializer's proofs are round trips whose comparison is `difference`, the
