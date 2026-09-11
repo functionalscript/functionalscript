@@ -20,7 +20,7 @@ mentions it in three.
 
 755 classes.
 
-| class | reader | serializer | normalize |
+| class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
 | `array/elements/every-value` | `array-elements-every-value` | *awaiting the set* | *awaiting the set* |
 | `array/elements/negative-first` | `array-elements-negative-first` | *awaiting the set* | *awaiting the set* |

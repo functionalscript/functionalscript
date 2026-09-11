@@ -128,8 +128,11 @@ const cell = (corpus, role, c) => {
         : ok(`not applicable: ${reason}`)
 }
 
+/** @type {string} */
 const lower = 'abcdefghijklmnopqrstuvwxyz'
+/** @type {string} */
 const upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'
+/** @type {string} */
 const digits = '0123456789'
 
 /**
@@ -147,6 +150,8 @@ const digits = '0123456789'
  * name is what an id, a class, a role or a set is spelled from. Anything
  * else is refused and named, which costs a writer one rephrasing and
  * closes the question for good.
+ *
+ * @type {string}
  */
 const proseChars = `${lower}${upper}${digits} .,;:'"()/+-?!`
 
@@ -249,7 +254,11 @@ export const matrix = corpus => {
             'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
         ].join('\n'))
     }
-    const header = corpus.roles.map(r => r.role)
+    // in code spans, as every other name in the table is: a role named
+    // `_reader_` is a name `isName` admits, and raw in a header it would
+    // render as an italic `reader` — the table saying one thing and the
+    // corpus another, which is the whole failure this file refuses
+    const header = corpus.roles.map(r => code(r.role))
     return ok([
         '# The class-by-role matrix',
         '',

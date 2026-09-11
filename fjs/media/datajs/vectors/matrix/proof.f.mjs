@@ -58,6 +58,10 @@ export const proof = {
         const t = text(two)
         assert(t.includes('| `x` | `a`, `b` | *awaiting the set* |'), t)
         assert(t.includes('| `y` | `c` | *awaiting the set* |'), t)
+        // the header carries the role names in code spans, as every other
+        // name in the table does, so a role a `_` makes italic cannot make
+        // the header say something the corpus did not
+        assert(t.includes('| class | `reader` | `serializer` |'), t)
         // the summary counts the three answers apart
         assert(t.includes('| `reader` | `accept` | 2 | 0 | 0 |'), t)
         assert(t.includes('| `serializer` | no set yet | 0 | 0 | 2 |'), t)
@@ -122,6 +126,9 @@ export const proof = {
         refuses(reason('a &amp; b'), `the reason for y in serializer: "a &amp; b" ${prose}`)
         refuses(reason('see *the note*'), `the reason for y in serializer: "see *the note*" ${prose}`)
         refuses(one('reader', 'accept', v('a', '<b>x</b>')), `the class of a: "<b>x</b>" ${name}`)
+        // a role name a code span renders literally is not refused, and the
+        // header is where it would otherwise have shown as italic
+        assert(text(one('_reader_', 'accept', v('a', 'x'))).includes('| class | `_reader_` |'))
         refuses(one('rea`der', 'acc`ept', v('a', 'x')),
             `the role rea\`der: "rea\`der" ${name}`,
             `the set acc\`ept of rea\`der: "acc\`ept" ${name}`)
