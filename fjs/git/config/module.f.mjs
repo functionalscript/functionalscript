@@ -445,6 +445,24 @@ const tryLine = (section, raw) => {
 }
 
 /**
+ * One line of a file, read into the section it stands in and the entries
+ * before it. `null` in place of the entries is a line Git refuses, which
+ * refuses every line after it too.
+ *
+ * @type {(acc: readonly [string, Nullable<readonly Entry[]>], raw: string) => readonly [string, Nullable<readonly Entry[]>]}
+ */
+const lineStep = ([section, list], raw) => {
+    if (list === null) { return [section, null] }
+    const read = tryLine(section, raw)
+    if (read === null) { return [section, null] }
+    const [next, entry] = read
+    return [next, entry === null ? list : [...list, entry]]
+}
+
+/** The section and the entries a file starts from: none of either. */
+const linesStart = /** @type {readonly [string, Nullable<readonly Entry[]>]} */ (['', []])
+
+/**
  * Every `key = value` of the file, with the section each sits in, in
  * order, so a key set twice is read twice and the last one wins as it
  * does for Git; or `null` where a line is one Git refuses. A `\r` before a
@@ -458,17 +476,7 @@ export const tryEntries = raw => {
     // editor that writes one means it as text. Here it is the one character
     // a decoder leaves, so the half of one Git refuses cannot arise.
     const text = raw.startsWith(bom) ? raw.slice(bom.length) : raw
-    const [, list] = lines(text).reduce(
-        /** @type {(acc: readonly [string, Nullable<readonly Entry[]>], raw: string) => readonly [string, Nullable<readonly Entry[]>]} */
-        ([section, list], raw) => {
-            if (list === null) { return [section, null] }
-            const read = tryLine(section, raw)
-            if (read === null) { return [section, null] }
-            const [next, entry] = read
-            return [next, entry === null ? list : [...list, entry]]
-        },
-        /** @type {readonly [string, Nullable<readonly Entry[]>]} */ (['', []]),
-    )
+    const [, list] = lines(text).reduce(lineStep, linesStart)
     return list
 }
 
@@ -507,6 +515,50 @@ const extensionAt = ([section, key]) =>
         : section.startsWith(extensionsPrefix) ? `${section.slice(extensionsPrefix.length)}.${key}`
             : null
 
+/** Whether Git 2.43 knows an extension by this name. */
+const isKnownExtension = /** @type {(ext: string) => boolean} */ (
+    ext => knownExtensions.includes(ext))
+
+/** Whether it is one Git reads only under `repositoryformatversion = 1`. */
+const isV1OnlyExtension = /** @type {(ext: string) => boolean} */ (
+    ext => v1OnlyExtensions.includes(ext))
+
+/**
+ * Whether the value under an extension's name is one Git reads there: a
+ * boolean where the extension takes one, a hash's name under
+ * `objectFormat`, and anything at all under a name that is no extension.
+ *
+ * @type {(entry: Entry) => boolean}
+ */
+const extensionValueRead = entry => {
+    const ext = extensionAt(entry)
+    if (ext === null) { return true }
+    const value = entry[2]
+    return booleanExtensions.includes(ext)
+        ? isBoolean(value)
+        : ext !== 'objectformat' || isFormat(value)
+}
+
+/**
+ * One `repositoryformatversion` read into the version before it. The last
+ * assignment wins, and one spelling no number refuses the file whatever
+ * stands after it, since Git reads each as its parser reaches it.
+ *
+ * @type {(acc: Nullable<bigint>, value: string) => Nullable<bigint>}
+ */
+const versionStep = (acc, value) => acc === null ? null : tryInt(value)
+
+/**
+ * The extension an entry names, as a list of none or one, so a flatMap
+ * over the entries is the extensions they name.
+ *
+ * @type {(entry: Entry) => readonly string[]}
+ */
+const extensionsOf = entry => {
+    const ext = extensionAt(entry)
+    return ext === null ? [] : [ext]
+}
+
 /**
  * Whether every `[extensions]` value the file holds is one Git reads: a
  * boolean where the extension takes one, and a hash's name where the
@@ -516,14 +568,7 @@ const extensionAt = ([section, key]) =>
  *
  * @type {(entries: readonly Entry[]) => boolean}
  */
-const extensionValuesRead = entries => entries.every(entry => {
-    const ext = extensionAt(entry)
-    if (ext === null) { return true }
-    const value = entry[2]
-    return booleanExtensions.includes(ext)
-        ? isBoolean(value)
-        : ext !== 'objectformat' || isFormat(value)
-})
+const extensionValuesRead = entries => entries.every(extensionValueRead)
 
 /**
  * The id width the file names, or `null` where the file is one Git
@@ -565,18 +610,12 @@ export const tryOidBytes = text => {
     if (!extensionValuesRead(entries)) { return null }
     // Each version spells a number or refuses the file, and the last one
     // spells the version.
-    const version = valuesOf(entries, 'core', 'repositoryformatversion').reduce(
-        /** @type {(acc: Nullable<bigint>, value: string) => Nullable<bigint>} */
-        (acc, value) => acc === null ? null : tryInt(value),
-        /** @type {Nullable<bigint>} */(noVersion),
-    )
+    const version = valuesOf(entries, 'core', 'repositoryformatversion')
+        .reduce(versionStep, /** @type {Nullable<bigint>} */(noVersion))
     if (version === null || version > 1n) { return null }
-    const exts = entries.flatMap(entry => {
-        const ext = extensionAt(entry)
-        return ext === null ? [] : [ext]
-    })
-    if (version >= 1n && !exts.every(ext => knownExtensions.includes(ext))) { return null }
-    if (version === 0n && exts.some(ext => v1OnlyExtensions.includes(ext))) { return null }
+    const exts = entries.flatMap(extensionsOf)
+    if (version >= 1n && !exts.every(isKnownExtension)) { return null }
+    if (version === 0n && exts.some(isV1OnlyExtension)) { return null }
     // The hash is what the last `objectFormat` names whatever the version,
     // since Git reads the key at every one — and nothing, where the format
     // Git read was thrown away.
