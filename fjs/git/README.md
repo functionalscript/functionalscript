@@ -55,7 +55,10 @@ what a grammar can and cannot do for the formats.
   over whatever reads objects: `peel`, a tag to what it names;
   `tryEntries`, a commit or a tree to the entries of its tree; and
   `tryEntry`, the entry a path names. It reads no object it need not, so
-  a path naming a submodule answers that entry.
+  a path naming a submodule answers that entry, and it refuses what a
+  corrupt repository makes ambiguous: a tag whose target is not the type
+  it declared, a tree naming one name twice, and a path descending through
+  an entry that is no `40000` subtree.
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
   `Oid` and `OidBytes`, the one fixed-width field and its width, and
   `ObjectType`.

@@ -7,7 +7,7 @@ import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { toHex } from '../oid/module.f.mjs'
 import { latin1, tagPayload } from '../testlib.f.mjs'
-import { name, object, tagger, tryObject, tryRead, type, validate, write } from './module.f.mjs'
+import { name, object, tagger, tryObject, tryRead, tryType, type, validate, write } from './module.f.mjs'
 
 /** @type {(input: readonly number[]) => Tag} */
 const read = input => {
@@ -95,6 +95,15 @@ export const proof = {
         assertEq(tryObject(32)(t), null)
         assertEq(tryObject(20)(replaced(0, 'object zz')), null)
         assertEq(tryObject(20)(replaced(0, 'type commit')), null)
+    },
+    // The type the tag declares for its target without the panic: the
+    // type, or `null` where the second header is not `type` or its value
+    // names none of the four. For a caller peeling a tag it has not
+    // vouched for, which checks the object it reaches against this.
+    tryType: () => {
+        assertEq(tryType(tag(lines)), 'commit')
+        assertEq(tryType(replaced(1, 'tag v1')), null)
+        assertEq(tryType(replaced(1, 'type commits')), null)
     },
     // Each refusal, one per rule, on a tag the reader reads.
     validate: () => {

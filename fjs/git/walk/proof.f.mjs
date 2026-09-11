@@ -3,10 +3,11 @@
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
  * @import { TreeEntry } from '../tree/types.ts'
  * @import { Bytes, ObjectType, Oid } from '../types.ts'
+ * @import { Read } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
-import { ioError } from '../../effects/module.f.mjs'
+import { ioError, pureOk } from '../../effects/module.f.mjs'
 import { run } from '../../effects/mock/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
@@ -129,6 +130,29 @@ const badObject = latin1(['object zz', 'type commit', 'tag bad', '', 'm', ''].jo
 
 const badObjectId = of20('tag', badObject)
 
+/** A tag whose `type` header names none of the four. */
+const badType = latin1([`object ${hex(commitId)}`, 'type thing', 'tag bad', '', 'm', ''].join('\n'))
+
+const badTypeId = of20('tag', badType)
+
+/** A tag declaring `commit` over an object that is a blob. */
+const wrongType = tagOf(helloId, 'commit', 'wrong')
+
+const wrongTypeId = of20('tag', wrongType)
+
+/** A tree naming `a.txt` twice, which `git fsck` refuses. */
+const twice = tree([entry('100644', 'a.txt', helloId), entry('100644', 'a.txt', bId)])
+
+const twiceId = of20('tree', twice)
+
+/**
+ * A tree whose `100644` entry names the subtree: the id holds a tree, and
+ * the mode says the path stops there all the same.
+ */
+const lying = tree([entry('100644', 'dir', subId)])
+
+const lyingId = of20('tree', lying)
+
 /**
  * A chain of tags over the commit, each naming the one before it: the
  * first entry is the commit, so the entry at `n` is `n` tags above it.
@@ -173,6 +197,10 @@ const files = Object.fromEntries([
     tagFile(lostTagId, lostTag),
     [at(oddId), latin1('no envelope here')],
     tagFile(badObjectId, badObject),
+    tagFile(badTypeId, badType),
+    tagFile(wrongTypeId, wrongType),
+    treeFile(twiceId, twice),
+    treeFile(lyingId, lying),
     ...chain.slice(1).map(t => tagFile(t.id, t.payload)),
 ])
 
@@ -221,12 +249,10 @@ export const proof = {
         const [, one] = runHost(peeled(chain[1].id))
         assert(one[0] === 'ok' && one[1] !== null)
         assertEq(hex(one[1].id), hex(commitId))
-        // As deep as the bound allows, and one deeper than it allows.
-        const [, deep] = runHost(peeled(chain[8].id))
+        // A chain of nine, which `git tag -a` writes and no bound refuses.
+        const [, deep] = runHost(peeled(chain[9].id))
         assert(deep[0] === 'ok' && deep[1] !== null)
         assertEq(hex(deep[1].id), hex(commitId))
-        const [, tooDeep] = runHost(peeled(chain[9].id))
-        assertStructurallySame(tooDeep, ['ok', null])
     },
     // What a tag cannot be peeled through: bytes that are no tag, an
     // `object` header that is no id, and an object the store does not hold,
@@ -234,6 +260,10 @@ export const proof = {
     peelRefused: () => {
         assertStructurallySame(runHost(peeled(junkTagId))[1], ['ok', null])
         assertStructurallySame(runHost(peeled(badObjectId))[1], ['ok', null])
+        // A `type` header naming none of the four, and one naming a type
+        // the object it reaches is not.
+        assertStructurallySame(runHost(peeled(badTypeId))[1], ['ok', null])
+        assertStructurallySame(runHost(peeled(wrongTypeId))[1], ['ok', null])
         // A file whose bytes are no object at all: the store's `null`, which
         // the walk hands on.
         assertStructurallySame(runHost(peeled(oddId))[1], ['ok', null])
@@ -245,6 +275,17 @@ export const proof = {
         const e = gone[1]
         assert(e[0] === 'ioError')
         assertEq(e[1].code, 'ENOENT')
+    },
+    // A `Read` that does not check what it answers can hand back a cycle,
+    // which a store that checks cannot: a tag naming the id it was asked
+    // for. The chain comes back to an id it has been through and stops.
+    cycle: () => {
+        /** @type {Read<never>} */
+        const liar = id => pureOk({
+            type: 'tag',
+            payload: latin1([`object ${hex(id)}`, 'type tag', 'tag self', '', 'm', ''].join('\n')),
+        })
+        assertStructurallySame(run({})([])(peel(liar, 20)(commitId))[1], ['ok', null])
     },
     // The tree's entries from a commit's id, from the tree's own id, and
     // from a tag over the commit: the same four entries, as Git wrote them.
@@ -317,6 +358,13 @@ export const proof = {
         assertStructurallySame(runHost(entryOf(commitId, [name('nope')]))[1], ['ok', null])
         assertStructurallySame(runHost(entryOf(commitId, [name('dir'), name('nope')]))[1], ['ok', null])
         assertStructurallySame(runHost(entryOf(commitId, [name('a.txt'), name('x')]))[1], ['ok', null])
+        // A name two entries have is no entry, rather than the first of them.
+        assertStructurallySame(runHost(entryOf(twiceId, [name('a.txt')]))[1], ['ok', null])
+        // A `100644` entry whose id names a tree is no subtree: the path
+        // runs into it, and the tree it names is never read.
+        const [log, lie] = runHost(entryOf(lyingId, [name('dir'), name('b.txt')]))
+        assertStructurallySame(lie, ['ok', null])
+        assertStructurallySame(log, [at(lyingId)])
         assertStructurallySame(runHost(entryOf(commitId, []))[1], ['ok', null])
         assertStructurallySame(runHost(entryOf(helloId, [name('a.txt')]))[1], ['ok', null])
         // A name is bytes as they are: one differing by case is another name.
@@ -325,14 +373,12 @@ export const proof = {
         // A component before the last whose file is no object at all.
         assertStructurallySame(runHost(entryOf(commitId, [name('odd'), name('x')]))[1], ['ok', null])
     },
-    // A path under a submodule is not this repository's to resolve: the
-    // entry is not the last component, so its commit is read, and this
-    // store does not hold it.
+    // A path under a submodule is not this repository's to resolve: a
+    // `160000` entry is no subtree, so the path runs into it and the commit
+    // it names is never asked for.
     underSubmodule: () => {
-        const [, r] = runHost(entryOf(commitId, [name('mod'), name('x')]))
-        assert(r[0] === 'error')
-        const e = r[1]
-        assert(e[0] === 'ioError')
-        assertEq(e[1].code, 'ENOENT')
+        const [log, r] = runHost(entryOf(commitId, [name('mod'), name('x')]))
+        assertStructurallySame(r, ['ok', null])
+        assertStructurallySame(log, [at(commitId), at(rootId)])
     },
 }
