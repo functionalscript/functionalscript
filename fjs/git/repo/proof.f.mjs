@@ -184,6 +184,22 @@ export const proof = {
     here: () => {
         assertEq(at({ '.git': repo })(''), '.git')
         assertEq(at({ '.git': file('gitdir: r\n'), r: repo })(''), 'r')
+        // A gitfile naming no path names the worktree, and where the
+        // worktree is the caller's own directory the answer is `.` rather
+        // than nothing. Both spell the same directory to this module, but
+        // the answer leaves it: a caller joining `config` below an empty
+        // string would read at the root instead.
+        assertEq(at({ '.git': file('gitdir: \0junk\n') })(''), '.')
+    },
+    // A directory already ending in a separator does not get another. `/`
+    // and `//` are two roots, a POSIX one and a UNC one, so a `.git` under
+    // the first must not be spelled as one under the second.
+    roots: () => {
+        assertEq(at({ '.git': repo })('/'), '/.git')
+        assertEq(at({ '.git': repo })('//'), '//.git')
+        assertEq(at({ '.git': repo })('C:/'), 'C:/.git')
+        // The same where a `gitdir` line is read against such a directory.
+        assertEq(at({ '.git': file('gitdir: r\n'), r: repo })('/'), '/r')
     },
     // The line's end is a run of any length, and a file's length is
     // whatever wrote it. Git reads a gitfile padded with two hundred
@@ -211,10 +227,11 @@ export const proof = {
     // comes from a host of this proof's own, whose `readFile` fails the
     // proof if it is ever reached.
     special: () => {
-        const host = /** @type {MemOperationMap<ReadFile | Stat, null>} */ ({
+        /** @type {MemOperationMap<ReadFile | Stat, null>} */
+        const host = {
             stat: () => state => [state, ok({ size: 0, isFile: false, isDirectory: false })],
             readFile: () => state => [state, error(ioError({ code: 'EBADF', message: 'read of a FIFO' }))],
-        })
+        }
         const [, refused] = run(host)(null)(tryCommonDir('w'))
         assertStructurallySame(refused, ok(null))
         // A `commondir` that is neither is not read either, and there the
@@ -223,12 +240,13 @@ export const proof = {
         // a worktree does not return at all on Git 2.43.0. Here `.git` is
         // the repository directory and only the `commondir` under it is
         // the odd one.
-        const under = /** @type {MemOperationMap<ReadFile | Stat, null>} */ ({
+        /** @type {MemOperationMap<ReadFile | Stat, null>} */
+        const under = {
             stat: path => state => [state, ok(path.endsWith('commondir')
                 ? { size: 0, isFile: false, isDirectory: false }
                 : { size: 0, isFile: false, isDirectory: true })],
             readFile: () => state => [state, error(ioError({ code: 'EBADF', message: 'read of a FIFO' }))],
-        })
+        }
         const [, stopped] = run(under)(null)(tryCommonDir('w'))
         assertStructurallySame(stopped, ok(null))
     },
@@ -242,12 +260,13 @@ export const proof = {
         // The virtual filesystem answers `ENOENT` for every read it cannot
         // make, so a host of this proof's own is what says a `commondir`
         // the reader is not allowed to open.
-        const host = /** @type {MemOperationMap<ReadFile | Stat, null>} */ ({
+        /** @type {MemOperationMap<ReadFile | Stat, null>} */
+        const host = {
             stat: () => state => [state, ok({ size: 12, isFile: true, isDirectory: false })],
             readFile: path => state => [state, path.endsWith('commondir')
                 ? error(ioError({ code: 'EACCES', message: 'permission denied' }))
                 : ok(utf8('gitdir: /d\n'))],
-        })
+        }
         const [, denied] = run(host)(null)(tryCommonDir('w'))
         const [tag, e] = denied
         assert(tag === 'error', denied)

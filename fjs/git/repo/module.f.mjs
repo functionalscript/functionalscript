@@ -50,6 +50,9 @@ import { toArray } from '../../types/list/module.f.mjs'
 /** What a `.git` file says before the directory it names. */
 const gitdir = /** @type {const} */ ('gitdir: ')
 
+/** The current directory, spelled so that a caller can join below it. */
+const here = /** @type {const} */ ('.')
+
 /** The byte list of a vector, most significant bit first, as Git's files are. */
 const u8ListMsb = u8List(msb)
 
@@ -188,9 +191,17 @@ const reachesHost = path => [...path].every(c => {
  * `C:` is relative, since {@link isAbsolute} wants the `/`, so it is read
  * against the worktree and arrives here already joined.
  *
+ * A directory that already ends in a separator does not get another, and
+ * that is not tidiness: `/` and `//` are two roots to
+ * [`fjs/path`](../../path/module.f.mjs) and to the hosts it models, a
+ * POSIX root and a UNC one, so `/` plus a separator plus `.git` would name
+ * a `.git` in another namespace than the one the caller asked about. `C:/`
+ * is the same case on the other host.
+ *
  * @type {(dir: string, name: string) => string}
  */
-const under = (dir, name) => dir === '' ? name : join(dir, name)
+const under = (dir, name) =>
+    dir === '' ? name : dir.endsWith('/') ? `${dir}${name}` : join(dir, name)
 
 /**
  * A path one of these files names, read where it was found: an absolute
@@ -205,9 +216,23 @@ const under = (dir, name) => dir === '' ? name : join(dir, name)
  * than spelling it the shortest way, which is what a caller that reads at
  * it needs.
  *
+ * A join that comes to nothing is the current directory, and is spelled
+ * `.` rather than left empty. Both are the same directory to this module,
+ * since {@link under} reads a name against the caller's own directory
+ * where the directory is empty, but the answer leaves this module: a
+ * caller that puts it together with `fjs/git/store` builds `${dir}/config`
+ * from it, and an empty `dir` would name the root there instead. The one
+ * input that reaches this is a worktree of no characters whose `.git`
+ * names no path — `gitdir: ` and a NUL — which Git reads as the worktree
+ * itself.
+ *
  * @type {(dir: string, path: string) => string}
  */
-const against = (dir, path) => isAbsolute(path) ? path : under(dir, path)
+const against = (dir, path) => {
+    if (isAbsolute(path)) { return path }
+    const joined = under(dir, path)
+    return joined === '' ? here : joined
+}
 
 /**
  * The directory `<repo>/commondir` names, read against `repo`, or `repo`
