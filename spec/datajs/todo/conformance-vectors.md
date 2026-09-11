@@ -2144,13 +2144,22 @@ The steps, in order; a step is one pull request unless it says otherwise:
       to a graph `difference` finds no difference in, and the ids are
       unique; and, run locally, every document imports as an ES module
       denoting the same graph, the whole-set check decision 5 would keep.
-- [ ] **Reader reject, code-unit form.** The narrowing vectors derived from
-      the spec's six narrowing sources — strings, numbers, identifiers,
-      whitespace, the document rule, and every production of the grammar —
-      each carrying its classification, grammar-only or narrowing, from the
-      measurement the section above records; every one checked for a second
-      ground of refusal before it is committed. Proved against the reader as
-      it lands: every document is refused.
+- [x] **Reader reject, code-unit form.** Landed as
+      [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 313 vectors
+      derived from the spec's six narrowing sources — strings, numbers,
+      identifiers, whitespace, the document rule, and every production of
+      the grammar — each naming the one rule it breaks and carrying the
+      host's verdict, measured by importing the document as an ES module
+      in Node while the set was generated: 198 the host accepts, the
+      narrowing vectors, 103 syntax errors and 12 runtime errors, the
+      grammar-only ones; the required-separator vectors split the way the
+      section above measured them. Every one was checked for a second
+      ground of refusal by pairing it, in the generator, with the same
+      document with its one defect repaired, which the reader must accept.
+      Proved against the reader: every document is refused; the shape,
+      with the verdict among the three, is proved beside the set. The
+      document rule's own vector, U+FEFF as the first *byte*, waits for
+      the byte form; in code units it is a whitespace vector here.
 - [ ] **The byte form.** The accept table by lead partition with the
       continuation positions varied, the reject table with both ends of
       every error class, the non-continuation matrix, and the BOM as the
