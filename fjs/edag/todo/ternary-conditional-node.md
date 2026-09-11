@@ -10,14 +10,13 @@ functionalscript/functionalscript#1867) has no EDAG counterpart:
 [`types.ts`](../types.ts)'s `Op1Id`/`Op2Id` vocabularies only cover arity 1
 and 2 — there is no arity-3 tag at all, so `?:` cannot be expressed as an
 EDAG node today. The shared operator corpus
-([`fjs/nanvm/module.f.mjs`](../../nanvm/module.f.mjs)) works around this the
-same way it works around `typeof`
-([`typeof-operator.md`](./typeof-operator.md)):
+([`fjs/nanvm/module.f.mjs`](../../nanvm/module.f.mjs)) works around this — the
+last escape of its kind, now that unary plus and `typeof` are nodes:
 [`fjs/nanvm/types.ts`](../../nanvm/types.ts)'s `NonEdagGroup` gained a
 `'ternary'` variant carrying `Case<3>`, whose cases always take the corpus's
 "escape" path — build all three operands, apply the operation directly —
 rather than lowering to a real expression. Because there is no such thing as
-an unevaluated `Value` in the corpus (`Operand` admits no expression whose
+an unevaluated `Value` in the corpus (it admits no expression whose
 evaluation is observable), nothing there proves `?:` actually *branches*:
 the discarded arm is built right along with the selected one.
 

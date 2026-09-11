@@ -463,10 +463,16 @@ export const op0 = /** @type {const} */ ([op0Id])
 // Unary Operations
 
 /**
- * `String`/`Number` are casts, `!` is logical and `~` bitwise not. Negation
- * is not here: it is `-` at unary arity, an `op12` below.
+ * `String`/`Number` are casts, `!` is logical and `~` bitwise not, and
+ * `typeof` is the type tag of its operand — always a fresh string, never the
+ * operand itself, so it is the one unary operation with no identity concern.
+ * Like unary `+` (see `op12Id` below), `typeof` is an EDAG operation that
+ * FunctionalScript does not yet spell: it is pure, so the EDAG admits it, and
+ * whether the language admits it as syntax is decided in
+ * `../../spec/todo/2340-operators.md`, not here. Negation is not here
+ * either: it is `-` at unary arity, an `op12`.
  */
-export const op1Id = or('String', 'Number', '!', '~')
+export const op1Id = or('String', 'Number', '!', '~', 'typeof')
 
 export const op1 = /** @type {const} */ ([op1Id, exp])
 

@@ -154,7 +154,7 @@ export type Op0 = readonly[Op0Id]
 // Op1Ids
 
 export type Op1Id =
-    | 'String' | 'Number' | '!' | '~'
+    | 'String' | 'Number' | '!' | '~' | 'typeof'
 
 export type Op1 = readonly[Op1Id, Exp]
 

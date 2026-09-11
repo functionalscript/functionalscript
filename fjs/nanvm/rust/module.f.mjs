@@ -25,7 +25,7 @@
  * @module
  *
  * @import { Exp, Primitive, Properties } from '../../edag/types.ts'
- * @import { Data, Eq, Expectation, Group, OpId, Operand, SharedNode } from '../types.ts'
+ * @import { Data, Eq, Expectation, Group, OpId, SharedNode, Value } from '../types.ts'
  *
  * @example
  *
@@ -38,11 +38,9 @@
  */
 
 import {
-    arityOf,
     caseExp,
     casesOf,
     groupKey,
-    isFunctionValue,
     isThrows,
     lowerEq,
     opId,
@@ -262,7 +260,7 @@ const expExpr = shared => {
      * @type {(e: Exp) => boolean}
      */
     const composed = e => e instanceof Array
-        && e[0] !== 'undefined' && e[0] !== '[]' && e[0] !== '{}'
+        && e[0] !== 'undefined' && e[0] !== '[]' && e[0] !== '{}' && e[0] !== '=>'
     /** @type {(e: Exp) => string} */
     const f = e => {
         if (!(e instanceof Array)) { return primitiveExpr(e) }
@@ -279,6 +277,16 @@ const expExpr = shared => {
             return a.length === 0
                 ? 'Object::default().to_any()'
                 : `[${a.map(propertyExpr).join(', ')}].to_object().to_any()`
+        }
+        if (id === '=>') {
+            // `nanvm-lib` has no closures yet, so no `=>` node prints as one.
+            // The corpus's function value is `() => undefined` (`lambdaExp` in
+            // `../module.f.mjs`), which no operator inspects, and the harness
+            // has one function value to stand in for it; exactly that node
+            // prints as the stand-in, and any other lambda is refused rather
+            // than printed as a function it is not.
+            if (!isSmallestLambda(a, b)) { throw ['no Rust for', e] }
+            return 'function_any()'
         }
         return e.length === 2 ? op1(id)(nested(a)) : op2(id)(nested(a), nested(b))
     }
@@ -306,6 +314,16 @@ const expExpr = shared => {
 }
 
 /**
+ * `true` for the operands of `() => undefined`: an empty frame and the
+ * `undefined` node — the one `=>` this printer has a spelling for.
+ *
+ * @type {(frame: Exp, body: Exp) => boolean}
+ */
+const isSmallestLambda = (frame, body) =>
+    frame instanceof Array && frame[0] === '[]' && frame[1].length === 0
+    && body instanceof Array && body[0] === 'undefined'
+
+/**
  * The same, for a node nothing shares — every node outside the `eq` section,
  * and every `expected`.
  *
@@ -314,15 +332,13 @@ const expExpr = shared => {
 export const nodeExpr = expExpr([])
 
 /**
- * A Rust expression for a value, as the printer meets it in the data.
+ * A Rust expression for a value, as the printer meets it in the data: its
+ * lowering, printed — so this printer and the JavaScript proof read one
+ * derivation and not two.
  *
- * `functionValue` is the one value with no expression to lower, which is why
- * a case carrying it escapes; everything else goes through the lowering, so
- * this printer and the JavaScript proof read one derivation and not two.
- *
- * @type {(v: Operand) => string}
+ * @type {(v: Value) => string}
  */
-export const valueExpr = v => isFunctionValue(v) ? 'function_any()' : nodeExpr(valueExp(v))
+const valueExpr = v => nodeExpr(valueExp(v))
 
 /**
  * Comments out a statement `nanvm-lib` cannot pass yet, keeping the case
@@ -347,22 +363,16 @@ const assertion = expected => name => result => isThrows(expected)
 
 /**
  * The statement result for one argument order: the case's expression printed,
- * or — for a case the corpus does not lower — the operation applied to printed
- * values.
+ * or — for the one group the corpus cannot lower, `ternary` — the operation
+ * applied to printed values.
  *
- * The escape dispatches on the group's arity, as the proof's does, so a
- * binary group's escaped case prints through `op2`, and the one ternary
- * group (`?:`) through `op3`.
- *
- * @type {(g: Group) => (args: readonly Operand[]) => string}
+ * @type {(g: Group) => (args: readonly Value[]) => string}
  */
 const result = g => args => {
     const lowered = caseExp(g)(args)
     if (lowered[0] === 'exp') { return nodeExpr(lowered[1]) }
     const [a, b, c] = args.map(valueExpr)
-    const id = opId(g)
-    const arity = arityOf(g)
-    return arity === 1 ? op1(id)(a) : arity === 2 ? op2(id)(a, b) : op3(id)(a, b, c)
+    return op3(opId(g))(a, b, c)
 }
 
 /** @type {(g: Group) => readonly string[]} */
