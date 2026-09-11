@@ -14,11 +14,11 @@ mentions it in three.
 
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
-| `reader` | `accept`, `reject` | 667 | 0 | 0 |
-| `serializer` | no set yet | 0 | 0 | 667 |
-| `normalize` | no set yet | 0 | 0 | 667 |
+| `reader` | `accept`, `reject` | 668 | 0 | 0 |
+| `serializer` | no set yet | 0 | 0 | 668 |
+| `normalize` | no set yet | 0 | 0 | 668 |
 
-667 classes.
+668 classes.
 
 | class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
@@ -93,6 +93,7 @@ mentions it in three.
 | `bigint/zero/neg` | `bigint-neg-0` | *awaiting the set* | *awaiting the set* |
 | `byte/bom/first` | `byte-bom-first` | *awaiting the set* | *awaiting the set* |
 | `byte/truncated` | `byte-truncated` | *awaiting the set* | *awaiting the set* |
+| `byte/valid/widths` | `byte-valid-widths` | *awaiting the set* | *awaiting the set* |
 | `const/declarators` | `const-declarators` | *awaiting the set* | *awaiting the set* |
 | `const/destructuring/array` | `const-destructuring-array` | *awaiting the set* | *awaiting the set* |
 | `const/destructuring/object` | `const-destructuring-object` | *awaiting the set* | *awaiting the set* |
