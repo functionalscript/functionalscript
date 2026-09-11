@@ -133,14 +133,15 @@ export type OptionPropertyLambda =
 type _OptionInsideOptionProperty = Assert<Equal<OptionLambda extends OptionPropertyLambda ? true : false, true>>
 type _PropertyInsideOptionProperty = Assert<Equal<PropertyLambda extends OptionPropertyLambda ? true : false, true>>
 
-// ... and exactly which three productions the wider state adds, so an arm
-// gained on either side, or a containment broken, is a type error rather than
-// a silent change of what the grammar admits.
+// ... and exactly which three productions the wider state adds, so a change
+// to one of *those three*, or a containment broken, is a type error rather
+// than a silent change of what the grammar admits.
 //
-// An arm *removed* from the shared segment is not theirs to catch: it leaves
-// both unions at once, so `Exclude` is unchanged and all three stay green.
-// The pin for that is `_OptionLambda`, the schema against the type, which is
-// inert where it sits in `proof.f.mjs` — see
+// The shared segment is not theirs to pin, in either direction. An arm
+// gained or lost there lands on both sides of the `Exclude` and cancels, so
+// all three stay green — measured both ways, zero errors in this file. The
+// pin for the shared segment is `_OptionLambda`, the schema against the
+// type, which is inert where it sits in `proof.f.mjs`; see
 // `../../todo/inert-type-level-proofs.md`.
 type _OptionPropertyAdds = Assert<Equal<
     Exclude<OptionPropertyLambda, OptionLambda>,
