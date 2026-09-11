@@ -206,6 +206,38 @@ const unrenderable = ({ roles, notApplicable }) => [
 ]
 
 /**
+ * The names a list uses more than once, said once each however many times
+ * the name repeats: reported at the last occurrence, which is the only
+ * index that is neither the first nor followed by another.
+ *
+ * @type {(names: readonly string[], say: (n: string) => string) => readonly string[]}
+ */
+const twiceNamed = (names, say) =>
+    names.flatMap((n, i) => i === names.indexOf(n) || i !== names.lastIndexOf(n) ? [] : [say(n)])
+
+/**
+ * A name the corpus uses for two different things.
+ *
+ * The table addresses a cell by its column's role and its row's class, and
+ * a reason addresses one by those same two names. So a name that means two
+ * things leaves the table unable to say which it meant — two `reader`
+ * columns that are not the same reader, a reason reaching both, an id in a
+ * cell that names either of two vectors — while still printing something
+ * that looks authoritative. That is the trade this file refuses, arriving
+ * through the names rather than through the text.
+ *
+ * @type {(corpus: Corpus) => readonly string[]}
+ */
+const ambiguous = ({ roles }) => [
+    ...twiceNamed(roles.map(r => r.role), n => `the role ${n}: named twice, so its two columns cannot be told apart`),
+    ...roles.flatMap(({ role, sets }) =>
+        twiceNamed(sets.map(([name]) => name), n => `the set ${n} of ${role}: named twice`)),
+    ...twiceNamed(
+        roles.flatMap(({ sets }) => sets.flatMap(([, vectors]) => vectors.map(v => v.id))),
+        n => `the vector id ${n}: used twice, so a cell naming it names either`),
+]
+
+/**
  * A second reason for a cell that already has one. `reasonOf` takes the
  * first and would drop the rest without a word, so the matrix would read
  * as though the corpus had said one thing where it said two.
@@ -263,7 +295,7 @@ const summary = (corpus, role) => {
 export const matrix = corpus => {
     const classes = classesOf(corpus.roles)
     const rows = classes.map(c => row(corpus, c))
-    const failures = [...unrenderable(corpus), ...duplicated(corpus), ...stale(corpus), ...rows.flatMap(r => r[0] === 'error' ? r[1] : [])]
+    const failures = [...unrenderable(corpus), ...ambiguous(corpus), ...duplicated(corpus), ...stale(corpus), ...rows.flatMap(r => r[0] === 'error' ? r[1] : [])]
     if (failures.length !== 0) {
         return error([
             `the class-by-role matrix has ${failures.length} defects:`,

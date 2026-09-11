@@ -156,6 +156,41 @@ export const proof = {
         const fine = { ...landed, notApplicable: [{ class: 'y', role: 'serializer', because: "a serializer's output (see 3.1) never emits it; why would it?" }] }
         assert(text(fine).includes("not applicable: a serializer's output (see 3.1) never emits it; why would it?"))
     },
+    // A name the corpus uses for two different things leaves the table
+    // unable to say which it meant, while still printing something that
+    // looks authoritative — the same trade, arriving through the names.
+    ambiguous: () => {
+        /** @type {Corpus} */
+        const twoReaders = {
+            roles: [
+                { role: 'reader', sets: [['accept', [v('a', 'x')]]] },
+                { role: 'reader', sets: [['accept', [v('b', 'x')]]] },
+            ],
+            notApplicable: [],
+        }
+        assert(failure(twoReaders).includes('the role reader: named twice, so its two columns cannot be told apart'))
+        /** @type {Corpus} */
+        const twoSets = {
+            roles: [{ role: 'reader', sets: [['accept', [v('a', 'x')]], ['accept', [v('b', 'x')]]] }],
+            notApplicable: [],
+        }
+        assert(failure(twoSets).includes('the set accept of reader: named twice'))
+        /** @type {Corpus} */
+        const twoIds = {
+            roles: [{ role: 'reader', sets: [['accept', [v('a', 'x')]], ['reject', [v('a', 'y')]]] }],
+            notApplicable: [],
+        }
+        assert(failure(twoIds).includes('the vector id a: used twice, so a cell naming it names either'))
+        // a repeated name is said once however many times it repeats
+        /** @type {Corpus} */
+        const thrice = {
+            roles: [{ role: 'reader', sets: [['a', [v('i', 'x')]], ['a', [v('j', 'x')]], ['a', [v('k', 'x')]]] }],
+            notApplicable: [],
+        }
+        assertEq(failure(thrice).split('the set a of reader: named twice').length - 1, 1)
+        // and the real corpus names nothing twice
+        assert(matrix(corpus)[0] === 'ok')
+    },
     // Every class of the corpus is a row, and every vector's id is in it.
     corpus: () => {
         const t = text(corpus)
