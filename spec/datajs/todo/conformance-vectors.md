@@ -53,11 +53,11 @@ corpus that made every consumer decode UTF-8 first would be testing its own
 reader. Two rules are *not* about the token stream and cannot be reached that
 way at all, so their vectors carry the **bytes** instead — as a tagged hex
 string, `["hex", "ef bb bf …"]`, lowercase pairs separated by single
-spaces, the spelling these tables use — fed to the reader's public
+spaces, the one spelling these tables use throughout — fed to the reader's public
 byte-accepting path, which stage 4 owes:
 
 - a document **has no BOM**, which a decoder satisfies the parser on by
-  stripping `EF BB BF` before the parser ever runs; and
+  stripping `ef bb bf` before the parser ever runs; and
 - a document **is UTF-8**, which nothing in a code-unit array can violate — so
   vectors carry invalid UTF-8 to be refused, **one per error class and one at
   each end of every class**, since a decoder can reject a class's lowest member
@@ -67,36 +67,36 @@ byte-accepting path, which stage 4 owes:
 
   | class | lowest | highest |
   | - | - | - |
-  | invalid lead byte, low | `C0` | `C1` |
-  | lead byte in no width scheme, alone | `FE` | `FF` |
-  | four-byte lead past U+10FFFF | `F5 80 80 80` (U+140000) | `F7 BF BF BF` (U+1FFFFF) |
-  | stray continuation byte | `80` | `BF` |
-  | overlong, two bytes | `C0 A0` (U+0020) | `C1 BF` (U+007F) |
-  | overlong, three bytes | `E0 80 A0` (U+0020) | `E0 9F BF` (U+07FF) |
-  | overlong, four bytes | `F0 80 80 A0` (U+0020) | `F0 8F BF BF` (U+FFFF) |
-  | obsolete five-byte form | `F8 88 80 80 80` (U+200000) | `FB BF BF BF BF` (U+3FFFFFF) |
-  | obsolete six-byte form | `FC 84 80 80 80 80` (U+4000000) | `FD BF BF BF BF BF` (U+7FFFFFFF) |
-  | five-byte form overlong into range | `F8 80 80 80 A0` (U+0020) | — |
-  | six-byte form overlong into range | `FC 80 80 80 80 A0` (U+0020) | — |
-  | encoded surrogate | `ED A0 80` (U+D800) | `ED BF BF` (U+DFFF) |
-  | above U+10FFFF | `F4 90 80 80` | `F4 BF BF BF` |
+  | invalid lead byte, low | `c0` | `c1` |
+  | lead byte in no width scheme, alone | `fe` | `ff` |
+  | four-byte lead past U+10FFFF | `f5 80 80 80` (U+140000) | `f7 bf bf bf` (U+1FFFFF) |
+  | stray continuation byte | `80` | `bf` |
+  | overlong, two bytes | `c0 a0` (U+0020) | `c1 bf` (U+007F) |
+  | overlong, three bytes | `e0 80 a0` (U+0020) | `e0 9f bf` (U+07FF) |
+  | overlong, four bytes | `f0 80 80 a0` (U+0020) | `f0 8f bf bf` (U+FFFF) |
+  | obsolete five-byte form | `f8 88 80 80 80` (U+200000) | `fb bf bf bf bf` (U+3FFFFFF) |
+  | obsolete six-byte form | `fc 84 80 80 80 80` (U+4000000) | `fd bf bf bf bf bf` (U+7FFFFFFF) |
+  | five-byte form overlong into range | `f8 80 80 80 a0` (U+0020) | — |
+  | six-byte form overlong into range | `fc 80 80 80 80 a0` (U+0020) | — |
+  | encoded surrogate | `ed a0 80` (U+D800) | `ed bf bf` (U+DFFF) |
+  | above U+10FFFF | `f4 90 80 80` | `f4 bf bf bf` |
 
   Each overlong range's highest member sits immediately below that width's
-  valid minimum — `C1 BF` under `c2 80`, `E0 9F BF` under `e0 a0 80`,
-  `F0 8F BF BF` under `f0 90 80 80` — so the pairs bracket the transition from
+  valid minimum — `c1 bf` under `c2 80`, `e0 9f bf` under `e0 a0 80`,
+  `f0 8f bf bf` under `f0 90 80 80` — so the pairs bracket the transition from
   both sides, and the same holds for the surrogate hole and the U+10FFFF edge.
 
   **The two-byte overlong needs its own row after all.** An earlier draft
-  argued that `C0` is an invalid lead outright, so the invalid-lead class
-  carries `C0 80` already. Review showed the argument inverted: the invalid-lead
-  vector places `C0` inside a quoted string, so its next byte is the closing
-  `22`, and a decoder that *does* treat `C0` as a two-byte lead rejects that for
+  argued that `c0` is an invalid lead outright, so the invalid-lead class
+  carries `c0 80` already. Review showed the argument inverted: the invalid-lead
+  vector places `c0` inside a quoted string, so its next byte is the closing
+  `22`, and a decoder that *does* treat `c0` as a two-byte lead rejects that for
   the missing continuation. It refuses the vector without ever enforcing the
   overlong rule, which is the one thing the vector was about.
 
   **Every overlong row's true low end is a vector that cannot fail**, which is
   the sweep that finding forced and it reaches two rows nobody reported.
-  `C0 80`, `E0 80 80` and `F0 80 80 80` all encode **U+0000**, and a decoder
+  `c0 80`, `e0 80 80` and `f0 80 80 80` all encode **U+0000**, and a decoder
   that accepts the overlong hands the parser a code point below U+0020 — a
   rejected raw character — so the document is refused for the *string* rule
   while the UTF-8 rule goes unenforced. The rows now start at the overlong
@@ -106,22 +106,22 @@ byte-accepting path, which stage 4 owes:
   pass no matter what. Nor does the space between tokens help — a decoder
   yielding U+0000 there is refused for not being permitted whitespace.
 
-  **A lead byte past `F4` needs a complete sequence, and needs it twice**, for
+  **A lead byte past `f4` needs a complete sequence, and needs it twice**, for
   two axes that a first pass here confused and a second had to separate.
 
   The first axis is the **lead range** a decoder's table admits, and it is the
-  `C0` finding again one row up: inside a quoted string the lone `F5` is
-  really `F5 22`, which a decoder treating `F5` as a four-byte lead rejects for
+  `c0` finding again one row up: inside a quoted string the lone `f5` is
+  really `f5 22`, which a decoder treating `f5` as a four-byte lead rejects for
   the missing continuation — refusing the vector without ever deciding that
-  `F5` is not a lead. So the complete sequences, both ends of every lead run
-  the width scheme distinguishes: `F5`–`F7` at four bytes, `F8`–`FB` at five,
-  `FC`–`FD` at six. `FE` and `FF` are leads in no scheme at all, so they keep
+  `f5` is not a lead. So the complete sequences, both ends of every lead run
+  the width scheme distinguishes: `f5`–`f7` at four bytes, `f8`–`fb` at five,
+  `fc`–`fd` at six. `fe` and `ff` are leads in no scheme at all, so they keep
   only the lone-byte form — and **both** of them: that run is a range like any
-  other, and the table sampled it as `F5` and `FF` until review pointed out
-  that a reader accepting a lone `FE` passes everything else here. A lone `F5`
-  is gone with it: once `F5 80 80 80` exists, the lone byte tests nothing the
-  complete sequence does not, because a decoder treating `F5` as a lead refuses
-  `F5 22` for the missing continuation — the very argument that put the
+  other, and the table sampled it as `f5` and `ff` until review pointed out
+  that a reader accepting a lone `fe` passes everything else here. A lone `f5`
+  is gone with it: once `f5 80 80 80` exists, the lone byte tests nothing the
+  complete sequence does not, because a decoder treating `f5` as a lead refuses
+  `f5 22` for the missing continuation — the very argument that put the
   complete sequences in the table.
 
   The second axis is **what the decoder does with the value it computes**, and
@@ -132,12 +132,12 @@ byte-accepting path, which stage 4 owes:
     accepts the lead and never range-checks builds some string from them and
     accepts the document. These vectors catch that.
   - **Range check, no overlong check.** That decoder refuses everything above,
-    so only a sequence whose value lands *in* range reaches it. `F8` and `FC`
-    are the only obsolete leads that can encode one — measured: `F9`–`FB` start
-    at U+1000000 and `FD` at U+40000000, so no payload brings them back — and
+    so only a sequence whose value lands *in* range reaches it. `f8` and `fc`
+    are the only obsolete leads that can encode one — measured: `f9`–`fb` start
+    at U+1000000 and `fd` at U+40000000, so no payload brings them back — and
     every value they can reach is overlong by construction, the five-byte form
     beginning at U+200000 and the six-byte at U+4000000 when written minimally.
-    Hence `F8 80 80 80 A0` and `FC 80 80 80 80 A0`, both U+0020.
+    Hence `f8 80 80 80 a0` and `fc 80 80 80 80 a0`, both U+0020.
 
   A decoder keeping a legacy branch with *both* checks is the one case nothing
   here catches, and nothing can: it accepts no five- or six-byte sequence this
@@ -145,14 +145,14 @@ byte-accepting path, which stage 4 owes:
 
   **The previous round got this wrong in the direction this document keeps
   getting things wrong.** It shipped only the overlong forms, on the argument
-  that `F8 88 80 80 80` "every implementation refuses for being above
+  that `f8 88 80 80 80` "every implementation refuses for being above
   U+10FFFF". Every *range-checking* implementation does. The sentence claimed a
   universal from a property most implementations have, which is the same
   overreach recorded three times above, and it cost the vector that catches the
   commoner of the two defects.
 
   Two classes are not ranges and keep their own vectors. A **truncated
-  sequence** (`C2` at end of input) has no vector at all — see the exemption
+  sequence** (`c2` at end of input) has no vector at all — see the exemption
   below. A valid lead followed by a **non-continuation** byte needs one per
   position **in every width that has that position**, and the intruding byte
   has two sub-classes, so each cell holds two vectors — the whole matrix, not a
@@ -160,19 +160,19 @@ byte-accepting path, which stage 4 owes:
 
   | lead | position 1 | position 2 | position 3 |
   | - | - | - | - |
-  | `C2`, for `c2`–`df` | `C2 41` / `C2 C2` | — | — |
-  | `E0` | `E0 41 80` / `E0 C2 80` | `E0 A0 41` / `E0 A0 C2` | — |
-  | `E2`, for `e1`–`ec` | `E2 41 80` / `E2 C2 80` | `E2 82 41` / `E2 82 C2` | — |
-  | `ED` | `ED 41 80` / `ED C2 80` | `ED 80 41` / `ED 80 C2` | — |
-  | `EE`, for `ee`–`ef` | `EE 41 80` / `EE C2 80` | `EE 80 41` / `EE 80 C2` | — |
-  | `F0` | `F0 41 98 80` / `F0 C2 98 80` | `F0 9F 41 80` / `F0 9F C2 80` | `F0 9F 98 41` / `F0 9F 98 C2` |
-  | `F1`, for `f1`–`f3` | `F1 41 80 80` / `F1 C2 80 80` | `F1 80 41 80` / `F1 80 C2 80` | `F1 80 80 41` / `F1 80 80 C2` |
-  | `F4` | `F4 41 80 80` / `F4 C2 80 80` | `F4 80 41 80` / `F4 80 C2 80` | `F4 80 80 41` / `F4 80 80 C2` |
+  | `c2`, for `c2`–`df` | `c2 41` / `c2 c2` | — | — |
+  | `e0` | `e0 41 80` / `e0 c2 80` | `e0 a0 41` / `e0 a0 c2` | — |
+  | `e2`, for `e1`–`ec` | `e2 41 80` / `e2 c2 80` | `e2 82 41` / `e2 82 c2` | — |
+  | `ed` | `ed 41 80` / `ed c2 80` | `ed 80 41` / `ed 80 c2` | — |
+  | `ee`, for `ee`–`ef` | `ee 41 80` / `ee c2 80` | `ee 80 41` / `ee 80 c2` | — |
+  | `f0` | `f0 41 98 80` / `f0 c2 98 80` | `f0 9f 41 80` / `f0 9f c2 80` | `f0 9f 98 41` / `f0 9f 98 c2` |
+  | `f1`, for `f1`–`f3` | `f1 41 80 80` / `f1 c2 80 80` | `f1 80 41 80` / `f1 80 c2 80` | `f1 80 80 41` / `f1 80 80 c2` |
+  | `f4` | `f4 41 80 80` / `f4 c2 80 80` | `f4 80 41 80` / `f4 80 c2 80` | `f4 80 80 41` / `f4 80 80 c2` |
 
   **Rows are the accept table's eight parts, not the three widths.** A
   constrained lead has its own handler, so it has its own way to be wrong: a
-  decoder that validates `E2`'s continuations correctly and writes `ED`'s
-  second-byte check as `b <= 0x9f` accepts `ED 41 80` as an ordinary scalar —
+  decoder that validates `e2`'s continuations correctly and writes `ed`'s
+  second-byte check as `b <= 0x9f` accepts `ed 41 80` as an ordinary scalar —
   `0x41` passes that test — while still rejecting every encoded-surrogate
   vector. Review found it, and the fix is the same reindexing the *accept*
   table needed two rounds earlier: the width was never the thing a decoder
@@ -182,24 +182,24 @@ byte-accepting path, which stage 4 owes:
   section.
 
   A byte is a continuation exactly when it is `10xxxxxx`, so a
-  non-continuation is either **high bit clear** (`00`–`7F`, the `41` column) or
-  **high bit set but not a continuation** (`C0`–`FF`, the `C2` column). A
+  non-continuation is either **high bit clear** (`00`–`7f`, the `41` column) or
+  **high bit set but not a continuation** (`c0`–`ff`, the `c2` column). A
   decoder testing `b >= 0x80` where it means `0x80 <= b <= 0xBF` rejects every
-  `41` cell and accepts every `C2` one — half of every cell in this matrix
+  `41` cell and accepts every `c2` one — half of every cell in this matrix
   passing while the check it tests is wrong. Review found that after the first
   draft filled all six positions with `41` alone.
 
-  The high-bit intruder must be a **valid lead byte**, which is why it is `C2`
-  and not `C0` or `FF`: those are invalid leads outright, measured, so a vector
+  The high-bit intruder must be a **valid lead byte**, which is why it is `c2`
+  and not `c0` or `ff`: those are invalid leads outright, measured, so a vector
   using one has the invalid-lead class as a second ground for refusal and stops
   testing the position it was written for. Any valid lead does equally well —
-  `C2` and `F4` differ nowhere under the one comparison that separates this
+  `c2` and `f4` differ nowhere under the one comparison that separates this
   sub-class from the other — so one representative per cell is enough. The
-  ASCII intruder is constrained from the other direction: `00`–`1F` is a raw
-  control character and `22` and `5C` end or escape the string that carries the
+  ASCII intruder is constrained from the other direction: `00`–`1f` is a raw
+  control character and `22` and `5c` end or escape the string that carries the
   vector, each a second ground for refusal, so the column sits in the printable
   remainder and `41` is that. An
-  earlier draft had one cell per width — `C2 41`, `E2 82 41`, `F0 9F 98 41` —
+  earlier draft had one cell per width — `c2 41`, `e2 82 41`, `f0 9f 98 41` —
   which is one diagonal, and a decoder with separate per-width branches
   passes a diagonal while failing every cell it misses. All twelve measured
   invalid, each for "invalid continuation byte" rather than any other reason.
@@ -221,7 +221,7 @@ byte-accepting path, which stage 4 owes:
 
   **Truncation at end of input has no vector, and the reason is worth more
   than one would be.** To be truncated the lead byte must be the document's
-  last, so there is no closing quote and no `;`; adding them makes it `C2 22`,
+  last, so there is no closing quote and no `;`; adding them makes it `c2 22`,
   the non-continuation class instead. An earlier draft exempted it from the
   placement rule and kept it anyway, claiming the class survived and only the
   attribution was lost. That was wrong, and review said so: a byte reader that
@@ -239,8 +239,8 @@ byte-accepting path, which stage 4 owes:
 
 Byte-form vectors must **accept** as well as reject, and the accept set has a
 derivation rather than a list. **Four leads constrain their second byte** —
-`E0` admits `A0`–`BF`, `ED` admits `80`–`9F`, `F0` admits `90`–`BF`, `F4`
-admits `80`–`8F`, since outside those the sequence would be overlong, a
+`e0` admits `a0`–`bf`, `ed` admits `80`–`9f`, `f0` admits `90`–`bf`, `f4`
+admits `80`–`8f`, since outside those the sequence would be overlong, a
 surrogate, or above U+10FFFF. Those four constraints **partition the valid lead
 bytes into eight parts**, and each part is a contiguous run of scalars a
 decoder can implement, get wrong, or omit on its own. So: **both ends of every
@@ -268,7 +268,7 @@ whose neighbours do not meet it is a part written wrong.
 endpoints of a part do not give that on their own: a row whose accepts are
 `e1 80 80` and `ec bf bf` is passed whole by a decoder that requires the
 continuation bytes to be *equal to each other*, which then refuses valid text
-like `e1 80 bf`. Every position already sees both `80` and `BF` across the two
+like `e1 80 bf`. Every position already sees both `80` and `bf` across the two
 endpoints — what they lack is the independence, so each part with more than one
 continuation position gets accepts making **every pair of its positions differ
 in at least one vector**: `e1 80 bf` (U+103F), `ee 80 bf` (U+E03F),
@@ -276,9 +276,9 @@ in at least one vector**: `e1 80 bf` (U+103F), `ee 80 bf` (U+E03F),
 and `f4 80 80 bf` (U+10003F), all measured valid.
 
 Four parts need nothing added, and the reason is the constraint that defines
-them: `E0` admits `A0`–`BF` where its second continuation admits `80`, so
-`e0 a0 80` already has two positions that differ, and `ED` and the first
-positions of `F0` and `F4` are the same. The second-byte constraints did that
+them: `e0` admits `a0`–`bf` where its second continuation admits `80`, so
+`e0 a0 80` already has two positions that differ, and `ed` and the first
+positions of `f0` and `f4` are the same. The second-byte constraints did that
 much of the work for free — the parts that needed a vector are exactly the ones
 no constraint touches, which is where this table has been short every time.
 
@@ -286,19 +286,19 @@ no constraint touches, which is where this table has been short every time.
 deriving it**, and the shape repeated at every level:
 
 - The first table used **interior** values, so a decoder rejecting a whole lead
-  range passed: `C2`, `E0` and `F0 90` at the bottom, `DF`, `EF` and `F4` at
+  range passed: `c2`, `e0` and `f0 90` at the bottom, `df`, `ef` and `f4` at
   the top.
 - Then it had **one edge of each constrained lead** — `e0 a0 80`, `ed 9f bf`,
-  `f0 90 80 80`, `f4 8f bf bf` — so a decoder accepting only `90` after `F0`,
-  or only `8F` after `F4`, passed while refusing most of the plane. The
+  `f0 90 80 80`, `f4 8f bf bf` — so a decoder accepting only `90` after `f0`,
+  or only `8f` after `f4`, passed while refusing most of the plane. The
   opposite edges are accepts too, and are now the other end of those rows.
 - Then it had no **surrogate hole** flanks. A hole in a range has two
-  boundaries like any other, and a decoder rejecting the whole `ED` lead range
+  boundaries like any other, and a decoder rejecting the whole `ed` lead range
   refuses valid text up to U+D7FF while still rejecting the encoded surrogate
   correctly — passing the row's endpoints and the surrogate error class alike.
 - Then, with every constrained lead covered twice over, the **unconstrained**
   ranges had nothing: no `e1`–`ec` and no `f1`–`f3` anywhere in the set, so a
-  decoder implementing only the special branches — `E0`, `ED`, `F0`, `F4` — and
+  decoder implementing only the special branches — `e0`, `ed`, `f0`, `f4` — and
   refusing every ordinary four-byte sequence passed the whole corpus. Review
   found that one, and it is why the table is now indexed by **lead partition**
   rather than by width: the width framing had no row for a range that no
