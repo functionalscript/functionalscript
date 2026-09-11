@@ -57,10 +57,15 @@ const seam = h => {
 }
 
 /**
- * A remainder held, then a `Vec` as long as a `Vec` may be: the framing
- * never joins the two into one, which would be over the ceiling every host
- * honours, and the order the pieces come in does not change the digest.
+ * A remainder held, then a `Vec` as long as a `Vec` may be: appending the
+ * two gives what computing over the two gives, so the framing never joins
+ * them into one `Vec`, which would be over the ceiling every host honours.
  * The two pieces are parameters so the check is closed over nothing.
+ *
+ * Only that. The order the pieces come in is not free — a message is the
+ * pieces in the order they arrive, which is what {@link seam} pins — and
+ * swapping them here would agree only because both pieces of the one
+ * caller repeat a byte.
  *
  * @template S
  * @param {Vec} held
@@ -70,7 +75,6 @@ const seam = h => {
 const heldThenFull = (held, full) => h => {
     const compute = computeSync(h)
     assertEq(uint(h.end(h.append(full)(h.append(held)(h.init)))), uint(compute([held, full])))
-    assertEq(uint(compute([held, full])), uint(compute([full, held])))
 }
 
 /** @type {(sha2: Sha2) => (x: bigint) => void} */

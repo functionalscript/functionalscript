@@ -56,7 +56,7 @@ export const proof = {
     throw: {
         emptyBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 0n, blockBytes: 0n, hashLength: 0n })),
         negativeBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: -8n, blockBytes: -1n, hashLength: -8n })),
-        oddBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 9n, blockBytes: 2n })),
+        oddBlock: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, blockLength: 513n, blockBytes: 65n })),
         wideDigest: () => hmac(/** @type {Hash<State>} */ ({ ...sha256, hashLength: 1024n, hashBytes: 128n })),
     },
 }
