@@ -196,10 +196,10 @@ export const runBrowserProofs = _runBrowserProofsWith(map => map)
 /**
  * What a page hands `import()` for one of its sources.
  *
- * **Only a relative specifier is rebased.** The manifest writes its sources
- * relative to the page (`./fjs/…`), and a bare `import(source)` inside this
- * module would resolve those against *this module's* URL — two directories
- * deep, every load 404.
+ * **Only a relative specifier is rebased.** A page names its sources relative
+ * to itself (`./proof.f.mjs`, and `./fjs/…` from the root), and a bare
+ * `import(source)` inside this module would resolve those against *this
+ * module's* URL — two directories deep, every load 404.
  *
  * Everything else is handed over unchanged, deliberately: a bare specifier
  * (`proofs/core`) is an import map's to resolve, and rewriting it into a

@@ -144,6 +144,13 @@ export const proof = {
         assertEq(tryEntries('[c]\n\tx\0'), null)
         assertEq(tryEntries('[c]\n\tx\0y = 1'), null)
         assertEq(tryEntries('[c\0d]\n\tx = 1'), null)
+        // A quoted subsection takes every character but a `\n`, so a NUL
+        // there is no bad config line to Git: it truncates the whole
+        // assembled name and leaves it with no key, which is a name an
+        // entry cannot spell, so this refuses rather than misreads.
+        assertEq(tryEntries('[remote "o\0p"]\n\tx = 1'), null)
+        assertEq(tryEntries('[remote "\0o"]\n\tx = 1'), null)
+        assertStructurallySame(tryEntries('[remote "op"]\n\tx = 1'), [['remote.op', 'x', '1']])
         assertEq(tryEntries('\0[c]\n\tx = 1'), null)
         // A format the NUL cuts short is the format before it, which is
         // the one Git reads.

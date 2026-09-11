@@ -196,11 +196,13 @@ export type Group = Group1 | Group2 | Group12 | Group3
 // An operand count is a type error rather than a case that runs: a group's
 // count is which EDAG vocabulary its id is in, and `Case<N>` carries it.
 //
-// These are here and not in `proof.f.mjs` because a `@typedef` inside a
-// function body is never checked — TypeScript does not evaluate the
-// constraint of a declaration nothing references, so the same six assertions
-// written there passed with any claim at all. A module-scope alias in a
-// `.ts` file is checked; `../types/array/types.ts` is the precedent.
+// These are here and not in `proof.f.mjs` because a `@typedef` there is
+// checked only where a statement follows it in the same block: a JSDoc
+// comment binds to the next statement, and one with nothing after it is
+// never bound at all. Written as the tail of a proof entry, the same six
+// assertions passed with any claim. A module-scope alias in a `.ts` file is
+// resolved either way; `../types/array/types.ts` is the precedent and
+// `../AGENTS.md` §1.4 states the rule.
 
 type _Unary = Assert<Equal<Case<1>['args'], readonly [Value]>>
 type _Binary = Assert<Equal<Case<2>['args'], readonly [Value, Value]>>
