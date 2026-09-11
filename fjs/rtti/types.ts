@@ -132,7 +132,7 @@ export type String = _Type0<'string'>
 /** Schema type for `bigint`. */
 export type Bigint = _Type0<'bigint'>
 
-/** Schema type for any DataJS value (`Primitive | UnknownRecord | UnknownArray`). */
+/** Schema type for any DataJS value (`Primitive | Array | Object`). */
 export type Unknown = _Type0<'unknown'>
 
 /**

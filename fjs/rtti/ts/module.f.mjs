@@ -348,7 +348,8 @@ export const dataToTs = mut => ([rules, entry]) => {
  *
  * **Two notes where this and `Ts<>` differ.** The `unknown` schema produces
  * the string `'unknown'` (TypeScript's built-in), whereas `Ts<>` maps it to
- * `DataJsUnknown` from `media/datajs/types.ts`. And this printer recognizes an empty
+ * rtti's own `Unknown` from [`./types.ts`](./types.ts), which coincides
+ * with DataJS's without being it. And this printer recognizes an empty
  * rest **semantically** — the data form has already normalized one away — so
  * `rest([42], [or()])` prints the exact `readonly[42]`, where `Ts<>` keeps a
  * tail it cannot see through (`RestTs` in `./types.ts` says why, and in which

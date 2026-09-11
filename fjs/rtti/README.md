@@ -15,7 +15,7 @@ every outside consumer of `types/list`, `types/result` or `types/object` has.
 It does depend on several `types/*` modules (`object`, `result`, `list`,
 `array`, `ts`, `phantom`), but that is consumption, not membership — the rest
 of `fjs/` depends on those the same way. Its own outward dependencies
-(`fjs/asserts`, `fjs/js/keywords`, `fjs/djs`) point sideways to other
+(`fjs/asserts`, `fjs/js/keywords`, `fjs/media/datajs`) point sideways to other
 top-level directories rather than down to a foundation `types/` sits under,
 unlike the `types/*` modules that do reach outside (`bigint`, `bit_vec`,
 `number`, `prime_field`, `string` → `fjs/common/monoid`; `uint8array` →
