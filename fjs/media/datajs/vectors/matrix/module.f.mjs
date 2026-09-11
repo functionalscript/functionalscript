@@ -168,6 +168,9 @@ const nameChars = `${lower}${upper}${digits}/+-._:`
 /** @type {(allowed: string) => (s: string) => boolean} */
 const onlyFrom = allowed => s => [...s].every(c => allowed.includes(c))
 
+/** @type {(s: string) => boolean} */
+const proseCharsOnly = onlyFrom(proseChars)
+
 /**
  * Prose the cell shows as written, which for the space means *as spaced*.
  * A table cell trims its edges and the rendering collapses a run, so
@@ -178,7 +181,7 @@ const onlyFrom = allowed => s => [...s].every(c => allowed.includes(c))
  *
  * @type {(s: string) => boolean}
  */
-const isProse = s => onlyFrom(proseChars)(s) && s.trim() === s && !s.includes('  ')
+const isProse = s => proseCharsOnly(s) && s.trim() === s && !s.includes('  ')
 
 /** @type {(s: string) => boolean} */
 const isName = onlyFrom(nameChars)
