@@ -47,6 +47,7 @@ import accept from '../../../../../spec/datajs/vectors/accept/data.f.mjs'
 import reject from '../../../../../spec/datajs/vectors/reject/data.f.mjs'
 import serializerAccept from '../../../../../spec/datajs/vectors/serializer-accept/data.f.mjs'
 import graphEquivalence from '../../../../../spec/datajs/vectors/graph-equivalence/data.f.mjs'
+import normalizeSet from '../../../../../spec/datajs/vectors/normalize/data.f.mjs'
 import notApplicableData from '../../../../../spec/datajs/vectors/not-applicable/data.f.mjs'
 
 /** Where the matrix is written. @type {string} */
@@ -80,7 +81,7 @@ export const corpus = {
                 ['graph-equivalence', /** @type {readonly Base[]} */ (graphEquivalence)],
             ],
         },
-        { role: 'normalize', sets: [] },
+        { role: 'normalize', sets: [['normalize', /** @type {readonly Base[]} */ (normalizeSet)]] },
     ],
     // through `unknown`: a data module spells a scope as an array literal,
     // which infers as `string[]` rather than as the tagged tuple the type has

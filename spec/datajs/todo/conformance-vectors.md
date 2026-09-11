@@ -1426,7 +1426,12 @@ The five parts:
   `ReferenceError`), so dependency-before-dependent is forced by the language
   in any document that runs at all, and no vector has to pin it. Pin a graph whose consts reach
   **`$10`** — eleven distinct shared containers, `root=[a,a,b,b,…,k,k]` with
-  each of the eleven an empty array, whose exact output is
+  each of the eleven an empty **object**, since a shared empty *array* is
+  unspellable: measured, `const $e = [];` in a data module is `TS7034`, an
+  evolving `any[]`, and every read of it `TS7005`, which is the rule the
+  corpus README already states. Sharing needs a binding, so an empty array
+  can be a root or an inline descendant and never a shared node. Its exact
+  output is
   `const $0=[];const $1=[];const $2=[];const $3=[];const $4=[];const $5=[];const $6=[];const $7=[];const $8=[];const $9=[];const $10=[];export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10];`
   — because `$0`, `$1`, … is a *counter*, and every vector above stops at
   `$1`. A normalizer deriving the name from a single digit passes all of them
@@ -1441,10 +1446,14 @@ The five parts:
 
   | parent, child | graph | normalized bytes |
   | - | - | - |
-  | array, array | `root=[p,p,c]`, `p=[c]` | `const $0=[];const $1=[$0];export default [$1,$1,$0];` |
+  | array, array | `root=[p,p,c]`, `p=[c]`, `c=[0]` | `const $0=[0];const $1=[$0];export default [$1,$1,$0];` |
   | object, object | `root={"a":p,"b":p,"c":q}`, `p={"x":q}` | `const $0={};const $1={"x":$0};export default {"a":$1,"b":$1,"c":$0};` |
   | object, array | `root={"a":p,"b":p,"c":q}`, `p={"x":q}`, `q` an array | `const $0=[];const $1={"x":$0};export default {"a":$1,"b":$1,"c":$0};` |
   | array, object | `root=[p,p,q]`, `p=[q]`, `q` an object | `const $0={};const $1=[$0];export default [$1,$1,$0];` |
+
+  The array-child rows carry `[0]` rather than `[]` for the reason just
+  given: the child is a shared node, so it needs a binding, and an empty
+  array cannot have one. The object-child rows stand as they are.
 
   Naming can live in a per-container emitter rather than in one shared
   traversal, and a normalizer can go further: name post-order *within* each
@@ -1797,7 +1806,24 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [ ] **Normalize.** Graph inputs with exact bytes: hoisting in both
+- [x] **Normalize.** Landed as 130 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 70 scope
+      records answering the 593 cells its column owes and one `['set',
+      'normalize']` each for the reader and the serializer, whose columns owe
+      the 50 classes this set introduced. The proof reads every text back
+      through the reader, which is the run-through-the-accept-grammar check
+      made a proof — **and one check the reader cannot make**: a document
+      holding a raw U+D800 and one holding the six characters of its escape
+      denote the same string, so parsing sees no difference between them
+      where normalized form chooses exactly one. Measured, that is true of
+      most of the escaping vectors, and eighteen texts had arrived with a raw
+      control where the escape belonged. The proof now pins the spelling of
+      any vector whose document is one string directly, and the nine control
+      escapes are the cases that made the slip visible at all, a raw control
+      being refused outright. The matrix stands at 119,193 bytes of the bit
+      vector's 131,072, which is 90% and leaves little room for another
+      column or another set of classes.
+      Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
       each digit position, the encoder's width transitions, the number

@@ -73,11 +73,11 @@ exactly one byte sequence.
 
 **This document specifies a target, not the current implementation.** The
 `;` this format requires after every statement is what the compiler's
-parser requires too, so a document that stays on the finite leaves parses
-today; `NaN` and the
-infinities do not parse yet, which is the reader-side gap that remains
-(tracked with the numeric-leaf work in the restructure plan below).
-The shipped `fjs/djs` serializer also differs from
+parser requires too, so a document parses today — `NaN` and the infinities
+included, measured against
+[`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs),
+which closed the reader-side gap this paragraph used to name.
+The shipped `fjs/djs` serializer still differs from
 [normalized form](#normalized-form) in four ways, each of them stage 4–6 work
 rather than a bug:
 
