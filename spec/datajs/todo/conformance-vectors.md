@@ -1786,11 +1786,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       scope that answers a class which **has** vectors is refused, as is one
       answering no class, one naming a set the corpus does not have, and two
       of equal specificity answering one cell.
-- [x] **Serializer accept and graph equivalence.** Landed as 121 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 155 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 7 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      with 64 scope records answering the 550 cells the serializer column owes.
+      covering 145 of the 674 classes, with 57 scope records answering the 529
+      cells the serializer column owes.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
       gone a serializer-side input is an ordinary value of the data model, so
       a second member carried the same value twice and let the two drift. The
@@ -1800,6 +1801,31 @@ The steps, in order; a step is one pull request unless it says otherwise:
       the serializer set introduced that the reader can and should carry — the
       generic control escape at both ends with key twins, a const shared
       across both container kinds, and two equal objects kept apart.
+      **Thirty-four of the 155 arrived in a second round, and every one of them
+      replaced a reason that was false when written.** Review checked the
+      reasons against the set instead of reading them, which is the one thing
+      that catches a reason nobody rechecked: six said the value was already
+      carried when the set held no `/`, no U+0023 and no U+005B anywhere;
+      fourteen said an adjacency was a reader's reading of two escapes when
+      `"\ud800\ud800"` is a distinct value a writer scanning for pairs
+      corrupts; one said sharing was covered when every sharing vector had a
+      single shared node, so a writer keeping only the first identity passed;
+      one said a nested `__proto__` was the nesting coverage above it when a
+      recursive key writer is a different path from the root one; and the two
+      `every-value` aggregates, the vectors whose whole purpose is every leaf
+      inside a container, contained no string at all. The twelve width
+      endpoints this section argues belong to this role — U+007F, U+0080,
+      U+07FF, U+D7FF, U+E000 and U+FFFF with key twins — were simply missing,
+      so the list above was right and the set had not caught up with it; they
+      ride under `string/raw/bmp`, which is where U+0800 already sat.
+      One reason was corrected rather than replaced: the deep-nesting classes
+      said depth is the reader's concern, which is false, since a recursive
+      writer has a limit of its own and this repository records
+      `tryStringify` throwing at 2,600 nested arrays. What is true is that the
+      specification states no depth an implementation must support, so no
+      vector can say which depth conforming means, and a data module cannot
+      spell a graph deep enough to find a limit; the writer's own limit is
+      tracked as the writer's bug, where it belongs.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
