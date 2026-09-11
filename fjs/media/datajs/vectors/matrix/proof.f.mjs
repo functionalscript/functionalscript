@@ -161,6 +161,13 @@ export const proof = {
         refuses(one('rea`der', 'acc`ept', v('a', 'x')),
             `the role rea\`der: "rea\`der" ${name}`,
             `the set acc\`ept of rea\`der: "acc\`ept" ${name}`)
+        // a space is allowed, but a table cell trims its edges and the
+        // rendering collapses a run, so the words survive and the spacing
+        // does not — the last allowed character whose repetition renders
+        // differently
+        refuses(reason('reader  only'), `the reason for y in serializer: "reader  only" ${prose}`)
+        refuses(reason(' reader only'), `the reason for y in serializer: " reader only" ${prose}`)
+        refuses(reason('reader only '), `the reason for y in serializer: "reader only " ${prose}`)
         // a cell that shows nothing is an unanswered cell wearing the look of
         // an answered one, and a space is an allowed character, so the
         // characters alone cannot catch it
