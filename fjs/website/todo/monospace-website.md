@@ -40,7 +40,6 @@ redundant. What has to be decided rather than assumed:
 
 - [Generate website](generate-website.md) — "One `main.css`" is where this
   stylesheet came from.
-- [An `index.html` for every module directory](directory-index-pages.md) —
-  the pages that made the site a catalogue.
+- [`fjs/website`](../README.md) — the pages that made the site a catalogue.
 - Raised by @sergey-shandar in review of
   [#1912](https://github.com/functionalscript/functionalscript/pull/1912).

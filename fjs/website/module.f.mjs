@@ -1,16 +1,16 @@
 /**
- * Static website generation program: the landing page, the browser test
- * entry module, the manifest of proof modules that page loads, and the one
- * stylesheet every page links.
+ * Static website generation program: a page per directory of the repository,
+ * each carrying the proofs of its own subtree, and the one stylesheet they
+ * all link.
  *
  * **Discovery is part of the program, not a script beside it.** Which modules
  * a browser can link is decided by reading their source, which
  * [`./browser-source`](./browser-source/module.f.mjs) answers, and reading a
  * tree is `readdir` and `readFile` — two operations that already existed. So
  * the whole generator is one effect, and a proof drives it against
- * `effects/node/virtual`'s in-memory tree: a directory of fixtures in, a
- * manifest out, no filesystem touched. What used to check this was running the
- * command and reading a `git diff`.
+ * `effects/node/virtual`'s in-memory tree: a directory of fixtures in, a site
+ * out, no filesystem touched. What used to check this was running the command
+ * and reading a `git diff`.
  *
  * **It costs 42 s where the script it replaced took 1.65 s**, and the whole
  * difference is one function: reading a file through the operation decodes it
@@ -27,7 +27,7 @@
  * @import { StringSet } from '../types/string_set/types.ts'
  * @import { Vec } from '../types/bit_vec/types.ts'
  * @import { _Graph, _Imports, _Tree, _Walked } from './private.ts'
- * @import { Dir } from './page/types.ts'
+ * @import { Dir, Proof } from './page/types.ts'
  * @import { Node } from '../media/html/types.ts'
  */
 
@@ -42,7 +42,7 @@ import { contains, empty as noPaths, set as addPath, values as paths } from '../
 import { toArray } from '../types/list/module.f.mjs'
 import { log } from '../effects/common/module.f.mjs'
 import { stylesheet, stylesheetLink } from './style/module.f.mjs'
-import { page, report, sections } from './page/module.f.mjs'
+import { page, sections, subtree, testSection } from './page/module.f.mjs'
 
 /**
  * The root page: the project's name, the catalogue every directory page
@@ -75,8 +75,7 @@ const rootPage = dir => htmlUtf8(
         ]],
         ['h1', 'FunctionalScript'],
         .../** @type {readonly Node[]} */ (sections(dir)),
-        ['details', { 'data-section': '', open: '' },
-            ['summary', 'Emergent Testing'],
+        .../** @type {readonly Node[]} */ (testSection(dir)([
             ['p',
                 'FunctionalScript derives this browser-native unit-test suite from exported proofs. ',
                 ['a',
@@ -85,26 +84,9 @@ const rootPage = dir => htmlUtf8(
                 ],
                 '.'
             ],
-            ['p', { 'data-test-summary': '' }, 'Idle. Press Run to start the suite.'],
-            ['button', { type: 'button', 'data-test-run': '' }, 'Run'],
-            report,
-        ],
+        ])),
     ],
-    ['script', { type: 'module', src: './_browser-test-entry.mjs' }]
 )
-
-const entry = utf8(`import { startBrowserTestSources } from './fjs/emergent_testing/browser/module.mjs'
-import { browserProofSources } from './fjs/emergent_testing/_browser-suite.mjs'
-
-const root = /** @type {Element} */ (document.querySelector('[data-browser-tests]'))
-const sources = [...browserProofSources, './fjs/website/browser.mjs']
-const runButton = /** @type {Element} */ (document.querySelector('[data-test-run]'))
-const start = () => startBrowserTestSources(root, sources)
-runButton.addEventListener('click', start)
-`)
-
-/** Where the generated manifest goes, and what the page imports it as. */
-const manifestPath = 'fjs/emergent_testing/_browser-suite.mjs'
 
 /**
  * Whether a directory is this repository's source at all.
@@ -132,8 +114,8 @@ const authored = path => path.endsWith('.f.mjs')
  * hands back the whole listing to filter afterwards.
  *
  * **Names are sorted here, once.** Both consumers want a stable order — a
- * manifest that reordered itself between runs is a diff nobody made, and so
- * is a page whose file list did — and the filesystem promises none.
+ * page whose proof list reordered itself between runs is a diff nobody made,
+ * and so is one whose file list did — and the filesystem promises none.
  *
  * @type {(dir: string) => Effect<Readdir, readonly _Walked[], IoChannel>}
  */
@@ -158,14 +140,18 @@ const walk = dir => step(readdir(dir, {}), entries => {
 const inDir = walked => name => pathConcat(walked.path)(name)
 
 /**
+ * Every file the walk found, by repository path.
+ *
+ * @type {(tree: readonly _Walked[]) => readonly string[]}
+ */
+const allFiles = tree => tree.flatMap(walked => walked.files.map(inDir(walked)))
+
+/**
  * Every authored module the walk found, in path order.
  *
  * @type {(tree: readonly _Walked[]) => readonly string[]}
  */
-const authoredModules = tree => tree
-    .flatMap(walked => walked.files.map(inDir(walked)))
-    .filter(authored)
-    .toSorted()
+const authoredModules = tree => allFiles(tree).filter(authored).toSorted()
 
 /**
  * A specifier resolved against the module that wrote it: `./x.f.mjs` in
@@ -193,7 +179,7 @@ const resolve = from => specifier => pathConcat(`${from}/..`)(specifier)
  * selected on the strength of a file nobody read — putting the page's failure
  * *while it links*, before the runner can publish a report, which is the
  * outcome this whole selection exists to prevent. So the generator refuses the
- * input it cannot handle rather than answering with a plausible manifest
+ * input it cannot handle rather than answering with a plausible proof list
  * ([DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)), and its
  * message is the host's own, naming the file. Dropping such a module as a
  * *blocker* instead would keep the run going, but it costs a `stat` per module
@@ -256,10 +242,12 @@ const readGraph = frontier => graph => {
  * never sees.
  *
  * Empty means the module and everything it imports are plain relative ES
- * modules, which is exactly what a browser can load. Anything else is dropped
- * from the manifest: emitting it would fail the page *while it links*, before
- * the runner can publish a report, and a proof module is valid FunctionalScript
- * whether or not a browser can link it.
+ * modules, which is exactly what a browser can load. Anything else is kept
+ * out of what a page loads — and named on it with the blocker, so that an
+ * empty list means "no proofs here" and nothing else. Loading it would fail
+ * the page *while it links*, before the runner can publish a report, and a
+ * proof module is valid FunctionalScript whether or not a browser can link
+ * it.
  *
  * @type {(graph: _Graph) => (path: string) => readonly string[]}
  */
@@ -278,42 +266,62 @@ const blockersOf = graph => path => {
 }
 
 /**
- * The manifest module's source: the sources the page loads, in path order.
+ * The browser-realm proof the website ships: a smoke test that the page it
+ * generated has a document at all.
  *
- * @type {(selected: readonly string[]) => string}
+ * It is not authored FunctionalScript and the walk does not look for it, so
+ * it is named here — as a proof of `fjs/website/`, which is what it is, so
+ * that directory's page runs it and every page above runs it too.
  */
-const manifestSource = selected => [
-    '/** Generated browser proof source map. Modules are loaded after the page renders. */',
-    '',
-    '/** @type {readonly string[]} */',
-    'export const browserProofSources = [',
-    ...selected.map(path => `    './${path}',`),
-    ']',
-    '',
-].join('\n')
+const websiteBrowserProof = 'fjs/website/browser.mjs'
 
 /**
- * Finds the proof modules a browser can link, writes the manifest, and reports
- * what it skipped and why.
+ * The browser proof, if this tree has one.
  *
- * @type {(paths: readonly string[]) => Effect<ReadFile | Write | WriteFile, void, IoChannel>}
+ * Named rather than assumed: a page that lists a source no one can load fails
+ * *while it links*, before the runner can publish a report, which is the
+ * outcome the whole selection exists to prevent. A fixture tree has no
+ * `fjs/website/`, and neither would a checkout of part of this one.
+ *
+ * @type {(tree: readonly _Walked[]) => readonly string[]}
  */
-const writeManifest = paths => step(
+const browserProofOf = tree =>
+    allFiles(tree).includes(websiteBrowserProof) ? [websiteBrowserProof] : []
+
+/**
+ * Every proof module the site knows about, each with what stops a browser
+ * linking it, in path order.
+ *
+ * The order is the paths' rather than the walk's, for three reasons that all
+ * come from the same place: a directory listing is the filesystem's business,
+ * and it differs between machines. Sorting makes two builds of one repository
+ * produce identical files, gives every page a list a reader can scan, and
+ * runs the proofs in the order `fjs t` runs them so the two reports line up.
+ *
+ * It is not what makes the slicing work — {@link subtree} filters by prefix
+ * and would answer the same in any order. A sorted subtree happens to be a
+ * contiguous run; nothing here depends on it.
+ *
+ * @type {(paths: readonly string[]) => Effect<ReadFile, readonly Proof[], IoChannel>}
+ */
+const classify = paths => step(
     readGraph(paths)(emptyMap),
-    graph => {
-        const classified = paths.map(path =>
-            /** @type {const} */ ([path, blockersOf(graph)(path)]))
-        const selected = classified.flatMap(([path, blockers]) =>
-            blockers.length === 0 ? [path] : [])
-        return step(
-            writeUtf8File(manifestPath, manifestSource(selected)),
-            () => step(
-                forEachStep(
-                    pureOk(classified.filter(([, blockers]) => blockers.length !== 0)),
-                    ([path, blockers]) =>
-                        log(`skipped ${path}: not linkable in a browser (${blockers.join(', ')})`)),
-                () => log(`browser proof modules: ${selected.length} of ${classified.length}`)))
-    })
+    graph => pureOk(paths
+        .toSorted()
+        .map(name => ({ name, blockers: blockersOf(graph)(name) }))))
+
+/**
+ * Says what will not run, and how much will.
+ *
+ * @type {(proofs: readonly Proof[]) => Effect<Write, void, IoChannel>}
+ */
+const reportClassification = proofs => {
+    const blocked = proofs.filter(proof => proof.blockers.length !== 0)
+    return step(
+        forEachStep(pureOk(blocked), proof =>
+            log(`skipped ${proof.name}: not linkable in a browser (${proof.blockers.join(', ')})`)),
+        () => log(`browser proof modules: ${proofs.length - blocked.length} of ${proofs.length}`))
+}
 
 /**
  * The proof modules to consider: every authored `.f.mjs` that exports a
@@ -385,9 +393,9 @@ const isTodoDir = path => path.split('/').includes('todo')
  * Rust sources, `fjs/types/option/` its `types.ts`. What a directory holds is
  * what the walk found in it, minus the generator's own output.
  *
- * @type {(tree: _Tree) => (walked: _Walked) => Dir}
+ * @type {(tree: _Tree) => (proofs: readonly Proof[]) => (walked: _Walked) => Dir}
  */
-const toDir = tree => walked => ({
+const toDir = tree => proofs => walked => ({
     path: walked.path,
     files: walked.files.filter(name => !generatedName(name)),
     dirs: walked.dirs.filter(name => name !== 'todo'),
@@ -395,6 +403,7 @@ const toDir = tree => walked => ({
         ?.files
         ?.filter(isIssue)
         ?? [],
+    proofs: subtree(walked.path)(proofs),
 })
 
 /**
@@ -404,13 +413,13 @@ const toDir = tree => walked => ({
  * runner — and every other directory's is {@link page}'s. Both write the same
  * catalogue.
  *
- * @type {(tree: readonly _Walked[]) => Effect<WriteFile | Write, void, IoChannel>}
+ * @type {(tree: readonly _Walked[]) => (proofs: readonly Proof[]) => Effect<WriteFile | Write, void, IoChannel>}
  */
-const writePages = tree => {
+const writePages = tree => proofs => {
     const byPath = tree.reduce(
         (map, walked) => setReplace(walked.path)(walked)(map),
         /** @type {_Tree} */ (emptyMap))
-    const dirs = tree.filter(walked => !isTodoDir(walked.path)).map(toDir(byPath))
+    const dirs = tree.filter(walked => !isTodoDir(walked.path)).map(toDir(byPath)(proofs))
     return step(
         forEachStep(pureOk(dirs), dir => writeFile(
             pathConcat(dir.path)('index.html'),
@@ -422,11 +431,11 @@ const writePages = tree => {
 const program = exitStep(mapStep(
     step(walk('.'), tree => step(
         proofModules(authoredModules(tree)),
-        paths => step(writeManifest(paths), () => step(
-            writePages(tree),
-            () => allOk(
-                writeFile('_browser-test-entry.mjs', entry),
-                writeUtf8File('_main.css', stylesheet)))))),
+        found => step(classify([...found, ...browserProofOf(tree)]), proofs => step(
+            reportClassification(proofs),
+            () => step(
+                writePages(tree)(proofs),
+                () => writeUtf8File('_main.css', stylesheet)))))),
     () => undefined))
 
 export const main = () => program

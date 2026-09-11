@@ -1,0 +1,93 @@
+# The website
+
+`module.f.mjs` is a `NodeProgram` that generates the site from the repository
+it sits in: one page per directory, each carrying that directory's contents and
+the proofs of its subtree, plus the one stylesheet they all link. It is run by
+`npm run website`, and its whole output is gitignored.
+
+This file holds the decisions the generator rests on — the ones that are about
+the *site* rather than about any one function. What each function does, and why
+it does it that way, is in its own JSDoc.
+
+## The site is the repository, served
+
+`wrangler.jsonc` publishes the repository folder itself: `"assets": {
+"directory": "." }`. There is no separate output tree. A generated page sits in
+the directory it describes, and `.gitignore` keeps `index.html` and the
+`_`-prefixed files out of the tree.
+
+**That is what lets a page load any repository file by its path at run time.**
+A page's proofs are the real `.f.mjs` modules under it, imported by the browser
+from where they actually live; the source and documentation views planned in
+`todo/` fetch the same files. None of that works from a directory of copies.
+
+[`emergent_testing/todo/browser-testing.md`](../emergent_testing/todo/browser-testing.md)
+describes an eventual isolated application root that exposes HTML and
+JavaScript only and deliberately does *not* serve the working tree. That is
+that issue's concern, for automated runners. Module pages do not depend on it,
+and moving the site under such a root would break every fetch they make — so
+the two are separate, and this one is not quietly migrated into the other.
+
+## Every directory gets a page
+
+One rule rather than two: whatever a directory holds, it gets an `index.html`
+listing its files, its subdirectories, the issues in its `todo/`, and the
+proofs of its subtree. Sections with nothing in them are omitted.
+
+Because every directory has a page, every subdirectory link on every page
+resolves, which is what makes the tree walkable from the root. The root page is
+that page for the repository root — it carries the project's name and the same
+catalogue — rather than a special case beside the rule.
+
+The one exclusion is a `todo/` subtree, by path segment: its issues are its
+parent's open work, so a page of its own would hold nothing else. It is neither
+generated nor linked, so nothing points at a page that was never written.
+
+## A page runs the proofs under it
+
+A page is the browser test runner with a shorter list, never a second runner.
+The list is decided at build time — which proofs are under this directory, and
+which of them a browser can link — and written into the page, so what reaches
+the browser is an answer rather than a rule to apply.
+
+**A proof has one name.** A page names each proof relative to itself, which is
+exactly what `fjs t` prints when run from that directory: `./proof.f.mjs` on
+the directory that holds it, `./fjs/types/list/proof.f.mjs` at the root. Three
+spellings of one test is the problem this repository has been removing
+([the two runners](../emergent_testing/README.md#the-two-runners-and-what-sharing-them-cost)).
+
+A proof a browser cannot link is named on its page with what blocks it, rather
+than dropped, so an empty list means "no proofs here" and nothing else. Where
+*every* proof of a subtree is blocked the page keeps that list and offers no
+control: a run over an empty source list reports `passed`, and a green verdict
+for a subtree that ran nothing is the plausible wrong value
+[DESIGN.md §10](../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) refuses.
+
+Nothing starts on load, as
+[browser-test-controls](../emergent_testing/todo/browser-test-controls.md)
+requires. A page binds the runner to its button.
+
+## Links are root-relative
+
+`/_main.css`, `/fjs/types/index.html`, `/fjs/emergent_testing/browser/module.mjs`
+— a page at any depth writes the same href for the same target, because a link
+is built from the repository path and never from where the page sits. The
+exception is a page's own proof sources, which are relative *by design*: that
+is what makes their names the ones `fjs t` uses.
+
+## Discovery is part of the program
+
+Which modules a browser can link is decided by reading their source, and
+reading a tree is `readdir` and `readFile`. So the whole generator is one
+effect and a proof drives it against `effects/node/virtual`'s in-memory tree: a
+directory of fixtures in, a site out, no filesystem touched. What used to check
+this was running the command and reading a `git diff`.
+
+The cost is measured and recorded rather than assumed — see the `@module` block
+in [`module.f.mjs`](./module.f.mjs) and
+[`../text/todo/utf8-to-string-cost.md`](../text/todo/utf8-to-string-cost.md).
+
+## Open questions
+
+[`todo/`](./todo/) — the umbrella list is
+[generate-website](./todo/generate-website.md).

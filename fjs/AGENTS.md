@@ -111,10 +111,12 @@ the last thing in a function body compiles. Put any statement after it and the
 same line is TS2344.
 
 So a proof entry that *ends* with its typedefs checks nothing from there on.
-That is what `fjs/edag/proof.f.mjs`'s `consistency` is — a body of nothing but
-typedefs, all 28 of its `Assert<Check<…>>` pins green whatever they claim —
-and `fjs/effects/proof.f.mjs`'s `signatures`, whose last eight go the same
-way. Where a typedef is followed by an `assert` call, as in
+`fjs/effects/proof.f.mjs`'s `signatures` is the standing example: its last
+eight `Assert<Equal<…>>` have no statement after them and are green whatever
+they claim. `fjs/edag/proof.f.mjs`'s `consistency` was the extreme of it — a
+body of nothing but typedefs, so all 28 of its `Assert<Check<…>>` pins were
+inert — which is why those now sit at module scope in `fjs/edag/types.ts`.
+Where a typedef is followed by an `assert` call, as in
 `fjs/ebnf/ll1/proof.f.mjs`'s `constParameter`, it is checked and does its job.
 
 **Prefer module scope in a `.ts` file**, where a type alias is resolved

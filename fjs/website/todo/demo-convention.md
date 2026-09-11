@@ -2,7 +2,6 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** [An `index.html` for every module directory](directory-index-pages.md#an-indexhtml-for-every-module-directory)
 
 ### Problem
 
@@ -35,9 +34,9 @@ HTML with a hand-written `.mjs` beside it.
   with more than one demo module is refused by the generator, not resolved by
   a precedence rule — a page has one demo section.
 - **A demo module must link in a browser.** It is loaded by the page, so the
-  blocker analysis the manifest already applies to proofs applies to it: a demo
-  module reaching `node:fs` or a bare specifier is listed with its blocker and
-  not loaded, the same answer a non-linkable proof gets.
+  blocker analysis the generator already applies to proofs applies to it: a
+  demo module reaching `node:fs` or a bare specifier is listed with its blocker
+  and not loaded, the same answer a non-linkable proof gets.
 - **A demo is pure, and asks for what it needs as an effect.** A demo module
   is FunctionalScript, so it cannot touch the DOM, register a listener, read a
   clock, or fetch. `update` returns an `Effect` from
@@ -182,8 +181,8 @@ digest the module's own proof already asserts.
 
 ### Related
 
-- [An `index.html` for every module directory](directory-index-pages.md) —
-  the page a demo renders into.
+- [`fjs/website`](../README.md) — the page a demo renders into, and why a
+  page may fetch a module beside it.
 - [Discovery: the `proof` export](../../emergent_testing/README.md#discovery-the-proof-export)
   — the rule this convention copies.
 - [`fjs/effects`](../../effects/README.md) — the effect layer `update` returns
