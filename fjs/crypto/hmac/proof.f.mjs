@@ -1,10 +1,20 @@
 import { assertEq } from '../../asserts/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { uint, vec } from '../../types/bit_vec/module.f.mjs'
+import { sha1 } from '../sha1/module.f.mjs'
 import { sha256, sha384, sha512 } from '../sha2/module.f.mjs'
 import { hmac } from './module.f.mjs'
 
 export const proof = {
+    // A hash over a state of its own, not SHA-2's: `hmac` reads a block
+    // length and folds blocks, so SHA-1's five words do as well as SHA-2's
+    // eight. RFC 2202 test cases 1 and 2 for HMAC-SHA1.
+    sha1: () => {
+        const r = hmac(sha1)(vec(160n)(BigInt(`0x${'0b'.repeat(20)}`)))(utf8('Hi There'))
+        assertEq(uint(r), 0xb617318655057264e28bc0b6fb378c8ef146be00n, r)
+        const r2 = hmac(sha1)(utf8('Jefe'))(utf8('what do ya want for nothing?'))
+        assertEq(uint(r2), 0xeffcdf6ae5eb2fa2d27416d5f184df9c259a7c79n, r2)
+    },
     example: () => {
         const r = hmac(sha256)(utf8('key'))(utf8('The quick brown fox jumps over the lazy dog'))
         assertEq(r, vec(256n)(0xf7bc83f430538424b13298e6aa6fb143ef4d59a14946175997479dbc2d1a3cd8n))

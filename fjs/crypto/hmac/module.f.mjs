@@ -18,7 +18,7 @@
  * ```
  *
  * @import { Vec, Reduce } from '../../types/bit_vec/types.ts'
- * @import { Sha2 } from '../sha2/types.ts'
+ * @import { Hash } from '../sha2/types.ts'
  */
 
 import { length, msb, vec, vec8, repeat } from '../../types/bit_vec/module.f.mjs'
@@ -39,7 +39,14 @@ const iPad = vec8(0x36n)
 /**
  * Generates an HMAC (Hash-based Message Authentication Code) using the specified hash function.
  *
- * @param {Sha2} hashFunc - The hash function implementation to use.
+ * Any hash whose end answers a `Vec` will do, over a state of its own: the
+ * construction reads the block length and folds the blocks, and nothing
+ * else of the hash. So `hmac(sha1)` is HMAC-SHA1 and `hmac(sha256)` is
+ * HMAC-SHA256, at no cost to either — which is the reason `Hash` is
+ * parameterized over its state at all.
+ *
+ * @template S
+ * @param {Hash<S>} hashFunc - The hash function implementation to use.
  * @returns {Reduce} A function that takes a key and returns another function
  * that takes a message and computes the HMAC.
  */

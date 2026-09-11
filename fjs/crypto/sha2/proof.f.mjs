@@ -1,5 +1,6 @@
 /**
  * @import { Hash, Sha2 } from './types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
  */
 
 import { utf8 } from '../../text/module.f.mjs'
@@ -53,6 +54,23 @@ const seam = h => {
     for (const at of [1, bytes >> 1, bytes - 1, bytes, bytes + 1, bytes * 2 - 1]) {
         assertEq(uint(computeSync(h)([toVec(msg.slice(0, at)), toVec(msg.slice(at))])), whole, at)
     }
+}
+
+/**
+ * A remainder held, then a `Vec` as long as a `Vec` may be: the framing
+ * never joins the two into one, which would be over the ceiling every host
+ * honours, and the order the pieces come in does not change the digest.
+ * The two pieces are parameters so the check is closed over nothing.
+ *
+ * @template S
+ * @param {Vec} held
+ * @param {Vec} full
+ * @returns {(h: Hash<S>) => void}
+ */
+const heldThenFull = (held, full) => h => {
+    const compute = computeSync(h)
+    assertEq(uint(h.end(h.append(full)(h.append(held)(h.init)))), uint(compute([held, full])))
+    assertEq(uint(compute([held, full])), uint(compute([full, held])))
 }
 
 /** @type {(sha2: Sha2) => (x: bigint) => void} */
@@ -197,13 +215,7 @@ export const proof = {
     // which would be over the ceiling every host honours.
     remainderThenFull: () => {
         const a = vec(8n)(0x61n)
-        const full = repeat(maxLength >> 3n)(a)
-        /** @type {(sha2: Sha2) => void} */
-        const check = h => {
-            const compute = computeSync(h)
-            assertEq(uint(h.end(h.append(full)(h.append(a)(h.init)))), uint(compute([a, full])))
-            assertEq(uint(compute([a, full])), uint(compute([full, a])))
-        }
+        const check = heldThenFull(a, repeat(maxLength >> 3n)(a))
         check(sha256)
         check(sha512)
     },
