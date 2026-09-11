@@ -1255,10 +1255,10 @@ The six parts:
     | `document ::= const* export` | any other statement or declaration | `let a=1;…`, `var a=1;…`, `function f(){}…` |
     | `const ::= 'const' id '=' value ';'` | multiple declarators, destructuring | `const $a=1,$b=2;…`, `const [$a]=[1];…` |
     | `export ::= 'export' 'default' value ';'` | any other export form | `const $a=1;export{$a};export default $a;` |
-    | `value ::= <closed list>` | every other expression form | `(1)`, `1+1`, `[1][0]`, `String(1)`, `void 0`, `-(-1)` |
+    | `value ::= <closed list>` | every other expression form | `(1)`, `1+1`, `[1][0]`, `String(1)`, `void 0`, `-(-1)`, `new Array()` |
     | `array ::= '[' (value (',' value)*)? ']'` | elisions, spread | `[,1]`, `[1,,2]`, `[1,,]`, `[...[1]]` |
     | `object ::= '{' (member (',' member)*)? '}'` | spread | `{...{"a":1}}` |
-    | `member ::= key ':' value` | shorthand, methods, accessors | `const $a=1;export default {$a};`, `{a(){}}`, `{get a(){return 1}}` |
+    | `member ::= key ':' value` | methods, accessors | `{"a"(){}}`, `{get "a"(){}}`, `{set "a"($v){}}` — quoted, since an identifier key is a rule of its own |
     | `key ::= string \| '[' '"__proto__"' ']'` | identifier and numeric keys, other computed keys | `{a:1}`, `{1:2}`, `{["x"]:1}` |
 
     Where a row shows a bare value it stands for `export default <value>;` —
@@ -1272,9 +1272,39 @@ The six parts:
     Two of these are worth singling out. **`value`'s** complement is
     open-ended, like the escape whitelist, so its vectors go by class rather
     than enumeration; and `-(-1)` pins the spec's own point that `-` is not an
-    operator but part of the token that follows it. **`{get a(){return 1}}`**
-    evaluates to `{"a":1}` — an entirely ordinary graph — so nothing after the
-    parse can tell it apart from the document that spells it directly.
+    operator but part of the token that follows it. **`{get "a"(){}}`**
+    evaluates to `{"a":undefined}` — an entirely ordinary graph — so nothing
+    after the parse can tell it apart from the document that spells it
+    directly.
+
+    **A second ground is a second *rule*, not the same rule seen from the
+    value side**, and that distinction is what decides which of these
+    spellings a vector can carry. A delegating reader evaluates the document
+    and then validates what it got, so where the value is outside the data
+    model such a reader refuses the vector without ever enforcing the
+    production — and the vector tests the wrong thing. That is why the
+    member forms take **quoted** keys (an identifier key is `key`'s rule,
+    not `member`'s), why the `new` vector is `new Array()` and not
+    `new Array(1)` (a hole is the leaf set's rule), and why the classes
+    below have **no one-defect spelling at all** and are recorded rather
+    than shipped:
+
+    | class | why no spelling exists |
+    | - | - |
+    | shorthand, `{$a}` | the shorthand form *is* an identifier key; the two cannot be separated |
+    | an arrow, `()=>1` | every arrow evaluates to a function, which the leaf set excludes |
+    | a regexp literal, `/a/` | every one evaluates to a non-plain object, likewise |
+    | an arbitrary identifier as a value, `Infinit`, and `Infinityn` | a name that is not an `id` is unbound, which is the reference rule |
+    | a trailing backslash, `"\"` | the backslash escapes the quote, so the document is the unterminated-string case and nothing else |
+    | an unterminated string | it runs to end of input, so the document has lost its `;` as well — the same shape as the byte form's truncation, recorded there for the same reason |
+
+    **Elisions are not in that table, and the difference is the point.** A
+    hole is not a second rule a reader might reach; on the reader side it is
+    what an elision *means*, since `array ::= '[' (value (',' value)*)? ']'`
+    cannot spell one at all. A reader refusing `[1,,2]` for the hole has
+    refused it for the elision under another name. The data model's rule
+    against a hole is the **serializer's**, in §What may be serialized, and
+    that side is where a hole gets a vector of its own.
 
   **And check both directions.** The corpus has a reader half and a serializer
   half, and a rule can be covered in one while absent in the other — which has
@@ -2148,20 +2178,26 @@ The steps, in order; a step is one pull request unless it says otherwise:
       unique; and, run locally, every document imports as an ES module
       denoting the same graph, the whole-set check decision 5 would keep.
 - [x] **Reader reject, code-unit form.** Landed as
-      [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 336 vectors
+      [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 335 code-unit
+      vectors — the byte form's 61 join them in the same file, below —
       derived from the spec's six narrowing sources — strings, numbers,
       identifiers, whitespace, the document rule, and every production of
       the grammar — each naming the one rule it breaks and carrying the
       host's verdict, measured by importing the document as an ES module
-      in Node while the set was generated: 197 the host accepts, the
-      narrowing vectors, 129 syntax errors and 10 runtime errors, the
+      in Node while the set was generated: 195 the host accepts, the
+      narrowing vectors, 132 syntax errors and 8 runtime errors, the
       grammar-only ones; the fifteen required-separator vectors the section
       above measured split as it says, ten syntax errors, one runtime error
       and four the host accepts, and the two it did not count,
       `export default-Infinity;` and `export default-1n;`, are accepted
-      too. Every one was checked for a second
-      ground of refusal by pairing it, in the generator, with the same
-      document with its one defect repaired, which the reader must accept.
+      too. Every malformed number and bigint spelling carries its signed
+      twin, the malformed exponents and suffixes among them. Every vector
+      was checked for a second
+      ground of refusal twice over: by pairing it, in the generator, with
+      the same document with its one defect repaired, which the reader must
+      accept; and against the rule above, which is what took the member
+      forms to quoted keys and left the six classes with no one-defect
+      spelling recorded rather than shipped.
       Proved against the reader: every document is refused; the shape,
       with the verdict among the three, is proved beside the set. The
       document rule's own vector, U+FEFF as the first *byte*, waits for
@@ -2169,7 +2205,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
 - [x] **The byte form.** Landed in the two reader sets rather than sets of
       its own, since a byte document is a `Document` like any other: 29
       accept records and 61 reject records, classed `byte/…`, each
-      `["hex", "…"]`. The accept side is the table by lead partition, both
+      `["hex", "…"]`, so the two sets are 356 and 396. The accept side is the table by lead partition, both
       ends of all eight parts, the six vectors that vary the continuation
       positions independently, the one-byte range in both contexts — U+0020
       and U+007F in a string, tab, LF and CR between tokens — the BOM inside
