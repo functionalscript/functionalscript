@@ -40,8 +40,17 @@ above as what the corpus describes today, not as a settled contract.
 That retired the issue's **decision 6** rather than answering
 it, and
 [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 forbids a `proof.mjs` that proves
-a `.f.mjs` API against such inputs until the exemption it proposes is
-recorded. §4 says what that leaves provable in the meantime.
+a `.f.mjs` API against such inputs in any case. §4 says what that leaves
+provable in the meantime.
+
+**That last sentence is not yet true of this module's own signature, and the
+reconciliation is open.** `tryStringify` takes `unknown` and refuses several of
+those values at run time, so as long as it does, the corpus owes vectors for
+exactly what it admits. Either the parameter narrows to the data model and the
+refusals go, or the parameter stays and the fourth set comes back — as a set,
+never as recipes. The question is recorded in
+[that issue](../../../../spec/datajs/todo/conformance-vectors.md) under the
+serializer's input domain, and it is the owner's.
 
 ### Problem
 
@@ -377,7 +386,7 @@ one.** Normalized form is a conforming serializer before it is a normalized
 one, so the **normalized** writer owes `serializer-accept` and
 `graph-equivalence` besides `normalize`. A writer in any other layout — the readable default
 [the specification](../../../../spec/datajs/README.md#normalized-form)
-recommends for tooling — owes those three and **not** `normalize`, which
+recommends for tooling — owes those two and **not** `normalize`, which
 compares byte for byte against the normalized text and which it fails by
 construction.
 
@@ -392,23 +401,26 @@ already round-trips values of its own through the reader and `difference`,
 sharing included, so what the corpus adds is coverage of the specification's
 branches rather than the machinery to check them.
 
-The host recipes an input may carry are built by `build`, which
-[stage 1b](../../../../spec/datajs/todo/conformance-vectors.md) owns and places
-in `fjs/media/datajs/vectors/module.mjs` — a getter that records its own
-invocation is an effect, which is why that one is `.mjs`. The accessor vectors
-are what prove the descriptor-first rule of §1: a serializer that refuses an
-accessor *after* reading it passes a vector that only checks the rejection.
+**There is no `build` and there are no host recipes.** An earlier plan had a
+`build` helper in `fjs/media/datajs/vectors/module.mjs` — a getter recording
+its own invocation is an effect, which is why that one was to be `.mjs` — and
+vectors whose inputs it constructed: an accessor, a non-enumerable property, a
+`null` prototype, a cycle. Stage 1b retired all of it, and
+[that issue's](../../../../spec/datajs/todo/conformance-vectors.md) **decision
+6** with it: the question it asked, whether a `proof.mjs` may prove a `.f.mjs`
+API against host-built inputs, has no subject once a serializer is handed a
+value of the data model and its type is the contract. No such file was ever
+written, and none is owed.
 
-**Those vectors are the half that waits on that issue's decision 6**, which
-asks whether a `proof.mjs` may prove a `.f.mjs` API against host-built
-inputs its specification names. Until it is answered, the refusals a host
-value alone can trigger are proved here against the data such a value would
-carry — a descriptor, a list of own property names, a graph with a forward
-reference — which is what §1 above records and what the exports of
-[`../serializer`](../serializer/module.f.mjs) are shaped for. What that
-leaves unproved is the *plumbing* between them: that an object with an
-enumerable getter reaches `_memberValue` at all, and that no getter is
-invoked on the way. Decision 6 is what would close it.
+What that leaves unproved is the *plumbing* a host value would have exercised:
+that an object with an enumerable getter reaches `_memberValue` at all, and
+that no getter is invoked on the way. The refusals themselves are proved here
+against the data such a value would carry — a descriptor, a list of own
+property names, a graph with a forward reference — which is what §1 above
+records and what the exports of
+[`../serializer`](../serializer/module.f.mjs) are shaped for. If this module's
+`unknown` parameter stays, that gap is a set to write rather than a recipe to
+build; if it narrows, the gap closes by having no inputs to reach.
 
 ### Tasks
 
@@ -456,7 +468,7 @@ invoked on the way. Decision 6 is what would close it.
 - [`parser-serializer.md`](./parser-serializer.md) — the reader half of stage 4 and the shared public API; this file was split out of it.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. §Serialization and §Normalized form are what this implements.
 - [`spec/datajs/vectors/README.md`](../../../../spec/datajs/vectors/README.md) — the corpus schema; the writer-side sets are the proof source.
-- [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, which owns those sets and `build`.
+- [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, which owns those sets, and where the serializer's input domain is still open.
 - [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. This is its second consumer.
 - [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type, whose optional index signature is why only the runtime enumerator sees a member holding `undefined`.
 - [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md) — the coordinating plan; this is the rest of its stage 4.

@@ -14,12 +14,17 @@
 import type { Unknown } from '../types.ts'
 
 /**
- * A document as a vector carries it: the text, as a JavaScript string
- * whose code units are the document's, or the bytes, for the two rules only
- * bytes can reach — a document is UTF-8, and it has no BOM — as a tagged
- * hex string, `['hex', 'ef bb bf …']`: lowercase pairs separated by single
- * spaces and nothing else, the spelling the issue's byte tables use, which
- * `bytes` in `module.f.mjs` decodes and refuses any other.
+ * A document as a vector carries it: the text, as a JavaScript string whose
+ * code units are the document's, or the bytes, as a tagged hex string,
+ * `['hex', 'ef bb bf …']` — lowercase pairs separated by single spaces and
+ * nothing else, the spelling the issue's byte tables use, which `bytes` in
+ * `module.f.mjs` decodes and refuses any other.
+ *
+ * Three records carry bytes, because a code-unit string cannot reach what
+ * they are about. Two are rejects, for the rules only bytes can break: a
+ * document is UTF-8, and it has no BOM. The third is an accept, and it is
+ * there because those two are rejects — with no byte document the corpus
+ * takes, a reader whose byte path refuses everything would pass.
  */
 export type Document = string | readonly ['hex', string]
 
