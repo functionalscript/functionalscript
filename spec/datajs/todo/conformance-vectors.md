@@ -2115,7 +2115,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       every `value` alternative; the `["__proto__"]` key alone, among
       others, nested, and holding an object, `null` and a shared node;
       duplicate keys plain, adjacent, three times over, by an escaped
-      spelling, of the `["__proto__"]` key, of an index, and nested; the
+      spelling, of the `["__proto__"]` key, of an index, nested in an
+      object and in an array whose containing member survives, and at both
+      levels at once; the
       array-index key order with both sides of each boundary and the
       non-index spellings a numeric reading mistakes (`-1`, `-0`, `+1`,
       `0x1`, `1e0`, a leading space, a value past the largest index, an
