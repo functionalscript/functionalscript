@@ -2011,14 +2011,18 @@ or the spec, not only into a thread.
    ([edag-spec](../../../todo/edag-spec.md) asks for exactly such shared
    vectors); a proof imports a set like any module, and a consumer in another
    language gets it printed by `npm run gen` when one exists.
-2. **The plain-object boundary**, which the corpus avoids rather than
-   answers. Proposal for the spec: an object is plain iff its prototype is
-   `Object.prototype` or `null`, and an array iff `Array.isArray` holds, its
-   prototype being `Array.prototype`, `null` or an `Array` subclass's; any
-   other prototype is "any other non-plain object" and rejected, so
-   `Object.create({x: 1})` is refused. Once decided, one serializer-reject
-   vector pins it. The alternative is to admit any prototype and serialize
-   the own data, which widens the exemption list to a rule.
+2. **The plain-object boundary**, which no vector answers yet. Proposal for
+   the spec: an object is plain iff its prototype is `Object.prototype` or
+   `null`, and an array iff `Array.isArray` holds, its prototype being
+   `Array.prototype`, `null` or an `Array` subclass's; any other prototype
+   is "any other non-plain object" and rejected, so `Object.create({x: 1})`
+   is refused. Once decided, one serializer-reject vector pins it. The
+   alternative is to admit any prototype and serialize the own data, which
+   widens the exemption list to a rule. Until it is decided, `difference`
+   classifies what an implementation hands it by the proposal — it has to
+   draw the line somewhere to tell a `Date` from an empty object, and the
+   proposal is the line the spec's own two spellings of an object draw —
+   in one comparison, which is what the alternative would relax.
 3. **§Whitespace's enumeration.** Proposal for the spec: keep the rule and
    replace the six-item colon list with the complete set it denotes — the 21
    characters of ECMAScript's `WhiteSpace` and `LineTerminator` classes less
@@ -2111,7 +2115,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       every `value` alternative; the `["__proto__"]` key alone, among
       others, nested, and holding an object, `null` and a shared node;
       duplicate keys plain, adjacent, three times over, by an escaped
-      spelling, of the `["__proto__"]` key, of an index, and nested; the
+      spelling, of the `["__proto__"]` key, of an index, nested in an
+      object and in an array whose containing member survives, and at both
+      levels at once; the
       array-index key order with both sides of each boundary and the
       non-index spellings a numeric reading mistakes (`-1`, `-0`, `+1`,
       `0x1`, `1e0`, a leading space, a value past the largest index, an

@@ -69,14 +69,12 @@ counterpart, and the corpus has no `Number` group to prove one against.
   [`fjs/nanvm/module.f.mjs`](../../fjs/nanvm/module.f.mjs) already lists the shared
   argument space once for unary `-` and unary `+`; a `Number` group derives from the same
   list with one difference, its bigint case expecting the converted number rather than
-  `throws`. The `function` case escapes either way: `functionValue` has no expression
-  whichever id the group carries.
-- `fjs/nanvm/proof.f.mjs`'s `op1Js` gains `Number: a => Number(a)`. The entry is
-  required, not optional: the group inherits `numberCoercionCases`' `function` case,
-  `caseExp` escapes it, and `run` then calls `op1('Number')`, which `lookup` refuses
-  without an entry — a throw where the case expects `NaN`. `jsOnly.throw.unusedOperation`
-  pins exactly that refusal today, so it moves to an id that still has no escaped case,
-  such as `String`.
+  `throws`.
+- `fjs/nanvm/proof.f.mjs`'s `op1Js` gains `Number: a => Number(a)`. The tables are
+  `crossCheck`'s JavaScript reference, and a group whose id has no entry is silently
+  not cross-checked, so without one the new group would be proven by `amnesia` alone.
+  `jsOnly.throw.unusedOperation` pins that `Number` has no entry today, so it moves to
+  an id that deliberately has none, `own`.
 - `fjs/nanvm/rust/module.f.mjs`'s `op1Rust` and `rustName` tables gain the new Rust
   method and its generated function name; `fjs/nanvm/rust/proof.f.mjs`'s pinned
   expected-output strings follow.

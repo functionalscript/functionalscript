@@ -61,20 +61,20 @@ NaNVM-specific vocabulary did not:
   validates every derived expression against the schema, so an operand shape or
   validation rule changing under the corpus fails there.
 
-Two groups are the visible exception. `ternary` and `typeof` have no
-canonical id yet — the EDAG has no conditional node and no `typeof` — so each
-is a `NonEdagGroup`, spelled `nanvmOp` rather than `op` precisely so a
-NaNVM-only name can never mix into a canonical id union. They move onto the
-EDAG path through
-[ternary-conditional-node](../edag/todo/ternary-conditional-node.md) and
-[typeof-operator](../edag/todo/typeof-operator.md).
+One group is the visible exception. `ternary` has no canonical id yet — the
+EDAG has no conditional node — so it is a `NonEdagGroup`, spelled `nanvmOp`
+rather than `op` precisely so a NaNVM-only name can never mix into a canonical
+id union. It moves onto the EDAG path through
+[ternary-conditional-node](../edag/todo/ternary-conditional-node.md).
 
-A case carrying a `functionValue` operand is the other. A constant function is
-writable as `['=>', ['[]', []], body]`, but establishing `=>` would drag
-closure construction into both consumers for cases that never inspect the
-function, so such a case is marked `['escape']` and takes the direct-value
-path. The escape is per case, not per group: unary `-` is EDAG-backed and
-still carries one.
+A `functionValue` operand is not an exception. It lowers to `() => undefined`,
+the smallest closure — `['=>', ['[]', []], ['undefined']]` — which `amnesia`
+establishes like any `=>` and the Rust printer renders as the harness's one
+function value, `function_any()`; honest because no operator here inspects
+the function, and refused for any other lambda, since `nanvm-lib` has no
+closures to print. The one thing the two sides do not share is a function's
+string form (engine-specific in JS, a placeholder in `nanvm-lib`), so no case
+stringifies one, nested or not — see `FunctionValue` in [`types.ts`](types.ts).
 
 ## Writing a case
 
@@ -102,7 +102,7 @@ data is always a *description*, never a value that happens to be a function:
 
 | Thunk | Means |
 |---|---|
-| `functionValue` | a function value (no operator here inspects which one) |
+| `functionValue` | a function value, lowered to `() => undefined` (no operator here inspects which one) |
 | `ref(name)` | one of the `eq` `shared` values, so the *same* object reaches both sides |
 | `throws` | the case must throw; valid only as `expected` |
 

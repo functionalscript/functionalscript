@@ -28,10 +28,10 @@
  *
  * @import { Exp, Op2, Properties } from '../edag/types.ts'
  * @import { Context } from '../edag/amnesia/types.ts'
- * @import { Case, EqCase, Expectation, Group, OpId, Operand, SharedNode, Value } from './types.ts'
+ * @import { Case, EqCase, Expectation, Group, OpId, SharedNode, Value } from './types.ts'
  */
 
-import { assert, assertEq } from '../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import { exp } from '../edag/module.f.mjs'
 import { vm } from '../edag/amnesia/module.f.mjs'
 import { validate } from '../rtti/validate/module.f.mjs'
@@ -40,9 +40,10 @@ import {
     caseExp,
     casesOf,
     data,
+    functionValue,
     groupKey,
-    isFunctionValue,
     isThrows,
+    lambdaExp,
     lowerEq,
     opId,
     orders,
@@ -54,16 +55,15 @@ const { fromEntries, is } = Object
 
 /**
  * The JavaScript each unary operation the corpus uses denotes, keyed by the
- * canonical EDAG id — plus `typeof`, the one unary operation with no such id.
+ * canonical EDAG id: `crossCheck`'s reference, the bare JS operator that
+ * `amnesia`'s handler for the same id must agree with.
  *
- * Only lowered cases used to reach these; now that they run through
- * `amnesia`'s `vm` instead (see `run` below), an entry is needed only for an
- * id `run`'s escape branch can still reach: a `NonEdagGroup` (`typeof` here,
- * `ternary` in `op3Js`), which always escapes, or an ordinary group with at
- * least one `functionValue`-operand case. An id neither covers would be a
- * line no case runs, and `lookup` refuses an id it does not hold rather than
- * answering for it — `String`, for one, has no such case and so no entry
- * here. `+` and `-` are here at their unary arity; the binary table below
+ * No case *runs* through these any more — every lowered case runs through
+ * `amnesia`'s `vm` (see `run` below) — so an entry is a claim about what an
+ * id denotes and nothing else. A group whose id has no entry is silently not
+ * cross-checked, which is why every operation the corpus has a group for is
+ * here, and `lookup` refuses an id it does not hold rather than answering
+ * for it. `+` and `-` are here at their unary arity; the binary table below
  * holds them at the other.
  *
  * The `any` parameters are the point of the exercise: these operators are
@@ -78,14 +78,20 @@ const op1Js = {
     '!': a => !a,
     '~': a => ~a,
     typeof: a => typeof a,
+    String: a => String(a),
 }
 
 /**
  * The same, for the binary operations — plus `'==='`, which `evaluate` below
- * reaches directly and which has no group of its own to escape from (`eq`'s
- * cases build it by hand in `lowerEq`, never through `run`). `'+'` has no
- * `functionValue`-operand case, so — unlike every other arithmetic
- * operator here — it has no entry either.
+ * reaches directly (`eq`'s cases build it by hand in `lowerEq`, never
+ * through `run`).
+ *
+ * `own` is deliberately absent, so `crossCheck` skips it: the plain
+ * `Object.getOwnPropertyDescriptor` read is not a copy of `amnesia`'s
+ * stricter receiver/key invariants — `nonStringKeyThrows` (`[{1: 42}, 1]`) is
+ * real JS and does *not* throw through the descriptor read, only through
+ * `amnesia`'s FS-specific string-key check — so the two are expected to
+ * disagree there, and every `own` case is proven by `amnesia` alone.
  *
  * @type {{ readonly [k in OpId]?: (a: any, b: any) => unknown }}
  */
@@ -94,6 +100,7 @@ const op2Js = {
     '/': (a, b) => a / b,
     '**': (a, b) => a ** b,
     '-': (a, b) => a - b,
+    '+': (a, b) => a + b,
     '%': (a, b) => a % b,
     '&': (a, b) => a & b,
     '|': (a, b) => a | b,
@@ -101,16 +108,6 @@ const op2Js = {
     '<<': (a, b) => a << b,
     '>>': (a, b) => a >> b,
     '>>>': (a, b) => a >>> b,
-    // `own` only reaches this table through the `functionValue`-operand
-    // escape (`run`'s `caseExp(g)(args)[0] === 'escape'` branch), never
-    // through a lowered case — every `own` case that actually claims a
-    // throw (`nullReceiverThrows`, `nonStringKeyThrows`, …) lowers to
-    // `['own', a, b]` and is proven by `amnesia`'s `own` instead, which
-    // carries the nullish/non-string-key invariants this used to
-    // duplicate. No escaped case pairs `functionValue` with a nullish
-    // receiver or a non-string key — one operand already being a function
-    // is what makes it escape — so this stays the plain read.
-    own: (a, b) => Object.getOwnPropertyDescriptor(a, b)?.value,
     '<': (a, b) => a < b,
     '<=': (a, b) => a <= b,
     '>': (a, b) => a > b,
@@ -168,14 +165,17 @@ const context = { frame: undefined, args: [] }
  * `amnesia`'s recursion is not pluggable — its handlers call its own `vm`
  * directly — so it cannot be handed this memo to consult mid-walk; this stays
  * a separate, smaller walker for exactly that reason, rather than the general
- * evaluator `run` and `escapedValue` use below.
+ * evaluator `run` uses below.
  *
  * Sees two kinds of node: a `Value`'s lowering (`eq.shared`'s nodes, and the
  * operands `eqProof` reads out of `e` below — plus, from
  * `jsOnly.throw.objectSpread`, a hand-built one of the same shape), which is
  * always a constant or a `ref` and so always `'undefined'`/`'[]'`/`'{}'` or a
  * primitive, never an operator application; and `lowerEq`'s own `['===', a,
- * b]`, the one binary node this file ever builds by hand. Nothing here is
+ * b]`, the one binary node this file ever builds by hand — plus a
+ * `functionValue`'s lowering, the `=>` node, which is a value here and not
+ * an operation: it establishes to a host closure, one per node, so two
+ * function values are two closures and a shared one is one. Nothing here is
  * ever a *unary* operator node, which is why there is no `op1` dispatch —
  * only `op2`, and only ever for `'==='`.
  *
@@ -189,6 +189,7 @@ const evaluate = memo => {
         if (shared !== undefined) { return shared[1] }
         const [id, a, b] = /** @type {readonly any[]} */ (e)
         if (id === 'undefined') { return undefined }
+        if (id === '=>') { return () => undefined }
         if (id === '[]') { return a.map(f) }
         if (id === '{}') {
             // `Properties` is `Property | Spread`. A spread read as a property
@@ -223,37 +224,28 @@ const sharedMemo = shared => shared.reduce(
     [])
 
 /**
- * An operand of an escaped case, built directly.
+ * A value of an escaped case, built through the same lowering and the same
+ * `vm` a lowered case goes through, so there is one walk from a corpus value
+ * to a JavaScript one rather than two that can disagree. No escaped operand
+ * is ever a shared node — sharing exists only in `eq` and `eq` never escapes
+ * — so `amnesia`'s non-preservation of identity is not in play here.
  *
- * `functionValue` is why the case escaped; every other operand still goes
- * through the lowering and `amnesia`'s `vm`, so there is one walk from a
- * corpus value to a JavaScript one rather than two that can disagree. No
- * escaped operand is ever a shared node — sharing exists only in `eq` and
- * `eq` never escapes — so `amnesia`'s non-preservation of identity is not in
- * play here.
- *
- * @type {(v: Operand) => unknown}
+ * @type {(v: Value) => unknown}
  */
-const escapedValue = v => isFunctionValue(v) ? () => 5 : vm(context)(valueExp(v))
+const value = v => vm(context)(valueExp(v))
 
 /**
  * The value one argument order produces: the case's expression evaluated
- * through `amnesia`'s `vm`, or — for a case the corpus does not lower — the
- * operation applied to built values.
+ * through `amnesia`'s `vm`, or — for the one group the corpus cannot lower,
+ * `ternary` — the operation applied to built values.
  *
- * The escape dispatches on the group's arity, so a binary group's escaped
- * case reaches `op2` rather than being refused by the unary table, and the
- * one ternary group (`?:`) reaches `op3`.
- *
- * @type {(g: Group) => (args: readonly Operand[]) => unknown}
+ * @type {(g: Group) => (args: readonly Value[]) => unknown}
  */
 const run = g => args => {
     const lowered = caseExp(g)(args)
     if (lowered[0] === 'exp') { return vm(context)(lowered[1]) }
-    const [a, b, c] = args.map(escapedValue)
-    const id = opId(g)
-    const arity = arityOf(g)
-    return arity === 1 ? op1(id)(a) : arity === 2 ? op2(id)(a, b) : op3(id)(a, b, c)
+    const [a, b, c] = args.map(value)
+    return op3(opId(g))(a, b, c)
 }
 
 /**
@@ -269,7 +261,7 @@ const group = g => {
     /** @type {(c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]} */
     const leaves = c => {
         const { expected } = c
-        /** @type {(args: readonly Operand[]) => () => void} */
+        /** @type {(args: readonly Value[]) => () => void} */
         const fn = isThrows(expected)
             ? args => () => { run(g)(args) }
             : args => () => {
@@ -292,31 +284,25 @@ const group = g => {
 }
 
 /**
- * Replays a group's non-escaped cases a second time, through the
- * `functionValue`-escape reference (`op1Js`/`op2Js`) instead of `amnesia`,
- * and checks the two agree.
+ * Replays a group's cases a second time, through the bare JavaScript
+ * operator (`op1Js`/`op2Js`) instead of `amnesia`, and checks the two agree.
  *
- * `run`'s escape branch and its lowered-`exp` branch are two independent
- * implementations of the same operator, reached from disjoint cases —
- * nothing keeps them in step once an id's reference entry survives on the
- * strength of a single `functionValue` case. That is exactly how `own`'s
- * receiver-before-key check order drifted between the two before anyone
- * noticed by hand ([nanvm-lib#1879](https://github.com/functionalscript/functionalscript/pull/1879),
+ * `amnesia`'s handler and the JS operator are two independent
+ * implementations of the same operation, and nothing else keeps them in
+ * step. That is exactly how `own`'s receiver-before-key check order drifted
+ * between the two before anyone noticed by hand
+ * ([nanvm-lib#1879](https://github.com/functionalscript/functionalscript/pull/1879),
  * fixed in `523b08a` for this file and `a6aabfc` for `amnesia`): a corpus
  * case with `expected: throws` can't tell two throwing orders apart, so
  * nothing here would have caught it either — but a wrong non-throwing
  * *value* is exactly what this catches, and would have caught it sooner had
  * one of the two reorderings landed first without the other.
  *
- * `own` is deliberately excluded: its reference entry is now a plain
- * `Object.getOwnPropertyDescriptor` read for the one escape case that keeps
- * it alive, not a copy of `amnesia`'s own's stricter receiver/key
- * invariants — `nonStringKeyThrows` (`[{1: 42}, 1]`) is real JS and does
- * *not* throw through `Object.getOwnPropertyDescriptor`, only through
- * `amnesia`'s FS-specific string-key check, so the two are expected to
- * disagree there. Every other id here has no such gap: each is a bare
- * JavaScript operator on both sides, so agreement is the only correct
- * outcome, not a coincidence of scope.
+ * A group whose id has no reference entry is skipped — `own`, for the reason
+ * at `op2Js`. Every id that has one is a bare JavaScript operator on both
+ * sides, so agreement is the only correct outcome, not a coincidence of
+ * scope. A function operand is compared like any other: both sides see a
+ * closure, and every operator here coerces one the same way.
  *
  * Throwing cases are checked structurally only — both sides must throw,
  * not throw the same thing — for the same reason `group` above can't
@@ -326,22 +312,22 @@ const group = g => {
  * @type {(g: Group) => object}
  */
 const crossCheck = g => {
-    if (!('op' in g) || g.op === 'own') { return {} }
+    if (!('op' in g)) { return {} }
     const arity = arityOf(g)
     const table = arity === 1 ? op1Js : op2Js
     if (!(g.op in table)) { return {} }
     const id = g.op
     /** @type {(c: Case<1> | Case<2> | Case<3>) => readonly (readonly[string, () => void])[]} */
     const leaves = c => orders(g)(c).flatMap(([name, args]) => {
-        if (args.some(isFunctionValue)) { return [] }
-        const lowered = caseExp(g)(args)
-        if (lowered[0] !== 'exp') { return [] }
-        const [ra, rb] = /** @type {readonly Value[]} */ (args).map(v => vm(context)(valueExp(v)))
+        // A group with an `op` always lowers; the cast is that fact, which
+        // `Lowered`'s shape does not carry.
+        const e = /** @type {Exp} */ (caseExp(g)(args)[1])
+        const [ra, rb] = args.map(value)
         const refValue = () => arity === 1 ? op1(id)(ra) : op2(id)(ra, rb)
         const fn = isThrows(c.expected)
             ? () => { refValue() }
             : () => {
-                const amnesiaValue = vm(context)(lowered[1])
+                const amnesiaValue = vm(context)(e)
                 assert(is(amnesiaValue, refValue()), [amnesiaValue, 'is not', refValue(), 'for', id])
             }
         return [[name, fn]]
@@ -350,6 +336,41 @@ const crossCheck = g => {
     const ok = cases.filter(c => !isThrows(c.expected)).flatMap(leaves)
     const bad = cases.filter(c => isThrows(c.expected)).flatMap(leaves)
     return bad.length === 0 ? fromEntries(ok) : { ...fromEntries(ok), throw: fromEntries(bad) }
+}
+
+/**
+ * A `functionValue` lowers to the smallest closure, anywhere it appears.
+ *
+ * The node is what both consumers agree on — `amnesia` establishes it, the
+ * printer recognises exactly it — so its shape is pinned here as data, and
+ * its evaluation as a host function. Nested, it is the same node inside the
+ * container's, which is what lets a function sit in an array or object
+ * operand without either consumer needing a second walk.
+ */
+const lambda = () => {
+    assertStructurallySame(valueExp(functionValue), ['=>', ['[]', []], ['undefined']])
+    assertStructurallySame(valueExp(functionValue), lambdaExp())
+    assertStructurallySame(valueExp([functionValue]), ['[]', [lambdaExp()]])
+    assertStructurallySame(valueExp({ f: functionValue }), ['{}', [[':', 'f', lambdaExp()]]])
+    assertEq(typeof value(functionValue), 'function')
+    // Two function operands are two closures, not one node reached twice.
+    const [f, g] = /** @type {readonly unknown[]} */ (value([functionValue, functionValue]))
+    assert(f !== g, ['one closure reached twice'])
+    // In the `eq` section a function is a value like any other: two are two
+    // closures, one reached through `ref` is one, and a nested one is the
+    // same node inside its container's, so `evaluate` establishes all three.
+    const { shared, cases } = lowerEq({
+        shared: { fn: functionValue, holder: [ref('fn')] },
+        cases: [
+            { name: 'twoFunctions', a: functionValue, b: functionValue, eq: false },
+            { name: 'oneFunction', a: ref('fn'), b: ref('fn'), eq: true },
+            { name: 'nestedFunction', a: ref('holder'), b: [ref('fn')], eq: false },
+        ],
+    })
+    const ev = evaluate(sharedMemo(shared))
+    for (const [c, e] of cases) { assertEq(ev(e), c.eq, c.name) }
+    const [[, fn], [, holder]] = sharedMemo(shared)
+    assert(/** @type {readonly unknown[]} */ (holder)[0] === fn, ['nested function is a copy'])
 }
 
 const eqProof = (() => {
@@ -463,10 +484,9 @@ const jsOnly = {
         /**
          * Only the `eq` section shares, so a `ref` anywhere else is a mistake.
          *
-         * `throws` and `functionValue` used to be refused here too. They are
-         * now unspellable where they were being refused — `Expectation` and
-         * `Operand` admit each in one position only — so the claim is a type
-         * and its pins are in `types.ts`.
+         * `throws` used to be refused here too. It is now unspellable where
+         * it was being refused — only `Expectation` admits it — so the claim
+         * is a type and its pin is in `types.ts`.
          */
         refOutsideEq: () => valueExp(() => ['ref', 'emptyArray']),
         /** And inside it, a name no `shared` value carries. */
@@ -494,6 +514,7 @@ const jsOnly = {
 
 export const proof = {
     eq: eqProof,
+    lambda,
     ...fromEntries(data.groups.map(g => [groupKey(g), group(g)])),
     crossCheck: fromEntries(
         data.groups.filter(g => 'op' in g && g.op !== 'own').map(g => [groupKey(g), crossCheck(g)])),
