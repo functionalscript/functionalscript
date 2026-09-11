@@ -131,11 +131,12 @@ Whitespace is exactly JSON's: **space** (U+0020), **tab** (U+0009), **LF**
 except that the special property-key sequence `["__proto__"]` is one token and
 must contain exactly those characters without whitespace or escapes.
 
-Those four and no others. Every other character is **rejected** outside a
-string literal, whatever JavaScript may treat as whitespace or a line
-terminator. Enumerating what a reader accepts is the whole rule, and it is
-four characters long; enumerating what it refuses would import a taxonomy no
-implementer of a data format should have to know.
+Those four and no others: **nothing else is whitespace**, whatever JavaScript
+may treat as one. Outside a string literal a character is whitespace or part
+of a token, and one that is neither is **rejected**. Enumerating what a reader
+accepts is the whole rule, and it is four characters long; enumerating what it
+refuses would import a taxonomy no implementer of a data format should have to
+know.
 
 Whitespace is **required after `const`, after `export`, and after `default`**.
 Three positions, with no condition attached to any of them. Elsewhere it is
