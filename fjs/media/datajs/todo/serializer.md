@@ -271,13 +271,16 @@ seams, and stage 4 is the consumer that issue was waiting for:
 
 **Settled: DataJS writes its own walk, and 157's extraction is still
 owed.** Of the four seams, `buildSerialize` in `fjs/djs/serializer` takes
-two as parameters — the key seam and the ref seam — and hardcodes the other
-two: its leaf spelling is a `switch` in the function body, where DataJS
-needs `NaN` and the infinities as words rather than JSON's `null`, and its
-entry enumeration is `entries`, where DataJS reads descriptors. Reusing it
-would mean widening another module's function by two parameters and moving
-a type out of its `private.ts` to keep the signature publishable, in a pull
-request about this module; writing the walk here is some twenty lines.
+two as parameters — the key seam and the pre-recursion ref seam — and
+hardcodes the other two: its leaf spelling is a `switch` in the function
+body, where DataJS needs `NaN` and the infinities as words rather than
+JSON's `null`, and its entry enumeration is `entries`, where DataJS reads
+descriptors. Its third parameter, `sort`, is not one of the four seams at
+all, and is the one seam §Layout and API says DataJS cannot have. Reusing
+the factory would mean widening another module's function by two
+parameters and moving a type out of its `private.ts` to keep the signature
+publishable, in a pull request about this module; writing the walk here is
+some twenty lines.
 
 What that buys is a second implementation of the key seam — `__proto__` as
 the computed form — in two places, which is exactly the drift 157 exists to
