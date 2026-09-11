@@ -162,8 +162,19 @@ const isProse = onlyFrom(proseChars)
 /** @type {(s: string) => boolean} */
 const isName = onlyFrom(nameChars)
 
-/** @type {(ok: (s: string) => boolean, kind: string, what: string, s: string) => readonly string[]} */
-const check = (ok, kind, what, s) => ok(s) ? [] : [`${what}: ${JSON.stringify(s)} is not ${kind} the table can show as written`]
+/**
+ * A string the table can show, and that shows something. Blank is the one
+ * failure the allowed characters cannot catch, since a space is one of
+ * them: a reason of spaces renders a cell reading `not applicable:` with
+ * nothing after it, which is an unanswered cell wearing the look of an
+ * answered one — the very trade this file refuses.
+ *
+ * @type {(ok: (s: string) => boolean, kind: string, what: string, s: string) => readonly string[]}
+ */
+const check = (ok, kind, what, s) =>
+    s.trim() === ''
+        ? [`${what}: ${JSON.stringify(s)} shows nothing at all`]
+        : ok(s) ? [] : [`${what}: ${JSON.stringify(s)} is not ${kind} the table can show as written`]
 
 /**
  * Every string the corpus puts in a cell, checked before any of them is

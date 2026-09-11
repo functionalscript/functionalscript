@@ -125,6 +125,12 @@ export const proof = {
         refuses(one('rea`der', 'acc`ept', v('a', 'x')),
             `the role rea\`der: "rea\`der" ${name}`,
             `the set acc\`ept of rea\`der: "acc\`ept" ${name}`)
+        // a cell that shows nothing is an unanswered cell wearing the look of
+        // an answered one, and a space is an allowed character, so the
+        // characters alone cannot catch it
+        refuses(reason('   '), 'the reason for y in serializer: "   " shows nothing at all')
+        refuses(reason(''), 'the reason for y in serializer: "" shows nothing at all')
+        refuses(one('reader', 'accept', v('a', '')), 'the class of a: "" shows nothing at all')
         // and the punctuation of an ordinary sentence is not refused
         const fine = { ...landed, notApplicable: [{ class: 'y', role: 'serializer', because: "a serializer's output (see 3.1) never emits it; why would it?" }] }
         assert(text(fine).includes("not applicable: a serializer's output (see 3.1) never emits it; why would it?"))
