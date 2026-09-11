@@ -55,5 +55,5 @@ export default [
     {"scope": ["subtree", "string/raw/range/005d-10ffff/low"], "role": "serializer", "because": "the serializer set carries the high end of this range and ordinary content within it"},
     {"scope": ["subtree", "key/string/raw/range/005d-10ffff/low"], "role": "serializer", "because": "the serializer set carries the high end of this range and ordinary content within it"},
     {"scope": ["subtree", "key/proto/value"], "role": "serializer", "because": "the serializer set carries an object with an own enumerable proto member; what that member holds is the ordinary value coverage above it"},
-    {"scope": ["subtree", "byte"], "role": "serializer", "because": "a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's"},
+    {"scope": ["subtree", "byte"], "role": "serializer", "because": "a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's"}
 ];

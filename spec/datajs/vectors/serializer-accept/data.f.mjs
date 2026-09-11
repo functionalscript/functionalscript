@@ -158,5 +158,5 @@ export default [
     {"id": "ser-string-raw-e000", "class": "string/raw/bmp", "input": "\ue000"},
     {"id": "ser-key-raw-e000", "class": "key/string/raw/bmp", "input": {"\ue000": 0}},
     {"id": "ser-string-raw-ffff", "class": "string/raw/bmp", "input": "\uffff"},
-    {"id": "ser-key-raw-ffff", "class": "key/string/raw/bmp", "input": {"\uffff": 0}},
+    {"id": "ser-key-raw-ffff", "class": "key/string/raw/bmp", "input": {"\uffff": 0}}
 ];
