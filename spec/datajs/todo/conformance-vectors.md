@@ -1122,7 +1122,10 @@ The five parts:
   at all, and refusing it requires recognizing a function. `symbol` needs no
   such care: it has none to begin with.
 - **serializer accept** — programmatic inputs a serializer must **not** refuse,
-  each with the **graph its output must denote**. Not the exact document:
+  each with the **graph its output must denote**, which is the input itself
+  rather than a second member: a serializer-side input is an ordinary value of
+  the data model, so the two would hold one value and drift. Not the exact
+  document:
   whitespace, layout, const names and the hoisting of singly-reached values are
   free choices ([`README.md`](../README.md)), so pinning bytes here would fail
   conforming serializers. Exact bytes are the `normalize` set's business alone.
@@ -1812,12 +1815,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 155 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 156 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
-      and 7 in
+      and 9 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 145 of the 674 classes the corpus held then, with 57 scope
-      records answering the 529 cells the serializer column owed; the normalize
+      covering 146 of the 674 classes the corpus held then, with 56 scope
+      records answering the 528 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1846,6 +1849,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       U+07FF, U+D7FF, U+E000 and U+FFFF with key twins — were simply missing,
       so the list above was right and the set had not caught up with it; they
       ride under `string/raw/bmp`, which is where U+0800 already sat.
+      **Two more came from the round after**, both about an occurrence or a
+      walker rather than a value. Every sharing vector used its shared node
+      exactly twice, so a writer that remembers the first identity and forgets
+      it by the third occurrence passed: `const/shared/three-paths` now carries
+      `[a, {"a": a}, {"b": [a]}]`. And all four graph-equivalence inverses put
+      the two equal nodes in an *array*, so a writer that hash-conses only while
+      walking object members passed all of them; two object-parent inverses now
+      rule that out, empty and non-empty.
       One reason was corrected rather than replaced: the deep-nesting classes
       said depth is the reader's concern, which is false, since a recursive
       writer has a limit of its own and this repository records
@@ -1863,9 +1874,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 205 records in
-      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 55 scope
-      records answering the 519 cells its column owes and one `['set',
+- [x] **Normalize.** Landed as 207 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 54 scope
+      records answering the 517 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
       the 50 classes this set introduced. The proof reads every text back
       through the reader, which is the run-through-the-accept-grammar check
@@ -1877,8 +1888,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 114,778 bytes of the bit
-      vector's 131,072, which is 88% and leaves little room for another
+      being refused outright. The matrix stands at 114,357 bytes of the bit
+      vector's 131,072, which is 87% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
       recording.** The set went out with ten scope records saying the shape
@@ -1912,6 +1923,11 @@ The steps, in order; a step is one pull request unless it says otherwise:
       and one recognising an index by `String(Number(k)) === k` moves `"-1"`
       ahead of the names. Thirty-eight, fourteen, one and seven vectors
       respectively, and six more exemptions gone.
+      A round later, one more of the same kind: the 2^53 boundary. `9007199254740993`
+      parses to `9007199254740992`, and a formatter that emits the longer
+      round-tripping spelling at exactly that value passed, since the set's other
+      large integer is a different number. The rounding class and its signed twin
+      now carry normalize vectors.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
@@ -1936,11 +1952,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       table cannot read one way and mean another. A role whose sets have
       not landed refuses nothing, since a class cannot owe a vector to a
       set that does not exist: its column says so on every row and the
-      refusal arrives with the set, which is where the serializer and
-      normalize columns stand today. 668 classes as this step landed, the
-      reader role answering every one; a later set adds classes of its own
-      and one `['set', …]` reason answers the reader for all of them. Prose
-      could not do this job, which four consecutive review rounds showed.
+      refusal arrives with the set, which is where both writer columns stood
+      when this step landed and where neither stands now. 668 classes then,
+      the reader role answering every one; each writer set below brings its
+      own classes, and one `['set', …]` reason answers the reader for them.
+      The generated table is the current count in every case — a figure here
+      is what the corpus held at this step. Prose could not do this job, which
+      four consecutive review rounds showed.
 - [ ] **The JavaScript whole-set check**, per decision 5. The
       FunctionalScript one is stage 6's, once stage 5 has taught the front
       end `;` and the special numbers.

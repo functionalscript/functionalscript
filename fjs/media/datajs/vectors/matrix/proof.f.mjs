@@ -361,13 +361,18 @@ export const proof = {
         // and the real corpus names nothing twice
         assert(matrix(corpus)[0] === 'ok')
     },
-    // A scope tag the union does not have. The reasons are a data module, so
-    // a mistyped tag arrives as data, and `reaches` would read anything but
-    // `class` and `subtree` as a `set` — printing a plausible cell for a
-    // record nobody wrote.
-    mistagged: () => {
-        const bad = { ...landed, notApplicable: [{ scope: /** @type {Scope} */ (/** @type {unknown} */ (['sett', 'accept'])), role: 'serializer', because: 'a tag nobody defined' }] }
-        refuses(bad, 'sett accept in serializer: no such scope, so it cannot be told from a set')
+    // A scope that is not a tag and a name. The reasons are a data module, so
+    // both shapes arrive as data: a mistyped tag, which `reaches` would read as
+    // a `set`, and a longer tuple, which nothing reads at all — each printing a
+    // plausible cell for a record nobody wrote.
+    malformed: () => {
+        /** @type {(scope: unknown) => Corpus} */
+        const with_ = scope => ({ ...landed, notApplicable: [{ scope: /** @type {Scope} */ (scope), role: 'serializer', because: 'a scope nobody defined' }] })
+        refuses(with_(['sett', 'accept']), 'sett accept in serializer: no such scope, so it cannot be told from a set')
+        // an extra element is read by nothing, so the reason would answer as
+        // though the writer had not written it
+        refuses(with_(['class', 'y', 'whatever']), 'class y in serializer: a scope is a tag and a name, and this one has 3')
+        refuses(with_(['class']), 'class undefined in serializer: a scope is a tag and a name, and this one has 1')
     },
     // A corpus with no roles has no columns, so a row has nothing to say and
     // the header would carry an empty cell over a delimiter of one — not a
