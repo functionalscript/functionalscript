@@ -350,28 +350,47 @@ const duplicated = ({ notApplicable }) =>
             : [`${showScope(scope)} in ${role}: a second reason for a scope that already has one`])
 
 /**
- * A scope that is not one of the three: a tag the union does not have, or a
- * tuple longer or shorter than the pair.
+ * A value as a failure can name it, whatever it turns out to be.
+ *
+ * `showScope` takes a scope apart, and the whole point of the check below is
+ * that a reason may not carry one — so naming the offender cannot go through
+ * it, and cannot go through `JSON.stringify` either, which throws on a bigint.
+ *
+ * @type {(x: unknown) => string}
+ */
+const show = x =>
+    x instanceof Array
+        ? `[${x.map(show).join(', ')}]`
+        : typeof x === 'string' ? JSON.stringify(x) : String(x)
+
+/**
+ * A scope that is not a tag and a name: not a pair of strings at all, or a
+ * pair whose tag the union does not have.
  *
  * The reasons are a data module, which carries no annotations and is typed at
- * the import, so either arrives here as data rather than as a `tsc` error. A
- * tag is read by name and the remainder treated as `set`, which would give
- * `['sett', 'reject']` set semantics and print a plausible `not applicable`
- * cell for a record nobody wrote; a third element is read by nothing at all,
- * so `['class', 'y', 'whatever']` would answer as though the extra were not
- * there, discarding what a writer meant by it. Naming both here refuses the
- * corpus before a row is built, which is what every other check in this file
- * does with a defect it finds.
+ * the import, so every such shape arrives here as data rather than as a `tsc`
+ * error — the cast at the import asserts what the file says and checks
+ * nothing. A tag is read by name and the remainder treated as `set`, which
+ * would give `['sett', 'reject']` set semantics and print a plausible
+ * `not applicable` cell for a record nobody wrote; a third element is read by
+ * nothing at all, so `['class', 'y', 'whatever']` would answer as though the
+ * extra were not there; and `null` or `['class', 1]` would reach a
+ * destructuring or a template and throw where this function owes a
+ * `Result`. Naming all of it here refuses the corpus before a row is built,
+ * which is what every other check in this file does with a defect it finds.
  *
  * @type {(corpus: Corpus) => readonly string[]}
  */
 const malformed = ({ notApplicable }) =>
     notApplicable.flatMap(({ scope, role }) => {
-        const where = `${showScope(scope)} in ${role}`
-        if (scope.length !== 2) { return [`${where}: a scope is a tag and a name, and this one has ${scope.length}`] }
+        /** @type {unknown} */
+        const value = scope
+        if (!(value instanceof Array)) { return [`a reason in ${role}: ${show(value)} is not a scope, which is a tag and a name`] }
+        if (value.length !== 2) { return [`a reason in ${role}: ${show(value)} is not a tag and a name`] }
+        if (!value.every(x => typeof x === 'string')) { return [`a reason in ${role}: ${show(value)} is not a tag and a name, both strings`] }
         return scope[0] === 'class' || scope[0] === 'subtree' || scope[0] === 'set'
             ? []
-            : [`${where}: no such scope, so it cannot be told from a set`]
+            : [`${showScope(scope)} in ${role}: no such scope, so it cannot be told from a set`]
     })
 
 /**

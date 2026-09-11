@@ -368,8 +368,13 @@ export const proof = {
         refuses(with_(['sett', 'accept']), 'sett accept in serializer: no such scope, so it cannot be told from a set')
         // an extra element is read by nothing, so the reason would answer as
         // though the writer had not written it
-        refuses(with_(['class', 'y', 'whatever']), 'class y in serializer: a scope is a tag and a name, and this one has 3')
-        refuses(with_(['class']), 'class undefined in serializer: a scope is a tag and a name, and this one has 1')
+        refuses(with_(['class', 'y', 'whatever']), 'a reason in serializer: ["class", "y", "whatever"] is not a tag and a name')
+        refuses(with_(['class']), 'a reason in serializer: ["class"] is not a tag and a name')
+        // and the shape is established before anything takes it apart, since a
+        // scope that is not a pair of strings would otherwise reach a
+        // destructuring or a template and throw where a `Result` is owed
+        refuses(with_(null), 'a reason in serializer: null is not a scope, which is a tag and a name')
+        refuses(with_(['class', 1]), 'a reason in serializer: ["class", 1] is not a tag and a name, both strings')
     },
     // A corpus with no roles has no columns, so a row has nothing to say and
     // the header would carry an empty cell over a delimiter of one — not a
