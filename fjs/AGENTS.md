@@ -111,11 +111,11 @@ the last thing in a function body compiles. Put any statement after it and the
 same line is TS2344.
 
 So a proof entry that *ends* with its typedefs checks nothing from there on.
-`fjs/effects/proof.f.mjs`'s `signatures` is the standing example: its last
-eight `Assert<Equal<…>>` have no statement after them and are green whatever
-they claim. `fjs/edag/proof.f.mjs`'s `consistency` was the extreme of it — a
-body of nothing but typedefs, so all 28 of its `Assert<Check<…>>` pins were
-inert — which is why those now sit at module scope in `fjs/edag/types.ts`.
+`fjs/edag/proof.f.mjs`'s `consistency` and `fjs/effects/proof.f.mjs`'s
+`signatures` were the worked cases, a body of nothing but typedefs each: all
+28 `Assert<Check<…>>` pins of the one and all eight `Assert<Equal<…>>` of the
+other were green whatever they claimed. Both entries are gone, and their
+claims sit at module scope in `fjs/edag/types.ts` and `fjs/effects/types.ts`.
 Where a typedef is followed by an `assert` call, as in
 `fjs/ebnf/ll1/proof.f.mjs`'s `constParameter`, it is checked and does its job.
 
@@ -127,8 +127,18 @@ silenced by an edit that moves a line.
 Keep a typedef in the proof only for a claim about a *local* inference that
 has no module-scope spelling — a `const` type parameter's effect at a call
 site is the standing example — and then make sure a statement follows it.
-[`todo/inert-type-level-proofs.md`](../todo/inert-type-level-proofs.md) tracks
-the ones already written the inert way.
+[`fjs/ebnf/byte/proof.f.mjs`](./ebnf/byte/proof.f.mjs) has both halves: two
+such claims, each stated right after the binding it is about and before the
+assertions that follow, and a third that was about a module-scope export and
+moved to `./ebnf/byte/types.ts`.
+
+Every `Assert` typedef in the repository has been measured: each one's claim
+replaced by a false one, `tsc` run over the falsified tree, and a typedef
+counted as checked only where it reported TS2344 at its own line. 70 of 125
+were inert when the rule was found; none is now. **Do the same for one you
+write** — falsify it once, see it fail, restore it. A form copied from
+somewhere that works is not evidence, since what decides it is what follows
+the line, not the line.
 
 Some facts have nowhere else to be checked and so *require* an assertion. A
 `const` type parameter is the standing example: dropping the modifier widens
@@ -416,11 +426,24 @@ be declared when it happens.
 The intra-directory dependency direction is
 `types.ts <- private.ts <- module.f.mjs <- proof.f.mjs <- module.mjs <- proof.mjs`
 (dependency to dependent; a layering guide, not a requirement that every file
-exists). `types.ts` must not depend on `private.ts`, and verification moves
-downstream: an assertion that checks the implementation belongs in a proof
-function, not in `types.ts`. Recursive RTTI whose annotation needs a named
-public type may stay in `module.f.mjs` (e.g. `exp` in `fjs/edag/module.f.mjs`),
-and declarative compile-time/runtime constants shared between TypeScript and
+exists). `types.ts` must not depend on `private.ts`, and *runtime*
+verification moves downstream: an assertion that **runs** belongs in a proof
+function, not in `types.ts`.
+
+A compile-time `Assert<…>` goes the other way, and the exception is the whole
+point: a proof is the one place a type-level claim may not be checked at all
+([§1.4](#14-assert-type-level-facts-with-assertequal)), so it lives at module
+scope in `types.ts` even when what it pins is a value or a signature in
+`module.f.mjs` — reached with a type-only `import type`, which adds no runtime
+edge and leaves the file type source. `fjs/edag/types.ts` pins values that
+way and `fjs/effects/types.ts` signatures; `fjs/rtti/ts/types.ts` is the large
+block of the purely type-level kind. The exception reaches no further than
+that: a claim about a *local* inference stays in the proof, with a statement
+after it.
+
+Recursive RTTI whose annotation needs a named public type may stay in
+`module.f.mjs` (e.g. `exp` in `fjs/edag/module.f.mjs`), and declarative
+compile-time/runtime constants shared between TypeScript and
 runtime code may be split into a normal subordinate metaprogramming module such
 as `meta/module.f.mjs` when that helps — it is an ordinary module, discovered
 and covered like any other `module.f.mjs`, never a requirement.
