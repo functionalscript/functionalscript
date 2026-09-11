@@ -4,21 +4,29 @@
 and stage 4 is the deliverable
 [the coordinating plan](../../../../todo/parser-serializer-restructure.md)
 calls the one everything else is waiting for.
-**Status:** open — none of the writer exists. The reader landed;
-[`fjs/media/datajs`](../README.md) has no `serializer/` at all.
-**Blocked by:** nothing, for the implementation. Its **proofs** wait on the
-four writer-side sets of
+**Status:** wip — **the writer landed**, as
+[`fjs/media/datajs/serializer`](../serializer/module.f.mjs): `trySerialize`
+and `tryStringify` over the three passes of §1–§3, refusing everything the
+specification refuses, with every rule of §1 proved and the two worked
+examples of the hoisting and naming rules pinned. What remains is the
+corpus proofs (§4), the module's own `module.f.mjs`, and a readable layout
+if one is wanted (§3).
+**Blocked by:** nothing, for what is left of the implementation. The
+**corpus proofs** wait on the four writer-side sets of
 [stage 1b](../../../../spec/datajs/todo/conformance-vectors.md) —
 `serializer-accept`, `serializer-reject`, `graph-equivalence`, `normalize` —
 which are typed in [`../vectors/types.ts`](../vectors/types.ts) and not yet
-written.
+written, and the host-input half of them waits on that issue's **decision
+6** besides.
 
 ### Problem
 
 The reader landed on the grammar route and
 [`parser-serializer.md`](./parser-serializer.md) keeps what remains of it —
-`tryParseBytes` and the corpus proofs. This file is the other half, and none of
-it exists: `fjs/media/datajs` reads and cannot write.
+`tryParseBytes` and the corpus proofs. This file is the other half: the
+writer, which landed as described under **Status** above. What is written
+below is the design it was built to; where a section is done, it says so and
+records what the implementation settled.
 
 The specification is finished and normative.
 **This issue implements it and does not redesign it.** Where the two disagree
@@ -41,19 +49,34 @@ Two things make writing harder than reading, and each is a section below:
 ```text
 fjs/media/datajs/
     serializer/
-        module.f.mjs
-        proof.f.mjs
-        private.ts    if the walk's seams need names
+        module.f.mjs  landed
+        proof.f.mjs   landed
+        types.ts      landed — the flat graph, `_Value`, `_Node`, `_Graph`
+        private.ts    landed — the read's own state
 ```
 
 Three of the five entry points
-[`parser-serializer.md`](./parser-serializer.md#layout) lists are this file's:
+[`parser-serializer.md`](./parser-serializer.md#layout) lists are this
+file's. **Two landed, and the third is deliberately not a function:**
 
 ```ts
 export const trySerialize: (value: unknown) => Result<List<string>, string>
 export const tryStringify: (value: unknown) => Result<string, string>
-export const tryNormalize: (value: unknown) => Result<string, string>
 ```
+
+`tryNormalize` is absent because the writer that landed **is** the
+normalized one: layout is the freedom the specification gives a writer, and
+with one writer there is nothing to choose, so a separate entry point would
+be the same function under a second name. The day a readable layout lands —
+one statement per line, indented containers, the default the specification
+recommends for tooling — it is the second entry point and `tryNormalize`
+names this one. Until then `tryStringify`'s output is byte-exact normalized
+form, and its proof pins the bytes.
+
+The module's own `module.f.mjs`, the public surface both roles share, is
+still owed and is where the naming question `parse` versus `tryParse` gets
+settled; the writer is reached at `serializer/module.f.mjs` today, as the
+reader is at `parser/module.f.mjs`.
 
 `trySerialize` yields chunks and `tryStringify` is its `concat`, mirroring
 [`fjs/media/json`](../../json/module.f.mjs)'s pair. `tryNormalize` stays
@@ -83,6 +106,33 @@ silently-wrong document the spec exists to prevent. The serializer enumerates
 in the mandated order and takes no say in it.
 
 #### 1. Pass 1 — classify, validate, count, in one traversal
+
+**Landed, in three passes rather than two, and the split is the one
+deviation from this section.** `read` classifies and validates and reads
+every container once; `link` replaces each host object by the index of its
+node and refuses a cycle; `write` emits. Cycle rejection moved out of the
+read for a reason worth keeping: the read holds a container in `started`
+from before its members are read, so it never re-enters one and *terminates*
+on a cyclic value without deciding anything — and `link` then refuses the
+graph by the only thing a cycle leaves behind in it, a reference that points
+forwards. That is what makes the refusal provable at all. A cycle is not a
+value FunctionalScript can build, so a check inside the read could never be
+reached from a proof, where a graph carrying a forward reference is ordinary
+data. The same move made `memberValue` and `elementNames` functions over a
+descriptor and over a list of names, for the same reason:
+[`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 keeps host-built inputs out of a
+`.f.mjs` proof, and §1.2 wants every branch covered, so a rule that only a
+host value can trigger has to be a function over the data that value would
+carry.
+
+Two costs are now measured rather than assumed. The read rebuilds
+`started` per container (`new Set([...prev, value])`), and `shared` counts
+occurrences with `indexOf`, so both are quadratic in the number of
+containers; and `read` and `write` recurse on the call stack, where the
+reader walks an explicit one and keeps its 5,000-level depth contract. Both
+are simple-first choices, not measurements that came out well — a document
+deep enough or wide enough to matter is what would change them, and neither
+has a vector yet.
 
 This pass is the *first* thing that touches the caller's graph, so every rule
 below has to hold here rather than in the walk: counting occurrences means
@@ -219,11 +269,20 @@ seams, and stage 4 is the consumer that issue was waiting for:
 4. **an entry-enumeration seam** — the descriptors of §1, not `definedEntries`
    and not `entries`.
 
-Three of the four are already parameters of `buildSerialize` in
-`fjs/djs/serializer`, which is private there. Whether DataJS reuses that
-factory (exported), reuses a walker extracted per 157 §2, or writes its own
-is 157's open question and this is where it gets decided — under
-[`AGENTS.md`](../../../../AGENTS.md) §1's rule that an export beats a copy.
+**Settled: DataJS writes its own walk, and 157's extraction is still
+owed.** Of the four seams, `buildSerialize` in `fjs/djs/serializer` takes
+two as parameters — the key seam and the ref seam — and hardcodes the other
+two: its leaf spelling is a `switch` in the function body, where DataJS
+needs `NaN` and the infinities as words rather than JSON's `null`, and its
+entry enumeration is `entries`, where DataJS reads descriptors. Reusing it
+would mean widening another module's function by two parameters and moving
+a type out of its `private.ts` to keep the signature publishable, in a pull
+request about this module; writing the walk here is some twenty lines.
+
+What that buys is a second implementation of the key seam — `__proto__` as
+the computed form — in two places, which is exactly the drift 157 exists to
+stop. It is recorded there as the count that extraction now has to answer
+for, and named from the spelling here.
 
 #### 3. Normalized form
 
@@ -264,34 +323,56 @@ written yet:
 Three of those read back through [`../parser`](../parser/module.f.mjs), so the
 serializer's proofs are round trips whose comparison is `difference`, the
 sharing-aware one — structural equality would pass a serializer that inlined a
-shared node. The host recipes an input may carry are built by `build`, which
+shared node. **That shape landed ahead of the sets**: the writer's proof
+already round-trips values of its own through the reader and `difference`,
+sharing included, so what the corpus adds is coverage of the specification's
+branches rather than the machinery to check them.
+
+The host recipes an input may carry are built by `build`, which
 [stage 1b](../../../../spec/datajs/todo/conformance-vectors.md) owns and places
 in `fjs/media/datajs/vectors/module.mjs` — a getter that records its own
 invocation is an effect, which is why that one is `.mjs`. The accessor vectors
 are what prove the descriptor-first rule of §1: a serializer that refuses an
 accessor *after* reading it passes a vector that only checks the rejection.
 
+**Those vectors are the half that waits on that issue's decision 6**, which
+asks whether a `proof.mjs` may prove a `.f.mjs` API against host-built
+inputs its specification names. Until it is answered, the refusals a host
+value alone can trigger are proved here against the data such a value would
+carry — a descriptor, a list of own property names, a graph with a forward
+reference — which is what §1 above records and what the exports of
+[`../serializer`](../serializer/module.f.mjs) are shaped for. What that
+leaves unproved is the *plumbing* between them: that an object with an
+enumerable getter reaches `memberValue` at all, and that no getter is
+invoked on the way. Decision 6 is what would close it.
+
 ### Tasks
 
-- [ ] `module.f.mjs`, the public API of
-      [`parser-serializer.md`](./parser-serializer.md#layout), once there is
-      more than the reader to hold.
-- [ ] Pass 1 as one traversal: container-kind check, then descriptor-first
-      validation as each node is reached, occurrence counting by identity,
-      cycle rejection, post-order naming. Prove the empty non-plain built-ins
-      (`Date`, `Map`, `Set`, boxed number), which no descriptor check can catch,
-      and the `null`-prototype array, which is where the array test's spelling
-      is decided.
-- [ ] Decide §2's walker question with 157: export `buildSerialize`, extract a
-      shared one, or write DataJS's own — and say which in 157 either way.
-- [ ] Pass 2 over that walker, with the four seams and the `["__proto__"]` key
-      spelling.
-- [ ] Out-of-model rejection as a `try*`, descriptor-first so no accessor is
+- [x] The read as one traversal: container-kind check, then descriptor-first
+      validation as each node is reached, and every container read once.
+      The empty non-plain built-ins (`Date`, `Map`, `Set`, boxed number),
+      which no descriptor check can catch, are proved.
+- [x] Occurrence counting by node, post-order naming, and cycle rejection —
+      the last from the linked graph rather than from the read, which is
+      what makes it provable (§1).
+- [x] §2's walker question, decided: DataJS's own walk, with 157 told what
+      that costs.
+- [x] The walk with its four seams and the `["__proto__"]` key spelling.
+- [x] Out-of-model rejection as a `try*`, descriptor-first so no accessor is
       invoked by the check that refuses it, with the attribute/enumerability
       line and the hole-versus-`undefined` distinction proved.
-- [ ] Normalized form and its byte-exact proofs, the `1e20`/`1e21` and
+- [x] Normalized form and its byte-exact proofs, the `1e20`/`1e21` and
       `1e-6`/`1e-7` thresholds included.
-- [ ] Proofs over the four writer-side sets as stage 1b lands them.
+- [ ] Proofs over the four writer-side sets as stage 1b lands them, and the
+      host-input half of them once that issue's decision 6 is answered.
+- [ ] `module.f.mjs`, the public API of
+      [`parser-serializer.md`](./parser-serializer.md#layout), once the byte
+      path lands beside it — and the `parse` versus `tryParse` naming with it.
+- [ ] A readable layout as the second writer, if one is wanted, and
+      `tryNormalize` as the name this one takes then (§Layout and API).
+- [ ] Measure the two quadratic steps and the recursion depth of §1 against a
+      document large or deep enough to matter, and decide whether either is
+      worth changing.
 - [ ] Delete this file in the PR that finishes it.
 
 ### Related

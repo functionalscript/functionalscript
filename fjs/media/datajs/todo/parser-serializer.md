@@ -55,7 +55,7 @@ fjs/media/datajs/
     module.f.mjs      the public API below
     proof.f.mjs
     parser/           module.f.mjs, proof.f.mjs, types.ts — landed; `parse`, over text
-    serializer/       module.f.mjs, proof.f.mjs — [`serializer.md`](./serializer.md)
+    serializer/       module.f.mjs, proof.f.mjs, types.ts — landed; `trySerialize`, `tryStringify` — [`serializer.md`](./serializer.md)
 ```
 
 There is no `tokenizer/`: the reader is the grammar (§3).

@@ -2072,6 +2072,19 @@ or the spec, not only into a thread.
    `Object.setPrototypeOf` is the call §1.6 names and a mutation besides;
    the `proto` recipes are the vectors that hold it once `build` lands.
 
+   **The writer landed without waiting on this, and the answer decides what
+   is still unproved rather than whether it works.**
+   [`fjs/media/datajs/serializer`](../../../fjs/media/datajs/serializer/module.f.mjs)
+   refuses every input above, and proves each refusal against the data a
+   host value would carry — `memberValue` against a descriptor, `elementNames`
+   against a list of own property names, `link` against a graph with a
+   forward reference — because those are values FunctionalScript can build
+   where the objects carrying them are not. What no proof there can reach is
+   the plumbing between them: that an object with an enumerable getter
+   reaches `memberValue` at all, and that nothing invokes the getter on the
+   way. That is what the exemption would buy, and it is the narrower claim
+   to weigh against §1.6 than "the serializer cannot be proved".
+
 The steps, in order; a step is one pull request unless it says otherwise:
 
 - [x] **The vector record and the comparison.** The schema is
