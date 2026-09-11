@@ -1,11 +1,13 @@
 /**
  * @import { Unknown } from '../types.ts'
- * @import { Accept, Reject } from './types.ts'
+ * @import { Accept, Document, Reject } from './types.ts'
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { fromVec } from '../../../text/utf8/module.f.mjs'
+import { msb, u8ListToVec } from '../../../types/bit_vec/module.f.mjs'
 import { parse } from '../parser/module.f.mjs'
-import { bytes, difference } from './module.f.mjs'
+import { bytes, difference, isDocument } from './module.f.mjs'
 import accept from '../../../../spec/datajs/vectors/accept/data.f.mjs'
 import reject from '../../../../spec/datajs/vectors/reject/data.f.mjs'
 
@@ -16,19 +18,39 @@ const acceptSet = /** @type {readonly Accept[]} */ (accept)
 const rejectSet = /** @type {readonly Reject[]} */ (reject)
 
 /**
+ * The text a document carries: the string itself, or its bytes decoded as
+ * UTF-8, `null` where they are not UTF-8. The reader has no byte path yet,
+ * so the corpus decodes with `fjs/text/utf8` and reads the units; a BOM as
+ * the first byte reaches the reader as U+FEFF, which it refuses as
+ * whitespace, and the document rule's own refusal is asserted once stage
+ * 4's byte-accepting parser lands and reruns the set through it.
+ *
+ * @type {(id: string, document: Document) => string | null}
+ */
+const text = (id, document) => {
+    if (typeof document === 'string') { return document }
+    const b = bytes(document[1])
+    assert(b !== null, `${id}: the hex spelling is not the one the schema admits`)
+    return fromVec(u8ListToVec(msb)(b))
+}
+
+/**
  * One accept vector against the reader: the document is accepted, and
  * what it yields is the graph the vector expects, sharing included.
  *
  * @type {(vector: Accept) => void}
  */
 const accepted = ({ id, document, graph }) => {
-    // the byte form waits on the reader's byte path
-    assert(typeof document === 'string', `${id}: a byte document has no reader yet`)
-    const [tag, result] = parse(document)
+    const t = text(id, document)
+    assert(t !== null, `${id}: not UTF-8`)
+    const [tag, result] = parse(t)
     assert(tag === 'ok', `${id}: refused: ${result}`)
     const d = difference(graph)(result)
     assert(d === null, `${id}: ${d}`)
 }
+
+/** The one rule a byte document breaks before any reader sees it, as the set spells it. */
+const utf8Rule = 'document: a document is UTF-8'
 
 /**
  * One reject vector against the reader: the document is refused. What the
@@ -38,8 +60,15 @@ const accepted = ({ id, document, graph }) => {
  * @type {(vector: Reject) => void}
  */
 const rejected = ({ id, document, rule }) => {
-    assert(typeof document === 'string', `${id}: a byte document has no reader yet`)
-    const [tag] = parse(document)
+    const t = text(id, document)
+    // Which layer refuses it is the rule's, not a free choice: the UTF-8
+    // rule is the decoder's, and those bytes decode to nothing; every other
+    // rule is the reader's, on the text the bytes or the units spell. A
+    // vector that swapped them would be refused all the same and test the
+    // other layer, so the proof pins the layer before the refusal.
+    assert((t === null) === (rule === utf8Rule), `${id}: ${t === null ? 'the decoder refused it, though' : 'it decodes, though'} ${rule}`)
+    if (t === null) { return }
+    const [tag] = parse(t)
     assert(tag === 'error', `${id}: accepted, though ${rule}`)
 }
 
@@ -86,6 +115,31 @@ export const proof = {
         assertEq(bytes('e:'), null)
         assertEq(bytes('e`'), null)
         assertEq(bytes('e@'), null)
+    },
+    // A document is a string or the exact `['hex', string]` tuple. Each set's
+    // proof leans on this to check the cast at its import, so the shape
+    // matters and not only the tag: an object and a longer array both answer
+    // `'hex'` to `document[0]`, and neither is the tuple the type admits.
+    isDocument: () => {
+        assert(isDocument(''))
+        assert(isDocument('export default 1;'))
+        assert(isDocument(['hex', '00']))
+        assert(isDocument(['hex', 'ef bb bf']))
+        // the tag is right and the shape is not
+        assert(!isDocument(/** @type {Unknown} */ ({ 0: 'hex', 1: '00' })))
+        assert(!isDocument(['hex', '00', 'extra']))
+        assert(!isDocument(['hex']))
+        assert(!isDocument([]))
+        // the shape is right and the tag is not
+        assert(!isDocument(['bytes', '00']))
+        assert(!isDocument([0, '00']))
+        // the second member is not the one hex spelling, or not a string
+        assert(!isDocument(['hex', 'EF BB BF']))
+        assert(!isDocument(['hex', '']))
+        assert(!isDocument(/** @type {Unknown} */ (['hex', 0])))
+        // not a document at all
+        assert(!isDocument(1))
+        assert(!isDocument(null))
     },
     // A leaf is itself under `Object.is`: every kind of the data model, with
     // the two cases structural equality gets wrong — the zeros differ, and
@@ -150,6 +204,35 @@ export const proof = {
         differ({ a: 1 }, outside(Object(1)), 'at $: expected an object, got a non-plain object')
         differ([{}], [outside(new Date(0))], 'at $[0]: expected an object, got a non-plain object')
         differ(1, outside(new Date(0)), 'at $: expected 1, got an object')
+    },
+    // Only the data is in the model: an own property an expected graph does
+    // not have is a difference of the container, and an accessor is one
+    // wherever it stands — read through its descriptor, so the getter never
+    // runs while the comparison asks whether it should have been there.
+    model: () => {
+        // an array carrying an own property beyond its elements and `length`
+        differ([], outside(Object.assign([], { meta: 1 })), 'at $: expected data members only, got the own property "meta"')
+        differ([1], outside(Object.assign([1], { meta: 1 })), 'at $: expected data members only, got the own property "meta"')
+        // the same, non-enumerable, which `Object.keys` cannot see
+        differ([], outside(Object.defineProperty([], 'meta', { value: 1 })), 'at $: expected data members only, got the own property "meta"')
+        // an object's enumerable extra is already a member count apart; the
+        // one `Object.keys` cannot see is what this check is for
+        differ({}, outside(Object.assign({}, { meta: 1 })), 'at $: expected 0 members, got 1')
+        differ({}, outside(Object.defineProperty({}, 'meta', { value: 1 })), 'at $: expected data members only, got the own property "meta"')
+        // a symbol-keyed property, outside the model wherever it stands
+        differ([], outside(Object.assign([], { [Symbol('s')]: 1 })), 'at $: expected data members only, got a symbol-keyed property')
+        differ({}, outside(Object.assign({}, { [Symbol('s')]: 1 })), 'at $: expected data members only, got a symbol-keyed property')
+        // an accessor, reported where the walk reaches it and never invoked
+        let read = 0
+        const getter = (/** @type {Unknown} */ target, /** @type {string} */ k) =>
+            outside(Object.defineProperty(target, k, { get: () => { read += 1; return 1 }, enumerable: true }))
+        differ({ a: 1 }, getter({}, 'a'), 'at $["a"]: expected 1, got an accessor')
+        differ([1], getter([1], '0'), 'at $[0]: expected 1, got an accessor')
+        // a setter with no getter reads as `undefined` and is an accessor all the same
+        differ({ a: undefined }, outside(Object.defineProperty({}, 'a', { set: () => {}, enumerable: true })), 'at $["a"]: expected undefined, got an accessor')
+        // an earlier member's difference still comes first
+        differ({ a: 1, b: 2 }, getter({ a: 9 }, 'b'), 'at $["a"]: expected 1, got 9')
+        assertEq(read, 0)
     },
     // Sharing is part of the graph, in both directions: a node the expected
     // graph reaches twice must be one node in the actual, and two nodes it
