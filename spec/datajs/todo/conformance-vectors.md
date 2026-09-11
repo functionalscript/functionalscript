@@ -54,17 +54,22 @@ carries a document as a JavaScript string whose code units are the document's,
 and three vectors carry bytes instead, as a tagged hex string,
 `["hex", "ef bb bf …"]`, lowercase pairs separated by single spaces.
 
-Two of the three are records rather than discriminators. They exist so the
-corpus *shows* that a byte sequence is not DataJS, which no code-unit document
-can say:
+Two of the three are rejects, and only one of them is a record rather than a
+discriminator:
 
 - **a BOM as the document's first byte**, `ef bb bf` before
-  `export default 1;`. The bytes are valid UTF-8, and the rule they break is
-  the document rule's second half, "it has no BOM". JavaScript accepts the
-  same file, measured, so it is a narrowing vector.
+  `export default 1;`. The bytes are valid UTF-8 and the document is valid but
+  for the BOM, so the rule it breaks is the document rule's second half, "it has
+  no BOM". JavaScript accepts the same file, measured, so it is a narrowing
+  vector — and an ordinary **test**: a reader that strips the BOM accepts the
+  document and fails this vector, which review pointed out is exactly the defect
+  the byte path is most likely to have.
 - **a truncated sequence at end of input**, `export default "a` followed by a
   lone `c2`. Nothing follows the lead byte, which is what makes it truncated;
-  a byte after it would make it some other malformed shape instead.
+  a byte after it would make it some other malformed shape instead. This one is
+  a **record**: no reader can fail it, for the reason set out below, and it
+  exists so the corpus *shows* that a byte sequence is not DataJS, which no
+  code-unit document can say.
 
 The third is an **accept**, and it is there because the other two are
 rejects. Review pointed out what that leaves open: with no byte document the
@@ -88,8 +93,8 @@ one had sampled where the rule said enumerate.
 Every one of them was about a decoder. DataJS is handed correct UTF-8, so a
 malformed sequence is not an input it processes, exactly as a `Map` is not an
 input a serializer refuses. The care was real and the subject was someone
-else's. What survives is the two records above, and they are marked as records
-rather than dressed up as tests.
+else's. What survives is the two rejects above, of which the truncated one is
+marked a record rather than dressed up as a test.
 
 Truncation is worth one more line, because this file argued at length that it
 could not have a vector: the lead byte must be the document's last, so the
@@ -1763,8 +1768,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `export default 1;`, breaking "a document has no BOM" and accepted by
       the host, measured; and **`byte-truncated`**, `export default "a`
       followed by a lone `c2`, breaking "a document is UTF-8" and a host
-      syntax error, measured. Both are records that a byte sequence is not
-      a DataJS document, not tests of a decoder, and the file says so. The
+      syntax error, measured. Only the truncated one is a record rather than a
+      test: the BOM vector has one defect and discriminates, since a reader that
+      strips the BOM accepts the document and fails it. The
       third is the accept the other two leave owing, **`byte-valid-widths`**,
       `export default "aé€𐀀";` with its one-, two-, three- and
       four-byte sequences, and it is a test: without it a byte path that
