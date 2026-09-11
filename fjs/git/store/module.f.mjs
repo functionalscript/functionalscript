@@ -90,10 +90,11 @@ export const oidBytes = dir => mapStep(readUtf8File(`${dir}/config`), tryOidByte
  * @type {(idOf: (type: ObjectType, payload: Bytes) => Oid, p: string, id: Oid) => (r: Result<Nullable<Envelope>, IoChannel>) => Result<Nullable<Envelope>, IoChannel>}
  */
 const checkedAt = (idOf, p, id) => r => {
-    if (r[0] === 'error') { return r }
-    const e = r[1]
+    const [tag, e] = r
+    if (tag === 'error') { return r }
     if (e === null) { return ok(null) }
-    const actual = idOf(e.type, e.payload)
+    const { type, payload } = e
+    const actual = idOf(type, payload)
     return actual === id ? ok(e) : error(ioError({ code: objectIdCode, message: objectIdMessage(p, hex(actual)) }))
 }
 
