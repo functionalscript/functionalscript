@@ -8,12 +8,16 @@
 [`fjs/git/store`](../store/module.f.mjs) takes an id and gives the
 `Envelope` the object is, as the Proposal below asks, so the first half of
 this is done — for loose objects, and at a directory the caller spells.
+[`fjs/git/walk`](../walk/module.f.mjs) is the walk both consumers under
+[`todo/`](../../../todo/) needed — a commit to its tree, a tree to its
+entries, an entry to a blob — over whatever reads objects, and
 [`fjs/git/repo`](../repo/module.f.mjs) finds that directory from a
 worktree of any kind, so a caller no longer has to know which directory
-`objects/` sits in when a worktree is linked. What is left is an id in a
-pack, since a caller should not have to know that an id `ab12…` lives at
-`objects/ab/12…` if it is loose and elsewhere if it is packed, and the
-directories `alternates` adds to the search.
+`objects/` sits in when a worktree is linked. What is left is under the
+store rather than over it: an id in a pack, since a caller should not have
+to know that an id `ab12…` lives at `objects/ab/12…` if it is loose and
+elsewhere if it is packed, and the directories `alternates` adds to the
+search.
 
 ### Proposal
 
