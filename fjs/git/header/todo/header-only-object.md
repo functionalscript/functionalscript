@@ -1,7 +1,7 @@
 ## A commit or a tag with no empty line: headers to the end of the object
 
 **Priority:** P4
-**Status:** open
+**Status:** done
 
 ### Problem
 
@@ -17,7 +17,7 @@ old history may hold some.
 
 ### Proposal
 
-Read it, and write it back byte for byte, which is the part that needs a
+Read it, and write it back byte for byte, which is the part that needed a
 decision: `Payload` has one `message`, and an empty message after an empty
 line and no empty line at all are two objects with one value under that
 type. Either the empty line becomes optional in the grammar and
@@ -25,16 +25,19 @@ type. Either the empty line becomes optional in the grammar and
 line, which is a change to `Payload` every reader shares; or the reader
 accepts the form and the writer normalises it, which breaks the
 byte-for-byte promise the signature work relies on. The first is right
-and the second is not; the first is a breaking change to `Payload` and
-waits for a consumer that meets such an object.
+and the second is not.
+
+The consumer this waited for arrived: `fjs/git/walk`'s `peel` refused a
+tag Git follows, for want of an empty line the tag does not have. So the
+first was taken.
 
 ### Tasks
 
-- [ ] `payload` with the empty line and the message optional, LL(1) as
+- [x] `payload` with the empty line and the message optional, LL(1) as
       the block is: after the headers comes LF or the end of input.
-- [ ] `message: Nullable<Bytes>`, and the writer that puts back no empty
+- [x] `message: Nullable<Bytes>`, and the writer that puts back no empty
       line for `null`.
-- [ ] A fixture made with `git hash-object`, read and written back.
+- [x] A fixture made with `git hash-object`, read and written back.
 
 ### Related
 
