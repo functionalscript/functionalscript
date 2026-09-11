@@ -83,10 +83,13 @@ word on this site is an identifier — a file name, a directory, a module path, 
 breadcrumb, a test name — and the report was already monospace because a test
 name is a path. Setting one face is what stops the site being two.
 
-`pre` is given `font: inherit` rather than left to the browser. A browser's own
-rule names a monospace family, and naming one is what triggers the legacy
-shrink to 13.33px, so a report would otherwise be set in a nearly-matching face
-at a nearly-matching size.
+**Two elements do not inherit it on their own**, and both are given
+`font: inherit`. A browser's rule for `pre` names a monospace family, and
+naming one is what triggers the legacy shrink to 13.33px, so a report would
+otherwise be set in a nearly-matching face at a nearly-matching size. A form
+control is given the platform's UI face outright, so `Run` was Arial at
+13.33px on a page otherwise set in monospace at 16px. Inheriting is what makes
+"one face" true of the whole page rather than only of its text.
 
 The `48rem` measure is kept. In a monospace face at 16px it holds about eighty
 characters, which is the width this repository's source is written to.
