@@ -266,10 +266,12 @@ object type, is where an object is refused, naming why, by the rules
 `fsck` applies: required headers and their order, a hex id of the
 repository's width, an ident where one is required, a NUL in a header,
 the mode set, the entry order. Those are what `fsck` reports as an error.
-Two things it only warns of are refused as well, as this module's own
+Three things it only warns of are refused as well, as this module's own
 choice, each said where it is made: a tag name no ref takes, which
-`git mktag` refuses to write, and a NUL in a commit's message, which no
-tool of Git's writes. What `fsck` only notes and Git writes passes. The
+`git mktag` refuses to write; a NUL in a commit's message, which no tool
+of Git's writes; and a zero-padded tree mode, `zeroPaddedFilemode`, which
+the paragraph above this one explains. What `fsck` only notes and Git
+writes passes. The
 one check `fsck` does not make: a `mergetag` must be a tag the tag module
 vouches for, so that `mergetags` is total. The
 ident reader is the exception that refuses at the grammar: Git's own reader
