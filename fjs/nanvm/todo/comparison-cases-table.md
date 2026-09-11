@@ -43,7 +43,7 @@ table is already the win; keep the derivation no cleverer than
 
 ### Related
 
-- [unify-eq-into-a-group.md](./unify-eq-into-a-group.md) — the `eq`
-  section's own structural cleanup; a shared table may serve it too.
+- The `'==='` group (shipped; it was the `eq` section) — the same structural
+  cleanup, already made: its cases are ordinary ones now.
 - `numberCoercionCases` in `module.f.mjs:266-303` — the in-file precedent
   this follows.
