@@ -72,17 +72,6 @@ const {
     prototype: objectPrototype,
 } = Object
 
-/**
- * Detects an array by the data model's boundary rather than by the
- * prototype chain: the specification serializes a `null`-prototype array
- * and an `Array` subclass instance as their data, and `instanceof Array` —
- * the spelling [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 otherwise calls
- * for — is `false` for the first of those.
- *
- * @type {(value: object) => value is readonly unknown[]}
- */
-const isArray = /** @type {(value: object) => value is readonly unknown[]} */ (Array.isArray)
-
 // ── leaves and keys ───────────────────────────────────────────────────────────
 
 /** `undefined`, a DataJS leaf that JSON has no spelling for. @type {List<string>} */
@@ -223,12 +212,22 @@ const readMembers = descriptors => walk => {
  * positive and closed instead: an array, or a plain object, whose prototype
  * is `Object.prototype` or `null`.
  *
+ * An array is `instanceof Array`, the spelling
+ * [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 requires, which holds for an
+ * `Array` subclass instance and not for an array whose prototype has been
+ * replaced. The specification serializes that second one as its data and
+ * this writer refuses it — loudly, not wrongly: it reaches the object
+ * branch below, where `length`, non-enumerable on every array, is refused
+ * by `_memberValue` before anything is written. FunctionalScript cannot
+ * build such a value, which is what makes `instanceof` reliable at all, so
+ * what is turned away is an input from outside it.
+ *
  * @type {(value: object) => (walk: _Walk) => Result<_Step, string>}
  */
 const readNode = value => walk => {
     if (getOwnPropertySymbols(value).length !== 0) { return error('an own symbol key') }
     const descriptors = getOwnPropertyDescriptors(value)
-    if (isArray(value)) {
+    if (value instanceof Array) {
         const { length } = value
         const names = getOwnPropertyNames(value)
         if (!_elementNames(names, length)) {
