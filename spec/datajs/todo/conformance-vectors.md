@@ -381,8 +381,12 @@ The six parts:
     is the whole of the difference. Review found it, and the unsigned two come
     with them by the signed-twin rule read the other way round. **And four
     where the denoted Number is not the decimal the text spells**, since
-    `number` names a binary64 value and not the literal: `1000000000000000128`,
-    whose value's canonical spelling is `1000000000000000100`; `5e-324`, the
+    `number` names a binary64 value and not the literal: `9007199254740993`,
+    one past the last integer binary64 spells exactly, whose value is
+    `9007199254740992` — `1000000000000000128` will not do on this side,
+    review having measured it exactly representable, so both its literals
+    denote one value and the vector cannot fail, where under `normalize`
+    that same exactness is the point; `5e-324`, the
     smallest positive subnormal, which is a *nonzero* value; `1e-999`, which
     denotes `0`; `1e999`, which denotes `Infinity`; and
     `1.7976931348623157e308`, the **largest finite**, which denotes itself and
@@ -394,16 +398,17 @@ The six parts:
     erroring on overflow — and every other number vector here is small enough
     that all four pass it. **And a signed twin of each**, which the rule two
     bullets down requires and the commit that added the four did not apply,
-    the fifth time that has happened: `-1000000000000000128`, `-5e-324`,
+    the fifth time that has happened: `-9007199254740993`, `-5e-324`,
     `-1e-999`, `-1e999` and `-1.7976931348623157e308`. Measured, the signs are
     not decoration —
     `-1e-999` denotes **`-0`** where `1e-999` denotes `0`, an `Object.is`
     difference this corpus is required to see, so a reader preserving the sign
     on the literal zero spellings `-0`, `-0.0` and `-0e0` while dropping it
     when a nonzero magnitude underflows passes every other vector here;
-    `-1e999` is `-Infinity` and `-1000000000000000100` is the rounded
-    negative. Review found `-1e-999`; the other three are the sweep for its
-    shape, which is the same sweep that had produced the four. These
+    `-1e999` is `-Infinity` and `-9007199254740992` is the rounded
+    negative, the twin of the positive case above. Review found `-1e-999`;
+    the other three are the sweep for its shape, which is the same sweep
+    that had produced the four. These
     are the reader's half of cases the `normalize` role already carries, and
     per-role conformance means a reader-only implementation never runs that
     role: **a normalize vector owes a reader vector wherever a plausible
@@ -457,7 +462,14 @@ The six parts:
     string is one reason apart from U+FEFF as the document's first character:
     that one is the decoder's rule, and it needs the byte form. The lone surrogate exercises
     `\u` alone, so a reader supporting raw text and `\u` while rejecting the
-    eight simple escapes passed too. `\uXXXX`'s four hex digits are three
+    eight simple escapes passed too. **And each lone surrogate twice**, once
+    escaped and once as a raw code unit between the quotes: the two are
+    different paths in a code-unit reader, and review found the escaped four
+    standing for both. The raw form is spellable only because the corpus is
+    JavaScript — a lone surrogate has no UTF-8 encoding, so the module's own
+    source writes `\ud800` and the string it denotes holds the unit itself;
+    in the byte form the same input is the surrogate error class instead.
+    `\uXXXX`'s four hex digits are three
     ranges — `0`–`9`, `a`–`f`, `A`–`F` — in **four positions**, and the rule
     above says every endpoint in every position, which one pair of vectors
     cannot do: six escapes can, each position taking the six endpoints in a
@@ -1255,10 +1267,10 @@ The six parts:
     | `document ::= const* export` | any other statement or declaration | `let a=1;…`, `var a=1;…`, `function f(){}…` |
     | `const ::= 'const' id '=' value ';'` | multiple declarators, destructuring | `const $a=1,$b=2;…`, `const [$a]=[1];…` |
     | `export ::= 'export' 'default' value ';'` | any other export form | `const $a=1;export{$a};export default $a;` |
-    | `value ::= <closed list>` | every other expression form | `(1)`, `1+1`, `[1][0]`, `String(1)`, `void 0`, `-(-1)` |
+    | `value ::= <closed list>` | every other expression form | `(1)`, `1+1`, `[1][0]`, `String(1)`, `void 0`, `-(-1)`, `new Array()` |
     | `array ::= '[' (value (',' value)*)? ']'` | elisions, spread | `[,1]`, `[1,,2]`, `[1,,]`, `[...[1]]` |
     | `object ::= '{' (member (',' member)*)? '}'` | spread | `{...{"a":1}}` |
-    | `member ::= key ':' value` | shorthand, methods, accessors | `const $a=1;export default {$a};`, `{a(){}}`, `{get a(){return 1}}` |
+    | `member ::= key ':' value` | methods, accessors | `{"a"(){}}`, `{get "a"(){}}`, `{set "a"($v){}}` — quoted, since an identifier key is a rule of its own |
     | `key ::= string \| '[' '"__proto__"' ']'` | identifier and numeric keys, other computed keys | `{a:1}`, `{1:2}`, `{["x"]:1}` |
 
     Where a row shows a bare value it stands for `export default <value>;` —
@@ -1272,9 +1284,47 @@ The six parts:
     Two of these are worth singling out. **`value`'s** complement is
     open-ended, like the escape whitelist, so its vectors go by class rather
     than enumeration; and `-(-1)` pins the spec's own point that `-` is not an
-    operator but part of the token that follows it. **`{get a(){return 1}}`**
-    evaluates to `{"a":1}` — an entirely ordinary graph — so nothing after the
-    parse can tell it apart from the document that spells it directly.
+    operator but part of the token that follows it.
+
+    **A second ground is a second *rule*, not the same rule seen from the
+    value side**, and that distinction is what decides which of these
+    spellings a vector can carry. A delegating reader evaluates the document
+    and then validates what it got, so where the value is outside the data
+    model such a reader refuses the vector without ever enforcing the
+    production — and the vector tests the wrong thing. That is why the
+    member vectors take **quoted** keys (an identifier key is `key`'s rule,
+    not `member`'s), why the `new` vector is `new Array()` and not
+    `new Array(1)` (a hole is the leaf set's rule), and why the classes
+    below have **no one-defect spelling at all** and are recorded rather
+    than shipped:
+
+    | class | why no spelling exists |
+    | - | - |
+    | shorthand, `{$a}` | the shorthand form *is* an identifier key; the two cannot be separated |
+    | a method, `{"a"(){}}` | quoting the key removes the key defect, but the member it leaves is function-valued, and a function is the leaf set's rule — reachable as a plain value too, so the two grounds are two rules |
+    | a getter, `{get "a"(){}}` | it leaves an accessor, which is outside the data model wherever it stands |
+    | a setter, `{set "a"($v){}}` | the same, and the value side is all a delegating reader ever sees |
+    | an arrow, `()=>1` | every arrow evaluates to a function, which the leaf set excludes |
+    | a regexp literal, `/a/` | every one evaluates to a non-plain object, likewise |
+    | an arbitrary identifier as a value, `Infinit`, and `Infinityn` | a name that is not an `id` is unbound, which is the reference rule |
+    | a trailing backslash, `"\"` | the backslash escapes the quote, so the document is the unterminated-string case and nothing else |
+    | an unterminated string | it runs to end of input, so the document has lost its `;` as well — the same shape as the byte form's truncation, recorded there for the same reason |
+
+    The three member forms were shipped once with quoted keys, on the
+    reading that the key was the only defect. It was not: quoting settles
+    the *key*, and the value the form leaves behind is a second rule. The
+    `member` production keeps its narrowing vector all the same —
+    `{...{"a":1}}` evaluates to `{"a":1}`, which is data, so a delegating
+    reader that accepts it has accepted a document DataJS refuses and the
+    vector catches exactly that.
+
+    **Elisions are not in that table, and the difference is the point.** A
+    hole is not a second rule a reader might reach; on the reader side it is
+    what an elision *means*, since `array ::= '[' (value (',' value)*)? ']'`
+    cannot spell one at all. A reader refusing `[1,,2]` for the hole has
+    refused it for the elision under another name. The data model's rule
+    against a hole is the **serializer's**, in §What may be serialized, and
+    that side is where a hole gets a vector of its own.
 
   **And check both directions.** The corpus has a reader half and a serializer
   half, and a rule can be covered in one while absent in the other — which has
@@ -2111,7 +2161,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       characters, both ends of each of the three ranges the raw character
       is once `"` and `\` are cut out of it (U+0020, U+0021, U+0023,
       U+005B, U+005D and U+10FFFF), the nineteen whitespace-like scalars,
-      the four lone surrogates, the four escaped pairs and the seven
+      the four lone surrogates escaped and again raw, the four escaped
+      pairs and the seven
       adjacencies — each with its key twin, and both ends of every
       character class at every fixed position, the rule the hex rotations
       and the range ends follow. **The containers and the document**,
@@ -2148,35 +2199,55 @@ The steps, in order; a step is one pull request unless it says otherwise:
       unique; and, run locally, every document imports as an ES module
       denoting the same graph, the whole-set check decision 5 would keep.
 - [x] **Reader reject, code-unit form.** Landed as
-      [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 336 vectors
+      [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 332 code-unit
+      vectors — the byte form's 61 join them in the same file, below —
       derived from the spec's six narrowing sources — strings, numbers,
       identifiers, whitespace, the document rule, and every production of
       the grammar — each naming the one rule it breaks and carrying the
       host's verdict, measured by importing the document as an ES module
-      in Node while the set was generated: 197 the host accepts, the
-      narrowing vectors, 129 syntax errors and 10 runtime errors, the
+      in Node while the set was generated: 192 the host accepts, the
+      narrowing vectors, 132 syntax errors and 8 runtime errors, the
       grammar-only ones; the fifteen required-separator vectors the section
       above measured split as it says, ten syntax errors, one runtime error
       and four the host accepts, and the two it did not count,
       `export default-Infinity;` and `export default-1n;`, are accepted
-      too. Every one was checked for a second
-      ground of refusal by pairing it, in the generator, with the same
-      document with its one defect repaired, which the reader must accept.
+      too. Every malformed number and bigint spelling carries its signed
+      twin, the malformed exponents and suffixes among them. Every vector
+      was checked for a second
+      ground of refusal twice over: by pairing it, in the generator, with
+      the same document with its one defect repaired, which the reader must
+      accept; and against the rule above, which is what took the member
+      forms to quoted keys and left the six classes with no one-defect
+      spelling recorded rather than shipped.
       Proved against the reader: every document is refused; the shape,
       with the verdict among the three, is proved beside the set. The
       document rule's own vector, U+FEFF as the first *byte*, waits for
       the byte form; in code units it is a whitespace vector here.
-- [ ] **The byte form.** The accept table by lead partition with the
-      continuation positions varied, the reject table with both ends of
-      every error class, the non-continuation matrix, and the BOM as the
-      first byte, each malformed sequence inside an otherwise valid string.
-      Every set lands with a proof that reads it, since a module without one
-      is not landed: this one's checks each record against the schema and
-      the ids for uniqueness, decodes each accept vector's bytes with
-      `fjs/text/utf8` and reads the units, and asserts each reject vector's
-      bytes are refused by the decoder or the reader; the byte path's own
-      rule, the BOM as the first byte, is asserted when stage 4's
-      `tryParseBytes` lands, which reruns the set through it.
+- [x] **The byte form.** Landed in the two reader sets rather than sets of
+      its own, since a byte document is a `Document` like any other: 29
+      accept records and 61 reject records, classed `byte/…`, each
+      `["hex", "…"]`, so the two sets are 364 and 393. The accept side is
+      the table by lead partition, both ends of all eight parts, the six
+      vectors that vary the continuation positions independently, the
+      one-byte range in both contexts — U+0020 and U+007F in a string,
+      tab, LF and CR between tokens — the BOM inside a string, and the
+      four widths in one string. The reject side is both ends of every
+      error class in the table, the two overlong sequences that land back
+      in range, the whole non-continuation matrix by lead
+      partition with an ASCII and a valid-lead intruder in every cell, and
+      the BOM as the first byte. Every malformed sequence sits inside an
+      otherwise valid string, and each was paired in the generator with the
+      valid sequence it corrupts, which the reader accepts, so none is
+      refusable twice. The proofs: each set's own checks the record against
+      the schema, a hex document among it, and the ids for uniqueness; the
+      reader's decodes each accept vector's bytes with `fjs/text/utf8` and
+      reads the units, and pins **which layer** refuses each reject vector —
+      the UTF-8 rule is the decoder's and those bytes decode to nothing,
+      every other rule is the reader's on the text they spell, so a vector
+      that swapped them goes red rather than passing on the other layer.
+      The byte path's own rule, the BOM as the first byte, is refused here
+      as U+FEFF is refused between tokens, and is asserted as the BOM rule
+      when stage 4's `tryParseBytes` lands and reruns the set through it.
 - [ ] **Serializer accept and graph equivalence.** Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the host variations on both container kinds, the
@@ -2206,12 +2277,23 @@ The steps, in order; a step is one pull request unless it says otherwise:
       in — which is the "run through the accept grammar" check, made a
       proof. The normalized serializer's bytes arrive with stage 4 and rerun
       the set.
-- [ ] **The class-by-role matrix.** Generated by `npm run gen` from the
-      vectors' `class` and set into `spec/datajs/vectors/matrix.md`, rows
-      the classes, columns the three roles, a cell the vector ids or an
-      explicit "not applicable, because…" carried in the corpus; the
-      generator refuses a class with an empty cell and no reason. Prose could
-      not do this job, which four consecutive review rounds showed.
+- [x] **The class-by-role matrix.** Landed as
+      [`matrix.md`](../vectors/matrix.md), generated by `npm run gen` from
+      the vectors' `class` by
+      [`fjs/media/datajs/vectors/matrix`](../../../fjs/media/datajs/vectors/matrix/module.f.mjs):
+      rows the classes, columns the three roles, a cell the vector ids or
+      an explicit "not applicable, because…" carried in the corpus as
+      [`not-applicable/data.f.mjs`](../vectors/not-applicable/data.f.mjs).
+      The generator refuses a class with an empty cell and no reason, and
+      refuses a reason that has outlived its gap — one for a cell that has
+      vectors, or for a class or role the corpus does not have — so the
+      table cannot read one way and mean another. A role whose sets have
+      not landed refuses nothing, since a class cannot owe a vector to a
+      set that does not exist: its column says so on every row and the
+      refusal arrives with the set, which is where the serializer and
+      normalize columns stand today. 755 classes, the reader role
+      answering every one. Prose could not do this job, which four
+      consecutive review rounds showed.
 - [ ] **The JavaScript whole-set check**, per decision 5. The
       FunctionalScript one is stage 6's, once stage 5 has taught the front
       end `;` and the special numbers.
