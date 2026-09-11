@@ -28,7 +28,7 @@
  * Two things about a path Git has and this does not, and both are answered
  * by refusing rather than by guessing. A path is bytes to Git and a string
  * to the effects layer, so one that is no UTF-8 names no directory here —
- * see {@link textAt}. And whether a path stands on its own is the host's
+ * see {@link read}. And whether a path stands on its own is the host's
  * question, which a reader of text cannot put to it — see
  * {@link isAbsolute}.
  *
