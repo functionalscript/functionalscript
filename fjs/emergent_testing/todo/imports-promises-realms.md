@@ -207,8 +207,9 @@ own fixtures**, and deleting both leaves nothing uncovered.
 
 **In the browser it is stronger than that: by convention a promise does not
 occur.** The browser suite runs authored FunctionalScript and nothing else —
-`website/module.f.mjs`'s `authored` is `path.endsWith('.f.mjs')`, and
-the generated manifest carries 137 modules, none of them anything else. Impure
+`website/module.f.mjs`'s `authored` is `path.endsWith('.f.mjs')`, and the
+proof list a page carries holds those and the one browser-realm proof the
+website ships, nothing else. Impure
 `.mjs` proofs are excluded by construction, and rightly so: a browser has no
 business running Node tests, and a promise is only the first thing that would go
 wrong. So every leaf the browser runner executes is pure FunctionalScript, and

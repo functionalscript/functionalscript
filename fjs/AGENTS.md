@@ -102,10 +102,39 @@ compiles no matter what the predicate resolved to. Such an entry in a `proof`
 object is doubly inert: the runner only invokes functions, so a boolean leaf is
 never counted as a test either.
 
-Some facts have nowhere else to be checked and so *require* one. A `const` type
-parameter is the standing example: dropping the modifier widens every call site
-silently and `tsc` still passes, so the assertion is the only thing standing
-between the signature and a schema quietly typed one notch too loose. See
+A JSDoc `@typedef` **at the end of a block** is inert for a different reason,
+and the reason is worth knowing because the form otherwise works. A JSDoc
+comment is bound to the statement that follows it; with no statement after it
+there is nothing to bind to, so the declaration is never created and its
+constraint is never resolved. `/** @typedef {Assert<Equal<1, 2>>} _Bad */` as
+the last thing in a function body compiles. Put any statement after it and the
+same line is TS2344.
+
+So a proof entry that *ends* with its typedefs checks nothing from there on.
+`fjs/effects/proof.f.mjs`'s `signatures` is the standing example: its last
+eight `Assert<Equal<…>>` have no statement after them and are green whatever
+they claim. `fjs/edag/proof.f.mjs`'s `consistency` was the extreme of it — a
+body of nothing but typedefs, so all 28 of its `Assert<Check<…>>` pins were
+inert — which is why those now sit at module scope in `fjs/edag/types.ts`.
+Where a typedef is followed by an `assert` call, as in
+`fjs/ebnf/ll1/proof.f.mjs`'s `constParameter`, it is checked and does its job.
+
+**Prefer module scope in a `.ts` file**, where a type alias is resolved
+whether or not anything follows or references it, so the claim cannot be
+silenced by an edit that moves a line.
+[`fjs/nanvm/types.ts`](./nanvm/types.ts) and
+[`fjs/types/array/types.ts`](./types/array/types.ts) are the worked cases.
+Keep a typedef in the proof only for a claim about a *local* inference that
+has no module-scope spelling — a `const` type parameter's effect at a call
+site is the standing example — and then make sure a statement follows it.
+[`todo/inert-type-level-proofs.md`](../todo/inert-type-level-proofs.md) tracks
+the ones already written the inert way.
+
+Some facts have nowhere else to be checked and so *require* an assertion. A
+`const` type parameter is the standing example: dropping the modifier widens
+every call site silently and `tsc` still passes, so the assertion is the only
+thing standing between the signature and a schema quietly typed one notch too
+loose. See
 [§3.2](#32-types), "Prefer a `const` type parameter to a cast at the call site".
 
 ### 1.5 Never use `try`/`catch`; test throwing with the `throw` key
@@ -334,9 +363,11 @@ implementation.
 
 No authored `.mjs` may contain a **file-scope** JSDoc `@typedef` — anywhere in
 the repository, whatever the directory or basename. Function-local typedefs are
-allowed, and are the normal home for compile-time proof types (see the
-`consistency` and `signatures` entries in `fjs/edag/proof.f.mjs` and
-`fjs/effects/proof.f.mjs`). A named file-scope type goes to one of:
+allowed. A compile-time proof written as one is checked only where a statement
+follows it, so it belongs at module scope in a `.ts` file unless the claim is
+about a local inference — see
+[§1.4](#14-assert-type-level-facts-with-assertequal). A named file-scope type
+goes to one of:
 
 - the sibling `types.ts` when it is part of the **public declaration closure** —
   public types, plus any private `_` helper a shipped public declaration

@@ -26,7 +26,7 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
-import { ascii, byteArray } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byteArray, byteLength } from '../../ebnf/byte/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { hasNulHeader, tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
@@ -214,6 +214,34 @@ export const tryTarget = oidBytes => {
         const id = objectOf(t)
         const type = tryType(t)
         return id === null || type === null || valueAt(t, 2, 'tag') === null ? null : { id, type }
+    }
+}
+
+/**
+ * The same of a tag's bytes rather than a tag: what the payload names and
+ * what it says that object is, or `null` where Git would not parse the
+ * bytes as a tag at all.
+ *
+ * The bytes are where the length is, and Git has a floor on it. Its parse
+ * refuses a payload shorter than the hexadecimal id plus 24 before it looks
+ * at a single header, so a SHA-1 tag under 64 bytes and a SHA-256 tag under
+ * 88 are refused whatever they hold — measured on Git 2.43.0, where a
+ * 63-byte tag over a valid target is `Not a valid object name` and the same
+ * tag one byte longer peels. The floor is what `object <id>\n` and
+ * `type <t>\n` and `tag \n` cost at their shortest, so nothing it refuses
+ * could have held the three headers; refusing on the length is Git's way of
+ * saying so once.
+ *
+ * @type {(oidBytes: OidBytes) => (payload: Bytes) => Nullable<TagTarget>}
+ */
+export const tryTargetAt = oidBytes => {
+    const targetOf = tryTarget(oidBytes)
+    const least = oidBytes * 2 + 24
+    return payload => {
+        const size = byteLength(payload)
+        if (size === null || size < least) { return null }
+        const t = tryRead(payload)
+        return t === null ? null : targetOf(t)
     }
 }
 

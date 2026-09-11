@@ -2122,6 +2122,31 @@ or the spec, not only into a thread.
    `Object.setPrototypeOf` is the call §1.6 names and a mutation besides;
    the `proto` recipes are the vectors that hold it once `build` lands.
 
+   **The writer landed without waiting on this, and the answer decides what
+   is still unproved rather than whether it works.**
+   [`fjs/media/datajs/serializer`](../../../fjs/media/datajs/serializer/module.f.mjs)
+   refuses every recipe above that the specification puts outside the data
+   model — the accessors, the symbol key, the non-enumerable property, the
+   extra own property on an array, the cycle — and serializes the ones it
+   keeps inside as their data: a frozen, sealed or non-writable value, and a
+   `null`-prototype object. **One recipe it refuses that this specification
+   accepts**: an array under a `null` prototype, which §What may be
+   serialized serializes as its data, and which the writer meets at its
+   object branch and refuses for `length`, non-enumerable on every array.
+   The specification wins where the two disagree, so that is the writer's to
+   close and
+   [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md)
+   carries it; it is written here because the corpus is what will meet it.
+   It proves each refusal against the data a
+   host value would carry — `_memberValue` against a descriptor,
+   `_elementNames` against a list of own property names, `_link` against a
+   graph with a forward reference — because those are values FunctionalScript can build
+   where the objects carrying them are not. What no proof there can reach is
+   the plumbing between them: that an object with an enumerable getter
+   reaches `_memberValue` at all, and that nothing invokes the getter on the
+   way. That is what the exemption would buy, and it is the narrower claim
+   to weigh against §1.6 than "the serializer cannot be proved".
+
 The steps, in order; a step is one pull request unless it says otherwise:
 
 - [x] **The vector record and the comparison.** The schema is

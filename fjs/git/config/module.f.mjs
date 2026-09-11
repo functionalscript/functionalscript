@@ -22,16 +22,19 @@
  *   lines Git refuses.
  *
  * A line Git calls a `bad config line` refuses the file whole, as Git
- * refuses it. The one thing Git reads that this does not is a `\` at the
- * end of a line, which continues the value on the next; a file using one
- * is refused rather than misread, since no `git init` writes one and the
- * key this module is for is a word.
+ * refuses it. Two things Git reads this does not, and both are refused
+ * rather than misread: a `\` at the end of a line, which continues the
+ * value on the next, and a NUL inside a quoted subsection, which truncates
+ * the whole name Git assembles and leaves it with no key in it. Neither
+ * comes out of a `git init`, and the key this module is for is a word in a
+ * section with no subsection.
  *
  * @module
  *
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { OidBytes } from '../types.ts'
- * @import { Entry, SubState, ValueState } from './types.ts'
+ * @import { _SubState, _ValueState } from './private.ts'
+ * @import { Entry } from './types.ts'
  */
 
 /** The value Git gives a key written without one. */
@@ -301,6 +304,39 @@ const escapes = /** @type {Readonly<Record<string, string>>} */ ({
 })
 
 /**
+ * One character of a value, read into what the reader carries. Hoisted
+ * because it closes over nothing: the whole of what it knows is the state
+ * handed to it and the character after it.
+ *
+ * @type {(acc: _ValueState, c: string) => _ValueState}
+ */
+const valueStep = (acc, c) => {
+    if (acc.bad || acc.done) { return acc }
+    if (acc.escape) {
+        const e = escapes[c]
+        return e === undefined
+            ? { ...acc, bad: true }
+            : { ...acc, value: acc.value + acc.pending + e, pending: '', escape: false }
+    }
+    if (c === '\\') { return { ...acc, escape: true } }
+    // A quote keeps the whitespace before it, as Git keeps it:
+    // `x = a ""` is the value `a ` where `x = a ` is `a`.
+    if (c === '"') { return { ...acc, value: acc.value + acc.pending, pending: '', quoted: !acc.quoted } }
+    if (!acc.quoted && (c === '#' || c === ';')) { return { ...acc, done: true } }
+    if (!acc.quoted && isSpace(c)) {
+        // Git writes whitespace as a space, one for one, and keeps the run
+        // only where something that is none follows it.
+        return acc.value === '' ? acc : { ...acc, pending: `${acc.pending} ` }
+    }
+    return { ...acc, value: acc.value + acc.pending + c, pending: '' }
+}
+
+/** What the reader of a value starts from. */
+const valueStart = /** @type {_ValueState} */ ({
+    value: '', pending: '', quoted: false, escape: false, done: false, bad: false,
+})
+
+/**
  * A value as Git reads it, or `null` where the line is one Git refuses:
  * the text after `=`, its quotes taken as quoting rather than characters,
  * its escapes read, a comment outside quotes ending it, and the
@@ -320,34 +356,27 @@ const escapes = /** @type {Readonly<Record<string, string>>} */ ({
  * @type {(rest: string) => Nullable<string>}
  */
 const tryValue = rest => {
-    const end = [...rest].reduce(
-        /** @type {(acc: ValueState, c: string) => ValueState} */
-        (acc, c) => {
-            if (acc.bad || acc.done) { return acc }
-            if (acc.escape) {
-                const e = escapes[c]
-                return e === undefined
-                    ? { ...acc, bad: true }
-                    : { ...acc, value: acc.value + acc.pending + e, pending: '', escape: false }
-            }
-            if (c === '\\') { return { ...acc, escape: true } }
-            // A quote keeps the whitespace before it, as Git keeps it:
-            // `x = a ""` is the value `a ` where `x = a ` is `a`.
-            if (c === '"') { return { ...acc, value: acc.value + acc.pending, pending: '', quoted: !acc.quoted } }
-            if (!acc.quoted && (c === '#' || c === ';')) { return { ...acc, done: true } }
-            if (!acc.quoted && isSpace(c)) {
-                // Git writes whitespace as a space, one for one, and keeps
-                // the run only where something that is none follows it.
-                return acc.value === '' ? acc : { ...acc, pending: `${acc.pending} ` }
-            }
-            return { ...acc, value: acc.value + acc.pending + c, pending: '' }
-        },
-        { value: '', pending: '', quoted: false, escape: false, done: false, bad: false },
-    )
+    const end = [...rest].reduce(valueStep, valueStart)
     if (end.bad || end.quoted || end.escape) { return null }
     const nul = end.value.indexOf('\0')
     return nul === -1 ? end.value : end.value.slice(0, nul)
 }
+
+/**
+ * One character of a subsection, read into what the reader carries.
+ * Hoisted for the reason {@link valueStep} is: it closes over nothing.
+ *
+ * @type {(acc: _SubState, c: string) => _SubState}
+ */
+const subStep = (acc, c) => {
+    if (acc.after !== null) { return { ...acc, after: acc.after + c } }
+    if (acc.escape) { return { sub: acc.sub + c, escape: false, after: null } }
+    if (c === '\\') { return { ...acc, escape: true } }
+    return c === '"' ? { ...acc, after: '' } : { ...acc, sub: acc.sub + c }
+}
+
+/** What the reader of a subsection starts from. */
+const subStart = /** @type {_SubState} */ ({ sub: '', escape: false, after: null })
 
 /**
  * The subsection closing a header whose section is already read, and what
@@ -361,17 +390,16 @@ const tryValue = rest => {
 const trySub = (section, rest) => {
     const open = afterSpace(rest)
     if (open[0] !== '"') { return null }
-    const { sub, after } = [...open.slice(1)].reduce(
-        /** @type {(acc: SubState, c: string) => SubState} */
-        (acc, c) => {
-            if (acc.after !== null) { return { ...acc, after: acc.after + c } }
-            if (acc.escape) { return { sub: acc.sub + c, escape: false, after: null } }
-            if (c === '\\') { return { ...acc, escape: true } }
-            return c === '"' ? { ...acc, after: '' } : { ...acc, sub: acc.sub + c }
-        },
-        /** @type {SubState} */({ sub: '', escape: false, after: null }),
-    )
-    return after === null || after[0] !== ']' ? null : [`${section}.${sub}`, after.slice(1)]
+    const { sub, after } = [...open.slice(1)].reduce(subStep, subStart)
+    if (after === null || after[0] !== ']') { return null }
+    // A subsection holding a NUL is refused rather than read. Git takes
+    // every character but a `\n` into a subsection and then hands the
+    // assembled `section.subsection.key` to its callback as a C string, so
+    // `[remote "o\0p"]` with `x = 1` reaches it as the name `remote.o`
+    // and nothing more — a name with no key in it, which an entry of a
+    // section, a key and a value cannot spell. Refusing says so, where
+    // answering `remote.o\\0p.x` would be a name Git never built.
+    return sub.includes('\0') ? null : [`${section}.${sub}`, after.slice(1)]
 }
 
 /**

@@ -12,14 +12,17 @@
 - [x] One `main.css` (`fjs/website/style/module.f.mjs`, written to the root as `_main.css` and linked root-relative)
 - [ ] One monospace face for the whole site — see
       [monospace-website](monospace-website.md)
+- [ ] Decide what the build owes its own leftovers — see
+      [stale-generated-pages](stale-generated-pages.md)
 - [ ] Convention for a `demo` export — an optional pure demo, discovered like a
       proof and `demo.f.mjs` by default, rendered on its page — see
       [demo-convention](demo-convention.md)
-- [ ] An `index.html` per module directory, cataloguing its files,
-      subdirectories, `todo/` issues and the proofs of its subtree — see
-      [directory-index-pages](directory-index-pages.md)
+- [x] An `index.html` per module directory, cataloguing its files,
+      subdirectories, `todo/` issues and the proofs of its subtree
+      (`fjs/website/page/`; the design is [`../README.md`](../README.md))
 - [x] Browser test runner and proof-result UI
-- [x] Move browser-manifest preparation into the website `NodeProgram` through
-      Node effects. Landed in functionalscript#1827: `browser-prepare.mjs` is
-      gone and `website/module.f.mjs` writes the suite manifest as part of the
-      build
+- [x] Move browser proof-source preparation into the website `NodeProgram`
+      through Node effects. Landed in functionalscript#1827: `browser-prepare.mjs`
+      is gone and `website/module.f.mjs` decides the sources as part of the
+      build. The shared manifest module it wrote has since been replaced by a
+      per-page list

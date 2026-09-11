@@ -1,10 +1,12 @@
 /**
- * Types for the browser proof manifest's dependency scan.
+ * Types for the website generator's own reading of the tree: the walk's record
+ * of a directory, and the import graph the blocker scan is answered from.
  *
  * A `private.ts` and not a `types.ts`: nothing outside this directory names
- * them — the manifest is a *file* the generator writes, not an API a consumer
- * imports — and they are here rather than inline because
- * [`../AGENTS.md`](../AGENTS.md) §3 keeps named types out of authored `.mjs`.
+ * them — what the generator produces is a *site*, and a page is HTML rather
+ * than an API a consumer imports — and they are here rather than inline
+ * because [`../AGENTS.md`](../AGENTS.md) §3 keeps named types out of authored
+ * `.mjs`.
  *
  * @module
  */
@@ -43,8 +45,8 @@ export type _Graph = OrderedMap<_Imports>
  * are authored modules, which directories deserve pages, and which names are
  * generated output are all questions asked of this record afterwards, by the
  * one consumer that cares. Two consumers already ask different questions of
- * it: the manifest wants the `.f.mjs` files, a page wants the ones a reader
- * would open.
+ * it: proof selection wants the `.f.mjs` files, a page wants the ones a
+ * reader would open.
  *
  * @internal
  */

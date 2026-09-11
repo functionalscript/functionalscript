@@ -9,7 +9,41 @@
  */
 
 import type { Assert } from '../asserts/types.ts'
+import type { Check, Check3 } from '../rtti/ts/types.ts'
 import type { Equal } from '../types/ts/types.ts'
+import type {
+    _exp,
+    _optionLambda,
+    _optionPropertyLambda,
+    array,
+    call,
+    comma,
+    dot,
+    exp,
+    exps,
+    items,
+    numberCast,
+    object,
+    op0,
+    op0Id,
+    op1,
+    op1Id,
+    op12,
+    op12Id,
+    op2,
+    op2Id,
+    op3,
+    op3Id,
+    optionCall,
+    optionDot,
+    optionLambda,
+    optionPropertyLambda,
+    primitive,
+    properties,
+    property,
+    propertyLambda,
+    spread,
+} from './module.f.mjs'
 
 // exp
 
@@ -123,12 +157,12 @@ export type OptionPropertyLambda =
 // the two option states share — which is what both of these used to do, and
 // what `module.f.mjs`'s `regionProductions` now does once for the schema.
 //
-// These are here and not in `proof.f.mjs` because a `@typedef` inside a
-// function body is never checked — TypeScript does not evaluate the
-// constraint of a declaration nothing references, so that file's entire
-// `consistency` section is green whatever it claims. A module-scope alias in
-// a `.ts` file is checked; `../nanvm/types.ts` is the worked case and
-// `../../todo/inert-type-level-proofs.md` the issue that moves the rest.
+// These came here ahead of the schema pins below, for the reason those
+// followed: a `@typedef` in `proof.f.mjs` is checked only where a statement
+// follows it in the same block, and the `consistency` entry that held them
+// was nothing but typedefs. A module-scope alias in a `.ts` file is resolved
+// either way — `../AGENTS.md` §1.4 states the rule, and
+// `../../todo/inert-type-level-proofs.md` moves what is left elsewhere.
 
 type _OptionInsideOptionProperty = Assert<Equal<OptionLambda extends OptionPropertyLambda ? true : false, true>>
 type _PropertyInsideOptionProperty = Assert<Equal<PropertyLambda extends OptionPropertyLambda ? true : false, true>>
@@ -138,11 +172,10 @@ type _PropertyInsideOptionProperty = Assert<Equal<PropertyLambda extends OptionP
 // than a silent change of what the grammar admits.
 //
 // The shared segment is not theirs to pin, in either direction. An arm
-// gained or lost there lands on both sides of the `Exclude` and cancels, so
-// all three stay green — measured both ways, zero errors in this file. The
-// pin for the shared segment is `_OptionLambda`, the schema against the
-// type, which is inert where it sits in `proof.f.mjs`; see
-// `../../todo/inert-type-level-proofs.md`.
+// gained or lost there lands on both sides of the `Exclude` and cancels,
+// so all three stay green — measured both ways, zero errors from these.
+// The pin for the shared segment is `_OptionLambda` below, the schema
+// against the type, which either change makes disagree.
 type _OptionPropertyAdds = Assert<Equal<
     Exclude<OptionPropertyLambda, OptionLambda>,
     | readonly['|?.()', Exp]
@@ -217,3 +250,44 @@ export type Op12 =
 export type Op3Id = '?:'
 
 export type Op3 = readonly[Op3Id, Exp, Exp, Exp]
+
+// Each RTTI constant in `./module.f.mjs` matches its declared type above.
+//
+// These were `proof.f.mjs`'s `consistency` entry, whose body was nothing but
+// typedefs — so none of them bound to anything and all 28 were green whatever
+// they claimed (`../AGENTS.md` §1.4, `../../todo/inert-type-level-proofs.md`).
+// At module scope in a `.ts` file an alias is resolved on sight, so each one
+// below was falsified once and seen to fail before being restored.
+//
+// `Check3` is for the three schemas that are thunks behind a `Phantom`: it
+// checks the raw thunk as well as the wrapped export, since checking only the
+// wrapped one is a tautology — `Ts<>` short-circuits to the annotation.
+
+type _ExpAssert = Assert<Check3<Exp, typeof _exp, typeof exp>>
+type _Primitive = Assert<Check<Primitive, typeof primitive>>
+type _Exps = Assert<Check<Exps, typeof exps>>
+type _Spread = Assert<Check<Spread, typeof spread>>
+type _Items = Assert<Check<Items, typeof items>>
+type _Array = Assert<Check<Array, typeof array>>
+type _Property = Assert<Check<Property, typeof property>>
+type _Properties = Assert<Check<Properties, typeof properties>>
+type _Object = Assert<Check<Object, typeof object>>
+type _NumberCast = Assert<Check<NumberCast, typeof numberCast>>
+type _OptionLambda = Assert<Check3<OptionLambda, typeof _optionLambda, typeof optionLambda>>
+type _OptionPropertyLambda = Assert<Check3<OptionPropertyLambda, typeof _optionPropertyLambda, typeof optionPropertyLambda>>
+type _PropertyLambda = Assert<Check<PropertyLambda, typeof propertyLambda>>
+type _Call = Assert<Check<Call, typeof call>>
+type _Dot = Assert<Check<Dot, typeof dot>>
+type _OptionDot = Assert<Check<OptionDot, typeof optionDot>>
+type _OptionCall = Assert<Check<OptionCall, typeof optionCall>>
+type _Comma = Assert<Check<Comma, typeof comma>>
+type _Op0Id = Assert<Check<Op0Id, typeof op0Id>>
+type _Op0 = Assert<Check<Op0, typeof op0>>
+type _Op1Id = Assert<Check<Op1Id, typeof op1Id>>
+type _Op1 = Assert<Check<Op1, typeof op1>>
+type _Op2Id = Assert<Check<Op2Id, typeof op2Id>>
+type _Op2 = Assert<Check<Op2, typeof op2>>
+type _Op12Id = Assert<Check<Op12Id, typeof op12Id>>
+type _Op12 = Assert<Check<Op12, typeof op12>>
+type _Op3Id = Assert<Check<Op3Id, typeof op3Id>>
+type _Op3 = Assert<Check<Op3, typeof op3>>
