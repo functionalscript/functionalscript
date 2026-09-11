@@ -1801,12 +1801,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 155 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 156 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
-      and 7 in
+      and 9 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 145 of the 674 classes, with 57 scope records answering the 529
-      cells the serializer column owes.
+      covering 146 of the 674 classes the corpus held then, with 56 scope
+      records answering the 528 cells the serializer column owed; the normalize
+      set below adds 50 classes and one `['set', 'normalize']` reason answers
+      all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
       gone a serializer-side input is an ordinary value of the data model, so
       a second member carried the same value twice and let the two drift. The
@@ -1833,6 +1835,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       U+07FF, U+D7FF, U+E000 and U+FFFF with key twins — were simply missing,
       so the list above was right and the set had not caught up with it; they
       ride under `string/raw/bmp`, which is where U+0800 already sat.
+      **Two more came from the round after**, both about an occurrence or a
+      walker rather than a value. Every sharing vector used its shared node
+      exactly twice, so a writer that remembers the first identity and forgets
+      it by the third occurrence passed: `const/shared/three-paths` now carries
+      `[a, {"a": a}, {"b": [a]}]`. And all four graph-equivalence inverses put
+      the two equal nodes in an *array*, so a writer that hash-conses only while
+      walking object members passed all of them; two object-parent inverses now
+      rule that out, empty and non-empty.
       One reason was corrected rather than replaced: the deep-nesting classes
       said depth is the reader's concern, which is false, since a recursive
       writer has a limit of its own and this repository records
@@ -1874,11 +1884,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       table cannot read one way and mean another. A role whose sets have
       not landed refuses nothing, since a class cannot owe a vector to a
       set that does not exist: its column says so on every row and the
-      refusal arrives with the set, which is where the serializer and
-      normalize columns stand today. 668 classes as this step landed, the
-      reader role answering every one; a later set adds classes of its own
-      and one `['set', …]` reason answers the reader for all of them. Prose
-      could not do this job, which four consecutive review rounds showed.
+      refusal arrives with the set, which is where both writer columns stood
+      when this step landed and where neither stands now. 668 classes then,
+      the reader role answering every one; each writer set below brings its
+      own classes, and one `['set', …]` reason answers the reader for them.
+      The generated table is the current count in every case — a figure here
+      is what the corpus held at this step. Prose could not do this job, which
+      four consecutive review rounds showed.
 - [ ] **The JavaScript whole-set check**, per decision 5. The
       FunctionalScript one is stage 6's, once stage 5 has taught the front
       end `;` and the special numbers.

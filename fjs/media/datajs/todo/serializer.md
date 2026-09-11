@@ -31,8 +31,8 @@ none of them.
 reconciliation is open.** `tryStringify` takes `unknown` and refuses several of
 those values at run time, so as long as it does, the corpus owes vectors for
 exactly what it admits. Either the parameter narrows to the data model and the
-refusals go, or the parameter stays and the fourth set comes back; the question
-is recorded in
+refusals go, or the parameter stays and the fourth set comes back — as a set,
+never as recipes. The question is recorded in
 [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md)
 under the serializer's input domain, and it is the owner's. Read the paragraph
 above as what the corpus describes today, not as a settled contract.
@@ -42,15 +42,6 @@ it, and
 [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 forbids a `proof.mjs` that proves
 a `.f.mjs` API against such inputs in any case. §4 says what that leaves
 provable in the meantime.
-
-**That last sentence is not yet true of this module's own signature, and the
-reconciliation is open.** `tryStringify` takes `unknown` and refuses several of
-those values at run time, so as long as it does, the corpus owes vectors for
-exactly what it admits. Either the parameter narrows to the data model and the
-refusals go, or the parameter stays and the fourth set comes back — as a set,
-never as recipes. The question is recorded in
-[that issue](../../../../spec/datajs/todo/conformance-vectors.md) under the
-serializer's input domain, and it is the owner's.
 
 ### Problem
 
