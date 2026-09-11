@@ -580,7 +580,8 @@ The five parts:
   reader can accept a raw LF as string content while rejecting the other three
   correctly. Then the characters JavaScript
   treats as whitespace or a line terminator and DataJS does not, of which there
-  are **21**, not the six the spec enumerates: U+000B, U+000C, U+2028, U+2029,
+  are **21**, a set §Whitespace deliberately does not list: U+000B, U+000C,
+  U+2028, U+2029,
   U+FEFF, and the sixteen `Space_Separator` characters other than U+0020 —
   U+00A0, U+1680, U+2000–U+200A, U+202F, U+205F and U+3000. **All 21 get
   vectors**, not one per shape. An earlier draft took six of the sixteen `Zs`
@@ -939,13 +940,16 @@ The five parts:
     `+`, no leading or trailing point, no separators, no leading zeros.
   - **Identifiers** — §Identifiers' ASCII-only rule, which excludes both a
     non-ASCII letter and the `\uXXXX` spelling of an ASCII one.
-  - **Whitespace** — §Whitespace, which narrows twice, and where the *spec's
-    own list* is the trap. Its rule is general and correct: whitespace is
-    exactly JSON's four characters, so **every other character JavaScript
-    treats as whitespace or a line terminator** is rejected. The six it then
-    names after a colon are illustrations, and measured against ECMAScript the
-    real set is 21 — the colon list omits every `Space_Separator` character
-    but U+00A0. Derive from the rule; the six are not a set to copy. §Whitespace
+  - **Whitespace** — §Whitespace, which narrows twice, and where a list was
+    the trap. Its rule is general and correct: whitespace is exactly JSON's
+    four characters, so **every other character JavaScript treats as
+    whitespace or a line terminator** is rejected. The section used to name
+    six of them after a colon as illustrations; measured against ECMAScript
+    the real set is 21, the colon list having omitted every `Space_Separator`
+    character but U+00A0, and the list is now deleted rather than corrected —
+    §Whitespace enumerates what it accepts and nothing else. Derive the 21
+    from the rule; there is no list to copy and there was never a set to copy
+    from. §Whitespace
     also *requires* whitespace in three places — after `const`, after `export`
     and after `default` — **unconditionally in all three**, whatever follows.
     Not "before an identifier-starting value after `default`", which is the
