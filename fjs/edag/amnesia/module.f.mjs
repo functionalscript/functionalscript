@@ -9,7 +9,7 @@
  *
  * @module
  *
- * @import { Exp, Op1, Properties } from '../types.ts'
+ * @import { Exp, Op1, Op12, Properties } from '../types.ts'
  * @import { OptionLambda, OptionPropertyLambda, PropertyLambda } from '../types.ts'
  * @import { Context, Map, ExpOp, TagMap } from './types.ts'
  */
@@ -41,6 +41,18 @@ const o1 =
     (/**@type {(a: any) => unknown}*/o) =>
     /**@type {(c: Context, e: Op1) => unknown}*/
     (c, [, a]) => o(vm(c)(a))
+
+/**
+ * One tag at two arities: the node's length picks the operation, which is
+ * what an `op12` is. Both operands are eager, as in `o2`.
+ */
+const o12 =
+    (/**@type {(a: any) => unknown}*/u, /**@type {(a: any, b: any) => unknown}*/o) =>
+    /**@type {(c: Context, e: Op12) => unknown}*/
+    (c, e) => {
+        const f = vm(c)
+        return e.length === 2 ? u(f(e[1])) : o(f(e[1]), f(e[2]))
+    }
 
 /** Both ways of being nullish, which is what every optional step guards. */
 /** @type {(v: unknown) => boolean} */
@@ -200,12 +212,14 @@ const map = {
     },
     '*': o2((a, b) => a * b),
     '**': o2((a, b) => a ** b),
-    '+': o2((a, b) => a + b),
+    // Unary plus is JS's: `ToNumber`, which throws on a bigint where
+    // `Number` converts — see `op12Id` in `../module.f.mjs`.
+    '+': o12(a => +a, (a, b) => a + b),
     ',': (x, [, a]) => {
         const f = vm(x)
         return a.reduce((/**@type {unknown}*/_, c) => f(c), undefined)
     },
-    '-': o2((a, b) => a - b),
+    '-': o12(a => -a, (a, b) => a - b),
     // Property access, owning whatever its receiver is used for: with no
     // continuation operand the receiver is dropped, as reading `a.b` for its
     // value does, and the two call steps are the only things that can spend
@@ -265,7 +279,6 @@ const map = {
     '^': o2((a, b) => a ^ b),
     args: ({args}) => args,
     frame: ({frame}) => frame,
-    neg: o1(a => -a),
     // The key must *evaluate* to a string — a runtime constraint the
     // shape-only schema cannot express, so the executor upholds it. Without
     // the check JS `ToPropertyKey` would coerce, and `['own', o, 1]` would

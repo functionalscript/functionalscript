@@ -418,11 +418,12 @@ section is its record. What it taught:
 
 - **The direction rule cost nothing to hold and needed no tool.** No
   `ebnf → bnf` edge was ever written, and the deletion compiled first try.
-  The rule does not reach documents, but the plan kept `ebnf/` documents
-  from linking `bnf/` issues all the same, so that the deletion would break
-  no link; they named the issues instead, and the names went stale in prose
-  that no link checker reads. The deletion had to sweep prose as well as
-  links, and one sentence still escaped it into review.
+  The rule does not reach documents, and the plan's wish that `ebnf/`
+  documents name `bnf/` issues rather than link them did not hold: the
+  commit before the deletion, four `ebnf/` documents held nine links into
+  `bnf/todo/`, and the names in prose had gone stale besides, where no
+  link checker reads. The deletion had to sweep prose as well as links,
+  and one sentence still escaped it into review.
 - **Most moves became rewrites, and the triage said so as it went.** Of the
   modules first binned as moves, only `token_symbol/` moved. The shared
   matcher layer retired because the new backend did not need one; the

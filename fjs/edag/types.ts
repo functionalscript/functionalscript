@@ -19,6 +19,7 @@ export type Exp =
     | OptionDot
     | OptionCall
     | Comma
+    | Op12
     | Op2
     | Op1
     | Op0
@@ -153,7 +154,7 @@ export type Op0 = readonly[Op0Id]
 // Op1Ids
 
 export type Op1Id =
-    | 'String' | 'Number' | 'neg' | '!' | '~'
+    | 'String' | 'Number' | '!' | '~'
 
 export type Op1 = readonly[Op1Id, Exp]
 
@@ -162,8 +163,18 @@ export type Op1 = readonly[Op1Id, Exp]
 export type Op2Id =
     | '=>' | 'own'
     | '===' | '!==' | '>' | '>=' | '<' | '<='
-    | '+' | '-' | '*' | '/' | '%' | '**'
+    | '*' | '/' | '%' | '**'
     | '&' | '|' | '^' | '<<' | '>>' | '>>>'
     | '&&' | '||' | '??'
 
 export type Op2 = readonly[Op2Id, Exp, Exp]
+
+// Op12Ids — the tags legal at both arities. Disjoint from `Op1Id` and
+// `Op2Id`, so those two still fix an operand count by membership alone;
+// here the node's length does, one closed tuple per arity like a chain step.
+
+export type Op12Id = '+' | '-'
+
+export type Op12 =
+    | readonly[Op12Id, Exp]
+    | readonly[Op12Id, Exp, Exp]

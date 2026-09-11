@@ -40,6 +40,7 @@ import {
     caseExp,
     casesOf,
     data,
+    groupKey,
     isFunctionValue,
     isThrows,
     lowerEq,
@@ -53,15 +54,17 @@ const { fromEntries, is } = Object
 
 /**
  * The JavaScript each unary operation the corpus uses denotes, keyed by the
- * canonical EDAG id — plus `unaryPlus`, the one operation with no such id.
+ * canonical EDAG id — plus `typeof`, the one unary operation with no such id.
  *
  * Only lowered cases used to reach these; now that they run through
  * `amnesia`'s `vm` instead (see `run` below), an entry is needed only for an
- * id `run`'s escape branch can still reach: a `NonEdagGroup` (`unaryPlus`,
- * `typeof`), which always escapes, or an ordinary group with at least one
- * `functionValue`-operand case. An id neither covers would be a line no case
- * runs, and `lookup` refuses an id it does not hold rather than answering for
- * it — `String`, for one, has no such case and so no entry here.
+ * id `run`'s escape branch can still reach: a `NonEdagGroup` (`typeof` here,
+ * `ternary` in `op3Js`), which always escapes, or an ordinary group with at
+ * least one `functionValue`-operand case. An id neither covers would be a
+ * line no case runs, and `lookup` refuses an id it does not hold rather than
+ * answering for it — `String`, for one, has no such case and so no entry
+ * here. `+` and `-` are here at their unary arity; the binary table below
+ * holds them at the other.
  *
  * The `any` parameters are the point of the exercise: these operators are
  * being applied to operand types TypeScript rejects (`-[]`, `{} * 1`), which
@@ -70,8 +73,8 @@ const { fromEntries, is } = Object
  * @type {{ readonly [k in OpId]?: (a: any) => unknown }}
  */
 const op1Js = {
-    neg: a => -a,
-    unaryPlus: a => +a,
+    '-': a => -a,
+    '+': a => +a,
     '!': a => !a,
     '~': a => ~a,
     typeof: a => typeof a,
@@ -491,9 +494,9 @@ const jsOnly = {
 
 export const proof = {
     eq: eqProof,
-    ...fromEntries(data.groups.map(g => [opId(g), group(g)])),
+    ...fromEntries(data.groups.map(g => [groupKey(g), group(g)])),
     crossCheck: fromEntries(
-        data.groups.filter(g => 'op' in g && g.op !== 'own').map(g => [opId(g), crossCheck(g)])),
+        data.groups.filter(g => 'op' in g && g.op !== 'own').map(g => [groupKey(g), crossCheck(g)])),
     edagShape,
     nestedSharing,
     jsOnly,

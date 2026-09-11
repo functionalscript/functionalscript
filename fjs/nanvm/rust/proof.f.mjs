@@ -9,13 +9,14 @@
  */
 
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { casesOf, data, functionValue, opId, ref, throws } from '../module.f.mjs'
+import { casesOf, data, functionValue, groupKey, ref, throws } from '../module.f.mjs'
 import { directory, generate, nodeExpr, path, rustName, valueExpr } from './module.f.mjs'
 
 /**
  * One case of every shape the printer can emit: a shared value and a
- * reference to it, a skipped case, a throwing case, a group with no canonical
- * EDAG id, and a commutative binary operator.
+ * reference to it, a skipped case, a throwing case, an `Op12` group at unary
+ * arity, a group with no canonical EDAG id, and a commutative binary
+ * operator.
  *
  * @type {Data}
  */
@@ -28,7 +29,8 @@ const sample = {
         ],
     },
     groups: [
-        { nanvmOp: 'unaryPlus', cases: [{ name: 'bigint', args: [0n], expected: throws }] },
+        { op: '+', arity: 1, cases: [{ name: 'bigint', args: [0n], expected: throws }] },
+        { nanvmOp: 'typeof', cases: [{ name: 'null', args: [null], expected: 'object' }] },
         {
             op: '*',
             commutative: true,
@@ -55,6 +57,11 @@ fn unary_plus<A: IVm>() {
 }
 
 #[rustfmt::skip]
+fn typeof_<A: IVm>() {
+    check::<A>("null", Any::typeof_(Nullish::Null.to_any()), string_any("object"));
+}
+
+#[rustfmt::skip]
 fn mul<A: IVm>() {
     check::<A>("oneByTwo", (1f64).to_any() * (2f64).to_any(), (2f64).to_any());
     check::<A>("oneByTwoSwapped", (2f64).to_any() * (1f64).to_any(), (2f64).to_any());
@@ -63,6 +70,7 @@ fn mul<A: IVm>() {
 pub fn all<A: IVm>() {
     eq::<A>();
     unary_plus::<A>();
+    typeof_::<A>();
     mul::<A>();
 }
 `
@@ -94,7 +102,8 @@ export const proof = {
      * and the ids are the canonical ones.
      */
     nodeExpr: () => {
-        assertEq(nodeExpr(['neg', 1]), '-((1f64).to_any())')
+        assertEq(nodeExpr(['-', 1]), '-((1f64).to_any())')
+        assertEq(nodeExpr(['+', 1]), 'Any::unary_plus((1f64).to_any())')
         assertEq(
             nodeExpr(['String', 'a']),
             'string_any("a").to_string().map(|v| v.to_any())')
@@ -122,8 +131,8 @@ export const proof = {
      * takes an arbitrary `Exp`, so a caller can reach it today, and the
      * lazy-operator groups will nest.
      *
-     * `neg` parenthesizes in its own template, so a composed operand there is
-     * doubly wrapped — redundant, and correct either way.
+     * Unary `-` parenthesizes in its own template, so a composed operand
+     * there is doubly wrapped — redundant, and correct either way.
      */
     nestedOperation: () => {
         assertEq(
@@ -133,22 +142,25 @@ export const proof = {
             nodeExpr(['String', ['*', 1, 2]]),
             '((1f64).to_any() * (2f64).to_any()).to_string().map(|v| v.to_any())')
         assertEq(
-            nodeExpr(['neg', ['*', 1, 2]]),
+            nodeExpr(['-', ['*', 1, 2]]),
             '-(((1f64).to_any() * (2f64).to_any()))')
         // An array, an object and `['undefined']` are atomic renderings, so
         // they are operands as written.
-        assertEq(nodeExpr(['neg', ['undefined']]), '-(Nullish::Undefined.to_any())')
-        assertEq(nodeExpr(['neg', ['[]', []]]), '-(Array::default().to_any())')
-        assertEq(nodeExpr(['neg', ['{}', []]]), '-(Object::default().to_any())')
+        assertEq(nodeExpr(['-', ['undefined']]), '-(Nullish::Undefined.to_any())')
+        assertEq(nodeExpr(['-', ['[]', []]]), '-(Array::default().to_any())')
+        assertEq(nodeExpr(['-', ['{}', []]]), '-(Object::default().to_any())')
     },
-    /** A Rust name is this printer's, and never derived from a punctuation id. */
+    /**
+     * A Rust name is this printer's, and never derived from a punctuation id.
+     * It is keyed by group, so the two arities of `-` are two names.
+     */
     rustName: () => {
         assertEq(rustName['*'], 'mul')
-        assertEq(rustName['-'], 'sub')
-        assertEq(rustName['+'], 'add')
-        assertEq(rustName.neg, 'neg')
+        assertEq(rustName['-/2'], 'sub')
+        assertEq(rustName['+/2'], 'add')
+        assertEq(rustName['-/1'], 'neg')
         assertEq(rustName.String, 'string_coercion')
-        assertEq(rustName.unaryPlus, 'unary_plus')
+        assertEq(rustName['+/1'], 'unary_plus')
     },
     generate: () => {
         assertEq(generate(sample), expected)
@@ -179,7 +191,7 @@ export const proof = {
         assert(result.endsWith('}\n'), result)
         assert(result.includes('pub fn all<A: IVm>() {'), result)
         for (const g of data.groups) {
-            const n = rustName[opId(g)]
+            const n = rustName[groupKey(g)]
             assert(result.includes(`fn ${n}<A: IVm>() {`), n)
             assert(result.includes(`${n}::<A>();`), n)
             // Every case reaches the output, commented out or not.
