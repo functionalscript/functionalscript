@@ -115,9 +115,33 @@ point of generating it: prose that mentions a class in two roles reads
 exactly like prose that mentions it in three, and the issue this corpus
 came from records five rounds where exactly that went unnoticed. The only
 thing that answers an empty cell is a record in `not-applicable/` giving
-the reason in words, reviewed beside the vectors like any other data. A
-reason for a cell that has vectors, or for a class no vector carries, is a
-failure too, so a reason cannot outlive the gap it was written for.
+the reason in words, reviewed beside the vectors like any other data.
+
+**A reason answers a scope, not always a cell**, because otherwise the bill
+is unpayable: a role's column must answer every class in the corpus, and a
+serializer owes nothing to the several hundred that are document facts — a
+whitespace rule, a grammar production, a defect a reader refuses. So a
+reason names one of three, tagged as a byte document is:
+
+| scope | answers |
+| - | - |
+| `['class', 'number/exp/E']` | that one cell |
+| `['subtree', 'id']` | every class under that prefix, by path segment |
+| `['set', 'reject']` | every class no set but that one carries |
+
+`set` is the widest and the most exact: a class only the reject set carries
+is one no other role has a vector for, so a single reason is true of the
+whole family by construction rather than by inspection. The most specific
+reason wins, so a family's reason can be overridden for one class beneath it
+without either being removed.
+
+A wide scope is bought with a rule, and the rule is what keeps the table
+honest: the generator refuses a reason the moment it answers a class that
+**has** vectors for that role, so a reason cannot quietly stop being true of
+something beneath it. It refuses one that answers no class at all, one
+naming a set or a role the corpus does not have, and two of equal
+specificity answering one cell. A reason cannot outlive the gap it was
+written for.
 
 A role whose sets have not landed refuses nothing: a class cannot owe a
 vector to a set that does not exist. Its column says so on every row, and

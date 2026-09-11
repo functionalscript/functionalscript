@@ -36,7 +36,7 @@
  * @import { IoChannel, Mkdir, NodeProgram, WriteFile } from '../../../../effects/node/types.ts'
  * @import { Effect } from '../../../../effects/types.ts'
  * @import { Base } from '../types.ts'
- * @import { Corpus, NotApplicable, Role } from './types.ts'
+ * @import { Corpus, NotApplicable, Role, Scope } from './types.ts'
  */
 
 import { step } from '../../../../effects/module.f.mjs'
@@ -89,10 +89,56 @@ const classesOf = roles => [...new Set(
 const idsOf = ({ sets }, c) =>
     sets.flatMap(([, vectors]) => vectors.filter(v => v.class === c).map(v => v.id))
 
-/** The reason the corpus gives for an empty cell, or `null`. @type {(corpus: Corpus, role: string, c: string) => string | null} */
-const reasonOf = ({ notApplicable }, role, c) => {
-    const found = notApplicable.find(n => n.role === role && n.class === c)
-    return found === undefined ? null : found.because
+/**
+ * The names of the sets that carry a class, across every role. A `set`
+ * scope is measured against this: a class no set but one carries is a class
+ * no other role has a vector for.
+ *
+ * @type {(roles: readonly Role[], c: string) => readonly string[]}
+ */
+const setsCarrying = (roles, c) =>
+    roles.flatMap(({ sets }) => sets.flatMap(([name, vectors]) => vectors.some(x => x.class === c) ? [name] : []))
+
+/**
+ * Whether a scope answers a class: the class itself, a class under the
+ * subtree, or a class no set but the named one carries.
+ *
+ * @type {(roles: readonly Role[], scope: Scope, c: string) => boolean}
+ */
+const reaches = (roles, [tag, name], c) => {
+    if (tag === 'class') { return c === name }
+    if (tag === 'subtree') { return c === name || c.startsWith(`${name}/`) }
+    // `every` is vacuous on an empty list, and here it cannot be one: a
+    // class exists because a vector carries it, so at least one set does
+    return setsCarrying(roles, c).every(n => n === name)
+}
+
+/**
+ * How specific a scope is, as the one number a reason is chosen by: a class
+ * names a single cell and wins outright, a longer subtree beats a shorter
+ * one, and a set is the last resort. So a family's reason can be overridden
+ * for one class beneath it without either being removed.
+ *
+ * @type {(scope: Scope) => number}
+ */
+const specificity = ([tag, name]) =>
+    tag === 'class' ? Infinity : tag === 'subtree' ? name.length : -1
+
+/** A scope as a failure names it. @type {(scope: Scope) => string} */
+const showScope = ([tag, name]) => `${tag} ${name}`
+
+/**
+ * The reason the corpus gives for an empty cell, or `null` — the most
+ * specific of those that reach it, since a wider one is what a narrower one
+ * is an exception to.
+ *
+ * @type {(corpus: Corpus, role: string, c: string) => string | null}
+ */
+const reasonOf = ({ roles, notApplicable }, role, c) => {
+    const matching = notApplicable.filter(n => n.role === role && reaches(roles, n.scope, c))
+    return matching.length === 0
+        ? null
+        : matching.reduce((a, b) => specificity(b.scope) > specificity(a.scope) ? b : a).because
 }
 
 /**
@@ -111,18 +157,14 @@ const reasonOf = ({ notApplicable }, role, c) => {
  * @type {(corpus: Corpus, role: Role, c: string) => Result<string, string>}
  */
 const cell = (corpus, role, c) => {
-    const reason = reasonOf(corpus, role.role, c)
     if (role.sets.length === 0) {
-        return reason === null
+        return reasonOf(corpus, role.role, c) === null
             ? ok('*awaiting the set*')
             : error(`${c} in ${role.role}: a reason for a role whose sets have not landed`)
     }
     const ids = idsOf(role, c)
-    if (ids.length !== 0) {
-        return reason === null
-            ? ok(ids.map(code).join(', '))
-            : error(`${c} in ${role.role}: a reason for a cell that has ${ids.length} vectors`)
-    }
+    if (ids.length !== 0) { return ok(ids.map(code).join(', ')) }
+    const reason = reasonOf(corpus, role.role, c)
     return reason === null
         ? error(`${c} in ${role.role}: no vector and no reason`)
         : ok(`not applicable: ${reason}`)
@@ -220,8 +262,10 @@ const unrenderable = ({ roles, notApplicable }) => [
             ]),
         ]),
     ]),
-    ...notApplicable.flatMap(({ class: c, role, because }) =>
-        check(isProse, 'prose', `the reason for ${c} in ${role}`, because)),
+    ...notApplicable.flatMap(({ scope, role, because }) => [
+        ...check(isName, 'a name', `the scope of a reason in ${role}`, scope[1]),
+        ...check(isProse, 'prose', `the reason for ${showScope(scope)} in ${role}`, because),
+    ]),
 ]
 
 /**
@@ -282,19 +326,44 @@ const ambiguous = ({ roles }) => [
  * @type {(corpus: Corpus) => readonly string[]}
  */
 const duplicated = ({ notApplicable }) =>
-    notApplicable.flatMap(({ class: c, role }, i) =>
-        notApplicable.findIndex(n => n.role === role && n.class === c) === i
+    notApplicable.flatMap(({ scope, role }, i) =>
+        notApplicable.findIndex(n => n.role === role && n.scope[0] === scope[0] && n.scope[1] === scope[1]) === i
             ? []
-            : [`${c} in ${role}: a second reason for a cell that already has one`])
+            : [`${showScope(scope)} in ${role}: a second reason for a scope that already has one`])
 
-/** A reason naming a class or a role the corpus does not have. @type {(corpus: Corpus) => readonly string[]} */
-const stale = ({ roles, notApplicable }) => {
-    const classes = new Set(classesOf(roles))
-    const names = new Set(roles.map(r => r.role))
-    return notApplicable.flatMap(n =>
-        !names.has(n.role) ? [`${n.class} in ${n.role}: no such role`] :
-        !classes.has(n.class) ? [`${n.class} in ${n.role}: no vector carries that class`] :
-        [])
+/**
+ * A reason that is not true of what it answers: one naming a role, a set or
+ * a class the corpus does not have, one reaching nothing at all, and — the
+ * rule a wider scope is bought with — one reaching a class that *has*
+ * vectors for its role.
+ *
+ * That last check used to sit in the cell, where it could only ever see one
+ * class. A `subtree` or a `set` reason says something about a family, so it
+ * is judged against the family: the moment one class beneath it is covered,
+ * the reason has outlived its gap for that class and the corpus must say so
+ * with a narrower scope instead. Without it a broad reason would go on
+ * printing under cells it had stopped being true of, which is the one thing
+ * this file exists to prevent.
+ *
+ * @type {(corpus: Corpus) => readonly string[]}
+ */
+const stale = corpus => {
+    const { roles, notApplicable } = corpus
+    const classes = classesOf(roles)
+    const roleNames = new Set(roles.map(r => r.role))
+    const setNames = new Set(roles.flatMap(r => r.sets.map(([name]) => name)))
+    return notApplicable.flatMap(n => {
+        const where = `${showScope(n.scope)} in ${n.role}`
+        if (!roleNames.has(n.role)) { return [`${where}: no such role`] }
+        if (n.scope[0] === 'set' && !setNames.has(n.scope[1])) { return [`${where}: no set of that name`] }
+        const reached = classes.filter(c => reaches(roles, n.scope, c))
+        if (reached.length === 0) { return [`${where}: answers no class`] }
+        const role = /** @type {Role} */ (roles.find(r => r.role === n.role))
+        const covered = reached.filter(c => idsOf(role, c).length !== 0)
+        return covered.length === 0
+            ? []
+            : [`${where}: answers ${covered.length} classes that have vectors, ${covered[0]} among them`]
+    })
 }
 
 /** @type {(corpus: Corpus, c: string) => Result<readonly string[], readonly string[]>} */
