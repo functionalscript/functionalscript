@@ -51,12 +51,12 @@ A machine-readable corpus with five parts.
 correct UTF-8 and rejects everything else, so what is *not* correct UTF-8 is
 not a taxonomy the format owes anybody: it is one word, rejected. A vector
 carries a document as a JavaScript string whose code units are the document's,
-and two vectors carry bytes instead, as a tagged hex string,
+and three vectors carry bytes instead, as a tagged hex string,
 `["hex", "ef bb bf …"]`, lowercase pairs separated by single spaces.
 
-Those two are records rather than discriminators. They exist so the corpus
-*shows* that a byte sequence is not DataJS, which no code-unit document can
-say:
+Two of the three are records rather than discriminators. They exist so the
+corpus *shows* that a byte sequence is not DataJS, which no code-unit document
+can say:
 
 - **a BOM as the document's first byte**, `ef bb bf` before
   `export default 1;`. The bytes are valid UTF-8, and the rule they break is
@@ -65,6 +65,15 @@ say:
 - **a truncated sequence at end of input**, `export default "a` followed by a
   lone `c2`. Nothing follows the lead byte, which is what makes it truncated;
   a byte after it would make it some other malformed shape instead.
+
+The third is an **accept**, and it is there because the other two are
+rejects. Review pointed out what that leaves open: with no byte document the
+corpus accepts, a reader whose byte-accepting path refuses every input passes
+the whole corpus while refusing valid documents. That is the accept-direction
+rule this file states and then broke again, in the round that cut the byte
+form down. So one valid document carries its bytes — `export default "aé€𐀀";`,
+one string holding a one-, two-, three- and four-byte sequence — which proves
+valid UTF-8 is taken without enumerating anything.
 
 **An earlier draft of this file had ninety byte-form vectors and a theory to
 go with them.** Both ends of thirteen UTF-8 error classes, a non-continuation
@@ -1612,8 +1621,8 @@ or the spec, not only into a thread.
    works with correct UTF-8 and rejects everything else, so a malformed
    sequence is not an input the format processes and the corpus owes it no
    taxonomy. Nothing is required of an implementation's decoder, exposed or
-   otherwise. The two byte records above are records that a byte sequence is
-   not a DataJS document, not tests of a decoder, and
+   otherwise. Two of the three byte records above are records that a byte
+   sequence is not a DataJS document, not tests of a decoder, and
    [`fjs/text/utf8`](../../../fjs/text/utf8/module.f.mjs) proves its own
    end-of-input case in its own proofs where that belongs.
 5. **The whole-set JavaScript check.** A proof cannot `import()` a document
@@ -1730,7 +1739,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       denoting the same graph, the whole-set check decision 5 would keep.
 - [x] **Reader reject, code-unit form.** Landed as
       [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 332 code-unit
-      vectors, joined by the two byte records below, derived from the spec's six narrowing sources — strings, numbers,
+      vectors, joined by the two byte rejects below, derived from the spec's six narrowing sources — strings, numbers,
       identifiers, whitespace, the document rule, and every production of
       the grammar — each naming the one rule it breaks and carrying the
       host's verdict, measured by importing the document as an ES module
@@ -1751,7 +1760,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       Proved against the reader: every document is refused; the shape,
       with the verdict among the three, is proved beside the set. The
       document rule's own vector, U+FEFF as the first *byte*, is one of the
-      two byte records; in code units it is a whitespace vector here.
+      byte records; in code units it is a whitespace vector here.
 - [x] **The byte form, cut to two records.** It landed as 29 accept and 61
       reject records classed `byte/…`, each `["hex", "…"]`: both ends of
       thirteen UTF-8 error classes, the non-continuation matrix by lead
@@ -1760,8 +1769,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       ends of all eight lead partitions with six more for continuation
       independence. All of it was about a decoder, and DataJS is handed
       correct UTF-8, so none of it was an input the format processes. The
-      88 are gone and the two that say something the corpus cannot say in
-      code units stay: **`byte-bom-first`**, `ef bb bf` before
+      88 are gone and three stay. Two say something the corpus cannot say in
+      code units: **`byte-bom-first`**, `ef bb bf` before
       `export default 1;`, breaking "a document has no BOM" and accepted by
       the host, measured; and **`byte-truncated`**, `export default "a`
       followed by a lone `c2`, breaking "a document is UTF-8" and a host
