@@ -17,13 +17,14 @@ proves itself against the specification by hand, as
 and it is why stage 1b gating stage 4 means "land it or write the proofs
 twice" rather than "do not start".
 
-Its **corpus proofs** wait on the four writer-side sets of
-[stage 1b](../../../../spec/datajs/todo/conformance-vectors.md) —
-`serializer-accept`, `serializer-reject`, `graph-equivalence`, `normalize` —
-which are typed in [`../vectors/types.ts`](../vectors/types.ts) and not yet
-written. The half of those sets whose inputs carry **host recipes** — an
-accessor, a non-enumerable property, a `null` prototype, a cycle — waits on
-that issue's **decision 6** besides: `build` is host code, and
+Its **corpus proofs** have their sets. Stage 1b wrote three writer-side sets,
+not four — `serializer-accept`, `graph-equivalence` and `normalize`, typed in
+[`../vectors/types.ts`](../vectors/types.ts). There is no `serializer-reject`
+and there are no **host recipes**: a serializer is handed a value of the data
+model and its type is the contract, so an accessor, a non-enumerable property,
+a `null` prototype and a cycle reach no serializer and the corpus describes
+none of them. That retired the issue's **decision 6** rather than answering
+it, and
 [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 forbids a `proof.mjs` that proves
 a `.f.mjs` API against such inputs until the exemption it proposes is
 recorded. §4 says what that leaves provable in the meantime.
@@ -345,22 +346,21 @@ spec judges them independently, and the proof source is the corpus rather than
 the reader: proving the writer against the reader proves them against each
 other, which is the drift the corpus exists to stop.
 
-Four sets, all typed in [`../vectors/types.ts`](../vectors/types.ts) and none
-written yet:
+Three sets, all typed in [`../vectors/types.ts`](../vectors/types.ts) and all
+written. There is no `serializer-reject`: a serializer is handed a value of
+the data model and its type is the contract, so there is no set of inputs it
+refuses, and the corpus carries none.
 
 | set | what the proof does |
 |---|---|
-| `serializer-accept` | serialize the input, read it back, compare with [`difference`](../vectors/module.f.mjs) against the vector's graph — **and check the document is UTF-8**, which the round trip alone does not: the reader takes UTF-16 code units and accepts a raw lone surrogate, where a document is UTF-8 and a raw surrogate has no encoding, so a writer emitting one raw would round-trip and still not have written a document |
-| `serializer-reject` | assert an `error`. The vector's `rule` is assertion context, not a message to match: the specification requires rejection and says nothing about what a refusal says, and [the reader-side proof](../vectors/proof.f.mjs) reads `rule` the same way |
+| `serializer-accept` | serialize the input, read it back, compare with [`difference`](../vectors/module.f.mjs) against the vector's **input**, which is the graph the output must denote — the record carries no separate `graph`, since with the host recipes gone the two were one value written twice — **and check the document is UTF-8**, which the round trip alone does not: the reader takes UTF-16 code units and accepts a raw lone surrogate, where a document is UTF-8 and a raw surrogate has no encoding, so a writer emitting one raw would round-trip and still not have written a document |
 | `graph-equivalence` | **serialize the input** and compare the document's graph with the input, sharing included. Reading the canned `denotes` and `denotesNot` documents proves the reader, not the writer: a writer that inlined a shared node, or hash-consed two equal nodes into one, would pass that and fail this |
 | `normalize` | compare `tryStringify`'s output to the vector's `text`, byte for byte, since that output is normalized form |
 
 **A writer owes every set its role covers, and `normalize` is the narrow
 one.** Normalized form is a conforming serializer before it is a normalized
-one, so the **normalized** writer owes `serializer-accept`,
-`serializer-reject` and `graph-equivalence` besides `normalize`: a normalized
-path that wrote `export default {};` for a `Date` would otherwise ship
-untested. A writer in any other layout — the readable default
+one, so the **normalized** writer owes `serializer-accept` and
+`graph-equivalence` besides `normalize`. A writer in any other layout — the readable default
 [the specification](../../../../spec/datajs/README.md#normalized-form)
 recommends for tooling — owes those three and **not** `normalize`, which
 compares byte for byte against the normalized text and which it fails by
@@ -370,9 +370,9 @@ Two of those read back through [`../parser`](../parser/module.f.mjs) —
 `serializer-accept` reads the document it wrote, and `graph-equivalence` has
 to parse one to compare its graph — so those two proofs are round trips whose
 comparison is `difference`, the sharing-aware one, where structural equality
-would pass a serializer that inlined a shared node. The other two read
-nothing back: `serializer-reject` asserts an `error`, and `normalize`
-compares bytes. **That shape landed ahead of the sets**: the writer's proof
+would pass a serializer that inlined a shared node. `normalize` reads nothing
+back and compares bytes, which the set's own proof already does against
+`tryStringify`. **That shape landed ahead of the sets**: the writer's proof
 already round-trips values of its own through the reader and `difference`,
 sharing included, so what the corpus adds is coverage of the specification's
 branches rather than the machinery to check them.
