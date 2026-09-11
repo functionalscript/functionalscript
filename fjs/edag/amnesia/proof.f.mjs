@@ -10,7 +10,7 @@
  * @import { Context } from './types.ts'
  * @import { Assert } from '../../asserts/types.ts'
  * @import { Equal } from '../../types/ts/types.ts'
- * @import { Array as ExpArray, Call, Dot, Index, Op1, Op2 } from '../types.ts'
+ * @import { Array as ExpArray, Call, Dot, Index, Op1, Op12, Op2 } from '../types.ts'
  * @import { Get } from './types.ts'
  */
 
@@ -91,8 +91,10 @@ export const proof = {
     // signature; these pin the tag -> node-tuple correlation it is built on,
     // including the tags whose node kinds are not `op1`/`op2`.
     tagMap: () => {
-        /** @typedef {Assert<Equal<Get<'+'>, Op2>>} _PlusIsOp2 */
-        /** @typedef {Assert<Equal<Get<'neg'>, Op1>>} _NegIsOp1 */
+        /** @typedef {Assert<Equal<Get<'*'>, Op2>>} _MulIsOp2 */
+        /** @typedef {Assert<Equal<Get<'!'>, Op1>>} _NotIsOp1 */
+        /** @typedef {Assert<Equal<Get<'+'>, Op12>>} _PlusIsOp12 */
+        /** @typedef {Assert<Equal<Get<'-'>, Op12>>} _MinusIsOp12 */
         /** @typedef {Assert<Equal<Get<'[]'>, ExpArray>>} _BracketsIsArray */
         /** @typedef {Assert<Equal<Get<'()'>, Call>>} _CallIsCall */
         /** @typedef {Assert<Equal<Get<'.'>, Dot>>} _DotIsDot */
@@ -124,17 +126,37 @@ export const proof = {
         eq(['!', 0], true)
         eq(['!', 1], false)
         eq(['~', 0], -1)
-        eq(['neg', 5], -5)
         eq(['Number', '42'], 42)
         eq(['String', 42], '42')
+    },
+    // `o12` — the node's length picks the operation. The unary arms coerce
+    // with `ToNumber`, so a string operand pins that they are not the binary
+    // ones over a missing operand: `+'5'` is `5`, not `'5undefined'`.
+    op12: {
+        ok: () => {
+            eq(['-', 5], -5)
+            eq(['-', '5'], -5)
+            eq(['-', 1n], -1n)
+            eq(['+', 5], 5)
+            eq(['+', '5'], 5)
+            eq(['+', true], 1)
+            eq(['-', 2, 3], -1)
+            eq(['+', 2, 3], 5)
+            eq(['+', 'a', 'b'], 'ab')
+            eq(['-', ['-', 5]], 5)
+        },
+        // The one input on which unary `+` and `Number` part: `+0n` throws
+        // where `Number(0n)` is `0`, which is why they are two operations and
+        // not two spellings of one.
+        throw: {
+            bigintPlus: () => ev(['+', 0n]),
+        },
     },
     // `o2` — both operands evaluated. Each case asserts a *value*, which is
     // what pins the whole group against `o2` wrapping another `(c, e) =>`
     // around `o2lazy`: that returns the handler uncalled, so every binary
     // operator would evaluate to a function rather than to a result.
     op2: () => {
-        eq(['+', 2, 3], 5)
-        eq(['-', 2, 3], -1)
         eq(['*', 2, 3], 6)
         eq(['/', 6, 3], 2)
         eq(['%', 7, 3], 1)
@@ -232,7 +254,7 @@ export const proof = {
         eq(['.', ['args'], 1], 20)
         eq(['.', ['frame'], 'x'], 1)
         same(
-            ['{}', [[':', 'a', ['[]', [['.', ['args'], 0], ['neg', 1]]]]]],
+            ['{}', [[':', 'a', ['[]', [['.', ['args'], 0], ['-', 1]]]]]],
             { a: [10, -1] },
         )
     },

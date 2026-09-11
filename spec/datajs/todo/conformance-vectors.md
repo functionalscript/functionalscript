@@ -2092,7 +2092,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       so each stays reviewable, both landed as
       [`accept/data.f.mjs`](../vectors/accept/data.f.mjs). **The leaves**: the word leaves
       and both infinities; every branch of `number` with a signed twin each,
-      the three zero spellings, and the five binary64 cases; every `bigint`
+      both ends of the digit class in the first digit of `frac` and of
+      `exp` and in the digits after it, in both orders, the three zero
+      spellings, and the five binary64 cases; every `bigint`
       branch with the three fixed-width ceilings; and every `string` branch
       — the nine escapes, the six hex rotations, the raw `/`, BMP and astral
       characters, both ends of each of the three ranges the raw character
@@ -2117,8 +2119,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       root, an element, a member and through a chain, bound to every leaf
       and container, and shared through nested paths and as two nodes at
       once; the unshared inverse, two equal nodes kept apart, from a
-      literal and from two `const`s; a name of `$` alone, `$$`, every
-      endpoint of the tail class, a hundred characters, and a tail that is
+      literal and from two `const`s; a name of `$` alone, each of the
+      eight endpoints of the tail class as a one-character tail (`$A`,
+      `$Z`, `$a`, `$z`, `$0`, `$9`, `$_`, `$$`) and all eight in one name,
+      a hundred characters, and a tail that is
       a reserved word, a value word, one of this grammar's three keywords
       or a contextual keyword, with names differing by case, length,
       prefix and a `$`; each of the four whitespace characters at the three

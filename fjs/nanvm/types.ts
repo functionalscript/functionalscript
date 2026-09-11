@@ -15,7 +15,7 @@
  */
 
 import type { Assert } from '../asserts/types.ts'
-import type { Exp, Op1Id, Op2, Op2Id } from '../edag/types.ts'
+import type { Exp, Op12Id, Op1Id, Op2, Op2Id } from '../edag/types.ts'
 import type { FixedArray } from '../types/array/types.ts'
 import type { Equal } from '../types/ts/types.ts'
 
@@ -115,15 +115,16 @@ export type Expectation = Value | Throws
  * The operation a group applies, as both consumers name it: a canonical EDAG
  * id, or the NaNVM-only name of a group that has none.
  */
-export type OpId = Op1Id | Op2Id | NonEdagGroup['nanvmOp']
+export type OpId = Op1Id | Op2Id | Op12Id | NonEdagGroup['nanvmOp']
 
 /**
  * One operator test case, over `N` operands.
  *
  * The operand count is not annotated here — it is fixed by the group the case
  * belongs to, and a group's operand count is which EDAG vocabulary its `op`
- * is in. So a unary operation given two arguments is a type error rather than
- * a case that runs.
+ * is in (or, for an `Op12Id`, the group's own `arity` — see
+ * {@link Group12}). So a unary operation given two arguments is a type error
+ * rather than a case that runs.
  *
  * `expected` is compared with `Object.is`, so `NaN` matches `NaN` and `0` does
  * not match `-0`; `throws` there means the operation must throw, and the
@@ -163,26 +164,36 @@ export type Group2 = {
 }
 
 /**
+ * The cases of one operation whose id is legal at both arities — `+` or `-`,
+ * the EDAG's `Op12Id` vocabulary.
+ *
+ * `arity` is an annotation here and nowhere else. For every other group the
+ * operand count is which vocabulary the id is in, and an `Op12Id` is in the
+ * one vocabulary that fixes nothing — `-` at one operand is negation, at two
+ * subtraction — so the group says. Each arm still carries the matching
+ * `Case<N>`, so a case with the wrong count is a type error rather than a
+ * case that runs, exactly as for {@link Group1} and {@link Group2}.
+ */
+export type Group12 =
+    | { readonly op: Op12Id; readonly arity: 1; readonly cases: readonly Case<1>[] }
+    | { readonly op: Op12Id; readonly arity: 2; readonly cases: readonly Case<2>[] }
+
+/**
  * The visible exception: an operation with no canonical EDAG id yet.
  *
  * The field is deliberately not `op`, so a NaNVM-only name can never mix into
  * the canonical id unions.
  *
- * - `unaryPlus` — the EDAG has no unary `+` — and this arm is deleted when
- *   [replace-unary-plus-with-number](../../nanvm-lib/todo/replace-unary-plus-with-number.md)
- *   moves that group to `Number`; the type itself stays, since the other
- *   arms have no such migration.
  * - `ternary` (`?:`) — the EDAG has no conditional-expression node at all
  *   yet, so this is the corpus's one ternary group; every other `Group`
  *   variant is unary or binary because the EDAG vocabulary it draws from is.
  * - `typeof` — the EDAG has no `typeof` node either.
  */
 export type NonEdagGroup =
-    | { readonly nanvmOp: 'unaryPlus'; readonly cases: readonly Case<1>[] }
     | { readonly nanvmOp: 'ternary'; readonly cases: readonly Case<3>[] }
     | { readonly nanvmOp: 'typeof'; readonly cases: readonly Case<1>[] }
 
-export type Group = Group1 | Group2 | NonEdagGroup
+export type Group = Group1 | Group2 | Group12 | NonEdagGroup
 
 // An operand count is a type error rather than a case that runs: a group's
 // count is which EDAG vocabulary its id is in, and `Case<N>` carries it.
@@ -200,6 +211,9 @@ type _NotWidened = Assert<Equal<Case<2> extends Case<1> ? true : false, false>>
 type _NotNarrowed = Assert<Equal<Case<1> extends Case<2> ? true : false, false>>
 type _Op1Groups = Assert<Equal<Group1['cases'], readonly Case<1>[]>>
 type _Op2Groups = Assert<Equal<Group2['cases'], readonly Case<2>[]>>
+// An `Op12` group's arm, not its id, fixes the count — and each arm does.
+type _Op12Unary = Assert<Equal<Extract<Group12, { arity: 1 }>['cases'], readonly Case<1>[]>>
+type _Op12Binary = Assert<Equal<Extract<Group12, { arity: 2 }>['cases'], readonly Case<2>[]>>
 
 // Where each thunk may appear, as a type rather than as a sentence: a
 // `functionValue` is a whole operand or nothing, and `throws` is an

@@ -49,6 +49,12 @@ const same = (expected, actual) => assertEq(difference(expected)(actual), null)
 /** Two graphs whose first difference is the message. @type {(expected: Unknown, actual: Unknown, message: string) => void} */
 const differ = (expected, actual, message) => assertEq(difference(expected)(actual), message)
 
+/**
+ * A host value handed to the comparison as if it were a graph, which is what
+ * a broken implementation does. @type {(value: unknown) => Unknown}
+ */
+const outside = value => /** @type {Unknown} */ (value)
+
 /** `n` arrays nested, the innermost holding `leaf`. @type {(n: number, leaf: Unknown) => Unknown} */
 const nested = (n, leaf) => {
     /** @type {Unknown} */
@@ -111,6 +117,16 @@ export const proof = {
         differ([1, 2], [9, , 3].slice(0, 2), 'at $[0]: expected 1, got 9')
         differ([[1], 2], [[9], , 3].slice(0, 2), 'at $[0][0]: expected 1, got 9')
         same([undefined, 1], [undefined, 1])
+    },
+    // An object of the data model is a plain one: a host object with no
+    // members — a `Date`, a `Map`, a boxed number — is not an empty object,
+    // at the root and below it.
+    plain: () => {
+        differ({}, outside(new Date(0)), 'at $: expected an object, got a non-plain object')
+        differ({}, outside(new Map()), 'at $: expected an object, got a non-plain object')
+        differ({ a: 1 }, outside(Object(1)), 'at $: expected an object, got a non-plain object')
+        differ([{}], [outside(new Date(0))], 'at $[0]: expected an object, got a non-plain object')
+        differ(1, outside(new Date(0)), 'at $: expected 1, got an object')
     },
     // Sharing is part of the graph, in both directions: a node the expected
     // graph reaches twice must be one node in the actual, and two nodes it
