@@ -99,9 +99,15 @@ observable — the runtime already refuses the invalid value, and the valid one
 was valid before — so do not ask for one; the simplest type that holds is the
 right one whether or not a walk is near the limit
 ([DESIGN.md §1](./DESIGN.md#1-simplicity-first)). Ask for the simplest type that states the
-contract, an `Assert<Equal<…>>` in the proof where the inference matters
-([fjs/AGENTS.md §1.4](../fjs/AGENTS.md#14-assert-type-level-facts-with-assertequal)),
-and a `todo/` for anything tighter.
+contract, an `Assert<Equal<…>>` where the claim matters, and a `todo/` for
+anything tighter. That assertion belongs at module scope in a `types.ts`,
+where an alias resolves whether or not anything follows it; ask for one in a
+proof only for a claim about a local inference, which is the case
+[fjs/AGENTS.md §1.4](../fjs/AGENTS.md#14-assert-type-level-facts-with-assertequal)
+carves out, and then only with a statement after it. That section also says
+what to ask of the assertion itself: falsified once to show it is evaluated,
+and, where its comment credits it with a mechanism, that mechanism broken once
+to show it reports.
 
 ## Bots
 
