@@ -7,7 +7,7 @@ import { assert, assertEq } from '../../../asserts/module.f.mjs'
 import { fromVec } from '../../../text/utf8/module.f.mjs'
 import { msb, u8ListToVec } from '../../../types/bit_vec/module.f.mjs'
 import { parse } from '../parser/module.f.mjs'
-import { bytes, difference } from './module.f.mjs'
+import { bytes, difference, isDocument } from './module.f.mjs'
 import accept from '../../../../spec/datajs/vectors/accept/data.f.mjs'
 import reject from '../../../../spec/datajs/vectors/reject/data.f.mjs'
 
@@ -115,6 +115,31 @@ export const proof = {
         assertEq(bytes('e:'), null)
         assertEq(bytes('e`'), null)
         assertEq(bytes('e@'), null)
+    },
+    // A document is a string or the exact `['hex', string]` tuple. Each set's
+    // proof leans on this to check the cast at its import, so the shape
+    // matters and not only the tag: an object and a longer array both answer
+    // `'hex'` to `document[0]`, and neither is the tuple the type admits.
+    isDocument: () => {
+        assert(isDocument(''))
+        assert(isDocument('export default 1;'))
+        assert(isDocument(['hex', '00']))
+        assert(isDocument(['hex', 'ef bb bf']))
+        // the tag is right and the shape is not
+        assert(!isDocument(/** @type {Unknown} */ ({ 0: 'hex', 1: '00' })))
+        assert(!isDocument(['hex', '00', 'extra']))
+        assert(!isDocument(['hex']))
+        assert(!isDocument([]))
+        // the shape is right and the tag is not
+        assert(!isDocument(['bytes', '00']))
+        assert(!isDocument([0, '00']))
+        // the second member is not the one hex spelling, or not a string
+        assert(!isDocument(['hex', 'EF BB BF']))
+        assert(!isDocument(['hex', '']))
+        assert(!isDocument(/** @type {Unknown} */ (['hex', 0])))
+        // not a document at all
+        assert(!isDocument(1))
+        assert(!isDocument(null))
     },
     // A leaf is itself under `Object.is`: every kind of the data model, with
     // the two cases structural equality gets wrong — the zeros differ, and

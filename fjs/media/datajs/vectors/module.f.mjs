@@ -105,6 +105,27 @@ export const bytes = hex =>
 // other branch narrows to the object
 const isArray = /** @type {(value: Unknown) => value is TreeArray<Primitive>} */ (Array.isArray)
 
+/**
+ * Whether a value is a `Document` as the schema has one: a string, or the
+ * exact two-element tuple `['hex', string]` whose string is the one hex
+ * spelling.
+ *
+ * A data module carries no annotations, so the cast at each set's import is
+ * a claim and each set's proof is what checks it. That means checking the
+ * shape and not only the tag: `{"0": "hex", "1": "00"}` and
+ * `["hex", "00", "extra"]` both answer `'hex'` to `document[0]`, and
+ * neither is the tuple the type admits.
+ *
+ * @type {(document: Unknown) => boolean}
+ */
+export const isDocument = document =>
+    typeof document === 'string'
+    || (isArray(document)
+        && document.length === 2
+        && document[0] === 'hex'
+        && typeof document[1] === 'string'
+        && bytes(document[1]) !== null)
+
 /** @type {(path: string, what: string) => string} */
 const at = (path, what) => `at ${path}: ${what}`
 

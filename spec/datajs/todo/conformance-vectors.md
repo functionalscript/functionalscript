@@ -1294,7 +1294,7 @@ The six parts:
     and then validates what it got, so where the value is outside the data
     model such a reader refuses the vector without ever enforcing the
     production — and the vector tests the wrong thing. That is why the
-    member forms take **quoted** keys (an identifier key is `key`'s rule,
+    member vectors take **quoted** keys (an identifier key is `key`'s rule,
     not `member`'s), why the `new` vector is `new Array()` and not
     `new Array(1)` (a hole is the leaf set's rule), and why the classes
     below have **no one-defect spelling at all** and are recorded rather
@@ -1303,11 +1303,22 @@ The six parts:
     | class | why no spelling exists |
     | - | - |
     | shorthand, `{$a}` | the shorthand form *is* an identifier key; the two cannot be separated |
+    | a method, `{"a"(){}}` | quoting the key removes the key defect, but the member it leaves is function-valued, and a function is the leaf set's rule — reachable as a plain value too, so the two grounds are two rules |
+    | a getter, `{get "a"(){}}` | it leaves an accessor, which is outside the data model wherever it stands |
+    | a setter, `{set "a"($v){}}` | the same, and the value side is all a delegating reader ever sees |
     | an arrow, `()=>1` | every arrow evaluates to a function, which the leaf set excludes |
     | a regexp literal, `/a/` | every one evaluates to a non-plain object, likewise |
     | an arbitrary identifier as a value, `Infinit`, and `Infinityn` | a name that is not an `id` is unbound, which is the reference rule |
     | a trailing backslash, `"\"` | the backslash escapes the quote, so the document is the unterminated-string case and nothing else |
     | an unterminated string | it runs to end of input, so the document has lost its `;` as well — the same shape as the byte form's truncation, recorded there for the same reason |
+
+    The three member forms were shipped once with quoted keys, on the
+    reading that the key was the only defect. It was not: quoting settles
+    the *key*, and the value the form leaves behind is a second rule. The
+    `member` production keeps its narrowing vector all the same —
+    `{...{"a":1}}` evaluates to `{"a":1}`, which is data, so a delegating
+    reader that accepts it has accepted a document DataJS refuses and the
+    vector catches exactly that.
 
     **Elisions are not in that table, and the difference is the point.** A
     hole is not a second rule a reader might reach; on the reader side it is
@@ -2190,13 +2201,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       unique; and, run locally, every document imports as an ES module
       denoting the same graph, the whole-set check decision 5 would keep.
 - [x] **Reader reject, code-unit form.** Landed as
-      [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 335 code-unit
+      [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 332 code-unit
       vectors — the byte form's 61 join them in the same file, below —
       derived from the spec's six narrowing sources — strings, numbers,
       identifiers, whitespace, the document rule, and every production of
       the grammar — each naming the one rule it breaks and carrying the
       host's verdict, measured by importing the document as an ES module
-      in Node while the set was generated: 195 the host accepts, the
+      in Node while the set was generated: 192 the host accepts, the
       narrowing vectors, 132 syntax errors and 8 runtime errors, the
       grammar-only ones; the fifteen required-separator vectors the section
       above measured split as it says, ten syntax errors, one runtime error
@@ -2217,7 +2228,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
 - [x] **The byte form.** Landed in the two reader sets rather than sets of
       its own, since a byte document is a `Document` like any other: 29
       accept records and 61 reject records, classed `byte/…`, each
-      `["hex", "…"]`, so the two sets are 364 and 396. The accept side is
+      `["hex", "…"]`, so the two sets are 364 and 393. The accept side is
       the table by lead partition, both ends of all eight parts, the six
       vectors that vary the continuation positions independently, the
       one-byte range in both contexts — U+0020 and U+007F in a string,

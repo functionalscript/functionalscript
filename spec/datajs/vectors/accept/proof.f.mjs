@@ -3,7 +3,7 @@
  */
 
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
-import { bytes } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
+import { isDocument } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
 import accept from './data.f.mjs'
 
 /** The set, typed at the import since a data module carries no annotations. */
@@ -42,7 +42,7 @@ export const proof = {
         for (const vector of set) {
             const id = named(vector, 'id')
             const { document } = vector
-            assert(typeof document === 'string' || (document[0] === 'hex' && bytes(document[1]) !== null), `${id}: the document is neither a string nor bytes in the one hex spelling`)
+            assert(isDocument(document), `${id}: the document is neither a string nor bytes in the one hex spelling`)
             assert(hasOwn(vector, 'graph'), `${id}: no graph`)
         }
     },
