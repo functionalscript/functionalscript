@@ -1,119 +1,256 @@
-import { init, terminal } from './module.f.mjs'
-import { one } from '../text/ascii/module.f.mjs'
-import { stringify } from '../media/json/module.f.mjs'
-import { assertEq } from '../asserts/module.f.mjs'
+/**
+ * @import { Unknown } from '../djs/types.ts'
+ */
 
-const s = stringify(i => i)
+import { exitCode } from '../effects/node/module.f.mjs'
+import { compile } from './module.f.mjs'
+import { transpile } from './transpiler/module.f.mjs'
+import { stringify } from '../djs/serializer/module.f.mjs'
+import { virtual, emptyState } from '../effects/node/virtual/module.f.mjs'
+import { utf8, utf8ToString } from '../text/module.f.mjs'
+import { fromEntries, isObject, sort } from '../types/object/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 
-/** @type {(v: string) => string} */
-const f = v => {
-    const n = one(v)
-    return s(init(n)[0])
+/** @type {(root: typeof emptyState.root, path: string) => string} */
+const readOutput = (root, path) => {
+    const file = root[path]
+    if (!Array.isArray(file) || file.length === 0) { throw `${path} is not a file` }
+    return utf8ToString(file[0])
 }
 
-// this doesn't change a name of the function
-/** @type {(f: () => undefined, name: string) => (() => undefined)} */
-const fn = (f, name) => ({[name]: f}[name])
+/** @type {(source: string) => (outputFileName: string) => string} */
+const compileSource = source => outputFileName => {
+    const root = { 'input.f.js': [utf8(source)] }
+    const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', outputFileName]))
+    assertEq(exitCode(code), 0, state.stderr)
+    return readOutput(state.root, outputFileName)
+}
 
-/** @type {(name: string) => () => undefined} */
-const withName = name =>
-    // translated into one command: define a `function [name]() { return undefined }`
-    /** @type {any} */ (Object.getOwnPropertyDescriptor({[name]: () => undefined}, name)).value
+const { getPrototypeOf, prototype: objectPrototype } = Object
+
+/** The value every `protoKey` test below denotes. */
+const protoValue = fromEntries([['__proto__', { a: 42 }]])
+
+const sharedArray = [1, 2]
+
+/**
+ * Values the module emitter must be able to write as source that evaluates
+ * back to them. It covers every leaf type, both containers, the shared values
+ * that become a `const`, and the `__proto__` key in both positions — the key
+ * whose obvious spelling evaluates to something else entirely.
+ *
+ * @type {readonly Unknown[]}
+ */
+const roundTripCorpus = [
+    null,
+    true,
+    false,
+    undefined,
+    0,
+    -1.5,
+    42n,
+    'a"b\n\\',
+    [],
+    {},
+    [1, [2, [3, []]]],
+    { a: 1, 'b c': [true, undefined, 3n], d: {} },
+    [sharedArray, sharedArray],
+    { a: 'dup', b: 'dup' },
+    protoValue,
+    fromEntries([['__proto__', 3]]),
+    [protoValue, protoValue],
+    { a: protoValue },
+]
 
 export const proof = {
-    a: () => {
-        const x = f('1')
-        assertEq(x, '["1"]')
-    },
-    b: () => {
-        // exercises toInit: terminal returns empty output and loops back to init
-        const result = init(terminal)
-        assertEq(result[0].length, 0, result[0])
-    },
-    c: () => {
-        // exercises unexpectedSymbol: next state after a token returns an error message
-        const next = init(one('1'))[1]
-        const result = next(42)
-        assertEq(result[0][0], 'unexpected symbol 42')
-    },
-    fn: () => {
-        const o = {
-            ["hello world!"]: () => undefined
-        }
-        const f = o["hello world!"]
-        const { name } = f
-        assertEq(name, "hello world!")
-        //
-        const f1 = { ["boring"]: () => undefined }["boring"]
-        assertEq(f1.name, "boring")
-        //
-        const x = fn(() => undefined, "hello").name
-        assertEq(x, "")
-        //
-        const m = withName("boring2").name
-        assertEq(m, "boring2")
-        //
-        const a = function x() { return undefined }
-        assertEq(a.name, "x")
-    },
-    //
-    f1: () => {
-        const m1 = () => undefined
-        assertEq(m1.name, "m1")
-    },
-    //
-    f2: () => {
-        const m11 = (() => undefined)
-        assertEq(m11.name, "m11")
-    },
-    //
-    f3: () => {
-        /** @type {any} */
-        const m2 = true ? () => undefined : () => undefined
-        // for `bun` it is `m2`:
-        // assertEq(m2.name, "")
-        // see also https://github.com/oven-sh/bun/issues/20398
-    },
-    f4: () => {
-        /**
-         * @template T
-         * @param {T} i
-         * @returns {T}
-         */
-        const id = i => i
-        /** @type {any} */
-        const f = id(() => undefined)
-        // for `bun` it is `m2`:
-        assertEq(f.name, "")
-    },
-    chars: {
-        whitespace: () => {
-            for (const ch of ['\t', ' ', '\n', '\r']) {
-                const [tokens, next] = init(one(ch))
-                assertEq(tokens.length, 0)
-                assertEq(next, init)
-            }
+    tooFewArgs: {
+        noArgs: () => {
+            const [state, code] = virtual(emptyState)(compile([]))
+            assertEq(exitCode(code), 1)
+            assert(state.stderr.includes('Requires 2 or more arguments'), state.stderr)
         },
-        punctuation: () => {
-            for (const ch of ['!', '"', '%', '&', "'", '(', ')', '*', '+', ',', '-', '.', '/', ':', ';', '<', '=', '>', '?', '[', ']', '^', '`', '{', '|', '}', '~']) {
-                const [tokens] = init(one(ch))
-                assertEq(tokens.length, 1)
-                assertEq(tokens[0], ch)
-            }
+        oneArg: () => {
+            const [state, code] = virtual(emptyState)(compile(['input.f.js']))
+            assertEq(exitCode(code), 1)
+            assert(state.stderr.includes('Requires 2 or more arguments'), state.stderr)
         },
-        identifier_start: () => {
-            for (const ch of ['$', '_', 'A', 'Z', 'a', 'z']) {
-                const [tokens] = init(one(ch))
-                assertEq(tokens.length, 1)
-                assertEq(tokens[0], ch)
-            }
+    },
+    success: () => {
+        const root = { 'input.f.js': [utf8('export default 42;')] }
+        const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+        assertEq(exitCode(code), 0)
+        const content = readOutput(state.root, 'output.f.js')
+        assertEq(content, 'export default 42;')
+    },
+    jsonOutput: () => {
+        const root = { 'input.f.js': [utf8('export default 42;')] }
+        const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+        assertEq(exitCode(code), 0)
+        const content = readOutput(state.root, 'output.json')
+        assertEq(content, '42')
+    },
+    // An error with no token to point at names the file being compiled, not
+    // `undefined:undefined:undefined`. Each language reports its own missing
+    // file: the module reader and the JSON reader read their inputs
+    // separately.
+    fileNotFound: {
+        module: () => {
+            const [state, code] = virtual(emptyState)(compile(['missing.f.js', 'output.f.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'missing.f.js - error: file not found')
+            assertEq(state.root['output.f.js'], undefined)
         },
-        digits: () => {
-            for (const ch of ['0', '5', '9']) {
-                const [tokens] = init(one(ch))
-                assertEq(tokens.length, 1)
-                assertEq(tokens[0], ch)
+        json: () => {
+            const [state, code] = virtual(emptyState)(compile(['missing.json', 'output.f.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'missing.json - error: file not found')
+            assertEq(state.root['output.f.js'], undefined)
+        },
+    },
+    // A parse error prints where it is — and, when the error knows how far the
+    // offending source runs, how far: `path:line:column-column` on one line,
+    // `path:line:column-line:column` across several, the plain point otherwise.
+    // These pin the rendering, so they are the proof that a lexical span
+    // survives the whole trip: tokenizer → parser → `errorLocation`.
+    parseError: {
+        spanOneLine: () => {
+            const root = { 'bad.f.js': [utf8('export default @')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.f.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'bad.f.js:1:16-17 - error: unexpected token')
+            assertEq(state.root['output.f.js'], undefined)
+        },
+        spanAcrossLines: () => {
+            // an unterminated string swallowing a newline: the far end names its
+            // own line, because repeating the start's would place it wrongly
+            const root = { 'bad.f.js': [utf8('export default "a\nb"')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.f.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'bad.f.js:1:16-2:3 - error: unexpected token')
+            assertEq(state.root['output.f.js'], undefined)
+        },
+        point: () => {
+            // a *grammar* failure points at one token and has no span — see
+            // `ParseError` in fjs/fsc/parser/types.ts for why
+            const root = { 'bad.f.js': [utf8('export default ]')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['bad.f.js', 'output.f.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'bad.f.js:1:16 - error: unexpected token')
+            assertEq(state.root['output.f.js'], undefined)
+        },
+    },
+    // serialize → evaluate → structurally the same, one test per corpus value.
+    // The emitter is only correct if its output is an input denoting the value
+    // it was given, which no assertion on the text alone can state.
+    roundTrip: roundTripCorpus.map(value => () => {
+        const source = stringify(sort)(value)
+        const root = { 'input.f.js': [utf8(source)] }
+        const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
+        assert(result[0] === 'ok', result[1])
+        assertStructurallySame(result[1], value, source)
+    }),
+    // The `__proto__` key end to end: one value, two output languages, and one
+    // spelling of the key in each (#2480).
+    protoKey: {
+        // The module output uses the computed form, which is also the only
+        // input spelling — so the emitter's output is an input that means the
+        // same value, and compiling it again is the identity.
+        moduleRoundTrip: () => {
+            const source = 'export default {["__proto__"]:{"a":42}};'
+            const output = compileSource(source)('output.f.js')
+            assertEq(output, source)
+            assertEq(compileSource(output)('output.f.js'), source)
+        },
+        // The JSON output keeps the plain key: the computed form is a
+        // JavaScript spelling that no JSON parser accepts.
+        jsonOutput: () => {
+            assertEq(
+                compileSource('export default {["__proto__"]:{"a":42}};')('output.json'),
+                '{"__proto__":{"a":42}}')
+        },
+        // `fjs compile proto.json a.js` — the two languages meeting. The input
+        // is a JSON document, where `"__proto__"` is an ordinary data key, and
+        // the output is a JavaScript module, where only the computed form
+        // denotes one. Each hop uses its own language's spelling of the key.
+        jsonInput: () => {
+            const root = { 'proto.json': [utf8('{"__proto__":5}')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
+            assertEq(exitCode(code), 0, state.stderr)
+            assertEq(readOutput(state.root, 'a.js'), 'export default {["__proto__"]:5};')
+        },
+        // …and back, byte for byte: a JSON document survives the loop
+        // `proto.json → a.js → out.json` with no `["__proto__"]:` artifact,
+        // which no JSON parser would accept.
+        jsonInputRoundTrip: () => {
+            const document = '{"__proto__":{"a":42}}'
+            const root = { 'proto.json': [utf8(document)] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
+            assertEq(exitCode(code), 0, state.stderr)
+            const module = readOutput(state.root, 'a.js')
+            assertEq(module, 'export default {["__proto__"]:{"a":42}};')
+            assertEq(compileSource(module)('out.json'), document)
+        },
+        // The extension speaks for the file named on the command line and for
+        // no other: an import is resolved as a FunctionalScript module, and a
+        // JSON document is not one — a statement never begins with a value —
+        // so importing JSON fails until an import can say
+        // `with { type: "json" }` (spec/todo/2140).
+        jsonImportRejected: () => {
+            const root = {
+                'main.f.js': [utf8('import a from "./a.json";\nexport default [a];')],
+                'a.json': [utf8('{"a":42}')],
             }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['main.f.js', 'out.json']))
+            assertEq(exitCode(code), 1)
+            assert(state.stderr.includes('a.json:1:1 - error: unexpected token'), state.stderr)
+            assertEq(state.root['out.json'], undefined)
+        },
+        // A `.json` input is read as JSON, and an identifier key is no JSON
+        // document's key — so this one fails in the JSON reader, which names
+        // the code unit it failed at rather than a line and column, and is
+        // named by its file instead.
+        jsonInputIdKeyRejected: () => {
+            const root = { 'proto.json': [utf8('{__proto__:5}')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['proto.json', 'a.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.stderr.trim(), 'proto.json - error: unexpected symbol at 1')
+            assertEq(state.root['a.js'], undefined)
+        },
+        // The `.json` reader is JSON, not DJS with a JSON flag: a bigint is
+        // not JSON, whatever DJS makes of it.
+        jsonInputRejectsDjsExtensions: () => {
+            const root = { 'a.json': [utf8('{"a":1n}')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['a.json', 'a.js']))
+            assertEq(exitCode(code), 1)
+            assertEq(state.root['a.js'], undefined)
+        },
+        // The statement behind the textual assertions: the property is an
+        // ordinary own property and the prototype is untouched. A textual test
+        // alone would also pass for a spelling that merely looks right.
+        value: () => {
+            const root = { 'input.f.js': [utf8('export default {["__proto__"]:{"a":42}};')] }
+            const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
+            assert(result[0] === 'ok', result[1])
+            const value = result[1]
+            assert(isObject(value), value)
+            assertStructurallySame(value, protoValue)
+            assertEq(getPrototypeOf(value), objectPrototype)
+        },
+        // The two spellings JavaScript reads as a prototype assignment are
+        // compilation errors, not silently accepted properties.
+        idKeyRejected: () => {
+            const root = { 'input.f.js': [utf8('export default {__proto__:{"a":42}};')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+            assertEq(exitCode(code), 1)
+            assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
+            assertEq(state.root['output.f.js'], undefined)
+        },
+        stringKeyRejected: () => {
+            const root = { 'input.f.js': [utf8('export default {"__proto__":{"a":42}};')] }
+            const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.f.js']))
+            assertEq(exitCode(code), 1)
+            assert(state.stderr.includes('__proto__ requires the computed key form'), state.stderr)
+            assertEq(state.root['output.f.js'], undefined)
         },
     },
 }

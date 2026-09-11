@@ -6,8 +6,7 @@ partly startable, and not first, which is the level and status its own issue
 carries.
 **Status:** wip — stages 1a, 2 and 3a done. **Stage 1b is what to pick up
 next**: it is P1 and gates stage 4, while stage 3b is P2 with its error shapes
-still undecided. **Stage 5a, the rename, is startable beside it**: it touches
-no file stage 4's pull requests do.
+still undecided. Stage 5a, the rename, is done.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
@@ -102,10 +101,9 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    module's own public surface.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
-4. **Then stages 5–7**, in order, as listed below — except stage 5a, the
-   code-only rename of the front end to `fjs/fsc`, which is disjoint from
-   stage 4's files and can land at any time. Stages 5b and 5c wait on nothing
-   but 5a; stage 6 waits on stage 4.
+4. **Then stages 5–7**, in order, as listed below. Stage 5a, the code-only
+   rename of the front end to `fjs/fsc`, is done; 5b and 5c wait on nothing
+   else, and stage 6 waits on stage 4.
 
 **Already done, do not redo:** stage 1a (the DataJS specification), stage 2
 (the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
@@ -493,8 +491,8 @@ combined marker would encode a redundant fact.
   the restriction for itself; DataJS no longer relies on inheriting it, its
   `$`-leading names making the collision unreachable.
 - The parser's separator rule is `';'` only, and this landed ahead of the
-  stage: `fjs/djs/parser`'s move to the LL(1) backend
-  ([`fjs/djs/README.md`](../fjs/djs/README.md#both-grammars-are-ll1)) dropped the
+  stage: `fjs/fsc/parser`'s move to the LL(1) backend
+  ([`fjs/fsc/README.md`](../fjs/fsc/README.md#both-grammars-are-ll1)) dropped the
   newline terminator, since telling a newline from a `;` reached through
   newlines took unbounded lookahead, and `fjs/djs/serializer` writes the
   `;` after every statement. Stage 5 inherits the rule rather than making
@@ -674,6 +672,10 @@ throughout.
    force a conflict on them. The issues follow the code in a pull request of
    their own once the stack is on `main`. Nothing in this pull request
    changes accepted syntax, so it carries no breaking-change entry.
+   **Done.** The `fjs/fsc/module.f.mjs` that was there before, a range-map
+   lexer stub nothing imported, was deleted to make room; the shared shape
+   it had with `fjs/js/tokenizer` is kept on record in
+   [174](../fjs/js/todo/174-shared-range-map-lexer.md).
 
    **5b. The syntax** — terminator `nl` → `';'` **after each** statement,
    the module's final one included (never `;` between statements with EOF
@@ -777,9 +779,8 @@ throughout.
 - [ ] Stage 4: `fjs/media/datajs`; todo filed, reader landed on the grammar
       route. The byte path, the serializer and normalized form remain, with
       proofs over stage 1b's corpus as their source.
-- [ ] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
-      `serializer/` and `types.ts` left in place. **Startable now**, beside
-      stage 1b, since it touches nothing stage 4's pull requests do.
+- [x] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
+      `serializer/` and `types.ts` left in place.
 - [ ] Stage 5b: `;` termination, reserved words, the special numbers; the
       breaking-change entry. File its todo under `fjs/fsc/todo/`.
 - [ ] Stage 5c: the front end's tokenizer as grammar layers in
@@ -805,7 +806,7 @@ throughout.
 - bnf-grammar-single-owner — **retired with `fjs/bnf`**, done by the ports:
   `fjs/ebnf/lib/js` reads its digit and string rules from `fjs/ebnf/lib/json`,
   which is the sharing it asked for, and the post-recognition pass it left
-  unowned is implemented in `fjs/media/datajs` and `fjs/djs/parser`. Its
+  unowned is implemented in `fjs/media/datajs` and `fjs/fsc/parser`. Its
   `fjs/media/json/grammar` proposal stays withdrawn; the one JSON grammar is
   `fjs/ebnf/lib/json`, a runtime dependency of the codecs as the reversal
   above allows, and its statement that **the media scanners stay
@@ -821,15 +822,16 @@ throughout.
   patches.
 - `orphaned-json-grammar` — **done**: resolved by stage 2 and its file
   deleted with the code it described.
-- `fjs/djs/README.md` and the remaining `fjs/djs/todo/*` files — move with
-  their subject matter in stage 5; the DJS name in them refers to the moved
-  front end, not to DataJS.
+- `fjs/djs/README.md` moved with the front end in stage 5a, into
+  `fjs/fsc/README.md`; the remaining `fjs/djs/todo/*` files follow once
+  stage 4 is on `main`. The DJS name in them refers to the moved front end,
+  not to DataJS.
 
 ### Related
 
 - [`fjs/media/json/README.md`](../fjs/media/json/README.md) — the policy-seam
   parser design DataJS layers on.
-- [`fjs/djs/parser/README.md`](../fjs/djs/parser/README.md) — the front end
+- [`fjs/fsc/parser/README.md`](../fjs/fsc/parser/README.md) — the front end
   that moves to `fjs/fsc`.
 - [`todo/edag-stage1-discussion.md`](./edag-stage1-discussion.md),
   [`todo/edag-spec.md`](./edag-spec.md) — EDAG semantics the moved front end

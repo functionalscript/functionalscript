@@ -5,7 +5,7 @@
 
 ### Problem
 
-`compile` in [`fjs/djs/module.f.mjs`](../module.f.mjs) prints
+`compile` in [`fjs/fsc/module.f.mjs`](../../fsc/module.f.mjs) prints
 `<path>:<line>:<column> - error: <message>` when the error carries a token's
 metadata, and the name of the file being compiled when it does not:
 
@@ -28,7 +28,7 @@ main.f.js - error: file not found   # which import? the line does not say
 Three errors reach this branch, and none of them can point at a token:
 
 - `file not found` and `circular dependency`
-  ([`transpiler/module.f.mjs`](../transpiler/module.f.mjs)) know the path that
+  ([`transpiler/module.f.mjs`](../../fsc/transpiler/module.f.mjs)) know the path that
   failed, but `TokenMetadata` has no shape for "this file, position unknown".
 - a `.json` input's parse error comes from
   [`fjs/media/json/parser`](../../media/json/parser), which reports the index
@@ -54,10 +54,10 @@ Two independent halves, either useful alone.
       `circular dependency`.
 - [ ] Positions in `fjs/media/json`'s parse errors.
 - [ ] Assert the exact `stderr` for both, next to the cases
-      [`fjs/djs/proof.f.mjs`](../proof.f.mjs) already pins.
+      [`fjs/fsc/proof.f.mjs`](../../fsc/proof.f.mjs) already pins.
 
 ### Related
 
-- `fjs/djs/module.f.mjs` — the formatting site.
+- `fjs/fsc/module.f.mjs` — the formatting site.
 - Split out of the `compile` exit-code issue, which fixed the exit status of
   this same branch and left the cosmetic half open.

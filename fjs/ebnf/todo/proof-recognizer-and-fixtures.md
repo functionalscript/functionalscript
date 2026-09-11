@@ -11,7 +11,7 @@ classical `fjs/bnf` backends lived, the spelling was copied seven times in
 their proofs, in two backend-specific shapes; those went with the backends.
 What remains is over the one backend, and is still spelled per proof:
 
-- `fjs/djs/tokenizer/proof.f.mjs`'s `covers` resumes
+- `fjs/fsc/tokenizer/proof.f.mjs`'s `covers` resumes
   [`../ll1`](../ll1/README.md)'s `parser` of the one-token grammar
   `fjs/ebnf/lib/js` from where the last token ended, and answers `false` at
   the first token the grammar refuses and `true` once the loop reaches the
@@ -86,5 +86,5 @@ takes them from `fjs/text/utf16` — input decoding, not what
   for another module's proofs.
 - [65Y-proof-assertEq-adoption](../../emergent_testing/todo/65y-proof-asserteq-adoption.md)
   — orthogonal assertion cleanup.
-- [the DJS parser](../../djs/parser/README.md) — its token-symbol alphabet
+- [the DJS parser](../../fsc/parser/README.md) — its token-symbol alphabet
   needs its own recognizer adapter, but can share `Case` / `assertRecognizes`.

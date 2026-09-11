@@ -12,7 +12,7 @@ value'`, `'*/ expected'`, `'invalid token'` — each at the exact position
 of the failing character, and it kept tokenizing afterward, so the parser
 still saw whatever valid tokens came later.
 
-`fjs/djs/tokenizer/module.f.mjs` reads the one-token grammar
+`fjs/fsc/tokenizer/module.f.mjs` reads the one-token grammar
 [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs) through the LL(1)
 backend, resumed once per token, and reports three messages, each
 anchored where the module doc says: `invalid number` for a number cut
@@ -25,7 +25,7 @@ at and nothing else, so the fold above it cannot tell an unterminated
 string from a bad escape, and the first error is the whole output.
 
 Position accuracy holds — the tokenizer's proof pins every anchor and
-span — and no consumer reads the messages: `fjs/djs/parser` freezes on
+span — and no consumer reads the messages: `fjs/fsc/parser` freezes on
 the first error and reports it as `unexpected token`. This is tracked so
 the DX regression is not silently forgotten, not because something is
 broken today.
@@ -53,7 +53,7 @@ Two separable improvements, either could land independently:
    or after the closing quote a string rule found — and emitting an error
    token before going on. What is missing is the boundary choice and a
    token stream that may hold more than one error, which
-   `fjs/djs/parser`'s `splitEof` today reads as the one error token that
+   `fjs/fsc/parser`'s `splitEof` today reads as the one error token that
    ends the stream. Needs its own design pass; not sketched here.
 
 Start with (1) if this becomes worth doing — it is a grammar change and a
@@ -69,11 +69,11 @@ fold change, both local. (2) is likely not worth it unless a real use case
       `fjs/ebnf/lib/js`'s `string` rule, as the block comment's
       `unterminated` is, and name each in `tokenizeJs`'s fold.
 - [ ] Separately evaluate whether continuation-after-error is actually
-      needed, given `fjs/djs/parser` already freezes on the first error and
+      needed, given `fjs/fsc/parser` already freezes on the first error and
       doesn't do multi-error collection today.
 
 ### Related
 
-- `fjs/djs/tokenizer/module.f.mjs` — the fold that names the three errors.
+- `fjs/fsc/tokenizer/module.f.mjs` — the fold that names the three errors.
 - [`fjs/ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs) — the grammar,
   with the `unterminated` branch the proposal extends.

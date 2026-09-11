@@ -597,7 +597,7 @@ export const proof = {
     // a fixture writes one with a **computed key** — the spelling that makes an
     // own property. `{ '__proto__': e }` sets the prototype instead, which is
     // why FunctionalScript's own parser refuses that form (`protoKey` in
-    // `../../../djs/parser/proof.f.mjs`); it was never a working fixture here
+    // `../../../fsc/parser/proof.f.mjs`); it was never a working fixture here
     // either, since `readdir` walks own entries and would have listed the
     // directory as empty.
     protoKeyFixture: () => {

@@ -1,12 +1,12 @@
 /**
  * @import { Dir } from '../../effects/node/virtual/types.ts'
  * @import { Result } from '../../types/result/types.ts'
- * @import { Unknown } from '../types.ts'
+ * @import { Unknown } from '../../djs/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  */
 import { sort } from '../../types/object/module.f.mjs'
 import { transpile } from './module.f.mjs'
-import { stringifyAsTree } from '../serializer/module.f.mjs'
+import { stringifyAsTree } from '../../djs/serializer/module.f.mjs'
 import { virtual, emptyState } from '../../effects/node/virtual/module.f.mjs'
 import { utf8 } from '../../text/module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'

@@ -5,7 +5,7 @@
 
 ### Problem
 
-Nineteen assertions in `fjs/djs/tokenizer/proof.f.mjs` compare a
+Nineteen assertions in `fjs/fsc/tokenizer/proof.f.mjs` compare a
 serialization against a **string literal** instead of stating the expected
 value directly — eight through `JSON.stringify(value)`, and eleven through
 the proof's own `stringify`, the djs serializer's `stringifyAsTree`:

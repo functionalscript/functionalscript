@@ -13,9 +13,9 @@ construction is cast:
 | Site | Cast |
 | --- | --- |
 | `fjs/js/tokenizer/module.f.mjs:262` | `[kind, /** @type {JsToken} */ ({ kind })]` building `keywordEntries` from `keywords` |
-| `fjs/djs/tokenizer/module.f.mjs:393` | `if (keywordSet.has(value)) return /** @type {JsToken} */ ({ kind: value })` |
-| `fjs/djs/tokenizer/module.f.mjs:406` | `return /** @type {JsToken} */ ({ kind: tag })` |
-| `fjs/djs/tokenizer/module.f.mjs:295` | `/** @type {TokenMetadata} */ (stateMetadata)` — same family, on the metadata rather than the token |
+| `fjs/fsc/tokenizer/module.f.mjs:393` | `if (keywordSet.has(value)) return /** @type {JsToken} */ ({ kind: value })` |
+| `fjs/fsc/tokenizer/module.f.mjs:406` | `return /** @type {JsToken} */ ({ kind: tag })` |
+| `fjs/fsc/tokenizer/module.f.mjs:295` | `/** @type {TokenMetadata} */ (stateMetadata)` — same family, on the metadata rather than the token |
 
 The `js/tokenizer` one carries a comment saying the claim holds "by
 construction": `_KeywordToken` derives its kinds from the same `keywords` list

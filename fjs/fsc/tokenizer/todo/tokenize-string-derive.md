@@ -5,10 +5,10 @@
 
 ### Problem
 
-`tokenizeString` in `fjs/djs/tokenizer/module.f.mjs` is a projection of
+`tokenizeString` in `fjs/fsc/tokenizer/module.f.mjs` is a projection of
 `tokenizeJs` — the tokens with their positions dropped, as one string, or
 `error` where the stream holds an error token — and its sole consumer is
-`fjs/djs/tokenizer/proof.f.mjs`. It still lives in the production module,
+`fjs/fsc/tokenizer/proof.f.mjs`. It still lives in the production module,
 and pulls `stringifyAsTree` and `sort` from `fjs/djs/serializer` into the
 tokenizer's import graph purely to format test output.
 `fjs/js/tokenizer/proof.f.mjs` already shows the right shape for its

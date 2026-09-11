@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Unknown } from '../types.ts'
+ * @import { Unknown } from '../../djs/types.ts'
  * @import { Result } from '../../types/result/types.ts'
  * @import { ParseError } from '../parser/types.ts'
  * @import { AstModule } from '../ast/types.ts'

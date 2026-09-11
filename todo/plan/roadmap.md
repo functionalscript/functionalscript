@@ -99,11 +99,11 @@ See [architecture.md §Human-readable paths](./architecture.md).
 
 **Current state:**
 - `fjs/ebnf/` — grammar front end and LL(1) backend exist; no FunctionalScript grammar written yet
-- `fjs/djs/` — full data pipeline (tokenizer → parser → AST → evaluator) for `const`, `import`, objects, arrays; **functions not yet supported**
+- `fjs/fsc/` — full data pipeline (tokenizer → parser → AST → evaluator) for `const`, `import`, objects, arrays; **functions not yet supported**
 - `nanvm-lib` (Rust) — type system implemented (primitives, arrays, objects, bigints); **no interpreter, no execution loop**
 
 **Remaining work:**
-1. Function support in `fjs/djs/`
+1. Function support in `fjs/fsc/`
 2. FunctionalScript grammar in `fjs/ebnf/` (single source for parser + generated language spec)
 3. Rust code generator (FJS) — compiles FJS modules into Rust code calling the `nanvm-lib` API;
    the MVP pipeline, the compiler-bootstrap vehicle, and the AOT backend
@@ -183,7 +183,7 @@ Prerequisite: compiler + CA FunctionalScript complete.
 | HTTP transport | `fjs/effects/node/` effects ✓ | `httpTransport` wrapper only |
 | Signed directories | — | Directory block type + path resolver |
 | SUL deduplication | `fjs/sul/` L1–L4 ✓ | CAS integration layer |
-| Compiler (parsing) | `fjs/djs/` data pipeline ✓, `fjs/ebnf/` framework ✓ | Function support, FS grammar |
+| Compiler (parsing) | `fjs/fsc/` data pipeline ✓, `fjs/ebnf/` framework ✓ | Function support, FS grammar |
 | Compiler (codegen) | — | Rust code generator (FJS), `Function` constructor + interpreter in `nanvm-lib` |
 | Compiler (repository coverage) | Stage-1 `.f.mjs` source migration complete and compiler-independent ✓ | Validate supported `.f.mjs` as coverage grows; then authored-`.f.js` package support, then rename supported groups `.f.mjs` → `.f.js` |
 | CA FunctionalScript | — | Depends on VM + EDAG canonicalization |

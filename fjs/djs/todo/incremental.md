@@ -40,8 +40,8 @@ export default {
 
 ### 4. Next
 
-- [x] identifier properties — shipped, `fjs/djs/parser/module.f.mjs` (`case 'id':`)
-- [x] trailing comma — shipped, `fjs/djs/parser/module.f.mjs` (`parseObjectCommaOp`)
+- [x] identifier properties — shipped, `fjs/fsc/parser/module.f.mjs` (`case 'id':`)
+- [x] trailing comma — shipped, `fjs/fsc/parser/module.f.mjs` (`parseObjectCommaOp`)
 
 ```js
 // import

@@ -17,7 +17,7 @@ like, end to end, to someone who has not read the source.
   (`math.f.js`, shared-reference data modules, a test module), but it is a
   presentation script parked under `todo/`, not linked from anywhere a
   reader would find it, and parts of it are stale.
-- `fjs/djs/examples/` holds two fixture modules consumed by proofs, not
+- `fjs/fsc/examples/` holds two fixture modules consumed by proofs, not
   runnable samples.
 
 Two external reports asked for exactly this, two years apart:

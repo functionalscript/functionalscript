@@ -3,7 +3,7 @@
  *
  * @module
  *
- * @import { Array, Unknown } from '../types.ts'
+ * @import { Array, Unknown } from '../../djs/types.ts'
  * @import { AstConst, AstBody } from './types.ts'
  * @import { _FoldObjectState, _RunState } from './private.ts'
  */

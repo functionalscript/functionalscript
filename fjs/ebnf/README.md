@@ -76,7 +76,7 @@ every level.
   a string of BMP characters as is and an astral character as its two
   surrogate units — `'😀'` lowers to `0x1F600`, a symbol no unit is;
   `token_symbol/` names its symbols with a constructor instead, as
-  `fjs/djs/parser` does with `sym()`.
+  `fjs/fsc/parser` does with `sym()`.
 - **`['const', c]`** is RTTI's escape under RTTI's name, for a plain rule
   behind a thunk. Every recursive rule pays it; RTTI pays the same.
 - **`['set', …]`** is a range set of ordinary symbols — a strictly increasing

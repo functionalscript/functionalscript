@@ -116,10 +116,10 @@ recognizes, not unconditionally for every call this shape could spell.
 Recognizing `Object.hasOwn(obj, prop)` also needs no closures — unlike a
 `hasOwn` *helper function* (`const hasOwn = (obj, prop) => ...`), which
 would need `=>`. The tokenizer and the EDAG's `Op2Id` union already
-recognize `=>` (`fjs/djs/tokenizer/module.f.mjs`, `fjs/edag/types.ts`), but
+recognize `=>` (`fjs/fsc/tokenizer/module.f.mjs`, `fjs/edag/types.ts`), but
 the parser and AST do not yet turn it into anything — no arrow-function AST
-node, no grammar production consuming it (confirmed by reading `fjs/djs/`).
-Neither shape actually parses today, to be precise: `fjs/djs/ast/types.ts`
+node, no grammar production consuming it (confirmed by reading `fjs/fsc/`).
+Neither shape actually parses today, to be precise: `fjs/fsc/ast/types.ts`
 has no call-expression node at all yet — `own_property` itself is still an
 unimplemented `spec/todo/` pattern, the same as everything else here — so
 "pattern-recognized instruction" and "helper function" are both future

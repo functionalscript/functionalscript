@@ -7,9 +7,9 @@
  * layer resumes the parser"). Nothing follows a token here, and that is
  * what makes the grammar LL(1).
  *
- * Beside the classical grammar in `fjs/djs/tokenizer`, which the
+ * Beside the classical grammar in `fjs/fsc/tokenizer`, which the
  * backtracking backend read, four things are spelled differently, each
- * a conflict measured before the port and recorded in `fjs/djs/README.md`
+ * a conflict measured before the port and recorded in `fjs/fsc/README.md`
  * ("Both grammars are LL(1)"):
  *
  * - the block comment's `*` is left-factored: after a `*`, a `/` is the

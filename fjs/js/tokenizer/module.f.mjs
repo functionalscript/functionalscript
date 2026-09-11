@@ -603,7 +603,7 @@ const parseMultilineCommentAsteriskStateOp = create(
  * to a single token, and a run containing any newline is an `nl`. Equal kinds
  * coalesce; `nl` absorbs `ws`.
  *
- * Exported because `fjs/djs/tokenizer` produces the same token stream and must
+ * Exported because `fjs/fsc/tokenizer` produces the same token stream and must
  * agree byte for byte — its scanner reaches the same four decisions from
  * grammar tags. This module defines `JsToken`, so the rule is stated here once
  * rather than re-derived on each side with only the proofs to catch a drift.

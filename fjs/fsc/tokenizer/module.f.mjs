@@ -59,7 +59,7 @@ import {
 import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
 import { mapUnwrap } from '../../types/nullable/module.f.mjs'
 import { concat, empty, flat, fold, map, stateScan, toArray } from '../../types/list/module.f.mjs'
-import { stringifyAsTree } from '../serializer/module.f.mjs'
+import { stringifyAsTree } from '../../djs/serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 
 // -- layer 1: the grammar, one token at a time ------------------------------
@@ -389,7 +389,7 @@ const parseDjsDefaultState = input => {
 }
 
 // Folds a leading '-' into the following number/bigint token, mirroring the old
-// fjs/djs/tokenizer's minus-state exactly.
+// fjs/fsc/tokenizer's minus-state exactly.
 //
 // No `case '-'` here: the grammar reads two adjacent `-` characters as the
 // single `'--'` token (the decrement operator), so this state — entered only

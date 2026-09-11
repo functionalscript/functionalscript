@@ -16,7 +16,7 @@ four-hex-digit accumulator:
 const newUnicode = state.unicode | (hexValue << (3 - state.hexIndex) * 4)
 return [empty, state.hexIndex === 3 ? { kind: 'string', value: ... } : ...]
 
-// fjs/djs/tokenizer/module.f.mjs:404-407 — shift-and-or
+// fjs/fsc/tokenizer/module.f.mjs:404-407 — shift-and-or
 const acc = (state.acc << 4) | unwrapHexDigitValue(cp)
 return state.count === 3 ? [[acc], { kind: 'normal' }] : [null, { kind: 'unicode', acc, count: state.count + 1 }]
 ```
@@ -25,8 +25,8 @@ Two different spellings of one arithmetic, two different state field names,
 and the escape's width stated in four places across two modules: the
 literal `3` three times in the two accumulators
 (`fjs/js/tokenizer/module.f.mjs:537`, `:538`,
-`fjs/djs/tokenizer/module.f.mjs:406`), plus `repeat(4)` in the
-DJS tokenizer's escape *grammar* (`fjs/djs/tokenizer/module.f.mjs:173`,
+`fjs/fsc/tokenizer/module.f.mjs:406`), plus `repeat(4)` in the
+DJS tokenizer's escape *grammar* (`fjs/fsc/tokenizer/module.f.mjs:173`,
 the `u: ['u', ...repeat(4)({...})]` production). A drift here is a
 tokenizer disagreement about what a string literal means — exactly what
 `string_escape`'s header exists to prevent.
@@ -56,7 +56,7 @@ left-to-right input.
 
 - [ ] Add the accumulator to `fjs/js/string_escape`; port both tokenizer
       states.
-- [ ] Derive the DJS grammar's `repeat(4)` (`djs/tokenizer:173`) from
+- [ ] Derive the DJS grammar's `repeat(4)` (`fsc/tokenizer:173`) from
       `unicodeEscapeDigits`.
 - [ ] `tsc`, `fjs t`; both tokenizers' escape proofs pin the semantics.
 
@@ -65,5 +65,5 @@ left-to-right input.
 - [667-js-tokenizer-handler-literals.md](./667-js-tokenizer-handler-literals.md)
   — names `u → unicodeChar` as the one hand-written row of the escape
   dispatch table; this issue owns what that row dispatches *to*.
-- `fjs/djs/tokenizer/module.f.mjs` — the second copy lives there; this
+- `fjs/fsc/tokenizer/module.f.mjs` — the second copy lives there; this
   issue sits here because the fix lands in `fjs/js/string_escape`.
