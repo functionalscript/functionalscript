@@ -173,6 +173,27 @@ export const tagPayload = latin1([
     '',].join('\n'))
 
 /**
+ * A tag whose bytes end at its last header's LF, with no empty line after
+ * it and no message: written by Git 2.43 with `git hash-object -t tag`,
+ * over the empty blob, and followed by `<id>^{}` to that blob. Its own id
+ * is `37502c250f7a8db81069481feee882f61ddf9ff0`, over 115 bytes. None of
+ * Git's own writers makes one — `commit-tree` and `mktag` always write the
+ * empty line — so one comes from a hand-made object or another tool, and
+ * it is the object that tells the two spellings of an empty message apart.
+ *
+ * There is no trailing empty element here, because the payload ends at the
+ * LF the join puts before one.
+ *
+ * @type {readonly number[]}
+ */
+export const headerOnlyTagPayload = latin1([
+    'object e69de29bb2d1d6434b8b29ae775ad8c2e48c5391',
+    'type blob',
+    'tag v3',
+    'tagger Proof <proof@example.com> 1700000000 +0100',
+    '',].join('\n'))
+
+/**
  * A merge of a signed tag, as `git cat-file commit` prints it: written by
  * Git 2.43 in the same scratch repository as {@link tagPayload}, with the
  * tag it merged carried whole in a `mergetag` header, one of its

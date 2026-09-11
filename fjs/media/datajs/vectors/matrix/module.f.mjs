@@ -16,9 +16,19 @@
  *
  * So an empty cell is a failure, and the only thing that answers it is a
  * `NotApplicable` record in the corpus, which says why in words a reviewer
- * reads beside the vectors. A reason for a cell that has vectors, or for a
- * class no vector carries, is a failure too, since a stale reason is how a
- * table stops meaning anything.
+ * reads beside the vectors.
+ *
+ * A record answers a **scope** rather than always a cell, because a role's
+ * column must answer every class in the corpus and a serializer owes nothing
+ * to the several hundred that are document facts. One reason names a class, a
+ * subtree of them by path prefix, or every class no set but one carries, and
+ * the most specific reason wins. What buys that width is a rule a cell could
+ * not enforce, since a cell only ever sees itself: a reason is refused the
+ * moment it answers a class that **has** vectors for its role, so it cannot
+ * quietly stop being true of something beneath it. One answering no class at
+ * all, one naming a role or a set the corpus does not have, one tagged with
+ * none of the three, and two of equal specificity answering one cell are
+ * refused the same way. A stale reason is how a table stops meaning anything.
  *
  * Text the table cannot show as written fails for the same reason: a `|`
  * in a reason starts a column, an HTML comment in one shows nothing at

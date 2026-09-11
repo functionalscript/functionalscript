@@ -51,6 +51,32 @@ what a grammar can and cannot do for the formats.
   checked: the loose file at the id's path, hashed with `oid`'s `of` and
   refused where the hash is not the id; and the width from `config`.
   Loose objects only, until packs.
+- [`walk/`](walk/module.f.mjs) — the three steps from a name to bytes,
+  over whatever reads objects: `peel`, a tag to what it names;
+  `tryEntries`, a commit or a tree to the entries of its tree; and
+  `tryEntry`, the entry a path names. It reads no object it need not, so
+  a path naming a submodule answers that entry, and it refuses what a
+  corrupt repository makes ambiguous: a tag or a commit Git's own parse
+  refuses, a tag whose target is not the type it declared, a tree naming one
+  name twice, and a path descending through an entry whose mode is no
+  directory — the mode's `S_IFMT` bits, which is the question Git's own
+  `S_ISDIR` puts, so `40755` descends as `40000` does and `140000` does
+  not.
+
+  Both of its loops are walks over the effects rather than recursions, and
+  the chain of ids `peel` has already read is a map rather than a list.
+  Neither is a matter of taste. A `Read` that answers values — an in-memory
+  store, a proof's — makes `step` call its own continuation, so a recursion
+  costs a frame or two per link and a deep chain or a long path exhausts the
+  stack; and a list of ids is scanned and copied whole at every link, which
+  is quadratic in a chain Git puts no bound on. A walk's loop is flat in the
+  item count whatever the `Read` answers, and the map answers and grows in
+  the logarithm.
+  Both readers refuse a payload under the length Git's own parse requires
+  before it reads a header — the id's hexadecimal digits plus 24 for a tag,
+  plus 6 for a commit — since that is what the headers each needs cost at
+  their shortest, and nothing shorter could have held them.
+
 - `types.ts` — `Bytes`, the type of a field the format leaves unbounded,
   `Oid` and `OidBytes`, the one fixed-width field and its width, and
   `ObjectType`.
@@ -98,6 +124,13 @@ The four payloads:
   <message>                 to the end of the object, arbitrary bytes
   ```
 
+  The empty line and the message are optional together: an object whose
+  bytes end at its last header's LF is one Git accepts and none of its own
+  tools write, and `Payload`'s `message` is `null` for it. That keeps it
+  apart from an object with an empty line and an empty message, which are
+  two byte strings and so two ids, and the writer puts back whichever it
+  was given.
+
   Every header is `key SP value LF`, and a line beginning with SP continues
   the value of the header before it, LF included. That is how a multi-line
   signature is one header, and how `mergetag` carries a whole tag object as
@@ -115,7 +148,9 @@ The four payloads:
   ```
 
   `mode` is octal ASCII without padding — `100644`, `100755`, `120000`,
-  `160000`, and `40000` for a subtree, five digits, not six. `name` is any
+  `160000`, and `40000` for a subtree, five digits, not six. Those are the
+  modes Git writes and the ones `validate` accepts; a walk asks less of a
+  mode it did not write, since Git does. `name` is any
   bytes but NUL; a slash is forbidden by `git fsck`, not by the reader.
   `id` is the raw object id, 20 or 32 bytes, every byte value allowed, and
   it is what delimits the entry: nothing follows it but the next entry or
@@ -303,12 +338,13 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   supplies them from `node:zlib` at the host boundary, and
   [`loose/`](loose/module.f.mjs) is its caller. A FunctionalScript inflater
   is [`todo/inflate.md`](../../todo/inflate.md).
-- **A walk, and a repository found.** `store` reads one object by id and
-  checks it; the walk from a commit to a blob by path, a linked
-  worktree's `gitdir` and `commondir`, and `alternates` are the rest of
-  [`todo/object-store.md`](todo/object-store.md). What the id check
-  means in a SHA-1 repository, and what a trust layer does about a hash
-  that can collide, is
+- **A repository found.** `store` reads one object by id and `walk` walks
+  from one to a blob, but both take the repository's directory as the
+  caller gives it: finding it through a `.git` file's `gitdir` and a
+  `commondir`, and `objects/info/alternates`, are the rest of
+  [`todo/object-store.md`](todo/object-store.md). What the id check means
+  in a SHA-1 repository, and what a trust layer does about a hash that can
+  collide, is
   [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).
 - **Packfiles**, where most objects in a real clone live, so the loose
   reader alone reads a fresh clone poorly: [`todo/packfiles.md`](todo/packfiles.md).
@@ -321,10 +357,6 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   either side of its stream — a file over the bound before inflating, a
   stream that inflates past it — and never cut short. The inflater issue
   lifts both sides.
-- **An object with no empty line.** A commit or a tag whose bytes end
-  after its last header, which Git accepts and none of its tools write,
-  is refused by the header block's grammar; reading it is a change to
-  `Payload`, [`header/todo/header-only-object.md`](header/todo/header-only-object.md).
 - **One `Meta` per byte.** The LL(1) backend takes an array of symbols,
   each an object, and streams nothing. For commits, tags and trees that is
   fine; it is the reason a blob is never handed to a parser.

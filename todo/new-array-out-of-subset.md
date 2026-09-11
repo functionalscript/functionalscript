@@ -19,12 +19,14 @@ originating one. So **no FunctionalScript expression builds a sparse array**,
 and [`fjs/types/object/structurally_same/README.md`](../fjs/types/object/structurally_same/README.md)
 already says so outright.
 
-The tree does not agree with that. **Twenty-eight uses of `new Array(` across
-nine `.f.mjs` files**, and one of them is not a proof:
+The tree does not agree with that. **Twenty-nine `new Array(` expressions on
+twenty-eight lines across nine `.f.mjs` files**, and one of them is not a
+proof. The table counts lines, which is what a sweep works through; the one
+place the two differ is noted in it:
 
 | where | uses |
 | - | - |
-| `fjs/rtti/validate/proof.f.mjs` | 11 |
+| `fjs/rtti/validate/proof.f.mjs` | 11 (12 expressions: one line carries two) |
 | `fjs/edag/proof.f.mjs` | 4 |
 | `fjs/rtti/common/proof.f.mjs` | 3 |
 | `fjs/rtti/data/proof.f.mjs` | 3 |
@@ -58,7 +60,7 @@ It is also load-bearing beyond itself: `parse` output is handed to
 premise. `parse` is currently the one shipped function that can hand a sparse
 array to a comparison documented as unable to receive one.
 
-**Deleting a proof can uncover a branch.** Most of the twenty-seven proof uses
+**Deleting a proof can uncover a branch.** Most of the twenty-eight proof uses
 exist to show that some module rejects or tolerates a hole. If a hole cannot
 occur, the guard being proved is also unreachable, and `fjs/AGENTS.md` §1.2
 then says to restructure so the branch is not there. Removing only the proof

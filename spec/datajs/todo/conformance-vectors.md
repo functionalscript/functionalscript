@@ -1783,18 +1783,20 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a record that swapped the decoder's rule for the reader's goes red.
 - [x] **A reason answers a scope, not always a cell.** Measured before the
       serializer set was written, which is why it is a step of its own: the
-      corpus has 667 classes, a serializer can genuinely carry a vector for
+      corpus has 668 classes, a serializer can genuinely carry a vector for
       about 188 of them, and the rest arrive as empty cells the moment that
-      column gains a set — between 449 and 479 records of one sentence
-      rewritten, and the same bill again when `normalize` lands. So
+      column gains a set — some 480 records of one sentence rewritten, and the
+      same bill again when `normalize` lands. So
       `NotApplicable` carries a **scope**, tagged as `Document` is:
       `['class', c]` for one cell, `['subtree', p]` for every class under a
       prefix by path segment, and `['set', s]` for every class no set but
       that one carries. The last is the widest and the most exact, since no
-      class is carried by two sets — measured, 333 accept-only, 334
+      class is carried by two sets — measured, 334 accept-only, 334
       reject-only, none in both — so one reason covers every reject class by
-      construction rather than by inspection. 28 records answer all 479. The
-      most specific reason wins, so a family's reason takes an exception for
+      construction rather than by inspection. A prototype answered all of them
+      with 28 records; what the serializer step below actually lands is 57,
+      answering 529 cells. The most specific reason wins, so a family's reason
+      takes an exception for
       one class without either being removed. What buys the width is a rule
       the cell could not enforce, because a cell only ever sees itself: a
       scope that answers a class which **has** vectors is refused, as is one
@@ -1922,9 +1924,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       not landed refuses nothing, since a class cannot owe a vector to a
       set that does not exist: its column says so on every row and the
       refusal arrives with the set, which is where the serializer and
-      normalize columns stand today. 667 classes, the reader role
-      answering every one. Prose could not do this job, which four
-      consecutive review rounds showed.
+      normalize columns stand today. 668 classes as this step landed, the
+      reader role answering every one; a later set adds classes of its own
+      and one `['set', …]` reason answers the reader for all of them. Prose
+      could not do this job, which four consecutive review rounds showed.
 - [ ] **The JavaScript whole-set check**, per decision 5. The
       FunctionalScript one is stage 6's, once stage 5 has taught the front
       end `;` and the special numbers.
@@ -1965,8 +1968,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a hole, `delete` and a `length` assignment are mutation, and `concat`,
       `slice` and `map` propagate a hole without originating one, so no
       reader can return a sparse array. What the round leaves behind is a
-      finding wider than this corpus: **twenty-eight uses of `new Array(`
-      across nine `.f.mjs` files**, one of them in a shipped module, where
+      finding wider than this corpus: **twenty-nine `new Array(` expressions
+      on twenty-eight lines across nine `.f.mjs` files**, one of them in a
+      shipped module, where
       `fjs/types/object/structurally_same/README.md` already says in so many
       words that the construct is not in the language. That sweep has its own
       issue,
