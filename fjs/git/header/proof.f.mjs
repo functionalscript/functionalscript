@@ -119,11 +119,21 @@ export const proof = {
     // Each refusal: no empty line before the end, a header without SP, a
     // first line beginning with SP, a header without LF.
     refused: () => {
-        assertEq(tryRead([]), null)
-        assertEq(tryRead(latin1('a x\n')), null)
         assertEq(tryRead(latin1('a\n\n')), null)
         assertEq(tryRead(latin1(' x\n\n')), null)
         assertEq(tryRead(latin1('a x')), null)
+    },
+    // The empty line is the message's, so a payload that ends at its last
+    // header's LF ends the block there and has no message. Git ends a
+    // header block at a line that is no header, and the input's end is one
+    // of those: `git hash-object -t tag` writes such a tag and `<id>^{}`
+    // follows it, and a commit spelled the same way gives up its tree.
+    // Both are the same payload as the spelling with the empty line, which
+    // is the one the writer writes.
+    noBlank: () => {
+        assertStructurallySame(tryRead(latin1('a x\n')), tryRead(latin1('a x\n\n')))
+        assertStructurallySame(tryRead(latin1('a x\nb y\n')), tryRead(latin1('a x\nb y\n\n')))
+        assertStructurallySame(tryRead([]), tryRead(latin1('\n')))
     },
     // A value may hold anything, LF at its end and SP after an LF included,
     // and comes back as it went; a key the format cannot spell is refused
