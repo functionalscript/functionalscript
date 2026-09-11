@@ -47,7 +47,7 @@ import accept from '../../../../../spec/datajs/vectors/accept/data.f.mjs'
 import reject from '../../../../../spec/datajs/vectors/reject/data.f.mjs'
 import notApplicableData from '../../../../../spec/datajs/vectors/not-applicable/data.f.mjs'
 
-/** Where the matrix is written. */
+/** Where the matrix is written. @type {string} */
 export const directory = 'spec/datajs/vectors'
 
 /** @type {string} */
@@ -205,6 +205,23 @@ const unrenderable = ({ roles, notApplicable }) => [
         check(isProse, 'prose', `the reason for ${c} in ${role}`, because)),
 ]
 
+/**
+ * A second reason for a cell that already has one. `reasonOf` takes the
+ * first and would drop the rest without a word, so the matrix would read
+ * as though the corpus had said one thing where it said two.
+ *
+ * The not-applicable set's own proof checks this, but that proof is not
+ * what `gen` runs and `matrix` is exported: a caller handing it a corpus
+ * gets the same answer the file does, or none.
+ *
+ * @type {(corpus: Corpus) => readonly string[]}
+ */
+const duplicated = ({ notApplicable }) =>
+    notApplicable.flatMap(({ class: c, role }, i) =>
+        notApplicable.findIndex(n => n.role === role && n.class === c) === i
+            ? []
+            : [`${c} in ${role}: a second reason for a cell that already has one`])
+
 /** A reason naming a class or a role the corpus does not have. @type {(corpus: Corpus) => readonly string[]} */
 const stale = ({ roles, notApplicable }) => {
     const classes = new Set(classesOf(roles))
@@ -246,7 +263,7 @@ const summary = (corpus, role) => {
 export const matrix = corpus => {
     const classes = classesOf(corpus.roles)
     const rows = classes.map(c => row(corpus, c))
-    const failures = [...unrenderable(corpus), ...stale(corpus), ...rows.flatMap(r => r[0] === 'error' ? r[1] : [])]
+    const failures = [...unrenderable(corpus), ...duplicated(corpus), ...stale(corpus), ...rows.flatMap(r => r[0] === 'error' ? r[1] : [])]
     if (failures.length !== 0) {
         return error([
             `the class-by-role matrix has ${failures.length} defects:`,

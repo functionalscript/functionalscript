@@ -102,6 +102,20 @@ export const proof = {
         // whose header reads `no set yet`.
         assert(failure({ ...two, notApplicable: [{ class: 'x', role: 'serializer', because: 'no' }] })
             .includes('x in serializer: a reason for a role whose sets have not landed'))
+        // Two reasons for one cell leave the matrix to pick, and `reasonOf`
+        // would pick the first without a word. The set's own proof checks
+        // this too, but `gen` does not run it and `matrix` is exported.
+        const twice = { ...landed, notApplicable: [
+            { class: 'y', role: 'serializer', because: 'a serializer never emits it' },
+            { class: 'y', role: 'serializer', because: 'and here is a different account of why' },
+        ] }
+        assert(failure(twice).includes('y in serializer: a second reason for a cell that already has one'), failure(twice))
+        // one reason each for two cells is not a duplicate
+        const distinct = { ...landed, notApplicable: [
+            { class: 'y', role: 'serializer', because: 'a serializer never emits it' },
+            { class: 'x', role: 'serializer', because: 'nor this one' },
+        ] }
+        assert(failure(distinct).includes('x in serializer: a reason for a cell that has 1 vectors'))
     },
     // A cell may carry only what the table shows as written, and that is
     // decided by the characters allowed rather than the ones forbidden: a
