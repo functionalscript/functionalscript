@@ -219,11 +219,20 @@ seams, and stage 4 is the consumer that issue was waiting for:
 4. **an entry-enumeration seam** — the descriptors of §1, not `definedEntries`
    and not `entries`.
 
-Three of the four are already parameters of `buildSerialize` in
-`fjs/djs/serializer`, which is private there. Whether DataJS reuses that
-factory (exported), reuses a walker extracted per 157 §2, or writes its own
-is 157's open question and this is where it gets decided — under
-[`AGENTS.md`](../../../../AGENTS.md) §1's rule that an export beats a copy.
+**Two** of the four are already parameters of `buildSerialize` in
+`fjs/djs/serializer` — the key seam and the pre-recursion ref seam — and the
+other two are fixed inside it: the leaf spelling is a `switch` in the
+function body, and the entry enumeration is `entries`. Its third parameter,
+`sort`, is not one of the four seams at all, and is the one seam §Layout and
+API says DataJS cannot have. 157 §2 counts three, but words it "already
+parameters of `buildSerialize` **or forced by it**", which is the sentence
+this one lost the qualifier from.
+
+The factory is private there besides. Whether DataJS reuses it — widened by
+the two seams above, and exported — reuses a walker extracted per 157 §2, or
+writes its own is 157's open question and this is where it gets decided,
+under [`AGENTS.md`](../../../../AGENTS.md) §1's rule that an export beats a
+copy.
 
 #### 3. Normalized form
 
