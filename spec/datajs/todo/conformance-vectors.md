@@ -1437,7 +1437,7 @@ The five parts:
   annotation where a data module may not. Review caught this being written
   down as a property of the value rather than of the carrier. The eleven
   objects' exact output is
-  `const $0=[];const $1=[];const $2=[];const $3=[];const $4=[];const $5=[];const $6=[];const $7=[];const $8=[];const $9=[];const $10=[];export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10];`
+  `const $0={};const $1={};const $2={};const $3={};const $4={};const $5={};const $6={};const $7={};const $8={};const $9={};const $10={};export default [$0,$0,$1,$1,$2,$2,$3,$3,$4,$4,$5,$5,$6,$6,$7,$7,$8,$8,$9,$9,$10,$10];`
   — because `$0`, `$1`, … is a *counter*, and every vector above stops at
   `$1`. A normalizer deriving the name from a single digit passes all of them
   and emits something invalid or noncanonical the moment the eleventh const is
@@ -1453,7 +1453,7 @@ The five parts:
   | - | - | - |
   | array, array | `root=[p,p,c]`, `p=[c]`, `c=[0]` | `const $0=[0];const $1=[$0];export default [$1,$1,$0];` |
   | object, object | `root={"a":p,"b":p,"c":q}`, `p={"x":q}` | `const $0={};const $1={"x":$0};export default {"a":$1,"b":$1,"c":$0};` |
-  | object, array | `root={"a":p,"b":p,"c":q}`, `p={"x":q}`, `q` an array | `const $0=[];const $1={"x":$0};export default {"a":$1,"b":$1,"c":$0};` |
+  | object, array | `root={"a":p,"b":p,"c":q}`, `p={"x":q}`, `q=[0]` | `const $0=[0];const $1={"x":$0};export default {"a":$1,"b":$1,"c":$0};` |
   | array, object | `root=[p,p,q]`, `p=[q]`, `q` an object | `const $0={};const $1=[$0];export default [$1,$1,$0];` |
 
   The array-child rows carry `[0]` rather than `[]` for the reason just
