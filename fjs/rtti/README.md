@@ -6,8 +6,9 @@ A type-safe schema system for describing TypeScript types at runtime and validat
 
 ## Why `fjs/rtti/` rather than `fjs/types/rtti/`
 
-`rtti` used to live under `fjs/types/`, but it is a peer of `djs` — `djs` the
-data model, `rtti` the types described over it — not a member of `types/`.
+`rtti` used to live under `fjs/types/`, but it is a peer of the modules that
+hold the data model — [DataJS](../media/datajs/README.md) the model, `rtti`
+the types described over it — not a member of `types/`.
 Nothing under `types/` imports it; every consumer (`media`, `protocol`, `mcp`,
 `edag`, `ci`, `emergent_testing`) is a peer of `types/`, the same relationship
 every outside consumer of `types/list`, `types/result` or `types/object` has.
