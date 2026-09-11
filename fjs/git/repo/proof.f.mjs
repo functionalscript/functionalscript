@@ -50,13 +50,17 @@ export const proof = {
             m: { '.git': { ...repo, worktrees: { l: { commondir: file('../..\n'), HEAD: file('ref: refs/heads/x\n') } } } },
             w: { '.git': file('gitdir: /m/.git/worktrees/l\n') },
         }
-        assertEq(at(root)('w'), '/m/.git')
+        assertEq(at(root)('w'), '/m/.git/worktrees/l/../..')
     },
     // A `gitdir:` line is read against the directory the file sits in where
-    // it names a relative path, as Git reads one.
+    // it names a relative path, as Git reads one — joined and not folded,
+    // so the `..` is the filesystem's to resolve. A `..` folded here would
+    // climb out of a symbolic link's own parent where the filesystem climbs
+    // out of what the link points at, and name a directory that need not
+    // exist.
     relative: () => {
         const root = { w: { '.git': file('gitdir: ../r\n') }, r: repo }
-        assertEq(at(root)('w'), 'r')
+        assertEq(at(root)('w'), 'w/../r')
     },
     // A `commondir` line is read against the repository directory, and an
     // absolute one replaces it.
@@ -64,9 +68,15 @@ export const proof = {
         const abs = { w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('/m/.git\n') }, m: { '.git': repo } }
         assertEq(at(abs)('w'), '/m/.git')
         // A line naming nothing is the repository directory, which is the
-        // path Git builds from it.
+        // path Git builds from it; a file of no bytes at all is `null`,
+        // since Git dies where the read gives it nothing.
         const none = { w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('\n') } }
         assertEq(at(none)('w'), '/d')
+        const empty = { w: { '.git': file('gitdir: /d\n') }, d: { commondir: file('') } }
+        assertEq(at(empty)('w'), null)
+        // A relative line is joined to the repository directory, unfolded.
+        const rel = { w: { '.git': file('gitdir: /m/.git/worktrees/l\n') }, m: { '.git': { ...repo, worktrees: { l: { commondir: file('../..\n') } } } } }
+        assertEq(at(rel)('w'), '/m/.git/worktrees/l/../..')
     },
     // Only the line's end comes off, as Git takes only that. A file written
     // without a newline reads the same as one with; a path ending in a
@@ -93,7 +103,7 @@ export const proof = {
     // absence means the repository directory is the common one.
     missing: () => {
         const r = at({ w: {} })('w')
-        assert(Array.isArray(r) && r[0] === 'error', r)
+        assert(r instanceof Array && r[0] === 'error', r)
         // The virtual filesystem answers `ENOENT` for every read it cannot
         // make, so a host of this proof's own is what says a `commondir`
         // the reader is not allowed to open.

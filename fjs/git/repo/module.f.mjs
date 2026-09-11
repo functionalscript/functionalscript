@@ -34,7 +34,7 @@
 
 import { catchStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { isNotFound, readUtf8File, stat } from '../../effects/node/module.f.mjs'
-import { concat } from '../../path/module.f.mjs'
+import { join, root } from '../../path/module.f.mjs'
 
 /** What a `.git` file says before the directory it names. */
 const gitdir = /** @type {const} */ ('gitdir: ')
@@ -52,18 +52,41 @@ const named = text => text.endsWith('\n') || text.endsWith('\r')
     : text
 
 /**
+ * A path one of these files names, read where it was found: an absolute
+ * one stands on its own and a relative one is joined to the directory the
+ * file sits in.
+ *
+ * Joined and not folded. A `..` is left for the filesystem to resolve, as
+ * Git leaves it: where a component is a symbolic link, `..` climbs out of
+ * what the link points at rather than out of the link's own parent, and a
+ * reader that collapsed `/alias/w/../r` to `/alias/r` would name a
+ * directory that need not exist. So the answer names the directory rather
+ * than spelling it the shortest way, which is what a caller that reads at
+ * it needs.
+ *
+ * @type {(dir: string, path: string) => string}
+ */
+const against = (dir, path) => root(path) === '' ? join(dir, path) : path
+
+/**
  * The directory `<repo>/commondir` names, read against `repo`, or `repo`
  * itself where there is no such file. An absolute line replaces `repo` and
  * a relative one is taken from it — `../..` under `worktrees/<name>` is the
  * repository that owns them — and a line naming nothing is `repo`, which is
  * the path Git builds from it.
  *
- * @type {(repo: string) => Effect<ReadFile, string, IoChannel>}
+ * A file of no bytes at all is `null`, where a file of one newline is not:
+ * Git reads the file and dies where the read gives it nothing, so the two
+ * are a malformed repository and a repository whose common directory is
+ * its own.
+ *
+ * @type {(repo: string) => Effect<ReadFile, Nullable<string>, IoChannel>}
  */
 const commonOf = repo => catchStep(
     mapStep(readUtf8File(`${repo}/commondir`), text => {
+        if (text === '') { return null }
         const line = named(text)
-        return line === '' ? repo : concat(repo)(line)
+        return line === '' ? repo : against(repo, line)
     }),
     e => isNotFound(e) ? pureOk(repo) : pureError(e))
 
@@ -78,7 +101,7 @@ const commonOf = repo => catchStep(
 const tryGitdir = (worktree, text) => {
     if (!text.startsWith(gitdir)) { return null }
     const line = named(text.slice(gitdir.length))
-    return line === '' ? null : concat(worktree)(line)
+    return line === '' ? null : against(worktree, line)
 }
 
 /**
