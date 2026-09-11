@@ -236,6 +236,10 @@ const map = {
     '===': o2((a, b) => a === b),
     '=>': (x, [, frameExp, body]) => {
         const frame = vm(x)(frameExp)
+        // The body is a new invocation, so it starts with nothing
+        // established: the enclosing `memo` does not cross the boundary, the
+        // same way the model's per-invocation memo does not. The captured
+        // frame is a value and crosses as one.
         /**@type {(...arg: readonly unknown[]) => unknown}*/
         return (...args) =>vm({ frame, args })(body)
     },
@@ -320,6 +324,7 @@ const map = {
 }
 
 export const vm = (/**@type {Context}*/context) => {
+    const { memo } = context
     const compute =
         /**
          * Generic over the tag, not `(e: ExpOp) =>`: with a union-typed `e`,
@@ -332,7 +337,13 @@ export const vm = (/**@type {Context}*/context) => {
          * ) => unknown}
          */
         e => map[e[0]](context, e)
-    return (/**@type{Exp}*/e) => e instanceof Array
-        ? compute(e)
-        : e
+    return (/**@type{Exp}*/e) => {
+        if (!(e instanceof Array)) { return e }
+        // By identity, and before dispatch: an established node is a value
+        // this walk does not recompute, which is the only way one node
+        // reached twice can be one object here. `find` and not a `Map`
+        // because a caller supplies the few nodes it knows are shared.
+        const established = memo?.find(([n]) => n === e)
+        return established === undefined ? compute(e) : established[1]
+    }
 }
