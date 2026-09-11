@@ -214,6 +214,22 @@ const booleanExtensions = ['preciousobjects', 'worktreeconfig']
 /** The words Git reads as a boolean, lowercased. */
 const booleans = /** @type {readonly string[]} */ (['true', 'false', 'yes', 'no', 'on', 'off', ''])
 
+/**
+ * The radix a letter after a leading `0` names, however cased, and none
+ * where the letter is neither: `0x1f` is hexadecimal and `0b11` is binary,
+ * where `017` is octal by the `0` alone.
+ *
+ * The binary one is not C's. `strtoimax` reads a number in base 0 by C's
+ * grammar, which has decimal, octal and hexadecimal and no binary, and the
+ * `0b` is an extension glibc added in 2.38. So Git reads
+ * `repositoryformatversion = 0b1` as version 1 where it is built against a
+ * glibc that new — which is what the Git this module is measured against
+ * does — and as a bad numeric value where it is built against a library
+ * without it. There is no reading that suits both, and this takes the one
+ * the measurements are of.
+ */
+const prefixes = /** @type {StringMap<bigint>} */ ({ b: 2n, x: 16n })
+
 /** What a `k`, `m` or `g` after a number scales it by, however cased. */
 const factors = /** @type {StringMap<bigint>} */ ({
     k: 1024n,
@@ -287,9 +303,10 @@ const tryDigits = (digits, radix) => digits.length === 0
 /**
  * The number a value spells as Git's parser reads one, or `null` where it
  * spells none. The grammar is C's own, since `strtoimax` is what reads it:
- * whitespace, then an optional sign, then `0x` before hexadecimal digits, a
- * leading `0` before octal ones, or decimal ones, then an optional `k`, `m`
- * or `g` scaling it. `08` spells no number, its `8` being no octal digit,
+ * whitespace, then an optional sign, then `0x` before hexadecimal digits,
+ * `0b` before binary ones — see {@link prefixes} for whose extension that
+ * is — a leading `0` before octal ones, or decimal ones, then an optional
+ * `k`, `m` or `g` scaling it. `08` spells no number, its `8` being no octal digit,
  * and neither does one too large for the `int` it is read into — both are
  * values Git refuses.
  *
@@ -308,10 +325,13 @@ const tryInt = value => {
     const signed = text[0] === '+' || text[0] === '-' ? text.slice(1) : text
     const unit = factors[signed.slice(-1).toLowerCase()]
     const body = unit === undefined ? signed : signed.slice(0, -1)
-    const hex = body[0] === '0' && (body[1] === 'x' || body[1] === 'X')
+    const marked = body[0] === '0' ? prefixes[body[1]?.toLowerCase()] : undefined
     // A leading `0` is an octal digit as well as the mark of the base, so
-    // it stays in the digits and `0` alone is the number it spells.
-    const n = hex ? tryDigits(body.slice(2), 16n) : tryDigits(body, body[0] === '0' ? 8n : 10n)
+    // where no letter follows it, it stays in the digits and `0` alone is
+    // the number it spells.
+    const n = marked === undefined
+        ? tryDigits(body, body[0] === '0' ? 8n : 10n)
+        : tryDigits(body.slice(2), marked)
     if (n === null) { return null }
     const scaled = n * (unit ?? 1n)
     return scaled > maxInt ? null : text[0] === '-' ? -scaled : scaled

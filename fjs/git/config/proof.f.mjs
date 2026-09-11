@@ -269,7 +269,7 @@ export const proof = {
             assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), 20)
         }
         // A number in C's own bases, signed or not, scaled by a unit or not.
-        for (const v of ['0', '1', '-1', '+5', '017', '-017', '0x1f', '0X1f', '0xFF', '1k', '1K', '1m', '1g', '2097151k', '2147483647', '-2147483647']) {
+        for (const v of ['0', '1', '-1', '+5', '017', '-017', '0x1f', '0X1f', '0xFF', '0b1', '0B11', '0b1k', '1k', '1K', '1m', '1g', '2097151k', '2147483647', '-2147483647']) {
             assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), 20)
         }
         // A boolean reads a number the same way, whitespace and all, where
@@ -283,7 +283,7 @@ export const proof = {
         }
         // `8` is no octal digit, `0x` and `k` spell no number, and a number
         // too large for the `int` Git reads it into is none either.
-        for (const v of ['08', '0x', 'k', '-', '1kb', '8g', '2097152k', '2147483648', '-2147483648', '9999999999999999999999']) {
+        for (const v of ['08', '0x', '0b', '0b2', 'k', '-', '1kb', '8g', '2097152k', '2147483648', '-2147483648', '9999999999999999999999']) {
             assertEq(tryOidBytes(extension(0, 'preciousObjects', v)), null)
         }
     },
@@ -299,6 +299,16 @@ export const proof = {
         // wider than the parser's by a `\v` and a `\f`. It comes off the
         // front alone, so a trailing space is read as a unit and refuses
         // the file.
+        // `0b` is binary, which is glibc's extension to C's grammar rather
+        // than Git's own, and the Git measured here is built against one
+        // that has it.
+        for (const v of ['0b1', '0B1', '" 0b1"']) {
+            assertEq(tryOidBytes(extension(v, 'objectFormat', 'sha256')), 32)
+        }
+        assertEq(tryOidBytes(extension('-0b1', 'objectFormat', 'sha256')), 20)
+        for (const v of ['0b10', '0b11', '0b1k', '0b', '0b2']) {
+            assertEq(tryOidBytes('[core]\n\trepositoryformatversion = ' + v), null)
+        }
         for (const v of ['" 1"', '"\t1"', '"\v1"', '"\f1"', '"\r1"', '"  +1"', '" 0x1"']) {
             assertEq(tryOidBytes(extension(v, 'objectFormat', 'sha256')), 32)
         }
