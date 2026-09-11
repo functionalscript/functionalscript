@@ -41,7 +41,9 @@ what a grammar can and cannot do for the formats.
   host's `inflate` effect and past its envelope: the one place a real
   repository meets the decoder.
 - [`config/`](config/module.f.mjs) — the repository's `config` as
-  `(section, key, value)` entries, and the id width it names:
+  `(section, key, value)` entries, read a character at a time as Git's own
+  parser reads it — quoted values and their escapes, a header that ends
+  mid-line, a key without a value — and the id width it names:
   `extensions.objectFormat` absent is SHA-1, `sha256` under
   `repositoryformatversion = 1` is SHA-256, and what Git refuses is
   refused.
