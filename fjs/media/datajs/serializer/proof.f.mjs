@@ -4,6 +4,9 @@
  */
 
 import { assert, assertEq } from '../../../asserts/module.f.mjs'
+import { errorMask } from '../../../text/code_point/module.f.mjs'
+import { stringToCodePointList } from '../../../text/utf16/module.f.mjs'
+import { toArray } from '../../../types/list/module.f.mjs'
 import { invert, unwrap } from '../../../types/result/module.f.mjs'
 import { concat } from '../../../types/string/module.f.mjs'
 import { parse } from '../parser/module.f.mjs'
@@ -17,15 +20,33 @@ const text = value => unwrap(tryStringify(value))
 const refused = value => unwrap(invert(tryStringify(value)))
 
 /**
+ * Whether every code point of a document is a scalar value — no unpaired
+ * surrogate, which `stringToCodePointList` tags with `errorMask`.
+ *
+ * A document **is UTF-8**, and a lone surrogate has no encoding, so this is
+ * a property of the output that a round trip through the reader cannot
+ * check: the reader takes UTF-16 code units and accepts a raw surrogate, so
+ * a writer emitting one raw would read back as the value it was given and
+ * still not have written a document.
+ *
+ * @type {(text: string) => boolean}
+ */
+const isUtf8 = text => toArray(stringToCodePointList(text)).every(codePoint => (codePoint & errorMask) === 0)
+
+/**
  * The document a value is written as, read back by
  * [the reader](../parser/module.f.mjs) and compared with the value itself —
  * sharing included, since `difference` compares containers as a bijection.
  * This is the conformance criterion: a document that denotes the input
- * graph.
+ * graph, and one that is a document at all.
  *
  * @type {(value: Unknown) => void}
  */
-const denotes = value => assertEq(difference(value)(unwrap(parse(text(value)))), null)
+const denotes = value => {
+    const document = text(value)
+    assert(isUtf8(document), document)
+    assertEq(difference(value)(unwrap(parse(document))), null)
+}
 
 /** An empty array a `const` may hold, which `[]` alone types as an evolving array. @type {Unknown} */
 const emptyArray = /** @type {readonly Unknown[]} */ ([])
@@ -142,7 +163,11 @@ export const proof = {
         denotes(shared)
         denotes([shared, shared])
         denotes({ 2: 0, 1: 0, b: emptyArray, ['__proto__']: null })
+        // a lone surrogate is written as its escape, so the document stays
+        // UTF-8 — `isUtf8` above is what makes that an assertion rather than
+        // a reading of the expected string
         denotes([-0, NaN, Infinity, '\ud800', true])
+        denotes({ ['\ud800']: '\udfff' })
         denotes(emptyArray)
         // a `const` holding the computed key, which is the one place the
         // spelling has to survive a statement rather than the export. The
