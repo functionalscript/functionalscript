@@ -29,6 +29,9 @@ const $n27 = {};
 const $n28 = {};
 const $s1 = [1, 2];
 const $n29 = [1];
+const $n30 = ["\u2028", "\ud800", "\u0000"];
+const $n31 = {"\u2028": 0};
+const $n32 = [0];
 export default [
     {"id": "norm-string-escape-quote", "class": "string/escape/quote", "input": "\"", "text": "export default \"\\\"\";"},
     {"id": "norm-key-escape-quote", "class": "key/string/escape/quote", "input": {"\"": 0}, "text": "export default {\"\\\"\":0};"},
@@ -246,5 +249,8 @@ export default [
     {"id": "norm-shared-three-paths", "class": "const/shared/three-paths", "input": [$n29, {"a": $n29}, {"b": [$n29]}], "text": "const $0=[1];export default [$0,{\"a\":$0},{\"b\":[$0]}];"},
     {"id": "norm-unshared-object-parent-array", "class": "array/unshared/equal", "input": {"a": [1], "b": [1]}, "text": "export default {\"a\":[1],\"b\":[1]};"},
     {"id": "norm-unshared-object-parent-object", "class": "object/unshared/equal", "input": {"a": {"x": 0}, "b": {"x": 0}}, "text": "export default {\"a\":{\"x\":0},\"b\":{\"x\":0}};"},
-    {"id": "norm-key-raw-ws-like-2028-nested", "class": "key/string/raw/ws-like/2028", "input": {"a": {"\u2028": 0}}, "text": "export default {\"a\":{\"\u2028\":0}};"}
+    {"id": "norm-key-raw-ws-like-2028-nested", "class": "key/string/raw/ws-like/2028", "input": {"a": {"\u2028": 0}}, "text": "export default {\"a\":{\"\u2028\":0}};"},
+    {"id": "norm-const-body-escaping-values", "class": "const/shared/twice", "input": [$n30, $n30], "text": "const $0=[\"\u2028\",\"\\ud800\",\"\\u0000\"];export default [$0,$0];"},
+    {"id": "norm-const-body-escaping-key", "class": "const/shared/object", "input": [$n31, $n31], "text": "const $0={\"\u2028\":0};export default [$0,$0];"},
+    {"id": "norm-key-proto-value-shared", "class": "key/proto/value/shared", "input": {["__proto__"]: $n32, "a": $n32}, "text": "const $0=[0];export default {[\"__proto__\"]:$0,\"a\":$0};"}
 ];

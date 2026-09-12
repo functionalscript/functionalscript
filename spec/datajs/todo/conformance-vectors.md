@@ -1906,9 +1906,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 217 records in
-      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 53 scope
-      records answering the 516 cells its column owes and one `['set',
+- [x] **Normalize.** Landed as 220 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 54 scope
+      records answering the 515 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
       the 50 classes this set introduced. The proof reads every text back
       through the reader, which is the run-through-the-accept-grammar check
@@ -1920,7 +1920,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 113,263 bytes of the bit
+      being refused outright. The matrix stands at 113,696 bytes of the bit
       vector's 131,072, which is 87% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -1974,7 +1974,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `\u2028` for `["\u2028"]` and passed, and one with a separate recursive
       key emitter did the same for `{"a":{"\u2028":0}}`. The two `every-value`
       aggregates now carry a whitespace-like character, a lone surrogate and a
-      control among their leaves, and a nested key carries the first.
+      control among their leaves, and a nested key carries the first. Two
+      positions more after that: the body of a hoisted `const`, where a writer
+      with its own emitter for one escapes what belongs raw and every shared
+      container in the set held ordinary keys and numbers; and a value behind
+      the proto key, where a writer that inlines it instead of naming the shared
+      node emits two arrays where the graph has one. Three vectors, and the
+      proto exemption narrows from a subtree to the two classes under it that
+      really are ordinary value coverage.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
