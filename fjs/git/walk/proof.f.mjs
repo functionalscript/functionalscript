@@ -271,12 +271,22 @@ const name = latin1
 /** @type {(e: TreeEntry) => readonly [number, string, string]} */
 const seen = e => [mode(e), codePointListToString(e.name), hex(e.oid)]
 
-/** An id the hex digits of a number spell, at 20 bytes. */
-const idOf = /** @type {(k: number) => Oid} */ (k => {
-    const v = tryFromHex(latin1(hexOf(k)))
+/** The id a string of hex digits spells, at whatever width it is long. */
+const idAt = /** @type {(hex: string) => Oid} */ (hex => {
+    const v = tryFromHex(latin1(hex))
     assert(v !== null)
     return v
 })
+
+/** An id the hex digits of a number spell, at 20 bytes. */
+const idOf = /** @type {(k: number) => Oid} */ (k => idAt(hexOf(k)))
+
+/**
+ * An id of 32 bytes: the width a SHA-256 repository uses, and not this
+ * walk's. Which digits it spells says nothing, since the width is refused
+ * before any object is asked for.
+ */
+const wideId = idAt('8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f')
 
 /** The 40 hex digits a number spells, as an id is written. */
 const hexOf = /** @type {(k: number) => string} */ (k => k.toString(16).padStart(40, '0'))
@@ -487,5 +497,18 @@ export const proof = {
         const [log, r] = runHost(entryOf(commitId, [name('mod'), name('x')]))
         assertStructurallySame(r, ['ok', null])
         assertStructurallySame(log, [at(commitId), at(rootId)])
+    },
+    throw: {
+        // A 32-byte id in a 20-byte walk is a caller's bug, not an object
+        // that is not there. Over `liar`, which answers any id without
+        // looking at its width: the store's `Read` has the same check of
+        // its own, so a walk over that one would throw whatever this does.
+        // `tryEntries` and `tryEntry` start at `peel` and inherit its
+        // check, so the two below pin what they inherit, not a second one.
+        width: () => peel(liar, 20)(wideId),
+        entriesWidth: () => tryEntries(liar, 20)(wideId),
+        // With a component, since a path of none answers before the id is
+        // read and so is the one call of the three that does not throw.
+        entryWidth: () => tryEntry(liar, 20)(wideId, [name('a.txt')]),
     },
 }
