@@ -2542,7 +2542,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       Node's and is not a global everywhere the suite runs, and the one
       byte-form document goes straight to `btoa` as the bytes it is, with no
       encode between it and the engine.
-      **Eight of the 393 cannot be carried to an engine at all**, and they
+      **Eight of the 394 cannot be carried to an engine at all**, and they
       are named rather than skipped. A document holding an unpaired
       surrogate has no UTF-8 encoding, so no `data:` URL and no file can
       hold it; encoding it anyway substitutes U+FFFD and quietly checks a
@@ -2551,7 +2551,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a silent fall in the count. The corpus can hold them at all only
       because it is JavaScript, where the data module writes the escape and
       the string denotes the unit.
-      385 checked, every one denoting the graph its vector asserts, the count
+      386 checked, every one denoting the graph its vector asserts, the count
       asserted against the set's own length rather than written down. The
       FunctionalScript half of the law is stage 6's, once stage 5 has taught
       the front end `;` and the special numbers.
