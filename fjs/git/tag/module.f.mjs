@@ -26,12 +26,13 @@
  */
 
 import { assert, assertNotNullish } from '../../asserts/module.f.mjs'
-import { ascii, byteArray, byteLength } from '../../ebnf/byte/module.f.mjs'
+import { byteArray, byteLength } from '../../ebnf/byte/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
 import { hasNulHeader, tryRead as readPayload, valueAt, write as writePayload } from '../header/module.f.mjs'
 import { tryRead as readIdent } from '../ident/module.f.mjs'
 import { objectTypes } from '../object/module.f.mjs'
+import { isName } from '../refname/module.f.mjs'
 import { tryFromHex, tryFromHexOf } from '../oid/module.f.mjs'
 
 /**
@@ -84,77 +85,6 @@ const typeOf = value => {
 
 /** The byte a line ends with, and the one a folded continuation leaves in a value. */
 const lf = /** @type {const} */ (0x0A)
-
-const dot = /** @type {const} */ (0x2E)
-
-const slash = /** @type {const} */ (0x2F)
-
-const at = /** @type {const} */ (0x40)
-
-const brace = /** @type {const} */ (0x7B)
-
-const del = /** @type {const} */ (0x7F)
-
-/** The bytes a ref name may not hold, besides the control characters. */
-const forbidden = ascii(' ~^:?*[\\')
-
-const lock = ascii('.lock')
-
-/**
- * Whether two bytes sit next to each other in a name, in that order.
- *
- * @type {(name: readonly number[], a: number, b: number) => boolean}
- */
-const holdsPair = (name, a, b) => name.some((x, i) => i !== 0 && name[i - 1] === a && x === b)
-
-/**
- * Whether a component of a ref name, between slashes, is one: not empty,
- * not beginning with `.`, not ending in `.lock`.
- *
- * @type {(component: readonly number[]) => boolean}
- */
-const isComponent = component =>
-    component.length !== 0
-    && component[0] !== dot
-    && !(component.length >= lock.length && lock.every((b, i) => component[component.length - lock.length + i] === b))
-
-/**
- * The components of a name, between its slashes: the bytes before the
- * first, between each two, and after the last, so a name with none is one
- * component and `a//b` has an empty one. Sliced once each, not grown byte
- * by byte, since a name is as long as its author made it.
- *
- * @type {(name: readonly number[]) => readonly (readonly number[])[]}
- */
-const components = name => {
-    const slashes = name.flatMap((b, i) => b === slash ? [i] : [])
-    /** @type {readonly number[]} */
-    const starts = [0, ...slashes.map(i => i + 1)]
-    /** @type {readonly number[]} */
-    const ends = [...slashes, name.length]
-    return starts.map((start, i) => name.slice(start, ends[i]))
-}
-
-/**
- * Whether a name is one `refs/tags/` takes, by the rules of
- * `git check-ref-format` over `refs/tags/<name>`: no control character,
- * no space and none of
- * `~ ^ : ? * [ \`, no `..` and no `@{`, not ending in `.`,
- * and every component between slashes one {@link isComponent} takes. A
- * name that is `@` alone passes, since the ref it names is `refs/tags/@`
- * and not `@`. `git fsck` only warns of a tag named otherwise, as
- * `badTagName`, and exits clean; `git mktag`, strict by default, refuses to
- * write it. This module refuses it too, since a name no ref takes names
- * nothing.
- *
- * @type {(name: readonly number[]) => boolean}
- */
-const isTagName = name =>
-    name.every(b => b >= 0x20 && b !== del && !forbidden.includes(b))
-    && !holdsPair(name, dot, dot)
-    && !holdsPair(name, at, brace)
-    && name[name.length - 1] !== dot
-    && components(name).every(isComponent)
 
 /**
  * The id the `object` header names: the first header, a hex id.
@@ -331,7 +261,7 @@ export const validate = oidBytes => {
         if (typeOf(typeValue) === null) { return error('unknown type') }
         const nameValue = valueAt(t, 2, 'tag')
         if (nameValue === null) { return error('no tag name') }
-        if (!isTagName(byteArray(nameValue))) { return error('bad tag name') }
+        if (!isName(nameValue)) { return error('bad tag name') }
         const taggerValue = valueAt(t, 3, 'tagger')
         return taggerValue !== null && readIdent(taggerValue) === null ? error('not a tagger') : ok(t)
     }

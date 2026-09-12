@@ -122,6 +122,14 @@ const $h34 = {"a": 0, "\udbff\udbff": 1};
 const $h35 = {"a": 0, "\udfff\udbff": 1};
 const $h36 = {"a": 0, "\udfff\udfff": 1};
 const $h37 = {"a": 0, "\ud800\udbff": 1};
+const $u0 = [1];
+const $v0 = [0, $u0];
+const $u1 = [1];
+const $v1 = {"a": 0, "b": $u1};
+const $u2 = [0];
+const $v2 = {"x": $u2, ["__proto__"]: $u2};
+const $u3 = [0];
+const $v3 = {["__proto__"]: $u3, "x": $u3};
 export default [
     {"id": "ser-null", "class": "leaf/null", "input": null},
     {"id": "ser-true", "class": "leaf/boolean/true", "input": true},
@@ -337,5 +345,9 @@ export default [
     {"id": "ser-const-body-every-slot-array", "class": "const/shared/twice", "input": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15, $f16, $f16, $f17, $f17, $f18, $f18, $f19, $f19, $f20, $f20, $f21, $f21, $f22, $f22, $f23, $f23, $f24, $f24, $f25, $f25, $f26, $f26, $f27, $f27, $f28, $f28, $f29, $f29, $f30, $f30, $f31, $f31, $f32, $f32, $f33, $f33, $f34, $f34]},
     {"id": "ser-const-body-every-slot-object", "class": "const/shared/object", "input": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15, $g16, $g16, $g17, $g17, $g18, $g18, $g19, $g19, $g20, $g20, $g21, $g21, $g22, $g22, $g23, $g23, $g24, $g24, $g25, $g25, $g26, $g26, $g27, $g27, $g28, $g28, $g29, $g29, $g30, $g30, $g31, $g31, $g32, $g32, $g33, $g33, $g34, $g34]},
     {"id": "ser-shared-object-escaping-key-every-slot", "class": "const/shared/object", "input": [$h0, $h0, $h1, $h1, $h2, $h2, $h3, $h3, $h4, $h4, $h5, $h5, $h6, $h6, $h7, $h7, $h8, $h8, $h9, $h9, $h10, $h10, $h11, $h11, $h12, $h12, $h13, $h13, $h14, $h14, $h15, $h15, $h16, $h16, $h17, $h17, $h18, $h18, $h19, $h19, $h20, $h20, $h21, $h21, $h22, $h22, $h23, $h23, $h24, $h24, $h25, $h25, $h26, $h26, $h27, $h27, $h28, $h28, $h29, $h29, $h30, $h30, $h31, $h31, $h32, $h32, $h33, $h33, $h34, $h34, $h35, $h35, $h36, $h36, $h37, $h37]},
-    {"id": "ser-key-proto-value-shared-later", "class": "key/proto/value/shared", "input": {"x": $t0, ["__proto__"]: $t0}}
+    {"id": "ser-key-proto-value-shared-later", "class": "key/proto/value/shared", "input": {"x": $t0, ["__proto__"]: $t0}},
+    {"id": "ser-nested-later-element", "class": "const/shared/nested", "input": [$v0, $v0, $u0]},
+    {"id": "ser-nested-later-member", "class": "const/shared/nested", "input": [$v1, $v1, $u1]},
+    {"id": "ser-proto-shared-body-later", "class": "key/proto/value/shared", "input": [$v2, $v2, $u2]},
+    {"id": "ser-proto-shared-body-first", "class": "key/proto/value/shared", "input": [$v3, $v3, $u3]}
 ];
