@@ -2075,6 +2075,24 @@ The steps, in order; a step is one pull request unless it says otherwise:
       Three vectors put the negative zero, the bigint and the infinity in the
       first slot here, added in the round that fixed the other column rather
       than the round after it.
+      The seven non-index key vectors then turned out to be built the wrong
+      way, in both writer sets. Each paired its key with a numerically *equal*
+      index, and a writer that classifies any numeric-looking key as an index
+      sorts two equal ones stably, so six of the seven could not tell it from a
+      correct one. Each now carries an ordinary name, the key and a real index.
+      A vector for a classification has to be built against the
+      misclassification; containing the value is not enough, and pairing with
+      an equal index was the choice that looked careful and made the check
+      vacuous.
+      Two descriptions were stale for the usual reason. This set's proof still
+      said it checks what can be checked *before* stage 4's serializer exists,
+      when its `shipped` case runs that serializer over every vector, and the
+      schema still said the `normalize` set is not in the tree, which is true
+      one step down and not here. Both say what they do now.
+      And the specification's parsing status said a document parses today
+      without saying which document: the landed entry point takes a string, so
+      the byte path of §Layout, refusing invalid UTF-8 and a leading BOM, is
+      still to come, and the byte-form vectors are what require it.
       **And one thing the matrix does not mean**, which review read the other
       way and a consumer could too. `serializer.md` states that a normalized
       writer owes `serializer-accept` and `graph-equivalence` besides

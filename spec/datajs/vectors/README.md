@@ -46,11 +46,10 @@ The writer has landed, so those three name an implementation that exists
 rather than one to come. What each set's own `proof.f.mjs` does is narrower
 than the column: it proves the set's shape, and for graph equivalence also
 that every `denotes` claim is true and every `denotesNot` one false, read
-back through the reader. Nothing here runs a set against the writer: the
-`normalize` set, which lands in the step above and whose proof does run it
-over every vector, is not in this tree yet, and `serializer-accept` and
-`graph-equivalence` have no such proof at all, so a harness is what closes
-those two.
+back through the reader. The `normalize` set's proof goes further and runs
+the shipped writer over every vector, comparing its output with the text.
+`serializer-accept` and `graph-equivalence` have no such proof, so a harness
+is what closes those two.
 
 One directory holds no vectors: `not-applicable/` carries the reasons the
 matrix below needs. A record answers a **scope** rather than a single cell —

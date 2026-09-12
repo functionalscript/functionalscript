@@ -52,10 +52,11 @@ const spelling = input => {
         : null
 }
 
-// The set's shape, and what can be checked of its claim before stage 4's
-// normalized serializer exists to make it. Two halves: the text is a
-// document denoting the input, which the reader answers, and the text spells
-// its strings the one way the rule admits, which the reader cannot.
+// The set's shape and three checks of its claim, each seeing what the others
+// cannot: the text is a document denoting the input, which the reader
+// answers; the text spells its strings the one way the rule admits, which
+// the reader cannot, since an escape and a raw character denote one string;
+// and the shipped normalized serializer emits it, byte for byte.
 export const proof = {
     // Every vector names itself and its class with a non-empty string.
     named: () => { for (const vector of set) { named(vector, 'id'); named(vector, 'class') } },
