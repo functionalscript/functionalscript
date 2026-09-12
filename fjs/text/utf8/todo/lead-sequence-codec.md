@@ -32,10 +32,13 @@ return [input & 0b01111_1111]
 ```
 
 is a **nine**-bit mask (`=== 255`), not the 7-bit `0b0111_1111` the
-branch means; the guard above happens to bound `input` to `0..0x7f`, so
-nothing catches it, and no proof pins that mask independently of the
-guard. (`isLeadByte` at `:93` similarly open-codes a range two lines
-after the named `contains` form the neighbouring modules use.)
+branch means. The guard above bounds `input` to `0..0x7f`, so the two
+masks are indistinguishable through every public path — which is exactly
+why no proof caught it, and why none can: the defect is unobservable by
+construction. What the tree is missing is not a proof but a *name*, so
+that the constant reads as what it means. (`isLeadByte` at `:93`
+similarly open-codes a range two lines after the named `contains` form
+the neighbouring modules use.)
 
 ### Proposal
 
@@ -45,16 +48,20 @@ Two private helpers beside the tag/mask table: a builder
 bytes, and its inverse `payload = mask => bytes => …` folding
 `((b0 & mask) << 6*n) + Σ contPayload(bi) << 6*j`. The eight emit
 returns become `seq` calls (the one-byte case becomes `seq(0, asciiMask,
-0)`, which forces the mask to be named and fixes `:120`'s spelling), and
-the six accumulate arms become `payload` calls plus the error flag.
-Prove byte-identical output against the existing proof corpus first.
+0)` with `asciiMask = 0b0111_1111` named in the tag/mask table, which is
+where `:120`'s spelling is corrected), and the six accumulate arms become
+`payload` calls plus the error flag. Both helpers stay private: the
+existing proof corpus pins their output through the public codec, and
+that is the proof this change owes — byte-identical encoding and decoding
+before and after. The ASCII mask itself is not separately provable
+without a proof-only export, which the repository forbids; naming it
+correctly is the whole of that fix.
 
 ### Tasks
 
-- [ ] Add `seq`/`payload`; rewrite the fourteen sites; name the 7-bit
-      ASCII mask.
-- [ ] Pin the ASCII mask in the proof independently of the range guard.
-- [ ] `tsc`, `fjs test`.
+- [ ] Add `seq`/`payload` as private helpers; rewrite the fourteen sites;
+      name `asciiMask` at its correct 7-bit width.
+- [ ] `tsc`, `fjs test` — the existing corpus is the byte-identity proof.
 
 ### Related
 

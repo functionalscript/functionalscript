@@ -42,18 +42,27 @@ Neither copy is a blind swap, which is the part worth writing down:
 
 ### Proposal
 
-Give the offsets one owner without changing either behaviour. Either
-export the named offsets (`digit0`-relative, `'a' - 10`, `'A' - 10`) from
-`fjs/text/ascii` and build `hexBase` and the lowercase decoder from them,
-or export a lowercase-only decoder beside `hexDigitValue` for `vectors`
-and let `json/parser` call `hexDigitValue` with an `assertNotNullish`
-(the grammar guarantees success). Decide in the PR; what must not survive
-is a third spelling of `- 0x57` with no link to the module that names it.
+Give the offsets one owner without changing either behaviour, through
+**one new export**: a lowercase-only decoder beside `hexDigitValue` in
+`fjs/text/ascii`,
+
+```ts
+/** The value of a lowercase hex digit, or `null`: `hexDigitValue` without `A-F`. */
+export const lowerHexDigitValue: (codePoint: number) => Nullable<number>
+```
+
+which `vectors` uses in place of its own (reading `null` where it read
+`-1`), while `json/parser` drops `hexBase` and calls the existing
+`hexDigitValue` with an `assertNotNullish` — the grammar branch already
+guarantees the digit is one. Publishing the three offsets themselves was
+weighed and rejected: they are a representation detail of the codec, and
+exporting them would invite a fourth hand-rolled decoder rather than end
+the third. The `ascii` module doc's ownership claim then holds.
 
 ### Tasks
 
-- [ ] Pick the sharing shape; rewrite both `hexDigit`s through
-      `fjs/text/ascii` exports, proofs unchanged (lowercase-only stays
+- [ ] Add `lowerHexDigitValue` to `fjs/text/ascii` with a proof; rewrite
+      both `hexDigit`s, proofs unchanged (lowercase-only stays
       lowercase-only).
 - [ ] `tsc`, `fjs test`.
 

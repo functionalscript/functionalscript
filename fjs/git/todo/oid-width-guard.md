@@ -11,7 +11,7 @@ way to ask. Four modules re-derive `BigInt(oidBytes) * 8n`, two with a
 byte-identical assertion:
 
 ```js
-// store/module.f.mjs:124-126                // walk/module.f.mjs:171-173
+// store/module.f.mjs:131-133                // walk/module.f.mjs:171-173
 const bits = BigInt(oidBytes) * 8n           const bits = BigInt(oidBytes) * 8n
 assert(length(id) === bits,                  assert(length(id) === bits,
     ['not an id of the width', id])              ['not an id of the width', id])

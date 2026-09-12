@@ -26,15 +26,20 @@ which would leave this module as a block renderer it is not named after.
 
 ### Proposal
 
-Either move `flat`/`Block`/`Item` to their own module (`fjs/text/block/`)
-with their proof case, leaving `fjs/text` as the UTF-8/string boundary
-its importers actually consume — or, since no production consumer exists
-at all, delete them as speculative code, per the design rule that an
-extraction waits for its second real consumer. Decide before
-`vec-to-code-point-pipeline` lands; its "does `utf8ToString` move?"
-question has an obvious answer once `flat` is gone.
+**Delete** `flat`, `Block`, and `Item`, with their proof case. No
+production consumer exists, so the design rule applies — an extraction
+waits for its second real consumer, and this one never had a first.
+Moving them to `fjs/text/block/` would keep a public module nothing
+imports, which is the same speculative surface under a better name. They
+are exported from `module.f.mjs`/`types.ts`, so this is a declared
+breaking change with a `Changelog:` entry; if a block renderer is wanted
+later, it is written next to its consumer, and `git log` keeps this one.
+`fjs/text` is then the UTF-8/string boundary its ~25 importers actually
+consume, and `vec-to-code-point-pipeline`'s "does `utf8ToString` move?"
+question has an obvious answer.
 
 ### Tasks
 
-- [ ] Decide move-vs-delete; do it; proof follows.
+- [ ] Delete `flat`/`Block`/`Item` and their proof case; fix the module
+      doc's first line; declare the break.
 - [ ] `tsc`, `fjs test`.

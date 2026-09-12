@@ -43,16 +43,22 @@ bodies the type checker will not keep in sync.
 Extract one private magnitude pipeline —
 `roundedMagnitude = precision => minExp => ([dm, de]) => …` doing
 scale → pick `k` → round → renormalize — behind one sign/zero wrapper (a
-generalized `withSign` that also owns the `dm === 0n` early return).
-`tryDecToFormat` adds only the `maxExp` overflow guard; `decToBin`
+generalized `withSign`) that owns **both** zero cases: the `dm === 0n`
+early return on the way in, and the canonical `[0n, 0]` for a nonzero
+input that rounds to zero on the way out — today's post-rounding
+`m === 0n` branch in `tryDecToFormat`, which the proof pins for both
+signs (`[1n, -1200]` and `[-1n, -1200]` are `[0n, 0]`). A rounded zero
+must never leave the wrapper carrying the rounding exponent.
+`tryDecToFormat` then adds only the `maxExp` overflow guard; `decToBin`
 becomes the helper at `binary64.precision` with an unbounded `minExp`
 (`-Infinity`, which `Math.max` absorbs). One body, one place for the
-rounding argument.
+rounding argument, one place for canonical zero.
 
 ### Tasks
 
-- [ ] Extract the pipeline; re-express both exports; proofs pass
-      unchanged.
+- [ ] Extract the pipeline and the zero-canonicalizing wrapper;
+      re-express both exports; proofs pass unchanged, the underflow rows
+      included.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

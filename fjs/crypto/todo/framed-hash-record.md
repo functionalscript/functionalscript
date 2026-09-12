@@ -33,18 +33,28 @@ instances of that fold in the tree.
 
 ### Proposal
 
-Export the factory from `sha2` beside `framing`, generalized over the
-initial word vector: take the `{ append, end, chunkLength }` a
-`framing({...})` call returns plus `init`'s hash words and `hashLength`,
-and build the record once. `sha1` then calls it instead of writing the
-literal. In the same pass move `ch`/`maj` and a width-parameterized word
-packer to module scope in `sha2` and import them in `sha1`, which
-already imports `framing` from there.
+Export three names from `fjs/crypto/sha2/module.f.mjs` beside `framing`:
+
+```ts
+/** The `Hash` record over a framing and its initial words: the one place the rounding contract lives. */
+export const framed: <H>(f: { append, end, chunkLength }, hash: H, hashLength: bigint) => Hash<…>
+/** The bigint the words spell, most significant first, each `wordLength` bits wide. */
+export const fromWords: (wordLength: bigint) => (words: readonly bigint[]) => bigint
+```
+
+plus `ch` and `maj` under the names they already have. `framed` is the
+private `sha2` factory generalized over the word vector; `fromWords` is
+what `fromV8` and `fromV5` both are, with the width as a parameter, so
+`sha2`'s `fromV8` becomes `fromWords(bitLength)` and `sha1`'s `fromV5`
+becomes `fromWords(wordLength)`. `sha1` then builds its record by calling
+`framed` instead of writing the literal, importing all four from `sha2`
+as it already imports `framing`.
 
 ### Tasks
 
-- [ ] Export the record factory (and `ch`/`maj`/the word packer) from
-      `fjs/crypto/sha2/module.f.mjs`.
+- [ ] Export `framed`, `fromWords`, `ch`, `maj` from
+      `fjs/crypto/sha2/module.f.mjs`; re-express `sha2`'s own `base`
+      through them.
 - [ ] Rewrite `sha1`'s record and helpers through them; proofs pass
       unchanged.
 - [ ] `tsc`, `fjs test`.
@@ -54,4 +64,4 @@ already imports `framing` from there.
 - [sha1.md](./sha1.md) — asked for "the shape of `sha2`" when `sha1` was
   written; this issue shares the constructor of that shape.
 - [../../sul/todo/186-sul-id-reuse-sha2-fromv8.md](../../sul/todo/186-sul-id-reuse-sha2-fromv8.md)
-  — a third would-be consumer of the exported word packer.
+  — a third would-be consumer of `fromWords`.

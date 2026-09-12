@@ -15,7 +15,7 @@ const typeOf = w => {
 }
 ```
 
-`fjs/git/tag/module.f.mjs:77-83`:
+`fjs/git/tag/module.f.mjs:78-84`:
 
 ```js
 const typeOf = value => {
@@ -37,16 +37,20 @@ why), not a different lookup.
 
 ### Proposal
 
-Export the lookup from `fjs/git/object/module.f.mjs` as the natural
-companion of the already-exported `objectTypes`, e.g.
+Export the lookup from `fjs/git/object/module.f.mjs` under the name
+**`tryType`** — the natural companion of the already-exported
+`objectTypes`, and the `try` prefix the rest of `fjs/git` uses for a
+`Nullable` reader:
 
 ```ts
 /** The object type these bytes spell, or `null`. */
-const tryType: (w: readonly number[]) => Nullable<ObjectType>
+export const tryType: (w: readonly number[]) => Nullable<ObjectType>
 ```
 
-(the envelope reader itself uses it at `object/module.f.mjs:116`). `tag`'s
-`typeOf` then keeps only its two Git-fidelity rules and delegates:
+(the envelope reader itself uses it at `object/module.f.mjs:116`). The
+name is the contract: `tag` and the packfile reader import `tryType`, not
+a renamed private `typeOf`. `tag`'s `typeOf` then keeps only its two
+Git-fidelity rules and delegates:
 
 ```js
 const bs = byteArray(value)
@@ -60,7 +64,7 @@ type, then gets the same entry point rather than a third copy.
 
 ### Tasks
 
-- [ ] Export the lookup from `fjs/git/object/module.f.mjs`; prove it.
+- [ ] Export `tryType` from `fjs/git/object/module.f.mjs`; prove it.
 - [ ] Delegate `tag`'s `typeOf` to it; tag proofs pass unchanged.
 - [ ] `tsc`, `fjs test`.
 

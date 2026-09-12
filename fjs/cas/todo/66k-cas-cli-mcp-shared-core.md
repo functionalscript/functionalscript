@@ -30,6 +30,39 @@ get, list — but with duplicated logic:
 If a new operation or encoding rule is added, both transports must be updated
 separately, with no compile-time guarantee they stay in sync.
 
+**`cas_get`'s inspection policy is the largest single item of that
+inventory.** Every other tool entry in `fjs/mcp` is a name, a description, a
+schema and one line of dispatch (`fjs/mcp/evo/module.f.mjs`; `cas_list` in
+the same file as `cas_get`), but `cas_get`'s handler
+(`fjs/mcp/cas/module.f.mjs:227-301`) is ~75 lines holding the whole
+blob-inspection policy — the streaming-vs-buffered decision, the
+`maxLengthBytes` cap and its message, when a dialect refinement is worth a
+second read, the `text`→`fromVec` / `base64`→`base64Encode` split — none of
+it MCP-specific, and the module doc has grown 45 lines of classification
+prose to match. Inside the handler, the "materialize then re-classify" step
+is written twice, on the metadata path (`:249-259`) and the inline-content
+path (`:269-281`):
+
+```js
+return resultStep(
+    collectRead(c.read(key)),
+    ([collectTag, value]) => {
+        if (collectTag === 'error') { … }        // the one real difference:
+        const refined = detectDialect(value)     // fallback vs error
+        …
+```
+
+and `no such hash` is spelled at `:238` and `:273`. The shared layer's
+`get` is where that policy goes, as one typed inspection returning
+`{ length, mimeType, type }` plus optional `text`/`blob` and a tagged error
+(`absent` / `tooLarge(length)`), with the re-read step one private helper
+and the caller deciding whether a failed second read is a fallback or an
+error. **The `uri` field is not part of that record**: what `uri` is for is
+the open decision in
+[`fjs/mcp/todo/cas-get-uri-discloses-host-path.md`](../../mcp/todo/cas-get-uri-discloses-host-path.md),
+and the MCP adapter shapes it (or omits it) per that decision, so the
+shared layer neither settles nor forecloses it.
+
 > **Scope note (see `remove-local-file-urls-mcp`, implemented — MCP `type:'url'` is gone):** the shared `add`
 > design below originally included a `url` (file-path) source for *both*
 > transports. That issue removes local-path upload from the MCP server — the
@@ -97,6 +130,8 @@ accepted as-is, the same as `cp`.
       CLI-only file-path `add`).
 - [ ] Refactor `casToolRegistry` to delegate to the shared layer (inline only —
       no file-path source; MCP `type:'url'` has already been removed).
+      `cas_get` collapses to registry shape — a `toolResultStep` over the
+      shared inspection, wording unchanged, `uri` shaped by the adapter.
 - [ ] Verify no behaviour change: existing CLI and MCP tests still pass; add
       new tests for the CLI staging flow.
 
@@ -107,3 +142,7 @@ accepted as-is, the same as `cp`.
   file-path source CLI-only
 - `fjs/cas/module.f.mjs` — CLI commands and core types
 - `fjs/mcp/cas/module.f.mjs` — MCP tool registry and server
+- [`fjs/mcp/todo/cas-get-uri-discloses-host-path.md`](../../mcp/todo/cas-get-uri-discloses-host-path.md)
+  — decides what `uri` is; the shared `get` leaves it to the adapter
+- [`fjs/mcp/todo/cas-get-mcp-resource-response.md`](../../mcp/todo/cas-get-mcp-resource-response.md)
+  — gets one place to re-shape once the inspection is a value

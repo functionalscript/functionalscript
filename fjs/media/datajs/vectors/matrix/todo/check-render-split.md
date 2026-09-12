@@ -5,7 +5,7 @@
 
 ### Problem
 
-`matrix` (`module.f.mjs:478`) fuses two independent questions — "is this
+`matrix` (`module.f.mjs:500`) fuses two independent questions — "is this
 corpus well-formed" and "what does its table look like": it runs
 `malformed` first, then collects `roleless`/`unrenderable`/`ambiguous`/
 `duplicated`/`stale` plus the per-row errors, and only then assembles the
@@ -31,19 +31,30 @@ future consumer that wants corpus linting without regenerating
 
 ### Proposal
 
-Export the validation as its own function — `check(corpus): readonly
-string[]` (empty means valid), which is exactly the existing failure
-concatenation plus the `malformed`-first rule — and leave `matrix` as
-"render if `check` came back empty", where the renderer is total because
-`check` passed. `refused` becomes pure presentation used only by
-`program`. The proof then asserts against the array of messages instead
-of a blob, and each validator can be pinned individually.
+Two exported functions with these signatures:
+
+```ts
+/** The corpus's defects; empty where it is well-formed. */
+export const check: (corpus: Corpus) => readonly string[]
+/** The rendered table, or the defects that stop it being rendered. */
+export const matrix: (corpus: Corpus) => Result<string, readonly string[]>
+```
+
+`check` is exactly the existing failure concatenation plus the
+`malformed`-first rule. `matrix` is "render if `check` came back empty":
+its `ok` is unchanged; its `error` carries the **structured list**, not
+today's prose — that is the one observable change, and it is the point.
+`refused` keeps its wording but becomes the presentation `program` applies
+to `matrix`'s error on the way to the effect edge, so the generated file
+and the CLI message are byte-identical to today's. The proof asserts
+against the list, and each validator can be pinned individually.
 
 `write`/`program`/`main` are already the thin effect edge; they are not
 part of this split.
 
 ### Tasks
 
-- [ ] Extract and export `check`; re-express `matrix` through it.
-- [ ] Re-point the proof's `refuses` at `check`'s array.
+- [ ] Export `check`; change `matrix`'s error to `readonly string[]`;
+      move `refused` to `program`.
+- [ ] Re-point the proof's `refuses` at the list.
 - [ ] `tsc`, `fjs test`; `npm run gen` output (`matrix.md`) unchanged.

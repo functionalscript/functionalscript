@@ -37,15 +37,24 @@ home, since `OrderedMap<T> = Tree<Entry<T>>` is defined in terms of it —
 and have `object/types.ts` re-export it, so existing importers are
 unaffected and `object`'s conversion functions are typed with the type
 they actually manipulate. Independently, rename the two unrelated tuples
-to say what they are (`list`'s toward `Indexed<T>`, `range_map`'s toward
-a bounded/up-to name), so `Entry` names one concept in the subtree
-rather than four. Breaking renames are fine when they improve the API;
-update every importer in the same PR.
+so `Entry` names one concept in the subtree rather than four:
+
+- `list/types.ts`: `Entry<T> = readonly [number, T]` becomes
+  **`Indexed<T>`** — an element with its index, which is what `entries`
+  produces.
+- `range_map/types.ts`: `Entry<T> = readonly [T, number]` becomes
+  **`RangeEntry<T>`** — a value with the upper bound of the range it
+  covers; the module's own doc already calls it that in prose.
+
+Both are breaking renames of exported types; they are fine because they
+improve the API, and every importer is updated in the same PR with a
+`Changelog:` entry.
 
 ### Tasks
 
 - [ ] Make `ordered_map` the owner; re-export from `object/types.ts`.
-- [ ] Rename `list`'s and `range_map`'s tuples; update importers.
+- [ ] Rename `list`'s `Entry` to `Indexed` and `range_map`'s to
+      `RangeEntry`; update importers; declare the break.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

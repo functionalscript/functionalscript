@@ -32,9 +32,11 @@ git module reaches past it.
 
 ### Proposal
 
-One shared pair, beside `hexDigitValue` in `fjs/text/ascii/module.f.mjs`
-if the general home is wanted, or in a small `fjs/git` shared module if
-the Git-specific canonicality rule argues against it:
+One shared pair, exported from `fjs/text/ascii/module.f.mjs` beside
+`hexDigitValue`. That module is the owner: it already declares itself the
+home of digit arithmetic over code points, and neither rule is
+Git-specific — JSON refuses a leading zero by the same canonicality rule,
+so a Git-local module would be the second copy waiting to happen.
 
 ```ts
 /** Git's canonical spelling: no leading zero unless the number is zero. */
@@ -51,8 +53,8 @@ helper's refusal. `0x30` then lives once.
 
 ### Tasks
 
-- [ ] Add `isCanonicalDigits`/`digitsValue` with proofs; pick the home
-      (`fjs/text/ascii` vs. a git-local module) in the PR.
+- [ ] Add `isCanonicalDigits`/`digitsValue` to `fjs/text/ascii` with
+      proofs.
 - [ ] Rewrite `object.decimal`, `ident.canonical`/`decimal`, `tree.octal`
       and the two digit-range predicates through them.
 - [ ] `tsc`, `fjs test`.

@@ -35,10 +35,10 @@ mismatched tag.
 Export `textAt` from `fjs/media/json/parser/module.f.mjs` beside
 `stringMappings` — it is the reader for a producer that module already
 publishes — and delete `datajs/parser`'s copy. For the tagged pair, one
-small helper beside `symbolAt` (in `fjs/ebnf/ast`):
+small helper **in the same module**, exported beside `textAt`:
 
 ```ts
-const tagged: <Id extends string, K extends string>(id: Id, key: K)
+export const tagged: <Id extends string, K extends string>(id: Id, key: K)
     => { symbol: (payload) => Meta, at: (node) => payload }
 ```
 
@@ -46,11 +46,22 @@ so `jsonSymbol`/`jsonAt` and `valueSymbol`/`nodeAt` each become one line
 naming their `id` and payload field, and the proof imports `valueSymbol`
 instead of restating it.
 
+It deliberately does **not** go into `fjs/ebnf/ast`. That library's
+README states that nothing in it reads `meta.id` yet and reserves the
+first reader — and the `Meta<M>` constraint that comes with it — for
+[`../../ebnf/ll1/todo/mapping-precheck.md`](../../ebnf/ll1/todo/mapping-precheck.md).
+A `tagged.at` in the AST library would be that first reader by the back
+door, contradicting the README and pre-empting the precheck's design.
+Both consumers of `tagged` are the JSON-family readers, so `json/parser`
+is the right owner today; when the precheck lands and `Meta` carries
+`id` by contract, moving `tagged` into `fjs/ebnf/ast` becomes a
+one-line follow-up rather than a design decision.
+
 ### Tasks
 
-- [ ] Export `textAt` from `json/parser`; drop `datajs/parser`'s copy.
-- [ ] Add the `tagged` pair helper; rewrite the four wrap/read functions
-      and the proof's restatement through it.
+- [ ] Export `textAt` and `tagged` from `json/parser`; drop
+      `datajs/parser`'s copy; rewrite the four wrap/read functions and
+      the proof's restatement.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
@@ -58,3 +69,6 @@ instead of restating it.
 - [../datajs/todo/parser-serializer.md](../datajs/todo/parser-serializer.md)
   — established the rule/mapping reuse this issue extends to the
   accessors.
+- [../../ebnf/ll1/todo/mapping-precheck.md](../../ebnf/ll1/todo/mapping-precheck.md)
+  — owns the first library reader of `meta.id`; `tagged` moves into
+  `fjs/ebnf/ast` only after it.

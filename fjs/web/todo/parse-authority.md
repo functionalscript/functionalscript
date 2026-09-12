@@ -36,12 +36,23 @@ the `servedHosts` lookup, dropping `hostName`, `isPortSuffix`, and its
 own userinfo test. The two RFC comment blocks merge into one at the new
 function.
 
+This changes one observable answer, and it is declared here rather than
+left to the implementation. Today `resolve('.')('http://[::1/x')` is
+`ok('./x')`: `parseTarget` accepts the unclosed bracket because it never
+reads inside the authority, and `resolve` uses only the path. Under the
+merged rule that input is a **`400 malformed request URL`**, the same
+refusal `http:///x` and `http://:80/x` already get — an authority the
+grammar cannot read is a target this server cannot vouch for, and `new
+URL` refuses it too. `Host: [::1` was already refused by `isServedHost`;
+after this both spellings are refused for the one reason.
+
 ### Tasks
 
 - [ ] Extract `parseAuthority`; re-express `parseTarget`'s checks and
       `isServedHost` through it.
-- [ ] Pin the bracket asymmetry (`Host: [::1` vs `http://[::1/x`) in the
-      proof, whichever way the merged rule decides it.
+- [ ] Pin both bracket spellings in the proof: `Host: [::1` not served,
+      `resolve('.')('http://[::1/x')` a `400` — a declared change from
+      today's `ok('./x')`, so the PR carries a `Changelog:` entry.
 - [ ] `tsc`, `fjs test`.
 
 ### Related
