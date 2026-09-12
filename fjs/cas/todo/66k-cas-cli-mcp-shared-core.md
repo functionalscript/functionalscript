@@ -31,10 +31,12 @@ If a new operation or encoding rule is added, both transports must be updated
 separately, with no compile-time guarantee they stay in sync.
 
 **`cas_get`'s inspection policy is the largest single item of that
-inventory.** Every other tool entry in `fjs/mcp` is a name, a description, a
-schema and one line of dispatch (`fjs/mcp/evo/module.f.mjs`; `cas_list` in
-the same file as `cas_get`), but `cas_get`'s handler
-(`fjs/mcp/cas/module.f.mjs:227-301`) is ~75 lines holding the whole
+inventory.** The Evo tool entries (`fjs/mcp/evo/module.f.mjs`) and
+`cas_list` are each a name, a description, a schema and one line of
+dispatch — the shape a registry entry should have. The two CAS write/read
+tools are not: `cas_add` (`fjs/mcp/cas/module.f.mjs:201-219`) decodes its
+input, writes the blob, maps the write error, and synchronizes the Evo
+cache inline, and `cas_get` (`:227-301`) is ~75 lines holding the whole
 blob-inspection policy — the streaming-vs-buffered decision, the
 `maxLengthBytes` cap and its message, when a dialect refinement is worth a
 second read, the `text`→`fromVec` / `base64`→`base64Encode` split — none of
@@ -130,8 +132,9 @@ accepted as-is, the same as `cp`.
       CLI-only file-path `add`).
 - [ ] Refactor `casToolRegistry` to delegate to the shared layer (inline only —
       no file-path source; MCP `type:'url'` has already been removed).
-      `cas_get` collapses to registry shape — a `toolResultStep` over the
-      shared inspection, wording unchanged, `uri` shaped by the adapter.
+      `cas_get` and `cas_add` both collapse to registry shape — a
+      `toolResultStep` over the shared inspection / the shared inline
+      `add`, wording unchanged, `uri` shaped by the adapter.
 - [ ] Verify no behaviour change: existing CLI and MCP tests still pass; add
       new tests for the CLI staging flow.
 

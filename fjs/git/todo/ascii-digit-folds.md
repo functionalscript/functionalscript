@@ -45,6 +45,17 @@ const isCanonicalDigits: (digits: readonly number[]) => boolean
 const digitsValue: (radix: bigint) => (digits: readonly number[]) => Nullable<bigint>
 ```
 
+**The empty run is pinned as a refusal**, in both: `digitsValue(r)([])`
+is `null` and `isCanonicalDigits([])` is `false`. An empty list spells no
+number, and a public function that answered `0n` for it would be handing
+out a plausible wrong value ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+The open-coded copies happen to answer the other way (an unseeded
+`reduce` throws; `[][0] !== 0x30` is `true`), which is one more reason to
+name the rule: today's callers reach the folds only with non-empty input
+(`object`'s digits come from the grammar, `tree`'s `isMode` checks the
+length first), and the PR confirms each remaining caller is non-empty by
+construction or takes the new refusal explicitly.
+
 `object.decimal` becomes the canonicality check plus `digitsValue(10n)`
 narrowed by `isSafeInteger`; `ident`'s `canonical`/`decimal` disappear
 into the pair (`ident` already wants the bigint form); `tree.octal`
@@ -54,7 +65,7 @@ helper's refusal. `0x30` then lives once.
 ### Tasks
 
 - [ ] Add `isCanonicalDigits`/`digitsValue` to `fjs/text/ascii` with
-      proofs.
+      proofs, the empty case (`false` / `null`) pinned.
 - [ ] Rewrite `object.decimal`, `ident.canonical`/`decimal`, `tree.octal`
       and the two digit-range predicates through them.
 - [ ] `tsc`, `fjs test`.

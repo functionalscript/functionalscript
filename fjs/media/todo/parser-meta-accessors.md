@@ -43,8 +43,11 @@ export const tagged: <Id extends string, K extends string>(id: Id, key: K)
 ```
 
 so `jsonSymbol`/`jsonAt` and `valueSymbol`/`nodeAt` each become one line
-naming their `id` and payload field, and the proof imports `valueSymbol`
-instead of restating it.
+naming their `id` and payload field. `datajs/parser` exports its pair to
+the proof as **`_valueSymbol`** — the proof is its only cross-module
+consumer, so the export is linkage, not API, and the `_` prefix is what
+says so (`fjs/AGENTS.md`, "exportability is linkage, not API status");
+the proof then imports it instead of restating it.
 
 It deliberately does **not** go into `fjs/ebnf/ast`. That library's
 README states that nothing in it reads `meta.id` yet and reserves the
@@ -60,8 +63,8 @@ one-line follow-up rather than a design decision.
 ### Tasks
 
 - [ ] Export `textAt` and `tagged` from `json/parser`; drop
-      `datajs/parser`'s copy; rewrite the four wrap/read functions and
-      the proof's restatement.
+      `datajs/parser`'s copy; rewrite the four wrap/read functions; the
+      proof imports `_valueSymbol` instead of restating it.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

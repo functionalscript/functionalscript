@@ -28,16 +28,28 @@ Publish a leaf builder from `fjs/media/json/serializer/module.f.mjs`
 beside `treeSerialize`:
 
 ```ts
-const leafSerialize: (numberSerialize: (n: number) => List<string>)
-    => (extra: Partial<Record<'bigint' | 'undefined', …>>)
-    => (value) => List<string>
+/** A leaf's spelling as chunks. */
+type LeafSerializer<V> = (value: V) => List<string>
+/** The dialect-specific arms; an arm left out falls to the shared default. */
+type ExtraLeaves = {
+    readonly bigint?: LeafSerializer<bigint>
+    readonly undefined?: LeafSerializer<undefined>
+}
+const leafSerialize: (numberSerialize: LeafSerializer<number>)
+    => (extra: ExtraLeaves)
+    => LeafSerializer<null | boolean | number | string | bigint | undefined>
 ```
 
-where `extra` holds additional `typeof` cases consulted before the shared
-`boolean`/`string`/`null` defaults. Standard passes only its
-`numberSerialize`; extended adds its `bigint`; DataJS adds `bigint` and
-`undefined`. Each dialect then states exactly what it adds, and the
-`bigint` return shape is fixed once.
+Every `extra` member is a serializer *function*, `undefined`'s included —
+a constant case is written `() => undefinedSerialize`, so there is one
+member shape and no second convention for "already a list". The returned
+function dispatches on `typeof`: `boolean`/`string` to the shared atoms,
+`number` to the given serializer, `bigint`/`undefined` to the `extra` arm
+when present, and everything else — `null`, and any `extra` arm left out
+— to `nullSerialize`, which is exactly today's `default`. Standard passes
+only its `numberSerialize` and `{}`; extended adds `bigint`; DataJS adds
+`bigint` and `undefined`. Each dialect states exactly what it adds, and
+`bigint`'s return shape is fixed once by `LeafSerializer<bigint>`.
 
 ### Tasks
 

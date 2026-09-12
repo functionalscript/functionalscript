@@ -62,18 +62,31 @@ const optionalAt: <T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>, 
     => (p: Payload) => Nullable<T>
 ```
 
-plus a `Result`-returning variant for the `validate` chains. `tree`,
-`identAt`, `object`, `type` become `fieldAt`; `tryTree`/`tryObject`/
-`tryType` become `tryFieldAt`; `tagger` becomes `optionalAt`, keeping its
+and a fourth for the `validate` chains, exported under the same roof:
+
+```ts
+/** The parsed field, or the message for whichever of the two ways it is not there. */
+const checkedAt: <T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>,
+    missing: string, bad: string) => (p: Payload) => Result<T, string>
+```
+
+so `commit`'s `valueAt(c, 0, 'tree')` / `error('no tree')` /
+`error('not a tree id')` triple is `checkedAt(0, 'tree', id, 'no tree',
+'not a tree id')`, and each `validate` becomes a short chain of
+`checkedAt` applications joined on `Result` — the messages stay the
+strings `fsck`'s vocabulary already uses, supplied at the call site, so
+neither module keeps a private copy of the pattern. `tree`, `identAt`,
+`object`, `type` become `fieldAt`; `tryTree`/`tryObject`/`tryType` become
+`tryFieldAt`; `tagger` becomes `optionalAt`, keeping its
 absent-versus-invalid distinction exactly. Commit-specific logic
 (`parentValues`, the parent-offset arithmetic in `author`/`committer`)
 stays in `commit`, as it should.
 
 ### Tasks
 
-- [ ] Add `fieldAt`/`tryFieldAt`/`optionalAt` (and a checked variant for
-      `validate`) to `fjs/git/header/module.f.mjs` with proofs — including
-      `optionalAt`'s two outcomes pinned separately.
+- [ ] Add `fieldAt`/`tryFieldAt`/`optionalAt`/`checkedAt` to
+      `fjs/git/header/module.f.mjs` with proofs — `optionalAt`'s two
+      outcomes and `checkedAt`'s two messages pinned separately.
 - [ ] Rewrite the commit and tag accessors through them; panic messages
       unchanged; `tagger` on a three-header tag still `null`.
 - [ ] `tsc`, `fjs test`; existing commit/tag proofs pass unchanged.
