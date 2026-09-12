@@ -677,6 +677,16 @@ suite states it as: every accepted DataJS document parses in FunctionalScript
 to the same graph, and every DataJS document is accepted by a JavaScript
 engine with the same result.
 
+**The second law is over the documents an engine can be handed**, which is the
+documents with a byte encoding — every one of them, and that is not a hedge but
+the scope the claim has. A module reaches an engine as bytes, so the documents
+holding an unpaired surrogate ([§Encoding](#encoding)) are the one case where
+there is no experiment to run rather than a result nobody has measured: they are
+DataJS for a code-unit reader and are not loadable JavaScript modules, because
+no byte sequence spells them. The conformance corpus carries eight such
+documents, names them, and asserts that there are exactly eight, so one more
+appearing is a failure rather than a quiet fall in what the law covers.
+
 ## Files and media type
 
 Recognized extensions: `.data.js`, `.data.mjs`, `.d.js`, `.d.mjs`.

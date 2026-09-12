@@ -1586,7 +1586,19 @@ formatter's rules on the reader's side anyway.
 Two properties worth proving directly rather than case by case: every
 **accept** document parses in FunctionalScript to the same graph, and every
 **accept** document is accepted by a JavaScript engine with the same result.
-Those are the subset laws, and they can run over the whole accept set.
+Those are the subset laws, and they run over every accept document a host can
+be handed — which is every one with a byte encoding.
+
+**That scope is a fact about modules, not a weakening.** Both laws hand a
+document to a host, and a host takes a module as bytes, so the eight documents
+holding an unpaired surrogate have no experiment rather than an unmeasured
+result: they are DataJS for a code-unit reader and are not loadable JavaScript
+modules, because no byte sequence spells them. A code-unit module check is not
+the alternative, because there is nothing to check it with — escaping the unit
+to carry it would test the *escaped* document, which is a different vector that
+the set already has. What keeps that honest is the count: the whole-set proof
+names the eight and asserts there are exactly eight, so a ninth is a failure
+rather than a silent narrowing of the law.
 
 **They land at different times, and this corpus only owes the second.** The
 FunctionalScript check cannot run when this corpus lands: today's front end has
