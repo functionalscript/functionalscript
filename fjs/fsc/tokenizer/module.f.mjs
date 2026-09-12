@@ -48,7 +48,7 @@
 
 import { assert } from '../../asserts/module.f.mjs'
 import { parser } from '../../ebnf/ll1/module.f.mjs'
-import { token } from '../../ebnf/lib/js/module.f.mjs'
+import { mergeTrivia, token } from '../../ebnf/lib/js/module.f.mjs'
 import { keywords } from '../../js/keywords/module.f.mjs'
 import { escapeToCodePoint } from '../../js/string_escape/module.f.mjs'
 import {
@@ -279,11 +279,12 @@ export const tokenizeJs = input => path => {
         const { kind, start } = lexeme
         if (kind === 'ws' || kind === 'newLine') {
             // A run of trivia is one token, and its kind is decided by the
-            // run: a newline anywhere makes it `nl`, anchored at that newline.
-            // So a pending run stays as it is unless it is `ws` and a newline
-            // arrives, when it restarts there as `nl`.
+            // run — the grammar's one rule, `mergeTrivia`: a newline anywhere
+            // makes it `nl`, anchored at that newline, which is why the
+            // pending token restarts under the incoming kind when that kind
+            // is not the one it already has.
             const incoming = kind === 'ws' ? 'ws' : 'nl'
-            trivia = trivia !== null && (trivia.kind === 'nl' || incoming === 'ws')
+            trivia = trivia !== null && mergeTrivia(trivia.kind, incoming) === trivia.kind
                 ? trivia
                 : { kind: incoming, metadata: start }
             previous = null
