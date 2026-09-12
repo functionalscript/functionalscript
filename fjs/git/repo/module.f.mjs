@@ -43,7 +43,7 @@
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 import { catchStep, history, historyStep, mapStep, pureError, pureOk, step } from '../../effects/module.f.mjs'
 import { isNotFound, readFile, stat } from '../../effects/node/module.f.mjs'
-import { join } from '../../path/module.f.mjs'
+import { under } from '../../path/module.f.mjs'
 import { fromVec } from '../../text/utf8/module.f.mjs'
 import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
@@ -176,40 +176,6 @@ const reachesHost = path => [...path].every(c => {
 })
 
 /**
- * A path below a directory, joined by a `/`.
- *
- * A directory of no characters is no directory: what is below it is itself,
- * so `under('', '.git')` is `.git` and not `/.git`. Joining those with a
- * `/` would turn a name read against the caller's own directory into one
- * read against the root, which is a repository the caller never asked
- * about.
- *
- * A bare drive is not handled here at all, because it cannot be: `C:` names
- * the current directory on drive C to Windows and a directory called `C:`
- * to POSIX, and `C:.git` and `C:/.git` are the right answers on one host
- * each. {@link tryCommonDir} refuses such a worktree rather than picking
- * one, and no other path this joins below can be one — a `gitdir` line of
- * `C:` is relative, since {@link isAbsolute} wants the `/`, so it is read
- * against the worktree and arrives here already joined.
- *
- * A directory that already ends in a separator does not get another, and
- * that is not tidiness: `/` and `//` are two roots to
- * [`fjs/path`](../../path/module.f.mjs) and to the hosts it models, a
- * POSIX root and a UNC one, so `/` plus a separator plus `.git` would name
- * a `.git` in another namespace than the one the caller asked about. `C:/`
- * is the same case on the other host.
- *
- * The rule is not this module's alone — every consumer that spells a path
- * below a directory it was given has it, and `fjs/git/store` builds its
- * two by interpolation:
- * [`todo/directory-separator.md`](../todo/directory-separator.md).
- *
- * @type {(dir: string, name: string) => string}
- */
-const under = (dir, name) =>
-    dir === '' ? name : dir.endsWith('/') ? `${dir}${name}` : join(dir, name)
-
-/**
  * A path one of these files names, read where it was found: an absolute
  * one stands on its own and a relative one is joined to the directory the
  * file sits in.
@@ -223,14 +189,16 @@ const under = (dir, name) =>
  * it needs.
  *
  * A join that comes to nothing is the current directory, and is spelled
- * `.` rather than left empty. Both are the same directory to this module,
- * since {@link under} reads a name against the caller's own directory
- * where the directory is empty, but the answer leaves this module: a
- * caller that puts it together with `fjs/git/store` builds `${dir}/config`
- * from it, and an empty `dir` would name the root there instead. The one
- * input that reaches this is a worktree of no characters whose `.git`
- * names no path — `gitdir: ` and a NUL — which Git reads as the worktree
- * itself.
+ * `.` rather than left empty. The two are the same directory to
+ * {@link under}, which reads a name against the caller's own where the
+ * directory is empty, and `fjs/git/store` now joins through it too, so the
+ * composition is right either way. `.` is still what leaves this module,
+ * because the answer is a directory a stranger reads at: a consumer that
+ * spells its own separator would name the root from an empty string, and
+ * an answer that says which directory it means does not depend on every
+ * consumer getting that right. The one input that reaches this is a
+ * worktree of no characters whose `.git` names no path — `gitdir: ` and a
+ * NUL — which Git reads as the worktree itself.
  *
  * A join that comes to a bare drive is `null`, as a worktree that is one
  * is: `gitdir: C:` under a worktree of no characters joins to `C:`, which

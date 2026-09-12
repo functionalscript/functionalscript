@@ -118,12 +118,12 @@ implementations, while `"json"` does not wait on anything.
 
 - The serializer never emits an `import`, so this is a parser-side feature
   only.
-- [`fjs/djs/transpiler`](../../fjs/djs/transpiler/module.f.mjs) already has
+- [`fjs/fsc/transpiler`](../../fjs/fsc/transpiler/module.f.mjs) already has
   the two readers, chosen by the root file's extension: `transpileJson` for a
   `.json` input, `transpileModule` for everything else, with every import
   going to the latter. What this feature adds is that same choice at the
   import site — a module's import list is `readonly string[]`
-  ([`ast/types.ts`](../../fjs/djs/ast/types.ts)) and would carry each path's
+  ([`ast/types.ts`](../../fjs/fsc/ast/types.ts)) and would carry each path's
   declared type alongside it. A `"text"` import needs a third reader, which is
   no reader at all: the file is not parsed, so it has no imports to resolve.
 - `import type` ([namespace-import](./2220-namespace-import.md)) is a separate

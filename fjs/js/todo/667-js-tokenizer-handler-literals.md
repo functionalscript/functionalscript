@@ -113,7 +113,7 @@ repeated `kind`/`value`/`[empty, …]` boilerplate.
 
 Landed, and wider than proposed here: the table lives in
 [`fjs/js/string_escape`](../string_escape/module.f.mjs), shared with
-`djs/tokenizer`'s decoder and the JSON serializer's encode side rather than
+`fsc/tokenizer`'s decoder and the JSON serializer's encode side rather than
 kept local to this module. `"`/`\`/`/` are not their own rows either — the
 table pairs each with itself, so all eight simple escapes are one
 `simpleEscapes.map(...)`, and only `u` → `unicodeChar` stays a hand-written row.

@@ -32,6 +32,7 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { ioError, mapStep, resultMapStep } from '../../effects/module.f.mjs'
 import { readUtf8File } from '../../effects/node/module.f.mjs'
+import { join, under } from '../../path/module.f.mjs'
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { length } from '../../types/bit_vec/module.f.mjs'
 import { error, ok } from '../../types/result/module.f.mjs'
@@ -46,11 +47,17 @@ const hex = id => codePointListToString(toHex(id))
  * Where a loose object lives: `objects/`, a directory named by the first
  * two hex digits of the id, a file named by the rest.
  *
+ * Joined below `dir` with {@link under} rather than by writing the
+ * separator, because `dir` is the caller's and a directory that already
+ * ends in one must not get another: `/` and `//` are two roots, so a `dir`
+ * of `/` would otherwise name `objects/` under the UNC root instead of the
+ * POSIX one.
+ *
  * @type {(dir: string) => (id: Oid) => string}
  */
 export const objectPath = dir => id => {
     const h = hex(id)
-    return `${dir}/objects/${h.slice(0, 2)}/${h.slice(2)}`
+    return under(dir, join('objects', h.slice(0, 2), h.slice(2)))
 }
 
 /**
@@ -80,7 +87,7 @@ export const objectIdMessage = (path, actual) => `${path} holds the object ${act
  *
  * @type {(dir: string) => Effect<ReadFile, Nullable<OidBytes>, IoChannel>}
  */
-export const oidBytes = dir => mapStep(readUtf8File(`${dir}/config`), tryOidBytes)
+export const oidBytes = dir => mapStep(readUtf8File(under(dir, 'config')), tryOidBytes)
 
 /**
  * What a loose read answers, checked against the id it was asked for: the

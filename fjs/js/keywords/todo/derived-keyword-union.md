@@ -29,7 +29,7 @@ export const keywords =
 **The alphabetical order is part of the public contract** — the export's
 JSDoc promises it, so external consumers may observe it even though the
 in-repository importers are order-insensitive (`js/tokenizer` folds the
-list into an `ordered_map`, which sorts; `djs/tokenizer` builds a `Set`).
+list into an `ordered_map`, which sorts; `fsc/tokenizer` builds a `Set`).
 Deriving *and sorting* keeps the runtime contract intact. The public
 *type* still changes: the exact `as const` tuple widens to a `readonly`
 array of the literal union (`_Keyword` = the three groups plus

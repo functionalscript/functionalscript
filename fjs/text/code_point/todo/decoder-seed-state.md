@@ -15,7 +15,7 @@ in `tokenizeWithPositionOp` + `tokenize`, because `decoder` hardcodes its
 seed state to `null` and the tokenizer's seed is
 `{ state: { kind: 'initial' }, metadata: ... }`.
 
-(`fjs/djs/tokenizer`'s `stateScan` calls are **not** further instances:
+(`fjs/fsc/tokenizer`'s `stateScan` calls are **not** further instances:
 they scan finite arrays, flush through an empty-string grammar step, or
 consume the JS tokenizer's own `eof` token — none injects a `null`
 sentinel, so none is a consumer of this combinator.)

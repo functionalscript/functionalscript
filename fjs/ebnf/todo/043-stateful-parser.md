@@ -11,7 +11,7 @@ materializes every symbol before parsing starts. That rules out parsing a
 stream, checkpointing a partial parse, and composing a parser with the decoders
 and tokenizers that produce its input ([layered-parser](./layered-parser.md),
 where every layer is a streaming fold). The token layer works around it with
-the `start` index: `fjs/djs/tokenizer` holds the whole input and resumes the
+the `start` index: `fjs/fsc/tokenizer` holds the whole input and resumes the
 one-token parser where the last token ended, which is a loop over an array,
 not a fold over a stream.
 

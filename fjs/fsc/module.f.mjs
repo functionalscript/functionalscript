@@ -1,133 +1,73 @@
 /**
- * FunctionalScript command utilities for compile workflows.
+ * High-level DJS API for parsing, transpiling, and serializing modules.
  *
  * @module
  *
- * @import { RangeMapArray, RangeMerge } from '../types/range_map/types.ts'
- * @import { List } from '../types/list/types.ts'
- * @import { Range } from '../types/range/types.ts'
- * @import { _CreateToResult, _Result, _State, _ToResult } from './types.ts'
+ * @import { Result } from '../types/result/types.ts'
+ * @import { Unknown, _CompileOp } from '../djs/types.ts'
+ * @import { ParseError } from './parser/types.ts'
+ * @import { Effect } from '../effects/types.ts'
  */
 
-import { strictEqual } from '../types/function/operator/module.f.mjs'
-import { merge as rangeMapMerge, fromRange, get } from '../types/range_map/module.f.mjs'
-import { reduce as listReduce, toArray, map } from '../types/list/module.f.mjs'
-import { range as asciiRange } from '../text/ascii/module.f.mjs'
-import { flip, fn } from '../types/function/module.f.mjs'
-import { one } from '../types/range/module.f.mjs'
-import { assertEq } from '../asserts/module.f.mjs'
+import { transpile } from './transpiler/module.f.mjs'
+import { stringify, stringifyAsTree } from '../djs/serializer/module.f.mjs'
+import { sort } from '../types/object/module.f.mjs'
+import { resultStep } from '../effects/module.f.mjs'
+import { errorExit, exitStep, writeUtf8File } from '../effects/node/module.f.mjs'
 
-const fromCharCode = String.fromCharCode
+/**
+ * Where an error happened, as much of it as is known: the token's
+ * `path:line:column` when the reader tracks positions, and otherwise the name
+ * of the file being compiled. A `.json` input is read by `fjs/media/json`,
+ * whose errors carry no position, and a missing file or a circular dependency
+ * has no token to point at either.
+ *
+ * An error that knows how far the offending source runs renders as a span,
+ * `path:line:column-column` within one line and `path:line:column-line:column`
+ * across several. Only lexical errors carry one today; a grammar failure points
+ * at a single token and prints the point form.
+ *
+ * @type {(inputFileName: string) => (parseError: ParseError) => string}
+ */
+const errorLocation = inputFileName => ({ metadata, end }) => {
+    if (metadata === null) { return inputFileName }
+    const start = `${metadata.path}:${metadata.line}:${metadata.column}`
+    if (end === undefined) { return start }
+    // the path is printed once — a token does not straddle files — and the
+    // line is dropped from the far end when the span stays on one line, so the
+    // common case reads `a.js:1:1-7` rather than repeating `1:`
+    const far = end.line === metadata.line
+        ? `${end.column}`
+        : `${end.line}:${end.column}`
+    return `${start}-${far}`
+}
 
-/** @type {_ToResult} */
-const unexpectedSymbol = codePoint => [[`unexpected symbol ${codePoint}`], unexpectedSymbol]
-
-/** @type {<T>(state: T) => _ToResult} */
-const def = _state => unexpectedSymbol
-
-const union =
-    /**
-     * @template T
-     * @param {_CreateToResult<T>} a
-     * @returns {(b: _CreateToResult<T>) => _CreateToResult<T>}
-     */
-    a => b => {
-        if (a === def || a === b) { return b }
-        if (b === def) { return a }
-        throw [a, b]
+/**
+ * Compiles the DJS module `args[0]` into `args[1]`, serializing as a JSON tree
+ * when the output name ends with `.json` and as a module otherwise.
+ *
+ * Returns the process exit code: `0` once the output file is written, `1` on
+ * every failure — too few arguments, a missing input file, or a parse error —
+ * so a caller can detect a failed compile from the exit status alone.
+ *
+ * @type {(args: readonly string[]) => Effect<_CompileOp, 0, number>}
+ */
+export const compile = args => {
+    if (args.length < 2) {
+        return errorExit('Error: Requires 2 or more arguments')
     }
-
-/** @type {readonly never[]} */
-const empty = []
-
-const reduce =
-    /**
-     * @template T
-     * @param {List<_State<T>>} a
-     * @returns {_State<T>}
-     */
-    a => {
-        /** @type {RangeMerge<_CreateToResult<T>>} */
-        const merge = rangeMapMerge({
-            union,
-            equal: strictEqual,
-            def,
+    const inputFileName = args[0]
+    const outputFileName = args[1]
+    return resultStep(
+        transpile(inputFileName),
+        /** @type {(result: Result<Unknown, ParseError>) => Effect<_CompileOp, 0, number>} */
+        (result) => {
+            if (result[0] === 'error') {
+                return errorExit(`${errorLocation(inputFileName)(result[1])} - error: ${result[1].message}`)
+            }
+            const content = outputFileName.endsWith('.json')
+                ? stringifyAsTree(sort)(result[1])
+                : stringify(sort)(result[1])
+            return exitStep(writeUtf8File(outputFileName, content))
         })
-        return toArray(listReduce(merge)(empty)(a))
-    }
-
-const codePointRange = flip(fromRange(def))
-
-const range = fn(asciiRange).map(codePointRange).result
-
-const rangeSet =
-    /** @param {readonly string[]} l */
-    l =>
-    /**
-     * @template T
-     * @param {_CreateToResult<T>} f
-     * @returns {_State<T>}
-     */
-    f => {
-        /** @type {(a: Range) => (f: _CreateToResult<T>) => _State<T>} */
-        const codePointRange = flip(fromRange(def))
-
-        /** @type {(r: string) => _State<T>} */
-        const g = r => codePointRange(asciiRange(r))(f)
-
-        return reduce(map(g)(l))
-    }
-
-const create =
-    /**
-     * @template T
-     * @param {List<_State<T>>} a
-     * @returns {_CreateToResult<T>}
-     */
-    a => {
-        const i = reduce(a)
-        /** @type {(i: _State<T>) => (v: number) => (v: T) => _ToResult} */
-        const x = get(def)
-        return v => c => x(i)(c)(v)(c)
-    }
-
-export const terminal = -1
-
-/** @type {() => _ToResult} */
-const toInit = () => () => [[], init]
-
-/** @type {(c: string) => _State<undefined>} */
-const single = c =>
-    range(c)(() => () => [[c], unexpectedSymbol])
-
-const punctuation = /** @type {const} */("!\"%&'()*+,-./:;<=>?[]^`{|}~")
-
-/** @type {_ToResult} */
-export const init = create([
-    codePointRange(one(terminal))(toInit),
-    rangeSet(['\t', ' ', '\n', '\r'])(toInit),
-    rangeSet(['$', '_', 'AZ', 'az'])(() => c => [[fromCharCode(c)], unexpectedSymbol]),
-    range('09')(() => a => [[fromCharCode(a)], unexpectedSymbol]),
-    ...[...punctuation].map(single),
-])(undefined)
-
-export const proof = {
-    // union throws when two distinct non-def handlers are merged for the same range;
-    // this path is unreachable through the public API (init has no overlapping ranges),
-    // so we exercise it here where the private union function is in scope.
-    throw: {
-        unionConflict: () => {
-            /** @type {_CreateToResult<undefined>} */
-            const a = _s => unexpectedSymbol
-            /** @type {_CreateToResult<undefined>} */
-            const b = _s => unexpectedSymbol
-            a(undefined)
-            b(undefined)
-            union(a)(b)
-        }
-    },
-    // `def` is the range-map's default handler; the public API never calls it directly
-    // (`init` covers every code point), so exercise it here where it's in scope.
-    defHandler: () =>
-        assertEq(def(undefined), unexpectedSymbol)
 }

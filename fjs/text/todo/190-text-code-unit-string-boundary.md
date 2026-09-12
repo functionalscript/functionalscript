@@ -4,15 +4,12 @@
 **Status:** open
 
 Converting between a single character-code number and a one-character JS `string`
-is a `fjs/text` concern, but four modules reach into the `String` built-in
-directly and three of them re-bind the same function under a local name:
+is a `fjs/text` concern, but three modules reach into the `String` built-in
+directly and two of them re-bind the same function under a local name:
 
 ```ts
 // fjs/media/html/module.f.mjs:16
 const { fromCharCode } = String
-
-// fjs/fsc/module.f.mjs:17
-const fromCharCode = String.fromCharCode
 
 // fjs/js/tokenizer/module.f.mjs:114
 const { fromCharCode } = String
