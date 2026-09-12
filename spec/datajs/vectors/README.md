@@ -4,7 +4,10 @@ The machine-readable form of [the specification](../README.md)'s Conformance
 section: the documents a reader accepts and rejects with the graphs they
 denote, the inputs a serializer accepts, and the bytes a normalized
 serializer produces. An implementation states which roles it
-provides and is judged on those sets alone. This file is the schema; the
+provides and is judged on the sets those roles own, with one inheritance:
+normalized form is a conforming serializer before it is a normalized one, so
+a normalized writer runs `serializer-accept` and `graph-equivalence` besides
+`normalize`. This file is the schema; the
 sets are the data modules beside it, one directory per set, and the issue
 that designed them is [`../todo/conformance-vectors.md`](../todo/conformance-vectors.md).
 
@@ -142,7 +145,14 @@ roles a conforming implementation may have — reader, serializer,
 normalize, since conformance is per role and a serializer-only
 implementation never runs a reader or a normalize vector. A cell is the
 vector ids that role has for that class, a reference to the note saying why
-it owes none, or a role whose sets have not landed. The notes are listed
+it owes none, or a role whose sets have not landed. A column is the sets
+that role **owns**, not every set an implementation of it runs, so the
+inheritance above does not fold in: a serializer vector asserts no spelling,
+and letting one fill a `normalize` cell would report a class as covered
+where nothing pins its bytes. That is not hypothetical — review found
+`array/elements/negative-first` carrying a serializer vector and no
+normalize one, and a column that inherited would have printed the first and
+hidden the second. The notes are listed
 once below the table, because one reason answers hundreds of cells and
 printing it in each would be the same sentence several hundred times over —
 unreadable, and past the bit vector's `maxLengthBytes` unwritable.

@@ -1951,7 +1951,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 115,822 bytes of the bit
+      being refused outright. The matrix stands at 116,064 bytes of the bit
       vector's 131,072, which is 88% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2042,6 +2042,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       exemption is gone. That is the third time a writer-side finding turned
       out to hold for both columns, so a vector added to one set now sends me
       to the other before the reason is written.
+      **And one thing the matrix does not mean**, which review read the other
+      way and a consumer could too. `serializer.md` states that a normalized
+      writer owes `serializer-accept` and `graph-equivalence` besides
+      `normalize`, since normalized form is a conforming serializer first,
+      while the generator gives the `normalize` role one set. Both are right:
+      a column is the sets a role **owns**, not every set an implementation of
+      it runs. Folding the inheritance in would be actively worse, and this
+      round proves it — a `normalize` column inheriting the serializer sets
+      would have printed `ser-array-elements-negative-first` in that row and
+      hidden the fact that nothing pinned its bytes, which is the vector two
+      paragraphs up. The schema now states the inheritance where an
+      implementer reads it and the generated preamble says why the column
+      keeps out of it.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
