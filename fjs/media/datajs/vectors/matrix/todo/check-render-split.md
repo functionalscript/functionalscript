@@ -44,6 +44,10 @@ export const matrix: (corpus: Corpus) => Result<string, readonly string[]>
 `malformed`-first rule. `matrix` is "render if `check` came back empty":
 its `ok` is unchanged; its `error` carries the **structured list**, not
 today's prose — that is the one observable change, and it is the point.
+It is also a **breaking change** to an exported function's result type:
+a caller reading `r[1]` as a string stops compiling, so the PR declares
+it with a `Changelog:` entry rather than describing it as observable
+only.
 `refused` keeps its wording but becomes the presentation `program` applies
 to `matrix`'s error on the way to the effect edge, so the generated file
 and the CLI message are byte-identical to today's. The proof asserts
@@ -54,7 +58,7 @@ part of this split.
 
 ### Tasks
 
-- [ ] Export `check`; change `matrix`'s error to `readonly string[]`;
-      move `refused` to `program`.
+- [ ] Export `check`; change `matrix`'s error to `readonly string[]` and
+      declare the break in `Changelog:`; move `refused` to `program`.
 - [ ] Re-point the proof's `refuses` at the list.
 - [ ] `tsc`, `fjs test`; `npm run gen` output (`matrix.md`) unchanged.

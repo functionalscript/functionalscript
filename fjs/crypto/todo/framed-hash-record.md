@@ -56,7 +56,10 @@ and the `hashLength` that `end` is closed over; `blockLength` is
 `init.chunkLength`. Its `R` is the default `Vec`. It is the private
 `sha2` factory with `framing(init)` folded in and `V8` generalized to
 `H`; `sha2`'s `base` then calls `framed` per variant instead of holding a
-`Base` record (the `Base` type goes with it). `fromWords` is what
+`Base` record, and the `Base` type — exported from `sha2/types.ts`,
+though nothing in the repository imports it — is **removed**: a public
+declaration going away is a breaking change whatever its importer count,
+so the PR declares it with a `Changelog:` entry. `fromWords` is what
 `fromV8` and `fromV5` both are, with the width as a parameter, so
 `sha2`'s `fromV8` becomes `fromWords(bitLength)` and `sha1`'s `fromV5`
 becomes `fromWords(wordLength)`. `ch`/`maj` keep their three-argument
@@ -81,7 +84,8 @@ of writing the literal, importing all four from `sha2` in place of
 
 - [ ] Export `framed`, `fromWords`, `ch`, `maj` from
       `fjs/crypto/sha2/module.f.mjs`; re-express `sha2`'s own `base`
-      through them; pin `fromWords`'s empty case at `0n`.
+      through them; pin `fromWords`'s empty case at `0n`; remove `Base`
+      from `sha2/types.ts` and declare the break in `Changelog:`.
 - [ ] Rewrite `sha1`'s record and helpers through them; proofs pass
       unchanged.
 - [ ] `tsc`, `fjs test`.
