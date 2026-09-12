@@ -46,6 +46,18 @@ const mapDjs = context => path => {
 }
 
 /**
+ * The front end over a module's text: the tokenizer over its code units, then
+ * the parser, the one composition every reader of a module goes through —
+ * `transpile` behind the file system, and the subset-law proof over the
+ * DataJS corpus directly — so that a proof of the front end exercises the
+ * front end rather than a second assembly of its parts. `path` names the
+ * text in the positions an error carries.
+ *
+ * @type {(path: string) => (text: string) => Result<AstModule, ParseError>}
+ */
+export const parse = path => text => parseFromTokens(tokenize(stringToList(text))(path))
+
+/**
  * `catchStep` rather than a branch on the read's `Result`: however the read
  * failed — missing file, unreadable, a runner without `readFile` — the answer
  * a transpiler gives is the same `ParseError`, so the node channel is
@@ -53,9 +65,7 @@ const mapDjs = context => path => {
  *
  * @type {(path: string) => Effect<ReadFile, AstModule, ParseError>}
  */
-const parseModule = path => step(
-    notFound(readUtf8File(path)),
-    text => pure(parseFromTokens(tokenize(stringToList(text))(path))))
+const parseModule = path => step(notFound(readUtf8File(path)), text => pure(parse(path)(text)))
 
 /** @type {(path: string) => (module: AstModule) => (context: ParseContext) => Effect<ReadFile, ParseContext, ParseError>} */
 const transpileWithImports = path => module => context => {
