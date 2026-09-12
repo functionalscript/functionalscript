@@ -710,7 +710,6 @@ throughout.
    default NaN;`, was refused before too, as an unresolved name; a
    *binding*, `const NaN = 1;`, and a bare *key*, `{ NaN: 1 }`, parsed as
    identifiers and are refused now, which is the break the entry declares.
-   With no rule reading the two yet they are refused wherever they stand.
    Exact `-0`: **done** — it parsed correctly already,
    and the serializer now writes it back as `-0` where it wrote `0`; the
    round trip is pinned in `fjs/fsc/proof.f.mjs`. The DataJS numeric
