@@ -12,11 +12,17 @@
  * per-component rule is not exported on its own, because nothing needs a
  * component without the name around it.
  *
- * The rule for a *whole* ref name is neither of these: it adds that the
- * name has at least two components and is not `@` alone, both of which are
- * about the name's own shape rather than the bytes in it. It is not here
- * because nothing in this repository reads a whole ref name yet;
- * [`todo/refs.md`](../todo/refs.md) is the step that will.
+ * {@link isWholeName} is the rule for a name that stands on its own, with no
+ * prefix above it: {@link isName}, and not `@` alone. That is what a
+ * `packed-refs` entry and a symbolic ref's target must each pass, and it is
+ * `git check-ref-format --allow-onelevel`.
+ *
+ * One rule that sounds like it belongs here does not: `check-ref-format`
+ * *without* `--allow-onelevel` also demands at least two components, which
+ * is why a bare `main` is refused there. No ref file imposes that. A
+ * `packed-refs` line naming `master`, and a symbolic ref pointing at it, are
+ * both accepted by Git 2.43.0, so the two-component rule is that command's
+ * default and not a fact about the files.
  *
  * The name is materialised to be read, which costs eight bytes of heap per
  * byte of name and is avoidable rather than merely shrinkable: every rule
@@ -126,4 +132,48 @@ export const isName = input => {
         && !holdsPair(name, at, brace)
         && name[name.length - 1] !== dot
         && components(name).every(isComponent)
+}
+
+/**
+ * Whether a whole ref name is one Git takes: {@link isName}, and not `@`
+ * alone.
+ *
+ * This is the name a `packed-refs` entry carries and the name a symbolic ref
+ * points at, and it is `git check-ref-format --allow-onelevel`. One level is
+ * enough, which is the part a reader would get wrong: measured on Git 2.43.0,
+ * a `packed-refs` line naming `master`, `a`, `a/b`, `refs` or `HEAD` is read
+ * by `git show-ref`, and a symbolic ref pointing at `master` or `a/b`
+ * resolves. What is refused is `@` alone, which Git reports as
+ * `packed refname is dangerous`, along with everything {@link isName}
+ * already refuses.
+ *
+ * `@` is the whole difference from {@link isName}, because `@` is a fine
+ * component and no ref name on its own.
+ *
+ * Two rules that are *not* here, each because it belongs to something else:
+ *
+ * - **At least two components.** `check-ref-format` demands it without
+ *   `--allow-onelevel`, and no ref file does.
+ * - **A target under `refs/`.** `HEAD` does need that, and it is not a rule
+ *   about ref names: writing `ref: a/b` into `.git/HEAD` stops Git treating
+ *   the directory as a repository at all, where the same target in
+ *   `refs/heads/sym` resolves. So it is a rule about what `HEAD` may say, and
+ *   it belongs to a reader that knows it is reading `HEAD`.
+ *
+ * `FETCH_HEAD` and `MERGE_HEAD` behave differently again as symbolic
+ * *targets*, and not in a way any name rule can express: Git resolves a
+ * symbolic ref pointing at either one when that file exists and refuses it
+ * when it does not, while `ORIG_HEAD` resolves either way. So the answer
+ * depends on the state of the repository rather than on the name, which is
+ * why it is neither checked here nor in `fjs/git/ref` — see that module, and
+ * `tryResolve` in [`todo/refs.md`](../todo/refs.md), which has the effects to
+ * look.
+ *
+ * @throws If `name` is not a list of bytes.
+ *
+ * @type {(name: Bytes) => boolean}
+ */
+export const isWholeName = input => {
+    const name = byteArray(input)
+    return isName(name) && !(name.length === 1 && name[0] === at)
 }

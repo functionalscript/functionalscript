@@ -31,6 +31,12 @@ what a grammar can and cannot do for the formats.
   rule each component between slashes must pass. A tag's `tag` header is a
   ref name, which is why the tag module asks, and `HEAD`, a loose ref and a
   `packed-refs` line carry one too.
+- [`ref/`](ref/module.f.mjs) — the three files a repository keeps its refs
+  in, each as the grammar it is: a loose ref, a symbolic ref such as `HEAD`,
+  and `packed-refs`. The three do not agree with each other — a loose ref
+  need not end in LF and ignores anything after its first line, where
+  `packed-refs` requires LF on every line and refuses a second comment — so
+  each rule here was measured against Git rather than assumed.
 - [`tag/`](tag/module.f.mjs) — a tag as a second pass over the header
   block: `object`, `type`, `tag` and `tagger` as functions over the header
   list, read by position as Git reads them, and a `validate`.
