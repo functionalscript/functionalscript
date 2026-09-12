@@ -11,38 +11,38 @@ const $s9 = {"x": $s7};
 const $s10 = {"d": 0, "c": 1};
 const $s11 = {};
 const $s12 = {["__proto__"]: 1};
-const $f0 = [null, 0];
-const $f1 = [undefined, 0];
-const $f2 = [NaN, 0];
-const $f3 = [Infinity, 0];
-const $f4 = [-Infinity, 0];
-const $f5 = [-0, 0];
-const $f6 = [false, 0];
-const $f7 = [true, 0];
-const $f8 = ["", 0];
-const $f9 = ["a", 0];
-const $f10 = [1n, 0];
-const $f11 = [-1n, 0];
-const $f12 = [0n, 0];
-const $f13 = [-1, 0];
-const $f14 = [[], 0];
-const $f15 = [{}, 0];
-const $g0 = {"a": null, "b": 0};
-const $g1 = {"a": undefined, "b": 0};
-const $g2 = {"a": NaN, "b": 0};
-const $g3 = {"a": Infinity, "b": 0};
-const $g4 = {"a": -Infinity, "b": 0};
-const $g5 = {"a": -0, "b": 0};
-const $g6 = {"a": false, "b": 0};
-const $g7 = {"a": true, "b": 0};
-const $g8 = {"a": "", "b": 0};
-const $g9 = {"a": "a", "b": 0};
-const $g10 = {"a": 1n, "b": 0};
-const $g11 = {"a": -1n, "b": 0};
-const $g12 = {"a": 0n, "b": 0};
-const $g13 = {"a": -1, "b": 0};
-const $g14 = {"a": [], "b": 0};
-const $g15 = {"a": {}, "b": 0};
+const $f0 = [null, 0, null];
+const $f1 = [undefined, 0, undefined];
+const $f2 = [NaN, 0, NaN];
+const $f3 = [Infinity, 0, Infinity];
+const $f4 = [-Infinity, 0, -Infinity];
+const $f5 = [-0, 0, -0];
+const $f6 = [false, 0, false];
+const $f7 = [true, 0, true];
+const $f8 = ["", 0, ""];
+const $f9 = ["a", 0, "a"];
+const $f10 = [1n, 0, 1n];
+const $f11 = [-1n, 0, -1n];
+const $f12 = [0n, 0, 0n];
+const $f13 = [-1, 0, -1];
+const $f14 = [[], 0, []];
+const $f15 = [{}, 0, {}];
+const $g0 = {"a": null, "b": 0, "c": null};
+const $g1 = {"a": undefined, "b": 0, "c": undefined};
+const $g2 = {"a": NaN, "b": 0, "c": NaN};
+const $g3 = {"a": Infinity, "b": 0, "c": Infinity};
+const $g4 = {"a": -Infinity, "b": 0, "c": -Infinity};
+const $g5 = {"a": -0, "b": 0, "c": -0};
+const $g6 = {"a": false, "b": 0, "c": false};
+const $g7 = {"a": true, "b": 0, "c": true};
+const $g8 = {"a": "", "b": 0, "c": ""};
+const $g9 = {"a": "a", "b": 0, "c": "a"};
+const $g10 = {"a": 1n, "b": 0, "c": 1n};
+const $g11 = {"a": -1n, "b": 0, "c": -1n};
+const $g12 = {"a": 0n, "b": 0, "c": 0n};
+const $g13 = {"a": -1, "b": 0, "c": -1};
+const $g14 = {"a": [], "b": 0, "c": []};
+const $g15 = {"a": {}, "b": 0, "c": {}};
 const $s13 = {"\"": "\"", "\\": "\\", "\b": "\b", "\t": "\t", "\n": "\n", "\f": "\f", "\r": "\r", "\u0000": "\u0000", "\u001f": "\u001f"};
 export default [
     {"id": "ser-null", "class": "leaf/null", "input": null},
@@ -256,6 +256,6 @@ export default [
     {"id": "ser-shared-empty-object-object-parent", "class": "const/shared/object", "input": {"x": $s11, "y": $s11}},
     {"id": "ser-shared-object-proto-key", "class": "const/shared/object", "input": [$s12, $s12]},
     {"id": "ser-shared-object-escaped-keys", "class": "const/shared/object", "input": [$s13, $s13]},
-    {"id": "ser-const-body-first-slot-array", "class": "const/shared/twice", "input": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15]},
-    {"id": "ser-const-body-first-slot-object", "class": "const/shared/object", "input": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15]}
+    {"id": "ser-const-body-every-slot-array", "class": "const/shared/twice", "input": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15]},
+    {"id": "ser-const-body-every-slot-object", "class": "const/shared/object", "input": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15]}
 ];
