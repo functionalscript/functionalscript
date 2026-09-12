@@ -1816,7 +1816,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 210 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 211 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 16 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
@@ -2080,6 +2080,20 @@ The steps, in order; a step is one pull request unless it says otherwise:
       once the reason is structural: the defective output does not parse, so
       it cannot be a `denotesNot`, which needs a document that reads to
       another graph.
+      **Two more parent paths of the same kind, reported together.** Nested
+      key order was reached only through an array element, since the vector's
+      unsorted objects were elements of the root and a hoisted `const` body, so
+      a writer preserving order through elements and sorting object-valued
+      members passed; the input now carries `{"x":{"b":0,"a":1}}` beside them
+      and graph equivalence carries the half-sorted document as a `denotesNot`.
+      And no shared object in either writer set had a key the rule requires an
+      escape for, so a writer with its own emitter for a hoisted body could
+      omit one there and emit a document the reader refuses. One vector per set
+      carries a shared object whose nine keys are the nine required escapes,
+      each with itself as its value, so the body's key emitter and its value
+      emitter are both reached for every spelling. That is the const-body
+      position crossed with the escaping rule, which is the cross the
+      `__proto__` vector above did for one key only.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
