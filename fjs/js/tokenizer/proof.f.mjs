@@ -480,6 +480,10 @@ export const proof = {
             if (result !== '[{"kind":"true"},{"kind":"eof"}]') { throw result }
         },
         () => {
+            // the literal globals are keywords too, from the same table
+            assertEq(stringify(tokenizeString('NaN')), '[{"kind":"NaN"},{"kind":"eof"}]')
+        },
+        () => {
             const result = stringify(tokenizeString('false'))
             if (result !== '[{"kind":"false"},{"kind":"eof"}]') { throw result }
         },

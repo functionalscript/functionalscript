@@ -69,7 +69,7 @@ import { encoding } from '../../../ebnf/token_symbol/module.f.mjs'
  * Exported with a leading `_` for that linkage — the export is not API.
  */
 export const _tokenKindNames = /** @type {const} */ ([
-    'true', 'false', 'null', 'undefined',
+    'true', 'false', 'null', 'undefined', 'NaN', 'Infinity',
     '{', '}', ':', ',', '[', ']', '.', '=', ';',
     'string', 'number', 'error', 'id', 'bigint',
     'ws', 'nl', '//', '/*',
