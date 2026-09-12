@@ -15,13 +15,15 @@
  * @import { List } from '../../types/list/types.ts'
  * @import { Entry } from '../../types/ordered_map/types.ts'
  * @import { Range as NumberRange } from '../../types/range/types.ts'
- * @import { JsToken, TokenMetadata, JsTokenWithMetadata, _TokenizerStateWithMetadata, _TokenizerState, _ErrorMessage, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken, TriviaKind, } from './types.ts'
+ * @import { JsToken, TokenMetadata, JsTokenWithMetadata, _ErrorMessage } from '../../ebnf/lib/js/types.ts'
+ * @import { _TokenizerStateWithMetadata, _TokenizerState, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken } from './types.ts'
  */
 
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
 import { merge, fromRange, get } from '../../types/range_map/module.f.mjs'
 import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap } from '../../types/list/module.f.mjs'
 import { keywords } from '../keywords/module.f.mjs'
+import { mergeTrivia } from '../../ebnf/lib/js/module.f.mjs'
 import { simpleEscapes } from '../string_escape/module.f.mjs'
 import { at, fromEntries } from '../../types/ordered_map/module.f.mjs'
 import { one } from '../../types/range/module.f.mjs'
@@ -263,9 +265,6 @@ const keywordEntries = keywords.map(kind =>
     [kind, /** @type {JsToken} */ ({ kind })])
 
 const keywordMap = fromEntries(keywordEntries)
-
-/** @type {(token: JsToken) => boolean} */
-export const isKeywordToken = token => at(token.kind)(keywordMap) !== null
 
 /**
  * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators
@@ -597,20 +596,6 @@ const parseMultilineCommentAsteriskStateOp = create(
         return [tokens, { kind: 'initial' }]
     })
 ])
-
-/**
- * The coalescing rule for whitespace/newline trivia: a maximal run collapses
- * to a single token, and a run containing any newline is an `nl`. Equal kinds
- * coalesce; `nl` absorbs `ws`.
- *
- * Exported because `fjs/fsc/tokenizer` produces the same token stream and must
- * agree byte for byte — its scanner reaches the same four decisions from
- * grammar tags. This module defines `JsToken`, so the rule is stated here once
- * rather than re-derived on each side with only the proofs to catch a drift.
- *
- * @type {(a: TriviaKind, b: TriviaKind) => TriviaKind}
- */
-export const mergeTrivia = (a, b) => a === 'nl' || b === 'nl' ? 'nl' : 'ws'
 
 /**
  * The two trivia states, shared rather than rebuilt, so a run of trivia

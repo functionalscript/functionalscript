@@ -11,10 +11,11 @@ separate pairs of modules each fork the same JSON value algorithm and then add
 the small DJS delta on top.
 
 The lexical layer is *partly* shared, and less than this issue once claimed.
-The grammar-based DJS tokenizer takes `isKeywordToken` and `mergeTrivia` from
-`fjs/js/tokenizer` and the simple-escape table from `fjs/js/string_escape`, but
-classifies characters and decodes numbers itself — whether that remainder is
-worth sharing is a lexer question, not this one. The duplication tracked here is
+The grammar-based DJS tokenizer takes its grammar and its token types from
+`fjs/ebnf/lib/js`, the keyword table from `fjs/js/keywords` and the
+simple-escape table from `fjs/js/string_escape`, nothing from
+`fjs/js/tokenizer`, and classifies characters and decodes numbers itself —
+whether that remainder is worth sharing is a lexer question, not this one. The duplication tracked here is
 one level up, in the **value** layer: parser, serializer, and the tokenizer's
 minus-rewriter.
 
