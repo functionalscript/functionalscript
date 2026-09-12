@@ -136,7 +136,7 @@ export type _KeywordKind = Exclude<typeof keywords[number], 'true' | 'false' | '
  *
  * @internal
  */
-export type _KeywordToken = { [K in _KeywordKind]: { readonly kind: K } }[_KeywordKind]
+export type _KeywordToken = { readonly [K in _KeywordKind]: { readonly kind: K } }[_KeywordKind]
 
 export type IdToken = {
     readonly kind: 'id'
