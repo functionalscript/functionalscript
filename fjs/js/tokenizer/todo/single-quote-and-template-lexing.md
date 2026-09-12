@@ -48,12 +48,22 @@ so the text can be coloured. It does not need FunctionalScript to admit the
 string as valid, and it does not need a substitution's type decided — a source
 view never evaluates anything.
 
-### The widening leaks into JSON unless it is stopped deliberately
+### What the widening reaches, and what it does not
 
-This is the constraint that makes the change non-trivial, and it is not
-hypothetical. [`media/json/tokenizer`](../../../media/json/tokenizer/module.f.mjs)
-is built directly on this module's `tokenize`, and its `mapToken` forwards a
-`string` token unconditionally:
+Adding a `string` token for `'x'` cannot make `'x'` valid JSON.
+[`media/json`](../../../media/json/module.f.mjs)'s `parse` folds the
+[`ebnf/lib/json`](../../../ebnf/lib/json/module.f.mjs) grammar and never touches
+this module:
+
+```
+'"x"'  => ok "x"
+"'x'"  => error 'unexpected symbol at 0'
+```
+
+The one place it does reach is
+[`media/json/tokenizer`](../../../media/json/tokenizer/module.f.mjs), an adapter
+over this module's `tokenize` whose `mapToken` forwards a `string` token without
+inspecting how it was spelled:
 
 ```js
 // media/json/tokenizer/module.f.mjs:83-86, in mapToken
@@ -63,29 +73,28 @@ case 'eof':
 case 'error': return [input]
 ```
 
-Nothing there inspects how the literal was spelled. JSON's refusal of `'x'`
-rests entirely on this tokenizer raising `unexpected character`, which is
-observable today:
+Its refusal of `'x'` today is this module erroring, nothing more:
 
 ```
 '"x"'  => string "x", eof
 "'x'"  => error 'unexpected character', error 'invalid token', error, eof
 ```
 
-So the moment a single-quoted literal becomes a `string` token, `'x'` parses as
-valid JSON. [`DESIGN.md` §10](../../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
-is the rule that forbids it, and the same file already reasons carefully about
-not inventing string values it refused.
+Nothing in the repository imports it. It survives as a public `tokenize` for
+outside callers, off `parse`'s path, and
+[self-contained-tokenizer](../../../media/json/todo/self-contained-tokenizer.md)
+holds the open question of whether it is rebuilt over the grammar's lexical
+rules or retired outright.
 
-[2460](../../../../spec/todo/2460-js-string-literals.md) names the mechanism:
-record which sub-language a literal stayed within. A `StringToken` carrying its
-delimiter lets `mapToken` keep rejecting everything but the double quote, and
-the field is what any later JSON/DJS/FS distinction would need anyway.
+So this is a small exposure with an owner, not a blocker. Put the delimiter on
+the token — [2460](../../../../spec/todo/2460-js-string-literals.md) wants it
+for the sub-language distinction anyway — and the adapter can check it for as
+long as it exists.
 
-[`fsc/tokenizer`](../../../fsc/tokenizer/module.f.mjs) is *not* exposed the same
-way — it reads the [`ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs) grammar
-and imports only `isKeywordToken` and `mergeTrivia` from here — but the grammar
-is then the second place a string rule lives, and the two should not drift.
+[`fsc/tokenizer`](../../../fsc/tokenizer/module.f.mjs) is not exposed at all: it
+reads the [`ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs) grammar and imports
+only `isKeywordToken` and `mergeTrivia` from here. That grammar is then a second
+home for the string rule, and the two should not drift.
 
 ### One opaque template token is not enough
 
@@ -132,10 +141,12 @@ for the first. Decide before the source view is written, not after.
 
 - [ ] `_ParseStringState` carries its opening delimiter, so `'` closes only a
       `'` string and a `"` inside one is content. Same for the reverse.
-- [ ] `StringToken` records the delimiter, and
-      [`media/json/tokenizer`](../../../media/json/tokenizer/module.f.mjs)
-      checks it in `mapToken`. A proof pins that `'x'` and `` `x` `` stay
-      invalid JSON — the regression this change would otherwise cause.
+- [ ] `StringToken` records the delimiter. If
+      [`media/json/tokenizer`](../../../media/json/tokenizer/module.f.mjs) still
+      exists by then, it checks the delimiter in `mapToken`, with a proof that
+      `'x'` stays a non-JSON token; if
+      [self-contained-tokenizer](../../../media/json/todo/self-contained-tokenizer.md)
+      has retired it, nothing is owed.
 - [ ] A template state with a nesting depth: `${` returns to ordinary lexing,
       the matching `}` resumes the template. Proofs for the six shapes above.
 - [ ] Decide raw-lexeme-on-token vs slice-by-position, and record which.
@@ -153,6 +164,9 @@ for the first. Decide before the source view is written, not after.
   the language-level questions, deliberately untouched here.
 - [eslint](../../../../todo/eslint.md) — names this same gap as its reason for
   deferring `fjs lint`; a linter cannot read sources the tokenizer rejects.
+- [self-contained-tokenizer](../../../media/json/todo/self-contained-tokenizer.md)
+  — owns the JSON adapter that is this change's only downstream exposure, and
+  may retire it.
 - [666-js-tokenizer-position-layer](../../todo/666-js-tokenizer-position-layer.md)
   — owns the position metadata the slice-by-position option would use.
 - [tokenizer-trivia-state](./tokenizer-trivia-state.md),
