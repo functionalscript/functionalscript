@@ -15,19 +15,27 @@ of heap per byte of name, because every slot holds a double. Measured on a
 | dense `readonly number[]` | 156.3 KiB |
 | `bigint` | 19.6 KiB |
 
-Each averaged over a hundred allocations, because a single `heapUsed` delta is
-noisy enough to read below the floor: 160000 bits needs 2501 64-bit limbs, so
-19.5 KiB is the least a `bigint` of this name can occupy, and a one-shot
-measurement of it came out at 16.3 KiB — under the floor, and therefore wrong.
+Each is a hundred allocations, with a collection forced before and after every
+sample, and that collection is what makes the figures mean anything —
+averaging alone does not. Without it, a hundred samples of the `bigint` gave
+75.7 KiB and then -136.8 and -137.8 KiB over three runs: a negative heap per
+instance is impossible, so the noise there is larger than the quantity and no
+number of samples averages it away.
 
-About eight to one, which is the eight bytes per byte a dense array of
-doubles costs and not a figure to round up from. The array is transient — it
-lives only for the length
-of the call — so this is a rate rather than a leak. A ref name is short, and
-nothing here is on a hot path, which is why this is P4 and not a fix in the
-branch that wrote it. The shape is also older than that branch: the rules
-took an array when they were private to `fjs/git/tag`, and that module was
-calling `byteArray` at the call site.
+The floor says so independently. A vector of this name stores 160001 bits, the
+160000 of payload and the sentinel bit above them, which is 2501 64-bit limbs
+and so 19.54 KiB — the least such a `bigint` can occupy. A one-shot `heapUsed`
+delta put it at 16.3 KiB, below the floor and therefore wrong whatever it was
+measuring. The floor is the check worth keeping: a measurement under it is
+refuted without a second run.
+
+About eight to one, which is the eight bytes per byte a dense array of doubles
+costs and not a figure to round up from. The array is transient — it lives
+only for the length of the call — so this is a rate rather than a leak. A ref
+name is short, and nothing here is on a hot path, which is why this is P4 and
+not a fix in the branch that wrote it. The shape is also older than that
+branch: the rules took an array when they were private to `fjs/git/tag`, and
+that module was calling `byteArray` at the call site.
 
 ### Why the representation is not the fix
 
