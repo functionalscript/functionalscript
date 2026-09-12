@@ -2,7 +2,12 @@
 
 **Priority:** P3
 **Status:** open
-**Blocked by:** the tokenizer prerequisite in the tasks below
+**Blocked by:**
+[single-quote-and-template-lexing](../../js/tokenizer/todo/single-quote-and-template-lexing.md),
+which is itself waiting on
+[self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md):
+widening the JS lexer regresses the public JSON tokenizer until that adapter
+stops reading it. The chain has a documented fallback if this work cannot wait.
 
 ### Problem
 
@@ -32,10 +37,10 @@ page.
   same. Nearly every authored module uses single quotes — the tokenizer
   itself does — so the views would highlight garbage and the doc extractor
   would read string contents as declarations. Extending the tokenizer is the
-  prerequisite, as a PR of its own in `fjs/js/tokenizer`: single-quoted
-  strings, and template literals preserved as one token without parsing
-  `${}` substitutions, which is all a source view needs. A second lexer was
-  the alternative and is the "written twice" the bullet above rejects.
+  prerequisite, as a PR of its own in `fjs/js/tokenizer`, tracked as
+  [single-quote-and-template-lexing](../../js/tokenizer/todo/single-quote-and-template-lexing.md).
+  A second lexer was the alternative and is the "written twice" the bullet
+  above rejects.
 - **The doc extractor is ours, not `deno doc`.** `deno doc --html` produces one
   site with its own navigation and styling; slicing it per page means
   post-processing its HTML, which is more machinery than the extractor. It is
@@ -67,8 +72,11 @@ page.
 
 ### Tasks
 
-- [ ] Prerequisite, in `fjs/js/tokenizer`: single-quoted strings and template
-      literals as one token each, with proofs, before anything below.
+- [ ] Prerequisite:
+      [single-quote-and-template-lexing](../../js/tokenizer/todo/single-quote-and-template-lexing.md),
+      before anything below. It is larger than this issue first assumed: a
+      template cannot be one opaque token, because substitutions in this
+      repository nest.
 - [ ] Confirm `fjs/js/tokenizer` links in a browser, i.e. that its own page
       lists it as a proof rather than as one with a blocker.
 - [ ] `source-view/module.f.mjs`: tokens → highlighted `<pre>` content.
@@ -87,3 +95,5 @@ page.
   type reference, deliberately not this.
 - [Generate website](generate-website.md) — "Source code highlighting" is this issue.
 - [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs) — the tokenizer both views use.
+- [single-quote-and-template-lexing](../../js/tokenizer/todo/single-quote-and-template-lexing.md)
+  — the prerequisite, as its own issue.

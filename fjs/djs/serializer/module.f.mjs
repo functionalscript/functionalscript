@@ -23,7 +23,7 @@ import { objectWrap, arrayWrap, colon, stringSerialize, nullSerialize, boolSeria
 // numbers are written as DataJS writes them — `ToString`, with `-0` kept —
 // which the parser reads back; JSON's writer wrote `null` for `NaN` and the
 // infinities and `0` for `-0`
-import { numberSerialize } from '../../media/datajs/serializer/module.f.mjs'
+import { _numberSerialize as numberSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 
 const { entries } = Object

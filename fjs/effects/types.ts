@@ -338,6 +338,20 @@ export type ToAsyncOperationMap<O extends Operation> = {
     readonly [K in O[0]]: (...payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
 }
 
+/**
+ * A {@link ToAsyncOperationMap} a runner may leave holes in — the awaiting
+ * counterpart of `PartialMemOperationMap`. An absent handler is an operation
+ * this runner does not implement, answered with `error(notImplemented)`.
+ *
+ * Per command, not one `R` for all of them: `PartialOperationMap<O,
+ * Promise<R>>` says every handler answers the same thing, which is false the
+ * moment a runner implements two operations — `sandbox` answers a
+ * `SandboxResult` where `catch` answers a `Result`.
+ */
+export type PartialAsyncOperationMap<O extends Operation> = {
+    readonly [K in O[0]]?: (...payload: Pr<O, K>[0]) => Promise<Pr<O, K>[1]>
+}
+
 export type F<O extends Operation> = Pr<O, O[0]>
 
 /**
