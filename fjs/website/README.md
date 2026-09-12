@@ -95,13 +95,20 @@ and its author writes no host code.
 has no error display apart from what it renders, so a recoverable failure is
 absorbed into `State` where `view` can show it.
 
-**No browser operation exists yet, so `O` is `never` and every demo is pure.**
-The parameter is there so the first operation is a widening rather than a
-second kind of demo. Until then the runtime runs an effect that can only be a
-value, and a demo told *no* is a path that cannot be reached: answering
-`notImplemented` needs a declared vocabulary to recognise the command against,
-and there is none. `fjs/effects/browser/` brings the first operation, the
-vocabulary, the partial runner that can decline, and the test for it together.
+**What a demo may name is what the runtime implements**, which is `sandbox`
+and `catch` from [`effects/common`](../effects/common/types.ts): host-neutral
+operations a browser has as surely as Node does, so the first demo to need one
+needed no browser vocabulary at all. `fjs/types/bigint` measures two `log2`
+implementations by asking `sandbox` to run each and report how long it took;
+nothing in the page knows what is being measured.
+
+A command named in the vocabulary with no handler answers `notImplemented`
+through the demo's own channel, which is what `never` obliges the demo to
+absorb — the bigint demo turns it into a row saying so, and its proof drives
+exactly that runner. A command *not* named is a malformed node and panics: a
+vocabulary and a handler map are two different things, which is why the
+runtime declares both. The first browser-only operation — a fetch, a file the
+reader picks — is where `fjs/effects/browser/` becomes necessary.
 
 Events are serialized: one `update` at a time, the next queued behind it. That
 is what makes a demo's state a fold over its events in the order they happened,

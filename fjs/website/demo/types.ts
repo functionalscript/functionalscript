@@ -27,11 +27,16 @@ import type { Element } from '../../media/html/types.ts'
  * element that changed, which is how a demo tells its fields apart without
  * ever holding a DOM node.
  *
+ * `click` is what a demo uses to ask for work rather than to react to typing:
+ * a benchmark should start when a reader says so, not when a page loads. It
+ * carries only the name, because a button has no value to report.
+ *
  * The union is extended when a demo needs more, and not before.
  */
 export type DemoEvent =
     | { readonly kind: 'start' }
     | { readonly kind: 'input', readonly name: string, readonly value: string }
+    | { readonly kind: 'click', readonly name: string }
 
 /**
  * A demo: an initial state, how an event changes it, and what it looks like.
@@ -54,11 +59,13 @@ export type DemoEvent =
  * demo absorbs every one of them before returning its next state. A throw is
  * not recoverable: it is a defect, and the runtime reports it as one.
  *
- * **`O` is `never` today, and not by choice of each demo.** No browser
- * operation vocabulary exists yet, so there is nothing a demo could name;
- * every demo is pure, and the parameter is here so that the first operation is
- * a widening rather than a second kind of demo. Until then a demo's `update`
- * returns `pureOk`.
+ * **What a demo may name is what the runtime implements**, which is today
+ * `sandbox` and `catch` from [`effects/common`](../../effects/common/types.ts)
+ * — host-neutral operations a browser has as surely as Node does. A demo that
+ * needs nothing declares `never` and returns `pureOk`, which is the same shape
+ * with an empty vocabulary rather than a second kind of demo. An operation the
+ * runtime does not implement answers `notImplemented` through the demo's own
+ * channel, which is what `never` obliges the demo to absorb into `State`.
  */
 export type Demo<State, Event, O extends Operation = never> = {
     readonly init: State

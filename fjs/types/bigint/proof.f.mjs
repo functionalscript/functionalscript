@@ -1,3 +1,8 @@
+import { demo, stringLog2, work } from './demo.f.mjs'
+import { partialRun, run } from '../../effects/mock/module.f.mjs'
+import { runPure } from '../../effects/module.f.mjs'
+import { ok, unwrap } from '../result/module.f.mjs'
+import { htmlToString } from '../../media/html/module.f.mjs'
 import {
     sum,
     abs,
@@ -16,7 +21,7 @@ import {
     divUp8,
     roundUp8
 } from './module.f.mjs'
-import { assert, assertEq } from '../../asserts/module.f.mjs'
+import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { min } from '../function/compare/module.f.mjs'
 
 /** @type {(v: bigint) => bigint} */
@@ -442,5 +447,74 @@ export const proof = {
     product: () => {
         assertEq(product([1n, 2n, 3n, 4n]), 24n)
         assertEq(product([5n, 6n]), 30n)
+    },
+    demo: {
+        /**
+         * **The comparison is `log2`'s own answer, checked.** A benchmark that
+         * only measures rewards an implementation that returns nothing, so the
+         * work asserts every answer and throws on a wrong one — which is also
+         * how a wrong implementation reports itself on the page.
+         */
+        workChecksItsAnswers: () => {
+            work(8n)(log2)
+            work(8n)(stringLog2)
+        },
+        // A wrong implementation is caught by the work rather than timed by it.
+        throw: {
+            wrongAnswer: () => { work(8n)(() => 0n) },
+        },
+        /**
+         * **The measurement is an effect, and the demo absorbs its refusal.**
+         * A runtime that does not implement `sandbox` answers `notImplemented`
+         * through the demo's own channel, and the demo has to turn that into a
+         * row — its error channel is `never`. `partialRun` over a vocabulary
+         * with no handler is exactly that runtime.
+         */
+        absorbsARefusal: () => {
+            const decline = partialRun(/** @type {any} */ (['sandbox']))({})
+            const [, r] = decline(null)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
+            const rows = unwrap(r).rows
+            assertEq(rows.length, 2)
+            for (const row of rows) {
+                assertEq(row.ms, null)
+                assertEq(row.note, 'not available here')
+            }
+        },
+        /**
+         * **A row is a measurement when the runtime has a clock.** The virtual
+         * `sandbox` is a pass-through: the thunk answers the `SandboxResult`
+         * itself, so a proof states the duration rather than reading one.
+         */
+        measures: () => {
+            const timed = run(/** @type {any} */ ({
+                sandbox: (/** @type {() => unknown} */ f) => (/** @type {null} */ state) =>
+                    [state, ok({ result: ok(f()), duration: 7 })],
+            }))
+            const [, r] = timed(null)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
+            const rows = unwrap(r).rows
+            assertStructurallySame(rows.map(({ name, ms, note }) => [name, ms, note]), [
+                ['log2', 7, null],
+                ['stringLog2', 7, null],
+            ])
+        },
+        // Only the named button starts a run; anything else leaves the state.
+        onlyRunStarts: () => {
+            assertEq(unwrap(assertNotNullish(
+                runPure(demo.update(demo.init)({ kind: 'click', name: 'other' }))[0],
+                'expected a pure state')), demo.init)
+            assertEq(unwrap(assertNotNullish(
+                runPure(demo.update(demo.init)({ kind: 'start' }))[0],
+                'expected a pure state')), demo.init)
+        },
+        // Before a run there is a control and no table; after one, both.
+        view: () => {
+            const idle = htmlToString(demo.view(demo.init))
+            assert(idle.includes('name="run"'), idle)
+            assert(!idle.includes('<pre>'), idle)
+            const done = htmlToString(demo.view(
+                { kind: 'done', rows: [{ name: 'log2', ms: 1.25, note: null }] }))
+            assert(done.includes('log2'), done)
+            assert(done.includes('1.3 ms'), done)
+        },
     },
 }

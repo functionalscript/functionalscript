@@ -11,27 +11,33 @@
  * @import { Demo, DemoEvent } from './demo/types.ts'
  */
 
-import { asyncRun } from '../effects/module.mjs'
+import { asyncPartialRun } from '../effects/module.mjs'
+import { commonOperationMap } from '../effects/common/module.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 
 /**
- * A demo's effect, performed.
+ * What a demo may ask this page for.
  *
- * **There are no browser operations yet, so there is nothing to implement.**
- * `Demo`'s vocabulary defaults to `never`, which makes every effect a demo can
- * build a `Pure` node: this runs it and never dispatches a command. The map is
- * empty because an empty vocabulary needs no handlers, not because handlers
- * are missing.
+ * **Host-neutral operations only, and both of them are already written.**
+ * `sandbox` runs a thunk and reports how long it took, `catch` reports whether
+ * one threw — a browser has `performance.now()` and a `try` as surely as Node
+ * does, which is why `effects/common` holds them rather than either host. A
+ * demo that wants to measure something asks for `sandbox`; nothing in the page
+ * knows what it is measuring.
  *
- * **So the strict runner is the honest one today.** A partial runner exists to
- * answer `notImplemented` for a command a runtime knows about and cannot do —
- * and `partialMatch` checks the command against a declared vocabulary *first*,
- * so with no vocabulary every command is a malformed node and panics rather
- * than degrading. Nothing would be gained by dressing that up. When
- * `fjs/effects/browser/` lands with its first operation, it brings the
- * vocabulary, the partial runner, and a demo that can be told no.
+ * **The list is what makes a refusal possible.** `partialMatch` recognises a
+ * command against it before answering `notImplemented`, so a vocabulary and a
+ * handler map are two different things: a command named here with no handler
+ * declines, and one not named here is a malformed node. There is nothing in
+ * the first category today, and the first browser-only operation — a fetch, a
+ * file the reader picks — is where that gap opens.
+ *
+ * @type {readonly ['sandbox', 'catch']}
  */
-const run = asyncRun({})
+const commands = ['sandbox', 'catch']
+
+const run = asyncPartialRun(/** @type {any} */ (commands))(
+    /** @type {any} */ (commonOperationMap))
 
 /**
  * What the reader was doing, so re-rendering does not take it away.
@@ -174,6 +180,14 @@ export const startDemo = async root => {
         root.addEventListener('input', e => {
             const target = /** @type {HTMLInputElement} */ (e.target)
             step({ kind: 'input', name: target.name, value: target.value })
+        })
+        // A click is how a demo is *asked* for work rather than told about
+        // typing: a benchmark starts when a reader says so. An element with no
+        // name is not one the demo asked to hear about.
+        root.addEventListener('click', e => {
+            const target = /** @type {HTMLElement & { name?: string }} */ (e.target)
+            if (target.name === undefined || target.name === '') { return }
+            step({ kind: 'click', name: target.name })
         })
         // After the first render, so a demo that needs an operation before it
         // can show anything has somewhere to ask without `init` becoming an
