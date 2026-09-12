@@ -272,6 +272,6 @@ reader's two sets, `accept` and `reject`, are this file's; the writer's four are
 - [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md) — the coordinating plan; this is its stage 4.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. This issue implements it.
 - [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, the proof source. Land it first.
-- [JSON's reader](../../json/todo/self-contained-tokenizer.md) — stage 3, open with its error shapes undecided. Over a grammar the reuse is of rules and of the `string` mapping, which [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) and [`../parser`](../parser/module.f.mjs) do by import.
+- [JSON's reader](../../json/README.md) — stage 3, done: the grammar, with no token stream left beside it. Over a grammar the reuse is of rules and of the `string` mapping, which [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) and [`../parser`](../parser/module.f.mjs) do by import.
 - [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. Stage 4 is its second consumer.
 - [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type; interacts with the optional index signature in §1.

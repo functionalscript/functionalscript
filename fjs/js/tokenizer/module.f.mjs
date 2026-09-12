@@ -1,736 +1,335 @@
 /**
- * JavaScript tokenizer built as a range-map state machine over code points,
- * producing tokens for keywords, identifiers, punctuators, comments, strings,
- * and numeric literals.
+ * The JavaScript tokenizer: the token grammar
+ * [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs), read one token at a
+ * time, and the fold that makes a `JsToken` stream of what it read.
  *
- * Numeric scanning is lexeme-first: a `number` token carries the exact source
- * text and no derived numeric value, so tokenization stays bounded by the
- * input and never fails because a coefficient or exponent is too large for a
- * runtime numeric type.
+ * ```text
+ * code points ==the token grammar, one token at a time==> lexemes
+ *             ==fold: trivia merged, words classified, boundaries checked==> JsToken stream
+ * ```
+ *
+ * The grammar is read by the LL(1) backend resumed where the last token
+ * ended ([`fjs/ebnf/ll1`](../../ebnf/ll1/README.md), "A token layer resumes
+ * the parser"). A token's text is the input between where it began and
+ * where it ended, so nothing walks its tree but the one question a block
+ * comment leaves open — whether it closed — and that walk is a loop, since
+ * the comment's content is right-recursive and a comment may be long.
+ *
+ * What the grammar leaves to the fold above it: a run of whitespace and
+ * newlines is one token, `nl` where the run holds a newline and anchored
+ * at the first, `ws` otherwise; a word is a keyword or an identifier; a
+ * number is a `number` or a `bigint`; and a number directly followed by a
+ * word or a number, no trivia between — `123abc`, `1nabc`, `00` — is the
+ * error `invalid number`, at the token that should not be there. An LL(1)
+ * grammar cannot refuse those inside the number, and the token stream
+ * shows the same fact one layer up.
+ *
+ * An error is the whole output: the first, in document order, of the
+ * boundary above, a block comment the input ends inside (`*​/ expected`,
+ * from its `/*` to the end of input), a number cut short (`invalid
+ * number`, at the character where digits were expected), and a token the
+ * grammar refuses (`invalid token`, from where the token began to the end
+ * of input). The grammar stops at the token it refuses, so the fold above
+ * it runs over what came before first, and the refused token is reported
+ * only where nothing before it was wrong.
+ *
+ * This stream is what every reader of JavaScript text in the repository
+ * shares: [`fjs/fsc/tokenizer`](../../fsc/tokenizer/module.f.mjs) folds it
+ * once more into the compiler's tokens, and a source view or a linter reads
+ * it as it is. It replaced a hand-written scanner, whose stream it matched
+ * token for token on every input the scanner accepted; where the scanner
+ * reported several classified errors and carried on, this reports one and
+ * stops, since nothing past a lexical failure is a token.
  *
  * @module
  *
- * @import { Reduce, Scan, StateScan } from '../../types/function/operator/types.ts'
- * @import { RangeMerge } from '../../types/range_map/types.ts'
+ * @import { ErrorToken, JsToken, JsTokenWithMetadata, TokenMetadata, TokenPosition } from '../../ebnf/lib/js/types.ts'
+ * @import { StateScan } from '../../types/function/operator/types.ts'
  * @import { List } from '../../types/list/types.ts'
- * @import { Entry } from '../../types/ordered_map/types.ts'
- * @import { Range as NumberRange } from '../../types/range/types.ts'
- * @import { JsToken, TokenMetadata, JsTokenWithMetadata, _ErrorMessage } from '../../ebnf/lib/js/types.ts'
- * @import { _TokenizerStateWithMetadata, _TokenizerState, _InitialState, _ParseIdState, _ParseWhitespaceState, _ParseNewLineState, _ParseStringState, _ParseEscapeCharState, _ParseOperatorState, _ParseCommentState, _ParseUnicodeCharState, _ParseNumberState, _InvalidNumberState, _EofState, _CharCodeOrEof, _ToToken, _CreateToToken, _RangeFunc, _RangeMapToToken } from './types.ts'
+ * @import { _Failure, _Kind, _Lexed, _Lexeme, _StringDecodeState, _Trivia } from './private.ts'
  */
-
-import { strictEqual } from '../../types/function/operator/module.f.mjs'
-import { merge, fromRange, get } from '../../types/range_map/module.f.mjs'
-import { empty, stateScan, flat, toArray, reduce as listReduce, scan, map as listMap } from '../../types/list/module.f.mjs'
+import { assert } from '../../asserts/module.f.mjs'
+import { parser } from '../../ebnf/ll1/module.f.mjs'
+import { mergeTrivia, token } from '../../ebnf/lib/js/module.f.mjs'
 import { keywords } from '../keywords/module.f.mjs'
-import { mergeTrivia } from '../../ebnf/lib/js/module.f.mjs'
-import { simpleEscapes } from '../string_escape/module.f.mjs'
-import { at, fromEntries } from '../../types/ordered_map/module.f.mjs'
-import { one } from '../../types/range/module.f.mjs'
+import { escapeToCodePoint } from '../string_escape/module.f.mjs'
 import {
-    range,
-    //
-    ht,
-    lf,
-    cr,
-    //
-    exclamationMark,
-    percentSign,
-    ampersand,
-    asterisk,
-    lessThanSign,
-    equalsSign,
-    greaterThanSign,
-    questionMark,
-    circumflexAccent,
-    verticalLine,
-    tilde,
-    //
-    space,
-    quotationMark,
-    leftParenthesis,
-    rightParenthesis,
-    plusSign,
-    comma,
-    hyphenMinus,
-    fullStop,
-    solidus,
-    //
-    digitRange,
-    digit0,
-    colon,
-    semicolon,
-    //
-    hexDigitValue,
-    //
-    latinCapitalLetterRange,
-    latinCapitalLetterE,
-    //
-    leftSquareBracket,
+    asterisk, lf,
     reverseSolidus,
-    rightSquareBracket,
-    lowLine,
-    //
-    latinSmallLetterRange,
-    latinSmallLetterE,
-    latinSmallLetterN,
+    hexDigitValue,
     latinSmallLetterU,
-    //
-    leftCurlyBracket,
-    rightCurlyBracket,
-    dollarSign
-}  from '../../text/ascii/module.f.mjs'
-import { todo, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+} from '../../text/ascii/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { mapUnwrap } from '../../types/nullable/module.f.mjs'
+import { concat, empty, flat, fold, stateScan, toArray } from '../../types/list/module.f.mjs'
 
-const { fromCharCode } = String
+// -- layer 1: the grammar, one token at a time ------------------------------
 
-const rangeOneNine = range('19')
-
-const rangeSetNewLine = [
-    one(lf),
-    one(cr)
-]
-
-const rangeSetWhiteSpace = [
-    one(ht),
-    one(space)
-]
-
-const rangeSetTerminalForNumber = [
-    ...rangeSetWhiteSpace,
-    ...rangeSetNewLine,
-    one(exclamationMark),
-    one(percentSign),
-    one(ampersand),
-    one(leftParenthesis),
-    one(rightParenthesis),
-    one(asterisk),
-    one(comma),
-    one(solidus),
-    one(colon),
-    one(semicolon),
-    one(lessThanSign),
-    one(equalsSign),
-    one(greaterThanSign),
-    one(questionMark),
-    one(circumflexAccent),
-    one(leftSquareBracket),
-    one(rightSquareBracket),
-    one(leftCurlyBracket),
-    one(verticalLine),
-    one(rightCurlyBracket),
-    one(tilde),
-]
-
-const rangeIdStart = [
-    latinSmallLetterRange,
-    latinCapitalLetterRange,
-    one(lowLine),
-    one(dollarSign)
-]
-
-const rangeOpStart = [
-    one(exclamationMark),
-    one(percentSign),
-    one(ampersand),
-    one(leftParenthesis),
-    one(rightParenthesis),
-    one(asterisk),
-    one(plusSign),
-    one(comma),
-    one(hyphenMinus),
-    one(fullStop),
-    one(solidus),
-    one(colon),
-    one(semicolon),
-    one(lessThanSign),
-    one(equalsSign),
-    one(greaterThanSign),
-    one(questionMark),
-    one(circumflexAccent),
-    one(leftSquareBracket),
-    one(rightSquareBracket),
-    one(leftCurlyBracket),
-    one(verticalLine),
-    one(rightCurlyBracket),
-    one(tilde)
-]
-
-const rangeId = [digitRange, ...rangeIdStart]
-
-/** @type {(old: string) => (input: number) => string} */
-const appendChar = old => input => `${old}${fromCharCode(input)}`
+/** The parser of one token, built once: the grammar is analysed per module, not per parse. */
+const parseToken = parser(token)
 
 /**
- * @type {<T>(a: T) => Reduce<T>}
- */
-const unionX = def => a => b => {
-    if (a === def || a === b) { return b }
-    if (b === def) { return a }
-    throw [a, b]
-}
-
-/**
- * @type {<T>(a: _CreateToToken<T>) => Reduce<_CreateToToken<T>>}
- */
-const union = unionX
-
-/**
- * @template T
- * @param {_CreateToToken<T>} def
- * @returns {RangeMerge<_CreateToToken<T>>}
- */
-const rangeMapMerge = def => merge({
-    union: union(def),
-    equal: strictEqual,
-    def,
-})
-
-/**
- * @template T
- * @param {NumberRange} r
- * @returns {(f: _CreateToToken<T>) => _RangeFunc<T>}
- */
-const rangeFunc = r => f => def => fromRange(def)(f)(r)
-
-/**
- * @template T
- * @param {_CreateToToken<T>} def
- * @returns {Scan<_RangeFunc<T>, _RangeMapToToken<T>>}
- */
-const scanRangeOp = def => f => [f(def), scanRangeOp(def)]
-
-/**
- * @template T
- * @param {_CreateToToken<T>} def
- * @returns {(a: List<_RangeFunc<T>>) => _RangeMapToToken<T>}
- */
-const reduceRangeMap = def => a => {
-    const rm = scan(scanRangeOp(def))(a)
-    return toArray(listReduce(rangeMapMerge(def))(empty)(rm))
-}
-
-/**
- * @template T
- * @param {_CreateToToken<T>} def
- * @returns {(f: _CreateToToken<T>) => Scan<NumberRange, _RangeMapToToken<T>>}
- */
-const scanRangeSetOp = def => f => r => [fromRange(def)(f)(r), scanRangeSetOp(def)(f)]
-
-/**
- * @template T
- * @param {List<NumberRange>} rs
- * @returns {(f: _CreateToToken<T>) => _RangeFunc<T>}
- */
-const rangeSetFunc = rs => f => def => {
-    const rm = scan(scanRangeSetOp(def)(f))(rs)
-    return toArray(listReduce(rangeMapMerge(def))(empty)(rm))
-}
-
-/**
- * @template T
- * @param {_CreateToToken<T>} def
- * @returns {(a: List<_RangeFunc<T>>) => _CreateToToken<T>}
- */
-const create = def => a => {
-    const x = get(def)(reduceRangeMap(def)(a))
-    return v => c => x(c)(v)(c)
-}
-
-/**
- * Turns a completed numeric scanning state into its token.
+ * A variant's node, read untyped: its tag and the branch's node. The tree
+ * is the grammar's by construction, so a shape that is not a variant's is
+ * a broken invariant, not bad input.
  *
- * A `number` token carries the lexeme and nothing else — deriving a numeric
- * value is each consumer's own policy, so no valid literal can fail to
- * tokenize because its coefficient or exponent exceeds a runtime numeric
- * limit. A `bigint` literal is the one case where the value *is* the token:
- * `123n` means that bigint, so it is constructed here from the same lexeme.
+ * @type {(node: unknown) => readonly [string, unknown]}
+ */
+const branch = node => {
+    assert(node instanceof Array && node.length === 2 && typeof node[0] === 'string', node)
+    return [node[0], node[1]]
+}
+
+/** @type {(node: unknown) => readonly unknown[]} */
+const items = node => {
+    assert(node instanceof Array, node)
+    return node
+}
+
+/**
+ * Whether a block comment's content, the node after its `/*`, reached the
+ * `*​/` that closes it before the input ended. Each node is a `*` and what
+ * follows it, or another symbol and more content, or the end: `end` after
+ * a `*` is the close, `unterminated` the end of input. A loop, not a
+ * recursion — the content nests one level per symbol.
  *
- * @type {(s: _ParseNumberState) => JsToken}
+ * @type {(content: unknown) => boolean}
  */
-const stateToNumberToken = ({ numberKind, value }) =>
-    numberKind === 'bigint'
-        ? { kind: 'bigint', value: BigInt(value) }
-        : { kind: 'number', value }
-
-/**
- * Derived from the one source of truth for JavaScript keywords,
- * `fjs/js/keywords` — FunctionalScript is a strict subset of JavaScript, so
- * the tokenizer recognizes exactly that module's `keywords`.
- */
-/** @type {List<Entry<JsToken>>} */
-const keywordEntries = keywords.map(kind =>
-    // every keyword kind is a `JsToken` kind by construction: `_KeywordToken`
-    // derives its kinds from this same `keywords` list
-    [kind, /** @type {JsToken} */ ({ kind })])
-
-const keywordMap = fromEntries(keywordEntries)
-
-/**
- * @link https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators
- */
-/** @type {List<Entry<JsToken>>} */
-const operatorEntries = [
-    ['!', { kind: '!' }],
-    ['!=', { kind: '!=' }],
-    ['!==', { kind: '!==' }],
-    ['%', { kind: '%' }],
-    ['%=', { kind: '%=' }],
-    ['&', { kind: '&' }],
-    ['&&', { kind: '&&' }],
-    ['&&=', { kind: '&&=' }],
-    ['&=', { kind: '&=' }],
-    ['(', { kind: '(' }],
-    [')', { kind: ')' }],
-    ['*', { kind: '*' }],
-    ['**', { kind: '**' }],
-    ['**=', { kind: '**=' }],
-    ['*=', { kind: '*=' }],
-    ['+', { kind: '+' }],
-    ['++', { kind: '++' }],
-    ['+=', { kind: '+=' }],
-    [',', { kind: ',' }],
-    ['-', { kind: '-' }],
-    ['--', { kind: '--' }],
-    ['-=', { kind: '-=' }],
-    ['.', { kind: '.' }],
-    ['/', { kind: '/' }],
-    ['/=', { kind: '/=' }],
-    [':', { kind: ':' }],
-    [';', { kind: ';' }],
-    ['<', { kind: '<' }],
-    ['<<', { kind: '<<' }],
-    ['<<=', { kind: '<<=' }],
-    ['<=', { kind: '<=' }],
-    ['=', { kind: '=' }],
-    ['==', { kind: '==' }],
-    ['===', { kind: '===' }],
-    ['=>', { kind: '=>' }],
-    ['>', { kind: '>' }],
-    ['>=', { kind: '>=' }],
-    ['>>', { kind: '>>' }],
-    ['>>=', { kind: '>>=' }],
-    ['>>>', { kind: '>>>' }],
-    ['>>>=', { kind: '>>>=' }],
-    ['?', { kind: '?' }],
-    ['?.', { kind: '?.' }],
-    ['??', { kind: '??' }],
-    ['??=', { kind: '??=' }],
-    ['^', { kind: '^' }],
-    ['^=', { kind: '^=' }],
-    ['[', { kind: '[' }],
-    [']', { kind: ']' }],
-    ['{', { kind: '{' }],
-    ['|', { kind: '|' }],
-    ['|=', { kind: '|=' }],
-    ['||', { kind: '||' }],
-    ['||=', { kind: '||=' }],
-    ['}', { kind: '}' }],
-    ['~', { kind: '~' }]
-]
-
-const operatorMap = fromEntries(operatorEntries)
-
-/** @type {(op: string) => JsToken} */
-const getOperatorToken = op => at(op)(operatorMap) ?? { kind: 'error', message: 'invalid token' }
-
-/** @type {(op: string) => boolean} */
-const hasOperatorToken = op => at(op)(operatorMap) !== null
-
-/** @type {(state: _InitialState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const initialStateOp = create(
-    state => () => [[{ kind: 'error', message: 'unexpected character' }], state]
-)([
-    rangeFunc(rangeOneNine)(() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: 'int' }]),
-    rangeSetFunc(rangeIdStart)(() => input => [empty, { kind: 'id', value: fromCharCode(input) }]),
-    rangeSetFunc(rangeSetWhiteSpace)(() => () => [empty, { kind: 'ws' }]),
-    rangeSetFunc(rangeSetNewLine)(() => () => [empty, { kind: 'nl' }]),
-    rangeFunc(one(quotationMark))(() => () => [empty, { kind: 'string', value: '' }]),
-    rangeFunc(one(digit0))(() => input => [empty, { kind: 'number', value: fromCharCode(input), numberKind: '0' }]),
-    rangeSetFunc(rangeOpStart)(() => input => [empty, { kind: 'op', value: fromCharCode(input) }])
-])
-
-/** @type {_CreateToToken<_ParseNumberState>} */
-const invalidNumberToToken = () => input => {
-    const next = tokenizeCharCodeOp(input, { kind: 'initial' })
-    return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
-}
-
-/** @type {_CreateToToken<_ParseNumberState>} */
-const fullStopToToken = state => input => {
-    switch (state.numberKind) {
-        case '0':
-        case 'int': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: '.' }]
-        default: return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
-    }
-}
-
-/** @type {_CreateToToken<_ParseNumberState>} */
-const digit0ToToken = state => input => {
-    switch (state.numberKind) {
-        case '0': return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
-        case '.':
-        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'fractional' }]
-        case 'e':
-        case 'e+':
-        case 'e-':
-        case 'expDigits': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'expDigits' }]
-        default: return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: state.numberKind }]
-    }
-}
-
-/** @type {_CreateToToken<_ParseNumberState>} */
-const digit19ToToken = state => input => {
-    switch (state.numberKind) {
-        case '0': return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
-        case '.':
-        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'fractional' }]
-        case 'e':
-        case 'e+':
-        case 'e-':
-        case 'expDigits': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'expDigits' }]
-        default: return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'int' }]
-    }
-}
-
-/** @type {_CreateToToken<_ParseNumberState>} */
-const expToToken = state => input => {
-    switch (state.numberKind) {
-        case '0':
-        case 'int':
-        case 'fractional': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'e' }]
-        default: return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
-    }
-}
-
-/** @type {_CreateToToken<_ParseNumberState>} */
-const hyphenMinusToToken = state => input => {
-    switch (state.numberKind) {
-        case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'e-' }]
-        default: return terminalToToken(state)(input)
-    }
-}
-
-/** @type {_CreateToToken<_ParseNumberState>} */
-const plusSignToToken = state => input => {
-    switch (state.numberKind) {
-        case 'e': return [empty, { kind: 'number', value: appendChar(state.value)(input), numberKind: 'e+' }]
-        default: return tokenizeCharCodeOp(input, { kind: 'invalidNumber' })
-    }
-}
-
-/** @type {_CreateToToken<_ParseNumberState>} */
-const terminalToToken = state => input => {
-    switch (state.numberKind) {
-        case '.':
-        case 'e':
-        case 'e+':
-        case 'e-':
-            {
-                const next = tokenizeCharCodeOp(input, { kind: 'initial' })
-                return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
-            }
-        default:
-            {
-                const next = tokenizeCharCodeOp(input, { kind: 'initial' })
-                return [{ first: stateToNumberToken(state), tail: next[0] }, next[1]]
-            }
-    }
-}
-
-/** @type {_CreateToToken<_ParseNumberState>} */
-const bigintToToken = state => input => {
-    switch (state.numberKind) {
-        case '0':
-        case 'int':
-            {
-                return [empty, { kind: 'number', value: state.value, numberKind: 'bigint' }]
-            }
-        default:
-            {
-                const next = tokenizeCharCodeOp(input, { kind: 'initial' })
-                return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
-            }
-    }
-}
-
-/** @type {(state: _ParseNumberState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const parseNumberStateOp = create(invalidNumberToToken)([
-    rangeFunc(one(fullStop))(fullStopToToken),
-    rangeFunc(one(digit0))(digit0ToToken),
-    rangeFunc(rangeOneNine)(digit19ToToken),
-    rangeSetFunc([one(latinSmallLetterE), one(latinCapitalLetterE)])(expToToken),
-    rangeFunc(one(hyphenMinus))(hyphenMinusToToken),
-    rangeFunc(one(plusSign))(plusSignToToken),
-    rangeSetFunc(rangeSetTerminalForNumber)(terminalToToken),
-    rangeFunc(one(latinSmallLetterN))(bigintToToken),
-])
-
-/** @type {(state: _InvalidNumberState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const invalidNumberStateOp = create(
-    () => () => [empty, { kind: 'invalidNumber' }]
-)([
-    rangeSetFunc(rangeSetTerminalForNumber)(() => input => {
-        const next = tokenizeCharCodeOp(input, { kind: 'initial' })
-        return [{ first: { kind: 'error', message: 'invalid number' }, tail: next[0] }, next[1]]
-    })
-])
-
-/** @type {readonly NumberRange[]} */
-const rangeSetStringControl = [
-    [0x00, 0x09],
-    [0x0b, 0x0c],
-    [0x0e, 0x1f],
-]
-
-/** @type {(state: _ParseStringState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const parseStringStateOp = create(
-    state => input => [empty, { kind: 'string', value: appendChar(state.value)(input) }]
-)([
-    rangeFunc(one(quotationMark))(state => () => [[{ kind: 'string', value: state.value }], { kind: 'initial' }]),
-    rangeFunc(one(reverseSolidus))(state => () => [empty, { kind: 'escapeChar', value: state.value }]),
-    rangeSetFunc(rangeSetNewLine)(() => () => [[{ kind: 'error', message: 'unterminated string literal' }], { kind: 'nl' }]),
-    rangeSetFunc(rangeSetStringControl)(state => () => [[{ kind: 'error', message: 'unescaped control character in string' }], { kind: 'string', value: state.value }])
-])
-
-/** @type {_CreateToToken<_ParseEscapeCharState>} */
-const parseEscapeDefault = state => input => {
-    const next = tokenizeCharCodeOp(input, { kind: 'string', value: state.value })
-    return [{ first: { kind: 'error', message: 'unescaped character' }, tail: next[0] }, next[1]]
-}
-
-/**
- * One dispatch entry per simple escape, appending the code point the letter
- * denotes. The three self-denoting escapes are not special-cased: `\"` appends
- * `"` because that is what the table pairs it with.
- *
- * @type {readonly _RangeFunc<_ParseEscapeCharState>[]}
- */
-const simpleEscapeFuncs = simpleEscapes.map(([letter, codePoint]) =>
-    rangeFunc(one(letter))(state => () => [empty, { kind: 'string', value: appendChar(state.value)(codePoint) }]))
-
-/** @type {(state: _ParseEscapeCharState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const parseEscapeCharStateOp = create(parseEscapeDefault)([
-    ...simpleEscapeFuncs,
-    // `\u` is the one escape whose meaning is not a lookup: the four hex
-    // digits that follow decide it, so it starts a state instead.
-    rangeFunc(one(latinSmallLetterU))(state => () => [empty, { kind: 'unicodeChar', value: state.value, unicode: 0, hexIndex: 0 }]),
-])
-
-/** @type {_CreateToToken<_ParseUnicodeCharState>} */
-const parseUnicodeCharDefault = state => input => {
-    const next = tokenizeCharCodeOp(input, { kind: 'string', value: state.value })
-    return [{ first: { kind: 'error', message: 'invalid hex value' }, tail: next[0] }, next[1]]
-}
-
-/**
- * `hexDigitValue` classifies the code point and decodes it in one step, so this
- * state needs no range-map dispatch: a `null` value is exactly the non-hex
- * input the default handler rejects.
- *
- * @type {(state: _ParseUnicodeCharState) => (input: number) => readonly [List<JsToken>, _TokenizerState]}
- */
-const parseUnicodeCharStateOp = state => input => {
-    const hexValue = hexDigitValue(input)
-    if (hexValue === null) { return parseUnicodeCharDefault(state)(input) }
-    const newUnicode = state.unicode | (hexValue << (3 - state.hexIndex) * 4)
-    return [empty, state.hexIndex === 3 ?
-        { kind: 'string', value: appendChar(state.value)(newUnicode) } :
-        { kind: 'unicodeChar', value: state.value, unicode: newUnicode, hexIndex: state.hexIndex + 1 }]
-}
-
-/** @type {(s: string) => JsToken} */
-const idToToken = s => at(s)(keywordMap) ?? { kind: 'id', value: s }
-
-/** @type {_CreateToToken<_ParseIdState>} */
-const parseIdDefault = state => input => {
-    const keyWordToken = idToToken(state.value)
-    const next = tokenizeCharCodeOp(input, { kind: 'initial' })
-    return [{ first: keyWordToken, tail: next[0] }, next[1]]
-}
-
-/** @type {(state: _ParseIdState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const parseIdStateOp = create(parseIdDefault)([
-    rangeSetFunc(rangeId)(state => input => [empty, { kind: 'id', value: appendChar(state.value)(input) }])
-])
-
-/** @type {(state: _ParseOperatorState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const parseOperatorStateOp = state => input => {
-    const nextStateValue = appendChar(state.value)(input)
-    switch (nextStateValue) {
-        case '//': return [empty, { kind: '//', value: '', newLine: false }]
-        case '/*': return [empty, { kind: '/*', value: '', newLine: false }]
-        default: {
-            if (hasOperatorToken(nextStateValue))
-                return [empty, { kind: 'op', value: nextStateValue }]
-            const next = tokenizeCharCodeOp(input, { kind: 'initial' })
-            return [{ first: getOperatorToken(state.value), tail: next[0] }, next[1]]
+const closed = content => {
+    let node = content
+    for (;;) {
+        const [tag, rest] = branch(node)
+        switch (tag) {
+            case 'end': { return true }
+            case 'unterminated': { return false }
+            default: { node = items(rest)[1] }
         }
     }
 }
 
-/** @type {(state: _ParseCommentState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const parseSinglelineCommentStateOp = create(
-    state => input => [empty, { ...state, value: appendChar(state.value)(input) }]
-)([
-    rangeSetFunc(rangeSetNewLine)(state => () => [[{ kind: '//', value: state.value }], { kind: 'nl' }])
-])
+/**
+ * The kind of a token from its node, and whether it closed — which is a
+ * question only for a block comment, `true` for every other token. The
+ * `token` variant's tag is the kind but for `slash`, whose own tag says
+ * which of its four it was.
+ *
+ * @type {(node: unknown) => readonly [_Kind, boolean]}
+ */
+const kindOf = node => {
+    const [tag, child] = branch(node)
+    if (tag !== 'slash') { return [/** @type {_Kind} */ (tag), true] }
+    const [sub, rest] = branch(items(child)[1])
+    switch (sub) {
+        case 'oneline': { return ['comment', true] }
+        case 'multiline': { return ['comment', closed(items(rest)[1])] }
+        default: { return ['operator', true] }
+    }
+}
 
-/** @type {(state: _ParseCommentState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const parseMultilineCommentStateOp = create(
-    state => input => [empty, { ...state, value: appendChar(state.value)(input) }]
-)([
-    rangeFunc(one(asterisk))(state => () => [empty, { ...state, kind: '/**' }]),
-    rangeSetFunc(rangeSetNewLine)(state => input => [empty, { ...state, value: appendChar(state.value)(input), newLine: true }]),
-])
+// Advances path/line/column by one code point.
+/** @type {(cp: number) => (metadata: TokenMetadata) => TokenMetadata} */
+const advanceMetadata = cp => metadata => cp === lf
+    ? { path: metadata.path, line: metadata.line + 1, column: 1 }
+    : { path: metadata.path, line: metadata.line, column: metadata.column + 1 }
 
-/** @type {(state: _ParseCommentState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const parseMultilineCommentAsteriskStateOp = create(
-    state => input => [empty, { ...state, kind: '/*', value: appendChar(appendChar(state.value)(asterisk))(input) }]
-)([
-    rangeFunc(one(asterisk))(state => () => [empty, { ...state, value: appendChar(state.value)(asterisk) }]),
-    rangeSetFunc(rangeSetNewLine)(state => input => [empty, { kind: '/*', value: appendChar(appendChar(state.value)(asterisk))(input), newLine: true }]),
-    rangeFunc(one(solidus))(state => () => {
-        /** @type {List<JsToken>} */
-        const tokens = state.newLine ? [{ kind: '/*', value: state.value }, { kind: 'nl' }] : [{ kind: '/*', value: state.value }]
-        return [tokens, { kind: 'initial' }]
-    })
-])
+/** @type {(metadata: TokenMetadata) => (cp: readonly number[]) => TokenMetadata} */
+const advance = metadata => cp => fold(advanceMetadata)(metadata)(cp)
+
+/** @type {(cp: number) => boolean} */
+const isDigit = cp => cp >= 0x30 && cp <= 0x39
 
 /**
- * The two trivia states, shared rather than rebuilt, so a run of trivia
- * allocates nothing per character.
+ * Reads the whole input one token at a time, the parser resumed where the
+ * last token ended, until a token the grammar refuses. A token's text is
+ * the input it spans, and its position is carried along rather than
+ * attached to every code point.
  *
- * @type {{ readonly ws: _ParseWhitespaceState, readonly nl: _ParseNewLineState }}
+ * @type {(path: string) => (cp: readonly number[]) => _Lexed}
  */
-const triviaState = { ws: { kind: 'ws' }, nl: { kind: 'nl' } }
-
-/** @type {_CreateToToken<_ParseWhitespaceState>} */
-const parseWhitespaceDefault = () => input => {
-    const next = tokenizeCharCodeOp(input, { kind: 'initial' })
-    return [{ first: { kind: 'ws' }, tail: next[0] }, next[1]]
-}
-
-/** @type {(state: _ParseWhitespaceState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const parseWhitespaceStateOp = create(parseWhitespaceDefault)([
-    rangeSetFunc(rangeSetWhiteSpace)(({ kind }) => () => [empty, triviaState[mergeTrivia(kind, 'ws')]]),
-    rangeSetFunc(rangeSetNewLine)(({ kind }) => () => [empty, triviaState[mergeTrivia(kind, 'nl')]])
-])
-
-/** @type {_CreateToToken<_ParseNewLineState>} */
-const parseNewLineDefault = () => input => {
-    const next = tokenizeCharCodeOp(input, { kind: 'initial' })
-    return [{ first: { kind: 'nl' }, tail: next[0] }, next[1]]
-}
-
-/** @type {(state: _ParseNewLineState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const parseNewLineStateOp = create(parseNewLineDefault)([
-    rangeSetFunc(rangeSetWhiteSpace)(({ kind }) => () => [empty, triviaState[mergeTrivia(kind, 'ws')]]),
-    rangeSetFunc(rangeSetNewLine)(({ kind }) => () => [empty, triviaState[mergeTrivia(kind, 'nl')]])
-])
-
-/** @type {(state: _EofState) => (input: number) => readonly [List<JsToken>, _TokenizerState]} */
-const eofStateOp = create(
-    state => () => [[{ kind: 'error', message: 'eof' }], state]
-)([])
-
-/** @type {StateScan<number, _TokenizerState, List<JsToken>>} */
-const tokenizeCharCodeOp = (input, state) => {
-    switch (state.kind) {
-        case 'initial': return initialStateOp(state)(input)
-        case 'id': return parseIdStateOp(state)(input)
-        case 'string': return parseStringStateOp(state)(input)
-        case 'escapeChar': return parseEscapeCharStateOp(state)(input)
-        case 'unicodeChar': return parseUnicodeCharStateOp(state)(input)
-        case 'invalidNumber': return invalidNumberStateOp(state)(input)
-        case 'number': return parseNumberStateOp(state)(input)
-        case 'op': return parseOperatorStateOp(state)(input)
-        case '//': return parseSinglelineCommentStateOp(state)(input)
-        case '/*': return parseMultilineCommentStateOp(state)(input)
-        case '/**': return parseMultilineCommentAsteriskStateOp(state)(input)
-        case 'ws': return parseWhitespaceStateOp(state)(input)
-        case 'nl': return parseNewLineStateOp(state)(input)
-        case 'eof': return eofStateOp(state)(input)
-    }
-}
-
-/** @type {(state: _TokenizerState) => readonly [List<JsToken>, _TokenizerState]} */
-const tokenizeEofOp = state => {
-    switch (state.kind) {
-        case 'initial': return [[{ kind: 'eof' }], { kind: 'eof' }]
-        case 'id': return [[idToToken(state.value), { kind: 'eof' }], { kind: 'eof' }]
-        case 'string':
-        case 'escapeChar':
-        case 'unicodeChar': return [[{ kind: 'error', message: '" are missing' }, { kind: 'eof' }], { kind: 'eof' }]
-        case 'invalidNumber': return [[{ kind: 'error', message: 'invalid number' }, { kind: 'eof' }], { kind: 'eof' }]
-        case 'number':
-            switch (state.numberKind) {
-                case '.':
-                case 'e':
-                case 'e+':
-                case 'e-': return [[{ kind: 'error', message: 'invalid number' }, { kind: 'eof' }], { kind: 'eof', }]
+const lex = path => cp => {
+    const symbols = cp.map(symbol => ({ symbol, meta: null }))
+    /** @type {List<_Lexeme>} */
+    let lexemes = empty
+    let pos = 0
+    /** @type {TokenMetadata} */
+    let metadata = { path, line: 1, column: 1 }
+    while (pos < cp.length) {
+        const match = parseToken(symbols, pos)
+        if (match[0] === 'error') {
+            /** @type {_Failure} */
+            const failure = {
+                number: isDigit(cp[pos]),
+                start: metadata,
+                at: advance(metadata)(cp.slice(pos, match[1])),
             }
-            return [[stateToNumberToken(state), { kind: 'eof' }], { kind: 'eof' }]
-        case 'op': return [[getOperatorToken(state.value), { kind: 'eof' }], { kind: 'eof' }]
-        case '//': return [[{ kind: '//', value: state.value }, { kind: 'eof' }], { kind: 'eof' }]
-        case '/*':
-        case '/**': return [[{ kind: 'error', message: '*/ expected' }, { kind: 'eof' }], { kind: 'eof', }]
-        case 'ws': return [[{ kind: 'ws' }, { kind: 'eof' }], { kind: 'eof' }]
-        case 'nl': return [[{ kind: 'nl' }, { kind: 'eof' }], { kind: 'eof' }]
-        case 'eof': return [[{ kind: 'error', message: 'eof' }, { kind: 'eof' }], state]
+            return { lexemes: toArray(lexemes), failure, final: advance(metadata)(cp.slice(pos)) }
+        }
+        const [node, end] = match[1]
+        const text = cp.slice(pos, end)
+        const [kind, ok] = kindOf(node)
+        lexemes = concat(lexemes)([{ kind, text, start: metadata, closed: ok }])
+        metadata = advance(metadata)(text)
+        pos = end
+    }
+    return { lexemes: toArray(lexemes), failure: null, final: metadata }
+}
+
+// -- layer 2: the JsToken stream --------------------------------------------
+
+/**
+ * A `\uXXXX` escape reaches the `unicode` state only after the grammar has
+ * accepted its four hex digits, so a non-hex code point here is a tokenizer
+ * bug rather than bad input — assert instead of decoding it to a garbage
+ * value, which is what the hand-rolled ternary chain used to do.
+ */
+const unwrapHexDigitValue = mapUnwrap(hexDigitValue)
+
+/** @type {StateScan<number, _StringDecodeState, List<number>>} */
+const stringDecodeScan = (cp, state) => {
+    switch (state.kind) {
+        case 'escape': {
+            const codePoint = escapeToCodePoint(cp)
+            // The grammar's `string` rule only ever accepts one of the eight
+            // simple escapes or `u` right after a backslash — any other
+            // character fails to parse before a token reaches this scan at
+            // all, so narrowing to those nine is provable, not merely
+            // assumed. `u` is the one the table does not answer for: the
+            // four hex digits that follow decide its meaning.
+            assert(codePoint !== null || cp === latinSmallLetterU, cp)
+            return codePoint === null
+                ? [null, { kind: 'unicode', acc: 0, count: 0 }]  // \u → start 4 hex digits
+                : [[codePoint], { kind: 'normal' }]
+        }
+        case 'unicode': {
+            const acc = (state.acc << 4) | unwrapHexDigitValue(cp)
+            return state.count === 3 ? [[acc], { kind: 'normal' }] : [null, { kind: 'unicode', acc, count: state.count + 1 }]
+        }
+        default:
+            return cp === reverseSolidus ? [null, { kind: 'escape' }] : [[cp], { kind: 'normal' }]
     }
 }
 
-/** @type {(metadata: TokenMetadata) => (token: JsToken) => JsTokenWithMetadata} */
-const mapTokenWithMetadata = metadata => token => { return { token, metadata } }
+/** @type {(codePoints: readonly number[]) => string} */
+const decodeJsonString = codePoints => codePointListToString(flat(stateScan(stringDecodeScan)({ kind: 'normal' })(codePoints.slice(1, -1))))
 
-/** @type {StateScan<_CharCodeOrEof, _TokenizerStateWithMetadata, List<JsTokenWithMetadata>>} */
-const tokenizeWithPositionOp = (input, { state, metadata }) => {
-    if (input == null) {
-        const newState = tokenizeEofOp(state)
-        return [listMap(mapTokenWithMetadata(metadata))(newState[0]), { state: newState[1], metadata }]
+/** @type {ReadonlySet<string>} */
+const keywordSet = new Set(keywords)
+
+/**
+ * The token a word is: a string decoded, a word a keyword or an identifier,
+ * a number a `number` or a `bigint` by its suffix, a comment its text
+ * between the marks, an operator its own spelling.
+ *
+ * @type {(lexeme: _Lexeme) => JsToken}
+ */
+const toJsToken = ({ kind, text }) => {
+    const value = codePointListToString(text)
+    switch (kind) {
+        case 'string': { return { kind: 'string', value: decodeJsonString(text) } }
+        case 'id': { return keywordSet.has(value) ? /** @type {JsToken} */ ({ kind: value }) : { kind: 'id', value } }
+        case 'number': {
+            return value.endsWith('n') ? { kind: 'bigint', value: BigInt(value.slice(0, -1)) } : { kind: 'number', value }
+        }
+        case 'comment': {
+            return text[1] === asterisk
+                ? { kind: '/*', value: value.slice(2, -2) }
+                : { kind: '//', value: value.slice(2) }
+        }
+        default: { return /** @type {JsToken} */ ({ kind: value }) }
     }
-
-    const newState = tokenizeCharCodeOp(input, state)
-    const isNewLine = input == lf
-    const newMetadata = { path: metadata.path, line: isNewLine ? metadata.line + 1 : metadata.line, column: isNewLine ? 1 : metadata.column + 1 }
-    return [listMap(mapTokenWithMetadata(metadata))(newState[0]), { state: newState[1], metadata: newMetadata }]
 }
 
-const scanTokenize = stateScan(tokenizeWithPositionOp)
+/**
+ * The position half of a `TokenMetadata` — the path is stated once, on the
+ * start, because a token does not straddle files.
+ *
+ * @type {(metadata: TokenMetadata) => TokenPosition}
+ */
+const position = ({ line, column }) => ({ line, column })
 
-/** @type {(input: List<number>) => (path: string) => List<JsTokenWithMetadata>} */
+/** @type {(token: JsToken, metadata: TokenMetadata) => JsTokenWithMetadata} */
+const at = (token, metadata) => ({ token, metadata })
+
+/**
+ * The error the whole output becomes: a lexical failure is reported alone,
+ * as the tokenizer has always reported it, with its span where it has one.
+ *
+ * @type {(message: ErrorToken['message'], metadata: TokenMetadata, end?: TokenMetadata) => readonly JsTokenWithMetadata[]}
+ */
+const failed = (message, metadata, end) => [at(end === undefined ? { kind: 'error', message } : { kind: 'error', message, end: position(end) }, metadata)]
+
+/**
+ * The token stream of a text: the tokens the grammar read, folded — a run
+ * of trivia into one token, a block comment holding a newline followed by
+ * an `nl` — and checked at the one boundary the grammar cannot see, a
+ * number against the token after it. The whole output is the first error
+ * where there is one.
+ *
+ * @type {(input: List<number>) => (path: string) => List<JsTokenWithMetadata>}
+ */
 export const tokenize = input => path => {
-    const scan = scanTokenize({ state: { kind: 'initial' }, metadata: { path, line: 1, column: 1 } })
-    return flat(scan(flat(/** @type {List<List<number | null>>} */ ([input, [null]]))))
-}
-
-export const proof = {
-    // `getOperatorToken` is only ever called with a value already confirmed to be
-    // a known operator (`hasOperatorToken`, or a single char from `rangeOpStart`),
-    // so its `??` fallback is unreachable through `tokenize`. Call it directly
-    // with a non-operator string to cover that branch.
-    getOperatorTokenInvalid: () => {
-        const result = getOperatorToken('@')
-        assertEq(result.kind, 'error')
-    },
-    // `tokenize` appends exactly one trailing `null` after its input, so the
-    // scan reaches `{ kind: 'eof' }` only on that final step — nothing ever
-    // runs tokenizeCharCodeOp/tokenizeEofOp again afterward with that state.
-    // Call each directly to cover their otherwise-unreachable `'eof'` arms.
-    tokenizeCharCodeOpAfterEof: () => {
-        const [tokens, state] = tokenizeCharCodeOp('a'.charCodeAt(0), { kind: 'eof' })
-        assertStructurallySame(toArray(tokens), [{ kind: 'error', message: 'eof' }])
-        assertStructurallySame(state, { kind: 'eof' })
-    },
-    tokenizeEofOpAfterEof: () => {
-        const [tokens, state] = tokenizeEofOp({ kind: 'eof' })
-        assertStructurallySame(toArray(tokens), [{ kind: 'error', message: 'eof' }, { kind: 'eof' }])
-        assertStructurallySame(state, { kind: 'eof' })
-    },
-    throw: {
-        // union throws when two distinct non-default handlers are merged for the same range;
-        // this path is unreachable through the public API (no overlapping ranges in practice).
-        unionConflict: () => unionX(0)(1)(2)
+    const { lexemes, failure, final } = lex(path)(toArray(input))
+    /** @type {List<JsTokenWithMetadata>} */
+    let out = empty
+    /** @type {_Trivia} */
+    let trivia = null
+    /** @type {_Kind | null} */
+    let previous = null
+    for (const lexeme of lexemes) {
+        const { kind, start } = lexeme
+        if (kind === 'ws' || kind === 'newLine') {
+            // A run of trivia is one token, and its kind is decided by the
+            // run — the grammar's one rule, `mergeTrivia`: a newline anywhere
+            // makes it `nl`, anchored at that newline, which is why the
+            // pending token restarts under the incoming kind when that kind
+            // is not the one it already has.
+            const incoming = kind === 'ws' ? 'ws' : 'nl'
+            trivia = trivia !== null && mergeTrivia(trivia.kind, incoming) === trivia.kind
+                ? trivia
+                : { kind: incoming, metadata: start }
+            previous = null
+            continue
+        }
+        if (trivia !== null) {
+            out = concat(out)([at({ kind: trivia.kind }, trivia.metadata)])
+            trivia = null
+        }
+        if (kind === 'comment' && !lexeme.closed) {
+            // from the `/*` that was never closed to where the input ran out
+            return failed('*/ expected', start, final)
+        }
+        if (previous === 'number' && (kind === 'id' || kind === 'number')) {
+            // ECMAScript disallows a numeric literal immediately followed by
+            // an identifier start or a digit — `123abc`, `1nabc`, `00`. The
+            // anchor is the token that should not be there, not the number's
+            // start, and there is no end for the same reason: the span a
+            // reader would want runs backwards from the anchor.
+            return failed('invalid number', start)
+        }
+        const jsToken = toJsToken(lexeme)
+        out = concat(out)([at(jsToken, start)])
+        if (jsToken.kind === '/*' && (jsToken.value.includes('\n') || jsToken.value.includes('\r'))) {
+            out = concat(out)([at({ kind: 'nl' }, start)])
+        }
+        previous = kind
     }
+    if (failure !== null) {
+        // The token the grammar refused comes after every token it read,
+        // so an error among those — the fold above has just looked — is
+        // reported first, and this one only where nothing came before it.
+        // A number that stands directly against the number before it is
+        // that boundary error, wherever it then failed: `01.` is refused at
+        // the `1`. A number cut short — `1.`, `0e` — fails where its digits
+        // were expected, and that character is the one to point at, with
+        // no end, since what is wrong runs backwards from there. Any other
+        // token is refused whole, from where it began to the end of input:
+        // nothing past a lexical failure is tokenized.
+        return failure.number
+            ? failed('invalid number', previous === 'number' ? failure.start : failure.at)
+            : failed('invalid token', failure.start, final)
+    }
+    if (trivia !== null) {
+        out = concat(out)([at({ kind: trivia.kind }, trivia.metadata)])
+    }
+    return concat(out)([at({ kind: 'eof' }, final)])
 }

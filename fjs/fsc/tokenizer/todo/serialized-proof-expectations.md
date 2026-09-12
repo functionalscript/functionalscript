@@ -5,10 +5,13 @@
 
 ### Problem
 
-Nineteen assertions in `fjs/fsc/tokenizer/proof.f.mjs` compare a
+Twenty-two assertions across the two tokenizer proofs compare a
 serialization against a **string literal** instead of stating the expected
-value directly — eight through `JSON.stringify(value)`, and eleven through
-the proof's own `stringify`, the djs serializer's `stringifyAsTree`:
+value directly — eight in `fjs/js/tokenizer/proof.f.mjs` through
+`JSON.stringify(value)`, and fourteen in `fjs/fsc/tokenizer/proof.f.mjs`
+through the proof's own `stringify`, the djs serializer's `stringifyAsTree`
+(the JS-layer proofs moved to the former when the scanner behind it was
+replaced by the grammar; the counts follow them):
 
 ```js
 assertEq(JSON.stringify(result), '[{"token":{"kind":"true"},"metadata":{"path":"a.js","line":1,"column":1}},…]')
@@ -35,7 +38,7 @@ keep doing so: serialized text is that module's contract.
 
 ### Tasks
 
-- [ ] Convert the tokenizer's `JSON.stringify` and `stringifyAsTree`
+- [ ] Convert both tokenizers' `JSON.stringify` and `stringifyAsTree`
       comparisons to `assertStructurallySame` against the token values,
       `bigint` fields included.
 - [ ] Leave `fjs/media/json/serializer/proof.f.mjs` as string comparisons —

@@ -103,7 +103,8 @@ Or it was **won't fix**, like `i171`, whose reason lives in `parseTestSet`'s
 JSDoc exactly as the won't-fix rule below requires; say so and cite that.
 
 Whichever it is, rewrite the citation to name it — as `i165` in
-`fjs/js/todo/174-shared-range-map-lexer.md` names layered-parser — or delete
+`fjs/js/todo/174-shared-range-map-lexer.md` did, naming layered-parser, before
+that issue closed — or delete
 the reference if the relationship no longer holds. Do **not** link one to a same-numbered GitHub
 issue: that number belongs to unrelated work.
 
