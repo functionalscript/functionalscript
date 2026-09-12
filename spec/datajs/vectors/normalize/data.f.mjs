@@ -252,6 +252,7 @@ export default [
     {"id": "norm-unshared-object-parent-array", "class": "array/unshared/equal", "input": {"a": [1], "b": [1]}, "text": "export default {\"a\":[1],\"b\":[1]};"},
     {"id": "norm-unshared-object-parent-object", "class": "object/unshared/equal", "input": {"a": {"x": 0}, "b": {"x": 0}}, "text": "export default {\"a\":{\"x\":0},\"b\":{\"x\":0}};"},
     {"id": "norm-key-raw-ws-like-2028-nested", "class": "key/string/raw/ws-like/2028", "input": {"a": {"\u2028": 0}}, "text": "export default {\"a\":{\"\u2028\":0}};"},
+    {"id": "norm-key-raw-ws-like-2028-after-first", "class": "key/string/raw/ws-like/2028", "input": {"a": 0, "\u2028": 0}, "text": "export default {\"a\":0,\"\u2028\":0};"},
     {"id": "norm-const-body-escaping-values", "class": "const/shared/twice", "input": [$n30, $n30], "text": "const $0=[\"\u2028\",\"\\ud800\",\"\\u0000\"];export default [$0,$0];"},
     {"id": "norm-const-body-escaping-key", "class": "const/shared/object", "input": [$n31, $n31], "text": "const $0={\"\u2028\":0};export default [$0,$0];"},
     {"id": "norm-key-proto-value-shared", "class": "key/proto/value/shared", "input": {["__proto__"]: $n32, "a": $n32}, "text": "const $0=[0];export default {[\"__proto__\"]:$0,\"a\":$0};"},

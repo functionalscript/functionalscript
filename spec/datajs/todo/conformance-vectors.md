@@ -1980,6 +1980,17 @@ The steps, in order; a step is one pull request unless it says otherwise:
       vectors per writer set and four in the accept set, so it lands answered
       in every role that carries it and owes no reason at all. Container kind
       was the third axis of a cross I had already crossed twice.
+      **The same first-versus-later axis for a key.** Measured, every
+      escape-sensitive key in all three sets is the sole member of its object,
+      57 of them here and 51 in the serializer set, and not one sits after
+      another member. So a writer with separate first-member and later-member
+      key emitters escapes the second key and passes. This role gets a vector
+      with a raw U+2028 key in second position, under the class its
+      sole-member twin already has; the serializer role gets none, and the
+      reason is measurable rather than a judgment — the escaped spelling
+      denotes the same string, so a graph check cannot see it, which is the
+      same bound the surrogate pairs run into. Normalized bytes are what
+      catches this, one step up.
       Both had been fixed for the normalize column in the step above, which is
       the rule this file now states twice over and I applied to one column at a
       time anyway.
@@ -1992,7 +2003,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 232 records in
+- [x] **Normalize.** Landed as 233 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
       records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -2006,7 +2017,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 116,591 bytes of the bit
+      being refused outright. The matrix stands at 116,668 bytes of the bit
       vector's 131,072, which is 89% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2135,6 +2146,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       first member, so `{"a":-0,"b":1}` could come out as `{"a":0,"b":1}`. The
       new `object/members/negative-first` class has four vectors here and four
       in each of the other two sets, so it owes no reason in any role.
+      Then the key half of the same axis. Every escape-sensitive key in all
+      three sets was the sole member of its object, 62 of them here, so a
+      writer with separate first-member and later-member key emitters escaped
+      the second key and passed. One vector carries a raw U+2028 key after an
+      ordinary member, under the class its sole-member twin already has. The
+      serializer column gets none, measured rather than argued: the escaped
+      spelling denotes the same string, so a graph check cannot see it, and
+      byte-exactness here is the only thing that can.
       **And one thing the matrix does not mean**, which review read the other
       way and a consumer could too. `serializer.md` states that a normalized
       writer owes `serializer-accept` and `graph-equivalence` besides
