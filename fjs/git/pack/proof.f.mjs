@@ -197,7 +197,7 @@ export const proof = {
     applyDeltaWholeCopy: () => {
         const base = Array.from({ length: 65536 }, (_, i) => i % 251)
         // source 65536, target 65536, then one copy with no offset or size byte
-        const delta = [0x80, 0x80, 0x04, 0x80, 0x80, 0x04, 0x80]
+        const delta = /** @type {readonly number[]} */ ([0x80, 0x80, 0x04, 0x80, 0x80, 0x04, 0x80])
         const out = tryApplyDelta(base, delta)
         assert(out !== null)
         assertStructurallySame(out.length, 65536)
@@ -208,7 +208,7 @@ export const proof = {
     // writes and which would make a stream stand still; an insert or a copy
     // running off the end; and a copy from outside the base.
     applyDeltaRefused: () => {
-        const base = [1, 2, 3, 4]
+        const base = /** @type {readonly number[]} */ ([1, 2, 3, 4])
         /** @type {(instructions: readonly number[]) => readonly number[]} */
         const d = instructions => [4, 4, ...instructions]
         // An insert of zero, followed by instructions that do build the whole
@@ -244,14 +244,14 @@ export const proof = {
     // a stream compresses to almost nothing. Ten thousand here, which is past
     // that edge and still quick.
     deltaManyInstructions: () => {
-        const n = 10000
-        const delta = [
+        const n = /** @type {const} */ (10000)
+        const delta = /** @type {readonly number[]} */ ([
             // the two header sizes: the base's one byte, and this delta's `n`
             ...littleVarint(1),
             ...littleVarint(n),
             // `n` inserts of one byte each
             ...Array.from({ length: n }, () => [1, 0x41]).flat(),
-        ]
+        ])
         const out = tryApplyDelta([0], delta)
         assert(out !== null)
         assertEq(out.length, n)
