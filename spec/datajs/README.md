@@ -511,8 +511,8 @@ it and therefore cannot carry it:
 
 - property attributes — `writable`, `configurable`, and whether the object is
   extensible, sealed or frozen;
-- the prototype — a `null`-prototype object, a `null`-prototype array, or an
-  `Array` subclass all serialize as their data, and read back ordinary;
+- the prototype — a `null`-prototype object or an `Array` subclass serializes
+  as its data, and reads back ordinary;
 - anything else the host attaches that is not an own enumerable string-keyed
   data property.
 
@@ -533,6 +533,25 @@ a document denoting something else. `JSON.stringify` substitutes `null` for a
 function, expands a hole to `null`, drops a symbol-keyed member, and drops that
 `meta` without a word. DataJS rejects instead, because a silently wrong
 document is worse than no document.
+
+**This section is a rule for hosts, and the conformance corpus carries no vector
+for any of it.** Not one input above is constructible in FunctionalScript, which
+has no mutation, no classes, no `Symbol`, and none of `Object.defineProperty`,
+`Object.assign`, `Object.setPrototypeOf` or `Object.freeze` — and a conformance
+set is itself a FunctionalScript data module, so a set cannot spell an accessor,
+a frozen value or an `Array` subclass to hand a serializer. That is a property of
+the carrier, not an omission: an implementation written in a host that *can* build
+these owes the rule, and its own tests are where it answers, as this repository's
+writer does at the level its language reaches — the descriptors, the own names and
+the graph.
+
+It is also why a `null`-prototype **array** is not in the list above, though a
+`null`-prototype object is. `Array.isArray` is true of one and `instanceof Array`
+is not, and the only way to build it is `Object.setPrototypeOf`, so the value
+exists solely as an artifact of an API the subset does not have. A serializer that
+takes the array branch on `instanceof Array` therefore reads it as an object and
+refuses it for its non-enumerable `length`, which is correct: the `length`
+exception above belongs to the array branch, and this value never reaches one.
 
 ### Normalized form
 

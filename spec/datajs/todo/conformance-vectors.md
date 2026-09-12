@@ -2634,7 +2634,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       asserted against the set's own length rather than written down. The
       FunctionalScript half of the law is stage 6's, once stage 5 has taught
       the front end `;` and the special numbers.
-- [ ] **The serializer's input domain in the spec.** §What may be serialized
+- [x] **The serializer's input domain in the spec.** §What may be serialized
       names an accessor, a non-enumerable property, a symbol key, an array's
       extra own property, a cycle and a `Date` as inputs a serializer must
       refuse, and a `null` prototype, an `Array` subclass and a frozen value
@@ -2654,6 +2654,39 @@ The steps, in order; a step is one pull request unless it says otherwise:
       free: every set is a FunctionalScript data module, so a vector whose
       input is a frozen object or an `Array` subclass has no spelling in the
       corpus, which is the wall the removed host recipes hit.
+      **Decided by measuring the writer against all fourteen cases the section
+      names, which settled it more narrowly than the paragraph above expected.**
+      Every refusal holds: a function, a symbol leaf, a `Date`, a hole, a symbol
+      key, an accessor, a non-enumerable property, an array with an extra own
+      key, and a cycle are each refused. Four of the five accept cases hold too —
+      a `null`-prototype object, an `Array` subclass, a frozen object and a
+      frozen array all serialize as their data. So the section **stays**: it is
+      true of the shipped writer, and it is the only thing that makes fourteen
+      real defects errors rather than a silently wrong document.
+      **One case disagreed, and the specification was wrong rather than the
+      writer.** A `null`-prototype array is refused, with `length is a
+      non-enumerable property`, and the mechanism is exact: `Array.isArray` is
+      true of it and `instanceof Array` is not, so the writer takes the *object*
+      branch, where a `null` prototype is allowed and every own descriptor is
+      read — including the non-enumerable `length` whose exception lives in the
+      array branch this value never reaches. The only way to build one is
+      `Object.setPrototypeOf`, so it exists solely as an artifact of an API the
+      subset does not have, and `instanceof Array` is the spelling this
+      repository chose deliberately — the other two values it parts from
+      `Array.isArray` on are this one and a cross-realm array, both already
+      out of scope. The item is gone from §What may be serialized.
+      **And the corpus owes nothing, which the section now says itself.** Not
+      one of the fourteen is constructible in FunctionalScript, and that holds
+      in a *proof* as much as in a set: a `.f.mjs` cannot call
+      `Object.setPrototypeOf`, declare a class or freeze a value either, so
+      even the writer's own proof reaches these only at the level its language
+      reaches — descriptors through `_memberValue`, own names, and the graph.
+      That is why the fourteen measurements above are a scratch script rather
+      than a landed test, and why the section is a rule for hosts that can
+      build these rather than a claim this repository can check. Saying so in
+      the specification is the whole of this step: the alternative was a set of
+      vectors that cannot be written and a reader of the section left to guess
+      why none exists.
 - [x] **The checks the data model does not need, removed.** `difference` in
       [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
       tested its actual graph for a symbol-keyed property, an own property
