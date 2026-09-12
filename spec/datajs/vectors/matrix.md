@@ -19,15 +19,16 @@ that mentions it in three.
 
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
-| `reader` | `accept`, `reject` | 675 | 50 | 0 |
-| `serializer` | `serializer-accept`, `graph-equivalence` | 168 | 557 | 0 |
-| `normalize` | `normalize` | 213 | 512 | 0 |
+| `reader` | `accept`, `reject` | 678 | 50 | 0 |
+| `serializer` | `serializer-accept`, `graph-equivalence` | 171 | 557 | 0 |
+| `normalize` | `normalize` | 216 | 512 | 0 |
 
-725 classes.
+728 classes.
 
 | class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
 | `array/elements/every-value` | `array-elements-every-value` | `ser-array-elements-every-value` | `norm-array-elements-every-value` |
+| `array/elements/every-value-first` | `array-elements-every-value-first` | `ser-array-elements-every-value-first` | `norm-array-elements-every-value-first` |
 | `array/elements/negative-first` | `array-elements-negative-first` | `ser-array-elements-negative-first`, `ser-array-elements-negative-zero-first`, `ser-array-elements-negative-bigint-first`, `ser-array-elements-negative-infinity-first` | `norm-array-elements-negative-first`, `norm-array-elements-negative-zero-first`, `norm-array-elements-negative-bigint-first`, `norm-array-elements-negative-infinity-first` |
 | `array/elision/leading` | `array-elision-leading` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `array/elision/medial` | `array-elision-medial` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
@@ -125,7 +126,7 @@ that mentions it in three.
 | `const/reference/member` | `const-reference-member` | not applicable, [note 23](#notes) | not applicable, [note 60](#notes) |
 | `const/shared/leaf` | `const-shared-leaf` | not applicable, [note 29](#notes) | `norm-shared-leaf` |
 | `const/shared/mixed` | `const-shared-mixed` | `ser-sharing-mixed`, `graph-sharing-mixed` | `norm-shared-mixed` |
-| `const/shared/nested` | `const-shared-nested` | `ser-const-shared-nested`, `graph-const-shared-nested` | not applicable, [note 97](#notes) |
+| `const/shared/nested` | `const-shared-nested` | `ser-const-shared-nested`, `ser-const-shared-nested-object-parent`, `graph-const-shared-nested`, `graph-const-shared-nested-object-parent` | not applicable, [note 97](#notes) |
 | `const/shared/object` | `const-shared-object` | `ser-sharing-object`, `graph-sharing-object`, `graph-sharing-empty-object` | `norm-shared-object`, `norm-const-body-escaping-key`, `norm-const-every-value-object` |
 | `const/shared/three-paths` | `const-shared-three-paths` | `ser-shared-three-paths` | `norm-shared-three-paths` |
 | `const/shared/twice` | `const-shared-twice` | `ser-sharing-array`, `graph-sharing-array` | `norm-shared-twice`, `norm-const-body-escaping-values`, `norm-const-every-value-array` |
@@ -265,28 +266,28 @@ that mentions it in three.
 | `key/string/continuation/crlf` | `key-continuation-crlf` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/string/empty` | `key-empty` | `ser-key-empty` | `norm-key-empty` |
 | `key/string/escape/0` | `key-escape-0` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `key/string/escape/b` | `key-escape-b` | `ser-key-escape-b` | `norm-key-escape-b` |
-| `key/string/escape/backslash` | `key-escape-backslash`, `key-escape-backslash-after-first` | `ser-key-escape-backslash`, `ser-key-escape-backslash-after-first` | `norm-key-escape-backslash`, `norm-key-escape-backslash-after-first` |
+| `key/string/escape/b` | `key-escape-b`, `key-escape-b-every-slot` | `ser-key-escape-b`, `ser-key-escape-b-every-slot` | `norm-key-escape-b`, `norm-key-escape-b-every-slot` |
+| `key/string/escape/backslash` | `key-escape-backslash`, `key-escape-backslash-every-slot` | `ser-key-escape-backslash`, `ser-key-escape-backslash-every-slot` | `norm-key-escape-backslash`, `norm-key-escape-backslash-every-slot` |
 | `key/string/escape/backtick` | `key-escape-backtick` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `key/string/escape/f` | `key-escape-f` | `ser-key-escape-f` | `norm-key-escape-f` |
+| `key/string/escape/f` | `key-escape-f`, `key-escape-f-every-slot` | `ser-key-escape-f`, `ser-key-escape-f-every-slot` | `norm-key-escape-f`, `norm-key-escape-f-every-slot` |
 | `key/string/escape/identity` | `key-escape-identity` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/string/escape/identity/a` | `key-escape-identity-a` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `key/string/escape/n` | `key-escape-n` | `ser-key-escape-n` | `norm-key-escape-n` |
+| `key/string/escape/n` | `key-escape-n`, `key-escape-n-every-slot` | `ser-key-escape-n`, `ser-key-escape-n-every-slot` | `norm-key-escape-n`, `norm-key-escape-n-every-slot` |
 | `key/string/escape/octal` | `key-escape-octal` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/string/escape/octal/8` | `key-escape-octal-8` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `key/string/escape/quote` | `key-escape-quote`, `key-escape-quote-after-first` | `ser-key-escape-quote`, `ser-key-escape-quote-after-first` | `norm-key-escape-quote`, `norm-key-escape-quote-after-first` |
-| `key/string/escape/r` | `key-escape-r` | `ser-key-escape-r` | `norm-key-escape-r` |
+| `key/string/escape/quote` | `key-escape-quote`, `key-escape-quote-every-slot` | `ser-key-escape-quote`, `ser-key-escape-quote-every-slot` | `norm-key-escape-quote`, `norm-key-escape-quote-every-slot` |
+| `key/string/escape/r` | `key-escape-r`, `key-escape-r-every-slot` | `ser-key-escape-r`, `ser-key-escape-r-every-slot` | `norm-key-escape-r`, `norm-key-escape-r-every-slot` |
 | `key/string/escape/single-quote` | `key-escape-single-quote` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `key/string/escape/slash` | `key-escape-slash` | not applicable, [note 19](#notes) | not applicable, [note 99](#notes) |
+| `key/string/escape/slash` | `key-escape-slash`, `key-escape-slash-every-slot` | not applicable, [note 19](#notes) | not applicable, [note 99](#notes) |
 | `key/string/escape/space` | `key-escape-space` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `key/string/escape/t` | `key-escape-t` | `ser-key-escape-t` | `norm-key-escape-t` |
+| `key/string/escape/t` | `key-escape-t`, `key-escape-t-every-slot` | `ser-key-escape-t`, `ser-key-escape-t-every-slot` | `norm-key-escape-t`, `norm-key-escape-t-every-slot` |
 | `key/string/escape/u-braces` | `key-escape-u-braces` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `key/string/escape/u/09af` | `key-escape-u-09af` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
-| `key/string/escape/u/9afA` | `key-escape-u-9afA` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
-| `key/string/escape/u/AF09` | `key-escape-u-AF09` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
-| `key/string/escape/u/F09a` | `key-escape-u-F09a` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
-| `key/string/escape/u/afAF` | `key-escape-u-afAF` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
-| `key/string/escape/u/fAF0` | `key-escape-u-fAF0` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
+| `key/string/escape/u/09af` | `key-escape-u-09af`, `key-escape-u-09af-every-slot` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
+| `key/string/escape/u/9afA` | `key-escape-u-9afA`, `key-escape-u-9afA-every-slot` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
+| `key/string/escape/u/AF09` | `key-escape-u-AF09`, `key-escape-u-AF09-every-slot` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
+| `key/string/escape/u/F09a` | `key-escape-u-F09a`, `key-escape-u-F09a-every-slot` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
+| `key/string/escape/u/afAF` | `key-escape-u-afAF`, `key-escape-u-afAF-every-slot` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
+| `key/string/escape/u/fAF0` | `key-escape-u-fAF0`, `key-escape-u-fAF0-every-slot` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
 | `key/string/escape/u/non-hex/002f/0` | `key-escape-u-non-hex-002f-0` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
 | `key/string/escape/u/non-hex/002f/1` | `key-escape-u-non-hex-002f-1` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
 | `key/string/escape/u/non-hex/002f/2` | `key-escape-u-non-hex-002f-2` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
@@ -313,15 +314,15 @@ that mentions it in three.
 | `key/string/escape/u/non-hex/0067/3` | `key-escape-u-non-hex-0067-3` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
 | `key/string/escape/u/short/0` | `key-escape-u-short-0` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
 | `key/string/escape/u/short/3` | `key-escape-u-short-3` | not applicable, [note 17](#notes) | not applicable, [note 55](#notes) |
-| `key/string/escape/u00/0000` | `key-escape-u00-0000`, `key-escape-u00-0000-after-first` | `ser-key-escape-u00-0000`, `ser-key-escape-u00-0000-after-first` | `norm-key-escape-u00-0000`, `norm-key-escape-u00-0000-after-first` |
-| `key/string/escape/u00/0007` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-0007` |
-| `key/string/escape/u00/000b` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-000b` |
-| `key/string/escape/u00/000e` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-000e` |
-| `key/string/escape/u00/000f` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-000f` |
-| `key/string/escape/u00/0010` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-0010` |
-| `key/string/escape/u00/0019` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-0019` |
-| `key/string/escape/u00/001a` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-001a` |
-| `key/string/escape/u00/001f` | `key-escape-u00-001f` | `ser-key-escape-u00-001f` | `norm-key-escape-u00-001f` |
+| `key/string/escape/u00/0000` | `key-escape-u00-0000`, `key-escape-u00-0000-every-slot` | `ser-key-escape-u00-0000`, `ser-key-escape-u00-0000-every-slot` | `norm-key-escape-u00-0000`, `norm-key-escape-u00-0000-every-slot` |
+| `key/string/escape/u00/0007` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-0007`, `norm-key-escape-u00-0007-every-slot` |
+| `key/string/escape/u00/000b` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-000b`, `norm-key-escape-u00-000b-every-slot` |
+| `key/string/escape/u00/000e` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-000e`, `norm-key-escape-u00-000e-every-slot` |
+| `key/string/escape/u00/000f` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-000f`, `norm-key-escape-u00-000f-every-slot` |
+| `key/string/escape/u00/0010` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-0010`, `norm-key-escape-u00-0010-every-slot` |
+| `key/string/escape/u00/0019` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-0019`, `norm-key-escape-u00-0019-every-slot` |
+| `key/string/escape/u00/001a` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-key-escape-u00-001a`, `norm-key-escape-u00-001a-every-slot` |
+| `key/string/escape/u00/001f` | `key-escape-u00-001f`, `key-escape-u00-001f-every-slot` | `ser-key-escape-u00-001f`, `ser-key-escape-u00-001f-every-slot` | `norm-key-escape-u00-001f`, `norm-key-escape-u00-001f-every-slot` |
 | `key/string/escape/uppercase` | `key-escape-uppercase-n` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/string/escape/uppercase/u` | `key-escape-uppercase-u` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/string/escape/v` | `key-escape-v` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
@@ -507,6 +508,7 @@ that mentions it in three.
 | `object/key-order/index-before-name` | `object-key-order-index-before-name` | `ser-object-key-order-index-before-name` | `norm-object-key-order-index-before-name` |
 | `object/key-order/index-first` | `object-key-order-index-first` | not applicable, [note 21](#notes) | not applicable, [note 101](#notes) |
 | `object/key-order/names/first-occurrence` | `object-key-order-names-first-occurrence` | `ser-object-key-order-names-first-occurrence` | `norm-object-key-order-names-first-occurrence` |
+| `object/key-order/nested` | `object-key-order-nested` | `ser-object-key-order-nested`, `graph-object-key-order-nested` | `norm-object-key-order-nested` |
 | `object/key-order/non-index/above` | `object-key-order-non-index-above` | `ser-object-key-order-non-index-above` | `norm-object-key-order-non-index-above` |
 | `object/key-order/non-index/exp` | `object-key-order-non-index-exp` | `ser-object-key-order-non-index-exp` | `norm-object-key-order-non-index-exp` |
 | `object/key-order/non-index/hex` | `object-key-order-non-index-hex` | `ser-object-key-order-non-index-hex` | `norm-object-key-order-non-index-hex` |
@@ -516,6 +518,7 @@ that mentions it in three.
 | `object/key-order/non-index/space` | `object-key-order-non-index-space` | `ser-object-key-order-non-index-space` | `norm-object-key-order-non-index-space` |
 | `object/leading-comma` | `object-leading-comma` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `object/members/every-value` | `object-members-every-value` | `ser-object-members-every-value` | `norm-object-members-every-value` |
+| `object/members/every-value-first` | `object-members-every-value-first` | `ser-object-members-every-value-first` | `norm-object-members-every-value-first` |
 | `object/members/negative-first` | `object-members-negative-first-zero`, `object-members-negative-first-number`, `object-members-negative-first-bigint`, `object-members-negative-first-infinity` | `ser-object-members-negative-first-zero`, `ser-object-members-negative-first-number`, `ser-object-members-negative-first-bigint`, `ser-object-members-negative-first-infinity` | `norm-object-members-negative-first-zero`, `norm-object-members-negative-first-number`, `norm-object-members-negative-first-bigint`, `norm-object-members-negative-first-infinity` |
 | `object/nested/array` | `object-nested-array` | `ser-object-nested-array` | not applicable, [note 59](#notes) |
 | `object/nested/deep` | `object-nested-deep` | not applicable, [note 34](#notes) | not applicable, [note 59](#notes) |
@@ -544,28 +547,28 @@ that mentions it in three.
 | `string/continuation/crlf` | `string-continuation-crlf` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `string/empty` | `string-empty` | `ser-string-empty` | `norm-string-empty` |
 | `string/escape/0` | `string-escape-0` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `string/escape/b` | `string-escape-b` | `ser-string-escape-b` | `norm-string-escape-b` |
-| `string/escape/backslash` | `string-escape-backslash` | `ser-string-escape-backslash` | `norm-string-escape-backslash` |
+| `string/escape/b` | `string-escape-b`, `string-escape-b-every-slot` | `ser-string-escape-b`, `ser-string-escape-b-every-slot` | `norm-string-escape-b`, `norm-string-escape-b-every-slot` |
+| `string/escape/backslash` | `string-escape-backslash`, `string-escape-backslash-every-slot` | `ser-string-escape-backslash`, `ser-string-escape-backslash-every-slot` | `norm-string-escape-backslash`, `norm-string-escape-backslash-every-slot` |
 | `string/escape/backtick` | `string-escape-backtick` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `string/escape/f` | `string-escape-f` | `ser-string-escape-f` | `norm-string-escape-f` |
+| `string/escape/f` | `string-escape-f`, `string-escape-f-every-slot` | `ser-string-escape-f`, `ser-string-escape-f-every-slot` | `norm-string-escape-f`, `norm-string-escape-f-every-slot` |
 | `string/escape/identity` | `string-escape-identity` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `string/escape/identity/a` | `string-escape-identity-a` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `string/escape/n` | `string-escape-n` | `ser-string-escape-n` | `norm-string-escape-n` |
+| `string/escape/n` | `string-escape-n`, `string-escape-n-every-slot` | `ser-string-escape-n`, `ser-string-escape-n-every-slot` | `norm-string-escape-n`, `norm-string-escape-n-every-slot` |
 | `string/escape/octal` | `string-escape-octal` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `string/escape/octal/8` | `string-escape-octal-8` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `string/escape/quote` | `string-escape-quote` | `ser-string-escape-quote` | `norm-string-escape-quote` |
-| `string/escape/r` | `string-escape-r` | `ser-string-escape-r` | `norm-string-escape-r` |
+| `string/escape/quote` | `string-escape-quote`, `string-escape-quote-every-slot` | `ser-string-escape-quote`, `ser-string-escape-quote-every-slot` | `norm-string-escape-quote`, `norm-string-escape-quote-every-slot` |
+| `string/escape/r` | `string-escape-r`, `string-escape-r-every-slot` | `ser-string-escape-r`, `ser-string-escape-r-every-slot` | `norm-string-escape-r`, `norm-string-escape-r-every-slot` |
 | `string/escape/single-quote` | `string-escape-single-quote` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `string/escape/slash` | `string-escape-slash` | not applicable, [note 18](#notes) | not applicable, [note 96](#notes) |
+| `string/escape/slash` | `string-escape-slash`, `string-escape-slash-every-slot` | not applicable, [note 18](#notes) | not applicable, [note 96](#notes) |
 | `string/escape/space` | `string-escape-space` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `string/escape/t` | `string-escape-t` | `ser-string-escape-t` | `norm-string-escape-t` |
+| `string/escape/t` | `string-escape-t`, `string-escape-t-every-slot` | `ser-string-escape-t`, `ser-string-escape-t-every-slot` | `norm-string-escape-t`, `norm-string-escape-t-every-slot` |
 | `string/escape/u-braces` | `string-escape-u-braces` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
-| `string/escape/u/09af` | `string-escape-u-09af` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
-| `string/escape/u/9afA` | `string-escape-u-9afA` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
-| `string/escape/u/AF09` | `string-escape-u-AF09` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
-| `string/escape/u/F09a` | `string-escape-u-F09a` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
-| `string/escape/u/afAF` | `string-escape-u-afAF` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
-| `string/escape/u/fAF0` | `string-escape-u-fAF0` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
+| `string/escape/u/09af` | `string-escape-u-09af`, `string-escape-u-09af-every-slot` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
+| `string/escape/u/9afA` | `string-escape-u-9afA`, `string-escape-u-9afA-every-slot` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
+| `string/escape/u/AF09` | `string-escape-u-AF09`, `string-escape-u-AF09-every-slot` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
+| `string/escape/u/F09a` | `string-escape-u-F09a`, `string-escape-u-F09a-every-slot` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
+| `string/escape/u/afAF` | `string-escape-u-afAF`, `string-escape-u-afAF-every-slot` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
+| `string/escape/u/fAF0` | `string-escape-u-fAF0`, `string-escape-u-fAF0-every-slot` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
 | `string/escape/u/non-hex/002f/0` | `string-escape-u-non-hex-002f-0` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
 | `string/escape/u/non-hex/002f/1` | `string-escape-u-non-hex-002f-1` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
 | `string/escape/u/non-hex/002f/2` | `string-escape-u-non-hex-002f-2` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
@@ -592,15 +595,15 @@ that mentions it in three.
 | `string/escape/u/non-hex/0067/3` | `string-escape-u-non-hex-0067-3` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
 | `string/escape/u/short/0` | `string-escape-u-short-0` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
 | `string/escape/u/short/3` | `string-escape-u-short-3` | not applicable, [note 16](#notes) | not applicable, [note 54](#notes) |
-| `string/escape/u00/0000` | `string-escape-u00-0000` | `ser-string-escape-u00-0000` | `norm-string-escape-u00-0000` |
-| `string/escape/u00/0007` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-0007` |
-| `string/escape/u00/000b` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-000b` |
-| `string/escape/u00/000e` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-000e` |
-| `string/escape/u00/000f` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-000f` |
-| `string/escape/u00/0010` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-0010` |
-| `string/escape/u00/0019` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-0019` |
-| `string/escape/u00/001a` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-001a` |
-| `string/escape/u00/001f` | `string-escape-u00-001f` | `ser-string-escape-u00-001f` | `norm-string-escape-u00-001f` |
+| `string/escape/u00/0000` | `string-escape-u00-0000`, `string-escape-u00-0000-every-slot` | `ser-string-escape-u00-0000`, `ser-string-escape-u00-0000-every-slot` | `norm-string-escape-u00-0000`, `norm-string-escape-u00-0000-every-slot` |
+| `string/escape/u00/0007` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-0007`, `norm-string-escape-u00-0007-every-slot` |
+| `string/escape/u00/000b` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-000b`, `norm-string-escape-u00-000b-every-slot` |
+| `string/escape/u00/000e` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-000e`, `norm-string-escape-u00-000e-every-slot` |
+| `string/escape/u00/000f` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-000f`, `norm-string-escape-u00-000f-every-slot` |
+| `string/escape/u00/0010` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-0010`, `norm-string-escape-u00-0010-every-slot` |
+| `string/escape/u00/0019` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-0019`, `norm-string-escape-u00-0019-every-slot` |
+| `string/escape/u00/001a` | not applicable, [note 47](#notes) | not applicable, [note 48](#notes) | `norm-string-escape-u00-001a`, `norm-string-escape-u00-001a-every-slot` |
+| `string/escape/u00/001f` | `string-escape-u00-001f`, `string-escape-u00-001f-every-slot` | `ser-string-escape-u00-001f`, `ser-string-escape-u00-001f-every-slot` | `norm-string-escape-u00-001f`, `norm-string-escape-u00-001f-every-slot` |
 | `string/escape/uppercase` | `string-escape-uppercase-n` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `string/escape/uppercase/u` | `string-escape-uppercase-u` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `string/escape/v` | `string-escape-v` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
@@ -856,7 +859,7 @@ stands under as many rows as it is true of.
 94. **`normalize`**, subtree `bigint/zero/neg` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
 95. **`normalize`**, subtree `document/shortest` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
 96. **`normalize`**, subtree `string/escape/slash` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
-97. **`normalize`**, subtree `const/shared/nested` — the bytes are pinned by the vector that carries this value under its own class; the shape here varies only in a count or a depth, which normalized layout does not branch on
+97. **`normalize`**, subtree `const/shared/nested` — a share whose parent is itself shared is a fact about naming, not about layout, and the four const/name/post-order vectors carry it in every parent-child kind, each pinning the order the names come out in
 98. **`normalize`**, subtree `document/both-edges` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
 99. **`normalize`**, subtree `key/string/escape/slash` — normalized form emits one spelling per value, and this class is another spelling the reader takes for a value the set already pins
 100. **`normalize`**, subtree `document/spelling/readable` — this is a fact about a document a reader takes, and normalized form is handed a graph, so the class has no normalized output of its own
