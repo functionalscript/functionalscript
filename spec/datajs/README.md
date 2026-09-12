@@ -82,7 +82,7 @@ byte path of [§Encoding](#encoding), which refuses invalid UTF-8 and a leading
 BOM before the reader sees a unit, is still to come and is what the corpus's
 byte-form vectors require.
 The shipped `fjs/djs` serializer still differs from
-[normalized form](#normalized-form) in four ways, each of them stage 4–6 work
+[normalized form](#normalized-form) in three ways, each of them stage 4–6 work
 rather than a bug:
 
 | shipped `fjs/djs` | this specification |
@@ -90,7 +90,6 @@ rather than a bug:
 | `const c0 = …` | `const $0=…` |
 | hoists a repeated primitive into a const | primitives always inline |
 | keys sorted lexicographically — `{"10":0,"9":0}` | array-index keys first in numeric order — `"9"` before `"10"` |
-| `NaN`, `±Infinity` become `null`; `-0` becomes `0` | each round-trips exactly |
 
 The first row is the one that is more than a layout difference: a name must
 start with `$`, so `c0` is not a name this format has at all, and the shipped
@@ -585,13 +584,23 @@ false of.** Such a value is an object, and its members — `length` among them �
 are its data; writing it as elements drops them, which is the silent
 approximation this section refuses. One predicate is the whole cost.
 
-**A serializer may refuse an array whose prototype chain does not reach this
-realm's `Array.prototype`, and nothing requires it to.** That is the freedom the
-paragraph above leaves open, stated where the instrument is: a `null`-prototype
-array and a cross-realm array are the only values it covers, both need an API or
-a realm this format's own subset has not got, and a refusal is an error rather
-than a wrong document. Every other array — a subclass, a frozen one — is data
-the list above requires, so this permission reaches nothing else.
+**A serializer may refuse an array `instanceof Array` is false of, and nothing
+requires it to.** That predicate is the family, and it is exactly the arrays
+whose prototype chain does not reach this realm's `Array.prototype`: one built
+here and re-pointed with `Object.setPrototypeOf` — to `null`, to `{}`, to
+`Object.prototype`, or by severing a subclass's own prototype — and one built in
+another realm. Each needs an API or a realm this format's own subset has not
+got, and a refusal is an error rather than a wrong document, which is why the
+permission costs nothing to a caller staying inside the model.
+
+**This is the one place the permission and the list above can name the same
+value, and the permission wins.** The list requires an `Array` subclass to
+serialize as its data, and it means one as built: its chain runs through
+`A.prototype` to `Array.prototype`. Re-point that chain and the value is in the
+family above, whatever it was before — the list is about values this format's
+callers construct, and re-pointing a prototype is not among the things they can
+do. A frozen array and an ordinary subclass are untouched: their chains reach
+`Array.prototype`, so nothing here permits refusing them.
 
 So the two shapes are not symmetric, and the asymmetry is the section's whole
 subject: **approximating is forbidden, refusing is not**. A serializer
