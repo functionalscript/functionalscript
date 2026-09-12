@@ -167,7 +167,7 @@ export const tryPackedRefs = (dir, oidBytes) => {
  * that catches a symbolic ref pointing at itself — Git answers that one with
  * the same message rather than looping.
  */
-export const maxLookups = 5
+export const maxLookups = /** @type {const} */ (5)
 
 /**
  * The two refs Git reads straight from the file instead of through a ref
@@ -186,7 +186,7 @@ export const maxLookups = 5
  * resolves depends on the file being there, which the bytes of the ref
  * naming it cannot say.
  */
-const special = ['FETCH_HEAD', 'MERGE_HEAD']
+const special = /** @type {readonly string[]} */ (['FETCH_HEAD', 'MERGE_HEAD'])
 
 /**
  * The id a `packed-refs` line gives a name, taking the **last** of them where
@@ -205,10 +205,10 @@ const packedId = (packed, name) => {
 }
 
 /** The one ref name whose target Git constrains. */
-const head = 'HEAD'
+const head = /** @type {const} */ ('HEAD')
 
 /** The prefix `HEAD`'s target must carry. */
-const refsPrefix = 'refs/'
+const refsPrefix = /** @type {const} */ ('refs/')
 
 /** @type {(name: readonly number[]) => boolean} */
 const isUnderRefs = name => nameText(name)?.startsWith(refsPrefix) === true
