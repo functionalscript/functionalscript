@@ -1,4 +1,4 @@
-import { concat, escapes, isProperPrefix, join, normalize, parse, relativize, root, toPosix } from "./module.f.mjs"
+import { concat, escapes, isProperPrefix, join, normalize, parse, relativize, root, toPosix, under } from "./module.f.mjs"
 import { assertEq } from '../asserts/module.f.mjs'
 
 const normalizeTest = [
@@ -418,4 +418,43 @@ const isProperPrefixTest = [
     },
 ]
 
-export const proof = { normalizeTest, escapesTest, rootTest, parseTest, concatTest, joinTest, relativizeTest, toPosixTest, isProperPrefixTest }
+const underTest = [
+    // An ordinary directory takes the separator `join` would give it.
+    () => {
+        assertEq(under('a/b', 'c'), 'a/b/c')
+    },
+    // A directory of no characters is no directory: the name is read
+    // against the caller's own, so no separator is added.
+    () => {
+        assertEq(under('', '.git'), '.git')
+    },
+    // The roots, each of which already ends in a separator. `/` and `//`
+    // are the POSIX and UNC roots and must stay apart, and `C:/` is the
+    // drive root on the host that has drives.
+    () => {
+        assertEq(under('/', 'config'), '/config')
+    },
+    () => {
+        assertEq(under('//', 'config'), '//config')
+    },
+    () => {
+        assertEq(under('C:/', 'config'), 'C:/config')
+    },
+    // Any directory whose spelling ends in a separator, not only a root.
+    () => {
+        assertEq(under('a/b/', 'c'), 'a/b/c')
+    },
+    // What `join` would have answered for the same three, which is the
+    // fault this exists to avoid: another separator, and so another root.
+    () => {
+        assertEq(join('/', 'config'), '//config')
+    },
+    () => {
+        assertEq(join('//', 'config'), '///config')
+    },
+    () => {
+        assertEq(join('', '.git'), '/.git')
+    },
+]
+
+export const proof = { normalizeTest, escapesTest, rootTest, parseTest, concatTest, joinTest, underTest, relativizeTest, toPosixTest, isProperPrefixTest }

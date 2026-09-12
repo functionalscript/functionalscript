@@ -90,6 +90,22 @@ export const proof = {
         assertEq(objectPath('.git')(id(tagId)), '.git/objects/b7/9a8e25df6a75ef83c047b329e730d92ad59dec')
         assertEq(objectPath('r')(id(sha256CommitId)), 'r/objects/80/31c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f')
     },
+    // A directory that already ends in a separator does not get another,
+    // which is what keeps a root's kind: `/` and `//` are the POSIX and
+    // UNC roots, and a second separator would move the objects from one to
+    // the other. `fjs/git/repo` answers such a directory for a gitfile of
+    // `gitdir: /`, so this is the composition of the two, not a shape only
+    // a test builds.
+    pathAtRoot: () => {
+        const h = '/objects/b7/9a8e25df6a75ef83c047b329e730d92ad59dec'
+        assertEq(objectPath('/')(id(tagId)), h)
+        assertEq(objectPath('//')(id(tagId)), `/${h}`)
+        assertEq(objectPath('C:/')(id(tagId)), `C:${h}`)
+        assertEq(objectPath('.git/')(id(tagId)), `.git${h}`)
+        // A directory of no characters reads the path against the caller's
+        // own directory rather than the root.
+        assertEq(objectPath('')(id(tagId)), h.slice(1))
+    },
     // The signed tag by its id: the loose file Git wrote, read, inflated,
     // hashed to the id asked for, and given back with its payload.
     tag: () => {

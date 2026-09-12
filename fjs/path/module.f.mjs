@@ -202,6 +202,36 @@ export const concat = a => b => {
 export const join = (...list) => list.join('/')
 
 /**
+ * A name below a directory, joined by a single `/`, where the directory may
+ * already end in one and may be empty. Two cases {@link join} gets wrong for
+ * a caller that was handed a directory rather than a clean segment:
+ *
+ * A directory of no characters is no directory: what is below it is itself,
+ * so `under('', '.git')` is `.git` and not `/.git`. Joining those with a `/`
+ * would turn a name read against the caller's own directory into one read
+ * against the root.
+ *
+ * A directory that already ends in a separator does not get another, and
+ * that is not tidiness: `/` and `//` are two roots here and to the hosts
+ * this models, a POSIX one and a UNC one, so `/` plus a separator plus a
+ * name would name a file in another namespace than the one the caller asked
+ * about. `C:/` is the same case on the other host.
+ *
+ * A bare drive is not handled, because it cannot be: `C:` names the current
+ * directory on drive C to Windows and a directory called `C:` to POSIX, so
+ * `C:name` and `C:/name` are each right on one host. A caller that can be
+ * handed one refuses it rather than picking a host, as `fjs/git/repo`'s
+ * `tryCommonDir` does.
+ *
+ * Use this wherever the directory comes from outside; use {@link join} for
+ * segments you wrote yourself.
+ *
+ * @type {(dir: string, name: string) => string}
+ */
+export const under = (dir, name) =>
+    dir === '' ? name : dir.endsWith('/') ? `${dir}${name}` : join(dir, name)
+
+/**
  * Returns `path` relative to `base` with a `./` prefix, or `path` unchanged
  * if it does not start with `base` or `base` is empty.
  * E.g. `relativize('/repo', '/repo/fs/a.ts')` → `'./fs/a.ts'`.
