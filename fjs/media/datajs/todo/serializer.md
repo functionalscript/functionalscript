@@ -204,17 +204,15 @@ exclude:
 - an object is `typeof 'object'`, non-null, not an array, and **plain**:
   its prototype is `Object.prototype` or `null`, which the spec permits
   explicitly;
-- everything else is rejected, `Object.create({x: 1})` included — a boundary
-  the specification does **not** draw, and there is none to draw from the
-  caller's side: FunctionalScript cannot change a prototype and has no classes,
-  so every object a caller can build is under `Object.prototype` and every array
-  under `Array.prototype`, which leaves "any other non-plain object" with no case
-  to decide. An implementation cannot leave it open all the same, since
-  classifying is the first thing it does, so it takes the line
-  [`difference`](../vectors/module.f.mjs) already draws. Taking it costs
-  nothing if the decision goes the other way: the alternative *accepts* more,
-  so what changes is one condition and one vector, and until then the
-  refusal is loud rather than a silently wrong document.
+- everything else is rejected, `Object.create({x: 1})` included, which is the
+  line the specification draws: §What may be serialized refuses "any other
+  non-plain object" in its first rule, and an object whose prototype is neither
+  `Object.prototype` nor `null` is one. Nothing here is open, and nothing on the
+  caller's side would reopen it — FunctionalScript cannot change a prototype and
+  has no classes, so every object a caller can build is under `Object.prototype`
+  and every array under `Array.prototype`, which is why this rule costs a
+  conforming caller nothing. [`difference`](../vectors/module.f.mjs) draws the
+  same line on the way back.
 
 Reading a prototype to classify is not replacing one, so this stays inside the
 rule in [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1.
@@ -446,12 +444,20 @@ this realm's constructors, and calls `Array.isArray` "a longer one guarding
 against values this rule already excludes".
 
 §What may be serialized refuses the value under its first rule, as any other
-non-plain object, and it now says outright that a conforming serializer
-classifies arrays by the slot `Array.isArray` reads rather than by the prototype
-chain — because writing the impostor as its elements drops a member, which is
-the silent approximation that section exists to refuse. So this is a **known
+non-plain object, and it now states the consequence as a one-directional rule:
+**nothing an implementation writes as an array may be a value `Array.isArray` is
+false of**, because writing the impostor as its elements drops a member, which
+is the silent approximation that section exists to refuse. So this is a **known
 non-conformance**, not a case the format leaves open, and it is stated here
 rather than left to be rediscovered.
+
+It is the only one, and the direction is why. The same section permits refusing
+an array whose prototype chain does not reach this realm's `Array.prototype` and
+requires nothing either way, so this writer's refusal of a `null`-prototype
+array — the other half of the same mismatch — is conforming as it stands.
+Approximating is forbidden, refusing is not: a refusal is an error a caller
+sees, where the impostor's `export default [];` is a document that denotes
+something else.
 
 What holds the fix is that §3.1's premise and the specification's rule point
 different ways, and reconciling them is not this file's to do. Two ways out,
