@@ -262,5 +262,9 @@ export default [
     {"id": "norm-array-elements-negative-first", "class": "array/elements/negative-first", "input": [-1, -1n, -Infinity], "text": "export default [-1,-1n,-Infinity];"},
     {"id": "norm-array-elements-negative-zero-first", "class": "array/elements/negative-first", "input": [-0, 1], "text": "export default [-0,1];"},
     {"id": "norm-array-elements-negative-bigint-first", "class": "array/elements/negative-first", "input": [-1n, 1], "text": "export default [-1n,1];"},
-    {"id": "norm-array-elements-negative-infinity-first", "class": "array/elements/negative-first", "input": [-Infinity, 1], "text": "export default [-Infinity,1];"}
+    {"id": "norm-array-elements-negative-infinity-first", "class": "array/elements/negative-first", "input": [-Infinity, 1], "text": "export default [-Infinity,1];"},
+    {"id": "norm-object-members-negative-first-zero", "class": "object/members/negative-first", "input": {"a": -0, "b": 1}, "text": "export default {\"a\":-0,\"b\":1};"},
+    {"id": "norm-object-members-negative-first-number", "class": "object/members/negative-first", "input": {"a": -1, "b": 1}, "text": "export default {\"a\":-1,\"b\":1};"},
+    {"id": "norm-object-members-negative-first-bigint", "class": "object/members/negative-first", "input": {"a": -1n, "b": 1}, "text": "export default {\"a\":-1n,\"b\":1};"},
+    {"id": "norm-object-members-negative-first-infinity", "class": "object/members/negative-first", "input": {"a": -Infinity, "b": 1}, "text": "export default {\"a\":-Infinity,\"b\":1};"}
 ];
