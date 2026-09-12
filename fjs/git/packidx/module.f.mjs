@@ -135,15 +135,17 @@ const fanoutAgrees = (b, fanoutAt, idsAt, stride, n, width) => {
  * past 4 GiB at all. That is the reason version 2 exists and not a gap in
  * this reader.
  *
- * @type {(b: readonly number[], width: number) => Nullable<Idx>}
+ * @type {(b: readonly number[], oidBytes: OidBytes) => Nullable<Idx>}
  */
-const tryV1 = (b, width) => {
+const tryV1 = (b, oidBytes) => {
+    const width = oidBytes
     const n = u32(b, (fanout - 1) * 4)
     const stride = 4 + width
     const entriesAt = fanout * 4
     if (b.length !== entriesAt + n * stride + 2 * width) { return null }
     if (!fanoutAgrees(b, 0, entriesAt + 4, stride, n, width)) { return null }
     return {
+        oidBytes,
         ids: Array.from({ length: n }, (_, i) => oidAt(b, entriesAt + i * stride + 4, width)),
         offsets: Array.from({ length: n }, (_, i) => u32(b, entriesAt + i * stride)),
         packChecksum: oidAt(b, entriesAt + n * stride, width),
@@ -171,9 +173,10 @@ const largeOffsetFlag = 0x80000000
  * rather than a lower bound — it is the only thing that says how long that
  * table is.
  *
- * @type {(b: readonly number[], width: number) => Nullable<Idx>}
+ * @type {(b: readonly number[], oidBytes: OidBytes) => Nullable<Idx>}
  */
-const tryV2 = (b, width) => {
+const tryV2 = (b, oidBytes) => {
+    const width = oidBytes
     if (u32(b, 4) !== 2) { return null }
     const fanoutAt = 8
     const n = u32(b, fanoutAt + (fanout - 1) * 4)
@@ -194,6 +197,7 @@ const tryV2 = (b, width) => {
     const offsets = Array.from({ length: n }, (_, i) => offsetOf(i))
     if (!offsets.every(o => o !== null)) { return null }
     return {
+        oidBytes,
         ids: Array.from({ length: n }, (_, i) => oidAt(b, idsAt + i * width, width)),
         offsets: /** @type {readonly number[]} */ (offsets),
         packChecksum: oidAt(b, largeAt + large * 8, width),
@@ -234,14 +238,19 @@ export const tryIdx = oidBytes => input => {
  * width, so the widths are equal for every comparison the search makes and
  * the ordering is the value's.
  *
+ * The width comes from the index and not from its first id, so an index of no
+ * objects checks it too. An empty pack holds no id at all, so a lookup in one
+ * always misses — but a miss and a caller mixing two repositories are
+ * different answers, and reading the width from `ids[0]` would have had
+ * nothing to read and would have reported the first as the second.
+ *
  * @throws On an id of another width than the index holds, which is a caller
  * mixing two repositories rather than an id the pack lacks.
  *
  * @type {(idx: Idx) => (id: Oid) => Nullable<number>}
  */
-export const offsetOf = ({ ids, offsets }) => id => {
-    if (ids.length === 0) { return null }
-    assert(length(id) === length(ids[0]), ['not an id of the index width', id])
+export const offsetOf = ({ oidBytes, ids, offsets }) => id => {
+    assert(length(id) === BigInt(oidBytes) * 8n, ['not an id of the index width', id])
     const target = uint(id)
     /** @type {(lo: number, hi: number) => Nullable<number>} */
     const search = (lo, hi) => {

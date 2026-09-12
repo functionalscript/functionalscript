@@ -4,9 +4,10 @@
  *
  * [`fjs/git/ref`](../ref/module.f.mjs) reads the bytes of one ref file and
  * has no effects. This module finds and opens the files, which is the half
- * that needs a filesystem, and it is where the two rules live that no reader
- * of a single file can decide: which of two files holding the same name
- * wins, and when a symbolic ref stops being followed.
+ * that needs a filesystem, and it is where every rule lives that no reader of
+ * a single file can decide: which of two files holding the same name wins,
+ * when a symbolic ref stops being followed, how a name and a path spell each
+ * other, and which names a target may take.
  *
  * Every rule below was measured against Git 2.43.0 rather than read off a
  * manual page.
@@ -41,6 +42,35 @@
  * [`fjs/git/refname`](../refname/module.f.mjs)'s `isWholeName` and not a
  * list of file-name conventions.
  *
+ * The filter runs before a path is built and not after a file is read, which
+ * matters for a name a caller passes in rather than one a directory listing
+ * handed over: `..` is one of the byte pairs the rule refuses, so a name like
+ * `../secret` never becomes a path below the repository and is never opened.
+ * A file outside a repository is not a ref however its first bytes read.
+ *
+ * **A ref name is bytes and a path is text, joined by UTF-8 in both
+ * directions.** A directory entry called `é` is the name `0xC3 0xA9`, and that
+ * name reads back as the path `é`. Reading a byte as a code point instead
+ * spells the same name `Ã©`, which is a file no repository has — so the
+ * listing and the lookup would disagree about one ref, each right about its
+ * own half.
+ *
+ * **`HEAD`'s target must sit under `refs/`, and it is the only name with such
+ * a rule.** Measured: with `.git/HEAD` holding `ref: a/b` and `.git/a/b`
+ * holding a valid id, each of `git rev-parse HEAD`,
+ * `git rev-parse --verify HEAD` and `git symbolic-ref HEAD` answers
+ * `not a git repository` — the directory stops being one rather than `HEAD`
+ * holding an odd value. `a/b` is a name `git check-ref-format` accepts, so the
+ * rule is not the name's; and an ordinary ref may point outside `refs/`, which
+ * a symbolic ref onto `FETCH_HEAD` is the everyday case of. A rule about
+ * *which* name is being resolved cannot live in a reader of one file's bytes,
+ * which is why it is here.
+ *
+ * **A `packed-refs` may name one ref twice, and the last line wins.**
+ * Measured: `git show-ref` lists both lines and `git rev-parse` answers the
+ * last, in either order of the two. Git neither refuses the file nor takes the
+ * first, so the earlier lines are dead and one name still has one value.
+ *
  * @module
  *
  * @import { Dirent, ReadFile, Readdir } from '../../effects/node/types.ts'
@@ -54,15 +84,18 @@
 
 import { catchStep, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { isNotFound, readFile, readdir } from '../../effects/node/module.f.mjs'
+import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { under } from '../../path/module.f.mjs'
-import { fromCodePointList } from '../../text/utf8/module.f.mjs'
-import { codePointListToString, stringToCodePointList } from '../../text/utf16/module.f.mjs'
-import { msb, u8List } from '../../types/bit_vec/module.f.mjs'
+import { fromCodePointList, fromVec } from '../../text/utf8/module.f.mjs'
+import { stringToCodePointList } from '../../text/utf16/module.f.mjs'
+import { msb, u8List, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { tryPacked, tryRef } from '../ref/module.f.mjs'
 import { isWholeName } from '../refname/module.f.mjs'
 
 const toBytes = u8List(msb)
+
+const toVec = u8ListToVec(msb)
 
 /**
  * A ref name as the bytes Git stores it as, from the text a path is.
@@ -144,11 +177,45 @@ export const maxLookups = 5
  */
 const special = ['FETCH_HEAD', 'MERGE_HEAD']
 
-/** @type {(packed: readonly PackedRef[], name: Bytes) => Nullable<Oid>} */
+/**
+ * The id a `packed-refs` line gives a name, taking the **last** of them where
+ * the file names one twice.
+ *
+ * A file can hold a name twice, and Git neither refuses it nor takes the
+ * first: measured on Git 2.43.0, `git show-ref` lists both lines and
+ * `git rev-parse` answers the last, in either order of the two. So the last
+ * line is the effective value and the ones above it are dead.
+ *
+ * @type {(packed: readonly PackedRef[], name: Bytes) => Nullable<Oid>}
+ */
 const packedId = (packed, name) => {
-    const hit = packed.find(e => sameName(e.name, name))
-    return hit === undefined ? null : hit.id
+    const hits = packed.filter(e => sameName(e.name, name))
+    return hits.length === 0 ? null : hits[hits.length - 1].id
 }
+
+/** The one ref name whose target Git constrains. */
+const head = 'HEAD'
+
+/** The prefix `HEAD`'s target must carry. */
+const refsPrefix = 'refs/'
+
+/** @type {(name: readonly number[]) => boolean} */
+const isUnderRefs = name => nameText(name)?.startsWith(refsPrefix) === true
+
+/**
+ * The text of a ref name, for the path its loose file sits at, or `null` where
+ * the bytes are no UTF-8.
+ *
+ * Decoded as UTF-8 and not a byte per code point, which is the inverse of
+ * {@link nameBytes} and has to be: a name of the two bytes `0xC3 0xA9` is the
+ * one character `é` on the filesystem, and reading each byte as a code point
+ * would ask the host for `Ã©` instead and miss the file. Bytes that are no
+ * UTF-8 name no file node could have handed us, so they answer `null` rather
+ * than a path built from replacement characters.
+ *
+ * @type {(name: readonly number[]) => Nullable<string>}
+ */
+const nameText = name => fromVec(toVec(name))
 
 /**
  * The id a name resolves to, given the packed refs already read: the loose
@@ -171,12 +238,31 @@ const resolveWith = (dir, oidBytes, packed) => {
     /** @type {(name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>} */
     const go = (name, left) => {
         if (left <= 0) { return pureOk(null) }
-        const text = codePointListToString(name)
+        const dense = byteArray(name)
+        // A name that is no ref name never reaches the filesystem. `..` is
+        // one of the byte pairs `isWholeName` refuses, so this is also what
+        // keeps `../secret` from being joined below `dir` and read: a path
+        // that leaves the repository is not a ref this can answer for, and
+        // the file at the other end of it could begin with something that
+        // looks like an id.
+        if (!isWholeName(dense)) { return pureOk(null) }
+        const text = nameText(dense)
+        if (text === null) { return pureOk(null) }
         return step(tryBytes(under(dir, text)), bytes => {
             if (bytes === null) { return pureOk(special.includes(text) ? null : packedId(packed, name)) }
             const r = readRef(bytes)
             if (r === null) { return pureOk(null) }
             if (r.kind === 'direct') { return pureOk(r.id) }
+            // `HEAD` is the one ref whose target Git constrains: it must sit
+            // under `refs/`, and a `HEAD` that does not is not a repository
+            // at all rather than a ref with an odd value. Measured on Git
+            // 2.43.0 — with `.git/HEAD` holding `ref: a/b` and `.git/a/b`
+            // holding a valid id, every one of `rev-parse HEAD`,
+            // `rev-parse --verify HEAD` and `symbolic-ref HEAD` answers
+            // `not a git repository`. This function knows which name it was
+            // asked about, which is why the check lives here and not in the
+            // grammar that reads one file's bytes.
+            if (text === head && !isUnderRefs(byteArray(r.target))) { return pureOk(null) }
             return go(r.target, left - 1)
         })
     }
@@ -193,10 +279,17 @@ const resolveWith = (dir, oidBytes, packed) => {
  * cannot be read for any other reason is the channel's.
  *
  * The name is bytes and not text, and it is a whole ref name: `HEAD`,
- * `refs/heads/master`, `FETCH_HEAD`. It is not checked against
- * `isWholeName` here, because a caller that has a name in hand — `HEAD` for
- * a checkout, a ref a person typed — is asking about that name, and a name
- * no file is stored under simply answers `null`.
+ * `refs/heads/master`, `FETCH_HEAD`. One that is no ref name answers `null`
+ * before any file is opened, which is the same answer a name nothing is stored
+ * under gets and the only safe one: the name comes from outside — `HEAD` for a
+ * checkout, a ref a person typed — and `..` is one of the byte pairs the rule
+ * refuses, so `../secret` would otherwise join below the repository into a
+ * path that leaves it. A file on the other side of that boundary is not a ref
+ * however its first bytes read.
+ *
+ * `HEAD` is the one name whose target Git constrains, and this is where that
+ * is enforced, because this is the half that knows which name it was asked
+ * about. The module doc has the measurement.
  *
  * @type {(dir: string, oidBytes: OidBytes) => (name: Bytes) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
  */
@@ -224,18 +317,34 @@ export const tryResolve = (dir, oidBytes) => name =>
  */
 
 /**
- * What one step of the walk answers: the roots so far, and the entries to
- * walk next.
+ * What the walk of `refs/` has found so far: the roots, and every ref name it
+ * has seen a loose file for.
+ *
+ * The names are kept apart from the roots because shadowing is by the file
+ * existing and not by it yielding a root. A loose symbolic ref whose target is
+ * nowhere gives no root, and it must still hide the packed line of the same
+ * name — otherwise a name whose loose file replaced a packed one comes back
+ * with the stale packed id, which is the opposite of what the loose file says.
+ *
+ * @typedef {{
+ *   readonly roots: readonly Root[]
+ *   readonly names: readonly (readonly number[])[]
+ * }} Found
+ */
+
+/**
+ * What one step of the walk answers: what has been found so far, and the
+ * entries to walk next.
  *
  * Named because the branches below build it from different shapes — a
  * directory adds entries and no roots, a ref adds a root and no entries —
  * and without one name for the pair each branch infers its own literal type
  * and none of them unify.
  *
- * @typedef {readonly[Nullable<readonly Root[]>, Nullable<readonly Entry[]>]} Walked
+ * @typedef {readonly[Nullable<Found>, Nullable<readonly Entry[]>]} Walked
  */
 
-/** @type {(state: Nullable<readonly Root[]>, items: Nullable<readonly Entry[]>) => Walked} */
+/** @type {(state: Nullable<Found>, items: Nullable<readonly Entry[]>) => Walked} */
 const walked = (state, items) => [state, items]
 
 /** @type {(parent: Entry) => (d: Dirent) => Entry} */
@@ -260,7 +369,7 @@ const childOf = parent => d => ({
  * been told the file is there, so a read that cannot find it is a race or a
  * broken host rather than an absence, and the channel is where that belongs.
  *
- * @type {(dir: string, oidBytes: OidBytes, packed: readonly PackedRef[]) => (item: Entry) => (state: Nullable<readonly Root[]>) => Effect<Readdir | ReadFile, readonly[Nullable<readonly Root[]>, Nullable<readonly Entry[]>], IoChannel>}
+ * @type {(dir: string, oidBytes: OidBytes, packed: readonly PackedRef[]) => (item: Entry) => (state: Nullable<Found>) => Effect<Readdir | ReadFile, Walked, IoChannel>}
  */
 const looseOf = (dir, oidBytes, packed) => {
     const readRef = tryRef(oidBytes)
@@ -275,24 +384,42 @@ const looseOf = (dir, oidBytes, packed) => {
         }
         const name = nameBytes(item.name)
         if (!isWholeName(name)) { return pureOk(walked(found, null)) }
+        // the name is recorded whatever the file turns out to hold, because
+        // that is what shadows the packed line
+        const names = [...found.names, name]
         /** @type {(bytes: Bytes) => Effect<ReadFile, Walked, IoChannel>} */
         const cont = bytes => {
             const r = readRef(bytes)
             if (r === null) { return pureOk(walked(null, null)) }
-            if (r.kind === 'direct') { return pureOk(walked([...found, { name, id: r.id }], null)) }
+            if (r.kind === 'direct') {
+                return pureOk(walked({ roots: [...found.roots, { name, id: r.id }], names }, null))
+            }
             return mapStep(
                 resolve(r.target, maxLookups - 1),
-                id => walked(id === null ? found : [...found, { name, id }], null))
+                id => walked({ roots: id === null ? found.roots : [...found.roots, { name, id }], names }, null))
         }
         return step(mapStep(readFile(item.path), toBytes), cont)
     }
 }
 
-/** @type {(loose: readonly Root[], packed: readonly PackedRef[]) => readonly Root[]} */
-const combine = (loose, packed) => [
-    ...loose,
+/**
+ * The roots the walk found, then the packed lines nothing hides.
+ *
+ * A packed line is dropped for either of two reasons. A loose file of the same
+ * name hides it, by existing — see {@link Found}. And a *later* packed line of
+ * the same name hides it, because a file may name a ref twice and Git takes
+ * the last: measured on Git 2.43.0, `git show-ref` lists both lines and
+ * `git rev-parse` answers the last, in either order. Keeping both would break
+ * the one-entry-per-name this function promises.
+ *
+ * @type {(found: Found, packed: readonly PackedRef[]) => readonly Root[]}
+ */
+const combine = (found, packed) => [
+    ...found.roots,
     ...packed
-        .filter(p => !loose.some(l => sameName(l.name, p.name)))
+        .filter((p, i) =>
+            !found.names.some(n => sameName(n, p.name))
+            && !packed.slice(i + 1).some(q => sameName(q.name, p.name)))
         .map(p => ({ name: p.name, id: p.id })),
 ]
 
@@ -313,8 +440,14 @@ const combine = (loose, packed) => [
  * a repository that has never been packed has no such file.
  *
  * A loose ref shadows the packed line of the same name, so a name in both
- * places appears once, with the loose value. A symbolic loose ref is
- * answered resolved, which is what `git show-ref` lists for one.
+ * places appears once, with the loose value. It shadows by existing: a loose
+ * symbolic ref whose target is nowhere yields no root and the packed line
+ * still does not come back, since the loose file is what the repository now
+ * says about that name. A symbolic loose ref that does resolve is answered
+ * resolved, which is what `git show-ref` lists for one.
+ *
+ * One name, one entry, whatever the files do: a `packed-refs` naming a ref
+ * twice contributes its last line and not both.
  *
  * The order is the walk's and then the file's, and it means nothing: Git
  * sorts its own listing and this does not, because a caller that wants an
@@ -337,9 +470,9 @@ export const tryRoots = (dir, oidBytes) =>
         if (packed === null) { return pureOk(null) }
         /** @type {Entry} */
         const start = { path: under(dir, 'refs'), name: 'refs', isDirectory: true }
-        /** @type {Nullable<readonly Root[]>} */
-        const init = []
+        /** @type {Nullable<Found>} */
+        const init = { roots: [], names: [] }
         return mapStep(
             walkStep(pureOk([start]), init, looseOf(dir, oidBytes, packed)),
-            loose => loose === null ? null : combine(loose, packed))
+            found => found === null ? null : combine(found, packed))
     })
