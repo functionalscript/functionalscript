@@ -232,10 +232,10 @@ A declaration-only file is `types.ts` rather than `.f.mjs`, and an existing
 `fjs/types/phantom`, whose `Phantom` type uses a type-only `declare const
 phantomKey: unique symbol`, is the worked example: `module.f.ts` became
 [`types.ts`](../types/phantom/types.ts) with no runtime `Symbol()` value
-invented for it. The repository has no runtime-empty `.mjs` left — the three
-files with no `export` are executables (`fjs/module.mjs`,
-`fjs/emergent_testing/all.test.mjs`, `fjs/types/bigint/benchmark.mjs`), not
-declaration modules — so the rule now applies to new source only.
+invented for it. The repository has no runtime-empty `.mjs` left — the files
+with no `export` are executables (`fjs/module.mjs`,
+`fjs/emergent_testing/all.test.mjs`), not declaration modules — so the rule now
+applies to new source only.
 
 `types.ts` is ordinary TypeScript source, so the normal TypeScript check validates
 it even while `skipLibCheck` remains enabled for `.d.ts` dependencies. No

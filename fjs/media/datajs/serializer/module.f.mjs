@@ -83,17 +83,18 @@ const undefinedSerialize = ['undefined']
  * `-0` where `ToString` writes `0`. `NaN` and the infinities are words,
  * where JSON's `numberSerialize` writes `null` for them. Exported because
  * `fjs/djs/serializer` writes numbers the same way, and the rule has one
- * owner.
+ * owner; the `_` prefix says that export is linkage rather than API, as it
+ * does for `_memberValue` below.
  *
  * @type {(value: number) => List<string>}
  */
-export const numberSerialize = value => [is(value, -0) ? '-0' : `${value}`]
+export const _numberSerialize = value => [is(value, -0) ? '-0' : `${value}`]
 
 /** @type {(value: Primitive) => List<string>} */
 const leafSerialize = value => {
     switch (typeof value) {
         case 'boolean': { return boolSerialize(value) }
-        case 'number': { return numberSerialize(value) }
+        case 'number': { return _numberSerialize(value) }
         case 'string': { return stringSerialize(value) }
         case 'bigint': { return [bigintSerialize(value)] }
         case 'undefined': { return undefinedSerialize }
