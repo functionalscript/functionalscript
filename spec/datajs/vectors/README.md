@@ -38,14 +38,17 @@ a set at the import, with the record types in
 [`fjs/media/datajs/vectors/types.ts`](../../../fjs/media/datajs/vectors/types.ts).
 A set ships a `proof.f.mjs` beside it, as every module does, proving the set's
 shape — every vector named and classed with a non-empty string, the ids one of a
-kind, the document and the graph present — and, where this repository holds the
-implementation a set is about, running it over every vector as well. A
-third-party implementation is closed by its own harness, reading the same sets.
+kind, the document and the graph present. Running a set against an
+implementation is a second thing, and where it lives depends on the role: the
+three writer-side sets are run from those same files, and the reader's two from
+the reader's side, in `fjs/media/datajs/vectors/proof.f.mjs`. Below the matrix
+says which run is where. A third-party implementation is closed by its own
+harness, reading the same sets.
 
 | set | directory | record | proved against |
 | - | - | - | - |
-| reader accept | `accept/` | `Accept` | the reader, as the set lands |
-| reader reject | `reject/` | `Reject` | the reader, as the set lands |
+| reader accept | `accept/` | `Accept` | the reader, from its own side |
+| reader reject | `reject/` | `Reject` | the reader, from its own side |
 | serializer accept | `serializer-accept/` | `SerializerAccept` | the serializer |
 | graph equivalence | `graph-equivalence/` | `GraphEquivalence` | the serializer |
 | normalize | `normalize/` | `Normalize` | the normalized serializer |
