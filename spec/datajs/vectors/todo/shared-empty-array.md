@@ -66,13 +66,17 @@ Three routes, and the first is the one to rule out first.
 
 ### Tasks
 
-- [ ] **Look for a spelling in the subset**, and record the result either way —
+- [x] **Look for a spelling in the subset**, and record the result either way —
       a negative result is what makes the other two routes worth their cost.
+      Done, negative: the search and its result are the first route above.
 - [ ] **Decide between the schema change and the stated limitation**, which is
       the owner's: the first buys every shape and costs every record type.
-- [ ] If the limitation stands, **say it in
+- [x] If the limitation stands, **say it in
       [`../README.md`](../README.md)** beside the sharing rule, so a harness
-      author reads it with the schema rather than finding it here.
+      author reads it with the schema rather than finding it here. Done: the
+      schema states it and links here, which holds whichever way the decision
+      below goes — the schema route would replace the sentence rather than
+      leave the corpus silent.
 
 ### Related
 

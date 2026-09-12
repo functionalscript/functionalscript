@@ -94,6 +94,34 @@ const $h21 = {"a": 0, "\u2028": 1};
 const $h22 = {"a": 0, "\ud800": 1};
 const $h23 = {"a": 0, "\ud800\udc00": 1};
 const $t0 = [0];
+const $f28 = ["\ud800\ud800", 0, "\ud800\ud800"];
+const $f29 = ["\udc00\ud800", 0, "\udc00\ud800"];
+const $f30 = ["\udc00\udc00", 0, "\udc00\udc00"];
+const $f31 = ["\udbff\udbff", 0, "\udbff\udbff"];
+const $f32 = ["\udfff\udbff", 0, "\udfff\udbff"];
+const $f33 = ["\udfff\udfff", 0, "\udfff\udfff"];
+const $f34 = ["\ud800\udbff", 0, "\ud800\udbff"];
+const $g28 = {"a": "\ud800\ud800", "b": 0, "c": "\ud800\ud800"};
+const $g29 = {"a": "\udc00\ud800", "b": 0, "c": "\udc00\ud800"};
+const $g30 = {"a": "\udc00\udc00", "b": 0, "c": "\udc00\udc00"};
+const $g31 = {"a": "\udbff\udbff", "b": 0, "c": "\udbff\udbff"};
+const $g32 = {"a": "\udfff\udbff", "b": 0, "c": "\udfff\udbff"};
+const $g33 = {"a": "\udfff\udfff", "b": 0, "c": "\udfff\udfff"};
+const $g34 = {"a": "\ud800\udbff", "b": 0, "c": "\ud800\udbff"};
+const $h24 = {"\ud800\ud800": 0, "a": 1};
+const $h25 = {"\udc00\ud800": 0, "a": 1};
+const $h26 = {"\udc00\udc00": 0, "a": 1};
+const $h27 = {"\udbff\udbff": 0, "a": 1};
+const $h28 = {"\udfff\udbff": 0, "a": 1};
+const $h29 = {"\udfff\udfff": 0, "a": 1};
+const $h30 = {"\ud800\udbff": 0, "a": 1};
+const $h31 = {"a": 0, "\ud800\ud800": 1};
+const $h32 = {"a": 0, "\udc00\ud800": 1};
+const $h33 = {"a": 0, "\udc00\udc00": 1};
+const $h34 = {"a": 0, "\udbff\udbff": 1};
+const $h35 = {"a": 0, "\udfff\udbff": 1};
+const $h36 = {"a": 0, "\udfff\udfff": 1};
+const $h37 = {"a": 0, "\ud800\udbff": 1};
 export default [
     {"id": "ser-null", "class": "leaf/null", "input": null},
     {"id": "ser-true", "class": "leaf/boolean/true", "input": true},
@@ -306,8 +334,8 @@ export default [
     {"id": "ser-shared-empty-object-object-parent", "class": "const/shared/object", "input": {"x": $s11, "y": $s11}},
     {"id": "ser-shared-object-proto-key", "class": "const/shared/object", "input": [$s12, $s12, $s14, $s14]},
     {"id": "ser-shared-object-escaped-keys", "class": "const/shared/object", "input": [$s13, $s13]},
-    {"id": "ser-const-body-every-slot-array", "class": "const/shared/twice", "input": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15, $f16, $f16, $f17, $f17, $f18, $f18, $f19, $f19, $f20, $f20, $f21, $f21, $f22, $f22, $f23, $f23, $f24, $f24, $f25, $f25, $f26, $f26, $f27, $f27]},
-    {"id": "ser-const-body-every-slot-object", "class": "const/shared/object", "input": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15, $g16, $g16, $g17, $g17, $g18, $g18, $g19, $g19, $g20, $g20, $g21, $g21, $g22, $g22, $g23, $g23, $g24, $g24, $g25, $g25, $g26, $g26, $g27, $g27]},
-    {"id": "ser-shared-object-escaping-key-every-slot", "class": "const/shared/object", "input": [$h0, $h0, $h1, $h1, $h2, $h2, $h3, $h3, $h4, $h4, $h5, $h5, $h6, $h6, $h7, $h7, $h8, $h8, $h9, $h9, $h10, $h10, $h11, $h11, $h12, $h12, $h13, $h13, $h14, $h14, $h15, $h15, $h16, $h16, $h17, $h17, $h18, $h18, $h19, $h19, $h20, $h20, $h21, $h21, $h22, $h22, $h23, $h23]},
+    {"id": "ser-const-body-every-slot-array", "class": "const/shared/twice", "input": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15, $f16, $f16, $f17, $f17, $f18, $f18, $f19, $f19, $f20, $f20, $f21, $f21, $f22, $f22, $f23, $f23, $f24, $f24, $f25, $f25, $f26, $f26, $f27, $f27, $f28, $f28, $f29, $f29, $f30, $f30, $f31, $f31, $f32, $f32, $f33, $f33, $f34, $f34]},
+    {"id": "ser-const-body-every-slot-object", "class": "const/shared/object", "input": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15, $g16, $g16, $g17, $g17, $g18, $g18, $g19, $g19, $g20, $g20, $g21, $g21, $g22, $g22, $g23, $g23, $g24, $g24, $g25, $g25, $g26, $g26, $g27, $g27, $g28, $g28, $g29, $g29, $g30, $g30, $g31, $g31, $g32, $g32, $g33, $g33, $g34, $g34]},
+    {"id": "ser-shared-object-escaping-key-every-slot", "class": "const/shared/object", "input": [$h0, $h0, $h1, $h1, $h2, $h2, $h3, $h3, $h4, $h4, $h5, $h5, $h6, $h6, $h7, $h7, $h8, $h8, $h9, $h9, $h10, $h10, $h11, $h11, $h12, $h12, $h13, $h13, $h14, $h14, $h15, $h15, $h16, $h16, $h17, $h17, $h18, $h18, $h19, $h19, $h20, $h20, $h21, $h21, $h22, $h22, $h23, $h23, $h24, $h24, $h25, $h25, $h26, $h26, $h27, $h27, $h28, $h28, $h29, $h29, $h30, $h30, $h31, $h31, $h32, $h32, $h33, $h33, $h34, $h34, $h35, $h35, $h36, $h36, $h37, $h37]},
     {"id": "ser-key-proto-value-shared-later", "class": "key/proto/value/shared", "input": {"x": $t0, ["__proto__"]: $t0}}
 ];

@@ -2169,6 +2169,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document that parses. One vector per set carries `{"a": a, ["__proto__"]:
       a}`. First and later inside a hoisted body was the rule stated one round
       up; a computed key is the same axis one level out.
+      **And the adjacency shapes in the same slots, which the round above
+      claimed and did not deliver.** Its reason said the free spellings catch a
+      body path that reads two adjacent units as a pair, and the three kinds it
+      added were a lone surrogate and a *valid* pair, so nothing in a body was
+      malformed. Review measured that and it is exactly right: a writer whose
+      body path pairs any two adjacent surrogates turns a shared
+      `["\ud800\ud800", 0]` into an astral character that was never in the
+      graph, and the seven adjacency classes reached only a root. All seven join
+      each const-body family and the key family, so each shape sits in a first
+      and a later element, a first and a later member's value and a first and a
+      later key. Writing the reason before checking it is what this file keeps
+      recording; here the reason named the mutant and the vectors did not reach
+      it.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
@@ -2491,6 +2504,16 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a document that parses, so every column sees it and all three sets carry
       it. Each of the four texts was predicted from the rule and then compared
       with the writer.
+      **Then the adjacency shapes in the same slots**, which the round above
+      said its free spellings covered and did not: a lone surrogate and a
+      *valid* pair are both well-formed, so nothing malformed sat in a body.
+      Review measured it. The seven adjacency classes reached only a root, so a
+      writer whose body path pairs any two adjacent surrogates turned a shared
+      array holding two high surrogates into an astral character, and here it
+      also spells the pair raw where the rule requires two escapes. All seven
+      join each const-body family and the key family, filling the six slots for
+      each shape, and all three sets take them. Every text predicted first, as
+      before.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
