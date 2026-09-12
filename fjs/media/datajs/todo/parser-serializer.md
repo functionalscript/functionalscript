@@ -168,8 +168,9 @@ states and the reader's proof pins:
   four permitted characters are JSON's, and they are the whole rule: outside a
   string literal a character is whitespace or part of a token, and one that is
   neither is **refused**. Derive what is refused from that rather than from a
-  list: everything outside a token is, `@` as much as U+2028, so there is no
-  finite set to write down. The 21 worth naming are the delta — the characters
+  list: everything outside a token is, `@` as much as U+2028, so the list is the
+  input alphabet minus the tokens — finite, since the input is code units, and
+  no more worth writing than the alphabet itself. The 21 worth naming are the delta — the characters
   ECMAScript treats as whitespace and DataJS does not — and they are enumerated
   once, in
   [the corpus derivation](../../../../spec/datajs/todo/conformance-vectors.md),
