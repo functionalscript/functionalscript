@@ -79,8 +79,8 @@ Notes for the implementer:
   written, and the unpinned `[...keywords, 'true', …].map(kindEntry)` variant
   fails with `TS2322` (`Entry<{ readonly kind: string }>` is not an
   `Entry<JsToken>`) — hence the `as const` on `keywordKinds`.
-- `isKeywordToken` and `getOperatorToken`/`hasOperatorToken` keep working
-  unchanged — they consume the maps built from the tables.
+- `getOperatorToken`/`hasOperatorToken` keep working unchanged — they
+  consume the maps built from the tables.
 
 Net effect: ~130 lines shrink to ~25, and a token kind is added by editing one
 array element.

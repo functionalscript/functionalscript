@@ -1,9 +1,9 @@
 /**
- * @import { JsToken, JsTokenWithMetadata } from './types.ts'
+ * @import { JsToken, JsTokenWithMetadata } from '../../ebnf/lib/js/types.ts'
  */
 
 import { assertEq } from '../../asserts/module.f.mjs'
-import { mergeTrivia, tokenize } from './module.f.mjs'
+import { tokenize } from './module.f.mjs'
 import { map, toArray } from '../../types/list/module.f.mjs'
 import { stringifyAsTree } from '../../djs/serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -23,12 +23,6 @@ const withoutMetada = tokenWithMetada => tokenWithMetada.token
 export const proof = {
     // The coalescing rule both tokenizers read. All four combinations, since
     // the whole point of exporting it is that neither side re-derives them.
-    mergeTrivia: [
-        () => assertEq(mergeTrivia('ws', 'ws'), 'ws'),
-        () => assertEq(mergeTrivia('ws', 'nl'), 'nl'),
-        () => assertEq(mergeTrivia('nl', 'ws'), 'nl'),
-        () => assertEq(mergeTrivia('nl', 'nl'), 'nl'),
-    ],
     djs: [
         () => {
             const result = stringify(tokenizeString(''))

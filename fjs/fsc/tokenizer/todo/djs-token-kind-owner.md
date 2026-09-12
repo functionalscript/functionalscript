@@ -27,8 +27,8 @@ One exported `_djsTokenKinds` list beside the tokenizer, pinned to
 `DjsToken['kind']` with the existing `Assert<Equal<...>>` pattern;
 `mapDjsToken` becomes a membership test over it, and the parser's
 `_tokenKindNames` derives as "`_djsTokenKinds` minus `'eof'`" instead of a
-hand-written copy. The membership test needs the same care `isKeywordToken`
-already takes about narrowing, but the error fallback stays: it is the
+hand-written copy. The membership test needs the same care about narrowing
+as the keyword test in `toJsToken`, but the error fallback stays: it is the
 correct answer for a genuine non-DJS `JsToken`, just no longer for a
 forgotten DJS one.
 

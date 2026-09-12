@@ -3,13 +3,13 @@
  * @import { Rule } from '../../types.ts'
  */
 
-import { assert, assertStructurallySame } from '../../../asserts/module.f.mjs'
+import { assert, assertEq, assertStructurallySame } from '../../../asserts/module.f.mjs'
 import { codePointListToString, stringToCodePointList } from '../../../text/utf16/module.f.mjs'
 import { toArray } from '../../../types/list/module.f.mjs'
 import { unwrap } from '../../../types/result/module.f.mjs'
 import { repeatFrom0 } from '../../module.f.mjs'
 import { parser } from '../../ll1/module.f.mjs'
-import { content, id, newLine, number, operator, operators, slash, token, ws } from './module.f.mjs'
+import { content, id, mergeTrivia, newLine, number, operator, operators, slash, token, ws } from './module.f.mjs'
 
 const cp = /**@type {const}*/({ id: 'cp' })
 
@@ -84,6 +84,13 @@ export const proof = {
     },
     // Every kind reads its whole token and no more: the text is the symbols
     // under the node, and the end is where the next token begins.
+    // a run of trivia is `nl` if any of it is
+    mergeTrivia: () => {
+        assertEq(mergeTrivia('ws', 'ws'), 'ws')
+        assertEq(mergeTrivia('ws', 'nl'), 'nl')
+        assertEq(mergeTrivia('nl', 'ws'), 'nl')
+        assertEq(mergeTrivia('nl', 'nl'), 'nl')
+    },
     kinds: {
         number: () => {
             assertStructurallySame(read('123 '), ['number', '123', 3])

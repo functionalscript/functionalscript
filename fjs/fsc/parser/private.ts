@@ -8,7 +8,7 @@
  */
 
 import type { Meta, Unmapped } from '../../ebnf/ast/types.ts'
-import type { TokenMetadata } from '../../js/tokenizer/types.ts'
+import type { TokenMetadata } from '../../ebnf/lib/js/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 import type { Result } from '../../types/result/types.ts'

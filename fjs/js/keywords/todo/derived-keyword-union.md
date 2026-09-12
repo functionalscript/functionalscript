@@ -36,7 +36,7 @@ array of the literal union (`_Keyword` = the three groups plus
 `'undefined'`), losing the literal positions and literal `length` an
 external TypeScript consumer could observe — `(typeof keywords)[number]`,
 the form the in-repository consumers use
-(`fjs/js/tokenizer/types.ts:105`), is unchanged. Preserving the exact
+(`_KeywordToken` in `fjs/ebnf/lib/js/types.ts`), is unchanged. Preserving the exact
 sorted tuple type is not an option worth taking: it would have to be
 hand-written, which is the duplication this issue removes. So the
 implementation **declares the tuple→array widening as a breaking change**
