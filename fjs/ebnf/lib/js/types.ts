@@ -124,16 +124,19 @@ export type _NullToken = {readonly kind: 'null'}
 /** @internal */
 export type _UndefinedToken = {readonly kind: 'undefined'}
 
+/** @internal */
+export type _KeywordKind = Exclude<typeof keywords[number], 'true' | 'false' | 'null' | 'undefined'>
+
 /**
  * A keyword token, its kind drawn from the one source of truth for
  * JavaScript keywords, `fjs/js/keywords` — minus the literal keywords
  * (`true`/`false`/`null`/`undefined`), which have their own token types.
+ * One member per kind, as {@link _OperatorToken} is, so that a `switch` on
+ * `kind` narrows the token.
  *
  * @internal
  */
-export type _KeywordToken = {
-    readonly kind: Exclude<typeof keywords[number], 'true' | 'false' | 'null' | 'undefined'>
-}
+export type _KeywordToken = { readonly [K in _KeywordKind]: { readonly kind: K } }[_KeywordKind]
 
 export type IdToken = {
     readonly kind: 'id'
