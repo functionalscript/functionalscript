@@ -102,8 +102,10 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    module's own public surface.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
-4. **Then stages 5–7**, in order, as listed below. Stage 5 is done;
-   stage 6 waits on stage 4, and stage 7 on stage 3b.
+4. **Then stages 5–7**, in order, as listed below. Stage 5 is done —
+   within it the order was not a dependency, 5b and 5c each waiting on 5a
+   alone, and 5c landed first; stage 6 waits on stage 4, and stage 7 on
+   stage 3b.
 
 **Already done, do not redo:** stage 1a (the DataJS specification), stage 2
 (the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
