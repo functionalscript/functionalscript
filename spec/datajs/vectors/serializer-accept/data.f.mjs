@@ -170,5 +170,15 @@ export default [
     {"id": "ser-string-raw-005d", "class": "string/raw/range/005d-10ffff/low", "input": "]"},
     {"id": "ser-key-raw-005d", "class": "key/string/raw/range/005d-10ffff/low", "input": {"]": 0}},
     {"id": "ser-array-elements-negative-first", "class": "array/elements/negative-first", "input": [-1, -1n, -Infinity]},
-    {"id": "ser-object-key-order-boundaries", "class": "object/key-order/boundaries", "input": {"z": 0, "4294967295": 0, "4294967294": 0, "2147483648": 0, "1": 0, "01": 0, "1.0": 0, "0": 0}}
+    {"id": "ser-array-elements-negative-zero-first", "class": "array/elements/negative-first", "input": [-0, 1]},
+    {"id": "ser-array-elements-negative-bigint-first", "class": "array/elements/negative-first", "input": [-1n, 1]},
+    {"id": "ser-array-elements-negative-infinity-first", "class": "array/elements/negative-first", "input": [-Infinity, 1]},
+    {"id": "ser-object-key-order-boundaries", "class": "object/key-order/boundaries", "input": {"z": 0, "4294967295": 0, "4294967294": 0, "2147483648": 0, "1": 0, "01": 0, "1.0": 0, "0": 0}},
+    {"id": "ser-object-key-order-non-index-negative", "class": "object/key-order/non-index/negative", "input": {"-1": 0, "1": 1}},
+    {"id": "ser-object-key-order-non-index-negative-zero", "class": "object/key-order/non-index/negative-zero", "input": {"-0": 0, "0": 1}},
+    {"id": "ser-object-key-order-non-index-plus", "class": "object/key-order/non-index/plus", "input": {"+1": 0, "1": 1}},
+    {"id": "ser-object-key-order-non-index-space", "class": "object/key-order/non-index/space", "input": {" 1": 0, "1": 1}},
+    {"id": "ser-object-key-order-non-index-hex", "class": "object/key-order/non-index/hex", "input": {"0x1": 0, "1": 1}},
+    {"id": "ser-object-key-order-non-index-exp", "class": "object/key-order/non-index/exp", "input": {"1e0": 0, "1": 1}},
+    {"id": "ser-object-key-order-non-index-above", "class": "object/key-order/non-index/above", "input": {"4294967296": 0, "4294967294": 1}}
 ];
