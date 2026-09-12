@@ -65,6 +65,10 @@ const files = {
     'sha/config': latin1('[core]\n\trepositoryformatversion = 1\n[extensions]\n\tobjectformat = sha256\n'),
     [objectPath('sha')(id(sha256CommitId))]: toArray(writeEnvelope('commit', sha256Commit)),
     'odd/config': latin1('[extensions]\n\tobjectformat = sha3\n'),
+    // A repository directory that is a root, for the `config` path below
+    // one. `fjs/git/repo` answers `/` for a gitfile of `gitdir: /`, and a
+    // path built by writing the separator would look for `//config` here.
+    '/config': latin1('[core]\n\trepositoryformatversion = 0\n'),
 }
 
 /** @type {MemOperationMap<ReadFile | Inflate, readonly string[]>} */
@@ -167,6 +171,14 @@ export const proof = {
         assertStructurallySame(runHost(oidBytes('repo'))[1], ['ok', 20])
         assertStructurallySame(runHost(oidBytes('sha'))[1], ['ok', 32])
         assertStructurallySame(runHost(oidBytes('odd'))[1], ['ok', null])
+        // The `config` path is joined below the directory, not spelled with
+        // a separator: at the POSIX root the file is `/config`, and
+        // `//config` is a different namespace. This is the second of the two
+        // paths `todo/directory-separator.md` named, and without it the
+        // `${dir}/config` spelling passes every other case here.
+        assertStructurallySame(runHost(oidBytes('/'))[1], ['ok', 20])
+        const [log] = runHost(oidBytes('/'))
+        assertStructurallySame(log, ['readFile /config'])
         const [, r] = runHost(oidBytes('none'))
         assert(r[0] === 'error')
     },

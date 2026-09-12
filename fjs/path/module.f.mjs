@@ -202,6 +202,17 @@ export const concat = a => b => {
 export const join = (...list) => list.join('/')
 
 /**
+ * Whether a directory's spelling already ends in a separator, in either of
+ * the two this module reads.
+ *
+ * @type {(dir: string) => boolean}
+ */
+const endsInSeparator = dir => {
+    const last = dir[dir.length - 1]
+    return last === '/' || last === '\\'
+}
+
+/**
  * A name below a directory, joined by a single `/`, where the directory may
  * already end in one and may be empty. Two cases {@link join} gets wrong for
  * a caller that was handed a directory rather than a clean segment:
@@ -215,7 +226,15 @@ export const join = (...list) => list.join('/')
  * that is not tidiness: `/` and `//` are two roots here and to the hosts
  * this models, a POSIX one and a UNC one, so `/` plus a separator plus a
  * name would name a file in another namespace than the one the caller asked
- * about. `C:/` is the same case on the other host.
+ * about. `C:/` is the same case on the other host. The property is
+ * {@link root} of the joined path being {@link root} of the directory, and
+ * the proof states it that way rather than by spelling.
+ *
+ * Either separator ends a directory, because this module reads both:
+ * {@link toPosix} turns `\` into `/` before a root is read, so `\\` is the
+ * UNC root here exactly as `//` is. Testing only `/` would append to it and
+ * make `\\/name`, which reads back as the *ordinary* root — the very move
+ * this exists to prevent, and in the other direction for a single `\`.
  *
  * A bare drive is not handled, because it cannot be: `C:` names the current
  * directory on drive C to Windows and a directory called `C:` to POSIX, so
@@ -229,7 +248,7 @@ export const join = (...list) => list.join('/')
  * @type {(dir: string, name: string) => string}
  */
 export const under = (dir, name) =>
-    dir === '' ? name : dir.endsWith('/') ? `${dir}${name}` : join(dir, name)
+    dir === '' ? name : endsInSeparator(dir) ? `${dir}${name}` : join(dir, name)
 
 /**
  * Returns `path` relative to `base` with a `./` prefix, or `path` unchanged

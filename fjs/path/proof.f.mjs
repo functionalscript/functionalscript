@@ -444,6 +444,24 @@ const underTest = [
     () => {
         assertEq(under('a/b/', 'c'), 'a/b/c')
     },
+    // Either separator ends a directory, because this module reads both:
+    // `toPosix` makes `\\` the UNC root and `\` the POSIX one, so appending
+    // a `/` to either would move the name to another root. Two backslashes
+    // read as `//` and would have become `///`, the ordinary root; one
+    // reads as `/` and would have become `//`, the UNC root.
+    () => {
+        assertEq(under('\\\\', 'config'), '\\\\config')
+        assertEq(under('\\', 'config'), '\\config')
+        assertEq(under('a\\', 'c'), 'a\\c')
+    },
+    // The property behind all of those, stated as the property rather than
+    // as a spelling: a name joined below a directory stays under the same
+    // root the directory has.
+    () => {
+        for (const dir of ['/', '//', '///', '\\', '\\\\', 'C:/', 'a', 'a/', 'a\\']) {
+            assertEq(root(under(dir, 'config')), root(dir))
+        }
+    },
     // What `join` would have answered for the same three, which is the
     // fault this exists to avoid: another separator, and so another root.
     () => {
