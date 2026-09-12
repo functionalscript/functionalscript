@@ -55,7 +55,10 @@ const digitsValue: (radix: bigint) => (digits: readonly number[]) => Nullable<bi
 
 **The alphabet is `0x30`–`0x39` and nothing else**, so the radix runs
 `2n`..`10n`: a digit is a member `d` with `Number.isInteger(d) && 0x30
-<= d && d < 0x30 + radix`, and any other member — a letter, a sign, a
+<= d && d < 0x30 + Number(radix)` — the bound compared in the `number`
+domain, since `d` is a `number` and a `number + bigint` sum is a
+`TypeError`; `radix` is already asserted into `2n`..`10n`, so
+`Number(radix)` is exact — and any other member — a letter, a sign, a
 space, and a non-integer such as `48.5`, which a bare range test would
 pass and `BigInt` would then throw on — makes `digitsValue` answer
 `null` and `isCanonicalDigits` answer `false`. The integer guard is the

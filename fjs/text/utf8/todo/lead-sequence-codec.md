@@ -31,8 +31,9 @@ luck: the one emit site whose mask was open-coded instead of named,
 return [input & 0b01111_1111]
 ```
 
-is a **nine**-bit mask (`=== 255`), not the 7-bit `0b0111_1111` the
-branch means. The guard above bounds `input` to `0..0x7f`, so the two
+is written with nine digits but has **eight** one-bits — it is `255`,
+an eight-bit mask with one excess payload bit — where the branch means
+the seven-bit `0b0111_1111`. The guard above bounds `input` to `0..0x7f`, so the two
 masks are indistinguishable through every public path — which is exactly
 why no proof caught it, and why none can: the defect is unobservable by
 construction. What the tree is missing is not a proof but a *name*, so

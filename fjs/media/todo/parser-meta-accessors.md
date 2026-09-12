@@ -96,9 +96,25 @@ apart"), so `Extract` yields one shape and the runtime `id` assertion is
 exactly the check that convention leaves to make;
 [`mapping-precheck`](../../ebnf/ll1/todo/mapping-precheck.md) is where the
 convention becomes a checked constraint. The instances:
-`tagged<Out<P>, 'text', 'value'>('text', 'value')` gives `text`/`textAt`
-for JSON, `tagged<Out, 'text', 'value'>` the same for DataJS, and
-`tagged<Out, 'value', 'node'>('value', 'node')` gives `datajs`'s pair.
+`tagged<Out, 'value', 'node'>('value', 'node')` gives `datajs`'s pair,
+bound to DataJS's alphabet, and the JSON pair below is bound to JSON's.
+`textAt` is different, because `Text` is the one member both alphabets
+share and the task has DataJS *import* it rather than instantiate its
+own: the exported reader is the single `'text'` instance re-typed
+generically over whatever alphabet surrounds it —
+
+```js
+/** @type {<O extends { readonly id: string }>(node: _Readable<Text | O>) => string} */
+export const textAt = tagged('text', 'value').at
+```
+
+— so a JSON node (`O = Json<P>`) and a DataJS node (`O = Value`) are
+both accepted, each alphabet's `Text` being the same declaration. The
+runtime is alphabet-agnostic already (it reads `meta.id` and
+`meta.value`); only the type had closed over JSON's `Out<P>`, which a
+`Utf16 | Text | Value` node is not assignable to. `text` (the
+constructor) stays JSON-local: DataJS reuses JSON's string mappings,
+which build `Text` symbols, so it never constructs one itself.
 `_Tagged`, like `_Readable`, is a `_`-prefixed type in
 `json/parser/types.ts`, inside the public closure because the exported
 signature names it. The JSON pair is generic in the numeric
