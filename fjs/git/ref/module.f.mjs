@@ -40,7 +40,7 @@
  * @import { PackedRef, Ref } from './types.ts'
  */
 
-import { byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { tryFromHexOf } from '../oid/module.f.mjs'
 import { isWholeName } from '../refname/module.f.mjs'
@@ -148,6 +148,38 @@ const symbolicRule = /** @type {const} */ ([
 const parseSymbolic = byteParser(symbolicRule)
 
 /**
+ * The two names a symbolic ref may not point at, as byte strings.
+ *
+ * These are Git's *special* refs: it reads them straight from the file
+ * instead of through a ref backend, because each may hold more than one
+ * record, so they are not refs a symbolic ref can name. Measured by writing
+ * `ref: <name>` into `refs/heads/sym` and asking
+ * `git symbolic-ref refs/heads/sym`, which refuses exactly these two and
+ * resolves every other one-level name tried: `ORIG_HEAD`,
+ * `CHERRY_PICK_HEAD`, `REVERT_HEAD`, `BISECT_HEAD`, `REBASE_HEAD`,
+ * `AUTO_MERGE`, `HEAD`, `master` and a bare `foo` all pass.
+ *
+ * So this is a closed set of two and not an open-ended quirk, which is why
+ * it is checked rather than only written down.
+ *
+ * It binds a symbolic ref's target and nothing else. A `packed-refs` entry
+ * may be *named* either — `git show-ref` reads
+ * `<id> FETCH_HEAD` and `<id> MERGE_HEAD` — so the check belongs here and
+ * not in {@link isWholeName}, where it would wrongly refuse those lines.
+ */
+const special = [ascii('FETCH_HEAD'), ascii('MERGE_HEAD')]
+
+/**
+ * Whether a symbolic ref's target is one Git would resolve: a whole ref
+ * name, and not one of the two {@link special} refs.
+ *
+ * @type {(name: readonly number[]) => boolean}
+ */
+const isTarget = name =>
+    isWholeName(name)
+    && !special.some(s => s.length === name.length && s.every((b, i) => name[i] === b))
+
+/**
  * What a ref file holds: the ref another one names, or the id this one
  * does. `null` where the file is neither — a `ref:` line whose target is no
  * ref name, or bytes that are no id of the repository's width.
@@ -159,6 +191,9 @@ const parseSymbolic = byteParser(symbolicRule)
  * level is enough: measured on Git 2.43.0, a symbolic ref at
  * `refs/heads/sym` pointing at `master`, `a/b` or `refs` resolves, and only
  * `@` alone and the names that rule already refuses do not.
+ *
+ * A target that is a whole ref name is still refused where it is one of the
+ * two {@link special} refs, which is the one exception and a measured one.
  *
  * This reader is deliberately not a `HEAD` reader, and `HEAD` is the one ref
  * with a rule of its own: its target must sit under `refs/`. That rule is
@@ -180,7 +215,7 @@ export const tryRef = oidBytes => {
         if (r[0] !== 'error') {
             const [[, , target]] = r[1]
             const name = byteArray(symbolsOf(target))
-            return isWholeName(name) ? { kind: 'symbolic', target: name } : null
+            return isTarget(name) ? { kind: 'symbolic', target: name } : null
         }
         const id = loose(bs)
         return id === null ? null : { kind: 'direct', id }

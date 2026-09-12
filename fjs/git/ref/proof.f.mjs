@@ -116,6 +116,9 @@ export const proof = {
         for (const n of [
             'refs/x', 'refs/heads/master', 'refs/heads/@', 'refs/@/x', 'refs/a/b/c/d',
             'a/b', 'master', 'refs', 'a', 'HEAD', 'ORIG_HEAD', 'notrefs/a/b',
+            // Every other pseudo-ref resolves as a target, which is what
+            // makes the two refused below a closed set rather than a class.
+            'CHERRY_PICK_HEAD', 'REVERT_HEAD', 'BISECT_HEAD', 'REBASE_HEAD', 'AUTO_MERGE',
         ]) {
             const r = ref(latin1(`ref: ${n}\n`))
             assert(r !== null && r.kind === 'symbolic', n)
@@ -125,6 +128,25 @@ export const proof = {
         // the rest are what the name rule already refuses.
         for (const n of ['@', 'refs/', 'refs/a..b', 'refs/.x', 'refs/x.lock', 'a.lock', '..', 'refs//x']) {
             assertEq(ref(latin1(`ref: ${n}\n`)), null)
+        }
+    },
+    // `FETCH_HEAD` and `MERGE_HEAD` are whole ref names and still no target:
+    // Git reads those two straight from the file, each being able to hold
+    // more than one record, so `git symbolic-ref` answers `No such ref`.
+    // Exactly these two, measured — `ORIG_HEAD` and the other pseudo-refs
+    // above resolve.
+    special: () => {
+        for (const n of ['FETCH_HEAD', 'MERGE_HEAD']) {
+            assertEq(ref(latin1(`ref: ${n}\n`)), null)
+        }
+        // The restriction is the target's alone. A `packed-refs` entry may be
+        // named either, which `git show-ref` reads, so the check must not sit
+        // in the shared name rule.
+        for (const n of ['FETCH_HEAD', 'MERGE_HEAD']) {
+            assertStructurallySame(
+                /** @type {readonly PackedRef[]} */ (packed(latin1(`${a} ${n}\n`))).map(seen),
+                [[n, a, '']],
+            )
         }
     },
     // The keyword is case-sensitive: `REF:` leaves Git unable to read the

@@ -160,11 +160,13 @@ export const isName = input => {
  *   `refs/heads/sym` resolves. So it is a rule about what `HEAD` may say, and
  *   it belongs to a reader that knows it is reading `HEAD`.
  *
- * Git also refuses a few one-level names as symbolic targets for a third
- * reason again — `MERGE_HEAD` is refused where `ORIG_HEAD` resolves, though
- * both pass `check-ref-format --allow-onelevel` — because Git keeps a list of
- * pseudo-refs it reads specially. That is not name syntax and is not checked
- * here.
+ * Git also refuses two one-level names as symbolic *targets* for a third
+ * reason again — `FETCH_HEAD` and `MERGE_HEAD`, where `ORIG_HEAD` resolves and
+ * all three pass `check-ref-format --allow-onelevel` — because it reads those
+ * two straight from the file, each being able to hold more than one record.
+ * That is not name syntax, so it is not checked here; `fjs/git/ref` checks it
+ * where it applies, which is a symbolic ref's target and not a `packed-refs`
+ * name, since `git show-ref` reads a packed line named either.
  *
  * @throws If `name` is not a list of bytes.
  *
