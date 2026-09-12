@@ -1971,7 +1971,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
       being refused outright. The matrix stands at 116,139 bytes of the bit
-      vector's 131,072, which is 88% and leaves little room for another
+      vector's 131,072, which is 89% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
       recording.** The set went out with ten scope records saying the shape
