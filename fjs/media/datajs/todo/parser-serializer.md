@@ -167,9 +167,15 @@ states and the reader's proof pins:
   positions with no condition attached, and is otherwise insignificant. The
   four permitted characters are JSON's, and they are the whole rule: outside a
   string literal a character is whitespace or part of a token, and one that is
-  neither is **refused**. Derive the rejected set from that rather than from a
-  list — measured against ECMAScript it is 21 characters, and every hand-written
-  list of them in this repository has been short.
+  neither is **refused**. Derive what is refused from that rather than from a
+  list: everything outside a token is, `@` as much as U+2028, so there is no
+  finite set to write down. The 21 worth naming are the delta — the characters
+  ECMAScript treats as whitespace and DataJS does not — and they are enumerated
+  once, in
+  [the corpus derivation](../../../../spec/datajs/todo/conformance-vectors.md),
+  because each owes a vector. Every *normative* list of them written by hand
+  here has been short, this plan's included, which is why the rule states what
+  it accepts.
 
 #### 3. Parser
 

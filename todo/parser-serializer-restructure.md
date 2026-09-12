@@ -316,8 +316,12 @@ key       ::= string | '["__proto__"]'
   The exact `["__proto__"]` key is one token and contains none. Those four and
   no others: outside a string literal a character is whitespace or part of a
   token, and one that is neither is rejected. Naming the rejected ones is the
-  taxonomy the specification declines to carry, and the list it used to carry
-  was wrong by fifteen characters.
+  taxonomy the specification declines to carry, and there is no finite set to
+  name anyway: `@` is rejected as much as U+2028. The 21 worth naming are the
+  delta from ECMAScript's whitespace, enumerated once in
+  [the corpus derivation](../spec/datajs/todo/conformance-vectors.md) because
+  each owes a vector; the normative list the specification used to carry was
+  short by fifteen of them.
 - **Whitespace is required after `const`, `export` and `default`**, with no
   condition, and optional between other tokens except within `["__proto__"]`.
   Two of the three were forced
