@@ -28,6 +28,24 @@ import {
     divUp8,
     roundUp8
 } from './module.f.mjs'
+
+/**
+ * The candidates the demo page compares, in the order it renders them.
+ *
+ * Stated here rather than imported, so that adding one to `demo.f.mjs` without
+ * deciding what the page owes a reader about it is a failing proof rather than
+ * a silent extra row.
+ */
+const candidateNames = [
+    'log2',
+    'clz32Log2',
+    'oldLog2',
+    'stringLog2',
+    'stringHexLog2',
+    'string32Log2',
+    'mathLog2',
+    'ylog2',
+]
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { min } from '../function/compare/module.f.mjs'
 
@@ -457,6 +475,20 @@ export const proof = {
     },
     demo: {
         /**
+         * **Every candidate the demo compares, in its order.** The list is
+         * written out rather than read from `demo.f.mjs`, so that adding a
+         * candidate without deciding what the page should say about it fails
+         * here instead of passing silently.
+         */
+        candidateNames: () => {
+            const handlers = /** @type {MemOperationMap<Sandbox, null>} */ ({
+                sandbox: f => state => [state, ok({ result: ok(f()), duration: 0 })],
+            })
+            const [, r] = run(handlers)(null)(
+                demo.update({ ...demo.init, size: '32' })({ kind: 'click', name: 'run' }))
+            assertStructurallySame(unwrap(r).rows.map(({ name }) => name), candidateNames)
+        },
+        /**
          * **The comparison is `log2`'s own answer, checked.** A benchmark that
          * only measures rewards an implementation that returns nothing, so the
          * work asserts every answer and throws on a wrong one — which is also
@@ -487,7 +519,7 @@ export const proof = {
             const decline = partialRun(/** @type {Commands<Sandbox>} */ (['sandbox']))({})
             const [, r] = decline(null)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
             const rows = unwrap(r).rows
-            assertEq(rows.length, 2)
+            assertEq(rows.length, candidateNames.length)
             for (const row of rows) { assertEq(row.outcome, 'not available here') }
         },
         /**
@@ -501,12 +533,15 @@ export const proof = {
                 sandbox: f => state => [state, ok({ result: ok(f()), duration: 7 })],
             }
             const timed = run(handlers)
-            const [, r] = timed(null)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
+            // A small exponent, not `demo.init`'s: what is proven is that a row
+            // carries the runtime's duration, and eight candidates at 20000
+            // would spend half a second of the suite's time saying so.
+            const small = { ...demo.init, size: '64' }
+            const [, r] = timed(null)(demo.update(small)({ kind: 'click', name: 'run' }))
             const rows = unwrap(r).rows
-            assertStructurallySame(rows.map(({ name, outcome }) => [name, outcome]), [
-                ['log2', 7],
-                ['stringLog2', 7],
-            ])
+            assertStructurallySame(
+                rows.map(({ name, outcome }) => [name, outcome]),
+                candidateNames.map(name => [name, 7]))
         },
         /**
          * **Digits, and at least one.** `BigInt` would take whitespace, a
@@ -584,14 +619,14 @@ export const proof = {
             assertEq(noteFor('twenty'), 'a whole number, please')
             assertEq(noteFor(''), 'a whole number, please')
             assert(
-                (noteFor('200001') ?? '').startsWith('200000 is as far as this page goes'),
-                String(noteFor('200001')))
+                (noteFor('60001') ?? '').startsWith('60000 is as far as this page goes'),
+                String(noteFor('60001')))
             // **The bound itself is measured, not refused.** It answers a
             // `Do` — the sandbox it is about to ask for — where a refusal
             // answers a state directly, so an empty `runPure` is the
             // assertion that it got past the guard.
             assertEq(
-                runPure(demo.update({ ...demo.init, size: '200000' })({ kind: 'click', name: 'run' })).length,
+                runPure(demo.update({ ...demo.init, size: '60000' })({ kind: 'click', name: 'run' })).length,
                 0)
         },
         /**
@@ -605,10 +640,13 @@ export const proof = {
             const threw = run(/** @type {MemOperationMap<Sandbox, null>} */ ({
                 sandbox: f => state => [state, ok({ result: error(f), duration: 0 })],
             }))
-            const [, r] = threw(null)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
+            // A small exponent: eight candidates all throwing is the point, and
+            // `demo.init`'s 20000 would spend half a second making it.
+            const [, r] = threw(null)(
+                demo.update({ ...demo.init, size: '64' })({ kind: 'click', name: 'run' }))
             const rows = unwrap(r).rows
             assertStructurallySame(rows.map(({ outcome }) => outcome),
-                ['wrong answer', 'wrong answer'])
+                candidateNames.map(() => 'wrong answer'))
             // And a row with a note renders the note where its time would be.
             const html = htmlToString(demo.view({ ...demo.init, kind: 'done', rows }))
             assert(html.includes('wrong answer'), html)
