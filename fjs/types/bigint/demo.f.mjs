@@ -19,7 +19,7 @@
  * @import { Effect } from '../../effects/types.ts'
  * @import { Demo, DemoEvent } from '../../website/demo/types.ts'
  * @import { Result } from '../result/types.ts'
- * @import { _Row, _State } from './private.ts'
+ * @import { DemoRow, DemoState } from './types.ts'
  */
 
 import { log2 } from './module.f.mjs'
@@ -120,7 +120,7 @@ export const parseSize = text => {
  * That is what the demo's `never` error channel obliges it to do — absorb the
  * failure into what it renders.
  *
- * @type {(name: string) => (r: Result<SandboxResult<unknown>, unknown>) => _Row}
+ * @type {(name: string) => (r: Result<SandboxResult<unknown>, unknown>) => DemoRow}
  */
 const row = name => r => r[0] === 'error'
     ? { name, ms: null, note: 'not available here' }
@@ -134,23 +134,23 @@ const row = name => r => r[0] === 'error'
  * One at a time rather than together: they are competing for the same core,
  * and a measurement taken while another is running measures the contention.
  *
- * @type {(size: bigint) => Effect<Sandbox, _State, never>}
+ * @type {(size: bigint) => Effect<Sandbox, DemoState, never>}
  */
 const measure = size => foldStep(
     pureOk(candidates),
-    /** @type {_State} */ ({ kind: 'done', size: String(size), rows: [], note: null }),
+    /** @type {DemoState} */ ({ kind: 'done', size: String(size), rows: [], note: null }),
     ([name, f]) => state => resultStep(
         sandbox(() => work(size)(f)),
         // **`resultStep`, not `step`.** A demo's channel is `never`, so the
         // refusal a runtime answers with — this page implements `sandbox`, but
         // another need not — has to become a row rather than travel upward.
         // The type is what says so: `step` here does not compile.
-        r => pureOk(/** @type {_State} */ ({
+        r => pureOk(/** @type {DemoState} */ ({
             ...state,
             rows: [...state.rows, row(name)(r)],
         }))))
 
-/** @type {(row: _Row) => string} */
+/** @type {(row: DemoRow) => string} */
 const rowText = ({ name, ms, note }) =>
     `${name.padEnd(12)} ${note ?? `${ms?.toFixed(1)} ms`}`
 
@@ -162,7 +162,7 @@ const rowText = ({ name, ms, note }) =>
  * number and one that is larger than this page will measure are both the
  * reader's to see and fix, not failures of the demo.
  *
- * @type {(state: _State) => Effect<Sandbox, _State, never>}
+ * @type {(state: DemoState) => Effect<Sandbox, DemoState, never>}
  */
 const onRun = state => {
     const size = parseSize(state.size)
@@ -180,7 +180,7 @@ const onRun = state => {
     return measure(size)
 }
 
-/** @type {Demo<_State, DemoEvent, Sandbox>} */
+/** @type {Demo<DemoState, DemoEvent, Sandbox>} */
 export const demo = {
     init: { kind: 'idle', size: defaultSize, rows: [], note: null },
     update: state => event => {
