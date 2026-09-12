@@ -548,11 +548,12 @@ handed each as a real value. Four of the rules name a condition **no
 FunctionalScript value carries** — an accessor, a non-enumerable property, an
 own property on an array besides its elements, and a cycle — so the proof reads
 those at the level the rule is about: the descriptors, the own names and the
-graph. Three more need `Object.setPrototypeOf`, a class or `Object.freeze`,
-which the subset does not have, so nothing in this repository builds them and a
-host that can owes the rule on its own.
+graph. The remaining four values — an `Array` subclass, a frozen object, a
+frozen array and a `null`-prototype array — need a class, `Object.freeze` or
+`Object.setPrototypeOf`, none of which the subset has, so nothing in this
+repository builds them and a host that can owes the rule on its own.
 
-A `null`-prototype **array** is the first of those three, and the list above
+A `null`-prototype **array** is one of those four, and the list above
 leaves it out rather than requiring anything either way. `Array.isArray` is true
 of it and `instanceof Array` is not, so a serializer classifying arrays by the
 prototype chain meets it at its object branch and refuses it for its
@@ -564,19 +565,25 @@ format does not spend a rule on values its own subset cannot construct. A
 host-side serializer may accept such an array as its elements; nothing above
 requires it to.
 
-**The two predicates part company in both directions, which is why neither is
-made a rule here.** In the other direction the value is not an array at all:
-`Object.create(Array.prototype, { length: { value: 0, enumerable: true } })` has
-`Array.isArray` false and `instanceof Array` true, so a serializer branching on
-the prototype chain writes it as its elements — `export default [];` — where one
-branching on `Array.isArray` refuses it as a non-plain object. Measured, no
-descriptor separates the two: with a non-enumerable `length` this object's own
-descriptors are identical to a frozen array's, so a serializer that must tell
-them apart has exactly one instrument, the exotic array slot `Array.isArray`
-reads. This value also needs an API the subset does not have. An implementation
-in a host that can build either shape decides for itself, and states which
-predicate it classifies by; a serializer is judged on the inputs above, which
-are the ones this format's own values can reach.
+**The mirror image is not left open, and it is what settles how a serializer
+must classify.** `Object.create(Array.prototype, { length: { value: 0,
+enumerable: true } })` is not an array — `Array.isArray` is false — while
+`instanceof Array` is true. It is a **non-plain object**, so the first rule
+above rejects it, and nothing here exempts it: writing it as `export default
+[];` drops its own `length` member, which is the silent approximation this
+section exists to refuse.
+
+Measured, no descriptor separates it from a genuine array: with a non-enumerable
+`length` its own descriptors are identical to `Object.freeze([])`'s, and a
+frozen array serializes as its data. So a serializer has exactly one instrument
+that sees the difference — the exotic array slot `Array.isArray` reads — and **a
+conforming serializer classifies arrays by that slot rather than by the
+prototype chain**. One predicate is the whole cost of not losing a member.
+
+The two shapes therefore land on opposite sides, and both follow from the same
+choice: classifying by `Array.isArray` refuses the impostor, as this section
+requires, and takes a `null`-prototype array as an array, which is one of the
+two readings the paragraph above leaves free. Nothing above requires the other.
 
 ### Normalized form
 
