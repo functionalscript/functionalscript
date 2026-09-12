@@ -7,10 +7,10 @@ A **class** is the branch of the specification a vector covers, as fine as
 the thing an implementation can get wrong on its own. A **role** is what an
 implementation does — conformance is per role, so a serializer-only one
 never runs a reader or a normalize vector. A cell is the vectors that role
-has for that class, the reason it owes none, or a role whose sets have not
-landed. An empty cell with no reason fails the generator, which is the whole
-point: prose that mentions a class in two roles reads exactly like prose that
-mentions it in three.
+has for that class, a reference to the note saying why it owes none, or a
+role whose sets have not landed. An empty cell with no reason fails the
+generator, which is the whole point: prose that mentions a class in two
+roles reads exactly like prose that mentions it in three.
 
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
@@ -740,8 +740,8 @@ stands under as many rows as it is true of.
 34. **`serializer`**, subtree `array/two` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
 35. **`serializer`**, subtree `object/two` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
 36. **`serializer`**, subtree `array/object` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
-37. **`serializer`**, subtree `array/nested/deep` — the specification states no depth an implementation must support, so no vector can say which depth conforming means; a writer's own recursion limit is real and tracked where it belongs, in fjs/media/datajs/todo/serializer.md, and a data module cannot spell a graph deep enough to find one
-38. **`serializer`**, subtree `object/nested/deep` — the specification states no depth an implementation must support, so no vector can say which depth conforming means; a writer's own recursion limit is real and tracked where it belongs, in fjs/media/datajs/todo/serializer.md, and a data module cannot spell a graph deep enough to find one
+37. **`serializer`**, subtree `array/nested/deep` — the specification states no depth an implementation must support, so no vector can say which depth conforming means; a writer's own recursion limit is real and tracked where it belongs, in fjs/media/datajs/todo/serializer.md, and a set can spell a chain deep enough to find one, measured at 2600 consts, but a vector there would assert a refusal at a depth the specification permits, which names this writer's bug rather than anything conforming means
+38. **`serializer`**, subtree `object/nested/deep` — the specification states no depth an implementation must support, so no vector can say which depth conforming means; a writer's own recursion limit is real and tracked where it belongs, in fjs/media/datajs/todo/serializer.md, and a set can spell a chain deep enough to find one, measured at 2600 consts, but a vector there would assert a refusal at a depth the specification permits, which names this writer's bug rather than anything conforming means
 39. **`serializer`**, subtree `array/nested/empty` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
 40. **`serializer`**, subtree `object/nested/empty` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
 41. **`serializer`**, subtree `string/surrogate/lone/raw` — a lone surrogate is one value however a document spells it, and the serializer set carries all four
