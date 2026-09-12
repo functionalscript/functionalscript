@@ -534,24 +534,35 @@ function, expands a hole to `null`, drops a symbol-keyed member, and drops that
 `meta` without a word. DataJS rejects instead, because a silently wrong
 document is worse than no document.
 
-**This section is a rule for hosts, and the conformance corpus carries no vector
-for any of it.** Not one input above is constructible in FunctionalScript, which
-has no mutation, no classes, no `Symbol`, and none of `Object.defineProperty`,
-`Object.assign`, `Object.setPrototypeOf` or `Object.freeze` — and a conformance
-set is itself a FunctionalScript data module, so a set cannot spell an accessor,
-a frozen value or an `Array` subclass to hand a serializer. That is a property of
-the carrier, not an omission: an implementation written in a host that *can* build
-these owes the rule, and its own tests are where it answers, as this repository's
-writer does at the level its language reaches — the descriptors, the own names and
-the graph.
+**The conformance corpus carries no vector for any of this**, and the reason is
+DataJS rather than FunctionalScript. A conformance set is itself a **DataJS**
+data module, and DataJS has no functions, no `Symbol`, no `Date` and no way to
+spell a hole, an accessor or a class — so no vector can hold any of these inputs
+to hand a serializer. That is a property of the carrier, not an omission.
 
-It is also why a `null`-prototype **array** is not in the list above, though a
-`null`-prototype object is. `Array.isArray` is true of one and `instanceof Array`
-is not, and the only way to build it is `Object.setPrototypeOf`, so the value
-exists solely as an artifact of an API the subset does not have. A serializer that
-takes the array branch on `instanceof Array` therefore reads it as an object and
-refuses it for its non-enumerable `length`, which is correct: the `length`
-exception above belongs to the array branch, and this value never reaches one.
+An implementation's own tests are where the rule is answered, and they are not
+so limited, because a test is an ordinary module of its host language. This
+repository's writer refuses a function, a symbol, a `Date`, a `Map`, a `Set`, a
+boxed number, a non-plain prototype, a symbol key and a hole in its own proof,
+handed each as a real value. Four of the rules name a condition **no
+FunctionalScript value carries** — an accessor, a non-enumerable property, an
+own property on an array besides its elements, and a cycle — so the proof reads
+those at the level the rule is about: the descriptors, the own names and the
+graph. Three more need `Object.setPrototypeOf`, a class or `Object.freeze`,
+which the subset does not have, so nothing in this repository builds them and a
+host that can owes the rule on its own.
+
+A `null`-prototype **array** is the first of those three, and the list above
+leaves it out rather than requiring anything either way. `Array.isArray` is true
+of it and `instanceof Array` is not, so a serializer classifying arrays by the
+prototype chain meets it at its object branch and refuses it for its
+non-enumerable `length` — the `length` exception above belongs to the array
+branch, which this value never reaches. Whether that refusal is right is
+**undecided here, on purpose**: the value exists only as an artifact of
+`Object.setPrototypeOf`, as a cross-realm array does of another realm, and this
+format does not spend a rule on values its own subset cannot construct. A
+host-side serializer may accept such an array as its elements; nothing above
+requires it to.
 
 ### Normalized form
 

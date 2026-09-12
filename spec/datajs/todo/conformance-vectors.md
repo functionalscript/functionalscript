@@ -1689,13 +1689,14 @@ or the spec, not only into a thread.
    and a cycle. Its own header says of most of those that "no value
    FunctionalScript can build carries" them, so it agrees about
    reachability and still checks, because its parameter is `unknown` rather
-   than a graph. **One recipe it refuses that the specification accepts**: an
-   array under a `null` prototype, which §What may be serialized serializes
-   as its data, and which the writer meets at its object branch and refuses
-   for `length`, non-enumerable on every array. The specification wins where
-   the two disagree, and
+   than a graph. **One recipe it refused that the specification accepted**: an
+   array under a `null` prototype, which the writer meets at its object branch
+   and refuses for `length`, non-enumerable on every array. That disagreement is
+   settled, and the **writer won**: the step below measured all fourteen cases,
+   the value is constructible only through `Object.setPrototypeOf`, and
+   §What may be serialized no longer names it either way. The task it left on
    [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md)
-   carries that.
+   is gone with it.
 
    So the two halves of this decision have to meet, and the meeting is the
    owner's: either the writer's parameter narrows to the data model and its

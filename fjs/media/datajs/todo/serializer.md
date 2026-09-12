@@ -413,6 +413,17 @@ records and what the exports of
 `unknown` parameter stays, that gap is a set to write rather than a recipe to
 build; if it narrows, the gap closes by having no inputs to reach.
 
+**The one divergence from the specification is closed, and not against the
+writer**: an array under a `null` prototype, which the writer meets at its
+object branch and refuses for its non-enumerable `length`, because
+`Array.isArray` is true of it and `instanceof Array` is not. §What may be
+serialized used to serialize it as its data; it now leaves the value out rather
+than requiring anything either way, because the only way to build one is
+`Object.setPrototypeOf` — an API the subset does not have, as with a cross-realm
+array, and those two are exactly what `instanceof Array` parts from
+`Array.isArray` on. So there is no bug here to fix, and no vector to owe: a
+conformance set is a DataJS data module and cannot spell the value at all.
+
 ### Tasks
 
 - [x] The read as one traversal: container-kind check, then descriptor-first
@@ -439,13 +450,6 @@ build; if it narrows, the gap closes by having no inputs to reach.
       path lands beside it — and the `parse` versus `tryParse` naming with it.
 - [ ] A readable layout as the second writer, if one is wanted, and
       `tryNormalize` as the name this one takes then (§Layout and API).
-- [ ] **Close the one conformance divergence**: an array under a `null`
-      prototype, which the specification serializes as its data and which the
-      writer refuses at its object branch, for `length`. The specification
-      wins, so this is the writer's bug, and the only spelling that classifies
-      such a value is the one [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 does
-      not allow — which is the part to settle, with that rule's owner, before
-      the corpus grows the vector that finds it.
 - [ ] **Walk both passes on an explicit stack**, so that a document the
       reader accepts is one the writer can write: 2,600 nested arrays make
       `tryStringify` throw `RangeError` today, where it owes an `error` at
@@ -459,7 +463,7 @@ build; if it narrows, the gap closes by having no inputs to reach.
 - [`parser-serializer.md`](./parser-serializer.md) — the reader half of stage 4 and the shared public API; this file was split out of it.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. §Serialization and §Normalized form are what this implements.
 - [`spec/datajs/vectors/README.md`](../../../../spec/datajs/vectors/README.md) — the corpus schema; the writer-side sets are the proof source.
-- [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, which owns those sets, and where the serializer's input domain is still open.
+- [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, which owns those sets, and where the serializer's input domain was settled against §What may be serialized.
 - [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. This is its second consumer.
 - [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type, whose optional index signature is why only the runtime enumerator sees a member holding `undefined`.
 - [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md) — the coordinating plan; this is the rest of its stage 4.
