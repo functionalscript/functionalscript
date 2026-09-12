@@ -1808,11 +1808,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       class is carried by two sets — measured, 334 accept-only, 334
       reject-only, none in both — so one reason covers every reject class by
       construction rather than by inspection. A prototype answered all of them
-      with 28 records; what the serializer step below actually lands is 48,
-      answering 520 cells, which is the matrix summary's own figure rather than
-      a second count kept by hand. The most specific reason wins, so a
-      family's reason takes an exception for one class without either being
-      removed. What buys the width is a rule
+      with 28 records; the step below lands the real set, and its own paragraph
+      carries the count — quoted there from the matrix summary, and not
+      repeated here, because this sentence has gone stale twice by naming a
+      figure that moves whenever a vector replaces a reason. The most specific
+      reason wins, so a family's reason takes an exception for one class
+      without either being removed. What buys the width is a rule
       the cell could not enforce, because a cell only ever sees itself: a
       scope that answers a class which **has** vectors is refused, as is one
       answering no class, one naming a set the corpus does not have, and two
