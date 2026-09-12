@@ -4,6 +4,7 @@ const $s2 = [0];
 const $s3 = [0];
 const $s4 = {"a": 0};
 const $s5 = [1];
+const $s6 = [0];
 export default [
     {"id": "ser-null", "class": "leaf/null", "input": null},
     {"id": "ser-true", "class": "leaf/boolean/true", "input": true},
@@ -150,6 +151,7 @@ export default [
     {"id": "ser-key-surrogate-adjacent-hh-d800-dbff", "class": "key/string/surrogate/adjacent/hh-d800-dbff", "input": {"\ud800\udbff": 0}},
     {"id": "ser-shared-two-nodes", "class": "const/shared/two-nodes", "input": [$s3, $s4, $s3, $s4]},
     {"id": "ser-key-proto-nested", "class": "key/proto/nested", "input": [{["__proto__"]: {["__proto__"]: 1}}]},
+    {"id": "ser-key-proto-value-shared", "class": "key/proto/value/shared", "input": {["__proto__"]: $s6, "x": $s6}},
     {"id": "ser-string-raw-007f", "class": "string/raw/bmp", "input": "\u007f"},
     {"id": "ser-key-raw-007f", "class": "key/string/raw/bmp", "input": {"\u007f": 0}},
     {"id": "ser-string-raw-0080", "class": "string/raw/bmp", "input": "\u0080"},

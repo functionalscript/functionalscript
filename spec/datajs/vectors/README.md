@@ -4,7 +4,10 @@ The machine-readable form of [the specification](../README.md)'s Conformance
 section: the documents a reader accepts and rejects with the graphs they
 denote, the inputs a serializer accepts, and the bytes a normalized
 serializer produces. An implementation states which roles it
-provides and is judged on those sets alone. This file is the schema; the
+provides and is judged on the sets those roles own, with one inheritance:
+normalized form is a conforming serializer before it is a normalized one, so
+a normalized writer runs `serializer-accept` and `graph-equivalence` besides
+`normalize`. This file is the schema; the
 sets are the data modules beside it, one directory per set, and the issue
 that designed them is [`../todo/conformance-vectors.md`](../todo/conformance-vectors.md).
 
@@ -43,10 +46,11 @@ The writer has landed, so those three name an implementation that exists
 rather than one to come. What each set's own `proof.f.mjs` does is narrower
 than the column: it proves the set's shape, and for graph equivalence also
 that every `denotes` claim is true and every `denotesNot` one false, read
-back through the reader. The `normalize` set's proof does run the shipped
-writer over every vector. Nothing yet runs `serializer-accept` or
-`graph-equivalence` against it, so a harness is what closes those two
-today.
+back through the reader. Nothing here runs a set against the writer: the
+`normalize` set, which lands in the step above and whose proof does run it
+over every vector, is not in this tree yet, and `serializer-accept` and
+`graph-equivalence` have no such proof at all, so a harness is what closes
+those two.
 
 One directory holds no vectors: `not-applicable/` carries the reasons the
 matrix below needs. A record answers a **scope** rather than a single cell —
@@ -141,7 +145,14 @@ roles a conforming implementation may have — reader, serializer,
 normalize, since conformance is per role and a serializer-only
 implementation never runs a reader or a normalize vector. A cell is the
 vector ids that role has for that class, a reference to the note saying why
-it owes none, or a role whose sets have not landed. The notes are listed
+it owes none, or a role whose sets have not landed. A column is the sets
+that role **owns**, not every set an implementation of it runs, so the
+inheritance above does not fold in: a serializer vector asserts no spelling,
+and letting one fill a `normalize` cell would report a class as covered
+where nothing pins its bytes. That is not hypothetical — review found
+`array/elements/negative-first` carrying a serializer vector and no
+normalize one, and a column that inherited would have printed the first and
+hidden the second. The notes are listed
 once below the table, because one reason answers hundreds of cells and
 printing it in each would be the same sentence several hundred times over —
 unreadable, and past the bit vector's `maxLengthBytes` unwritable.

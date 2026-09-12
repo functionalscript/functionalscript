@@ -1827,12 +1827,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 164 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 165 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
-      and 10 in
+      and 12 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 154 of the 674 classes the corpus held then, with 48 scope
-      records answering the 520 cells the serializer column owed; the normalize
+      covering 155 of the 674 classes the corpus held then, with 49 scope
+      records answering the 519 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1916,6 +1916,18 @@ The steps, in order; a step is one pull request unless it says otherwise:
       dropping nine of the low half's ten bits is caught by U+10FFFF and by the
       mixed pair, and by neither U+10000 nor an interior pair. Detection is the
       normalize set's to pin, where the corners carry exact raw texts.
+      **Two cells the grid said were filled and were not**, and both came of
+      adding the pair review named rather than the pair it implied. All four
+      graph-equivalence inverses had an array parent, so two object-parent ones
+      were added, and both used equal *objects* as children — leaving a writer
+      that hash-conses equal arrays only while walking object members passing
+      the whole set. The grid is a walker crossed with a kind and now has all
+      four corners. The other cell is the proto key: the normalize set gained a
+      vector for a value shared behind one, and the serializer's reason for the
+      same subtree still said that what the member holds is the ordinary value
+      coverage above it, which sharing is not. Three vectors, and that subtree
+      narrows to the two classes under it that really are ordinary value
+      coverage, as it did one step up.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
@@ -1925,9 +1937,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 224 records in
-      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 58 scope
-      records answering the 513 cells its column owes and one `['set',
+- [x] **Normalize.** Landed as 225 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
+      records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
       the 50 classes this set introduced. The proof reads every text back
       through the reader, which is the run-through-the-accept-grammar check
@@ -1939,7 +1951,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 115,573 bytes of the bit
+      being refused outright. The matrix stands at 116,064 bytes of the bit
       vector's 131,072, which is 88% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2021,6 +2033,28 @@ The steps, in order; a step is one pull request unless it says otherwise:
       raw with exact texts. Their old reason had been closing them with a
       sentence about adjacency, a different family, which the purity rule could
       not catch because the premise was true and only the subject was wrong.
+      **And a negative in the first slot**, which the serializer set got a
+      vector for two rounds earlier and this one did not. Both `every-value`
+      arrays open with `null`, and every negative leaf sat later, so a writer
+      that emits the first element by a separate path to avoid a leading comma
+      could spell `-1` as `-1.0` there and pass. One vector carries
+      `[-1, -1n, -Infinity]` with the text the shipped writer emits, and the
+      exemption is gone. That is the third time a writer-side finding turned
+      out to hold for both columns, so a vector added to one set now sends me
+      to the other before the reason is written.
+      **And one thing the matrix does not mean**, which review read the other
+      way and a consumer could too. `serializer.md` states that a normalized
+      writer owes `serializer-accept` and `graph-equivalence` besides
+      `normalize`, since normalized form is a conforming serializer first,
+      while the generator gives the `normalize` role one set. Both are right:
+      a column is the sets a role **owns**, not every set an implementation of
+      it runs. Folding the inheritance in would be actively worse, and this
+      round proves it — a `normalize` column inheriting the serializer sets
+      would have printed `ser-array-elements-negative-first` in that row and
+      hidden the fact that nothing pinned its bytes, which is the vector two
+      paragraphs up. The schema now states the inheritance where an
+      implementer reads it and the generated preamble says why the column
+      keeps out of it.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
