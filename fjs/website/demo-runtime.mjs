@@ -8,30 +8,99 @@
  * impure `demo.mjs` beside every module was the alternative, and it is the
  * migration debt `AGENTS.md` names, multiplied by every demo.
  *
+ * @import { CommandSet, Commands } from '../effects/types.ts'
+ * @import { Catch, Sandbox } from '../effects/common/types.ts'
  * @import { Demo, DemoEvent } from './demo/types.ts'
  */
 
-import { asyncRun } from '../effects/module.mjs'
+import { asyncPartialRun } from '../effects/module.mjs'
+import { commonOperationMap } from '../effects/common/module.mjs'
 import { htmlToString } from '../media/html/module.f.mjs'
 
 /**
- * A demo's effect, performed.
+ * What a demo may ask this page for.
  *
- * **There are no browser operations yet, so there is nothing to implement.**
- * `Demo`'s vocabulary defaults to `never`, which makes every effect a demo can
- * build a `Pure` node: this runs it and never dispatches a command. The map is
- * empty because an empty vocabulary needs no handlers, not because handlers
- * are missing.
+ * **Host-neutral operations only, and both of them are already written.**
+ * `sandbox` runs a thunk and reports how long it took, `catch` reports whether
+ * one threw — a browser has `performance.now()` and a `try` as surely as Node
+ * does, which is why `effects/common` holds them rather than either host. A
+ * demo that wants to measure something asks for `sandbox`; nothing in the page
+ * knows what it is measuring.
  *
- * **So the strict runner is the honest one today.** A partial runner exists to
- * answer `notImplemented` for a command a runtime knows about and cannot do —
- * and `partialMatch` checks the command against a declared vocabulary *first*,
- * so with no vocabulary every command is a malformed node and panics rather
- * than degrading. Nothing would be gained by dressing that up. When
- * `fjs/effects/browser/` lands with its first operation, it brings the
- * vocabulary, the partial runner, and a demo that can be told no.
+ * **The list is what makes a refusal possible.** `partialMatch` recognises a
+ * command against it before answering `notImplemented`, so a vocabulary and a
+ * handler map are two different things: a command named here with no handler
+ * declines, and one not named here is a malformed node. There is nothing in
+ * the first category today, and the first browser-only operation — a fetch, a
+ * file the reader picks — is where that gap opens.
+ *
+ * Declared as a record because `CommandSet` is checked for *completeness*: a
+ * command added to the vocabulary and forgotten here is a compile error, where
+ * an array literal has only its members checked and drifts silently. The list
+ * the runner tests membership against is derived from it, so the two cannot
+ * disagree — the same shape `effects/node` uses for the same reason.
+ *
+ * @type {CommandSet<Sandbox | Catch>}
  */
-const run = asyncRun({})
+const commandSet = { sandbox: null, catch: null }
+
+/**
+ * The commands of {@link commandSet}, in the form a partial runner tests
+ * membership against. The cast is the one `Object.keys` always needs: it
+ * answers `string[]` for a record whose keys the type system knows exactly.
+ *
+ * @type {Commands<Sandbox | Catch>}
+ */
+const commands = /** @type {Commands<Sandbox | Catch>} */ (Object.keys(commandSet))
+
+const run = asyncPartialRun(commands)(commonOperationMap)
+
+/**
+ * Return to the event loop, so the browser can paint what was just set.
+ *
+ * **A macrotask, and that is the whole point.** A demo's work is ordinary
+ * JavaScript on the one thread that paints: `sandbox` calls the thunk the
+ * moment it is dispatched, so a flag raised and then awaited is raised and
+ * blocked in the same task and nobody ever sees it. Draining the microtask
+ * queue is part of that same task, which is why an `await` of a resolved
+ * promise is not enough — the same bargain the browser test runner makes
+ * between rows.
+ *
+ * @type {() => Promise<void>}
+ */
+const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
+
+/**
+ * Says whether the page is waiting on this demo, and stops the reader asking
+ * again while it is.
+ *
+ * **Only the runtime can say this.** A demo renders once, after its effect
+ * has finished, so it cannot paint a state that means "still going" — the one
+ * thing that knows a command is outstanding is the loop that dispatched it.
+ *
+ * **The word is the runtime's too, and so it is a general one.** This runs
+ * every demo: the next may be waiting on a network or on a reader picking a
+ * file, neither of which is calculating. A demo that wants its own wording
+ * says so in its own field — `wait` — and what it answers arrives here as
+ * `note`, to be appended by the stylesheet rather than replace the word.
+ * Empty is the ordinary case and renders nothing extra.
+ *
+ * Buttons are disabled rather than merely dimmed. A queued second click would
+ * be honoured after the first finished, which is a demo measuring twice
+ * because somebody was impatient.
+ *
+ * @type {(root: Element, working: boolean, note?: string | null) => void}
+ */
+const busy = (root, working, note = null) => {
+    if (working) {
+        root.setAttribute('data-demo-working', note === null ? '' : ` (${note})`)
+    } else {
+        root.removeAttribute('data-demo-working')
+    }
+    for (const control of root.querySelectorAll('button')) {
+        control.disabled = working
+    }
+}
 
 /**
  * What the reader was doing, so re-rendering does not take it away.
@@ -122,10 +191,17 @@ const stepper = (root, demo) => {
             // and total by construction, so one that throws is a defect in the
             // demo, and the page says so where its output would have gone.
             try {
+                // Read from the state the demo is *about* to be given: the
+                // point of the warning is to arrive before the wait, and after
+                // `update` there is nothing left to warn about.
+                busy(root, true, demo.wait === undefined ? null : demo.wait(state))
+                await macrotask()
                 state = unwrapState(await run(demo.update(state)(event)))
                 render(root, htmlToString(demo.view(state)))
             } catch (cause) {
                 fail(root, cause)
+            } finally {
+                busy(root, false)
             }
         })
     }
@@ -174,6 +250,14 @@ export const startDemo = async root => {
         root.addEventListener('input', e => {
             const target = /** @type {HTMLInputElement} */ (e.target)
             step({ kind: 'input', name: target.name, value: target.value })
+        })
+        // A click is how a demo is *asked* for work rather than told about
+        // typing: a benchmark starts when a reader says so. An element with no
+        // name is not one the demo asked to hear about.
+        root.addEventListener('click', e => {
+            const target = /** @type {HTMLElement & { name?: string }} */ (e.target)
+            if (target.name === undefined || target.name === '') { return }
+            step({ kind: 'click', name: target.name })
         })
         // After the first render, so a demo that needs an operation before it
         // can show anything has somewhere to ask without `init` becoming an

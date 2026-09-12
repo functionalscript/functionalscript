@@ -7,7 +7,7 @@ import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f
 import { codePointListToString } from '../../text/utf16/module.f.mjs'
 import { msb, u8List } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
-import { toHex, tryFromHex } from '../oid/module.f.mjs'
+import { digestOf, toHex, tryFromHex } from '../oid/module.f.mjs'
 import { latin1, packIdx1, packIdx2 } from '../testlib.f.mjs'
 import { offsetOf, tryIdx } from './module.f.mjs'
 
@@ -55,14 +55,35 @@ const u32 = /** @type {(v: number) => readonly number[]} */ (v => [
     v % 256,
 ])
 
+/** How long an id is in these fixtures, and so how long each checksum is. */
+const width = /** @type {const} */ (20)
+
+/**
+ * `bytes` with the index's own checksum over them appended, which is what makes
+ * a built file one Git would read.
+ *
+ * Every synthetic index below is sealed, because the reader checks that trailing
+ * hash: a fixture with a made-up one is refused for the trailer rather than for
+ * whatever the case is about, and the case would then pass while pinning
+ * nothing.
+ *
+ * @type {(bytes: readonly number[]) => readonly number[]}
+ */
+const sealed = bytes => [...bytes, ...idBytes(digestOf(width)(bytes))]
+
+/** A sealed file's bytes without its checksum, so it can be changed and sealed again. */
+const unsealed = /** @type {(bytes: readonly number[]) => readonly number[]} */ (
+    bytes => bytes.slice(0, bytes.length - width))
+
 /**
  * A version 1 index over no objects: a fanout of zeros, no entries, and the
- * two checksums. Also the tail of the version 2 spelling of the same, which
- * adds only the magic and the version word in front of it.
+ * pack checksum, awaiting {@link sealed}. Also the tail of the version 2
+ * spelling of the same, which adds only the magic and the version word in front
+ * of it.
  */
 const emptyV1 = /** @type {const} */ ([
     ...Array.from({ length: 256 }, () => u32(0)).flat(),
-    ...Array.from({ length: 40 }, () => 0),
+    ...Array.from({ length: width }, () => 0),
 ])
 
 /**
@@ -77,7 +98,7 @@ const emptyV1 = /** @type {const} */ ([
  */
 const withLargeOffset = (only, offset) => {
     const oid = idBytes(only)
-    return [
+    return sealed([
         0xFF, 0x74, 0x4F, 0x63, ...u32(2),
         // one id, whose first byte is 0x18, so the fanout steps there
         ...Array.from({ length: 256 }, (_, k) => k).flatMap(k => u32(k < oid[0] ? 0 : 1)),
@@ -86,13 +107,49 @@ const withLargeOffset = (only, offset) => {
         // the high bit says "an index into the table below", and it is index 0
         ...u32(0x80000000),
         ...offset,
+        // the pack's checksum, which this reader hands back and does not check
         ...oid,
-        ...oid,
-    ]
+    ])
 }
 
-/** @type {(bytes: readonly number[], at: number, with_: readonly number[]) => readonly number[]} */
-const replaced = (bytes, at, with_) => [...bytes.slice(0, at), ...with_, ...bytes.slice(at + with_.length)]
+/**
+ * `bytes` with `with_` written at `at`, sealed again.
+ *
+ * Sealed again because every case that uses this is about a structural rule: a
+ * fanout that disagrees, a version word that is not 2, an index past the table.
+ * Leaving the old checksum in place would have the trailer refuse each of them
+ * first, and the case would go green over a rule it never reached.
+ *
+ * @type {(bytes: readonly number[], at: number, with_: readonly number[]) => readonly number[]}
+ */
+const replaced = (bytes, at, with_) => {
+    const body = unsealed(bytes)
+    return sealed([...body.slice(0, at), ...with_, ...body.slice(at + with_.length)])
+}
+
+/**
+ * `bytes` with `extra` inserted just before the pack checksum — that is, at the
+ * end of the 8-byte offset table — and sealed again.
+ *
+ * @type {(bytes: readonly number[], extra: readonly number[]) => readonly number[]}
+ */
+const padded = (bytes, extra) => {
+    const body = unsealed(bytes)
+    const at = body.length - width
+    return sealed([...body.slice(0, at), ...extra, ...body.slice(at)])
+}
+
+/**
+ * `bytes` with `with_` written at `at` and **no** reseal, so the trailing
+ * checksum no longer covers them.
+ *
+ * The one case this is for is the checksum itself. Everywhere else a corruption
+ * is resealed, so that the rule the case is about is the rule that refuses.
+ *
+ * @type {(bytes: readonly number[], at: number, with_: readonly number[]) => readonly number[]}
+ */
+const flipped = (bytes, at, with_) =>
+    [...bytes.slice(0, at), ...with_, ...bytes.slice(at + with_.length)]
 
 /**
  * A version 2 index over these ids, in the order given, with a fanout that
@@ -106,14 +163,14 @@ const replaced = (bytes, at, with_) => [...bytes.slice(0, at), ...with_, ...byte
  */
 const v2With = ids => {
     const firsts = ids.map(o => idBytes(o)[0])
-    return [
+    return sealed([
         0xFF, 0x74, 0x4F, 0x63, ...u32(2),
         ...Array.from({ length: 256 }, (_, k) => u32(firsts.filter(v => v <= k).length)).flat(),
         ...ids.flatMap(idBytes),
         ...ids.flatMap(() => u32(0)),
         ...ids.flatMap((_, i) => u32(12 + i)),
-        ...idBytes(ids[0]), ...idBytes(ids[0]),
-    ]
+        ...idBytes(ids[0]),
+    ])
 }
 
 const only = id('1881c433d8e416edcd0de9c5ee468185bc1987cd')
@@ -186,10 +243,10 @@ export const proof = {
     // An index of no objects: a fanout of zeros and nothing between it and
     // the checksums. The lookup answers nothing rather than searching.
     empty: () => {
-        const v1 = decoded(emptyV1)
+        const v1 = decoded(sealed(emptyV1))
         assertStructurallySame(seen(v1), [])
         assertEq(offsetOf(v1)(only), null)
-        const v2 = decoded([0xFF, 0x74, 0x4F, 0x63, ...u32(2), ...emptyV1])
+        const v2 = decoded(sealed([0xFF, 0x74, 0x4F, 0x63, ...u32(2), ...emptyV1]))
         assertStructurallySame(seen(v2), [])
     },
     // A length the tables do not add up to is refused. The length is the
@@ -197,9 +254,13 @@ export const proof = {
     // checked exactly rather than as a lower bound.
     length: () => {
         for (const bytes of [packIdx1, packIdx2]) {
-            assertEq(read(bytes.slice(0, bytes.length - 1)), null)
-            assertEq(read([...bytes, 0]), null)
-            assertEq(read(bytes.slice(0, 100)), null)
+            // A byte short and a byte over, each sealed again so the length is
+            // the only thing wrong: truncating a file breaks its checksum too,
+            // and a case that let the checksum refuse it would pin nothing about
+            // the length.
+            assertEq(read(sealed(unsealed(bytes).slice(0, -1))), null)
+            assertEq(read(sealed([...unsealed(bytes), 0])), null)
+            assertEq(read(sealed(unsealed(bytes).slice(0, 100))), null)
             assertEq(read([]), null)
         }
     },
@@ -254,10 +315,11 @@ export const proof = {
     largeOffsetTableLength: () => {
         const pad = Array.from({ length: 8 }, () => 0)
         // The real file, whose every offset fits in four bytes and whose table
-        // is therefore empty. Eight spare bytes are refused at either width.
+        // is therefore empty. Eight spare bytes are refused in either file, and
+        // the padded file is sealed again so that the trailing checksum is not
+        // what refuses it.
         for (const bytes of [packIdx2, v2With([only])]) {
-            const at = bytes.length - 2 * 20
-            assertEq(read([...bytes.slice(0, at), ...pad, ...bytes.slice(at)]), null)
+            assertEq(read(padded(bytes, pad)), null)
             // and the file itself still reads, so the refusal is the block's
             assert(read(bytes) !== null)
         }
@@ -265,10 +327,63 @@ export const proof = {
         // length check alone cannot see: the entry it adds is a valid offset,
         // so nothing downstream would complain.
         const built = withLargeOffset(only, [...u32(0), ...u32(12)])
-        const at = built.length - 2 * 20
-        assertEq(read([...built.slice(0, at), ...u32(0), ...u32(24), ...built.slice(at)]), null)
+        assertEq(read(padded(built, [...u32(0), ...u32(24)])), null)
         // and one entry exactly, which is what the word asks for
         assertEq(offsetOf(decoded(built))(only), 12)
+    },
+    // Every slot of the 8-byte table is named once and in order, which a count
+    // of slots does not say. Two words naming the same last slot satisfy a
+    // count of two and leave the first slot unread, so both objects come back
+    // with the second slot's offset — an index that disagrees with itself,
+    // answered as two plausible places in the pack.
+    largeOffsetSlots: () => {
+        const low = id('1800000000000000000000000000000000000000')
+        const high = id('2500000000000000000000000000000000000000')
+        /** Two ids, one offset word each, and a two-slot table of 12 and 24. */
+        const twoSlots = /** @type {(words: readonly number[]) => readonly number[]} */ (words => {
+            const firsts = [low, high].map(o => idBytes(o)[0])
+            return sealed([
+                0xFF, 0x74, 0x4F, 0x63, ...u32(2),
+                ...Array.from({ length: 256 }, (_, k) => u32(firsts.filter(v => v <= k).length)).flat(),
+                ...idBytes(low), ...idBytes(high),
+                ...u32(0), ...u32(0),
+                ...words,
+                ...u32(0), ...u32(12), ...u32(0), ...u32(24),
+                ...idBytes(low),
+            ])
+        })
+        // In order, so the file itself is readable and the refusals below are
+        // about which slots the words name and nothing else.
+        const good = twoSlots([...u32(0x80000000), ...u32(0x80000001)])
+        assertStructurallySame(seen(decoded(good)), [
+            ['1800000000000000000000000000000000000000', 12],
+            ['2500000000000000000000000000000000000000', 24],
+        ])
+        // Both words on the last slot: two slots named, two slots present, slot
+        // 0 never read. This is what a count alone accepts.
+        assertEq(read(twoSlots([...u32(0x80000001), ...u32(0x80000001)])), null)
+        // Both on the first: a gap at the end rather than at the start.
+        assertEq(read(twoSlots([...u32(0x80000000), ...u32(0x80000000)])), null)
+        // In the wrong order, which Git never writes — it hands out slots as it
+        // walks the objects — and which no count can see either.
+        assertEq(read(twoSlots([...u32(0x80000001), ...u32(0x80000000)])), null)
+    },
+    // The trailing checksum is the index's own, over every byte before it, and
+    // it is checked. It is the only thing that catches a corruption no
+    // structural rule can: a flipped byte inside an id leaves every length,
+    // every fanout count and every table index exactly as they were, so the
+    // file still adds up and the lookup answers a wrong place in the pack.
+    checksum: () => {
+        // The last byte of the last id, so the ids still ascend and the fanout
+        // still counts them — the corruption structure cannot see.
+        const at = 8 + 256 * 4 + 3 * 20 - 1
+        assertEq(read(flipped(packIdx2, at, [0xFF])), null)
+        // Sealed again, the same corruption reads — which is what says the
+        // refusal above is the checksum's and not some rule about the bytes.
+        const resealed = decoded(sealed(unsealed(flipped(packIdx2, at, [0xFF]))))
+        assertEq(seen(resealed)[2][0], 'c1b0730e0133447badcfd47fd144e254807b06ff')
+        // Version 1 has the same trailer, and its own arithmetic reaching it.
+        assertEq(read(flipped(packIdx1, 256 * 4 + 4 + 19, [0xFF])), null)
     },
     // Ids out of order are refused, and the case that matters is two ids
     // inside one bucket. They share a first byte, so the fanout counts them
@@ -308,7 +423,7 @@ export const proof = {
         // nothing to read and answered `null`, reporting a caller mixing two
         // repositories as an id the pack lacks.
         emptyLookupWidth: () =>
-            offsetOf(decoded(emptyV1))(id('8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f')),
+            offsetOf(decoded(sealed(emptyV1)))(id('8031c3b5f0c291f374148e59909ea8a8f83538e9a412bac9b1f8072e6e6be27f')),
         // Bytes that are no bytes, the same refusal every reader here makes.
         notBytes: () => read([256]),
     },

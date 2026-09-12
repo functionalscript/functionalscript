@@ -118,8 +118,29 @@ const chunks = bytes => () => {
  * @type {(oidBytes: OidBytes) => (type: ObjectType, payload: Bytes) => Oid}
  */
 export const of = oidBytes => {
+    const hash = digestOf(oidBytes)
+    return (type, payload) => hash(write(type, payload))
+}
+
+/**
+ * The hash a repository of this width uses, over plain bytes and with no object
+ * framing: SHA-1 at 20 bytes and SHA-256 at 32.
+ *
+ * {@link of} is this applied to an object's `<type> SP <size> NUL <payload>`,
+ * and it is built on this rather than beside it so that the choice of hash is
+ * made in one place.
+ *
+ * Not every hash Git writes is over an object. A pack and a pack index each end
+ * in a checksum over their own preceding bytes, with no framing at all, and a
+ * reader that checks one needs the repository's hash without the object rule.
+ *
+ * @throws If an item of the bytes is not a byte.
+ *
+ * @type {(oidBytes: OidBytes) => (bytes: Bytes) => Oid}
+ */
+export const digestOf = oidBytes => {
     const hash = oidBytes === 20 ? computeSync(sha1) : computeSync(sha256)
-    return (type, payload) => hash(chunks(write(type, payload)))
+    return bytes => hash(chunks(bytes))
 }
 
 /**

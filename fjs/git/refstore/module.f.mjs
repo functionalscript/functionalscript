@@ -89,7 +89,7 @@
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Bytes, Oid, OidBytes } from '../types.ts'
  * @import { PackedRef } from '../ref/types.ts'
- * @import { Root } from './types.ts'
+ * @import { Dirs, Root } from './types.ts'
  * @import { _Entry, _Found, _Walked } from './private.ts'
  */
 
@@ -150,11 +150,11 @@ const tryBytes = path =>
  * treats them differently — the first is ordinary, the second is
  * `fatal: unexpected line`.
  *
- * @type {(dir: string, oidBytes: OidBytes) => Effect<ReadFile, Nullable<readonly PackedRef[]>, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<ReadFile, Nullable<readonly PackedRef[]>, IoChannel>}
  */
-export const tryPackedRefs = (dir, oidBytes) => {
+export const tryPackedRefs = (dirs, oidBytes) => {
     const parse = tryPacked(oidBytes)
-    return mapStep(tryBytes(under(dir, 'packed-refs')), b => b === null ? [] : parse(b))
+    return mapStep(tryBytes(under(dirs.common, 'packed-refs')), b => b === null ? [] : parse(b))
 }
 
 /**
@@ -210,6 +210,45 @@ const head = /** @type {const} */ ('HEAD')
 /** The prefix `HEAD`'s target must carry. */
 const refsPrefix = /** @type {const} */ ('refs/')
 
+/**
+ * The ref names Git keeps per worktree rather than once for the repository.
+ *
+ * Measured on Git 2.43.0 by writing a different id into each directory and
+ * asking a linked worktree: every one of these answers the worktree's copy,
+ * where `refs/heads/x` and `refs/tags/x` answer the shared one. So this is not
+ * "the names outside `refs/`" — `refs/bisect/`, `refs/worktree/` and
+ * `refs/rewritten/` are under `refs/` and still per worktree, and a
+ * `refs/bisect/good` left in the *common* directory is invisible to a linked
+ * worktree entirely, also measured.
+ */
+const perWorktreeNames = /** @type {readonly string[]} */ ([
+    'HEAD', 'ORIG_HEAD', 'FETCH_HEAD', 'MERGE_HEAD', 'CHERRY_PICK_HEAD',
+    'REVERT_HEAD', 'REBASE_HEAD', 'BISECT_HEAD', 'AUTO_MERGE',
+])
+
+/** The prefixes under `refs/` that are per worktree — see {@link perWorktreeNames}. */
+const perWorktreePrefixes = /** @type {readonly string[]} */ ([
+    'refs/bisect/', 'refs/worktree/', 'refs/rewritten/',
+])
+
+/** @type {(text: string) => boolean} */
+const isPerWorktree = text =>
+    perWorktreeNames.includes(text) || perWorktreePrefixes.some(p => text.startsWith(p))
+
+/** @type {(text: string) => boolean} */
+const isShared = text => !isPerWorktree(text)
+
+/**
+ * Which of the two directories a name's loose file sits in.
+ *
+ * For a main worktree the answer is the same either way, since a caller passes
+ * one directory twice. For a linked worktree it is the whole difference between
+ * its own `HEAD` and the main worktree's — see {@link Dirs}.
+ *
+ * @type {(dirs: Dirs, text: string) => string}
+ */
+const dirOf = (dirs, text) => isPerWorktree(text) ? dirs.gitdir : dirs.common
+
 /** @type {(name: readonly number[]) => boolean} */
 const isUnderRefs = name => nameText(name)?.startsWith(refsPrefix) === true
 
@@ -253,9 +292,9 @@ const nameText = name => fromVec(toVec(name))
  * Everything it needs is a leading parameter, so this closes over nothing
  * and the recursion below is a plain self-call.
  *
- * @type {(dir: string, oidBytes: OidBytes, packed: readonly PackedRef[]) => (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[]) => (name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
  */
-const resolveWith = (dir, oidBytes, packed) => {
+const resolveWith = (dirs, oidBytes, packed) => {
     const readRef = tryRef(oidBytes)
     /** @type {(name: Bytes, left: number) => Effect<ReadFile, Nullable<Oid>, IoChannel>} */
     const go = (name, left) => {
@@ -263,7 +302,7 @@ const resolveWith = (dir, oidBytes, packed) => {
         const dense = byteArray(name)
         // A name that is no ref name never reaches the filesystem. `..` is
         // one of the byte pairs `isWholeName` refuses, so this is also what
-        // keeps `../secret` from being joined below `dir` and read: a path
+        // keeps `../secret` from being joined below either directory and read: a path
         // that leaves the repository is not a ref this can answer for, and
         // the file at the other end of it could begin with something that
         // looks like an id.
@@ -276,7 +315,10 @@ const resolveWith = (dir, oidBytes, packed) => {
         // packed line. Refusing here instead would call a packed ref that
         // `tryRoots` lists absent. See {@link nameText}.
         if (text === null) { return pureOk(packedId(packed, name)) }
-        return step(tryBytes(under(dir, text)), bytes => {
+        // Which directory the name's file sits in is the name's own question,
+        // not the caller's: `HEAD` is the worktree's and `refs/heads/master` is
+        // the repository's. See {@link dirOf}.
+        return step(tryBytes(under(dirOf(dirs, text), text)), bytes => {
             if (bytes === null) { return pureOk(special.includes(text) ? null : packedId(packed, name)) }
             const r = readRef(bytes)
             if (r === null) { return pureOk(null) }
@@ -319,13 +361,13 @@ const resolveWith = (dir, oidBytes, packed) => {
  * is enforced, because this is the half that knows which name it was asked
  * about. The module doc has the measurement.
  *
- * @type {(dir: string, oidBytes: OidBytes) => (name: Bytes) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => (name: Bytes) => Effect<ReadFile, Nullable<Oid>, IoChannel>}
  */
-export const tryResolve = (dir, oidBytes) => name =>
-    step(tryPackedRefs(dir, oidBytes), packed =>
+export const tryResolve = (dirs, oidBytes) => name =>
+    step(tryPackedRefs(dirs, oidBytes), packed =>
         packed === null
             ? pureOk(null)
-            : resolveWith(dir, oidBytes, packed)(name, maxLookups))
+            : resolveWith(dirs, oidBytes, packed)(name, maxLookups))
 
 /** @type {(state: Nullable<_Found>, items: Nullable<readonly _Entry[]>) => _Walked} */
 const walked = (state, items) => [state, items]
@@ -352,11 +394,16 @@ const childOf = parent => d => ({
  * been told the file is there, so a read that cannot find it is a race or a
  * broken host rather than an absence, and the channel is where that belongs.
  *
- * @type {(dir: string, oidBytes: OidBytes, packed: readonly PackedRef[]) => (item: _Entry) => (state: Nullable<_Found>) => Effect<Readdir | ReadFile, _Walked, IoChannel>}
+ * `keep` says which names this walk owns, so the two walks of a `refs/` — the
+ * shared directory's and the worktree's — divide the names between them and
+ * neither lists one twice. In a main worktree both walks read the same
+ * directory, and the division is still exactly one walk per name.
+ *
+ * @type {(dirs: Dirs, oidBytes: OidBytes, packed: readonly PackedRef[], keep: (text: string) => boolean) => (item: _Entry) => (state: Nullable<_Found>) => Effect<Readdir | ReadFile, _Walked, IoChannel>}
  */
-const looseOf = (dir, oidBytes, packed) => {
+const looseOf = (dirs, oidBytes, packed, keep) => {
     const readRef = tryRef(oidBytes)
-    const resolve = resolveWith(dir, oidBytes, packed)
+    const resolve = resolveWith(dirs, oidBytes, packed)
     return item => state => {
         if (state === null) { return pureOk(walked(null, null)) }
         const found = state
@@ -365,6 +412,7 @@ const looseOf = (dir, oidBytes, packed) => {
                 readdir(item.path, {}),
                 entries => pureOk(walked(found, entries.map(childOf(item)))))
         }
+        if (!keep(item.name)) { return pureOk(walked(found, null)) }
         const name = nameBytes(item.name)
         if (!isWholeName(name)) { return pureOk(walked(found, null)) }
         // the name is recorded whatever the file turns out to hold, because
@@ -406,6 +454,53 @@ const combine = (found, packed) => [
         .map(p => ({ name: p.name, id: p.id })),
 ]
 
+/** The one directory name refs live under, in either of the two directories. */
+const refsDir = /** @type {const} */ ('refs')
+
+/**
+ * A worktree's own `refs/` as the walk's first item, or nothing where it has
+ * none.
+ *
+ * Found by listing the worktree's directory rather than by reading `refs/`
+ * and forgiving an absence, because a worktree has a `refs/` of its own only
+ * while a bisect or a rebase is running — most of the time there is nothing
+ * there — and this module's rule everywhere else is that a `readdir` which
+ * cannot find what a *listing* named is the channel's. Asking the listing keeps
+ * that rule rather than making an exception to it: the directory is there if the
+ * listing says so.
+ *
+ * @type {(dirs: Dirs) => Effect<Readdir, readonly _Entry[], IoChannel>}
+ */
+const ownRefs = dirs =>
+    mapStep(
+        readdir(dirs.gitdir, {}),
+        entries => entries
+            .filter(d => d.isDirectory && d.name === refsDir)
+            .map(d => ({ path: under(dirs.gitdir, d.name), name: d.name, isDirectory: true })))
+
+/** The ref name `HEAD` is, as the bytes the rest of this module compares. */
+const headName = nameBytes(head)
+
+/**
+ * `HEAD` as a retention root: `[]` where it names a branch or is not there,
+ * one root where it holds an id, and `null` where it is there and is no ref.
+ *
+ * A branch `HEAD` adds nothing — the branch is already a root at the same id —
+ * so only the detached spelling is a root, and `tryRoots`' doc has the
+ * measurements for both.
+ *
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<ReadFile, Nullable<readonly Root[]>, IoChannel>}
+ */
+const tryHeadRoot = (dirs, oidBytes) => {
+    const readRef = tryRef(oidBytes)
+    return mapStep(tryBytes(under(dirs.gitdir, head)), bytes => {
+        if (bytes === null) { return [] }
+        const r = readRef(bytes)
+        if (r === null) { return null }
+        return r.kind === 'direct' ? [{ name: headName, id: r.id }] : []
+    })
+}
+
 /**
  * Every ref the repository holds, as a name and the id it effectively
  * names: the retention roots, and the ids a search for candidate commits
@@ -442,20 +537,49 @@ const combine = (found, packed) => [
  * tag object, so a caller after commits peels through
  * [`fjs/git/tag`](../tag/module.f.mjs) rather than assuming.
  *
- * `HEAD` is not here, and neither is any other name outside `refs/`. They
- * are not retention roots on their own — `HEAD` names a branch, which is —
- * and {@link tryResolve} answers one by name for a caller that wants it.
+ * **A detached `HEAD` is here, and an attached one is not.** `HEAD` is not a
+ * root when it names a branch, because the branch is one and the two name the
+ * same id. When it holds an id itself, nothing else names that commit and it is
+ * a root on its own — measured on Git 2.43.0 in a repository detached with no
+ * refs at all, where `show-ref` and `for-each-ref` list nothing while
+ * `rev-list --all` lists the commit, `fsck` calls nothing unreachable, and
+ * `gc --prune=now` does not prune it. Returning nothing for that repository
+ * would be a plausible empty answer for the very purpose this list has.
  *
- * @type {(dir: string, oidBytes: OidBytes) => Effect<Readdir | ReadFile, Nullable<readonly Root[]>, IoChannel>}
+ * `HEAD` that is not there contributes no root rather than refusing, and that
+ * is a narrower claim than Git's: a directory with no `HEAD` is no repository
+ * to Git, which answers `not a git repository` for `show-ref` as readily as for
+ * `rev-list`, measured — and it answers the same for a `HEAD` holding bytes
+ * that are no ref. But this module is *given* a directory rather than finding
+ * one, and whether a repository is there is what
+ * [`fjs/git/repo`](../repo/module.f.mjs) and `fjs/git/store`'s `config` read
+ * say. A `HEAD` that is there and is no ref *is* this function's business, and
+ * refuses the listing the way a broken loose ref does.
+ *
+ * Every other name outside `refs/` stays out: {@link tryResolve} answers one by
+ * name for a caller that wants it.
+ *
+ * @type {(dirs: Dirs, oidBytes: OidBytes) => Effect<Readdir | ReadFile, Nullable<readonly Root[]>, IoChannel>}
  */
-export const tryRoots = (dir, oidBytes) =>
-    step(tryPackedRefs(dir, oidBytes), packed => {
+export const tryRoots = (dirs, oidBytes) =>
+    step(tryPackedRefs(dirs, oidBytes), packed => {
         if (packed === null) { return pureOk(null) }
         /** @type {_Entry} */
-        const start = { path: under(dir, 'refs'), name: 'refs', isDirectory: true }
+        const shared = { path: under(dirs.common, refsDir), name: refsDir, isDirectory: true }
         /** @type {Nullable<_Found>} */
         const init = { roots: [], names: [] }
-        return mapStep(
-            walkStep(pureOk([start]), init, looseOf(dir, oidBytes, packed)),
-            found => found === null ? null : combine(found, packed))
+        // The shared walk takes the shared names and the worktree's walk takes
+        // the per-worktree ones, so a name is listed once whether the two
+        // directories are one or two. The worktree's `refs/` is usually not
+        // there at all — a linked worktree has one only while a bisect or a
+        // rebase is running — so it is found by listing the worktree's directory
+        // rather than by reading a path that may not be there. See
+        // {@link ownRefs}.
+        const first = walkStep(pureOk([shared]), init, looseOf(dirs, oidBytes, packed, isShared))
+        const both = step(first, found =>
+            walkStep(ownRefs(dirs), found, looseOf(dirs, oidBytes, packed, isPerWorktree)))
+        return step(both, found => found === null
+            ? pureOk(null)
+            : mapStep(tryHeadRoot(dirs, oidBytes), head =>
+                head === null ? null : [...combine(found, packed), ...head]))
     })
