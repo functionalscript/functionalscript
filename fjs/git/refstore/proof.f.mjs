@@ -7,7 +7,7 @@
  * @import { Vec } from '../../types/bit_vec/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Oid } from '../types.ts'
- * @import { Root } from './types.ts'
+ * @import { Dirs, Root } from './types.ts'
  */
 
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
@@ -24,6 +24,15 @@ import { latin1 } from '../testlib.f.mjs'
 import { maxLookups, tryResolve, tryRoots } from './module.f.mjs'
 
 const toVec = u8ListToVec(msb)
+
+/**
+ * A main worktree's two directories, which are one directory: what a caller
+ * passes for a repository with no linked worktree, and what every case below
+ * uses except the ones about a worktree.
+ *
+ * @type {(d: string) => Dirs}
+ */
+const one = d => ({ gitdir: d, common: d })
 
 /** A commit id, and a second one so a shadowed name is told from its shadow. */
 const a = /** @type {const} */ ('8dd3225810cee59495e415a45957c2fdc0030e22')
@@ -110,7 +119,7 @@ const loose = {
 }
 
 /** @type {(root: Dir, name: string) => Nullable<Oid>} */
-const resolved = (root, name) => run(root, tryResolve('', 20)(latin1(name)))
+const resolved = (root, name) => run(root, tryResolve(one(''), 20)(latin1(name)))
 
 /** @type {(root: Dir, name: string) => string} */
 const hexOf = (root, name) => {
@@ -129,7 +138,7 @@ const hexOf = (root, name) => {
 const utf8 = s => toArray(fromCodePointList(stringToCodePointList(s)))
 
 /** @type {(dir: string, root: Dir, name: readonly number[]) => Nullable<Oid>} */
-const resolvedIn = (dir, root, name) => run(root, tryResolve(dir, 20)(name))
+const resolvedIn = (dir, root, name) => run(root, tryResolve(one(dir), 20)(name))
 
 /** @type {(dir: string, root: Dir, name: readonly number[]) => string} */
 const hexOfIn = (dir, root, name) => {
@@ -158,7 +167,7 @@ export const proof = {
     // The loose refs, including one nested two directories down, and no
     // `packed-refs` at all — a repository that has never been packed.
     looseOnly: () => {
-        sameRoots(run(loose, tryRoots('', 20)), [
+        sameRoots(run(loose, tryRoots(one(''), 20)), [
             ['refs/heads/master', a],
             ['refs/heads/other', b],
             ['refs/remotes/origin/main', a],
@@ -170,7 +179,7 @@ export const proof = {
     // at one id and a loose file holding another, `git show-ref` and
     // `git rev-parse` both answer the loose one.
     shadow: () => {
-        sameRoots(run(shadowed, tryRoots('', 20)), [
+        sameRoots(run(shadowed, tryRoots(one(''), 20)), [
             ['refs/heads/master', a],
             ['refs/heads/other', a],
             ['refs/tags/v1', t],
@@ -185,7 +194,7 @@ export const proof = {
             // listing's and not just the last word: once a file under
             // `refs/` is no ref, nothing later rescues it.
             const heads = { master: file(bytes), other: ref(b) }
-            assertEq(run({ ...shadowed, refs: { heads } }, tryRoots('', 20)), null)
+            assertEq(run({ ...shadowed, refs: { heads } }, tryRoots(one(''), 20)), null)
         }
     },
     // A file under `refs/` whose name is no ref name is skipped without a
@@ -198,13 +207,13 @@ export const proof = {
             'a..b': ref(b), 'a@{b': ref(b), 'has space': ref(b),
             'tilde~x': ref(b), 'caret^x': ref(b),
         }
-        sameRoots(run({ refs: { heads } }, tryRoots('', 20)), [['refs/heads/master', a]])
+        sameRoots(run({ refs: { heads } }, tryRoots(one(''), 20)), [['refs/heads/master', a]])
     },
     // A symbolic loose ref is answered resolved, which is what
     // `git show-ref` lists for one.
     symbolicRoot: () => {
         const heads = { master: ref(a), sym: file('ref: refs/heads/master\n') }
-        sameRoots(run({ refs: { heads } }, tryRoots('', 20)), [
+        sameRoots(run({ refs: { heads } }, tryRoots(one(''), 20)), [
             ['refs/heads/master', a],
             ['refs/heads/sym', a],
         ])
@@ -214,34 +223,34 @@ export const proof = {
     // with a warning rather than refusing the file.
     danglingRoot: () => {
         const heads = { master: ref(a), sym: file('ref: refs/heads/gone\n') }
-        sameRoots(run({ refs: { heads } }, tryRoots('', 20)), [['refs/heads/master', a]])
+        sameRoots(run({ refs: { heads } }, tryRoots(one(''), 20)), [['refs/heads/master', a]])
     },
     // The three states of `packed-refs` are three answers: absent is a
     // repository with nothing packed, present and malformed is one Git
     // refuses, and an absent `refs/` is a repository whose refs are all
     // packed rather than an error.
     packedStates: () => {
-        assertEq(run({ 'packed-refs': file('# hello\n'), refs: {} }, tryRoots('', 20)), null)
+        assertEq(run({ 'packed-refs': file('# hello\n'), refs: {} }, tryRoots(one(''), 20)), null)
         // Everything packed and `refs/` left behind empty, which is what
         // `git pack-refs --all` leaves: the directory stays, measured.
         sameRoots(
-            run({ 'packed-refs': file(`${a} refs/heads/master\n`), refs: { heads: {} } }, tryRoots('', 20)),
+            run({ 'packed-refs': file(`${a} refs/heads/master\n`), refs: { heads: {} } }, tryRoots(one(''), 20)),
             [['refs/heads/master', a]])
         // Neither file: a repository with no refs at all.
-        sameRoots(run({ refs: {} }, tryRoots('', 20)), [])
+        sameRoots(run({ refs: {} }, tryRoots(one(''), 20)), [])
     },
     // The id width is the repository's, so a SHA-1 id is no ref in a
     // SHA-256 repository — the same check every header naming an object
     // makes, and here it makes the whole listing refuse.
     width: () => {
-        assertEq(run(loose, tryRoots('', 32)), null)
+        assertEq(run(loose, tryRoots(one(''), 32)), null)
     },
     // Two names of the same length that differ. A ref name is compared as
     // bytes, so the comparison cannot stop at the length, and a fixture
     // whose names all differ in length would never ask it to.
     sameLength: () => {
         const root = { 'packed-refs': file(`${b} refs/heads/y\n`), refs: { heads: { x: ref(a) } } }
-        sameRoots(run(root, tryRoots('', 20)), [['refs/heads/x', a], ['refs/heads/y', b]])
+        sameRoots(run(root, tryRoots(one(''), 20)), [['refs/heads/x', a], ['refs/heads/y', b]])
     },
     // A read that fails for any reason other than the file not being there
     // is the channel's, not an empty answer. The virtual filesystem only
@@ -251,7 +260,7 @@ export const proof = {
         const denied = ioError({ code: 'EACCES', message: 'permission denied' })
         /** @type {MemOperationMap<ReadFile, null>} */
         const host = { readFile: () => state => [state, error(denied)] }
-        const [, r] = mockRun(host)(null)(tryResolve('', 20)(latin1('refs/heads/master')))
+        const [, r] = mockRun(host)(null)(tryResolve(one(''), 20)(latin1('refs/heads/master')))
         assertStructurallySame(r, error(denied))
     },
     // One name at a time: a loose ref, a packed one, a loose one shadowing
@@ -333,7 +342,7 @@ export const proof = {
     // very file `tryRoots` lists.
     utf8Name: () => {
         const root = { refs: { heads: { 'é': ref(a) } } }
-        sameRoots(run(root, tryRoots('', 20)), [['refs/heads/é', a]])
+        sameRoots(run(root, tryRoots(one(''), 20)), [['refs/heads/é', a]])
         assertEq(hexOfIn('', root, utf8('refs/heads/é')), a)
         // The byte-per-code-point reading of the same name, which is the path
         // `Ã©` and no file: it answers nothing, so the case above is about the
@@ -364,7 +373,7 @@ export const proof = {
             'packed-refs': file(`${b} refs/heads/master\n`),
             refs: { heads: { master: file('ref: refs/heads/gone\n') } },
         }
-        sameRoots(run(root, tryRoots('', 20)), [])
+        sameRoots(run(root, tryRoots(one(''), 20)), [])
         assertEq(resolvedIn('', root, utf8('refs/heads/master')), null)
     },
     // `HEAD`'s target must sit under `refs/`. Measured on Git 2.43.0: with
@@ -399,7 +408,7 @@ export const proof = {
                 'packed-refs': file(`${first} refs/heads/dup\n${second} refs/heads/dup\n`),
                 refs: {},
             }
-            sameRoots(run(root, tryRoots('', 20)), [['refs/heads/dup', second]])
+            sameRoots(run(root, tryRoots(one(''), 20)), [['refs/heads/dup', second]])
             assertEq(hexOf(root, 'refs/heads/dup'), second)
         }
     },
@@ -421,10 +430,124 @@ export const proof = {
         // about. Asserted by bytes rather than through `sameRoots`, because
         // that helper renders a name as UTF-8 text and this name is none —
         // which is the whole reason `tryResolve` cannot build a path for it.
-        const rs = run(root, tryRoots('', 20))
+        const rs = run(root, tryRoots(one(''), 20))
         assert(rs !== null)
         assertEq(rs.length, 1)
         assertStructurallySame(toArray(rs[0].name), name)
         assertEq(codePointListToString(toHex(rs[0].id)), a)
+    },
+    // The two directories are two, and `HEAD` is the name that tells them apart.
+    // Measured on Git 2.43.0: a linked worktree detached at another commit
+    // answers its own id where the main worktree answers its branch's, so
+    // reading `HEAD` from the shared directory is a plausible wrong commit.
+    worktreeHead: () => {
+        /** @type {Dirs} */
+        const dirs = { gitdir: 'wt', common: 'repo' }
+        /** @type {Dir} */
+        const root = {
+            // the worktree's own directory: its `HEAD` and nothing shared
+            wt: { HEAD: ref(b) },
+            // the shared directory: `refs/`, `packed-refs`, and the *main*
+            // worktree's `HEAD`
+            repo: { HEAD: ref(t), refs: { heads: { master: ref(a) } } },
+        }
+        assertEq(codePointListToString(toHex(/** @type {Oid} */ (
+            run(root, tryResolve(dirs, 20)(utf8('HEAD')))))), b)
+        // Wrong on purpose, to show the two answers differ: one directory for
+        // both is the main worktree's `HEAD`.
+        assertEq(codePointListToString(toHex(/** @type {Oid} */ (
+            run(root, tryResolve(one('repo'), 20)(utf8('HEAD')))))), t)
+        // And a shared name is read from the shared directory even though the
+        // worktree's directory is where `HEAD` came from.
+        assertEq(codePointListToString(toHex(/** @type {Oid} */ (
+            run(root, tryResolve(dirs, 20)(utf8('refs/heads/master')))))), a)
+    },
+    // Which names are per worktree, measured one at a time on Git 2.43.0 by
+    // writing a different id into each directory and asking a linked worktree.
+    // `refs/bisect/`, `refs/worktree/` and `refs/rewritten/` are under `refs/`
+    // and still the worktree's, so this is not "the names outside `refs/`".
+    perWorktree: () => {
+        for (const name of [
+            'HEAD', 'ORIG_HEAD', 'FETCH_HEAD', 'MERGE_HEAD', 'CHERRY_PICK_HEAD',
+            'REVERT_HEAD', 'REBASE_HEAD', 'BISECT_HEAD', 'AUTO_MERGE',
+            'refs/bisect/good', 'refs/worktree/x', 'refs/rewritten/y',
+        ]) {
+            const at = /** @type {(hex: string) => Dir} */ (hex =>
+                name.includes('/')
+                    ? { refs: { [name.split('/')[1]]: { [name.split('/')[2]]: ref(hex) } } }
+                    : { [name]: ref(hex) })
+            /** @type {Dir} */
+            const root = { wt: at(b), repo: { ...at(t), refs: { ...at(t).refs, heads: {} } } }
+            assertEq(codePointListToString(toHex(/** @type {Oid} */ (
+                run(root, tryResolve({ gitdir: 'wt', common: 'repo' }, 20)(utf8(name)))))), b, name)
+        }
+        // And a name that is shared comes from the shared directory, so the list
+        // above is a rule and not "everything comes from the worktree".
+        /** @type {Dir} */
+        const shared = { wt: { refs: { heads: { x: ref(b) } } }, repo: { refs: { heads: { x: ref(a) } } } }
+        assertEq(codePointListToString(toHex(/** @type {Oid} */ (
+            run(shared, tryResolve({ gitdir: 'wt', common: 'repo' }, 20)(utf8('refs/heads/x')))))), a)
+    },
+    // A detached `HEAD` is a retention root and an attached one is not.
+    // Measured on Git 2.43.0 in a repository detached with no refs at all:
+    // `show-ref` and `for-each-ref` list nothing, while `rev-list --all` lists
+    // the commit, `fsck` calls nothing unreachable, and `gc --prune=now` does
+    // not prune it. So an empty answer there would lose the only history the
+    // repository has.
+    detachedHead: () => {
+        sameRoots(run({ HEAD: ref(a), refs: {} }, tryRoots(one(''), 20)), [['HEAD', a]])
+        // Attached: the branch is the root and `HEAD` adds nothing, since the
+        // two name one id.
+        sameRoots(
+            run({ HEAD: file('ref: refs/heads/master\n'), refs: { heads: { master: ref(a) } } }, tryRoots(one(''), 20)),
+            [['refs/heads/master', a]])
+        // Attached to a branch that is not there — an unborn `HEAD`, which
+        // `git init` leaves — is no root either, because there is no id.
+        sameRoots(run({ HEAD: file('ref: refs/heads/master\n'), refs: { heads: {} } }, tryRoots(one(''), 20)), [])
+        // No `HEAD` at all contributes no root. Narrower than Git, which calls
+        // such a directory no repository at all — measured, `show-ref` answers
+        // `not a git repository` — but this module is given a directory rather
+        // than finding one.
+        sameRoots(run(loose, tryRoots(one(''), 20)), [
+            ['refs/heads/master', a],
+            ['refs/heads/other', b],
+            ['refs/remotes/origin/main', a],
+            ['refs/tags/v1', t],
+        ])
+        // A `HEAD` that is there and is no ref refuses the listing, the way a
+        // broken loose ref does: the file exists and what the repository says
+        // about its own head is unreadable.
+        assertEq(run({ HEAD: file('not an id\n'), refs: {} }, tryRoots(one(''), 20)), null)
+        // And it is the worktree's `HEAD` that is read, not the shared one.
+        sameRoots(
+            run({ wt: { HEAD: ref(b) }, repo: { HEAD: ref(a), refs: {} } }, tryRoots({ gitdir: 'wt', common: 'repo' }, 20)),
+            [['HEAD', b]])
+    },
+    // The walk of `refs/` is two walks that divide the names between them: the
+    // shared directory's for the shared names and the worktree's for the per
+    // worktree ones. Measured: `show-ref` in a linked worktree lists its own
+    // `refs/bisect/good` beside the shared branches, and a `refs/bisect/` left
+    // in the *shared* directory is invisible to that worktree entirely.
+    worktreeRoots: () => {
+        /** @type {Dirs} */
+        const dirs = { gitdir: 'wt', common: 'repo' }
+        sameRoots(
+            run({
+                wt: { refs: { bisect: { good: ref(b) } } },
+                repo: { refs: { heads: { master: ref(a) }, bisect: { 'only-shared': ref(t) } } },
+            }, tryRoots(dirs, 20)),
+            [['refs/heads/master', a], ['refs/bisect/good', b]])
+        // The worktree's `refs/` is usually not there at all — it appears only
+        // while a bisect or a rebase is running — and it is found by listing the
+        // worktree's directory, so there is no path read that could be absent.
+        sameRoots(
+            run({ wt: {}, repo: { refs: { heads: { master: ref(a) } } } }, tryRoots(dirs, 20)),
+            [['refs/heads/master', a]])
+        // In a main worktree the two directories are one, and each name is
+        // still listed once: the shared walk skips the per-worktree names and
+        // the second walk takes them.
+        sameRoots(
+            run({ refs: { heads: { master: ref(a) }, bisect: { good: ref(b) } } }, tryRoots(one(''), 20)),
+            [['refs/heads/master', a], ['refs/bisect/good', b]])
     },
 }

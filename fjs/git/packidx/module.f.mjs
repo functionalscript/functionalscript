@@ -48,6 +48,8 @@
 import { assert } from '../../asserts/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { length, msb, u8ListToVec, uint } from '../../types/bit_vec/module.f.mjs'
+import { take } from '../../types/list/module.f.mjs'
+import { digestOf } from '../oid/module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -128,6 +130,32 @@ const fanoutAgrees = (b, fanoutAt, idsAt, stride, n, width) => {
 }
 
 /**
+ * Whether the index's own checksum — the last of the two in the trailer —
+ * is the hash of everything before it.
+ *
+ * The first of the two is the pack's, which this file cannot check because the
+ * pack is not here; it is handed back as {@link Idx}'s `packChecksum` so a
+ * reader of the pack can. The second is this file's own, and checking it is what
+ * catches the corruption no structural rule can see: a flipped byte inside an id
+ * or an offset leaves every length, every fanout count and every table index
+ * exactly as it was, so the file still adds up and the lookup answers a wrong
+ * place in the pack.
+ *
+ * Git does not check it on every read — it maps the file and trusts it, and
+ * verifies only under `index-pack --strict` and `verify-pack`. Reading it here
+ * costs a hash of the file per open, which is the same price
+ * [`fjs/git/store`](../store/module.f.mjs) already pays per object, for the same
+ * reason: nothing above these readers is in a position to notice.
+ *
+ * @type {(b: readonly number[], oidBytes: OidBytes) => boolean}
+ */
+const checksumAgrees = (b, oidBytes) => {
+    const at = b.length - oidBytes
+    // `take` and not `slice`, so the bytes are walked rather than copied
+    return digestOf(oidBytes)(take(at)(b)) === oidAt(b, at, oidBytes)
+}
+
+/**
  * Version 1: the fanout, then one entry per object of a 4-byte offset and an
  * id, then the two checksums.
  *
@@ -144,6 +172,7 @@ const tryV1 = (b, oidBytes) => {
     const entriesAt = fanout * 4
     if (b.length !== entriesAt + n * stride + 2 * width) { return null }
     if (!fanoutAgrees(b, 0, entriesAt + 4, stride, n, width)) { return null }
+    if (!checksumAgrees(b, oidBytes)) { return null }
     return {
         oidBytes,
         ids: Array.from({ length: n }, (_, i) => oidAt(b, entriesAt + i * stride + 4, width)),
@@ -198,17 +227,22 @@ const tryV2 = (b, oidBytes) => {
     if (!fanoutAgrees(b, fanoutAt, idsAt, width, n, width)) { return null }
     /** The 4-byte offset words, each either an offset or an index into the table. */
     const words = Array.from({ length: n }, (_, i) => u32(b, offsetsAt + i * 4))
-    /** The largest index the words name, or `-1` where none of them names one. */
-    const highest = words.reduce(
-        (m, w) => w < largeOffsetFlag ? m : Math.max(m, w - largeOffsetFlag),
-        -1)
-    // The table is exactly long enough for that index and no longer. This is
-    // also what refuses an index past the table, which needs no check of its
-    // own once the table's length is the one the words ask for.
-    if (large !== highest + 1) { return null }
+    /** The indexes into the 8-byte table, in the order the words name them. */
+    const named = words.filter(w => w >= largeOffsetFlag).map(w => w - largeOffsetFlag)
+    // Every slot is named, exactly once, and in order: the k-th word that sets
+    // the high bit names slot k. That is what Git writes — it walks the objects
+    // and hands out the next slot to each one whose offset needs eight bytes —
+    // and checking the *count* alone was not enough. Two words naming the same
+    // highest slot satisfied a count: a two-slot table holding `[12, 24]` with
+    // two words for slot 1 gave both objects offset 24 and left slot 0 unread,
+    // which is an index disagreeing with itself answered as two plausible
+    // offsets. An index past the table and a table longer than its words ask
+    // for are both refused by the same line.
+    if (large !== named.length || named.some((at, k) => at !== k)) { return null }
     const offsets = words.map(w =>
         w < largeOffsetFlag ? w : u64(b, largeAt + (w - largeOffsetFlag) * 8))
     if (!offsets.every(o => o !== null)) { return null }
+    if (!checksumAgrees(b, oidBytes)) { return null }
     return {
         oidBytes,
         ids: Array.from({ length: n }, (_, i) => oidAt(b, idsAt + i * width, width)),
