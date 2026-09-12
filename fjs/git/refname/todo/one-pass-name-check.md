@@ -12,10 +12,17 @@ of heap per byte of name, because every slot holds a double. Measured on a
 
 | representation | heap at rest |
 | --- | --- |
-| dense `readonly number[]` | 159.5 KiB |
-| `bigint` | 16.3 KiB |
+| dense `readonly number[]` | 156.3 KiB |
+| `bigint` | 19.6 KiB |
 
-About ten to one, and the array is transient — it lives only for the length
+Each averaged over a hundred allocations, because a single `heapUsed` delta is
+noisy enough to read below the floor: 160000 bits needs 2501 64-bit limbs, so
+19.5 KiB is the least a `bigint` of this name can occupy, and a one-shot
+measurement of it came out at 16.3 KiB — under the floor, and therefore wrong.
+
+About eight to one, which is the eight bytes per byte a dense array of
+doubles costs and not a figure to round up from. The array is transient — it
+lives only for the length
 of the call — so this is a rate rather than a leak. A ref name is short, and
 nothing here is on a hot path, which is why this is P4 and not a fix in the
 branch that wrote it. The shape is also older than that branch: the rules
@@ -34,10 +41,14 @@ size, so it is the right carrier for an object id and the wrong one for a
 whole file. Where a large byte string must be held, the shape is a list or an
 array of bit vectors rather than one vector.
 
-Building a `bigint` a byte at a time is also a trap: the same 20000 bytes
-churn 3550 KiB of garbage that way, since every shift allocates a new value.
-`u8ListToVec` uses an absorbing concat fold and does not, which is why the
-packed representation is cheap here and expensive written by hand.
+Building a `bigint` a byte at a time is also a trap, and the cost is
+quadratic rather than large: every shift allocates a new value, so the total
+allocated over a name of `n` bytes is the sum of `1..n` bytes, which for
+20000 is about 190 MiB. The live heap stays small because the collector
+reclaims as it goes, so this is a rate of allocation rather than a footprint
+and `heapUsed` does not measure it. `u8ListToVec` uses an absorbing concat
+fold and does not pay it, which is why the packed representation is cheap
+here and expensive written by hand.
 
 A hex string is 2 bytes per byte where the runtime keeps a one-byte string,
 so 4x smaller than the array, but it doubles the length and puts the rules a
