@@ -189,30 +189,31 @@ a reinterpretation.
 ### Output
 
 A `.json` output is a **tree**; any other extension makes the output a
-JavaScript module, which is a **graph**.
+[DataJS](./datajs/README.md) document, which is a **graph**.
 
 ```sh
-fjs compile input.f.js output.f.js   # JavaScript module
+fjs compile input.f.js output.f.js   # DataJS, a JavaScript module
 fjs compile input.f.js output.json   # JSON
 ```
 
-- A JavaScript module preserves the object graph: a value referenced more than
-  once is emitted as a `const` and stays shared
-  ([shared values](#shared-values-constants)).
-- JSON is a tree, so shared values are expanded into as many copies as there
-  are references.
-- Object properties are emitted in sorted key order, by UTF-16 code unit —
-  `"10"` before `"2"`.
-- A `__proto__` key is emitted as `["__proto__"]:` in a JavaScript module and
+- A DataJS document is written in
+  [normalized form](./datajs/README.md#normalized-form): one line, and a
+  value referenced more than once hoisted into a `const` named `$0`, `$1`, …
+  so it stays shared ([shared values](#shared-values-constants)). Every value
+  a module denotes has a document.
+- JSON is a tree, and the compiler refuses what JSON cannot spell rather than
+  write a file that reads back as a different value: a shared value, which
+  written twice reads back as two; `bigint`, `undefined`, `NaN`, `Infinity`
+  and `-Infinity`, which JSON has no word for. A `bigint` is refused even
+  though its digits are JSON, since `1` reads back as the *number* `1`. The
+  refusal names the output file and writes nothing.
+- Object properties are emitted in the order the object carries them —
+  JavaScript's own-property order, array-index keys first — in both formats.
+- A `__proto__` key is emitted as `["__proto__"]:` in a DataJS document and
   as `"__proto__":` in JSON ([below](#the-__proto__-key)).
 - `NaN`, `Infinity` and `-Infinity` — a literal, or a number that overflowed
-  to infinity — are emitted as those words in both formats, the way
-  [DataJS](./datajs/README.md) writes them; in `.json` output that is not
-  JSON, the same way `bigint` and `undefined` are not (next item).
-- `bigint` and `undefined` have no JSON spelling. The `.json` writer currently
-  emits the module spellings `34n` and `undefined` anyway, producing a file
-  that is not valid JSON; it should reject the value instead. Tracked by
-  [`fjs/djs/todo/json-bigint-serialization.md`](../fjs/djs/todo/json-bigint-serialization.md).
+  to infinity — are emitted as those words in a DataJS document, and `-0` as
+  `-0` in both formats.
 
 The output is data in both formats: the module the compiler writes contains
 `const` statements and one `export default`, never a function.

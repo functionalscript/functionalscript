@@ -1,24 +1,30 @@
 /**
  * @import { Unknown } from '../djs/types.ts'
- * @import { Accept, Document } from '../media/datajs/vectors/types.ts'
+ * @import { Accept, Document, Normalize } from '../media/datajs/vectors/types.ts'
  */
 
 import { exitCode } from '../effects/node/module.f.mjs'
-import { compile } from './module.f.mjs'
+import { compile, tryJson } from './module.f.mjs'
 import { parse, transpile } from './transpiler/module.f.mjs'
 import { run } from './ast/module.f.mjs'
-import { stringify } from '../djs/serializer/module.f.mjs'
+import { parse as parseDataJs } from '../media/datajs/parser/module.f.mjs'
+import { tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
 import { virtual, emptyState } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { fromVec } from '../text/utf8/module.f.mjs'
-import { fromEntries, isObject, sort } from '../types/object/module.f.mjs'
+import { invert, unwrap } from '../types/result/module.f.mjs'
+import { fromEntries, isObject } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
 import accept from '../../spec/datajs/vectors/accept/data.f.mjs'
+import normalize from '../../spec/datajs/vectors/normalize/data.f.mjs'
 
 /** The DataJS accept corpus, typed at the import since a data module carries no annotations. */
 const acceptSet = /** @type {readonly Accept[]} */ (accept)
+
+/** The normalized-form corpus, typed the same way. */
+const normalizeSet = /** @type {readonly Normalize[]} */ (normalize)
 
 /**
  * A vector's document as the front end reads it: a string as it is, and a
@@ -63,6 +69,24 @@ const compileSource = source => outputFileName => {
     assertEq(exitCode(code), 0, state.stderr)
     return readOutput(state.root, outputFileName)
 }
+
+/**
+ * What `fjs compile` prints when it refuses to write `.json` for a module:
+ * the exit code is `1`, nothing is written, and the message names the output
+ * file, because the module is sound and the output is what cannot be.
+ *
+ * @type {(source: string) => string}
+ */
+const jsonRefused = source => {
+    const root = { 'input.f.js': [utf8(source)] }
+    const [state, code] = virtual({ ...emptyState, root })(compile(['input.f.js', 'output.json']))
+    assertEq(exitCode(code), 1, state.stderr)
+    assertEq(state.root['output.json'], undefined)
+    return state.stderr.trim()
+}
+
+/** The module `fjs compile` writes for a value. @type {(value: Unknown) => string} */
+const moduleText = value => unwrap(tryStringify(value))
 
 const { getPrototypeOf, is, prototype: objectPrototype } = Object
 
@@ -185,7 +209,7 @@ export const proof = {
     // The emitter is only correct if its output is an input denoting the value
     // it was given, which no assertion on the text alone can state.
     roundTrip: roundTripCorpus.map(value => () => {
-        const source = stringify(sort)(value)
+        const source = moduleText(value)
         const root = { 'input.f.js': [utf8(source)] }
         const [, result] = virtual({ ...emptyState, root })(transpile('input.f.js'))
         assert(result[0] === 'ok', result[1])
@@ -209,6 +233,28 @@ export const proof = {
         const d = difference(graph)(value)
         assert(d === null, `${id}: the front end's graph is not the vector's: ${d}`)
     }),
+    // The normalizer's loop: the document `fjs compile` writes for a module
+    // is read by the DataJS reader to the graph the module denotes, over the
+    // whole accept set. It runs on the compiler's parts as `subsetLaw` does,
+    // since the eight byte-form documents cannot be fed to the file system as
+    // UTF-8 — the output side is a document in every case, the writer
+    // escaping what it cannot encode. `normalizeSet` below runs the file
+    // system route.
+    normalizeLoop: acceptSet.map(({ id, document, graph }) => () => {
+        const source = documentText(document)
+        assert(source !== null, `${id}: the document is not UTF-8`)
+        const [tag, value] = evaluate(source)
+        assert(tag === 'ok', `${id}: the front end refused the document: ${value}`)
+        const normalized = unwrap(tryStringify(value))
+        const d = difference(graph)(unwrap(parseDataJs(normalized)))
+        assert(d === null, `${id}: the normalized document does not denote the vector's graph: ${d}`)
+    }),
+    // Normalized form is a fixed point of the compiler: `fjs compile` on a
+    // normalized document writes the same bytes back, for every text the
+    // corpus pins. This is the whole command, file system included.
+    normalizeFixedPoint: normalizeSet.map(({ id, text }) => () => {
+        assertEq(compileSource(text)('output.f.js'), text, id)
+    }),
     // The three numbers JSON cannot spell, end to end: read as the values
     // they name, written back as the same words. `NaN` is checked by
     // `Object.is` directly, which is what `structurallySame` compares leaves
@@ -228,12 +274,54 @@ export const proof = {
             const source = 'export default [NaN,Infinity,-Infinity];'
             assertEq(compileSource(source)('output.f.js'), source)
         },
-        // The `.json` output spells them as the same words, as it spells
-        // `undefined` and a bigint: not JSON, and not a substitute `null`
-        // either — refusing them there is the policy json-bigint-serialization
-        // records for the whole class.
+        // The `.json` output refuses them, each by name: `JSON.stringify`'s
+        // `null` would read back as a different value, and the word would
+        // not read back at all.
         jsonOutput: () => {
-            assertEq(compileSource('export default [NaN,Infinity,-Infinity];')('output.json'), '[NaN,Infinity,-Infinity]')
+            assertEq(jsonRefused('export default NaN;'), 'output.json - error: no JSON spelling for NaN')
+            assertEq(jsonRefused('export default Infinity;'), 'output.json - error: no JSON spelling for Infinity')
+            assertEq(jsonRefused('export default -Infinity;'), 'output.json - error: no JSON spelling for -Infinity')
+        },
+    },
+    // What JSON cannot spell, refused wherever it sits — at the root, as an
+    // element, as a member's value — and nothing written. A bigint is
+    // refused even though its digits are JSON: the standard reader would
+    // take `1` back as the number `1`, a change of type the extended codec's
+    // output exists to signal and a `.json` file cannot. Sharing is refused
+    // too, since JSON denotes a tree and writing the node twice denotes a
+    // different graph. `-0` is a JSON number and stays one.
+    jsonRefusals: {
+        undefinedRoot: () => { assertEq(jsonRefused('export default undefined;'), 'output.json - error: no JSON spelling for undefined') },
+        undefinedElement: () => { assertEq(jsonRefused('export default [1, undefined];'), 'output.json - error: no JSON spelling for undefined') },
+        undefinedMember: () => { assertEq(jsonRefused('export default {"a": undefined};'), 'output.json - error: no JSON spelling for undefined') },
+        bigintRoot: () => { assertEq(jsonRefused('export default 42n;'), 'output.json - error: no JSON spelling for 42n') },
+        bigintElement: () => { assertEq(jsonRefused('export default [42n];'), 'output.json - error: no JSON spelling for 42n') },
+        bigintMember: () => { assertEq(jsonRefused('export default {"a": 42n};'), 'output.json - error: no JSON spelling for 42n') },
+        nanElement: () => { assertEq(jsonRefused('export default [NaN];'), 'output.json - error: no JSON spelling for NaN') },
+        nanMember: () => { assertEq(jsonRefused('export default {"a": NaN};'), 'output.json - error: no JSON spelling for NaN') },
+        sharedNode: () => {
+            assertEq(jsonRefused('const a = [1]; export default [a, a];'), 'output.json - error: no JSON spelling for a shared node')
+            assertEq(jsonRefused('const a = {}; export default {"x": a, "y": a};'), 'output.json - error: no JSON spelling for a shared node')
+        },
+        // two equal containers are two nodes, and a tree is a tree
+        equalNotShared: () => {
+            assertEq(compileSource('export default [[1], [1]];')('output.json'), '[[1],[1]]')
+        },
+        // the whole tree is written once the first refusal is found: nothing
+        // after it is reported, and nothing before it is written
+        firstRefusal: () => {
+            assertEq(jsonRefused('export default [1, undefined, 2n];'), 'output.json - error: no JSON spelling for undefined')
+        },
+        // the module output takes every one of them
+        moduleOutput: () => {
+            assertEq(compileSource('export default [undefined, 42n, NaN];')('output.f.js'), 'export default [undefined,42n,NaN];')
+            assertEq(compileSource('const a = [1]; export default [a, a];')('output.f.js'), 'const $0=[1];export default [$0,$0];')
+        },
+        // and `tryJson` itself, on a value rather than a file, for the leaf
+        // JSON has a spelling for and the container order it keeps
+        value: () => {
+            assertEq(unwrap(tryJson({ b: -0, a: [true, null, 'x'] })), '{"b":-0,"a":[true,null,"x"]}')
+            assertEq(unwrap(invert(tryJson(undefined))), 'no JSON spelling for undefined')
         },
     },
     // Negative zero end to end: the tokenizer pins the `-0` lexeme,
