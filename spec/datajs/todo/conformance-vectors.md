@@ -2379,16 +2379,23 @@ The steps, in order; a step is one pull request unless it says otherwise:
       Their texts were written from the rule and only then compared with the
       shipped writer, which is the order that makes them a claim: the const
       names come out in post-order, one per shared node.
-      The round after widened them by six, and only here: a shared body's first
-      child had been a keyword, a string, a container, `-0` or `-1`, so every
+      The round after widened them, and only here: a shared body's first child
+      had been a keyword, a string, a container, `-0` or `-1`, so every
       *number-formatting* branch was still missing from that slot — a writer
       with its own path for a hoisted body's first child could spell `1.50` for
-      `1.5` and pass. The two vectors now start bodies with `1.5`, `1e21`,
-      `1e-7`, 2^53+1, the max finite and a multi-digit bigint as well, and the
-      writer's own answers are the claim: `1e+21`, `1e-7`, `9007199254740992`
-      and `1.7976931348623157e+308`, each predicted from the rule before it was
-      compared. The other two sets get none of the six, because a spelling is
-      what a graph check cannot see.
+      `1.5` and pass. Two rounds of that arrived one branch at a time, so the
+      axis is now closed by enumeration rather than by example: **every one of
+      the 35 number spellings this set pins** starts a shared body, both ends of
+      each notation threshold included, `1e20` against `1e21` and `1e-6`
+      against `1e-7`, with the subnormal, the max finite, the shortest-digits
+      pair, the rounding boundary and the three bigint widths. The writer's own
+      answers are the claim, each predicted from the rule before it was
+      compared: `100000000000000000000`, `1e+21`, `0.000001`, `1e-7`,
+      `9007199254740992`. What the 35 leave out is the negative twin of each
+      branch, and deliberately: a sign is one prefix decision rather than a
+      per-branch one, and six of the bodies already start with `-0`, `-1`,
+      `-1n`, `-1e+21`, `-1.5e-7` or `-Infinity`. The other two sets get none of
+      this, because a spelling is what a graph check cannot see.
       And a latent trap in this set's own proof, found by review rather than by
       a failure: `spelling` built its expected text with `JSON.stringify`, which
       knows nothing about `["__proto__"]` being a production of its own, so the
