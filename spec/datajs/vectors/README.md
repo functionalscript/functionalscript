@@ -142,9 +142,13 @@ that section is a rule an implementation answers in its own tests, in whatever
 host can build the value. One question is open on the other side of it: while
 [this repository's writer](../../../fjs/media/datajs/todo/serializer.md) takes
 `unknown` and refuses at run time rather than taking the data model and trusting
-it, the gap between its parameter and the model is a set that would have to be
-written if the parameter stays — recorded in the writer's own issue, where the
-decision is.
+it, its parameter admits values the data model does not. That gap cannot become a
+set here, and the reason is the same carrier fact: everything a set can spell is
+a value of the data model, so what is outside the model is outside the corpus by
+construction. It closes either by narrowing the parameter, after which the gap
+has no inputs, or in that implementation's own tests — exactly as
+§What may be serialized is answered. The decision is recorded in the writer's own
+issue.
 
 **Normalized bytes** are the document as a string, and the set's proof
 compares that string against what the shipped writer emits rather than

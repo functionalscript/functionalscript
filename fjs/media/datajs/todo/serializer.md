@@ -35,16 +35,22 @@ corpus's design issue carried it while the corpus was being derived and handed i
 here when that file went; nothing else records it.
 
 `tryStringify` takes `unknown` and refuses several of those values at run time,
-so as long as it does, the corpus would owe vectors for exactly what its
-parameter admits. Either the parameter narrows to the data model and the run-time
-refusals go — which is what "assume correct types" means applied to code — or the
-parameter stays and a fourth set comes back for the values it admits, **as a set,
-never as host recipes**: [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6 forbids a
-`proof.mjs` that proves a `.f.mjs` API against host-built inputs, and
-[the corpus README](../../../../spec/datajs/vectors/README.md) records the gap
-from its own side. Read the paragraph above as what the corpus describes today,
-not as a settled contract, and §4 says what that leaves provable in the
-meantime.
+so as long as it does, its parameter admits what the data model does not. **That
+gap can never be a corpus set**, and the reason is the carrier rather than a
+preference: a set is a DataJS data module, so everything a set can spell is
+already a value of the data model, and the gap is by definition what lies
+outside it. A fourth set was the old answer and it was never possible; the
+[corpus README](../../../../spec/datajs/vectors/README.md) now says so from its
+own side.
+
+So the two ways out are narrowing the parameter to the data model — "assume
+correct types" applied to code, after which the gap has no inputs to reach — or
+leaving it and answering the gap here, in this module's own tests, exactly as
+§What may be serialized is answered by an implementation that can build those
+values. Not as host recipes either: [`fjs/AGENTS.md`](../../../AGENTS.md) §1.6
+forbids a `proof.mjs` that proves a `.f.mjs` API against host-built inputs. Read
+the paragraph above as what the corpus describes today, not as a settled
+contract, and §4 says what that leaves provable in the meantime.
 
 ### Problem
 
@@ -211,8 +217,7 @@ exclude:
   caller's side would reopen it — FunctionalScript cannot change a prototype and
   has no classes, so every object a caller can build is under `Object.prototype`
   and every array under `Array.prototype`, which is why this rule costs a
-  conforming caller nothing. [`difference`](../vectors/module.f.mjs) draws the
-  same line on the way back.
+  conforming caller nothing.
 
 Reading a prototype to classify is not replacing one, so this stays inside the
 rule in [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1.
@@ -494,12 +499,14 @@ descriptor, so only a host caller reaches it — and a host caller is what the
       line and the hole-versus-`undefined` distinction proved.
 - [x] Normalized form and its byte-exact proofs, the `1e20`/`1e21` and
       `1e-6`/`1e-7` thresholds included.
-- [ ] Proofs over the three writer-side sets, all three of which have landed in
-      [the corpus](../../../../spec/datajs/vectors/README.md). There is no fourth
-      and no host-input half: the question whether a `proof.mjs` may prove this
-      API against host-built inputs was retired rather than answered, and if the
-      open `unknown` question above is settled the other way the fourth comes
-      back as a set, not as recipes.
+- [ ] Proofs over the three writer-side sets, all three of which have
+      landed in [the corpus](../../../../spec/datajs/vectors/README.md). There
+      is no fourth set and no host-input half, and neither is a scheduling
+      question: a set is a DataJS data module, so a set for values outside the
+      data model cannot be written at all, and the question whether a
+      `proof.mjs` may prove this API against host-built inputs was retired
+      rather than answered. If the open `unknown` question above is settled the
+      other way, what closes the gap is this module's own tests.
 - [ ] `module.f.mjs`, the public API of
       [`parser-serializer.md`](./parser-serializer.md#layout), once the byte
       path lands beside it — and the `parse` versus `tryParse` naming with it.
