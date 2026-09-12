@@ -1816,11 +1816,11 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 206 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 209 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
-      and 15 in
+      and 16 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 171 of the 678 classes the corpus holds, with 45 scope
+      covering 172 of the 679 classes the corpus holds, with 45 scope
       records answering the 507 cells the serializer column owes; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
@@ -2042,6 +2042,31 @@ The steps, in order; a step is one pull request unless it says otherwise:
       for `[p,p,c]` with `p={"x":c}` and passed. Parent kind again, on the one
       class where I had crossed it in the shape of the share and never in the
       shape of the parent. One vector here, one graph-equivalence record.
+      **Then the two cells that cross left over**, reported in the same round
+      and both about a position rather than a value. A shared node's parent
+      kind crossed with the child's emptiness has six spellable cells, not
+      eight, since a shared empty *array* is the one shape this carrier cannot
+      hold: two parent kinds by an array child, an empty object child and a
+      non-empty one. Measured, this set had four of the six and no shared
+      empty object **at all**, the reader set five, graph equivalence five, so
+      a writer that keeps a shared empty object while walking elements and
+      prints `{}` inline while walking members passed every set. Four vectors
+      and one record fill all six in all three.
+      And a lone surrogate had never been inside a container in either set —
+      measured, every one was a whole document or an object's sole key. Here
+      the defect is not the spelling, which no graph check can see, but the
+      *value*: a writer whose container path replaces an unpaired unit with
+      U+FFFD changes the graph, and nothing reached that path. This is the
+      escape axis with the cross left out on purpose, and the reason is the
+      rule again: escaping is required for a quote, a backslash and a control,
+      so each of those spellings needs its own vector in every slot, while a
+      lone surrogate, a ws-like character and an astral pair are spellings the
+      rule leaves free, so what a slot can still break is the value. Both
+      `every-value` aggregates and both first-slot aggregates now carry all
+      four awkward strings, which puts each in a first and a later slot, and
+      `object/keys/every-string` carries them as the keys of a nested object.
+      The `normalize` set has carried three of the four in its aggregates
+      since the whitespace round, which is where its bytes are pinned.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key

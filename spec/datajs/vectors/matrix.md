@@ -14,11 +14,11 @@ roles reads exactly like prose that mentions it in three.
 
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
-| `reader` | `accept`, `reject` | 678 | 0 | 0 |
-| `serializer` | `serializer-accept`, `graph-equivalence` | 171 | 507 | 0 |
-| `normalize` | no set yet | 0 | 0 | 678 |
+| `reader` | `accept`, `reject` | 679 | 0 | 0 |
+| `serializer` | `serializer-accept`, `graph-equivalence` | 172 | 507 | 0 |
+| `normalize` | no set yet | 0 | 0 | 679 |
 
-678 classes.
+679 classes.
 
 | class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
@@ -114,7 +114,7 @@ roles reads exactly like prose that mentions it in three.
 | `const/shared/leaf` | `const-shared-leaf` | not applicable, [note 29](#notes) | *awaiting the set* |
 | `const/shared/mixed` | `const-shared-mixed` | `ser-sharing-mixed`, `graph-sharing-mixed` | *awaiting the set* |
 | `const/shared/nested` | `const-shared-nested` | `ser-const-shared-nested`, `ser-const-shared-nested-object-parent`, `graph-const-shared-nested`, `graph-const-shared-nested-object-parent` | *awaiting the set* |
-| `const/shared/object` | `const-shared-object` | `ser-sharing-object`, `graph-sharing-object`, `graph-sharing-empty-object` | *awaiting the set* |
+| `const/shared/object` | `const-shared-object`, `const-shared-object-parent` | `ser-sharing-object`, `ser-shared-empty-object`, `ser-shared-empty-object-object-parent`, `graph-sharing-object`, `graph-sharing-empty-object`, `graph-sharing-empty-object-object-parent` | *awaiting the set* |
 | `const/shared/three-paths` | `const-shared-three-paths` | `ser-shared-three-paths` | *awaiting the set* |
 | `const/shared/twice` | `const-shared-twice` | `ser-sharing-array`, `graph-sharing-array` | *awaiting the set* |
 | `const/shared/two-nodes` | `const-shared-two-nodes` | `ser-shared-two-nodes` | *awaiting the set* |
@@ -474,6 +474,7 @@ roles reads exactly like prose that mentions it in three.
 | `object/key-order/non-index/negative-zero` | `object-key-order-non-index-negative-zero` | `ser-object-key-order-non-index-negative-zero` | *awaiting the set* |
 | `object/key-order/non-index/plus` | `object-key-order-non-index-plus` | `ser-object-key-order-non-index-plus` | *awaiting the set* |
 | `object/key-order/non-index/space` | `object-key-order-non-index-space` | `ser-object-key-order-non-index-space` | *awaiting the set* |
+| `object/keys/every-string` | `object-keys-every-string` | `ser-object-keys-every-string` | *awaiting the set* |
 | `object/leading-comma` | `object-leading-comma` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `object/members/every-value` | `object-members-every-value` | `ser-object-members-every-value` | *awaiting the set* |
 | `object/members/every-value-first` | `object-members-every-value-first` | `ser-object-members-every-value-first` | *awaiting the set* |

@@ -6,6 +6,7 @@ const $s4 = [0];
 const $s5 = [$s4];
 const $s6 = [0];
 const $s7 = {"x": $s6};
+const $s8 = {};
 export default [
     {"id": "graph-sharing-array", "class": "const/shared/twice", "input": [$s0, $s0], "denotes": ["const $0=[0];export default [$0,$0];", "const $0=[0];const $1=[$0,$0];export default $1;", "const $9 = [ 0 ] ;\nconst $x = [ $9 , $9 ] ;\nexport default $x ;\n"], "denotesNot": ["export default [[0],[0]];", "const $0=[0];const $1=[0];export default [$0,$1];", "const $0=[0];export default [$0,[0]];"]},
     {"id": "graph-sharing-object", "class": "const/shared/object", "input": {"x": $s1, "y": $s1}, "denotes": ["const $0={\"a\":0};export default {\"x\":$0,\"y\":$0};", "const $0={\"a\":0};const $1={\"x\":$0,\"y\":$0};export default $1;", "const $9 = { \"a\" : 0 } ;\nconst $x = { \"x\" : $9 , \"y\" : $9 } ;\nexport default $x ;\n"], "denotesNot": ["export default {\"x\":{\"a\":0},\"y\":{\"a\":0}};", "const $0={\"a\":0};const $1={\"a\":0};export default {\"x\":$0,\"y\":$1};", "const $0={\"a\":0};export default {\"x\":$0,\"y\":{\"a\":0}};"]},
@@ -21,5 +22,6 @@ export default [
     {"id": "graph-unshared-array-parent-object", "class": "array/unshared/equal", "input": {"x": [1], "y": [1]}, "denotes": ["export default {\"x\":[1],\"y\":[1]};", "const $0=[1];const $1=[1];export default {\"x\":$0,\"y\":$1};"], "denotesNot": ["const $0=[1];export default {\"x\":$0,\"y\":$0};", "const $0=[1];const $1={\"x\":$0,\"y\":$0};export default $1;"]},
     {"id": "graph-sharing-empty-object", "class": "const/shared/object", "input": [$s3, $s3], "denotes": ["const $0={};export default [$0,$0];", "const $0={};const $1=[$0,$0];export default $1;"], "denotesNot": ["export default [{},{}];", "const $0={};const $1={};export default [$0,$1];"]},
     {"id": "graph-const-shared-nested-object-parent", "class": "const/shared/nested", "input": [$s7, $s7, $s6], "denotes": ["const $0=[0];const $1={\"x\":$0};export default [$1,$1,$0];", "const $9=[0];const $x={\"x\":$9};export default [$x,$x,$9];"], "denotesNot": ["const $0={\"x\":[0]};export default [$0,$0,[0]];", "const $0=[0];const $1={\"x\":$0};export default [$1,{\"x\":$0},$0];"]},
-    {"id": "graph-object-key-order-nested", "class": "object/key-order/nested", "input": [{"b": 0, "a": 1}], "denotes": ["export default [{\"b\":0,\"a\":1}];", "const $0={\"b\":0,\"a\":1};export default [$0];"], "denotesNot": ["export default [{\"a\":1,\"b\":0}];", "const $0={\"a\":1,\"b\":0};export default [$0];"]}
+    {"id": "graph-object-key-order-nested", "class": "object/key-order/nested", "input": [{"b": 0, "a": 1}], "denotes": ["export default [{\"b\":0,\"a\":1}];", "const $0={\"b\":0,\"a\":1};export default [$0];"], "denotesNot": ["export default [{\"a\":1,\"b\":0}];", "const $0={\"a\":1,\"b\":0};export default [$0];"]},
+    {"id": "graph-sharing-empty-object-object-parent", "class": "const/shared/object", "input": {"x": $s8, "y": $s8}, "denotes": ["const $0={};export default {\"x\":$0,\"y\":$0};", "const $0={};const $1={\"x\":$0,\"y\":$0};export default $1;"], "denotesNot": ["export default {\"x\":{},\"y\":{}};", "const $0={};const $1={};export default {\"x\":$0,\"y\":$1};"]}
 ];
