@@ -2,9 +2,10 @@
  * @import { Commands } from '../../effects/types.ts'
  * @import { Sandbox } from '../../effects/common/types.ts'
  * @import { MemOperationMap } from '../../effects/mock/types.ts'
+ * @import { DemoState } from './types.ts'
  */
 
-import { demo, parseSize, stringLog2, work } from './demo.f.mjs'
+import { demo, parseSize, work } from './demo.f.mjs'
 import { partialRun, run } from '../../effects/mock/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { error, ok, unwrap } from '../result/module.f.mjs'
@@ -461,10 +462,7 @@ export const proof = {
          * work asserts every answer and throws on a wrong one — which is also
          * how a wrong implementation reports itself on the page.
          */
-        workChecksItsAnswers: () => {
-            work(8n)(log2)
-            work(8n)(stringLog2)
-        },
+        workChecksItsAnswers: () => { work(8n)(log2) },
         /**
          * **A wrong implementation is caught by the work rather than timed by
          * it**, and the work asks two questions per step, so both have to be
@@ -536,6 +534,42 @@ export const proof = {
             assertEq(next.size, '99')
             assertEq(next.kind, 'idle')
             assertStructurallySame(next.rows, [])
+        },
+        /**
+         * **And it clears what was measured.** A table left beside a field the
+         * reader has just changed reads as that field's result — 20000's
+         * timings under a box saying 40000 — which is a plausible wrong answer
+         * rather than a missing one. Nothing has been measured for what the
+         * field now says, so the section shows nothing.
+         */
+        typingClearsAStaleResult: () => {
+            /** @type {DemoState} */
+            const measured = {
+                kind: 'done',
+                size: '20000',
+                rows: [{ name: 'log2', outcome: 21.3 }],
+                note: null,
+            }
+            const next = unwrap(assertNotNullish(
+                runPure(demo.update(measured)({ kind: 'input', name: 'size', value: '40000' }))[0],
+                'expected a pure state'))
+            assertEq(next.size, '40000')
+            assertEq(next.kind, 'idle')
+            assertStructurallySame(next.rows, [])
+            const html = htmlToString(demo.view(next))
+            assert(!html.includes('21.3'), html)
+            assert(html.includes('value="40000"'), html)
+        },
+        // A refusal is cleared the same way, so a corrected value shows no
+        // complaint about the one before it.
+        typingClearsAStaleRefusal: () => {
+            const next = unwrap(assertNotNullish(
+                runPure(demo.update({ ...demo.init, kind: 'done', note: 'a whole number, please' })(
+                    { kind: 'input', name: 'size', value: '900' }))[0],
+                'expected a pure state'))
+            assertEq(next.note, null)
+            assert(!htmlToString(demo.view(next)).includes('whole number'),
+                htmlToString(demo.view(next)))
         },
         /**
          * **What the reader typed is theirs to see and fix.** Both refusals

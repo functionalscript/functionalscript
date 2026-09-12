@@ -29,13 +29,19 @@ import { foldStep, pureOk, resultStep } from '../../effects/module.f.mjs'
 /**
  * `log2` by string length, the implementation the module's own does not use.
  *
- * It is here rather than imported because it is not part of the API: it is the
- * thing `log2` is faster than, and the demo exists to show by how much. Base 32
- * of the candidates measured, being the one that was closest.
+ * **Not exported, and not an implementation of `log2`.** It exists to be the
+ * thing `log2` is faster than, over the inputs the demo measures — powers of
+ * two and their predecessors. It disagrees with the module on a negative,
+ * where `log2` answers `-1n` and a base conversion answers the width of the
+ * digits it printed, which is a plausible wrong value rather than a refusal.
+ * Publishing it would publish that; measuring with it does not, because the
+ * work asserts every answer against `log2`'s own.
+ *
+ * Base 32 of the candidates the retired page compared, being the closest.
  *
  * @type {(v: bigint) => bigint}
  */
-export const stringLog2 = n => {
+const stringLog2 = n => {
     const i = (BigInt(n.toString(32).length) - 1n) * 5n
     return i + 31n - BigInt(Math.clz32(Number(n >> i)))
 }
@@ -192,7 +198,15 @@ export const demo = {
         // not a request to measure, and the field is checked when `Measure` is
         // pressed rather than under the reader's fingers.
         if (event.kind === 'input' && event.name === 'size') {
-            return pureOk({ ...state, size: event.value })
+            // **And it clears what was measured.** A table left beside a field
+            // the reader has just changed reads as that field's result: 20000's
+            // timings under a box saying 40000 are a plausible wrong answer,
+            // which is the one thing this repository will not show
+            // ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
+            // Nothing has been measured for what the field now says, and an
+            // empty section says exactly that — where a "stale" label would be
+            // one more thing to render and to read.
+            return pureOk({ kind: 'idle', size: event.value, rows: [], note: null })
         }
         return event.kind === 'click' && event.name === 'run'
             ? onRun(state)
