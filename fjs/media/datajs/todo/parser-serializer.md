@@ -242,7 +242,8 @@ chosen.
 
 Proofs are **per role** — reader, serializer, normalized serializer — because
 the spec judges them independently and this module provides all three. The
-reader's two sets, `accept` and `reject`, are this file's; the writer's four are
+reader's two sets, `accept` and `reject`, are this file's; the writer's three —
+`serializer-accept`, `graph-equivalence` and `normalize` — are
 [`serializer.md`](./serializer.md) §4.
 
 ### Tasks

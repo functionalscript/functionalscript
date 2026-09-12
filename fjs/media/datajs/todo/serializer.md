@@ -21,9 +21,9 @@ proofs below have their source.
 
 Its **corpus proofs** have their sets. The corpus's writer side is three sets,
 not four — `serializer-accept`, `graph-equivalence` and `normalize`, all three
-typed in [`../vectors/types.ts`](../vectors/types.ts); the first two are in the
-tree and `normalize` lands with the step that writes it. There is no
-`serializer-reject`
+typed in [`../vectors/types.ts`](../vectors/types.ts) and all three in the tree;
+`normalize` carries 280 records and its own proof, which runs this writer over
+every one of them. There is no `serializer-reject`
 and there are no **host recipes**: a serializer is handed a value of the data
 model and its type is the contract, so an accessor, a non-enumerable property,
 a `null` prototype and a cycle reach no serializer and the corpus describes

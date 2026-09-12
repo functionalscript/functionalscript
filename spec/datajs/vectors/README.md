@@ -376,7 +376,7 @@ or read a passing corpus as more than it is.
 
   A harness that can see *where* a refusal happened concludes more, and one
   exists: the reader proof in
-  [`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
+  [`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/proof.f.mjs)
   reads every reject vector's `rule` and asserts the layer — the UTF-8 rule is
   the decoder's and those bytes must decode to nothing, every other rule is the
   reader's on the text they spell. Under that check the vector does
