@@ -73,14 +73,43 @@ const candidates = /** @type {const} */ ([
 ])
 
 /**
- * How large a number the comparison starts from.
+ * Where the comparison starts unless the reader says otherwise.
  *
- * Big enough that the two separate — under Node they are 20 ms against 54 ms
- * here, and indistinguishable at 4000 — and small enough that the page does
- * not appear to hang. The original ran from `2**1048575` a thousand times,
- * which is a wait nobody browsing a module asked for.
+ * Big enough that the two separate — around 21 ms against 58 ms in Chrome, and
+ * indistinguishable at 4000 — and small enough that the page does not appear
+ * to hang.
  */
-const size = 20_000n
+const defaultSize = '20000'
+
+/**
+ * The largest exponent this page will measure.
+ *
+ * **A bound, because the cost grows with the square of it.** The work is one
+ * pass per bit over numbers that wide, so ten times the exponent is a hundred
+ * times the wait: 20000 is a fifth of a second, 200000 is a couple of seconds,
+ * and the million the original page used is minutes of a frozen tab. A reader
+ * who mistypes a zero should be told, not punished.
+ */
+const maxSize = 200_000n
+
+/**
+ * The exponent a reader asked for, or `null` if they did not ask for a number.
+ *
+ * Digits only, and at least one of them: `BigInt` would accept whitespace, a
+ * sign, and `0x` forms, and none of those is what a field labelled with an
+ * exponent means. No regular expression — this repository has none — and no
+ * `try`: the check is what makes the conversion safe.
+ *
+ * @type {(text: string) => bigint | null}
+ */
+export const parseSize = text => {
+    if (text.length === 0) { return null }
+    for (const c of text) {
+        if (c < '0' || c > '9') { return null }
+    }
+    const value = BigInt(text)
+    return value === 0n ? null : value
+}
 
 /**
  * One implementation's time, or what it said instead.
@@ -105,11 +134,11 @@ const row = name => r => r[0] === 'error'
  * One at a time rather than together: they are competing for the same core,
  * and a measurement taken while another is running measures the contention.
  *
- * @type {() => Effect<Sandbox, _State, never>}
+ * @type {(size: bigint) => Effect<Sandbox, _State, never>}
  */
-const measure = () => foldStep(
+const measure = size => foldStep(
     pureOk(candidates),
-    /** @type {_State} */ ({ kind: 'done', rows: [] }),
+    /** @type {_State} */ ({ kind: 'done', size: String(size), rows: [], note: null }),
     ([name, f]) => state => resultStep(
         sandbox(() => work(size)(f)),
         // **`resultStep`, not `step`.** A demo's channel is `never`, so the
@@ -117,7 +146,7 @@ const measure = () => foldStep(
         // another need not — has to become a row rather than travel upward.
         // The type is what says so: `step` here does not compile.
         r => pureOk(/** @type {_State} */ ({
-            kind: 'done',
+            ...state,
             rows: [...state.rows, row(name)(r)],
         }))))
 
@@ -126,19 +155,62 @@ const rowText = ({ name, ms, note }) =>
     `${name.padEnd(12)} ${note ?? `${ms?.toFixed(1)} ms`}`
 
 /**
- * @type {Demo<_State, DemoEvent, Sandbox>}
+ * What a `Measure` produces: rows, or the reason there are none.
+ *
+ * **The refusals are the demo's own, absorbed into what it renders**, which is
+ * what its `never` error channel obliges it to do. A value that is not a whole
+ * number and one that is larger than this page will measure are both the
+ * reader's to see and fix, not failures of the demo.
+ *
+ * @type {(state: _State) => Effect<Sandbox, _State, never>}
  */
+const onRun = state => {
+    const size = parseSize(state.size)
+    if (size === null) {
+        return pureOk({ ...state, kind: 'done', rows: [], note: 'a whole number, please' })
+    }
+    if (size > maxSize) {
+        return pureOk({
+            ...state,
+            kind: 'done',
+            rows: [],
+            note: `${maxSize} is as far as this page goes — the wait grows with the square`,
+        })
+    }
+    return measure(size)
+}
+
+/** @type {Demo<_State, DemoEvent, Sandbox>} */
 export const demo = {
-    init: { kind: 'idle', rows: [] },
-    update: state => event =>
-        event.kind === 'click' && event.name === 'run' ? measure() : pureOk(state),
+    init: { kind: 'idle', size: defaultSize, rows: [], note: null },
+    update: state => event => {
+        // Typing changes what will be measured and nothing else: a keystroke is
+        // not a request to measure, and the field is checked when `Measure` is
+        // pressed rather than under the reader's fingers.
+        if (event.kind === 'input' && event.name === 'size') {
+            return pureOk({ ...state, size: event.value })
+        }
+        return event.kind === 'click' && event.name === 'run'
+            ? onRun(state)
+            : pureOk(state)
+    },
     view: state => ['div',
         ['p',
             ['button', { type: 'button', name: 'run' }, 'Measure'],
-            ` log2 of every power of two below 2^${size}, and the number below each.`,
+            ' log2 of every power of two below 2^',
+            ['input', {
+                type: 'text',
+                name: 'size',
+                value: state.size,
+                size: '7',
+                'aria-label': 'exponent',
+            }],
+            ', and the number below each.',
         ],
-        ...(state.kind === 'idle'
-            ? []
-            : [/** @type {const} */ (['pre', state.rows.map(rowText).join('\n')])]),
+        ...(state.note !== null
+            ? [/** @type {const} */ (['p', state.note])]
+            : state.kind === 'idle'
+                ? []
+                : [/** @type {const} */ (['pre', state.rows.map(rowText).join('\n')])]),
     ],
 }

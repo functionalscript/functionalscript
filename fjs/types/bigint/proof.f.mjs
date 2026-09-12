@@ -1,4 +1,4 @@
-import { demo, stringLog2, work } from './demo.f.mjs'
+import { demo, parseSize, stringLog2, work } from './demo.f.mjs'
 import { partialRun, run } from '../../effects/mock/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
 import { ok, unwrap } from '../result/module.f.mjs'
@@ -497,6 +497,56 @@ export const proof = {
                 ['stringLog2', 7, null],
             ])
         },
+        /**
+         * **Digits, and at least one.** `BigInt` would take whitespace, a
+         * sign and `0x`, and none of those is what a field labelled with an
+         * exponent means — so the check is what makes the conversion safe,
+         * there being no `try` in FunctionalScript and no regular expressions
+         * in this repository.
+         */
+        parseSize: () => {
+            assertEq(parseSize('20000'), 20000n)
+            assertEq(parseSize('1'), 1n)
+            assertEq(parseSize(''), null)
+            assertEq(parseSize('0'), null)
+            assertEq(parseSize(' 12'), null)
+            assertEq(parseSize('-12'), null)
+            assertEq(parseSize('0x10'), null)
+            assertEq(parseSize('1e3'), null)
+            assertEq(parseSize('12.5'), null)
+        },
+        // Typing changes what will be measured, and measures nothing yet.
+        typingSetsTheSize: () => {
+            const next = unwrap(assertNotNullish(
+                runPure(demo.update(demo.init)({ kind: 'input', name: 'size', value: '99' }))[0],
+                'expected a pure state'))
+            assertEq(next.size, '99')
+            assertEq(next.kind, 'idle')
+            assertStructurallySame(next.rows, [])
+        },
+        /**
+         * **What the reader typed is theirs to see and fix.** Both refusals
+         * are absorbed into the state and rendered, because a demo's error
+         * channel is `never`.
+         */
+        refuses: () => {
+            /** @type {(size: string) => string | null} */
+            const noteFor = size => unwrap(assertNotNullish(
+                runPure(demo.update({ ...demo.init, size })({ kind: 'click', name: 'run' }))[0],
+                'expected a pure state')).note
+            assertEq(noteFor('twenty'), 'a whole number, please')
+            assertEq(noteFor(''), 'a whole number, please')
+            assert(
+                (noteFor('200001') ?? '').startsWith('200000 is as far as this page goes'),
+                String(noteFor('200001')))
+            // **The bound itself is measured, not refused.** It answers a
+            // `Do` — the sandbox it is about to ask for — where a refusal
+            // answers a state directly, so an empty `runPure` is the
+            // assertion that it got past the guard.
+            assertEq(
+                runPure(demo.update({ ...demo.init, size: '200000' })({ kind: 'click', name: 'run' })).length,
+                0)
+        },
         // Only the named button starts a run; anything else leaves the state.
         onlyRunStarts: () => {
             assertEq(unwrap(assertNotNullish(
@@ -506,13 +556,20 @@ export const proof = {
                 runPure(demo.update(demo.init)({ kind: 'start' }))[0],
                 'expected a pure state')), demo.init)
         },
-        // Before a run there is a control and no table; after one, both.
+        // Before a run there is a control and no table; after one, both. The
+        // field shows what will be measured, which is the default until typed.
         view: () => {
             const idle = htmlToString(demo.view(demo.init))
             assert(idle.includes('name="run"'), idle)
+            assert(idle.includes('name="size"'), idle)
+            assert(idle.includes('value="20000"'), idle)
             assert(!idle.includes('<pre>'), idle)
-            const done = htmlToString(demo.view(
-                { kind: 'done', rows: [{ name: 'log2', ms: 1.25, note: null }] }))
+            const done = htmlToString(demo.view({
+                kind: 'done',
+                size: '20000',
+                rows: [{ name: 'log2', ms: 1.25, note: null }],
+                note: null,
+            }))
             assert(done.includes('log2'), done)
             assert(done.includes('1.3 ms'), done)
         },

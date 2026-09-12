@@ -15,11 +15,17 @@ export type _Row = {
 }
 
 /**
- * Before a reader asks, there is nothing to show; afterwards there is a row
- * per implementation. The rows are kept in both, so a second run replaces a
- * table rather than clearing the page first.
+ * What the reader typed, and what came of measuring it.
+ *
+ * `size` is the text rather than a number, so the field shows exactly what was
+ * typed — including something that is not a number at all, which `note` then
+ * explains. Parsing at the moment of measuring is what lets a half-typed value
+ * exist without the page objecting to every keystroke.
  */
 export type _State = {
     readonly kind: 'idle' | 'done'
+    readonly size: string
     readonly rows: readonly _Row[]
+    /** Why there are no rows, or `null` when there are. */
+    readonly note: string | null
 }
