@@ -2687,7 +2687,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       is correct UTF-8 and anything else is rejected, with no taxonomy of
       malformed sequences and nothing required of a decoder. Its own pull
       request, as each of these changes a different contract.
-- [ ] **Make "every set is a DataJS document" a check rather than a
+- [x] **Make "every set is a DataJS document" a check rather than a
       measurement.** Review found every set ending with a trailing comma
       before its `]`, which JavaScript takes and DataJS refuses, so no set was
       readable by a conforming reader — a promise the corpus README makes and
@@ -2698,6 +2698,28 @@ The steps, in order; a step is one pull request unless it says otherwise:
       with the reader, and compare the graph with the imported set using
       `difference`. Its own pull request, because it needs a failing case in
       the matrix proof to keep coverage honest.
+      Landed as `modules`, `sourceOf`, `sourceDefect` and `sourceDefects` in
+      the generator, which reads all six sources before it writes anything and
+      reports what it finds as matrix defects, so a set that stops being DataJS
+      fails `npm run gen` exactly as an unanswered cell does. Measured against
+      the tree: all six parse and denote what the engine imports, and a trailing
+      comma put back into one of them gives `the set graph-equivalence: its own
+      source is not a DataJS document, unexpected symbol at 6310` and exit 1.
+      **Parsing alone would not have been enough**, and the reason bounds what
+      this check is: the source and the imported value come from one file, so
+      they can only disagree where JavaScript and DataJS both accept the text
+      and read it differently — a key order, a share spelled twice, a number
+      notation. That is precisely the failure a portable corpus cannot survive,
+      since a harness in another language reads these files rather than
+      importing them, so the graph is compared too.
+      The proof's own halves sit in different places on purpose. The predicate
+      is proved on texts chosen to break it, including the trailing comma and a
+      source that parses and denotes another graph. That the six real files
+      satisfy it is proved by `npm run gen` against the files themselves, which
+      is what moving the measurement into the generator buys and what no
+      in-memory fixture could establish: a proof runs on a virtual filesystem
+      and cannot read the repository. So the fixture writes each source with the
+      writer, whose output denotes the set by construction.
 - [ ] **Hand over.** `spec/datajs/README.md`'s Conformance section links the
       corpus instead of this file; stage 4's issue and the stage 6 task in
       [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)

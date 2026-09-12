@@ -1,16 +1,19 @@
 /**
+ * @import { State } from '../../../../effects/node/virtual/types.ts'
  * @import { Corpus, Scope } from './types.ts'
  */
 
 import { assert, assertEq } from '../../../../asserts/module.f.mjs'
-import { step as ioStep } from '../../../../effects/module.f.mjs'
-import { exitCode, readUtf8File } from '../../../../effects/node/module.f.mjs'
+import { foldStep, mapStep, pureOk, step as ioStep } from '../../../../effects/module.f.mjs'
+import { exitCode, mkdir, readUtf8File, writeUtf8File } from '../../../../effects/node/module.f.mjs'
 import {
     defaultNodeProgramOptions,
     emptyState,
     virtual,
 } from '../../../../effects/node/virtual/module.f.mjs'
-import { corpus, main, matrix, path, program, write } from './module.f.mjs'
+import { unwrap } from '../../../../types/result/module.f.mjs'
+import { tryStringify } from '../../serializer/module.f.mjs'
+import { corpus, directory, main, matrix, modules, path, program, sourceDefect, sourceOf, write } from './module.f.mjs'
 
 /** A vector as the matrix reads one: an id and the class it covers. @type {(id: string, c: string) => { id: string, class: string }} */
 const v = (id, c) => ({ id, class: c })
@@ -57,6 +60,35 @@ const reason = because => ({ ...landed, notApplicable: [{ scope: /** @type {cons
 
 /** @type {string} */
 const prose = 'is not prose the table can show as written'
+
+/**
+ * A virtual filesystem holding each data module's source, which the program
+ * now reads. The text is the *writer's*, not the file's: a proof runs against
+ * an in-memory filesystem and cannot read the repository, and the writer's
+ * output is a DataJS document denoting the set by construction, which is
+ * exactly the shape the check must accept.
+ *
+ * So the two halves are proved in different places, deliberately. The
+ * predicate is proved here, on texts chosen to break it. That the six real
+ * files satisfy it is proved by `npm run gen`, in CI, against the files
+ * themselves — which is the point of moving the measurement into the
+ * generator, and something no in-memory fixture could establish.
+ *
+ * @type {(sources: readonly (readonly [string, string])[]) => State}
+ */
+const withSources = sources => virtual(emptyState)(foldStep(
+    pureOk(sources),
+    null,
+    ([name, text]) => () => mapStep(ioStep(
+        mkdir(`${directory}/${name}`, { recursive: true }),
+        () => writeUtf8File(sourceOf(name), text)), () => null)))[0]
+
+/** Each data module's source as the writer spells it. @type {readonly (readonly [string, string])[]} */
+const written = modules(corpus).map(([name, imported]) =>
+    /** @type {readonly [string, string]} */ ([name, unwrap(tryStringify(imported))]))
+
+/** The exit code the real program gives against a filesystem. @type {(state: State) => number} */
+const run = state => exitCode(virtual(state)(main(defaultNodeProgramOptions))[1])
 
 /** @type {string} */
 const name = 'is not a name the table can show as written'
@@ -410,8 +442,42 @@ export const proof = {
         assertEq(result, 'hello')
     },
     main: () => {
-        const [, result] = virtual(emptyState)(main(defaultNodeProgramOptions))
-        assertEq(exitCode(result), 0)
+        assertEq(run(withSources(written)), 0)
+    },
+    // A source the corpus promises is there and is not.
+    sourceMissing: () => {
+        assertEq(run(withSources(written.slice(1))), 1)
+        assertEq(run(emptyState), 1)
+    },
+    // A source JavaScript takes and DataJS refuses. This is not a hypothetical
+    // defect: every set in the corpus ended with a trailing comma before its
+    // `]`, and the reject set says in four vectors of its own that a trailing
+    // comma is not DataJS, so the corpus stated the rule and broke it in its
+    // own text six times over. It was fixed by hand, which is why it is a check
+    // now.
+    sourceNotDataJs: () => {
+        const [name, text] = written[0]
+        const withComma = `${text.slice(0, -2)},];`
+        assertEq(run(withSources([[name, withComma], ...written.slice(1)])), 1)
+        const d = sourceDefect(name, withComma, null)
+        assertEq(d.length, 1)
+        assert(d[0].includes(`the set ${name}: its own source is not a DataJS document`), d[0])
+    },
+    // A source that is a DataJS document and denotes something else. Only a
+    // text both languages accept and read differently reaches this half, so the
+    // proof supplies the disagreement directly: the one thing a portable corpus
+    // cannot survive is the reader and the engine reading one file two ways.
+    sourceOtherGraph: () => {
+        const one = sourceDefect('a-set', 'export default [1];', [2])
+        assertEq(one.length, 1)
+        assert(one[0].includes('the set a-set: its source denotes another graph'), one[0])
+        // sharing is part of a graph, so a source that spells a node twice
+        // denotes another graph than one that shares it
+        const node = [0]
+        const shared = sourceDefect('a-set', 'export default [[0],[0]];', [node, node])
+        assertEq(shared.length, 1)
+        assert(shared[0].includes('another graph'), shared[0])
+        assertEq(sourceDefect('a-set', 'const $0=[0];export default [$0,$0];', [node, node]).length, 0)
     },
     // A corpus the matrix refuses exits non-zero rather than writing a
     // table with a hole in it.

@@ -43,15 +43,18 @@
  * @module
  *
  * @import { Result } from '../../../../types/result/types.ts'
- * @import { IoChannel, Mkdir, NodeProgram, WriteFile } from '../../../../effects/node/types.ts'
+ * @import { IoChannel, Mkdir, NodeProgram, ReadFile, WriteFile } from '../../../../effects/node/types.ts'
  * @import { Effect } from '../../../../effects/types.ts'
  * @import { Base } from '../types.ts'
+ * @import { Unknown } from '../../types.ts'
  * @import { Corpus, NotApplicable, Role, Scope } from './types.ts'
  */
 
 import { assertNotNullish } from '../../../../asserts/module.f.mjs'
-import { step } from '../../../../effects/module.f.mjs'
-import { errorExit, exitStep, mkdir, writeUtf8File } from '../../../../effects/node/module.f.mjs'
+import { errorMessage, foldStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.mjs'
+import { errorExit, exitStep, mkdir, readUtf8File, writeUtf8File } from '../../../../effects/node/module.f.mjs'
+import { parse } from '../../parser/module.f.mjs'
+import { difference } from '../module.f.mjs'
 import { cmp as strCmp } from '../../../../types/string/module.f.mjs'
 import { error, ok } from '../../../../types/result/module.f.mjs'
 import accept from '../../../../../spec/datajs/vectors/accept/data.f.mjs'
@@ -574,6 +577,74 @@ export const matrix = corpus => {
 export const write = text => step(mkdir(directory, { recursive: true }), () => writeUtf8File(path, text))
 
 /**
+ * Every data module the corpus is made of, under the name its directory
+ * carries. The reasons are one of them: `not-applicable/data.f.mjs` makes the
+ * same promise the vector sets make and broke it the same way.
+ *
+ * @type {(corpus: Corpus) => readonly (readonly [string, unknown])[]}
+ */
+export const modules = ({ roles, notApplicable }) => [
+    ...roles.flatMap(({ sets }) => sets.map(([name, vectors]) =>
+        /** @type {readonly [string, unknown]} */ ([name, vectors]))),
+    ['not-applicable', notApplicable],
+]
+
+/** Where a data module's own source is. @type {(name: string) => string} */
+export const sourceOf = name => `${directory}/${name}/data.f.mjs`
+
+/**
+ * What a data module's own source says, against the value the engine imported
+ * from it: the DataJS reader reads the source, and `difference` compares the
+ * graph it denotes with that value.
+ *
+ * `spec/datajs/vectors/README.md` promises every set is a module of the DataJS
+ * subset, which is what makes the corpus portable — a harness in another
+ * language reads these files rather than importing them. For all six the
+ * promise was false: each ended with a trailing comma before its `]`, which
+ * JavaScript takes and DataJS refuses, so no conforming reader could read the
+ * corpus it is the corpus for. The reject set says a trailing comma is not
+ * DataJS in four vectors of its own, so the corpus stated the rule and broke it
+ * in its own text.
+ *
+ * That was fixed by measuring each file by hand once. **Measuring by hand is
+ * not a check**, and the promise is worth exactly what enforces it, so it is
+ * enforced here, where the generator already reads the corpus and already fails
+ * the build.
+ *
+ * Parsing alone would not be enough. A source can be a DataJS document and
+ * denote something other than what the engine imported — a `1e2` the reader
+ * takes as `100`, a shared node spelled twice, a key order the two disagree on
+ * — and a harness would then be conforming against a different corpus from the
+ * one this repository's own proofs run. So the graph is compared too, sharing
+ * and key order included, which is what `difference` compares.
+ *
+ * @type {(name: string, text: string, imported: unknown) => readonly string[]}
+ */
+export const sourceDefect = (name, text, imported) => {
+    const read = parse(text)
+    return read[0] === 'error'
+        ? [`the set ${name}: its own source is not a DataJS document, ${read[1]}`]
+        : (d => d === null ? [] : [`the set ${name}: its source denotes another graph, ${d}`])(
+            difference(/** @type {Unknown} */ (imported))(read[1]))
+}
+
+/**
+ * Every data module's source read back and checked, as the defects the matrix
+ * reports beside its own. A file that cannot be read is a defect of the same
+ * kind: the corpus promises the file is there for a harness to read.
+ *
+ * @type {(corpus: Corpus) => Effect<ReadFile, readonly string[], never>}
+ */
+export const sourceDefects = corpus => foldStep(
+    pureOk(modules(corpus)),
+    /** @type {readonly string[]} */ ([]),
+    ([name, imported]) => defects => resultMapStep(
+        readUtf8File(sourceOf(name)),
+        read => ok([...defects, ...read[0] === 'error'
+            ? [`the set ${name}: its source cannot be read, ${errorMessage(read[1])}`]
+            : sourceDefect(name, read[1], imported)])))
+
+/**
  * `gen` regenerates the matrix on every pull request, so a set that lands
  * without its row, or a class that loses a role, is a red check rather
  * than a file someone remembers to update. An unanswered cell exits
@@ -586,10 +657,12 @@ export const write = text => step(mkdir(directory, { recursive: true }), () => w
  *
  * @type {(corpus: Corpus) => NodeProgram}
  */
-export const program = corpus => _options => {
-    const text = matrix(corpus)
-    return text[0] === 'error' ? errorExit(text[1]) : exitStep(write(text[1]))
-}
+export const program = corpus => _options => step(
+    sourceDefects(corpus),
+    defects => {
+        const text = defects.length === 0 ? matrix(corpus) : refused(defects)
+        return text[0] === 'error' ? errorExit(text[1]) : exitStep(write(text[1]))
+    })
 
 /** @type {NodeProgram} */
 export const main = program(corpus)
