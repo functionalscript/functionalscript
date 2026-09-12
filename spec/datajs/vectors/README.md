@@ -36,11 +36,11 @@ of. A set carries no
 comments and no annotations, since the subset has neither; a consumer types
 a set at the import, with the record types in
 [`fjs/media/datajs/vectors/types.ts`](../../../fjs/media/datajs/vectors/types.ts).
-A set ships a `proof.f.mjs` beside it, as every module does, proving the
-set's shape — every vector named and classed with a non-empty string, the
-ids one of a kind, the document and the graph present — and the proof
-that runs the set against an implementation lives with that
-implementation.
+A set ships a `proof.f.mjs` beside it, as every module does, proving the set's
+shape — every vector named and classed with a non-empty string, the ids one of a
+kind, the document and the graph present — and, where this repository holds the
+implementation a set is about, running it over every vector as well. A
+third-party implementation is closed by its own harness, reading the same sets.
 
 | set | directory | record | proved against |
 | - | - | - | - |
@@ -50,14 +50,30 @@ implementation.
 | graph equivalence | `graph-equivalence/` | `GraphEquivalence` | the serializer |
 | normalize | `normalize/` | `Normalize` | the normalized serializer |
 
-The writer has landed, so those three name an implementation that exists
-rather than one to come. What each set's own `proof.f.mjs` does is narrower
-than the column: it proves the set's shape, and for graph equivalence also
-that every `denotes` claim is true and every `denotesNot` one false, read
-back through the reader. The `normalize` set's proof goes further and runs
-the shipped writer over every vector, comparing its output with the text.
-`serializer-accept` and `graph-equivalence` have no such proof, so a harness
-is what closes those two.
+The writer has landed, so those three name an implementation that exists rather
+than one to come, and every set is now run against it. The runs are in two
+places, by which role they are about. **The reader's** are with the reader, in
+[`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/proof.f.mjs):
+every accept document read to the graph its vector asserts, and every reject
+document refused, with the layer each `rule` belongs to pinned before the
+refusal.
+
+**The writer's** are in each set's own proof, since what they check is the claim
+the record makes. `serializer-accept` hands every input to the writer, and the
+document that comes out must be one the reader takes, denoting the input: *a*
+valid document and never a particular spelling, which is what this role owes.
+`graph-equivalence` does the same over the sharing shapes, where `difference`
+comparing containers as a bijection is what refuses an expanded share or a merge
+of two distinct nodes — and it also checks the output against the vector's own
+`denotesNot` list, the one check here that needs no reader at all. `normalize`
+goes furthest and compares the output with the text, byte for byte, which is the
+only role that may.
+
+Reading a writer's output back through this repository's reader would agree with
+itself if both were wrong in compensating ways. What keeps it from being
+circular is that the reader is pinned by the accept set against graphs the
+writer has no part in, and the `denotesNot` check sees the one family of wrong
+outputs without consulting a reader.
 
 One directory holds no vectors: `not-applicable/` carries the reasons the
 matrix below needs. A record answers a **scope** rather than a single cell —

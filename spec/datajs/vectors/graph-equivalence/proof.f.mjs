@@ -6,6 +6,7 @@
 import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
 import { difference } from '../../../../fjs/media/datajs/vectors/module.f.mjs'
 import { parse } from '../../../../fjs/media/datajs/parser/module.f.mjs'
+import { tryStringify } from '../../../../fjs/media/datajs/serializer/module.f.mjs'
 import graphEquivalence from './data.f.mjs'
 
 /** The set, typed at the import since a data module carries no annotations. */
@@ -32,11 +33,11 @@ const read = (id, document) => {
     return /** @type {Unknown} */ (result)
 }
 
-// The set's shape, and the claim each record makes, checked against the
-// reader that exists. What a *serializer* emits for these inputs arrives
-// with stage 4; this half is what makes the set meaningful before then,
-// since a `denotesNot` that in fact denotes the input would fail a
-// conforming serializer rather than a broken one.
+// The set's shape, the claim each record makes against the reader, and what
+// the writer emits for the same inputs. The reader half came first because a
+// `denotesNot` that in fact denotes the input would fail a conforming
+// serializer rather than a broken one; the writer half is the role this set
+// exists for.
 export const proof = {
     // Every vector names itself and its class with a non-empty string.
     named: () => { for (const vector of set) { named(vector, 'id'); named(vector, 'class') } },
@@ -79,6 +80,30 @@ export const proof = {
             }
         }
     },
+    // And the writer that exists, over the same inputs: every graph is
+    // accepted, and the document that comes out denotes it — which for this
+    // set means the sharing survives, since `difference` compares containers
+    // as a bijection and so refuses both an expanded share and a merge of two
+    // distinct nodes.
+    //
+    // The second check needs no reader and is the reason this set carries
+    // `denotesNot` at all: those documents are the plausible wrong outputs
+    // for these graphs, so a writer whose output is one of them is caught by
+    // comparing the text, even against a reader broken in the same direction.
+    // Measured, all sixteen outputs land among the `denotes` documents
+    // instead — which is not asserted, because a serializer owes any valid
+    // document denoting the graph and a spelling is `normalize`'s to pin.
+    shipped: () => {
+        for (const vector of set) {
+            const id = named(vector, 'id')
+            const [tag, out] = tryStringify(vector.input)
+            assert(tag === 'ok', `${id}: the writer refused the input: ${String(out)}`)
+            assert(!vector.denotesNot.includes(out),
+                `${id}: the writer emitted ${JSON.stringify(out)}, which this vector rules out`)
+            const d = difference(vector.input)(read(id, out))
+            assert(d === null, `${id}: the writer emitted ${JSON.stringify(out)}, which denotes another graph: ${d}`)
+        }
+    },
     // The one shape this carrier cannot spell, pinned here instead. A shared
     // empty *object* is a vector above; a shared empty **array** needs
     // `const $e = [];`, which `tsc` types as an evolving `any[]` and refuses
@@ -97,5 +122,14 @@ export const proof = {
             assert(difference(input)(read('shared-empty-array', document)) !== null,
                 `shared-empty-array: ${JSON.stringify(document)} denotes the input after all`)
         }
+        // And the writer over the same shape, which is the half a vector would
+        // have carried: what it emits denotes the shared graph, so it hoists
+        // the empty array rather than inlining `[]` twice — the two documents
+        // just ruled out are exactly what an inlining writer emits, so the
+        // round trip pins the direction and no spelling has to be named here.
+        // The one spelling is `normalize`'s to pin, and its proof does.
+        const [tag, out] = tryStringify(input)
+        assert(tag === 'ok', `shared-empty-array: the writer refused it: ${String(out)}`)
+        assertEq(difference(input)(read('shared-empty-array', out)), null)
     },
 }

@@ -488,8 +488,14 @@ descriptor, so only a host caller reaches it — and a host caller is what the
       line and the hole-versus-`undefined` distinction proved.
 - [x] Normalized form and its byte-exact proofs, the `1e20`/`1e21` and
       `1e-6`/`1e-7` thresholds included.
-- [ ] Proofs over the three writer-side sets, all three of which have landed in
-      [the corpus](../../../../spec/datajs/vectors/README.md). There is no fourth
+- [x] Proofs over the three writer-side sets, all three of which have landed in
+      [the corpus](../../../../spec/datajs/vectors/README.md) and all three of
+      which now run this writer. `normalize` compares its 280 texts byte for
+      byte; `serializer-accept` hands over its 219 inputs and requires a document
+      the reader takes denoting each; `graph-equivalence` does the same over its
+      16 sharing shapes and also rules the output out of the vector's own
+      `denotesNot` list, which needs no reader. A spelling is asserted only where
+      the role permits it, which is `normalize` alone. There is no fourth set
       and no host-input half: the question whether a `proof.mjs` may prove this
       API against host-built inputs was retired rather than answered, and if the
       open `unknown` question above is settled the other way the fourth comes

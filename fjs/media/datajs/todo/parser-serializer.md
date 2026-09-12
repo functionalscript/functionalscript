@@ -256,9 +256,14 @@ reader's two sets, `accept` and `reject`, are this file's; the writer's three �
       bound-once and declare-before-use; the key rule on the decoded value.
 - [x] Reader proofs derived from the specification by hand, both sharing
       directions included.
-- [ ] Reader proofs from the corpus, which has landed, and the byte path —
-      `tryParseBytes` — with the BOM and invalid-UTF-8 vectors the corpus
-      assigns to stage 4.
+- [ ] The byte path, `tryParseBytes`, with the BOM and invalid-UTF-8 vectors the
+      corpus assigns to stage 4. The reader's proofs over the corpus are done —
+      [`fjs/media/datajs/vectors/proof.f.mjs`](../vectors/proof.f.mjs) reads
+      every accept document to the graph its vector asserts and refuses every
+      reject one — but they reach the byte documents by decoding with
+      `fjs/text/utf8` and reading the units, so the two rules only bytes can
+      break are pinned at the wrong layer until this lands and the set is rerun
+      through it.
 - [ ] The writer, in [`serializer.md`](./serializer.md) — including
       `module.f.mjs`, the public API of §Layout, which waits for something
       beyond the reader to hold.
