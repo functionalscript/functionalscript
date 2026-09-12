@@ -81,17 +81,19 @@ const macrotask = () => new Promise(resolve => { setTimeout(resolve, 0) })
  * **The word is the runtime's too, and so it is a general one.** This runs
  * every demo: the next may be waiting on a network or on a reader picking a
  * file, neither of which is calculating. A demo that wants its own wording
- * should say so in its own field rather than have this one guess.
+ * says so in its own field — `wait` — and what it answers arrives here as
+ * `note`, to be appended by the stylesheet rather than replace the word.
+ * Empty is the ordinary case and renders nothing extra.
  *
  * Buttons are disabled rather than merely dimmed. A queued second click would
  * be honoured after the first finished, which is a demo measuring twice
  * because somebody was impatient.
  *
- * @type {(root: Element, working: boolean) => void}
+ * @type {(root: Element, working: boolean, note?: string | null) => void}
  */
-const busy = (root, working) => {
+const busy = (root, working, note = null) => {
     if (working) {
-        root.setAttribute('data-demo-working', '')
+        root.setAttribute('data-demo-working', note === null ? '' : ` (${note})`)
     } else {
         root.removeAttribute('data-demo-working')
     }
@@ -189,7 +191,10 @@ const stepper = (root, demo) => {
             // and total by construction, so one that throws is a defect in the
             // demo, and the page says so where its output would have gone.
             try {
-                busy(root, true)
+                // Read from the state the demo is *about* to be given: the
+                // point of the warning is to arrive before the wait, and after
+                // `update` there is nothing left to warn about.
+                busy(root, true, demo.wait === undefined ? null : demo.wait(state))
                 await macrotask()
                 state = unwrapState(await run(demo.update(state)(event)))
                 render(root, htmlToString(demo.view(state)))

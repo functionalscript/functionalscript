@@ -71,8 +71,12 @@ pre { white-space: pre-wrap }
 /* A demo that is waiting on a command says so, and the word is general because
    the runtime that sets it runs every demo: the next may be waiting on a
    network rather than on arithmetic. The message is the attribute's, not the
-   demo's, so no demo can forget it. */
-[data-demo-working]::after { content: "Working…"; display: block; margin-top: .5rem }
+   demo's, so no demo can forget it.
+   The attribute's value is the one part a demo supplies — how long this
+   particular turn will be, which the runtime cannot know. It is empty for
+   almost every turn, and an empty attr() adds nothing, so the general case
+   renders exactly the word above. */
+[data-demo-working]::after { content: "Working…" attr(data-demo-working); display: block; margin-top: .5rem }
 [data-demo-working] button { cursor: default }
 [data-section] > summary { cursor: pointer; font-size: 1.25rem; font-weight: 600 }
 [data-section] > ul { margin-top: .5rem }

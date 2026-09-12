@@ -66,9 +66,22 @@ export type DemoEvent =
  * with an empty vocabulary rather than a second kind of demo. An operation the
  * runtime does not implement answers `notImplemented` through the demo's own
  * channel, which is what `never` obliges the demo to absorb into `State`.
+ *
+ * **`wait` is how a demo says what "Working…" does not.** The runtime owns
+ * that word, and owns it deliberately: it runs every demo, so the word has to
+ * be general. What it cannot know is that *this* demo's next turn is twenty
+ * minutes rather than twenty milliseconds, which only the demo can work out
+ * from its own state. `wait` answers extra words for that turn, or `null` for
+ * the ordinary case, and it is read from the state the demo is about to be
+ * given — before the turn, because afterwards is too late to warn anyone.
+ *
+ * It is pure and optional. A demo that omits it gets the general word, which
+ * is the right default: silence here means "nothing unusual", not "nobody
+ * remembered".
  */
 export type Demo<State, Event, O extends Operation = never> = {
     readonly init: State
     readonly update: (state: State) => (event: Event) => Effect<O, State, never>
     readonly view: (state: State) => Element
+    readonly wait?: ((state: State) => string | null) | undefined
 }

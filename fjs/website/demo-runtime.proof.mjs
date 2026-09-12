@@ -38,6 +38,7 @@ const namesIn = html => html.split('name="').slice(1).map(rest => rest.split('"'
 const dom = path => {
     /** @type {any} */
     let active = null
+    let workedWith = ''
     /** @type {readonly any[]} */
     let children = []
     /** @type {((event: any) => void)[]} */
@@ -111,7 +112,7 @@ const dom = path => {
             selector === 'button' ? buttons : [],
         setAttribute: (/** @type {string} */ name, /** @type {string} */ value) => {
             root.attributes.set(name, value)
-            if (name === 'data-demo-working') { steps.push('working') }
+            if (name === 'data-demo-working') { workedWith = value; steps.push('working') }
         },
         removeAttribute: (/** @type {string} */ name) => {
             root.attributes.delete(name)
@@ -142,6 +143,9 @@ const dom = path => {
          */
         mark: name => { setTimeout(() => steps.push(name), 0) },
         working: () => root.attributes.has('data-demo-working'),
+        // The last value the flag carried, kept after it is removed: the
+        // attribute lives for one turn, so reading it afterwards reads nothing.
+        workedWith: () => workedWith,
         disabled: () => buttons.map((/** @type {any} */ b) => b.disabled),
         caret: () => active === null ? null : active.selectionStart,
         focusOn: (/** @type {string} */ name, /** @type {number} */ caret) => {
@@ -299,6 +303,57 @@ export const demo = {
             ['working', 'disabled', 'turn', 'render', 'idle'])
         assert(!d.working(), 'expected the flag down once the update finished')
         assertStructurallySame(d.disabled(), [false])
+    },
+    /**
+     * **A demo may add to the word, and cannot replace it.** The runtime owns
+     * "Working…" because it runs every demo; what it cannot know is that this
+     * demo's next turn is minutes rather than milliseconds. `wait` answers
+     * that, and it lands in the attribute's *value*, which the stylesheet
+     * appends — so the general word survives whatever a demo says.
+     *
+     * It is read from the state the demo is about to be given, not the one it
+     * returns: a warning that arrives after the wait is not a warning.
+     */
+    waitAddsToTheWord: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'slow',
+    update: state => event => () => ['ok', event.kind === 'click' ? 'quick' : state],
+    view: text => ['div', ['button', { type: 'button', name: 'go' }, 'Go'], ['pre', text]],
+    wait: state => state === 'slow' ? 'about 2 minutes' : null,
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.click('go')
+        await settle()
+        // The state at the click was `slow`, so that is what was announced —
+        // not the `quick` the turn produced.
+        assertEq(d.workedWith(), ' (about 2 minutes)')
+        // And the second turn, from a state with nothing unusual to say,
+        // leaves the value empty so the stylesheet renders the word alone.
+        d.click('go')
+        await settle()
+        assertEq(d.workedWith(), '')
+    },
+    /**
+     * **A demo without `wait` is the ordinary case**, and gets the general
+     * word with nothing appended. The field is optional so that silence means
+     * "nothing unusual" rather than "nobody remembered".
+     */
+    noWaitIsSilent: async () => {
+        const d = dom(moduleUrl(`
+export const demo = {
+    init: 'idle',
+    update: state => event => () => ['ok', 'done'],
+    view: text => ['div', ['button', { type: 'button', name: 'go' }, 'Go'], ['pre', text]],
+}
+`))
+        await startDemo(d.root)
+        await settle()
+        d.click('go')
+        await settle()
+        assertEq(d.workedWith(), '')
     },
     /**
      * **A demo that throws is reported, not swallowed.** `update` and `view`
