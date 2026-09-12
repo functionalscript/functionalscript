@@ -35,6 +35,8 @@
  * @import { Entry, Read, Step, Target } from './types.ts'
  */
 
+import { assert } from '../../asserts/module.f.mjs'
+import { length } from '../../types/bit_vec/module.f.mjs'
 import { foldStep, mapStep, pureOk, step, walkStep } from '../../effects/module.f.mjs'
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { strictEqual } from '../../types/function/operator/module.f.mjs'
@@ -139,6 +141,14 @@ const peelStep = (read, targetAt, treeAt) => ({ id, want }) => state => {
  * bytes, and nor does this — a tree or a blob of any bytes peels, as it
  * does for Git, and reading what such a tree holds is {@link tryEntries}.
  *
+ * The id it starts from is the caller's, and an id that is not
+ * `oidBytes` wide is a caller's bug rather than an object that is not
+ * there — `fjs/git/store`'s `tryRead` says the same of one it is handed,
+ * and a `Read` that answers anything would otherwise give a SHA-256 id a
+ * plausible answer from a SHA-1 walk. The ids read out of a tag or a
+ * commit are the format's rather than the caller's, so those are refused
+ * with `null` where the width is wrong.
+ *
  * The chain's length is not bounded, since Git bounds it nowhere and
  * `git tag -a t9 t8` builds one of any depth. It needs no bound to end: a
  * store answers the objects it holds, they are finite, and a chain that
@@ -148,6 +158,9 @@ const peelStep = (read, targetAt, treeAt) => ({ id, want }) => state => {
  * answering objects no repository holds, and the walk follows it as far as
  * it goes.
  *
+ * @throws On an id that is not `oidBytes` wide: a caller that mixes the
+ * widths has a bug, not a missing object.
+ *
  * @template {Operation} O
  * @param {Read<O>} read
  * @param {OidBytes} oidBytes
@@ -155,7 +168,11 @@ const peelStep = (read, targetAt, treeAt) => ({ id, want }) => state => {
  */
 export const peel = (read, oidBytes) => {
     const f = peelStep(read, tryTargetAt(oidBytes), tryTreeAt(oidBytes))
-    return id => mapStep(walkStep(pureOk([{ id, want: null }]), noTarget, f), s => s.target)
+    const bits = BigInt(oidBytes) * 8n
+    return id => {
+        assert(length(id) === bits, ['not an id of the width', id])
+        return mapStep(walkStep(pureOk([{ id, want: null }]), noTarget, f), s => s.target)
+    }
 }
 
 /**
@@ -165,6 +182,9 @@ export const peel = (read, oidBytes) => {
  * their type says. A commit {@link peel} answered has a tree already, since
  * it refuses one without, so this reads that tree and does not judge the
  * commit again.
+ *
+ * @throws On an id that is not `oidBytes` wide, since the walk starts at
+ * {@link peel} and that is its check.
  *
  * @template {Operation} O
  * @param {Read<O>} read
@@ -243,6 +263,10 @@ const componentStep = at => ({ name, last }) => ({ entries }) => {
  * The entry's own object is not read, so the caller reads the blob with
  * the same `Read` and a submodule entry comes back rather than a missing
  * object.
+ *
+ * @throws On an id that is not `oidBytes` wide, since the walk starts at
+ * {@link peel} and that is its check. A path of no components is the one
+ * that does not: it answers `null` before the id is read.
  *
  * @template {Operation} O
  * @param {Read<O>} read

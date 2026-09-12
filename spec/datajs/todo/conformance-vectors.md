@@ -1808,10 +1808,11 @@ The steps, in order; a step is one pull request unless it says otherwise:
       class is carried by two sets — measured, 334 accept-only, 334
       reject-only, none in both — so one reason covers every reject class by
       construction rather than by inspection. A prototype answered all of them
-      with 28 records; what the serializer step below actually lands is 57,
-      answering 529 cells. The most specific reason wins, so a family's reason
-      takes an exception for
-      one class without either being removed. What buys the width is a rule
+      with 28 records; what the serializer step below actually lands is 48,
+      answering 520 cells, which is the matrix summary's own figure rather than
+      a second count kept by hand. The most specific reason wins, so a
+      family's reason takes an exception for one class without either being
+      removed. What buys the width is a rule
       the cell could not enforce, because a cell only ever sees itself: a
       scope that answers a class which **has** vectors is refused, as is one
       answering no class, one naming a set the corpus does not have, and two
@@ -1826,12 +1827,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 162 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 164 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 10 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 152 of the 674 classes the corpus held then, with 50 scope
-      records answering the 522 cells the serializer column owed; the normalize
+      covering 154 of the 674 classes the corpus held then, with 48 scope
+      records answering the 520 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1897,6 +1898,24 @@ The steps, in order; a step is one pull request unless it says otherwise:
       vector can say which depth conforming means, and a data module cannot
       spell a graph deep enough to find a limit; the writer's own limit is
       tracked as the writer's bug, where it belongs.
+      **One reason after that was two thirds right**, which is the harder kind
+      to catch. It closed all three non-interior pair classes at once by
+      calling them the reader's readings of four escapes. Measured, the two
+      corner *values* were in the set already, as the raw astral characters
+      U+10000 and U+10FFFF, which are every bit of both halves at zero and at
+      one, so for them the reason held for a better cause than the one it
+      gave. The mixed pair U+103FF was not in the set at all, under any class,
+      and it is the one that keeps the two halves from moving together. It is a
+      vector now, with its key twin. What survived the check is the other half
+      of the claim, and it is worth stating plainly because it bounds what this
+      role can ever be asked: escaping each half of a pair denotes the same
+      string as emitting the pair raw, so a writer that fails to *detect* a
+      pair is invisible to a role judged on the graph alone. Measured that way
+      too: with the writer's pairing disabled every one of these vectors still
+      passes, and the failure that does show up is arithmetic — a re-encode
+      dropping nine of the low half's ten bits is caught by U+10FFFF and by the
+      mixed pair, and by neither U+10000 nor an interior pair. Detection is the
+      normalize set's to pin, where the corners carry exact raw texts.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
@@ -1906,9 +1925,9 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 217 records in
-      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 53 scope
-      records answering the 516 cells its column owes and one `['set',
+- [x] **Normalize.** Landed as 224 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 58 scope
+      records answering the 513 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
       the 50 classes this set introduced. The proof reads every text back
       through the reader, which is the run-through-the-accept-grammar check
@@ -1920,7 +1939,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 113,263 bytes of the bit
+      being refused outright. The matrix stands at 115,223 bytes of the bit
       vector's 131,072, which is 87% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -1974,7 +1993,34 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `\u2028` for `["\u2028"]` and passed, and one with a separate recursive
       key emitter did the same for `{"a":{"\u2028":0}}`. The two `every-value`
       aggregates now carry a whitespace-like character, a lone surrogate and a
-      control among their leaves, and a nested key carries the first.
+      control among their leaves, and a nested key carries the first. Two
+      positions more after that: the body of a hoisted `const`, where a writer
+      with its own emitter for one escapes what belongs raw and every shared
+      container in the set held ordinary keys and numbers; and a value behind
+      the proto key, where a writer that inlines it instead of naming the shared
+      node emits two arrays where the graph has one. Three vectors, and the
+      proto exemption narrows from a subtree to the two classes under it that
+      really are ordinary value coverage.
+      **The const body then took a second round, for the reason the escaping
+      one should have predicted.** Giving a shared container escape-sensitive
+      strings answered the string emitter and nothing else: every const body in
+      the set still held only strings, ordinary numbers and containers, so a
+      writer with its own value emitter for hoisted bodies could put `null` in
+      place of `undefined`, `NaN` or an infinity inside a shared node, or refuse
+      a bigint there, and pass all 220. Both `every-value` aggregates now appear
+      again as shared containers, one array and one object, so every leaf of the
+      data model is pinned in a const body as well as inline. The lesson is the
+      one this file keeps recording at a smaller size each time: a position is
+      not covered by a value that reaches it, and fixing the reported instance
+      is not sweeping for its shape.
+      **And the mixed surrogate pair**, which the serializer step above added
+      in the same round. Here it is stronger, because this role asserts the
+      spelling: the writer emits a pair raw, so a vector for one pins detection
+      and the halves' arithmetic together. Two vectors, and the two pair
+      subtrees narrow to the three classes whose values this set already pins
+      raw with exact texts. Their old reason had been closing them with a
+      sentence about adjacency, a different family, which the purity rule could
+      not catch because the premise was true and only the subject was wrong.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
