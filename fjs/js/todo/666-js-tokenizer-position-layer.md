@@ -62,10 +62,9 @@ Separate the two concerns:
    positions away. **That half is superseded — do not build it.**
    [self-contained-tokenizer](../../media/json/todo/self-contained-tokenizer.md)
    stops JSON consuming `fjs/js/tokenizer` at all, and JSON was `tokenizeRaw`'s
-   only proposed consumer: `fjs/fsc/tokenizer` imports just `isKeywordToken`
-   and `mergeTrivia` and drives its own `tokenizeJs`
-   (`fjs/fsc/tokenizer/module.f.mjs:544`), so it never wanted a bare JS token
-   stream either. Exporting it anyway would add exactly the unused public API
+   only proposed consumer: `fjs/fsc/tokenizer` imports nothing from this
+   module and drives its own `tokenizeJs` over the grammar, so it never
+   wanted a bare JS token stream either. Exporting it anyway would add exactly the unused public API
    this issue's own defer-until-a-second-consumer rule forbids.
 2. (Optional, defer until a second consumer) Express position tracking as a
    standalone generic combinator
