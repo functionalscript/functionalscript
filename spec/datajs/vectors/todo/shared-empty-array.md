@@ -29,13 +29,16 @@ The direction matters and is not covered by the empty inverse vectors:
 `graph-unshared-array-empty` rules out *merging* two distinct empties into one
 node, where this is *expanding* one shared empty into two.
 
-This repository's own writer is not at risk, because two proofs pin it with an
-annotation, which a proof may carry and a data module may not:
-`sharedEmptyArray` in
-[`../graph-equivalence/proof.f.mjs`](../graph-equivalence/proof.f.mjs) over the
-reader, and the case of the same name in
-[`../normalize/proof.f.mjs`](../normalize/proof.f.mjs) over `tryStringify`. A
-third-party harness reads the sets and gets neither.
+**This repository covers itself, and only itself.** A proof may carry an
+annotation where a data module may not, so `sharedEmptyArray` in
+[`../graph-equivalence/proof.f.mjs`](../graph-equivalence/proof.f.mjs) builds
+the graph and checks it against four documents through the reader: the two
+spellings that denote it and the two that do not. The writer side is the same
+trick in the `normalize` set's proof, which pins `tryStringify`'s output for a
+shared empty array — that set lands in the step after this one, so read the
+claim as covering the reader today and the writer when it arrives.
+
+A third-party harness gets neither, because it reads the sets.
 
 The empty **object** has none of this trouble: `const $o = {};` types as `{}`
 and several vectors share one.
