@@ -482,12 +482,15 @@ const summary = (corpus, role) => {
 }
 
 /**
- * The defects a corpus has, as the failure a caller reads.
+ * The defects a corpus has, as the failure a caller reads. The subject is the
+ * **corpus** rather than the table, because these are not all the table's: a
+ * source that is not a DataJS document is a defect of the corpus that the
+ * generator reports in the same list.
  *
  * @type {(failures: readonly string[]) => Result<string, string>}
  */
 const refused = failures => error([
-    `the class-by-role matrix has ${failures.length} defects:`,
+    `the corpus has ${failures.length} defects:`,
     ...failures.map(f => `  ${f}`),
     'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
 ].join('\n'))
@@ -498,20 +501,31 @@ const refused = failures => error([
  * vector ids, the reason there are none, or a role whose sets have not
  * landed.
  *
- * @type {(corpus: Corpus) => Result<string, string>}
+ * `also` carries defects found outside the table — the source checks below —
+ * and they are reported **beside** the matrix's own rather than instead of
+ * them. One edit can break both at once, a new vector with a trailing comma
+ * whose class no role answers being the obvious case, and a generator that
+ * reports one kind at a time turns one fix into two runs.
+ *
+ * They ride alongside a malformed scope too, which the exclusivity rule below
+ * does not reach: that rule is about defects *derived from reading* a scope,
+ * and a source defect is not derived from reading anything.
+ *
+ * @type {(corpus: Corpus, also?: readonly string[]) => Result<string, string>}
  */
-export const matrix = corpus => {
+export const matrix = (corpus, also = []) => {
     // A malformed scope is refused first and alone. Every other check reads a
     // scope as a tag and a name, so one that is neither cannot be read by them
     // at all — a one-element tuple has no name to render and no family to
     // measure. Reporting it beside failures derived from reading it would be
     // reporting the same defect twice over.
     const bad = malformed(corpus)
-    if (bad.length !== 0) { return refused(bad) }
+    if (bad.length !== 0) { return refused([...also, ...bad]) }
     const classes = classesOf(corpus.roles)
     const rows = classes.map(c => row(corpus, c))
     /** @type {readonly string[]} */
     const failures = [
+        ...also,
         ...roleless(corpus),
         ...unrenderable(corpus),
         ...ambiguous(corpus),
@@ -661,7 +675,7 @@ export const sourceDefects = corpus => foldStep(
 export const program = corpus => _options => step(
     sourceDefects(corpus),
     defects => {
-        const [tag, value] = defects.length === 0 ? matrix(corpus) : refused(defects)
+        const [tag, value] = matrix(corpus, defects)
         return tag === 'error' ? errorExit(value) : exitStep(write(value))
     })
 

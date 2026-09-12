@@ -132,7 +132,7 @@ export const proof = {
     // generator names the ones it does not get.
     unanswered: () => {
         assertEq(failure(landed), [
-            'the class-by-role matrix has 1 defects:',
+            'the corpus has 1 defects:',
             '  y in serializer: no vector and no reason',
             'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
         ].join('\n'))
@@ -152,7 +152,7 @@ export const proof = {
     stale: () => {
         assertEq(failure({ ...two, notApplicable: [{ scope: ['class', 'x'], role: 'reader', because: 'no' }] }),
             [
-                'the class-by-role matrix has 1 defects:',
+                'the corpus has 1 defects:',
                 '  class x in reader: answers 1 classes that have vectors, x among them',
                 'a class a role owes no vector needs a record in spec/datajs/vectors/not-applicable saying why.',
             ].join('\n'))
@@ -495,5 +495,24 @@ export const proof = {
     programRefuses: () => {
         const [, result] = virtual(emptyState)(program(landed)(defaultNodeProgramOptions))
         assertEq(exitCode(result), 1)
+    },
+    // A defect found outside the table is reported *beside* the table's own,
+    // not instead of them. One edit breaks both — a new vector with a trailing
+    // comma whose class no role answers — and reporting one kind at a time
+    // turns one fix into two runs of the generator.
+    defectsTogether: () => {
+        const outside = 'the set a-set: its own source is not a DataJS document'
+        const both = matrix(landed, [outside])
+        assert(both[0] === 'error', 'expected a refusal')
+        assert(both[1].includes(outside), both[1])
+        assert(both[1].includes('y in serializer'), both[1])
+        assert(both[1].includes('the corpus has 2 defects:'), both[1])
+        // and beside a malformed scope, which the table refuses first and alone:
+        // that exclusivity is about defects derived from *reading* a scope, and
+        // an outside defect is not one
+        const malformed = matrix(withScope(null), [outside])
+        assert(malformed[0] === 'error', 'expected a refusal')
+        assert(malformed[1].includes(outside), malformed[1])
+        assert(malformed[1].includes('is not a scope'), malformed[1])
     },
 }
