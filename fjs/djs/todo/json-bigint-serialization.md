@@ -47,6 +47,11 @@ not part of this interchange format.
 This keeps the generic serializer's input type precise and gives every unsupported
 DJS value the same behavior regardless of where it appears in the tree.
 
+`NaN`, `Infinity` and `-Infinity` are in the same class as `undefined`: the DJS
+serializer writes them as the words the parser reads back, in `.json` output
+too, which is not JSON. They are to be refused there by the same validation,
+never written as `null`.
+
 ### Tasks
 
 - [ ] Add/reuse a recursive conversion or validation from DJS `Unknown` to the

@@ -282,14 +282,21 @@ export default [0, -42.5, 3e2, 1E-7];
 
 The syntax is JSON's, so the JavaScript spellings JSON leaves out are not
 recognized: no hexadecimal (`0x10`), no leading `+`, no leading decimal point
-(`.5`), no numeric separators (`1_000`), and no `NaN` or `Infinity` yet —
-those two are reserved words, like `undefined`, so a module cannot bind or
-shadow them, and until the compiler reads them as the numbers they name they
-are refused wherever they stand.
+(`.5`), no numeric separators (`1_000`). The three numbers JSON cannot spell
+are written as the words JavaScript gives them — `NaN`, `Infinity` and
+`-Infinity` — exactly as [DataJS](./datajs/README.md) writes them:
+
+```js
+export default [NaN, Infinity, -Infinity];
+```
+
+`NaN` and `Infinity` are reserved words, like `undefined`: a module cannot
+bind, shadow or key them, and each denotes its value wherever it stands.
 
 The `-` is lexical: it joins the number to its left as part of one token, so
-`-42.5` is a number literal and `- 42.5` is not a value at all. There is no
-negation operator ([operators](./todo/2340-operators.md)).
+`-42.5` is a number literal and `- 42.5` is not a value at all, and it joins
+`Infinity` the same way — `-Infinity` is one token and `-NaN` is not a value.
+There is no negation operator ([operators](./todo/2340-operators.md)).
 
 ### Strings
 
