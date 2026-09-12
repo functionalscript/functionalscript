@@ -46,6 +46,7 @@
  * @import { DjsTokenWithMetadata } from '../tokenizer/types.ts'
  * @import { AstArray, AstConst, AstModule, AstModuleRef, AstObject } from '../ast/types.ts'
  * @import { Const, Container, Entry, Import, Module, Node, Out, ParseError } from './types.ts'
+ * @import { Entry as ObjectEntry } from '../../types/object/types.ts'
  * @import { Items, Member, Value } from './grammar/types.ts'
  * @import { key, primitive } from './grammar/module.f.mjs'
  * @import { _Env, _Frame, _Leaf, _ListNode, _OptionalList, _Stack, _State, _TokenStream } from './private.ts'
@@ -54,6 +55,7 @@
 import { error, ok } from '../../types/result/module.f.mjs'
 import { concat, toArray } from '../../types/list/module.f.mjs'
 import { at, empty, setReplace } from '../../types/ordered_map/module.f.mjs'
+import { fromEntries } from '../../types/object/module.f.mjs'
 import { assert } from '../../asserts/module.f.mjs'
 import { symbolAt, unmapped } from '../../ebnf/ast/module.f.mjs'
 import { mapping, parser } from '../../ebnf/ll1/module.f.mjs'
@@ -422,13 +424,22 @@ const badKey = ([kind, items], index) => {
 }
 
 /**
+ * A member as an entry of the object being closed: its name, and the value
+ * at its index among the resolved values, which are the leading parameter
+ * so that the step lives here rather than closing over them.
+ *
+ * @type {(done: readonly AstConst[]) => (member: Entry, index: number) => ObjectEntry<AstConst>}
+ */
+const memberEntry = done => ({ name }, index) => [name, done[index]]
+
+/**
  * A container of the values its items resolved to: an array, or an object
  * with a property per member, in the order the members are written — the
  * order JavaScript gives the same literal, which is the order the graph a
  * module denotes has, so it is not the parser's to change. A repeated key
- * keeps its first position and takes its last value, as it does there: the
- * spread copies the properties so far, and the member then writes over its
- * own, which leaves a property where it first stood.
+ * keeps its first position and takes its last value, as it does there:
+ * `fromEntries` creates each property where its key first appears and
+ * writes the later value over it, in one pass over the members.
  *
  * @type {(container: Container, done: readonly AstConst[]) => AstConst}
  */
@@ -438,9 +449,7 @@ const close = ([kind, members], done) => {
         const array = ['array', done]
         return array
     }
-    /** @type {AstObject} */
-    const empty = {}
-    return members.reduce((object, { name }, index) => ({ ...object, [name]: done[index] }), empty)
+    return fromEntries(members.map(memberEntry(done)))
 }
 
 /**

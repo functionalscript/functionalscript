@@ -5,16 +5,13 @@
 
 import { exitCode } from '../effects/node/module.f.mjs'
 import { compile } from './module.f.mjs'
-import { transpile } from './transpiler/module.f.mjs'
+import { parse, transpile } from './transpiler/module.f.mjs'
 import { run } from './ast/module.f.mjs'
-import { parseFromTokens } from './parser/module.f.mjs'
-import { tokenize } from './tokenizer/module.f.mjs'
 import { stringify } from '../djs/serializer/module.f.mjs'
 import { bytes, difference } from '../media/datajs/vectors/module.f.mjs'
 import { virtual, emptyState } from '../effects/node/virtual/module.f.mjs'
 import { utf8, utf8ToString } from '../text/module.f.mjs'
 import { fromVec } from '../text/utf8/module.f.mjs'
-import { stringToList } from '../text/utf16/module.f.mjs'
 import { fromEntries, isObject, sort } from '../types/object/module.f.mjs'
 import { toVec } from '../types/uint8array/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../asserts/module.f.mjs'
@@ -40,14 +37,15 @@ const documentText = document => {
 
 /**
  * What the front end makes of a source: the graph the module denotes, or
- * the error it reports. Tokenizer, parser and evaluator over the code units
- * of the text, with no imports to resolve — a DataJS document has none —
- * which is what `transpile` does behind the file system.
+ * the error it reports. The transpiler's own `parse`, then its evaluator,
+ * with no imports to resolve — a DataJS document has none — which is what
+ * `transpile` does behind the file system; the parts are the compiler's,
+ * not a second assembly of them.
  *
  * @type {(source: string) => readonly ['ok', Unknown] | readonly ['error', string]}
  */
 const evaluate = source => {
-    const [tag, value] = parseFromTokens(tokenize(stringToList(source))(''))
+    const [tag, value] = parse('')(source)
     return tag === 'error' ? ['error', value.message] : ['ok', run(value[1])([])]
 }
 
