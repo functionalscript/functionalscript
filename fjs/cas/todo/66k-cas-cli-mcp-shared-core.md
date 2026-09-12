@@ -138,8 +138,12 @@ accepted as-is, the same as `cp`.
       that the adapter keeps both values the Evo sync needs in scope:
       a pure `decodeInline: (input: { type?, content }) => Result<Vec, string>`
       (the `text`/`base64` decoding and the size cap, today's `x`), and
-      an effectful `writeBlob: (c: Cas<O>) => (value: Vec) => Effect<…, Result<Vec, WriteError>, …>`
-      (today's `c.write(nonEmpty(x, …))` plus the error mapping). The
+      an effectful `writeBlob: (c: Cas<O>) => (value: Vec) => Effect<O, Vec, WriteError>`
+      (today's `c.write(nonEmpty(x, …))` plus the error mapping) — the
+      hash in the `Effect`'s success channel and the failure in its error
+      channel, not a `Result` nested inside a success, since
+      `Effect<O, T, E>` already yields `Result<T, E>` and that is exactly
+      the tuple `resultStep` hands on. The
       `syncRevision(cacheKey)(hash)(value)` step that keeps
       `evo_list`/`evo_head` current is an MCP-server concern (the CLI has
       no Evo cache), so it stays in `fjs/mcp/cas` as the adapter's own

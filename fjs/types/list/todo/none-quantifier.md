@@ -35,9 +35,16 @@ has no name, so each site reads as four lines of plumbing to re-derive.
 Name the two quantifiers beside `some`:
 
 ```js
+/** Whether some element satisfies `p`. @type {<T>(p: (value: T) => boolean) => (input: List<T>) => boolean} */
 export const someBy = p => compose(map(p))(some)
+/** Whether no element satisfies `p`. @type {<T>(p: (value: T) => boolean) => (input: List<T>) => boolean} */
 export const none = p => fn(someBy(p)).map(logicalNot).result
 ```
+
+Both are generic in the element, `<T>`, with the predicate spelled
+`(value: T) => boolean` as `find`'s already is in this module — not
+erased to `unknown`, so `someBy(strictEqual(value))` and `none(logicalNot)`
+type-check against the list they are applied to.
 
 Then `includes = value => someBy(strictEqual(value))`,
 `isEmpty = none(() => true)`, and `every = none(logicalNot)` — each one
