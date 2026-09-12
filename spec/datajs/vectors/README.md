@@ -286,9 +286,12 @@ of the derivation. An elision is not a second rule a reader might reach: on the
 reader's side it is what a hole *means*, since
 `array ::= '[' (value (',' value)*)? ']'` cannot spell one, so `[1,,2]` is a
 reject under the array production and a reader refusing it for the hole has
-refused it for the elision under another name. The data model's rule against a
-hole is the **serializer's**, in §What may be serialized, and that is the side
-where a hole gets a vector of its own.
+refused it for the elision under another name. That reject is the only vector a
+hole gets. The data model's rule against a hole is the **serializer's**, in
+§What may be serialized, and no vector can carry it for the reason the section
+below gives — a set is a DataJS data module and cannot spell a hole to hand a
+serializer — so that side is an obligation on an implementation's own tests
+rather than a vector here.
 
 **Across roles, a vector owes its counterparts wherever a plausible
 implementation would differ.** Conformance is per role, so a reader-only

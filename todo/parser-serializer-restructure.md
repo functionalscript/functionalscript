@@ -810,8 +810,9 @@ throughout.
       issue is deleted, its derivation rules carried into the corpus README. It
       went before stage 4, which consumes it, since landing stage 4 first would
       have meant writing its proofs twice. The FunctionalScript half of the
-      subset law is stage 6's, over this corpus: it needs `;` and the special
-      numbers in the front end, which is stage 5.
+      subset law is stage 6's, over this corpus: what it still waits on is the
+      special numbers as values, the open part of stage 5b — `;` termination and
+      the reserved words landed already.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/ebnf/todo/207-bnf-semantic-actions.md)
       repointed at the classical `fjs/bnf/testlib.f.mjs`, since deleted.
@@ -860,11 +861,14 @@ throughout.
       repoint every link into them.
 - [ ] Stage 6: normalizer + subset-law proofs, over
       [the corpus](../spec/datajs/vectors/README.md) — the DataJS ⊂
-      FunctionalScript law is the half stage 1b could not run, since today's
-      front end has no `NaN`, `Infinity` or `-Infinity` and separates
-      statements with a newline; the JavaScript half already runs in
-      [`accept/proof.mjs`](../spec/datajs/vectors/accept/proof.mjs) over the
-      390 accept documents that have a byte encoding. File its todo.
+      FunctionalScript law is the half stage 1b could not run, and what it waits
+      on is stage 5b's open part, the **special numbers as values**: `NaN`,
+      `Infinity` and `-Infinity` are reserved words today and a module cannot
+      spell one as a value, which almost every accept vector needs. `;`
+      termination is the baseline already, so nothing of the syntax is owed. The
+      JavaScript half runs now, in
+      [`accept/proof.mjs`](../spec/datajs/vectors/accept/proof.mjs) over the 390
+      accept documents that have a byte encoding. File its todo.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
 - [ ] Update affected issues as their subject matter moves (see below).
 - [ ] `tsc`, `fjs test` at every stage.
