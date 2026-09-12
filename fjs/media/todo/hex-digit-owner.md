@@ -47,9 +47,20 @@ Give the offsets one owner without changing either behaviour, through
 `fjs/text/ascii`,
 
 ```ts
-/** The value of a lowercase hex digit, or `null`: `hexDigitValue` without `A-F`. */
+/**
+ * The value of a lowercase hex digit, or `null`: `hexDigitValue` without
+ * `A-F`, and with an integer guard — a non-integer such as `97.5` is `null`,
+ * never the `10.5` a bare range test would spell.
+ */
 export const lowerHexDigitValue: (codePoint: number) => Nullable<number>
 ```
+
+The guard is `Number.isInteger(codePoint) && …` before the range tests,
+the shape [`fjs/todo/unguarded-numeric-domains.md`](../../todo/unguarded-numeric-domains.md)
+names for a `number` parameter that means a code point. That issue
+already records `hexDigitValue`'s own missing guard; this export is born
+with one, and is not added to that issue's list because it never has
+the defect.
 
 which `vectors` uses in place of its own (reading `null` where it read
 `-1`), while `json/parser` drops `hexBase` and calls the existing

@@ -43,9 +43,14 @@ Add `tryConcat: (a: Vec) => (b: Vec) => Nullable<Vec>` to `bo`, defined
 from the existing `tryUnpackConcat` operation so the bound literal stays
 in one place. **`concat` stays exactly as it is — unchecked.** Today two
 valid operands whose lengths sum past `maxLength` give an oversized
-vector on Node rather than a throw; that behaviour is unchanged, no break
-is declared, and [unpack-lift.md](./unpack-lift.md)'s plan to lift the
-existing unchecked implementation over `Unpacked` stands. Making `concat`
+vector on Node rather than a throw; that behaviour is unchanged, and
+[unpack-lift.md](./unpack-lift.md)'s plan to lift the existing unchecked
+implementation over `Unpacked` stands. What **is** a break is the type:
+`bo`'s result is the exported structural `BitOrder`
+(`fjs/types/bit_vec/types.ts`), so `tryConcat` is a new **required**
+member of it — without that, `msb.tryConcat`/`lsb.tryConcat` are not in
+their declared type — and a caller that constructs or mocks the current
+shape stops type-checking. The PR declares that in `Changelog:`. Making `concat`
 `mapUnwrap(tryConcat)` was weighed and rejected: it would turn a
 documented no-check fast path into an assertion, which is a behaviour
 change this issue has no reason to make — the callers that want the
@@ -57,8 +62,9 @@ asks `tryConcat` instead of restating the arithmetic.
 
 ### Tasks
 
-- [ ] Add `tryConcat` to `bo` with proofs (both orders, the exact
-      `maxLength` boundary); `concat` untouched.
+- [ ] Add `tryConcat` to `bo` and to `BitOrder` with proofs (both
+      orders, the exact `maxLength` boundary); `concat` untouched; the
+      new required member declared in `Changelog:`.
 - [ ] Rewrite the three consumer sites through it.
 - [ ] `tsc`, `fjs test`.
 

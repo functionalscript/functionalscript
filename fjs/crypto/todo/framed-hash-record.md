@@ -58,8 +58,14 @@ bigint` that `framing` copies from the `FramingInit` it was built from,
 so the width `framed` advertises as `blockLength`/`blockBytes` is the
 width `append` and `end` actually frame with, by construction — a
 caller cannot attach `1024n` to closures built for 512-bit blocks, which
-would have had `hmac` pad keys to a width the framing never used. Adding
-a field to `Framing<H>` is non-breaking. It is exactly the private
+would have had `hmac` pad keys to a width the framing never used.
+`Framing<H>` is exported from `sha2/types.ts`, so a **required** new
+member is a breaking change — a caller that constructs or mocks the
+current `{ append, end }` shape stops type-checking — and the PR
+declares it with a `Changelog:` entry; it is not made optional, because
+an optional width is exactly the uncoupled one this closes. Every value
+of the type in the repository (`base32`, `base64`, and what `framing`
+returns) gains the field in the same PR. It is exactly the private
 `sha2` factory with `V8` generalized to `H`, and its parameter is
 exactly what that factory already receives: `base32` and `base64` carry
 `append`, `end`, and `chunkLength` today (`base`'s own `chunkLength` is
@@ -103,8 +109,9 @@ instead of writing the literal — `framing` as it imports it today,
       `fjs/crypto/sha2/module.f.mjs`; re-express `sha2`'s own `base`
       through them; pin `fromWords`'s empty case at `0n` and its
       out-of-range word and non-positive width as panics; `Base`, `base32`,
-      and `base64` keep their exact shape — no `Changelog:` entry, and the
-      SHA-2 proof's field reads pass unchanged.
+      and `base64` keep their exact shape and the SHA-2 proof's field
+      reads pass unchanged; `Framing<H>`'s new required `chunkLength` is
+      the one break, declared in `Changelog:`.
 - [ ] Rewrite `sha1`'s record and helpers through them; proofs pass
       unchanged.
 - [ ] `tsc`, `fjs test`.
