@@ -15,7 +15,7 @@ roles reads exactly like prose that mentions it in three.
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
 | `reader` | `accept`, `reject` | 674 | 0 | 0 |
-| `serializer` | `serializer-accept`, `graph-equivalence` | 155 | 519 | 0 |
+| `serializer` | `serializer-accept`, `graph-equivalence` | 162 | 512 | 0 |
 | `normalize` | no set yet | 0 | 0 | 674 |
 
 674 classes.
@@ -23,25 +23,25 @@ roles reads exactly like prose that mentions it in three.
 | class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
 | `array/elements/every-value` | `array-elements-every-value` | `ser-array-elements-every-value` | *awaiting the set* |
-| `array/elements/negative-first` | `array-elements-negative-first` | `ser-array-elements-negative-first` | *awaiting the set* |
+| `array/elements/negative-first` | `array-elements-negative-first` | `ser-array-elements-negative-first`, `ser-array-elements-negative-zero-first`, `ser-array-elements-negative-bigint-first`, `ser-array-elements-negative-infinity-first` | *awaiting the set* |
 | `array/elision/leading` | `array-elision-leading` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `array/elision/medial` | `array-elision-medial` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `array/elision/only` | `array-elision-only` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `array/elision/trailing` | `array-elision-trailing` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `array/empty` | `array-empty` | `ser-array-empty` | *awaiting the set* |
 | `array/nested/array` | `array-nested-array` | `ser-array-nested-array` | *awaiting the set* |
-| `array/nested/deep` | `array-nested-deep` | not applicable, [note 37](#notes) | *awaiting the set* |
-| `array/nested/empty` | `array-nested-empty` | not applicable, [note 39](#notes) | *awaiting the set* |
+| `array/nested/deep` | `array-nested-deep` | not applicable, [note 36](#notes) | *awaiting the set* |
+| `array/nested/empty` | `array-nested-empty` | not applicable, [note 38](#notes) | *awaiting the set* |
 | `array/nested/object` | `array-nested-object` | `ser-array-nested-object` | *awaiting the set* |
 | `array/no-comma` | `array-no-comma` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `array/object/nested/mixed` | `mixed-nested` | not applicable, [note 36](#notes) | *awaiting the set* |
+| `array/object/nested/mixed` | `mixed-nested` | not applicable, [note 35](#notes) | *awaiting the set* |
 | `array/one` | `array-one` | `ser-array-one` | *awaiting the set* |
 | `array/separator/semicolon` | `array-semicolon` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `array/spread` | `array-spread` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `array/three` | `array-three` | `ser-array-three` | *awaiting the set* |
 | `array/trailing-comma` | `array-trailing-comma` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `array/trailing-comma/two` | `array-trailing-comma-two` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `array/two` | `array-two` | not applicable, [note 34](#notes) | *awaiting the set* |
+| `array/two` | `array-two` | not applicable, [note 33](#notes) | *awaiting the set* |
 | `array/unclosed` | `array-unclosed` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `array/unopened` | `array-unopened` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `array/unshared` | `array-unshared` | `graph-unshared-array-empty`, `graph-unshared-array-parent-object-empty` | *awaiting the set* |
@@ -91,9 +91,9 @@ roles reads exactly like prose that mentions it in three.
 | `bigint/trailing-point/neg` | `bigint-neg-trailing-point` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `bigint/zero` | `bigint-0` | `ser-bigint-0` | *awaiting the set* |
 | `bigint/zero/neg` | `bigint-neg-0` | not applicable, [note 17](#notes) | *awaiting the set* |
-| `byte/bom/first` | `byte-bom-first` | not applicable, [note 49](#notes) | *awaiting the set* |
-| `byte/truncated` | `byte-truncated` | not applicable, [note 49](#notes) | *awaiting the set* |
-| `byte/valid/widths` | `byte-valid-widths` | not applicable, [note 49](#notes) | *awaiting the set* |
+| `byte/bom/first` | `byte-bom-first` | not applicable, [note 48](#notes) | *awaiting the set* |
+| `byte/truncated` | `byte-truncated` | not applicable, [note 48](#notes) | *awaiting the set* |
+| `byte/valid/widths` | `byte-valid-widths` | not applicable, [note 48](#notes) | *awaiting the set* |
 | `const/declarators` | `const-declarators` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `const/destructuring/array` | `const-destructuring-array` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `const/destructuring/object` | `const-destructuring-object` | not applicable, [note 1](#notes) | *awaiting the set* |
@@ -105,23 +105,23 @@ roles reads exactly like prose that mentions it in three.
 | `const/name/value-word` | `const-name-value-word` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `const/no-name` | `const-no-name` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `const/no-value` | `const-no-value` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `const/one` | `const-one` | not applicable, [note 27](#notes) | *awaiting the set* |
-| `const/reference/chain` | `const-reference-chain` | not applicable, [note 26](#notes) | *awaiting the set* |
-| `const/reference/chain/shared` | `const-reference-chain-shared` | not applicable, [note 26](#notes) | *awaiting the set* |
-| `const/reference/element` | `const-reference-element` | not applicable, [note 26](#notes) | *awaiting the set* |
-| `const/reference/member` | `const-reference-member` | not applicable, [note 26](#notes) | *awaiting the set* |
-| `const/shared/leaf` | `const-shared-leaf` | not applicable, [note 32](#notes) | *awaiting the set* |
+| `const/one` | `const-one` | not applicable, [note 26](#notes) | *awaiting the set* |
+| `const/reference/chain` | `const-reference-chain` | not applicable, [note 25](#notes) | *awaiting the set* |
+| `const/reference/chain/shared` | `const-reference-chain-shared` | not applicable, [note 25](#notes) | *awaiting the set* |
+| `const/reference/element` | `const-reference-element` | not applicable, [note 25](#notes) | *awaiting the set* |
+| `const/reference/member` | `const-reference-member` | not applicable, [note 25](#notes) | *awaiting the set* |
+| `const/shared/leaf` | `const-shared-leaf` | not applicable, [note 31](#notes) | *awaiting the set* |
 | `const/shared/mixed` | `const-shared-mixed` | `ser-sharing-mixed`, `graph-sharing-mixed` | *awaiting the set* |
-| `const/shared/nested` | `const-shared-nested` | not applicable, [note 33](#notes) | *awaiting the set* |
+| `const/shared/nested` | `const-shared-nested` | not applicable, [note 32](#notes) | *awaiting the set* |
 | `const/shared/object` | `const-shared-object` | `ser-sharing-object`, `graph-sharing-object`, `graph-sharing-empty-object` | *awaiting the set* |
 | `const/shared/three-paths` | `const-shared-three-paths` | `ser-shared-three-paths` | *awaiting the set* |
 | `const/shared/twice` | `const-shared-twice` | `ser-sharing-array`, `graph-sharing-array` | *awaiting the set* |
 | `const/shared/two-nodes` | `const-shared-two-nodes` | `ser-shared-two-nodes` | *awaiting the set* |
-| `const/two` | `const-two` | not applicable, [note 28](#notes) | *awaiting the set* |
-| `const/unreferenced` | `const-unreferenced` | not applicable, [note 30](#notes) | *awaiting the set* |
-| `const/unreferenced/among` | `const-unreferenced-among` | not applicable, [note 30](#notes) | *awaiting the set* |
-| `const/unshared/twins` | `const-unshared-twins` | not applicable, [note 31](#notes) | *awaiting the set* |
-| `const/value/every-alternative` | `const-value-every` | not applicable, [note 29](#notes) | *awaiting the set* |
+| `const/two` | `const-two` | not applicable, [note 27](#notes) | *awaiting the set* |
+| `const/unreferenced` | `const-unreferenced` | not applicable, [note 29](#notes) | *awaiting the set* |
+| `const/unreferenced/among` | `const-unreferenced-among` | not applicable, [note 29](#notes) | *awaiting the set* |
+| `const/unshared/twins` | `const-unshared-twins` | not applicable, [note 30](#notes) | *awaiting the set* |
+| `const/value/every-alternative` | `const-value-every` | not applicable, [note 28](#notes) | *awaiting the set* |
 | `document/both-edges` | `document-both-edges` | not applicable, [note 5](#notes) | *awaiting the set* |
 | `document/comment/block` | `document-comment-block` | not applicable, [note 5](#notes) | *awaiting the set* |
 | `document/comment/line` | `document-comment-line` | not applicable, [note 5](#notes) | *awaiting the set* |
@@ -243,8 +243,8 @@ roles reads exactly like prose that mentions it in three.
 | `key/proto/string/escaped` | `key-proto-string-escaped` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/proto/string/escaped-all` | `key-proto-string-escaped-all` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/proto/string/nested` | `key-proto-string-nested` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `key/proto/value/null` | `key-proto-value-null` | not applicable, [note 47](#notes) | *awaiting the set* |
-| `key/proto/value/object` | `key-proto-value-object` | not applicable, [note 48](#notes) | *awaiting the set* |
+| `key/proto/value/null` | `key-proto-value-null` | not applicable, [note 46](#notes) | *awaiting the set* |
+| `key/proto/value/object` | `key-proto-value-object` | not applicable, [note 47](#notes) | *awaiting the set* |
 | `key/proto/value/shared` | `key-proto-shared` | `ser-key-proto-value-shared` | *awaiting the set* |
 | `key/string/continuation` | `key-continuation` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/string/continuation/crlf` | `key-continuation-crlf` | not applicable, [note 1](#notes) | *awaiting the set* |
@@ -352,13 +352,13 @@ roles reads exactly like prose that mentions it in three.
 | `key/string/surrogate/lone/dbff` | `key-surrogate-lone-dbff` | `ser-key-surrogate-lone-dbff` | *awaiting the set* |
 | `key/string/surrogate/lone/dc00` | `key-surrogate-lone-dc00` | `ser-key-surrogate-lone-dc00` | *awaiting the set* |
 | `key/string/surrogate/lone/dfff` | `key-surrogate-lone-dfff` | `ser-key-surrogate-lone-dfff` | *awaiting the set* |
-| `key/string/surrogate/lone/raw/d800` | `key-surrogate-lone-raw-d800` | not applicable, [note 42](#notes) | *awaiting the set* |
-| `key/string/surrogate/lone/raw/dbff` | `key-surrogate-lone-raw-dbff` | not applicable, [note 42](#notes) | *awaiting the set* |
-| `key/string/surrogate/lone/raw/dc00` | `key-surrogate-lone-raw-dc00` | not applicable, [note 42](#notes) | *awaiting the set* |
-| `key/string/surrogate/lone/raw/dfff` | `key-surrogate-lone-raw-dfff` | not applicable, [note 42](#notes) | *awaiting the set* |
-| `key/string/surrogate/pair/high-corner` | `key-surrogate-pair-high-corner` | not applicable, [note 46](#notes) | *awaiting the set* |
+| `key/string/surrogate/lone/raw/d800` | `key-surrogate-lone-raw-d800` | not applicable, [note 41](#notes) | *awaiting the set* |
+| `key/string/surrogate/lone/raw/dbff` | `key-surrogate-lone-raw-dbff` | not applicable, [note 41](#notes) | *awaiting the set* |
+| `key/string/surrogate/lone/raw/dc00` | `key-surrogate-lone-raw-dc00` | not applicable, [note 41](#notes) | *awaiting the set* |
+| `key/string/surrogate/lone/raw/dfff` | `key-surrogate-lone-raw-dfff` | not applicable, [note 41](#notes) | *awaiting the set* |
+| `key/string/surrogate/pair/high-corner` | `key-surrogate-pair-high-corner` | not applicable, [note 45](#notes) | *awaiting the set* |
 | `key/string/surrogate/pair/interior` | `key-surrogate-pair-interior` | `ser-key-surrogate-pair-interior` | *awaiting the set* |
-| `key/string/surrogate/pair/low-corner` | `key-surrogate-pair-low-corner` | not applicable, [note 45](#notes) | *awaiting the set* |
+| `key/string/surrogate/pair/low-corner` | `key-surrogate-pair-low-corner` | not applicable, [note 44](#notes) | *awaiting the set* |
 | `key/string/surrogate/pair/mixed` | `key-surrogate-pair-mixed` | `ser-key-surrogate-pair-mixed` | *awaiting the set* |
 | `leaf/boolean/false` | `false` | `ser-false` | *awaiting the set* |
 | `leaf/boolean/true` | `true` | `ser-true` | *awaiting the set* |
@@ -461,22 +461,22 @@ roles reads exactly like prose that mentions it in three.
 | `object/equals` | `object-equals` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `object/key-only` | `object-key-only` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `object/key-order/boundaries` | `object-key-order-boundaries` | `ser-object-key-order-boundaries` | *awaiting the set* |
-| `object/key-order/escaped-index` | `object-key-order-escaped-index` | not applicable, [note 25](#notes) | *awaiting the set* |
+| `object/key-order/escaped-index` | `object-key-order-escaped-index` | not applicable, [note 24](#notes) | *awaiting the set* |
 | `object/key-order/index-before-name` | `object-key-order-index-before-name` | `ser-object-key-order-index-before-name` | *awaiting the set* |
-| `object/key-order/index-first` | `object-key-order-index-first` | not applicable, [note 24](#notes) | *awaiting the set* |
+| `object/key-order/index-first` | `object-key-order-index-first` | not applicable, [note 23](#notes) | *awaiting the set* |
 | `object/key-order/names/first-occurrence` | `object-key-order-names-first-occurrence` | `ser-object-key-order-names-first-occurrence` | *awaiting the set* |
-| `object/key-order/non-index/above` | `object-key-order-non-index-above` | not applicable, [note 23](#notes) | *awaiting the set* |
-| `object/key-order/non-index/exp` | `object-key-order-non-index-exp` | not applicable, [note 23](#notes) | *awaiting the set* |
-| `object/key-order/non-index/hex` | `object-key-order-non-index-hex` | not applicable, [note 23](#notes) | *awaiting the set* |
-| `object/key-order/non-index/negative` | `object-key-order-non-index-negative` | not applicable, [note 23](#notes) | *awaiting the set* |
-| `object/key-order/non-index/negative-zero` | `object-key-order-non-index-negative-zero` | not applicable, [note 23](#notes) | *awaiting the set* |
-| `object/key-order/non-index/plus` | `object-key-order-non-index-plus` | not applicable, [note 23](#notes) | *awaiting the set* |
-| `object/key-order/non-index/space` | `object-key-order-non-index-space` | not applicable, [note 23](#notes) | *awaiting the set* |
+| `object/key-order/non-index/above` | `object-key-order-non-index-above` | `ser-object-key-order-non-index-above` | *awaiting the set* |
+| `object/key-order/non-index/exp` | `object-key-order-non-index-exp` | `ser-object-key-order-non-index-exp` | *awaiting the set* |
+| `object/key-order/non-index/hex` | `object-key-order-non-index-hex` | `ser-object-key-order-non-index-hex` | *awaiting the set* |
+| `object/key-order/non-index/negative` | `object-key-order-non-index-negative` | `ser-object-key-order-non-index-negative` | *awaiting the set* |
+| `object/key-order/non-index/negative-zero` | `object-key-order-non-index-negative-zero` | `ser-object-key-order-non-index-negative-zero` | *awaiting the set* |
+| `object/key-order/non-index/plus` | `object-key-order-non-index-plus` | `ser-object-key-order-non-index-plus` | *awaiting the set* |
+| `object/key-order/non-index/space` | `object-key-order-non-index-space` | `ser-object-key-order-non-index-space` | *awaiting the set* |
 | `object/leading-comma` | `object-leading-comma` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `object/members/every-value` | `object-members-every-value` | `ser-object-members-every-value` | *awaiting the set* |
 | `object/nested/array` | `object-nested-array` | `ser-object-nested-array` | *awaiting the set* |
-| `object/nested/deep` | `object-nested-deep` | not applicable, [note 38](#notes) | *awaiting the set* |
-| `object/nested/empty` | `object-nested-empty` | not applicable, [note 40](#notes) | *awaiting the set* |
+| `object/nested/deep` | `object-nested-deep` | not applicable, [note 37](#notes) | *awaiting the set* |
+| `object/nested/empty` | `object-nested-empty` | not applicable, [note 39](#notes) | *awaiting the set* |
 | `object/nested/object` | `object-nested-object` | `ser-object-nested-object` | *awaiting the set* |
 | `object/no-colon` | `object-no-colon` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `object/no-value` | `object-no-value` | not applicable, [note 1](#notes) | *awaiting the set* |
@@ -485,7 +485,7 @@ roles reads exactly like prose that mentions it in three.
 | `object/three` | `object-three` | `ser-object-three` | *awaiting the set* |
 | `object/trailing-comma` | `object-trailing-comma` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `object/trailing-comma/two` | `object-trailing-comma-two` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `object/two` | `object-two` | not applicable, [note 35](#notes) | *awaiting the set* |
+| `object/two` | `object-two` | not applicable, [note 34](#notes) | *awaiting the set* |
 | `object/unclosed` | `object-unclosed` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `object/unshared` | `object-unshared` | `graph-unshared-object-empty`, `graph-unshared-object-parent-empty` | *awaiting the set* |
 | `object/unshared/equal` | `object-unshared-equal` | `graph-unshared-object-non-empty`, `graph-unshared-object-parent` | *awaiting the set* |
@@ -603,13 +603,13 @@ roles reads exactly like prose that mentions it in three.
 | `string/surrogate/lone/dbff` | `string-surrogate-lone-dbff` | `ser-string-surrogate-lone-dbff` | *awaiting the set* |
 | `string/surrogate/lone/dc00` | `string-surrogate-lone-dc00` | `ser-string-surrogate-lone-dc00` | *awaiting the set* |
 | `string/surrogate/lone/dfff` | `string-surrogate-lone-dfff` | `ser-string-surrogate-lone-dfff` | *awaiting the set* |
-| `string/surrogate/lone/raw/d800` | `string-surrogate-lone-raw-d800` | not applicable, [note 41](#notes) | *awaiting the set* |
-| `string/surrogate/lone/raw/dbff` | `string-surrogate-lone-raw-dbff` | not applicable, [note 41](#notes) | *awaiting the set* |
-| `string/surrogate/lone/raw/dc00` | `string-surrogate-lone-raw-dc00` | not applicable, [note 41](#notes) | *awaiting the set* |
-| `string/surrogate/lone/raw/dfff` | `string-surrogate-lone-raw-dfff` | not applicable, [note 41](#notes) | *awaiting the set* |
-| `string/surrogate/pair/high-corner` | `string-surrogate-pair-high-corner` | not applicable, [note 44](#notes) | *awaiting the set* |
+| `string/surrogate/lone/raw/d800` | `string-surrogate-lone-raw-d800` | not applicable, [note 40](#notes) | *awaiting the set* |
+| `string/surrogate/lone/raw/dbff` | `string-surrogate-lone-raw-dbff` | not applicable, [note 40](#notes) | *awaiting the set* |
+| `string/surrogate/lone/raw/dc00` | `string-surrogate-lone-raw-dc00` | not applicable, [note 40](#notes) | *awaiting the set* |
+| `string/surrogate/lone/raw/dfff` | `string-surrogate-lone-raw-dfff` | not applicable, [note 40](#notes) | *awaiting the set* |
+| `string/surrogate/pair/high-corner` | `string-surrogate-pair-high-corner` | not applicable, [note 43](#notes) | *awaiting the set* |
 | `string/surrogate/pair/interior` | `string-surrogate-pair-interior` | `ser-string-surrogate-pair-interior` | *awaiting the set* |
-| `string/surrogate/pair/low-corner` | `string-surrogate-pair-low-corner` | not applicable, [note 43](#notes) | *awaiting the set* |
+| `string/surrogate/pair/low-corner` | `string-surrogate-pair-low-corner` | not applicable, [note 42](#notes) | *awaiting the set* |
 | `string/surrogate/pair/mixed` | `string-surrogate-pair-mixed` | `ser-string-surrogate-pair-mixed` | *awaiting the set* |
 | `value/expression/binary` | `value-binary` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `value/expression/call` | `value-call` | not applicable, [note 1](#notes) | *awaiting the set* |
@@ -726,30 +726,29 @@ stands under as many rows as it is true of.
 20. **`serializer`**, subtree `string/escape/slash` — the value is the same one the serializer set carries; only the document spelling differs
 21. **`serializer`**, subtree `key/string/escape/slash` — the value is the same one the serializer set carries; only the document spelling differs
 22. **`serializer`**, subtree `object/duplicate` — a duplicate key is a document fact and never a graph fact, so no input a serializer is handed can carry one
-23. **`serializer`**, subtree `object/key-order/non-index` — observable key order is one property and the serializer set pins it once, with an object mixing index and string keys; the rest are the reader's readings of a document
-24. **`serializer`**, subtree `object/key-order/index-first` — observable key order is one property and the serializer set pins it once, with an object mixing index and string keys; the rest are the reader's readings of a document
-25. **`serializer`**, subtree `object/key-order/escaped-index` — observable key order is one property and the serializer set pins it once, with an object mixing index and string keys; the rest are the reader's readings of a document
-26. **`serializer`**, subtree `const/reference` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
-27. **`serializer`**, subtree `const/one` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
-28. **`serializer`**, subtree `const/two` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
-29. **`serializer`**, subtree `const/value` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
-30. **`serializer`**, subtree `const/unreferenced` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
-31. **`serializer`**, subtree `const/unshared` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
-32. **`serializer`**, subtree `const/shared/leaf` — a shared leaf is invisible in a graph, since leaves compare by value and not by identity, so no input can carry one
-33. **`serializer`**, subtree `const/shared/nested` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
-34. **`serializer`**, subtree `array/two` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
-35. **`serializer`**, subtree `object/two` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
-36. **`serializer`**, subtree `array/object` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
-37. **`serializer`**, subtree `array/nested/deep` — the specification states no depth an implementation must support, so no vector can say which depth conforming means; a writer's own recursion limit is real and tracked where it belongs, in fjs/media/datajs/todo/serializer.md, and a set can spell a chain deep enough to find one, measured at 2600 consts, but a vector there would assert a refusal at a depth the specification permits, which names this writer's bug rather than anything conforming means
-38. **`serializer`**, subtree `object/nested/deep` — the specification states no depth an implementation must support, so no vector can say which depth conforming means; a writer's own recursion limit is real and tracked where it belongs, in fjs/media/datajs/todo/serializer.md, and a set can spell a chain deep enough to find one, measured at 2600 consts, but a vector there would assert a refusal at a depth the specification permits, which names this writer's bug rather than anything conforming means
-39. **`serializer`**, subtree `array/nested/empty` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
-40. **`serializer`**, subtree `object/nested/empty` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
-41. **`serializer`**, subtree `string/surrogate/lone/raw` — a lone surrogate is one value however a document spells it, and the serializer set carries all four
-42. **`serializer`**, subtree `key/string/surrogate/lone/raw` — a lone surrogate is one value however a document spells it, and the serializer set carries all four
-43. **`serializer`**, subtree `string/surrogate/pair/low-corner` — both corner values are in this set already as raw astral characters, and what a pair class adds over them is a spelling; a writer that fails to pair escapes each half, which denotes the same string, so this role cannot see the difference
-44. **`serializer`**, subtree `string/surrogate/pair/high-corner` — both corner values are in this set already as raw astral characters, and what a pair class adds over them is a spelling; a writer that fails to pair escapes each half, which denotes the same string, so this role cannot see the difference
-45. **`serializer`**, subtree `key/string/surrogate/pair/low-corner` — both corner values are in this set already as raw astral characters, and what a pair class adds over them is a spelling; a writer that fails to pair escapes each half, which denotes the same string, so this role cannot see the difference
-46. **`serializer`**, subtree `key/string/surrogate/pair/high-corner` — both corner values are in this set already as raw astral characters, and what a pair class adds over them is a spelling; a writer that fails to pair escapes each half, which denotes the same string, so this role cannot see the difference
-47. **`serializer`**, class `key/proto/value/null` — a value behind this key is written by the same emitter as any other member value, and every leaf and container shape has a vector of its own; what is particular to the key is its spelling and the sharing behind it, and both have vectors too
-48. **`serializer`**, class `key/proto/value/object` — a value behind this key is written by the same emitter as any other member value, and every leaf and container shape has a vector of its own; what is particular to the key is its spelling and the sharing behind it, and both have vectors too
-49. **`serializer`**, subtree `byte` — a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's
+23. **`serializer`**, subtree `object/key-order/index-first` — observable key order is one property and the serializer set pins it once, with an object mixing index and string keys; the rest are the reader's readings of a document
+24. **`serializer`**, subtree `object/key-order/escaped-index` — observable key order is one property and the serializer set pins it once, with an object mixing index and string keys; the rest are the reader's readings of a document
+25. **`serializer`**, subtree `const/reference` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
+26. **`serializer`**, subtree `const/one` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
+27. **`serializer`**, subtree `const/two` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
+28. **`serializer`**, subtree `const/value` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
+29. **`serializer`**, subtree `const/unreferenced` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
+30. **`serializer`**, subtree `const/unshared` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
+31. **`serializer`**, subtree `const/shared/leaf` — a shared leaf is invisible in a graph, since leaves compare by value and not by identity, so no input can carry one
+32. **`serializer`**, subtree `const/shared/nested` — a const is how a document spells sharing, not a fact about the graph, so a serializer chooses whether and how to bind; what it may not choose is hoisting a node reached twice, which the sharing vectors carry
+33. **`serializer`**, subtree `array/two` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
+34. **`serializer`**, subtree `object/two` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
+35. **`serializer`**, subtree `array/object` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
+36. **`serializer`**, subtree `array/nested/deep` — the specification states no depth an implementation must support, so no vector can say which depth conforming means; a writer's own recursion limit is real and tracked where it belongs, in fjs/media/datajs/todo/serializer.md, and a set can spell a chain deep enough to find one, measured at 2600 consts, but a vector there would assert a refusal at a depth the specification permits, which names this writer's bug rather than anything conforming means
+37. **`serializer`**, subtree `object/nested/deep` — the specification states no depth an implementation must support, so no vector can say which depth conforming means; a writer's own recursion limit is real and tracked where it belongs, in fjs/media/datajs/todo/serializer.md, and a set can spell a chain deep enough to find one, measured at 2600 consts, but a vector there would assert a refusal at a depth the specification permits, which names this writer's bug rather than anything conforming means
+38. **`serializer`**, subtree `array/nested/empty` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
+39. **`serializer`**, subtree `object/nested/empty` — the serializer set covers containers by shape rather than by element count, since a walker cannot tell two from three without telling one from two
+40. **`serializer`**, subtree `string/surrogate/lone/raw` — a lone surrogate is one value however a document spells it, and the serializer set carries all four
+41. **`serializer`**, subtree `key/string/surrogate/lone/raw` — a lone surrogate is one value however a document spells it, and the serializer set carries all four
+42. **`serializer`**, subtree `string/surrogate/pair/low-corner` — both corner values are in this set already as raw astral characters, and what a pair class adds over them is a spelling; a writer that fails to pair escapes each half, which denotes the same string, so this role cannot see the difference
+43. **`serializer`**, subtree `string/surrogate/pair/high-corner` — both corner values are in this set already as raw astral characters, and what a pair class adds over them is a spelling; a writer that fails to pair escapes each half, which denotes the same string, so this role cannot see the difference
+44. **`serializer`**, subtree `key/string/surrogate/pair/low-corner` — both corner values are in this set already as raw astral characters, and what a pair class adds over them is a spelling; a writer that fails to pair escapes each half, which denotes the same string, so this role cannot see the difference
+45. **`serializer`**, subtree `key/string/surrogate/pair/high-corner` — both corner values are in this set already as raw astral characters, and what a pair class adds over them is a spelling; a writer that fails to pair escapes each half, which denotes the same string, so this role cannot see the difference
+46. **`serializer`**, class `key/proto/value/null` — a value behind this key is written by the same emitter as any other member value, and every leaf and container shape has a vector of its own; what is particular to the key is its spelling and the sharing behind it, and both have vectors too
+47. **`serializer`**, class `key/proto/value/object` — a value behind this key is written by the same emitter as any other member value, and every leaf and container shape has a vector of its own; what is particular to the key is its spelling and the sharing behind it, and both have vectors too
+48. **`serializer`**, subtree `byte` — a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's

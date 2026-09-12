@@ -1813,12 +1813,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 165 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 175 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 12 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 155 of the 674 classes the corpus held then, with 49 scope
-      records answering the 519 cells the serializer column owed; the normalize
+      covering 162 of the 674 classes the corpus held then, with 48 scope
+      records answering the 512 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1881,9 +1881,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       writer has a limit of its own and this repository records
       `tryStringify` throwing at 2,600 nested arrays. What is true is that the
       specification states no depth an implementation must support, so no
-      vector can say which depth conforming means, and a data module cannot
-      spell a graph deep enough to find a limit; the writer's own limit is
-      tracked as the writer's bug, where it belongs.
+      vector can say which depth conforming means; the writer's own limit is
+      tracked as the writer's bug, where it belongs. The draft carried a
+      second clause, that a data module cannot spell a graph deep enough to
+      find a limit, and review measured it false: a chain of 2,600 consts in
+      the spelling the vectors README promises parses, imports at that depth,
+      and makes `tryStringify` throw. So a set *can* spell it, and what a
+      vector there would assert is a refusal at a depth the specification
+      permits.
       **One reason after that was two thirds right**, which is the harder kind
       to catch. It closed all three non-interior pair classes at once by
       calling them the reader's readings of four escapes. Measured, the two
@@ -1914,6 +1919,20 @@ The steps, in order; a step is one pull request unless it says otherwise:
       coverage above it, which sharing is not. Three vectors, and that subtree
       narrows to the two classes under it that really are ordinary value
       coverage, as it did one step up.
+      **Then the same two axes again, twice.** A negative in the first array
+      slot had one vector and it began with a number, so a writer whose
+      first-element path preserves an ordinary negative while normalizing `-0`
+      to `0` passed, and `difference` compares leaves with `Object.is`, which
+      sees that. Three vectors put the other negative leaf kinds first: the
+      negative zero, the bigint and the infinity. And the non-index key
+      subtree was closed by one reason saying the set pins observable order
+      once, with a boundary vector carrying no *signed* key at all, so a writer
+      treating a canonical signed decimal as an index moved it ahead of the
+      names and passed. Seven vectors carry the seven classes, each key paired
+      with an index one so the order is observable, and that reason is gone.
+      Both had been fixed for the normalize column in the step above, which is
+      the rule this file now states twice over and I applied to one column at a
+      time anyway.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
