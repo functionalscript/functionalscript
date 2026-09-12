@@ -63,9 +63,13 @@ where `P` is bound, which is exactly where `jsonSymbol`/`jsonAt` are used
 today (inside `mappings(policy)` and the value mapping). `_Readable` is
 the node type `unitAt`/`textAt`/`jsonAt` already take, named with the
 `_` prefix because it exists only to spell `tagged`'s declaration — a
-private type in the public declaration closure, not API — and lives in
-`json/parser`'s `private.ts`, the optional file AGENTS.md reserves for
-exactly that. Each pair is then
+private type, not API. It lives in `json/parser/types.ts`, **not**
+`private.ts`: `tagged.at` is exported and its signature names
+`_Readable`, so the type is inside the public declaration closure and
+must ship with it — `private.ts` is for types outside that closure, and
+a generated public declaration must never point at one (`fjs/AGENTS.md`,
+"the public declaration closure"). The `_` says it is not API; the file
+says it is reachable. Each pair is then
 one line naming its `M`, `id`, and field. `datajs/parser` exports its pair to
 the proof as **`_valueSymbol`** — the proof is its only cross-module
 consumer, so the export is linkage, not API, and the `_` prefix is what
