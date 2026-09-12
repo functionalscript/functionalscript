@@ -2664,30 +2664,40 @@ The steps, in order; a step is one pull request unless it says otherwise:
       frozen array all serialize as their data. So the section **stays**: it is
       true of the shipped writer, and it is the only thing that makes fourteen
       real defects errors rather than a silently wrong document.
-      **One case disagreed, and the specification was wrong rather than the
-      writer.** A `null`-prototype array is refused, with `length is a
-      non-enumerable property`, and the mechanism is exact: `Array.isArray` is
-      true of it and `instanceof Array` is not, so the writer takes the *object*
-      branch, where a `null` prototype is allowed and every own descriptor is
-      read — including the non-enumerable `length` whose exception lives in the
-      array branch this value never reaches. The only way to build one is
-      `Object.setPrototypeOf`, so it exists solely as an artifact of an API the
-      subset does not have, and `instanceof Array` is the spelling this
-      repository chose deliberately — the other two values it parts from
-      `Array.isArray` on are this one and a cross-realm array, both already
-      out of scope. The item is gone from §What may be serialized.
-      **And the corpus owes nothing, which the section now says itself.** Not
-      one of the fourteen is constructible in FunctionalScript, and that holds
-      in a *proof* as much as in a set: a `.f.mjs` cannot call
-      `Object.setPrototypeOf`, declare a class or freeze a value either, so
-      even the writer's own proof reaches these only at the level its language
-      reaches — descriptors through `_memberValue`, own names, and the graph.
-      That is why the fourteen measurements above are a scratch script rather
-      than a landed test, and why the section is a rule for hosts that can
-      build these rather than a claim this repository can check. Saying so in
-      the specification is the whole of this step: the alternative was a set of
-      vectors that cannot be written and a reader of the section left to guess
-      why none exists.
+      **One case disagreed, and the section gave up the requirement rather than
+      the writer changing.** A `null`-prototype array is refused, with `length
+      is a non-enumerable property`, and the mechanism is exact: `Array.isArray`
+      is true of it and `instanceof Array` is not, so the writer takes the
+      *object* branch, where a `null` prototype is allowed and every own
+      descriptor is read — including the non-enumerable `length` whose exception
+      lives in the array branch this value never reaches. The item is gone from
+      §What may be serialized, and nothing replaces it: whether that refusal is
+      right is left **undecided there, on purpose**, so a host-side serializer
+      may accept such an array without failing the section. The reason is that
+      the only way to build one is `Object.setPrototypeOf`, exactly as a
+      cross-realm array needs a second realm — those two values are the whole of
+      what `Array.isArray` and `instanceof Array` disagree on, and the format
+      does not spend a rule on values its own subset cannot construct. So the
+      writer keeps the spelling it chose deliberately and owes no fix.
+      **And the corpus owes nothing, which the section now says itself — on the
+      DataJS axis, not the FunctionalScript one.** A set is a *DataJS* data
+      module, and DataJS has no functions, no `Symbol`, no `Date`, and no way to
+      spell a hole, an accessor or a class, so no vector can hold any of these
+      inputs to hand a serializer. FunctionalScript is not the bound and saying
+      it was would be wrong: it adds functions, and the writer's own proof hands
+      one to `tryStringify`. A *proof* is an ordinary FunctionalScript module,
+      and nine of the fourteen reach it as real values — a function, a symbol, a
+      `Date`, a `Map`, a `Set`, a boxed number, a non-plain prototype, a symbol
+      key and a hole. Four more name a condition no FunctionalScript value
+      carries, so the proof reads them where the rule lives: descriptors through
+      `_memberValue`, own names through `_elementNames`, the graph through
+      `_link`. The last three need `Object.setPrototypeOf`, a class or
+      `Object.freeze`, which the subset does not have — which is why the
+      fourteen measurements above are a scratch script rather than a landed
+      test, and why the section is a rule a host that *can* build them answers
+      in its own tests. Saying so in the specification is the whole of this
+      step: the alternative was a set of vectors that cannot be written and a
+      reader of the section left to guess why none exists.
 - [x] **The checks the data model does not need, removed.** `difference` in
       [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
       tested its actual graph for a symbol-keyed property, an own property
