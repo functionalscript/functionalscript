@@ -1942,8 +1942,15 @@ The steps, in order; a step is one pull request unless it says otherwise:
       subtree was closed by one reason saying the set pins observable order
       once, with a boundary vector carrying no *signed* key at all, so a writer
       treating a canonical signed decimal as an index moved it ahead of the
-      names and passed. Seven vectors carry the seven classes, each key paired
-      with an index one so the order is observable, and that reason is gone.
+      names and passed. Seven vectors carry the seven classes, and the shape of
+      the input is the whole finding: review's next round showed that pairing
+      the key with a *numerically equal* index makes six of the seven blind,
+      since the misclassifying writer sorts two equal indices stably and leaves
+      the order alone. Only the negative one discriminated. Each vector now
+      carries an ordinary name, the non-index key and a real index, which pins
+      three things at once — indices before names, the key staying in the names
+      group, and insertion order within it — and every one of the seven
+      separates a correct writer from that mutant. The reason is gone.
       Both had been fixed for the normalize column in the step above, which is
       the rule this file now states twice over and I applied to one column at a
       time anyway.
