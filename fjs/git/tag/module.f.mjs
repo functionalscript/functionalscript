@@ -261,7 +261,7 @@ export const validate = oidBytes => {
         if (typeOf(typeValue) === null) { return error('unknown type') }
         const nameValue = valueAt(t, 2, 'tag')
         if (nameValue === null) { return error('no tag name') }
-        if (!isName(byteArray(nameValue))) { return error('bad tag name') }
+        if (!isName(nameValue)) { return error('bad tag name') }
         const taggerValue = valueAt(t, 3, 'tagger')
         return taggerValue !== null && readIdent(taggerValue) === null ? error('not a tagger') : ok(t)
     }

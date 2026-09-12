@@ -6,10 +6,11 @@
  * way. The rules split in two, and which one a caller wants depends on
  * whether it holds a whole ref name or a piece of one:
  *
- * - {@link isComponent} is the rule for one component, between slashes.
- * - {@link isName} is the rule for a name below a known prefix, which is
- *   every byte rule plus every component being one — `git fsck`'s reading
- *   of a tag's `tag` header, where the ref is `refs/tags/<name>`.
+ * {@link isName} is the rule for a name below a known prefix: every byte
+ * rule, plus every component between slashes being one. That is `git fsck`'s
+ * reading of a tag's `tag` header, where the ref is `refs/tags/<name>`. The
+ * per-component rule is not exported on its own, because nothing needs a
+ * component without the name around it.
  *
  * The rule for a *whole* ref name is neither of these: it adds that the
  * name has at least two components and is not `@` alone, both of which are
@@ -25,9 +26,11 @@
  * refused as a whole name: `refs/heads/@` and `refs/@/x` both pass.
  *
  * @module
+ *
+ * @import { Bytes } from '../types.ts'
  */
 
-import { ascii } from '../../ebnf/byte/module.f.mjs'
+import { ascii, byteArray } from '../../ebnf/byte/module.f.mjs'
 
 const dot = /** @type {const} */ (0x2E)
 
@@ -57,7 +60,7 @@ const holdsPair = (name, a, b) => name.some((x, i) => i !== 0 && name[i - 1] ===
  *
  * @type {(component: readonly number[]) => boolean}
  */
-export const isComponent = component =>
+const isComponent = component =>
     component.length !== 0
     && component[0] !== dot
     && !(component.length >= lock.length && lock.every((b, i) => component[component.length - lock.length + i] === b))
@@ -70,7 +73,7 @@ export const isComponent = component =>
  *
  * @type {(name: readonly number[]) => readonly (readonly number[])[]}
  */
-export const components = name => {
+const components = name => {
     const slashes = name.flatMap((b, i) => b === slash ? [i] : [])
     /** @type {readonly number[]} */
     const starts = [0, ...slashes.map(i => i + 1)]
@@ -85,6 +88,15 @@ export const components = name => {
  * space and none of `~ ^ : ? * [ \`, no `..` and no `@{`, not ending in
  * `.`, and every component between slashes one {@link isComponent} takes.
  *
+ * The name is read through {@link byteArray} first, so a caller that hands
+ * something that is no byte list panics rather than being told its value is
+ * a ref name. That is not belt and braces: `every` and `flatMap` step over
+ * a hole in a sparse array, so `new Array(1)` would satisfy every rule
+ * below without a single byte being looked at, and a value above `0xFF`
+ * satisfies them too since no rule has an upper bound. Both are a caller's
+ * bug rather than a name that is not one, and {@link byteArray} is where
+ * this repository already refuses them.
+ *
  * A name that is `@` alone passes, since the ref it names is
  * `<prefix>/@` — `refs/heads/@` and `refs/tags/@` are both names
  * `check-ref-format` accepts, and only a whole ref name of `@` is refused.
@@ -95,11 +107,15 @@ export const components = name => {
  * object. A reader refuses it too, since a name no ref takes names
  * nothing.
  *
- * @type {(name: readonly number[]) => boolean}
+ * @throws If `name` is not a list of bytes.
+ *
+ * @type {(name: Bytes) => boolean}
  */
-export const isName = name =>
-    name.every(b => b >= 0x20 && b !== del && !forbidden.includes(b))
-    && !holdsPair(name, dot, dot)
-    && !holdsPair(name, at, brace)
-    && name[name.length - 1] !== dot
-    && components(name).every(isComponent)
+export const isName = input => {
+    const name = byteArray(input)
+    return name.every(b => b >= 0x20 && b !== del && !forbidden.includes(b))
+        && !holdsPair(name, dot, dot)
+        && !holdsPair(name, at, brace)
+        && name[name.length - 1] !== dot
+        && components(name).every(isComponent)
+}
