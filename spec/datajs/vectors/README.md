@@ -17,11 +17,18 @@ Each set is `<set>/data.f.mjs`, a FunctionalScript data module written in
 the DataJS subset the specification describes: `const $n = …;` statements,
 one `export default`, string keys, JSON's values and the leaves DataJS adds.
 So the engine imports it today and the reader reads the same file as a
-document — measured, every set parses and denotes exactly the value the
-engine imports, the sharing included. **That is a rule with teeth and it was
-broken:** every set ended with a trailing comma before its `]`, which
-JavaScript takes and DataJS refuses, so no set was readable by a conforming
-reader until it was removed. A value two vectors share is one `const` — a
+document: every set parses and denotes exactly the value the engine imports,
+the sharing included. **That is a rule with teeth and it was broken:** every
+set ended with a trailing comma before its `]`, which JavaScript takes and
+DataJS refuses, so no set was readable by a conforming reader until it was
+removed. It was found by measuring the files by hand, which is no
+guarantee at all, so `npm run gen` now reads each source back, parses it with
+the reader and compares the graph with the imported value — a set that stops
+being DataJS is a red check, like a class that loses a role. The comparison is
+the half worth having: the two can only disagree where both languages accept
+the text and read it differently, a key order or a share spelled twice, which
+is the one failure a corpus a harness *reads* rather than imports cannot
+survive. A value two vectors share is one `const` — a
 non-empty array or an object, never the empty array literal, which `tsc`
 types as an evolving array when a `const` binds it and refuses every read
 of. A set carries no
