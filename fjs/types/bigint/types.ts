@@ -31,10 +31,15 @@ export type Reduce = OpReduce<bigint>
  */
 export type DemoRow = {
     readonly name: string
-    /** Milliseconds, or `null` where `note` says what happened instead. */
-    readonly ms: number | null
-    /** What happened instead of a measurement, or `null` when one was taken. */
-    readonly note: string | null
+    /**
+     * The time in milliseconds, or the reason there is not one.
+     *
+     * One field rather than two, because a row with neither — or with both —
+     * is not a thing that can happen, and a pair of nullable fields is a shape
+     * that says it could. It also left a branch nothing could reach, which
+     * `fjs/AGENTS.md` answers by restructuring rather than by excusing.
+     */
+    readonly outcome: number | string
 }
 
 /**

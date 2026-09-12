@@ -7,7 +7,7 @@
 import { demo, parseSize, stringLog2, work } from './demo.f.mjs'
 import { partialRun, run } from '../../effects/mock/module.f.mjs'
 import { runPure } from '../../effects/module.f.mjs'
-import { ok, unwrap } from '../result/module.f.mjs'
+import { error, ok, unwrap } from '../result/module.f.mjs'
 import { htmlToString } from '../../media/html/module.f.mjs'
 import {
     sum,
@@ -465,9 +465,18 @@ export const proof = {
             work(8n)(log2)
             work(8n)(stringLog2)
         },
-        // A wrong implementation is caught by the work rather than timed by it.
+        /**
+         * **A wrong implementation is caught by the work rather than timed by
+         * it**, and the work asks two questions per step, so both have to be
+         * reachable. One answer that is wrong everywhere only ever reaches the
+         * first; the second needs a candidate that is right about a power of
+         * two and wrong about the number below it. `log2(v + 1n)` is exactly
+         * that: right on `2**e`, whose successor has the same floor, and one
+         * too high on `2**e - 1`, whose successor does not.
+         */
         throw: {
-            wrongAnswer: () => { work(8n)(() => 0n) },
+            wrongAtThePowerOfTwo: () => { work(8n)(() => 0n) },
+            wrongJustBelowIt: () => { work(8n)(v => log2(v + 1n)) },
         },
         /**
          * **The measurement is an effect, and the demo absorbs its refusal.**
@@ -481,10 +490,7 @@ export const proof = {
             const [, r] = decline(null)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
             const rows = unwrap(r).rows
             assertEq(rows.length, 2)
-            for (const row of rows) {
-                assertEq(row.ms, null)
-                assertEq(row.note, 'not available here')
-            }
+            for (const row of rows) { assertEq(row.outcome, 'not available here') }
         },
         /**
          * **A row is a measurement when the runtime has a clock.** The virtual
@@ -499,9 +505,9 @@ export const proof = {
             const timed = run(handlers)
             const [, r] = timed(null)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
             const rows = unwrap(r).rows
-            assertStructurallySame(rows.map(({ name, ms, note }) => [name, ms, note]), [
-                ['log2', 7, null],
-                ['stringLog2', 7, null],
+            assertStructurallySame(rows.map(({ name, outcome }) => [name, outcome]), [
+                ['log2', 7],
+                ['stringLog2', 7],
             ])
         },
         /**
@@ -554,6 +560,33 @@ export const proof = {
                 runPure(demo.update({ ...demo.init, size: '200000' })({ kind: 'click', name: 'run' })).length,
                 0)
         },
+        /**
+         * **A candidate that throws is a row, not a failure of the demo.**
+         * `sandbox` catches what the work threw, so the runtime answers
+         * successfully with a failed inner result — the one outcome between
+         * "the page cannot measure" and "here is a time", and the only one
+         * that says the implementation is wrong rather than absent.
+         */
+        aWrongAnswerIsARow: () => {
+            const threw = run(/** @type {MemOperationMap<Sandbox, null>} */ ({
+                sandbox: f => state => [state, ok({ result: error(f), duration: 0 })],
+            }))
+            const [, r] = threw(null)(demo.update(demo.init)({ kind: 'click', name: 'run' }))
+            const rows = unwrap(r).rows
+            assertStructurallySame(rows.map(({ outcome }) => outcome),
+                ['wrong answer', 'wrong answer'])
+            // And a row with a note renders the note where its time would be.
+            const html = htmlToString(demo.view({ ...demo.init, kind: 'done', rows }))
+            assert(html.includes('wrong answer'), html)
+            assert(!html.includes('ms'), html)
+        },
+        // A refusal to measure is rendered as itself, not as an empty table.
+        aNoteIsRendered: () => {
+            const html = htmlToString(demo.view(
+                { ...demo.init, kind: 'done', note: 'a whole number, please' }))
+            assert(html.includes('a whole number, please'), html)
+            assert(!html.includes('<pre>'), html)
+        },
         // Only the named button starts a run; anything else leaves the state.
         onlyRunStarts: () => {
             assertEq(unwrap(assertNotNullish(
@@ -574,7 +607,7 @@ export const proof = {
             const done = htmlToString(demo.view({
                 kind: 'done',
                 size: '20000',
-                rows: [{ name: 'log2', ms: 1.25, note: null }],
+                rows: [{ name: 'log2', outcome: 1.25 }],
                 note: null,
             }))
             assert(done.includes('log2'), done)

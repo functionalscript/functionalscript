@@ -123,10 +123,10 @@ export const parseSize = text => {
  * @type {(name: string) => (r: Result<SandboxResult<unknown>, unknown>) => DemoRow}
  */
 const row = name => r => r[0] === 'error'
-    ? { name, ms: null, note: 'not available here' }
+    ? { name, outcome: 'not available here' }
     : r[1].result[0] === 'error'
-        ? { name, ms: null, note: 'wrong answer' }
-        : { name, ms: r[1].duration, note: null }
+        ? { name, outcome: 'wrong answer' }
+        : { name, outcome: r[1].duration }
 
 /**
  * Times every candidate, one after another.
@@ -151,8 +151,8 @@ const measure = size => foldStep(
         }))))
 
 /** @type {(row: DemoRow) => string} */
-const rowText = ({ name, ms, note }) =>
-    `${name.padEnd(12)} ${note ?? `${ms?.toFixed(1)} ms`}`
+const rowText = ({ name, outcome }) =>
+    `${name.padEnd(12)} ${typeof outcome === 'number' ? `${outcome.toFixed(1)} ms` : outcome}`
 
 /**
  * What a `Measure` produces: rows, or the reason there are none.
