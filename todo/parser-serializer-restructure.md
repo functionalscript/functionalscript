@@ -102,9 +102,11 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    module's own public surface.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
-4. **Then stages 5–7**, in order, as listed below. Stages 5a, the code-only
-   rename of the front end to `fjs/fsc`, and 5c are done; 5b waits on
-   nothing else, and stage 6 waits on stage 4.
+4. **Then stages 5–7**, in order, as listed below. Within stage 5 the
+   order is not a dependency: 5b and 5c each wait on 5a alone, and 5c
+   landed first. So stages 5a, the code-only rename of the front end to
+   `fjs/fsc`, and 5c are done; 5b waits on nothing else, and stage 6 waits
+   on stage 4.
 
 **Already done, do not redo:** stage 1a (the DataJS specification), stage 2
 (the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
