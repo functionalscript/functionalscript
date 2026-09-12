@@ -100,13 +100,13 @@ validate both authored TypeScript and JavaScript by enabling:
 }
 ```
 
-Enabling `checkJs` includes `fjs/types/bigint/benchmark.mjs`; keep it checked
-like any other authored JavaScript. Its eventual removal is independent cleanup
-and is not a prerequisite for the migration.
+Enabling `checkJs` includes the authored `.mjs` that is not FunctionalScript —
+`fjs/website/demo-runtime.mjs` and the `proof.mjs` files beside a host adapter;
+keep them checked like any other authored JavaScript.
 
 NPM must include the stage-1 runtime and declaration extensions. It is not
-necessary to special-case incidental non-public authored `.mjs` files: for
-example, packing `benchmark.mjs` is harmless because it exposes no documented
+necessary to special-case incidental non-public authored `.mjs` files: packing
+a host adapter's `proof.mjs` is harmless because it exposes no documented
 public API. Such files can be removed later when no longer useful.
 
 ### Stage-1 emission
@@ -153,7 +153,7 @@ emits nothing (`tsconfig.json` sets `noEmit: true`); while implementation
 
 The historical two-pass setup was validated by
 [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451),
-which enables `allowJs` / `checkJs`, keeps an authored `benchmark.mjs`, and
+which enables `allowJs` / `checkJs`, keeps authored `.mjs` in the tree, and
 passes the Node 26 CI `npm pack` step. A separate runtime-emission
 configuration was never needed.
 

@@ -116,7 +116,7 @@ declaration-emit round-trip check, a property the no-emit re-check keeps.)
 
 This exact `.ts` + `.mjs` configuration is already exercised by
 [PR #1451](https://github.com/functionalscript/functionalscript/pull/1451): it
-enables `allowJs` / `checkJs`, keeps `benchmark.mjs` in the repository, uses the
+enables `allowJs` / `checkJs`, keeps authored `.mjs` in the repository, uses the
 same two-pass `prepack`, and its Node 26 CI `npm pack` step succeeds.
 
 The `types.ts` convention adds one packaging question that must be proven by the
@@ -194,10 +194,10 @@ permanent for them; see
 [`../../fsc/README.md`](../../fsc/README.md) for the contract itself.
 
 Package selection does not need to distinguish every authored `.mjs` by public
-API status during this transition. Incidental authored files such as
-`fjs/types/bigint/benchmark.mjs` may be present in the archive; because they are
-not part of the documented public API, their presence does not block this task.
-They can be removed separately when no longer useful.
+API status during this transition. Incidental authored files such as a host
+adapter's `proof.mjs` may be present in the archive; because they are not part
+of the documented public API, their presence does not block this task. They can
+be removed separately when no longer useful.
 
 ### Progress
 
@@ -218,9 +218,9 @@ emission, `npm pack`, and a clean consumer.
 
 ### Tasks
 
-- [ ] Keep `fjs/types/bigint/benchmark.mjs` type-checked with the rest of authored
-      JavaScript; removing the benchmark is a separate cleanup and is not a
-      prerequisite for this task.
+- [ ] Keep the authored `.mjs` that is not FunctionalScript type-checked with
+      the rest of authored JavaScript. The benchmark this line used to name is
+      gone: it is `fjs/types/bigint/demo.f.mjs` now, and FunctionalScript.
 - [x] Enable `allowJs` and `checkJs` in the root TypeScript configuration before
       the first `.ts` / `.f.ts` implementation migration.
 - [x] Update NPM package rules to include authored `.mjs` and generated `.d.mts`.
