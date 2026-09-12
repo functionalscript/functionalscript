@@ -69,8 +69,14 @@ Three routes, and the first is the one to rule out first.
 - [x] **Look for a spelling in the subset**, and record the result either way —
       a negative result is what makes the other two routes worth their cost.
       Done, negative: the search and its result are the first route above.
-- [ ] **Decide between the schema change and the stated limitation**, which is
+- [x] **Decide between the schema change and the stated limitation**, which is
       the owner's: the first buys every shape and costs every record type.
+      Decided: **the stated limitation stands.** The schema change is not worth
+      every record type and every proof for one shape, and it would give up the
+      property that a set is an ordinary graph `tsc` checks. So the corpus says
+      what it cannot carry, the two proofs pin the shape for this repository's
+      own reader and writer, and an implementation that wants the coverage in a
+      language that can spell it writes the case itself.
 - [x] If the limitation stands, **say it in
       [`../README.md`](../README.md)** beside the sharing rule, so a harness
       author reads it with the schema rather than finding it here. Done: the
