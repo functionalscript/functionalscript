@@ -2504,6 +2504,16 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a document that parses, so every column sees it and all three sets carry
       it. Each of the four texts was predicted from the rule and then compared
       with the writer.
+      **Then the adjacency shapes in the same slots**, which the round above
+      said its free spellings covered and did not: a lone surrogate and a
+      *valid* pair are both well-formed, so nothing malformed sat in a body.
+      Review measured it. The seven adjacency classes reached only a root, so a
+      writer whose body path pairs any two adjacent surrogates turned a shared
+      array holding two high surrogates into an astral character, and here it
+      also spells the pair raw where the rule requires two escapes. All seven
+      join each const-body family and the key family, filling the six slots for
+      each shape, and all three sets take them. Every text predicted first, as
+      before.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
