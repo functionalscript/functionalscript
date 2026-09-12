@@ -1793,8 +1793,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `['class', c]` for one cell, `['subtree', p]` for every class under a
       prefix by path segment, and `['set', s]` for every class no set but
       that one carries. The last is the widest and the most exact, since no
-      class is carried by two sets — measured, 344 accept-only, 334
-      reject-only, none in both — so one reason covers every reject class by
+      class is carried by two sets — measured, the accept and reject sets
+      share no class at all, which is the part the argument needs; their sizes
+      move with every round and are in the matrix summary — so one reason
+      covers every reject class by
       construction rather than by inspection. A prototype answered all of them
       with 28 records; the step below lands the real set, and its own paragraph
       carries the count — quoted there from the matrix summary, and not
