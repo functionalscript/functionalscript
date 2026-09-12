@@ -258,5 +258,6 @@ export default [
     {"id": "norm-const-every-value-array", "class": "const/shared/twice", "input": [$n33, $n33], "text": "const $0=[null,true,false,undefined,NaN,Infinity,-Infinity,0,-0,9,-9,1.5,100,1n,-1n,\"\",\"a\",\"\u2028\",\"\\ud800\",\"\\u0000\",[],{},1];export default [$0,$0];"},
     {"id": "norm-const-every-value-object", "class": "const/shared/object", "input": [$n34, $n34], "text": "const $0={\"a\":null,\"b\":true,\"c\":false,\"d\":undefined,\"e\":NaN,\"f\":Infinity,\"g\":-Infinity,\"h\":0,\"i\":-0,\"j\":9,\"k\":-9,\"l\":1.5,\"m\":100,\"n\":1n,\"o\":-1n,\"p\":\"\",\"q\":\"a\",\"r\":\"\u2028\",\"s\":\"\\ud800\",\"t\":\"\\u0000\",\"u\":[],\"v\":{},\"w\":1};export default [$0,$0];"},
     {"id": "norm-string-surrogate-pair-mixed", "class": "string/surrogate/pair/mixed", "input": "\ud800\udfff", "text": "export default \"\ud800\udfff\";"},
-    {"id": "norm-key-surrogate-pair-mixed", "class": "key/string/surrogate/pair/mixed", "input": {"\ud800\udfff": 0}, "text": "export default {\"\ud800\udfff\":0};"}
+    {"id": "norm-key-surrogate-pair-mixed", "class": "key/string/surrogate/pair/mixed", "input": {"\ud800\udfff": 0}, "text": "export default {\"\ud800\udfff\":0};"},
+    {"id": "norm-array-elements-negative-first", "class": "array/elements/negative-first", "input": [-1, -1n, -Infinity], "text": "export default [-1,-1n,-Infinity];"}
 ];
