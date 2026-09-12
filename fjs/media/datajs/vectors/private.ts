@@ -9,16 +9,8 @@
 import type { Primitive, Unknown } from '../types.ts'
 import type { TreeArray, TreeObject } from '../../json/types.ts'
 
-/** One comparison still to make: where it is, and the two values, or the expected one where the actual is a hole. */
-export type _Task =
-    | readonly [path: string, expected: Unknown, actual: Unknown]
-    | readonly [path: string, expected: Unknown, actual: undefined, mark: _Mark]
-
-/** What stands where a member's value would, when the actual has no value there to read. */
-export type _Mark = 'hole' | 'accessor'
-
-/** An own member of an actual container: its value, or what stands in place of one. */
-export type _Member = readonly ['value', Unknown] | readonly [_Mark]
+/** One comparison still to make: where it is, and the two values. */
+export type _Task = readonly [path: string, expected: Unknown, actual: Unknown]
 
 /** A container of the data model: what a task holds once both values are known to be objects. */
 export type _Container = TreeObject<Primitive> | TreeArray<Primitive>

@@ -9,8 +9,23 @@
  * equality: where the expected graph reaches one node twice the actual must
  * too, and where it reaches two distinct nodes the actual may not merge them.
  * Leaves compare by `Object.is`, so that `-0` and `0` differ and `NaN` is
- * itself; an object is a plain one, under `Object.prototype` or `null`, and
- * its members compare in observable order.
+ * itself, and an object's members compare in observable order.
+ *
+ * What it does *not* do is guard against values it cannot be handed. Every
+ * implementation that produces a DataJS graph is written in FunctionalScript,
+ * which has no mutation, no classes, no `Symbol` and none of
+ * `Object.defineProperty`, `Object.assign`, `Object.setPrototypeOf` or
+ * `Object.freeze`. So a symbol-keyed property, an own property outside the
+ * members, an accessor and a prototype other than the two a container is
+ * built with are not conditions a broken implementation can reach — they are
+ * conditions nothing in the language can spell, and checking for them read as
+ * rigour while being dead code.
+ *
+ * A hole is on that list too, and it took two passes. An array literal cannot
+ * spell one, `new Array(n)` is not FunctionalScript, and `delete` and a
+ * `length` assignment are mutation; `concat`, `slice` and `map` propagate a
+ * hole but cannot originate one. So no reader can return a sparse array, and
+ * elements are read by index.
  *
  * The walk is over an explicit stack, so a graph nested as deep as a vector
  * allows costs no call stack.
@@ -22,48 +37,10 @@
  *
  * @import { TreeArray } from '../../json/types.ts'
  * @import { Primitive, Unknown } from '../types.ts'
- * @import { _Container, _Member, _Pair, _Stack, _State, _Task } from './private.ts'
+ * @import { _Container, _Pair, _Stack, _State, _Task } from './private.ts'
  */
 
-const { is, keys, hasOwn, getPrototypeOf, getOwnPropertyDescriptor, getOwnPropertyNames, getOwnPropertySymbols, prototype: objectPrototype } = Object
-
-/**
- * An own member of an actual container, read without running anything: its
- * value where it is a data property, and otherwise what stands in its place
- * — a hole, which no expected graph has, or an accessor, which is outside
- * the data model because reading a getter is an effect. The descriptor is
- * how the accessor is seen at all: `actual[key]` would run the getter while
- * asking whether it should have been there.
- *
- * @type {(actual: object, key: string | number) => _Member}
- */
-const member = (actual, key) => {
-    const d = getOwnPropertyDescriptor(actual, key)
-    return d === undefined ? ['hole'] : hasOwn(d, 'value') ? ['value', d.value] : ['accessor']
-}
-
-/**
- * The difference an own property outside the data model makes, or `null`.
- * What a container holds is its data: an array's elements, an object's
- * members, and nothing else — so a symbol key, and a name the expected
- * graph does not have, are differences of the container rather than of
- * anything under it. An array's `length` is the one exception the spec
- * names: it is on every array, it is not a member, and the element list
- * carries it.
- *
- * @type {(path: string, expected: _Container, actual: _Container) => string | null}
- */
-const outsideTheModel = (path, expected, actual) => {
-    if (getOwnPropertySymbols(actual).length !== 0) {
-        return at(path, 'expected data members only, got a symbol-keyed property')
-    }
-    for (const name of getOwnPropertyNames(actual)) {
-        if (!(isArray(actual) && name === 'length') && !hasOwn(expected, name)) {
-            return at(path, `expected data members only, got the own property ${JSON.stringify(name)}`)
-        }
-    }
-    return null
-}
+const { is, keys } = Object
 
 /** The value of a lowercase hex digit, or `-1` for any other code unit. @type {(unit: number) => number} */
 const hexDigit = unit =>
@@ -99,11 +76,9 @@ export const bytes = hex =>
         ? Array.from({ length: (hex.length + 1) / 3 }, (_, i) => hexDigit(hex.charCodeAt(i * 3)) * 16 + hexDigit(hex.charCodeAt(i * 3 + 1)))
         : null
 
-// by the data model's boundary, not the prototype chain: an array under a
-// `null` prototype is an array whose prototype is outside the model; and
 // typed over the model's own arrays, which are read-only, so that the
 // other branch narrows to the object
-const isArray = /** @type {(value: Unknown) => value is TreeArray<Primitive>} */ (Array.isArray)
+const isArray = /** @type {(value: Unknown) => value is TreeArray<Primitive>} */ (value => value instanceof Array)
 
 /**
  * Whether a value is a `Document` as the schema has one: a string, or the
@@ -161,29 +136,13 @@ const children = (stack, path, expected, actual) => {
         if (expected.length !== actual.length) {
             return at(path, `expected ${expected.length} elements, got ${actual.length}`)
         }
-        const outside = outsideTheModel(path, expected, actual)
-        if (outside !== null) { return outside }
-        // an expected graph has no holes and no accessors, so either in the
-        // actual is a difference of its own — `[undefined]` is not
-        // `new Array(1)` — and it is reported where the walk reaches it,
-        // after the elements before
         let result = stack
         for (let i = expected.length - 1; i >= 0; i -= 1) {
-            const elementPath = `${path}[${i}]`
-            const m = member(actual, i)
-            result = {
-                top: m[0] === 'value' ? [elementPath, expected[i], m[1]] : [elementPath, expected[i], undefined, m[0]],
-                rest: result,
-            }
+            result = { top: [`${path}[${i}]`, expected[i], actual[i]], rest: result }
         }
         return result
     }
     if (isArray(actual)) { return at(path, `expected an object, got ${show(actual)}`) }
-    // an object of the data model is a plain one, under `Object.prototype`
-    // or `null`, the two a reader may build it with; a `Date`, a `Map` or a
-    // boxed number has no members to compare and is not data
-    const proto = getPrototypeOf(actual)
-    if (proto !== objectPrototype && proto !== null) { return at(path, 'expected an object, got a non-plain object') }
     const expectedKeys = keys(expected)
     const actualKeys = keys(actual)
     if (expectedKeys.length !== actualKeys.length) {
@@ -196,35 +155,22 @@ const children = (stack, path, expected, actual) => {
             return at(path, `expected member ${i} to be ${JSON.stringify(expectedKeys[i])}, got ${JSON.stringify(actualKeys[i])}`)
         }
     }
-    const outside = outsideTheModel(path, expected, actual)
-    if (outside !== null) { return outside }
     let result = stack
     for (let i = expectedKeys.length - 1; i >= 0; i -= 1) {
         const key = expectedKeys[i]
-        const m = member(actual, key)
-        result = {
-            top: m[0] === 'value'
-                ? [`${path}[${JSON.stringify(key)}]`, expected[key], m[1]]
-                : [`${path}[${JSON.stringify(key)}]`, expected[key], undefined, m[0]],
-            rest: result,
-        }
+        result = { top: [`${path}[${JSON.stringify(key)}]`, expected[key], actual[key]], rest: result }
     }
     return result
 }
 
 /**
- * One comparison: a hole or an accessor in the actual, a difference
- * whatever is expected;
- * a leaf by `Object.is`; a container by the bijection so far, and, when it
- * is new, by its children.
+ * One comparison: a leaf by `Object.is`; a container by the bijection so
+ * far, and, when it is new, by its children.
  *
  * @type {(state: _State, task: _Task) => _State | string}
  */
 const compare = ([stack, pairs], task) => {
-    const [path, expected, actual, mark] = task
-    if (mark !== undefined) {
-        return at(path, `expected ${show(expected)}, got ${mark === 'hole' ? 'a hole' : 'an accessor'}`)
-    }
+    const [path, expected, actual] = task
     if (typeof expected !== 'object' || expected === null) {
         return is(expected, actual) ? [stack, pairs] : at(path, `expected ${show(expected)}, got ${show(actual)}`)
     }
