@@ -29,8 +29,9 @@ any function selects it.
 This is not a fault in one function. It follows from the module reading `\`
 as a separator everywhere — unconditionally in `toPosix` for the five, and by
 its own list of separators in `under` — and it is the same shape as the
-bare-drive ambiguity the module already records: a single string does not say which host wrote it,
-and `C:` names two different directories for the same reason `a\` does.
+bare-drive ambiguity the module already records: a single string does not say
+which host wrote it, and `C:` names two different directories for the same
+reason `a\` does.
 
 ### Why it is recorded and not fixed
 
