@@ -151,12 +151,26 @@ const mathLog2 = v => {
 const mLog2 = Math.log2
 
 /**
- * The one that won: this is the algorithm `module.f.mjs` ships as `log2`,
- * under its working name.
+ * The one that won, almost: `module.f.mjs`'s `log2` is this algorithm plus one
+ * guard.
  *
- * **Kept in the comparison precisely because it is a duplicate.** Two rows
- * that agree to the millisecond are the page's evidence that the timings mean
- * something — a measurement no one can reproduce twice is not a measurement.
+ * **Kept in the comparison because it is a near-duplicate.** Two rows running
+ * the same instructions are the page's evidence that its timings mean
+ * anything — a measurement nothing reproduces is not a measurement — and they
+ * do land together, at about 19 ms and 17 ms in Chrome.
+ *
+ * **The guard is `if (v <= 0n) { return -1n }`, and it is load-bearing.** For
+ * every positive input the two agree exactly, including across the `2**1024`
+ * boundary where the `isFinite` branch lives. Below that they part: `0n` gives
+ * `1023n` here against `log2`'s `-1n`, and a negative input **never returns**,
+ * because `-1n >> j` is `-1n` at any shift, so the doubling loop has no zero
+ * to find.
+ *
+ * That is worse than a wrong answer and the one failure this page could not
+ * absorb: {@link work} turns a wrong answer into a row because the candidate
+ * *throws*, and `sandbox` catches throws. It cannot catch a loop. What keeps
+ * this safe is that `work` never passes anything below `1n` — which is why
+ * that is stated there as an invariant rather than left as an accident.
  *
  * @type {(v: bigint) => bigint}
  */
@@ -194,6 +208,11 @@ const ylog2 = n => {
  *
  * **Each answer is checked, so a fast wrong implementation cannot win.** A
  * benchmark that only measures is a benchmark that rewards returning nothing.
+ *
+ * **Never below `1n`**, and that is an invariant, not an incident: `e` stops
+ * at `1`, so the smallest input any candidate sees is `1n`. {@link ylog2} does
+ * not terminate on a negative, and no `sandbox` can catch a loop the way it
+ * catches a throw — so widening this range is not a small change.
  *
  * The size is the demo's, not the original page's, and the comparison survives
  * the change: every candidate's cost grows with the same input, so shrinking
