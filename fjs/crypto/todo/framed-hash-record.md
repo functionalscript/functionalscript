@@ -36,17 +36,31 @@ instances of that fold in the tree.
 Export three names from `fjs/crypto/sha2/module.f.mjs` beside `framing`:
 
 ```ts
-/** The `Hash` record over a framing and its initial words: the one place the rounding contract lives. */
-export const framed: <H>(f: { append, end, chunkLength }, hash: H, hashLength: bigint) => Hash<…>
-/** The bigint the words spell, most significant first, each `wordLength` bits wide. */
+import type { FramingInit, Framed, Hash } from './types.ts'
+/**
+ * The `Hash` over a framing and its initial words — the one place the
+ * `hashBytes`/`blockBytes` rounding and the `{ hash, len: 0n, remainder: empty }`
+ * initial state are spelled. `H` is the hash value's shape (`V8`, `V5`).
+ */
+export const framed: <H>(init: FramingInit<H>, hash: H, hashLength: bigint) => Hash<Framed<H>>
+/** The bigint the words spell, most significant first, each `wordLength` bits wide; `[]` is `0n`. */
 export const fromWords: (wordLength: bigint) => (words: readonly bigint[]) => bigint
+export const ch: (x: bigint, y: bigint, z: bigint) => bigint
+export const maj: (x: bigint, y: bigint, z: bigint) => bigint
 ```
 
-plus `ch` and `maj` under the names they already have. `framed` is the
-private `sha2` factory generalized over the word vector; `fromWords` is
-what `fromV8` and `fromV5` both are, with the width as a parameter, so
+`framed` takes the same `FramingInit<H>` that `framing` takes — so the
+`append`/`end` it builds are `Framing<H>`'s, tied to the same `H` as
+`hash`, and the state it returns is `Framed<H>` — plus the initial words
+and the `hashLength` that `end` is closed over; `blockLength` is
+`init.chunkLength`. Its `R` is the default `Vec`. It is the private
+`sha2` factory with `framing(init)` folded in and `V8` generalized to
+`H`; `sha2`'s `base` then calls `framed` per variant instead of holding a
+`Base` record (the `Base` type goes with it). `fromWords` is what
+`fromV8` and `fromV5` both are, with the width as a parameter, so
 `sha2`'s `fromV8` becomes `fromWords(bitLength)` and `sha1`'s `fromV5`
-becomes `fromWords(wordLength)`.
+becomes `fromWords(wordLength)`. `ch`/`maj` keep their three-argument
+shape; `sha1` imports them instead of restating them over `b, c, d`.
 
 `fromWords` is **total**: the fold is seeded with `0n`, so
 `fromWords(w)([])` is `0n` — the number an empty run of words spells, and
@@ -57,9 +71,11 @@ the fixed-length `V8`/`V5` tuples), so no live path changes; the seeded
 form is chosen because a public function over `readonly bigint[]` must
 answer for every value of that type, and `0n` is the answer that needs no
 special case. The proof pins `fromWords(32n)([]) === 0n` alongside the
-`V5`/`V8` rows. `sha1` then builds its record by calling
-`framed` instead of writing the literal, importing all four from `sha2`
-as it already imports `framing`.
+`V5`/`V8` rows. `sha1` then builds its record as
+`framed({ chunkLength, lengthLength, digestLength: hashLength, compress,
+digest: fromWords(wordLength) }, [0x67452301n, …], hashLength)` instead
+of writing the literal, importing all four from `sha2` in place of
+`framing`.
 
 ### Tasks
 

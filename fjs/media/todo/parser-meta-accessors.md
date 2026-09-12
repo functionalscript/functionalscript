@@ -38,12 +38,31 @@ publishes — and delete `datajs/parser`'s copy. For the tagged pair, one
 small helper **in the same module**, exported beside `textAt`:
 
 ```ts
-export const tagged: <Id extends string, K extends string>(id: Id, key: K)
-    => { symbol: (payload) => Meta, at: (node) => payload }
+import type { Meta } from '../../../ebnf/ast/types.ts'
+import type { Utf16 } from '../../../ebnf/utf16/types.ts'
+/** A node a reader may be handed: a symbol of either alphabet, or a subtree. */
+type Readable = Meta<Utf16 | { readonly id: string }> | readonly unknown[]
+/**
+ * A tagged output symbol over the metadata type `M` and its one payload
+ * field `K`: `symbol` builds `{ symbol: 0, meta: { id, [key]: payload } }`,
+ * `at` reads the payload back, asserting `meta.id === id`.
+ */
+export const tagged: <M extends { readonly id: string }, K extends Exclude<keyof M, 'id'>>(id: M['id'], key: K) => {
+    readonly symbol: (payload: M[K]) => Meta<M>
+    readonly at: (node: Readable) => M[K]
+}
 ```
 
-so `jsonSymbol`/`jsonAt` and `valueSymbol`/`nodeAt` each become one line
-naming their `id` and payload field. `datajs/parser` exports its pair to
+`M` is one of the existing metadata types, so the payload type is fixed
+by the declaration it already has: `tagged<Text, 'value'>('text',
+'value')` gives `text`/`textAt`, and `tagged<Value, 'node'>('value',
+'node')` gives `datajs`'s pair. The JSON pair is generic in the numeric
+policy, so it is a thunk over `P` — `/** @type {<P>() => …} */ const
+json = () => tagged<Json<P>, 'result'>('json', 'result')` — instantiated
+where `P` is bound, which is exactly where `jsonSymbol`/`jsonAt` are used
+today (inside `mappings(policy)` and the value mapping). `Readable` is
+the node type `unitAt`/`textAt`/`jsonAt` already take. Each pair is then
+one line naming its `M`, `id`, and field. `datajs/parser` exports its pair to
 the proof as **`_valueSymbol`** — the proof is its only cross-module
 consumer, so the export is linkage, not API, and the `_` prefix is what
 says so (`fjs/AGENTS.md`, "exportability is linkage, not API status");

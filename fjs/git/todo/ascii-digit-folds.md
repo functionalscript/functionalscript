@@ -64,9 +64,9 @@ input the function refuses. Both consumers here are `8n` and `10n`.
 is `null` and `isCanonicalDigits([])` is `false`. An empty list spells no
 number, and a public function that answered `0n` for it would be handing
 out a plausible wrong value ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
-The open-coded copies happen to answer the other way (an unseeded
-`reduce` throws; `[][0] !== 0x30` is `true`), which is one more reason to
-name the rule: today's callers reach the folds only with non-empty input
+The open-coded copies answer the other way — each fold is seeded with
+`0`/`0n`, so an empty run reads as zero, and `[][0] !== 0x30` is `true`,
+so it reads as canonical — which is one more reason to name the rule: today's callers reach the folds only with non-empty input
 (`object`'s digits come from the grammar, `tree`'s `isMode` checks the
 length first), and the PR confirms each remaining caller is non-empty by
 construction or takes the new refusal explicitly.
