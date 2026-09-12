@@ -18,6 +18,14 @@
  * because nothing in this repository reads a whole ref name yet;
  * [`todo/refs.md`](../todo/refs.md) is the step that will.
  *
+ * The name is materialised to be read, which costs eight bytes of heap per
+ * byte of name and is avoidable rather than merely shrinkable: every rule
+ * below is decidable in one forward pass with an accumulator of fixed size.
+ * [`todo/one-pass-name-check.md`](./todo/one-pass-name-check.md) has the
+ * measurements, and why neither a packed vector nor a hex string is the fix —
+ * a bit vector caps at 128 KiB and so cannot carry a payload of arbitrary
+ * size at all.
+ *
  * Measured against Git 2.43.0 rather than read off the manual page, since
  * two of the rules are not where a reader would guess. `.lock` is refused
  * at the end of *any* component, so `refs/a.lock/b` is refused; a trailing
