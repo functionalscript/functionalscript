@@ -944,9 +944,10 @@ The five parts:
     the trap. Its rule is general and correct: whitespace is exactly JSON's
     four characters, so **every other character JavaScript treats as
     whitespace or a line terminator** is rejected. The section used to name
-    six of them after a colon as illustrations; measured against ECMAScript
-    the real set is 21, the colon list having omitted every `Space_Separator`
-    character but U+00A0, and the list is now deleted rather than corrected —
+    six of them after a colon, in normative text, so a reader could take the
+    six for the set whatever they were meant as; measured against ECMAScript
+    the real set is 21, that list having omitted every `Space_Separator`
+    character but U+00A0, and it is now deleted rather than corrected —
     §Whitespace enumerates what it accepts and nothing else. Derive the 21
     from the rule; there is no list to copy and there was never a set to copy
     from. §Whitespace
