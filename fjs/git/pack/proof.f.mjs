@@ -62,6 +62,15 @@ const header = (code, size) => {
     return [code * 16 + size % 16 + (tail.length === 0 ? 0 : 128), ...tail]
 }
 
+/**
+ * A number as the little-endian 7-bit varint a delta header spells its two
+ * sizes with: the low seven bits first, and the high bit set on every byte but
+ * the last.
+ *
+ * @type {(v: number) => readonly number[]}
+ */
+const littleVarint = v => v < 128 ? [v] : [v % 128 + 128, ...littleVarint(Math.floor(v / 128))]
+
 export const proof = {
     // The header of a pack Git 2.43.0 wrote.
     header: () => {
@@ -220,6 +229,26 @@ export const proof = {
         // and the one that works, so the refusals above are each about their
         // own fault
         assertStructurallySame(tryApplyDelta(base, d([0x90, 4])), [1, 2, 3, 4])
+    },
+    // The instruction count is the pack's to choose, so it cannot be the call
+    // stack's depth. One frame per instruction died at 5,000 on node 22 with
+    // `RangeError: Maximum call stack size exceeded` where 3,000 answered, and
+    // a delta of 5,000 one-byte inserts is a few kilobytes of pack, since such
+    // a stream compresses to almost nothing. Ten thousand here, which is past
+    // that edge and still quick.
+    deltaManyInstructions: () => {
+        const n = 10000
+        const delta = [
+            // the two header sizes: the base's one byte, and this delta's `n`
+            ...littleVarint(1),
+            ...littleVarint(n),
+            // `n` inserts of one byte each
+            ...Array.from({ length: n }, () => [1, 0x41]).flat(),
+        ]
+        const out = tryApplyDelta([0], delta)
+        assert(out !== null)
+        assertEq(out.length, n)
+        assert(out.every(v => v === 0x41))
     },
     throw: {
         // Bytes that are no bytes, the same refusal every reader here makes.

@@ -38,6 +38,7 @@
  *
  * @module
  *
+ * @import { List } from '../../types/list/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Bytes, ObjectType, Oid, OidBytes } from '../types.ts'
  * @import { Entry, PackHeader } from './types.ts'
@@ -45,6 +46,7 @@
 
 import { byteArray } from '../../ebnf/byte/module.f.mjs'
 import { msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { concat, flat, toArray } from '../../types/list/module.f.mjs'
 
 const toVec = u8ListToVec(msb)
 
@@ -56,10 +58,10 @@ const signature = /** @type {const} */ ([0x50, 0x41, 0x43, 0x4B])
  * change that never shipped in a pack Git writes, so it is refused rather
  * than read as 2 would be.
  */
-const version2 = 2
+const version2 = /** @type {const} */ (2)
 
 /** How long a pack's header is: the signature, the version, the count. */
-const headerBytes = 12
+const headerBytes = /** @type {const} */ (12)
 
 /** @type {(b: readonly number[], at: number) => number} */
 const u32 = (b, at) => b[at] * 16777216 + b[at + 1] * 65536 + b[at + 2] * 256 + b[at + 3]
@@ -176,7 +178,7 @@ export const tryEntry = oidBytes => input => {
  * How long a copy of size zero is. The format spells 65536 by leaving every
  * size byte out, which is the one number it encodes by absence.
  */
-const wholeCopy = 65536
+const wholeCopy = /** @type {const} */ (65536)
 
 /**
  * A little-endian value from the bytes a bit mask selects, and where it ends.
@@ -204,29 +206,51 @@ const selected = (b, at, mask, count, k, value) => {
  *
  * The pieces are collected and joined once by the caller rather than appended
  * to a growing array, which would copy what is already there for every
- * instruction and so cost the square of the object's length.
+ * instruction and so cost the square of the object's length. They are a
+ * {@link List} and not an array for the same reason one step down: `concat`
+ * copies nothing, where a fresh array per instruction would copy every piece
+ * named so far and make the *count* of instructions quadratic even though the
+ * bytes are only sliced.
  *
- * Everything it needs is a parameter, so it recurses on itself: `d` is the
- * delta, `src` the base, and `found` what has been named so far.
+ * **A loop and not a recursion, because the instruction count is the input's.**
+ * One frame per instruction is one frame an untrusted pack chooses: measured on
+ * node 22, a delta of 5,000 one-byte inserts — a few kilobytes of pack, since
+ * such a stream compresses to almost nothing — died with
+ * `RangeError: Maximum call stack size exceeded`, where 3,000 answered. That is
+ * the shape [`fjs/effects`](../../effects/module.f.mjs)' `_walkLoop` removes
+ * for a walk, and the same answer applies here: depth is constant in the
+ * instruction count, and the only bound left is the target size the header
+ * declares. A limit of this module's own would be a number Git does not have.
  *
- * @type {(d: readonly number[], src: readonly number[], at: number, pieces: readonly (readonly number[])[]) => Nullable<readonly (readonly number[])[]>}
+ * Everything it needs is a parameter, so this closes over nothing: `d` is the
+ * delta and `src` the base.
+ *
+ * @type {(d: readonly number[], src: readonly number[], at: number) => Nullable<List<readonly number[]>>}
  */
-const deltaPieces = (d, src, at, found) => {
-    if (at === d.length) { return found }
-    const c = d[at]
-    if (c < 128) {
-        // an insert of nothing is written by no encoder, and a stream of them
-        // would make no progress
-        if (c === 0 || at + 1 + c > d.length) { return null }
-        return deltaPieces(d, src, at + 1 + c, [...found, d.slice(at + 1, at + 1 + c)])
+const deltaPieces = (d, src, at) => {
+    /** @type {List<readonly number[]>} */
+    let found = null
+    let i = at
+    while (true) {
+        if (i === d.length) { return found }
+        const c = d[i]
+        if (c < 128) {
+            // an insert of nothing is written by no encoder, and a stream of
+            // them would make no progress
+            if (c === 0 || i + 1 + c > d.length) { return null }
+            found = concat(found)([d.slice(i + 1, i + 1 + c)])
+            i += 1 + c
+            continue
+        }
+        const offset = selected(d, i + 1, c, 4, 0, 0)
+        if (offset === null) { return null }
+        const size = selected(d, offset[1], Math.floor(c / 16), 3, 0, 0)
+        if (size === null) { return null }
+        const length = size[0] === 0 ? wholeCopy : size[0]
+        if (offset[0] + length > src.length) { return null }
+        found = concat(found)([src.slice(offset[0], offset[0] + length)])
+        i = size[1]
     }
-    const offset = selected(d, at + 1, c, 4, 0, 0)
-    if (offset === null) { return null }
-    const size = selected(d, offset[1], Math.floor(c / 16), 3, 0, 0)
-    if (size === null) { return null }
-    const length = size[0] === 0 ? wholeCopy : size[0]
-    if (offset[0] + length > src.length) { return null }
-    return deltaPieces(d, src, size[1], [...found, src.slice(offset[0], offset[0] + length)])
 }
 
 /**
@@ -254,8 +278,8 @@ export const tryApplyDelta = (base, delta) => {
     const targetSize = littleVarint(d, sourceSize[1], 0, 1)
     if (targetSize === null) { return null }
     const [want, start] = targetSize
-    const named = deltaPieces(d, src, start, [])
+    const named = deltaPieces(d, src, start)
     if (named === null) { return null }
-    const out = named.flat()
+    const out = toArray(flat(named))
     return out.length === want ? out : null
 }
