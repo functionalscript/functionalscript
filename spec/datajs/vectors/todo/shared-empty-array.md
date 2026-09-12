@@ -3,8 +3,14 @@
 **Priority:** P2 — one graph shape no consumer of the corpus can be tested on.
 Nothing is wrong with any vector that exists, and this repository's own writer is
 covered, which is why it is not P1.
-**Status:** open — the limitation is measured and stated below; the fix is a
-carrier or schema change and needs a decision first.
+**Status:** decided, and kept as the record — **the stated limitation
+stands.** The schema change below was weighed and refused: it is not worth every
+record type and every proof for one shape, and it would give up the property
+that a set is an ordinary graph `tsc` checks. Nothing here is waiting on anyone.
+The file stays because the gap it describes does: a reader who notices the
+missing vector should find this, not re-derive it, and whoever revisits the
+carrier should find the search that came back negative and the route that was
+refused rather than repeat either.
 
 ### Problem
 
