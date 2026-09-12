@@ -456,11 +456,18 @@ const underTest = [
     },
     // The property behind all of those, stated as the property rather than
     // as a spelling: a name joined below a directory stays under the same
-    // root the directory has.
+    // root the directory has. The empty directory is in the list because it
+    // has no root and the name below it must not gain one.
     () => {
-        for (const dir of ['/', '//', '///', '\\', '\\\\', 'C:/', 'a', 'a/', 'a\\']) {
+        for (const dir of ['/', '//', '///', '\\', '\\\\', 'C:/', 'a', 'a/', 'a\\', '', 'ZZ:']) {
             assertEq(root(under(dir, 'config')), root(dir))
         }
+    },
+    // Two colons that are not a drive: only a single drive letter makes one,
+    // so these are ordinary names and join as ordinary names do.
+    () => {
+        assertEq(under('ZZ:', 'c'), 'ZZ:/c')
+        assertEq(under('C:x', 'c'), 'C:x/c')
     },
     // What `join` would have answered for the same three, which is the
     // fault this exists to avoid: another separator, and so another root.
@@ -475,4 +482,15 @@ const underTest = [
     },
 ]
 
-export const proof = { normalizeTest, escapesTest, rootTest, parseTest, concatTest, joinTest, underTest, relativizeTest, toPosixTest, isProperPrefixTest }
+const underThrowTest = {
+    // A bare drive is no directory to join below: `C:name` and `C:/name` are
+    // each right on one host, so answering either is a plausible path to the
+    // wrong directory. `C:/name` is also what `join` would give, and it moves
+    // the root from none to `C:/` — the move this function exists to prevent.
+    throw: {
+        bareDrive: () => under('C:', 'config'),
+        bareDriveLower: () => under('c:', 'config'),
+    },
+}
+
+export const proof = { normalizeTest, escapesTest, rootTest, parseTest, concatTest, joinTest, underTest, underThrowTest, relativizeTest, toPosixTest, isProperPrefixTest }

@@ -13,6 +13,7 @@
  * @import { List } from '../types/list/types.ts'
  */
 
+import { assert } from '../asserts/module.f.mjs'
 import { fold, last, take, length, concat as listConcat, toArray } from '../types/list/module.f.mjs'
 import { join as listJoin, concat as stringConcat } from '../types/string/module.f.mjs'
 
@@ -244,19 +245,31 @@ const endsInSeparator = dir => {
  * [`todo/posix-backslash-names.md`](./todo/posix-backslash-names.md) has the
  * measurements and why a host is an argument rather than a guess.
  *
- * A bare drive is not handled, because it cannot be: `C:` names the current
- * directory on drive C to Windows and a directory called `C:` to POSIX, so
- * `C:name` and `C:/name` are each right on one host. A caller that can be
- * handed one refuses it rather than picking a host, as `fjs/git/repo`'s
- * `tryCommonDir` does.
+ * A bare drive is refused, because it cannot be joined below: `C:` is the
+ * current directory on drive C to Windows and a directory called `C:` to
+ * POSIX, so `C:name` and `C:/name` are each right on one host and this
+ * reads a string. Answering either is a plausible path to the wrong
+ * directory, and `join`'s answer of `C:/name` is the one this module is
+ * least entitled to, since it takes the POSIX reading in a module that
+ * spells separators the Windows way everywhere else. It also moves the
+ * root, from none to `C:/`, which is the very thing this function exists to
+ * prevent.
+ *
+ * So a caller holding one resolves it before joining, which is what
+ * `fjs/git/repo`'s `tryCommonDir` does: it refuses such a worktree, and
+ * refuses a `gitdir:` line that joins to one.
  *
  * Use this wherever the directory comes from outside; use {@link join} for
  * segments you wrote yourself.
  *
+ * @throws On a bare drive, which is no directory to join below.
+ *
  * @type {(dir: string, name: string) => string}
  */
-export const under = (dir, name) =>
-    dir === '' ? name : endsInSeparator(dir) ? `${dir}${name}` : join(dir, name)
+export const under = (dir, name) => {
+    assert(!isBareDrive(dir), ['no directory to join below', dir])
+    return dir === '' ? name : endsInSeparator(dir) ? `${dir}${name}` : join(dir, name)
+}
 
 /**
  * Returns `path` relative to `base` with a `./` prefix, or `path` unchanged
