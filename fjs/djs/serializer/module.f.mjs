@@ -206,7 +206,7 @@ const addRef = djs => refs => {
  * `fjs/fsc/parser` requires after each statement, as DataJS does
  * ([spec](../../../spec/datajs/README.md)) and as
  * `todo/parser-serializer-restructure.md` settles on for FunctionalScript
- * (stage 5). What is written here reads back through `fjs/djs`; it is not
+ * (stage 5). What is written here reads back through `fjs/fsc`; it is not
  * yet DataJS, whose names begin with `$` where a hoisted `const` here is
  * `c0` — the differences the spec's status section lists.
  *

@@ -41,7 +41,7 @@ everywhere at once.
 
 ### Tasks
 
-- [ ] Rename the keys in the six files above.
+- [ ] Rename the keys in the five files above.
 - [ ] Add the convention to `AGENTS.md`, noting the keyword/export exception.
 - [ ] `tsc` clean; `fjs t` passes (test names change, counts do not).
 

@@ -52,7 +52,7 @@ export type StringToken = {
  * literal reaches its consumer whatever its magnitude — a coefficient beyond
  * the runtime's `bigint` limit and an exponent beyond `number` precision alike.
  * Each consumer applies its own numeric policy to `value`; see
- * [`fjs/media/json/number`](../../media/json/number/module.f.mjs) for the
+ * [`fjs/media/json/number`](../../../media/json/number/module.f.mjs) for the
  * bounded lexical helpers that read it without narrowing.
  */
 export type NumberToken = {
