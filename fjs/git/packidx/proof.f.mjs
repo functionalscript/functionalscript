@@ -246,6 +246,30 @@ export const proof = {
         // the same file with index 0 reads, so the refusal is the index's
         assertEq(offsetOf(decoded(built))(small), 12)
     },
+    // The 8-byte table is exactly as long as the words that name it ask for.
+    // Git derives its length from the file's length alone, so a spare block
+    // before the checksums divides evenly and reads — and that block is not
+    // idle, because it turns an index past the table into one inside it, where
+    // whatever is there reads as an offset.
+    largeOffsetTableLength: () => {
+        const pad = Array.from({ length: 8 }, () => 0)
+        // The real file, whose every offset fits in four bytes and whose table
+        // is therefore empty. Eight spare bytes are refused at either width.
+        for (const bytes of [packIdx2, v2With([only])]) {
+            const at = bytes.length - 2 * 20
+            assertEq(read([...bytes.slice(0, at), ...pad, ...bytes.slice(at)]), null)
+            // and the file itself still reads, so the refusal is the block's
+            assert(read(bytes) !== null)
+        }
+        // A table one entry longer than the single index in use, which the
+        // length check alone cannot see: the entry it adds is a valid offset,
+        // so nothing downstream would complain.
+        const built = withLargeOffset(only, [...u32(0), ...u32(12)])
+        const at = built.length - 2 * 20
+        assertEq(read([...built.slice(0, at), ...u32(0), ...u32(24), ...built.slice(at)]), null)
+        // and one entry exactly, which is what the word asks for
+        assertEq(offsetOf(decoded(built))(only), 12)
+    },
     // Ids out of order are refused, and the case that matters is two ids
     // inside one bucket. They share a first byte, so the fanout counts them
     // correctly either way and a check of first bytes alone would pass them —
