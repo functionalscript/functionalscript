@@ -1,0 +1,86 @@
+## object-type-lookup. One reader for the four object-type names
+
+**Priority:** P4
+**Status:** open
+
+### Problem
+
+"Which of the four types does this run of bytes name" is decided twice.
+`fjs/git/object/module.f.mjs:79-82`:
+
+```js
+const typeOf = w => {
+    const s = codePointListToString(w)
+    return objectTypes.find(t => t === s) ?? null
+}
+```
+
+`fjs/git/tag/module.f.mjs:78-84`:
+
+```js
+const typeOf = value => {
+    const bs = byteArray(value)
+    if (bs.includes(lf)) { return null }
+    const nul = bs.indexOf(0)
+    const text = codePointListToString(nul === -1 ? bs : bs.slice(0, nul))
+    return objectTypes.find(t => t === text) ?? null
+}
+```
+
+Same name, same final two operations, same reason ("the four are ASCII, so
+the word is compared as the text it spells"). `tag` imports `objectTypes`
+from `object` but re-implements the lookup, because `object`'s `typeOf` is
+not exported — the list and its reader have been split across a module
+boundary so only half the pair travels. `tag`'s delta is real but is
+pre-processing (refuse an LF, cut at the first NUL — its doc comment says
+why), not a different lookup.
+
+### Proposal
+
+Export the lookup from `fjs/git/object/module.f.mjs` under the name
+**`tryType`** — the natural companion of the already-exported
+`objectTypes`, and the `try` prefix the rest of `fjs/git` uses for a
+`Nullable` reader:
+
+```ts
+/** The object type these bytes spell, or `null`. */
+export const tryType: (w: readonly number[]) => Nullable<ObjectType>
+```
+
+(the envelope reader itself uses it at `object/module.f.mjs:116`). The
+name is the contract: `tag` and the packfile reader import `tryType`, not
+a renamed private `typeOf`.
+
+Public, it must not inherit the private lookup's one weakness: going
+through `codePointListToString`, which truncates a value above `0xFF`, so
+`[0x110062, 0x11006c, 0x11006f, 0x110062]` would read as `blob`. The
+four names are ASCII, so `tryType` **compares bytes, not strings** —
+`objectTypes.find(t => sameBytes(ascii(t), w))` — and a member outside
+`0x00`–`0xFF` matches no name's byte and is refused as `null` by
+construction, with no conversion for truncation to hide in. The four
+`ascii(t)` byte arrays are computed once at module scope. `tag`'s `typeOf` then keeps only its two
+Git-fidelity rules and delegates:
+
+```js
+const bs = byteArray(value)
+if (bs.includes(lf)) { return null }
+const nul = bs.indexOf(0)
+return tryType(nul === -1 ? bs : bs.slice(0, nul))
+```
+
+[packfiles.md](./packfiles.md)'s decoder, which will also need to name a
+type, then gets the same entry point rather than a third copy.
+
+### Tasks
+
+- [ ] Export `tryType` from `fjs/git/object/module.f.mjs` as a byte
+      comparison; prove it, the out-of-range member pinned at `null`.
+- [ ] Delegate `tag`'s `typeOf` to it; tag proofs pass unchanged.
+- [ ] `tsc`, `fjs test`.
+
+### Related
+
+- [packfiles.md](./packfiles.md) — its decoder is the next consumer.
+- [positional-headers.md](./positional-headers.md) — discusses `tag`'s
+  continuation-line/NUL behaviour; this issue changes none of it, only who
+  owns the final lookup.
