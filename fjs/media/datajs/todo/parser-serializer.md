@@ -11,8 +11,8 @@ resolves the names over the statements in document order; `parse(text)`
 returns `Result<Unknown, string>`. §3's open question is settled: the token-driven
 container machine is retired for this format, not widened, and the seam
 work that route owed is gone with it. What remains here is the **byte path**
-(`tryParseBytes`, §Layout) and the reader's proofs over the corpus once
-[stage 1b](../../../../spec/datajs/todo/conformance-vectors.md) lands — the
+(`tryParseBytes`, §Layout) and the reader's proofs over
+[the corpus](../../../../spec/datajs/vectors/README.md), which has landed — the
 reader's own proof is derived from the specification by hand today.
 
 **The writer is [`serializer.md`](./serializer.md).** It was split out of this
@@ -83,7 +83,7 @@ and why.
 **The byte path is not a convenience, it is a conformance obligation.** Two
 document rules cannot be reached from a code-unit array at all — a document has
 **no BOM**, and a document **is UTF-8** — and
-[the corpus](../../../../spec/datajs/todo/conformance-vectors.md) carries their
+[the corpus](../../../../spec/datajs/vectors/README.md) carries their
 vectors as byte arrays "fed to the reader's public byte-accepting path — which
 stage 4 owes". By the time input is a JavaScript string both distinctions are
 gone, so `tryParse` alone can neither implement nor prove them. `tryParseBytes`
@@ -173,7 +173,7 @@ states and the reader's proof pins:
   no more worth writing than the alphabet itself. The 21 worth naming are the delta — the characters
   ECMAScript treats as whitespace and DataJS does not — and they are enumerated
   once, in
-  [the corpus derivation](../../../../spec/datajs/todo/conformance-vectors.md),
+  [the corpus's reject set](../../../../spec/datajs/vectors/reject/data.f.mjs),
   because each owes a vector. Every *normative* list of them written by hand
   here has been short, this plan's included, which is why the rule states what
   it accepts.
@@ -233,14 +233,17 @@ naming rules, and normalized form's table. Nothing of either is restated here.
 
 #### 6. Proofs
 
-The proof source is the stage 1b corpus,
-[`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md),
-which is why the stage plan puts 1b before this issue: landing stage 4 first
-means writing its proofs twice.
+The proof source is the corpus,
+[`spec/datajs/vectors`](../../../../spec/datajs/vectors/README.md), which is why
+the stage plan put 1b before this issue: landing stage 4 first would have meant
+writing its proofs twice. Its README is the schema and the rules the sets are
+derived by, so a proof reads the sets and asserts nothing about how they were
+chosen.
 
 Proofs are **per role** — reader, serializer, normalized serializer — because
 the spec judges them independently and this module provides all three. The
-reader's two sets, `accept` and `reject`, are this file's; the writer's four are
+reader's two sets, `accept` and `reject`, are this file's; the writer's three —
+`serializer-accept`, `graph-equivalence` and `normalize` — are
 [`serializer.md`](./serializer.md) §4.
 
 ### Tasks
@@ -253,7 +256,7 @@ reader's two sets, `accept` and `reject`, are this file's; the writer's four are
       bound-once and declare-before-use; the key rule on the decoded value.
 - [x] Reader proofs derived from the specification by hand, both sharing
       directions included.
-- [ ] Reader proofs from the corpus once stage 1b lands, and the byte path —
+- [ ] Reader proofs from the corpus, which has landed, and the byte path —
       `tryParseBytes` — with the BOM and invalid-UTF-8 vectors the corpus
       assigns to stage 4.
 - [ ] The writer, in [`serializer.md`](./serializer.md) — including
@@ -271,7 +274,7 @@ reader's two sets, `accept` and `reject`, are this file's; the writer's four are
 - [`serializer.md`](./serializer.md) — the writer, split out of this file. Stage 4 is the two together.
 - [`todo/parser-serializer-restructure.md`](../../../../todo/parser-serializer-restructure.md) — the coordinating plan; this is its stage 4.
 - [`spec/datajs/README.md`](../../../../spec/datajs/README.md) — normative. This issue implements it.
-- [`spec/datajs/todo/conformance-vectors.md`](../../../../spec/datajs/todo/conformance-vectors.md) — stage 1b, the proof source. Land it first.
+- [`spec/datajs/vectors`](../../../../spec/datajs/vectors/README.md) — the conformance corpus, landed as stage 1b. The proof source, and the schema for every set this issue's proofs read.
 - [JSON's reader](../../json/todo/self-contained-tokenizer.md) — stage 3, open with its error shapes undecided. Over a grammar the reuse is of rules and of the `string` mapping, which [`fjs/ebnf/lib/datajs`](../../../ebnf/lib/datajs/module.f.mjs) and [`../parser`](../parser/module.f.mjs) do by import.
 - [157](../../../djs/todo/157-json-djs-shared-value-machine.md) — the shared serializer walker and its four seams. Stage 4 is its second consumer.
 - [663](../../../djs/todo/663-json-djs-tree-type.md) — the tree type; interacts with the optional index signature in §1.
