@@ -20,20 +20,13 @@ import { flat, flatMap, map, concat as listConcat } from '../../types/list/modul
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
 import { objectWrap, arrayWrap, colon, stringSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
+// numbers are written as DataJS writes them — `ToString`, with `-0` kept —
+// which the parser reads back; JSON's writer wrote `null` for `NaN` and the
+// infinities and `0` for `-0`
+import { numberSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 
-const { entries, is } = Object
-
-/**
- * A number as the parser reads it back: `ToString`, which DataJS's writer
- * restates, with the one departure it names — `-0` is written `-0` where
- * `ToString` writes `0` and loses the sign. `NaN`, `Infinity` and
- * `-Infinity` are the words `ToString` gives them, which the parser reads
- * as primitives; JSON's writer wrote `null` for all three and `0` for `-0`.
- *
- * @type {(value: number) => List<string>}
- */
-const numberSerialize = value => [is(value, -0) ? '-0' : `${value}`]
+const { entries } = Object
 
 export const undefinedSerialize = ['undefined']
 
