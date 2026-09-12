@@ -45,7 +45,7 @@ remedy the issue proposes, already applied. Its §2 is half shipped: the type
 half is done — `_OperatorToken` (`fjs/ebnf/lib/js/types.ts`, beside
 `_KeywordToken`) derives from the grammar's own `operators` list plus the two
 `slash` holds, one member per kind — while `operatorEntries`
-(`module.f.mjs:276-332`) is still a literal table of ~56
+(`module.f.mjs:273-330`) is still a literal table of ~56
 `['&&=', { kind: '&&=' }]` rows in this module. So the issue's table half is
 what remains, and both its §1 and §2 cite `fjs/js/tokenizer/types.ts` for
 types that live in `fjs/ebnf/lib/js/types.ts` now. Renumbering it would leave
