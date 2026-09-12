@@ -8,6 +8,7 @@ const $s5 = [1];
 const $s6 = [0];
 const $s7 = {};
 const $s8 = [0];
+const $s9 = {"d": 0, "c": 1};
 export default [
     {"id": "null", "class": "leaf/null", "document": "export default null;", "graph": null},
     {"id": "true", "class": "leaf/boolean/true", "document": "export default true;", "graph": true},
@@ -359,8 +360,40 @@ export default [
     {"id": "object-members-negative-first-bigint", "class": "object/members/negative-first", "document": "export default {\"a\":-1n,\"b\":1};", "graph": {"a": -1n, "b": 1}},
     {"id": "object-members-negative-first-infinity", "class": "object/members/negative-first", "document": "export default {\"a\":-Infinity,\"b\":1};", "graph": {"a": -Infinity, "b": 1}},
     {"id": "key-raw-ws-like-2028-after-first", "class": "key/string/raw/ws-like/2028", "document": "export default {\"a\":0,\"\u2028\":0};", "graph": {"a": 0, "\u2028": 0}},
-    {"id": "key-escape-quote-after-first", "class": "key/string/escape/quote", "document": "export default {\"a\":0,\"\\\"\":1};", "graph": {"a": 0, "\"": 1}},
-    {"id": "key-escape-backslash-after-first", "class": "key/string/escape/backslash", "document": "export default {\"a\":0,\"\\\\\":1};", "graph": {"a": 0, "\\": 1}},
-    {"id": "key-escape-u00-0000-after-first", "class": "key/string/escape/u00/0000", "document": "export default {\"a\":0,\"\\u0000\":1};", "graph": {"a": 0, "\u0000": 1}},
-    {"id": "byte-valid-widths", "class": "byte/valid/widths", "document": ["hex", "65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 61 c3 a9 e2 82 ac f0 90 80 80 22 3b"], "graph": "a\u00e9\u20ac\ud800\udc00"}
+    {"id": "byte-valid-widths", "class": "byte/valid/widths", "document": ["hex", "65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 61 c3 a9 e2 82 ac f0 90 80 80 22 3b"], "graph": "a\u00e9\u20ac\ud800\udc00"},
+    {"id": "string-escape-quote-every-slot", "class": "string/escape/quote", "document": "export default [\"\\\"\",0,\"\\\"\"];", "graph": ["\"", 0, "\""]},
+    {"id": "key-escape-quote-every-slot", "class": "key/string/escape/quote", "document": "export default [{\"\\\"\":\"\\\"\",\"a\":1},{\"a\":0,\"\\\"\":\"\\\"\"}];", "graph": [{"\"": "\"", "a": 1}, {"a": 0, "\"": "\""}]},
+    {"id": "string-escape-backslash-every-slot", "class": "string/escape/backslash", "document": "export default [\"\\\\\",0,\"\\\\\"];", "graph": ["\\", 0, "\\"]},
+    {"id": "key-escape-backslash-every-slot", "class": "key/string/escape/backslash", "document": "export default [{\"\\\\\":\"\\\\\",\"a\":1},{\"a\":0,\"\\\\\":\"\\\\\"}];", "graph": [{"\\": "\\", "a": 1}, {"a": 0, "\\": "\\"}]},
+    {"id": "string-escape-slash-every-slot", "class": "string/escape/slash", "document": "export default [\"\\/\",0,\"\\/\"];", "graph": ["/", 0, "/"]},
+    {"id": "key-escape-slash-every-slot", "class": "key/string/escape/slash", "document": "export default [{\"\\/\":\"\\/\",\"a\":1},{\"a\":0,\"\\/\":\"\\/\"}];", "graph": [{"/": "/", "a": 1}, {"a": 0, "/": "/"}]},
+    {"id": "string-escape-b-every-slot", "class": "string/escape/b", "document": "export default [\"\\b\",0,\"\\b\"];", "graph": ["\b", 0, "\b"]},
+    {"id": "key-escape-b-every-slot", "class": "key/string/escape/b", "document": "export default [{\"\\b\":\"\\b\",\"a\":1},{\"a\":0,\"\\b\":\"\\b\"}];", "graph": [{"\b": "\b", "a": 1}, {"a": 0, "\b": "\b"}]},
+    {"id": "string-escape-f-every-slot", "class": "string/escape/f", "document": "export default [\"\\f\",0,\"\\f\"];", "graph": ["\f", 0, "\f"]},
+    {"id": "key-escape-f-every-slot", "class": "key/string/escape/f", "document": "export default [{\"\\f\":\"\\f\",\"a\":1},{\"a\":0,\"\\f\":\"\\f\"}];", "graph": [{"\f": "\f", "a": 1}, {"a": 0, "\f": "\f"}]},
+    {"id": "string-escape-n-every-slot", "class": "string/escape/n", "document": "export default [\"\\n\",0,\"\\n\"];", "graph": ["\n", 0, "\n"]},
+    {"id": "key-escape-n-every-slot", "class": "key/string/escape/n", "document": "export default [{\"\\n\":\"\\n\",\"a\":1},{\"a\":0,\"\\n\":\"\\n\"}];", "graph": [{"\n": "\n", "a": 1}, {"a": 0, "\n": "\n"}]},
+    {"id": "string-escape-r-every-slot", "class": "string/escape/r", "document": "export default [\"\\r\",0,\"\\r\"];", "graph": ["\r", 0, "\r"]},
+    {"id": "key-escape-r-every-slot", "class": "key/string/escape/r", "document": "export default [{\"\\r\":\"\\r\",\"a\":1},{\"a\":0,\"\\r\":\"\\r\"}];", "graph": [{"\r": "\r", "a": 1}, {"a": 0, "\r": "\r"}]},
+    {"id": "string-escape-t-every-slot", "class": "string/escape/t", "document": "export default [\"\\t\",0,\"\\t\"];", "graph": ["\t", 0, "\t"]},
+    {"id": "key-escape-t-every-slot", "class": "key/string/escape/t", "document": "export default [{\"\\t\":\"\\t\",\"a\":1},{\"a\":0,\"\\t\":\"\\t\"}];", "graph": [{"\t": "\t", "a": 1}, {"a": 0, "\t": "\t"}]},
+    {"id": "string-escape-u-09af-every-slot", "class": "string/escape/u/09af", "document": "export default [\"\\u09af\",0,\"\\u09af\"];", "graph": ["\u09af", 0, "\u09af"]},
+    {"id": "key-escape-u-09af-every-slot", "class": "key/string/escape/u/09af", "document": "export default [{\"\\u09af\":\"\\u09af\",\"a\":1},{\"a\":0,\"\\u09af\":\"\\u09af\"}];", "graph": [{"\u09af": "\u09af", "a": 1}, {"a": 0, "\u09af": "\u09af"}]},
+    {"id": "string-escape-u-9afA-every-slot", "class": "string/escape/u/9afA", "document": "export default [\"\\u9afA\",0,\"\\u9afA\"];", "graph": ["\u9afa", 0, "\u9afa"]},
+    {"id": "key-escape-u-9afA-every-slot", "class": "key/string/escape/u/9afA", "document": "export default [{\"\\u9afA\":\"\\u9afA\",\"a\":1},{\"a\":0,\"\\u9afA\":\"\\u9afA\"}];", "graph": [{"\u9afa": "\u9afa", "a": 1}, {"a": 0, "\u9afa": "\u9afa"}]},
+    {"id": "string-escape-u-afAF-every-slot", "class": "string/escape/u/afAF", "document": "export default [\"\\uafAF\",0,\"\\uafAF\"];", "graph": ["\uafaf", 0, "\uafaf"]},
+    {"id": "key-escape-u-afAF-every-slot", "class": "key/string/escape/u/afAF", "document": "export default [{\"\\uafAF\":\"\\uafAF\",\"a\":1},{\"a\":0,\"\\uafAF\":\"\\uafAF\"}];", "graph": [{"\uafaf": "\uafaf", "a": 1}, {"a": 0, "\uafaf": "\uafaf"}]},
+    {"id": "string-escape-u-fAF0-every-slot", "class": "string/escape/u/fAF0", "document": "export default [\"\\ufAF0\",0,\"\\ufAF0\"];", "graph": ["\ufaf0", 0, "\ufaf0"]},
+    {"id": "key-escape-u-fAF0-every-slot", "class": "key/string/escape/u/fAF0", "document": "export default [{\"\\ufAF0\":\"\\ufAF0\",\"a\":1},{\"a\":0,\"\\ufAF0\":\"\\ufAF0\"}];", "graph": [{"\ufaf0": "\ufaf0", "a": 1}, {"a": 0, "\ufaf0": "\ufaf0"}]},
+    {"id": "string-escape-u-AF09-every-slot", "class": "string/escape/u/AF09", "document": "export default [\"\\uAF09\",0,\"\\uAF09\"];", "graph": ["\uaf09", 0, "\uaf09"]},
+    {"id": "key-escape-u-AF09-every-slot", "class": "key/string/escape/u/AF09", "document": "export default [{\"\\uAF09\":\"\\uAF09\",\"a\":1},{\"a\":0,\"\\uAF09\":\"\\uAF09\"}];", "graph": [{"\uaf09": "\uaf09", "a": 1}, {"a": 0, "\uaf09": "\uaf09"}]},
+    {"id": "string-escape-u-F09a-every-slot", "class": "string/escape/u/F09a", "document": "export default [\"\\uF09a\",0,\"\\uF09a\"];", "graph": ["\uf09a", 0, "\uf09a"]},
+    {"id": "key-escape-u-F09a-every-slot", "class": "key/string/escape/u/F09a", "document": "export default [{\"\\uF09a\":\"\\uF09a\",\"a\":1},{\"a\":0,\"\\uF09a\":\"\\uF09a\"}];", "graph": [{"\uf09a": "\uf09a", "a": 1}, {"a": 0, "\uf09a": "\uf09a"}]},
+    {"id": "string-escape-u00-0000-every-slot", "class": "string/escape/u00/0000", "document": "export default [\"\\u0000\",0,\"\\u0000\"];", "graph": ["\u0000", 0, "\u0000"]},
+    {"id": "key-escape-u00-0000-every-slot", "class": "key/string/escape/u00/0000", "document": "export default [{\"\\u0000\":\"\\u0000\",\"a\":1},{\"a\":0,\"\\u0000\":\"\\u0000\"}];", "graph": [{"\u0000": "\u0000", "a": 1}, {"a": 0, "\u0000": "\u0000"}]},
+    {"id": "string-escape-u00-001f-every-slot", "class": "string/escape/u00/001f", "document": "export default [\"\\u001f\",0,\"\\u001f\"];", "graph": ["\u001f", 0, "\u001f"]},
+    {"id": "key-escape-u00-001f-every-slot", "class": "key/string/escape/u00/001f", "document": "export default [{\"\\u001f\":\"\\u001f\",\"a\":1},{\"a\":0,\"\\u001f\":\"\\u001f\"}];", "graph": [{"\u001f": "\u001f", "a": 1}, {"a": 0, "\u001f": "\u001f"}]},
+    {"id": "array-elements-every-value-first", "class": "array/elements/every-value-first", "document": "export default [[null,0],[true,0],[false,0],[undefined,0],[NaN,0],[Infinity,0],[-Infinity,0],[0,0],[-0,0],[9,0],[-9,0],[1.5,0],[1e2,0],[1n,0],[-1n,0],[0n,0],[\"\",0],[\"a\",0],[[],0],[{},0]];", "graph": [[null, 0], [true, 0], [false, 0], [undefined, 0], [NaN, 0], [Infinity, 0], [-Infinity, 0], [0, 0], [-0, 0], [9, 0], [-9, 0], [1.5, 0], [100, 0], [1n, 0], [-1n, 0], [0n, 0], ["", 0], ["a", 0], [[], 0], [{}, 0]]},
+    {"id": "object-members-every-value-first", "class": "object/members/every-value-first", "document": "export default [{\"a\":null,\"b\":0},{\"a\":true,\"b\":0},{\"a\":false,\"b\":0},{\"a\":undefined,\"b\":0},{\"a\":NaN,\"b\":0},{\"a\":Infinity,\"b\":0},{\"a\":-Infinity,\"b\":0},{\"a\":0,\"b\":0},{\"a\":-0,\"b\":0},{\"a\":9,\"b\":0},{\"a\":-9,\"b\":0},{\"a\":1.5,\"b\":0},{\"a\":1e2,\"b\":0},{\"a\":1n,\"b\":0},{\"a\":-1n,\"b\":0},{\"a\":0n,\"b\":0},{\"a\":\"\",\"b\":0},{\"a\":\"a\",\"b\":0},{\"a\":[],\"b\":0},{\"a\":{},\"b\":0}];", "graph": [{"a": null, "b": 0}, {"a": true, "b": 0}, {"a": false, "b": 0}, {"a": undefined, "b": 0}, {"a": NaN, "b": 0}, {"a": Infinity, "b": 0}, {"a": -Infinity, "b": 0}, {"a": 0, "b": 0}, {"a": -0, "b": 0}, {"a": 9, "b": 0}, {"a": -9, "b": 0}, {"a": 1.5, "b": 0}, {"a": 100, "b": 0}, {"a": 1n, "b": 0}, {"a": -1n, "b": 0}, {"a": 0n, "b": 0}, {"a": "", "b": 0}, {"a": "a", "b": 0}, {"a": [], "b": 0}, {"a": {}, "b": 0}]},
+    {"id": "object-key-order-nested", "class": "object/key-order/nested", "document": "const $0={\"d\":0,\"c\":1};export default [{\"b\":0,\"a\":1},$0,$0];", "graph": [{"b": 0, "a": 1}, $s9, $s9]}
 ];

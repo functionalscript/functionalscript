@@ -14,15 +14,16 @@ roles reads exactly like prose that mentions it in three.
 
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
-| `reader` | `accept`, `reject` | 675 | 0 | 0 |
-| `serializer` | `serializer-accept`, `graph-equivalence` | 168 | 507 | 0 |
-| `normalize` | no set yet | 0 | 0 | 675 |
+| `reader` | `accept`, `reject` | 678 | 0 | 0 |
+| `serializer` | `serializer-accept`, `graph-equivalence` | 171 | 507 | 0 |
+| `normalize` | no set yet | 0 | 0 | 678 |
 
-675 classes.
+678 classes.
 
 | class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
 | `array/elements/every-value` | `array-elements-every-value` | `ser-array-elements-every-value` | *awaiting the set* |
+| `array/elements/every-value-first` | `array-elements-every-value-first` | `ser-array-elements-every-value-first` | *awaiting the set* |
 | `array/elements/negative-first` | `array-elements-negative-first` | `ser-array-elements-negative-first`, `ser-array-elements-negative-zero-first`, `ser-array-elements-negative-bigint-first`, `ser-array-elements-negative-infinity-first` | *awaiting the set* |
 | `array/elision/leading` | `array-elision-leading` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `array/elision/medial` | `array-elision-medial` | not applicable, [note 1](#notes) | *awaiting the set* |
@@ -112,7 +113,7 @@ roles reads exactly like prose that mentions it in three.
 | `const/reference/member` | `const-reference-member` | not applicable, [note 23](#notes) | *awaiting the set* |
 | `const/shared/leaf` | `const-shared-leaf` | not applicable, [note 29](#notes) | *awaiting the set* |
 | `const/shared/mixed` | `const-shared-mixed` | `ser-sharing-mixed`, `graph-sharing-mixed` | *awaiting the set* |
-| `const/shared/nested` | `const-shared-nested` | `ser-const-shared-nested`, `graph-const-shared-nested` | *awaiting the set* |
+| `const/shared/nested` | `const-shared-nested` | `ser-const-shared-nested`, `ser-const-shared-nested-object-parent`, `graph-const-shared-nested`, `graph-const-shared-nested-object-parent` | *awaiting the set* |
 | `const/shared/object` | `const-shared-object` | `ser-sharing-object`, `graph-sharing-object`, `graph-sharing-empty-object` | *awaiting the set* |
 | `const/shared/three-paths` | `const-shared-three-paths` | `ser-shared-three-paths` | *awaiting the set* |
 | `const/shared/twice` | `const-shared-twice` | `ser-sharing-array`, `graph-sharing-array` | *awaiting the set* |
@@ -250,28 +251,28 @@ roles reads exactly like prose that mentions it in three.
 | `key/string/continuation/crlf` | `key-continuation-crlf` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/string/empty` | `key-empty` | `ser-key-empty` | *awaiting the set* |
 | `key/string/escape/0` | `key-escape-0` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `key/string/escape/b` | `key-escape-b` | `ser-key-escape-b` | *awaiting the set* |
-| `key/string/escape/backslash` | `key-escape-backslash`, `key-escape-backslash-after-first` | `ser-key-escape-backslash`, `ser-key-escape-backslash-after-first` | *awaiting the set* |
+| `key/string/escape/b` | `key-escape-b`, `key-escape-b-every-slot` | `ser-key-escape-b`, `ser-key-escape-b-every-slot` | *awaiting the set* |
+| `key/string/escape/backslash` | `key-escape-backslash`, `key-escape-backslash-every-slot` | `ser-key-escape-backslash`, `ser-key-escape-backslash-every-slot` | *awaiting the set* |
 | `key/string/escape/backtick` | `key-escape-backtick` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `key/string/escape/f` | `key-escape-f` | `ser-key-escape-f` | *awaiting the set* |
+| `key/string/escape/f` | `key-escape-f`, `key-escape-f-every-slot` | `ser-key-escape-f`, `ser-key-escape-f-every-slot` | *awaiting the set* |
 | `key/string/escape/identity` | `key-escape-identity` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/string/escape/identity/a` | `key-escape-identity-a` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `key/string/escape/n` | `key-escape-n` | `ser-key-escape-n` | *awaiting the set* |
+| `key/string/escape/n` | `key-escape-n`, `key-escape-n-every-slot` | `ser-key-escape-n`, `ser-key-escape-n-every-slot` | *awaiting the set* |
 | `key/string/escape/octal` | `key-escape-octal` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/string/escape/octal/8` | `key-escape-octal-8` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `key/string/escape/quote` | `key-escape-quote`, `key-escape-quote-after-first` | `ser-key-escape-quote`, `ser-key-escape-quote-after-first` | *awaiting the set* |
-| `key/string/escape/r` | `key-escape-r` | `ser-key-escape-r` | *awaiting the set* |
+| `key/string/escape/quote` | `key-escape-quote`, `key-escape-quote-every-slot` | `ser-key-escape-quote`, `ser-key-escape-quote-every-slot` | *awaiting the set* |
+| `key/string/escape/r` | `key-escape-r`, `key-escape-r-every-slot` | `ser-key-escape-r`, `ser-key-escape-r-every-slot` | *awaiting the set* |
 | `key/string/escape/single-quote` | `key-escape-single-quote` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `key/string/escape/slash` | `key-escape-slash` | not applicable, [note 19](#notes) | *awaiting the set* |
+| `key/string/escape/slash` | `key-escape-slash`, `key-escape-slash-every-slot` | not applicable, [note 19](#notes) | *awaiting the set* |
 | `key/string/escape/space` | `key-escape-space` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `key/string/escape/t` | `key-escape-t` | `ser-key-escape-t` | *awaiting the set* |
+| `key/string/escape/t` | `key-escape-t`, `key-escape-t-every-slot` | `ser-key-escape-t`, `ser-key-escape-t-every-slot` | *awaiting the set* |
 | `key/string/escape/u-braces` | `key-escape-u-braces` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `key/string/escape/u/09af` | `key-escape-u-09af` | not applicable, [note 17](#notes) | *awaiting the set* |
-| `key/string/escape/u/9afA` | `key-escape-u-9afA` | not applicable, [note 17](#notes) | *awaiting the set* |
-| `key/string/escape/u/AF09` | `key-escape-u-AF09` | not applicable, [note 17](#notes) | *awaiting the set* |
-| `key/string/escape/u/F09a` | `key-escape-u-F09a` | not applicable, [note 17](#notes) | *awaiting the set* |
-| `key/string/escape/u/afAF` | `key-escape-u-afAF` | not applicable, [note 17](#notes) | *awaiting the set* |
-| `key/string/escape/u/fAF0` | `key-escape-u-fAF0` | not applicable, [note 17](#notes) | *awaiting the set* |
+| `key/string/escape/u/09af` | `key-escape-u-09af`, `key-escape-u-09af-every-slot` | not applicable, [note 17](#notes) | *awaiting the set* |
+| `key/string/escape/u/9afA` | `key-escape-u-9afA`, `key-escape-u-9afA-every-slot` | not applicable, [note 17](#notes) | *awaiting the set* |
+| `key/string/escape/u/AF09` | `key-escape-u-AF09`, `key-escape-u-AF09-every-slot` | not applicable, [note 17](#notes) | *awaiting the set* |
+| `key/string/escape/u/F09a` | `key-escape-u-F09a`, `key-escape-u-F09a-every-slot` | not applicable, [note 17](#notes) | *awaiting the set* |
+| `key/string/escape/u/afAF` | `key-escape-u-afAF`, `key-escape-u-afAF-every-slot` | not applicable, [note 17](#notes) | *awaiting the set* |
+| `key/string/escape/u/fAF0` | `key-escape-u-fAF0`, `key-escape-u-fAF0-every-slot` | not applicable, [note 17](#notes) | *awaiting the set* |
 | `key/string/escape/u/non-hex/002f/0` | `key-escape-u-non-hex-002f-0` | not applicable, [note 17](#notes) | *awaiting the set* |
 | `key/string/escape/u/non-hex/002f/1` | `key-escape-u-non-hex-002f-1` | not applicable, [note 17](#notes) | *awaiting the set* |
 | `key/string/escape/u/non-hex/002f/2` | `key-escape-u-non-hex-002f-2` | not applicable, [note 17](#notes) | *awaiting the set* |
@@ -298,8 +299,8 @@ roles reads exactly like prose that mentions it in three.
 | `key/string/escape/u/non-hex/0067/3` | `key-escape-u-non-hex-0067-3` | not applicable, [note 17](#notes) | *awaiting the set* |
 | `key/string/escape/u/short/0` | `key-escape-u-short-0` | not applicable, [note 17](#notes) | *awaiting the set* |
 | `key/string/escape/u/short/3` | `key-escape-u-short-3` | not applicable, [note 17](#notes) | *awaiting the set* |
-| `key/string/escape/u00/0000` | `key-escape-u00-0000`, `key-escape-u00-0000-after-first` | `ser-key-escape-u00-0000`, `ser-key-escape-u00-0000-after-first` | *awaiting the set* |
-| `key/string/escape/u00/001f` | `key-escape-u00-001f` | `ser-key-escape-u00-001f` | *awaiting the set* |
+| `key/string/escape/u00/0000` | `key-escape-u00-0000`, `key-escape-u00-0000-every-slot` | `ser-key-escape-u00-0000`, `ser-key-escape-u00-0000-every-slot` | *awaiting the set* |
+| `key/string/escape/u00/001f` | `key-escape-u00-001f`, `key-escape-u00-001f-every-slot` | `ser-key-escape-u00-001f`, `ser-key-escape-u00-001f-every-slot` | *awaiting the set* |
 | `key/string/escape/uppercase` | `key-escape-uppercase-n` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/string/escape/uppercase/u` | `key-escape-uppercase-u` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/string/escape/v` | `key-escape-v` | not applicable, [note 1](#notes) | *awaiting the set* |
@@ -465,6 +466,7 @@ roles reads exactly like prose that mentions it in three.
 | `object/key-order/index-before-name` | `object-key-order-index-before-name` | `ser-object-key-order-index-before-name` | *awaiting the set* |
 | `object/key-order/index-first` | `object-key-order-index-first` | not applicable, [note 21](#notes) | *awaiting the set* |
 | `object/key-order/names/first-occurrence` | `object-key-order-names-first-occurrence` | `ser-object-key-order-names-first-occurrence` | *awaiting the set* |
+| `object/key-order/nested` | `object-key-order-nested` | `ser-object-key-order-nested`, `graph-object-key-order-nested` | *awaiting the set* |
 | `object/key-order/non-index/above` | `object-key-order-non-index-above` | `ser-object-key-order-non-index-above` | *awaiting the set* |
 | `object/key-order/non-index/exp` | `object-key-order-non-index-exp` | `ser-object-key-order-non-index-exp` | *awaiting the set* |
 | `object/key-order/non-index/hex` | `object-key-order-non-index-hex` | `ser-object-key-order-non-index-hex` | *awaiting the set* |
@@ -474,6 +476,7 @@ roles reads exactly like prose that mentions it in three.
 | `object/key-order/non-index/space` | `object-key-order-non-index-space` | `ser-object-key-order-non-index-space` | *awaiting the set* |
 | `object/leading-comma` | `object-leading-comma` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `object/members/every-value` | `object-members-every-value` | `ser-object-members-every-value` | *awaiting the set* |
+| `object/members/every-value-first` | `object-members-every-value-first` | `ser-object-members-every-value-first` | *awaiting the set* |
 | `object/members/negative-first` | `object-members-negative-first-zero`, `object-members-negative-first-number`, `object-members-negative-first-bigint`, `object-members-negative-first-infinity` | `ser-object-members-negative-first-zero`, `ser-object-members-negative-first-number`, `ser-object-members-negative-first-bigint`, `ser-object-members-negative-first-infinity` | *awaiting the set* |
 | `object/nested/array` | `object-nested-array` | `ser-object-nested-array` | *awaiting the set* |
 | `object/nested/deep` | `object-nested-deep` | not applicable, [note 34](#notes) | *awaiting the set* |
@@ -502,28 +505,28 @@ roles reads exactly like prose that mentions it in three.
 | `string/continuation/crlf` | `string-continuation-crlf` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `string/empty` | `string-empty` | `ser-string-empty` | *awaiting the set* |
 | `string/escape/0` | `string-escape-0` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `string/escape/b` | `string-escape-b` | `ser-string-escape-b` | *awaiting the set* |
-| `string/escape/backslash` | `string-escape-backslash` | `ser-string-escape-backslash` | *awaiting the set* |
+| `string/escape/b` | `string-escape-b`, `string-escape-b-every-slot` | `ser-string-escape-b`, `ser-string-escape-b-every-slot` | *awaiting the set* |
+| `string/escape/backslash` | `string-escape-backslash`, `string-escape-backslash-every-slot` | `ser-string-escape-backslash`, `ser-string-escape-backslash-every-slot` | *awaiting the set* |
 | `string/escape/backtick` | `string-escape-backtick` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `string/escape/f` | `string-escape-f` | `ser-string-escape-f` | *awaiting the set* |
+| `string/escape/f` | `string-escape-f`, `string-escape-f-every-slot` | `ser-string-escape-f`, `ser-string-escape-f-every-slot` | *awaiting the set* |
 | `string/escape/identity` | `string-escape-identity` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `string/escape/identity/a` | `string-escape-identity-a` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `string/escape/n` | `string-escape-n` | `ser-string-escape-n` | *awaiting the set* |
+| `string/escape/n` | `string-escape-n`, `string-escape-n-every-slot` | `ser-string-escape-n`, `ser-string-escape-n-every-slot` | *awaiting the set* |
 | `string/escape/octal` | `string-escape-octal` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `string/escape/octal/8` | `string-escape-octal-8` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `string/escape/quote` | `string-escape-quote` | `ser-string-escape-quote` | *awaiting the set* |
-| `string/escape/r` | `string-escape-r` | `ser-string-escape-r` | *awaiting the set* |
+| `string/escape/quote` | `string-escape-quote`, `string-escape-quote-every-slot` | `ser-string-escape-quote`, `ser-string-escape-quote-every-slot` | *awaiting the set* |
+| `string/escape/r` | `string-escape-r`, `string-escape-r-every-slot` | `ser-string-escape-r`, `ser-string-escape-r-every-slot` | *awaiting the set* |
 | `string/escape/single-quote` | `string-escape-single-quote` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `string/escape/slash` | `string-escape-slash` | not applicable, [note 18](#notes) | *awaiting the set* |
+| `string/escape/slash` | `string-escape-slash`, `string-escape-slash-every-slot` | not applicable, [note 18](#notes) | *awaiting the set* |
 | `string/escape/space` | `string-escape-space` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `string/escape/t` | `string-escape-t` | `ser-string-escape-t` | *awaiting the set* |
+| `string/escape/t` | `string-escape-t`, `string-escape-t-every-slot` | `ser-string-escape-t`, `ser-string-escape-t-every-slot` | *awaiting the set* |
 | `string/escape/u-braces` | `string-escape-u-braces` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `string/escape/u/09af` | `string-escape-u-09af` | not applicable, [note 16](#notes) | *awaiting the set* |
-| `string/escape/u/9afA` | `string-escape-u-9afA` | not applicable, [note 16](#notes) | *awaiting the set* |
-| `string/escape/u/AF09` | `string-escape-u-AF09` | not applicable, [note 16](#notes) | *awaiting the set* |
-| `string/escape/u/F09a` | `string-escape-u-F09a` | not applicable, [note 16](#notes) | *awaiting the set* |
-| `string/escape/u/afAF` | `string-escape-u-afAF` | not applicable, [note 16](#notes) | *awaiting the set* |
-| `string/escape/u/fAF0` | `string-escape-u-fAF0` | not applicable, [note 16](#notes) | *awaiting the set* |
+| `string/escape/u/09af` | `string-escape-u-09af`, `string-escape-u-09af-every-slot` | not applicable, [note 16](#notes) | *awaiting the set* |
+| `string/escape/u/9afA` | `string-escape-u-9afA`, `string-escape-u-9afA-every-slot` | not applicable, [note 16](#notes) | *awaiting the set* |
+| `string/escape/u/AF09` | `string-escape-u-AF09`, `string-escape-u-AF09-every-slot` | not applicable, [note 16](#notes) | *awaiting the set* |
+| `string/escape/u/F09a` | `string-escape-u-F09a`, `string-escape-u-F09a-every-slot` | not applicable, [note 16](#notes) | *awaiting the set* |
+| `string/escape/u/afAF` | `string-escape-u-afAF`, `string-escape-u-afAF-every-slot` | not applicable, [note 16](#notes) | *awaiting the set* |
+| `string/escape/u/fAF0` | `string-escape-u-fAF0`, `string-escape-u-fAF0-every-slot` | not applicable, [note 16](#notes) | *awaiting the set* |
 | `string/escape/u/non-hex/002f/0` | `string-escape-u-non-hex-002f-0` | not applicable, [note 16](#notes) | *awaiting the set* |
 | `string/escape/u/non-hex/002f/1` | `string-escape-u-non-hex-002f-1` | not applicable, [note 16](#notes) | *awaiting the set* |
 | `string/escape/u/non-hex/002f/2` | `string-escape-u-non-hex-002f-2` | not applicable, [note 16](#notes) | *awaiting the set* |
@@ -550,8 +553,8 @@ roles reads exactly like prose that mentions it in three.
 | `string/escape/u/non-hex/0067/3` | `string-escape-u-non-hex-0067-3` | not applicable, [note 16](#notes) | *awaiting the set* |
 | `string/escape/u/short/0` | `string-escape-u-short-0` | not applicable, [note 16](#notes) | *awaiting the set* |
 | `string/escape/u/short/3` | `string-escape-u-short-3` | not applicable, [note 16](#notes) | *awaiting the set* |
-| `string/escape/u00/0000` | `string-escape-u00-0000` | `ser-string-escape-u00-0000` | *awaiting the set* |
-| `string/escape/u00/001f` | `string-escape-u00-001f` | `ser-string-escape-u00-001f` | *awaiting the set* |
+| `string/escape/u00/0000` | `string-escape-u00-0000`, `string-escape-u00-0000-every-slot` | `ser-string-escape-u00-0000`, `ser-string-escape-u00-0000-every-slot` | *awaiting the set* |
+| `string/escape/u00/001f` | `string-escape-u00-001f`, `string-escape-u00-001f-every-slot` | `ser-string-escape-u00-001f`, `ser-string-escape-u00-001f-every-slot` | *awaiting the set* |
 | `string/escape/uppercase` | `string-escape-uppercase-n` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `string/escape/uppercase/u` | `string-escape-uppercase-u` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `string/escape/v` | `string-escape-v` | not applicable, [note 1](#notes) | *awaiting the set* |

@@ -7,6 +7,8 @@ const $s5 = [1];
 const $s6 = [0];
 const $s7 = [0];
 const $s8 = [$s7];
+const $s9 = {"x": $s7};
+const $s10 = {"d": 0, "c": 1};
 export default [
     {"id": "ser-null", "class": "leaf/null", "input": null},
     {"id": "ser-true", "class": "leaf/boolean/true", "input": true},
@@ -158,9 +160,6 @@ export default [
     {"id": "ser-shared-two-nodes", "class": "const/shared/two-nodes", "input": [$s3, $s4, $s3, $s4]},
     {"id": "ser-key-proto-nested", "class": "key/proto/nested", "input": [{["__proto__"]: {["__proto__"]: 1}}]},
     {"id": "ser-key-proto-value-shared", "class": "key/proto/value/shared", "input": {["__proto__"]: $s6, "x": $s6}},
-    {"id": "ser-key-escape-quote-after-first", "class": "key/string/escape/quote", "input": {"a": 0, "\"": 1}},
-    {"id": "ser-key-escape-backslash-after-first", "class": "key/string/escape/backslash", "input": {"a": 0, "\\": 1}},
-    {"id": "ser-key-escape-u00-0000-after-first", "class": "key/string/escape/u00/0000", "input": {"a": 0, "\u0000": 1}},
     {"id": "ser-string-raw-007f", "class": "string/raw/bmp", "input": "\u007f"},
     {"id": "ser-key-raw-007f", "class": "key/string/raw/bmp", "input": {"\u007f": 0}},
     {"id": "ser-string-raw-0080", "class": "string/raw/bmp", "input": "\u0080"},
@@ -194,5 +193,27 @@ export default [
     {"id": "ser-object-key-order-non-index-space", "class": "object/key-order/non-index/space", "input": {"z": 0, " 1": 1, "1": 2}},
     {"id": "ser-object-key-order-non-index-hex", "class": "object/key-order/non-index/hex", "input": {"z": 0, "0x1": 1, "1": 2}},
     {"id": "ser-object-key-order-non-index-exp", "class": "object/key-order/non-index/exp", "input": {"z": 0, "1e0": 1, "1": 2}},
-    {"id": "ser-object-key-order-non-index-above", "class": "object/key-order/non-index/above", "input": {"z": 0, "4294967296": 1, "1": 2}}
+    {"id": "ser-object-key-order-non-index-above", "class": "object/key-order/non-index/above", "input": {"z": 0, "4294967296": 1, "1": 2}},
+    {"id": "ser-string-escape-quote-every-slot", "class": "string/escape/quote", "input": ["\"", 0, "\""]},
+    {"id": "ser-key-escape-quote-every-slot", "class": "key/string/escape/quote", "input": [{"\"": "\"", "a": 1}, {"a": 0, "\"": "\""}]},
+    {"id": "ser-string-escape-backslash-every-slot", "class": "string/escape/backslash", "input": ["\\", 0, "\\"]},
+    {"id": "ser-key-escape-backslash-every-slot", "class": "key/string/escape/backslash", "input": [{"\\": "\\", "a": 1}, {"a": 0, "\\": "\\"}]},
+    {"id": "ser-string-escape-b-every-slot", "class": "string/escape/b", "input": ["\b", 0, "\b"]},
+    {"id": "ser-key-escape-b-every-slot", "class": "key/string/escape/b", "input": [{"\b": "\b", "a": 1}, {"a": 0, "\b": "\b"}]},
+    {"id": "ser-string-escape-t-every-slot", "class": "string/escape/t", "input": ["\t", 0, "\t"]},
+    {"id": "ser-key-escape-t-every-slot", "class": "key/string/escape/t", "input": [{"\t": "\t", "a": 1}, {"a": 0, "\t": "\t"}]},
+    {"id": "ser-string-escape-n-every-slot", "class": "string/escape/n", "input": ["\n", 0, "\n"]},
+    {"id": "ser-key-escape-n-every-slot", "class": "key/string/escape/n", "input": [{"\n": "\n", "a": 1}, {"a": 0, "\n": "\n"}]},
+    {"id": "ser-string-escape-f-every-slot", "class": "string/escape/f", "input": ["\f", 0, "\f"]},
+    {"id": "ser-key-escape-f-every-slot", "class": "key/string/escape/f", "input": [{"\f": "\f", "a": 1}, {"a": 0, "\f": "\f"}]},
+    {"id": "ser-string-escape-r-every-slot", "class": "string/escape/r", "input": ["\r", 0, "\r"]},
+    {"id": "ser-key-escape-r-every-slot", "class": "key/string/escape/r", "input": [{"\r": "\r", "a": 1}, {"a": 0, "\r": "\r"}]},
+    {"id": "ser-string-escape-u00-0000-every-slot", "class": "string/escape/u00/0000", "input": ["\u0000", 0, "\u0000"]},
+    {"id": "ser-key-escape-u00-0000-every-slot", "class": "key/string/escape/u00/0000", "input": [{"\u0000": "\u0000", "a": 1}, {"a": 0, "\u0000": "\u0000"}]},
+    {"id": "ser-string-escape-u00-001f-every-slot", "class": "string/escape/u00/001f", "input": ["\u001f", 0, "\u001f"]},
+    {"id": "ser-key-escape-u00-001f-every-slot", "class": "key/string/escape/u00/001f", "input": [{"\u001f": "\u001f", "a": 1}, {"a": 0, "\u001f": "\u001f"}]},
+    {"id": "ser-array-elements-every-value-first", "class": "array/elements/every-value-first", "input": [[null, 0], [true, 0], [false, 0], [undefined, 0], [NaN, 0], [Infinity, 0], [-Infinity, 0], [0, 0], [-0, 0], [1.5, 0], [-1.5, 0], [109n, 0], [-109n, 0], [0n, 0], ["", 0], ["a", 0], [[], 0], [{}, 0]]},
+    {"id": "ser-object-members-every-value-first", "class": "object/members/every-value-first", "input": [{"a": null, "b": 0}, {"a": true, "b": 0}, {"a": false, "b": 0}, {"a": undefined, "b": 0}, {"a": NaN, "b": 0}, {"a": Infinity, "b": 0}, {"a": -Infinity, "b": 0}, {"a": 0, "b": 0}, {"a": -0, "b": 0}, {"a": 1.5, "b": 0}, {"a": -1.5, "b": 0}, {"a": 109n, "b": 0}, {"a": -109n, "b": 0}, {"a": 0n, "b": 0}, {"a": "", "b": 0}, {"a": "a", "b": 0}, {"a": [], "b": 0}, {"a": {}, "b": 0}]},
+    {"id": "ser-object-key-order-nested", "class": "object/key-order/nested", "input": [{"b": 0, "a": 1}, $s10, $s10]},
+    {"id": "ser-const-shared-nested-object-parent", "class": "const/shared/nested", "input": [$s9, $s9, $s7]}
 ];
