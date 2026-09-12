@@ -222,23 +222,51 @@ const selected = (b, at, mask, count, k, value) => {
  * instruction count, and the only bound left is the target size the header
  * declares. A limit of this module's own would be a number Git does not have.
  *
- * Everything it needs is a parameter, so this closes over nothing: `d` is the
- * delta and `src` the base.
+ * **The declared target size is a bound and not a tally.** It is checked as the
+ * pieces are named, not once at the end, because the end is too late to have
+ * refused the work: a delta declaring a target of nothing and then repeating the
+ * bare copy instruction `0x80` — offset zero, and through {@link wholeCopy} a
+ * size of 65536 — names a whole 64 KiB base per byte of delta. Measured on node
+ * 22, five hundred such bytes against a 64 KiB base took 3.4 s and 1.16 GB of
+ * resident memory before answering `null`, which a few hundred bytes of an
+ * untrusted pack should not be able to ask for. Checked as it goes, the same
+ * delta is refused at the first instruction, and no delta can name more bytes
+ * than its own header promised.
  *
- * @type {(d: readonly number[], src: readonly number[], at: number) => Nullable<List<readonly number[]>>}
+ * Only a copy is bounded as it goes, and an insert is not, because only a copy
+ * amplifies: an insert's bytes come out of the delta, so what the inserts
+ * together can build is already bounded by the delta's own length, while one
+ * byte of copy instruction names up to 65536 bytes of base. A check on the
+ * insert branch would refuse the same deltas a step earlier and none of them
+ * differently — it cannot change an answer, and a mutation removing it failed no
+ * case, which is how it came out. An overshooting insert is refused by the
+ * exactness above instead.
+ *
+ * That the count of instructions is also the caller's is this loop's other
+ * bound, and the loop is why: see the paragraph above.
+ *
+ * Everything it needs is a parameter, so this closes over nothing: `d` is the
+ * delta, `src` the base, and `want` the size the delta's header declares.
+ *
+ * @type {(d: readonly number[], src: readonly number[], at: number, want: number) => Nullable<List<readonly number[]>>}
  */
-const deltaPieces = (d, src, at) => {
+const deltaPieces = (d, src, at, want) => {
     /** @type {List<readonly number[]>} */
     let found = null
     let i = at
+    let total = 0
     while (true) {
-        if (i === d.length) { return found }
+        // The instructions have to build the target exactly, so a delta that
+        // stops short is refused here rather than by a length check outside:
+        // one place states the rule and one place enforces it.
+        if (i === d.length) { return total === want ? found : null }
         const c = d[i]
         if (c < 128) {
             // an insert of nothing is written by no encoder, and a stream of
             // them would make no progress
             if (c === 0 || i + 1 + c > d.length) { return null }
             found = concat(found)([d.slice(i + 1, i + 1 + c)])
+            total += c
             i += 1 + c
             continue
         }
@@ -247,8 +275,9 @@ const deltaPieces = (d, src, at) => {
         const size = selected(d, offset[1], Math.floor(c / 16), 3, 0, 0)
         if (size === null) { return null }
         const length = size[0] === 0 ? wholeCopy : size[0]
-        if (offset[0] + length > src.length) { return null }
+        if (offset[0] + length > src.length || total + length > want) { return null }
         found = concat(found)([src.slice(offset[0], offset[0] + length)])
+        total += length
         i = size[1]
     }
 }
@@ -278,8 +307,6 @@ export const tryApplyDelta = (base, delta) => {
     const targetSize = littleVarint(d, sourceSize[1], 0, 1)
     if (targetSize === null) { return null }
     const [want, start] = targetSize
-    const named = deltaPieces(d, src, start)
-    if (named === null) { return null }
-    const out = toArray(flat(named))
-    return out.length === want ? out : null
+    const named = deltaPieces(d, src, start, want)
+    return named === null ? null : toArray(flat(named))
 }

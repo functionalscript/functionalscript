@@ -71,6 +71,13 @@ const header = (code, size) => {
  */
 const littleVarint = v => v < 128 ? [v] : [v % 128 + 128, ...littleVarint(Math.floor(v / 128))]
 
+/**
+ * What a copy of size zero copies, which the format spells by leaving every
+ * size byte out. Named here because two cases are about that size and the
+ * module keeps its own copy of the number private.
+ */
+const wholeCopy = /** @type {const} */ (65536)
+
 export const proof = {
     // The header of a pack Git 2.43.0 wrote.
     header: () => {
@@ -249,6 +256,31 @@ export const proof = {
         assert(out !== null)
         assertEq(out.length, n)
         assert(out.every(v => v === 0x41))
+    },
+    // The declared target size bounds the work, not just the answer. A delta
+    // declaring a target of nothing and then repeating the bare copy `0x80` —
+    // offset zero and, by the absent-size rule, 65536 bytes — names a whole
+    // 64 KiB base per byte of delta. Measured on node 22 before this was
+    // checked as it goes: five hundred such bytes took 3.4 s and 1.16 GB of
+    // resident memory to answer `null`, and 3 ms and no measurable memory
+    // after. A few hundred bytes of an untrusted pack should not be able to
+    // ask a reader for a gigabyte.
+    deltaTargetBounds: () => {
+        const wide = Array.from({ length: wholeCopy }, (_, i) => i % 256)
+        const copies = /** @type {(n: number) => readonly number[]} */ (n =>
+            Array.from({ length: n }, () => 0x80))
+        // A target of nothing: the very first copy is already past it.
+        assertEq(tryApplyDelta(wide, [...littleVarint(wholeCopy), ...littleVarint(0), ...copies(500)]), null)
+        // A target of one whole base: the first copy fills it and the second is
+        // refused, rather than five hundred being collected and counted.
+        assertEq(
+            tryApplyDelta(wide, [...littleVarint(wholeCopy), ...littleVarint(wholeCopy), ...copies(500)]),
+            null)
+        // And exactly one copy builds it, so the bound is the target's and not
+        // a refusal of the instruction.
+        const out = tryApplyDelta(wide, [...littleVarint(wholeCopy), ...littleVarint(wholeCopy), ...copies(1)])
+        assert(out !== null)
+        assertEq(out.length, wholeCopy)
     },
     throw: {
         // Bytes that are no bytes, the same refusal every reader here makes.
