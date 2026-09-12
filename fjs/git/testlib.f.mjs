@@ -439,3 +439,77 @@ export const packIdx1 = hexBytes([
     '0133447badcfd47fd144e254807b06e16565001cf42de4aac5fa4f9a260ab4588951ee17',
     '33c25df1d585246a028845a3d98185e838e606a5',
 ].join(''))
+
+/**
+ * The first twelve bytes of a pack Git 2.43.0 wrote: the signature `PACK`,
+ * the version, and the entry count.
+ *
+ * The pack holds 18 objects over six commits of one file, four of them
+ * deltas at chain length 1 against the same base, which is what
+ * `git verify-pack -v` reports for it.
+ */
+export const packHeader = hexBytes([
+    '5041434b0000000200000012',
+].join(''))
+
+/**
+ * The bytes at offset 12 of that pack, where its first entry begins: a whole
+ * commit of 475 bytes. Only the entry's header is needed to read it, so only
+ * the first few bytes are here and the zlib stream after them is not.
+ */
+export const packEntryObject = hexBytes([
+    '9b1d789c7d90dd4e',
+].join(''))
+
+/**
+ * The bytes at offset 726, where an `ofsDelta` entry begins. Its distance back
+ * is 360, so its base is the entry at 366, and `git verify-pack -v` names that
+ * base as `bba8d20c99a645a8a98620700c15ff9262574c94`.
+ */
+export const packEntryOfsDelta = hexBytes([
+    'e8098168789cbbcd',
+].join(''))
+
+/**
+ * The base object of that delta, inflated: the commit
+ * `bba8d20c99a645a8a98620700c15ff9262574c94`, 475 bytes of payload.
+ *
+ * Inflated rather than as it sits in the pack, because the decoder that reads
+ * a delta takes the bytes and not the stream — inflating is an effect and
+ * belongs to the reader above it.
+ */
+export const packDeltaBase = hexBytes([
+    '747265652065346463393461366637313464386164623061333866613065343761633931',
+    '6162333932383932370a706172656e742036623033316534353665663163373532326530',
+    '6230383864623930363535626566353464613834310a617574686f722061203c6140622e',
+    '633e2031373839323232343436202b303030300a636f6d6d69747465722061203c614062',
+    '2e633e2031373839323232343436202b303030300a677067736967202d2d2d2d2d424547',
+    '494e20535348205349474e41545552452d2d2d2d2d0a2055314e4955306c484141414141',
+    '51414141444d414141414c63334e6f4c57566b4d6a55314d546b4141414167724c7a7366',
+    '4649534634627938512b464b7a323759706b4b3155537342422b6d0a20616d7531516b4a',
+    '6e62447341414141445a326c30414141414141414141415a7a614745314d544941414142',
+    '544141414143334e7a6143316c5a4449314e54453541414141514d732f36346f2b0a2042',
+    '2f304636312f682f514f4f76426b4f5979766c3453726a7a3662743652782b516c315856',
+    '4e714e766161464c4a6b724a4a4c5475514c455248334a69313147315a34367258587978',
+    '6e4a720a207777733d0a202d2d2d2d2d454e4420535348205349474e41545552452d2d2d',
+    '2d2d0a0a63320a',
+].join(''))
+
+/**
+ * The delta at offset 726, inflated: 152 bytes, whose header says its source
+ * is 475 bytes and its target 427, and whose instructions are an insert of 45,
+ * a copy of 257 from 93, an insert of 90, a copy of 33 from 440, and an insert
+ * of 2.
+ *
+ * Applied to {@link packDeltaBase} it builds the commit
+ * `6b031e456ef1c7522e0b088db90655bef54da841`, which is the id
+ * `git verify-pack -v` gives the entry — so the proof checks the result by
+ * hashing it rather than by holding a copy.
+ */
+export const packDelta = hexBytes([
+    'db03ab032d74726565206465323664356331323162386534313063323061343830653130',
+    '3166376564633865333639303438b15d01015a457168503467740a2065655837396b6d42',
+    '694e3833633246696b6459453370386b326959524e63367846476a617541797951693976',
+    '3969344d56464a582f65383541547936504662573554676354325835514734370a203077',
+    '6793b8012102310a',
+].join(''))
