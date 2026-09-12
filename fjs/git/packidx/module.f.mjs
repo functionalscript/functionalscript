@@ -55,7 +55,7 @@ const toVec = u8ListToVec(msb)
 const magic = /** @type {const} */ ([0xFF, 0x74, 0x4F, 0x63])
 
 /** How many entries the fanout table has, one per possible first byte. */
-const fanout = 256
+const fanout = /** @type {const} */ (256)
 
 /**
  * A big-endian 32-bit word, read as arithmetic rather than with shifts.
@@ -157,7 +157,7 @@ const tryV1 = (b, oidBytes) => {
  * table" rather than an offset, and so also the first offset that cannot be
  * spelled in four bytes.
  */
-const largeOffsetFlag = 0x80000000
+const largeOffsetFlag = /** @type {const} */ (0x80000000)
 
 /**
  * Version 2: the magic and version, the fanout, the ids, a CRC per object,
