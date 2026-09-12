@@ -2361,8 +2361,10 @@ The steps, in order; a step is one pull request unless it says otherwise:
       four of its `__proto__` records emit the key inline, so a writer with its
       own object emitter for a `const` body writes it literally there and this
       set's bytes never said otherwise. One vector under `const/shared/object`,
-      with the text the shipped writer emits,
-      `const $0={["__proto__"]:1};export default [$0,$0];`.
+      with the text the shipped writer emits, and it shares two objects rather
+      than one, since an emitter using the computed form only for a body's
+      **first** member passed while the key sat there:
+      `const $0={["__proto__"]:0,"x":1};const $1={"x":0,["__proto__"]:1};`.
       **And the two parent paths after it**, both of which this column had as
       little as the others. Nested key order was reached only through an array
       element here too, so the input takes `{"x":{"b":0,"a":1}}` beside the
