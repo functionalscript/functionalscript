@@ -1942,8 +1942,15 @@ The steps, in order; a step is one pull request unless it says otherwise:
       subtree was closed by one reason saying the set pins observable order
       once, with a boundary vector carrying no *signed* key at all, so a writer
       treating a canonical signed decimal as an index moved it ahead of the
-      names and passed. Seven vectors carry the seven classes, each key paired
-      with an index one so the order is observable, and that reason is gone.
+      names and passed. Seven vectors carry the seven classes, and the shape of
+      the input is the whole finding: review's next round showed that pairing
+      the key with a *numerically equal* index makes six of the seven blind,
+      since the misclassifying writer sorts two equal indices stably and leaves
+      the order alone. Only the negative one discriminated. Each vector now
+      carries an ordinary name, the non-index key and a real index, which pins
+      three things at once — indices before names, the key staying in the names
+      group, and insertion order within it — and every one of the seven
+      separates a correct writer from that mutant. The reason is gone.
       Both had been fixed for the normalize column in the step above, which is
       the rule this file now states twice over and I applied to one column at a
       time anyway.
@@ -2068,6 +2075,24 @@ The steps, in order; a step is one pull request unless it says otherwise:
       Three vectors put the negative zero, the bigint and the infinity in the
       first slot here, added in the round that fixed the other column rather
       than the round after it.
+      The seven non-index key vectors then turned out to be built the wrong
+      way, in both writer sets. Each paired its key with a numerically *equal*
+      index, and a writer that classifies any numeric-looking key as an index
+      sorts two equal ones stably, so six of the seven could not tell it from a
+      correct one. Each now carries an ordinary name, the key and a real index.
+      A vector for a classification has to be built against the
+      misclassification; containing the value is not enough, and pairing with
+      an equal index was the choice that looked careful and made the check
+      vacuous.
+      Two descriptions were stale for the usual reason. This set's proof still
+      said it checks what can be checked *before* stage 4's serializer exists,
+      when its `shipped` case runs that serializer over every vector, and the
+      schema still said the `normalize` set is not in the tree, which is true
+      one step down and not here. Both say what they do now.
+      And the specification's parsing status said a document parses today
+      without saying which document: the landed entry point takes a string, so
+      the byte path of §Layout, refusing invalid UTF-8 and a leading BOM, is
+      still to come, and the byte-form vectors are what require it.
       **And one thing the matrix does not mean**, which review read the other
       way and a consumer could too. `serializer.md` states that a normalized
       writer owes `serializer-accept` and `graph-equivalence` besides

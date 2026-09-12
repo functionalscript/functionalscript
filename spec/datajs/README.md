@@ -76,7 +76,11 @@ exactly one byte sequence.
 parser requires too, so a document parses today — `NaN` and the infinities
 included, measured against
 [`fjs/media/datajs/parser`](../../fjs/media/datajs/parser/module.f.mjs),
-which closed the reader-side gap this paragraph used to name.
+which closed the reader-side gap this paragraph used to name. That entry
+point takes a string, so what parses today is the document as code units; the
+byte path of §Layout, which refuses invalid UTF-8 and a leading BOM before
+the reader sees a unit, is still to come and is what the corpus's byte-form
+vectors require.
 The shipped `fjs/djs` serializer still differs from
 [normalized form](#normalized-form) in four ways, each of them stage 4–6 work
 rather than a bug:
