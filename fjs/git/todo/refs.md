@@ -68,7 +68,7 @@ later task, and so is the reflog, which expires and is no retention.
 
 ### Tasks
 
-- [ ] Grammars for the three files, and their readers.
+- [x] Grammars for the three files, and their readers.
 - [x] The ref-name rules shared with the tag module.
 - [ ] `roots` and `tryResolve`, over the effects, with the virtual
       filesystem as their proof.
