@@ -45,306 +45,76 @@ grammar.
 
 ### Proposal
 
-A machine-readable corpus with six parts.
+A machine-readable corpus with five parts.
 
-**Document inputs come in two forms.** Code-unit arrays carry all but two of
-the rules below, and rightly: those rules are about the token stream, and a
-corpus that made every consumer decode UTF-8 first would be testing its own
-reader. Two rules are *not* about the token stream and cannot be reached that
-way at all, so their vectors carry the **bytes** instead — as a tagged hex
-string, `["hex", "ef bb bf …"]`, lowercase pairs separated by single
-spaces, the one spelling these tables use throughout — fed to the reader's public
-byte-accepting path, which stage 4 owes:
+**A document is text, and the corpus spells it as one.** DataJS works with
+correct UTF-8 and rejects everything else, so what is *not* correct UTF-8 is
+not a taxonomy the format owes anybody: it is one word, rejected. A vector
+carries a document as a JavaScript string whose code units are the document's,
+and three vectors carry bytes instead, as a tagged hex string,
+`["hex", "ef bb bf …"]`, lowercase pairs separated by single spaces.
 
-- a document **has no BOM**, which a decoder satisfies the parser on by
-  stripping `ef bb bf` before the parser ever runs; and
-- a document **is UTF-8**, which nothing in a code-unit array can violate — so
-  vectors carry invalid UTF-8 to be refused, **one per error class and one at
-  each end of every class**, since a decoder can reject a class's lowest member
-  and accept its highest just as easily as it can reject one class and accept
-  another. Each class is a *range*, and naming a class without its endpoints
-  leaves the vector's value to whoever picks it:
+Two of the three are rejects, and only one of them is a record rather than a
+discriminator:
 
-  | class | lowest | highest |
-  | - | - | - |
-  | invalid lead byte, low | `c0` | `c1` |
-  | lead byte in no width scheme, alone | `fe` | `ff` |
-  | four-byte lead past U+10FFFF | `f5 80 80 80` (U+140000) | `f7 bf bf bf` (U+1FFFFF) |
-  | stray continuation byte | `80` | `bf` |
-  | overlong, two bytes | `c0 a0` (U+0020) | `c1 bf` (U+007F) |
-  | overlong, three bytes | `e0 80 a0` (U+0020) | `e0 9f bf` (U+07FF) |
-  | overlong, four bytes | `f0 80 80 a0` (U+0020) | `f0 8f bf bf` (U+FFFF) |
-  | obsolete five-byte form | `f8 88 80 80 80` (U+200000) | `fb bf bf bf bf` (U+3FFFFFF) |
-  | obsolete six-byte form | `fc 84 80 80 80 80` (U+4000000) | `fd bf bf bf bf bf` (U+7FFFFFFF) |
-  | five-byte form overlong into range | `f8 80 80 80 a0` (U+0020) | — |
-  | six-byte form overlong into range | `fc 80 80 80 80 a0` (U+0020) | — |
-  | encoded surrogate | `ed a0 80` (U+D800) | `ed bf bf` (U+DFFF) |
-  | above U+10FFFF | `f4 90 80 80` | `f4 bf bf bf` |
+- **a BOM as the document's first byte**, `ef bb bf` before
+  `export default 1;`. The bytes are valid UTF-8 and the document is valid but
+  for the BOM, so the rule it breaks is the document rule's second half, "it has
+  no BOM". JavaScript accepts the same file, measured, so it is a narrowing
+  vector — and an ordinary **test**: a reader that strips the BOM accepts the
+  document and fails this vector, which review pointed out is exactly the defect
+  the byte path is most likely to have.
+- **a truncated sequence at end of input**, `export default "a` followed by a
+  lone `c2`. Nothing follows the lead byte, which is what makes it truncated;
+  a byte after it would make it some other malformed shape instead. **A
+  document-level harness cannot fail this one**, for the reason set out below,
+  so it exists first of all because the corpus *shows* that a byte sequence is
+  not DataJS, which no code-unit document can say. It is an ordinary reject
+  record all the same, and a harness that can see where a refusal happened does
+  get an answer from it: the reader proof here asserts the layer each `rule`
+  belongs to, and a decoder substituting U+FFFD instead of refusing fails it.
 
-  Each overlong range's highest member sits immediately below that width's
-  valid minimum — `c1 bf` under `c2 80`, `e0 9f bf` under `e0 a0 80`,
-  `f0 8f bf bf` under `f0 90 80 80` — so the pairs bracket the transition from
-  both sides, and the same holds for the surrogate hole and the U+10FFFF edge.
+The third is an **accept**, and it is there because the other two are
+rejects. Review pointed out what that leaves open: with no byte document the
+corpus accepts, a reader whose byte-accepting path refuses every input passes
+the whole corpus while refusing valid documents. That is the accept-direction
+rule this file states and then broke again, in the round that cut the byte
+form down. So one valid document carries its bytes — `export default "aé€𐀀";`,
+one string holding a one-, two-, three- and four-byte sequence — which proves
+valid UTF-8 is taken without enumerating anything.
 
-  **The two-byte overlong needs its own row after all.** An earlier draft
-  argued that `c0` is an invalid lead outright, so the invalid-lead class
-  carries `c0 80` already. Review showed the argument inverted: the invalid-lead
-  vector places `c0` inside a quoted string, so its next byte is the closing
-  `22`, and a decoder that *does* treat `c0` as a two-byte lead rejects that for
-  the missing continuation. It refuses the vector without ever enforcing the
-  overlong rule, which is the one thing the vector was about.
+**An earlier draft of this file had ninety byte-form vectors and a theory to
+go with them.** Both ends of thirteen UTF-8 error classes, a non-continuation
+matrix indexed by the accept table's eight lead partitions with an ASCII and a
+valid-lead intruder per cell, the overlong forms per width, the obsolete five-
+and six-byte leads at both ends of every run, the two sequences that are
+overlong *into* range, and, on the accept side, both ends of all eight lead
+partitions with six more vectors to vary the continuation positions
+independently. Several review rounds went into it, each finding the previous
+one had sampled where the rule said enumerate.
 
-  **Every overlong row's true low end is a vector that cannot fail**, which is
-  the sweep that finding forced and it reaches two rows nobody reported.
-  `c0 80`, `e0 80 80` and `f0 80 80 80` all encode **U+0000**, and a decoder
-  that accepts the overlong hands the parser a code point below U+0020 — a
-  rejected raw character — so the document is refused for the *string* rule
-  while the UTF-8 rule goes unenforced. The rows now start at the overlong
-  encoding of **U+0020**, the lowest scalar a string can carry raw, and the
-  class below it is untestable through a document for the same reason
-  truncation is: the corpus records that rather than shipping vectors that
-  pass no matter what. Nor does the space between tokens help — a decoder
-  yielding U+0000 there is refused for not being permitted whitespace.
+Every one of them was about a decoder. DataJS is handed correct UTF-8, so a
+malformed sequence is not an input it processes, exactly as a `Map` is not an
+input a serializer refuses. The care was real and the subject was someone
+else's. What survives is the two rejects above, neither dressed up as more than
+it is: the truncated one says what it says at the document level and no more.
 
-  **A lead byte past `f4` needs a complete sequence, and needs it twice**, for
-  two axes that a first pass here confused and a second had to separate.
+Truncation is worth one more line, because this file argued at length that it
+could not have a vector: the lead byte must be the document's last, so the
+document has lost its closing quote and its `;` as well, and a reader that
+replacement-decodes the trailing byte refuses it as unterminated without
+checking UTF-8 at all. That argument is correct and no longer decisive. The
+vector is not there to fail a broken decoder; it is there to record that those
+bytes are not a DataJS document.
 
-  The first axis is the **lead range** a decoder's table admits, and it is the
-  `c0` finding again one row up: inside a quoted string the lone `f5` is
-  really `f5 22`, which a decoder treating `f5` as a four-byte lead rejects for
-  the missing continuation — refusing the vector without ever deciding that
-  `f5` is not a lead. So the complete sequences, both ends of every lead run
-  the width scheme distinguishes: `f5`–`f7` at four bytes, `f8`–`fb` at five,
-  `fc`–`fd` at six. `fe` and `ff` are leads in no scheme at all, so they keep
-  only the lone-byte form — and **both** of them: that run is a range like any
-  other, and the table sampled it as `f5` and `ff` until review pointed out
-  that a reader accepting a lone `fe` passes everything else here. A lone `f5`
-  is gone with it: once `f5 80 80 80` exists, the lone byte tests nothing the
-  complete sequence does not, because a decoder treating `f5` as a lead refuses
-  `f5 22` for the missing continuation — the very argument that put the
-  complete sequences in the table.
-
-  The second axis is **what the decoder does with the value it computes**, and
-  it splits into two implementations that no single vector catches:
-
-  - **No range check.** The complete sequences above all compute values past
-    U+10FFFF — measured, U+140000 through U+7FFFFFFF — so a decoder that
-    accepts the lead and never range-checks builds some string from them and
-    accepts the document. These vectors catch that.
-  - **Range check, no overlong check.** That decoder refuses everything above,
-    so only a sequence whose value lands *in* range reaches it. `f8` and `fc`
-    are the only obsolete leads that can encode one — measured: `f9`–`fb` start
-    at U+1000000 and `fd` at U+40000000, so no payload brings them back — and
-    every value they can reach is overlong by construction, the five-byte form
-    beginning at U+200000 and the six-byte at U+4000000 when written minimally.
-    Hence `f8 80 80 80 a0` and `fc 80 80 80 80 a0`, both U+0020.
-
-  A decoder keeping a legacy branch with *both* checks is the one case nothing
-  here catches, and nothing can: it accepts no five- or six-byte sequence this
-  format can express, so no input distinguishes it from a correct one.
-
-  **The previous round got this wrong in the direction this document keeps
-  getting things wrong.** It shipped only the overlong forms, on the argument
-  that `f8 88 80 80 80` "every implementation refuses for being above
-  U+10FFFF". Every *range-checking* implementation does. The sentence claimed a
-  universal from a property most implementations have, which is the same
-  overreach recorded three times above, and it cost the vector that catches the
-  commoner of the two defects.
-
-  Two classes are not ranges and keep their own vectors. A **truncated
-  sequence** (`c2` at end of input) has no vector at all — see the exemption
-  below. A valid lead followed by a **non-continuation** byte needs one per
-  position **in every width that has that position**, and the intruding byte
-  has two sub-classes, so each cell holds two vectors — the whole matrix, not a
-  diagonal of it and not one half of each cell:
-
-  | lead | position 1 | position 2 | position 3 |
-  | - | - | - | - |
-  | `c2`, for `c2`–`df` | `c2 41` / `c2 c2` | — | — |
-  | `e0` | `e0 41 80` / `e0 c2 80` | `e0 a0 41` / `e0 a0 c2` | — |
-  | `e2`, for `e1`–`ec` | `e2 41 80` / `e2 c2 80` | `e2 82 41` / `e2 82 c2` | — |
-  | `ed` | `ed 41 80` / `ed c2 80` | `ed 80 41` / `ed 80 c2` | — |
-  | `ee`, for `ee`–`ef` | `ee 41 80` / `ee c2 80` | `ee 80 41` / `ee 80 c2` | — |
-  | `f0` | `f0 41 98 80` / `f0 c2 98 80` | `f0 9f 41 80` / `f0 9f c2 80` | `f0 9f 98 41` / `f0 9f 98 c2` |
-  | `f1`, for `f1`–`f3` | `f1 41 80 80` / `f1 c2 80 80` | `f1 80 41 80` / `f1 80 c2 80` | `f1 80 80 41` / `f1 80 80 c2` |
-  | `f4` | `f4 41 80 80` / `f4 c2 80 80` | `f4 80 41 80` / `f4 80 c2 80` | `f4 80 80 41` / `f4 80 80 c2` |
-
-  **Rows are the accept table's eight parts, not the three widths.** A
-  constrained lead has its own handler, so it has its own way to be wrong: a
-  decoder that validates `e2`'s continuations correctly and writes `ed`'s
-  second-byte check as `b <= 0x9f` accepts `ed 41 80` as an ordinary scalar —
-  `0x41` passes that test — while still rejecting every encoded-surrogate
-  vector. Review found it, and the fix is the same reindexing the *accept*
-  table needed two rounds earlier: the width was never the thing a decoder
-  branches on. Keeping one indexed by parts and the other by widths was the
-  correction landing in one artifact and not its twin, which is this file's
-  most repeated failure and its first appearance between two tables in the same
-  section.
-
-  A byte is a continuation exactly when it is `10xxxxxx`, so a
-  non-continuation is either **high bit clear** (`00`–`7f`, the `41` column) or
-  **high bit set but not a continuation** (`c0`–`ff`, the `c2` column). A
-  decoder testing `b >= 0x80` where it means `0x80 <= b <= 0xBF` rejects every
-  `41` cell and accepts every `c2` one — half of every cell in this matrix
-  passing while the check it tests is wrong. Review found that after the first
-  draft filled all six positions with `41` alone.
-
-  The high-bit intruder must be a **valid lead byte**, which is why it is `c2`
-  and not `c0` or `ff`: those are invalid leads outright, measured, so a vector
-  using one has the invalid-lead class as a second ground for refusal and stops
-  testing the position it was written for. Any valid lead does equally well —
-  `c2` and `f4` differ nowhere under the one comparison that separates this
-  sub-class from the other — so one representative per cell is enough. The
-  ASCII intruder is constrained from the other direction: `00`–`1f` is a raw
-  control character and `22` and `5c` end or escape the string that carries the
-  vector, each a second ground for refusal, so the column sits in the printable
-  remainder and `41` is that. An
-  earlier draft had one cell per width — `c2 41`, `e2 82 41`, `f0 9f 98 41` —
-  which is one diagonal, and a decoder with separate per-width branches
-  passes a diagonal while failing every cell it misses. All twelve measured
-  invalid, each for "invalid continuation byte" rather than any other reason.
-
-  The non-continuation class and the truncated case are distinct failures
-  despite looking alike:
-  Python's decoder names them differently, "unexpected end of data" against
-  "invalid continuation byte". Review
-  supplied three of these seven after the first draft sampled three, which is
-  the same "enumerate, do not sample" the productions below need. Each malformed
-  sequence sits **inside an otherwise valid quoted string**, and that placement
-  is the vector. A permissive decoder replaces a bad sequence with U+FFFD, and
-  U+FFFD is an ordinary DataJS string character — so with the sequence inside a
-  string the replacement yields a **valid** document, and refusal can only be
-  for the malformed bytes. Put the same sequence between tokens or alone and
-  the replacement yields an invalid document, which the parser rejects for its
-  own reasons: the vector passes while the UTF-8 rule goes unenforced. This is
-  the one-reason rule reaching the byte form.
-
-  **Truncation at end of input has no vector, and the reason is worth more
-  than one would be.** To be truncated the lead byte must be the document's
-  last, so there is no closing quote and no `;`; adding them makes it `c2 22`,
-  the non-continuation class instead. An earlier draft exempted it from the
-  placement rule and kept it anyway, claiming the class survived and only the
-  attribution was lost. That was wrong, and review said so: a byte reader that
-  replacement-decodes the trailing lead and then rejects the unterminated
-  document passes **without checking UTF-8 at all**, so the vector cannot fail
-  and tests nothing. It is not a weakened vector, it is one of the
-  cannot-fail vectors this corpus already refuses to ship.
-
-  So the class is recorded as **untestable through a document-level byte
-  input**, and the seam that would test it — asserting what the decoder does
-  with the bytes, rather than what the reader does with the document — is
-  raised as a task rather than invented here. Whether a conforming
-  implementation must expose a decoder is an API question for the spec, not
-  one this corpus should settle by requiring it of every consumer.
-
-Byte-form vectors must **accept** as well as reject, and the accept set has a
-derivation rather than a list. **Four leads constrain their second byte** —
-`e0` admits `a0`–`bf`, `ed` admits `80`–`9f`, `f0` admits `90`–`bf`, `f4`
-admits `80`–`8f`, since outside those the sequence would be overlong, a
-surrogate, or above U+10FFFF. Those four constraints **partition the valid lead
-bytes into eight parts**, and each part is a contiguous run of scalars a
-decoder can implement, get wrong, or omit on its own. So: **both ends of every
-part**, measured.
-
-| lead | scalars | lowest | highest |
-| - | - | - | - |
-| one byte, in a string | U+0020–U+007F | `20` | `7f` |
-| one byte, between tokens | tab, LF, CR | `09`, `0a`, `0d` | — |
-| `c2`–`df` | U+0080–U+07FF | `c2 80` | `df bf` |
-| `e0` | U+0800–U+0FFF | `e0 a0 80` | `e0 bf bf` |
-| `e1`–`ec` | U+1000–U+CFFF | `e1 80 80` | `ec bf bf` |
-| `ed` | U+D000–U+D7FF | `ed 80 80` | `ed 9f bf` |
-| `ee`–`ef` | U+E000–U+FFFF | `ee 80 80` | `ef bf bf` |
-| `f0` | U+10000–U+3FFFF | `f0 90 80 80` | `f0 bf bf bf` |
-| `f1`–`f3` | U+40000–U+FFFFF | `f1 80 80 80` | `f3 bf bf bf` |
-| `f4` | U+100000–U+10FFFF | `f4 80 80 80` | `f4 8f bf bf` |
-
-The eight parts are contiguous and together cover **U+0080 through U+10FFFF
-with exactly one hole**, U+D800–U+DFFF, which is the surrogate range and the
-one place the reject side takes over. That is the check on the table: a part
-whose neighbours do not meet it is a part written wrong.
-
-**Each continuation position also has to vary independently**, and the two
-endpoints of a part do not give that on their own: a row whose accepts are
-`e1 80 80` and `ec bf bf` is passed whole by a decoder that requires the
-continuation bytes to be *equal to each other*, which then refuses valid text
-like `e1 80 bf`. Every position already sees both `80` and `bf` across the two
-endpoints — what they lack is the independence, so each part with more than one
-continuation position gets accepts making **every pair of its positions differ
-in at least one vector**: `e1 80 bf` (U+103F), `ee 80 bf` (U+E03F),
-`f0 90 80 bf` (U+1003F), `f1 80 bf 80` (U+40FC0) with `f1 80 80 bf` (U+4003F),
-and `f4 80 80 bf` (U+10003F), all measured valid.
-
-Four parts need nothing added, and the reason is the constraint that defines
-them: `e0` admits `a0`–`bf` where its second continuation admits `80`, so
-`e0 a0 80` already has two positions that differ, and `ed` and the first
-positions of `f0` and `f4` are the same. The second-byte constraints did that
-much of the work for free — the parts that needed a vector are exactly the ones
-no constraint touches, which is where this table has been short every time.
-
-**Four rounds of review each removed one way of sampling this instead of
-deriving it**, and the shape repeated at every level:
-
-- The first table used **interior** values, so a decoder rejecting a whole lead
-  range passed: `c2`, `e0` and `f0 90` at the bottom, `df`, `ef` and `f4` at
-  the top.
-- Then it had **one edge of each constrained lead** — `e0 a0 80`, `ed 9f bf`,
-  `f0 90 80 80`, `f4 8f bf bf` — so a decoder accepting only `90` after `f0`,
-  or only `8f` after `f4`, passed while refusing most of the plane. The
-  opposite edges are accepts too, and are now the other end of those rows.
-- Then it had no **surrogate hole** flanks. A hole in a range has two
-  boundaries like any other, and a decoder rejecting the whole `ed` lead range
-  refuses valid text up to U+D7FF while still rejecting the encoded surrogate
-  correctly — passing the row's endpoints and the surrogate error class alike.
-- Then, with every constrained lead covered twice over, the **unconstrained**
-  ranges had nothing: no `e1`–`ec` and no `f1`–`f3` anywhere in the set, so a
-  decoder implementing only the special branches — `e0`, `ed`, `f0`, `f4` — and
-  refusing every ordinary four-byte sequence passed the whole corpus. Review
-  found that one, and it is why the table is now indexed by **lead partition**
-  rather than by width: the width framing had no row for a range that no
-  constraint singles out, and so could not show one was missing.
-
-**The one byte range depends on where the byte is**, which is why it is two
-rows. Inside a string it starts at U+0020, because everything below is a
-rejected raw control. Between tokens, tab, LF and CR are *permitted
-whitespace*, so `09`, `0a` and `0d` are accepts — and they need byte-form
-vectors of their own, because the code-unit whitespace accepts never reach a
-decoder at all. A byte reader rejecting any of the three during decoding
-passed every other vector here. An earlier draft of this table gave one
-unqualified one-byte row starting at U+0020, which was the string rule applied
-to the whole document; the same three characters are a rejection in one context
-and an acceptance in the other, so no vector here may leave its context
-unstated.
-
-This table exists because a boundary needs a vector on each side, and the four
-rounds listed above are review saying so four times running — U+10FFFF, then
-the three minima, then the two- and three-byte maxima that were still interior
-values in the same sentence claiming to cover both ends, then the ranges no
-constraint singles out. Fixing the reported instance and not sweeping the rest
-is what turned one finding into four. One
-multibyte vector is not enough either — with only a two-byte
-one, a decoder accepting ASCII and two-byte sequences while rejecting every
-three- and four-byte sequence still passes, and the BMP and astral cases under
-`normalize` cannot help because they exercise serializer output rather than a
-reader. Every other case here is a rejection, so an implementation that
-refuses every byte document without decoding it would pass them all while
-refusing valid byte-encoded documents — which is the accept-direction rule
-below, and review found this document breaking it in the same commit that
-stated it.
-
-A vector naming a code path the corpus cannot reach is worth less than no
-vector, because it reads as coverage. Review found this document claiming a
-code-unit BOM vector "tests the decoder" one round after adding it, which it
-cannot: the corpus reader had already decoded it.
-
-The six parts:
+The five parts:
 
 - **accept** — document text plus the graph it denotes, including the sharing.
 
   **Derived from the grammar: every production, and every branch of every
   production, owes an accept vector.** Review found the accept side short five
   times in three rounds — the four permitted whitespace characters, the lone
-  surrogate, the byte form, the simple escapes, and the fraction and exponent
+  surrogate, the simple escapes, and the fraction and exponent
   — always because the set had been assembled from interesting cases rather
   than read off the productions. What that derivation requires, where the
   grammar branches:
@@ -460,7 +230,8 @@ The six parts:
     habit of escaping U+2028 and U+2029 for JavaScript safety precisely a
     normalizer emitting a valid document with the wrong bytes. U+FEFF inside a
     string is one reason apart from U+FEFF as the document's first character:
-    that one is the decoder's rule, and it needs the byte form. The lone surrogate exercises
+    that one is the decoder's rule, and it is one of the corpus's two byte
+    reject records. The lone surrogate exercises
     `\u` alone, so a reader supporting raw text and `\u` while rejecting the
     eight simple escapes passed too. **And each lone surrogate twice**, once
     escaped and once as a raw code unit between the quotes: the two are
@@ -468,7 +239,7 @@ The six parts:
     standing for both. The raw form is spellable only because the corpus is
     JavaScript — a lone surrogate has no UTF-8 encoding, so the module's own
     source writes `\ud800` and the string it denotes holds the unit itself;
-    in the byte form the same input is the surrogate error class instead.
+    and the byte form has nothing to say about it.
     `\uXXXX`'s four hex digits are three
     ranges — `0`–`9`, `a`–`f`, `A`–`F` — in **four positions**, and the rule
     above says every endpoint in every position, which one pair of vectors
@@ -603,8 +374,8 @@ The six parts:
   one of which — high then low — is the valid pair already covered, leaving
   `\ud800\ud800`, `\udc00\ud800` and `\udc00\udc00`. Each denotes two
   unpaired units and must survive as two, with a key twin, in reader accept,
-  serializer accept and `normalize` alike. The byte form is where the mistake
-  becomes visible: `QuoteJSONString` escapes an unpaired surrogate, so all
+  serializer accept and `normalize` alike. Normalized bytes are where the
+  mistake becomes visible: `QuoteJSONString` escapes an unpaired surrogate, so all
   three come back as ASCII escape text, while the blind-pairing codec emits a
   four-byte scalar instead — measured, `\ud800\udc00` is the only one of the
   four adjacencies that becomes `f0 90 80 80`. A pair's *ends* had been
@@ -830,8 +601,7 @@ The six parts:
   "has no BOM": every document in this corpus is a code-unit array, so the
   corpus reader has already decoded it, and a UTF-8 decoder that strips a
   leading `EF BB BF` hands the parser a document with no BOM in it to find.
-  That vector has to be **bytes** — see the byte form below — and review
-  caught this document claiming otherwise one round after adding the vector. Then the array **elisions** JavaScript reads as holes
+  That vector has to be **bytes**, and it is one of the two the corpus keeps. Then the array **elisions** JavaScript reads as holes
   and the grammar `array ::= '[' (value (',' value)*)? ']'` cannot spell at
   all: `export default [,1];`, `[1,,2]` and `[1,,]`, leading, medial and
   trailing. `[1,]` is *not* one of these — it is the trailing comma above, a
@@ -896,92 +666,37 @@ The six parts:
   `export default-1;`, `export default"a";` and `export default{};` — which is
   the one place this rule is stricter than JavaScript, and so the one place the
   whole-set JavaScript check cannot stand in for a vector.
-- **serializer reject** — programmatic inputs a serializer must refuse rather
-  than approximate: a function or symbol leaf, a non-plain built-in (`Date`,
-  and at least one that is not — **`Map` or a boxed number**, not `RegExp`;
-  see below), a sparse-array hole, a symbol-keyed, accessor or non-enumerable
-  own property,
-  an array carrying an own property beyond its elements and `length` (`a=[1];
-  a.meta=2`), and a cycle — six of them, below. Each is a case where the
-  obvious implementation emits a valid document denoting something else.
+- **serializer reject** — **there is no such set, and the reason is the whole
+  of the serializer's contract.** A serializer is handed a value of the data
+  model, and the type is what says so: `tsc` checks it at the call, where the
+  cost is nothing and the answer is complete. Nothing is checked again at run
+  time, so nothing is refused, so there is nothing to write vectors for.
 
-  The **accessor** case is two vectors rather than one — a getter and a
-  setter-only property — because a serializer guarding on `descriptor.get`
-  alone refuses the first and silently accepts the second. The getter vector
-  asserts **two** things: that the input was refused, and that the getter was
-  never invoked.
+  Two premises were wrong, one inside the other. The outer one was that a
+  serializer's input is any JavaScript value: it is not, because a serializer
+  is a FunctionalScript API and its callers are FunctionalScript, which has no
+  mutation, no classes, no `Object.defineProperty`, no `Object.assign`, no
+  `Object.setPrototypeOf`, no `Object.freeze`, no `Date` and no `RegExp`. An
+  accessor, a non-enumerable property, a symbol-keyed property, an array
+  carrying an own property beyond its elements, a cycle, a `null` prototype,
+  an `Array` subclass and a frozen, sealed, non-extensible or non-writable
+  value can reach no serializer at all.
 
-  The **cycle** case is six vectors: the two self-loops, and every **ordered
-  pair** of container kinds around a two-node cycle. Two axes force that shape.
+  The inner one was that whatever *can* reach it must be refused at run time.
+  It need not. A `Map`, a `Set` or a function is a type error, and the
+  serializer assumes correct types rather than restating the type system's job
+  in a check every conforming implementation would have to reimplement.
 
-  Cycle **length** — a self-loop (`o.self=o`) against a cycle through a second
-  container (`a.next=b; b.next=a`) — because a serializer whose only guard
-  compares a child against its immediate parent refuses every self-loop and
-  recurses forever on every pair.
-
-  Cycle **container kind**, which is not a property of the cycle but of the
-  walkers it passes through: a visited set lives in a walker, so `obj→obj`,
-  `arr→arr`, `obj→arr` and `arr→obj` are four different traversals of what is
-  otherwise one shape. The mixed pair is one cycle — `o.a=arr; arr[0]=o` —
-  entered from `o` for the first and from `arr` for the second, since the root
-  reaches one of the two nodes first and that is what a walker sees. Two implementations show the axis is real, and they fail
-  on different cells:
-
-  - **The set in one walker only.** With the immediate-parent check in both
-    walkers and a visited set in the array walker alone, the diagonal
-    *self-loop in an object* plus *pair of arrays* is refused entirely — and a
-    pair of objects hangs. The mirror implementation misses the mirror
-    diagonal. So both homogeneous pairs are required, and a diagonal will not
-    do.
-  - **The set reset at the walker boundary** — each walker keeping its ancestry
-    as a local of its own recursion and starting a fresh one when it dispatches
-    to the other kind. That refuses **both** homogeneous pairs correctly and
-    recurses forever on `obj→arr→obj`, which is why homogeneous coverage is not
-    coverage of the boundary. Review found this one, after the first draft of
-    this paragraph called the axis binary.
-
-  The remaining two cells — the second entry point of the mixed pair, and the
-  second self-loop — are symmetric completion rather than demonstration: the
-  boundary implementation hangs on a mixed cycle entered from either end, and I
-  could not name an implementation that only one of them catches. The file says
-  so rather than implying six separate demonstrations.
-
-  All six cycles sit **one level below the root** — `root=[x]` with `x` on the
-  cycle — for the reason the whole set shares, below.
-
-  **A descriptor offender needs both container kinds under it as well as over
-  it.** The placement rule below is about the offender's *parent*, and it
-  catches a serializer that recurses without re-validating; this is the other
-  end — the container the offender sits *on*. A getter, a setter-only
-  accessor, a non-enumerable property and a symbol key each exist on an array
-  as readily as on an object, measured: `defineProperty(a, "0", {get})` leaves
-  `Array.isArray` true with `length` 1, a non-enumerable index vanishes from
-  `Object.keys` while staying an own property, and a symbol sits on an array
-  like any other exotic object. A serializer that inspects descriptors in its
-  object walker but iterates array indices by value refuses every offender on
-  an object and emits a document for the same offender on an array, so each of
-  those four takes both targets. Review found it, and the placement rule as
-  written reads as though it covered this axis, which it does not.
-
-  **Every serializer-reject vector puts its offending value below the root**,
-  never as the root itself, and the placement is part of the vector exactly as
-  it is for the malformed byte sequences above. A serializer that validates its
-  argument and then recurses without validating again refuses every offender
-  handed to it directly and emits a document for the same offender one level
-  down — so a set that roots its offenders passes such an implementation
-  whole. The placements **cover both container kinds across the set** — some
-  offenders under an array element, some under an object property value — since
-  a walker can recurse into one and not the other. That is a property of the
-  set, not of each vector: one offender in each kind of container pins both
-  recursion paths, so this axis multiplies the set by nothing.
-
-  **Every rejection vector must be refusable for exactly one reason.** Review
-  found three vectors that a *cheaper* rule could refuse before the rule under
-  test ran — a non-enumerable `getter`, a non-enumerable `symbolKey`, and a
-  `RegExp` carrying an own non-enumerable `lastIndex` — and in each the vector
-  passed while the implementation was wrong. A vector with a second ground for
-  refusal tests whichever ground the implementation happens to reach first,
-  which is not the one it was written for.
+  So the meta-encoding needs no host recipes, a serializer-side input is an
+  ordinary graph, and this corpus has five parts rather than six. Earlier
+  drafts had six vectors for cycles alone, derived over several rounds from
+  which walker a visited set lives in, plus a `getter` obliged to record its
+  own invocation, a `builtin` obliged to carry no own properties, a placement
+  rule putting every offender below the root, and a one-reason rule policing
+  all of it. Every line was careful, internally consistent and reviewed. None
+  of it was ever going to run. The rounds recorded below found vectors that
+  could not *fail*; this was a set that could not be *reached*, and no amount
+  of care inside a premise tests the premise.
 
   **Derive the narrowing vectors from the spec's own narrowing rules.**
   Everywhere DataJS is narrower than JavaScript, the whole-set subset law is
@@ -1308,7 +1023,7 @@ The six parts:
     | a regexp literal, `/a/` | every one evaluates to a non-plain object, likewise |
     | an arbitrary identifier as a value, `Infinit`, and `Infinityn` | a name that is not an `id` is unbound, which is the reference rule |
     | a trailing backslash, `"\"` | the backslash escapes the quote, so the document is the unterminated-string case and nothing else |
-    | an unterminated string | it runs to end of input, so the document has lost its `;` as well — the same shape as the byte form's truncation, recorded there for the same reason |
+    | an unterminated string | it runs to end of input, so the document has lost its `;` as well — the same shape as the byte form's truncation, kept there as a record rather than as a test |
 
     The three member forms were shipped once with quoted keys, on the
     reading that the key was the only defect. It was not: quoting settles
@@ -1331,8 +1046,9 @@ The six parts:
   now happened twice in successive rounds. Required whitespace was covered by
   the *normalize* set, which constrains emitted bytes and cannot catch a reader
   accepting a document that omits a space. Array holes were covered by
-  *serializer reject*, which takes a programmatic sparse array and cannot catch
-  a reader accepting `[1,,2]` as document text. Each rule owes a vector in
+  a *serializer reject* set, which took a programmatic sparse array and could
+  not catch a reader accepting `[1,,2]` as document text; that set is gone, and
+  the reader's vector is the only one there ever was. Each rule owes a vector in
   every direction it can be violated, and one direction's coverage reads
   exactly like the other's until someone asks which way it points.
 
@@ -1414,16 +1130,18 @@ The six parts:
   at all, and refusing it requires recognizing a function. `symbol` needs no
   such care: it has none to begin with.
 - **serializer accept** — programmatic inputs a serializer must **not** refuse,
-  each with the **graph its output must denote**. Not the exact document:
+  each with the **graph its output must denote**, which is the input itself
+  rather than a second member: a serializer-side input is an ordinary value of
+  the data model, so the two would hold one value and drift. Not the exact
+  document:
   whitespace, layout, const names and the hoisting of singly-reached values are
   free choices ([`README.md`](../README.md)), so pinning bytes here would fail
   conforming serializers. Exact bytes are the `normalize` set's business alone.
   **Derived from the data model, as the reader's accept set is derived from
-  the grammar** — every leaf and every container shape, not only the host
-  variations below. Conformance is per role, so a serializer-only
-  implementation never runs a reader or normalize vector: one that handles
-  every recipe here while rejecting every `bigint`, `undefined`, `NaN` or
-  infinity passed the whole set. The leaves are JSON's four plus the five
+  the grammar** — every leaf and every container shape. Conformance is per
+  role, so a serializer-only implementation never runs a reader or normalize
+  vector: one that handles every container here while rejecting every
+  `bigint`, `undefined`, `NaN` or infinity passed the whole set. The leaves are JSON's four plus the five
   JavaScript adds — `undefined`, a bigint, `NaN`, `Infinity`, `-Infinity` —
   with **`0`** and `-0` beside them — positive zero is its own vector, since a
   serializer may refuse it and the ordinary positive vector may be nonzero, and
@@ -1528,8 +1246,7 @@ The six parts:
     draft reserved them for `normalize` on the argument that emitting U+07FF in
     three bytes "still yields a valid document denoting the same string". That
     is false, and review said so: three bytes for U+07FF is `E0 9F BF`, which
-    is *overlong* and not valid UTF-8 at all — it is a row in the reject table
-    above, measured. What this role cannot see is a choice between two **valid
+    is *overlong* and not valid UTF-8 at all, measured. What this role cannot see is a choice between two **valid
     documents denoting the same graph**, which is why the escaped-versus-raw
     spelling of a surrogate pair is left to `normalize`; a width error produces
     neither, so it is visible here and everywhere else;
@@ -1539,32 +1256,23 @@ The six parts:
     set against this one afterwards, which is what should have happened when
     `__proto__` was added a round earlier.
 
-  The remaining cases are host variations. The spec is explicit that these are
-  outside the data model rather than invalid, and that rejecting them is a
-  defect rather than caution ([`README.md`](../README.md)): a `null` prototype,
-  frozen, sealed, non-extensible, and a non-writable property — **each on both
-  an object and an array** — plus an `Array` subclass, which has only the one
-  kind. `Object.freeze` produces the last two together, so a serializer that
-  rejects unusual descriptors cannot serialize a frozen value — including the
-  output of a reader that freezes what it returns, which the spec permits.
+  There are no host variations. An earlier draft asked for a `null` prototype,
+  an `Array` subclass, frozen, sealed and non-extensible objects and a
+  non-writable property, each on both container kinds, and argued at length
+  that the two walkers are separate so each variant needs both. Every one of
+  those needs `Object.setPrototypeOf`, `Object.freeze`, `Object.seal`,
+  `Object.defineProperty` or a class, and FunctionalScript has none of them,
+  so no caller can build one and no vector can run. The argument about the
+  walkers was sound and about nothing.
 
-  **Both kinds because the walkers are separate**, the third place this corpus
-  has needed that and the first where the risk is over-strictness rather than
-  non-termination: a serializer validating shape in its object walker alone
-  accepts every frozen object here and refuses the frozen array, and one
-  dispatching on the prototype rather than on `Array.isArray` refuses the
-  null-prototype array while `Array.isArray` still reports `true` for it,
-  measured. Each variant exists on an array: a frozen array's elements come
-  back `writable: false, configurable: false`, a sealed one is non-extensible
-  with configurable elements, and an element can be made non-writable on its
-  own — all measured, none of them a shape the object cases reach. What each vector asserts is
-  that the output is **valid and denotes the input's data** — the host
-  variation leaves no trace, and `graph equivalence` supplies the comparison.
+  The spec states these as inputs a serializer must accept as data
+  ([`README.md`](../README.md)), which is a rule for implementations in hosts
+  that can build them. What becomes of that text is a task below.
 - **graph equivalence** — an input graph and the documents that do and do not
   denote it, so a serializer cannot pass by emitting merely *valid* output:
   `[a,a]` with one shared `a` is not `export default [[],[]];`. **Three sharing
-  shapes, not one**, for the reason the cycle set is every ordered pair of
-  container kinds: the two references reached from an array (`[a,a]`), from two
+  shapes, not one**, because a visited set lives in a walker and the object
+  and array walkers are separate: the two references reached from an array (`[a,a]`), from two
   object properties (`{"x":a,"y":a}`), and from one of each
   (`[a]` beside `{"x":a}` under a common root). A serializer hoisting a repeat
   it meets inside one walker, but starting fresh when it dispatches to the
@@ -1747,7 +1455,7 @@ The six parts:
   interesting index is the one where the shape of the name changes, and it is
   index 10. Pin **all four
   ordered pairs** of parent and child kind, not the two homogeneous ones, for
-  the reason the cycle set covers every ordered pair rather than a diagonal —
+  the reason sharing takes all three shapes above rather than a diagonal —
   and here the mixed cells are the ones with a demonstration, which the
   homogeneous pair does not have on its own:
 
@@ -1809,7 +1517,7 @@ and the `.f.mjs` stays the single source.
 
 #### The meta-encoding, for what a data literal cannot spell
 
-A JavaScript literal spells most of what the corpus asserts, which a JSON
+A JavaScript literal spells almost everything the corpus asserts, which a JSON
 value could not: `undefined`, `NaN`, `Infinity`, `-Infinity`, `-0`, a bigint,
 a string holding a lone surrogate (`"\ud800"`), an object in observable key
 order with the `["__proto__"]` key as an own property, and sharing as one
@@ -1817,208 +1525,36 @@ order with the `["__proto__"]` key as an own property, and sharing as one
 graph equivalence exists to separate, kept apart by the literal itself. A
 vector's expected graph is therefore a **value**, compared with the reader's
 output by `Object.is` at the leaves and by identity where sharing is asserted,
-and a document is a string. Two things stay described rather than spelled:
+and a document is a string.
 
-- **A duplicate key is a document fact, not a graph fact.** The document text
-  says `{"a":1,"b":2,"a":3}` and the expected graph is the literal
-  `{"a":3,"b":2}` — last value, first position, which is the rule the vector
-  pins. An expected graph never carries a duplicate.
-- **Host-only inputs are recipes, not data.** Some of these have no value to
-  describe at all — a `Date`, a function, a symbol key, an accessor, a sparse
-  hole. Others have perfectly ordinary data and a *host variation* the encoding
-  has no place for: a frozen object, a `null`-prototype array, an array
-  carrying an own property beyond its elements. Either way the encoding cannot
-  state it, so each is a named recipe the consumer builds. A recipe is an
-  object whose own `host` property names one, and **the key is reserved in
-  inputs**: a plain input object never carries a `host` member, so
-  `{"host":"fn"}` as an input is the function recipe and nothing else, and a
-  vector wanting an object with that key as serializer input cannot be
-  written — no vector needs one. The reservation reaches inputs only; a
-  reader-side expected graph carries no recipes, so `{"host":"fn"}` there is
-  the ordinary object the document spells. Review found the two readings
-  possible before the key was reserved. The vocabulary is
-  **closed, and closed means enumerated** — "and so on" was an open list
-  wearing the word closed, which review caught. Four **leaf** recipes:
+One thing stays described rather than spelled. **A duplicate key is a document
+fact, not a graph fact.** The document text says `{"a":1,"b":2,"a":3}` and the
+expected graph is the literal `{"a":3,"b":2}` — last value, first position,
+which is the rule the vector pins. An expected graph never carries a
+duplicate.
 
-  | recipe | builds |
-  | - | - |
-  | `{"host": "fn"}` | a function value with **no own properties** — an arrow function with `name` and `length` deleted, per the one-reason rule below |
-  | `{"host": "symbol"}` | a fresh unique symbol, as a *value* |
-  | `{"host": "builtin", "kind": <kind>[, "ms": <integer>]}` | a non-plain built-in object: `date` (with `ms`), `map`, `regexp` or `boxedNumber` |
-  | `{"host": "hole"}` | an array hole — legal **only** as an `arr` element |
+**And nothing else.** A serializer-side input is an ordinary graph, spelled by
+the same literal a reader-side expected graph is. The encoding needs no host
+recipes and reserves no key, because the one part of the corpus that wanted
+them, `serializer reject`, does not exist: a serializer is handed a value of
+the data model and its type is what says so.
 
-  …and eight **modifier** recipes, each taking the node it applies to, so the
-  property cases say which object they are about — the gap review found in
-  `getter`, which named no container. `ownProp`, `nonEnumerable`, `getter`,
-  `setter` and `symbolKey` can build inputs a serializer must **refuse**;
-  `proto` and `attrs` build inputs it must **accept**, the half review found
-  missing — without them a serializer that rejects every unusual prototype or
-  descriptor passes the corpus while being nonconforming; and `link` builds
-  either, a cycle it must refuse when `to` is `on` or a node above it, and
-  ordinary sharing otherwise.
-  *Can*, not *must*: `ownProp` on an `obj` builds an ordinary own enumerable
-  string-keyed property, which is exactly what a serializer has to accept, and
-  only an extra property on an **array** is a rejection case. The recipe is a
-  construction; the vector is the claim:
-
-  | recipe | builds |
-  | - | - |
-  | `{"host": "ownProp", "on": <node>, "key": <string>, "value": <node>}` | an enumerable own data property, which is how `a=[1]; a.meta=2` is said |
-  | `{"host": "nonEnumerable", "on": <node>, "key": <string>, "value": <node>}` | the same, non-enumerable |
-  | `{"host": "getter", "on": <node>, "key": <string>, "value": <node>}` | an **enumerable** accessor property that **records its own invocation** and then returns `value` |
-  | `{"host": "setter", "on": <node>, "key": <string>}` | an **enumerable** accessor property with a **setter and no getter**, which reads as `undefined` |
-  | `{"host": "symbolKey", "on": <node>, "value": <node>}` | an **enumerable** own data property under a fresh unique symbol |
-  | `{"host": "proto", "on": <node>, "to": "null" \| "arraySubclass"[, "inherited": [<key>, <node>]]}` | the same data under a `null` prototype, or an `arr` as an `Array` subclass instance — `inherited`, legal **with `arraySubclass` only**, puts one **enumerable** member, key and value, on the subclass's prototype; a `null` prototype has nothing to inherit from |
-  | `{"host": "attrs", "on": <node>, "how": "frozen" \| "sealed" \| "nonExtensible" \| "nonWritable"[, "key": <string>]}` | the same data with those attributes; `key` is **required with `nonWritable` and forbidden otherwise**, and must name an **existing own data property** of the target |
-  | `{"host": "link", "on": <node>, "key": <string or index>, "to": <node>}` | the same data with one more element or enumerable own data property, `key`, holding `to` — which may be `on` itself or a node above it, since a data literal cannot spell a cycle |
-
-  `nonWritable`'s `key` carries that constraint because the recipe is otherwise
-  not a *modifier* at all: `Object.defineProperty` with an unknown key **adds**
-  a non-enumerable `undefined` property, turning a serializer-**accept** vector
-  into a serializer-reject one, while another consumer might refuse the recipe
-  outright. Naming an existing own data property is what keeps the two
-  consumers building the same graph — and keeps the vector about writability,
-  which is outside the data model, rather than about a property that should
-  not be there.
-
-  **Every modifier's target must be an `obj` or `arr` node** — or a modifier
-  over one, since a modifier denotes its target. Nothing else has properties to
-  add or attributes to set, and `arraySubclass` narrows further to an `arr`.
-  `hole` is the mirror constraint on the leaf side: legal only as an `arr`
-  element. Stating both is what stops a vector like "freeze a number" from
-  being writable at all, and the types carry both rather than the prose
-  alone: a modifier's `on` is a `Target` (an array, an object or a
-  modifier), a `Hole` is an element of an `Arr` and not an `Input`, and
-  `proto` discriminates on `to`, so `inherited` exists only with
-  `arraySubclass`, whose `on` is an `ArrayTarget` — an array, or a
-  modifier over an `ArrayTarget`, so the narrowing holds through a chain
-  — and a `null` prototype takes an object or an array alike. Review found
-  the first shape saying all three in comments while admitting `on: 1`, a
-  hole as an object member and an `inherited` member with nothing to
-  inherit from, and the second admitting an object behind one modifier
-  where it refused it directly.
-
-  **A modifier node denotes its target, modified** — the same object `on`
-  denotes, not a copy. Four consequences, and they are stated because review
-  found two consumers could reasonably read this differently:
-
-  - **Identity is the target's.** The modifier and its target denote one
-    object, so a vector cannot describe the target *before* the modification.
-    That is deliberate: the module is a heap, not a history.
-  - **Only what the exported value reaches is built**, modifiers included. The
-    module is data, not a program, so an unreferenced `const` is inert and
-    cannot reach into the graph by side effect.
-  - **A modifier is a `const` of its own, never an inline literal** in an
-    array, an object, or another modifier's `on`, all of which name it.
-  - **Stacking is chaining, and the chain is the order.** A node is the
-    `on` of at most one modifier; a second modification names the first
-    modifier as its `on`, and the inner one applies first — `ownProp` then
-    `attrs: frozen` is `attrs` over `ownProp` over the node, and the reverse
-    is the reverse chain. The order has to be in the structure, because an
-    imported module hands `build` the exported value and nothing else: two
-    modifiers naming one node directly would have no order a consumer could
-    read, so `build` refuses that shape. Review found the earlier rule,
-    "statement order", asking for what the value cannot carry.
-
-  A cycle is a `link` whose `to` is `on` itself or a node above it — the one
-  place the literal's sharing cannot serve, since a `const` cannot name itself
-  or a later one.
-
-  Three of these carry an obligation the recipe alone does not express, and
-  each came from review:
-
-  - **Both accessor shapes, because the spec's rule is wider than its
-    reason.** The spec rejects "an accessor property" and explains it with
-    *reading a getter is an effect* — a reason that covers only half the rule.
-    A **setter-only** accessor has nothing to read, and that is precisely what
-    makes it dangerous: measured, an enumerable setter-only property has
-    `descriptor.get === undefined` and reads as `undefined`, so a serializer
-    that guards with `if (descriptor.get)` passes it straight through and emits
-    `{"x":undefined}` — a **valid DataJS document**, since `undefined` is one of
-    this format's values, denoting something the input never was. That is
-    [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle) exactly:
-    an unsupported input answered with a plausible wrong value rather than
-    refused. `JSON.stringify` shows the same shape of loss from the other end,
-    dropping the property and emitting `{}`. `setter` therefore takes no
-    `value`: there is no value to name, which is the whole point. Like every
-    other accessor recipe it is **enumerable**, or the non-enumerability rule
-    refuses it first.
-  - **`getter` must be observable, not merely present.** The spec forbids
-    reading a getter *because reading it is an effect*
-    ([`README.md`](../README.md)), so a serializer that invokes the accessor
-    while enumerating and rejects the object afterwards is wrong and would pass
-    a vector that only checked the rejection. The recipe therefore records its
-    invocation, and **the vector asserts it was never invoked** as well as that
-    the input was refused. *Enumerable* is load-bearing and easy to lose:
-    `Object.defineProperty` defaults to non-enumerable, and a non-enumerable
-    accessor is refused for *that* reason without the read path ever being
-    reached — so an implementation that eagerly reads every enumerable getter
-    would pass the invocation assertion. **`symbolKey` carries the same
-    requirement for the same reason**: built with `Object.defineProperty`
-    defaults it is non-enumerable, and a serializer refusing it for *that*
-    never has to notice the enumerable symbol-keyed property it would
-    otherwise drop silently. Two consumers would be testing two different
-    rejection paths from one vector. Rejecting for the right reason and
-    rejecting after doing the forbidden thing are different outcomes.
-  - **`arraySubclass` with `inherited` is a serializer-accept vector with
-    teeth.** A serializer that enumerates with `for...in` copies inherited
-    enumerable properties into its result, which the spec forbids: the data is
-    the object's **own** enumerable string-keyed properties. Putting one
-    enumerable member on the subclass's prototype and asserting it is *absent*
-    from the output is what catches that. The member carries its **key**, not
-    just a value, and **the key must not collide with an own key of the
-    target** — for an `arr` that rules out any index it holds, and `length`.
-    A colliding key is shadowed by the own property during `for...in`, so the
-    vector would pass against a serializer that copies inherited members: the
-    one it exists to fail. This is the only vector in the set
-    whose assertion is about a member that must **not** appear.
-
-    An earlier draft did this with an arbitrary **custom** prototype, and
-    review was right that the spec does not clearly permit one: it rejects
-    "any other non-plain object" and exempts prototypes only by naming
-    `null`-prototype objects, `null`-prototype arrays and `Array` subclasses.
-    An implementation rejecting `Object.create({x: 1})` as non-plain would be
-    reading the normative text correctly and failing the corpus. An `Array`
-    subclass is **explicitly** permitted and its prototype can carry a member,
-    so it exercises the same filtering with no spec question attached — and
-    the corpus should not be where a spec question gets silently answered.
-  - **`builtin` covers a class, not `Date`.** The spec rejects "a `Date`, or
-    any other non-plain object", and a corpus naming only `Date` is passed by
-    an implementation that special-cases `Date` and serializes an empty `Map`
-    or `RegExp` as `{}` — valid output denoting something else, which is the
-    failure the serializer-reject set exists to catch. The `kind` list is
-    closed like everything else here, and `map`, `regexp` and `boxedNumber`
-    are in it precisely because they are *not* `Date`.
-
-    **The non-`Date` case must have no own properties**, or it can be refused
-    for the wrong reason. Measured:
-
-    ```text
-    Map        no own properties
-    Date       no own properties
-    Number(1)  no own properties
-    RegExp     lastIndex, own and non-enumerable
-    ```
-
-    A serializer refuses a `RegExp` the moment it sees a non-enumerable own
-    property — a rule it needs anyway — without ever asking whether the object
-    is plain, and then still writes an empty `Map` as `{}`. So `regexp` stays
-    in the `kind` list but cannot be the case that discharges the requirement;
-    `map` or `boxedNumber` must be. Review found this, and it is the same shape
-    as the enumerable-`getter` finding: a vector refused by a cheaper rule
-    never exercises the one under test.
-
-  The list being closed is what makes it useful — a vector needing a recipe not
-  in it extends the schema and both consumers, deliberately, rather than each
-  consumer improvising. Each implements the twelve once, and the corpus stays
-  data. Nothing in the encoding marks a recipe as accept-side or reject-side;
-  which set a vector lands in is the vector's claim, not the recipe's.
+**Twelve recipes were cut to get here, and the size of the cut is the
+finding.** The vocabulary was `fn`, `symbol`, `builtin` and `hole` as leaves,
+and `ownProp`, `nonEnumerable`, `getter`, `setter`, `symbolKey`, `proto`,
+`attrs` and `link` as modifiers, with a chaining rule for stacking them, a
+`Target`/`ArrayTarget` typing so a modifier could not sit over a leaf, an
+`inherited` member legal under `arraySubclass` alone, a `nonWritable` key
+obliged to name an existing own data property, a `getter` obliged to record
+its own invocation, and a `builtin` obliged to have no own properties. Every
+line of it was careful, internally consistent, reviewed over several rounds,
+and about values that reach no serializer. This file had never asked who the
+serializer's callers are, or what its type already promises.
 
 The test of this encoding is whether two independent consumers can disagree.
 They cannot: identity is a `const`, a number is a literal the engine reads,
-key order is literal order, and the host values are a closed vocabulary rather
-than a construction the reader improvises. A printer for another language
-reads the same module and prints each leaf from the value — a number by the
+key order is literal order, and there is no host value to construct at all.
+A printer for another language reads the same module and prints each leaf from the value — a number by the
 shortest round-tripping decimal, a string unit by unit — which is the one
 place the engine's formatter is involved, and the normalize set pins that
 formatter's rules on the reader's side anyway.
@@ -2063,18 +1599,14 @@ or the spec, not only into a thread.
    ([edag-spec](../../../todo/edag-spec.md) asks for exactly such shared
    vectors); a proof imports a set like any module, and a consumer in another
    language gets it printed by `npm run gen` when one exists.
-2. **The plain-object boundary**, which no vector answers yet. Proposal for
-   the spec: an object is plain iff its prototype is `Object.prototype` or
-   `null`, and an array iff `Array.isArray` holds, its prototype being
-   `Array.prototype`, `null` or an `Array` subclass's; any other prototype
-   is "any other non-plain object" and rejected, so `Object.create({x: 1})`
-   is refused. Once decided, one serializer-reject vector pins it. The
-   alternative is to admit any prototype and serialize the own data, which
-   widens the exemption list to a rule. Until it is decided, `difference`
-   classifies what an implementation hands it by the proposal — it has to
-   draw the line somewhere to tell a `Date` from an empty object, and the
-   proposal is the line the spec's own two spellings of an object draw —
-   in one comparison, which is what the alternative would relax.
+2. **The plain-object boundary — decided: there is no boundary to draw.**
+   FunctionalScript cannot change a prototype and has no classes, so every
+   object a caller can build is under `Object.prototype` and every array under
+   `Array.prototype`. An object is `typeof v === 'object' && v !== null`, and
+   an array is that and `v instanceof Array`. Nothing a caller can hand a
+   serializer falls outside those two, so "any other non-plain object" has no
+   case to decide, and the serializer-reject vector it was to unblock does not
+   exist because that set does not either.
 3. **§Whitespace's enumeration.** Proposal for the spec: keep the rule and
    replace the six-item colon list with the complete set it denotes — the 21
    characters of ECMAScript's `WhiteSpace` and `LineTerminator` classes less
@@ -2082,13 +1614,14 @@ or the spec, not only into a thread.
    sixteen `Space_Separator` characters other than U+0020 — since the corpus
    enumerates all 21 anyway and a reader of the spec should not have to. The
    alternative is to mark the six as illustrations and cite ECMAScript.
-4. **The decoder seam.** Proposal for the spec: decline to require that a
-   conforming implementation expose its UTF-8 decoder. Truncation at end of
-   input stays recorded here as untestable through a document, and this
-   repository's decoder proves it in
-   [`fjs/text/utf8`](../../../fjs/text/utf8/module.f.mjs)'s own proofs. The
-   alternative is a decoder-level vector set, which would be an API demand on
-   every implementation for one error class.
+4. **The decoder seam — decided: there is none, and no set needs one.** DataJS
+   works with correct UTF-8 and rejects everything else, so a malformed
+   sequence is not an input the format processes and the corpus owes it no
+   taxonomy. Nothing is required of an implementation's decoder, exposed or
+   otherwise. Two of the three byte records above are records that a byte
+   sequence is not a DataJS document, not tests of a decoder, and
+   [`fjs/text/utf8`](../../../fjs/text/utf8/module.f.mjs) proves its own
+   end-of-input case in its own proofs where that belongs.
 5. **The whole-set JavaScript check.** A proof cannot `import()` a document
    from inside pure FunctionalScript, so the check is a host-side test: one
    `.mjs` under `node --test` that imports every accept document as a
@@ -2096,57 +1629,43 @@ or the spec, not only into a thread.
    vector's. Proposal: that, over the same modules the proofs import, run by the
    existing `cov` script's `node --test` and so on every CI runtime. The
    alternative is a `gen`-time check, which would run only where `gen` runs.
-6. **How the host recipes are built and proved.** Every recipe but `fn`
-   builds what FunctionalScript cannot — an accessor, a symbol key, a
-   non-enumerable or non-writable property, a `null` prototype, a frozen
-   object, a `Date`, a cycle — so `build` is host code, an impure
-   `module.mjs`. [fjs/AGENTS.md §1.6](../../../fjs/AGENTS.md) then says a
-   `proof.mjs` proves only its sibling `module.mjs` and is "not a back door
-   for proving a `.f.mjs` API against inputs or control flow the subset
-   forbids: values built by `Object.setPrototypeOf`, `Object.assign`,
-   `defineProperty` or an accessor". Read literally, that forbids proving the serializer, a
-   `.f.mjs` API, against the serializer-reject set and the host variations of
-   serializer accept — the very inputs
-   [the specification](../README.md#what-may-be-serialized) says it must
-   refuse or accept as data, and [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
-   says must be refused rather than approximated. Proposal: amend §1.6 with
-   one exemption, stated there — a `proof.mjs` may prove a `.f.mjs` API
-   against host-built inputs where that API's specification names those
-   inputs as ones it refuses or accepts, so the proof is of the specified
-   contract and not of a back door. The alternative keeps §1.6 as it is and
-   leaves the recipe-bearing sets as data no FunctionalScript proof runs,
-   which is data with no consumer, since no other implementation has host
-   objects either. `build` and its proof wait on this, and so does the one
-   proof of `difference` the subset cannot write: an array or an object
-   under a `null` prototype compared as the array or object it is, since
-   `Object.setPrototypeOf` is the call §1.6 names and a mutation besides;
-   the `proto` recipes are the vectors that hold it once `build` lands.
+6. **How the host recipes are built and proved — decided: §1.6 stands, and
+   there are no recipes.** The question asked whether
+   [fjs/AGENTS.md §1.6](../../../fjs/AGENTS.md) should be amended so a
+   `proof.mjs` could prove the serializer against host-built inputs. It should
+   not, and the question dissolved rather than being answered: a serializer
+   takes a value of the data model and its type says so, so there is nothing
+   host-built to build, to prove, or to write a recipe for. No `build`, no
+   `module.mjs`, and §1.6 is never engaged.
 
-   **The writer landed without waiting on this, and the answer decides what
-   is still unproved rather than whether it works.**
+   §1.6's own rationale had said so all along — that such cases are
+   "speculation about what an *arbitrary JavaScript caller* might hand a
+   FunctionalScript function, and nobody has asked for them" — and this file
+   read it as the obstacle rather than as the answer.
+
+   **The writer landed while this was being decided, and it does not agree.**
    [`fjs/media/datajs/serializer`](../../../fjs/media/datajs/serializer/module.f.mjs)
-   refuses every recipe above that the specification puts outside the data
-   model — the accessors, the symbol key, the non-enumerable property, the
-   extra own property on an array, the cycle — and serializes the ones it
-   keeps inside as their data: a frozen, sealed or non-writable value, and a
-   `null`-prototype object. **One recipe it refuses that this specification
-   accepts**: an array under a `null` prototype, which §What may be
-   serialized serializes as its data, and which the writer meets at its
-   object branch and refuses for `length`, non-enumerable on every array.
-   The specification wins where the two disagree, so that is the writer's to
-   close and
+   takes `unknown` and refuses at run time: an own symbol key, an accessor, a
+   non-enumerable property, an array with a hole or an own property besides
+   its elements, a prototype that is neither `Object.prototype` nor `null`,
+   and a cycle. Its own header says of most of those that "no value
+   FunctionalScript can build carries" them, so it agrees about
+   reachability and still checks, because its parameter is `unknown` rather
+   than a graph. **One recipe it refuses that the specification accepts**: an
+   array under a `null` prototype, which §What may be serialized serializes
+   as its data, and which the writer meets at its object branch and refuses
+   for `length`, non-enumerable on every array. The specification wins where
+   the two disagree, and
    [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md)
-   carries it; it is written here because the corpus is what will meet it.
-   It proves each refusal against the data a
-   host value would carry — `_memberValue` against a descriptor,
-   `_elementNames` against a list of own property names, `_link` against a
-   graph with a forward reference — because those are values FunctionalScript can build
-   where the objects carrying them are not. What no proof there can reach is
-   the plumbing between them: that an object with an enumerable getter
-   reaches `_memberValue` at all, and that nothing invokes the getter on the
-   way. That is what the exemption would buy, and it is the narrower claim
-   to weigh against §1.6 than "the serializer cannot be proved".
+   carries that.
 
+   So the two halves of this decision have to meet, and the meeting is the
+   owner's: either the writer's parameter narrows to the data model and its
+   run-time refusals go, which is what "assume correct types" means applied
+   to code; or the parameter stays `unknown` and the corpus owes a
+   serializer-reject set after all, for the values that parameter admits.
+   Until then the corpus carries none, and the task list below names the
+   reconciliation.
 The steps, in order; a step is one pull request unless it says otherwise:
 
 - [x] **The vector record and the comparison.** The schema is
@@ -2157,22 +1676,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document as a string or as the bytes in a tagged hex string,
       `["hex", "ef bb bf …"]`, the expected graph as a value
       or the expected bytes, and the host classification a reject vector
-      carries; the DataJS subset the modules are written in; and the twelve
-      `host` recipes as types, the closed vocabulary. How an expected graph
+      carries; and the DataJS subset the modules are written in. The twelve
+      `host` recipes landed as types with it and are removed by the step
+      below. How an expected graph
       is compared is `difference` in
       [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
       `Object.is` at the leaves, members in observable order, and the
       containers as a bijection, so sharing is required in both directions —
       proved, over an explicit stack, to the corpus's depth.
-- [ ] **The host recipes built.** `build` in `fjs/media/datajs/vectors/module.mjs`,
-      from a recipe-bearing input to the host value with the modifiers
-      applied in chain order, the inner first, and a node named by two
-      modifiers directly refused — `link` for cycles, `getter` recording its
-      invocation, the closed lists of `builtin`, `proto` and `attrs` as the
-      types have them — and its proof: sharing and a cycle built and
-      asserted, a chain applied inner-first, the getter's record untouched
-      by building. Waits on decision 6, which decides whether that proof may
-      exist.
 - [x] **Reader accept, code-unit form.** Derived production by production
       from the grammar as the section above lists it, in two pull requests
       so each stays reviewable, both landed as
@@ -2225,8 +1736,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       denoting the same graph, the whole-set check decision 5 would keep.
 - [x] **Reader reject, code-unit form.** Landed as
       [`reject/data.f.mjs`](../vectors/reject/data.f.mjs), 332 code-unit
-      vectors — the byte form's 61 join them in the same file, below —
-      derived from the spec's six narrowing sources — strings, numbers,
+      vectors, joined by the two byte rejects below, derived from the spec's six narrowing sources — strings, numbers,
       identifiers, whitespace, the document rule, and every production of
       the grammar — each naming the one rule it breaks and carrying the
       host's verdict, measured by importing the document as an ES module
@@ -2246,57 +1756,46 @@ The steps, in order; a step is one pull request unless it says otherwise:
       spelling recorded rather than shipped.
       Proved against the reader: every document is refused; the shape,
       with the verdict among the three, is proved beside the set. The
-      document rule's own vector, U+FEFF as the first *byte*, waits for
-      the byte form; in code units it is a whitespace vector here.
-- [x] **The byte form.** Landed in the two reader sets rather than sets of
-      its own, since a byte document is a `Document` like any other: 29
-      accept records and 61 reject records, classed `byte/…`, each
-      `["hex", "…"]`, so the two sets are 364 and 393. The accept side is
-      the table by lead partition, both ends of all eight parts, the six
-      vectors that vary the continuation positions independently, the
-      one-byte range in both contexts — U+0020 and U+007F in a string,
-      tab, LF and CR between tokens — the BOM inside a string, and the
-      four widths in one string. The reject side is both ends of every
-      error class in the table, the two overlong sequences that land back
-      in range, the whole non-continuation matrix by lead
-      partition with an ASCII and a valid-lead intruder in every cell, and
-      the BOM as the first byte. Every malformed sequence sits inside an
-      otherwise valid string, and each was paired in the generator with the
-      valid sequence it corrupts, which the reader accepts, so none is
-      refusable twice. The proofs: each set's own checks the record against
-      the schema, a hex document among it, and the ids for uniqueness; the
-      reader's decodes each accept vector's bytes with `fjs/text/utf8` and
-      reads the units, and pins **which layer** refuses each reject vector —
-      the UTF-8 rule is the decoder's and those bytes decode to nothing,
-      every other rule is the reader's on the text they spell, so a vector
-      that swapped them goes red rather than passing on the other layer.
-      The byte path's own rule, the BOM as the first byte, is refused here
-      as U+FEFF is refused between tokens, and is asserted as the BOM rule
-      when stage 4's `tryParseBytes` lands and reruns the set through it.
+      document rule's own vector, U+FEFF as the first *byte*, is one of the
+      byte records; in code units it is a whitespace vector here.
+- [x] **The byte form, cut to three records.** It landed as 29 accept and 61
+      reject records classed `byte/…`, each `["hex", "…"]`: both ends of
+      thirteen UTF-8 error classes, the non-continuation matrix by lead
+      partition with two intruders per cell, the overlong forms per width,
+      the obsolete five- and six-byte leads, and on the accept side both
+      ends of all eight lead partitions with six more for continuation
+      independence. All of it was about a decoder, and DataJS is handed
+      correct UTF-8, so none of it was an input the format processes. The
+      88 are gone and three stay. Two say something the corpus cannot say in
+      code units: **`byte-bom-first`**, `ef bb bf` before
+      `export default 1;`, breaking "a document has no BOM" and accepted by
+      the host, measured; and **`byte-truncated`**, `export default "a`
+      followed by a lone `c2`, breaking "a document is UTF-8" and a host
+      syntax error, measured. The BOM vector has one defect and discriminates at
+      the document level, since a reader that strips the BOM accepts it and
+      fails; the truncated one cannot be failed by a document-level harness,
+      though the reader proof's layer check does catch a decoder that
+      substitutes U+FFFD for those bytes. The
+      third is the accept the other two leave owing, **`byte-valid-widths`**,
+      `export default "aé€𐀀";` with its one-, two-, three- and
+      four-byte sequences, and it is a test: without it a byte path that
+      refuses every input passes. The reader's proof keeps the layer check, so
+      a record that swapped the decoder's rule for the reader's goes red.
 - [ ] **Serializer accept and graph equivalence.** Every leaf and container
       shape of the data model, the three sharing shapes and their four
-      unshared inverses, the host variations on both container kinds, the
-      escaping classes and width boundaries with key twins, `__proto__` as
-      data; each vector asserting a valid document denoting the input and
-      never a spelling. Landed with a proof that reads it: the schema and
-      the ids; for graph equivalence, every `denotes` document read to a
-      graph `difference` finds no difference from the input in and every
-      `denotesNot` document read to one it does; for serializer accept, the
-      expected graph reachable from the input by dropping its recipes. The
-      serializer's own assertions arrive with stage 4 and rerun the set.
-- [ ] **Serializer reject.** The recipes below the root, on both container
-      kinds as targets and as parents, the six cycles, both accessor shapes
-      with the getter's invocation asserted absent, the non-`Date` built-in
-      with no own properties; each checked for one reason of refusal. Landed
-      with a proof that reads it: the schema, the ids, every recipe in the
-      closed vocabulary and every modifier chain well-formed. The
-      serializer's refusals arrive with stage 4 and rerun the set.
+      unshared inverses, the escaping classes and width boundaries with key
+      twins, `__proto__` as data; each vector asserting a valid document
+      denoting the input and never a spelling. **Lands** with a proof that reads
+      it: the schema and the ids; for graph equivalence, every `denotes`
+      document read to a graph `difference` finds no difference from the input
+      in and every `denotesNot` document read to one it does. The serializer's
+      own assertions arrive with stage 4 and rerun the set.
 - [ ] **Normalize.** Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
       each digit position, the encoder's width transitions, the number
       spellings with `-0` and the thresholds and the shortest-digits rule,
-      `-0n`, the required space after every root shape. Landed with a proof
+      `-0n`, the required space after every root shape. **Lands** with a proof
       that reads it: the schema, the ids, and every expected text read by
       the reader to a graph `difference` finds no difference from the input
       in — which is the "run through the accept grammar" check, made a
@@ -2316,20 +1815,85 @@ The steps, in order; a step is one pull request unless it says otherwise:
       not landed refuses nothing, since a class cannot owe a vector to a
       set that does not exist: its column says so on every row and the
       refusal arrives with the set, which is where the serializer and
-      normalize columns stand today. 755 classes, the reader role
-      answering every one. Prose could not do this job, which four
-      consecutive review rounds showed.
+      normalize columns stand today. 668 classes as this step landed, the
+      reader role answering every one; a later set adds classes of its own
+      and one `['set', …]` reason answers the reader for all of them. Prose
+      could not do this job, which four consecutive review rounds showed.
 - [ ] **The JavaScript whole-set check**, per decision 5. The
       FunctionalScript one is stage 6's, once stage 5 has taught the front
       end `;` and the special numbers.
-- [ ] **The plain-object boundary in the spec**, per decision 2, with the
-      one serializer-reject vector it unblocks; its own pull request, as
-      soon as the owner has decided.
+- [ ] **The serializer's input domain in the spec.** §What may be serialized
+      names an accessor, a non-enumerable property, a symbol key, an array's
+      extra own property, a cycle and a `Date` as inputs a serializer must
+      refuse, and a `null` prototype, an `Array` subclass and a frozen value
+      as inputs it must accept as data. None of the nine is constructible in
+      FunctionalScript. Whether that section stays as a rule for
+      implementations in hosts that can build them, or goes, is the owner's;
+      its own pull request either way.
+      **Review raised both halves of it, separately, and they are one
+      decision.** On the reject side, the normative text still requires
+      refusal and the writer on `main` still takes `unknown`, so removing the
+      serializer-reject set leaves the contract uncovered. On the accept side,
+      a serializer that refuses a `null`-prototype array, a frozen object and
+      an `Array` subclass now passes the corpus while the same section says
+      all three serialize as their data. Either the input narrows to the data
+      model and both sets of vectors are unspellable, or it stays `unknown`
+      and the corpus owes vectors in both directions — and the second is not
+      free: every set is a FunctionalScript data module, so a vector whose
+      input is a frozen object or an `Array` subclass has no spelling in the
+      corpus, which is the wall the removed host recipes hit.
+- [x] **The checks the data model does not need, removed.** `difference` in
+      [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
+      tested its actual graph for a symbol-keyed property, an own property
+      outside the data members, an accessor, a hole and a prototype other
+      than `Object.prototype` or `null`. That is a different argument from
+      the caller one and worth keeping: `difference` reads the output of the
+      implementation under test, so trust is not what retires a check —
+      unreachability is, since a FunctionalScript reader cannot spell those
+      however broken it is.
+      **The hole took two passes and is on that list too.** Review argued it
+      was reachable, since `[7].concat(new Array(1))` builds a sparse array
+      without mutation and `fjs/rtti/parse` has proofs that do; the branch
+      was restored on that argument and then removed again, because
+      `new Array(n)` is not FunctionalScript. An array literal cannot spell
+      a hole, `delete` and a `length` assignment are mutation, and `concat`,
+      `slice` and `map` propagate a hole without originating one, so no
+      reader can return a sparse array. What the round leaves behind is a
+      finding wider than this corpus: **twenty-nine `new Array(` expressions
+      on twenty-eight lines across nine `.f.mjs` files**, one of them in a
+      shipped module, where
+      `fjs/types/object/structurally_same/README.md` already says in so many
+      words that the construct is not in the language. That sweep has its own
+      issue,
+      [new-array-out-of-subset](../../../todo/new-array-out-of-subset.md),
+      whose last task waits on this file's open question about the
+      serializer's `unknown` parameter.
+      Gone, and staying gone: `outsideTheModel`,
+      the `_Mark` and `_Member` types, the reflection imported for them, the
+      proof's `plain` and `model` groups and the `outside` escape hatch that
+      built host values with `Object.assign`, `Object.defineProperty`,
+      `Symbol`, `new Date`, `new Map` and `Object(1)` — a landed `.f.mjs`
+      written in JavaScript the subset forbids — and its four sparse-array
+      literals. `types.ts` dropped `SerializerReject` and the twelve recipes,
+      and the three surviving serializer-side records take an ordinary
+      `Unknown`. Coverage stayed at 100%.
 - [ ] **§Whitespace's enumeration in the spec**, per decision 3; its own
       pull request.
-- [ ] **The decoder seam in the spec**, per decision 4; its own pull
-      request. The three are separate because each changes a different
-      contract and is decided on its own.
+- [ ] **The decoder seam in the spec**, per decision 4: say that a document
+      is correct UTF-8 and anything else is rejected, with no taxonomy of
+      malformed sequences and nothing required of a decoder. Its own pull
+      request, as each of these changes a different contract.
+- [ ] **Make "every set is a DataJS document" a check rather than a
+      measurement.** Review found every set ending with a trailing comma
+      before its `]`, which JavaScript takes and DataJS refuses, so no set was
+      readable by a conforming reader — a promise the corpus README makes and
+      nothing enforced. The commas are gone and each set now parses to exactly
+      the value the engine imports, sharing included, but that was measured by
+      hand. The generator is where it belongs, since it already reads the
+      corpus and already fails the build: read each set's own source, parse it
+      with the reader, and compare the graph with the imported set using
+      `difference`. Its own pull request, because it needs a failing case in
+      the matrix proof to keep coverage honest.
 - [ ] **Hand over.** `spec/datajs/README.md`'s Conformance section links the
       corpus instead of this file; stage 4's issue and the stage 6 task in
       [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)

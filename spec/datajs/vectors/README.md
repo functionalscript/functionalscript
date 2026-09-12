@@ -2,8 +2,8 @@
 
 The machine-readable form of [the specification](../README.md)'s Conformance
 section: the documents a reader accepts and rejects with the graphs they
-denote, the inputs a serializer accepts and refuses, and the bytes a
-normalized serializer produces. An implementation states which roles it
+denote, the inputs a serializer accepts, and the bytes a normalized
+serializer produces. An implementation states which roles it
 provides and is judged on those sets alone. This file is the schema; the
 sets are the data modules beside it, one directory per set, and the issue
 that designed them is [`../todo/conformance-vectors.md`](../todo/conformance-vectors.md).
@@ -13,10 +13,15 @@ that designed them is [`../todo/conformance-vectors.md`](../todo/conformance-vec
 Each set is `<set>/data.f.mjs`, a FunctionalScript data module written in
 the DataJS subset the specification describes: `const $n = …;` statements,
 one `export default`, string keys, JSON's values and the leaves DataJS adds.
-So the engine imports it today, the DataJS reader will read it once it
-exists, and a value two vectors share is one `const` — a non-empty array
-or an object, never the empty array literal, which `tsc` types as an
-evolving array when a `const` binds it and refuses every read of. A set carries no
+So the engine imports it today and the reader reads the same file as a
+document — measured, every set parses and denotes exactly the value the
+engine imports, the sharing included. **That is a rule with teeth and it was
+broken:** every set ended with a trailing comma before its `]`, which
+JavaScript takes and DataJS refuses, so no set was readable by a conforming
+reader until it was removed. A value two vectors share is one `const` — a
+non-empty array or an object, never the empty array literal, which `tsc`
+types as an evolving array when a `const` binds it and refuses every read
+of. A set carries no
 comments and no annotations, since the subset has neither; a consumer types
 a set at the import, with the record types in
 [`fjs/media/datajs/vectors/types.ts`](../../../fjs/media/datajs/vectors/types.ts).
@@ -31,7 +36,6 @@ implementation.
 | reader accept | `accept/` | `Accept` | the reader, as the set lands |
 | reader reject | `reject/` | `Reject` | the reader, as the set lands |
 | serializer accept | `serializer-accept/` | `SerializerAccept` | the serializer, when it lands |
-| serializer reject | `serializer-reject/` | `SerializerReject` | the serializer, when it lands |
 | graph equivalence | `graph-equivalence/` | `GraphEquivalence` | the serializer, when it lands |
 | normalize | `normalize/` | `Normalize` | the normalized serializer, when it lands |
 
@@ -50,19 +54,34 @@ branch under it is empty.
 
 ## What a record says
 
-**A document** is a string whose code units are the document's, or, for the
-two rules only bytes can reach — a document is UTF-8, and it has no BOM —
-the bytes as a tagged hex string, `["hex", "ef bb bf …"]`, fed to the
-reader's byte-accepting path. The spelling is one: lowercase pairs
-separated by single spaces, at least one pair, which is how the issue's
-byte tables read and what `bytes` in
+**A document** is a string whose code units are the document's. DataJS works
+with correct UTF-8 and rejects everything else, so the format owes malformed
+input no taxonomy and the corpus carries no vectors for one.
+
+Three records carry bytes instead of code units, as a tagged hex string,
+`["hex", "ef bb bf …"]` — lowercase pairs separated by single spaces, at
+least one pair, which `bytes` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
-decodes, refusing any other. A byte-form vector is a record of the accept
-or the reject set like any other, classed `byte/…`. A reject vector
-names the one `rule` it breaks and what the `host` does with the same text,
-measured: a document JavaScript `accepts` is a narrowing vector, the only
-kind that catches a reader delegating to the host; a `syntaxError` or a
-`runtimeError` tests the corpus's own grammar.
+decodes, refusing any other spelling. All three are classed `byte/…`, and a
+consumer that reads the byte form reads all three. Two of them are tests like
+any other. `byte-bom-first` puts a BOM before an otherwise valid document, and
+a reader that strips the BOM accepts it, which is the defect the vector exists
+to catch. `byte-valid-widths`, in the accept set, spells one character of each
+UTF-8 width and a reader owes the string those bytes denote; without it a byte
+path passes by refusing every byte sequence handed to it.
+
+The third, `byte-truncated`, is an ordinary reject record like the other two —
+nothing in the set marks it otherwise, and nothing should, since a consumer
+reads it the same way. What differs is how much a harness can conclude from it,
+and that depends on the harness: at the document level it cannot fail, for the
+reason the rule below gives, while a harness that can see where a refusal
+happened does get an answer from it. This repository's reader proof is one, and
+pins that those bytes do not decode.
+
+A reject vector names the one `rule` it breaks and what the `host` does with
+the same text, measured: a document JavaScript `accepts` is a narrowing
+vector, the only kind that catches a reader delegating to the host; a
+`syntaxError` or a `runtimeError` tests the corpus's own grammar.
 
 **An expected graph** is a value of the data model, and sharing is part of
 it: `[$a, $a]` with one `const` is one node reached twice, and `[[], []]`
@@ -70,44 +89,27 @@ is two nodes. A proof compares the graph an implementation produced with
 `difference` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
 leaves by `Object.is`, so that `-0` and `0` differ and `NaN` is itself;
-an array by `Array.isArray`, the data model's boundary rather than the
-prototype chain, so an array under a `null` prototype is an array; an
-object as a plain one, under `Object.prototype` or `null`, the two a
-reader may build it with, so a `Date`, a `Map` or a boxed number with no
-members is not an empty object; objects member by member in observable
-order; and containers as a
+an array by `instanceof Array`, the spelling FunctionalScript uses; an
+object by its members and nothing else, since no implementation written in
+the subset can hand back a `Date`, a `Map` or a boxed number — there is no
+way to build one — so the comparison does not look for what cannot arrive;
+objects member by member in observable order; and containers as a
 bijection, so a node the expected graph reaches twice must be one node in
 the actual, and two nodes it keeps apart may not be merged. A duplicate key
 is a document fact and never a graph fact: the document says
 `{"a":1,"b":2,"a":3}` and the graph is `{"a":3,"b":2}`, last value in first
 position.
 
-**A serializer-side input** is a graph, or a graph carrying **host
-recipes** where the corpus has to describe what no data literal can spell.
-An object whose own `host` property names a recipe is that recipe, and the
-key is reserved for it. Four leaves — `fn`, `symbol`, `builtin`, `hole` —
-and eight modifiers — `ownProp`, `nonEnumerable`, `getter`, `setter`,
-`symbolKey`, `proto`, `attrs`, `link` — each modifier naming the node it
-applies to and denoting that node, modified, never a copy. A modifier's
-target is an array, an object or a modifier over one, since nothing else
-has properties to add or attributes to set, and `arraySubclass` narrows the
-target to an array, the one shape whose prototype `inherited` reaches,
-through a chain of modifiers as much as directly; a
-`hole` is an array element and never an input of its own. A modifier is a
-`const` of its own; stacking is chaining, a second modification naming the
-first as its `on` and the inner one applying first, and a node is the `on`
-of at most one modifier, since the chain is the only order an exported
-value carries; `link` is how a cycle is spelled, since a `const` cannot
-name itself. The vocabulary is closed: the types are the list, and they
-carry the placement rules, so a recipe over a leaf, a hole outside an
-array or an `inherited` member under a `null` prototype is refused by
-`tsc` rather than left to a consumer; a plain input object may not have a
-`host` key — the reservation reaches inputs only, and an expected graph,
-which carries no recipes, may spell `{"host":"fn"}` as the ordinary object
-it is. Their construction, and how the corpus proves them
-against a FunctionalScript serializer, is the open decision the issue
-records, since the repository's proof rules keep host-built values out of
-proofs of FunctionalScript APIs.
+**A serializer-side input** is an ordinary graph, spelled by the same literal
+a reader-side expected graph is. There is no set of inputs a serializer
+refuses, so the corpus describes none: a serializer is handed a value of the
+data model and the type is what says so, checked by `tsc` at the call. Its
+callers are FunctionalScript besides, which has no mutation, no classes, no
+`Object.defineProperty`, no `Object.assign`, no `Object.setPrototypeOf`, no
+`Object.freeze`, no `Date` and no `RegExp` — so an accessor, a non-enumerable
+property, a symbol key, an array carrying an extra own property, a cycle, a
+`null` prototype, an `Array` subclass and a frozen value reach no serializer
+in any case. A vector for an input no caller can construct can never run.
 
 **Normalized bytes** are the document as a string; a proof encodes it to
 compare bytes, and every string the normalized serializer emits is a valid
@@ -143,10 +145,32 @@ the refusal arrives with the set.
   exact bytes; a spelling asserted anywhere but the last fails conforming
   implementations.
 - **Be refusable for two reasons.** A reject vector is a whole document
-  valid but for the one defect it names, and a serializer-reject input
-  breaks one rule, placed so that a cheaper rule does not refuse it first: a
-  malformed byte sequence sits inside an otherwise valid string, an
-  offending host value sits below the root.
+  valid but for the one defect it names, placed so that a cheaper rule does
+  not refuse it first.
+
+  `byte-truncated` is the one stated exception. A truncated sequence must be
+  the document's last byte to be truncated, so the document has lost its
+  closing quote too, and a reader that replacement-decodes the lead byte
+  refuses it as unterminated without checking UTF-8 at all. **A
+  document-level harness therefore cannot fail it**, and should not count it
+  as coverage of a decoder: it is kept because those bytes are not a DataJS
+  document, which no code-unit string can say.
+
+  A harness that can see *where* a refusal happened concludes more, and one
+  exists: the reader proof in
+  [`fjs/media/datajs/vectors/proof.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs)
+  reads every reject vector's `rule` and asserts the layer — the UTF-8 rule is
+  the decoder's and those bytes must decode to nothing, every other rule is the
+  reader's on the text they spell. Under that check the vector does
+  discriminate: a decoder that substitutes U+FFFD instead of refusing makes the
+  bytes decode and fails it. Nothing in the record says which kind of harness is
+  reading it, and nothing needs to — the record is an ordinary reject either
+  way.
+
+  The other two byte records are not exceptions at all. `byte-bom-first` has one
+  defect and discriminates at the document level: its bytes are valid UTF-8 and
+  the document is valid but for the BOM, so a reader that strips the BOM accepts
+  it and fails the vector. `byte-valid-widths` is an accept.
 - **Sample a range.** Both ends of every character class at every fixed
   position, the empty branch of every repetition, a signed twin for every
   number, a key twin for every string.
