@@ -54,8 +54,13 @@ const digitsValue: (radix: bigint) => (digits: readonly number[]) => Nullable<bi
 ```
 
 **The alphabet is `0x30`–`0x39` and nothing else**, so the radix runs
-`2n`..`10n`: a digit is a byte `d` with `0x30 <= d < 0x30 + radix`, and
-any other byte — a letter, a sign, a space — makes the answer `null`.
+`2n`..`10n`: a digit is a member `d` with `Number.isInteger(d) && 0x30
+<= d && d < 0x30 + radix`, and any other member — a letter, a sign, a
+space, and a non-integer such as `48.5`, which a bare range test would
+pass and `BigInt` would then throw on — makes `digitsValue` answer
+`null` and `isCanonicalDigits` answer `false`. The integer guard is the
+shape [`fjs/todo/unguarded-numeric-domains.md`](../../todo/unguarded-numeric-domains.md)
+names for exactly this class of `readonly number[]` input.
 Hexadecimal is deliberately *not* this function's business: `A`–`F` and
 `a`–`f` already have an owner two lines up (`hexDigitValue`), and giving
 `digitsValue` a letter alphabet would make one function two codecs. A

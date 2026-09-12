@@ -36,30 +36,34 @@ instances of that fold in the tree.
 Export three names from `fjs/crypto/sha2/module.f.mjs` beside `framing`:
 
 ```ts
-import type { FramingInit, Framed, Hash } from './types.ts'
+import type { Framing, Framed, Hash } from './types.ts'
 /**
- * The `Hash` over a framing and its initial words — the one place the
+ * The `Hash` over a built framing and its initial words — the one place the
  * `hashBytes`/`blockBytes` rounding and the `{ hash, len: 0n, remainder: empty }`
  * initial state are spelled. `H` is the hash value's shape (`V8`, `V5`).
  */
-export const framed: <H>(init: FramingInit<H>, hash: H, hashLength: bigint) => Hash<Framed<H>>
+export const framed: <H>(f: Framing<H> & { readonly chunkLength: bigint }, hash: H, hashLength: bigint) => Hash<Framed<H>>
 /** The bigint the words spell, most significant first, each `wordLength` bits wide; `[]` is `0n`. */
 export const fromWords: (wordLength: bigint) => (words: readonly bigint[]) => bigint
 export const ch: (x: bigint, y: bigint, z: bigint) => bigint
 export const maj: (x: bigint, y: bigint, z: bigint) => bigint
 ```
 
-`framed` takes the same `FramingInit<H>` that `framing` takes — so the
-`append`/`end` it builds are `Framing<H>`'s, tied to the same `H` as
-`hash`, and the state it returns is `Framed<H>` — plus the initial words
-and the `hashLength` that `end` is closed over; `blockLength` is
-`init.chunkLength`. Its `R` is the default `Vec`. It is the private
-`sha2` factory with `framing(init)` folded in and `V8` generalized to
-`H`; `sha2`'s `base` then calls `framed` per variant instead of holding a
-`Base` record, and the `Base` type — exported from `sha2/types.ts`,
-though nothing in the repository imports it — is **removed**: a public
-declaration going away is a breaking change whatever its importer count,
-so the PR declares it with a `Changelog:` entry. `fromWords` is what
+`framed` takes a **built** `Framing<H>` — the `append`/`end` a
+`framing(…)` call returns, typed over the same `H` as `hash` — together
+with the `chunkLength` that becomes `blockLength`, the initial words,
+and the `hashLength` that `end` is closed over; the state it returns is
+`Framed<H>` and its `R` is the default `Vec`. It is exactly the private
+`sha2` factory with `V8` generalized to `H`, and its parameter is
+exactly what that factory already receives: `base32` and `base64` carry
+`append`, `end`, and `chunkLength` today, so they are passed to `framed`
+unchanged. **Nothing about `Base` changes** — neither the exported type
+nor the exported values `base32`/`base64`, whose shape stays
+`{ bitLength, chunkLength, compress, fromV8, append, end }`: `fjs/sul/id`
+imports `base32` and the SHA-2 proof reads `fromV8`, `compress`, and
+`chunkLength` off both, so that shape is pinned, and this issue declares
+**no breaking change**. `Base.fromV8` is `fromWords(bitLength)` bound
+once per width, the same field with one owner behind it. `fromWords` is what
 `fromV8` and `fromV5` both are, with the width as a parameter, so
 `sha2`'s `fromV8` becomes `fromWords(bitLength)` and `sha1`'s `fromV5`
 becomes `fromWords(wordLength)`. `ch`/`maj` keep their three-argument
@@ -81,18 +85,19 @@ form is chosen because a public function over `readonly bigint[]` must
 answer for every value of that type, and `0n` is the answer that needs no
 special case. The proof pins `fromWords(32n)([]) === 0n` alongside the
 `V5`/`V8` rows. `sha1` then builds its record as
-`framed({ chunkLength, lengthLength, digestLength: hashLength, compress,
-digest: fromWords(wordLength) }, [0x67452301n, …], hashLength)` instead
-of writing the literal, importing all four from `sha2` in place of
-`framing`.
+`framed({ ...framing({ chunkLength, lengthLength, digestLength: hashLength,
+compress, digest: fromWords(wordLength) }), chunkLength }, [0x67452301n, …],
+hashLength)` instead of writing the literal — `framing` as it imports it
+today, `framed` beside it.
 
 ### Tasks
 
 - [ ] Export `framed`, `fromWords`, `ch`, `maj` from
       `fjs/crypto/sha2/module.f.mjs`; re-express `sha2`'s own `base`
       through them; pin `fromWords`'s empty case at `0n` and its
-      out-of-range word and non-positive width as panics; remove `Base`
-      from `sha2/types.ts` and declare the break in `Changelog:`.
+      out-of-range word and non-positive width as panics; `Base`, `base32`,
+      and `base64` keep their exact shape — no `Changelog:` entry, and the
+      SHA-2 proof's field reads pass unchanged.
 - [ ] Rewrite `sha1`'s record and helpers through them; proofs pass
       unchanged.
 - [ ] `tsc`, `fjs test`.

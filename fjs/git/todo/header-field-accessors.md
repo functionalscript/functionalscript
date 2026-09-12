@@ -51,16 +51,29 @@ rule will force — has to be repeated in roughly ten places today.
 one per shape:
 
 ```ts
-/** The parsed field at `i` under `key`. @throws where absent or unparsable. */
-const fieldAt: <T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>, what: string)
+/**
+ * The parsed field at `i` under `key`.
+ * @throws `missing` where the header is absent; `[bad, value]` where it is present and unparsable.
+ */
+const fieldAt: <T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>, missing: string, bad: string)
     => (p: Payload) => T
 /** The parsed field, or `null` where absent or unparsable. */
 const tryFieldAt: <T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>)
     => (p: Payload) => Nullable<T>
-/** The parsed field, `null` where absent. @throws where present and unparsable. */
-const optionalAt: <T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>, what: string)
+/** The parsed field, `null` where absent. @throws `[bad, value]` where present and unparsable. */
+const optionalAt: <T>(i: number, key: string, parse: (v: Bytes) => Nullable<T>, bad: string)
     => (p: Payload) => Nullable<T>
 ```
+
+The two panic messages are two parameters because today's accessors
+choose them independently — `tag.object` panics `'no object'` when
+absent but `['not an id', value]` when malformed, `tag.type` `'no type'`
+and `['unknown type', value]` — and no derivation from one string yields
+every pair. The malformed message always carries the offending `value`
+beside `bad`, as every existing `assert` does. `optionalAt` needs only
+`bad`, since absence is its `null`. So `tree` is
+`fieldAt(0, 'tree', tryFromHex, 'no tree', 'not a tree id')` and every
+panic message is exactly what it is now.
 
 and a fourth for the `validate` chains, exported under the same roof:
 
