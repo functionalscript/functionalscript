@@ -2178,7 +2178,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 275 records in
+- [x] **Normalize.** Landed as 276 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
       records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -2192,7 +2192,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 120,511 bytes of the bit
+      being refused outright. The matrix stands at 120,610 bytes of the bit
       vector's 131,072, which is 92% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2472,6 +2472,25 @@ The steps, in order; a step is one pull request unless it says otherwise:
       the reader refuses and that much every column sees; what only this column
       sees is the valid wrong spelling. All five texts were predicted from the
       rule before the writer was asked, and all five held.
+      **Then the free half of the rule in the same six slots, which is this
+      column's alone.** A ws-like scalar, a lone surrogate and an astral pair
+      are spellings `QuoteJSONString` leaves free, so escaping one keeps the
+      document valid and the graph identical and only the bytes differ.
+      Measured, U+2028 reached five of a body's six slots and missed a first
+      member's value, and the lone surrogate and the pair reached two each. So
+      a normalizer with a first-member path of its own inside a hoisted body
+      emitted `{"a":"\u2028","b":0}` and passed. Three kinds join each
+      const-body family and six shared objects the key family, filling all six
+      slots for each shape; the other two sets take the same vectors for the
+      *value* a body path can break rather than the spelling. One
+      representative per shape rather than all nineteen ws-like scalars, since
+      a body path mangles by shape and the nineteen are pinned at the root.
+      **And a shared value behind a later `__proto__` member**, where the one
+      vector under `key/proto/value/shared` had it behind the first. A writer
+      whose later computed-member path inlines a reference copies the node, from
+      a document that parses, so every column sees it and all three sets carry
+      it. Each of the four texts was predicted from the rule and then compared
+      with the writer.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
