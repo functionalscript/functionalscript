@@ -1812,12 +1812,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 162 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 164 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 10 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 152 of the 674 classes the corpus held then, with 50 scope
-      records answering the 522 cells the serializer column owed; the normalize
+      covering 154 of the 674 classes the corpus held then, with 48 scope
+      records answering the 520 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1883,6 +1883,24 @@ The steps, in order; a step is one pull request unless it says otherwise:
       vector can say which depth conforming means, and a data module cannot
       spell a graph deep enough to find a limit; the writer's own limit is
       tracked as the writer's bug, where it belongs.
+      **One reason after that was two thirds right**, which is the harder kind
+      to catch. It closed all three non-interior pair classes at once by
+      calling them the reader's readings of four escapes. Measured, the two
+      corner *values* were in the set already, as the raw astral characters
+      U+10000 and U+10FFFF, which are every bit of both halves at zero and at
+      one, so for them the reason held for a better cause than the one it
+      gave. The mixed pair U+103FF was not in the set at all, under any class,
+      and it is the one that keeps the two halves from moving together. It is a
+      vector now, with its key twin. What survived the check is the other half
+      of the claim, and it is worth stating plainly because it bounds what this
+      role can ever be asked: escaping each half of a pair denotes the same
+      string as emitting the pair raw, so a writer that fails to *detect* a
+      pair is invisible to a role judged on the graph alone. Measured that way
+      too: with the writer's pairing disabled every one of these vectors still
+      passes, and the failure that does show up is arithmetic — a re-encode
+      dropping nine of the low half's ten bits is caught by U+10FFFF and by the
+      mixed pair, and by neither U+10000 nor an interior pair. Detection is the
+      normalize set's to pin, where the corners carry exact raw texts.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
