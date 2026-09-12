@@ -10,6 +10,7 @@ const $s7 = {};
 const $s8 = [0];
 const $s9 = {"d": 0, "c": 1};
 const $s10 = {"a": 0};
+const $s11 = {["__proto__"]: 1};
 export default [
     {"id": "null", "class": "leaf/null", "document": "export default null;", "graph": null},
     {"id": "true", "class": "leaf/boolean/true", "document": "export default true;", "graph": true},
@@ -398,5 +399,6 @@ export default [
     {"id": "object-members-every-value-first", "class": "object/members/every-value-first", "document": "export default [{\"a\":null,\"b\":0},{\"a\":true,\"b\":0},{\"a\":false,\"b\":0},{\"a\":undefined,\"b\":0},{\"a\":NaN,\"b\":0},{\"a\":Infinity,\"b\":0},{\"a\":-Infinity,\"b\":0},{\"a\":0,\"b\":0},{\"a\":-0,\"b\":0},{\"a\":9,\"b\":0},{\"a\":-9,\"b\":0},{\"a\":1.5,\"b\":0},{\"a\":1e2,\"b\":0},{\"a\":1n,\"b\":0},{\"a\":-1n,\"b\":0},{\"a\":0n,\"b\":0},{\"a\":\"\",\"b\":0},{\"a\":\"a\",\"b\":0},{\"a\":\"\u2028\",\"b\":0},{\"a\":\"\\ud800\",\"b\":0},{\"a\":\"\\u0000\",\"b\":0},{\"a\":\"\\ud800\\udc00\",\"b\":0},{\"a\":[],\"b\":0},{\"a\":{},\"b\":0}];", "graph": [{"a": null, "b": 0}, {"a": true, "b": 0}, {"a": false, "b": 0}, {"a": undefined, "b": 0}, {"a": NaN, "b": 0}, {"a": Infinity, "b": 0}, {"a": -Infinity, "b": 0}, {"a": 0, "b": 0}, {"a": -0, "b": 0}, {"a": 9, "b": 0}, {"a": -9, "b": 0}, {"a": 1.5, "b": 0}, {"a": 100, "b": 0}, {"a": 1n, "b": 0}, {"a": -1n, "b": 0}, {"a": 0n, "b": 0}, {"a": "", "b": 0}, {"a": "a", "b": 0}, {"a": "\u2028", "b": 0}, {"a": "\ud800", "b": 0}, {"a": "\u0000", "b": 0}, {"a": "\ud800\udc00", "b": 0}, {"a": [], "b": 0}, {"a": {}, "b": 0}]},
     {"id": "object-key-order-nested", "class": "object/key-order/nested", "document": "const $0={\"d\":0,\"c\":1};export default [{\"b\":0,\"a\":1},$0,$0];", "graph": [{"b": 0, "a": 1}, $s9, $s9]},
     {"id": "object-keys-every-string", "class": "object/keys/every-string", "document": "export default [{\"\u2028\":0,\"\\ud800\":1,\"\\u0000\":2,\"\\ud800\\udc00\":3,\"a\":4}];", "graph": [{"\u2028": 0, "\ud800": 1, "\u0000": 2, "\ud800\udc00": 3, "a": 4}]},
-    {"id": "const-shared-object-parent", "class": "const/shared/object", "document": "const $0={\"a\":0};export default {\"x\":$0,\"y\":$0};", "graph": {"x": $s10, "y": $s10}}
+    {"id": "const-shared-object-parent", "class": "const/shared/object", "document": "const $0={\"a\":0};export default {\"x\":$0,\"y\":$0};", "graph": {"x": $s10, "y": $s10}},
+    {"id": "const-shared-object-proto-key", "class": "const/shared/object", "document": "const $0={[\"__proto__\"]:1};export default [$0,$0];", "graph": [$s11, $s11]}
 ];

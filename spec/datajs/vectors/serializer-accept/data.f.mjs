@@ -10,6 +10,7 @@ const $s8 = [$s7];
 const $s9 = {"x": $s7};
 const $s10 = {"d": 0, "c": 1};
 const $s11 = {};
+const $s12 = {["__proto__"]: 1};
 export default [
     {"id": "ser-null", "class": "leaf/null", "input": null},
     {"id": "ser-true", "class": "leaf/boolean/true", "input": true},
@@ -219,5 +220,6 @@ export default [
     {"id": "ser-const-shared-nested-object-parent", "class": "const/shared/nested", "input": [$s9, $s9, $s7]},
     {"id": "ser-object-keys-every-string", "class": "object/keys/every-string", "input": [{"\u2028": 0, "\ud800": 1, "\u0000": 2, "\ud800\udc00": 3, "a": 4}]},
     {"id": "ser-shared-empty-object", "class": "const/shared/object", "input": [$s11, $s11]},
-    {"id": "ser-shared-empty-object-object-parent", "class": "const/shared/object", "input": {"x": $s11, "y": $s11}}
+    {"id": "ser-shared-empty-object-object-parent", "class": "const/shared/object", "input": {"x": $s11, "y": $s11}},
+    {"id": "ser-shared-object-proto-key", "class": "const/shared/object", "input": [$s12, $s12]}
 ];
