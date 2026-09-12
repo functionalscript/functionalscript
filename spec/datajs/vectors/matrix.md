@@ -261,7 +261,7 @@ that mentions it in three.
 | `key/proto/string/nested` | `key-proto-string-nested` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/proto/value/null` | `key-proto-value-null` | not applicable, [note 43](#notes) | not applicable, [note 45](#notes) |
 | `key/proto/value/object` | `key-proto-value-object` | not applicable, [note 44](#notes) | not applicable, [note 46](#notes) |
-| `key/proto/value/shared` | `key-proto-shared` | `ser-key-proto-value-shared` | `norm-key-proto-value-shared` |
+| `key/proto/value/shared` | `key-proto-shared`, `key-proto-shared-later` | `ser-key-proto-value-shared`, `ser-key-proto-value-shared-later` | `norm-key-proto-value-shared` |
 | `key/string/continuation` | `key-continuation` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/string/continuation/crlf` | `key-continuation-crlf` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `key/string/empty` | `key-empty` | `ser-key-empty` | `norm-key-empty` |

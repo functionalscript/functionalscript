@@ -81,6 +81,19 @@ const $h14 = {"a": 0, "\f": 1};
 const $h15 = {"a": 0, "\r": 1};
 const $h16 = {"a": 0, "\u0000": 1};
 const $h17 = {"a": 0, "\u001f": 1};
+const $f25 = ["\u2028", 0, "\u2028"];
+const $f26 = ["\ud800", 0, "\ud800"];
+const $f27 = ["\ud800\udc00", 0, "\ud800\udc00"];
+const $g25 = {"a": "\u2028", "b": 0, "c": "\u2028"};
+const $g26 = {"a": "\ud800", "b": 0, "c": "\ud800"};
+const $g27 = {"a": "\ud800\udc00", "b": 0, "c": "\ud800\udc00"};
+const $h18 = {"\u2028": 0, "a": 1};
+const $h19 = {"\ud800": 0, "a": 1};
+const $h20 = {"\ud800\udc00": 0, "a": 1};
+const $h21 = {"a": 0, "\u2028": 1};
+const $h22 = {"a": 0, "\ud800": 1};
+const $h23 = {"a": 0, "\ud800\udc00": 1};
+const $t0 = [0];
 export default [
     {"id": "ser-null", "class": "leaf/null", "input": null},
     {"id": "ser-true", "class": "leaf/boolean/true", "input": true},
@@ -293,7 +306,8 @@ export default [
     {"id": "ser-shared-empty-object-object-parent", "class": "const/shared/object", "input": {"x": $s11, "y": $s11}},
     {"id": "ser-shared-object-proto-key", "class": "const/shared/object", "input": [$s12, $s12, $s14, $s14]},
     {"id": "ser-shared-object-escaped-keys", "class": "const/shared/object", "input": [$s13, $s13]},
-    {"id": "ser-const-body-every-slot-array", "class": "const/shared/twice", "input": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15, $f16, $f16, $f17, $f17, $f18, $f18, $f19, $f19, $f20, $f20, $f21, $f21, $f22, $f22, $f23, $f23, $f24, $f24]},
-    {"id": "ser-const-body-every-slot-object", "class": "const/shared/object", "input": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15, $g16, $g16, $g17, $g17, $g18, $g18, $g19, $g19, $g20, $g20, $g21, $g21, $g22, $g22, $g23, $g23, $g24, $g24]},
-    {"id": "ser-shared-object-escaping-key-every-slot", "class": "const/shared/object", "input": [$h0, $h0, $h1, $h1, $h2, $h2, $h3, $h3, $h4, $h4, $h5, $h5, $h6, $h6, $h7, $h7, $h8, $h8, $h9, $h9, $h10, $h10, $h11, $h11, $h12, $h12, $h13, $h13, $h14, $h14, $h15, $h15, $h16, $h16, $h17, $h17]}
+    {"id": "ser-const-body-every-slot-array", "class": "const/shared/twice", "input": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15, $f16, $f16, $f17, $f17, $f18, $f18, $f19, $f19, $f20, $f20, $f21, $f21, $f22, $f22, $f23, $f23, $f24, $f24, $f25, $f25, $f26, $f26, $f27, $f27]},
+    {"id": "ser-const-body-every-slot-object", "class": "const/shared/object", "input": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15, $g16, $g16, $g17, $g17, $g18, $g18, $g19, $g19, $g20, $g20, $g21, $g21, $g22, $g22, $g23, $g23, $g24, $g24, $g25, $g25, $g26, $g26, $g27, $g27]},
+    {"id": "ser-shared-object-escaping-key-every-slot", "class": "const/shared/object", "input": [$h0, $h0, $h1, $h1, $h2, $h2, $h3, $h3, $h4, $h4, $h5, $h5, $h6, $h6, $h7, $h7, $h8, $h8, $h9, $h9, $h10, $h10, $h11, $h11, $h12, $h12, $h13, $h13, $h14, $h14, $h15, $h15, $h16, $h16, $h17, $h17, $h18, $h18, $h19, $h19, $h20, $h20, $h21, $h21, $h22, $h22, $h23, $h23]},
+    {"id": "ser-key-proto-value-shared-later", "class": "key/proto/value/shared", "input": {"x": $t0, ["__proto__"]: $t0}}
 ];
