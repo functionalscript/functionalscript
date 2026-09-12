@@ -335,7 +335,7 @@ roles reads exactly like prose that mentions it in three.
 | `key/string/raw/ws-like/2008` | `key-raw-ws-like-2008` | `ser-key-raw-ws-like-2008` | *awaiting the set* |
 | `key/string/raw/ws-like/2009` | `key-raw-ws-like-2009` | `ser-key-raw-ws-like-2009` | *awaiting the set* |
 | `key/string/raw/ws-like/200a` | `key-raw-ws-like-200a` | `ser-key-raw-ws-like-200a` | *awaiting the set* |
-| `key/string/raw/ws-like/2028` | `key-raw-ws-like-2028` | `ser-key-raw-ws-like-2028` | *awaiting the set* |
+| `key/string/raw/ws-like/2028` | `key-raw-ws-like-2028`, `key-raw-ws-like-2028-after-first` | `ser-key-raw-ws-like-2028` | *awaiting the set* |
 | `key/string/raw/ws-like/2029` | `key-raw-ws-like-2029` | `ser-key-raw-ws-like-2029` | *awaiting the set* |
 | `key/string/raw/ws-like/202f` | `key-raw-ws-like-202f` | `ser-key-raw-ws-like-202f` | *awaiting the set* |
 | `key/string/raw/ws-like/205f` | `key-raw-ws-like-205f` | `ser-key-raw-ws-like-205f` | *awaiting the set* |

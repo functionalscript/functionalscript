@@ -1966,6 +1966,17 @@ The steps, in order; a step is one pull request unless it says otherwise:
       vectors per writer set and four in the accept set, so it lands answered
       in every role that carries it and owes no reason at all. Container kind
       was the third axis of a cross I had already crossed twice.
+      **The same first-versus-later axis for a key.** Measured, every
+      escape-sensitive key in all three sets is the sole member of its object,
+      57 of them here and 51 in the serializer set, and not one sits after
+      another member. So a writer with separate first-member and later-member
+      key emitters escapes the second key and passes. This role gets a vector
+      with a raw U+2028 key in second position, under the class its
+      sole-member twin already has; the serializer role gets none, and the
+      reason is measurable rather than a judgment — the escaped spelling
+      denotes the same string, so a graph check cannot see it, which is the
+      same bound the surrogate pairs run into. Normalized bytes are what
+      catches this, one step up.
       Both had been fixed for the normalize column in the step above, which is
       the rule this file now states twice over and I applied to one column at a
       time anyway.
