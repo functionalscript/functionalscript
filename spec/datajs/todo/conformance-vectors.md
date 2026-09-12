@@ -2110,7 +2110,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       each with itself as its value, so the body's key emitter and its value
       emitter are both reached for every spelling. That is the const-body
       position crossed with the escaping rule, which is the cross the
-      `__proto__` vector above did for one key only.
+      `__proto__` vector above did for one key only. That vector then took the
+      same correction: its shared object had the computed key **first**, so an
+      emitter using the computed form only for a body's first member passed, and
+      it now shares two objects, `{["__proto__"]:0,"x":1}` and
+      `{"x":0,["__proto__"]:1}`. Inside a hoisted body, first and later are two
+      paths for every one of these questions, which is the shape to assume from
+      here rather than to be told again.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
