@@ -131,11 +131,29 @@ value — `"a\tb"` tokenizes to a token holding a real tab — so the token stre
 cannot reconstruct the text it came from, and a highlighter that re-serialises
 tokens would rewrite the reader's source.
 
-Two ways out: carry the raw lexeme on the token, the way `number` already does
-("a `number` token carries the exact source text and no derived numeric value",
-`module.f.mjs:6-9`), or have the view slice the original text using the
-line/column metadata `tokenize` already attaches. The number precedent argues
-for the first. Decide before the source view is written, not after.
+Carrying the raw lexeme on the token — the way `number` already does ("a
+`number` token carries the exact source text and no derived numeric value",
+`module.f.mjs:6-9`) — does **not** on its own fix this, because whitespace is
+lost the same way and raw lexemes on strings would not reach it. `mergeTrivia`
+collapses a whole run to one valueless `ws` or `nl`, so two different sources
+give one identical stream:
+
+```
+"a  b"  => id a, ws, id b, eof
+"a\tb"  => id a, ws, id b, eof
+```
+
+A view rebuilt from tokens would therefore rewrite the reader's indentation
+however faithfully the strings were kept.
+
+The way out that does work is to slice the original text by position: the
+stream is contiguous — trivia is emitted, not skipped — so each token's text
+runs from its own start to the next token's start, and
+[666-js-tokenizer-position-layer](../../todo/666-js-tokenizer-position-layer.md)
+owns the metadata that gives it. Raw lexemes stay an option for a consumer that
+wants token-local rendering and does not care about reproducing the file, but
+they are not the answer for a source view. Decide before the source view is
+written, not after.
 
 ### Tasks
 
@@ -147,9 +165,23 @@ for the first. Decide before the source view is written, not after.
       `'x'` stays a non-JSON token; if
       [self-contained-tokenizer](../../../media/json/todo/self-contained-tokenizer.md)
       has retired it, nothing is owed.
+- [ ] The active delimiter becomes escapable: `\'` inside a `'` string, `` \` ``
+      inside a template. Both are `unescaped character` errors today, and both
+      occur — [`git/testlib.f.mjs:232`](../../../git/testlib.f.mjs#L232) has
+      `'Merge tag \'vt\''`, and
+      [`media/datajs/vectors/matrix/proof.f.mjs:295`](../../../media/datajs/vectors/matrix/proof.f.mjs#L295)
+      escapes backticks inside a template. Use them as fixtures.
+      **Do not add rows to `simpleEscapes`** to do it: that table is shared with
+      [`fsc/tokenizer`](../../../fsc/tokenizer/module.f.mjs)'s decoder and with
+      [`media/json/serializer`](../../../media/json/serializer/module.f.mjs)'s
+      encode side, so an apostrophe row would make the JSON serializer emit
+      `\'` and produce invalid JSON. The escape has to be conditional on the
+      delimiter that opened the literal, or live in a JS-only layer above the
+      shared table.
 - [ ] A template state with a nesting depth: `${` returns to ordinary lexing,
       the matching `}` resumes the template. Proofs for the six shapes above.
-- [ ] Decide raw-lexeme-on-token vs slice-by-position, and record which.
+- [ ] Record the source-reproduction decision (slice-by-position unless
+      something argues otherwise) where the source view will read it.
 - [ ] Check whether [`ebnf/lib/js`](../../../ebnf/lib/js/module.f.mjs) needs the
       same rules, or is deliberately narrower.
 - [ ] Re-run the tree scan; the 336 failing modules should reach zero, or the
