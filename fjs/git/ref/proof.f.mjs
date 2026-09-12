@@ -130,18 +130,20 @@ export const proof = {
             assertEq(ref(latin1(`ref: ${n}\n`)), null)
         }
     },
-    // `FETCH_HEAD` and `MERGE_HEAD` are whole ref names and still no target:
-    // Git reads those two straight from the file, each being able to hold
-    // more than one record, so `git symbolic-ref` answers `No such ref`.
-    // Exactly these two, measured — `ORIG_HEAD` and the other pseudo-refs
-    // above resolve.
+    // `FETCH_HEAD` and `MERGE_HEAD` are targets, and this case exists to say
+    // that on purpose. Git resolves a symbolic ref pointing at either one
+    // when that file exists and refuses it when it does not, so the answer is
+    // a fact about the repository and not about these bytes; refusing here
+    // would call a live ref malformed. `ORIG_HEAD` resolves either way, which
+    // is how we know existence alone is not the rule.
     special: () => {
-        for (const n of ['FETCH_HEAD', 'MERGE_HEAD']) {
-            assertEq(ref(latin1(`ref: ${n}\n`)), null)
+        for (const n of ['FETCH_HEAD', 'MERGE_HEAD', 'ORIG_HEAD']) {
+            const r = ref(latin1(`ref: ${n}\n`))
+            assert(r !== null && r.kind === 'symbolic', n)
+            assertEq(codePointListToString(r.target), n)
         }
-        // The restriction is the target's alone. A `packed-refs` entry may be
-        // named either, which `git show-ref` reads, so the check must not sit
-        // in the shared name rule.
+        // A `packed-refs` entry may be named either too, which `git show-ref`
+        // reads, so no rule anywhere in this module singles them out.
         for (const n of ['FETCH_HEAD', 'MERGE_HEAD']) {
             assertStructurallySame(
                 /** @type {readonly PackedRef[]} */ (packed(latin1(`${a} ${n}\n`))).map(seen),

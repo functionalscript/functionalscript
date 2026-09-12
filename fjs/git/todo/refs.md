@@ -52,7 +52,15 @@ Two functions over the effects:
   such line; the search peels through the object store either way.
 - `tryResolve(ref)`: the id one ref names — its loose file, or its
   `packed-refs` line where there is no loose file — a symbolic ref
-  followed to a bounded depth, or `null`. For plumbing that has a ref in hand —
+  followed to a bounded depth, or `null`.
+  Two names need reading specially here, and only here: `FETCH_HEAD` and
+  `MERGE_HEAD` may each hold more than one record, so Git reads them straight
+  from the file rather than through a ref backend. That makes a symbolic ref
+  pointing at either one resolve when the file exists and fail when it does
+  not, measured on Git 2.43.0, where `ORIG_HEAD` resolves either way. The
+  grammars cannot decide it, since it is a fact about the repository and not
+  about one file's bytes, so they accept both as targets and this function
+  owes the check. For plumbing that has a ref in hand —
   `HEAD` for a checkout, a ref a person typed at a command line — and
   for nothing that resolves a DISOT name.
 

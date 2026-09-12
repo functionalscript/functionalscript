@@ -160,13 +160,14 @@ export const isName = input => {
  *   `refs/heads/sym` resolves. So it is a rule about what `HEAD` may say, and
  *   it belongs to a reader that knows it is reading `HEAD`.
  *
- * Git also refuses two one-level names as symbolic *targets* for a third
- * reason again — `FETCH_HEAD` and `MERGE_HEAD`, where `ORIG_HEAD` resolves and
- * all three pass `check-ref-format --allow-onelevel` — because it reads those
- * two straight from the file, each being able to hold more than one record.
- * That is not name syntax, so it is not checked here; `fjs/git/ref` checks it
- * where it applies, which is a symbolic ref's target and not a `packed-refs`
- * name, since `git show-ref` reads a packed line named either.
+ * `FETCH_HEAD` and `MERGE_HEAD` behave differently again as symbolic
+ * *targets*, and not in a way any name rule can express: Git resolves a
+ * symbolic ref pointing at either one when that file exists and refuses it
+ * when it does not, while `ORIG_HEAD` resolves either way. So the answer
+ * depends on the state of the repository rather than on the name, which is
+ * why it is neither checked here nor in `fjs/git/ref` — see that module, and
+ * `tryResolve` in [`todo/refs.md`](../todo/refs.md), which has the effects to
+ * look.
  *
  * @throws If `name` is not a list of bytes.
  *

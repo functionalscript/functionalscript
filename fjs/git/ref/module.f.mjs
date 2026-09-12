@@ -40,7 +40,7 @@
  * @import { PackedRef, Ref } from './types.ts'
  */
 
-import { ascii, byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
+import { byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { tryFromHexOf } from '../oid/module.f.mjs'
 import { isWholeName } from '../refname/module.f.mjs'
@@ -148,38 +148,6 @@ const symbolicRule = /** @type {const} */ ([
 const parseSymbolic = byteParser(symbolicRule)
 
 /**
- * The two names a symbolic ref may not point at, as byte strings.
- *
- * These are Git's *special* refs: it reads them straight from the file
- * instead of through a ref backend, because each may hold more than one
- * record, so they are not refs a symbolic ref can name. Measured by writing
- * `ref: <name>` into `refs/heads/sym` and asking
- * `git symbolic-ref refs/heads/sym`, which refuses exactly these two and
- * resolves every other one-level name tried: `ORIG_HEAD`,
- * `CHERRY_PICK_HEAD`, `REVERT_HEAD`, `BISECT_HEAD`, `REBASE_HEAD`,
- * `AUTO_MERGE`, `HEAD`, `master` and a bare `foo` all pass.
- *
- * So this is a closed set of two and not an open-ended quirk, which is why
- * it is checked rather than only written down.
- *
- * It binds a symbolic ref's target and nothing else. A `packed-refs` entry
- * may be *named* either — `git show-ref` reads
- * `<id> FETCH_HEAD` and `<id> MERGE_HEAD` — so the check belongs here and
- * not in {@link isWholeName}, where it would wrongly refuse those lines.
- */
-const special = [ascii('FETCH_HEAD'), ascii('MERGE_HEAD')]
-
-/**
- * Whether a symbolic ref's target is one Git would resolve: a whole ref
- * name, and not one of the two {@link special} refs.
- *
- * @type {(name: readonly number[]) => boolean}
- */
-const isTarget = name =>
-    isWholeName(name)
-    && !special.some(s => s.length === name.length && s.every((b, i) => name[i] === b))
-
-/**
  * What a ref file holds: the ref another one names, or the id this one
  * does. `null` where the file is neither — a `ref:` line whose target is no
  * ref name, or bytes that are no id of the repository's width.
@@ -192,8 +160,30 @@ const isTarget = name =>
  * `refs/heads/sym` pointing at `master`, `a/b` or `refs` resolves, and only
  * `@` alone and the names that rule already refuses do not.
  *
- * A target that is a whole ref name is still refused where it is one of the
- * two {@link special} refs, which is the one exception and a measured one.
+ * `FETCH_HEAD` and `MERGE_HEAD` are targets here, and that is a decision
+ * rather than an oversight. Git resolves a symbolic ref pointing at either
+ * one **when that file exists** and refuses it when it does not, so the
+ * answer depends on the state of the repository and not on the bytes of the
+ * file being read. Measured on Git 2.43.0 with `ref: <name>` in
+ * `refs/heads/sym`:
+ *
+ * | target | file absent | file present |
+ * | --- | --- | --- |
+ * | `FETCH_HEAD` | `No such ref` | `symbolic-ref` prints it, `rev-parse` resolves it |
+ * | `MERGE_HEAD` | `No such ref` | the same |
+ * | `ORIG_HEAD` | `symbolic-ref` prints it | the same |
+ *
+ * So a reader of one file's bytes cannot decide it, and refusing the target
+ * outright would call a live ref malformed. What *is* special about those two
+ * is how a resolver must read them: Git reads each straight from the file
+ * rather than through a ref backend, because each may hold more than one
+ * record. That belongs to `tryResolve` in
+ * [`todo/refs.md`](../todo/refs.md), which has the effects to look, and the
+ * issue records it.
+ *
+ * `ORIG_HEAD` shows the difference is not about existence alone: it resolves
+ * as a target whether or not the file is there, because it is not one of the
+ * two Git reads specially.
  *
  * This reader is deliberately not a `HEAD` reader, and `HEAD` is the one ref
  * with a rule of its own: its target must sit under `refs/`. That rule is
@@ -215,7 +205,7 @@ export const tryRef = oidBytes => {
         if (r[0] !== 'error') {
             const [[, , target]] = r[1]
             const name = byteArray(symbolsOf(target))
-            return isTarget(name) ? { kind: 'symbolic', target: name } : null
+            return isWholeName(name) ? { kind: 'symbolic', target: name } : null
         }
         const id = loose(bs)
         return id === null ? null : { kind: 'direct', id }
