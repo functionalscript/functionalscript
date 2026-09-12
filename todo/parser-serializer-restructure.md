@@ -695,16 +695,20 @@ throughout.
 
    **5b. The syntax** — terminator `nl` → `';'` **after each** statement,
    the module's final one included (never `;` between statements with EOF
-   after the last — see the FunctionalScript consequences above); reserved
-   words added;
+   after the last — see the FunctionalScript consequences above): **done
+   ahead of the stage**, by the LL(1) port, as the consequences record.
+   Reserved words: **done** — `NaN` and `Infinity` join `undefined` as the
+   `literalGlobals` of `fjs/js/keywords`, kept as keyword tokens by the DJS
+   layer and named in the parser's alphabet, so a module cannot bind,
+   reference or key them; with no rule reading them yet they are refused
+   wherever they stand, which is what they were before in effect, as
+   unresolved names. Exact `-0`: **done** — it parsed correctly already,
+   and the serializer now writes it back as `-0` where it wrote `0`; the
+   round trip is pinned in `fjs/fsc/proof.f.mjs`. What remains is
    the DataJS numeric leaves taught to the moved front end — `NaN`,
-   `Infinity`, and `-Infinity` are unresolved identifiers in
-   today's parser, so reserving the names alone would *reject* DataJS accept
-   vectors: their tokenizer, grammar, minus-folding, and AST/evaluation
-   support is stage-5 work; exact `-0` already parses correctly (the
-   tokenizer pins the `-0` lexeme and `parseFloat` preserves signed zero),
-   so it needs a regression proof, not reimplementation (together the
-   front-end half of
+   `Infinity`, and `-Infinity`: their grammar rule, minus-folding, and
+   AST/evaluation support, and the serializer writing them as words rather
+   than `null` (together the front-end half of
    [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)'s
    special-number requirement), a precondition of stage 6's subset proofs.
    The EDAG staging continues under the `fsc` name. This is the pull request
@@ -808,8 +812,9 @@ throughout.
 - [x] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
       `serializer/` and `types.ts` left in place; the breaking-change entry
       for the moved paths.
-- [ ] Stage 5b: `;` termination, reserved words, the special numbers; the
-      breaking-change entry. File its todo under `fjs/fsc/todo/`.
+- [ ] Stage 5b: `;` termination (done ahead of the stage), reserved words
+      and `-0` (done), the special numbers as values (open); each part
+      carries its breaking-change entry.
 - [x] Stage 5c: the token vocabulary is the grammar's, in
       `fjs/ebnf/lib/js/types.ts`; nothing under `fjs/fsc` imports
       `fjs/js/tokenizer`.

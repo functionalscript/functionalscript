@@ -19,10 +19,19 @@ import { concat } from '../../types/string/module.f.mjs'
 import { flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.mjs'
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
-import { objectWrap, arrayWrap, colon, stringSerialize, numberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
+import { objectWrap, arrayWrap, colon, stringSerialize, numberSerialize as jsonNumberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 
-const { entries } = Object
+const { entries, is } = Object
+
+/**
+ * A number as the parser reads it back: `-0` is written `-0`, where JSON's
+ * writer, `ToString`, writes `0` and loses the sign — the one departure
+ * DataJS names too. `parseFloat('-0')` is `-0`, so the round trip holds.
+ *
+ * @type {(value: number) => List<string>}
+ */
+const numberSerialize = value => is(value, -0) ? ['-0'] : jsonNumberSerialize(value)
 
 export const undefinedSerialize = ['undefined']
 

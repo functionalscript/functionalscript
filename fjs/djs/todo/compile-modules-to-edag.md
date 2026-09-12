@@ -392,16 +392,17 @@ rediscovered:
 
 | value | parser | serializer |
 |---|---|---|
-| `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `0` |
-| `NaN` | `const not found` | emits `null` |
-| `Infinity` | `const not found` | emits `null` |
+| `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `-0` — done, pinned in `fjs/fsc/proof.f.mjs` |
+| `NaN` | `unexpected token` | emits `null` |
+| `Infinity` | `unexpected token` | emits `null` |
 | `-Infinity` | `unexpected token` | emits `null` |
 
-`-0` is serializer-only, which is easy to miss because `String(-0)` is `"0"` and
-only `Object.is` separates them. The other three arrive as `id` tokens, so the
-grammar reads them as references and name resolution rejects them; `-Infinity`
-fails earlier still, since there is no `-` in the `DjsToken` set at all and it
-tokenizes to `error id(Infinity) eof`.
+`-0` was serializer-only, which is easy to miss because `String(-0)` is `"0"`
+and only `Object.is` separates them; the serializer writes `-0` now. The
+other three are reserved words with their own token kinds, which no grammar
+rule reads yet, so the grammar refuses them wherever they stand; `-Infinity`
+fails at the `-`, which folds into a number token only, and tokenizes to
+`error Infinity eof`.
 
 ### Existing compile API boundary
 

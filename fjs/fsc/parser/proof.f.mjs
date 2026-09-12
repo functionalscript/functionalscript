@@ -156,6 +156,17 @@ export const proof = {
                 ["import x from \"m\";\nimport x from \"n\";\nexport default x;", "duplicate id", [2, 8]],
                 ["import x from \"m\";\nconst x = 1;\nexport default x;", "duplicate id", [2, 7]],
                 ["export default zzz;", "const not found", [1, 16]],
+                // `NaN` and `Infinity` are reserved, as `undefined` is: each
+                // carries its own token symbol, so it is never an identifier
+                // — not a name, not a reference, not a key. No rule reads the
+                // two yet (the numeric leaves are the next step), so today
+                // they are refused at the token wherever they stand
+                ["const NaN = 1;\nexport default NaN;", "unexpected token", [1, 7]],
+                ["import Infinity from \"m\";\nexport default Infinity;", "unexpected token", [1, 8]],
+                ["export default NaN;", "unexpected token", [1, 16]],
+                ["export default Infinity;", "unexpected token", [1, 16]],
+                ["export default {NaN: 1};", "unexpected token", [1, 17]],
+                ["const undefined = 1;\nexport default undefined;", "unexpected token", [1, 7]],
                 ["const a = zzz;\nexport default a;", "const not found", [1, 11]],
                 ["export default [zzz];", "const not found", [1, 17]],
                 ["export default {a: zzz};", "const not found", [1, 20]],

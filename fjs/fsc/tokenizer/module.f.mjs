@@ -20,7 +20,10 @@
  *
  * What the grammar leaves to the fold above it: a run of whitespace and
  * newlines is one token, `nl` where the run holds a newline and anchored
- * at the first, `ws` otherwise; a word is a keyword or an identifier; a
+ * at the first, `ws` otherwise; a word is a keyword or an identifier, and
+ * the DJS layer then demotes every keyword to an identifier but the
+ * literals — `true`, `false`, `null`, `undefined`, `NaN`, `Infinity` —
+ * which stay reserved; a
  * number is a `number` or a `bigint`; and a number directly followed by a
  * word or a number, no trivia between — `123abc`, `1nabc`, `00` — is the
  * error `invalid number`, at the token that should not be there. The
@@ -372,6 +375,8 @@ const mapDjsToken = input => {
         case 'ws':
         case 'nl':
         case 'undefined':
+        case 'NaN':
+        case 'Infinity':
         case '//':
         case '/*':
         case 'eof':
