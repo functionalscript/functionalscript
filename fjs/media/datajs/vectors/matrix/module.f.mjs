@@ -621,11 +621,12 @@ export const sourceOf = name => `${directory}/${name}/data.f.mjs`
  * @type {(name: string, text: string, imported: unknown) => readonly string[]}
  */
 export const sourceDefect = (name, text, imported) => {
-    const read = parse(text)
-    return read[0] === 'error'
-        ? [`the set ${name}: its own source is not a DataJS document, ${read[1]}`]
-        : (d => d === null ? [] : [`the set ${name}: its source denotes another graph, ${d}`])(
-            difference(/** @type {Unknown} */ (imported))(read[1]))
+    const [tag, value] = parse(text)
+    if (tag === 'error') {
+        return [`the set ${name}: its own source is not a DataJS document, ${value}`]
+    }
+    const d = difference(/** @type {Unknown} */ (imported))(value)
+    return d === null ? [] : [`the set ${name}: its source denotes another graph, ${d}`]
 }
 
 /**
@@ -640,9 +641,9 @@ export const sourceDefects = corpus => foldStep(
     /** @type {readonly string[]} */ ([]),
     ([name, imported]) => defects => resultMapStep(
         readUtf8File(sourceOf(name)),
-        read => ok([...defects, ...read[0] === 'error'
-            ? [`the set ${name}: its source cannot be read, ${errorMessage(read[1])}`]
-            : sourceDefect(name, read[1], imported)])))
+        ([tag, value]) => ok([...defects, ...tag === 'error'
+            ? [`the set ${name}: its source cannot be read, ${errorMessage(value)}`]
+            : sourceDefect(name, value, imported)])))
 
 /**
  * `gen` regenerates the matrix on every pull request, so a set that lands
@@ -660,8 +661,8 @@ export const sourceDefects = corpus => foldStep(
 export const program = corpus => _options => step(
     sourceDefects(corpus),
     defects => {
-        const text = defects.length === 0 ? matrix(corpus) : refused(defects)
-        return text[0] === 'error' ? errorExit(text[1]) : exitStep(write(text[1]))
+        const [tag, value] = defects.length === 0 ? matrix(corpus) : refused(defects)
+        return tag === 'error' ? errorExit(value) : exitStep(write(value))
     })
 
 /** @type {NodeProgram} */
