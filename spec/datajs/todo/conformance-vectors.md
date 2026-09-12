@@ -1828,12 +1828,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 180 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 206 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
-      and 13 in
+      and 15 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 168 of the 675 classes the corpus held then, with 45 scope
-      records answering the 507 cells the serializer column owed; the normalize
+      covering 171 of the 678 classes the corpus holds, with 45 scope
+      records answering the 507 cells the serializer column owes; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -2012,6 +2012,48 @@ The steps, in order; a step is one pull request unless it says otherwise:
       Both had been fixed for the normalize column in the step above, which is
       the rule this file now states twice over and I applied to one column at a
       time anyway.
+      **The slot, this time as an axis and not as a cell.** Three rounds
+      running, a finding named the cells I had missed and I filled exactly
+      those. So this round measured before writing anything, and the gap was
+      wider than the finding: of the nine escape classes this role owns six
+      were still their object's sole member, and across 187 records here and
+      354 in the reader set **not one escape-sensitive string stood in a
+      container slot at all** — every one was a whole document or a sole key.
+      Such a string has six slots to sit in: an array's first and later
+      element, an object's first and later key, and the value of a first and a
+      later member. Two vectors per class reach all six — `["\b",0,"\b"]` and
+      `[{"\b":"\b","a":1},{"a":0,"\b":"\b"}]` — so every escape class now
+      carries both, nine classes here and sixteen in the reader set, where the
+      extra seven are the optional slash and the six hex cases. A writer
+      chooses the spelling in those seven and a graph check cannot see which it
+      chose, which is the bound two paragraphs up; a reader has to *parse* the
+      escape wherever it sits, and that bound was never about a reader. The
+      three `-after-first` vectors are gone, subsumed.
+      **The same measurement for a leaf kind, and for key order.** Every
+      `every-value` aggregate began with `null`, so `true`, `false`,
+      `undefined`, `NaN`, `Infinity`, `0n`, `""` and a positive bigint had
+      never been any container's first child — eight kinds in the reader set
+      and nine here, the ninth an ordinary non-empty string. That is the
+      `negative-first` finding with the sign taken out of it, and an aggregate
+      of pairs answers it in one vector: `[[null,0],[true,0],…]` and its object
+      twin put every kind in a first slot. `array/elements/every-value-first`
+      and `object/members/every-value-first` are the two new classes; the
+      `negative-first` vectors stay, since a bundle that fails names no kind.
+      Key order was the third of the same shape. **No object below a root** had
+      two non-index keys out of alphabetical order, in any of the three sets,
+      so a writer sorting keys in its recursive or its hoisted-object emitter
+      passed everything while changing an order `difference` compares
+      positionally. `object/key-order/nested` carries
+      `[{"b":0,"a":1},$0,$0]` with `$0={"d":0,"c":1}`, recursive and hoisted at
+      once, in both writer sets and the reader set, and as a `denotesNot` that
+      sorts them in graph equivalence. That one was Codex's finding on the
+      normalize set one step up; it was true of all three.
+      **And the object parent of a nested share.** Both `const/shared/nested`
+      inputs made the shared parent an array, so a writer hoisting only while
+      walking elements printed `const $0={"x":[0]};export default [$0,$0,[0]];`
+      for `[p,p,c]` with `p={"x":c}` and passed. Parent kind again, on the one
+      class where I had crossed it in the shape of the share and never in the
+      shape of the parent. One vector here, one graph-equivalence record.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
@@ -2021,7 +2063,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 236 records in
+- [x] **Normalize.** Landed as 268 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
       records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -2035,8 +2077,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 116,516 bytes of the bit
-      vector's 131,072, which is 89% and leaves little room for another
+      being refused outright. The matrix stands at 119,661 bytes of the bit
+      vector's 131,072, which is 91% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
       recording.** The set went out with ten scope records saying the shape
@@ -2195,6 +2237,36 @@ The steps, in order; a step is one pull request unless it says otherwise:
       paragraphs up. The schema now states the inheritance where an
       implementer reads it and the generated preamble says why the column
       keeps out of it.
+      **The slot axis here too, in the round that found it rather than the
+      round after.** Measured before writing: of the six slots an
+      escape-sensitive string can occupy — an array's first and later element,
+      an object's first and later key, the value of a first and of a later
+      member — this set reached two, the same two the serializer set reached,
+      and the raw U+2028 key and the three required escapes after a first
+      member were the whole of the later half. Thirty-two vectors, two for each
+      of the sixteen escape classes this column owns, reach all six, and the
+      three `-after-first` records are subsumed by them. Two more close the
+      leaf-kind half of the same question: `true`, `false`, `undefined`, `NaN`,
+      `Infinity`, `0n` and `""` had never been any container's first child
+      here either, so both `every-value` aggregates return as aggregates of
+      pairs, under the two new `every-value-first` classes. And
+      `object/key-order/nested` answers the finding Codex left on this set —
+      **no object below a root** had two non-index keys out of alphabetical
+      order, in any of the three sets, so a normalizer sorting keys in its
+      recursive or its hoisted-object emitter passed everything while changing
+      an order the bytes pin exactly and `difference` compares positionally.
+      One vector carries a nested object and a hoisted one at once.
+      The `const/shared/nested` exemption now says what it means. Its sentence
+      was the generic count-or-depth one, which is false of a share whose
+      parent is itself shared: that is a fact about naming, and the four
+      post-order naming vectors are what carry it — exactly what the paragraph
+      above found when it asked, five rounds before the reason caught up. A
+      reason can lag its own answer, and the purity rule cannot see it, since
+      the cell really is answered.
+      One figure worth watching rather than fixing: this round put 3,145 bytes
+      into the matrix, which is now 91% of the bit vector's cap. Two more
+      rounds of this size reach it, and the next exhaustive fill is the one
+      that has to decide whether a cell lists its vectors or counts them.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
