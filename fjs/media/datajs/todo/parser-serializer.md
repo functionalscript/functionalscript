@@ -165,9 +165,18 @@ states and the reader's proof pins:
   and `infinity`. `-NaN`, `-undefined`, `-true` and a bare `-` have no rule.
 - **Whitespace is required after `const`, `export` and `default`**, at three
   positions with no condition attached, and is otherwise insignificant. The
-  four permitted characters are JSON's; every other character JavaScript
-  treats as whitespace or a line terminator (U+2028, U+2029, NBSP, FF, VT,
-  BOM) is **refused** wherever it appears outside a string.
+  four permitted characters are JSON's, and they are the whole rule: outside a
+  string literal a character is whitespace or part of a token, and one that is
+  neither is **refused**. Derive what is refused from that rather than from a
+  list: everything outside a token is, `@` as much as U+2028, so the list is the
+  input alphabet minus the tokens — finite, since the input is code units, and
+  no more worth writing than the alphabet itself. The 21 worth naming are the delta — the characters
+  ECMAScript treats as whitespace and DataJS does not — and they are enumerated
+  once, in
+  [the corpus derivation](../../../../spec/datajs/todo/conformance-vectors.md),
+  because each owes a vector. Every *normative* list of them written by hand
+  here has been short, this plan's included, which is why the rule states what
+  it accepts.
 
 #### 3. Parser
 
