@@ -114,9 +114,9 @@ roles reads exactly like prose that mentions it in three.
 | `const/shared/leaf` | `const-shared-leaf` | not applicable, [note 29](#notes) | *awaiting the set* |
 | `const/shared/mixed` | `const-shared-mixed` | `ser-sharing-mixed`, `graph-sharing-mixed` | *awaiting the set* |
 | `const/shared/nested` | `const-shared-nested` | `ser-const-shared-nested`, `ser-const-shared-nested-object-parent`, `graph-const-shared-nested`, `graph-const-shared-nested-object-parent` | *awaiting the set* |
-| `const/shared/object` | `const-shared-object`, `const-shared-object-parent`, `const-shared-object-proto-key`, `const-shared-object-escaped-keys` | `ser-sharing-object`, `ser-shared-empty-object`, `ser-shared-empty-object-object-parent`, `ser-shared-object-proto-key`, `ser-shared-object-escaped-keys`, `graph-sharing-object`, `graph-sharing-empty-object`, `graph-sharing-empty-object-object-parent` | *awaiting the set* |
+| `const/shared/object` | `const-shared-object`, `const-shared-object-parent`, `const-shared-object-proto-key`, `const-shared-object-escaped-keys`, `const-body-first-slot-object` | `ser-sharing-object`, `ser-shared-empty-object`, `ser-shared-empty-object-object-parent`, `ser-shared-object-proto-key`, `ser-shared-object-escaped-keys`, `ser-const-body-first-slot-object`, `graph-sharing-object`, `graph-sharing-empty-object`, `graph-sharing-empty-object-object-parent` | *awaiting the set* |
 | `const/shared/three-paths` | `const-shared-three-paths` | `ser-shared-three-paths` | *awaiting the set* |
-| `const/shared/twice` | `const-shared-twice` | `ser-sharing-array`, `graph-sharing-array` | *awaiting the set* |
+| `const/shared/twice` | `const-shared-twice`, `const-body-first-slot-array` | `ser-sharing-array`, `ser-const-body-first-slot-array`, `graph-sharing-array` | *awaiting the set* |
 | `const/shared/two-nodes` | `const-shared-two-nodes` | `ser-shared-two-nodes` | *awaiting the set* |
 | `const/two` | `const-two` | not applicable, [note 25](#notes) | *awaiting the set* |
 | `const/unreferenced` | `const-unreferenced` | not applicable, [note 27](#notes) | *awaiting the set* |
