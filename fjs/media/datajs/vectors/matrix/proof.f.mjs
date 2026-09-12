@@ -99,7 +99,8 @@ export const proof = {
         /** @type {Corpus} */
         const answered = { ...landed, notApplicable: [{ scope: /** @type {const} */ (['class', 'y']), role: 'serializer', because: 'a serializer never emits it' }] }
         const t = text(answered)
-        assert(t.includes('| `y` | `c` | not applicable: a serializer never emits it |'), t)
+        assert(t.includes('| `y` | `c` | not applicable, [note 1](#notes) |'), t)
+        assert(t.includes('1. **`serializer`**, class `y` — a serializer never emits it'), t)
         assert(t.includes('| `serializer` | `serializer-accept` | 1 | 1 | 0 |'), t)
     },
     // A reason that has outlived its gap is a failure of its own: a cell
@@ -154,8 +155,9 @@ export const proof = {
             notApplicable: [{ scope: ['subtree', 'ws'], role: 'serializer', because: 'whitespace is a document fact and a serializer is handed a graph' }],
         }
         const t = text(family)
-        assert(t.includes('| `ws/tab` | `a` | not applicable: whitespace is a document fact and a serializer is handed a graph |'), t)
-        assert(t.includes('| `ws/lf` | `b` | not applicable: whitespace is a document fact and a serializer is handed a graph |'), t)
+        assert(t.includes('| `ws/tab` | `a` | not applicable, [note 1](#notes) |'), t)
+        assert(t.includes('| `ws/lf` | `b` | not applicable, [note 1](#notes) |'), t)
+        assert(t.includes('1. **`serializer`**, subtree `ws` — whitespace is a document fact and a serializer is handed a graph'), t)
         assert(t.includes('| `leaf/null` | `c` | `s` |'), t)
         // the prefix is a path segment, not a string prefix: `wsx` is not
         // under `ws`, so a reason for one family cannot leak into another
@@ -185,16 +187,16 @@ export const proof = {
             ],
         }
         const t = text(both)
-        assert(t.includes('| `ws/tab` | `a` | not applicable: and a class wins over both |'), t)
-        assert(t.includes('| `ws/lf/run` | `b` | not applicable: the longer prefix wins over the shorter |'), t)
+        assert(t.includes('| `ws/tab` | `a` | not applicable, [note 3](#notes) |'), t)
+        assert(t.includes('| `ws/lf/run` | `b` | not applicable, [note 2](#notes) |'), t)
         // and the reasons are weighed rather than taken in the order the
         // corpus happens to list them, so the same three reversed answer the
         // same two cells
         /** @type {Corpus} */
         const reversed = { ...both, notApplicable: both.notApplicable.toReversed() }
         const r = text(reversed)
-        assert(r.includes('| `ws/tab` | `a` | not applicable: and a class wins over both |'), r)
-        assert(r.includes('| `ws/lf/run` | `b` | not applicable: the longer prefix wins over the shorter |'), r)
+        assert(r.includes('| `ws/tab` | `a` | not applicable, [note 1](#notes) |'), r)
+        assert(r.includes('| `ws/lf/run` | `b` | not applicable, [note 2](#notes) |'), r)
     },
     // A `set` scope answers every class no other set carries, which is what
     // makes one record true of a whole family by construction rather than by
@@ -213,8 +215,9 @@ export const proof = {
             notApplicable: [{ scope: ['set', 'reject'], role: 'serializer', because: 'a reject class is a document a reader refuses, and a serializer refuses no input' }],
         }
         const t = text(bySet)
-        assert(t.includes('| `ws/other` | `r1` | not applicable: a reject class is a document a reader refuses, and a serializer refuses no input |'), t)
-        assert(t.includes('| `document/comment` | `r2` | not applicable: a reject class is a document a reader refuses, and a serializer refuses no input |'), t)
+        assert(t.includes('| `ws/other` | `r1` | not applicable, [note 1](#notes) |'), t)
+        assert(t.includes('| `document/comment` | `r2` | not applicable, [note 1](#notes) |'), t)
+        assert(t.includes('1. **`serializer`**, set `reject` — a reject class is a document a reader refuses, and a serializer refuses no input'), t)
         // a set the corpus does not have answers nothing and is named as such
         assert(failure({ ...bySet, notApplicable: [{ scope: ['set', 'normalize'], role: 'serializer', because: 'no' }] })
             .includes('set normalize in serializer: no set of that name'))
@@ -226,8 +229,8 @@ export const proof = {
             { scope: ['class', 'ws/other'], role: 'serializer', because: 'this one for a reason of its own' },
         ] }
         const e = text(excepted)
-        assert(e.includes('| `ws/other` | `r1` | not applicable: this one for a reason of its own |'), e)
-        assert(e.includes('| `document/comment` | `r2` | not applicable: a reject class is a document a reader refuses, and a serializer refuses no input |'), e)
+        assert(e.includes('| `ws/other` | `r1` | not applicable, [note 2](#notes) |'), e)
+        assert(e.includes('| `document/comment` | `r2` | not applicable, [note 1](#notes) |'), e)
         // **every**, not *some*: the scope means no set *but* the named one
         // carries the class, so a class two sets share is outside it. With
         // `some` this corpus would print the reject reason under a cell the
@@ -311,7 +314,7 @@ export const proof = {
         // and the punctuation of an ordinary sentence is not refused
         /** @type {Corpus} */
         const fine = { ...landed, notApplicable: [{ scope: /** @type {const} */ (['class', 'y']), role: 'serializer', because: "a serializer's output (see 3.1) never emits it; why would it?" }] }
-        assert(text(fine).includes("not applicable: a serializer's output (see 3.1) never emits it; why would it?"))
+        assert(text(fine).includes("a serializer's output (see 3.1) never emits it; why would it?"))
     },
     // A name the corpus uses for two different things leaves the table
     // unable to say which it meant, while still printing something that

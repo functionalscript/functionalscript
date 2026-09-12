@@ -6,7 +6,7 @@ import { assert, assertEq } from '../../../../fjs/asserts/module.f.mjs'
 import notApplicable from './data.f.mjs'
 
 /** The set, typed at the import since a data module carries no annotations. */
-const set = /** @type {readonly NotApplicable[]} */ (notApplicable)
+const set = /** @type {readonly NotApplicable[]} */ (/** @type {unknown} */ (notApplicable))
 
 /** A record's scope as one string, which is how a failure names it. @type {(record: NotApplicable) => string} */
 const where = record => `${record.scope[0]} ${record.scope[1]}`
