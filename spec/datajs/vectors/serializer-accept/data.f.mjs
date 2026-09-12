@@ -28,6 +28,15 @@ const $f12 = [0n, 0, 0n];
 const $f13 = [-1, 0, -1];
 const $f14 = [[], 0, []];
 const $f15 = [{}, 0, {}];
+const $f16 = ["\"", 0, "\""];
+const $f17 = ["\\", 0, "\\"];
+const $f18 = ["\b", 0, "\b"];
+const $f19 = ["\t", 0, "\t"];
+const $f20 = ["\n", 0, "\n"];
+const $f21 = ["\f", 0, "\f"];
+const $f22 = ["\r", 0, "\r"];
+const $f23 = ["\u0000", 0, "\u0000"];
+const $f24 = ["\u001f", 0, "\u001f"];
 const $g0 = {"a": null, "b": 0, "c": null};
 const $g1 = {"a": undefined, "b": 0, "c": undefined};
 const $g2 = {"a": NaN, "b": 0, "c": NaN};
@@ -44,7 +53,34 @@ const $g12 = {"a": 0n, "b": 0, "c": 0n};
 const $g13 = {"a": -1, "b": 0, "c": -1};
 const $g14 = {"a": [], "b": 0, "c": []};
 const $g15 = {"a": {}, "b": 0, "c": {}};
+const $g16 = {"a": "\"", "b": 0, "c": "\""};
+const $g17 = {"a": "\\", "b": 0, "c": "\\"};
+const $g18 = {"a": "\b", "b": 0, "c": "\b"};
+const $g19 = {"a": "\t", "b": 0, "c": "\t"};
+const $g20 = {"a": "\n", "b": 0, "c": "\n"};
+const $g21 = {"a": "\f", "b": 0, "c": "\f"};
+const $g22 = {"a": "\r", "b": 0, "c": "\r"};
+const $g23 = {"a": "\u0000", "b": 0, "c": "\u0000"};
+const $g24 = {"a": "\u001f", "b": 0, "c": "\u001f"};
 const $s13 = {"\"": "\"", "\\": "\\", "\b": "\b", "\t": "\t", "\n": "\n", "\f": "\f", "\r": "\r", "\u0000": "\u0000", "\u001f": "\u001f"};
+const $h0 = {"\"": 0, "a": 1};
+const $h1 = {"\\": 0, "a": 1};
+const $h2 = {"\b": 0, "a": 1};
+const $h3 = {"\t": 0, "a": 1};
+const $h4 = {"\n": 0, "a": 1};
+const $h5 = {"\f": 0, "a": 1};
+const $h6 = {"\r": 0, "a": 1};
+const $h7 = {"\u0000": 0, "a": 1};
+const $h8 = {"\u001f": 0, "a": 1};
+const $h9 = {"a": 0, "\"": 1};
+const $h10 = {"a": 0, "\\": 1};
+const $h11 = {"a": 0, "\b": 1};
+const $h12 = {"a": 0, "\t": 1};
+const $h13 = {"a": 0, "\n": 1};
+const $h14 = {"a": 0, "\f": 1};
+const $h15 = {"a": 0, "\r": 1};
+const $h16 = {"a": 0, "\u0000": 1};
+const $h17 = {"a": 0, "\u001f": 1};
 export default [
     {"id": "ser-null", "class": "leaf/null", "input": null},
     {"id": "ser-true", "class": "leaf/boolean/true", "input": true},
@@ -257,6 +293,7 @@ export default [
     {"id": "ser-shared-empty-object-object-parent", "class": "const/shared/object", "input": {"x": $s11, "y": $s11}},
     {"id": "ser-shared-object-proto-key", "class": "const/shared/object", "input": [$s12, $s12, $s14, $s14]},
     {"id": "ser-shared-object-escaped-keys", "class": "const/shared/object", "input": [$s13, $s13]},
-    {"id": "ser-const-body-every-slot-array", "class": "const/shared/twice", "input": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15]},
-    {"id": "ser-const-body-every-slot-object", "class": "const/shared/object", "input": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15]}
+    {"id": "ser-const-body-every-slot-array", "class": "const/shared/twice", "input": [$f0, $f0, $f1, $f1, $f2, $f2, $f3, $f3, $f4, $f4, $f5, $f5, $f6, $f6, $f7, $f7, $f8, $f8, $f9, $f9, $f10, $f10, $f11, $f11, $f12, $f12, $f13, $f13, $f14, $f14, $f15, $f15, $f16, $f16, $f17, $f17, $f18, $f18, $f19, $f19, $f20, $f20, $f21, $f21, $f22, $f22, $f23, $f23, $f24, $f24]},
+    {"id": "ser-const-body-every-slot-object", "class": "const/shared/object", "input": [$g0, $g0, $g1, $g1, $g2, $g2, $g3, $g3, $g4, $g4, $g5, $g5, $g6, $g6, $g7, $g7, $g8, $g8, $g9, $g9, $g10, $g10, $g11, $g11, $g12, $g12, $g13, $g13, $g14, $g14, $g15, $g15, $g16, $g16, $g17, $g17, $g18, $g18, $g19, $g19, $g20, $g20, $g21, $g21, $g22, $g22, $g23, $g23, $g24, $g24]},
+    {"id": "ser-shared-object-escaping-key-every-slot", "class": "const/shared/object", "input": [$h0, $h0, $h1, $h1, $h2, $h2, $h3, $h3, $h4, $h4, $h5, $h5, $h6, $h6, $h7, $h7, $h8, $h8, $h9, $h9, $h10, $h10, $h11, $h11, $h12, $h12, $h13, $h13, $h14, $h14, $h15, $h15, $h16, $h16, $h17, $h17]}
 ];
