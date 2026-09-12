@@ -63,3 +63,14 @@ export type _Walked = {
  * @internal
  */
 export type _Tree = OrderedMap<_Walked>
+
+/**
+ * Each directory's demo module, by directory path, as the page loads it.
+ *
+ * A directory whose demo was refused is simply absent: the decision is made
+ * once over all of that directory's candidates, so nothing later can revisit
+ * it and no entry has to stand for "refused".
+ *
+ * @internal
+ */
+export type _Demos = OrderedMap<string>

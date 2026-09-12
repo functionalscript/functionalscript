@@ -10,9 +10,12 @@
  * This first cut reads loose objects only, at the repository's common
  * directory as the caller gives it — `.git` for a main worktree — and
  * reads a fresh clone poorly, since `git clone` and `git gc` put most
- * objects in packs: [`todo/packfiles.md`](../todo/packfiles.md). A linked
- * worktree's `gitdir` and `commondir` files and `objects/info/alternates`
- * are the rest of [`todo/object-store.md`](../todo/object-store.md).
+ * objects in packs: [`todo/packfiles.md`](../todo/packfiles.md). Finding
+ * that directory from a worktree of any kind is
+ * [`fjs/git/repo`](../repo/module.f.mjs)'s `tryCommonDir`, so a caller has
+ * one to give; `objects/info/alternates`, which adds directories to search
+ * beside it, is the rest of
+ * [`todo/object-store.md`](../todo/object-store.md).
  * Walking from a commit to the blob a path names is
  * [`fjs/git/walk`](../walk/module.f.mjs), over this reader or any other.
  *
