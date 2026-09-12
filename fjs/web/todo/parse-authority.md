@@ -36,23 +36,35 @@ the `servedHosts` lookup, dropping `hostName`, `isPortSuffix`, and its
 own userinfo test. The two RFC comment blocks merge into one at the new
 function.
 
-This changes one observable answer, and it is declared here rather than
-left to the implementation. Today `resolve('.')('http://[::1/x')` is
-`ok('./x')`: `parseTarget` accepts the unclosed bracket because it never
-reads inside the authority, and `resolve` uses only the path. Under the
-merged rule that input is a **`400 malformed request URL`**, the same
-refusal `http:///x` and `http://:80/x` already get — an authority the
+This changes a family of observable answers on the absolute-form path,
+and the whole family is declared here rather than left to the
+implementation. Today `parseTarget` never reads inside the authority, and
+`resolve` uses only the path, so every authority `hostName` would refuse
+is accepted by `resolve` as long as it is non-empty and carries no
+userinfo: `resolve('.')` answers `ok('./x')` for `http://[::1/x`
+(unclosed bracket), `http://localhost:bad/x` (non-numeric port),
+`http://localhost:65536/x` (port out of range — `isPort` at
+`module.f.mjs:360-375` reads the digits as a number and bounds them),
+`http://localhost:8080:999/x` (two ports), and `http://[::1]evil/x`
+(bytes after a literal). `parseAuthority` carries the whole of the
+existing `hostName`/`isPort`/`isPortSuffix` grammar, so under the merged
+rule **each of those is a `400 malformed request URL`** — the same refusal
+`http:///x` and `http://:80/x` already get — because an authority the
 grammar cannot read is a target this server cannot vouch for, and `new
-URL` refuses it too. `Host: [::1` was already refused by `isServedHost`;
-after this both spellings are refused for the one reason.
+URL` refuses every one of them too. The port grammar is kept, not
+dropped: `isServedHost` refuses after the change exactly what it refuses
+today, so the `Host`-header side loosens nothing.
 
 ### Tasks
 
 - [ ] Extract `parseAuthority`; re-express `parseTarget`'s checks and
       `isServedHost` through it.
-- [ ] Pin both bracket spellings in the proof: `Host: [::1` not served,
-      `resolve('.')('http://[::1/x')` a `400` — a declared change from
-      today's `ok('./x')`, so the PR carries a `Changelog:` entry.
+- [ ] Pin the family in the proof: `resolve('.')` answers `400` for
+      `http://[::1/x`, `http://localhost:bad/x`,
+      `http://localhost:65536/x`, `http://localhost:8080:999/x`, and
+      `http://[::1]evil/x` — each a declared change from today's
+      `ok('./x')`, so the PR carries a `Changelog:` entry — and
+      `isServedHost` still refuses the same five as `Host` values.
 - [ ] `tsc`, `fjs test`.
 
 ### Related

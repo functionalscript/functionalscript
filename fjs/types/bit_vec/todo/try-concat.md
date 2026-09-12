@@ -41,8 +41,15 @@ member of that family is simply absent.
 
 Add `tryConcat: (a: Vec) => (b: Vec) => Nullable<Vec>` to `bo`, defined
 from the existing `tryUnpackConcat` operation so the bound literal stays
-in one place; `concat` stays as the unchecked fast path (or becomes
-`mapUnwrap(tryConcat)` to match `listToVec`). `cbase32`'s guard collapses
+in one place. **`concat` stays exactly as it is — unchecked.** Today two
+valid operands whose lengths sum past `maxLength` give an oversized
+vector on Node rather than a throw; that behaviour is unchanged, no break
+is declared, and [unpack-lift.md](./unpack-lift.md)'s plan to lift the
+existing unchecked implementation over `Unpacked` stands. Making `concat`
+`mapUnwrap(tryConcat)` was weighed and rejected: it would turn a
+documented no-check fast path into an assertion, which is a behaviour
+change this issue has no reason to make — the callers that want the
+check are the ones this issue moves onto `tryConcat`. `cbase32`'s guard collapses
 to `return tryConcat(head)(rest)` with its `maxLength`/`length` imports
 dropped; `base64`'s prose either becomes a `tryConcat` call or points at
 the one owner of the rule; `fjs/cas`'s loop keeps its custom error but
@@ -51,7 +58,7 @@ asks `tryConcat` instead of restating the arithmetic.
 ### Tasks
 
 - [ ] Add `tryConcat` to `bo` with proofs (both orders, the exact
-      `maxLength` boundary).
+      `maxLength` boundary); `concat` untouched.
 - [ ] Rewrite the three consumer sites through it.
 - [ ] `tsc`, `fjs test`.
 

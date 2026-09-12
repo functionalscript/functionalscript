@@ -46,7 +46,18 @@ plus `ch` and `maj` under the names they already have. `framed` is the
 private `sha2` factory generalized over the word vector; `fromWords` is
 what `fromV8` and `fromV5` both are, with the width as a parameter, so
 `sha2`'s `fromV8` becomes `fromWords(bitLength)` and `sha1`'s `fromV5`
-becomes `fromWords(wordLength)`. `sha1` then builds its record by calling
+becomes `fromWords(wordLength)`.
+
+`fromWords` is **total**: the fold is seeded with `0n`, so
+`fromWords(w)([])` is `0n` — the number an empty run of words spells, and
+the identity of the shift-or fold, the same way an empty `listToVec` is
+`empty`. Today's `fromV8`/`fromV5` call `reduce` with no seed and would
+throw on `[]`, but that case is unreachable through them (their inputs are
+the fixed-length `V8`/`V5` tuples), so no live path changes; the seeded
+form is chosen because a public function over `readonly bigint[]` must
+answer for every value of that type, and `0n` is the answer that needs no
+special case. The proof pins `fromWords(32n)([]) === 0n` alongside the
+`V5`/`V8` rows. `sha1` then builds its record by calling
 `framed` instead of writing the literal, importing all four from `sha2`
 as it already imports `framing`.
 
@@ -54,7 +65,7 @@ as it already imports `framing`.
 
 - [ ] Export `framed`, `fromWords`, `ch`, `maj` from
       `fjs/crypto/sha2/module.f.mjs`; re-express `sha2`'s own `base`
-      through them.
+      through them; pin `fromWords`'s empty case at `0n`.
 - [ ] Rewrite `sha1`'s record and helpers through them; proofs pass
       unchanged.
 - [ ] `tsc`, `fjs test`.
