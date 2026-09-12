@@ -216,7 +216,7 @@ const largeOffsetFlag = /** @type {const} */ (0x80000000)
 const tryV2 = (b, oidBytes) => {
     const width = oidBytes
     if (u32(b, 4) !== 2) { return null }
-    const fanoutAt = 8
+    const fanoutAt = /** @type {const} */ (8)
     const n = u32(b, fanoutAt + (fanout - 1) * 4)
     const idsAt = fanoutAt + fanout * 4
     const offsetsAt = idsAt + n * width + n * 4
