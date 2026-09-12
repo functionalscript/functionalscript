@@ -1813,12 +1813,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 164 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 165 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
-      and 10 in
+      and 12 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 154 of the 674 classes the corpus held then, with 48 scope
-      records answering the 520 cells the serializer column owed; the normalize
+      covering 155 of the 674 classes the corpus held then, with 49 scope
+      records answering the 519 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
@@ -1902,6 +1902,18 @@ The steps, in order; a step is one pull request unless it says otherwise:
       dropping nine of the low half's ten bits is caught by U+10FFFF and by the
       mixed pair, and by neither U+10000 nor an interior pair. Detection is the
       normalize set's to pin, where the corners carry exact raw texts.
+      **Two cells the grid said were filled and were not**, and both came of
+      adding the pair review named rather than the pair it implied. All four
+      graph-equivalence inverses had an array parent, so two object-parent ones
+      were added, and both used equal *objects* as children — leaving a writer
+      that hash-conses equal arrays only while walking object members passing
+      the whole set. The grid is a walker crossed with a kind and now has all
+      four corners. The other cell is the proto key: the normalize set gained a
+      vector for a value shared behind one, and the serializer's reason for the
+      same subtree still said that what the member holds is the ordinary value
+      coverage above it, which sharing is not. Three vectors, and that subtree
+      narrows to the two classes under it that really are ordinary value
+      coverage, as it did one step up.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key

@@ -15,7 +15,7 @@ roles reads exactly like prose that mentions it in three.
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
 | `reader` | `accept`, `reject` | 674 | 0 | 0 |
-| `serializer` | `serializer-accept`, `graph-equivalence` | 154 | 520 | 0 |
+| `serializer` | `serializer-accept`, `graph-equivalence` | 155 | 519 | 0 |
 | `normalize` | no set yet | 0 | 0 | 674 |
 
 674 classes.
@@ -44,8 +44,8 @@ roles reads exactly like prose that mentions it in three.
 | `array/two` | `array-two` | not applicable, [note 34](#notes) | *awaiting the set* |
 | `array/unclosed` | `array-unclosed` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `array/unopened` | `array-unopened` | not applicable, [note 1](#notes) | *awaiting the set* |
-| `array/unshared` | `array-unshared` | `graph-unshared-array-empty` | *awaiting the set* |
-| `array/unshared/equal` | `array-unshared-equal` | `graph-unshared-array-non-empty` | *awaiting the set* |
+| `array/unshared` | `array-unshared` | `graph-unshared-array-empty`, `graph-unshared-array-parent-object-empty` | *awaiting the set* |
+| `array/unshared/equal` | `array-unshared-equal` | `graph-unshared-array-non-empty`, `graph-unshared-array-parent-object` | *awaiting the set* |
 | `bigint/binary` | `bigint-binary` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `bigint/binary-upper` | `bigint-binary-upper` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `bigint/binary-upper/neg` | `bigint-neg-binary-upper` | not applicable, [note 1](#notes) | *awaiting the set* |
@@ -91,9 +91,9 @@ roles reads exactly like prose that mentions it in three.
 | `bigint/trailing-point/neg` | `bigint-neg-trailing-point` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `bigint/zero` | `bigint-0` | `ser-bigint-0` | *awaiting the set* |
 | `bigint/zero/neg` | `bigint-neg-0` | not applicable, [note 17](#notes) | *awaiting the set* |
-| `byte/bom/first` | `byte-bom-first` | not applicable, [note 48](#notes) | *awaiting the set* |
-| `byte/truncated` | `byte-truncated` | not applicable, [note 48](#notes) | *awaiting the set* |
-| `byte/valid/widths` | `byte-valid-widths` | not applicable, [note 48](#notes) | *awaiting the set* |
+| `byte/bom/first` | `byte-bom-first` | not applicable, [note 49](#notes) | *awaiting the set* |
+| `byte/truncated` | `byte-truncated` | not applicable, [note 49](#notes) | *awaiting the set* |
+| `byte/valid/widths` | `byte-valid-widths` | not applicable, [note 49](#notes) | *awaiting the set* |
 | `const/declarators` | `const-declarators` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `const/destructuring/array` | `const-destructuring-array` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `const/destructuring/object` | `const-destructuring-object` | not applicable, [note 1](#notes) | *awaiting the set* |
@@ -244,8 +244,8 @@ roles reads exactly like prose that mentions it in three.
 | `key/proto/string/escaped-all` | `key-proto-string-escaped-all` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/proto/string/nested` | `key-proto-string-nested` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/proto/value/null` | `key-proto-value-null` | not applicable, [note 47](#notes) | *awaiting the set* |
-| `key/proto/value/object` | `key-proto-value-object` | not applicable, [note 47](#notes) | *awaiting the set* |
-| `key/proto/value/shared` | `key-proto-shared` | not applicable, [note 47](#notes) | *awaiting the set* |
+| `key/proto/value/object` | `key-proto-value-object` | not applicable, [note 48](#notes) | *awaiting the set* |
+| `key/proto/value/shared` | `key-proto-shared` | `ser-key-proto-value-shared` | *awaiting the set* |
 | `key/string/continuation` | `key-continuation` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/string/continuation/crlf` | `key-continuation-crlf` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `key/string/empty` | `key-empty` | `ser-key-empty` | *awaiting the set* |
@@ -750,5 +750,6 @@ stands under as many rows as it is true of.
 44. **`serializer`**, subtree `string/surrogate/pair/high-corner` — both corner values are in this set already as raw astral characters, and what a pair class adds over them is a spelling; a writer that fails to pair escapes each half, which denotes the same string, so this role cannot see the difference
 45. **`serializer`**, subtree `key/string/surrogate/pair/low-corner` — both corner values are in this set already as raw astral characters, and what a pair class adds over them is a spelling; a writer that fails to pair escapes each half, which denotes the same string, so this role cannot see the difference
 46. **`serializer`**, subtree `key/string/surrogate/pair/high-corner` — both corner values are in this set already as raw astral characters, and what a pair class adds over them is a spelling; a writer that fails to pair escapes each half, which denotes the same string, so this role cannot see the difference
-47. **`serializer`**, subtree `key/proto/value` — the serializer set carries an object with an own enumerable proto member; what that member holds is the ordinary value coverage above it
-48. **`serializer`**, subtree `byte` — a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's
+47. **`serializer`**, class `key/proto/value/null` — a value behind this key is written by the same emitter as any other member value, and every leaf and container shape has a vector of its own; what is particular to the key is its spelling and the sharing behind it, and both have vectors too
+48. **`serializer`**, class `key/proto/value/object` — a value behind this key is written by the same emitter as any other member value, and every leaf and container shape has a vector of its own; what is particular to the key is its spelling and the sharing behind it, and both have vectors too
+49. **`serializer`**, subtree `byte` — a byte document is a reader's input; a serializer is handed a graph and emits a document as text, so encoding it is the caller's
