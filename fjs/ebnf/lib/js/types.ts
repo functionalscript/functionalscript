@@ -136,7 +136,7 @@ export type _KeywordKind = Exclude<typeof keywords[number], 'true' | 'false' | '
  *
  * @internal
  */
-export type _KeywordToken = { [K in _KeywordKind]: { readonly kind: K } }[_KeywordKind]
+export type _KeywordToken = { readonly [K in _KeywordKind]: { readonly kind: K } }[_KeywordKind]
 
 export type IdToken = {
     readonly kind: 'id'
@@ -154,7 +154,7 @@ export type _OperatorKind = (typeof operators)[number] | '/' | '/='
  *
  * @internal
  */
-export type _OperatorToken = { [K in _OperatorKind]: { readonly kind: K } }[_OperatorKind]
+export type _OperatorToken = { readonly [K in _OperatorKind]: { readonly kind: K } }[_OperatorKind]
 
 export type CommentToken = {
     readonly kind: '//' | '/*'
