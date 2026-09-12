@@ -30,7 +30,8 @@ map of which file is which:
 
 - `HEAD`, and any symbolic ref: `ref: <name>`, or a bare hex id. The LF is
   optional, the whitespace around the name is free and includes LF, and a NUL
-  ends the name.
+  ends the name — except that whitespace immediately before a NUL is *not* the
+  free kind: the name keeps it and is then no ref name.
 - `refs/<name>`: a hex id, one file per loose ref. No terminator is needed;
   one whitespace byte or a NUL after the id opens the rest of the file, and
   nothing in it is read.
