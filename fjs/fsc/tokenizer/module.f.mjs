@@ -411,6 +411,9 @@ const parseDjsMinusState = input => {
         // negation is lexical: the minus sign joins the lexeme, so the token
         // stays the exact source text of the number.
         case 'number': return [[{ kind: 'number', value: `-${input.value}` }], { kind: 'def' }]
+        // and `-Infinity` is a word of its own, as DataJS spells it; `-NaN`
+        // is not, and falls through to the error with the rest
+        case 'Infinity': return [[{ kind: '-Infinity' }], { kind: 'def' }]
         default: return [{ first: { kind: 'error', message: 'invalid token' }, tail: mapDjsToken(input) }, { kind: 'def' }]
     }
 }

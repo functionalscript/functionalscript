@@ -19,19 +19,14 @@ import { concat } from '../../types/string/module.f.mjs'
 import { flat, flatMap, map, concat as listConcat } from '../../types/list/module.f.mjs'
 import { compose, fn } from '../../types/function/module.f.mjs'
 import { serialize as bigintSerialize } from '../../types/bigint/module.f.mjs'
-import { objectWrap, arrayWrap, colon, stringSerialize, numberSerialize as jsonNumberSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
+import { objectWrap, arrayWrap, colon, stringSerialize, nullSerialize, boolSerialize } from '../../media/json/serializer/module.f.mjs'
+// numbers are written as DataJS writes them — `ToString`, with `-0` kept —
+// which the parser reads back; JSON's writer wrote `null` for `NaN` and the
+// infinities and `0` for `-0`
+import { _numberSerialize as numberSerialize } from '../../media/datajs/serializer/module.f.mjs'
 import { assertNotNullish } from '../../asserts/module.f.mjs'
 
-const { entries, is } = Object
-
-/**
- * A number as the parser reads it back: `-0` is written `-0`, where JSON's
- * writer, `ToString`, writes `0` and loses the sign — the one departure
- * DataJS names too. `parseFloat('-0')` is `-0`, so the round trip holds.
- *
- * @type {(value: number) => List<string>}
- */
-const numberSerialize = value => is(value, -0) ? ['-0'] : jsonNumberSerialize(value)
+const { entries } = Object
 
 export const undefinedSerialize = ['undefined']
 
