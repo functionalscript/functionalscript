@@ -58,6 +58,7 @@ import accept from '../../../../../spec/datajs/vectors/accept/data.f.mjs'
 import reject from '../../../../../spec/datajs/vectors/reject/data.f.mjs'
 import serializerAccept from '../../../../../spec/datajs/vectors/serializer-accept/data.f.mjs'
 import graphEquivalence from '../../../../../spec/datajs/vectors/graph-equivalence/data.f.mjs'
+import normalizeSet from '../../../../../spec/datajs/vectors/normalize/data.f.mjs'
 import notApplicableData from '../../../../../spec/datajs/vectors/not-applicable/data.f.mjs'
 
 /** Where the matrix is written. @type {string} */
@@ -91,7 +92,7 @@ export const corpus = {
                 ['graph-equivalence', /** @type {readonly Base[]} */ (graphEquivalence)],
             ],
         },
-        { role: 'normalize', sets: [] },
+        { role: 'normalize', sets: [['normalize', /** @type {readonly Base[]} */ (normalizeSet)]] },
     ],
     // through `unknown`: a data module spells a scope as an array literal,
     // which infers as `string[]` rather than as the tagged tuple the type has
@@ -532,9 +533,14 @@ export const matrix = corpus => {
         'implementation does — conformance is per role, so a serializer-only one',
         'never runs a reader or a normalize vector. A cell is the vectors that role',
         'has for that class, a reference to the note saying why it owes none, or a',
-        'role whose sets have not landed. An empty cell with no reason fails the',
-        'generator, which is the whole point: prose that mentions a class in two',
-        'roles reads exactly like prose that mentions it in three.',
+        'role whose sets have not landed. A column is the sets that role owns, not',
+        'every set an implementation of it runs: a normalized writer runs the two',
+        'serializer sets as well, and folding that in would let a vector asserting',
+        'no spelling report a class whose bytes nothing pins.',
+        '',
+        'An empty cell with no reason fails the generator, which is the whole',
+        'point: prose that mentions a class in two roles reads exactly like prose',
+        'that mentions it in three.',
         '',
         '| role | sets | classes covered | not applicable | awaiting |',
         '| - | - | -: | -: | -: |',

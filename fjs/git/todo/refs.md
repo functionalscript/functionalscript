@@ -57,15 +57,19 @@ Two functions over the effects:
   for nothing that resolves a DISOT name.
 
 A ref name that is no ref name is refused by the rules
-[`fjs/git/tag`](../tag/module.f.mjs) already holds for a tag's name, which
-move to a shared place then. Reading is through `readFile` and `readdir`;
-writing a ref, with the lock file Git takes, is a later task, and so is
-the reflog, which expires and is no retention.
+[`fjs/git/refname`](../refname/module.f.mjs) holds, which is where they now
+live: `fjs/git/tag` held them first, because a tag's `tag` header is a ref
+name and its reader was the first thing that had to judge one, and they are
+not a fact about tags. A symbolic ref's target needs one rule more, since
+Git wants a whole ref name there — `refs/` and then a name those rules take,
+stricter than `git check-ref-format`, which accepts `a/b`. Reading is through
+`readFile` and `readdir`; writing a ref, with the lock file Git takes, is a
+later task, and so is the reflog, which expires and is no retention.
 
 ### Tasks
 
 - [ ] Grammars for the three files, and their readers.
-- [ ] The ref-name rules shared with the tag module.
+- [x] The ref-name rules shared with the tag module.
 - [ ] `roots` and `tryResolve`, over the effects, with the virtual
       filesystem as their proof.
 
