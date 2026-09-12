@@ -1797,15 +1797,17 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a record that swapped the decoder's rule for the reader's goes red.
 - [x] **A reason answers a scope, not always a cell.** Measured before the
       serializer set was written, which is why it is a step of its own: the
-      corpus has 668 classes, a serializer can genuinely carry a vector for
-      about 188 of them, and the rest arrive as empty cells the moment that
-      column gains a set — some 480 records of one sentence rewritten, and the
-      same bill again when `normalize` lands. So
+      corpus holds several times the classes a serializer can carry a vector
+      for, and every one of the rest arrives as an empty cell the moment that
+      column gains a set — hundreds of records of one sentence rewritten, and
+      the same bill again when `normalize` lands. Naming those two figures
+      here is what made this paragraph stale twice, so it names neither and
+      the step below quotes both from the matrix summary. So
       `NotApplicable` carries a **scope**, tagged as `Document` is:
       `['class', c]` for one cell, `['subtree', p]` for every class under a
       prefix by path segment, and `['set', s]` for every class no set but
       that one carries. The last is the widest and the most exact, since no
-      class is carried by two sets — measured, 334 accept-only, 334
+      class is carried by two sets — measured, 344 accept-only, 334
       reject-only, none in both — so one reason covers every reject class by
       construction rather than by inspection. A prototype answered all of them
       with 28 records; the step below lands the real set, and its own paragraph
