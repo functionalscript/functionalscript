@@ -41,9 +41,24 @@ so a Git-local module would be the second copy waiting to happen.
 ```ts
 /** Git's canonical spelling: no leading zero unless the number is zero. */
 const isCanonicalDigits: (digits: readonly number[]) => boolean
-/** The value the digit bytes spell in `radix`, `null` on a byte outside it. */
+/**
+ * The value the ASCII decimal-digit bytes spell in `radix`, or `null`
+ * where a byte is not a digit of that radix. `radix` is `2n`..`10n`.
+ * @throws on a radix outside that range — a caller error no input can cause.
+ */
 const digitsValue: (radix: bigint) => (digits: readonly number[]) => Nullable<bigint>
 ```
+
+**The alphabet is `0x30`–`0x39` and nothing else**, so the radix runs
+`2n`..`10n`: a digit is a byte `d` with `0x30 <= d < 0x30 + radix`, and
+any other byte — a letter, a sign, a space — makes the answer `null`.
+Hexadecimal is deliberately *not* this function's business: `A`–`F` and
+`a`–`f` already have an owner two lines up (`hexDigitValue`), and giving
+`digitsValue` a letter alphabet would make one function two codecs. A
+radix outside `2n`..`10n` is asserted against before any byte is read
+(`digitsValue(16n)` throws; `digitsValue(1n)` and `digitsValue(0n)` too),
+which is the repository's shape for a programmer error rather than an
+input the function refuses. Both consumers here are `8n` and `10n`.
 
 **The empty run is pinned as a refusal**, in both: `digitsValue(r)([])`
 is `null` and `isCanonicalDigits([])` is `false`. An empty list spells no
