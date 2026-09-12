@@ -29,13 +29,14 @@ const $n27 = {};
 const $n28 = {};
 const $s1 = [1, 2];
 const $n29 = [1];
-const $n30 = ["\u2028", "\ud800", "\u0000"];
+const $n30 = ["\u2028", "\ud800", "\u0000", "\u2028"];
 const $n31 = {"\u2028": 0};
 const $n32 = [0];
 const $n33 = [null, true, false, undefined, NaN, Infinity, -Infinity, 0, -0, 9, -9, 1.5, 1e2, 1n, -1n, "", "a", "\u2028", "\ud800", "\u0000", "\ud800\udc00", [], {}, 1];
 const $n34 = {"a": null, "b": true, "c": false, "d": undefined, "e": NaN, "f": Infinity, "g": -Infinity, "h": 0, "i": -0, "j": 9, "k": -9, "l": 1.5, "m": 1e2, "n": 1n, "o": -1n, "p": "", "q": "a", "r": "\u2028", "s": "\ud800", "t": "\u0000", "u": [], "v": {}, "w": 1, "x": "\ud800\udc00"};
 const $n35 = {"d": 0, "c": 1};
 const $n36 = {["__proto__"]: 1};
+const $n38 = {"a": 0, "\u2028": 1};
 const $n37 = {"\"": "\"", "\\": "\\", "\b": "\b", "\t": "\t", "\n": "\n", "\f": "\f", "\r": "\r", "\u0000": "\u0000", "\u001f": "\u001f"};
 export default [
     {"id": "norm-string-escape-quote", "class": "string/escape/quote", "input": "\"", "text": "export default \"\\\"\";"},
@@ -256,7 +257,7 @@ export default [
     {"id": "norm-unshared-object-parent-object", "class": "object/unshared/equal", "input": {"a": {"x": 0}, "b": {"x": 0}}, "text": "export default {\"a\":{\"x\":0},\"b\":{\"x\":0}};"},
     {"id": "norm-key-raw-ws-like-2028-nested", "class": "key/string/raw/ws-like/2028", "input": {"a": {"\u2028": 0}}, "text": "export default {\"a\":{\"\u2028\":0}};"},
     {"id": "norm-key-raw-ws-like-2028-after-first", "class": "key/string/raw/ws-like/2028", "input": {"a": 0, "\u2028": 0}, "text": "export default {\"a\":0,\"\u2028\":0};"},
-    {"id": "norm-const-body-escaping-values", "class": "const/shared/twice", "input": [$n30, $n30], "text": "const $0=[\"\u2028\",\"\\ud800\",\"\\u0000\"];export default [$0,$0];"},
+    {"id": "norm-const-body-escaping-values", "class": "const/shared/twice", "input": [$n30, $n30], "text": "const $0=[\"\u2028\",\"\\ud800\",\"\\u0000\",\"\u2028\"];export default [$0,$0];"},
     {"id": "norm-const-body-escaping-key", "class": "const/shared/object", "input": [$n31, $n31], "text": "const $0={\"\u2028\":0};export default [$0,$0];"},
     {"id": "norm-key-proto-value-shared", "class": "key/proto/value/shared", "input": {["__proto__"]: $n32, "a": $n32}, "text": "const $0=[0];export default {[\"__proto__\"]:$0,\"a\":$0};"},
     {"id": "norm-const-every-value-array", "class": "const/shared/twice", "input": [$n33, $n33], "text": "const $0=[null,true,false,undefined,NaN,Infinity,-Infinity,0,-0,9,-9,1.5,100,1n,-1n,\"\",\"a\",\"\u2028\",\"\\ud800\",\"\\u0000\",\"\ud800\udc00\",[],{},1];export default [$0,$0];"},
@@ -308,5 +309,6 @@ export default [
     {"id": "norm-object-key-order-nested", "class": "object/key-order/nested", "input": [{"b": 0, "a": 1}, {"x": {"b": 0, "a": 1}}, $n35, $n35], "text": "const $0={\"d\":0,\"c\":1};export default [{\"b\":0,\"a\":1},{\"x\":{\"b\":0,\"a\":1}},$0,$0];"},
     {"id": "norm-object-keys-every-string", "class": "object/keys/every-string", "input": [{"\u2028": 0, "\ud800": 1, "\u0000": 2, "\ud800\udc00": 3, "a": 4}], "text": "export default [{\"\u2028\":0,\"\\ud800\":1,\"\\u0000\":2,\"\ud800\udc00\":3,\"a\":4}];"},
     {"id": "norm-const-body-key-proto", "class": "const/shared/object", "input": [$n36, $n36], "text": "const $0={[\"__proto__\"]:1};export default [$0,$0];"},
-    {"id": "norm-const-body-escaped-keys", "class": "const/shared/object", "input": [$n37, $n37], "text": "const $0={\"\\\"\":\"\\\"\",\"\\\\\":\"\\\\\",\"\\b\":\"\\b\",\"\\t\":\"\\t\",\"\\n\":\"\\n\",\"\\f\":\"\\f\",\"\\r\":\"\\r\",\"\\u0000\":\"\\u0000\",\"\\u001f\":\"\\u001f\"};export default [$0,$0];"}
+    {"id": "norm-const-body-escaped-keys", "class": "const/shared/object", "input": [$n37, $n37], "text": "const $0={\"\\\"\":\"\\\"\",\"\\\\\":\"\\\\\",\"\\b\":\"\\b\",\"\\t\":\"\\t\",\"\\n\":\"\\n\",\"\\f\":\"\\f\",\"\\r\":\"\\r\",\"\\u0000\":\"\\u0000\",\"\\u001f\":\"\\u001f\"};export default [$0,$0];"},
+    {"id": "norm-const-body-escaping-key-after-first", "class": "const/shared/object", "input": [$n38, $n38], "text": "const $0={\"a\":0,\"\u2028\":1};export default [$0,$0];"}
 ];

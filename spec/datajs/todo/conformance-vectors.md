@@ -2117,7 +2117,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 271 records in
+- [x] **Normalize.** Landed as 272 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
       records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -2131,7 +2131,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 120,125 bytes of the bit
+      being refused outright. The matrix stands at 120,169 bytes of the bit
       vector's 131,072, which is 92% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2349,6 +2349,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       one vector carries a shared object whose nine keys are the nine required
       escapes, each with itself as its value. Its text is the shipped writer's,
       which is what makes it a claim about bytes rather than about validity.
+      Which left the mirror of it, reported the round after: a key whose escape
+      is **optional** after a first member of a hoisted body. A required escape
+      cannot catch over-escaping, and the const-body U+2028 vector put the key
+      first, so a writer with both a hoisted-body emitter and a later-member
+      path could spell `\u2028` there and pass. One vector shares
+      `{"a":0,"\u2028":1}`, and the const body of values takes a second U+2028
+      after its first element for the same reason. Over-escaping is a fact
+      about bytes only, so this column is the only one that owes it.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
