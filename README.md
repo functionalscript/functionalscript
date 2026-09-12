@@ -47,28 +47,30 @@ export default "text"
 `input.f.js`:
 
 ```js
-import c from "./m.f.js"
-const a = 1
-export default [a, a, c, { x: c }]
+import c from "./m.f.js";
+const a = 1;
+export default [a, a, c, { x: c }];
 ```
 
 The output file extension picks the format:
 
 ```bash
-fjs compile input.f.js output.f.js   # JavaScript
+fjs compile input.f.js output.f.js   # DataJS, a JavaScript module
 fjs compile input.f.js output.json   # JSON
 ```
 
-`output.f.js` preserves the object graph — a value referenced more than once
-stays shared and is emitted as a `const`:
+`output.f.js` is a [DataJS](spec/datajs/README.md) document in normalized
+form. It preserves the object graph — a value referenced more than once stays
+shared and is hoisted into a `const` — with `m.f.js` exporting `["text"]`:
 
 ```js
-const c0 = "text"
-export default [1,1,c0,{"x":c0}]
+const $0=["text"];export default [1,1,$0,{"x":$0}];
 ```
 
-`output.json` is a tree, so shared values are expanded, and types that JSON
-cannot express (`bigint`, `undefined`) are not available:
+`output.json` is a tree, so the compiler refuses a value JSON cannot spell —
+a shared value, `bigint`, `undefined`, `NaN`, `Infinity` — rather than write
+a file that reads back as something else. With `m.f.js` exporting the string
+`"text"`, a leaf that is shared by nothing, both outputs are trees:
 
 ```json
 [1,1,"text",{"x":"text"}]
