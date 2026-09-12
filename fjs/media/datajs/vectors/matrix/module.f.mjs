@@ -45,6 +45,7 @@
  * @import { Result } from '../../../../types/result/types.ts'
  * @import { IoChannel, Mkdir, NodeProgram, ReadFile, WriteFile } from '../../../../effects/node/types.ts'
  * @import { Effect } from '../../../../effects/types.ts'
+ * @import { Vec } from '../../../../types/bit_vec/types.ts'
  * @import { Base } from '../types.ts'
  * @import { Unknown } from '../../types.ts'
  * @import { Corpus, NotApplicable, Role, Scope } from './types.ts'
@@ -52,7 +53,8 @@
 
 import { assertNotNullish } from '../../../../asserts/module.f.mjs'
 import { errorMessage, foldStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.mjs'
-import { errorExit, exitStep, mkdir, readUtf8File, writeUtf8File } from '../../../../effects/node/module.f.mjs'
+import { errorExit, exitStep, mkdir, readFile, writeUtf8File } from '../../../../effects/node/module.f.mjs'
+import { fromVec } from '../../../../text/utf8/module.f.mjs'
 import { parse } from '../../parser/module.f.mjs'
 import { difference } from '../module.f.mjs'
 import { cmp as strCmp } from '../../../../types/string/module.f.mjs'
@@ -632,9 +634,21 @@ export const sourceOf = name => `${directory}/${name}/data.f.mjs`
  * one this repository's own proofs run. So the graph is compared too, sharing
  * and key order included, which is what `difference` compares.
  *
- * @type {(name: string, text: string, imported: unknown) => readonly string[]}
+ * @type {(name: string, bytes: Vec, imported: unknown) => readonly string[]}
  */
-export const sourceDefect = (name, text, imported) => {
+export const sourceDefect = (name, bytes, imported) => {
+    // The bytes come first because the rule does. Decoding before checking
+    // would make the check unable to see its own subject: this repository's
+    // `utf8ToString` maps an illegal byte to a character rather than failing —
+    // measured, `FF` becomes U+00FF, a truncated `C2` becomes U+00C2, an
+    // overlong `C0 AF` becomes two characters, and `ED A0 80` becomes a lone
+    // surrogate. So `const $0="\u00ff";export default [];` written with a raw
+    // `FF` decodes to a valid document denoting the graph the engine imported,
+    // and every later check passes on a file that is not UTF-8 at all.
+    const text = fromVec(bytes)
+    if (text === null) {
+        return [`the set ${name}: its own source is not correct UTF-8`]
+    }
     const [tag, value] = parse(text)
     if (tag === 'error') {
         return [`the set ${name}: its own source is not a DataJS document, ${value}`]
@@ -654,7 +668,7 @@ export const sourceDefects = corpus => foldStep(
     pureOk(modules(corpus)),
     /** @type {readonly string[]} */ ([]),
     ([name, imported]) => defects => resultMapStep(
-        readUtf8File(sourceOf(name)),
+        readFile(sourceOf(name)),
         ([tag, value]) => ok([...defects, ...tag === 'error'
             ? [`the set ${name}: its source cannot be read, ${errorMessage(value)}`]
             : sourceDefect(name, value, imported)])))
