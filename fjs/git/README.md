@@ -37,6 +37,15 @@ what a grammar can and cannot do for the formats.
   need not end in LF and ignores anything after its first line, where
   `packed-refs` requires LF on every line and refuses a second comment — so
   each rule here was measured against Git rather than assumed.
+- [`refstore/`](refstore/module.f.mjs) — the refs a repository holds, over
+  the effects: `tryRoots` for every one of them and `tryResolve` for a name
+  in hand. Two rules live here because no reader of one file can decide
+  them: a loose ref shadows the packed line of the same name by existing
+  rather than by being good, so a loose file that is no ref leaves the name
+  with no value instead of the packed one; and a symbolic ref is followed
+  five lookups and no further, which is Git's bound and what catches a ref
+  pointing at itself. A file under `refs/` whose name is no ref name is
+  skipped in silence, as Git's own walk skips it.
 - [`tag/`](tag/module.f.mjs) — a tag as a second pass over the header
   block: `object`, `type`, `tag` and `tagger` as functions over the header
   list, read by position as Git reads them, and a `validate`.
@@ -366,7 +375,10 @@ Each is a limit stated, refused where it is crossed, and none approximated:
   [`todo/git-sha1-collisions.md`](../../todo/git-sha1-collisions.md).
 - **Packfiles**, where most objects in a real clone live, so the loose
   reader alone reads a fresh clone poorly: [`todo/packfiles.md`](todo/packfiles.md).
-- **Refs**, from a name to an id: [`todo/refs.md`](todo/refs.md).
+- **Writing a ref**, with the lock file Git takes, and the reflog, which
+  expires and so is no retention: [`todo/ref-writing.md`](todo/ref-writing.md).
+  Reading them is done — [`ref/`](ref/module.f.mjs) for the file grammars and
+  [`refstore/`](refstore/module.f.mjs) over the effects.
 - **The `Vec` ceiling.** `maxLength` in `fjs/types/bit_vec` is `2^20` bits,
   128 KiB, and nothing the format leaves unbounded is safe from it, which
   is why every unbounded field is a byte list. Where it binds today is the

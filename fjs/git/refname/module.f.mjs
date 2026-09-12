@@ -166,8 +166,8 @@ export const isName = input => {
  * when it does not, while `ORIG_HEAD` resolves either way. So the answer
  * depends on the state of the repository rather than on the name, which is
  * why it is neither checked here nor in `fjs/git/ref` — see that module, and
- * `tryResolve` in [`todo/refs.md`](../todo/refs.md), which has the effects to
- * look.
+ * [`fjs/git/refstore`](../refstore/module.f.mjs)'s `tryResolve`, which has the
+ * effects to look.
  *
  * @throws If `name` is not a list of bytes.
  *

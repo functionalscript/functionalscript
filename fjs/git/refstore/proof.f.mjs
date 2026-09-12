@@ -1,0 +1,302 @@
+/**
+ * @import { Effect, IoChannel } from '../../effects/types.ts'
+ * @import { NodeOp } from '../../effects/node/types.ts'
+ * @import { Dir } from '../../effects/node/virtual/types.ts'
+ * @import { MemOperationMap } from '../../effects/mock/types.ts'
+ * @import { ReadFile } from '../../effects/node/types.ts'
+ * @import { Vec } from '../../types/bit_vec/types.ts'
+ * @import { Nullable } from '../../types/nullable/types.ts'
+ * @import { Oid } from '../types.ts'
+ * @import { Root } from './types.ts'
+ */
+
+import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
+import { ioError } from '../../effects/module.f.mjs'
+import { run as mockRun } from '../../effects/mock/module.f.mjs'
+import { emptyState, virtual } from '../../effects/node/virtual/module.f.mjs'
+import { codePointListToString } from '../../text/utf16/module.f.mjs'
+import { msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
+import { error } from '../../types/result/module.f.mjs'
+import { toHex, tryFromHex } from '../oid/module.f.mjs'
+import { latin1 } from '../testlib.f.mjs'
+import { maxLookups, tryResolve, tryRoots } from './module.f.mjs'
+
+const toVec = u8ListToVec(msb)
+
+/** @type {(hex: string) => Oid} */
+const id = hex => {
+    const i = tryFromHex(latin1(hex))
+    assert(i !== null)
+    return i
+}
+
+/** A commit id, and a second one so a shadowed name is told from its shadow. */
+const a = /** @type {const} */ ('8dd3225810cee59495e415a45957c2fdc0030e22')
+
+const b = /** @type {const} */ ('b1c209491856b9e26208165c5cafbf07ae2e7937')
+
+/** A tag object's id, which is what a tag ref names. */
+const t = /** @type {const} */ ('a48bd2c1bb20c1a3457dfa663047827f1e48ad4e')
+
+/** @type {(s: string) => readonly Vec[]} */
+const file = s => [toVec(latin1(s))]
+
+/** A ref file as Git writes one: the id and an LF. */
+const ref = /** @type {(hex: string) => readonly Vec[]} */ (hex => file(`${hex}\n`))
+
+/**
+ * Runs an effect over a virtual filesystem and unwraps it, since every case
+ * below asks about the answer rather than about the channel.
+ *
+ * @type {<T>(root: Dir, e: Effect<NodeOp, T, IoChannel>) => T}
+ */
+const run = (root, e) => {
+    const [, r] = virtual({ ...emptyState, root })(e)
+    assert(r[0] === 'ok')
+    return r[1]
+}
+
+/** @type {(r: Root) => readonly [string, string]} */
+const seen = r => [codePointListToString(r.name), codePointListToString(toHex(r.id))]
+
+/**
+ * Asserts the roots are exactly these name and id pairs, as a set.
+ *
+ * As a set and not a sequence, because {@link tryRoots} answers the walk's
+ * order and then the file's and that order means nothing — a case asserting
+ * it would pin a detail rather than a rule. What *is* a rule is that a name
+ * appears once however many files hold it, so that is asserted here too.
+ *
+ * @type {(rs: Nullable<readonly Root[]>, expected: readonly (readonly [string, string])[]) => void}
+ */
+const sameRoots = (rs, expected) => {
+    assert(rs !== null)
+    const got = rs.map(seen)
+    const names = got.map(g => g[0])
+    assert(names.every((n, i) => names.indexOf(n) === i), ['a name twice', names])
+    assertEq(got.length, expected.length)
+    for (const [n, h] of expected) {
+        assert(got.some(g => g[0] === n && g[1] === h), ['missing', n, h])
+    }
+}
+
+/**
+ * A repository as Git leaves one after `git pack-refs --all` and a later
+ * update: everything packed, and `refs/heads/master` written loose again at
+ * another id, so the two files disagree the way they do in ordinary use.
+ *
+ * @type {Dir}
+ */
+const shadowed = {
+    'packed-refs': file(`# pack-refs with: peeled fully-peeled sorted \n${b} refs/heads/master\n${a} refs/heads/other\n${t} refs/tags/v1\n^${a}\n`),
+    refs: { heads: { master: ref(a) } },
+}
+
+/** A repository with loose refs only, nested one deeper under `remotes`. */
+const loose = {
+    refs: {
+        heads: { master: ref(a), other: ref(b) },
+        remotes: { origin: { main: ref(a) } },
+        tags: { v1: ref(t) },
+    },
+}
+
+/** @type {(root: Dir, name: string) => Nullable<Oid>} */
+const resolved = (root, name) => run(root, tryResolve('', 20)(latin1(name)))
+
+/** @type {(root: Dir, name: string) => string} */
+const hexOf = (root, name) => {
+    const i = resolved(root, name)
+    assert(i !== null, name)
+    return codePointListToString(toHex(i))
+}
+
+/**
+ * A chain of `hops` symbolic refs ending at `refs/heads/master`, so
+ * `refs/heads/s1` is `hops` hops away from an id.
+ *
+ * @type {(hops: number) => Dir}
+ */
+const chain = hops => {
+    /** @type {Dir} */
+    let heads = { master: ref(a) }
+    for (let i = 1; i <= hops; i += 1) {
+        const target = i === hops ? 'refs/heads/master' : `refs/heads/s${i + 1}`
+        heads = { ...heads, [`s${i}`]: file(`ref: ${target}\n`) }
+    }
+    return { refs: { heads } }
+}
+
+export const proof = {
+    // The loose refs, including one nested two directories down, and no
+    // `packed-refs` at all — a repository that has never been packed.
+    looseOnly: () => {
+        sameRoots(run(loose, tryRoots('', 20)), [
+            ['refs/heads/master', a],
+            ['refs/heads/other', b],
+            ['refs/remotes/origin/main', a],
+            ['refs/tags/v1', t],
+        ])
+    },
+    // A loose ref shadows the packed line of the same name, and the name
+    // appears once. Measured on Git 2.43.0: with `refs/heads/master` packed
+    // at one id and a loose file holding another, `git show-ref` and
+    // `git rev-parse` both answer the loose one.
+    shadow: () => {
+        sameRoots(run(shadowed, tryRoots('', 20)), [
+            ['refs/heads/master', a],
+            ['refs/heads/other', a],
+            ['refs/tags/v1', t],
+        ])
+    },
+    // The shadow is by existing, not by being good. A loose file that is no
+    // ref does not fall back to the packed line: Git refuses the whole
+    // listing with `bad ref refs/heads/master`, and so does this.
+    shadowBroken: () => {
+        for (const bytes of ['not an id\n', '', `${a.slice(0, 39)}\n`]) {
+            // A good ref after the broken one, so the refusal is the
+            // listing's and not just the last word: once a file under
+            // `refs/` is no ref, nothing later rescues it.
+            const heads = { master: file(bytes), other: ref(b) }
+            assertEq(run({ ...shadowed, refs: { heads } }, tryRoots('', 20)), null)
+        }
+    },
+    // A file under `refs/` whose name is no ref name is skipped without a
+    // word, which is Git's own walk: each of these is refused by
+    // `git check-ref-format` and missing from `git show-ref`.
+    skipped: () => {
+        const heads = {
+            master: ref(a),
+            '.hidden': ref(b), 'x.lock': ref(b), 'bad.': ref(b),
+            'a..b': ref(b), 'a@{b': ref(b), 'has space': ref(b),
+            'tilde~x': ref(b), 'caret^x': ref(b),
+        }
+        sameRoots(run({ refs: { heads } }, tryRoots('', 20)), [['refs/heads/master', a]])
+    },
+    // A symbolic loose ref is answered resolved, which is what
+    // `git show-ref` lists for one.
+    symbolicRoot: () => {
+        const heads = { master: ref(a), sym: file('ref: refs/heads/master\n') }
+        sameRoots(run({ refs: { heads } }, tryRoots('', 20)), [
+            ['refs/heads/master', a],
+            ['refs/heads/sym', a],
+        ])
+    },
+    // A symbolic loose ref whose target is nowhere contributes no root and
+    // does not spoil the listing: it is a dangling symref, which Git skips
+    // with a warning rather than refusing the file.
+    danglingRoot: () => {
+        const heads = { master: ref(a), sym: file('ref: refs/heads/gone\n') }
+        sameRoots(run({ refs: { heads } }, tryRoots('', 20)), [['refs/heads/master', a]])
+    },
+    // The three states of `packed-refs` are three answers: absent is a
+    // repository with nothing packed, present and malformed is one Git
+    // refuses, and an absent `refs/` is a repository whose refs are all
+    // packed rather than an error.
+    packedStates: () => {
+        assertEq(run({ 'packed-refs': file('# hello\n'), refs: {} }, tryRoots('', 20)), null)
+        // Everything packed and `refs/` left behind empty, which is what
+        // `git pack-refs --all` leaves: the directory stays, measured.
+        sameRoots(
+            run({ 'packed-refs': file(`${a} refs/heads/master\n`), refs: { heads: {} } }, tryRoots('', 20)),
+            [['refs/heads/master', a]])
+        // Neither file: a repository with no refs at all.
+        sameRoots(run({ refs: {} }, tryRoots('', 20)), [])
+    },
+    // The id width is the repository's, so a SHA-1 id is no ref in a
+    // SHA-256 repository — the same check every header naming an object
+    // makes, and here it makes the whole listing refuse.
+    width: () => {
+        assertEq(run(loose, tryRoots('', 32)), null)
+    },
+    // Two names of the same length that differ. A ref name is compared as
+    // bytes, so the comparison cannot stop at the length, and a fixture
+    // whose names all differ in length would never ask it to.
+    sameLength: () => {
+        const root = { 'packed-refs': file(`${b} refs/heads/y\n`), refs: { heads: { x: ref(a) } } }
+        sameRoots(run(root, tryRoots('', 20)), [['refs/heads/x', a], ['refs/heads/y', b]])
+    },
+    // A read that fails for any reason other than the file not being there
+    // is the channel's, not an empty answer. The virtual filesystem only
+    // ever reports `ENOENT`, so this one case runs over a host that reports
+    // something else.
+    readError: () => {
+        const denied = ioError({ code: 'EACCES', message: 'permission denied' })
+        /** @type {MemOperationMap<ReadFile, null>} */
+        const host = { readFile: () => state => [state, error(denied)] }
+        const [, r] = mockRun(host)(null)(tryResolve('', 20)(latin1('refs/heads/master')))
+        assertStructurallySame(r, error(denied))
+    },
+    // One name at a time: a loose ref, a packed one, a loose one shadowing
+    // a packed one, and a name nothing is stored under.
+    resolve: () => {
+        assertEq(hexOf(shadowed, 'refs/heads/master'), a)
+        assertEq(hexOf(shadowed, 'refs/heads/other'), a)
+        assertEq(hexOf(shadowed, 'refs/tags/v1'), t)
+        assertEq(resolved(shadowed, 'refs/heads/nothing'), null)
+        // A name outside `refs/` resolves the same way, which is what
+        // `tryRoots` does not answer and this does: `HEAD`.
+        assertEq(hexOf({ ...loose, HEAD: file('ref: refs/heads/other\n') }, 'HEAD'), b)
+    },
+    // A `packed-refs` Git refuses stops every name, including one whose
+    // loose file is perfectly good. Measured: with a good
+    // `refs/heads/master` and a `packed-refs` of `# hello`,
+    // `git rev-parse refs/heads/master` answers
+    // `fatal: unexpected line in .git/packed-refs` rather than the loose
+    // id. The file is the repository's, so a reader cannot use half of it.
+    resolveBadPacked: () => {
+        const root = { 'packed-refs': file('# hello\n'), refs: { heads: { master: ref(a) } } }
+        assertEq(resolved(root, 'refs/heads/master'), null)
+        assertEq(resolved(root, 'refs/heads/nothing'), null)
+    },
+    // A loose file that is no ref answers `null` and not the packed line,
+    // the same refusal `tryRoots` makes for the whole listing.
+    resolveBroken: () => {
+        assertEq(resolved({ ...shadowed, refs: { heads: { master: file('not an id\n') } } }, 'refs/heads/master'), null)
+    },
+    // Four symbolic hops resolve and five do not, which is Git's bound:
+    // measured with a chain ending at a real ref, `git rev-parse` answers
+    // at four and reports `ignoring dangling symref` at five. Four hops is
+    // five lookups counting the ref that holds the id.
+    resolveChain: () => {
+        assertEq(maxLookups, 5)
+        for (const hops of [1, 2, 3, 4]) {
+            assertEq(hexOf(chain(hops), 'refs/heads/s1'), a)
+        }
+        for (const hops of [5, 6, 7]) {
+            assertEq(resolved(chain(hops), 'refs/heads/s1'), null)
+        }
+    },
+    // The same bound catches a symbolic ref pointing at itself, which is
+    // also how Git answers one: the dangling-symref message rather than a
+    // loop.
+    resolveLoop: () => {
+        assertEq(resolved({ refs: { heads: { loop: file('ref: refs/heads/loop\n') } } }, 'refs/heads/loop'), null)
+    },
+    // `FETCH_HEAD` is read straight from the file, first record, which is
+    // what a loose ref's own grammar does: the id, one whitespace byte,
+    // then the rest unread. Measured: a `FETCH_HEAD` whose first record is
+    // `not-for-merge` still answers that first line's id to
+    // `git rev-parse FETCH_HEAD`.
+    resolveSpecial: () => {
+        const fetched = {
+            ...loose,
+            FETCH_HEAD: file(`${b}\tnot-for-merge\tbranch 'dev' of https://example/x\n${a}\t\tbranch 'main' of https://example/x\n`),
+        }
+        assertEq(hexOf(fetched, 'FETCH_HEAD'), b)
+        // A symbolic ref may point at one, and resolving it goes through
+        // the same reading — which is why `fjs/git/ref` leaves the
+        // question here rather than refusing the target.
+        assertEq(hexOf({ ...fetched, refs: { heads: { sym: file('ref: FETCH_HEAD\n') } } }, 'refs/heads/sym'), b)
+    },
+    // With the file absent, those two names answer nothing even where a
+    // `packed-refs` line carries them: Git reads them from the file only,
+    // so a packed line named either is no ref to it. Every other name does
+    // fall back to its packed line, which the first case above shows.
+    resolveSpecialAbsent: () => {
+        for (const n of ['FETCH_HEAD', 'MERGE_HEAD']) {
+            const root = { 'packed-refs': file(`${a} ${n}\n`), refs: {} }
+            assertEq(resolved(root, n), null)
+        }
+    },
+}

@@ -5,7 +5,7 @@
  * All three are text and delimiter-framed, so they are grammars over the
  * byte alphabet like the objects, and all three are read here with no
  * effects — finding and opening the files is
- * [`todo/refs.md`](../todo/refs.md)'s remaining step.
+ * [`fjs/git/refstore`](../refstore/module.f.mjs).
  *
  * The three do not agree with each other, and every disagreement below was
  * measured against Git 2.43.0 rather than read off a manual page. The
@@ -177,9 +177,9 @@ const parseSymbolic = byteParser(symbolicRule)
  * outright would call a live ref malformed. What *is* special about those two
  * is how a resolver must read them: Git reads each straight from the file
  * rather than through a ref backend, because each may hold more than one
- * record. That belongs to `tryResolve` in
- * [`todo/refs.md`](../todo/refs.md), which has the effects to look, and the
- * issue records it.
+ * record. That belongs to
+ * [`fjs/git/refstore`](../refstore/module.f.mjs)'s `tryResolve`, which has the
+ * effects to look, and it checks exactly those two names.
  *
  * `ORIG_HEAD` shows the difference is not about existence alone: it resolves
  * as a target whether or not the file is there, because it is not one of the
