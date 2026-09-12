@@ -2712,6 +2712,29 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `accepts`, and why prose alone could never have caught it.
       §Status's forward reference is corrected with it: it pointed at "§Layout",
       a section this specification does not have.
+      **Defining a document as bytes then broke eight accept vectors**, which
+      review caught and is the sharper half of this step. The eight
+      `string/surrogate/lone/raw/*` and `key/string/surrogate/lone/raw/*`
+      records carry a document holding an **unpaired surrogate**, and no byte
+      sequence encodes one — so under the new §Encoding they assert that a
+      reader accepts something the format says is not a document. The
+      whole-set proof has always skipped exactly those eight for the same
+      reason, which is the evidence the contradiction was real rather than
+      a reading.
+      Deleting them was the wrong fix, because the coverage is real: a raw
+      unpaired unit between the quotes and its `\uXXXX` escape are different
+      paths through a reader, and the round that added the raw four found the
+      escaped four standing for both. What was missing was the *layer*. A
+      reader divides at the decode: one takes bytes and owes the UTF-8 rule,
+      one takes code units and begins after it, which is what the shipped
+      entry point does and what §Status already said. Every rule from
+      §Whitespace down is stated over code units and applies to both.
+      §Encoding says that now, and §Conformance's reader bullet has a reader
+      state which form it takes, so the eight are a code-unit reader's vectors
+      and a byte reader is never asked for them. The corpus needed no change:
+      its schema has carried both forms all along, a code-unit string and a
+      tagged `['hex', …]`, and the type's own comment says why three records
+      use the second.
 - [x] **Make "every set is a DataJS document" a check rather than a
       measurement.** Review found every set ending with a trailing comma
       before its `]`, which JavaScript takes and DataJS refuses, so no set was

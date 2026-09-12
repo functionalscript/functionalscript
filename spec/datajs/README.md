@@ -143,6 +143,21 @@ refused. How an implementation discovers the refusal is its own business, and
 a decoder that substitutes U+FFFD rather than failing is simply a reader that
 accepts a document this specification rejects.
 
+**The decode is also where a reader divides in two**, and a reader says which
+half it is. One takes bytes and owes the rule above. One takes the code units
+and begins after it, which is what a reader whose entry point is a string does —
+every rule from §Whitespace down is stated over code units and applies to both
+unchanged.
+
+That distinction is not bookkeeping. An **unpaired surrogate** is a code unit no
+byte sequence encodes, so it can reach a code-unit reader and can never reach a
+byte one, and it is a real input to the first: a raw unpaired unit between the
+quotes and its `\uXXXX` escape are different paths through a reader, and one
+that handles the escape may mishandle the unit. So a document is a byte sequence
+where an implementation takes bytes, and a code-unit sequence where it takes
+those — the same document in every case a byte sequence exists for, which is
+every case but this one.
+
 A document also **has no BOM**, and that rule is not about encoding. The bytes
 `EF BB BF` are correct UTF-8 for U+FEFF, so they decode, and §Whitespace
 already refuses what they decode to: U+FEFF is not one of the four whitespace
@@ -697,7 +712,10 @@ that just reads it emits none.
 
 - A conforming **reader** accepts every document this specification accepts,
   rejects every document it rejects, and yields the graph the document
-  denotes, sharing included.
+  denotes, sharing included. It states whether it takes bytes or code units
+  ([§Encoding](#encoding)) and is judged on that form: a byte reader owes the
+  UTF-8 rule, and the documents holding an unpaired surrogate are a code-unit
+  reader's alone, since no byte sequence spells them.
 - A conforming **serializer** rejects every input outside
   [the data model](#what-may-be-serialized) and otherwise emits a valid
   document denoting the input graph.
