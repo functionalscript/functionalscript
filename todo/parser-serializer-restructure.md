@@ -517,7 +517,10 @@ combined marker would encode a redundant fact.
   cases DataJS gets for free — `truex` being a lexical error rather than
   `true` followed by a valid name — do not carry over.
 - Subset laws are proof obligations, not prose: every DataJS *accept* vector
-  parses in FunctionalScript to the same value graph; the normalizer closes
+  parses in FunctionalScript to the same value graph — **proved**, in
+  `fjs/fsc/proof.f.mjs`, over the whole accept set, sharing and key order
+  compared; it found the parser sorting an object's members, which is fixed,
+  the graph a module denotes having an order of its own; the normalizer closes
   the loop (`parse_datajs(normalize(m))` equals the evaluation of any
   data-only module `m`); FunctionalScript fixtures remain valid JS with
   identical meaning (checked against a real JS engine in proofs).
@@ -847,7 +850,9 @@ throughout.
       such as `serializer-children-helper` and `json-bigint-serialization`,
       stay beside `fjs/djs/serializer/` until stage 4 reworks it — and
       repoint every link into them.
-- [ ] Stage 6: normalizer + subset-law proofs; file its todo.
+- [ ] Stage 6: normalizer + subset-law proofs; file its todo. The
+      FunctionalScript half of the subset law is proved, in
+      `fjs/fsc/proof.f.mjs`; the normalizer and its loop remain.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
 - [ ] Update affected issues as their subject matter moves (see below).
 - [ ] `tsc`, `fjs test` at every stage.
