@@ -166,7 +166,8 @@ export const proof = {
                 ["import Infinity from \"m\";\nexport default Infinity;", "unexpected token", [1, 8]],
                 ["export default {NaN: 1};", "unexpected token", [1, 17]],
                 // `-` folds into a number and into `Infinity`, and into
-                // nothing else: `-NaN` is refused at the `-`, as in DataJS
+                // nothing else: before `NaN` it is an error token, and the
+                // grammar refuses at the `NaN` after it, as DataJS refuses
                 ["export default -NaN;", "unexpected token", [1, 17]],
                 ["const undefined = 1;\nexport default undefined;", "unexpected token", [1, 7]],
                 ["const a = zzz;\nexport default a;", "const not found", [1, 11]],

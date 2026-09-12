@@ -47,7 +47,9 @@ const roundTripCorpus = [
     false,
     undefined,
     0,
+    -0,
     -1.5,
+    NaN,
     Infinity,
     -Infinity,
     42n,
@@ -152,8 +154,9 @@ export const proof = {
         assertStructurallySame(result[1], value, source)
     }),
     // The three numbers JSON cannot spell, end to end: read as the values
-    // they name, written back as the same words. `NaN` is the one value
-    // structural equality cannot state, so it is checked by `Object.is`.
+    // they name, written back as the same words. `NaN` is checked by
+    // `Object.is` directly, which is what `structurallySame` compares leaves
+    // by too — so the corpus below carries it and `-0` as well.
     specialNumbers: {
         value: () => {
             const root = { 'input.f.js': [utf8('export default [NaN, Infinity, -Infinity];')] }

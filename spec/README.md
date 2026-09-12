@@ -205,8 +205,10 @@ fjs compile input.f.js output.json   # JSON
   `"10"` before `"2"`.
 - A `__proto__` key is emitted as `["__proto__"]:` in a JavaScript module and
   as `"__proto__":` in JSON ([below](#the-__proto__-key)).
-- A number that overflows to infinity is emitted as `null` in both formats,
-  the way `JSON.stringify` writes it.
+- `NaN`, `Infinity` and `-Infinity` — a literal, or a number that overflowed
+  to infinity — are emitted as those words in both formats, the way
+  [DataJS](./datajs/README.md) writes them; in `.json` output that is not
+  JSON, the same way `bigint` and `undefined` are not (next item).
 - `bigint` and `undefined` have no JSON spelling. The `.json` writer currently
   emits the module spellings `34n` and `undefined` anyway, producing a file
   that is not valid JSON; it should reject the value instead. Tracked by
@@ -256,6 +258,7 @@ access, and grouping are not recognized yet — see the
 |`null`|`null`|✅|
 |boolean|`true`, `false`|✅|
 |number|`-42.5`, `3e2`|✅|
+|number, not JSON's|`NaN`, `Infinity`, `-Infinity`|❌|
 |string|`"hello"`|✅|
 |array|`[1, "a"]`|✅|
 |object|`{ "a": 1 }`|✅|

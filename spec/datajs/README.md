@@ -73,20 +73,17 @@ exactly one byte sequence.
 
 **This document specifies a target, not the current implementation.** The
 `;` this format requires after every statement is what the compiler's
-parser requires too, so a document that stays on the finite leaves parses
-today; `NaN` and the
-infinities do not parse yet, which is the reader-side gap that remains
-(tracked with the numeric-leaf work in the restructure plan below).
-The shipped `fjs/djs` serializer also differs from
-[normalized form](#normalized-form) in four ways, each of them stage 4–6 work
-rather than a bug:
+parser requires too, and every leaf this format has — `NaN` and the
+infinities included, since stage 5 of the restructure plan below — is one
+the parser reads, so a document parses today. The shipped `fjs/djs`
+serializer differs from [normalized form](#normalized-form) in three ways,
+each of them stage 4–6 work rather than a bug:
 
 | shipped `fjs/djs` | this specification |
 | --- | --- |
 | `const c0 = …` | `const $0=…` |
 | hoists a repeated primitive into a const | primitives always inline |
 | keys sorted lexicographically — `{"10":0,"9":0}` | array-index keys first in numeric order — `"9"` before `"10"` |
-| `NaN`, `±Infinity` become `null`; `-0` becomes `0` | each round-trips exactly |
 
 The first row is the one that is more than a layout difference: a name must
 start with `$`, so `c0` is not a name this format has at all, and the shipped
