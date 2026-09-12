@@ -1586,7 +1586,19 @@ formatter's rules on the reader's side anyway.
 Two properties worth proving directly rather than case by case: every
 **accept** document parses in FunctionalScript to the same graph, and every
 **accept** document is accepted by a JavaScript engine with the same result.
-Those are the subset laws, and they can run over the whole accept set.
+Those are the subset laws, and they run over every accept document a host can
+be handed — which is every one with a byte encoding.
+
+**That scope is a fact about modules, not a weakening.** Both laws hand a
+document to a host, and a host takes a module as bytes, so the eight documents
+holding an unpaired surrogate have no experiment rather than an unmeasured
+result: they are DataJS for a code-unit reader and are not loadable JavaScript
+modules, because no byte sequence spells them. A code-unit module check is not
+the alternative, because there is nothing to check it with — escaping the unit
+to carry it would test the *escaped* document, which is a different vector that
+the set already has. What keeps that honest is the count: the whole-set proof
+names the eight and asserts there are exactly eight, so a ninth is a failure
+rather than a silent narrowing of the law.
 
 **They land at different times, and this corpus only owes the second.** The
 FunctionalScript check cannot run when this corpus lands: today's front end has
@@ -2683,11 +2695,59 @@ The steps, in order; a step is one pull request unless it says otherwise:
       needed no change — their `rule` already read "whitespace: exactly
       space, tab, LF and CR", which is the accepting form the spec now
       takes too.
-- [ ] **The decoder seam in the spec**, per decision 4: say that a document
+- [x] **The decoder seam in the spec**, per decision 4: say that a document
       is correct UTF-8 and anything else is rejected, with no taxonomy of
       malformed sequences and nothing required of a decoder. Its own pull
       request, as each of these changes a different contract.
-- [ ] **Make "every set is a DataJS document" a check rather than a
+      Landed as [§Encoding](../README.md#encoding), the first subsection of the
+      grammar, where the bytes are. The rule it replaces was two sentences at
+      the *end of §Whitespace* — "A document is UTF-8. It has no BOM." — which
+      said what a document is and not what follows from it, in the one section
+      that is not about encoding. §Encoding says it in the accepting form
+      §Whitespace uses, and adds the two things the old sentences left to the
+      reader: anything that is not correct UTF-8 is **rejected**, and **nothing
+      is required of a decoder** — not whether one is exposed, what it reports,
+      where it stops, or whether it replaces anything. A decoder that
+      substitutes U+FFFD is then not a permitted variation but a reader that
+      accepts a document the format rejects, which is the sentence the corpus's
+      byte vectors need in order to mean anything.
+      **The BOM rule turned out to be worth more than it looked**, and the
+      round measured it rather than asserting it. `EF BB BF` is correct UTF-8
+      for U+FEFF, so it is not an encoding error at all, and §Whitespace already
+      refuses what it decodes to. It needs its own sentence because **two layers
+      a reader is likely to stand on remove it first**: a JavaScript engine
+      imports `EF BB BF 65 78 70 6F 72 74 20 64 65 66 61 75 6C 74 20 31 3B` and
+      exports `1`, and a WHATWG `TextDecoder` returns the *empty string* for
+      those three bytes unless `ignoreBOM` is set. So an implementation can be
+      assembled from correct parts and over-accept without any part of it
+      deciding to — which is why the reject vector for it records the host as
+      `accepts`, and why prose alone could never have caught it.
+      §Status's forward reference is corrected with it: it pointed at "§Layout",
+      a section this specification does not have.
+      **Defining a document as bytes then broke eight accept vectors**, which
+      review caught and is the sharper half of this step. The eight
+      `string/surrogate/lone/raw/*` and `key/string/surrogate/lone/raw/*`
+      records carry a document holding an **unpaired surrogate**, and no byte
+      sequence encodes one — so under the new §Encoding they assert that a
+      reader accepts something the format says is not a document. The
+      whole-set proof has always skipped exactly those eight for the same
+      reason, which is the evidence the contradiction was real rather than
+      a reading.
+      Deleting them was the wrong fix, because the coverage is real: a raw
+      unpaired unit between the quotes and its `\uXXXX` escape are different
+      paths through a reader, and the round that added the raw four found the
+      escaped four standing for both. What was missing was the *layer*. A
+      reader divides at the decode: one takes bytes and owes the UTF-8 rule,
+      one takes code units and begins after it, which is what the shipped
+      entry point does and what §Status already said. Every rule from
+      §Whitespace down is stated over code units and applies to both.
+      §Encoding says that now, and §Conformance's reader bullet has a reader
+      state which form it takes, so the eight are a code-unit reader's vectors
+      and a byte reader is never asked for them. The corpus needed no change:
+      its schema has carried both forms all along, a code-unit string and a
+      tagged `['hex', …]`, and the type's own comment says why three records
+      use the second.
+- [x] **Make "every set is a DataJS document" a check rather than a
       measurement.** Review found every set ending with a trailing comma
       before its `]`, which JavaScript takes and DataJS refuses, so no set was
       readable by a conforming reader — a promise the corpus README makes and
@@ -2698,6 +2758,28 @@ The steps, in order; a step is one pull request unless it says otherwise:
       with the reader, and compare the graph with the imported set using
       `difference`. Its own pull request, because it needs a failing case in
       the matrix proof to keep coverage honest.
+      Landed as `modules`, `sourceOf`, `sourceDefect` and `sourceDefects` in
+      the generator, which reads all six sources before it writes anything and
+      reports what it finds as matrix defects, so a set that stops being DataJS
+      fails `npm run gen` exactly as an unanswered cell does. Measured against
+      the tree: all six parse and denote what the engine imports, and a trailing
+      comma put back into one of them gives `the set graph-equivalence: its own
+      source is not a DataJS document, unexpected symbol at 6310` and exit 1.
+      **Parsing alone would not have been enough**, and the reason bounds what
+      this check is: the source and the imported value come from one file, so
+      they can only disagree where JavaScript and DataJS both accept the text
+      and read it differently — a key order, a share spelled twice, a number
+      notation. That is precisely the failure a portable corpus cannot survive,
+      since a harness in another language reads these files rather than
+      importing them, so the graph is compared too.
+      The proof's own halves sit in different places on purpose. The predicate
+      is proved on texts chosen to break it, including the trailing comma and a
+      source that parses and denotes another graph. That the six real files
+      satisfy it is proved by `npm run gen` against the files themselves, which
+      is what moving the measurement into the generator buys and what no
+      in-memory fixture could establish: a proof runs on a virtual filesystem
+      and cannot read the repository. So the fixture writes each source with the
+      writer, whose output denotes the set by construction.
 - [ ] **Hand over.** `spec/datajs/README.md`'s Conformance section links the
       corpus instead of this file; stage 4's issue and the stage 6 task in
       [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)

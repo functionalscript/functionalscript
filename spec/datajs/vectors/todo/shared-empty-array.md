@@ -3,8 +3,19 @@
 **Priority:** P2 — one graph shape no consumer of the corpus can be tested on.
 Nothing is wrong with any vector that exists, and this repository's own writer is
 covered, which is why it is not P1.
-**Status:** open — the limitation is measured and stated below; the fix is a
-carrier or schema change and needs a decision first.
+**Status:** decided — **the stated limitation stands.** The schema change below
+was weighed and refused: it is not worth every record type and every proof for
+one shape, and it would give up the property that a set is an ordinary graph
+`tsc` checks. Nothing here is waiting on anyone.
+
+Kept as the record rather than deleted, because two live documents cite it for
+what no surviving file says — the search for a spelling that came back negative,
+and the alternative that was refused and why:
+[`../README.md`](../README.md), beside the sharing rule, and
+[`../../todo/conformance-vectors.md`](../../todo/conformance-vectors.md), in the
+round that measured the limit. Both would lose their reference if this file went,
+and a reader who notices that a shared empty array has no vector in any role
+would be left to re-derive the whole thing.
 
 ### Problem
 
