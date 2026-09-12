@@ -140,8 +140,17 @@ export const proof = {
             [['refs/heads/master', a, '']],
         )
         // A file of no bytes is a repository with nothing packed, not a
-        // malformed one.
+        // malformed one, and neither is the header alone.
         assertStructurallySame(packed(latin1('')), [])
+        assertStructurallySame(packed(latin1('# pack-refs with: peeled\n')), [])
+        // Whatever follows the colon is free, which is what makes the prefix
+        // the rule rather than the whole line.
+        for (const h of ['# pack-refs with:', '# pack-refs with: ', '# pack-refs with:x', '# pack-refs with: peeled fully-peeled sorted ']) {
+            assertStructurallySame(
+                /** @type {readonly PackedRef[]} */ (packed(latin1(`${h}\n${a} refs/heads/master\n`))).map(seen),
+                [['refs/heads/master', a, '']],
+            )
+        }
     },
     // Every line ends in LF, including the last, which is where
     // `packed-refs` and a loose ref part: Git answers
@@ -164,6 +173,18 @@ export const proof = {
             `${a.slice(0, 39)} refs/heads/master\n`,
             `${a} refs/heads/master\n^${a.slice(0, 39)}\n`,
             `# header with no LF`,
+            // Not the header, so not a comment either: Git has no comment
+            // syntax in this file. Each of these is `unexpected line`.
+            `# hello\n${a} refs/heads/master\n`,
+            `#\n${a} refs/heads/master\n`,
+            `# pack-refs with\n${a} refs/heads/master\n`,
+            `#pack-refs with:\n${a} refs/heads/master\n`,
+            `#  pack-refs with:\n${a} refs/heads/master\n`,
+            `# Pack-refs with:\n${a} refs/heads/master\n`,
+            // The header is the first line or nothing, so a second one and a
+            // header below a ref line are both refused.
+            `# pack-refs with: peeled\n# pack-refs with: peeled\n${a} refs/heads/master\n`,
+            `${a} refs/heads/master\n# pack-refs with: peeled\n`,
         ]) {
             assertEq(packed(latin1(s)), null)
         }

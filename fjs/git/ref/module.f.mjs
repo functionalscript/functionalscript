@@ -174,8 +174,10 @@ export const tryRef = oidBytes => {
  * possibly followed by the `^` line that gives what a tag points at.
  *
  * Every line ends in LF, including the last, which is the rule a loose ref
- * does not have. The header is recognised on the first line only: a `#`
- * line anywhere below is `fatal: unexpected line`, and so is a blank one.
+ * does not have. The header is the literal `# pack-refs with:` on the first
+ * line and nothing else: any other `#` line is `fatal: unexpected line`
+ * wherever it sits, a second header included, and so is a blank line. Git
+ * has no comment syntax in this file — see {@link header}.
  * The id and the name are separated by exactly one whitespace byte — a
  * second space joins the name, and Git then refuses the name rather than
  * the line.
@@ -185,6 +187,31 @@ export const tryRef = oidBytes => {
  * without complaint, so the header is a note about what the writer did and
  * not a promise this reader may lean on.
  */
+/**
+ * The only comment `packed-refs` has: the header Git writes, matched on this
+ * exact prefix and nothing else after the `#`.
+ *
+ * A `#` line is not a comment here, which is the rule a reader would most
+ * likely get wrong, and the boundary is exact. Measured with `git show-ref`
+ * on Git 2.43.0, each as the first line above one ref line:
+ *
+ * | first line | |
+ * | --- | --- |
+ * | `# pack-refs with:` | accepted, and anything may follow the colon |
+ * | `# pack-refs with` | `unexpected line` — the colon is required |
+ * | `#pack-refs with:` | `unexpected line` — the space is required |
+ * | `#  pack-refs with:` | `unexpected line` — exactly one space |
+ * | `# Pack-refs with:` | `unexpected line` — case-sensitive |
+ * | `# hello`, `#` | `unexpected line` |
+ *
+ * So Git has no comment syntax in this file, only this one header, and a
+ * file carrying any other `#` line is one Git refuses rather than reads.
+ * Accepting it would answer plausible refs for a file Git rejects, which is
+ * the silence [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+ * forbids.
+ */
+const header = /** @type {const} */ ('# pack-refs with:')
+
 const peeledRule = /** @type {const} */ (['^', repeatFrom1(hexDigit), '\n'])
 
 const entryRule = /** @type {const} */ ([
@@ -196,7 +223,7 @@ const entryRule = /** @type {const} */ ([
 ])
 
 const packedRule = /** @type {const} */ ([
-    option(['#', repeatFrom0(not(set('\n'))), '\n']),
+    option([header, repeatFrom0(not(set('\n'))), '\n']),
     repeatFrom0(entryRule),
     eof,
 ])
