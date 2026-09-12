@@ -19,11 +19,11 @@ that mentions it in three.
 
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
-| `reader` | `accept`, `reject` | 678 | 50 | 0 |
-| `serializer` | `serializer-accept`, `graph-equivalence` | 171 | 557 | 0 |
-| `normalize` | `normalize` | 216 | 512 | 0 |
+| `reader` | `accept`, `reject` | 679 | 50 | 0 |
+| `serializer` | `serializer-accept`, `graph-equivalence` | 172 | 557 | 0 |
+| `normalize` | `normalize` | 217 | 512 | 0 |
 
-728 classes.
+729 classes.
 
 | class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
@@ -127,7 +127,7 @@ that mentions it in three.
 | `const/shared/leaf` | `const-shared-leaf` | not applicable, [note 29](#notes) | `norm-shared-leaf` |
 | `const/shared/mixed` | `const-shared-mixed` | `ser-sharing-mixed`, `graph-sharing-mixed` | `norm-shared-mixed` |
 | `const/shared/nested` | `const-shared-nested` | `ser-const-shared-nested`, `ser-const-shared-nested-object-parent`, `graph-const-shared-nested`, `graph-const-shared-nested-object-parent` | not applicable, [note 97](#notes) |
-| `const/shared/object` | `const-shared-object` | `ser-sharing-object`, `graph-sharing-object`, `graph-sharing-empty-object` | `norm-shared-object`, `norm-const-body-escaping-key`, `norm-const-every-value-object` |
+| `const/shared/object` | `const-shared-object`, `const-shared-object-parent` | `ser-sharing-object`, `ser-shared-empty-object`, `ser-shared-empty-object-object-parent`, `graph-sharing-object`, `graph-sharing-empty-object`, `graph-sharing-empty-object-object-parent` | `norm-shared-object`, `norm-const-body-escaping-key`, `norm-const-every-value-object` |
 | `const/shared/three-paths` | `const-shared-three-paths` | `ser-shared-three-paths` | `norm-shared-three-paths` |
 | `const/shared/twice` | `const-shared-twice` | `ser-sharing-array`, `graph-sharing-array` | `norm-shared-twice`, `norm-const-body-escaping-values`, `norm-const-every-value-array` |
 | `const/shared/two-nodes` | `const-shared-two-nodes` | `ser-shared-two-nodes` | `norm-shared-two-nodes` |
@@ -516,6 +516,7 @@ that mentions it in three.
 | `object/key-order/non-index/negative-zero` | `object-key-order-non-index-negative-zero` | `ser-object-key-order-non-index-negative-zero` | `norm-object-key-order-non-index-negative-zero` |
 | `object/key-order/non-index/plus` | `object-key-order-non-index-plus` | `ser-object-key-order-non-index-plus` | `norm-object-key-order-non-index-plus` |
 | `object/key-order/non-index/space` | `object-key-order-non-index-space` | `ser-object-key-order-non-index-space` | `norm-object-key-order-non-index-space` |
+| `object/keys/every-string` | `object-keys-every-string` | `ser-object-keys-every-string` | `norm-object-keys-every-string` |
 | `object/leading-comma` | `object-leading-comma` | not applicable, [note 1](#notes) | not applicable, [note 49](#notes) |
 | `object/members/every-value` | `object-members-every-value` | `ser-object-members-every-value` | `norm-object-members-every-value` |
 | `object/members/every-value-first` | `object-members-every-value-first` | `ser-object-members-every-value-first` | `norm-object-members-every-value-first` |

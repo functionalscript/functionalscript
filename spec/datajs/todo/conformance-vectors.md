@@ -1830,11 +1830,11 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 206 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 209 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
-      and 15 in
+      and 16 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 171 of the 678 classes the corpus holds, with 45 scope
+      covering 172 of the 679 classes the corpus holds, with 45 scope
       records answering the 507 cells the serializer column owes; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
@@ -2056,6 +2056,31 @@ The steps, in order; a step is one pull request unless it says otherwise:
       for `[p,p,c]` with `p={"x":c}` and passed. Parent kind again, on the one
       class where I had crossed it in the shape of the share and never in the
       shape of the parent. One vector here, one graph-equivalence record.
+      **Then the two cells that cross left over**, reported in the same round
+      and both about a position rather than a value. A shared node's parent
+      kind crossed with the child's emptiness has six spellable cells, not
+      eight, since a shared empty *array* is the one shape this carrier cannot
+      hold: two parent kinds by an array child, an empty object child and a
+      non-empty one. Measured, this set had four of the six and no shared
+      empty object **at all**, the reader set five, graph equivalence five, so
+      a writer that keeps a shared empty object while walking elements and
+      prints `{}` inline while walking members passed every set. Four vectors
+      and one record fill all six in all three.
+      And a lone surrogate had never been inside a container in either set —
+      measured, every one was a whole document or an object's sole key. Here
+      the defect is not the spelling, which no graph check can see, but the
+      *value*: a writer whose container path replaces an unpaired unit with
+      U+FFFD changes the graph, and nothing reached that path. This is the
+      escape axis with the cross left out on purpose, and the reason is the
+      rule again: escaping is required for a quote, a backslash and a control,
+      so each of those spellings needs its own vector in every slot, while a
+      lone surrogate, a ws-like character and an astral pair are spellings the
+      rule leaves free, so what a slot can still break is the value. Both
+      `every-value` aggregates and both first-slot aggregates now carry all
+      four awkward strings, which puts each in a first and a later slot, and
+      `object/keys/every-string` carries them as the keys of a nested object.
+      The `normalize` set has carried three of the four in its aggregates
+      since the whitespace round, which is where its bytes are pinned.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
@@ -2065,7 +2090,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 268 records in
+- [x] **Normalize.** Landed as 269 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
       records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -2079,7 +2104,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 119,661 bytes of the bit
+      being refused outright. The matrix stands at 119,930 bytes of the bit
       vector's 131,072, which is 91% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
@@ -2265,10 +2290,22 @@ The steps, in order; a step is one pull request unless it says otherwise:
       above found when it asked, five rounds before the reason caught up. A
       reason can lag its own answer, and the purity rule cannot see it, since
       the cell really is answered.
-      One figure worth watching rather than fixing: this round put 3,145 bytes
+      One figure worth watching rather than fixing: this round put 3,414 bytes
       into the matrix, which is now 91% of the bit vector's cap. Two more
       rounds of this size reach it, and the next exhaustive fill is the one
       that has to decide whether a cell lists its vectors or counts them.
+      **And the two positions the base found next**, both of which this column
+      already had. All six spellable cells of parent kind crossed with the
+      child's emptiness were here — the four post-order naming vectors and the
+      empty-object sharing pair between them — and a lone surrogate was
+      already in an element and a member value, first and later, since the
+      whitespace round put one in both aggregates. What was missing is an
+      astral pair in a container at all, and a lone surrogate as a key after
+      another member: both aggregates and both first-slot aggregates now carry
+      the pair, and `object/keys/every-string` carries all four awkward
+      strings as a nested object's keys, matching the other two sets. Every
+      text came out of the shipped writer, which emits the pair raw and
+      escapes the lone surrogate — the distinction this column exists for.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at
