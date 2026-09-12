@@ -1832,14 +1832,15 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 215 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 219 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 16 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 172 of the 679 classes the corpus holds, with 45 scope
-      records answering the 507 cells the serializer column owes; the normalize
-      set below adds 50 classes and one `['set', 'normalize']` reason answers
-      all of them.
+      covering 172 of the corpus's classes, with the scope records that answer
+      every cell its column owes. Those two figures move as the sets below add
+      classes, so the matrix summary is where they are read, not here; the
+      normalize set below adds 50 of them and one `['set', 'normalize']` reason
+      answers all of them.
       `SerializerAccept` lost its `graph` member on the way: with the recipes
       gone a serializer-side input is an ordinary value of the data model, so
       a second member carried the same value twice and let the two drift. The
@@ -2191,11 +2192,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 276 records in
-      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
-      records answering the 512 cells its column owes and one `['set',
+- [x] **Normalize.** Landed as 280 records in
+      [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with the scope
+      records that answer every cell its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
-      the 50 classes this set introduced. The proof reads every text back
+      the 50 classes this set introduced. The counts are the matrix summary's,
+      for the reason above. The proof reads every text back
       through the reader, which is the run-through-the-accept-grammar check
       made a proof — **and one check the reader cannot make**: a document
       holding a raw U+D800 and one holding the six characters of its escape
@@ -2205,9 +2207,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 120,610 bytes of the bit
+      being refused outright. The matrix stands at 120,652 bytes of the bit
       vector's 131,072, which is 92% and leaves little room for another
-      column or another set of classes.
+      column or another set of classes. When it overflows, raise the cap
+      rather than split the table: splitting per role keeps the limit and costs
+      a reader the single view the table exists for. But the cap is **not** a
+      free number. `maxLengthBytes` in
+      [`bit_vec`](../../../fjs/types/bit_vec/module.f.mjs) is
+      `maxLength >> 3n`, and `maxLength` is `0x100000n` in
+      [`bigint`](../../../fjs/types/bigint/module.f.mjs), where the comment
+      beside it records that Bun throws on `max + 1n` and that `mask` is written
+      the way it is to avoid overflowing there at exactly that length. So
+      raising it is a question about the bigint a runtime will hold, measured on
+      every runtime the suite runs on, not an edit to one constant.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
       recording.** The set went out with ten scope records saying the shape
       under them "varies only in a count or a depth, which normalized layout
@@ -2504,6 +2516,26 @@ The steps, in order; a step is one pull request unless it says otherwise:
       a document that parses, so every column sees it and all three sets carry
       it. Each of the four texts was predicted from the rule and then compared
       with the writer.
+      **And the later slot of a hoisted body, for a share rather than a
+      spelling.** The rounds above put every kind and every spelling in a body's
+      first and later slots and left the one thing a body can also hold in only
+      its first: a reference. Measured across all four sets, every
+      shared-parent-shared-child input put the child in the parent's sole first
+      element or member, so a writer whose post-comma path inside a `const` body
+      inlines a reference emitted `const $0=[1];const $1=[0,[1]];export default
+      [$1,$1,$0];` for `[p,p,c]` with `p=[0,c]`, splitting the child, and passed
+      every set. Two vectors per set put the child in a later element and a later
+      member, and `const/shared/nested` loses the normalize reason that said a
+      nested share is a fact about naming rather than layout — true of the four
+      post-order vectors it named, and those four also put the child first.
+      **And the same question for a share behind `__proto__`.** Both vectors
+      under `key/proto/value/shared` reached the share through a *root* object,
+      while the hoisted proto objects held scalars, so a writer whose
+      hoisted-object emitter keeps the ordinary member's reference and inlines
+      the later computed one passed. Two vectors per set share a node across an
+      ordinary key and a computed one **inside** a hoisted body, computed first
+      and computed later. That is the third axis this position has now been
+      crossed with: the kind, the spelling, and the reference.
       **Then the adjacency shapes in the same slots**, which the round above
       said its free spellings covered and did not: a lone surrogate and a
       *valid* pair are both well-formed, so nothing malformed sat in a body.
