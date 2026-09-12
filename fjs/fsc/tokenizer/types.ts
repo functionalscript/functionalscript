@@ -16,7 +16,7 @@ import type {
     CommentToken,
     EofToken,
     TokenMetadata,
-} from '../../js/tokenizer/types.ts'
+} from '../../ebnf/lib/js/types.ts'
 
 /**
  * DJS-level token set: a narrower view of JsToken (only true/false/null/undefined survive

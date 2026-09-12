@@ -6,7 +6,8 @@ partly startable, and not first, which is the level and status its own issue
 carries.
 **Status:** wip — stages 1a, 2 and 3a done. **Stage 1b is what to pick up
 next**: it is P1 and gates stage 4, while stage 3b is P2 with its error shapes
-still undecided. Stage 5a, the rename, is done.
+still undecided. Stages 5a, the rename, and 5c, the tokenizer's types and
+helpers off the hand-written scanner, are done.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
@@ -101,9 +102,11 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    module's own public surface.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
-4. **Then stages 5–7**, in order, as listed below. Stage 5a, the code-only
-   rename of the front end to `fjs/fsc`, is done; 5b and 5c wait on nothing
-   else, and stage 6 waits on stage 4.
+4. **Then stages 5–7**, in order, as listed below. Within stage 5 the
+   order is not a dependency: 5b and 5c each wait on 5a alone, and 5c
+   landed first. So stages 5a, the code-only rename of the front end to
+   `fjs/fsc`, and 5c are done; 5b waits on nothing else, and stage 6 waits
+   on stage 4.
 
 **Already done, do not redo:** stage 1a (the DataJS specification), stage 2
 (the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
@@ -703,7 +706,11 @@ throughout.
    counted its proof, `todo/camel-case-proof-keys.md` and
    `todo/inline-type-casts.md`; and `fjs/AGENTS.md`, which names `fsc` as
    a worked example of the per-arrow `@template` shape the stub used and
-   the front end does not.
+   the front end does not. Every link and path naming a moved document or
+   module — the root `README.md`, `fjs/README.md`, `doc/DESIGN.md`,
+   `spec/README.md`, the `fjs/ebnf/**` issues, the issues staying in
+   `fjs/djs/todo/` — was rewritten in the same pull request, so no incoming
+   link broke.
    **Done**, as described.
 
    **5b. The syntax.** The terminator — `';'` **after each** statement,
@@ -734,10 +741,19 @@ throughout.
    one those two already follow: what one LL(1) layer cannot decide is split
    into layers, with a grammar transform between them, rather than
    hand-written around. The grammar layers stay in `fjs/ebnf/lib/js` for now.
-   Today the moved tokenizer still imports `isKeywordToken` and
-   `mergeTrivia`, and its token types, from the hand-written
-   `fjs/js/tokenizer`; this pull request replaces those with grammar layers
-   and drops the import, which is what stage 7 is waiting for.
+   **Done.** The front end's tokenizer was already the grammar plus a fold;
+   what it still took from the hand-written `fjs/js/tokenizer` was two
+   helpers and the token types. The helpers were a keyword lookup, which the
+   fold already had from `fjs/js/keywords`, and the trivia rule, which now
+   has one owner, the grammar module `fjs/ebnf/lib/js`, that both tokenizers
+   import rather than restate. The token vocabulary — `JsToken` and its
+   members, `TokenMetadata`, `TokenPosition`, `TriviaKind`, the error
+   messages — moved to [`fjs/ebnf/lib/js/types.ts`](../fjs/ebnf/lib/js/types.ts),
+   the grammar's, with the operator kinds derived from the grammar's own
+   `operators` list rather than spelled a second time; the hand-written
+   scanner and `fjs/media/json/tokenizer` read them from there. Nothing under
+   `fjs/fsc` imports `fjs/js/tokenizer` now, which is what stage 7 waits
+   for.
 6. **Compiler output** — the normalizer: data-only FunctionalScript (imports
    resolved and inlined) to normalized DataJS or JSON, with the subset-law
    proofs above. DataJS output is total; JSON output is permitted only when
@@ -818,10 +834,14 @@ throughout.
 - [ ] Stage 5b: reserved words and the special numbers, over the `;`
       termination the LL(1) port already landed; the breaking-change entry.
       File its todo under `fjs/fsc/todo/`.
-- [ ] Stage 5c: the front end's tokenizer as grammar layers in
-      `fjs/ebnf/lib/js`; the `fjs/js/tokenizer` import dropped.
-- [ ] After stage 4 is on `main`: move `fjs/djs/todo/` to `fjs/fsc/todo/`
-      and repoint every link into it.
+- [x] Stage 5c: the token vocabulary is the grammar's, in
+      `fjs/ebnf/lib/js/types.ts`; nothing under `fjs/fsc` imports
+      `fjs/js/tokenizer`.
+- [ ] After stage 4 is on `main`: move the front end's issues out of
+      `fjs/djs/todo/` into `fjs/fsc/todo/`, by subject — the serializer's,
+      such as `serializer-children-helper` and `json-bigint-serialization`,
+      stay beside `fjs/djs/serializer/` until stage 4 reworks it — and
+      repoint every link into them.
 - [ ] Stage 6: normalizer + subset-law proofs; file its todo.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
 - [ ] Update affected issues as their subject matter moves (see below).
