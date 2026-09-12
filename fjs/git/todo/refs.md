@@ -23,13 +23,26 @@ the step that resolves a DISOT name.
 ### Proposal
 
 Three files, all text, all delimiter-framed and so grammars over the byte
-alphabet like the objects:
+alphabet like the objects. The shapes below are the sketch this issue was
+written from, and each is looser in the reader than it reads here — so take
+[`fjs/git/ref`](../ref/module.f.mjs) as the specification and these lines as a
+map of which file is which:
 
-- `HEAD`, and any symbolic ref: `ref: <name> LF`, or a bare hex id.
-- `refs/<name>`: a hex id and LF, one file per loose ref.
+- `HEAD`, and any symbolic ref: `ref: <name>`, or a bare hex id. The LF is
+  optional, the whitespace around the name is free and includes LF, and a NUL
+  ends the name — except that whitespace immediately before a NUL is *not* the
+  free kind: the name keeps it and is then no ref name.
+- `refs/<name>`: a hex id, one file per loose ref. No terminator is needed;
+  one whitespace byte or a NUL after the id opens the rest of the file, and
+  nothing in it is read.
 - `packed-refs`: an optional `# pack-refs with:` header line, then
-  `<hex> SP <name> LF` per ref, a `^<hex>` line after a tag naming what it
-  points to.
+  `<hex> <sep> <name> LF` per ref, where `<sep>` is one of SP, TAB or CR and a
+  NUL ends the name; then a `^<hex>` line after a tag naming what it points
+  to. Every line ends in LF, including the last.
+
+Each of those looser rules is measured against Git 2.43.0 in that module's
+header and pinned in its proof, so an implementer of the remaining work should
+not add a precheck the readers would disagree with.
 
 Two functions over the effects:
 
@@ -52,7 +65,15 @@ Two functions over the effects:
   such line; the search peels through the object store either way.
 - `tryResolve(ref)`: the id one ref names — its loose file, or its
   `packed-refs` line where there is no loose file — a symbolic ref
-  followed to a bounded depth, or `null`. For plumbing that has a ref in hand —
+  followed to a bounded depth, or `null`.
+  Two names need reading specially here, and only here: `FETCH_HEAD` and
+  `MERGE_HEAD` may each hold more than one record, so Git reads them straight
+  from the file rather than through a ref backend. That makes a symbolic ref
+  pointing at either one resolve when the file exists and fail when it does
+  not, measured on Git 2.43.0, where `ORIG_HEAD` resolves either way. The
+  grammars cannot decide it, since it is a fact about the repository and not
+  about one file's bytes, so they accept both as targets and this function
+  owes the check. For plumbing that has a ref in hand —
   `HEAD` for a checkout, a ref a person typed at a command line — and
   for nothing that resolves a DISOT name.
 
@@ -60,15 +81,29 @@ A ref name that is no ref name is refused by the rules
 [`fjs/git/refname`](../refname/module.f.mjs) holds, which is where they now
 live: `fjs/git/tag` held them first, because a tag's `tag` header is a ref
 name and its reader was the first thing that had to judge one, and they are
-not a fact about tags. A symbolic ref's target needs one rule more, since
-Git wants a whole ref name there — `refs/` and then a name those rules take,
-stricter than `git check-ref-format`, which accepts `a/b`. Reading is through
-`readFile` and `readdir`; writing a ref, with the lock file Git takes, is a
-later task, and so is the reflog, which expires and is no retention.
+not a fact about tags. A `packed-refs` name and a symbolic ref's target each
+need one rule more, and it is the one that module's `isWholeName` holds: the
+name rule plus a refusal of `@` alone, which is
+`git check-ref-format --allow-onelevel`.
+
+One level is enough, and an earlier draft of this paragraph said otherwise —
+that a target must be `refs/` and then a name, stricter than
+`check-ref-format`. That was wrong, from measuring `HEAD` alone and reading
+its error as a refusal of the *name*. Writing `ref: a/b` into `.git/HEAD`
+makes Git stop treating the directory as a repository, which is a rule about
+what `HEAD` may say; the same target in `refs/heads/sym` resolves, and
+`git show-ref` reads a packed line naming `master` or `a/b`. So `refs/`
+belongs to a `HEAD` reader and not to these two, and a `roots` or
+`tryResolve` built on the old sentence would reinstate a restriction the
+grammars deliberately do not have.
+
+Reading is through `readFile` and `readdir`; writing a ref, with the lock
+file Git takes, is a later task, and so is the reflog, which expires and is
+no retention.
 
 ### Tasks
 
-- [ ] Grammars for the three files, and their readers.
+- [x] Grammars for the three files, and their readers.
 - [x] The ref-name rules shared with the tag module.
 - [ ] `roots` and `tryResolve`, over the effects, with the virtual
       filesystem as their proof.
