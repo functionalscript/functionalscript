@@ -55,10 +55,13 @@ never written as `null`.
 ### Tasks
 
 - [ ] Add/reuse a recursive conversion or validation from DJS `Unknown` to the
-      bigint-aware JSON value type; reject `undefined` at any depth.
+      bigint-aware JSON value type; reject `undefined`, `NaN`, `Infinity` and
+      `-Infinity` at any depth. The extended codec's `numberSerialize` writes a
+      non-finite number as `null`, so the validation must refuse the three
+      before the value reaches it, never let it substitute.
 - [ ] Make `.json` compilation report an error and not write JSON output when the
-      DJS result contains `undefined` as the root, an array element, or an object
-      property value.
+      DJS result contains `undefined`, `NaN`, `Infinity` or `-Infinity` as the
+      root, an array element, or an object property value.
 - [ ] Replace the DJS compiler's `.json` serialization path with the generic
       bigint-aware JSON serializer after successful validation.
 - [ ] Reuse/export the generic bigint-aware JSON parser where DJS needs to read
@@ -66,10 +69,11 @@ never written as `null`.
 - [ ] Add a proof that compiles a DJS value containing bigint to `*.json`, checks
       that the result is valid JSON syntax, and round-trips it through the
       bigint-aware JSON parser.
-- [ ] Add proof coverage that `.json` compilation rejects `undefined` at the root,
-      in an array, and in an object property.
-- [ ] Keep native DJS serialization unchanged (`123n` and `undefined` remain DJS
-      syntax).
+- [ ] Add proof coverage that `.json` compilation rejects `undefined`, `NaN`,
+      `Infinity` and `-Infinity`, each at the root, in an array, and in an
+      object property — and that `-0` is not rejected, since `-0` is JSON.
+- [ ] Keep native DJS serialization unchanged (`123n`, `undefined`, `NaN`,
+      `Infinity` and `-Infinity` remain DJS syntax).
 - [ ] Document the distinction between native DJS and bigint-aware JSON
       interchange in `fjs/fsc/README.md`.
 - [ ] `tsc`, `fjs test`.
