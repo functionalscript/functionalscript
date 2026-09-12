@@ -14,11 +14,11 @@ roles reads exactly like prose that mentions it in three.
 
 | role | sets | classes covered | not applicable | awaiting |
 | - | - | -: | -: | -: |
-| `reader` | `accept`, `reject` | 674 | 0 | 0 |
-| `serializer` | `serializer-accept`, `graph-equivalence` | 163 | 511 | 0 |
-| `normalize` | no set yet | 0 | 0 | 674 |
+| `reader` | `accept`, `reject` | 675 | 0 | 0 |
+| `serializer` | `serializer-accept`, `graph-equivalence` | 164 | 511 | 0 |
+| `normalize` | no set yet | 0 | 0 | 675 |
 
-674 classes.
+675 classes.
 
 | class | `reader` | `serializer` | `normalize` |
 | - | - | - | - |
@@ -474,6 +474,7 @@ roles reads exactly like prose that mentions it in three.
 | `object/key-order/non-index/space` | `object-key-order-non-index-space` | `ser-object-key-order-non-index-space` | *awaiting the set* |
 | `object/leading-comma` | `object-leading-comma` | not applicable, [note 1](#notes) | *awaiting the set* |
 | `object/members/every-value` | `object-members-every-value` | `ser-object-members-every-value` | *awaiting the set* |
+| `object/members/negative-first` | `object-members-negative-first-zero`, `object-members-negative-first-number`, `object-members-negative-first-bigint`, `object-members-negative-first-infinity` | `ser-object-members-negative-first-zero`, `ser-object-members-negative-first-number`, `ser-object-members-negative-first-bigint`, `ser-object-members-negative-first-infinity` | *awaiting the set* |
 | `object/nested/array` | `object-nested-array` | `ser-object-nested-array` | *awaiting the set* |
 | `object/nested/deep` | `object-nested-deep` | not applicable, [note 36](#notes) | *awaiting the set* |
 | `object/nested/empty` | `object-nested-empty` | not applicable, [note 38](#notes) | *awaiting the set* |

@@ -354,5 +354,9 @@ export default [
     {"id": "array-unshared-equal-object-parent", "class": "array/unshared/equal", "document": "export default {\"x\":[1],\"y\":[1]};", "graph": {"x": [1], "y": [1]}},
     {"id": "object-unshared-object-parent", "class": "object/unshared", "document": "export default {\"x\":{},\"y\":{}};", "graph": {"x": {}, "y": {}}},
     {"id": "object-unshared-equal-object-parent", "class": "object/unshared/equal", "document": "export default {\"x\":{\"a\":0},\"y\":{\"a\":0}};", "graph": {"x": {"a": 0}, "y": {"a": 0}}},
+    {"id": "object-members-negative-first-zero", "class": "object/members/negative-first", "document": "export default {\"a\":-0,\"b\":1};", "graph": {"a": -0, "b": 1}},
+    {"id": "object-members-negative-first-number", "class": "object/members/negative-first", "document": "export default {\"a\":-1,\"b\":1};", "graph": {"a": -1, "b": 1}},
+    {"id": "object-members-negative-first-bigint", "class": "object/members/negative-first", "document": "export default {\"a\":-1n,\"b\":1};", "graph": {"a": -1n, "b": 1}},
+    {"id": "object-members-negative-first-infinity", "class": "object/members/negative-first", "document": "export default {\"a\":-Infinity,\"b\":1};", "graph": {"a": -Infinity, "b": 1}},
     {"id": "byte-valid-widths", "class": "byte/valid/widths", "document": ["hex", "65 78 70 6f 72 74 20 64 65 66 61 75 6c 74 20 22 61 c3 a9 e2 82 ac f0 90 80 80 22 3b"], "graph": "a\u00e9\u20ac\ud800\udc00"}
 ];

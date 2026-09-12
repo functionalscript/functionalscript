@@ -1814,11 +1814,11 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 176 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 180 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 13 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
-      covering 163 of the 674 classes the corpus held then, with 47 scope
+      covering 164 of the 675 classes the corpus held then, with 47 scope
       records answering the 511 cells the serializer column owed; the normalize
       set below adds 50 classes and one `['set', 'normalize']` reason answers
       all of them.
@@ -1956,6 +1956,16 @@ The steps, in order; a step is one pull request unless it says otherwise:
       vector. The graph-equivalence records do not help, since a reader-only
       implementation never runs that role. Four accept vectors close it, all
       four corners at once this time.
+      **And the object twin of the first slot**, which the array round should
+      have taken with it. A first-*member* emitter avoiding a leading comma is
+      the same code shape as a first-element one, and no vector in any of the
+      three sets had a negative leaf as an object's first member — measured,
+      zero in all three. So `{"a":-0,"b":1}` could come out as
+      `{"a":0,"b":1}`, which `difference` sees through `Object.is` and nothing
+      caught. `object/members/negative-first` is a new class, with four
+      vectors per writer set and four in the accept set, so it lands answered
+      in every role that carries it and owes no reason at all. Container kind
+      was the third axis of a cross I had already crossed twice.
       Both had been fixed for the normalize column in the step above, which is
       the rule this file now states twice over and I applied to one column at a
       time anyway.
