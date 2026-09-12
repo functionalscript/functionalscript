@@ -6,9 +6,11 @@ and stage 4 is the deliverable
 calls the one everything else is waiting for.
 **Status:** wip — **the writer landed**, as
 [`fjs/media/datajs/serializer`](../serializer/module.f.mjs): `trySerialize`
-and `tryStringify` over the three passes of §1–§3, refusing everything the
-specification refuses, with every rule of §1 proved and the two worked
-examples of the hoisting and naming rules pinned. What remains is the
+and `tryStringify` over the three passes of §1–§3, with every rule of §1 proved
+and the two worked examples of the hoisting and naming rules pinned. It refuses
+everything the specification refuses but **one host-built shape** — the
+`Array.prototype` impostor of §4, which no FunctionalScript caller can construct
+and which closes with either of the two decisions §4 names. What remains is the
 corpus proofs (§4), the module's own `module.f.mjs`, and a readable layout
 if one is wanted (§3).
 **Blocked by:** nothing, for what is left of the implementation. What landed
@@ -423,8 +425,9 @@ than requiring anything either way, because the only way to build one is
 array. So there is no bug here to fix, and no vector to owe: a conformance set
 is a DataJS data module and cannot spell the value at all.
 
-**What that left behind is the other direction of the same mismatch, and it is
-§3.1's question rather than this module's.** Review found it and it is measured:
+**What that left behind is the other direction of the same mismatch, and here
+the specification does not give way — this module is measurably wrong.** Review
+found it and it is measured:
 `Object.create(Array.prototype, { length: { value: 0, enumerable: true } })` is
 not an array — `Array.isArray` is false — while `instanceof Array` is true, so
 `readNode` takes the array branch and `tryStringify` answers `export default
@@ -442,13 +445,31 @@ predicate that reads it, which is the spelling
 this realm's constructors, and calls `Array.isArray` "a longer one guarding
 against values this rule already excludes".
 
-The premise is what the impostor tests. It is built by this realm's
-constructors, but only through `Object.create` with a descriptor — not in the
-subset, the same family as `Object.setPrototypeOf` — so no FunctionalScript
-caller can hand this writer one. That is the whole of the reason this is not a
-bug to fix here, and it is a reason that belongs to §3.1: if §3.1 ever widens
-its premise to host-built values, `readNode` owes the `Array.isArray` check on
-the same day.
+§What may be serialized refuses the value under its first rule, as any other
+non-plain object, and it now says outright that a conforming serializer
+classifies arrays by the slot `Array.isArray` reads rather than by the prototype
+chain — because writing the impostor as its elements drops a member, which is
+the silent approximation that section exists to refuse. So this is a **known
+non-conformance**, not a case the format leaves open, and it is stated here
+rather than left to be rediscovered.
+
+What holds the fix is that §3.1's premise and the specification's rule point
+different ways, and reconciling them is not this file's to do. Two ways out,
+either of which closes it, and both the owner's:
+
+- **§3.1 permits `Array.isArray` at this one boundary.** Then `readNode` gains
+  one predicate and the impostor is refused as a non-plain object. The cost is a
+  stated exception to a rule whose rationale — one realm, one prototype chain —
+  does not cover a value built by `Object.create` under `Array.prototype`.
+- **This module's parameter narrows to the data model.** Then the impostor is not
+  a valid argument at all, `tsc` says so at the call, and the gap closes by
+  having no input to reach — which is the signature question above, and the
+  reason these two are one decision rather than two.
+
+Until one of them lands, the scope of the defect is exact: no FunctionalScript
+caller can build the value, because the subset has no `Object.create` with a
+descriptor, so only a host caller reaches it — and a host caller is what the
+`unknown` parameter admits and the data model would not.
 
 ### Tasks
 
@@ -476,14 +497,17 @@ the same day.
       path lands beside it — and the `parse` versus `tryParse` naming with it.
 - [ ] A readable layout as the second writer, if one is wanted, and
       `tryNormalize` as the name this one takes then (§Layout and API).
-- [ ] **Put the `Array.prototype` impostor to [`fjs/AGENTS.md`](../../../AGENTS.md)
-      §3.1's owner**, with the measurement in §4: an object created under
-      `Array.prototype` with an own `length` is written as its elements rather
-      than refused, and only `Array.isArray` — the spelling §3.1 forbids —
-      separates it from a frozen array, whose own descriptors are identical.
-      Nothing in the subset can build one, so this module owes no change while
-      §3.1's premise stands; what is owed is the question, once, in that rule's
-      file rather than in this one.
+- [ ] **Close the `Array.prototype` impostor**, a measured non-conformance
+      recorded in §4: an object created under `Array.prototype` with an own
+      `length` is written as its elements rather than refused as a non-plain
+      object, and only `Array.isArray` — the spelling
+      [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1 forbids — separates it from a
+      frozen array, whose own descriptors are identical. It closes either way:
+      §3.1 permits that predicate at this boundary, or the parameter narrows to
+      the data model and the input becomes impossible. Both are the owner's, and
+      the second is the signature question above, so this box and that one are
+      one decision. Only a host caller can reach the value, which is the scope
+      and not an excuse.
 - [ ] **Walk both passes on an explicit stack**, so that a document the
       reader accepts is one the writer can write: 2,600 nested arrays make
       `tryStringify` throw `RangeError` today, where it owes an `error` at

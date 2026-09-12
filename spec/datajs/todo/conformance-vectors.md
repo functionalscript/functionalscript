@@ -2708,11 +2708,21 @@ The steps, in order; a step is one pull request unless it says otherwise:
       reads it, which is exactly the spelling
       [`fjs/AGENTS.md`](../../../fjs/AGENTS.md) §3.1 does not allow. The value
       needs `Object.create` with a descriptor, an API the subset does not have,
-      so it is the same category as the two above and the section legislates it
-      no more than them; what it cost is the claim, not the decision. The
-      residue is a question for §3.1's owner and is recorded in
-      [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md),
-      with the measurement.
+      so nothing in this repository can build one — but it is **not** the same
+      category as the two above, and review was right to press the point. §What
+      may be serialized already refuses it under its first rule, as any other
+      non-plain object, and exempting it would make dropping a member conforming
+      behaviour. So the section does not exempt it: it now says a conforming
+      serializer classifies arrays by the slot `Array.isArray` reads rather than
+      by the prototype chain, which refuses the impostor and leaves the
+      `null`-prototype array on the free side.
+      That leaves this repository's writer measurably non-conforming for one
+      host-built input it cannot receive from a FunctionalScript caller, and the
+      two ways out are both the owner's: `fjs/AGENTS.md` §3.1 permits
+      `Array.isArray` here, or the writer's parameter narrows to the data model
+      and the input is not a valid argument at all — the signature question
+      decision 6 leaves open. Recorded, with the measurement, in
+      [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md).
       **And the corpus owes nothing, which the section now says itself — on the
       DataJS axis, not the FunctionalScript one.** A set is a *DataJS* data
       module, and DataJS has no functions, no `Symbol`, no `Date`, and no way to
@@ -2720,16 +2730,24 @@ The steps, in order; a step is one pull request unless it says otherwise:
       inputs to hand a serializer. FunctionalScript is not the bound and saying
       it was would be wrong: it adds functions, and the writer's own proof hands
       one to `tryStringify`. A *proof* is an ordinary FunctionalScript module,
-      and nine of the fourteen reach it as real values — a function, a symbol, a
-      `Date`, a `Map`, a `Set`, a boxed number, a non-plain prototype, a symbol
-      key and a hole. Four more name a condition no FunctionalScript value
-      carries, so the proof reads them where the rule lives: descriptors through
-      `_memberValue`, own names through `_elementNames`, the graph through
-      `_link`. The last three need `Object.setPrototypeOf`, a class or
-      `Object.freeze`, which the subset does not have — which is why the
-      fourteen measurements above are a scratch script rather than a landed
-      test, and why the section is a rule a host that *can* build them answers
-      in its own tests. Saying so in the specification is the whole of this
+      and it reaches the fourteen in four ways, which review had to correct
+      because the first arithmetic here summed to sixteen. **Five** arrive as
+      real values: a function, a symbol, a `Date`, a symbol key and a hole — and
+      four more values ride the `Date` rule rather than adding a case, since a
+      `Map`, a `Set`, a boxed number and `Object.create({ x: 1 })` are all "any
+      other non-plain object". **Four** name a condition no FunctionalScript
+      value carries — an accessor, a non-enumerable property, an own property on
+      an array besides its elements, and a cycle — so the proof reads them where
+      the rule lives: descriptors through `_memberValue`, own names through
+      `_elementNames`, the graph through `_link`. **One** accept, a
+      `null`-prototype object, the proof takes directly. The remaining **four**
+      accepts — an `Array` subclass, a frozen object, a frozen array and a
+      `null`-prototype array — need a class, `Object.freeze` or
+      `Object.setPrototypeOf`, none of which the subset has. Five and four are
+      the nine refusals, one and four the five accepts, and the last four are why
+      the measurements above are a scratch script rather than a landed test, and
+      why the section is a rule a host that *can* build them answers in its own
+      tests. Saying so in the specification is the whole of this
       step: the alternative was a set of vectors that cannot be written and a
       reader of the section left to guess why none exists.
 - [x] **The checks the data model does not need, removed.** `difference` in
