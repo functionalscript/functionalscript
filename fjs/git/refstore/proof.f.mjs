@@ -19,7 +19,7 @@ import { codePointListToString, stringToCodePointList } from '../../text/utf16/m
 import { msb, u8ListToVec } from '../../types/bit_vec/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { error } from '../../types/result/module.f.mjs'
-import { toHex, tryFromHex } from '../oid/module.f.mjs'
+import { toHex } from '../oid/module.f.mjs'
 import { latin1 } from '../testlib.f.mjs'
 import { maxLookups, tryResolve, tryRoots } from './module.f.mjs'
 
@@ -402,5 +402,29 @@ export const proof = {
             sameRoots(run(root, tryRoots('', 20)), [['refs/heads/dup', second]])
             assertEq(hexOf(root, 'refs/heads/dup'), second)
         }
+    },
+    // A ref name is bytes, and Git takes any byte the name rule allows with no
+    // encoding requirement: measured on Git 2.43.0, `check-ref-format` accepts
+    // `refs/heads/` + 0x80, and `show-ref` and `rev-parse` both handle it. Such
+    // a name can only reach a `packed-refs` line here, because a path is text to
+    // this host — node hands back U+FFFD for that byte and a read of the decoded
+    // string answers `ENOENT`, measured. So the packed line is the only answer
+    // available, and refusing would call a ref `tryRoots` lists absent. What
+    // that costs is in `todo/byte-ref-names.md`.
+    byteName: () => {
+        const root = { 'packed-refs': file(`${a} refs/heads/\x80\n`), refs: {} }
+        const name = [...latin1('refs/heads/'), 0x80]
+        const i = resolvedIn('', root, name)
+        assert(i !== null)
+        assertEq(codePointListToString(toHex(i)), a)
+        // The listing carries the same ref, which is the consistency this is
+        // about. Asserted by bytes rather than through `sameRoots`, because
+        // that helper renders a name as UTF-8 text and this name is none —
+        // which is the whole reason `tryResolve` cannot build a path for it.
+        const rs = run(root, tryRoots('', 20))
+        assert(rs !== null)
+        assertEq(rs.length, 1)
+        assertStructurallySame(toArray(rs[0].name), name)
+        assertEq(codePointListToString(toHex(rs[0].id)), a)
     },
 }

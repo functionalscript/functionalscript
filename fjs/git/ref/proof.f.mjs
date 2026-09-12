@@ -289,6 +289,36 @@ export const proof = {
         assertEq(ref(latin1('ref:\0refs/heads/master\n')), null)
         assertEq(packed(latin1(`${a}\0refs/heads/master\n`)), null)
     },
+    // Whitespace before a NUL is not the whitespace that ends a target. Git
+    // trims whitespace off the end of what it read and cuts the target at the
+    // first NUL only afterwards, so the trailing run survives and the name
+    // carries it. Measured on Git 2.43.0 with `symbolic-ref --no-recurse`,
+    // which prints the target without resolving it: the target of
+    // `ref: refs/heads/master` SP NUL is `refs/heads/master` SP, and
+    // `git check-ref-format 'refs/heads/master '` refuses that, so the file is
+    // `No such ref` rather than a ref at `refs/heads/master`.
+    nulAfterSpace: () => {
+        for (const w of [' ', '\t', '\r', '\n', '  ']) {
+            assertEq(ref(latin1(`ref: refs/heads/master${w}\0`)), null)
+            assertEq(ref(latin1(`ref: refs/heads/master${w}\0junk`)), null)
+        }
+        // Whitespace on the *other* side of the NUL is the trimmed kind, so
+        // these still resolve — the rule is the order of the two steps and
+        // not the presence of a space.
+        for (const file of [
+            'ref: refs/heads/master\0 ',
+            'ref: refs/heads/master\0junk \n',
+            'ref: refs/heads/master \n',
+        ]) {
+            const r = ref(latin1(file))
+            assert(r !== null && r.kind === 'symbolic', file)
+            assertEq(codePointListToString(r.target), 'refs/heads/master')
+        }
+        // `packed-refs` needs no rule of its own here: its name runs to the
+        // NUL, so it already carries that whitespace and is already refused.
+        // Measured: `show-ref` answers `bad ref refs/heads/p ` for this file.
+        assertEq(packed(latin1(`${a} refs/heads/p \0junk\n`)), null)
+    },
     throw: {
         // A value that is no byte is a caller's bug, as it is for a ref
         // name, and the same `byteArray` refuses it.

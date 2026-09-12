@@ -55,6 +55,16 @@
  * listing and the lookup would disagree about one ref, each right about its
  * own half.
  *
+ * The join is lossless only for a name that *is* UTF-8, and Git requires no
+ * such thing: `refs/heads/\x80` is a name `git check-ref-format` accepts and
+ * `rev-parse` resolves, measured. Such a name can only arrive here in a
+ * `packed-refs` line, which never becomes a path, and both halves answer it —
+ * but a *loose* file of that name is unreachable, because node hands back
+ * U+FFFD for the byte and a read of the decoded string is `ENOENT`. What that
+ * costs each half is measured in
+ * [`todo/byte-ref-names.md`](./todo/byte-ref-names.md); the fix is a path API
+ * that speaks bytes and belongs to the effects, not here.
+ *
  * **`HEAD`'s target must sit under `refs/`, and it is the only name with such
  * a rule.** Measured: with `.git/HEAD` holding `ref: a/b` and `.git/a/b`
  * holding a valid id, each of `git rev-parse HEAD`,
@@ -80,6 +90,7 @@
  * @import { Bytes, Oid, OidBytes } from '../types.ts'
  * @import { PackedRef } from '../ref/types.ts'
  * @import { Root } from './types.ts'
+ * @import { _Entry, _Found, _Walked } from './private.ts'
  */
 
 import { catchStep, mapStep, pureError, pureOk, step, walkStep } from '../../effects/module.f.mjs'
@@ -213,6 +224,17 @@ const isUnderRefs = name => nameText(name)?.startsWith(refsPrefix) === true
  * UTF-8 name no file node could have handed us, so they answer `null` rather
  * than a path built from replacement characters.
  *
+ * `null` means *there is no loose file to ask about*, not that the name is bad.
+ * A ref name is bytes and Git takes any byte the name rule allows —
+ * `git check-ref-format refs/heads/\x80` is accepted, and `show-ref` and
+ * `rev-parse` both handle such a ref, measured — so a `packed-refs` line may
+ * carry one and `tryRoots` lists it. What cannot carry one is this host's path:
+ * node reads a directory entry as UTF-8 with replacement, so the same byte
+ * comes back as U+FFFD and a `readFile` of that string answers `ENOENT`,
+ * measured. So for such a name the packed line is the only answer the host can
+ * give, and [`todo/byte-ref-names.md`](./todo/byte-ref-names.md) records what
+ * that costs.
+ *
  * @type {(name: readonly number[]) => Nullable<string>}
  */
 const nameText = name => fromVec(toVec(name))
@@ -247,7 +269,13 @@ const resolveWith = (dir, oidBytes, packed) => {
         // looks like an id.
         if (!isWholeName(dense)) { return pureOk(null) }
         const text = nameText(dense)
-        if (text === null) { return pureOk(null) }
+        // No path can name this ref's loose file — not because the name is bad
+        // but because this host spells a path as text. A loose file of such a
+        // name is unreachable through `readFile` either way, so it is absent as
+        // far as this API can see, and the rule for an absent loose file is the
+        // packed line. Refusing here instead would call a packed ref that
+        // `tryRoots` lists absent. See {@link nameText}.
+        if (text === null) { return pureOk(packedId(packed, name)) }
         return step(tryBytes(under(dir, text)), bytes => {
             if (bytes === null) { return pureOk(special.includes(text) ? null : packedId(packed, name)) }
             const r = readRef(bytes)
@@ -299,55 +327,10 @@ export const tryResolve = (dir, oidBytes) => name =>
             ? pureOk(null)
             : resolveWith(dir, oidBytes, packed)(name, maxLookups))
 
-/**
- * One entry of the walk of `refs/`: where the file is, the ref name it would
- * be, and whether to descend into it.
- *
- * The name is carried down beside the path rather than recovered from it
- * afterwards. A path and a ref name are spelled differently — the path is
- * the host's and may hold either separator, the name is always `/` — so
- * deriving one from the other means undoing a join, and carrying both costs
- * a field.
- *
- * @typedef {{
- *   readonly path: string
- *   readonly name: string
- *   readonly isDirectory: boolean
- * }} Entry
- */
-
-/**
- * What the walk of `refs/` has found so far: the roots, and every ref name it
- * has seen a loose file for.
- *
- * The names are kept apart from the roots because shadowing is by the file
- * existing and not by it yielding a root. A loose symbolic ref whose target is
- * nowhere gives no root, and it must still hide the packed line of the same
- * name — otherwise a name whose loose file replaced a packed one comes back
- * with the stale packed id, which is the opposite of what the loose file says.
- *
- * @typedef {{
- *   readonly roots: readonly Root[]
- *   readonly names: readonly (readonly number[])[]
- * }} Found
- */
-
-/**
- * What one step of the walk answers: what has been found so far, and the
- * entries to walk next.
- *
- * Named because the branches below build it from different shapes — a
- * directory adds entries and no roots, a ref adds a root and no entries —
- * and without one name for the pair each branch infers its own literal type
- * and none of them unify.
- *
- * @typedef {readonly[Nullable<Found>, Nullable<readonly Entry[]>]} Walked
- */
-
-/** @type {(state: Nullable<Found>, items: Nullable<readonly Entry[]>) => Walked} */
+/** @type {(state: Nullable<_Found>, items: Nullable<readonly _Entry[]>) => _Walked} */
 const walked = (state, items) => [state, items]
 
-/** @type {(parent: Entry) => (d: Dirent) => Entry} */
+/** @type {(parent: _Entry) => (d: Dirent) => _Entry} */
 const childOf = parent => d => ({
     path: under(parent.path, d.name),
     name: `${parent.name}/${d.name}`,
@@ -369,7 +352,7 @@ const childOf = parent => d => ({
  * been told the file is there, so a read that cannot find it is a race or a
  * broken host rather than an absence, and the channel is where that belongs.
  *
- * @type {(dir: string, oidBytes: OidBytes, packed: readonly PackedRef[]) => (item: Entry) => (state: Nullable<Found>) => Effect<Readdir | ReadFile, Walked, IoChannel>}
+ * @type {(dir: string, oidBytes: OidBytes, packed: readonly PackedRef[]) => (item: _Entry) => (state: Nullable<_Found>) => Effect<Readdir | ReadFile, _Walked, IoChannel>}
  */
 const looseOf = (dir, oidBytes, packed) => {
     const readRef = tryRef(oidBytes)
@@ -387,7 +370,7 @@ const looseOf = (dir, oidBytes, packed) => {
         // the name is recorded whatever the file turns out to hold, because
         // that is what shadows the packed line
         const names = [...found.names, name]
-        /** @type {(bytes: Bytes) => Effect<ReadFile, Walked, IoChannel>} */
+        /** @type {(bytes: Bytes) => Effect<ReadFile, _Walked, IoChannel>} */
         const cont = bytes => {
             const r = readRef(bytes)
             if (r === null) { return pureOk(walked(null, null)) }
@@ -406,13 +389,13 @@ const looseOf = (dir, oidBytes, packed) => {
  * The roots the walk found, then the packed lines nothing hides.
  *
  * A packed line is dropped for either of two reasons. A loose file of the same
- * name hides it, by existing — see {@link Found}. And a *later* packed line of
+ * name hides it, by existing — see {@link _Found}. And a *later* packed line of
  * the same name hides it, because a file may name a ref twice and Git takes
  * the last: measured on Git 2.43.0, `git show-ref` lists both lines and
  * `git rev-parse` answers the last, in either order. Keeping both would break
  * the one-entry-per-name this function promises.
  *
- * @type {(found: Found, packed: readonly PackedRef[]) => readonly Root[]}
+ * @type {(found: _Found, packed: readonly PackedRef[]) => readonly Root[]}
  */
 const combine = (found, packed) => [
     ...found.roots,
@@ -468,9 +451,9 @@ const combine = (found, packed) => [
 export const tryRoots = (dir, oidBytes) =>
     step(tryPackedRefs(dir, oidBytes), packed => {
         if (packed === null) { return pureOk(null) }
-        /** @type {Entry} */
+        /** @type {_Entry} */
         const start = { path: under(dir, 'refs'), name: 'refs', isDirectory: true }
-        /** @type {Nullable<Found>} */
+        /** @type {Nullable<_Found>} */
         const init = { roots: [], names: [] }
         return mapStep(
             walkStep(pureOk([start]), init, looseOf(dir, oidBytes, packed)),

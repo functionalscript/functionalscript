@@ -168,10 +168,19 @@ const largeOffsetFlag = 0x80000000
  * question for a reader of the pack and not for the lookup, and keeping them
  * here would be data with no consumer.
  *
- * The count of 8-byte offsets is not stored anywhere: Git derives it from the
- * file's length, and so does this. That is why the length check is exact
- * rather than a lower bound — it is the only thing that says how long that
- * table is.
+ * The count of 8-byte offsets is not stored anywhere. Git derives it from the
+ * file's length alone and indexes into whatever that leaves, which is not
+ * enough: with every 4-byte offset's high bit clear, an extra eight bytes
+ * before the checksums still divides evenly, so the file reads and the table is
+ * a block longer than anything refers to. That block is not idle — it turns an
+ * index *past* the table, which the length alone would have refused, into one
+ * inside it, and the garbage there reads as an offset. So the count is checked
+ * against the words that name it: the table holds exactly as many entries as
+ * the largest index needs and none spare, which is what Git writes. A file
+ * whose table is longer is one Git would read and this refuses, the trade
+ * [DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)
+ * settles that way, and the exact length check is still what says where the
+ * table ends.
  *
  * @type {(b: readonly number[], oidBytes: OidBytes) => Nullable<Idx>}
  */
@@ -187,14 +196,18 @@ const tryV2 = (b, oidBytes) => {
     if (largeBytes < 0 || largeBytes % 8 !== 0) { return null }
     const large = largeBytes / 8
     if (!fanoutAgrees(b, fanoutAt, idsAt, width, n, width)) { return null }
-    /** @type {(i: number) => Nullable<number>} */
-    const offsetOf = i => {
-        const word = u32(b, offsetsAt + i * 4)
-        if (word < largeOffsetFlag) { return word }
-        const at = word - largeOffsetFlag
-        return at < large ? u64(b, largeAt + at * 8) : null
-    }
-    const offsets = Array.from({ length: n }, (_, i) => offsetOf(i))
+    /** The 4-byte offset words, each either an offset or an index into the table. */
+    const words = Array.from({ length: n }, (_, i) => u32(b, offsetsAt + i * 4))
+    /** The largest index the words name, or `-1` where none of them names one. */
+    const highest = words.reduce(
+        (m, w) => w < largeOffsetFlag ? m : Math.max(m, w - largeOffsetFlag),
+        -1)
+    // The table is exactly long enough for that index and no longer. This is
+    // also what refuses an index past the table, which needs no check of its
+    // own once the table's length is the one the words ask for.
+    if (large !== highest + 1) { return null }
+    const offsets = words.map(w =>
+        w < largeOffsetFlag ? w : u64(b, largeAt + (w - largeOffsetFlag) * 8))
     if (!offsets.every(o => o !== null)) { return null }
     return {
         oidBytes,

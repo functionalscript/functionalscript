@@ -29,7 +29,10 @@
  *
  * **A NUL ends a field in all three.** Git reads a ref file's contents and a
  * ref name as C strings, so the first NUL ends them — see {@link nul} for the
- * rows, including the two that show it is neither whitespace nor a separator.
+ * rows, including the two that show it is neither whitespace nor a separator,
+ * and the one that shows it does not commute with the trimming of trailing
+ * whitespace: a space before a NUL stays in the field and makes it no ref
+ * name, where the same space at the end of the file is trimmed.
  *
  * A hex id is read case-insensitively, which is Git's reading and this
  * repository's: a loose ref holding an id in upper case resolves, and
@@ -87,6 +90,13 @@ const space = set(' \t\r\n')
  *
  * In `packed-refs` it ends the *name* and not the file: a second line after a
  * line holding one is still read, measured.
+ *
+ * It also does not commute with the trimming of trailing whitespace, which is
+ * a rule about the order of two steps rather than about either byte:
+ * whitespace immediately before a NUL stays in the field and makes it no ref
+ * name, where the same whitespace at the end of the file is trimmed away. See
+ * {@link targetOf}, and `entryRule`, whose name runs to the NUL and so carries
+ * that whitespace already.
  */
 const nul = set('\0')
 
@@ -164,7 +174,9 @@ export const tryLoose = oidBytes => {
 
 /**
  * A symbolic ref: the keyword, whatever whitespace follows it, the target
- * name, and whatever whitespace ends the line.
+ * name, and whatever whitespace ends the line — which the target keeps when a
+ * NUL follows it rather than the file's end, so what the target *is* is
+ * {@link targetOf}'s and not this rule's alone.
  *
  * The keyword is case-sensitive and the whitespace around the target is
  * free on both sides, {@link space} included — so an LF between `ref:` and
@@ -178,6 +190,11 @@ export const tryLoose = oidBytes => {
  * What ends it is whitespace or the file, and nothing else: `ref: <n>` LF
  * `junk` LF is `No such ref`. That is the one place a symbolic ref is
  * stricter than a loose ref, which ignores exactly such a second line.
+ *
+ * The whitespace is free on both sides with one exception, which is why the
+ * trailing run is a part of the tree a reader looks at rather than one it
+ * skips: whitespace between the target and a NUL belongs to the target. See
+ * {@link targetOf} for the measurements.
  */
 const symbolicRule = /** @type {const} */ ([
     'ref:',
@@ -189,6 +206,37 @@ const symbolicRule = /** @type {const} */ ([
 ])
 
 const parseSymbolic = byteParser(symbolicRule)
+
+/**
+ * The bytes of a symbolic ref's target, which is not always the run of
+ * non-whitespace {@link symbolicRule} matched.
+ *
+ * Whitespace ends the target where the *file* ends and does not where a NUL
+ * does. Git reads the file, trims whitespace off the end of what it read, and
+ * cuts the target at the first NUL only afterwards — so a trailing space is
+ * gone when it sits at the end of the file and is still there when a NUL sits
+ * after it. Measured on Git 2.43.0 with `symbolic-ref --no-recurse`, which
+ * prints the target without resolving it:
+ *
+ * | file | target |
+ * | --- | --- |
+ * | `ref: refs/heads/master` SP LF | `refs/heads/master` |
+ * | `ref: refs/heads/master` NUL | `refs/heads/master` |
+ * | `ref: refs/heads/master` NUL SP | `refs/heads/master` |
+ * | `ref: refs/heads/master` SP NUL | `refs/heads/master` SP |
+ * | `ref: refs/heads/master` TAB NUL | `refs/heads/master` TAB |
+ *
+ * The last two are refused, and by the ref-name rule rather than by one of
+ * their own: `git check-ref-format 'refs/heads/master '` refuses it. So the
+ * whitespace goes to {@link isWholeName} rather than being dropped, which is
+ * what keeps this from answering a target Git does not have — and it is why
+ * the reader decides this and not the grammar, which cannot see a NUL coming
+ * while it is reading the whitespace.
+ *
+ * @type {(s: Ast<typeof symbolicRule, Byte>) => readonly number[]}
+ */
+const targetOf = ([, , word, trailing, terminated]) =>
+    symbolsOf(terminated.length === 0 ? word : [...word, ...trailing])
 
 /**
  * What a ref file holds: the ref another one names, or the id this one
@@ -246,8 +294,8 @@ export const tryRef = oidBytes => {
         const bs = byteArray(input)
         const r = parseSymbolic(symbols(bs))
         if (r[0] !== 'error') {
-            const [[, , target]] = r[1]
-            const name = byteArray(symbolsOf(target))
+            const [ast] = r[1]
+            const name = byteArray(targetOf(ast))
             return isWholeName(name) ? { kind: 'symbolic', target: name } : null
         }
         const id = loose(bs)
