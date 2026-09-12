@@ -236,6 +236,14 @@ const endsInSeparator = dir => {
  * make `\\/name`, which reads back as the *ordinary* root — the very move
  * this exists to prevent, and in the other direction for a single `\`.
  *
+ * That reading is Windows-shaped, and on POSIX a backslash is an ordinary
+ * filename byte, so a directory really called `a\` is one this module cannot
+ * name: `a\`, `a\/name` and `a\name` are one path to every function here,
+ * not to this one alone. The limitation belongs to {@link toPosix} being
+ * unconditional rather than to the join, and
+ * [`todo/posix-backslash-names.md`](./todo/posix-backslash-names.md) has the
+ * measurements and why a host is an argument rather than a guess.
+ *
  * A bare drive is not handled, because it cannot be: `C:` names the current
  * directory on drive C to Windows and a directory called `C:` to POSIX, so
  * `C:name` and `C:/name` are each right on one host. A caller that can be
