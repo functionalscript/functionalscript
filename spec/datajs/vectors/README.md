@@ -35,9 +35,19 @@ implementation.
 | - | - | - | - |
 | reader accept | `accept/` | `Accept` | the reader, as the set lands |
 | reader reject | `reject/` | `Reject` | the reader, as the set lands |
-| serializer accept | `serializer-accept/` | `SerializerAccept` | the serializer, when it lands |
-| graph equivalence | `graph-equivalence/` | `GraphEquivalence` | the serializer, when it lands |
-| normalize | `normalize/` | `Normalize` | the normalized serializer, when it lands |
+| serializer accept | `serializer-accept/` | `SerializerAccept` | the serializer |
+| graph equivalence | `graph-equivalence/` | `GraphEquivalence` | the serializer |
+| normalize | `normalize/` | `Normalize` | the normalized serializer |
+
+The writer has landed, so those three name an implementation that exists
+rather than one to come. What each set's own `proof.f.mjs` does is narrower
+than the column: it proves the set's shape, and for graph equivalence also
+that every `denotes` claim is true and every `denotesNot` one false, read
+back through the reader. Nothing here runs a set against the writer: the
+`normalize` set, which lands in the step above and whose proof does run it
+over every vector, is not in this tree yet, and `serializer-accept` and
+`graph-equivalence` have no such proof at all, so a harness is what closes
+those two.
 
 One directory holds no vectors: `not-applicable/` carries the reasons the
 matrix below needs. A record answers a **scope** rather than a single cell —
@@ -87,7 +97,12 @@ vector, the only kind that catches a reader delegating to the host; a
 
 **An expected graph** is a value of the data model, and sharing is part of
 it: `[$a, $a]` with one `const` is one node reached twice, and `[[], []]`
-is two nodes. A proof compares the graph an implementation produced with
+is two nodes. **One shared node has no vector in any role**: an empty array,
+which no set can bind — `const $e = [];` is an evolving `any[]` `tsc` refuses
+every read of — so a writer that expands one shared empty array into two passes
+the corpus. The limitation is
+[an issue of its own](./todo/shared-empty-array.md); the empty object shares
+normally. A proof compares the graph an implementation produced with
 `difference` in
 [`fjs/media/datajs/vectors/module.f.mjs`](../../../fjs/media/datajs/vectors/module.f.mjs):
 leaves by `Object.is`, so that `-0` and `0` differ and `NaN` is itself;
@@ -113,9 +128,11 @@ property, a symbol key, an array carrying an extra own property, a cycle, a
 `null` prototype, an `Array` subclass and a frozen value reach no serializer
 in any case. A vector for an input no caller can construct can never run.
 
-**Normalized bytes** are the document as a string; a proof encodes it to
-compare bytes, and every string the normalized serializer emits is a valid
-document, so the accept grammar binds it.
+**Normalized bytes** are the document as a string, and the set's proof
+compares that string against what the shipped writer emits rather than
+encoding either to bytes, since two strings agreeing is the stronger claim
+and code units are what the record can carry. Every string the normalized
+serializer emits is a valid document, so the accept grammar binds it.
 
 ## The class-by-role matrix
 
@@ -124,8 +141,11 @@ it is current or the build is red. Rows are the classes, columns the three
 roles a conforming implementation may have — reader, serializer,
 normalize, since conformance is per role and a serializer-only
 implementation never runs a reader or a normalize vector. A cell is the
-vector ids that role has for that class, the reason it owes none, or a
-role whose sets have not landed.
+vector ids that role has for that class, a reference to the note saying why
+it owes none, or a role whose sets have not landed. The notes are listed
+once below the table, because one reason answers hundreds of cells and
+printing it in each would be the same sentence several hundred times over —
+unreadable, and past the bit vector's `maxLengthBytes` unwritable.
 
 **An empty cell with no reason fails the generator**, which is the whole
 point of generating it: prose that mentions a class in two roles reads

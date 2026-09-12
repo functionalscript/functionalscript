@@ -573,10 +573,10 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 ### Related
 
-- [`../transpiler/module.f.mjs`](../../fsc/transpiler/module.f.mjs) — currently loads imports
+- [`fjs/fsc/transpiler/module.f.mjs`](../../fsc/transpiler/module.f.mjs) — currently loads imports
   recursively before calling `run(module[1])(args)`; keep its value-producing public
   contract until EDAG interpretation is integrated.
-- [`../parser/module.f.mjs`](../../fsc/parser/module.f.mjs) — DJS parser that must support the
+- [`fjs/fsc/parser/module.f.mjs`](../../fsc/parser/module.f.mjs) — DJS parser that must support the
   chosen special-number `.f.js` spellings.
 - [`../serializer/module.f.mjs`](../serializer/module.f.mjs) — DJS serializer where
   special-number handling belongs.
@@ -587,9 +587,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
   — existing owner of the standard FunctionalScript JSON policy for `-0`, `NaN`, and
   infinities.
 - [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md) — existing JSON/DJS parser/serializer deduplication task.
-- [`../ast/types.ts`](../../fsc/ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
+- [`fjs/fsc/ast/types.ts`](../../fsc/ast/types.ts) — current `AstModule`/`AstBody`, `aref`, `cref`,
   and plain-object representation to replace.
-- [`../ast/module.f.mjs`](../../fsc/ast/module.f.mjs) — current sequential AST evaluator.
+- [`fjs/fsc/ast/module.f.mjs`](../../fsc/ast/module.f.mjs) — current sequential AST evaluator.
 - [`cache-compiled-modules.md`](./cache-compiled-modules.md) — lower-priority
   persistence/incremental-compilation task for `.fjs/unresolved/{hash}.f.js`.
 - [`interpret-edag.md`](./interpret-edag.md) — separate baseline direct-interpreter
