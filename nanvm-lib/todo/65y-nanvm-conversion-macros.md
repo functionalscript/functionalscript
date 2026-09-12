@@ -182,7 +182,7 @@ What it costs:
 
 The natural endpoint of C, if it pays off: write a small
 FunctionalScript program that consumes the variant table and emits
-Rust source. `fjs/djs/transpiler` already turns DJS into JS; a
+Rust source. `fjs/fsc/transpiler` already turns DJS into JS; a
 parallel Rust emitter would let the variant table live in
 `fjs/nanvm/conversions.f.mjs` (or similar) as plain data, with the
 emitter as the only Rust-aware piece. This is large enough that it

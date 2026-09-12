@@ -1,12 +1,12 @@
 /**
- * Type-level API for `fjs/djs/ast/module.f.mjs`: the AST shape `run`
+ * Type-level API for `fjs/fsc/ast/module.f.mjs`: the AST shape `run`
  * evaluates — `AstModule`, `AstConst`, `AstModuleRef`, `AstArray`,
  * `AstObject`, and `AstBody`.
  *
  * @module
  */
 
-import type { Primitive } from '../types.ts'
+import type { Primitive } from '../../djs/types.ts'
 
 /**
  * A parsed DJS module: its imported module specifiers, in source order, and

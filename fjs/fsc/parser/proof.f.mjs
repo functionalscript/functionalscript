@@ -7,7 +7,7 @@ import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 import { stringToList } from '../../text/utf16/module.f.mjs'
-import { stringifyAsTree } from '../serializer/module.f.mjs'
+import { stringifyAsTree } from '../../djs/serializer/module.f.mjs'
 import { stringify } from '../../media/json/module.f.mjs'
 import { assert, assertEq, assertStructurallySame } from '../../asserts/module.f.mjs'
 

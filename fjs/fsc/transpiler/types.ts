@@ -4,7 +4,7 @@
  * @module
  */
 
-import type { Unknown } from '../types.ts'
+import type { Unknown } from '../../djs/types.ts'
 import type { List } from '../../types/list/types.ts'
 import type { OrderedMap } from '../../types/ordered_map/types.ts'
 

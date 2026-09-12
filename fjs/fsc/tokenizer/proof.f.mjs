@@ -8,7 +8,7 @@ import { parser } from '../../ebnf/ll1/module.f.mjs'
 import { token as ebnfToken } from '../../ebnf/lib/js/module.f.mjs'
 import { tokenizeString, tokenizeJs, tokenize } from './module.f.mjs'
 import { assert, assertEq } from '../../asserts/module.f.mjs'
-import { stringifyAsTree } from '../serializer/module.f.mjs'
+import { stringifyAsTree } from '../../djs/serializer/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
 
 // DjsTokenWithMetadata carries bigint fields (bf, bigint value) that JSON.stringify can't

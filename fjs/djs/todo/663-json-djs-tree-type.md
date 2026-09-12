@@ -54,7 +54,7 @@ export type Array = Tree.Array<Primitive>
 ```
 
 ```ts
-// fjs/djs/module.f.mjs
+// fjs/fsc/module.f.mjs
 import type * as Tree from '../media/json/common/module.f.mjs'
 import type { Primitive as JsonPrimitive } from '../media/json/types.ts'
 export type Primitive = JsonPrimitive | bigint | undefined

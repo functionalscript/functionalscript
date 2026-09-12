@@ -24,8 +24,8 @@ shaped `Q`:
 | Site | Cast |
 | --- | --- |
 | `fjs/cas/module.f.mjs:348` | `(v: Vec) => Effect<Rm, IoResult<Vec>>` |
-| `fjs/djs/module.f.mjs:41` | `(result: Result<Unknown, ParseError>) => Effect<_CompileOp, number>` |
-| `fjs/djs/transpiler/module.f.mjs:103` | `(context: ParseContext) => Effect<ReadFile, Result<Unknown, ParseError>>` |
+| `fjs/fsc/module.f.mjs:41` | `(result: Result<Unknown, ParseError>) => Effect<_CompileOp, number>` |
+| `fjs/fsc/transpiler/module.f.mjs:103` | `(context: ParseContext) => Effect<ReadFile, Result<Unknown, ParseError>>` |
 | `fjs/effects/proof.f.mjs:85` | `(value: number) => Effect<never, Result<number, string>>` |
 | `fjs/emergent_testing/proof.f.mjs:448` | `Effect<_RegisterMockOps \| Readdir \| Import, number>` |
 

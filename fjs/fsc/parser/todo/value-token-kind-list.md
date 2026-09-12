@@ -8,9 +8,9 @@
 One fact — "these seven kinds are the token-shaped values" — lives in two
 unlinked places across the parser:
 
-- `fjs/djs/parser/grammar/module.f.mjs` — the `primitive` grammar variant
+- `fjs/fsc/parser/grammar/module.f.mjs` — the `primitive` grammar variant
   (`null/true/false/undefined/number/string/bigint`, each as `sym(...)`);
-- `fjs/djs/parser/module.f.mjs` — `primitiveOf`, a seven-arm `switch` over
+- `fjs/fsc/parser/module.f.mjs` — `primitiveOf`, a seven-arm `switch` over
   the variant's branch tags.
 
 The switch is typed from the variant, so a branch removed from the grammar

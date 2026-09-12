@@ -8,7 +8,7 @@
 Nothing needs it. The only consumer was
 [utf8-token-symbols](../../token_symbol/todo/utf8-token-symbols.md), which
 needed room to derive a token symbol from the name's own bytes; that is on
-hold too, and [the DJS parser](../../../djs/parser/README.md) uses the
+hold too, and [the DJS parser](../../../fsc/parser/README.md) uses the
 shipped [`token_symbol`](../../token_symbol/README.md) registry instead.
 
 The widening was never a capacity problem — a registered name's symbol is

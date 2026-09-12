@@ -28,7 +28,7 @@ below was designed against:
   way back to ranges.
 - **An implicit universe.** `not` complemented over every ordinary symbol
   including token symbols above Unicode. Harmless for code-point input,
-  silently over-broad for the token-symbol alphabet `fjs/djs/parser` feeds
+  silently over-broad for the token-symbol alphabet `fjs/fsc/parser` feeds
   through the same matcher.
 
 The packed terminal also did not survive the bigint domain
@@ -333,7 +333,7 @@ justification is the API and the AST, which is where
 - [x] `fjs/ebnf/ll1/`: the first sets are range sets, and a conflict error
       names the rule.
 - [x] The ported grammars — `ebnf/lib/json`, `ebnf/lib/datajs`, `ebnf/lib/js`
-      and `fjs/djs/parser/grammar` — spell their character classes as sets;
+      and `fjs/fsc/parser/grammar` — spell their character classes as sets;
       the per-character variant nodes of the classical ASTs are gone with
       them. The `djs` tokenizer's grammar spells each complement as a
       difference against the Unicode universe with the front end's `remove`

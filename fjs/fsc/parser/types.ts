@@ -1,5 +1,5 @@
 /**
- * Type-level API for `fjs/djs/parser/module.f.mjs`: the `ParseError` shape
+ * Type-level API for `fjs/fsc/parser/module.f.mjs`: the `ParseError` shape
  * `parseFromTokens` reports, the nodes its rewrite set builds and the
  * alphabet it returns them in — the input alphabet is the grammar's, in
  * `./grammar/types.ts`.
@@ -9,7 +9,7 @@
 
 import type { TokenMetadata, TokenPosition } from '../../js/tokenizer/types.ts'
 import type { List } from '../../types/list/types.ts'
-import type { Primitive } from '../types.ts'
+import type { Primitive } from '../../djs/types.ts'
 import type { DjsTokenWithMetadata } from '../tokenizer/types.ts'
 
 /**

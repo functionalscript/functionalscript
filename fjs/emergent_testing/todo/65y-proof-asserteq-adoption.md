@@ -64,7 +64,7 @@ A migration that proceeds folder-by-folder, not all at once:
    intentional failures (intentionally break one assertion to read
    the failure message).
 3. **Expand** — propagate to the rest of `fjs/types/*`, then `fjs/text/*`,
-   `fjs/media/json/*`, `fjs/djs/*`, etc., one folder per PR. No mixing the
+   `fjs/media/json/*`, `fjs/fsc/*`, etc., one folder per PR. No mixing the
    refactor with behaviour changes.
 
 Optional second helper for the remaining shapes:
