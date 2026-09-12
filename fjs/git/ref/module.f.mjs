@@ -38,9 +38,7 @@
 import { byte, byteArray, byteParser, not, symbols, symbolsOf } from '../../ebnf/byte/module.f.mjs'
 import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.mjs'
 import { tryFromHexOf } from '../oid/module.f.mjs'
-import { isName } from '../refname/module.f.mjs'
-
-const slash = /** @type {const} */ (0x2F)
+import { isWholeName } from '../refname/module.f.mjs'
 
 /** The bytes Git's own reader skips after a loose ref's id. */
 const trailing = set(' \t\r')
@@ -51,9 +49,6 @@ const trailing = set(' \t\r')
  * only be the header, and the header is the first line or nothing.
  */
 const hexDigit = set('0123456789abcdefABCDEF')
-
-/** The prefix a symbolic ref's target must carry, as bytes. */
-const refsPrefix = /** @type {const} */ ([0x72, 0x65, 0x66, 0x73, slash])
 
 /**
  * A loose ref file: the id, then whatever the writer left after it.
@@ -121,34 +116,25 @@ const symbolicRule = /** @type {const} */ ([
 const parseSymbolic = byteParser(symbolicRule)
 
 /**
- * Whether a whole ref name is one a symbolic ref may point at: `refs/`,
- * then a name {@link isName} takes.
- *
- * This is stricter than `git check-ref-format` and the difference is
- * measured, not assumed. `check-ref-format a/b` passes, and `ref: a/b` in
- * `HEAD` is refused; so are `ORIG_HEAD`, `MERGE_HEAD`, `HEAD`, `master`,
- * `refs` and `refs/`. `refs/x` is the shortest target Git accepts, and
- * `refs/heads/@` and `refs/@/x` both pass, which is why {@link isName}
- * takes `@` as a component.
- *
- * So `check-ref-format`'s "two components, and not `@` alone" is its own
- * rule and not this one: a target's first component must be `refs`, and
- * what follows is one name.
- *
- * @type {(name: readonly number[]) => boolean}
- */
-const isTarget = name =>
-    name.length > refsPrefix.length
-    && refsPrefix.every((b, i) => name[i] === b)
-    && isName(name.slice(refsPrefix.length))
-
-/**
  * What a ref file holds: the ref another one names, or the id this one
  * does. `null` where the file is neither — a `ref:` line whose target is no
  * ref name, or bytes that are no id of the repository's width.
  *
  * The symbolic form is tried first because the two are disjoint: `ref:` is
  * no hex id, so a file that begins with it cannot be read as one.
+ *
+ * The target is a whole ref name, `refname`'s {@link isWholeName}, and one
+ * level is enough: measured on Git 2.43.0, a symbolic ref at
+ * `refs/heads/sym` pointing at `master`, `a/b` or `refs` resolves, and only
+ * `@` alone and the names that rule already refuses do not.
+ *
+ * This reader is deliberately not a `HEAD` reader, and `HEAD` is the one ref
+ * with a rule of its own: its target must sit under `refs/`. That rule is
+ * about repository validity rather than ref names — writing `ref: a/b` into
+ * `.git/HEAD` stops Git reading the directory as a repository at all, where
+ * the same target in `refs/heads/sym` resolves — so it belongs to a caller
+ * that knows which file it opened, and finding and opening the files is the
+ * step after this one.
  *
  * @throws If the input is not a list of bytes.
  *
@@ -162,7 +148,7 @@ export const tryRef = oidBytes => {
         if (r[0] !== 'error') {
             const [[, , target]] = r[1]
             const name = byteArray(symbolsOf(target))
-            return isTarget(name) ? { kind: 'symbolic', target: name } : null
+            return isWholeName(name) ? { kind: 'symbolic', target: name } : null
         }
         const id = loose(bs)
         return id === null ? null : { kind: 'direct', id }
@@ -237,8 +223,10 @@ const parsePacked = byteParser(packedRule)
  * line, or an id or a name that is not one.
  *
  * A name is checked as a whole ref name, the same rule a symbolic ref's
- * target passes, so a packed line naming `a/b` or holding a leading space
- * is refused rather than answered. The order is the file's and not sorted
+ * target passes, so one level is enough: `git show-ref` reads a line naming
+ * `master`, `a` or `a/b`, and what it refuses is `@` alone, reported as
+ * `packed refname is dangerous`, a leading or trailing space, and the
+ * names that rule already refuses. The order is the file's and not sorted
  * here: a caller that wants one shadowing rule applies it, since a loose
  * ref beats a packed one of the same name and that is not this reader's
  * question.
@@ -258,7 +246,7 @@ export const tryPacked = oidBytes => {
             const oid = id(symbolsOf(h))
             if (oid === null) { return null }
             const name = byteArray(symbolsOf(n))
-            if (!isTarget(name)) { return null }
+            if (!isWholeName(name)) { return null }
             const [hit] = p
             if (hit === undefined) { return { name, id: oid, peeled: null } }
             const peeled = id(symbolsOf(hit[1]))

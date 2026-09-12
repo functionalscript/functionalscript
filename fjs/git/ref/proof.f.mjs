@@ -88,18 +88,27 @@ export const proof = {
         assert(r !== null && r.kind === 'direct')
         assertEq(codePointListToString(toHex(r.id)), a)
     },
-    // The target is a whole ref name and the rule is stricter than
-    // `git check-ref-format`, which is the part a reader would get wrong.
-    // `refs/x` is the shortest target Git takes; `a/b` passes
-    // `check-ref-format` and Git still refuses it as a target, and so do
-    // the one-level names Git itself uses elsewhere.
+    // The target is a whole ref name, which is
+    // `git check-ref-format --allow-onelevel`: the name rule plus a refusal
+    // of `@` alone. The `refs/` prefix `HEAD` needs is not a rule about
+    // names and is not applied here — `ref: a/b` in `.git/HEAD` stops Git
+    // reading the directory as a repository, where the same target in
+    // `refs/heads/sym` resolves.
     target: () => {
-        for (const n of ['refs/x', 'refs/heads/master', 'refs/heads/@', 'refs/@/x', 'refs/a/b/c/d']) {
+        // One level is enough, which is where I had this wrong: a symbolic
+        // ref at `refs/heads/sym` pointing at any of these resolves on Git
+        // 2.43.0, and `git check-ref-format --allow-onelevel` accepts each.
+        for (const n of [
+            'refs/x', 'refs/heads/master', 'refs/heads/@', 'refs/@/x', 'refs/a/b/c/d',
+            'a/b', 'master', 'refs', 'a', 'HEAD', 'ORIG_HEAD', 'notrefs/a/b',
+        ]) {
             const r = ref(latin1(`ref: ${n}\n`))
             assert(r !== null && r.kind === 'symbolic', n)
             assertEq(codePointListToString(r.target), n)
         }
-        for (const n of ['a/b', 'master', 'HEAD', 'ORIG_HEAD', 'MERGE_HEAD', 'refs', 'refs/', 'refs/a..b', 'refs/.x', 'refs/x.lock', 'notrefs/a/b']) {
+        // `@` alone is the whole difference from a name below a prefix, and
+        // the rest are what the name rule already refuses.
+        for (const n of ['@', 'refs/', 'refs/a..b', 'refs/.x', 'refs/x.lock', 'a.lock', '..', 'refs//x']) {
             assertEq(ref(latin1(`ref: ${n}\n`)), null)
         }
     },
@@ -169,7 +178,7 @@ export const proof = {
             `${a}xrefs/heads/master\n`,
             `${a}refs/heads/master\n`,
             `${a} refs/heads/master\n^${a}`,
-            `${a} a/b\n`,
+            `${a} @\n`,
             `${a.slice(0, 39)} refs/heads/master\n`,
             `${a} refs/heads/master\n^${a.slice(0, 39)}\n`,
             `# header with no LF`,
