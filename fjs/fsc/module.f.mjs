@@ -10,10 +10,11 @@
  * @import { Unknown, _CompileOp } from '../djs/types.ts'
  * @import { ParseError } from './parser/types.ts'
  * @import { Effect } from '../effects/types.ts'
+ * @import { _Item, _Seen, _Written } from './private.ts'
  */
 
 import { transpile } from './transpiler/module.f.mjs'
-import { numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
+import { _numberSerialize, tryStringify } from '../media/datajs/serializer/module.f.mjs'
 import { arrayWrap, boolSerialize, colon, nullSerialize, objectWrap, stringSerialize } from '../media/json/serializer/module.f.mjs'
 import { empty, flat } from '../types/list/module.f.mjs'
 import { error, mapOk, ok, okThen } from '../types/result/module.f.mjs'
@@ -76,33 +77,39 @@ const jsonLeaf = value => {
     switch (typeof value) {
         case 'boolean': { return ok(boolSerialize(value)) }
         case 'string': { return ok(stringSerialize(value)) }
-        case 'number': { return isFinite(value) ? ok(numberSerialize(value)) : noJson(`${value}`) }
+        case 'number': { return isFinite(value) ? ok(_numberSerialize(value)) : noJson(`${value}`) }
         case 'bigint': { return noJson(`${value}n`) }
         case 'undefined': { return noJson('undefined') }
         default: { return ok(nullSerialize) }
     }
 }
 
-/** @type {(list: List<List<string>>) => (chunk: List<string>) => List<List<string>>} */
-const append = list => chunk => ({ head: list, tail: [chunk] })
+/** @type {(seen: _Seen) => (chunk: List<string>) => _Written<List<string>>} */
+const written = seen => chunk => [seen, chunk]
 
-/** @type {(acc: Result<List<List<string>>, string>, item: Result<List<string>, string>) => Result<List<List<string>>, string>} */
-const collect = (acc, item) => okThen(
-    /** @type {(list: List<List<string>>) => Result<List<List<string>>, string>} */
-    (list => mapOk(append(list))(item))
+/** @type {(wrap: (chunks: List<List<string>>) => List<string>) => (step: _Written<List<List<string>>>) => _Written<List<string>>} */
+const wrapped = wrap => ([seen, chunks]) => [seen, wrap(chunks)]
+
+/** @type {(value: Unknown) => _Item} */
+const element = value => [empty, value]
+
+/** @type {(member: readonly [string, Unknown]) => _Item} */
+const member = ([key, value]) => [flat([stringSerialize(key), colon]), value]
+
+/** @type {(chunks: List<List<string>>, prefix: List<string>) => (step: _Written<List<string>>) => _Written<List<List<string>>>} */
+const appended = (chunks, prefix) => ([seen, chunk]) => [seen, { head: chunks, tail: [flat([prefix, chunk])] }]
+
+/**
+ * One item written after the items before it: the set the previous step
+ * left is the set this one starts from, which is how a node shared between
+ * two siblings is met twice.
+ *
+ * @type {(acc: Result<_Written<List<List<string>>>, string>, item: _Item) => Result<_Written<List<List<string>>>, string>}
+ */
+const jsonItem = (acc, [prefix, value]) => okThen(
+    /** @type {(step: _Written<List<List<string>>>) => Result<_Written<List<List<string>>>, string>} */
+    (([seen, chunks]) => mapOk(appended(chunks, prefix))(jsonValue(seen)(value)))
 )(acc)
-
-/** @type {Result<List<List<string>>, string>} */
-const none = ok(empty)
-
-/** The chunks of every item, or the first refusal among them. @type {(items: readonly Result<List<string>, string>[]) => Result<List<List<string>>, string>} */
-const all = items => items.reduce(collect, none)
-
-/** @type {(seen: Set<object>) => (member: readonly [string, Unknown]) => Result<List<string>, string>} */
-const jsonMember = seen => ([key, value]) => mapOk(
-    /** @type {(chunks: List<string>) => List<string>} */
-    (chunks => flat([stringSerialize(key), colon, chunks]))
-)(jsonValue(seen)(value))
 
 /**
  * A value in JSON, or the refusal. JSON denotes a tree, so a container that
@@ -111,16 +118,25 @@ const jsonMember = seen => ([key, value]) => mapOk(
  * substitution the module output exists to avoid. Members are written in
  * the order the object carries them, the order the module output keeps too.
  *
- * @type {(seen: Set<object>) => (value: Unknown) => Result<List<string>, string>}
+ * The set of entered containers is threaded, never mutated — each step
+ * returns the set it leaves behind, and entering a container is a new set —
+ * as the DataJS writer threads its own.
+ *
+ * @type {(seen: _Seen) => (value: Unknown) => Result<_Written<List<string>>, string>}
  */
 const jsonValue = seen => value => {
-    if (value === null || typeof value !== 'object') { return jsonLeaf(value) }
+    if (value === null || typeof value !== 'object') { return mapOk(written(seen))(jsonLeaf(value)) }
     if (seen.has(value)) { return noJson('a shared node') }
-    seen.add(value)
-    return value instanceof Array
-        ? mapOk(arrayWrap)(all(value.map(jsonValue(seen))))
-        : mapOk(objectWrap)(all(entries(value).map(jsonMember(seen))))
+    const [wrap, items] = value instanceof Array
+        ? [arrayWrap, value.map(element)]
+        : [objectWrap, entries(value).map(member)]
+    /** @type {Result<_Written<List<List<string>>>, string>} */
+    const entered = ok([new Set([...seen, value]), empty])
+    return mapOk(wrapped(wrap))(items.reduce(jsonItem, entered))
 }
+
+/** @type {(step: _Written<List<string>>) => string} */
+const text = ([, chunks]) => concat(chunks)
 
 /**
  * The value as one JSON text, when it has one: every leaf spelled by JSON
@@ -129,7 +145,7 @@ const jsonValue = seen => value => {
  *
  * @type {(value: Unknown) => Result<string, string>}
  */
-export const tryJson = value => mapOk(concat)(jsonValue(new Set())(value))
+export const tryJson = value => mapOk(text)(jsonValue(new Set())(value))
 
 // ── the command ───────────────────────────────────────────────────────────────
 
