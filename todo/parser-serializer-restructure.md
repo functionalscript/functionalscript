@@ -690,13 +690,21 @@ throughout.
    content — the AST, the LL(1) record, the roadmap — joins it under the
    compiler's title. `fjs/fsc/module.f.mjs`, `types.ts` and `proof.f.mjs`
    are a range-map lexer stub nothing imports; the front end's entry module
-   takes the path and the stub is deleted, its one citation as code,
-   [174](../fjs/js/todo/174-shared-range-map-lexer.md), told.
+   takes the path and the stub is deleted, and everything that cited it is
+   told: [174](../fjs/js/todo/174-shared-range-map-lexer.md) and
+   [190](../fjs/text/todo/190-text-code-unit-string-boundary.md), which
+   quote it as code and lose a consumer each; the two inventories that
+   counted its proof, `todo/camel-case-proof-keys.md` and
+   `todo/inline-type-casts.md`; and `fjs/AGENTS.md`, which names `fsc` as
+   a worked example of the per-arrow `@template` shape the stub used and
+   the front end does not.
 
-   **5b. The syntax** — terminator `nl` → `';'` **after each** statement,
-   the module's final one included (never `;` between statements with EOF
-   after the last — see the FunctionalScript consequences above); reserved
-   words added;
+   **5b. The syntax.** The terminator — `';'` **after each** statement,
+   the module's final one included, never `;` between statements with EOF
+   after the last (see the FunctionalScript consequences above) — is
+   **already the baseline**: the LL(1) port landed it ahead of the stage,
+   as the consequences record, so it is not scheduled or declared here.
+   What 5b does: reserved words added;
    the DataJS numeric leaves taught to the moved front end — `NaN`,
    `Infinity`, and `-Infinity` are unresolved identifiers in
    today's parser, so reserving the names alone would *reject* DataJS accept
@@ -708,9 +716,9 @@ throughout.
    [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)'s
    special-number requirement), a precondition of stage 6's subset proofs.
    The EDAG staging continues under the `fsc` name. This is the pull request
-   that changes accepted public `.f.js` syntax (statement termination, newly
-   reserved names), so it carries the `**BREAKING CHANGES:**` changelog
-   treatment for that behavior — it is not deferred to stage 7.
+   that changes accepted public `.f.js` syntax (the newly reserved names),
+   so it carries the `**BREAKING CHANGES:**` changelog treatment for that
+   behavior — it is not deferred to stage 7.
 
    **5c. The tokenizer is the grammar** — decided: FunctionalScript's
    tokenizer is the LL(1) grammar over
@@ -801,8 +809,9 @@ throughout.
       `serializer/` and `types.ts` left in place; the breaking-change entry
       for the moved paths. **Startable now**, beside stage 1b, since it
       touches nothing stage 4's pull requests do.
-- [ ] Stage 5b: `;` termination, reserved words, the special numbers; the
-      breaking-change entry. File its todo under `fjs/fsc/todo/`.
+- [ ] Stage 5b: reserved words and the special numbers, over the `;`
+      termination the LL(1) port already landed; the breaking-change entry.
+      File its todo under `fjs/fsc/todo/`.
 - [ ] Stage 5c: the front end's tokenizer as grammar layers in
       `fjs/ebnf/lib/js`; the `fjs/js/tokenizer` import dropped.
 - [ ] After stage 4 is on `main`: move `fjs/djs/todo/` to `fjs/fsc/todo/`
