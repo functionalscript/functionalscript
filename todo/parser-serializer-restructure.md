@@ -688,20 +688,30 @@ throughout.
    content — the AST, the LL(1) record, the roadmap — joins it under the
    compiler's title. `fjs/fsc/module.f.mjs`, `types.ts` and `proof.f.mjs`
    are a range-map lexer stub nothing imports; the front end's entry module
-   takes the path and the stub is deleted, its one citation as code,
-   [174](../fjs/js/todo/174-shared-range-map-lexer.md), told.
+   takes the path and the stub is deleted, and everything that cited it is
+   told: [174](../fjs/js/todo/174-shared-range-map-lexer.md) and
+   [190](../fjs/text/todo/190-text-code-unit-string-boundary.md), which
+   quote it as code and lose a consumer each; the two inventories that
+   counted its proof, `todo/camel-case-proof-keys.md` and
+   `todo/inline-type-casts.md`; and `fjs/AGENTS.md`, which names `fsc` as
+   a worked example of the per-arrow `@template` shape the stub used and
+   the front end does not.
    **Done**, as described.
 
-   **5b. The syntax** — terminator `nl` → `';'` **after each** statement,
-   the module's final one included (never `;` between statements with EOF
-   after the last — see the FunctionalScript consequences above): **done
-   ahead of the stage**, by the LL(1) port, as the consequences record.
+   **5b. The syntax.** The terminator — `';'` **after each** statement,
+   the module's final one included, never `;` between statements with EOF
+   after the last (see the FunctionalScript consequences above) — is
+   **already the baseline**: the LL(1) port landed it ahead of the stage,
+   as the consequences record, so it is not scheduled or declared here.
    Reserved words: **done** — `NaN` and `Infinity` join `undefined` as the
    `literalGlobals` of `fjs/js/keywords`, kept as keyword tokens by the DJS
    layer and named in the parser's alphabet, so a module cannot bind,
-   reference or key them; with no rule reading them yet they are refused
-   wherever they stand, which is what they were before in effect, as
-   unresolved names. Exact `-0`: **done** — it parsed correctly already,
+   reference or key them. What that changed: a *reference*, `export
+   default NaN;`, was refused before too, as an unresolved name; a
+   *binding*, `const NaN = 1;`, and a bare *key*, `{ NaN: 1 }`, parsed as
+   identifiers and are refused now, which is the break the entry declares.
+   With no rule reading the two yet they are refused wherever they stand.
+   Exact `-0`: **done** — it parsed correctly already,
    and the serializer now writes it back as `-0` where it wrote `0`; the
    round trip is pinned in `fjs/fsc/proof.f.mjs`. The DataJS numeric
    leaves: **done** — `NaN`, `Infinity` and `-Infinity` are primitives of
@@ -712,9 +722,9 @@ throughout.
    [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)'s
    special-number requirement), a precondition of stage 6's subset proofs.
    The EDAG staging continues under the `fsc` name. This is the pull request
-   that changes accepted public `.f.js` syntax (statement termination, newly
-   reserved names), so it carries the `**BREAKING CHANGES:**` changelog
-   treatment for that behavior — it is not deferred to stage 7.
+   that changes accepted public `.f.js` syntax (the newly reserved names),
+   so it carries the `**BREAKING CHANGES:**` changelog treatment for that
+   behavior — it is not deferred to stage 7.
 
    **5c. The tokenizer is the grammar** — decided: FunctionalScript's
    tokenizer is the LL(1) grammar over
@@ -812,9 +822,9 @@ throughout.
 - [x] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
       `serializer/` and `types.ts` left in place; the breaking-change entry
       for the moved paths.
-- [x] Stage 5b: `;` termination (done ahead of the stage), reserved words,
-      `-0`, and the special numbers as values; each part carried its
-      breaking-change entry.
+- [x] Stage 5b: over the `;` termination the LL(1) port already landed,
+      reserved words, `-0`, and the special numbers as values; each part
+      carried its breaking-change entry.
 - [x] Stage 5c: the token vocabulary is the grammar's, in
       `fjs/ebnf/lib/js/types.ts`; nothing under `fjs/fsc` imports
       `fjs/js/tokenizer`.
