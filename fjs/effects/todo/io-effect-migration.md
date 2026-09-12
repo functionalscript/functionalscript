@@ -544,7 +544,9 @@ guarantee that every runner implements all of them.
 
       So `partialMatch(commands, onMissing)` takes the injector, and each
       runner writes its own once, next to the loop that fixes the shape —
-      `partialRun` in `fjs/effects/mock` is the only one today.
+      `partialRun` in `fjs/effects/mock`, and `asyncPartialRun` beside
+      `asyncRun`, which answers a `Promise` where the first answers a
+      function of state.
 
       Two consequences the plan did not anticipate:
 
