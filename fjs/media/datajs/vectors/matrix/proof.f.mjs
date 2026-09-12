@@ -1,4 +1,6 @@
 /**
+ * @import { Effect } from '../../../../effects/types.ts'
+ * @import { IoChannel, Mkdir, WriteFile } from '../../../../effects/node/types.ts'
  * @import { State } from '../../../../effects/node/virtual/types.ts'
  * @import { Corpus, Scope } from './types.ts'
  */
@@ -62,6 +64,19 @@ const reason = because => ({ ...landed, notApplicable: [{ scope: /** @type {cons
 const prose = 'is not prose the table can show as written'
 
 /**
+ * One source written into a virtual filesystem: the directory, then the file,
+ * then the fold's state. Each effect is bound at this level so the three read
+ * in the order they run.
+ *
+ * @type {(source: readonly [string, string]) => (state: null) => Effect<Mkdir | WriteFile, null, IoChannel>}
+ */
+const writeSource = ([name, text]) => () => {
+    const made = mkdir(`${directory}/${name}`, { recursive: true })
+    const stored = ioStep(made, () => writeUtf8File(sourceOf(name), text))
+    return mapStep(stored, () => null)
+}
+
+/**
  * A virtual filesystem holding each data module's source, which the program
  * now reads. The text is the *writer's*, not the file's: a proof runs against
  * an in-memory filesystem and cannot read the repository, and the writer's
@@ -76,12 +91,8 @@ const prose = 'is not prose the table can show as written'
  *
  * @type {(sources: readonly (readonly [string, string])[]) => State}
  */
-const withSources = sources => virtual(emptyState)(foldStep(
-    pureOk(sources),
-    null,
-    ([name, text]) => () => mapStep(ioStep(
-        mkdir(`${directory}/${name}`, { recursive: true }),
-        () => writeUtf8File(sourceOf(name), text)), () => null)))[0]
+const withSources = sources =>
+    virtual(emptyState)(foldStep(pureOk(sources), null, writeSource))[0]
 
 /** Each data module's source as the writer spells it. @type {readonly (readonly [string, string])[]} */
 const written = modules(corpus).map(([name, imported]) =>
