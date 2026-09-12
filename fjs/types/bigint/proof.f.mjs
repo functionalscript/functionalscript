@@ -617,16 +617,54 @@ export const proof = {
                 'expected a pure state')).note
             assertEq(noteFor('twenty'), 'a whole number, please')
             assertEq(noteFor(''), 'a whole number, please')
-            assert(
-                (noteFor('60001') ?? '').startsWith('60000 is as far as this page goes'),
-                String(noteFor('60001')))
-            // **The bound itself is measured, not refused.** It answers a
-            // `Do` — the sandbox it is about to ask for — where a refusal
-            // answers a state directly, so an empty `runPure` is the
-            // assertion that it got past the guard.
+            // **A number the engine can hold is measured, however large.**
+            // It answers a `Do` — the sandbox it is about to ask for — where a
+            // refusal answers a state directly, so an empty `runPure` is the
+            // assertion that it got past the guard. There is no upper bound
+            // left to test here: the ceiling is the engine's, and asking it is
+            // an effect, which `tooBigForTheEngine` covers instead.
             assertEq(
-                runPure(demo.update({ ...demo.init, size: '60000' })({ kind: 'click', name: 'run' })).length,
+                runPure(demo.update({ ...demo.init, size: '999999999' })({ kind: 'click', name: 'run' })).length,
                 0)
+        },
+        /**
+         * **The ceiling belongs to the engine, so the demo asks rather than
+         * consults a constant.** How large a `bigint` may be is
+         * implementation-defined and the implementations disagree — the same
+         * V8 refused above `2**1073741759` in one Chrome and `2**1073741823`
+         * in one Node — so the page attempts the shift and reads what came
+         * back. A `sandbox` whose inner result is an error is the engine
+         * saying no, and the answer is a note with no rows: nothing was
+         * measured, and seven rows of "wrong answer" would say the candidates
+         * were at fault.
+         */
+        tooBigForTheEngine: () => {
+            const refuses = run(/** @type {MemOperationMap<Sandbox, null>} */ ({
+                sandbox: f => state => [state, ok({ result: error(f), duration: 0 })],
+            }))
+            const [, r] = refuses(null)(
+                demo.update({ ...demo.init, size: '999999999' })({ kind: 'click', name: 'run' }))
+            const next = unwrap(r)
+            assertStructurallySame(next.rows, [])
+            assert(
+                (next.note ?? '').endsWith('larger than a bigint this engine can hold'),
+                String(next.note))
+        },
+        /**
+         * **A long wait is announced before it is waited through.** `wait` is
+         * read from the state the demo is about to be handed, so the words
+         * reach the reader with the busy flag rather than after it clears.
+         * Below a minute there is nothing unusual to say and it answers
+         * `null`, which is what leaves the runtime's general word alone.
+         */
+        wait: () => {
+            const at = (/** @type {string} */ size) =>
+                assertNotNullish(demo.wait, 'the demo names a wait')({ ...demo.init, size })
+            assertEq(at('20000'), null)
+            assertEq(at('twenty'), null)
+            assertEq(at('300000'), 'about 2 minutes')
+            assertEq(at('3000000'), 'about 3 hours')
+            assertEq(at('999999999'), 'about 42 years')
         },
         /**
          * **A candidate that throws is a row, not a failure of the demo.**
@@ -636,12 +674,17 @@ export const proof = {
          * that says the implementation is wrong rather than absent.
          */
         aWrongAnswerIsARow: () => {
-            const threw = run(/** @type {MemOperationMap<Sandbox, null>} */ ({
-                sandbox: f => state => [state, ok({ result: error(f), duration: 0 })],
+            // **The count is the state**, because the first `sandbox` of a run
+            // is not a candidate: it is the shift that asks the engine whether
+            // the number exists at all. Failing that one is a different
+            // outcome — see `tooBigForTheEngine` — so it has to succeed here
+            // for the candidates to be reached.
+            const threw = run(/** @type {MemOperationMap<Sandbox, number>} */ ({
+                sandbox: f => n => [n + 1, ok({ result: n === 0 ? ok(f()) : error(f), duration: 0 })],
             }))
-            // A small exponent: eight candidates all throwing is the point, and
+            // A small exponent: seven candidates all throwing is the point, and
             // `demo.init`'s 20000 would spend half a second making it.
-            const [, r] = threw(null)(
+            const [, r] = threw(0)(
                 demo.update({ ...demo.init, size: '64' })({ kind: 'click', name: 'run' }))
             const rows = unwrap(r).rows
             assertStructurallySame(rows.map(({ outcome }) => outcome),

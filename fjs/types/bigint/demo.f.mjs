@@ -234,23 +234,57 @@ const candidates = /** @type {const} */ ([
 const defaultSize = '20000'
 
 /**
- * The largest exponent this page will measure.
+ * How long the whole comparison took at a known exponent, and at which one.
  *
- * **A bound, because the cost grows with the square of it.** The work is one
- * pass per bit over numbers that wide, so three times the exponent is nine
- * times the wait. Measured over all eight: 20000 is half a second, 60000 is
- * 4.3, and the million the original page used would be hours of a frozen tab.
- * A reader who mistypes a zero should be told, not punished.
- *
- * **Lowered from 200000 when the comparison grew from two candidates to
- * eight.** The old bound was chosen against two, where it cost a few seconds;
- * against eight the same number is the better part of a minute, which is a
- * hung tab by any reader's reckoning. The bound is a wait, not an exponent,
- * so it moves when the work does.
+ * The pair is a calibration, not a promise: measured in Chrome on one machine,
+ * and every other machine scales from it. It is here so the estimate below has
+ * something real underneath it rather than a guessed constant.
  *
  * @type {bigint}
  */
-const maxSize = 60_000n
+const referenceSize = 20_000n
+
+/** Seconds all seven took at {@link referenceSize}. @type {number} */
+const referenceSeconds = 0.53
+
+/**
+ * Roughly how long an exponent will take, in seconds.
+ *
+ * The work is one pass per bit over numbers that wide, so it is quadratic in
+ * the exponent: three times the exponent is nine times the wait. That law is
+ * what makes an estimate possible at all from a single measured point.
+ *
+ * @type {(size: bigint) => number}
+ */
+const estimateSeconds = size => {
+    const ratio = Number(size) / Number(referenceSize)
+    return referenceSeconds * ratio * ratio
+}
+
+/** @type {(n: number) => (unit: string) => string} */
+const roughly = n => unit => n === 1 ? `about a ${unit}` : `about ${n} ${unit}s`
+
+/**
+ * What to add to "Working…" when the wait is long enough that a reader would
+ * otherwise assume the page had died, or `null` when it is not.
+ *
+ * **A minute is the threshold** because that is roughly where a spinner stops
+ * reading as progress and starts reading as a hang. Below it the general word
+ * is enough; above it the reader is owed a number, and the number is worth
+ * more than a fixed phrase — "about 4 minutes" and "about 40 years" call for
+ * very different decisions, and the second is reachable, since the largest
+ * exponent an engine can hold is around a billion.
+ *
+ * @type {(size: bigint) => string | null}
+ */
+const waitNote = size => {
+    const s = estimateSeconds(size)
+    if (s <= 60) { return null }
+    if (s < 3_600) { return roughly(Math.round(s / 60))('minute') }
+    if (s < 86_400) { return roughly(Math.round(s / 3_600))('hour') }
+    if (s < 31_536_000) { return roughly(Math.round(s / 86_400))('day') }
+    return roughly(Math.round(s / 31_536_000))('year')
+}
 
 /**
  * The exponent a reader asked for, or `null` if they did not ask for a number.
@@ -365,20 +399,41 @@ const onRun = state => {
     if (size === null) {
         return pureOk({ ...state, kind: 'done', rows: [], note: 'a whole number, please' })
     }
-    if (size > maxSize) {
-        return pureOk({
-            ...state,
-            kind: 'done',
-            rows: [],
-            note: `${maxSize} is as far as this page goes — the wait grows with the square`,
-        })
-    }
-    return measure(size)
+    // **The ceiling is the engine's, so the engine is what answers.** How large
+    // a `bigint` may be is implementation-defined, and the implementations do
+    // not agree: the same V8 refused above 2**1073741759 in one Chrome and
+    // 2**1073741823 in one Node. A constant here would be one build's number
+    // hard-coded as everyone's, wrong in both directions.
+    //
+    // FunctionalScript has no `try`, but it does not need one: `sandbox` is
+    // already the operation that runs a thunk and reports what it threw, so
+    // the shift is simply attempted. A refusal to perform `sandbox` at all is
+    // not a refusal of the size — that runtime measures nothing, and saying so
+    // is `measure`'s job, one row at a time.
+    return resultStep(
+        sandbox(() => 1n << size),
+        r => r[0] === 'error' || r[1].result[0] === 'ok'
+            ? measure(size)
+            : pureOk(/** @type {DemoState} */ ({
+                ...state,
+                kind: 'done',
+                rows: [],
+                note: `2 to the ${size} is larger than a bigint this engine can hold`,
+            })))
 }
 
 /** @type {Demo<DemoState, DemoEvent, Sandbox>} */
 export const demo = {
     init: { kind: 'idle', size: defaultSize, rows: [], note: null },
+    // **The page no longer refuses a large exponent, so it has to warn about
+    // one.** The old bound turned a long wait into a refusal, which was a way
+    // of not having to say how long. Now that anything the engine can hold is
+    // allowed, the reader is told what they are about to wait for — before the
+    // wait, which is the only time the answer is useful.
+    wait: state => {
+        const size = parseSize(state.size)
+        return size === null ? null : waitNote(size)
+    },
     update: state => event => {
         // Typing changes what will be measured and nothing else: a keystroke is
         // not a request to measure, and the field is checked when `Measure` is
