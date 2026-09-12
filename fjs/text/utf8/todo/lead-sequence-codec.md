@@ -53,9 +53,14 @@ where `:120`'s spelling is corrected), and the six accumulate arms become
 `payload` calls plus the error flag. Both helpers stay private: the
 existing proof corpus pins their output through the public codec, and
 that is the proof this change owes — byte-identical encoding and decoding
-before and after. The ASCII mask itself is not separately provable
-without a proof-only export, which the repository forbids; naming it
-correctly is the whole of that fix.
+before and after. The ASCII mask could be exported for linkage as
+`_asciiMask` and pinned by the proof — the `_` prefix is exactly what
+the repository permits that for — but this issue chooses not to: the
+mask is unobservable through the codec, so a proof that the constant is
+`0x7f` pins the spelling and nothing about the encoder, and a reader of
+the module doc is better served by the correct name than by a row
+asserting a literal equals itself. If a later change makes the mask
+observable, that is when the row earns its place.
 
 ### Tasks
 

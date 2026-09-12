@@ -134,13 +134,33 @@ accepted as-is, the same as `cp`.
       no file-path source; MCP `type:'url'` has already been removed).
       `cas_get` collapses to registry shape — a `toolResultStep` over the
       shared inspection, wording unchanged, `uri` shaped by the adapter.
-      `cas_add` collapses to the shared inline `add` **plus one
-      continuation the adapter owns**: the `syncRevision(cacheKey)(hash)(value)`
-      step that keeps `evo_list`/`evo_head` current after a write is an
-      MCP-server concern (the CLI has no Evo cache), so it stays in
-      `fjs/mcp/cas` as `resultStep(add(c)(input), hash => resultStep(syncRevision(…), …))`
-      rather than moving into the shared layer or being dropped. The
-      shared `add` takes no cache key and no post-write hook.
+      `cas_add` collapses onto **two** shared functions, not one, so
+      that the adapter keeps both values the Evo sync needs in scope:
+      a pure `decodeInline: (input: { type?, content }) => Result<Vec, string>`
+      (the `text`/`base64` decoding and the size cap, today's `x`), and
+      an effectful `writeBlob: (c: Cas<O>) => (value: Vec) => Effect<…, Result<Vec, WriteError>, …>`
+      (today's `c.write(nonEmpty(x, …))` plus the error mapping). The
+      `syncRevision(cacheKey)(hash)(value)` step that keeps
+      `evo_list`/`evo_head` current is an MCP-server concern (the CLI has
+      no Evo cache), so it stays in `fjs/mcp/cas` as the adapter's own
+      continuation, spelled against what `resultStep` actually passes —
+      the `Result` tuple, not the hash:
+
+      ```js
+      const decoded = decodeInline(input)
+      if (decoded[0] === 'error') { return pureOk(errorResult(decoded[1])) }
+      const value = decoded[1]
+      return resultStep(writeBlob(c)(value), r =>
+          r[0] === 'error'
+              ? pureOk(errorResult('write'))
+              : resultStep(syncRevision(cacheKey)(r[1])(value),
+                  () => pureOk(okResult(vecToCBase32(r[1])))))
+      ```
+
+      `value` is bound by the adapter from the shared decode, `r[1]` is
+      the hash from the shared write, and the shared layer takes no cache
+      key and no post-write hook. The CLI composes the same two functions
+      without the sync.
 - [ ] Verify no behaviour change: existing CLI and MCP tests still pass; add
       new tests for the CLI staging flow.
 

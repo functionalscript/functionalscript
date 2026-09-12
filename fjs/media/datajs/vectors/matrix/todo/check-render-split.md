@@ -5,7 +5,7 @@
 
 ### Problem
 
-`matrix` (`module.f.mjs:500`) fuses two independent questions — "is this
+`matrix` (`module.f.mjs:522`) fuses two independent questions — "is this
 corpus well-formed" and "what does its table look like": it runs
 `malformed` first, then collects `roleless`/`unrenderable`/`ambiguous`/
 `duplicated`/`stale` plus the per-row errors, and only then assembles the
@@ -18,7 +18,7 @@ The proof shows the cost: its only way to ask "is this corpus valid?" is
 to render and substring-match —
 
 ```js
-// proof.f.mjs:40-50
+// proof.f.mjs:48-57
 const refuses = (c, ...expected) => {
     const r = failure(c)          // matrix(c), asserted to be an error
     for (const e of expected) { assert(r.includes(e), …) }
@@ -34,14 +34,17 @@ future consumer that wants corpus linting without regenerating
 Two exported functions with these signatures:
 
 ```ts
-/** The corpus's defects; empty where it is well-formed. */
-export const check: (corpus: Corpus) => readonly string[]
+/** The corpus's defects, `also` (defects found outside the table) first; empty where it is well-formed. */
+export const check: (corpus: Corpus, also?: readonly string[]) => readonly string[]
 /** The rendered table, or the defects that stop it being rendered. */
-export const matrix: (corpus: Corpus) => Result<string, readonly string[]>
+export const matrix: (corpus: Corpus, also?: readonly string[]) => Result<string, readonly string[]>
 ```
 
 `check` is exactly the existing failure concatenation plus the
-`malformed`-first rule. `matrix` is "render if `check` came back empty":
+`malformed`-first rule, `also` riding alongside in both branches as it
+does today — `matrix`'s `also` parameter (the source-document defects
+`program` gathers with `sourceDefect`) moves onto `check` unchanged,
+since it is validation input, not rendering input. `matrix` is "render if `check` came back empty":
 its `ok` is unchanged; its `error` carries the **structured list**, not
 today's prose — that is the one observable change, and it is the point.
 It is also a **breaking change** to an exported function's result type:
