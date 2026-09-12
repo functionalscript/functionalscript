@@ -1830,7 +1830,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       data, and the tag test that reads the three it knows would otherwise give
       the fourth `set` semantics and print a plausible cell for a record nobody
       wrote.
-- [x] **Serializer accept and graph equivalence.** Landed as 209 records in
+- [x] **Serializer accept and graph equivalence.** Landed as 210 records in
       [`serializer-accept/data.f.mjs`](../vectors/serializer-accept/data.f.mjs)
       and 16 in
       [`graph-equivalence/data.f.mjs`](../vectors/graph-equivalence/data.f.mjs),
@@ -2081,6 +2081,19 @@ The steps, in order; a step is one pull request unless it says otherwise:
       `object/keys/every-string` carries them as the keys of a nested object.
       The `normalize` set has carried three of the four in its aggregates
       since the whitespace round, which is where its bytes are pinned.
+      **And `__proto__` inside a hoisted body**, which is the const-body
+      position crossed with the one key that has a production of its own.
+      Measured in all four sets: seven records here carry a `__proto__` key
+      and not one of them is a node the writer must hoist, so a writer with a
+      separate emitter for a `const` body writes the key literally there —
+      `const $0={"__proto__":1};export default [$0,$0];` — which sets a
+      prototype and is not a document for that graph at all. One vector in
+      each writer set and one in the reader set, under `const/shared/object`
+      as the other const-body vectors are, since the position is a walker and
+      not a branch of the specification. Graph equivalence gets none, and for
+      once the reason is structural: the defective output does not parse, so
+      it cannot be a `denotesNot`, which needs a document that reads to
+      another graph.
       Originally: Every leaf and container
       shape of the data model, the three sharing shapes and their four
       unshared inverses, the escaping classes and width boundaries with key
@@ -2090,7 +2103,7 @@ The steps, in order; a step is one pull request unless it says otherwise:
       document read to a graph `difference` finds no difference from the input
       in and every `denotesNot` document read to one it does. The serializer's
       own assertions arrive with stage 4 and rerun the set.
-- [x] **Normalize.** Landed as 269 records in
+- [x] **Normalize.** Landed as 270 records in
       [`normalize/data.f.mjs`](../vectors/normalize/data.f.mjs), with 57 scope
       records answering the 512 cells its column owes and one `['set',
       'normalize']` each for the reader and the serializer, whose columns owe
@@ -2104,8 +2117,8 @@ The steps, in order; a step is one pull request unless it says otherwise:
       control where the escape belonged. The proof now pins the spelling of
       any vector whose document is one string directly, and the nine control
       escapes are the cases that made the slip visible at all, a raw control
-      being refused outright. The matrix stands at 119,930 bytes of the bit
-      vector's 131,072, which is 91% and leaves little room for another
+      being refused outright. The matrix stands at 120,023 bytes of the bit
+      vector's 131,072, which is 92% and leaves little room for another
       column or another set of classes.
       **Fifteen of the 145 arrived in a second round, and the reason is worth
       recording.** The set went out with ten scope records saying the shape
@@ -2306,6 +2319,13 @@ The steps, in order; a step is one pull request unless it says otherwise:
       strings as a nested object's keys, matching the other two sets. Every
       text came out of the shipped writer, which emits the pair raw and
       escapes the lone surrogate — the distinction this column exists for.
+      **And `__proto__` in a hoisted body**, the same finding one position
+      over, which this column needed as much as the other two: measured, all
+      four of its `__proto__` records emit the key inline, so a writer with its
+      own object emitter for a `const` body writes it literally there and this
+      set's bytes never said otherwise. One vector under `const/shared/object`,
+      with the text the shipped writer emits,
+      `const $0={["__proto__"]:1};export default [$0,$0];`.
       Originally: Graph inputs with exact bytes: hoisting in both
       directions, post-order naming through `$10` and across all four
       parent-child kinds, every `QuoteJSONString` branch with both ends at

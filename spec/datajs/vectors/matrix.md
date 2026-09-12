@@ -127,7 +127,7 @@ that mentions it in three.
 | `const/shared/leaf` | `const-shared-leaf` | not applicable, [note 29](#notes) | `norm-shared-leaf` |
 | `const/shared/mixed` | `const-shared-mixed` | `ser-sharing-mixed`, `graph-sharing-mixed` | `norm-shared-mixed` |
 | `const/shared/nested` | `const-shared-nested` | `ser-const-shared-nested`, `ser-const-shared-nested-object-parent`, `graph-const-shared-nested`, `graph-const-shared-nested-object-parent` | not applicable, [note 97](#notes) |
-| `const/shared/object` | `const-shared-object`, `const-shared-object-parent` | `ser-sharing-object`, `ser-shared-empty-object`, `ser-shared-empty-object-object-parent`, `graph-sharing-object`, `graph-sharing-empty-object`, `graph-sharing-empty-object-object-parent` | `norm-shared-object`, `norm-const-body-escaping-key`, `norm-const-every-value-object` |
+| `const/shared/object` | `const-shared-object`, `const-shared-object-parent`, `const-shared-object-proto-key` | `ser-sharing-object`, `ser-shared-empty-object`, `ser-shared-empty-object-object-parent`, `ser-shared-object-proto-key`, `graph-sharing-object`, `graph-sharing-empty-object`, `graph-sharing-empty-object-object-parent` | `norm-shared-object`, `norm-const-body-escaping-key`, `norm-const-every-value-object`, `norm-const-body-key-proto` |
 | `const/shared/three-paths` | `const-shared-three-paths` | `ser-shared-three-paths` | `norm-shared-three-paths` |
 | `const/shared/twice` | `const-shared-twice` | `ser-sharing-array`, `graph-sharing-array` | `norm-shared-twice`, `norm-const-body-escaping-values`, `norm-const-every-value-array` |
 | `const/shared/two-nodes` | `const-shared-two-nodes` | `ser-shared-two-nodes` | `norm-shared-two-nodes` |
