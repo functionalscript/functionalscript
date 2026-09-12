@@ -252,6 +252,43 @@ export const proof = {
             assertEq(packed(latin1(s)), null)
         }
     },
+    // NUL ends a field, wherever one of these files holds one: Git reads a
+    // ref file's contents and a ref name as C strings, so the first NUL ends
+    // them and the rest is never looked at. Measured on Git 2.43.0, each row
+    // against `rev-parse`, `symbolic-ref` or `show-ref`.
+    nulTerminates: () => {
+        // a loose ref: the id, then NUL, then anything
+        assertEq(hexOfLoose(`${a}\0junk`), a)
+        assertEq(hexOfLoose(`${a}\0\n`), a)
+        // a symbolic ref: the target ends at the NUL, even mid-name
+        for (const [file, target] of [
+            ['ref: refs/heads/master\0junk', 'refs/heads/master'],
+            ['ref: refs/heads/master\0\n', 'refs/heads/master'],
+            ['ref: refs/heads\0/master\n', 'refs/heads'],
+        ]) {
+            const r = ref(latin1(file))
+            assert(r !== null && r.kind === 'symbolic', file)
+            assertEq(codePointListToString(r.target), target)
+        }
+        // a packed name ends at the NUL too, and the *next line is still
+        // read* — so the NUL ends the field and not the file
+        assertStructurallySame(
+            /** @type {readonly PackedRef[]} */ (packed(latin1(`${a} refs/heads/a\0junk\n${t} refs/heads/b\n`))).map(seen),
+            [['refs/heads/a', a, ''], ['refs/heads/b', t, '']],
+        )
+        assertStructurallySame(
+            /** @type {readonly PackedRef[]} */ (packed(latin1(`${a} refs/heads/mas\0ter\n`))).map(seen),
+            [['refs/heads/mas', a, '']],
+        )
+    },
+    // And this is why NUL is a third thing rather than whitespace or a
+    // separator: where content must begin, a NUL leaves the field empty and
+    // Git refuses, while a space there would have been skipped. Folding NUL
+    // into either set would accept both of these.
+    nulIsNotSpace: () => {
+        assertEq(ref(latin1('ref:\0refs/heads/master\n')), null)
+        assertEq(packed(latin1(`${a}\0refs/heads/master\n`)), null)
+    },
     throw: {
         // A value that is no byte is a caller's bug, as it is for a ref
         // name, and the same `byteArray` refuses it.
