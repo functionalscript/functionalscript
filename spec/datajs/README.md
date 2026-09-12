@@ -82,7 +82,7 @@ byte path of [§Encoding](#encoding), which refuses invalid UTF-8 and a leading
 BOM before the reader sees a unit, is still to come and is what the corpus's
 byte-form vectors require.
 The shipped `fjs/djs` serializer still differs from
-[normalized form](#normalized-form) in four ways, each of them stage 4–6 work
+[normalized form](#normalized-form) in three ways, each of them stage 4–6 work
 rather than a bug:
 
 | shipped `fjs/djs` | this specification |
@@ -90,7 +90,6 @@ rather than a bug:
 | `const c0 = …` | `const $0=…` |
 | hoists a repeated primitive into a const | primitives always inline |
 | keys sorted lexicographically — `{"10":0,"9":0}` | array-index keys first in numeric order — `"9"` before `"10"` |
-| `NaN`, `±Infinity` become `null`; `-0` becomes `0` | each round-trips exactly |
 
 The first row is the one that is more than a layout difference: a name must
 start with `$`, so `c0` is not a name this format has at all, and the shipped
