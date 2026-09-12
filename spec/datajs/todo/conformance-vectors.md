@@ -213,11 +213,14 @@ The five parts:
     while passing every other vector here. `normalize` pins that `/` comes back
     unescaped, but that is a different role and closes nothing for this one.
     **And the raw non-ASCII character is not one vector but nineteen**, because
-    every character §Whitespace refuses *between* tokens is ordinary content
-    *inside* a string, and only a vector says so. That reject side enumerates
-    21; two of them, U+000B and U+000C, stay rejects inside a string under a
-    different rule — they are below U+0020, where the raw-control rule reaches
-    them — so the contextual inverse is the other nineteen: U+2028, U+2029,
+    a character §Whitespace refuses *between* tokens can be ordinary content
+    *inside* a string, and only a vector says so. What it refuses between
+    tokens is everything outside a token, `@` as much as U+2028, so the set
+    worth vectors here is the delta from ECMAScript's whitespace, which the
+    reject side enumerates: 21 characters. Two of them, U+000B and U+000C, stay
+    rejects inside a string under a different rule — they are below U+0020,
+    where the raw-control rule reaches them — so the contextual inverse is the
+    other nineteen: U+2028, U+2029,
     U+FEFF and the sixteen `Space_Separator` characters other than U+0020. A
     reader consulting one whitespace table in both contexts refuses all
     nineteen while passing every vector above, and a reader refusing only the
@@ -580,7 +583,8 @@ The five parts:
   reader can accept a raw LF as string content while rejecting the other three
   correctly. Then the characters JavaScript
   treats as whitespace or a line terminator and DataJS does not, of which there
-  are **21**, not the six the spec enumerates: U+000B, U+000C, U+2028, U+2029,
+  are **21**, a set §Whitespace deliberately does not list: U+000B, U+000C,
+  U+2028, U+2029,
   U+FEFF, and the sixteen `Space_Separator` characters other than U+0020 —
   U+00A0, U+1680, U+2000–U+200A, U+202F, U+205F and U+3000. **All 21 get
   vectors**, not one per shape. An earlier draft took six of the sixteen `Zs`
@@ -588,7 +592,9 @@ The five parts:
   reasoning that an implementation reaching that class at all reaches all of
   it. Review was right that nothing guarantees it, and this paragraph carries
   the disproof in its own first sentence: **the spec's own list of these
-  characters omitted fifteen of them**. A hand-written whitespace table with a
+  characters omitted fifteen of them** — which is why that list is now
+  deleted rather than corrected, the rule naming the four accepted
+  characters and nothing else. A hand-written whitespace table with a
   hole in it is not a hypothetical here — it is the thing that made this
   section necessary — and a reader whose table stops at U+2000 accepts U+200A
   while passing every sampled vector. So: U+000B, U+000C, U+2028, U+2029,
@@ -937,13 +943,17 @@ The five parts:
     `+`, no leading or trailing point, no separators, no leading zeros.
   - **Identifiers** — §Identifiers' ASCII-only rule, which excludes both a
     non-ASCII letter and the `\uXXXX` spelling of an ASCII one.
-  - **Whitespace** — §Whitespace, which narrows twice, and where the *spec's
-    own list* is the trap. Its rule is general and correct: whitespace is
-    exactly JSON's four characters, so **every other character JavaScript
-    treats as whitespace or a line terminator** is rejected. The six it then
-    names after a colon are illustrations, and measured against ECMAScript the
-    real set is 21 — the colon list omits every `Space_Separator` character
-    but U+00A0. Derive from the rule; the six are not a set to copy. §Whitespace
+  - **Whitespace** — §Whitespace, which narrows twice, and where a list was
+    the trap. Its rule is general and correct: whitespace is exactly JSON's
+    four characters, so **every other character JavaScript treats as
+    whitespace or a line terminator** is rejected. The section used to name
+    six of them after a colon, in normative text, so a reader could take the
+    six for the set whatever they were meant as; measured against ECMAScript
+    the real set is 21, that list having omitted every `Space_Separator`
+    character but U+00A0, and it is now deleted rather than corrected —
+    §Whitespace enumerates what it accepts and nothing else. Derive the 21
+    from the rule; there is no list to copy and there was never a set to copy
+    from. §Whitespace
     also *requires* whitespace in three places — after `const`, after `export`
     and after `default` — **unconditionally in all three**, whatever follows.
     Not "before an identifier-starting value after `default`", which is the
@@ -1621,13 +1631,15 @@ or the spec, not only into a thread.
    serializer falls outside those two, so "any other non-plain object" has no
    case to decide, and the serializer-reject vector it was to unblock does not
    exist because that set does not either.
-3. **§Whitespace's enumeration.** Proposal for the spec: keep the rule and
-   replace the six-item colon list with the complete set it denotes — the 21
-   characters of ECMAScript's `WhiteSpace` and `LineTerminator` classes less
-   the four permitted, which is U+000B, U+000C, U+2028, U+2029, U+FEFF and the
-   sixteen `Space_Separator` characters other than U+0020 — since the corpus
-   enumerates all 21 anyway and a reader of the spec should not have to. The
-   alternative is to mark the six as illustrations and cite ECMAScript.
+3. **§Whitespace's enumeration — decided: enumerate what is accepted and
+   reject everything else.** The six-item list after the colon is deleted
+   rather than grown to 21. Naming four accepted characters is the whole
+   rule, and it cannot be short of anything; naming what is refused is the
+   taxonomy that same paragraph says an implementer should not have to know,
+   and it had been wrong by fifteen characters since it was written. The
+   corpus still enumerates all 21 rejects, because a reader delegating to a
+   JavaScript tokenizer over-accepts every one of them and only a vector
+   sees that.
 4. **The decoder seam — decided: there is none, and no set needs one.** DataJS
    works with correct UTF-8 and rejects everything else, so a malformed
    sequence is not an input the format processes and the corpus owes it no
@@ -2665,8 +2677,12 @@ The steps, in order; a step is one pull request unless it says otherwise:
       literals. `types.ts` dropped `SerializerReject` and the twelve recipes,
       and the three surviving serializer-side records take an ordinary
       `Unknown`. Coverage stayed at 100%.
-- [ ] **§Whitespace's enumeration in the spec**, per decision 3; its own
-      pull request.
+- [x] **§Whitespace's enumeration in the spec**, per decision 3: the
+      six-item list after the colon is gone, and the rule names the four
+      characters a reader accepts and rejects everything else. The vectors
+      needed no change — their `rule` already read "whitespace: exactly
+      space, tab, LF and CR", which is the accepting form the spec now
+      takes too.
 - [ ] **The decoder seam in the spec**, per decision 4: say that a document
       is correct UTF-8 and anything else is rejected, with no taxonomy of
       malformed sequences and nothing required of a decoder. Its own pull
