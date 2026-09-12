@@ -1,15 +1,15 @@
 ## Restructure JSON, DataJS, and FunctionalScript parsers/serializers
 
 **Priority:** P1 — stage 4 is urgent and stage 1b feeds it; see
-[Priority](#priority-stages-3-and-4-come-first). **Stage 3b is P2**: open,
-partly startable, and not first, which is the level and status its own issue
-carries.
-**Status:** wip — stages 1a, 2 and 3a done. **Stage 1b is what to pick up
-next**: it is P1 and gates stage 4, while stage 3b is P2 with its error shapes
-still undecided. Stage 5 is done: 5a, the rename; 5b, the syntax; and 5c,
-the tokenizer's types and helpers off the hand-written scanner. Stage 6 is
-done: the compiler writes normalized DataJS, refuses what JSON cannot spell,
-and both halves of the subset law are proved.
+[Priority](#priority-stages-3-and-4-come-first).
+**Status:** wip — stages 1a, 2 and 3 done. **Stage 1b is what to pick up
+next**: it is P1 and gates stage 4. Stage 5 is done: 5a, the rename; 5b, the
+syntax; and 5c, the tokenizer's types and helpers off the hand-written
+scanner. Stage 6 is done: the compiler writes normalized DataJS, refuses what
+JSON cannot spell, and both halves of the subset law are proved. Stage 7's
+scanner half is done: the hand-written scanner and the JSON tokenizer over it
+are gone, and `fjs/js/tokenizer` is the grammar's stream; what it still owes
+is the clean-break release for what is left of `fjs/djs/*`.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
@@ -21,59 +21,31 @@ not here.
 Read in this order; each line says what to do and why it comes when it does.
 Item 1 is context rather than work. **Item 2 is what to start.**
 
-1. **Stage 3b changed direction, and that changes this plan.** JSON's reader
-   will come from an **EBNF grammar** over `fjs/ebnf/` rather than the
-   hand-written scanner this issue specified, so the no-runtime-grammar rule
-   below is reversed.
-
-   **It is not blocked, though two earlier drafts of this plan said so.**
-   Measurement retired that claim: the document grammar exists at
-   `fjs/ebnf/lib/json`, the LL(1) backend parses JSON with it and folds a
-   rewrite set into the parse. What 3b runs is
-   narrower and **not written**: a token-stream grammar over that module's
-   exported lexical rules, over UTF-16 code units, mapped to the tokens the
-   container machine consumes — the machine stays, with both codecs and
-   their `NumberPolicy` untouched. Four measured contracts decide that, in
-   the stage's issue: a value mapping would lose the seam the extended
-   codec's `123n` comes from; the public `tokenize` accepts streams
-   that are no document, which the document grammar rejects; and strings are
-   code-unit sequences, which the `ll1` proof's code-point decoding throws
-   on. Its typed mapping has one prerequisite, `string`'s pin in
-   widened-rule-signatures (closed),
-   and one design question of its own: the naive token grammar gets a
-   number's and a word's boundaries wrong. The metadata channel in
-   [#1890](https://github.com/functionalscript/functionalscript/pull/1890) buys
-   errors *better* than today's rather than the ones this reader owes, and it
-   cannot classify a parse failure at all, since a failure yields no tree to
-   annotate. What genuinely remains is a design decision — what the reader
-   reports on malformed input; the module's own migration, which this
-   once also waited on, is done
-   ([DESIGN.md §11](../doc/DESIGN.md#11-build-the-replacement-beside-the-module-it-replaces)).
-
-   It still is not what to pick up first. It is P2 and its error shapes are
-   undecided; stage 1b is P1 and gates stage 4, which is the ordering that
-   matters.
+1. **Stage 3 is done, and its direction changed on the way.** JSON's reader
+   came from an **EBNF grammar** over `fjs/ebnf/` rather than the
+   hand-written scanner this issue first specified, so the no-runtime-grammar
+   rule below is reversed: [`fjs/media/json/parser`](../fjs/media/json/parser/module.f.mjs)
+   folds [`fjs/ebnf/lib/json`](../fjs/ebnf/lib/json/module.f.mjs) to a value
+   per numeric policy, both codecs' `parse` run it, and the container machine
+   over a token stream is deleted. What 3b still carried after that, the
+   public JSON `tokenize` — an adapter over the scanner, off `parse`'s path,
+   with no consumer but its own proofs — was **retired rather than rebuilt**
+   with the scanner in stage 7: a token stream nothing reads is not an API
+   worth an error-shape design. The measurements its issue held — the two
+   invariants, the accepted-language probes, the character sweeps — are
+   facts about a tokenizer that no longer exists and stay in git history
+   (`fjs/media/json/todo/self-contained-tokenizer.md`, before this stage
+   closed).
 
    The hand-written design was written, reviewed, implemented in full and
    **withdrawn** —
    [#1895](https://github.com/functionalscript/functionalscript/pull/1895),
-   reverted. Read it for its measurements, not as a plan. The rewritten issue
-   carries what survives:
-   [`fjs/media/json/todo/self-contained-tokenizer.md`](../fjs/media/json/todo/self-contained-tokenizer.md).
-   What it carries is now measurement rather than design: the two invariants
-   any replacement is held to, the accepted-language probes, the measured
-   accepting and terminator sets, the error shapes today's wrapper produces,
-   and a checklist of what has to be decided before an implementation can
-   start. Those survive the reversal because they are facts about the
-   tokenizer being replaced rather than about its replacement. Read the tables
-   as what that file calls them — **recorded, not promised**: a before/after
-   record reviewed as data, not a rule a replacement inherits. The two
-   invariants are the part an implementation is actually held to.
+   reverted. Read it for its measurements, not as a plan.
    *Why it still matters:* stage 4 needs it. DataJS's reader reuses JSON's, and
    over a grammar the reuse is of rules rather than of exported scanners.
    That is answered in code —
    [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) already
-   imports JSON's rules — and the rewritten issue marks it done.
+   imports JSON's rules.
 2. **Start here: stage 1b, the conformance vectors**
    ([`spec/datajs/todo/conformance-vectors.md`](../spec/datajs/todo/conformance-vectors.md)).
    *Why here:* it is stage 4's proof source, so landing stage 4 first means
@@ -107,9 +79,9 @@ Item 1 is context rather than work. **Item 2 is what to start.**
 4. **Then stages 5–7**, in order, as listed below. Stages 5 and 6 are done —
    within stage 5 the order was not a dependency, 5b and 5c each waiting on
    5a alone, and 5c landed first; stage 6 took stage 4's writer as it stood.
-   Stage 7 waits on stage 3b for the scanner's deletion; the token grammar
-   it rebuilds `fjs/js/tokenizer` over can grow now, and the website's
-   highlighter is why it should — see stage 7.
+   Stage 7's scanner half is done with stage 3b; the token grammar
+   `fjs/js/tokenizer` now reads can grow, and the website's highlighter is
+   why it should — see stage 7.
 
 **Already done, do not redo:** stage 1a (the DataJS specification), stage 2
 (the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
@@ -187,12 +159,11 @@ fjs/fsc            JS tokenizer (comments, all     evolves with the language
   `fjs/js/tokenizer` wrapper is replaced by a reader generated from JSON's own
   grammar over `fjs/ebnf/`. Error shapes may change once in that swap;
   accepted-input behavior does not, with one enumerated exception — inputs like
-  `1n1`, which today's tokenizer accepts as a number by deleting the `n`, start
-  erroring. No existing proof is in that class. Both halves are measured and
-  the invariants stated in
-  [self-contained-tokenizer](../fjs/media/json/todo/self-contained-tokenizer.md),
-  which survives the change of direction because they are facts about the
-  tokenizer being replaced rather than about its replacement.
+  `1n1`, which the old tokenizer accepted as a number by deleting the `n`,
+  start erroring. No existing proof is in that class. Both halves were
+  measured and the invariants stated in the stage's issue,
+  `fjs/media/json/todo/self-contained-tokenizer.md`, closed with stage 7 and
+  kept in git history.
 - **DataJS** (the format known in this repository as DJS): a new, minimal,
   spec'd format — JSON extended from a tree to a DAG, nothing else. Its reader
   is built on a grammar extending JSON's rather than on JSON's exported
@@ -610,22 +581,17 @@ throughout.
    design this plan replaces with `;`, so keeping it would have preserved a
    grammar contradicting the decision record above. Git history holds them if
    a future stage wants the `id`/`alpha`/comment rules.
-3. **JSON's reader — 3a done, 3b open but not first; see above.** Two PRs:
-   **3a** drops the fabricated `string` token that follows a malformed-literal
-   error, in the existing wrapper, since that defect predates the replacement
-   and is provable without it; **3b** replaces the `fjs/js/tokenizer` wrapper in
-   `fjs/media/json/tokenizer` with a reader generated from JSON's own grammar
-   over `fjs/ebnf/`, whose mapping builds **tokens** for the container machine
-   in `fjs/media/json/parser`, which stays with both codecs and their
-   `NumberPolicy` unchanged. **3b exports no scanners.** That seam belonged
-   to the withdrawn hand-written design, and what replaces it is answered in
-   code:
-   rule reuse by ordinary import, as
-   [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) already does.
-   Accepted-input proofs unchanged in both,
-   but for one enumerated defect — the `n` an old number swallowed — which only
-   3b can fix; error-shape proofs rewritten once, to shapes 3b has still to
-   decide.
+3. **JSON's reader — done.** Two PRs and a deletion: **3a** dropped the
+   fabricated `string` token that followed a malformed-literal error, in the
+   old wrapper, since that defect predated the replacement and was provable
+   without it; **3b** made the reader the grammar, `fjs/media/json/parser`
+   folding `fjs/ebnf/lib/json` to a value with both codecs and their
+   `NumberPolicy` unchanged, the container machine retired; and stage 7
+   retired the public `tokenize` beside it, an adapter over the hand-written
+   scanner that nothing read. **3b exports no scanners.** That seam belonged
+   to the withdrawn hand-written design, and what replaced it is answered in
+   code: rule reuse by ordinary import, as
+   [`fjs/ebnf/lib/datajs`](../fjs/ebnf/lib/datajs/module.f.mjs) does.
 4. **`fjs/media/datajs` — urgent, see above; this is what EDAG needs.** Parser
    and serializer, proofs over the spec vectors.
 
@@ -706,7 +672,7 @@ throughout.
    compiler's title. `fjs/fsc/module.f.mjs`, `types.ts` and `proof.f.mjs`
    are a range-map lexer stub nothing imports; the front end's entry module
    takes the path and the stub is deleted, and everything that cited it is
-   told: [174](../fjs/js/todo/174-shared-range-map-lexer.md) and
+   told: 174 (since closed with the scanner it was about) and
    [190](../fjs/text/todo/190-text-code-unit-string-boundary.md), which
    quote it as code and lose a consumer each; the two inventories that
    counted its proof, `todo/camel-case-proof-keys.md` and
@@ -867,31 +833,13 @@ throughout.
 - [x] Stage 2: dead `fjs/fsc` grammar deleted; its todo file removed and the
       citations in [207](../fjs/ebnf/todo/207-bnf-semantic-actions.md)
       repointed at the classical `fjs/bnf/testlib.f.mjs`, since deleted.
-- [x] Stage 3a: drop the fabricated `string` token in the existing wrapper —
-      [`self-contained-tokenizer`](../fjs/media/json/todo/self-contained-tokenizer.md),
-      the defect that predates the replacement and is provable without it.
-- [ ] Stage 3b: the reader comes from a grammar over `fjs/ebnf/`, not from a
-      hand-written scanner. **Startable but not first**: the lexical rules
-      exist at `fjs/ebnf/lib/json` and `fjs/ebnf/ll1` folds a rewrite set
-      into the parse — the token-stream grammar 3b runs, over UTF-16 code
-      units, is still to be written and made to match today's at a number's
-      and a word's boundaries; its mapping builds **tokens** for the container
-      machine that stays and
-      needs `string`'s pin from
-      widened-rule-signatures (closed)
-      first — so this is no longer blocked on
-      [#1890](https://github.com/functionalscript/functionalscript/pull/1890) —
-      that channel buys better errors than today's, not the ones owed. What is
-      undecided is the error shapes.
-      A reader must compose EOF: `json` alone accepts `[1]x`.
-      What is measured and still holds is the swap's blast radius: the accepted
-      language is JSON's already, but for one defect — `1n1` and its class,
-      accepted today by deleting an `n` from inside a number, which only 3b can
-      fix — so beyond that only error shapes change. What replaces the
-      hand-written seam is answered in code — rule reuse by import, as
-      `fjs/ebnf/lib/datajs` already does — and what error shapes a
-      grammar-driven reader should produce is the open question that issue
-      lists.
+- [x] Stage 3a: drop the fabricated `string` token in the existing wrapper,
+      the defect that predated the replacement and was provable without it.
+- [x] Stage 3b: the reader comes from a grammar over `fjs/ebnf/`, not from a
+      hand-written scanner — `fjs/media/json/parser` over
+      `fjs/ebnf/lib/json`, the container machine retired; the public
+      `tokenize` that remained beside it, retired with the scanner in
+      stage 7, so its error shapes were never owed.
 - [ ] Stage 4: `fjs/media/datajs`; todo filed, reader landed on the grammar
       route. The byte path, the serializer and normalized form remain, with
       proofs over stage 1b's corpus as their source.
@@ -911,11 +859,14 @@ throughout.
       link into them.
 - [x] Stage 6: the normalizer and the subset-law proofs, both in
       `fjs/fsc`; no todo of its own was needed.
-- [ ] Stage 7: the hand-written scanner retired, `fjs/js/tokenizer` rebuilt
-      over the grammar as the general JS token stream, and the
-      breaking-change release. The grammar's widening for the website,
+- [x] Stage 7, the scanner: the hand-written scanner retired with its
+      issues, `fjs/js/tokenizer` rebuilt over the grammar as the general JS
+      token stream, and the JSON tokenizer over the scanner retired rather
+      than rebuilt. The grammar's widening for the website,
       [single-quote-and-template-lexing](../fjs/ebnf/lib/js/todo/single-quote-and-template-lexing.md),
       can start now.
+- [ ] Stage 7, the release: the clean-break `**BREAKING CHANGES:**` release
+      for what is left of `fjs/djs/*`.
 - [ ] Update affected issues as their subject matter moves (see below).
 - [ ] `tsc`, `fjs test` at every stage.
 

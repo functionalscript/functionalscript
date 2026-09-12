@@ -2,10 +2,9 @@
 
 **Priority:** P3
 **Status:** open — **blocked by nothing.** This issue used to live beside the
-hand-written scanner in `fjs/js/tokenizer` and waited on
-[self-contained-tokenizer](../../../../media/json/todo/self-contained-tokenizer.md),
-because widening that scanner regressed the public JSON tokenizer built over
-it. It moved here when
+hand-written scanner in `fjs/js/tokenizer` and waited on the JSON reader's
+rewrite, because widening that scanner regressed the public JSON tokenizer
+built over it. It moved here when
 [parser-serializer-restructure](../../../../../todo/parser-serializer-restructure.md)
 stage 7 decided that the scanner goes and the grammar is the token layer:
 JSON reads [`ebnf/lib/json`](../../json/module.f.mjs), not this grammar, so
@@ -74,8 +73,9 @@ The grammar has three readers, and the widening reaches each differently.
   2460 and 3440 accept them. That keeps the accepted language exactly where
   it is, and it is the same place the fold already refuses `-NaN`. The
   compiler's proofs pin it.
-- `fjs/js/tokenizer`, once stage 7 rebuilds it over this grammar as the
-  general JS stream. It is the consumer this issue exists for: the website's
+- [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs), the general
+  JS stream over this grammar since stage 7. It is the consumer this issue
+  exists for: the website's
   [source-and-doc-view](../../../../website/todo/source-and-doc-view.md)
   reads it, and a future `fjs lint` would. It refuses nothing the grammar
   recognises.
@@ -83,8 +83,8 @@ The grammar has three readers, and the widening reaches each differently.
   folds [`ebnf/lib/json`](../../json/module.f.mjs), a separate grammar this
   one *imports rules from* and never the reverse, so `'x'` stays
   `unexpected symbol at 0` there whatever this grammar learns. The JSON
-  tokenizer's `escapeJsHasAndJsonDoesNot` proof, which the old issue had to
-  defend, is untouched because that tokenizer never reads this grammar.
+  tokenizer whose `escapeJsHasAndJsonDoesNot` proof the old issue had to
+  defend is retired, with the scanner it wrapped.
 
 What the widening must not do is grow the JSON rules it imports. `string`,
 `escape` and `character` in `ebnf/lib/json` are JSON's and stay JSON's; the JS
@@ -206,13 +206,12 @@ The scanner this issue was written against emitted *cooked* strings and
 collapsed every run of whitespace to one valueless token, so its stream could
 not reconstruct the text it came from, and the old issue spent a section on
 slicing the source by end positions to get it back. The grammar route does not
-have the problem: [`fsc/tokenizer`](../../../../fsc/tokenizer/module.f.mjs)
-already reads a token's text as "the input between where it began and where
-it ended", and carries both positions. A view built on that stream can show
+have the problem: [`fjs/js/tokenizer`](../../../../js/tokenizer/module.f.mjs)
+reads a token's text as "the input between where it began and where it
+ended", and carries both positions. A view built on that stream can show
 the source exactly, indentation and raw escapes included, without a second
-pass over the text. The rebuilt `fjs/js/tokenizer` keeps that property; a
-proof should pin it on the largest module, since it is what the source view
-rests on.
+pass over the text. A proof should pin that on the largest module, since it
+is what the source view rests on.
 
 ### Tasks
 
@@ -272,6 +271,3 @@ rests on.
   issue settles.
 - [eslint](../../../../../todo/eslint.md) — names this same gap as its reason
   for deferring `fjs lint`; a linter cannot read sources the tokenizer rejects.
-- [self-contained-tokenizer](../../../../media/json/todo/self-contained-tokenizer.md)
-  — the JSON tokenizer's rebuild, which this issue used to wait on and no
-  longer does; the two touch only through the JSON rules this grammar imports.

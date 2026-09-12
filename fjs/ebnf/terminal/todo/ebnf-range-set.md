@@ -367,6 +367,3 @@ justification is the API and the AST, which is where
   and the lowering that validates a set as this issue requires.
 - [`fjs/types/range_set/module.f.mjs`](../../../types/range_set/module.f.mjs) —
   the module, now the toggle list.
-- [`fjs/js/todo/174-shared-range-map-lexer.md`](../../../js/todo/174-shared-range-map-lexer.md)
-  — the two hand-rolled scanners also build range-set cells over `range_map`;
-  the shared value type is a natural input for the factory it proposes.

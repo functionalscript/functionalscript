@@ -9,7 +9,7 @@ Two things stay here until stage 4 of that plan is on `main`:
   DJS serializer and the value model it writes. Stage 4 reworked the writer
   into [`fjs/media/datajs`](../media/datajs/README.md), and `fjs compile`
   writes through that one since stage 6; what remains here has its own proofs
-  and one consumer, `fjs/media/json/tokenizer`'s proof.
+  and no consumer but the tokenizer proofs' dump of tokens holding bigints.
 - [`todo/`](./todo/), the issues of the front end and the serializer alike.
   They move to `fjs/fsc/todo/` in a pull request of their own once stage 4's
   pull requests, which link into them, have landed.

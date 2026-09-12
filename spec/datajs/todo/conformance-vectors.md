@@ -22,9 +22,10 @@ Stage 3 is **not** a consumer, though an earlier draft of this file said it was.
 Stage 3 is JSON's tokenizer, and what it must prove — that its accepted set
 stays JSON's, but for the one enumerated `n`-deletion defect its invariants
 name — is a property of JSON, established by JSON's own
-accepted-input proofs and by those two invariants
-[self-contained-tokenizer](../../../fjs/media/json/todo/self-contained-tokenizer.md)
-states, with its character sweeps as coverage rather than proof: that file marks
+accepted-input proofs and by the two invariants the JSON reader's issue
+stated while it was open (`fjs/media/json/todo/self-contained-tokenizer.md`,
+closed with stage 7 of the restructure plan and kept in git history), with
+its character sweeps as coverage rather than proof: that file marked
 them **recorded, not promised** — a before/after record reviewed as data. A
 DataJS corpus has nothing to say about any of it.
 

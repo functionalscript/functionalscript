@@ -31,10 +31,10 @@ page.
   [`fjs/fsc/tokenizer`](../../fsc/tokenizer/module.f.mjs) reads it: comments
   and trivia are tokens, every token knows where it begins and ends, and it is
   authored FunctionalScript, so it loads in a browser like any other module.
-  Nothing is written twice. The token stream is the one the plan's stage 7
-  makes `fjs/js/tokenizer` — the grammar's general JS stream, which the
-  compiler's tokenizer folds — so the module path below stays right; what
-  goes is the hand-written scanner behind it.
+  Nothing is written twice. The token stream is
+  [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs)'s — the grammar's
+  general JS stream, which the compiler's tokenizer folds — since stage 7
+  of the plan replaced the hand-written scanner behind that path.
 - **The grammar must first recognise the sources it will show.** Today its
   string rule is JSON's, the double quote only, and it has no template
   literal: `const a = 'x'` and a template literal alike stop the grammar at
@@ -98,9 +98,7 @@ page.
 - [Publish `deno doc` to website](publish-deno-doc-to-website.md) — the full
   type reference, deliberately not this.
 - [Generate website](generate-website.md) — "Source code highlighting" is this issue.
-- [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs) — the token grammar
-  both views read, through the stream stage 7 of
-  [parser-serializer-restructure](../../../todo/parser-serializer-restructure.md)
-  makes of `fjs/js/tokenizer`.
+- [`fjs/js/tokenizer`](../../js/tokenizer/module.f.mjs) — the token stream
+  both views read, over the grammar [`fjs/ebnf/lib/js`](../../ebnf/lib/js/module.f.mjs).
 - [single-quote-and-template-lexing](../../ebnf/lib/js/todo/single-quote-and-template-lexing.md)
   — the prerequisite, as its own issue.

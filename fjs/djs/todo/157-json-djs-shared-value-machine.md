@@ -174,10 +174,12 @@ it is the concrete cost the extraction below now buys back.
 > deleted and replaced by a grammar-based tokenizer. Re-verify current duplication
 > before acting on this section.
 
-`fjs/media/json/tokenizer/module.f.mjs` and the old DJS tokenizer both wrapped the
-shared JS tokenizer and folded a leading `-` into the following numeric token.
-The current DJS tokenizer retains similar mapping/state logic, but the names and
-line numbers changed. Any extraction here must first re-measure the current code.
+The JSON tokenizer and the old DJS tokenizer both wrapped the shared JS
+tokenizer and folded a leading `-` into the following numeric token. The JSON
+tokenizer is retired — `fjs/media/json` reads its grammar and never had a
+consumer of the token stream — so the fold now exists once, in
+`fjs/fsc/tokenizer`, and there is nothing left to share. What this section
+asked for is done by deletion.
 
 ### Tasks
 
