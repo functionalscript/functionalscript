@@ -49,7 +49,16 @@ export const tryType: (w: readonly number[]) => Nullable<ObjectType>
 
 (the envelope reader itself uses it at `object/module.f.mjs:116`). The
 name is the contract: `tag` and the packfile reader import `tryType`, not
-a renamed private `typeOf`. `tag`'s `typeOf` then keeps only its two
+a renamed private `typeOf`.
+
+Public, it must not inherit the private lookup's one weakness: going
+through `codePointListToString`, which truncates a value above `0xFF`, so
+`[0x110062, 0x11006c, 0x11006f, 0x110062]` would read as `blob`. The
+four names are ASCII, so `tryType` **compares bytes, not strings** —
+`objectTypes.find(t => sameBytes(ascii(t), w))` — and a member outside
+`0x00`–`0xFF` matches no name's byte and is refused as `null` by
+construction, with no conversion for truncation to hide in. The four
+`ascii(t)` byte arrays are computed once at module scope. `tag`'s `typeOf` then keeps only its two
 Git-fidelity rules and delegates:
 
 ```js
@@ -64,7 +73,8 @@ type, then gets the same entry point rather than a third copy.
 
 ### Tasks
 
-- [ ] Export `tryType` from `fjs/git/object/module.f.mjs`; prove it.
+- [ ] Export `tryType` from `fjs/git/object/module.f.mjs` as a byte
+      comparison; prove it, the out-of-range member pinned at `null`.
 - [ ] Delegate `tag`'s `typeOf` to it; tag proofs pass unchanged.
 - [ ] `tsc`, `fjs test`.
 

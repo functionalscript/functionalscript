@@ -39,7 +39,11 @@ Git-specific — JSON refuses a leading zero by the same canonicality rule,
 so a Git-local module would be the second copy waiting to happen.
 
 ```ts
-/** Git's canonical spelling: no leading zero unless the number is zero. */
+/**
+ * Git's canonical spelling: a non-empty run of ASCII decimal digits with no
+ * leading zero unless the run is `0` alone. `false` for `[]`, for a leading
+ * `0` before more digits, and for any member outside `0x30`–`0x39`.
+ */
 const isCanonicalDigits: (digits: readonly number[]) => boolean
 /**
  * The value the ASCII decimal-digit bytes spell in `radix`, or `null`
@@ -61,7 +65,11 @@ which is the repository's shape for a programmer error rather than an
 input the function refuses. Both consumers here are `8n` and `10n`.
 
 **The empty run is pinned as a refusal**, in both: `digitsValue(r)([])`
-is `null` and `isCanonicalDigits([])` is `false`. An empty list spells no
+is `null` and `isCanonicalDigits([])` is `false`. **So is a non-digit
+member**: `isCanonicalDigits([0x41])` is `false`, since canonicality is a
+property of a decimal spelling and `A` is not one — the predicate scans
+its members rather than assuming a caller validated them, so it answers
+the same for every input whether or not `digitsValue` was called first. An empty list spells no
 number, and a public function that answered `0n` for it would be handing
 out a plausible wrong value ([DESIGN.md §10](../../../doc/DESIGN.md#10-refuse-what-you-cannot-handle)).
 The open-coded copies answer the other way — each fold is seeded with

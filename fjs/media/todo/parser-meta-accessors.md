@@ -40,25 +40,38 @@ small helper **in the same module**, exported beside `textAt`:
 ```ts
 import type { Meta } from '../../../ebnf/ast/types.ts'
 import type { Utf16 } from '../../../ebnf/utf16/types.ts'
-/** A node a reader may be handed: a symbol of either alphabet, or a subtree. */
-type _Readable = Meta<Utf16 | { readonly id: string }> | readonly unknown[]
+/** A node a reader may be handed: a symbol of the input or the layer's output alphabet `O`, or a subtree. */
+type _Readable<O> = Meta<Utf16 | O> | readonly unknown[]
 /**
- * A tagged output symbol over the metadata type `M` and its one payload
- * field `K`: `symbol` builds `{ symbol: 0, meta: { id, [key]: payload } }`,
- * `at` reads the payload back, asserting `meta.id === id`.
+ * A tagged output symbol over the layer's output alphabet `O`, one of its
+ * metadata types `M`, and `M`'s one payload field `K`: `symbol` builds
+ * `{ symbol: 0, meta: { id, [key]: payload } }`, `at` reads the payload
+ * back, asserting `meta.id === id`.
  */
-export const tagged: <M extends { readonly id: string }, K extends Exclude<keyof M, 'id'>>(id: M['id'], key: K) => {
+export const tagged: <O extends { readonly id: string }, M extends O, K extends Exclude<keyof M, 'id'>>(id: M['id'], key: K) => {
     readonly symbol: (payload: M[K]) => Meta<M>
-    readonly at: (node: _Readable) => M[K]
+    readonly at: (node: _Readable<O>) => M[K]
 }
 ```
 
-`M` is one of the existing metadata types, so the payload type is fixed
-by the declaration it already has: `tagged<Text, 'value'>('text',
-'value')` gives `text`/`textAt`, and `tagged<Value, 'node'>('value',
-'node')` gives `datajs`'s pair. The JSON pair is generic in the numeric
+`at`'s input is tied to `M` through the alphabet: a node is `Meta<Utf16
+| O>`, so a `Meta` whose metadata is outside the layer's declared output
+alphabet is a type error, not a runtime surprise — `tagged<Out, {
+id: 'text', foo: number }, 'foo'>` does not instantiate, because that
+shape is not in `Out`. Within `O` the `id` selects one shape, by the
+convention `fjs/ebnf/ast/README.md` states ("an `id` names one metadata
+type: two shapes under one `id` would be one alphabet with nothing to
+tell them apart"), so the runtime `id` assertion is exactly the check
+that convention leaves to make, and
+[`mapping-precheck`](../../ebnf/ll1/todo/mapping-precheck.md) is where the
+convention becomes a checked constraint. `M` is one of the existing
+metadata types, so the payload type is fixed by the declaration it
+already has: `tagged<Out<P>, Text, 'value'>('text', 'value')` gives
+`text`/`textAt` for JSON, `tagged<Out, Text, 'value'>` the same for
+DataJS, and `tagged<Out, Value, 'node'>('value', 'node')` gives
+`datajs`'s pair. The JSON pair is generic in the numeric
 policy, so it is a thunk over `P` — `/** @type {<P>() => …} */ const
-json = () => tagged<Json<P>, 'result'>('json', 'result')` — instantiated
+json = () => tagged<Out<P>, Json<P>, 'result'>('json', 'result')` — instantiated
 where `P` is bound, which is exactly where `jsonSymbol`/`jsonAt` are used
 today (inside `mappings(policy)` and the value mapping). `_Readable` is
 the node type `unitAt`/`textAt`/`jsonAt` already take, named with the

@@ -65,7 +65,13 @@ so the PR declares it with a `Changelog:` entry. `fromWords` is what
 becomes `fromWords(wordLength)`. `ch`/`maj` keep their three-argument
 shape; `sha1` imports them instead of restating them over `b, c, d`.
 
-`fromWords` is **total**: the fold is seeded with `0n`, so
+`fromWords` is **total over its domain, and its domain is asserted**:
+`wordLength` is positive, and every word is `0n <= word < 1n << wordLength`;
+either violated is a caller error no data can cause (the words are hash
+state, masked by `compress`), so it **throws** — `fromWords(0n)`,
+`fromWords(-8n)`, and `fromWords(8n)([0x100n, 0n])` all panic rather
+than answering the `65536n` a bare shift-or would, which two 8-bit words
+cannot spell. Within the domain the fold is seeded with `0n`, so
 `fromWords(w)([])` is `0n` — the number an empty run of words spells, and
 the identity of the shift-or fold, the same way an empty `listToVec` is
 `empty`. Today's `fromV8`/`fromV5` call `reduce` with no seed and would
@@ -84,7 +90,8 @@ of writing the literal, importing all four from `sha2` in place of
 
 - [ ] Export `framed`, `fromWords`, `ch`, `maj` from
       `fjs/crypto/sha2/module.f.mjs`; re-express `sha2`'s own `base`
-      through them; pin `fromWords`'s empty case at `0n`; remove `Base`
+      through them; pin `fromWords`'s empty case at `0n` and its
+      out-of-range word and non-positive width as panics; remove `Base`
       from `sha2/types.ts` and declare the break in `Changelog:`.
 - [ ] Rewrite `sha1`'s record and helpers through them; proofs pass
       unchanged.
