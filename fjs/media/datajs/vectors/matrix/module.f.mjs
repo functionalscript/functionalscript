@@ -52,7 +52,7 @@
  */
 
 import { assertNotNullish } from '../../../../asserts/module.f.mjs'
-import { errorMessage, foldStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.mjs'
+import { errorMessage, foldStep, mapStep, pureOk, resultMapStep, step } from '../../../../effects/module.f.mjs'
 import { errorExit, exitStep, mkdir, readFile, writeUtf8File } from '../../../../effects/node/module.f.mjs'
 import { fromVec } from '../../../../text/utf8/module.f.mjs'
 import { parse } from '../../parser/module.f.mjs'
@@ -686,12 +686,12 @@ export const sourceDefects = corpus => foldStep(
  *
  * @type {(corpus: Corpus) => NodeProgram}
  */
-export const program = corpus => _options => step(
-    sourceDefects(corpus),
-    defects => {
-        const [tag, value] = matrix(corpus, defects)
-        return tag === 'error' ? errorExit(value) : exitStep(write(value))
-    })
+export const program = corpus => _options => {
+    const checked = sourceDefects(corpus)
+    const rendered = mapStep(checked, defects => matrix(corpus, defects))
+    return step(rendered, ([tag, value]) =>
+        tag === 'error' ? errorExit(value) : exitStep(write(value)))
+}
 
 /** @type {NodeProgram} */
 export const main = program(corpus)

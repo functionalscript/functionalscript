@@ -104,6 +104,15 @@ const written = modules(corpus).map(([name, imported]) =>
 /** The exit code the real program gives against a filesystem. @type {(state: State) => number} */
 const run = state => exitCode(virtual(state)(main(defaultNodeProgramOptions))[1])
 
+/**
+ * Each character of `s` taken as one byte, so a fixture can spell a byte no
+ * encoder would produce. `utf8` cannot: it encodes a *string*, and the point
+ * here is a byte sequence that decodes to no string at all.
+ *
+ * @type {(s: string) => Vec}
+ */
+const bytes = s => toVec(new Uint8Array([...s].map(c => c.codePointAt(0) ?? 0)))
+
 /** @type {string} */
 const name = 'is not a name the table can show as written'
 
@@ -500,8 +509,6 @@ export const proof = {
     // the graph the engine imported. Every one of them would pass a check that
     // parsed first.
     sourceNotUtf8: () => {
-        /** each character taken as one byte, so a fixture can spell an illegal one @type {(s: string) => Vec} */
-        const bytes = s => toVec(new Uint8Array([...s].map(c => c.codePointAt(0) ?? 0)))
         // `FF` is no UTF-8 byte at all; `C2` at the end is a truncated
         // sequence; `C0 AF` is an overlong `/`; `ED A0 80` is a surrogate
         for (const junk of ['\u00ff', '\u00c2', '\u00c0\u00af', '\u00ed\u00a0\u0080']) {
@@ -526,17 +533,17 @@ export const proof = {
     // turns one fix into two runs of the generator.
     defectsTogether: () => {
         const outside = 'the set a-set: its own source is not a DataJS document'
-        const both = matrix(landed, [outside])
-        assert(both[0] === 'error', 'expected a refusal')
-        assert(both[1].includes(outside), both[1])
-        assert(both[1].includes('y in serializer'), both[1])
-        assert(both[1].includes('the corpus has 2 defects:'), both[1])
+        const [tag, both] = matrix(landed, [outside])
+        assert(tag === 'error', 'expected a refusal')
+        assert(both.includes(outside), both)
+        assert(both.includes('y in serializer'), both)
+        assert(both.includes('the corpus has 2 defects:'), both)
         // and beside a malformed scope, which the table refuses first and alone:
         // that exclusivity is about defects derived from *reading* a scope, and
         // an outside defect is not one
-        const malformed = matrix(withScope(null), [outside])
-        assert(malformed[0] === 'error', 'expected a refusal')
-        assert(malformed[1].includes(outside), malformed[1])
-        assert(malformed[1].includes('is not a scope'), malformed[1])
+        const [badTag, badScope] = matrix(withScope(null), [outside])
+        assert(badTag === 'error', 'expected a refusal')
+        assert(badScope.includes(outside), badScope)
+        assert(badScope.includes('is not a scope'), badScope)
     },
 }
