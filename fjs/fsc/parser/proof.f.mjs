@@ -167,7 +167,7 @@ export const proof = {
                 ["export default {NaN: 1};", "unexpected token", [1, 17]],
                 // `-` folds into a number and into `Infinity`, and into
                 // nothing else: `-NaN` is refused at the `-`, as in DataJS
-                ["export default -NaN;", "invalid token", [1, 16]],
+                ["export default -NaN;", "unexpected token", [1, 17]],
                 ["const undefined = 1;\nexport default undefined;", "unexpected token", [1, 7]],
                 ["const a = zzz;\nexport default a;", "const not found", [1, 11]],
                 ["export default [zzz];", "const not found", [1, 17]],
