@@ -47,7 +47,11 @@ const spelling = input => {
     if (typeof input !== 'object' || input === null || Array.isArray(input)) { return null }
     const o = /** @type {{ readonly [k in string]?: Unknown }} */ (input)
     const k = keys(o)
-    return k.length === 1 && o[k[0]] === 0
+    // `__proto__` is a key with a production of its own, `["__proto__"]`, which
+    // `JSON.stringify` knows nothing about. Review found this before a vector
+    // did: the check would demand a spelling the reader refuses and go red for
+    // the wrong reason, so the one key the rule spells differently opts out.
+    return k.length === 1 && k[0] !== '__proto__' && o[k[0]] === 0
         ? `export default {${JSON.stringify(k[0])}:0};`
         : null
 }
