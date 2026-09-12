@@ -9,7 +9,7 @@
  * **It is the first demo that asks for something.** Timing needs a clock, and
  * a demo is FunctionalScript — so it names `sandbox`, the host-neutral
  * operation that runs a thunk and reports how long it took, and the shared
- * runtime performs it. What a browser is measuring is eight ways to find the
+ * runtime performs it. What a browser is measuring is seven ways to find the
  * high bit of a `bigint`, and neither this module nor the runtime knows that:
  * one describes the work, the other times it.
  *
@@ -120,7 +120,7 @@ const string32Log2 = n => {
 
 /**
  * Doubling from `1023n`, finishing with `Math.log2` but without the infinity
- * check {@link ylog2} and the module's `log2` both have.
+ * check the module's `log2` has.
  *
  * @type {(v: bigint) => bigint}
  */
@@ -147,61 +147,6 @@ const mathLog2 = v => {
     return result + x + (v >> x)
 }
 
-/** The benchmark's alias for `Math.log2`, kept because {@link ylog2} used it. */
-const mLog2 = Math.log2
-
-/**
- * The one that won, almost: `module.f.mjs`'s `log2` is this algorithm plus one
- * guard.
- *
- * **Kept in the comparison because it is a near-duplicate.** Two rows running
- * the same instructions are the page's evidence that its timings mean
- * anything — a measurement nothing reproduces is not a measurement — and they
- * do land together, at about 19 ms and 17 ms in Chrome.
- *
- * **The guard is `if (v <= 0n) { return -1n }`, and it is load-bearing.** For
- * every positive input the two agree exactly, including across the `2**1024`
- * boundary where the `isFinite` branch lives. Below that they part: `0n` gives
- * `1023n` here against `log2`'s `-1n`, and a negative input **never returns**,
- * because `-1n >> j` is `-1n` at any shift, so the doubling loop has no zero
- * to find.
- *
- * That is worse than a wrong answer and the one failure this page could not
- * absorb: {@link work} turns a wrong answer into a row because the candidate
- * *throws*, and `sandbox` catches throws. It cannot catch a loop. What keeps
- * this safe is that `work` never passes anything below `1n` — which is why
- * that is stated there as an invariant rather than left as an accident.
- *
- * @type {(v: bigint) => bigint}
- */
-const ylog2 = n => {
-    let i = -1n
-    let j = 0x400n
-    while (true) {
-        const m = n >> j
-        if (m === 0n) { break }
-        n = m
-        i += j
-        j <<= 1n
-    }
-    while (j !== 0x400n) {
-        j >>= 1n
-        const m = n >> j
-        if (m !== 0n) {
-            i += j
-            n = m
-        }
-    }
-    const nl = mLog2(Number(n))
-    if (isFinite(nl)) {
-        const rem = BigInt(nl | 0)
-        i += rem + (n >> rem)
-    } else {
-        i += 0x400n
-    }
-    return i
-}
-
 /**
  * The work each implementation is timed on: `log2` of every power of two from
  * `2**size` down, and of the number one below it.
@@ -209,10 +154,13 @@ const ylog2 = n => {
  * **Each answer is checked, so a fast wrong implementation cannot win.** A
  * benchmark that only measures is a benchmark that rewards returning nothing.
  *
- * **Never below `1n`**, and that is an invariant, not an incident: `e` stops
- * at `1`, so the smallest input any candidate sees is `1n`. {@link ylog2} does
- * not terminate on a negative, and no `sandbox` can catch a loop the way it
- * catches a throw — so widening this range is not a small change.
+ * **Never below `1n`**: `e` stops at `1`, so the smallest input any candidate
+ * sees is `1n`. Every candidate here either guards `v <= 0n` or answers from
+ * a base conversion that terminates whatever it is handed, so nothing loops —
+ * but that is a property of the current list, not of the work, and the
+ * benchmark did contain a candidate that spun forever on a negative. A
+ * `sandbox` catches a throw and cannot catch a loop, so widening this range
+ * means re-checking the list rather than assuming it.
  *
  * The size is the demo's, not the original page's, and the comparison survives
  * the change: every candidate's cost grows with the same input, so shrinking
@@ -235,7 +183,7 @@ export const work = size => f => {
 
 /**
  * The implementations compared, in the order a reader sees them: the one that
- * shipped first, then the seven it was chosen over.
+ * shipped first, then the six it was chosen over.
  *
  * **None of the others is exported, and none is an implementation of `log2`.**
  * They are the things it is measured against. Every one came off the retired
@@ -250,10 +198,18 @@ export const work = size => f => {
  * Measuring with them is safe because {@link work} checks every answer against
  * the exponent it asked for, so a candidate that is fast and wrong loses.
  *
- * `mLog2`, the benchmark's alias for `Math.log2`, is deliberately not a row.
- * It is not an implementation of anything — it takes a `number`, so it throws
- * on the first `bigint` handed to it — and the benchmark never timed it
- * either. It survives above as what {@link ylog2} calls, which is all it was.
+ * Two names from the benchmark are deliberately absent.
+ *
+ * `ylog2` is `log2` itself: the same instructions, minus the opening
+ * `if (v <= 0n) { return -1n }`. Over every input this page measures the two
+ * are the same code, so a row for it would time `log2` twice and read as two
+ * findings. Where they differ is outside the page's range entirely — `0n`
+ * gives `1023n` there against `-1n`, and a negative never returns at all,
+ * since `-1n >> j` is `-1n` at any shift.
+ *
+ * `mLog2` is `Math.log2` under another name. It takes a `number`, so it throws
+ * on the first `bigint` handed to it, and the benchmark never timed it either;
+ * it existed only because `ylog2` called it, and it left with `ylog2`.
  */
 const candidates = /** @type {const} */ ([
     ['log2', log2],
@@ -263,14 +219,13 @@ const candidates = /** @type {const} */ ([
     ['stringHexLog2', stringHexLog2],
     ['string32Log2', string32Log2],
     ['mathLog2', mathLog2],
-    ['ylog2', ylog2],
 ])
 
 /**
  * Where the comparison starts unless the reader says otherwise.
  *
- * Big enough that the eight separate — in Chrome they spread from about
- * 16 ms to about 236 ms, and at 4000 they are indistinguishable — and small
+ * Big enough that the seven separate — in Chrome they spread from about
+ * 19 ms to about 240 ms, and at 4000 they are indistinguishable — and small
  * enough that the whole run is about half a second, which the busy state
  * covers without the page appearing to hang.
  *
@@ -346,11 +301,13 @@ const min = a => b => a < b ? a : b
  * timed.
  *
  * **Without it the first row is libelled.** Whichever candidate runs first
- * pays for warming the engine's `bigint` paths, and it is not a small bias:
- * `log2` and `ylog2` are the same algorithm under two names, and in Chrome
- * the one placed first measured 31.5 ms against the other's 17.1 ms. Swapping
- * them swapped the numbers — 34.5 against 17.5 — which is how the cause was
- * identified. With this pass they read 19.2 and 16.4.
+ * pays for warming the engine's `bigint` paths, and it is not a small bias.
+ * It was measured with a control the list no longer carries: the benchmark's
+ * `ylog2` is `log2` minus a guard, so running both timed the same
+ * instructions twice, and in Chrome the one placed first read 31.5 ms against
+ * the other's 17.1 ms. Swapping them swapped the numbers — 34.5 against
+ * 17.5 — which is what identified the cause rather than the candidate. With
+ * this pass the pair read 19.2 and 16.4.
  *
  * A fifth of the default exponent, so the whole warm-up costs about a
  * twenty-fifth of one measurement: the work is quadratic in the exponent.

@@ -44,7 +44,6 @@ const candidateNames = [
     'stringHexLog2',
     'string32Log2',
     'mathLog2',
-    'ylog2',
 ]
 import { assert, assertEq, assertNotNullish, assertStructurallySame } from '../../asserts/module.f.mjs'
 import { min } from '../function/compare/module.f.mjs'
