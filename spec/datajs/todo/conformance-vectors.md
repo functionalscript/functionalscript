@@ -213,11 +213,14 @@ The five parts:
     while passing every other vector here. `normalize` pins that `/` comes back
     unescaped, but that is a different role and closes nothing for this one.
     **And the raw non-ASCII character is not one vector but nineteen**, because
-    every character §Whitespace refuses *between* tokens is ordinary content
-    *inside* a string, and only a vector says so. That reject side enumerates
-    21; two of them, U+000B and U+000C, stay rejects inside a string under a
-    different rule — they are below U+0020, where the raw-control rule reaches
-    them — so the contextual inverse is the other nineteen: U+2028, U+2029,
+    a character §Whitespace refuses *between* tokens can be ordinary content
+    *inside* a string, and only a vector says so. What it refuses between
+    tokens is everything outside a token, `@` as much as U+2028, so the set
+    worth vectors here is the delta from ECMAScript's whitespace, which the
+    reject side enumerates: 21 characters. Two of them, U+000B and U+000C, stay
+    rejects inside a string under a different rule — they are below U+0020,
+    where the raw-control rule reaches them — so the contextual inverse is the
+    other nineteen: U+2028, U+2029,
     U+FEFF and the sixteen `Space_Separator` characters other than U+0020. A
     reader consulting one whitespace table in both contexts refuses all
     nineteen while passing every vector above, and a reader refusing only the
