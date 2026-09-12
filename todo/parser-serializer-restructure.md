@@ -107,7 +107,9 @@ Item 1 is context rather than work. **Item 2 is what to start.**
 4. **Then stages 5–7**, in order, as listed below. Stages 5 and 6 are done —
    within stage 5 the order was not a dependency, 5b and 5c each waiting on
    5a alone, and 5c landed first; stage 6 took stage 4's writer as it stood.
-   Stage 7 waits on stage 3b.
+   Stage 7 waits on stage 3b for the scanner's deletion; the token grammar
+   it rebuilds `fjs/js/tokenizer` over can grow now, and the website's
+   highlighter is why it should — see stage 7.
 
 **Already done, do not redo:** stage 1a (the DataJS specification), stage 2
 (the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
@@ -794,11 +796,51 @@ throughout.
    come out in the order the module gave them rather than sorted, in both
    formats — the order is part of the value, and sorting it wrote a document
    denoting a different object.
-7. **Cleanup** — retire `fjs/js/tokenizer` when its last consumer is gone:
-   stage 3b takes the JSON reader off it, stage 5c takes the front end off
-   it, and after those only its own proof imports it
-   (`fjs/js/string_escape` and `fjs/js/keywords` remain as shared,
-   JS-spec-frozen tables). Where the rest of `fjs/js` lives afterwards —
+7. **Cleanup** — retire the hand-written scanner behind `fjs/js/tokenizer`
+   when its last consumer is gone: stage 3b takes the JSON reader off it,
+   stage 5c took the front end off it, and after those only its own proof
+   imports it (`fjs/js/string_escape` and `fjs/js/keywords` remain as
+   shared, JS-spec-frozen tables). **What goes is the scanner, not the
+   token layer.** The module path and its `tokenize` stay and are rebuilt
+   over the grammar: `fjs/js/tokenizer` becomes the general JavaScript token
+   stream read from [`fjs/ebnf/lib/js`](../fjs/ebnf/lib/js/module.f.mjs) —
+   the first two layers of [`fjs/fsc/tokenizer`](../fjs/fsc/tokenizer/module.f.mjs)'s
+   three, lexemes with positions and the `JsToken` fold, which the compiler's
+   tokenizer then folds to its own tokens as the third. That stream is what
+   the website's source view
+   ([source-and-doc-view](../fjs/website/todo/source-and-doc-view.md)) and
+   a future `fjs lint` read, and neither can read the repository's own
+   sources until the grammar recognises single-quoted strings, the JS
+   escape rule and template literals
+   ([single-quote-and-template-lexing](../fjs/ebnf/lib/js/todo/single-quote-and-template-lexing.md)),
+   which is grammar work that waits on nothing: the grammar has no JSON
+   consumer, JSON reading `fjs/ebnf/lib/json`, so widening it regresses
+   nothing, where widening the scanner would regress the JSON tokenizer
+   until 3b lands. The scanner's own issues under `fjs/js/todo/` and
+   `fjs/js/tokenizer/todo/` — range maps, redispatch, the escape
+   accumulator, the trivia states — close with it rather than being done.
+
+   **Decided, and not to reopen without a reason: the token layer is shared
+   with JavaScript, the parser is not.** The grammar's tokens grow toward
+   the whole JavaScript lexical surface, because everything that reads a
+   `.f.mjs` — the compiler, the highlighter, a linter, JSON's reader through
+   the shared rules — needs the same tokens, and a token that is recognised
+   is not thereby accepted: the compiler's fold and grammar refuse what the
+   language does not admit, at the token, as they refuse `-NaN` today. The
+   parser stays the FunctionalScript grammar, LL(1) over those tokens, and
+   grows one production at a time as the EDAG stages ask. A full
+   ECMAScript parser with a filter behind it — accept everything, then
+   decide from the tree what is FunctionalScript — was considered and
+   refused: it is not LL(1) (ASI, cover grammars, contextual keywords,
+   regex-or-division), so it would be the hand-written surface the grammar
+   route exists to avoid; the subset law needs only that what is accepted
+   means what JavaScript means, which the LL(1) grammar and the
+   engine-as-oracle proofs already give; and nothing open needs a JS parse
+   tree, the views and the linter needing tokens. What a full parser would
+   buy, a message naming the construct refused rather than the token, is
+   an error production in the subset grammar where it earns its place.
+
+   Where the rest of `fjs/js` lives afterwards —
    a `fjs/media/js` for a JavaScript parser and serializer has been
    suggested — is a later rename and no part of this plan; do not fold it
    into this stage. The clean-break release with `**BREAKING
@@ -869,7 +911,11 @@ throughout.
       link into them.
 - [x] Stage 6: the normalizer and the subset-law proofs, both in
       `fjs/fsc`; no todo of its own was needed.
-- [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
+- [ ] Stage 7: the hand-written scanner retired, `fjs/js/tokenizer` rebuilt
+      over the grammar as the general JS token stream, and the
+      breaking-change release. The grammar's widening for the website,
+      [single-quote-and-template-lexing](../fjs/ebnf/lib/js/todo/single-quote-and-template-lexing.md),
+      can start now.
 - [ ] Update affected issues as their subject matter moves (see below).
 - [ ] `tsc`, `fjs test` at every stage.
 
