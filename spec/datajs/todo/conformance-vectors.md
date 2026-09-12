@@ -1707,12 +1707,17 @@ or the spec, not only into a thread.
    names, so the corpus is silent about that section by construction and the
    step below says so. The open half is this writer's *signature*: while
    `tryStringify` takes `unknown` and refuses at run time, its parameter admits
-   values the data model does not, and the gap between the two is what a
-   `serializer-reject` set would cover. So either the parameter narrows to the
-   data model and the run-time refusals go — "assume correct types" applied to
-   code — or it stays and a fourth set is written for what it admits, **as a
-   set, never as host recipes**. Neither answer changes the corpus today: it
-   carries no such set, and the decision is recorded in
+   values the data model does not, and that gap is what a `serializer-reject`
+   set was once meant to cover. **It cannot be a set, and the reason is the same
+   carrier argument as above rather than a preference**: a set is a DataJS data
+   module, so every value a set can spell is already in the data model, and the
+   gap is by definition what is outside it. So the two ways out are narrowing
+   the parameter to the data model — "assume correct types" applied to code, and
+   then the gap has no inputs to reach — or leaving it and answering the gap
+   where §What may be serialized is answered, in the implementation's own tests,
+   in a host that can build those values. Never as a fourth set, and never as
+   host recipes. Either way the corpus is unchanged, and the decision is
+   recorded in
    [`fjs/media/datajs/todo/serializer.md`](../../../fjs/media/datajs/todo/serializer.md),
    which owns the signature.
 The steps, in order; a step is one pull request unless it says otherwise:
