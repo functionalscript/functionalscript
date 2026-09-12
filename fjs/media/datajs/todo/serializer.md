@@ -204,17 +204,15 @@ exclude:
 - an object is `typeof 'object'`, non-null, not an array, and **plain**:
   its prototype is `Object.prototype` or `null`, which the spec permits
   explicitly;
-- everything else is rejected, `Object.create({x: 1})` included — a boundary
-  the specification does **not** draw, and there is none to draw from the
-  caller's side: FunctionalScript cannot change a prototype and has no classes,
-  so every object a caller can build is under `Object.prototype` and every array
-  under `Array.prototype`, which leaves "any other non-plain object" with no case
-  to decide. An implementation cannot leave it open all the same, since
-  classifying is the first thing it does, so it takes the line
-  [`difference`](../vectors/module.f.mjs) already draws. Taking it costs
-  nothing if the decision goes the other way: the alternative *accepts* more,
-  so what changes is one condition and one vector, and until then the
-  refusal is loud rather than a silently wrong document.
+- everything else is rejected, `Object.create({x: 1})` included, which is the
+  line the specification draws: §What may be serialized refuses "any other
+  non-plain object" in its first rule, and an object whose prototype is neither
+  `Object.prototype` nor `null` is one. Nothing here is open, and nothing on the
+  caller's side would reopen it — FunctionalScript cannot change a prototype and
+  has no classes, so every object a caller can build is under `Object.prototype`
+  and every array under `Array.prototype`, which is why this rule costs a
+  conforming caller nothing. [`difference`](../vectors/module.f.mjs) draws the
+  same line on the way back.
 
 Reading a prototype to classify is not replacing one, so this stays inside the
 rule in [`fjs/AGENTS.md`](../../../AGENTS.md) §3.1.
