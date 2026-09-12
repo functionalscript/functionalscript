@@ -88,7 +88,7 @@
  * @import { IoChannel } from '../../effects/types.ts'
  * @import { Nullable } from '../../types/nullable/types.ts'
  * @import { Bytes, Oid, OidBytes } from '../types.ts'
- * @import { PackedRef } from '../ref/types.ts'
+ * @import { PackedRef, Ref } from '../ref/types.ts'
  * @import { Dirs, Root } from './types.ts'
  * @import { _Entry, _Found, _Walked } from './private.ts'
  */
@@ -253,6 +253,37 @@ const dirOf = (dirs, text) => isPerWorktree(text) ? dirs.gitdir : dirs.common
 const isUnderRefs = name => nameText(name)?.startsWith(refsPrefix) === true
 
 /**
+ * Whether a ref read from the file called `text` is one Git allows to be there.
+ *
+ * Only `HEAD` is constrained, and only in its symbolic spelling: its target must
+ * sit under `refs/`. A `HEAD` that points elsewhere does not make an odd ref — it
+ * stops the directory being a repository at all. Measured on Git 2.43.0 with
+ * `.git/HEAD` holding `ref: a/b` and `.git/a/b` holding a valid id, every one of
+ * these answers `not a git repository`:
+ *
+ * ```
+ * git rev-parse HEAD     git symbolic-ref HEAD     git show-ref
+ * git rev-parse --verify HEAD                      git for-each-ref
+ *                                                  git rev-list --all
+ * ```
+ *
+ * The first column is a lookup and the second a listing, so both halves of this
+ * module have to ask — which is why the rule is a function rather than a line in
+ * one of them. It was a line in the lookup, and the listing was added without it:
+ * `tryRoots` answered a plausible list of the other refs for a directory Git will
+ * not read at all.
+ *
+ * One level under `refs/` is enough — `ref: refs/x` with `refs/x` present
+ * resolves and is listed, measured — so the rule is the prefix and not a count of
+ * components. A name that is no UTF-8 cannot start with `refs/`, so it is refused
+ * here as it is everywhere else.
+ *
+ * @type {(text: string, r: Ref) => boolean}
+ */
+const targetAllowed = (text, r) =>
+    r.kind !== 'symbolic' || text !== head || isUnderRefs(byteArray(r.target))
+
+/**
  * The text of a ref name, for the path its loose file sits at, or `null` where
  * the bytes are no UTF-8.
  *
@@ -322,17 +353,10 @@ const resolveWith = (dirs, oidBytes, packed) => {
             if (bytes === null) { return pureOk(special.includes(text) ? null : packedId(packed, name)) }
             const r = readRef(bytes)
             if (r === null) { return pureOk(null) }
+            // The one rule about *which* file a ref was read from, which the
+            // grammar over one file's bytes cannot know. See {@link targetAllowed}.
+            if (!targetAllowed(text, r)) { return pureOk(null) }
             if (r.kind === 'direct') { return pureOk(r.id) }
-            // `HEAD` is the one ref whose target Git constrains: it must sit
-            // under `refs/`, and a `HEAD` that does not is not a repository
-            // at all rather than a ref with an odd value. Measured on Git
-            // 2.43.0 — with `.git/HEAD` holding `ref: a/b` and `.git/a/b`
-            // holding a valid id, every one of `rev-parse HEAD`,
-            // `rev-parse --verify HEAD` and `symbolic-ref HEAD` answers
-            // `not a git repository`. This function knows which name it was
-            // asked about, which is why the check lives here and not in the
-            // grammar that reads one file's bytes.
-            if (text === head && !isUnderRefs(byteArray(r.target))) { return pureOk(null) }
             return go(r.target, left - 1)
         })
     }
@@ -497,6 +521,10 @@ const tryHeadRoot = (dirs, oidBytes) => {
         if (bytes === null) { return [] }
         const r = readRef(bytes)
         if (r === null) { return null }
+        // The same rule the lookup asks, and for the same reason: a `HEAD`
+        // pointing outside `refs/` is no repository, so there is no list of its
+        // refs to answer. See {@link targetAllowed}.
+        if (!targetAllowed(head, r)) { return null }
         return r.kind === 'direct' ? [{ name: headName, id: r.id }] : []
     })
 }

@@ -3,6 +3,7 @@
  */
 
 import { parseFromTokens } from './module.f.mjs'
+import { run } from '../ast/module.f.mjs'
 import { tokenize } from '../tokenizer/module.f.mjs'
 import { toArray } from '../../types/list/module.f.mjs'
 import { sort } from '../../types/object/module.f.mjs'
@@ -60,6 +61,8 @@ export const proof = {
                 ["export default undefined;", "[[],[undefined]]"],
                 ["export default 0.1;", "[[],[0.1]]"],
                 ["export default 1.1e+2;", "[[],[110]]"],
+                // the three numbers JSON cannot spell, as words
+                ["export default [NaN, Infinity, -Infinity];", "[[],[[\"array\",[NaN,Infinity,-Infinity]]]]"],
                 ["export default \"abc\";", "[[],[\"abc\"]]"],
                 ["export default 1234567890n;", "[[],[1234567890n]]"],
                 ["export default [];", "[[],[[\"array\",[]]]]"],
@@ -158,14 +161,15 @@ export const proof = {
                 ["export default zzz;", "const not found", [1, 16]],
                 // `NaN` and `Infinity` are reserved, as `undefined` is: each
                 // carries its own token symbol, so it is never an identifier
-                // — not a name, not a reference, not a key. No rule reads the
-                // two yet (the numeric leaves are the next step), so today
-                // they are refused at the token wherever they stand
+                // — not a name, not a key — and a value only where a value
+                // may stand
                 ["const NaN = 1;\nexport default NaN;", "unexpected token", [1, 7]],
                 ["import Infinity from \"m\";\nexport default Infinity;", "unexpected token", [1, 8]],
-                ["export default NaN;", "unexpected token", [1, 16]],
-                ["export default Infinity;", "unexpected token", [1, 16]],
                 ["export default {NaN: 1};", "unexpected token", [1, 17]],
+                // `-` folds into a number and into `Infinity`, and into
+                // nothing else: before `NaN` it is an error token, and the
+                // grammar refuses at the `NaN` after it, as DataJS refuses
+                ["export default -NaN;", "unexpected token", [1, 17]],
                 ["const undefined = 1;\nexport default undefined;", "unexpected token", [1, 7]],
                 ["const a = zzz;\nexport default a;", "const not found", [1, 11]],
                 ["export default [zzz];", "const not found", [1, 17]],
@@ -323,6 +327,22 @@ export const proof = {
             assertEq(value.metadata?.column, 11)
         },
     ],
+    // An object's members stand in the order they are written, as JavaScript
+    // reads the same literal, and a repeated key keeps its first position
+    // and takes its last value. The parser used to sort them, which the
+    // subset law over the DataJS corpus found: the graph a module denotes
+    // has an order, and a reader that changes it reads another graph. The
+    // stringified module proofs above cannot see this, since they serialize
+    // sorted, so it is pinned on the evaluated value.
+    memberOrder: () => {
+        const [tag, value] = parseFromTokens(tokenizeString('export default {"b": 1, "a": 2, "b": 3, "c": {"y": 0, "x": 0}};'))
+        assert(tag === 'ok', tag)
+        const object = run(value[1])([])
+        assert(typeof object === 'object' && object !== null && !(object instanceof Array), object)
+        assertEq(Object.keys(object).join(), 'b,a,c')
+        assertEq(object.b, 3)
+        assertEq(Object.keys(/** @type {object} */ (object.c)).join(), 'y,x')
+    },
     // None of the framing keywords is reserved: outside the positions that frame
     // a module, the parser accepts them as ordinary identifiers. Pinned here
     // because the grammar gives each its own token symbol, and a grammar

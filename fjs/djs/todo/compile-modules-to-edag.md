@@ -19,12 +19,14 @@ EDAG alone is not enough to represent an unresolved parsed module: module resolu
 also needs the module paths imported by that source file. Keep that information in a
 small temporary wrapper rather than adding module metadata to EDAG itself.
 
-The current parser/AST also cannot preserve the ordered object-entry representation
-required by EDAG. Object parsing accumulates properties in an `OrderedMap` with
-`setReplace` and eventually produces a plain `AstObject`; duplicate keys are therefore
-collapsed and integer-like keys can lose their written order before EDAG conversion.
-This task must preserve object entries as an ordered sequence in the parser/AST until
-they are converted to `['{}', [...entry]]`.
+The current parser/AST cannot fully preserve the ordered object-entry representation
+required by EDAG. Object parsing builds a plain `AstObject` in source order — it
+used to sort the members through an `OrderedMap`, which the subset law over the
+DataJS corpus found and stage 5 fixed — so a repeated key keeps its first position
+and takes its last value, as in JavaScript. What a plain object still cannot keep
+is the written order of integer-like keys, which JavaScript lists first, and the
+duplicates themselves. This task must preserve object entries as an ordered
+sequence in the parser/AST until they are converted to `['{}', [...entry]]`.
 
 ### Proposal
 
@@ -392,17 +394,18 @@ rediscovered:
 
 | value | parser | serializer |
 |---|---|---|
-| `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `-0` — done, pinned in `fjs/fsc/proof.f.mjs` |
-| `NaN` | `unexpected token` | emits `null` |
-| `Infinity` | `unexpected token` | emits `null` |
-| `-Infinity` | `unexpected token` | emits `null` |
+| `-0` | preserves it — `Object.is(v, -0)` is `true` | emits `-0` |
+| `NaN` | `NaN` | `NaN` |
+| `Infinity` | `Infinity` | `Infinity` |
+| `-Infinity` | `-Infinity`, one token | `-Infinity` |
 
-`-0` was serializer-only, which is easy to miss because `String(-0)` is `"0"`
-and only `Object.is` separates them; the serializer writes `-0` now. The
-other three are reserved words with their own token kinds, which no grammar
-rule reads yet, so the grammar refuses them wherever they stand; `-Infinity`
-fails at the `-`, which folds into a number token only, and tokenizes to
-`error Infinity eof`.
+**All four are done**, in stage 5 of
+[`todo/parser-serializer-restructure.md`](../../../todo/parser-serializer-restructure.md),
+and pinned end to end in `fjs/fsc/proof.f.mjs`. `-0` was serializer-only,
+which is easy to miss because `String(-0)` is `"0"` and only `Object.is`
+separates them. The other three are reserved words with their own token
+kinds, read as primitives by the grammar, the tokenizer folding `-` into
+`Infinity` as it folds one into a number.
 
 ### Existing compile API boundary
 
@@ -537,9 +540,9 @@ task; see [`bound-edag-interpreter-resources.md`](./bound-edag-interpreter-resou
 
 #### Shared/final
 
-- [ ] Add explicit **DJS** parser support for the chosen `.f.js` spellings of
+- [x] Add explicit **DJS** parser support for the chosen `.f.js` spellings of
       `Infinity`, `-Infinity`, `NaN`, and `-0`.
-- [ ] Add DJS-specific number serialization that the DJS parser round-trips to exactly
+- [x] Add DJS-specific number serialization that the DJS parser round-trips to exactly
       `Infinity`, `-Infinity`, `NaN`, and `-0`; do not change the standard JSON codec's
       policy as a side effect of this task.
 - [ ] Coordinate any shared parser/serializer extraction with [`157-json-djs-shared-value-machine.md`](./157-json-djs-shared-value-machine.md)

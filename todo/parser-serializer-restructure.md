@@ -6,8 +6,8 @@ partly startable, and not first, which is the level and status its own issue
 carries.
 **Status:** wip — stages 1a, 2 and 3a done. **Stage 1b is what to pick up
 next**: it is P1 and gates stage 4, while stage 3b is P2 with its error shapes
-still undecided. Stages 5a, the rename, and 5c, the tokenizer's types and
-helpers off the hand-written scanner, are done.
+still undecided. Stage 5 is done: 5a, the rename; 5b, the syntax; and 5c,
+the tokenizer's types and helpers off the hand-written scanner.
 
 This is a coordinating issue: it records the design decided in discussion,
 sequences the stages, and names the edits owed to existing issues. Each stage
@@ -102,11 +102,10 @@ Item 1 is context rather than work. **Item 2 is what to start.**
    module's own public surface.
    *Why:* this is the deliverable everything else is waiting for — see
    [Priority](#priority-stages-3-and-4-come-first).
-4. **Then stages 5–7**, in order, as listed below. Within stage 5 the
-   order is not a dependency: 5b and 5c each wait on 5a alone, and 5c
-   landed first. So stages 5a, the code-only rename of the front end to
-   `fjs/fsc`, and 5c are done; 5b waits on nothing else, and stage 6 waits
-   on stage 4.
+4. **Then stages 5–7**, in order, as listed below. Stage 5 is done —
+   within it the order was not a dependency, 5b and 5c each waiting on 5a
+   alone, and 5c landed first; stage 6 waits on stage 4, and stage 7 on
+   stage 3b.
 
 **Already done, do not redo:** stage 1a (the DataJS specification), stage 2
 (the dead `fjs/fsc` grammars, deleted), and stage 3a (the fabricated string
@@ -518,7 +517,10 @@ combined marker would encode a redundant fact.
   cases DataJS gets for free — `truex` being a lexical error rather than
   `true` followed by a valid name — do not carry over.
 - Subset laws are proof obligations, not prose: every DataJS *accept* vector
-  parses in FunctionalScript to the same value graph; the normalizer closes
+  parses in FunctionalScript to the same value graph — **proved**, in
+  `fjs/fsc/proof.f.mjs`, over the whole accept set, sharing and key order
+  compared; it found the parser sorting an object's members, which is fixed,
+  the graph a module denotes having an order of its own; the normalizer closes
   the loop (`parse_datajs(normalize(m))` equals the evaluation of any
   data-only module `m`); FunctionalScript fixtures remain valid JS with
   identical meaning (checked against a real JS engine in proofs).
@@ -725,14 +727,14 @@ throughout.
    default NaN;`, was refused before too, as an unresolved name; a
    *binding*, `const NaN = 1;`, and a bare *key*, `{ NaN: 1 }`, parsed as
    identifiers and are refused now, which is the break the entry declares.
-   With no rule reading the two yet they are refused wherever they stand.
    Exact `-0`: **done** — it parsed correctly already,
    and the serializer now writes it back as `-0` where it wrote `0`; the
-   round trip is pinned in `fjs/fsc/proof.f.mjs`. What remains is
-   the DataJS numeric leaves taught to the moved front end — `NaN`,
-   `Infinity`, and `-Infinity`: their grammar rule, minus-folding, and
-   AST/evaluation support, and the serializer writing them as words rather
-   than `null` (together the front-end half of
+   round trip is pinned in `fjs/fsc/proof.f.mjs`. The DataJS numeric
+   leaves: **done** — `NaN`, `Infinity` and `-Infinity` are primitives of
+   the grammar, the tokenizer folds `-` into `Infinity` as into a number,
+   and the serializer writes the three as words rather than `null`, so
+   the front end reads and writes every leaf DataJS has (together the
+   front-end half of
    [compile-modules-to-edag](../fjs/djs/todo/compile-modules-to-edag.md)'s
    special-number requirement), a precondition of stage 6's subset proofs.
    The EDAG staging continues under the `fsc` name. This is the pull request
@@ -837,9 +839,9 @@ throughout.
 - [x] Stage 5a: the code-only rename to `fjs/fsc`, `fjs/djs/todo/`,
       `serializer/` and `types.ts` left in place; the breaking-change entry
       for the moved paths.
-- [ ] Stage 5b: over the `;` termination the LL(1) port already landed,
-      reserved words and `-0` (done), the special numbers as values (open);
-      each part carries its breaking-change entry.
+- [x] Stage 5b: over the `;` termination the LL(1) port already landed,
+      reserved words, `-0`, and the special numbers as values; each part
+      carried its breaking-change entry.
 - [x] Stage 5c: the token vocabulary is the grammar's, in
       `fjs/ebnf/lib/js/types.ts`; nothing under `fjs/fsc` imports
       `fjs/js/tokenizer`.
@@ -848,7 +850,9 @@ throughout.
       such as `serializer-children-helper` and `json-bigint-serialization`,
       stay beside `fjs/djs/serializer/` until stage 4 reworks it — and
       repoint every link into them.
-- [ ] Stage 6: normalizer + subset-law proofs; file its todo.
+- [ ] Stage 6: normalizer + subset-law proofs; file its todo. The
+      FunctionalScript half of the subset law is proved, in
+      `fjs/fsc/proof.f.mjs`; the normalizer and its loop remain.
 - [ ] Stage 7: `fjs/js/tokenizer` retirement and the breaking-change release.
 - [ ] Update affected issues as their subject matter moves (see below).
 - [ ] `tsc`, `fjs test` at every stage.
