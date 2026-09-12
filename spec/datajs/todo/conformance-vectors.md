@@ -2712,13 +2712,17 @@ The steps, in order; a step is one pull request unless it says otherwise:
       category as the two above, and review was right to press the point. §What
       may be serialized already refuses it under its first rule, as any other
       non-plain object, and exempting it would make dropping a member conforming
-      behaviour. So the section does not exempt it: it now says a conforming
-      serializer classifies arrays by the slot `Array.isArray` reads rather than
-      by the prototype chain, which refuses the impostor and leaves the
-      `null`-prototype array on the free side.
+      behaviour. So the section does not exempt it, and what it states is
+      one-directional: nothing an implementation writes as an array may be a
+      value `Array.isArray` is false of, while refusing an array whose prototype
+      chain does not reach this realm's `Array.prototype` stays permitted and
+      required of nobody. That refuses the impostor and leaves the
+      `null`-prototype array where decision 6 left it — approximating is
+      forbidden, refusing is not.
       That leaves this repository's writer measurably non-conforming for one
-      host-built input it cannot receive from a FunctionalScript caller, and the
-      two ways out are both the owner's: `fjs/AGENTS.md` §3.1 permits
+      host-built input it cannot receive from a FunctionalScript caller — one and
+      not two, since its refusal of the `null`-prototype array is the permitted
+      half — and the two ways out are both the owner's: `fjs/AGENTS.md` §3.1 permits
       `Array.isArray` here, or the writer's parameter narrows to the data model
       and the input is not a valid argument at all — the signature question
       decision 6 leaves open. Recorded, with the measurement, in

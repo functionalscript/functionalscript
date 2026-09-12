@@ -563,7 +563,8 @@ branch, which this value never reaches. Whether that refusal is right is
 `Object.setPrototypeOf`, as a cross-realm array does of another realm, and this
 format does not spend a rule on values its own subset cannot construct. A
 host-side serializer may accept such an array as its elements; nothing above
-requires it to.
+requires it to, and the paragraphs below say so again where they say what a
+serializer must never write as an array.
 
 **The mirror image is not left open, and it is what settles how a serializer
 must classify.** `Object.create(Array.prototype, { length: { value: 0,
@@ -576,14 +577,27 @@ section exists to refuse.
 Measured, no descriptor separates it from a genuine array: with a non-enumerable
 `length` its own descriptors are identical to `Object.freeze([])`'s, and a
 frozen array serializes as its data. So a serializer has exactly one instrument
-that sees the difference — the exotic array slot `Array.isArray` reads — and **a
-conforming serializer classifies arrays by that slot rather than by the
-prototype chain**. One predicate is the whole cost of not losing a member.
+that sees the difference, the exotic array slot `Array.isArray` reads, and what
+this section requires of it is one-directional:
 
-The two shapes therefore land on opposite sides, and both follow from the same
-choice: classifying by `Array.isArray` refuses the impostor, as this section
-requires, and takes a `null`-prototype array as an array, which is one of the
-two readings the paragraph above leaves free. Nothing above requires the other.
+**Nothing an implementation writes as an array may be a value `Array.isArray` is
+false of.** Such a value is an object, and its members — `length` among them —
+are its data; writing it as elements drops them, which is the silent
+approximation this section refuses. One predicate is the whole cost.
+
+**A serializer may refuse an array whose prototype chain does not reach this
+realm's `Array.prototype`, and nothing requires it to.** That is the freedom the
+paragraph above leaves open, stated where the instrument is: a `null`-prototype
+array and a cross-realm array are the only values it covers, both need an API or
+a realm this format's own subset has not got, and a refusal is an error rather
+than a wrong document. Every other array — a subclass, a frozen one — is data
+the list above requires, so this permission reaches nothing else.
+
+So the two shapes are not symmetric, and the asymmetry is the section's whole
+subject: **approximating is forbidden, refusing is not**. A serializer
+classifying arrays by `Array.isArray` satisfies both rules as it stands; one
+classifying by the prototype chain satisfies the second and breaks the first,
+and the input that shows it is the impostor above.
 
 ### Normalized form
 

@@ -446,12 +446,20 @@ this realm's constructors, and calls `Array.isArray` "a longer one guarding
 against values this rule already excludes".
 
 §What may be serialized refuses the value under its first rule, as any other
-non-plain object, and it now says outright that a conforming serializer
-classifies arrays by the slot `Array.isArray` reads rather than by the prototype
-chain — because writing the impostor as its elements drops a member, which is
-the silent approximation that section exists to refuse. So this is a **known
+non-plain object, and it now states the consequence as a one-directional rule:
+**nothing an implementation writes as an array may be a value `Array.isArray` is
+false of**, because writing the impostor as its elements drops a member, which
+is the silent approximation that section exists to refuse. So this is a **known
 non-conformance**, not a case the format leaves open, and it is stated here
 rather than left to be rediscovered.
+
+It is the only one, and the direction is why. The same section permits refusing
+an array whose prototype chain does not reach this realm's `Array.prototype` and
+requires nothing either way, so this writer's refusal of a `null`-prototype
+array — the other half of the same mismatch — is conforming as it stands.
+Approximating is forbidden, refusing is not: a refusal is an error a caller
+sees, where the impostor's `export default [];` is a document that denotes
+something else.
 
 What holds the fix is that §3.1's premise and the specification's rule point
 different ways, and reconciling them is not this file's to do. Two ways out,
