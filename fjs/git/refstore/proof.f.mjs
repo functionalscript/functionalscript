@@ -396,6 +396,19 @@ export const proof = {
         // And the constraint is `HEAD`'s alone: a loose ref may point outside
         // `refs/`, which `resolveSpecial` shows for `FETCH_HEAD`.
         assertEq(hexOf({ ...root, refs: { heads: { sym: file('ref: a/b\n') } } }, 'refs/heads/sym'), a)
+        // The *listing* asks the same rule, because Git refuses the whole
+        // directory and not just that one name: measured, `show-ref`,
+        // `for-each-ref` and `rev-list --all` all answer `not a git repository`
+        // for this `HEAD`. A list of the other refs would be a plausible answer
+        // for a repository Git will not read at all.
+        assertEq(run({ ...root, refs: { heads: { master: ref(b) } } }, tryRoots(one(''), 20)), null)
+        // One level under `refs/` is enough, so the rule is the prefix and not a
+        // count of components: measured, `ref: refs/x` with `refs/x` present
+        // resolves and `show-ref` lists it.
+        sameRoots(
+            run({ HEAD: file('ref: refs/x\n'), refs: { x: ref(a) } }, tryRoots(one(''), 20)),
+            [['refs/x', a]])
+        assertEq(hexOf({ HEAD: file('ref: refs/x\n'), refs: { x: ref(a) } }, 'HEAD'), a)
     },
     // A `packed-refs` naming one ref twice is not refused and does not answer
     // twice: measured on Git 2.43.0, `git show-ref` lists both lines and
