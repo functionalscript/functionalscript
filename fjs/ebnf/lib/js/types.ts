@@ -151,7 +151,7 @@ export type _OperatorKind = (typeof operators)[number] | '/' | '/='
  *
  * @internal
  */
-export type _OperatorToken = { [K in _OperatorKind]: { readonly kind: K } }[_OperatorKind]
+export type _OperatorToken = { readonly [K in _OperatorKind]: { readonly kind: K } }[_OperatorKind]
 
 export type CommentToken = {
     readonly kind: '//' | '/*'
