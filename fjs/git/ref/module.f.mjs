@@ -14,13 +14,18 @@
  *
  * - A loose ref file need not end in LF, and `packed-refs` refuses a last
  *   line that does not: `fatal: unterminated line in .git/packed-refs`.
- * - A loose ref file ignores everything after its first line;
- *   `packed-refs` refuses a blank line or a comment after the first,
- *   as `fatal: unexpected line`.
- * - A loose ref tolerates trailing space, TAB and CR;
- *   `packed-refs` separates the id from the name with exactly *one*
- *   whitespace byte, so a second space becomes the name's first character
- *   and Git then calls it `packed refname is dangerous`.
+ * - A loose ref file ignores everything after *one whitespace byte*
+ *   following the id, LF or not, so `<id> comment` resolves; `packed-refs`
+ *   refuses a blank line or a comment after the first, as
+ *   `fatal: unexpected line`; and a symbolic ref refuses a second line
+ *   outright, as `No such ref`. Three files, three answers to the same
+ *   question.
+ * - A symbolic ref treats LF as whitespace around its target, so
+ *   `ref:\nrefs/heads/master\n` resolves; `packed-refs` treats LF as the
+ *   line ending and nothing else, and separates the id from the name with
+ *   exactly *one* byte of SP, TAB or CR, so a second space becomes the
+ *   name's first character and Git then calls it
+ *   `packed refname is dangerous`.
  *
  * A hex id is read case-insensitively, which is Git's reading and this
  * repository's: a loose ref holding an id in upper case resolves, and
@@ -40,8 +45,19 @@ import { eof, option, repeatFrom0, repeatFrom1, set } from '../../ebnf/module.f.
 import { tryFromHexOf } from '../oid/module.f.mjs'
 import { isWholeName } from '../refname/module.f.mjs'
 
-/** The bytes Git's own reader skips after a loose ref's id. */
-const trailing = set(' \t\r')
+/**
+ * The bytes Git counts as whitespace in these files: SP, TAB, CR and LF.
+ *
+ * LF is one of them, which is the part that is easy to get wrong, because a
+ * ref file is line-shaped and LF looks like a terminator rather than a
+ * space. Measured on Git 2.43.0: `ref:` and its target may be separated by
+ * an LF, so `ref:\nrefs/heads/master\n` resolves, and a symbolic ref may end
+ * in any number of them.
+ *
+ * VT and FF are *not* whitespace here, though C's `isspace` counts them: a
+ * `packed-refs` line separated by either is `unexpected line`.
+ */
+const space = set(' \t\r\n')
 
 /**
  * A hex digit, in either case. An entry of `packed-refs` and a `^` line
@@ -51,20 +67,31 @@ const trailing = set(' \t\r')
 const hexDigit = set('0123456789abcdefABCDEF')
 
 /**
- * A loose ref file: the id, then whatever the writer left after it.
+ * A loose ref file: the id, then one whitespace byte, then anything at all.
  *
- * Measured on Git 2.43.0, writing each of these into `refs/heads/master`
- * and asking `git rev-parse master`. Accepted: the id alone, the id and LF
- * as Git writes it, the id with trailing SP, TAB or CRLF, the id in upper
- * case, and the id with a second line of junk after the LF. Refused as
- * `ignoring broken ref`: a leading space, a short id, and an empty file. So
- * the first line is the whole contract and the rest of the file is not
- * read.
+ * That last part is wider than it looks and I had it too narrow. Git's
+ * `parse_loose_ref_contents` refuses trailing data only when the byte
+ * straight after the id is not whitespace, so *one* whitespace byte opens
+ * the rest of the file and nothing in it is read. Measured on Git 2.43.0 by
+ * writing each into `refs/heads/master` and asking `git rev-parse master`:
+ *
+ * | file | |
+ * | --- | --- |
+ * | `<id>` | resolves — no terminator needed |
+ * | `<id>` LF, CRLF, SP, TAB | resolves |
+ * | `<id>` LF `junk` LF | resolves |
+ * | `<id>` SP `comment` LF | resolves, and TAB or CR the same |
+ * | `<id>xcomment` LF | `ignoring broken ref` — no whitespace after the id |
+ * | SP `<id>` LF | `ignoring broken ref` |
+ * | a short id, an empty file | `ignoring broken ref` |
+ *
+ * So the grammar is not "the first line is the contract". It is "the id,
+ * then whitespace, then don't care", and the last row is what makes the
+ * whitespace load-bearing rather than decorative.
  */
 const looseRule = /** @type {const} */ ([
-    repeatFrom1(not(set(' \t\r\n'))),
-    repeatFrom0(trailing),
-    option(['\n', repeatFrom0(byte)]),
+    repeatFrom1(not(space)),
+    option([space, repeatFrom0(byte)]),
     eof,
 ])
 
@@ -97,19 +124,24 @@ export const tryLoose = oidBytes => {
  * A symbolic ref: the keyword, whatever whitespace follows it, the target
  * name, and whatever whitespace ends the line.
  *
- * The keyword is case-sensitive and the whitespace after it is free.
- * Measured by writing each into `.git/HEAD` and asking
- * `git symbolic-ref HEAD`: `ref: <n>` with LF, without LF, with no space
- * after the colon, with two spaces, with a trailing space, with CRLF and
- * with a trailing TAB all give the same target. `REF: <n>` gives none —
- * Git stops recognising the file as `HEAD` at all.
+ * The keyword is case-sensitive and the whitespace around the target is
+ * free on both sides, {@link space} included — so an LF between `ref:` and
+ * the target is whitespace and not a terminator. Measured by writing each
+ * into `.git/HEAD` and asking `git symbolic-ref HEAD`: `ref: <n>` with LF,
+ * without LF, with no space after the colon, with two spaces, with a
+ * trailing space, with CRLF, with a trailing TAB, with the target on the
+ * *next* line, and with two or three trailing LFs all give the same target.
+ * `REF: <n>` gives none — Git stops recognising the file as `HEAD` at all.
+ *
+ * What ends it is whitespace or the file, and nothing else: `ref: <n>` LF
+ * `junk` LF is `No such ref`. That is the one place a symbolic ref is
+ * stricter than a loose ref, which ignores exactly such a second line.
  */
 const symbolicRule = /** @type {const} */ ([
     'ref:',
-    repeatFrom0(trailing),
-    repeatFrom1(not(set(' \t\r\n'))),
-    repeatFrom0(trailing),
-    option('\n'),
+    repeatFrom0(space),
+    repeatFrom1(not(space)),
+    repeatFrom0(space),
     eof,
 ])
 
@@ -200,9 +232,21 @@ const header = /** @type {const} */ ('# pack-refs with:')
 
 const peeledRule = /** @type {const} */ (['^', repeatFrom1(hexDigit), '\n'])
 
+/**
+ * The one byte between a packed id and its name, and there is exactly one of
+ * them: a second space becomes the name's first character and Git then
+ * refuses the *name*, as `packed refname is dangerous`.
+ *
+ * CR counts, which is the row I had missing — `<id>` CR `<name>` LF is read
+ * by `git show-ref`. LF does not, since it ends the line, and VT and FF do
+ * not either: both give `unexpected line`. So this is {@link space} without
+ * the LF, and not C's `isspace`.
+ */
+const separator = set(' \t\r')
+
 const entryRule = /** @type {const} */ ([
     repeatFrom1(hexDigit),
-    set(' \t'),
+    separator,
     repeatFrom1(not(set('\n'))),
     '\n',
     option(peeledRule),
@@ -215,6 +259,27 @@ const packedRule = /** @type {const} */ ([
 ])
 
 const parsePacked = byteParser(packedRule)
+
+/**
+ * One `packed-refs` entry as a {@link PackedRef}, or `null` where the line
+ * carries an id of another width, a name that is no whole ref name, or a
+ * `^` line whose id is neither.
+ *
+ * The reader of ids is a leading parameter rather than a capture, so this
+ * closes over nothing and lives here instead of inside {@link tryPacked}.
+ *
+ * @type {(id: (hex: Bytes) => Nullable<Oid>) => (e: Ast<typeof entryRule, Byte>) => Nullable<PackedRef>}
+ */
+const entryOf = id => ([h, , n, , p]) => {
+    const oid = id(symbolsOf(h))
+    if (oid === null) { return null }
+    const name = byteArray(symbolsOf(n))
+    if (!isWholeName(name)) { return null }
+    const [hit] = p
+    if (hit === undefined) { return { name, id: oid, peeled: null } }
+    const peeled = id(symbolsOf(hit[1]))
+    return peeled === null ? null : { name, id: oid, peeled }
+}
 
 /**
  * The refs `packed-refs` holds, in the order the file lists them, or `null`
@@ -236,23 +301,12 @@ const parsePacked = byteParser(packedRule)
  * @type {(oidBytes: OidBytes) => (input: Bytes) => Nullable<readonly PackedRef[]>}
  */
 export const tryPacked = oidBytes => {
-    const id = tryFromHexOf(oidBytes)
+    const entry = entryOf(tryFromHexOf(oidBytes))
     return input => {
         const r = parsePacked(symbols(input))
         if (r[0] === 'error') { return null }
         const [[, entries]] = r[1]
-        /** @type {(e: Ast<typeof entryRule, Byte>) => Nullable<PackedRef>} */
-        const entryOf = ([h, , n, , p]) => {
-            const oid = id(symbolsOf(h))
-            if (oid === null) { return null }
-            const name = byteArray(symbolsOf(n))
-            if (!isWholeName(name)) { return null }
-            const [hit] = p
-            if (hit === undefined) { return { name, id: oid, peeled: null } }
-            const peeled = id(symbolsOf(hit[1]))
-            return peeled === null ? null : { name, id: oid, peeled }
-        }
-        const read = entries.map(entryOf)
+        const read = entries.map(entry)
         return read.every(e => e !== null) ? /** @type {readonly PackedRef[]} */ (read) : null
     }
 }

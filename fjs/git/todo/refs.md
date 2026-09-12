@@ -60,11 +60,25 @@ A ref name that is no ref name is refused by the rules
 [`fjs/git/refname`](../refname/module.f.mjs) holds, which is where they now
 live: `fjs/git/tag` held them first, because a tag's `tag` header is a ref
 name and its reader was the first thing that had to judge one, and they are
-not a fact about tags. A symbolic ref's target needs one rule more, since
-Git wants a whole ref name there — `refs/` and then a name those rules take,
-stricter than `git check-ref-format`, which accepts `a/b`. Reading is through
-`readFile` and `readdir`; writing a ref, with the lock file Git takes, is a
-later task, and so is the reflog, which expires and is no retention.
+not a fact about tags. A `packed-refs` name and a symbolic ref's target each
+need one rule more, and it is the one that module's `isWholeName` holds: the
+name rule plus a refusal of `@` alone, which is
+`git check-ref-format --allow-onelevel`.
+
+One level is enough, and an earlier draft of this paragraph said otherwise —
+that a target must be `refs/` and then a name, stricter than
+`check-ref-format`. That was wrong, from measuring `HEAD` alone and reading
+its error as a refusal of the *name*. Writing `ref: a/b` into `.git/HEAD`
+makes Git stop treating the directory as a repository, which is a rule about
+what `HEAD` may say; the same target in `refs/heads/sym` resolves, and
+`git show-ref` reads a packed line naming `master` or `a/b`. So `refs/`
+belongs to a `HEAD` reader and not to these two, and a `roots` or
+`tryResolve` built on the old sentence would reinstate a restriction the
+grammars deliberately do not have.
+
+Reading is through `readFile` and `readdir`; writing a ref, with the lock
+file Git takes, is a later task, and so is the reflog, which expires and is
+no retention.
 
 ### Tasks
 

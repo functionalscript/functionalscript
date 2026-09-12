@@ -48,14 +48,25 @@ export const proof = {
         for (const s of [`${a}\n`, a, `${a}\r\n`, `${a} \n`, `${a}\t\n`, `${a}\njunk\n`, `${a}\n${t}\n`]) {
             assertEq(hexOfLoose(s), a)
         }
+        // One whitespace byte after the id opens the rest of the file, and
+        // it need not be an LF. Git's own reader refuses trailing data only
+        // when the byte straight after the id is not whitespace, so each of
+        // these resolves — which is wider than "the first line is the
+        // contract", the rule I had written.
+        for (const s of [`${a} comment\n`, `${a}\tcomment\n`, `${a}\rcomment\n`, `${a} comment`, `${a}  two spaces then text\n`]) {
+            assertEq(hexOfLoose(s), a)
+        }
         // An id in upper case resolves, as it does for Git: `rev-parse`
         // answers the lower-case id for an upper-case file.
         assertEq(hexOfLoose(`${a.toUpperCase()}\n`), a)
     },
     // What Git calls `ignoring broken ref`: whitespace before the id, an id
     // of the wrong length, and no id at all.
+    // What Git calls `ignoring broken ref`. The last one is what makes the
+    // whitespace above load-bearing rather than decorative: a byte that is
+    // not whitespace straight after the id joins it, and the result is no id.
     looseRefused: () => {
-        for (const s of [` ${a}\n`, `\t${a}\n`, `\n${a}\n`, a.slice(0, 39), `${a}0`, '', '\n', 'not hex at all\n']) {
+        for (const s of [` ${a}\n`, `\t${a}\n`, `\n${a}\n`, a.slice(0, 39), `${a}0`, '', '\n', 'not hex at all\n', `${a}xcomment\n`]) {
             assertEq(loose(latin1(s)), null)
         }
     },
@@ -76,6 +87,10 @@ export const proof = {
             'ref: refs/heads/master\n', 'ref: refs/heads/master', 'ref:refs/heads/master\n',
             'ref:  refs/heads/master\n', 'ref: refs/heads/master \n', 'ref: refs/heads/master\r\n',
             'ref: refs/heads/master\t\n', 'ref:\trefs/heads/master\n',
+            // An LF is whitespace here too, not a terminator, so the target
+            // may sit on the next line and any number of LFs may follow it.
+            'ref:\nrefs/heads/master\n', 'ref:\n\nrefs/heads/master\n',
+            'ref: refs/heads/master\n\n', 'ref: refs/heads/master\n\n\n',
         ]) {
             const r = ref(latin1(s))
             assert(r !== null && r.kind === 'symbolic', s)
@@ -118,6 +133,11 @@ export const proof = {
         for (const s of ['REF: refs/heads/master\n', 'Ref: refs/heads/master\n', 'ref refs/heads/master\n', ' ref: refs/heads/master\n', 'ref: \n', 'ref:\n']) {
             assertEq(ref(latin1(s)), null)
         }
+        // What ends a symbolic ref is whitespace or the file and nothing
+        // else, so a second line of junk is `No such ref`. That is the one
+        // place a symbolic ref is stricter than a loose ref, which ignores
+        // exactly such a line.
+        assertEq(ref(latin1('ref: refs/heads/master\njunk\n')), null)
     },
     // `packed-refs` as Git writes one: the header, a line per ref, and the
     // `^` line giving what the tag above it points at.
@@ -143,11 +163,15 @@ export const proof = {
             /** @type {readonly PackedRef[]} */ (packed(latin1(`# pack-refs with: sorted \n${t} refs/tags/v1\n${a} refs/heads/master\n`))).map(seen),
             [['refs/tags/v1', t, ''], ['refs/heads/master', a, '']],
         )
-        // A TAB separates as a SP does, which Git accepts.
-        assertStructurallySame(
-            /** @type {readonly PackedRef[]} */ (packed(latin1(`${a}\trefs/heads/master\n`))).map(seen),
-            [['refs/heads/master', a, '']],
-        )
+        // A TAB separates as a SP does, and so does a CR — the row I had
+        // missing. LF does not, since it ends the line, and neither do VT
+        // and FF, though C's `isspace` counts them.
+        for (const sep of ['\t', '\r', ' ']) {
+            assertStructurallySame(
+                /** @type {readonly PackedRef[]} */ (packed(latin1(`${a}${sep}refs/heads/master\n`))).map(seen),
+                [['refs/heads/master', a, '']],
+            )
+        }
         // A file of no bytes is a repository with nothing packed, not a
         // malformed one, and neither is the header alone.
         assertStructurallySame(packed(latin1('')), [])
@@ -182,6 +206,12 @@ export const proof = {
             `${a.slice(0, 39)} refs/heads/master\n`,
             `${a} refs/heads/master\n^${a.slice(0, 39)}\n`,
             `# header with no LF`,
+            // A CRLF line ends the name in a CR, and a control byte is no
+            // ref name: Git answers `bad ref refs/heads/master?`.
+            `${a} refs/heads/master\r\n`,
+            // VT and FF are not separators, so the id runs into the name.
+            `${a}\vrefs/heads/master\n`,
+            `${a}\frefs/heads/master\n`,
             // Not the header, so not a comment either: Git has no comment
             // syntax in this file. Each of these is `unexpected line`.
             `# hello\n${a} refs/heads/master\n`,
