@@ -22,12 +22,13 @@ import type {
  * DJS-level token set: a narrower view of JsToken (only the literal keywords
  * survive as bare keywords — `true`, `false`, `null` and the three
  * `literalGlobals` of `fjs/js/keywords`; every other keyword becomes an id)
- * plus its own punctuator kinds. `;` is a member because a statement may
+ * plus its own punctuator kinds and `-Infinity`, the one word the `-` folds
+ * into as it folds into a number. `;` is a member because a statement may
  * end with one — see the module-structure rule in `spec/README.md`, and
  * DataJS, which requires it.
  */
 export type DjsToken = |
-  {readonly kind: 'true' | 'false' | 'null' | 'undefined' | 'NaN' | 'Infinity'} |
+  {readonly kind: 'true' | 'false' | 'null' | 'undefined' | 'NaN' | 'Infinity' | '-Infinity'} |
   {readonly kind: '{' | '}' | ':' | ',' | '[' | ']' | '.' | '=' | ';' } |
   StringToken |
   NumberToken |
