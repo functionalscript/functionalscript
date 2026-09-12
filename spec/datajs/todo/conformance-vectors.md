@@ -2051,12 +2051,14 @@ The steps, in order; a step is one pull request unless it says otherwise:
       one in either writer set, so a writer with a first-slot path of its own
       inside a `const` body could put `null` where `undefined` belongs and pass
       everything. This one is exhaustible cheaply, since the bodies are the
-      shared nodes: 32 consts per set, `[k,0]` and `{"a":k,"b":0}` for each of
-      the sixteen kinds, and one vector per container kind referencing each
-      twice. All 36 cells of kind by body kind are now present in both writer
-      sets and in the reader set, measured. The matrix grows by two ids rather
-      than by 32, which is what makes the exhaustive form affordable here and
-      not in the escape cross.
+      shared nodes: 32 consts per set, `[k,0,k]` and `{"a":k,"b":0,"c":k}` for
+      each of the sixteen kinds, and one vector per container kind referencing
+      each twice. The kind sits in the body's first slot **and** in a later one,
+      because the round after asked the same question of the post-comma path and
+      it was the same shape; all 36 cells of kind by body kind are present in
+      both writer sets and in the reader set, measured. The matrix grows by two
+      ids rather than by 32, which is what makes the exhaustive form affordable
+      here and not in the escape cross.
       **Then the two cells that cross left over**, reported in the same round
       and both about a position rather than a value. A shared node's parent
       kind crossed with the child's emptiness has six spellable cells, not
